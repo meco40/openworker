@@ -1,27 +1,57 @@
-
 import { CORE_MEMORY_TOOLS } from './gemini';
-import { globalVectorStore } from './vectorStore';
+import type { MemoryNode } from './types';
 
 export { CORE_MEMORY_TOOLS };
 
-export const handleCoreMemoryCall = async (fcName: string, args: any) => {
-  if (fcName === 'core_memory_store') {
-    const node = await globalVectorStore.addNode(args.type, args.content, args.importance || 3);
-    return { action: 'store', data: node };
+interface MemoryCallResponse {
+  ok: boolean;
+  result?: { action: 'store' | 'recall'; data: unknown };
+  error?: string;
+}
+
+interface MemorySnapshotResponse {
+  ok: boolean;
+  nodes?: MemoryNode[];
+  error?: string;
+}
+
+export const handleCoreMemoryCall = async (
+  fcName: string,
+  args: unknown,
+): Promise<{ action: 'store' | 'recall'; data: unknown } | null> => {
+  if (fcName !== 'core_memory_store' && fcName !== 'core_memory_recall') return null;
+
+  try {
+    const response = await fetch('/api/memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fcName, args }),
+    });
+
+    const payload = (await response.json()) as MemoryCallResponse;
+    if (!response.ok || !payload.ok || !payload.result) {
+      console.warn('Memory call failed:', payload.error || `HTTP ${response.status}`);
+      return null;
+    }
+
+    return payload.result;
+  } catch (error) {
+    console.warn('Memory call request failed:', error);
+    return null;
   }
-  
-  if (fcName === 'core_memory_recall') {
-    const results = await globalVectorStore.search(args.query, args.limit || 3);
-    // Wir geben nur den relevanten Content zurück, um Token zu sparen
-    const context = results
-      .filter(r => r.similarity > 0.7) // Nur hochrelevante Treffer
-      .map(r => `[Type: ${r.node.type}] ${r.node.content}`)
-      .join('\n');
-      
-    return { action: 'recall', data: context || "No relevant memories found." };
-  }
-  
-  return null;
 };
 
-export const getMemorySnapshot = () => globalVectorStore.getAllNodes();
+export const getMemorySnapshot = async (): Promise<MemoryNode[]> => {
+  try {
+    const response = await fetch('/api/memory', { method: 'GET' });
+    const payload = (await response.json()) as MemorySnapshotResponse;
+    if (!response.ok || !payload.ok || !Array.isArray(payload.nodes)) {
+      console.warn('Memory snapshot failed:', payload.error || `HTTP ${response.status}`);
+      return [];
+    }
+    return payload.nodes;
+  } catch (error) {
+    console.warn('Memory snapshot request failed:', error);
+    return [];
+  }
+};

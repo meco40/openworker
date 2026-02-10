@@ -26,6 +26,9 @@ export interface GatewayRequest {
   max_tokens?: number;
   temperature?: number;
   stream?: boolean;
+  systemInstruction?: string;
+  tools?: unknown[];
+  responseMimeType?: string;
 }
 
 export interface GatewayResponse {
@@ -38,6 +41,7 @@ export interface GatewayResponse {
     completion_tokens: number;
     total_tokens: number;
   };
+  functionCalls?: Array<{ name: string; args?: unknown }>;
   error?: string;
 }
 

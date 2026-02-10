@@ -1,4 +1,3 @@
-
 export enum ChannelType {
   WHATSAPP = 'WhatsApp',
   TELEGRAM = 'Telegram',
@@ -7,7 +6,7 @@ export enum ChannelType {
   WEBCHAT = 'WebChat',
   SIGNAL = 'Signal',
   TEAMS = 'Teams',
-  IMESSAGE = 'iMessage'
+  IMESSAGE = 'iMessage',
 }
 
 export interface Peer {
@@ -17,6 +16,13 @@ export interface Peer {
   platform: ChannelType;
 }
 
+export interface MessageAttachment {
+  name: string;
+  type: string; // MIME type
+  url: string; // data URL or object URL
+  size: number; // bytes
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'agent' | 'system';
@@ -24,6 +30,16 @@ export interface Message {
   timestamp: string;
   peerId?: string;
   platform: ChannelType;
+  attachment?: MessageAttachment;
+}
+
+export interface Conversation {
+  id: string;
+  channelType: ChannelType;
+  externalChatId: string | null;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface MemoryEntry {
@@ -51,7 +67,7 @@ export interface GatewayState {
   onboarded: boolean;
   totalTokens: number;
   eventHistory: SystemLog[];
-  trafficData: { name: string, tokens: number }[];
+  trafficData: { name: string; tokens: number }[];
   memoryEntries: MemoryEntry[];
   scheduledTasks: ScheduledTask[];
 }
@@ -76,12 +92,12 @@ export enum View {
   TASKS = 'tasks',
   MODELS = 'models',
   WORKER = 'worker',
-  TEAMS = 'teams'
+  TEAMS = 'teams',
 }
 
 export interface CoupledChannel {
   type: ChannelType;
-  status: 'idle' | 'pairing' | 'connected';
+  status: 'idle' | 'pairing' | 'awaiting_code' | 'connected';
   peerName?: string;
   connectedAt?: string;
 }
@@ -128,7 +144,7 @@ export enum WorkerTaskStatus {
   IN_PROGRESS = 'in_progress',
   REVIEW = 'review',
   COMPLETED = 'completed',
-  FAILED = 'failed'
+  FAILED = 'failed',
 }
 
 export interface WorkerQuestion {
@@ -169,7 +185,7 @@ export interface WorkerTask {
   teamId?: string;
 }
 
-// Fixed: Added Skill interface used by SkillsRegistry and mapSkillsToTools
+// Skill interface — supports built-in and externally installed skills
 export interface Skill {
   id: string;
   name: string;
@@ -177,6 +193,9 @@ export interface Skill {
   category: string;
   installed: boolean;
   version: string;
+  functionName: string;
+  source: 'built-in' | 'github' | 'npm' | 'manual';
+  sourceUrl?: string;
 }
 
 // Fixed: Added CommandPermission interface used by SecurityView and constants

@@ -1,45 +1,216 @@
-
-import React, { useState } from 'react';
-import { CommandPermission } from '../types';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CommandPermission } from '../types';
 import { SECURITY_RULES } from '../constants';
+import { buildCommandSecurityChecks } from '../src/modules/security/overview';
+import type { SecurityCheck, SecurityCheckStatus } from '../src/modules/security/overview';
+
+interface SecurityStatusResponse {
+  ok: boolean;
+  checks?: SecurityCheck[];
+  generatedAt?: string;
+  error?: string;
+}
+
+const STATUS_META: Record<SecurityCheckStatus, { label: string; className: string; border: string }> = {
+  ok: {
+    label: 'OK',
+    className: 'text-emerald-500',
+    border: 'border-emerald-500/20',
+  },
+  warning: {
+    label: 'Warnung',
+    className: 'text-amber-500',
+    border: 'border-amber-500/20',
+  },
+  critical: {
+    label: 'Kritisch',
+    className: 'text-rose-500',
+    border: 'border-rose-500/20',
+  },
+};
+
+const CHECK_ORDER: Array<SecurityCheck['id']> = ['firewall', 'encryption', 'audit', 'isolation'];
 
 const SecurityView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'commands'>('overview');
   const [commands, setCommands] = useState<CommandPermission[]>(SECURITY_RULES);
+  const [remoteChecks, setRemoteChecks] = useState<SecurityCheck[]>([]);
+  const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
+  const [isChecking, setIsChecking] = useState(true);
+  const [checkError, setCheckError] = useState<string | null>(null);
+
+  const refreshStatus = useCallback(async () => {
+    setIsChecking(true);
+    setCheckError(null);
+    try {
+      const response = await fetch('/api/security/status', { cache: 'no-store' });
+      const payload = (await response.json()) as SecurityStatusResponse;
+      if (!response.ok || !payload.ok || !payload.checks) {
+        throw new Error(payload.error || 'Security status check failed.');
+      }
+      setRemoteChecks(payload.checks);
+      setLastCheckedAt(payload.generatedAt || new Date().toISOString());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Security status check failed.';
+      setCheckError(message);
+    } finally {
+      setIsChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshStatus();
+  }, [refreshStatus]);
+
+  const localChecks = useMemo(() => buildCommandSecurityChecks(commands), [commands]);
+
+  const checks = useMemo(() => {
+    const map = new Map<SecurityCheck['id'], SecurityCheck>();
+    remoteChecks.forEach((check) => map.set(check.id, check));
+    localChecks.forEach((check) => map.set(check.id, check));
+
+    const fallbackCheck = (id: SecurityCheck['id']): SecurityCheck => ({
+      id,
+      label: id,
+      status: 'warning',
+      detail: 'Kein Sicherheitsstatus verfügbar.',
+    });
+
+    return CHECK_ORDER.map((id) => map.get(id) || fallbackCheck(id));
+  }, [localChecks, remoteChecks]);
+
+  const summary = useMemo(
+    () => ({
+      ok: checks.filter((check) => check.status === 'ok').length,
+      warning: checks.filter((check) => check.status === 'warning').length,
+      critical: checks.filter((check) => check.status === 'critical').length,
+    }),
+    [checks],
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex items-center justify-between">
-        <h2 className="text-2xl font-black text-white uppercase tracking-tight">Security Panel</h2>
-        <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
-          <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest ${activeTab === 'overview' ? 'bg-indigo-600 text-white' : 'text-zinc-500'}`}>Overview</button>
-          <button onClick={() => setActiveTab('commands')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest ${activeTab === 'commands' ? 'bg-indigo-600 text-white' : 'text-zinc-500'}`}>Whitelist</button>
+        <div>
+          <h2 className="text-2xl font-black text-white uppercase tracking-tight">Security Panel</h2>
+          <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
+            {lastCheckedAt
+              ? `Last Check: ${new Date(lastCheckedAt).toLocaleString()}`
+              : 'Last Check: Pending'}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => void refreshStatus()}
+            className="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white disabled:opacity-60"
+            disabled={isChecking}
+          >
+            {isChecking ? 'Checking...' : 'Check Now'}
+          </button>
+          <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                activeTab === 'overview' ? 'bg-indigo-600 text-white' : 'text-zinc-500'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('commands')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                activeTab === 'commands' ? 'bg-indigo-600 text-white' : 'text-zinc-500'
+              }`}
+            >
+              Whitelist
+            </button>
+          </div>
         </div>
       </header>
 
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {['Active Firewall', 'E2E Encryption', 'Audit Logging', 'Task Isolation'].map(label => (
-            <div key={label} className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl">
-              <h4 className="text-xs font-black text-white uppercase mb-1">{label}</h4>
-              <span className="text-[10px] text-emerald-500 font-mono uppercase">Status: OK</span>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl">
+              <div className="text-[10px] text-zinc-600 uppercase tracking-widest">OK</div>
+              <div className="text-2xl font-black text-emerald-500">{summary.ok}</div>
             </div>
-          ))}
-        </div>
+            <div className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl">
+              <div className="text-[10px] text-zinc-600 uppercase tracking-widest">Warnings</div>
+              <div className="text-2xl font-black text-amber-500">{summary.warning}</div>
+            </div>
+            <div className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl">
+              <div className="text-[10px] text-zinc-600 uppercase tracking-widest">Critical</div>
+              <div className="text-2xl font-black text-rose-500">{summary.critical}</div>
+            </div>
+          </div>
+
+          {checkError && (
+            <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-xs text-rose-400">
+              Security-Check fehlgeschlagen: {checkError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {checks.map((check) => {
+              const status = STATUS_META[check.status];
+              return (
+                <div key={check.id} className={`bg-zinc-900/50 border ${status.border} p-6 rounded-2xl`}>
+                  <h4 className="text-xs font-black text-white uppercase mb-2">{check.label}</h4>
+                  <div className={`text-[10px] font-mono uppercase ${status.className}`}>
+                    Status: {status.label}
+                  </div>
+                  <div className="text-[10px] text-zinc-500 mt-2 leading-relaxed">{check.detail}</div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {activeTab === 'commands' && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
           <table className="w-full text-left text-[11px]">
             <thead className="bg-zinc-950 text-zinc-600 uppercase font-black tracking-widest">
-              <tr><th className="px-8 py-4">Command</th><th className="px-8 py-4">Risk</th><th className="px-8 py-4 text-right">Access</th></tr>
+              <tr>
+                <th className="px-8 py-4">Command</th>
+                <th className="px-8 py-4">Risk</th>
+                <th className="px-8 py-4 text-right">Access</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800">
-              {commands.map(c => (
-                <tr key={c.id} className="hover:bg-zinc-800/20">
-                  <td className="px-8 py-5 font-mono text-indigo-400">{c.command}</td>
-                  <td className="px-8 py-5"><span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${c.risk === 'High' ? 'text-rose-500' : 'text-emerald-500'}`}>{c.risk}</span></td>
-                  <td className="px-8 py-5 text-right"><button onClick={() => setCommands(prev => prev.map(rule => rule.id === c.id ? {...rule, enabled: !rule.enabled} : rule))} className={`px-3 py-1.5 rounded text-[9px] font-black uppercase ${c.enabled ? 'text-emerald-500' : 'text-zinc-600'}`}>{c.enabled ? 'Allowed' : 'Blocked'}</button></td>
+              {commands.map((command) => (
+                <tr key={command.id} className="hover:bg-zinc-800/20">
+                  <td className="px-8 py-5 font-mono text-indigo-400">{command.command}</td>
+                  <td className="px-8 py-5">
+                    <span
+                      className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                        command.risk === 'High'
+                          ? 'text-rose-500'
+                          : command.risk === 'Medium'
+                            ? 'text-amber-500'
+                            : 'text-emerald-500'
+                      }`}
+                    >
+                      {command.risk}
+                    </span>
+                  </td>
+                  <td className="px-8 py-5 text-right">
+                    <button
+                      onClick={() =>
+                        setCommands((previous) =>
+                          previous.map((rule) =>
+                            rule.id === command.id ? { ...rule, enabled: !rule.enabled } : rule,
+                          ),
+                        )
+                      }
+                      className={`px-3 py-1.5 rounded text-[9px] font-black uppercase ${
+                        command.enabled ? 'text-emerald-500' : 'text-zinc-600'
+                      }`}
+                    >
+                      {command.enabled ? 'Allowed' : 'Blocked'}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

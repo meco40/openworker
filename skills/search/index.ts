@@ -1,12 +1,21 @@
+import type { SkillManifest } from '@/shared/toolSchema';
 
-import { geminiSpec } from './gemini';
+const manifest: SkillManifest = {
+  id: 'search',
+  name: 'Google Search',
+  description: 'Echtzeit-Webzugriff via Google Search Grounding.',
+  version: '3.0.1',
+  category: 'Intelligence',
+  functionName: '__built_in__',
+  tool: {
+    builtIn: true,
+    providerConfig: {
+      gemini: { googleSearch: {} },
+    },
+  },
+};
 
 export default {
-  id: 'search',
-  providers: {
-    gemini: geminiSpec
-  },
-  execute: async () => {
-    return "Search completed via Grounding.";
-  }
+  ...manifest,
+  execute: async () => 'Search completed via Grounding.',
 };

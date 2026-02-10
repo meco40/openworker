@@ -1,0 +1,129 @@
+import { getCredentialStore } from '../credentials';
+import { processTelegramInboundMessage } from './telegramInbound';
+
+const CHANNEL = 'telegram';
+const POLL_INTERVAL_MS = 2_000; // 2 seconds
+
+interface TelegramUpdateMessage {
+  message_id: number;
+  from?: { id: number; first_name?: string; username?: string };
+  chat: { id: number; type: string };
+  text?: string;
+}
+
+interface TelegramUpdate {
+  update_id: number;
+  message?: TelegramUpdateMessage;
+}
+
+interface TelegramGetUpdatesResponse {
+  ok: boolean;
+  result?: TelegramUpdate[];
+}
+
+// ─── Polling State ───────────────────────────────────────────
+
+declare global {
+  var __telegramPollingTimer: ReturnType<typeof setTimeout> | undefined;
+  var __telegramPollingActive: boolean | undefined;
+}
+
+// ─── Start / Stop ────────────────────────────────────────────
+
+export function startTelegramPolling(): void {
+  if (globalThis.__telegramPollingActive) {
+    console.log('[Telegram Polling] Already active, skipping start.');
+    return;
+  }
+
+  const store = getCredentialStore();
+  const token = store.getCredential(CHANNEL, 'bot_token') || process.env.TELEGRAM_BOT_TOKEN;
+  const transport = store.getCredential(CHANNEL, 'update_transport');
+
+  if (!token) {
+    console.warn('[Telegram Polling] No bot token configured, cannot start polling.');
+    return;
+  }
+
+  if (transport !== 'polling') {
+    console.log('[Telegram Polling] Transport is not polling (transport=%s), skipping.', transport);
+    return;
+  }
+
+  globalThis.__telegramPollingActive = true;
+  console.log('[Telegram Polling] Started.');
+  schedulePoll();
+}
+
+export function stopTelegramPolling(): void {
+  globalThis.__telegramPollingActive = false;
+  if (globalThis.__telegramPollingTimer) {
+    clearTimeout(globalThis.__telegramPollingTimer);
+    globalThis.__telegramPollingTimer = undefined;
+  }
+  console.log('[Telegram Polling] Stopped.');
+}
+
+export function isTelegramPollingActive(): boolean {
+  return !!globalThis.__telegramPollingActive;
+}
+
+// ─── Internal ────────────────────────────────────────────────
+
+function schedulePoll(): void {
+  if (!globalThis.__telegramPollingActive) return;
+
+  globalThis.__telegramPollingTimer = setTimeout(async () => {
+    await pollOnce();
+    schedulePoll();
+  }, POLL_INTERVAL_MS);
+}
+
+async function pollOnce(): Promise<void> {
+  const store = getCredentialStore();
+  const token = store.getCredential(CHANNEL, 'bot_token') || process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    stopTelegramPolling();
+    return;
+  }
+
+  const offsetRaw = store.getCredential(CHANNEL, 'polling_offset') || '0';
+  const offset = parseInt(offsetRaw, 10) || 0;
+
+  try {
+    const url = `https://api.telegram.org/bot${token}/getUpdates?offset=${offset}&timeout=1&allowed_updates=["message"]`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.error('[Telegram Polling] getUpdates HTTP error:', response.status);
+      return;
+    }
+
+    const data = (await response.json()) as TelegramGetUpdatesResponse;
+
+    if (!data.ok || !data.result || data.result.length === 0) {
+      return;
+    }
+
+    let maxUpdateId = offset;
+
+    for (const update of data.result) {
+      if (update.update_id >= maxUpdateId) {
+        maxUpdateId = update.update_id + 1;
+      }
+
+      if (update.message?.text) {
+        try {
+          await processTelegramInboundMessage(update.message);
+        } catch (err) {
+          console.error('[Telegram Polling] Error processing message:', err);
+        }
+      }
+    }
+
+    // Persist new offset so we don't re-process old updates
+    store.setCredential(CHANNEL, 'polling_offset', String(maxUpdateId));
+  } catch (err) {
+    console.error('[Telegram Polling] Fetch error:', err);
+  }
+}

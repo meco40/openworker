@@ -1,47 +1,48 @@
-
-import { ai } from "../../services/gemini";
+import { ai } from '../../services/gateway';
 
 export const getEmbedding = async (text: string): Promise<number[]> => {
   try {
     /**
-     * The error 'Value must be a list given an array path requests[]' often occurs 
+     * The error 'Value must be a list given an array path requests[]' often occurs
      * when the backend misinterprets a single embedding request as a batch one.
      * We attempt the single 'embedContent' call first with the standard SDK structure.
      */
     const result = await ai.models.embedContent({
-      model: "text-embedding-004",
-      content: { parts: [{ text }] }
+      model: 'text-embedding-004',
+      content: { parts: [{ text }] },
     });
-    
+
     if (result?.embedding?.values) {
       return result.embedding.values;
     }
 
-    throw new Error("Invalid response format from embedContent");
+    throw new Error('Invalid response format from embedContent');
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.warn("Primary embedding attempt failed, trying batch fallback:", message);
+    console.warn('Primary embedding attempt failed, trying batch fallback:', message);
 
     /**
-     * If the single call fails with a batch-related error, 
+     * If the single call fails with a batch-related error,
      * we try the explicit batch method if available.
      */
     try {
       const batchResult = await ai.models.batchEmbedContents({
-        requests: [{
-          model: "text-embedding-004",
-          content: { parts: [{ text }] }
-        }]
+        requests: [
+          {
+            model: 'text-embedding-004',
+            content: { parts: [{ text }] },
+          },
+        ],
       });
-      
+
       if (batchResult?.embeddings?.[0]?.values) {
         return batchResult.embeddings[0].values;
       }
     } catch (batchError) {
-      console.error("Batch embedding fallback also failed:", batchError);
+      console.error('Batch embedding fallback also failed:', batchError);
     }
 
-    // Return a zero-vector (768 dimensions for text-embedding-004) 
+    // Return a zero-vector (768 dimensions for text-embedding-004)
     // to ensure the application remains stable.
     return new Array(768).fill(0);
   }

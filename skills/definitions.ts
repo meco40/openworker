@@ -1,41 +1,49 @@
+/**
+ * Skill Tool Mapper — converts installed skills into provider-specific
+ * tool definitions for the AI model context.
+ */
 
-import { Skill } from "../types";
-import browser from "./browser";
-import python from "./python-runtime";
-import search from "./search";
-import vision from "./vision";
-import filesystem from "./filesystem";
-import github from "./github-manager";
-import shell from "./shell-access";
-import sql from "./sql-bridge";
+import type { Skill } from '../types';
+import type { SkillToolDefinition } from '../src/shared/toolSchema';
+import { convertTools } from '../src/shared/toolConverters';
+
+import browser from './browser';
+import python from './python-runtime';
+import search from './search';
+import vision from './vision';
+import filesystem from './filesystem';
+import github from './github-manager';
+import shell from './shell-access';
+import sql from './sql-bridge';
+
+interface SkillModule {
+  id: string;
+  tool: SkillToolDefinition;
+}
+
+const SKILL_MODULES: SkillModule[] = [
+  browser,
+  python,
+  search,
+  vision,
+  filesystem,
+  github,
+  shell,
+  sql,
+];
 
 /**
- * Universal Tool Mapper for optional skills.
+ * Build the tool array for the given provider from currently installed skills.
+ *
+ * @param skills — current skill list (with installed flags)
+ * @param provider — target AI provider ('gemini' | 'openai' | 'claude')
  */
-export const mapSkillsToTools = (skills: Skill[], provider: 'gemini' | 'claude' = 'gemini'): any[] => {
-  const tools: any[] = [];
-  const installedIds = skills.filter(s => s.installed).map(s => s.id);
+export function mapSkillsToTools(skills: Skill[], provider: string = 'gemini'): unknown[] {
+  const installedIds = new Set(skills.filter((s) => s.installed).map((s) => s.id));
 
-  const addIfInstalled = (skillId: string, skillModule: any) => {
-    if (installedIds.includes(skillId)) {
-      if (skillModule.providers[provider]) {
-        if (skillId === 'search') {
-          tools.push(skillModule.providers[provider]);
-        } else {
-          tools.push({ functionDeclarations: [skillModule.providers[provider]] });
-        }
-      }
-    }
-  };
+  const toolDefs: SkillToolDefinition[] = SKILL_MODULES.filter((m) => installedIds.has(m.id)).map(
+    (m) => m.tool,
+  );
 
-  addIfInstalled('browser', browser);
-  addIfInstalled('python-runtime', python);
-  addIfInstalled('search', search);
-  addIfInstalled('vision', vision);
-  addIfInstalled('filesystem', filesystem);
-  addIfInstalled('github-manager', github);
-  addIfInstalled('shell-access', shell);
-  addIfInstalled('sql-bridge', sql);
-
-  return tools;
-};
+  return convertTools(toolDefs, provider);
+}

@@ -1,13 +1,27 @@
-
-import { geminiSpec } from './gemini';
+import type { SkillManifest } from '@/shared/toolSchema';
 import { executeSkillApi } from '../runtime-client';
 
-export default {
+const manifest: SkillManifest = {
   id: 'sql-bridge',
-  providers: {
-    gemini: geminiSpec
+  name: 'SQL Bridge',
+  description: 'Sicherer Read/Write Zugriff auf SQL-Datenbanken.',
+  version: '2.0.1',
+  category: 'Data',
+  functionName: 'db_query',
+  tool: {
+    name: 'db_query',
+    description: 'Execute a read-only SQL query against the connected database.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Valid SQL SELECT statement.' },
+      },
+      required: ['query'],
+    },
   },
-  execute: async (args: { query: string }) => {
-    return executeSkillApi('db_query', args);
-  }
+};
+
+export default {
+  ...manifest,
+  execute: async (args: Record<string, unknown>) => executeSkillApi('db_query', args),
 };

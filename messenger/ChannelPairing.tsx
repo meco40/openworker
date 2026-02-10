@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChannelType, CoupledChannel } from '../types';
 import { WhatsAppHandler } from './whatsapp/WhatsAppHandler';
 import { TelegramHandler } from './telegram/TelegramHandler';
@@ -18,14 +18,20 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({ coupledChannels, onUpda
   const [pairingLogs, setPairingLogs] = useState<string[]>([]);
   const [inputToken, setInputToken] = useState('');
   const [simMessage, setSimMessage] = useState('');
+  const [pairingCode, setPairingCode] = useState('');
+  const [isConfirmingCode, setIsConfirmingCode] = useState(false);
+  const [telegramTransport, setTelegramTransport] = useState<'webhook' | 'polling' | null>(null);
+  const telegramPollingErrorLogged = useRef(false);
 
   const currentChannel = coupledChannels[activeTab];
 
-  const addLog = (msg: string) => {
+  const addLog = useCallback((msg: string) => {
     setPairingLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev.slice(0, 9)]);
-  };
+  }, []);
 
   const startPairing = async () => {
+    setPairingCode('');
+    setIsConfirmingCode(false);
     onUpdateCoupling(activeTab, { status: 'pairing' });
     addLog(`Initiating pairing sequence for ${activeTab.toUpperCase()}...`);
 
@@ -43,12 +49,24 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({ coupledChannels, onUpda
         throw new Error(payload?.error || 'Pairing failed.');
       }
 
+      const nextStatus = payload.status === 'awaiting_code' ? 'awaiting_code' : 'connected';
+      if (activeTab === 'telegram') {
+        const transport = payload.transport === 'polling' ? 'polling' : 'webhook';
+        setTelegramTransport(nextStatus === 'awaiting_code' ? transport : null);
+      }
       onUpdateCoupling(activeTab, {
-        status: 'connected',
+        status: nextStatus,
         peerName: payload.peerName,
-        connectedAt: payload.connectedAt,
+        connectedAt: nextStatus === 'connected' ? payload.connectedAt : undefined,
       });
-      addLog(`Success! ${activeTab.toUpperCase()} bridge established (${payload.peerName}).`);
+      if (nextStatus === 'awaiting_code') {
+        addLog('Token valid. Send a Telegram message to the bot to receive the pairing code.');
+        if (activeTab === 'telegram' && payload.transport === 'polling') {
+          addLog('Webhook URL unavailable. Using Telegram polling fallback.');
+        }
+      } else {
+        addLog(`Success! ${activeTab.toUpperCase()} bridge established (${payload.peerName}).`);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       onUpdateCoupling(activeTab, { status: 'idle', peerName: undefined, connectedAt: undefined });
@@ -56,11 +74,118 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({ coupledChannels, onUpda
     }
   };
 
-  const disconnect = () => {
-    onUpdateCoupling(activeTab, { status: 'idle', peerName: undefined, connectedAt: undefined });
-    addLog(`Dismantled ${activeTab.toUpperCase()} bridge.`);
-    setInputToken('');
+  const confirmTelegramPairingCode = async () => {
+    const code = pairingCode.trim();
+    if (!code) {
+      addLog('Pairing code is required.');
+      return;
+    }
+
+    setIsConfirmingCode(true);
+    addLog('Verifying Telegram pairing code...');
+    try {
+      const response = await fetch('/api/channels/telegram/pairing/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'Pairing code verification failed.');
+      }
+
+      onUpdateCoupling('telegram', {
+        status: 'connected',
+        peerName: payload.chatId ? `telegram:${payload.chatId}` : currentChannel.peerName,
+        connectedAt: payload.connectedAt,
+      });
+      setTelegramTransport(null);
+      setPairingCode('');
+      addLog(`Telegram pairing confirmed (${payload.chatId}).`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      addLog(`Pairing code rejected: ${message}`);
+    } finally {
+      setIsConfirmingCode(false);
+    }
   };
+
+  const disconnect = async () => {
+    addLog(`Disconnecting ${activeTab.toUpperCase()} bridge...`);
+    try {
+      const response = await fetch('/api/channels/pair', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: activeTab }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'Disconnect failed.');
+      }
+      addLog(`${activeTab.toUpperCase()} bridge dismantled successfully.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      addLog(`Disconnect warning: ${message} (local state cleared anyway)`);
+    }
+    onUpdateCoupling(activeTab, { status: 'idle', peerName: undefined, connectedAt: undefined });
+    setInputToken('');
+    setPairingCode('');
+    setIsConfirmingCode(false);
+    if (activeTab === 'telegram') {
+      setTelegramTransport(null);
+    }
+  };
+
+  useEffect(() => {
+    const telegramChannel = coupledChannels.telegram;
+    if (!telegramChannel || telegramChannel.status !== 'awaiting_code' || telegramTransport !== 'polling') {
+      return;
+    }
+
+    let stopped = false;
+    let inFlight = false;
+
+    const pollUpdates = async () => {
+      if (stopped || inFlight) {
+        return;
+      }
+      inFlight = true;
+      try {
+        const response = await fetch('/api/channels/telegram/pairing/poll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.ok) {
+          if (!telegramPollingErrorLogged.current) {
+            addLog(`Telegram polling warning: ${payload?.error || 'Polling request failed.'}`);
+            telegramPollingErrorLogged.current = true;
+          }
+          return;
+        }
+        telegramPollingErrorLogged.current = false;
+        if (payload.codeIssued) {
+          addLog('Pairing code sent to Telegram via polling fallback.');
+        }
+      } catch (error) {
+        if (!telegramPollingErrorLogged.current) {
+          const message = error instanceof Error ? error.message : 'Polling request failed.';
+          addLog(`Telegram polling warning: ${message}`);
+          telegramPollingErrorLogged.current = true;
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    pollUpdates();
+    const timer = setInterval(pollUpdates, 3000);
+
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [addLog, coupledChannels.telegram, telegramTransport]);
 
   const handleSimulate = () => {
     if (!simMessage.trim() || !onSimulateIncoming) return;
@@ -109,7 +234,20 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({ coupledChannels, onUpda
                 <WhatsAppHandler channel={currentChannel} onStartPairing={startPairing} onDisconnect={disconnect} simMessage={simMessage} setSimMessage={setSimMessage} onSimulate={handleSimulate} />
               )}
               {activeTab === 'telegram' && (
-                <TelegramHandler channel={currentChannel} onStartPairing={startPairing} onDisconnect={disconnect} token={inputToken} setToken={setInputToken} simMessage={simMessage} setSimMessage={setSimMessage} onSimulate={handleSimulate} />
+                <TelegramHandler
+                  channel={currentChannel}
+                  onStartPairing={startPairing}
+                  onConfirmPairingCode={confirmTelegramPairingCode}
+                  onDisconnect={disconnect}
+                  pairingCode={pairingCode}
+                  setPairingCode={setPairingCode}
+                  isConfirmingCode={isConfirmingCode}
+                  token={inputToken}
+                  setToken={setInputToken}
+                  simMessage={simMessage}
+                  setSimMessage={setSimMessage}
+                  onSimulate={handleSimulate}
+                />
               )}
               {activeTab === 'discord' && (
                 <GenericChannelHandler

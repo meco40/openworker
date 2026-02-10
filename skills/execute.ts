@@ -1,3 +1,13 @@
+/**
+ * Client-side skill execution dispatcher.
+ *
+ * When the AI model returns a FunctionCall, this module resolves which
+ * skill module handles it and delegates to the server via the API.
+ */
+
+import { normalizeArgs } from '../src/shared/normalizeArgs';
+import type { Skill } from '../types';
+
 import browser from './browser';
 import filesystem from './filesystem';
 import github from './github-manager';
@@ -5,45 +15,28 @@ import python from './python-runtime';
 import shell from './shell-access';
 import sql from './sql-bridge';
 import vision from './vision';
-import type { Skill } from '../types';
-
-const FUNCTION_TO_SKILL: Record<string, string> = {
-  browser_snapshot: 'browser',
-  file_read: 'filesystem',
-  github_query: 'github-manager',
-  python_execute: 'python-runtime',
-  shell_execute: 'shell-access',
-  db_query: 'sql-bridge',
-  vision_analyze: 'vision',
-};
 
 interface SkillModule {
+  id: string;
+  functionName: string;
   execute: (args: Record<string, unknown>) => Promise<unknown>;
 }
 
-const MODULES: Record<string, SkillModule> = {
-  browser: browser as unknown as SkillModule,
-  filesystem: filesystem as unknown as SkillModule,
-  'github-manager': github as unknown as SkillModule,
-  'python-runtime': python as unknown as SkillModule,
-  'shell-access': shell as unknown as SkillModule,
-  'sql-bridge': sql as unknown as SkillModule,
-  vision: vision as unknown as SkillModule,
-};
+/** Map function names (as returned by AI models) → skill module id. */
+const FUNCTION_TO_SKILL: Record<string, string> = {};
 
-function normalizeArgs(args: unknown): Record<string, unknown> {
-  if (!args) return {};
-  if (typeof args === 'string') {
-    try {
-      const parsed = JSON.parse(args);
-      return typeof parsed === 'object' && parsed ? (parsed as Record<string, unknown>) : {};
-    } catch {
-      return {};
-    }
-  }
-  return typeof args === 'object' ? (args as Record<string, unknown>) : {};
+/** Map skill id → module with execute function. */
+const MODULES: Record<string, SkillModule> = {};
+
+// Register all built-in skill modules.
+for (const mod of [browser, filesystem, github, python, shell, sql, vision] as SkillModule[]) {
+  FUNCTION_TO_SKILL[mod.functionName] = mod.id;
+  MODULES[mod.id] = mod;
 }
 
+/**
+ * Execute a skill function call, verifying it is installed first.
+ */
 export async function executeSkillFunctionCall(
   functionName: string,
   args: unknown,

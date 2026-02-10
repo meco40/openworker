@@ -11,21 +11,33 @@ function makeRequest(body: Record<string, unknown>) {
 
 describe('channel pair route requests', () => {
   it('handles telegram pairing request', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          ok: true,
-          result: { id: 123, username: 'claw_bot' },
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
-      ),
-    );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            ok: true,
+            result: { id: 123, username: 'claw_bot' },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            ok: true,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
 
     const response = await pairPost(makeRequest({ channel: 'telegram', token: 'abc' }));
     const json = await response.json();
 
     expect(response.status).toBe(200);
     expect(json.ok).toBe(true);
+    expect(json.status).toBe('awaiting_code');
+    expect(json.transport).toBe('polling');
     expect(json.peerName).toContain('claw_bot');
     fetchMock.mockRestore();
   });

@@ -2,6 +2,27 @@ import { GoogleGenAI } from '@google/genai';
 import type { ProviderAdapter } from '../types';
 import { fetchWithTimeout } from '../shared/http';
 
+function extractGeminiFunctionCalls(result: unknown): Array<{ name: string; args?: unknown }> {
+  if (!result || typeof result !== 'object') return [];
+  const typed = result as {
+    functionCalls?: Array<{ name: string; args?: unknown }>;
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{ functionCall?: { name: string; args?: unknown } }>;
+      };
+    }>;
+  };
+
+  if (Array.isArray(typed.functionCalls) && typed.functionCalls.length > 0) {
+    return typed.functionCalls;
+  }
+
+  const parts = typed.candidates?.[0]?.content?.parts ?? [];
+  return parts
+    .map((part) => part.functionCall)
+    .filter((call): call is { name: string; args?: unknown } => Boolean(call && call.name));
+}
+
 const geminiProviderAdapter: ProviderAdapter = {
   id: 'gemini',
   async fetchModels({ secret }) {
@@ -50,9 +71,13 @@ const geminiProviderAdapter: ProviderAdapter = {
     try {
       const ai = new GoogleGenAI({ apiKey: secret });
 
-      const systemMessages = request.messages
+      // Merge system messages from GatewayMessage[] with explicit systemInstruction
+      const systemFromMessages = request.messages
         .filter((message) => message.role === 'system')
         .map((message) => message.content)
+        .join('\n');
+      const systemInstruction = [request.systemInstruction, systemFromMessages]
+        .filter(Boolean)
         .join('\n');
 
       const contents = request.messages
@@ -63,15 +88,22 @@ const geminiProviderAdapter: ProviderAdapter = {
         }));
 
       const config: Record<string, unknown> = {};
-      if (systemMessages) config.systemInstruction = systemMessages;
+      if (systemInstruction) config.systemInstruction = systemInstruction;
       if (request.max_tokens) config.maxOutputTokens = request.max_tokens;
       if (request.temperature !== undefined) config.temperature = request.temperature;
+      if (request.responseMimeType) config.responseMimeType = request.responseMimeType;
+      if (Array.isArray(request.tools) && request.tools.length > 0) {
+        config.tools = request.tools;
+      }
 
-      const result = await ai.models.generateContent({
+      const result = await (ai.models as any).generateContent({
         model: request.model,
         contents,
         config,
       });
+
+      // Extract function calls from Gemini response
+      const functionCalls = extractGeminiFunctionCalls(result);
 
       const usage = result?.usageMetadata;
       return {
@@ -79,6 +111,7 @@ const geminiProviderAdapter: ProviderAdapter = {
         text: result?.text ?? '',
         model: request.model,
         provider: 'gemini',
+        functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
         usage: usage
           ? {
               prompt_tokens: usage.promptTokenCount ?? 0,

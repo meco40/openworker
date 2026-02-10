@@ -89,8 +89,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               <span>Personality Matrix</span>
             </h3>
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="w-full min-h-[200px]">
+            <ResponsiveContainer width="100%" height={256}>
               <RadarChart cx="50%" cy="50%" outerRadius="70%" data={personalityStats}>
                 <PolarGrid stroke="#27272a" />
                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 9, fontWeight: 'bold' }} />

@@ -41,6 +41,9 @@ View your app in AI Studio: https://ai.studio/apps/drive/1IDnSo84qybNjnhUSlQK99l
 - `SQLITE_DB_PATH`: Relative path to a SQLite database file for `db_query` (read-only).
 - `WHATSAPP_BRIDGE_URL`: Health-checkable bridge URL (`/health`) for WhatsApp pairing.
 - `IMESSAGE_BRIDGE_URL`: Health-checkable bridge URL (`/health`) for iMessage pairing.
+- `MEMORY_DB_PATH`: Optional SQLite file path for persistent core memory (`/api/memory`). Defaults to `MESSAGES_DB_PATH` and then `.local/messages.db`.
+
+Core memory (`core_memory_store` / `core_memory_recall`) is persisted server-side in SQLite and survives browser reloads and server restarts.
 
 ## Production
 

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { WorkerTask, WorkerTaskStatus, Team, Skill } from './types';
-import { ai } from './services/gemini';
+import { ai } from './services/gateway';
 import { mapSkillsToTools } from './skills/definitions';
 import { WorkerFlow } from './components/WorkerFlow';
 import { ArtifactViewer } from './components/WorkerArtifacts';
@@ -62,7 +62,6 @@ const WorkerView: React.FC<WorkerViewProps> = ({ teams, tasks, setTasks, skills 
       const prompt = buildAnalyzeTaskPrompt(task.prompt, activeSkills.map(s => s.name));
       
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
         contents: prompt,
         config: { 
           responseMimeType: 'application/json',
@@ -93,7 +92,6 @@ const WorkerView: React.FC<WorkerViewProps> = ({ teams, tasks, setTasks, skills 
         addTerminalLog(`exec --step ${step + 1}`, stepDesc);
 
         const stepResponse = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
           contents: buildExecutionStepPrompt(task.prompt, stepDesc, step + 1, plan.length),
         });
 
@@ -103,7 +101,6 @@ const WorkerView: React.FC<WorkerViewProps> = ({ teams, tasks, setTasks, skills 
       }
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
         contents: buildFinalizePrompt(task.prompt, stepOutputs),
         config: { responseMimeType: 'application/json' }
       });

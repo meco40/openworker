@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Modality, LiveServerMessage } from '@google/genai';
-import { ai, LIVE_MODE_SUPPORTED, SYSTEM_INSTRUCTION } from '../services/gemini';
+import { ai, LIVE_MODE_SUPPORTED, SYSTEM_INSTRUCTION } from '../services/gateway';
 import { decodeBase64, decodeAudioData, createPcmBlob } from '../services/audio';
 
 interface VoiceOverlayProps {

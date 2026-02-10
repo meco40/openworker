@@ -7,6 +7,13 @@ export async function pairDiscord(token: string) {
   if (!response.ok) {
     throw new Error(`Discord auth failed: ${JSON.stringify(data)}`);
   }
+
+  // Persist token to credential store + env fallback
+  const { getCredentialStore } = await import('../credentials');
+  const store = getCredentialStore();
+  store.setCredential('discord', 'bot_token', token);
+  process.env.DISCORD_BOT_TOKEN = token;
+
   return {
     peerName: data.username ? `${data.username}#${data.discriminator || '0'}` : 'discord-bot',
     details: data,

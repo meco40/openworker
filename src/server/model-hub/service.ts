@@ -156,4 +156,51 @@ export class ModelHubService {
       error: `All models failed: ${errors.join(' | ')}`,
     };
   }
+
+  // ─── Embedding dispatch ────────────────────────────────────────
+
+  async dispatchEmbedding(
+    encryptionKey: string,
+    input: { operation: 'embedContent' | 'batchEmbedContents'; payload: Record<string, unknown> },
+  ): Promise<Record<string, unknown>> {
+    // Find an account with a Gemini provider for embeddings
+    const accounts = this.repository.listAccounts();
+    const geminiAccount = accounts.find((a) => a.providerId === 'gemini');
+    if (!geminiAccount) {
+      return { error: 'No Gemini account available for embeddings.' };
+    }
+
+    const record = this.repository.getAccountRecordById(geminiAccount.id);
+    if (!record) {
+      return { error: 'Gemini account record not found.' };
+    }
+
+    const { decryptSecret } = await import('./crypto');
+    const secret = decryptSecret(record.encryptedSecret, encryptionKey);
+    if (!secret?.trim()) {
+      return { error: 'Gemini account secret is missing or empty.' };
+    }
+
+    const { GoogleGenAI } = await import('@google/genai');
+    const ai = new GoogleGenAI({ apiKey: secret });
+
+    try {
+      if (input.operation === 'embedContent') {
+        const result = await (ai.models as any).embedContent(input.payload);
+        return result ?? {};
+      }
+      if (input.operation === 'batchEmbedContents') {
+        const modelsObj = ai.models as any;
+        if (typeof modelsObj.batchEmbedContents !== 'function') {
+          return { embeddings: [] };
+        }
+        const result = await modelsObj.batchEmbedContents(input.payload);
+        return result ?? {};
+      }
+      return { error: `Unknown embedding operation: ${input.operation}` };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Embedding request failed';
+      return { error: message };
+    }
+  }
 }

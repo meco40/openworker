@@ -3,7 +3,9 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function read(relativePath: string): string {
-  return fs.readFileSync(path.join(process.cwd(), relativePath), 'utf-8');
+  const absolutePath = path.join(process.cwd(), relativePath);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- controlled test fixture paths
+  return fs.readFileSync(absolutePath, 'utf-8');
 }
 
 describe('react/next best-practices refactor', () => {
@@ -23,14 +25,15 @@ describe('react/next best-practices refactor', () => {
   });
 
   it('uses dynamic imports for heavy optional views', () => {
-    const app = read('App.tsx');
-    expect(app).toContain("import dynamic from 'next/dynamic';");
-    expect(app).toContain("dynamic(() => import('./WorkerView')");
+    const viewContent = read('src/modules/app-shell/components/AppShellViewContent.tsx');
+    expect(viewContent).toContain("import dynamic from 'next/dynamic';");
+    expect(viewContent).toContain("dynamic(() => import('../../../../WorkerView'))");
+    expect(viewContent).toContain("dynamic(() => import('../../../../components/ModelHub'))");
   });
 
   it('parallelizes independent skill function calls', () => {
-    const app = read('App.tsx');
-    expect(app).toContain('Promise.all(');
+    const runtime = read('src/modules/app-shell/useAgentRuntime.ts');
+    expect(runtime).toContain('Promise.all(');
   });
 
   it('avoids mutating sort in Dashboard render path', () => {
@@ -46,7 +49,12 @@ describe('react/next best-practices refactor', () => {
 
   it('uses lazy state initialization for expensive initial values', () => {
     const app = read('App.tsx');
-    expect(app).toContain('useState<Message[]>(() => [');
-    expect(app).toContain('useState<GatewayState>(() => ({');
+    const conversationSync = read('src/modules/app-shell/useConversationSync.ts');
+    const gatewayState = read('src/modules/app-shell/useGatewayState.ts');
+
+    expect(app).toContain('useState<View>(() => buildInitialShellState().currentView)');
+    expect(app).toContain('useState<Record<string, CoupledChannel>>(() => {');
+    expect(conversationSync).toContain('useState<Message[]>(() => [])');
+    expect(gatewayState).toContain('useState<GatewayState>(() => createInitialGatewayState())');
   });
 });
