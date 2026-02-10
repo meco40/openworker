@@ -1,0 +1,9 @@
+{
+  "name": "OpenClaw Gateway Control Plane",
+  "description": "A sophisticated AI-Agent Gateway and Control Plane for managing multi-channel communication, sessions, and tool-augmented agents.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
