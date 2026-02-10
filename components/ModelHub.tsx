@@ -1,268 +1,455 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
-import { AIProvider, ModelProfile } from '../types';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ai } from '../services/gemini';
-
-// Focus on actual Gemini models as per the coding guidelines
-const REAL_MODELS = [
-  'gemini-3-flash-preview',
-  'gemini-3-pro-preview',
-  'gemini-2.5-flash-lite-latest',
-  'gemini-2.5-flash-latest',
-  'gemini-2.5-flash-image',
-  'gemini-3-pro-image-preview',
-  'gemini-2.5-flash-native-audio-preview-12-2025'
-];
-
-const GEMINI_PROVIDER: AIProvider = { 
-  id: 'gemini', 
-  name: 'Google Gemini', 
-  authType: 'api_key', 
-  icon: '✨', 
-  availableModels: REAL_MODELS 
-};
-
-const INITIAL_PROFILES: ModelProfile[] = [
-  {
-    id: 'p1',
-    name: 'Production Chain',
-    description: 'The actual active configuration for this node.',
-    stack: [
-      { id: 'm1', providerId: 'gemini', name: 'gemini-3-flash-preview', priority: 1, status: 'active' },
-      { id: 'm2', providerId: 'gemini', name: 'gemini-3-pro-preview', priority: 2, status: 'active' },
-    ]
-  }
-];
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PROFILE_ID } from './model-hub/constants';
+import AddModelModal from './model-hub/modals/AddModelModal';
+import HeaderSection from './model-hub/sections/HeaderSection';
+import PipelineSection from './model-hub/sections/PipelineSection';
+import SidebarSection from './model-hub/sections/SidebarSection';
+import type {
+  ApiResponse,
+  ConnectMessage,
+  FetchedModel,
+  PipelineModel,
+  ProviderAccount,
+  ProviderCatalogEntry,
+  SessionStats,
+} from './model-hub/types';
+import { filterLiveModels, getDefaultActiveModel } from './model-hub/utils';
 
 const ModelHub: React.FC = () => {
-  const [profiles, setProfiles] = useState<ModelProfile[]>(INITIAL_PROFILES);
-  const activeProfileId = 'p1';
+  const [providerCatalog, setProviderCatalog] = useState<ProviderCatalogEntry[]>([]);
+  const [isLoadingProviders, setIsLoadingProviders] = useState(true);
+
+  const [providerAccounts, setProviderAccounts] = useState<ProviderAccount[]>([]);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
+
+  const [pipeline, setPipeline] = useState<PipelineModel[]>([]);
+  const [isLoadingPipeline, setIsLoadingPipeline] = useState(true);
+
+  const [connectProviderId, setConnectProviderId] = useState('');
+  const [connectAuthMethod, setConnectAuthMethod] = useState<'api_key' | 'oauth'>('api_key');
+  const [connectLabel, setConnectLabel] = useState('');
+  const [connectSecret, setConnectSecret] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectMessage, setConnectMessage] = useState<ConnectMessage | null>(null);
+
   const [isProbing, setIsProbing] = useState(false);
   const [probeResult, setProbeResult] = useState<string | null>(null);
-  
-  const [sessionStats, setSessionStats] = useState({
+  const [isTestingAll, setIsTestingAll] = useState(false);
+  const [bulkProbeSummary, setBulkProbeSummary] = useState<string | null>(null);
+
+  const [isAddModelOpen, setIsAddModelOpen] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [selectedModelId, setSelectedModelId] = useState('');
+  const [selectedPriority, setSelectedPriority] = useState(1);
+  const [liveModels, setLiveModels] = useState<FetchedModel[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
+
+  const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null);
+
+  const [sessionStats, setSessionStats] = useState<SessionStats>({
     requests: 0,
-    startTime: new Date().toLocaleTimeString(),
-    history: [] as { time: string, value: number }[]
+    lastProbeOk: null,
   });
 
-  const activeProfile = useMemo(() => 
-    profiles.find(p => p.id === activeProfileId) || profiles[0], 
-  [profiles, activeProfileId]);
+  const providerLookup = useMemo(
+    () => new Map<string, ProviderCatalogEntry>(providerCatalog.map((provider) => [provider.id, provider])),
+    [providerCatalog],
+  );
 
-  const defaultModel = useMemo(() => 
-    [...activeProfile.stack].sort((a, b) => a.priority - b.priority)[0],
-  [activeProfile]);
+  const selectedConnectProvider = useMemo(
+    () => providerLookup.get(connectProviderId) ?? null,
+    [connectProviderId, providerLookup],
+  );
+
+  const availableAuthMethods = useMemo(
+    () => selectedConnectProvider?.authMethods ?? (['api_key'] as Array<'api_key' | 'oauth'>),
+    [selectedConnectProvider],
+  );
+
+  const defaultModel = useMemo(() => getDefaultActiveModel(pipeline), [pipeline]);
+
+  const filteredLiveModels = useMemo(
+    () => filterLiveModels(liveModels, modelSearchQuery),
+    [liveModels, modelSearchQuery],
+  );
+
+  const selectedAccount = useMemo(
+    () => providerAccounts.find((account) => account.id === selectedAccountId) ?? null,
+    [providerAccounts, selectedAccountId],
+  );
+
+  const loadProviders = useCallback(async () => {
+    setIsLoadingProviders(true);
+    try {
+      const response = await fetch('/api/model-hub/providers');
+      const data = (await response.json()) as ApiResponse & { providers?: ProviderCatalogEntry[] };
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      const providers = data.providers ?? [];
+      setProviderCatalog(providers);
+      if (providers.length > 0 && !connectProviderId) {
+        setConnectProviderId(providers[0].id);
+      }
+    } catch {
+      // fallback: leave empty, user will see loading error
+    } finally {
+      setIsLoadingProviders(false);
+    }
+  }, [connectProviderId]);
+
+  const loadAccounts = useCallback(async () => {
+    setIsLoadingAccounts(true);
+    setAccountsError(null);
+    try {
+      const response = await fetch('/api/model-hub/accounts');
+      const data = (await response.json()) as ApiResponse & { accounts?: ProviderAccount[] };
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      setProviderAccounts(data.accounts ?? []);
+    } catch (error) {
+      setAccountsError(error instanceof Error ? error.message : 'Failed to load accounts');
+    } finally {
+      setIsLoadingAccounts(false);
+    }
+  }, []);
+
+  const loadPipeline = useCallback(async () => {
+    setIsLoadingPipeline(true);
+    try {
+      const response = await fetch(`/api/model-hub/pipeline?profileId=${PROFILE_ID}`);
+      const data = (await response.json()) as ApiResponse & { models?: PipelineModel[] };
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      setPipeline(data.models ?? []);
+    } catch {
+      setPipeline([]);
+    } finally {
+      setIsLoadingPipeline(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (sessionStats.history.length > 0) return;
-    setSessionStats(prev => ({
-      ...prev,
-      history: [{ time: prev.startTime, value: 0 }]
-    }));
-  }, [sessionStats.history.length]);
+    void loadProviders();
+    void loadAccounts();
+    void loadPipeline();
+  }, [loadProviders, loadAccounts, loadPipeline]);
 
-  const runConnectionProbe = async () => {
+  useEffect(() => {
+    if (!selectedConnectProvider) return;
+    if (!availableAuthMethods.includes(connectAuthMethod)) {
+      setConnectAuthMethod((availableAuthMethods[0] ?? 'api_key') as 'api_key' | 'oauth');
+    }
+    if (!connectLabel.trim()) {
+      setConnectLabel(`${selectedConnectProvider.name} Account`);
+    }
+  }, [availableAuthMethods, connectAuthMethod, connectLabel, selectedConnectProvider]);
+
+  async function connectProviderAccount() {
+    if (!selectedConnectProvider) return;
+
+    if (connectAuthMethod === 'oauth') {
+      if (!connectLabel.trim()) {
+        setConnectMessage({ text: 'Bitte ein Account-Label angeben.', ok: false });
+        return;
+      }
+      const startUrl = new URL('/api/model-hub/oauth/start', window.location.origin);
+      startUrl.searchParams.set('providerId', selectedConnectProvider.id);
+      startUrl.searchParams.set('label', connectLabel.trim());
+      const popup = window.open(startUrl.toString(), 'model-hub-oauth', 'popup=yes,width=620,height=760');
+      if (!popup) {
+        setConnectMessage({ text: 'Popup blockiert. Bitte Popup-Blocker deaktivieren.', ok: false });
+        return;
+      }
+      setConnectMessage({ text: `OAuth gestartet für ${selectedConnectProvider.name}...`, ok: true });
+      return;
+    }
+
+    if (!connectLabel.trim() || !connectSecret.trim()) {
+      setConnectMessage({ text: 'Bitte Label und API Key ausfüllen.', ok: false });
+      return;
+    }
+
+    setIsConnecting(true);
+    setConnectMessage(null);
+    try {
+      const response = await fetch('/api/model-hub/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          providerId: selectedConnectProvider.id,
+          label: connectLabel.trim(),
+          authMethod: connectAuthMethod,
+          secret: connectSecret.trim(),
+        }),
+      });
+      const data = (await response.json()) as ApiResponse;
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      setConnectSecret('');
+      setConnectLabel('');
+      setConnectMessage({ text: `${selectedConnectProvider.name} Account verbunden!`, ok: true });
+      await loadAccounts();
+    } catch (error) {
+      setConnectMessage({ text: error instanceof Error ? error.message : 'Verbindung fehlgeschlagen', ok: false });
+    } finally {
+      setIsConnecting(false);
+    }
+  }
+
+  useEffect(() => {
+    function onOAuthMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      const payload = event.data as { type?: string; ok?: boolean; message?: string } | undefined;
+      if (!payload || payload.type !== 'MODEL_HUB_OAUTH_RESULT') return;
+      setConnectMessage({ text: payload.message || 'OAuth abgeschlossen.', ok: Boolean(payload.ok) });
+      if (payload.ok) {
+        setConnectSecret('');
+        void loadAccounts();
+      }
+    }
+    window.addEventListener('message', onOAuthMessage);
+    return () => window.removeEventListener('message', onOAuthMessage);
+  }, [loadAccounts]);
+
+  async function deleteAccount(accountId: string) {
+    try {
+      const response = await fetch(`/api/model-hub/accounts/${accountId}`, { method: 'DELETE' });
+      const data = (await response.json()) as ApiResponse;
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      setDeletingAccountId(null);
+      await Promise.all([loadAccounts(), loadPipeline()]);
+    } catch (error) {
+      setAccountsError(error instanceof Error ? error.message : 'Delete failed');
+    }
+  }
+
+  async function fetchLiveModelsForAccount(accountId: string) {
+    setIsLoadingModels(true);
+    setLiveModels([]);
+    setModelSearchQuery('');
+    try {
+      const response = await fetch(`/api/model-hub/accounts/${accountId}/models`);
+      const data = (await response.json()) as ApiResponse & { models?: FetchedModel[] };
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      const models = data.models ?? [];
+      setLiveModels(models);
+      if (models.length > 0 && !selectedModelId) {
+        setSelectedModelId(models[0].id);
+      }
+    } catch {
+      const account = providerAccounts.find((entry) => entry.id === accountId);
+      const provider = account ? providerLookup.get(account.providerId) : null;
+      if (provider) {
+        setLiveModels(provider.defaultModels.map((id) => ({ id, name: id, provider: provider.id })));
+      }
+    } finally {
+      setIsLoadingModels(false);
+    }
+  }
+
+  async function runConnectionProbe() {
+    if (!defaultModel?.accountId) {
+      setProbeResult('Kein primäres Modell mit Provider-Account konfiguriert.');
+      return;
+    }
     setIsProbing(true);
     setProbeResult(null);
     try {
-      const response = await ai.models.generateContent({
-        model: defaultModel?.name || 'gemini-3-flash-preview',
-        contents: 'Verify gateway connectivity. Respond with "CONNECTION_OPTIMAL" and current timestamp.',
+      const response = await fetch(`/api/model-hub/accounts/${defaultModel.accountId}/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: defaultModel.modelName }),
       });
-      setProbeResult(response.text || 'No response data.');
-      setSessionStats(prev => {
-        const requests = prev.requests + 1;
-        const now = new Date();
-        const time = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
-        return {
-          ...prev,
-          requests,
-          history: [...prev.history, { time, value: requests }].slice(-10)
-        };
-      });
-    } catch (error: any) {
-      setProbeResult(`PROBE_FAILED: ${error.message}`);
+      const data = (await response.json()) as ApiResponse & { connectivity?: { ok: boolean; message: string } };
+      if (!response.ok || !data.ok || !data.connectivity) throw new Error(data.error || `HTTP ${response.status}`);
+      setProbeResult(data.connectivity.message);
+      setSessionStats((prev) => ({ ...prev, requests: prev.requests + 1, lastProbeOk: data.connectivity?.ok ?? false }));
+      await loadAccounts();
+    } catch (error) {
+      setProbeResult(`FEHLER: ${error instanceof Error ? error.message : 'Probe fehlgeschlagen'}`);
+      setSessionStats((prev) => ({ ...prev, lastProbeOk: false }));
     } finally {
       setIsProbing(false);
     }
-  };
+  }
 
-  const toggleStatus = (id: string) => {
-    setProfiles(prev => prev.map(p => {
-      if (p.id === activeProfileId) {
-        return {
-          ...p,
-          stack: p.stack.map(m => m.id === id ? {
-            ...m,
-            status: m.status === 'active' ? 'offline' : 'active'
-          } : m)
-        };
-      }
-      return p;
-    }));
-  };
+  async function runAllConnectionProbes() {
+    if (providerAccounts.length === 0) {
+      setBulkProbeSummary('Keine Provider-Accounts vorhanden.');
+      return;
+    }
+    const modelByAccountId: Record<string, string> = {};
+    for (const account of providerAccounts) {
+      const assigned = pipeline.find((model) => model.accountId === account.id)?.modelName;
+      if (assigned) modelByAccountId[account.id] = assigned;
+    }
+    setIsTestingAll(true);
+    setBulkProbeSummary(null);
+    try {
+      const response = await fetch('/api/model-hub/accounts/test-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modelByAccountId }),
+      });
+      const data = (await response.json()) as ApiResponse & { successCount?: number; failureCount?: number; total?: number };
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      setBulkProbeSummary(`${data.successCount}/${data.total} OK, ${data.failureCount} FAILED`);
+      setSessionStats((prev) => ({ ...prev, requests: prev.requests + (data.total ?? 0) }));
+      await loadAccounts();
+    } catch (error) {
+      setBulkProbeSummary(`FEHLER: ${error instanceof Error ? error.message : 'Bulk probe failed'}`);
+    } finally {
+      setIsTestingAll(false);
+    }
+  }
+
+  function openAddModelModal() {
+    if (providerAccounts.length === 0) {
+      setProbeResult('Bitte zuerst einen Provider-Account verbinden.');
+      return;
+    }
+    const initial = providerAccounts[0];
+    setSelectedAccountId(initial.id);
+    setSelectedModelId('');
+    setSelectedPriority(pipeline.length + 1);
+    setIsAddModelOpen(true);
+    void fetchLiveModelsForAccount(initial.id);
+  }
+
+  async function saveAddedModel() {
+    if (!selectedAccount || !selectedModelId) return;
+    try {
+      const response = await fetch('/api/model-hub/pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add',
+          profileId: PROFILE_ID,
+          accountId: selectedAccount.id,
+          providerId: selectedAccount.providerId,
+          modelName: selectedModelId,
+          priority: selectedPriority,
+        }),
+      });
+      const data = (await response.json()) as ApiResponse;
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      setIsAddModelOpen(false);
+      setSelectedModelId('');
+      await loadPipeline();
+    } catch (error) {
+      setProbeResult(error instanceof Error ? error.message : 'Model hinzufügen fehlgeschlagen');
+    }
+  }
+
+  async function removeModelFromPipeline(modelId: string) {
+    try {
+      const response = await fetch('/api/model-hub/pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove', modelId }),
+      });
+      const data = (await response.json()) as ApiResponse;
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      await loadPipeline();
+    } catch (error) {
+      setProbeResult(error instanceof Error ? error.message : 'Entfernen fehlgeschlagen');
+    }
+  }
+
+  async function toggleModelStatus(modelId: string, currentStatus: string) {
+    const newStatus = currentStatus === 'active' ? 'offline' : 'active';
+    try {
+      const response = await fetch('/api/model-hub/pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'status', modelId, status: newStatus }),
+      });
+      const data = (await response.json()) as ApiResponse;
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      await loadPipeline();
+    } catch (error) {
+      setProbeResult(error instanceof Error ? error.message : 'Status-Update fehlgeschlagen');
+    }
+  }
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 max-w-6xl mx-auto">
-      {/* Active Gateway Status */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-900/40 p-8 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl -mr-32 -mt-32" />
-        <div className="relative z-10">
-          <div className="flex items-center space-x-3 mb-2">
-            <h2 className="text-3xl font-black text-white tracking-tight uppercase">Gateway Control</h2>
-            <div className="flex items-center space-x-2 bg-zinc-950 px-2 py-1 rounded border border-zinc-800">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-mono text-zinc-400">SESSION ACTIVE</span>
-            </div>
-          </div>
-          <p className="text-sm text-zinc-500 max-w-lg leading-relaxed">
-            Directly interface with the Gemini API. All telemetry below reflects your current session activity and available model configurations.
-          </p>
-        </div>
-        
-        <div className="relative z-10 flex flex-col items-center md:items-end">
-           <button 
-             onClick={runConnectionProbe}
-             disabled={isProbing}
-             className="px-6 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-2xl shadow-indigo-600/30 active:scale-95 disabled:opacity-50"
-           >
-             {isProbing ? 'Probing Kernel...' : 'Connection Probe'}
-           </button>
-           {probeResult && (
-             <div className="mt-4 text-[9px] font-mono text-emerald-500 bg-zinc-950 px-3 py-1.5 rounded border border-zinc-800 animate-in fade-in zoom-in-95">
-                {probeResult}
-             </div>
-           )}
-        </div>
-      </div>
+      <HeaderSection
+        pipelineLength={pipeline.length}
+        providerCatalogLength={providerCatalog.length}
+        isProbing={isProbing}
+        isTestingAll={isTestingAll}
+        probeResult={probeResult}
+        bulkProbeSummary={bulkProbeSummary}
+        onRunConnectionProbe={runConnectionProbe}
+        onRunAllConnectionProbes={runAllConnectionProbes}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Model Stack */}
-        <div className="lg:col-span-2 space-y-6">
-          <h3 className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center space-x-2 px-2">
-            <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h7" strokeWidth="2" strokeLinecap="round"/></svg>
-            <span>Active Model Pipeline</span>
-          </h3>
+        <PipelineSection
+          isLoadingPipeline={isLoadingPipeline}
+          pipeline={pipeline}
+          providerLookup={providerLookup}
+          providerAccounts={providerAccounts}
+          onOpenAddModelModal={openAddModelModal}
+          onToggleModelStatus={toggleModelStatus}
+          onRemoveModelFromPipeline={removeModelFromPipeline}
+          isLoadingAccounts={isLoadingAccounts}
+          deletingAccountId={deletingAccountId}
+          onSetDeletingAccountId={setDeletingAccountId}
+          onDeleteAccount={deleteAccount}
+        />
 
-          <div className="space-y-4">
-            {activeProfile.stack.map((model, idx) => (
-              <div key={model.id} className={`bg-zinc-900 border transition-all duration-300 rounded-2xl p-6 flex items-center group relative ${
-                model.status === 'active' ? 'border-zinc-800' : 'border-rose-500/30 opacity-50 grayscale'
-              }`}>
-                <div className="w-12 h-12 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-xl mr-6 shadow-inner shrink-0">
-                  {GEMINI_PROVIDER.icon}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                   <div className="flex items-center space-x-2">
-                     <h4 className="font-bold text-white text-base truncate tracking-tight">{model.name}</h4>
-                     {idx === 0 && <span className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase px-2 py-0.5 rounded border border-emerald-500/20">Primary</span>}
-                   </div>
-                   <div className="flex items-center space-x-3 mt-1">
-                      <span className="text-[10px] text-zinc-600 font-mono uppercase">Provider: Google Gemini</span>
-                      <span className="text-zinc-800">•</span>
-                      <span className={`text-[9px] font-black uppercase ${model.status === 'active' ? 'text-emerald-500' : 'text-rose-500'}`}>{model.status}</span>
-                   </div>
-                </div>
-
-                <button 
-                  onClick={() => toggleStatus(model.id)}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
-                >
-                  {model.status === 'active' ? 'Disable' : 'Enable'}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Info & Policies */}
-        <div className="space-y-8">
-           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-xl">
-              <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6">Session Telemetry</h4>
-              <div className="space-y-6">
-                 <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-zinc-400">Requests this session</span>
-                    <span className="text-lg font-mono font-bold text-white">{sessionStats.requests}</span>
-                 </div>
-                 <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-zinc-400">Initialization Time</span>
-                    <span className="text-xs font-mono text-zinc-500">{sessionStats.startTime}</span>
-                 </div>
-                 <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-zinc-400">Endpoint Status</span>
-                    <span className="text-[10px] font-black uppercase text-emerald-500 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">Optimal</span>
-                 </div>
-              </div>
-           </div>
-
-           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-xl">
-              <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6">Node Environment</h4>
-              <div className="space-y-4 font-mono text-[9px] text-zinc-600">
-                 <div className="flex justify-between">
-                    <span>SDK_VERSION</span>
-                    <span className="text-indigo-400">@google/genai@1.40.0</span>
-                 </div>
-                 <div className="flex justify-between">
-                    <span>API_STATUS</span>
-                    <span className="text-emerald-500">AUTHENTICATED</span>
-                 </div>
-                 <div className="flex justify-between">
-                    <span>MODALITY_SYNC</span>
-                    <span className="text-indigo-400">TEXT/IMAGE/AUDIO</span>
-                 </div>
-              </div>
-           </div>
-        </div>
+        <SidebarSection
+          providerCatalog={providerCatalog}
+          connectProviderId={connectProviderId}
+          onConnectProviderIdChange={(providerId) => {
+            setConnectProviderId(providerId);
+            setConnectLabel('');
+            setConnectMessage(null);
+          }}
+          selectedConnectProvider={selectedConnectProvider}
+          availableAuthMethods={availableAuthMethods}
+          connectAuthMethod={connectAuthMethod}
+          onConnectAuthMethodChange={setConnectAuthMethod}
+          connectLabel={connectLabel}
+          onConnectLabelChange={setConnectLabel}
+          connectSecret={connectSecret}
+          onConnectSecretChange={setConnectSecret}
+          isConnecting={isConnecting}
+          connectMessage={connectMessage}
+          accountsError={accountsError}
+          onConnectProviderAccount={connectProviderAccount}
+          pipeline={pipeline}
+          providerAccounts={providerAccounts}
+          isLoadingAccounts={isLoadingAccounts}
+          sessionStats={sessionStats}
+        />
       </div>
 
-      {/* Real-time Session Charts */}
-      <div className="space-y-8 bg-zinc-900/40 p-10 rounded-[2.5rem] border border-zinc-800/60 shadow-inner">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-2xl font-black text-white tracking-tight uppercase">Session Performance</h3>
-            <p className="text-sm text-zinc-500 mt-1 font-medium">Actual activity tracked during this browser session.</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          <div className="bg-zinc-950/50 border border-zinc-800/50 p-8 rounded-3xl space-y-6">
-            <h4 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Cumulative Requests</h4>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={sessionStats.history}>
-                  <defs>
-                    <linearGradient id="sessionFlow" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} opacity={0.3} />
-                  <XAxis dataKey="time" stroke="#4b5563" fontSize={10} axisLine={false} tickLine={false} />
-                  <YAxis stroke="#4b5563" fontSize={10} axisLine={false} tickLine={false} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#0c0c0c', border: '1px solid #27272a', borderRadius: '12px', fontSize: '10px' }}
-                  />
-                  <Area type="stepAfter" dataKey="value" stroke="#6366f1" fillOpacity={1} fill="url(#sessionFlow)" strokeWidth={3} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="bg-zinc-950/50 border border-zinc-800/50 p-8 rounded-3xl flex flex-col items-center justify-center space-y-4">
-             <div className="text-5xl">⚡</div>
-             <div className="text-center">
-                <div className="text-4xl font-black text-white">{sessionStats.requests}</div>
-                <div className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em] mt-2">Successful Handshakes</div>
-             </div>
-             <p className="text-[11px] text-zinc-500 text-center max-w-xs leading-relaxed italic">
-               The gateway kernel is monitoring all transactions. Error rates and latency metrics are compiled per model execution.
-             </p>
-          </div>
-        </div>
-      </div>
+      <AddModelModal
+        isOpen={isAddModelOpen}
+        providerAccounts={providerAccounts}
+        providerLookup={providerLookup}
+        selectedAccountId={selectedAccountId}
+        onSelectedAccountIdChange={setSelectedAccountId}
+        selectedAccount={selectedAccount}
+        onFetchLiveModelsForAccount={(accountId) => {
+          void fetchLiveModelsForAccount(accountId);
+        }}
+        onClose={() => setIsAddModelOpen(false)}
+        isLoadingModels={isLoadingModels}
+        liveModels={liveModels}
+        filteredLiveModels={filteredLiveModels}
+        modelSearchQuery={modelSearchQuery}
+        onModelSearchQueryChange={setModelSearchQuery}
+        selectedModelId={selectedModelId}
+        onSelectedModelIdChange={setSelectedModelId}
+        selectedPriority={selectedPriority}
+        onSelectedPriorityChange={setSelectedPriority}
+        pipelineLength={pipeline.length}
+        onSave={() => {
+          void saveAddedModel();
+        }}
+      />
     </div>
   );
 };

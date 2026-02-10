@@ -17,14 +17,18 @@ const FUNCTION_TO_SKILL: Record<string, string> = {
   vision_analyze: 'vision',
 };
 
-const MODULES: Record<string, { execute: (args: Record<string, unknown>) => Promise<unknown> }> = {
-  browser,
-  filesystem,
-  'github-manager': github,
-  'python-runtime': python,
-  'shell-access': shell,
-  'sql-bridge': sql,
-  vision,
+interface SkillModule {
+  execute: (args: Record<string, unknown>) => Promise<unknown>;
+}
+
+const MODULES: Record<string, SkillModule> = {
+  browser: browser as unknown as SkillModule,
+  filesystem: filesystem as unknown as SkillModule,
+  'github-manager': github as unknown as SkillModule,
+  'python-runtime': python as unknown as SkillModule,
+  'shell-access': shell as unknown as SkillModule,
+  'sql-bridge': sql as unknown as SkillModule,
+  vision: vision as unknown as SkillModule,
 };
 
 function normalizeArgs(args: unknown): Record<string, unknown> {
@@ -53,10 +57,10 @@ export async function executeSkillFunctionCall(
     throw new Error(`Skill "${skillId}" is not installed.`);
   }
 
-  const module = MODULES[skillId];
-  if (!module) {
+  const skillModule = MODULES[skillId];
+  if (!skillModule) {
     throw new Error(`Missing module for skill "${skillId}".`);
   }
 
-  return module.execute(normalizeArgs(args));
+  return skillModule.execute(normalizeArgs(args));
 }

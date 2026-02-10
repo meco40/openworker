@@ -34,6 +34,7 @@ export const SECURITY_RULES: CommandPermission[] = [
   { id: 'c8', command: 'curl', description: 'Transfer data from/to a server', category: 'Network', risk: 'Medium', enabled: true },
 ];
 
+/** @deprecated Use PROVIDER_CATALOG from src/server/model-hub/providerCatalog instead */
 export const REAL_MODELS = [
   'gemini-3-flash-preview',
   'gemini-3-pro-preview',
@@ -44,6 +45,7 @@ export const REAL_MODELS = [
   'gemini-2.5-flash-native-audio-preview-12-2025'
 ];
 
+/** @deprecated Use PROVIDER_CATALOG from src/server/model-hub/providerCatalog instead */
 export const GEMINI_PROVIDER: AIProvider = { 
   id: 'gemini', 
   name: 'Google Gemini', 

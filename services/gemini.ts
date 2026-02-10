@@ -28,6 +28,10 @@ interface GatewayApiRequest {
   payload: Record<string, unknown>;
 }
 
+interface GatewayErrorResponse {
+  error?: string;
+}
+
 interface GatewayLiveSession {
   sendRealtimeInput(input: unknown): void;
   close(): void;
@@ -45,8 +49,8 @@ async function callGateway<T>(request: GatewayApiRequest): Promise<T> {
   if (!response.ok) {
     let message = `Gemini gateway failed with status ${response.status}`;
     try {
-      const errorData = await response.json();
-      if (typeof errorData?.error === 'string' && errorData.error.length > 0) {
+      const errorData = (await response.json()) as GatewayErrorResponse;
+      if (typeof errorData.error === 'string' && errorData.error.length > 0) {
         message = errorData.error;
       }
     } catch {

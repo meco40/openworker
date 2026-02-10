@@ -1,27 +1,22 @@
-import js from '@eslint/js';
+import nextVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
+import eslintConfigPrettier from 'eslint-config-prettier/flat';
 import reactHooks from 'eslint-plugin-react-hooks';
-import reactRefresh from 'eslint-plugin-react-refresh';
 import security from 'eslint-plugin-security';
 import sonarjs from 'eslint-plugin-sonarjs';
-import globals from 'globals';
-import tseslint from 'typescript-eslint';
 
-export default tseslint.config(
-  { ignores: ['.next/**', 'dist/**', 'coverage/**', 'node_modules/**'] },
+const config = [
+  ...nextVitals,
+  ...nextTypescript,
   {
-    files: ['**/*.{ts,tsx}'],
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: 'module',
-      globals: {
-        ...globals.browser,
-        ...globals.node,
-      },
-    },
+    name: 'project/ignores',
+    ignores: ['.next/**', 'out/**', 'build/**', 'dist/**', 'coverage/**', 'node_modules/**'],
+  },
+  {
+    name: 'project/quality-rules',
+    files: ['**/*.{ts,tsx,js,jsx}'],
     plugins: {
       'react-hooks': reactHooks,
-      'react-refresh': reactRefresh,
       security,
       sonarjs,
     },
@@ -31,11 +26,26 @@ export default tseslint.config(
       'sonarjs/no-identical-functions': 'error',
       'sonarjs/no-ignored-return': 'error',
       'sonarjs/no-useless-catch': 'error',
-      'react-refresh/only-export-components': 'off',
       'react-hooks/set-state-in-effect': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
       'security/detect-object-injection': 'off',
       'sonarjs/no-duplicate-string': 'off',
     },
   },
-);
+  {
+    name: 'project/typescript-rules',
+    files: ['**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+    },
+  },
+  {
+    name: 'project/critical-any',
+    files: ['services/gemini.ts', 'core/memory/embeddings.ts', 'components/LogsView.tsx'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+    },
+  },
+  eslintConfigPrettier,
+];
+
+export default config;

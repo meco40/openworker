@@ -1,0 +1,46 @@
+import { NextResponse } from 'next/server';
+import { testProviderAccountConnectivity } from '../../../../../../src/server/model-hub/connectivity';
+import { getModelHubEncryptionKey, getModelHubService } from '../../../../../../src/server/model-hub/runtime';
+
+export const runtime = 'nodejs';
+
+type RouteContext = {
+  params: { accountId: string } | Promise<{ accountId: string }>;
+};
+
+interface ConnectivityRequestBody {
+  model?: string;
+}
+
+async function resolveAccountId(context: RouteContext): Promise<string> {
+  const params = await Promise.resolve(context.params);
+  return String(params.accountId || '').trim();
+}
+
+export async function POST(request: Request, context: RouteContext) {
+  try {
+    const accountId = await resolveAccountId(context);
+    if (!accountId) {
+      return NextResponse.json({ ok: false, error: 'Missing accountId.' }, { status: 400 });
+    }
+
+    const service = getModelHubService();
+    const account = service.getAccountById(accountId);
+    if (!account) {
+      return NextResponse.json({ ok: false, error: 'Account not found.' }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as ConnectivityRequestBody;
+    const model = typeof body.model === 'string' ? body.model.trim() : undefined;
+
+    const connectivity = await testProviderAccountConnectivity(account, getModelHubEncryptionKey(), {
+      model,
+    });
+    service.updateHealth(accountId, connectivity.ok);
+
+    return NextResponse.json({ ok: true, connectivity });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Connectivity test failed.';
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}

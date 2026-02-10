@@ -54,7 +54,7 @@ const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
               scriptProcessor.connect(audioContextIn.current!.destination);
             },
             onmessage: async (message: LiveServerMessage) => {
-              const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+              const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
               if (base64Audio && audioContextOut.current) {
                 nextStartTime.current = Math.max(nextStartTime.current, audioContextOut.current.currentTime);
                 const audioBuffer = await decodeAudioData(decodeBase64(base64Audio), audioContextOut.current, 24000, 1);
@@ -73,7 +73,7 @@ const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
                 nextStartTime.current = 0;
               }
             },
-            onerror: (e) => {
+            onerror: (e: unknown) => {
               console.error('Voice Error:', e);
               setStatus('Error connecting.');
             },

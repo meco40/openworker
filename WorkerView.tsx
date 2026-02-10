@@ -5,6 +5,9 @@ import { ai } from './services/gemini';
 import { mapSkillsToTools } from './skills/definitions';
 import { WorkerFlow } from './components/WorkerFlow';
 import { ArtifactViewer } from './components/WorkerArtifacts';
+import { useWorkerController } from './src/modules/worker/hooks/useWorkerController';
+import { buildAnalyzeTaskPrompt, parseAnalyzeTaskPayload } from './src/modules/worker/services/analyzeTask';
+import { buildExecutionStepPrompt, buildFinalizePrompt, normalizePlan } from './src/modules/worker/services/executeTaskPlan';
 
 interface WorkerViewProps {
   teams: Team[];
@@ -21,14 +24,10 @@ const WorkerView: React.FC<WorkerViewProps> = ({ teams, tasks, setTasks, skills 
   const [, setIsProcessing] = useState(false);
   const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const { activeSkills, addTerminalLog } = useWorkerController(skills, setTerminalLogs);
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
   const activeArtifact = selectedTask?.artifacts.find(a => a.id === activeArtifactId);
-  const activeSkills = skills.filter(s => s.installed);
-
-  const addTerminalLog = (cmd: string, output: string) => {
-    setTerminalLogs(prev => [...prev, `$ ${cmd}`, `> ${output}`]);
-  };
 
   const startNewTask = async () => {
     if (!input.trim()) return;
@@ -46,7 +45,7 @@ const WorkerView: React.FC<WorkerViewProps> = ({ teams, tasks, setTasks, skills 
       teamId: selectedTeamId,
       createdAt: new Date().toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     };
-    setTasks([newTask, ...tasks]);
+    setTasks(prev => [newTask, ...prev]);
     setSelectedTaskId(newTask.id);
     setIsCreating(false);
     setInput('');
@@ -60,8 +59,7 @@ const WorkerView: React.FC<WorkerViewProps> = ({ teams, tasks, setTasks, skills 
     
     try {
       const activeTools = mapSkillsToTools(skills);
-      const prompt = `Task: "${task.prompt}". Available Tools: ${activeSkills.map(s => s.name).join(', ')}. 
-      Return JSON: {"usePlanMode": boolean, "plan": string[], "questions": [{"id": string, "text": string, "options": string[]}], "directResult": string}`;
+      const prompt = buildAnalyzeTaskPrompt(task.prompt, activeSkills.map(s => s.name));
       
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
@@ -72,7 +70,7 @@ const WorkerView: React.FC<WorkerViewProps> = ({ teams, tasks, setTasks, skills 
         }
       });
       
-      const data = JSON.parse(response.text || '{}');
+      const data = parseAnalyzeTaskPayload(response.text || '{}');
       setTasks(prev => prev.map(t => t.id === task.id ? { ...t, ...data, status: data.usePlanMode ? WorkerTaskStatus.CLARIFYING : WorkerTaskStatus.REVIEW } : t));
       if (!data.usePlanMode) executeTaskPlan(task.id);
     } catch (e) { console.error(e); } finally { setIsProcessing(false); }
@@ -86,7 +84,7 @@ const WorkerView: React.FC<WorkerViewProps> = ({ teams, tasks, setTasks, skills 
     
     setIsProcessing(true);
     try {
-      const plan = task.plan.length > 0 ? task.plan : ['Execute objective and produce concise output.'];
+      const plan = normalizePlan(task.plan);
       const stepOutputs: string[] = [];
 
       for (let step = 0; step < plan.length; step++) {
@@ -96,7 +94,7 @@ const WorkerView: React.FC<WorkerViewProps> = ({ teams, tasks, setTasks, skills 
 
         const stepResponse = await ai.models.generateContent({
           model: 'gemini-3-flash-preview',
-          contents: `Task objective: "${task.prompt}"\nCurrent step (${step + 1}/${plan.length}): ${stepDesc}\nProvide concise execution notes and outcome.`,
+          contents: buildExecutionStepPrompt(task.prompt, stepDesc, step + 1, plan.length),
         });
 
         const stepText = (stepResponse.text || 'Step completed without textual output.').trim();
@@ -106,7 +104,7 @@ const WorkerView: React.FC<WorkerViewProps> = ({ teams, tasks, setTasks, skills 
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Finalize result for "${task.prompt}" using these step outputs:\n${stepOutputs.join('\n')}\nReturn strict JSON object with shape: {"result": string, "artifacts": [{"id": string, "name": string, "type": "code"|"pdf"|"doc", "content": string}]}`,
+        contents: buildFinalizePrompt(task.prompt, stepOutputs),
         config: { responseMimeType: 'application/json' }
       });
       const parsed = JSON.parse(response.text || '{}');

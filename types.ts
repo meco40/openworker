@@ -90,12 +90,25 @@ export interface AIProvider {
   id: string;
   name: string;
   authType: 'api_key' | 'oauth';
+  authMethods?: Array<'api_key' | 'oauth'>;
+  endpointType?:
+    | 'gemini-native'
+    | 'openai-compatible'
+    | 'openai-native'
+    | 'anthropic-native'
+    | 'xai-native'
+    | 'mistral-native'
+    | 'cohere-native'
+    | 'copilot-native'
+    | 'github-native';
+  capabilities?: Array<'chat' | 'tools' | 'vision' | 'audio' | 'embeddings' | 'code_pairing'>;
   icon: string;
   availableModels: string[];
 }
 
 export interface ConfiguredModel {
   id: string;
+  accountId?: string;
   providerId: string;
   name: string;
   priority: number;

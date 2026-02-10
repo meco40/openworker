@@ -1,24 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { View, GatewayState, ChannelType, CoupledChannel, Message, SystemLog, Team, WorkerTask, Skill, ScheduledTask } from './types';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import ChatInterface from './components/ChatInterface';
-import SkillsRegistry from './skills/SkillsRegistry';
-import TerminalWizard from './components/TerminalWizard';
-import { LiveCanvas } from './components/LiveCanvas';
 import ChannelPairing from './messenger/ChannelPairing';
-import SecurityView from './components/SecurityView';
-import ProfileView from './components/ProfileView';
-import WorkerView from './WorkerView';
-import TeamManager from './components/TeamManager';
-
-import ModelHub from './components/ModelHub';
-import TaskManagerView from './components/TaskManagerView';
-import LogsView from './components/LogsView';
-import ConfigEditor from './components/ConfigEditor';
-import ExposureManager from './components/ExposureManager';
 
 import { ai, SYSTEM_INSTRUCTION } from './services/gemini';
 import { mapSkillsToTools } from './skills/definitions';
@@ -26,9 +14,43 @@ import { executeSkillFunctionCall } from './skills/execute';
 import { CORE_MEMORY_TOOLS, handleCoreMemoryCall, getMemorySnapshot } from './core/memory';
 import { INITIAL_TEAMS, INITIAL_SKILLS } from './constants';
 import type { GatewayChat, GatewayStreamChunk } from './services/gemini';
+import { buildInitialShellState } from './src/modules/app-shell/useAppShellState';
+import { createAgentPlaceholder } from './src/modules/chat/services/handleAgentResponse';
+import { toMessage } from './src/modules/chat/services/routeMessage';
+
+const TerminalWizard = dynamic(() => import('./components/TerminalWizard'));
+const LiveCanvas = dynamic(() => import('./components/LiveCanvas').then((mod) => mod.LiveCanvas), {
+  ssr: false,
+});
+const WorkerView = dynamic(() => import('./WorkerView'));
+const TeamManager = dynamic(() => import('./components/TeamManager'));
+const ModelHub = dynamic(() => import('./components/ModelHub'));
+const SkillsRegistry = dynamic(() => import('./skills/SkillsRegistry'));
+const TaskManagerView = dynamic(() => import('./src/modules/tasks/components/TaskManagerView'));
+const LogsView = dynamic(() => import('./src/modules/telemetry/components/LogsView'));
+const SecurityView = dynamic(() => import('./components/SecurityView'));
+const ConfigEditor = dynamic(() => import('./src/modules/config/components/ConfigEditor'));
+const ProfileView = dynamic(() => import('./components/ProfileView'));
+const ExposureManager = dynamic(() => import('./src/modules/exposure/components/ExposureManager'));
+
+interface CoreTaskScheduleArgs {
+  time_iso?: string;
+  message?: string;
+}
+
+function parseTaskScheduleArgs(args: unknown): CoreTaskScheduleArgs {
+  if (!args || typeof args !== 'object') {
+    return {};
+  }
+  const typed = args as Record<string, unknown>;
+  return {
+    time_iso: typeof typed.time_iso === 'string' ? typed.time_iso : undefined,
+    message: typeof typed.message === 'string' ? typed.message : undefined,
+  };
+}
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<View>(View.DASHBOARD);
+  const [currentView, setCurrentView] = useState<View>(() => buildInitialShellState().currentView);
   const [onboarded, setOnboarded] = useState<boolean>(false);
   const [isCanvasOpen, setIsCanvasOpen] = useState(false);
   const [teams, setTeams] = useState<Team[]>(INITIAL_TEAMS);
@@ -37,24 +59,21 @@ const App: React.FC = () => {
   const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>([]);
   const [isAgentTyping, setIsAgentTyping] = useState(false);
   
-  const [coupledChannels, setCoupledChannels] = useState<Record<string, CoupledChannel>>({
-    whatsapp: { type: ChannelType.WHATSAPP, status: 'idle' },
-    telegram: { type: ChannelType.TELEGRAM, status: 'idle' },
-    discord: { type: ChannelType.DISCORD, status: 'idle' },
-    imessage: { type: ChannelType.IMESSAGE, status: 'idle' }
-  });
+  const [coupledChannels, setCoupledChannels] = useState<Record<string, CoupledChannel>>(
+    () => buildInitialShellState().coupledChannels,
+  );
 
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<Message[]>(() => [
     { id: 'msg-init', role: 'system', content: 'Gateway Core initialized. Temporal Task Engine Standing By.', timestamp: '14:00', platform: ChannelType.WEBCHAT }
   ]);
 
-  const [gatewayState, setGatewayState] = useState<GatewayState>({
+  const [gatewayState, setGatewayState] = useState<GatewayState>(() => ({
     version: '1.2.5-proactive', uptime: 0, cpuUsage: 12, memoryUsage: 256, activeSessions: 1, onboarded: false, totalTokens: 0,
     eventHistory: [{ timestamp: new Date().toLocaleTimeString(), type: 'SYS', message: 'Gateway Core initialized.' }],
     trafficData: Array.from({ length: 12 }, (_, i) => ({ name: `${i * 2}:00`, tokens: 0 })),
     memoryEntries: [],
     scheduledTasks: []
-  });
+  }));
 
   const chatRef = useRef<GatewayChat | null>(null);
 
@@ -125,10 +144,9 @@ const App: React.FC = () => {
     }
     
     setIsAgentTyping(true);
-    const agentMsgId = `msg-agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    setMessages(prev => [...prev, { id: agentMsgId, role: 'agent', content: '', timestamp, platform }]);
+    const agentPlaceholder = createAgentPlaceholder(platform);
+    const agentMsgId = agentPlaceholder.id;
+    setMessages(prev => [...prev, agentPlaceholder]);
     
     try {
       const result = await chatRef.current.sendMessageStream({ message: userContent });
@@ -139,9 +157,16 @@ const App: React.FC = () => {
         const c = chunk as GatewayStreamChunk;
         
         if (c.functionCalls) {
+          const skillCalls: Array<Promise<{ name: string; result?: unknown; error?: string; skipped?: boolean }>> = [];
+
           for (const fc of c.functionCalls) {
             if (fc.name === 'core_task_schedule') {
-              const { time_iso, message } = fc.args as any;
+              const { time_iso, message } = parseTaskScheduleArgs(fc.args);
+              if (!time_iso || !message) {
+                toolOutputs.push({ name: fc.name, error: 'Missing time_iso or message for core_task_schedule.' });
+                continue;
+              }
+
               const newTask: ScheduledTask = {
                 id: `task-${Date.now()}`,
                 targetTime: time_iso,
@@ -152,29 +177,48 @@ const App: React.FC = () => {
               setScheduledTasks(prev => [...prev, newTask]);
               addEventLog('TASK', `Cron scheduled: ${new Date(time_iso).toLocaleString()}`);
               toolOutputs.push({ name: fc.name, result: { status: 'scheduled', task: newTask } });
-            } else {
+              continue;
+            }
+
+            if (fc.name === 'core_memory_store' || fc.name === 'core_memory_recall') {
               const memoryResult = await handleCoreMemoryCall(fc.name, fc.args);
               if (memoryResult) {
                 if (memoryResult?.action === 'store') {
                   updateMemoryDisplay();
-                  addEventLog('MEM', `Knowledge stored.`);
+                  addEventLog('MEM', 'Knowledge stored.');
                 }
                 toolOutputs.push({ name: fc.name, result: memoryResult });
-                continue;
               }
-
-              try {
-                const skillResult = await executeSkillFunctionCall(fc.name, fc.args, skills);
-                if (skillResult !== null) {
-                  addEventLog('TOOL', `${fc.name} executed.`);
-                  toolOutputs.push({ name: fc.name, result: skillResult });
-                }
-              } catch (error) {
-                const message = error instanceof Error ? error.message : 'Skill execution failed';
-                addEventLog('SYS', `${fc.name} failed: ${message}`);
-                toolOutputs.push({ name: fc.name, error: message });
-              }
+            } else {
+              skillCalls.push(
+                (async () => {
+                  try {
+                    const skillResult = await executeSkillFunctionCall(fc.name, fc.args, skills);
+                    if (skillResult === null) {
+                      return { name: fc.name, skipped: true };
+                    }
+                    return { name: fc.name, result: skillResult };
+                  } catch (error) {
+                    const message = error instanceof Error ? error.message : 'Skill execution failed';
+                    return { name: fc.name, error: message };
+                  }
+                })(),
+              );
             }
+          }
+
+          const skillResults = await Promise.all(skillCalls);
+          for (const skillOutput of skillResults) {
+            if (skillOutput.skipped) {
+              continue;
+            }
+            if (skillOutput.error) {
+              addEventLog('SYS', `${skillOutput.name} failed: ${skillOutput.error}`);
+              toolOutputs.push({ name: skillOutput.name, error: skillOutput.error });
+              continue;
+            }
+            addEventLog('TOOL', `${skillOutput.name} executed.`);
+            toolOutputs.push({ name: skillOutput.name, result: skillOutput.result });
           }
         }
         
@@ -214,10 +258,7 @@ const App: React.FC = () => {
   }, [addEventLog, skills, updateMemoryDisplay]);
 
   const routeMessage = useCallback(async (content: string, platform: ChannelType, role: 'user' | 'agent' | 'system') => {
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-    
-    setMessages(prev => [...prev, { id: msgId, role, content, timestamp, platform }]);
+    setMessages(prev => [...prev, toMessage(content, platform, role)]);
     
     if (role === 'system') {
       addEventLog('SYS', content);

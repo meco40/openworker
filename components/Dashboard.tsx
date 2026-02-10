@@ -9,6 +9,9 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   const scheduled = state.scheduledTasks || [];
+  const sortedScheduled = [...scheduled].sort(
+    (a, b) => new Date(a.targetTime).getTime() - new Date(b.targetTime).getTime(),
+  );
   
   const personalityStats = [
     { subject: 'Communication', A: state.memoryEntries.filter(m => m.type === 'preference').length * 20, fullMark: 100 },
@@ -58,7 +61,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               <div className="h-full flex flex-col items-center justify-center text-center p-12">
                  <span className="text-[10px] text-zinc-600 uppercase font-black">No pro-active tasks queued.</span>
               </div>
-            ) : scheduled.sort((a,b) => new Date(a.targetTime).getTime() - new Date(b.targetTime).getTime()).map((task) => (
+            ) : sortedScheduled.map((task) => (
               <div key={task.id} className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
                 task.status === 'triggered' ? 'bg-zinc-950/20 border-zinc-800/40 opacity-50' : 'bg-zinc-950/60 border-emerald-500/20 hover:border-emerald-500/40'
               }`}>
@@ -97,7 +100,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           </div>
           <div className="mt-4 p-3 bg-zinc-950/40 border border-zinc-800 rounded-xl">
              <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Current Focus</div>
-             <div className="text-[11px] text-zinc-300 italic">"Learning relative time-patterns and pro-active reminders."</div>
+             <div className="text-[11px] text-zinc-300 italic">Learning relative time-patterns and pro-active reminders.</div>
           </div>
         </div>
       </div>

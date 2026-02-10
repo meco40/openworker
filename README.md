@@ -19,6 +19,22 @@ View your app in AI Studio: https://ai.studio/apps/drive/1IDnSo84qybNjnhUSlQK99l
 3. Run the app:
    `npm run dev`
 
+## Project Structure
+
+- `app/`: Next.js App Router entries and API route surfaces
+- `src/modules/`: feature-first modules (`app-shell`, `chat`, `worker`, `telemetry`, `tasks`, `config`, `exposure`)
+- `src/server/`: server-side handlers and dispatchers
+- `src/shared/`: shared config, types, and utility helpers
+- `tests/`: unit, integration, and contract tests
+
+## Architecture Rules
+
+1. UI components do not contain infrastructure execution logic.
+2. API routes map request/response and delegate to server use-cases.
+3. Business operations live in dedicated services/use-cases.
+4. `src/shared` is consumed by modules/server, not the other way around.
+5. New code should avoid `any`-first APIs and keep strict typing.
+
 ### Optional Integrations
 
 - `GITHUB_TOKEN`: Enables authenticated GitHub skill calls (`github_query`).
@@ -32,3 +48,10 @@ View your app in AI Studio: https://ai.studio/apps/drive/1IDnSo84qybNjnhUSlQK99l
    `npm run build`
 2. Start:
    `npm run start`
+
+## Quality Gates
+
+- Lint: `npm run lint`
+- Typecheck: `npm run typecheck`
+- Tests: `npm run test`
+- Production build: `npm run build`

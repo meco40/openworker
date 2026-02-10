@@ -1,0 +1,269 @@
+import { GoogleGenAI } from '@google/genai';
+import { decryptSecret } from './crypto';
+import { PROVIDER_CATALOG } from './providerCatalog';
+import type { ProviderAccountRecord } from './repository';
+
+function findProvider(providerId: string) {
+  return PROVIDER_CATALOG.find((provider) => provider.id === providerId) ?? null;
+}
+
+const REQUEST_TIMEOUT_MS = 15_000;
+
+async function parseErrorMessage(response: Response): Promise<string> {
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const json = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    if (json) {
+      if (typeof json.error === 'string' && json.error) return json.error;
+      if (
+        typeof json.error === 'object' &&
+        json.error &&
+        typeof (json.error as Record<string, unknown>).message === 'string'
+      ) {
+        return String((json.error as Record<string, unknown>).message);
+      }
+      if (typeof json.message === 'string' && json.message) return json.message;
+    }
+  } else {
+    const text = await response.text().catch(() => '');
+    if (text.trim()) return text.trim();
+  }
+  return `${response.status} ${response.statusText}`.trim();
+}
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchJsonOk(
+  url: string,
+  init: RequestInit,
+): Promise<{ ok: true; payload: unknown } | { ok: false; message: string }> {
+  try {
+    const response = await fetchWithTimeout(url, init);
+    if (!response.ok) {
+      const reason = await parseErrorMessage(response);
+      return { ok: false, message: reason };
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return { ok: true, payload: await response.json() };
+    }
+    return { ok: true, payload: await response.text() };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Network request failed.';
+    return { ok: false, message };
+  }
+}
+
+export async function testProviderAccountConnectivity(
+  account: ProviderAccountRecord,
+  encryptionKey: string,
+  options: { model?: string } = {},
+): Promise<{ ok: boolean; message: string }> {
+  const provider = findProvider(account.providerId);
+  if (!provider) {
+    return { ok: false, message: `Unknown provider: ${account.providerId}` };
+  }
+
+  const secret = decryptSecret(account.encryptedSecret, encryptionKey);
+  if (!secret || secret.trim().length === 0) {
+    return { ok: false, message: 'Missing secret token.' };
+  }
+
+  if (provider.id === 'openai') {
+    const result = await fetchJsonOk('https://api.openai.com/v1/models', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    return result.ok
+      ? { ok: true, message: 'OpenAI connectivity verified (models list reachable).' }
+      : { ok: false, message: `OpenAI connectivity failed: ${result.message}` };
+  }
+
+  if (provider.id === 'openrouter') {
+    const result = await fetchJsonOk('https://openrouter.ai/api/v1/key', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    return result.ok
+      ? { ok: true, message: 'OpenRouter connectivity verified (key endpoint reachable).' }
+      : { ok: false, message: `OpenRouter connectivity failed: ${result.message}` };
+  }
+
+  if (provider.id === 'github-copilot') {
+    // Try models inference endpoint first (works with PAT and OAuth tokens)
+    const result = await fetchJsonOk('https://models.inference.ai.azure.com/info', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+      },
+    });
+    if (result.ok) {
+      return { ok: true, message: 'GitHub Models connectivity verified (inference endpoint reachable).' };
+    }
+    // Fallback: try user endpoint (OAuth tokens with user scope)
+    const userResult = await fetchJsonOk('https://api.github.com/user', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        Accept: 'application/vnd.github+json',
+      },
+    });
+    return userResult.ok
+      ? { ok: true, message: 'GitHub connectivity verified (user endpoint reachable).' }
+      : { ok: false, message: `GitHub connectivity failed: ${result.message}` };
+  }
+
+  if (provider.id === 'gemini') {
+    try {
+      const ai = new GoogleGenAI({ apiKey: secret });
+      const model = options.model || provider.defaultModels[0] || 'gemini-2.5-flash';
+      const result = await ai.models.generateContent({
+        model,
+        contents: 'Ping',
+      });
+      const hasText = Boolean(result?.text && String(result.text).trim().length > 0);
+      return {
+        ok: hasText,
+        message: hasText ? 'Gemini connectivity verified.' : 'Gemini returned no content.',
+      };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Gemini connectivity failed';
+      return { ok: false, message: msg };
+    }
+  }
+
+  if (provider.id === 'anthropic') {
+    const model = options.model || provider.defaultModels[0];
+    if (!model) {
+      return { ok: false, message: 'Anthropic test requires a model id.' };
+    }
+
+    const result = await fetchJsonOk('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': secret,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 4,
+        messages: [{ role: 'user', content: 'ping' }],
+      }),
+    });
+    return result.ok
+      ? { ok: true, message: 'Anthropic connectivity verified.' }
+      : { ok: false, message: `Anthropic connectivity failed: ${result.message}` };
+  }
+
+  if (provider.id === 'mistral') {
+    const result = await fetchJsonOk('https://api.mistral.ai/v1/models', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    return result.ok
+      ? { ok: true, message: 'Mistral connectivity verified (models list reachable).' }
+      : { ok: false, message: `Mistral connectivity failed: ${result.message}` };
+  }
+
+  if (provider.id === 'cohere') {
+    const result = await fetchJsonOk('https://api.cohere.com/v2/models', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    return result.ok
+      ? { ok: true, message: 'Cohere connectivity verified (models list reachable).' }
+      : { ok: false, message: `Cohere connectivity failed: ${result.message}` };
+  }
+
+  if (provider.id === 'xai') {
+    const result = await fetchJsonOk('https://api.x.ai/v1/models', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    return result.ok
+      ? { ok: true, message: 'xAI connectivity verified (models list reachable).' }
+      : { ok: false, message: `xAI connectivity failed: ${result.message}` };
+  }
+
+  if (provider.id === 'kimi') {
+    const result = await fetchJsonOk('https://api.moonshot.cn/v1/models', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    return result.ok
+      ? { ok: true, message: 'Kimi connectivity verified (models list reachable).' }
+      : { ok: false, message: `Kimi connectivity failed: ${result.message}` };
+  }
+
+  if (provider.id === 'zai') {
+    const model = options.model || provider.defaultModels[0];
+    if (!model) {
+      return { ok: false, message: 'Z.AI test requires a model id.' };
+    }
+
+    const result = await fetchJsonOk('https://api.z.ai/api/paas/v4/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 4,
+      }),
+    });
+    return result.ok
+      ? { ok: true, message: 'Z.AI connectivity verified.' }
+      : { ok: false, message: `Z.AI connectivity failed: ${result.message}` };
+  }
+
+  if (provider.id === 'bytedance') {
+    const model = options.model || provider.defaultModels[0];
+    if (!model) {
+      return { ok: false, message: 'ByteDance test requires a model/endpoint id.' };
+    }
+
+    const result = await fetchJsonOk('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 4,
+      }),
+    });
+    return result.ok
+      ? { ok: true, message: 'ByteDance ModelArk connectivity verified.' }
+      : { ok: false, message: `ByteDance connectivity failed: ${result.message}` };
+  }
+
+  if (provider.endpointType === 'openai-compatible') {
+    const base = provider.apiBaseUrl?.replace(/\/$/, '');
+    if (!base) {
+      return { ok: false, message: `${provider.name} has no configured API base URL.` };
+    }
+    const result = await fetchJsonOk(`${base}/models`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    return result.ok
+      ? { ok: true, message: `${provider.name} connectivity verified.` }
+      : { ok: false, message: `${provider.name} connectivity failed: ${result.message}` };
+  }
+
+  return { ok: false, message: `${provider.name} connectivity adapter not implemented.` };
+}

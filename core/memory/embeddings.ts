@@ -8,7 +8,7 @@ export const getEmbedding = async (text: string): Promise<number[]> => {
      * when the backend misinterprets a single embedding request as a batch one.
      * We attempt the single 'embedContent' call first with the standard SDK structure.
      */
-    const result = await (ai.models as any).embedContent({
+    const result = await ai.models.embedContent({
       model: "text-embedding-004",
       content: { parts: [{ text }] }
     });
@@ -18,26 +18,24 @@ export const getEmbedding = async (text: string): Promise<number[]> => {
     }
 
     throw new Error("Invalid response format from embedContent");
-  } catch (error: any) {
-    console.warn("Primary embedding attempt failed, trying batch fallback:", error?.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("Primary embedding attempt failed, trying batch fallback:", message);
 
     /**
      * If the single call fails with a batch-related error, 
      * we try the explicit batch method if available.
      */
     try {
-      const modelsObj = ai.models as any;
-      if (typeof modelsObj.batchEmbedContents === 'function') {
-        const batchResult = await modelsObj.batchEmbedContents({
-          requests: [{
-            model: "text-embedding-004",
-            content: { parts: [{ text }] }
-          }]
-        });
-        
-        if (batchResult?.embeddings?.[0]?.values) {
-          return batchResult.embeddings[0].values;
-        }
+      const batchResult = await ai.models.batchEmbedContents({
+        requests: [{
+          model: "text-embedding-004",
+          content: { parts: [{ text }] }
+        }]
+      });
+      
+      if (batchResult?.embeddings?.[0]?.values) {
+        return batchResult.embeddings[0].values;
       }
     } catch (batchError) {
       console.error("Batch embedding fallback also failed:", batchError);

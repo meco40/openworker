@@ -9,8 +9,17 @@ interface LogEntry {
   message: string;
 }
 
+type LogFilter = 'all' | 'info' | 'warn' | 'error';
+
+function toLogFilter(value: string): LogFilter {
+  if (value === 'info' || value === 'warn' || value === 'error') {
+    return value;
+  }
+  return 'all';
+}
+
 const LogsView: React.FC = () => {
-  const [filter, setFilter] = useState<'all' | 'info' | 'warn' | 'error'>('all');
+  const [filter, setFilter] = useState<LogFilter>('all');
   const [logs, setLogs] = useState<LogEntry[]>([
     { id: '1', timestamp: '14:20:01', level: 'info', source: 'GATEWAY', message: 'Daemon started successfully on port 8080.' },
     { id: '2', timestamp: '14:20:05', level: 'info', source: 'AUTH', message: 'API Key rotation check completed.' },
@@ -37,7 +46,7 @@ const LogsView: React.FC = () => {
         <div className="flex space-x-2">
           <select 
             value={filter}
-            onChange={(e) => setFilter(e.target.value as any)}
+            onChange={(e) => setFilter(toLogFilter(e.target.value))}
             className="bg-zinc-800 text-xs font-bold text-zinc-300 px-3 py-2 rounded border border-zinc-700 focus:outline-none"
           >
             <option value="all">ALL LEVELS</option>

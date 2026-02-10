@@ -1,0 +1,33 @@
+import { NextResponse } from 'next/server';
+import { getModelHubService } from '../../../../../src/server/model-hub/runtime';
+
+export const runtime = 'nodejs';
+
+type RouteContext = {
+  params: { accountId: string } | Promise<{ accountId: string }>;
+};
+
+async function resolveAccountId(context: RouteContext): Promise<string> {
+  const params = await Promise.resolve(context.params);
+  return String(params.accountId || '').trim();
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  try {
+    const accountId = await resolveAccountId(context);
+    if (!accountId) {
+      return NextResponse.json({ ok: false, error: 'Missing accountId.' }, { status: 400 });
+    }
+
+    const service = getModelHubService();
+    const deleted = service.deleteAccount(accountId);
+    if (!deleted) {
+      return NextResponse.json({ ok: false, error: 'Account not found.' }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to delete account.';
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}

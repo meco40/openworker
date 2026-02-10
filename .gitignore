@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 .next
+.next/
 .local
 
 # Editor directories and files
