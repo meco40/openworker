@@ -1,14 +1,58 @@
 import { getSSEManager } from '../../../../src/server/channels/sse/manager';
+import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import { isPersistentSessionV2Enabled } from '../../../../src/server/channels/messages/featureFlag';
+import { LEGACY_LOCAL_USER_ID } from '../../../../src/server/auth/constants';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  if (!isPersistentSessionV2Enabled()) {
+    const manager = getSSEManager();
+    const stream = new ReadableStream({
+      start(controller) {
+        const clientId = manager.addClient(controller, LEGACY_LOCAL_USER_ID);
+        const encoder = new TextEncoder();
+        controller.enqueue(
+          encoder.encode(`event: connected\ndata: ${JSON.stringify({ clientId })}\n\n`),
+        );
+
+        const keepalive = setInterval(() => {
+          try {
+            controller.enqueue(encoder.encode(': keepalive\n\n'));
+          } catch {
+            clearInterval(keepalive);
+            manager.removeClient(clientId);
+          }
+        }, 30000);
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      },
+    });
+  }
+
+  const userContext = await resolveRequestUserContext();
+  if (!userContext) {
+    return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
+      status: 401,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
   const manager = getSSEManager();
 
   const stream = new ReadableStream({
     start(controller) {
-      const clientId = manager.addClient(controller);
+      const clientId = manager.addClient(controller, userContext.userId);
 
       // Send initial heartbeat
       const encoder = new TextEncoder();

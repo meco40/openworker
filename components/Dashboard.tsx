@@ -1,37 +1,89 @@
 
 import React from 'react';
-import { GatewayState, ScheduledTask } from '../types';
+import { ControlPlaneMetricsState, GatewayState, ScheduledTask } from '../types';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts';
 
 interface DashboardProps {
   state: GatewayState & { scheduledTasks?: ScheduledTask[] };
+  metricsState: ControlPlaneMetricsState;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ state }) => {
+function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h ${mins}m`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
+}
+
+function formatNumber(value: number): string {
+  return value.toLocaleString('de-DE');
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ state, metricsState }) => {
   const scheduled = state.scheduledTasks || [];
   const sortedScheduled = [...scheduled].sort(
     (a, b) => new Date(a.targetTime).getTime() - new Date(b.targetTime).getTime(),
   );
-  
+
   const personalityStats = [
-    { subject: 'Communication', A: state.memoryEntries.filter(m => m.type === 'preference').length * 20, fullMark: 100 },
-    { subject: 'Workflows', A: state.memoryEntries.filter(m => m.type === 'fact').length * 15, fullMark: 100 },
-    { subject: 'Avoidance', A: state.memoryEntries.filter(m => m.type === 'avoidance').length * 25, fullMark: 100 },
+    {
+      subject: 'Communication',
+      A: state.memoryEntries.filter((m) => m.type === 'preference').length * 20,
+      fullMark: 100,
+    },
+    {
+      subject: 'Workflows',
+      A: state.memoryEntries.filter((m) => m.type === 'fact').length * 15,
+      fullMark: 100,
+    },
+    {
+      subject: 'Avoidance',
+      A: state.memoryEntries.filter((m) => m.type === 'avoidance').length * 25,
+      fullMark: 100,
+    },
     { subject: 'Time Awareness', A: Math.min(100, (scheduled.length || 0) * 20), fullMark: 100 },
     { subject: 'Proactivity', A: Math.min(100, state.memoryEntries.length * 10), fullMark: 100 },
   ];
 
-  const evolutionScore = Math.min(100, Math.floor(state.memoryEntries.reduce((acc, curr) => acc + curr.importance, 0) * 1.5));
+  const metrics = metricsState.metrics;
+
+  const topCards = [
+    {
+      label: 'Uptime',
+      value: typeof metrics?.uptimeSeconds === 'number' ? formatUptime(metrics.uptimeSeconds) : '--',
+      detail: 'Server Process',
+      icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+    {
+      label: 'Pending Worker Tasks',
+      value:
+        typeof metrics?.pendingWorkerTasks === 'number'
+          ? formatNumber(metrics.pendingWorkerTasks)
+          : '--',
+      detail: 'Open Task Queue',
+      icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 5a2 2 0 002 2h2a2 2 0 002-2',
+    },
+    {
+      label: 'Active SSE Sessions',
+      value:
+        typeof metrics?.activeSseSessions === 'number' ? formatNumber(metrics.activeSseSessions) : '--',
+      detail: 'Realtime Connections',
+      icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16h6M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2',
+    },
+    {
+      label: 'Tokens Today',
+      value: typeof metrics?.tokensToday === 'number' ? formatNumber(metrics.tokensToday) : '--',
+      detail: 'Current Day Usage',
+      icon: 'M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343',
+    },
+  ];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Evolution Score', value: `${evolutionScore}%`, detail: 'User Profile Depth', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
-          { label: 'Temporal Tasks', value: scheduled.filter(t => t.status === 'pending').length, detail: 'Pending Cron Jobs', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-          { label: 'Proactive Ratio', value: '84%', detail: 'Autonomous Actions', icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
-          { label: 'Vector Health', value: 'Optimal', detail: 'text-embedding-004', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
-        ].map((card, i) => (
+        {topCards.map((card, i) => (
           <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-xl shadow-lg hover:border-violet-500/30 transition-all group overflow-hidden relative">
             <div className="absolute top-0 right-0 w-16 h-16 bg-violet-500/5 rounded-full blur-2xl -mr-8 -mt-8" />
             <div className="flex items-center justify-between mb-2">

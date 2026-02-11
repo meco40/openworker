@@ -1,4 +1,5 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+@import '../styles/worker.css';
 
 body {
   font-family: 'Inter', sans-serif;

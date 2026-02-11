@@ -37,6 +37,7 @@ export interface Conversation {
   id: string;
   channelType: ChannelType;
   externalChatId: string | null;
+  userId: string;
   title: string;
   createdAt: string;
   updatedAt: string;
@@ -72,6 +73,22 @@ export interface GatewayState {
   scheduledTasks: ScheduledTask[];
 }
 
+export interface ControlPlaneMetrics {
+  uptimeSeconds: number;
+  pendingWorkerTasks: number;
+  activeSseSessions: number;
+  tokensToday: number;
+  vectorNodeCount: number;
+  generatedAt: string;
+}
+
+export interface ControlPlaneMetricsState {
+  metrics: ControlPlaneMetrics | null;
+  loading: boolean;
+  stale: boolean;
+  error: string | null;
+}
+
 export interface SystemLog {
   timestamp: string;
   type: 'AUTH' | 'CHAN' | 'TOOL' | 'SYS' | 'MEM' | 'TASK';
@@ -87,6 +104,7 @@ export enum View {
   WIZARD = 'wizard',
   CHANNELS = 'channels',
   LOGS = 'logs',
+  STATS = 'stats',
   SECURITY = 'security',
   PROFILE = 'profile',
   TASKS = 'tasks',
@@ -138,13 +156,19 @@ export interface ModelProfile {
   stack: ConfiguredModel[];
 }
 
+export type WorkspaceType = 'research' | 'webapp' | 'creative' | 'data' | 'general';
+
 export enum WorkerTaskStatus {
+  QUEUED = 'queued',
   PLANNING = 'planning',
   CLARIFYING = 'clarifying',
-  IN_PROGRESS = 'in_progress',
+  EXECUTING = 'executing',
+  WAITING_APPROVAL = 'waiting_approval',
   REVIEW = 'review',
   COMPLETED = 'completed',
   FAILED = 'failed',
+  CANCELLED = 'cancelled',
+  INTERRUPTED = 'interrupted',
 }
 
 export interface WorkerQuestion {
@@ -156,8 +180,28 @@ export interface WorkerQuestion {
 export interface WorkerArtifact {
   id: string;
   name: string;
-  type: 'code' | 'pdf' | 'doc' | 'data' | 'image';
+  type: string;
   content: string;
+  mimeType: string | null;
+}
+
+export interface WorkerStep {
+  id: string;
+  taskId: string;
+  stepIndex: number;
+  description: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  output: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface WorkspaceFile {
+  name: string;
+  relativePath: string;
+  size: number;
+  modifiedAt: string;
+  isDirectory: boolean;
 }
 
 export interface Team {
@@ -172,17 +216,21 @@ export interface Team {
 export interface WorkerTask {
   id: string;
   title: string;
-  prompt: string;
+  objective: string;
   status: WorkerTaskStatus;
-  usePlanMode: boolean;
-  plan: string[];
-  currentStepIndex: number;
-  questions: WorkerQuestion[];
-  answers: Record<string, string>;
-  artifacts: WorkerArtifact[];
-  result?: string;
+  workspaceType: WorkspaceType;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  currentStep: number;
+  totalSteps: number;
+  resultSummary: string | null;
+  errorMessage: string | null;
+  workspacePath: string | null;
+  resumable: boolean;
+  steps?: WorkerStep[];
+  artifacts?: WorkerArtifact[];
   createdAt: string;
-  teamId?: string;
+  startedAt: string | null;
+  completedAt: string | null;
 }
 
 // Skill interface — supports built-in and externally installed skills

@@ -18,7 +18,7 @@ describe('react/next best-practices refactor', () => {
     };
 
     expect(layout).not.toContain('cdn.tailwindcss.com');
-    expect(globalsCss).toContain('@import "tailwindcss";');
+    expect(globalsCss).toMatch(/@import\s+["']tailwindcss["'];/);
     expect(fs.existsSync(path.join(process.cwd(), 'postcss.config.mjs'))).toBe(true);
     expect(pkg.devDependencies?.tailwindcss || pkg.dependencies?.tailwindcss).toBeDefined();
     expect(pkg.devDependencies?.['@tailwindcss/postcss']).toBeDefined();
@@ -42,9 +42,11 @@ describe('react/next best-practices refactor', () => {
     expect(dashboard).toContain('[...scheduled].sort(');
   });
 
-  it('uses functional setState update for new worker task creation', () => {
+  it('uses API-based hook for worker task management', () => {
     const workerView = read('WorkerView.tsx');
-    expect(workerView).toContain('setTasks(prev => [newTask, ...prev]);');
+    // WorkerView now delegates to useWorkerTasks hook via API instead of client-side setTasks
+    expect(workerView).toContain('useWorkerTasks');
+    expect(workerView).not.toContain('ai(');
   });
 
   it('uses lazy state initialization for expensive initial values', () => {

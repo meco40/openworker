@@ -6,20 +6,18 @@ export type UnpairChannelType = 'whatsapp' | 'telegram' | 'discord' | 'imessage'
  * Disconnects a channel by removing webhooks and clearing credentials.
  */
 export async function unpairChannel(channel: UnpairChannelType): Promise<void> {
-  const store = getCredentialStore();
-
   switch (channel) {
     case 'telegram':
-      await unpairTelegram(store);
+      await unpairTelegram(getCredentialStore());
       break;
     case 'discord':
-      unpairDiscord(store);
+      unpairDiscord(getCredentialStore());
       break;
     case 'whatsapp':
-      await unpairBridge('whatsapp', store);
+      await unpairBridge('whatsapp', getCredentialStore());
       break;
     case 'imessage':
-      await unpairBridge('imessage', store);
+      await unpairBridge('imessage', getCredentialStore());
       break;
     default:
       throw new Error(`Unsupported channel for unpair: ${channel}`);

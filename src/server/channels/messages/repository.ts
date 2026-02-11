@@ -7,6 +7,7 @@ export type { Conversation };
 export interface StoredMessage {
   id: string;
   conversationId: string;
+  seq?: number | null;
   role: 'user' | 'agent' | 'system';
   content: string;
   platform: ChannelType;
@@ -22,6 +23,7 @@ export interface CreateConversationInput {
   channelType: ChannelType;
   externalChatId?: string;
   title?: string;
+  userId?: string;
 }
 
 export interface SaveMessageInput {
@@ -34,24 +36,42 @@ export interface SaveMessageInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface ConversationContextState {
+  conversationId: string;
+  summaryText: string;
+  summaryUptoSeq: number;
+  updatedAt: string;
+}
+
 // ─── Repository Interface ────────────────────────────────────
 
 export interface MessageRepository {
   createConversation(input: CreateConversationInput): Conversation;
-  getConversation(id: string): Conversation | null;
+  // `userId` remains optional temporarily for legacy fallback paths.
+  getConversation(id: string, userId?: string): Conversation | null;
   getConversationByExternalChat(
     channelType: ChannelType,
     externalChatId: string,
+    userId?: string,
   ): Conversation | null;
   getOrCreateConversation(
     channelType: ChannelType,
     externalChatId: string,
     title?: string,
+    userId?: string,
   ): Conversation;
-  listConversations(limit?: number): Conversation[];
+  listConversations(limit?: number, userId?: string): Conversation[];
   updateConversationTitle(id: string, title: string): void;
 
   saveMessage(input: SaveMessageInput): StoredMessage;
-  listMessages(conversationId: string, limit?: number, before?: string): StoredMessage[];
-  getDefaultWebChatConversation(): Conversation;
+  listMessages(conversationId: string, limit?: number, before?: string, userId?: string): StoredMessage[];
+  getDefaultWebChatConversation(userId?: string): Conversation;
+
+  getConversationContext(conversationId: string, userId?: string): ConversationContextState | null;
+  upsertConversationContext(
+    conversationId: string,
+    summaryText: string,
+    summaryUptoSeq: number,
+    userId?: string,
+  ): ConversationContextState;
 }

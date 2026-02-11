@@ -182,6 +182,31 @@ describe('SqliteMessageRepository', () => {
       expect(contents).toContain('Message 7');
     });
 
+    it('supports before_seq style pagination when before is numeric', () => {
+      const first = repo.saveMessage({
+        conversationId: conv.id,
+        role: 'user',
+        content: 'M1',
+        platform: ChannelType.TELEGRAM,
+      });
+      repo.saveMessage({
+        conversationId: conv.id,
+        role: 'user',
+        content: 'M2',
+        platform: ChannelType.TELEGRAM,
+      });
+      repo.saveMessage({
+        conversationId: conv.id,
+        role: 'user',
+        content: 'M3',
+        platform: ChannelType.TELEGRAM,
+      });
+
+      const beforeSeq = String((first.seq || 0) + 2);
+      const paged = repo.listMessages(conv.id, 50, beforeSeq);
+      expect(paged.map((m) => m.content)).toEqual(['M1', 'M2']);
+    });
+
     it('touches conversation updated_at on new message', () => {
       const before = repo.getConversation(conv.id)!.updatedAt;
 

@@ -9,15 +9,16 @@ interface SSEEvent {
 interface SSEClient {
   id: string;
   controller: ReadableStreamDefaultController;
+  userId: string;
   closed: boolean;
 }
 
 class SSEManager {
   private clients: SSEClient[] = [];
 
-  addClient(controller: ReadableStreamDefaultController): string {
+  addClient(controller: ReadableStreamDefaultController, userId: string): string {
     const id = `sse-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    this.clients.push({ id, controller, closed: false });
+    this.clients.push({ id, controller, userId, closed: false });
     return id;
   }
 
@@ -25,7 +26,7 @@ class SSEManager {
     this.clients = this.clients.filter((c) => c.id !== id);
   }
 
-  broadcast(event: SSEEvent): void {
+  broadcast(event: SSEEvent, targetUserId?: string): void {
     const payload = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`;
     const encoder = new TextEncoder();
     const bytes = encoder.encode(payload);
@@ -34,6 +35,9 @@ class SSEManager {
     for (const client of this.clients) {
       if (client.closed) {
         toRemove.push(client.id);
+        continue;
+      }
+      if (targetUserId && client.userId !== targetUserId) {
         continue;
       }
       try {

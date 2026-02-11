@@ -1,0 +1,136 @@
+// ─── Worker Domain Types ─────────────────────────────────────
+import type { ChannelType } from '../../../types';
+import type { WorkspaceType } from './workspaceManager';
+
+export type { WorkspaceType } from './workspaceManager';
+
+export type WorkerTaskStatus =
+  | 'queued'
+  | 'planning'
+  | 'clarifying'
+  | 'executing'
+  | 'review'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'interrupted'
+  | 'waiting_approval';
+
+export type WorkerTaskPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export type WorkerStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+
+export interface WorkerTaskRecord {
+  id: string;
+  title: string;
+  objective: string;
+  status: WorkerTaskStatus;
+  priority: WorkerTaskPriority;
+  originPlatform: ChannelType;
+  originConversation: string;
+  originExternalChat: string | null;
+  currentStep: number;
+  totalSteps: number;
+  resultSummary: string | null;
+  errorMessage: string | null;
+  resumable: boolean;
+  lastCheckpoint: string | null;
+  workspacePath: string | null;
+  workspaceType: WorkspaceType;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface WorkerStepRecord {
+  id: string;
+  taskId: string;
+  stepIndex: number;
+  description: string;
+  status: WorkerStepStatus;
+  output: string | null;
+  toolCalls: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface WorkerArtifactRecord {
+  id: string;
+  taskId: string;
+  name: string;
+  type: 'code' | 'file' | 'doc' | 'image' | 'data';
+  content: string;
+  mimeType: string | null;
+  createdAt: string;
+}
+
+export interface ApprovalRule {
+  id: string;
+  commandPattern: string;
+  createdAt: string;
+}
+
+// ─── Input Types ─────────────────────────────────────────────
+
+export interface CreateTaskInput {
+  title: string;
+  objective: string;
+  priority?: WorkerTaskPriority;
+  originPlatform: ChannelType;
+  originConversation: string;
+  originExternalChat?: string | null;
+  workspaceType?: WorkspaceType;
+}
+
+export interface SaveStepInput {
+  taskId: string;
+  stepIndex: number;
+  description: string;
+}
+
+export interface SaveArtifactInput {
+  taskId: string;
+  name: string;
+  type: WorkerArtifactRecord['type'];
+  content: string;
+  mimeType?: string;
+}
+
+// ─── Repository Interface ────────────────────────────────────
+
+export interface WorkerRepository {
+  // Tasks
+  createTask(input: CreateTaskInput): WorkerTaskRecord;
+  getTask(id: string): WorkerTaskRecord | null;
+  updateStatus(
+    id: string,
+    status: WorkerTaskStatus,
+    extra?: { summary?: string; error?: string },
+  ): void;
+  listTasks(filter?: { status?: WorkerTaskStatus; limit?: number }): WorkerTaskRecord[];
+  cancelTask(id: string): void;
+  getNextQueuedTask(): WorkerTaskRecord | null;
+  getActiveTask(): WorkerTaskRecord | null;
+  markInterrupted(id: string): void;
+  saveCheckpoint(id: string, checkpoint: Record<string, unknown>): void;
+
+  // Steps
+  saveSteps(taskId: string, steps: SaveStepInput[]): void;
+  getSteps(taskId: string): WorkerStepRecord[];
+  updateStepStatus(
+    stepId: string,
+    status: WorkerStepStatus,
+    output?: string,
+    toolCalls?: string,
+  ): void;
+
+  // Artifacts
+  saveArtifact(input: SaveArtifactInput): WorkerArtifactRecord;
+  getArtifacts(taskId: string): WorkerArtifactRecord[];
+
+  // Approval Rules
+  addApprovalRule(commandPattern: string): void;
+  removeApprovalRule(id: string): void;
+  isCommandApproved(command: string): boolean;
+  listApprovalRules(): ApprovalRule[];
+}

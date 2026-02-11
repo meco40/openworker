@@ -9,6 +9,7 @@ import { decryptSecret } from './crypto';
 import { PROVIDER_CATALOG } from './providerCatalog';
 import type { ProviderAccountRecord } from './repository';
 import type { ProviderCatalogEntry } from './types';
+import { getTokenUsageRepository } from '../stats/tokenUsageRepository';
 
 function findProvider(providerId: string): ProviderCatalogEntry | null {
   return PROVIDER_CATALOG.find((provider) => provider.id === providerId) ?? null;
@@ -48,21 +49,38 @@ export async function dispatchGatewayRequest(
   const adapter = getProviderAdapter(provider.id);
   const context = { provider, account, secret };
 
+  let result: GatewayResponse;
+
   if (adapter?.dispatchGateway) {
-    return adapter.dispatchGateway(context, request);
+    result = await adapter.dispatchGateway(context, request);
+  } else if (provider.apiBaseUrl) {
+    result = await dispatchOpenAICompatibleChat(provider.apiBaseUrl, secret, provider.id, request);
+  } else {
+    result = {
+      ok: false,
+      text: '',
+      model: request.model,
+      provider: provider.id,
+      error: `No gateway adapter for provider: ${provider.name}`,
+    };
   }
 
-  if (provider.apiBaseUrl) {
-    return dispatchOpenAICompatibleChat(provider.apiBaseUrl, secret, provider.id, request);
+  // Record token usage (fire-and-forget, never breaks dispatch)
+  if (result.ok && result.usage) {
+    try {
+      getTokenUsageRepository().recordUsage(
+        account.providerId,
+        request.model,
+        result.usage.prompt_tokens,
+        result.usage.completion_tokens,
+        result.usage.total_tokens,
+      );
+    } catch {
+      // Silently ignore — stats must never break AI dispatch
+    }
   }
 
-  return {
-    ok: false,
-    text: '',
-    model: request.model,
-    provider: provider.id,
-    error: `No gateway adapter for provider: ${provider.name}`,
-  };
+  return result;
 }
 
 export type { GatewayMessage, GatewayRequest, GatewayResponse };

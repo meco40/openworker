@@ -2,7 +2,15 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { View, ChannelType, CoupledChannel, MessageAttachment, Team, WorkerTask, Skill } from './types';
+import {
+  View,
+  ChannelType,
+  CoupledChannel,
+  MessageAttachment,
+  Team,
+  WorkerTask,
+  Skill,
+} from './types';
 import Sidebar from './components/Sidebar';
 import { INITIAL_TEAMS } from './constants';
 import { buildInitialShellState } from './src/modules/app-shell/useAppShellState';
@@ -10,12 +18,17 @@ import {
   loadCoupledChannelsFromStorage,
   saveCoupledChannelsToStorage,
 } from './src/modules/app-shell/channelStorage';
-import { buildConversationTitle } from './src/modules/app-shell/runtimeLogic';
+import {
+  appendMessageIfMissing,
+  buildConversationTitle,
+  mapConversationApiMessage,
+} from './src/modules/app-shell/runtimeLogic';
 import { getClientStorage } from './src/modules/app-shell/clientStorage';
 import { useConversationSync } from './src/modules/app-shell/useConversationSync';
 import { useGatewayState } from './src/modules/app-shell/useGatewayState';
 import { useTaskScheduler } from './src/modules/app-shell/useTaskScheduler';
 import { useAgentRuntime } from './src/modules/app-shell/useAgentRuntime';
+import { useControlPlaneMetrics } from './src/modules/app-shell/useControlPlaneMetrics';
 import { toMessage } from './src/modules/chat/services/routeMessage';
 import AppShellHeader from './src/modules/app-shell/components/AppShellHeader';
 import AppShellViewContent from './src/modules/app-shell/components/AppShellViewContent';
@@ -25,12 +38,16 @@ const LiveCanvas = dynamic(() => import('./components/LiveCanvas').then((mod) =>
   ssr: false,
 });
 
+const isPersistentSessionV2Enabled =
+  String(process.env.NEXT_PUBLIC_CHAT_PERSISTENT_SESSION_V2 || 'true').toLowerCase() === 'true';
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(() => buildInitialShellState().currentView);
   const [onboarded, setOnboarded] = useState<boolean>(true);
   const [isCanvasOpen, setIsCanvasOpen] = useState(false);
+  const [isServerResponding, setIsServerResponding] = useState(false);
   const [teams, setTeams] = useState<Team[]>(INITIAL_TEAMS);
-  const [tasks, setTasks] = useState<WorkerTask[]>([]);
+  const [tasks] = useState<WorkerTask[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
 
   // Load persisted skills from SQLite on mount
@@ -72,7 +89,8 @@ const App: React.FC = () => {
   } = useConversationSync();
   const { gatewayState, addEventLog, updateMemoryDisplay } = useGatewayState();
   const { scheduledTasks, setScheduledTasks } = useTaskScheduler({ addEventLog, setMessages });
-  const { isAgentTyping, handleAgentResponse } = useAgentRuntime({
+  const controlPlaneMetricsState = useControlPlaneMetrics();
+  const { isAgentTyping: isRuntimeAgentTyping, handleAgentResponse } = useAgentRuntime({
     skills,
     addEventLog,
     setMessages,
@@ -83,6 +101,71 @@ const App: React.FC = () => {
   useEffect(() => {
     saveCoupledChannelsToStorage(getClientStorage(), coupledChannels);
   }, [coupledChannels]);
+
+  const sendChatMessage = useCallback(
+    async (content: string, platform: ChannelType, attachment?: MessageAttachment) => {
+      if (!activeConversationId) {
+        addEventLog('SYS', 'Keine aktive Conversation verfügbar.');
+        return;
+      }
+
+      const fullContent = attachment
+        ? `${content}\n\n[Attached file: ${attachment.name} (${attachment.type})]`
+        : content;
+
+      setIsServerResponding(true);
+      addEventLog('CHAN', `Signal via ${platform}`);
+
+      try {
+        const response = await fetch('/api/channels/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationId: activeConversationId,
+            content: fullContent,
+          }),
+        });
+
+        const data = (await response.json()) as {
+          ok?: boolean;
+          error?: string;
+          userMessage?: {
+            id: string;
+            role: 'user' | 'agent' | 'system';
+            content: string;
+            createdAt: string;
+            platform: ChannelType;
+          };
+          agentMessage?: {
+            id: string;
+            role: 'user' | 'agent' | 'system';
+            content: string;
+            createdAt: string;
+            platform: ChannelType;
+          };
+        };
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        // Fallback in case SSE is delayed/missed: append API response once.
+        if (data.userMessage && data.agentMessage) {
+          const mappedUser = mapConversationApiMessage(data.userMessage);
+          const mappedAgent = mapConversationApiMessage(data.agentMessage);
+          setMessages((previous) => {
+            const withUser = appendMessageIfMissing(previous, mappedUser);
+            return appendMessageIfMissing(withUser, mappedAgent);
+          });
+        }
+      } catch (error) {
+        addEventLog('SYS', error instanceof Error ? error.message : 'Message dispatch failed.');
+      } finally {
+        setIsServerResponding(false);
+      }
+    },
+    [activeConversationId, addEventLog, setMessages],
+  );
 
   const routeMessage = useCallback(
     async (
@@ -150,27 +233,27 @@ const App: React.FC = () => {
         onViewChange={setCurrentView}
         onToggleCanvas={() => setIsCanvasOpen(!isCanvasOpen)}
       />
-      <main className="flex-1 flex flex-col relative overflow-hidden">
-        <AppShellHeader
-          pendingTaskCount={scheduledTasks.filter((task) => task.status === 'pending').length}
-          memoryEntryCount={gatewayState.memoryEntries.length}
-        />
+      <main className="relative flex flex-1 flex-col overflow-hidden">
+        <AppShellHeader metricsState={controlPlaneMetricsState} />
         <AppShellViewContent
           currentView={currentView}
           gatewayState={gatewayState}
+          controlPlaneMetricsState={controlPlaneMetricsState}
           scheduledTasks={scheduledTasks}
           teams={teams}
           setTeams={setTeams}
           tasks={tasks}
-          setTasks={setTasks}
           skills={skills}
           setSkills={setSkills}
           messages={messages}
           conversations={conversations}
           activeConversationId={activeConversationId}
-          isAgentTyping={isAgentTyping}
-          onSendMessage={(content, platform, attachment) =>
-            routeMessage(content, platform, 'user', attachment)
+          isAgentTyping={isServerResponding || isRuntimeAgentTyping}
+          onSendMessage={
+            isPersistentSessionV2Enabled
+              ? sendChatMessage
+              : (content, platform, attachment) =>
+                  routeMessage(content, platform, 'user', attachment)
           }
           onSelectConversation={setActiveConversationId}
           onNewConversation={handleNewConversation}

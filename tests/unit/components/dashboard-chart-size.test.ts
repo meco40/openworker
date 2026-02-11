@@ -2,7 +2,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import Dashboard from '../../../components/Dashboard';
-import { type GatewayState } from '../../../types';
+import { type ControlPlaneMetricsState, type GatewayState } from '../../../types';
 
 const baseState: GatewayState = {
   version: 'test',
@@ -18,12 +18,24 @@ const baseState: GatewayState = {
   scheduledTasks: [],
 };
 
+const baseMetricsState: ControlPlaneMetricsState = {
+  metrics: null,
+  loading: false,
+  stale: false,
+  error: null,
+};
+
 describe('Dashboard chart sizing', () => {
   it('does not emit the Recharts invalid-size warning on initial render', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     try {
-      renderToStaticMarkup(React.createElement(Dashboard, { state: baseState }));
+      renderToStaticMarkup(
+        React.createElement(Dashboard, {
+          state: baseState,
+          metricsState: baseMetricsState,
+        }),
+      );
     } finally {
       const warningMessages = warnSpy.mock.calls
         .map((call) => String(call[0] ?? ''))

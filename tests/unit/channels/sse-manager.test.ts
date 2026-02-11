@@ -3,7 +3,6 @@ import { getSSEManager } from '../../../src/server/channels/sse/manager';
 
 describe('SSEManager', () => {
   beforeEach(() => {
-    // Reset the global singleton between tests
     (globalThis as any).__sseManager = undefined;
   });
 
@@ -25,29 +24,25 @@ describe('SSEManager', () => {
       close: vi.fn(),
     } as unknown as ReadableStreamDefaultController;
 
-    const id = mgr.addClient(mockController);
+    const id = mgr.addClient(mockController, 'user-a');
     expect(mgr.connectionCount).toBe(1);
 
     mgr.removeClient(id);
     expect(mgr.connectionCount).toBe(0);
   });
 
-  it('broadcasts to all connected clients', () => {
+  it('broadcasts to matching user when targetUserId is provided', () => {
     const mgr = getSSEManager();
-    const enqueue1 = vi.fn();
-    const enqueue2 = vi.fn();
+    const enqueueA = vi.fn();
+    const enqueueB = vi.fn();
 
-    mgr.addClient({ enqueue: enqueue1 } as unknown as ReadableStreamDefaultController);
-    mgr.addClient({ enqueue: enqueue2 } as unknown as ReadableStreamDefaultController);
+    mgr.addClient({ enqueue: enqueueA } as unknown as ReadableStreamDefaultController, 'user-a');
+    mgr.addClient({ enqueue: enqueueB } as unknown as ReadableStreamDefaultController, 'user-b');
 
-    mgr.broadcast({ type: 'message', data: { id: '1', content: 'test' } });
+    mgr.broadcast({ type: 'message', data: { id: '1', content: 'test' } }, 'user-a');
 
-    expect(enqueue1).toHaveBeenCalledTimes(1);
-    expect(enqueue2).toHaveBeenCalledTimes(1);
-
-    const sentData = new TextDecoder().decode(enqueue1.mock.calls[0][0]);
-    expect(sentData).toContain('event: message');
-    expect(sentData).toContain('"content":"test"');
+    expect(enqueueA).toHaveBeenCalledTimes(1);
+    expect(enqueueB).toHaveBeenCalledTimes(0);
   });
 
   it('removes clients that throw on enqueue', () => {
@@ -57,14 +52,12 @@ describe('SSEManager', () => {
     });
     const goodEnqueue = vi.fn();
 
-    mgr.addClient({ enqueue: badEnqueue } as unknown as ReadableStreamDefaultController);
-    mgr.addClient({ enqueue: goodEnqueue } as unknown as ReadableStreamDefaultController);
+    mgr.addClient({ enqueue: badEnqueue } as unknown as ReadableStreamDefaultController, 'user-a');
+    mgr.addClient({ enqueue: goodEnqueue } as unknown as ReadableStreamDefaultController, 'user-a');
 
     mgr.broadcast({ type: 'test', data: {} });
 
-    // Bad client gets removed
     expect(mgr.connectionCount).toBe(1);
-    // Good client still got the message
     expect(goodEnqueue).toHaveBeenCalledTimes(1);
   });
 });

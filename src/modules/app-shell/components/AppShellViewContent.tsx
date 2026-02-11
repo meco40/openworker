@@ -2,6 +2,7 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import {
   type ChannelType,
+  type ControlPlaneMetricsState,
   type Conversation,
   type CoupledChannel,
   type GatewayState,
@@ -28,15 +29,16 @@ const SecurityView = dynamic(() => import('../../../../components/SecurityView')
 const ConfigEditor = dynamic(() => import('../../config/components/ConfigEditor'));
 const ProfileView = dynamic(() => import('../../../../components/ProfileView'));
 const ExposureManager = dynamic(() => import('../../exposure/components/ExposureManager'));
+const StatsView = dynamic(() => import('../../../../components/StatsView'));
 
 interface AppShellViewContentProps {
   currentView: View;
   gatewayState: GatewayState;
+  controlPlaneMetricsState: ControlPlaneMetricsState;
   scheduledTasks: ScheduledTask[];
   teams: Team[];
   setTeams: React.Dispatch<React.SetStateAction<Team[]>>;
   tasks: WorkerTask[];
-  setTasks: React.Dispatch<React.SetStateAction<WorkerTask[]>>;
   skills: Skill[];
   setSkills: React.Dispatch<React.SetStateAction<Skill[]>>;
   messages: Message[];
@@ -54,11 +56,11 @@ interface AppShellViewContentProps {
 const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
   currentView,
   gatewayState,
+  controlPlaneMetricsState,
   scheduledTasks,
   teams,
   setTeams,
   tasks,
-  setTasks,
   skills,
   setSkills,
   messages,
@@ -74,14 +76,29 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
 }) => {
   return (
     <div className="flex-1 overflow-auto p-6">
-      {currentView === View.DASHBOARD && <ViewErrorBoundary label="Control Plane"><Dashboard state={{ ...gatewayState, scheduledTasks }} /></ViewErrorBoundary>}
-      {currentView === View.WORKER && (
-        <ViewErrorBoundary label="Autonomous Worker">
-          <WorkerView teams={teams} tasks={tasks} setTasks={setTasks} skills={skills} />
+      {currentView === View.DASHBOARD && (
+        <ViewErrorBoundary label="Control Plane">
+          <Dashboard
+            state={{ ...gatewayState, scheduledTasks }}
+            metricsState={controlPlaneMetricsState}
+          />
         </ViewErrorBoundary>
       )}
-      {currentView === View.TEAMS && <ViewErrorBoundary label="Team Collaboration"><TeamManager teams={teams} setTeams={setTeams} tasks={tasks} /></ViewErrorBoundary>}
-      {currentView === View.MODELS && <ViewErrorBoundary label="AI Model Hub"><ModelHub /></ViewErrorBoundary>}
+      {currentView === View.WORKER && (
+        <ViewErrorBoundary label="Autonomous Worker">
+          <WorkerView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.TEAMS && (
+        <ViewErrorBoundary label="Team Collaboration">
+          <TeamManager teams={teams} setTeams={setTeams} tasks={tasks} />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.MODELS && (
+        <ViewErrorBoundary label="AI Model Hub">
+          <ModelHub />
+        </ViewErrorBoundary>
+      )}
       {currentView === View.CHAT && (
         <ViewErrorBoundary label="Multi-Channel Inbox">
           <ChatInterface
@@ -104,13 +121,46 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
           />
         </ViewErrorBoundary>
       )}
-      {currentView === View.SKILLS && <ViewErrorBoundary label="Skill Registry"><SkillsRegistry skills={skills} setSkills={setSkills} /></ViewErrorBoundary>}
-      {currentView === View.TASKS && <ViewErrorBoundary label="Task Monitor"><TaskManagerView /></ViewErrorBoundary>}
-      {currentView === View.LOGS && <ViewErrorBoundary label="System Logs"><LogsView /></ViewErrorBoundary>}
-      {currentView === View.SECURITY && <ViewErrorBoundary label="Security Panel"><SecurityView /></ViewErrorBoundary>}
-      {currentView === View.CONFIG && <ViewErrorBoundary label="Gateway Config"><ConfigEditor /></ViewErrorBoundary>}
-      {currentView === View.PROFILE && <ViewErrorBoundary label="SaaS Identity"><ProfileView /></ViewErrorBoundary>}
-      {currentView === View.EXPOSURE && <ViewErrorBoundary label="Remote Exposure"><ExposureManager /></ViewErrorBoundary>}
+      {currentView === View.SKILLS && (
+        <ViewErrorBoundary label="Skill Registry">
+          <SkillsRegistry skills={skills} setSkills={setSkills} />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.TASKS && (
+        <ViewErrorBoundary label="Task Monitor">
+          <TaskManagerView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.LOGS && (
+        <ViewErrorBoundary label="System Logs">
+          <LogsView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.SECURITY && (
+        <ViewErrorBoundary label="Security Panel">
+          <SecurityView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.CONFIG && (
+        <ViewErrorBoundary label="Gateway Config">
+          <ConfigEditor />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.PROFILE && (
+        <ViewErrorBoundary label="SaaS Identity">
+          <ProfileView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.EXPOSURE && (
+        <ViewErrorBoundary label="Remote Exposure">
+          <ExposureManager />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.STATS && (
+        <ViewErrorBoundary label="Usage Stats">
+          <StatsView />
+        </ViewErrorBoundary>
+      )}
     </div>
   );
 };
