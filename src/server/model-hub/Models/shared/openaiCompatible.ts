@@ -68,7 +68,7 @@ export async function dispatchOpenAICompatibleChat(
   secret: string,
   providerId: string,
   request: GatewayRequest,
-  options: { extraHeaders?: Record<string, string> } = {},
+  options: { extraHeaders?: Record<string, string>; signal?: AbortSignal } = {},
 ): Promise<GatewayResponse> {
   const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
   const body = {
@@ -96,6 +96,7 @@ export async function dispatchOpenAICompatibleChat(
       body: JSON.stringify(body),
     },
     GATEWAY_TIMEOUT_MS,
+    options.signal,
   );
 
   if (!response.ok) {

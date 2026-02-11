@@ -7,6 +7,21 @@
 
 import { getLogRepository, type LogEntry, type LogLevel } from './logRepository';
 import { getSSEManager } from '../channels/sse/manager';
+import type { broadcastToSubscribed as BroadcastToSubscribedFn } from '../gateway/broadcast';
+
+// Cached gateway broadcast (loaded lazily for ESM compatibility)
+let _wsBroadcastToSubscribed: typeof BroadcastToSubscribedFn | null = null;
+let _wsImportAttempted = false;
+
+async function loadGatewayBroadcast() {
+  if (_wsImportAttempted) return;
+  _wsImportAttempted = true;
+  try {
+    const mod = await import('../gateway/broadcast');
+    _wsBroadcastToSubscribed = mod.broadcastToSubscribed;
+  } catch { /* Gateway not available */ }
+}
+loadGatewayBroadcast();
 
 // ── Source-to-level mapping for existing SystemLog types ─────────
 
@@ -31,12 +46,19 @@ export function log(
   const repo = getLogRepository();
   const entry = repo.insertLog(level, source.toUpperCase(), message, metadata);
 
-  // Broadcast to all connected SSE clients
+  // Broadcast to all connected SSE clients (also bridges to WS)
   try {
     const sse = getSSEManager();
     sse.broadcast({ type: 'system_log', data: entry });
   } catch {
     // SSE broadcast failure should not break logging
+  }
+
+  // Native WS broadcast to subscribed log clients
+  if (_wsBroadcastToSubscribed) {
+    try {
+      _wsBroadcastToSubscribed('logs', 'log.entry', entry);
+    } catch { /* ignore */ }
   }
 
   return entry;

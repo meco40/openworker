@@ -4,6 +4,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { WorkerTask, WorkerStep, WorkspaceFile } from '../../types';
 import { useWorkspaceFiles } from '../../src/modules/worker/hooks/useWorkspaceFiles';
+import { getGatewayClient } from '../../src/modules/gateway/ws-client';
 
 interface WorkerTaskDetailProps {
   task: WorkerTask;
@@ -185,18 +186,20 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   const terminalRef = useRef<HTMLDivElement>(null);
-  const sseRef = useRef<EventSource | null>(null);
 
-  // SSE Live Terminal subscription
+  // WebSocket Live Terminal subscription
   useEffect(() => {
     if (activeTab !== 'terminal') return;
 
-    const sse = new EventSource('/api/sse');
-    sseRef.current = sse;
+    const client = getGatewayClient();
+    client.connect();
 
-    sse.addEventListener('worker-update', (e) => {
+    // Subscribe to task-specific worker updates
+    client.request('worker.task.subscribe', { taskId: task.id }).catch(() => {});
+
+    const unsub = client.on('worker.status', (payload) => {
       try {
-        const data = JSON.parse(e.data);
+        const data = payload as { taskId: string; status?: string; message?: string };
         if (data.taskId === task.id) {
           const ts = new Date().toLocaleTimeString('de-DE', {
             hour: '2-digit',
@@ -208,18 +211,31 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
             `[${ts}] ${data.status?.toUpperCase() || 'UPDATE'}: ${data.message || JSON.stringify(data)}`,
           ]);
         }
-      } catch {
-        /* ignore parse errors */
-      }
+      } catch { /* ignore */ }
     });
 
-    sse.onerror = () => {
-      setTerminalLogs((prev) => [...prev, '[SSE] Verbindung unterbrochen. Reconnecting...']);
-    };
+    // Also listen for SSE-bridged legacy event
+    const unsubLegacy = client.on('worker-status', (payload) => {
+      try {
+        const data = payload as { taskId: string; status?: string; message?: string };
+        if (data.taskId === task.id) {
+          const ts = new Date().toLocaleTimeString('de-DE', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          });
+          setTerminalLogs((prev) => [
+            ...prev,
+            `[${ts}] ${data.status?.toUpperCase() || 'UPDATE'}: ${data.message || JSON.stringify(data)}`,
+          ]);
+        }
+      } catch { /* ignore */ }
+    });
 
     return () => {
-      sse.close();
-      sseRef.current = null;
+      unsub();
+      unsubLegacy();
+      client.request('worker.task.unsubscribe', { taskId: task.id }).catch(() => {});
     };
   }, [activeTab, task.id]);
 

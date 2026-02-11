@@ -34,6 +34,7 @@ export interface SaveMessageInput {
   externalMsgId?: string;
   senderName?: string;
   metadata?: Record<string, unknown>;
+  clientMessageId?: string;
 }
 
 export interface ConversationContextState {
@@ -66,6 +67,10 @@ export interface MessageRepository {
   saveMessage(input: SaveMessageInput): StoredMessage;
   listMessages(conversationId: string, limit?: number, before?: string, userId?: string): StoredMessage[];
   getDefaultWebChatConversation(userId?: string): Conversation;
+
+  deleteConversation(id: string, userId: string): boolean;
+  updateModelOverride(id: string, modelOverride: string | null, userId: string): void;
+  findMessageByClientId(conversationId: string, clientMessageId: string): StoredMessage | null;
 
   getConversationContext(conversationId: string, userId?: string): ConversationContextState | null;
   upsertConversationContext(

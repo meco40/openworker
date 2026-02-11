@@ -9,6 +9,21 @@ import { notifyTaskCompleted, notifyTaskFailed } from './workerCallback';
 import { getSSEManager } from '../channels/sse/manager';
 import { getWorkspaceManager } from './workspaceManager';
 import type { WorkerTaskRecord } from './workerTypes';
+import type { broadcastToSubscribed as BroadcastToSubscribedFn } from '../gateway/broadcast';
+
+// Cached gateway broadcast (loaded lazily for ESM compatibility)
+let _wsBroadcastToSubscribed: typeof BroadcastToSubscribedFn | null = null;
+let _wsImportAttempted = false;
+
+async function loadGatewayBroadcast() {
+  if (_wsImportAttempted) return;
+  _wsImportAttempted = true;
+  try {
+    const mod = await import('../gateway/broadcast');
+    _wsBroadcastToSubscribed = mod.broadcastToSubscribed;
+  } catch { /* Gateway not available */ }
+}
+loadGatewayBroadcast();
 
 // ─── Queue Processor ─────────────────────────────────────────
 
@@ -197,13 +212,20 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
 // ─── SSE Broadcast Helper ────────────────────────────────────
 
 function broadcastStatus(taskId: string, status: string, message: string): void {
+  const payload = { taskId, status, message, timestamp: new Date().toISOString() };
+
+  // SSE broadcast (legacy — also bridges to WS via SSEManager)
   try {
-    getSSEManager().broadcast({
-      type: 'worker-status',
-      data: { taskId, status, message, timestamp: new Date().toISOString() },
-    });
+    getSSEManager().broadcast({ type: 'worker-status', data: payload });
   } catch {
     // SSE not available (e.g. during tests)
+  }
+
+  // Native WS broadcast to subscribed clients
+  if (_wsBroadcastToSubscribed) {
+    try {
+      _wsBroadcastToSubscribed(`worker:${taskId}`, 'worker.status', payload);
+    } catch { /* ignore */ }
   }
 }
 

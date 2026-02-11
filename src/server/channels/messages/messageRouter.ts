@@ -3,7 +3,7 @@
 // Pure function, zero dependencies, zero token cost.
 
 export interface RouteResult {
-  target: 'chat' | 'worker' | 'worker-command';
+  target: 'chat' | 'worker' | 'worker-command' | 'session-command';
   payload: string;
   command?: string;
 }
@@ -21,6 +21,8 @@ const WORKER_COMMANDS = [
   '/approve-always',
 ] as const;
 
+const SESSION_COMMANDS = ['/new', '/reset'] as const;
+
 /**
  * Routes an incoming message to either the chat agent or the worker system.
  *
@@ -34,7 +36,15 @@ export function routeMessage(content: string): RouteResult {
   const trimmed = content.trim();
   const lower = trimmed.toLowerCase();
 
-  // Check worker commands first (more specific)
+  // Check session commands first
+  for (const cmd of SESSION_COMMANDS) {
+    if (lower === cmd || lower.startsWith(`${cmd} `)) {
+      const payload = trimmed.slice(cmd.length).trim();
+      return { target: 'session-command', payload, command: cmd };
+    }
+  }
+
+  // Check worker commands (more specific)
   for (const cmd of WORKER_COMMANDS) {
     if (lower === cmd || lower.startsWith(`${cmd} `)) {
       const payload = trimmed.slice(cmd.length).trim();

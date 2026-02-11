@@ -39,6 +39,7 @@ export interface Conversation {
   externalChatId: string | null;
   userId: string;
   title: string;
+  modelOverride: string | null;
   createdAt: string;
   updatedAt: string;
 }

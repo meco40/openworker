@@ -4,11 +4,18 @@ export async function fetchWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit,
   timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+  externalSignal?: AbortSignal,
 ): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  // Combine external signal (user abort) with internal timeout signal
+  const signal = externalSignal
+    ? AbortSignal.any([controller.signal, externalSignal])
+    : controller.signal;
+
   try {
-    return await fetch(input, { ...init, signal: controller.signal });
+    return await fetch(input, { ...init, signal });
   } finally {
     clearTimeout(timeout);
   }

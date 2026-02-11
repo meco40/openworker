@@ -6,6 +6,7 @@ import {
   mapConversationStreamMessage,
   upsertConversationActivity,
 } from './runtimeLogic';
+import { getGatewayClient } from '../gateway/ws-client';
 
 interface ConversationListResponse {
   ok: boolean;
@@ -54,27 +55,74 @@ export function useConversationSync() {
       .catch((error) => console.warn('Failed to load conversations:', error));
   }, []);
 
+  // ─── WebSocket Live Updates ──────────────────────────────
   useEffect(() => {
-    const sse = new EventSource('/api/channels/stream');
-    sse.addEventListener('message', (event) => {
-      try {
-        const payload = JSON.parse(event.data) as StreamConversationMessage;
+    const client = getGatewayClient();
+    client.connect();
 
-        if (payload.conversationId === activeConversationRef.current) {
+    // Listen for chat.message events via WS gateway
+    const unsub = client.on('chat.message', (payload) => {
+      try {
+        const data = payload as StreamConversationMessage;
+
+        if (data.conversationId === activeConversationRef.current) {
           setMessages((previous) =>
-            appendMessageIfMissing(previous, mapConversationStreamMessage(payload)),
+            appendMessageIfMissing(previous, mapConversationStreamMessage(data)),
           );
         }
 
         setConversations((previous) =>
-          upsertConversationActivity(previous, payload.conversationId, payload.createdAt),
+          upsertConversationActivity(previous, data.conversationId, data.createdAt),
         );
       } catch {
-        // Ignore malformed SSE messages.
+        // Ignore malformed messages.
       }
     });
 
-    return () => sse.close();
+    // Also listen for legacy SSE-bridged 'message' events during transition
+    const unsubLegacy = client.on('message', (payload) => {
+      try {
+        const data = payload as StreamConversationMessage;
+        if (data.conversationId === activeConversationRef.current) {
+          setMessages((previous) =>
+            appendMessageIfMissing(previous, mapConversationStreamMessage(data)),
+          );
+        }
+        setConversations((previous) =>
+          upsertConversationActivity(previous, data.conversationId, data.createdAt),
+        );
+      } catch { /* ignore */ }
+    });
+
+    // ─── Session lifecycle events ────────────────────────
+    const unsubDeleted = client.on('conversation.deleted', (payload) => {
+      const { conversationId } = payload as { conversationId: string };
+      setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+      if (activeConversationRef.current === conversationId) {
+        setActiveConversationId(null);
+        setMessages([]);
+      }
+    });
+
+    const unsubReset = client.on('conversation.reset', (payload) => {
+      const { newConversationId } = payload as { oldConversationId: string | null; newConversationId: string };
+      // Refresh conversation list — the new conversation will appear
+      fetch('/api/channels/conversations')
+        .then((r) => r.json())
+        .then((data: ConversationListResponse) => {
+          if (data.ok) {
+            setConversations(data.conversations);
+            setActiveConversationId(newConversationId);
+          }
+        })
+        .catch(() => { /* ignore */ });
+    });
+
+    const unsubAborted = client.on('chat.aborted', () => {
+      // No special UI action needed — the aborted message arrives via chat.message
+    });
+
+    return () => { unsub(); unsubLegacy(); unsubDeleted(); unsubReset(); unsubAborted(); };
   }, []);
 
   useEffect(() => {

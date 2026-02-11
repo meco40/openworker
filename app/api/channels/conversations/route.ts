@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getMessageService } from '../../../../src/server/channels/messages/runtime';
 import type { ChannelType } from '../../../../types';
 import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
@@ -63,6 +63,64 @@ export async function POST(request: Request) {
     );
 
     return NextResponse.json({ ok: true, conversation });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}
+
+// ─── DELETE /api/channels/conversations?id=<conversationId> ──
+export async function DELETE(request: NextRequest) {
+  try {
+    const conversationId = request.nextUrl.searchParams.get('id');
+    if (!conversationId) {
+      return NextResponse.json({ ok: false, error: 'id query param is required' }, { status: 400 });
+    }
+
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const service = getMessageService();
+    const deleted = service.deleteConversation(conversationId, userContext.userId);
+
+    if (!deleted) {
+      return NextResponse.json({ ok: false, error: 'Conversation not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}
+
+// ─── PATCH /api/channels/conversations ───────────────────────
+// Body: { conversationId, modelOverride?: string | null }
+export async function PATCH(request: Request) {
+  try {
+    const body = (await request.json()) as {
+      conversationId?: string;
+      modelOverride?: string | null;
+    };
+
+    if (!body.conversationId) {
+      return NextResponse.json({ ok: false, error: 'conversationId is required' }, { status: 400 });
+    }
+
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const service = getMessageService();
+
+    if ('modelOverride' in body) {
+      service.setModelOverride(body.conversationId, body.modelOverride ?? null, userContext.userId);
+    }
+
+    return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

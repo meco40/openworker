@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { getGatewayClient } from '../src/modules/gateway/ws-client';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -71,7 +72,6 @@ const LogsView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
 
   // ── Fetch historical logs ──────────────────────────────────
 
@@ -114,45 +114,63 @@ const LogsView: React.FC = () => {
     void fetchSources();
   }, [fetchSources]);
 
-  // ── SSE real-time stream ───────────────────────────────────
+  // ── WebSocket real-time stream ───────────────────────────────
 
   useEffect(() => {
-    const es = new EventSource('/api/logs/stream');
-    eventSourceRef.current = es;
+    const client = getGatewayClient();
+    client.connect();
 
-    es.addEventListener('connected', () => {
-      setIsConnected(true);
+    // Subscribe to log events on the server
+    client.request('logs.subscribe', {}).catch(() => {});
+
+    const unsubState = client.onStateChange((state) => {
+      setIsConnected(state === 'connected');
     });
 
-    es.addEventListener('system_log', (e) => {
+    const unsub = client.on('log.entry', (payload) => {
       try {
-        const entry = JSON.parse(e.data) as LogEntry;
+        const entry = payload as LogEntry;
         setLogs((prev) => {
           const next = [...prev, entry];
-          // Cap at 1000 in view
           return next.length > 1000 ? next.slice(-1000) : next;
         });
         setTotalCount((c) => c + 1);
 
-        // Update sources if new
         setSources((prev) => {
           if (!prev.includes(entry.source)) {
             return [...prev, entry.source].sort();
           }
           return prev;
         });
-      } catch {
-        // Invalid event data
-      }
+      } catch { /* Invalid event data */ }
     });
 
-    es.onerror = () => {
-      setIsConnected(false);
-    };
+    // Also listen for SSE-bridged legacy event
+    const unsubLegacy = client.on('system_log', (payload) => {
+      try {
+        const entry = payload as LogEntry;
+        setLogs((prev) => {
+          const next = [...prev, entry];
+          return next.length > 1000 ? next.slice(-1000) : next;
+        });
+        setTotalCount((c) => c + 1);
+        setSources((prev) => {
+          if (!prev.includes(entry.source)) {
+            return [...prev, entry.source].sort();
+          }
+          return prev;
+        });
+      } catch { /* ignore */ }
+    });
+
+    // Set connected if already connected
+    if (client.state === 'connected') setIsConnected(true);
 
     return () => {
-      es.close();
-      eventSourceRef.current = null;
+      unsub();
+      unsubLegacy();
+      unsubState();
+      client.request('logs.unsubscribe', {}).catch(() => {});
       setIsConnected(false);
     };
   }, []);

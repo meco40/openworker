@@ -3,6 +3,7 @@ import type { WorkerTaskStatus } from '../../../../src/server/worker/workerTypes
 import { getWorkerRepository } from '../../../../src/server/worker/workerRepository';
 import { getTokenUsageRepository } from '../../../../src/server/stats/tokenUsageRepository';
 import { getMemoryService } from '../../../../src/server/memory/runtime';
+import { getClientRegistry } from '../../../../src/server/gateway/client-registry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,7 @@ export async function GET() {
       .filter((task) => OPEN_STATUSES.has(task.status)).length;
 
     const activeSseSessions = getSSEManager().connectionCount;
+    const activeWsSessions = getClientRegistry().connectionCount;
 
     const { from, to } = resolveTodayRange();
     const tokensToday = getTokenUsageRepository().getTotalTokens(from, to).totalTokens;
@@ -45,6 +47,7 @@ export async function GET() {
         uptimeSeconds,
         pendingWorkerTasks,
         activeSseSessions,
+        activeWsSessions,
         tokensToday,
         vectorNodeCount,
         generatedAt: new Date().toISOString(),

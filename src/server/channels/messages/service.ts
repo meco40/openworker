@@ -17,6 +17,10 @@ export class MessageService {
   private readonly historyManager: HistoryManager;
   private readonly contextBuilder: ContextBuilder;
   private readonly summaryRefreshInFlight = new Set<string>();
+  /** In-flight AI requests keyed by conversationId — used for abort */
+  private readonly activeRequests = new Map<string, AbortController>();
+  /** In-memory deduplication guard for active clientMessageIds */
+  private readonly processingMessages = new Set<string>();
 
   constructor(private readonly repo: MessageRepository) {
     this.historyManager = new HistoryManager(repo);
@@ -76,7 +80,8 @@ export class MessageService {
     senderName?: string,
     externalMsgId?: string,
     userId?: string,
-  ): Promise<{ userMsg: StoredMessage; agentMsg: StoredMessage }> {
+    clientMessageId?: string,
+  ): Promise<{ userMsg: StoredMessage; agentMsg: StoredMessage; newConversationId?: string }> {
     const conversation = this.sessionManager.getOrCreateConversation(
       this.repo,
       platform,
@@ -85,42 +90,70 @@ export class MessageService {
       userId,
     );
 
-    const userMsg = this.historyManager.appendUserMessage(conversation.id, platform, content, {
-      externalMsgId,
-      senderName,
-    });
-
-    getSSEManager().broadcast(
-      {
-        type: 'message',
-        data: userMsg,
-      },
-      conversation.userId,
-    );
-
-    const route = routeMessage(content);
-
-    if (route.target === 'worker') {
-      return {
-        userMsg,
-        agentMsg: await this.handleWorkerTask(conversation, route.payload, platform, externalChatId),
-      };
+    // In-memory deduplication: if this clientMessageId is already being processed, reject
+    if (clientMessageId && this.processingMessages.has(clientMessageId)) {
+      throw new Error('Duplicate request — already processing');
     }
+    if (clientMessageId) this.processingMessages.add(clientMessageId);
 
-    if (route.target === 'worker-command') {
-      return {
-        userMsg,
-        agentMsg: await this.handleWorkerCommand(
+    try {
+      const userMsg = this.historyManager.appendUserMessage(conversation.id, platform, content, {
+        externalMsgId,
+        senderName,
+        clientMessageId,
+      });
+
+      getSSEManager().broadcast(
+        {
+          type: 'message',
+          data: userMsg,
+        },
+        conversation.userId,
+      );
+
+      const route = routeMessage(content);
+
+      // ─── /new or /reset → create fresh conversation ──────
+      if (route.target === 'session-command') {
+        const newConv = this.repo.createConversation({
+          channelType: platform,
+          externalChatId: `manual-${(userId || 'local')}-${Date.now()}`,
+          title: route.payload || undefined,
+          userId: conversation.userId,
+        });
+        const agentMsg = await this.sendResponse(
           conversation,
-          route.command!,
-          route.payload,
+          `🔄 Neue Konversation erstellt.`,
           platform,
           externalChatId,
-        ),
-      };
-    }
+        );
+        return { userMsg, agentMsg, newConversationId: newConv.id };
+      }
 
-    return { userMsg, agentMsg: await this.dispatchToAI(conversation, platform, externalChatId) };
+      if (route.target === 'worker') {
+        return {
+          userMsg,
+          agentMsg: await this.handleWorkerTask(conversation, route.payload, platform, externalChatId),
+        };
+      }
+
+      if (route.target === 'worker-command') {
+        return {
+          userMsg,
+          agentMsg: await this.handleWorkerCommand(
+            conversation,
+            route.command!,
+            route.payload,
+            platform,
+            externalChatId,
+          ),
+        };
+      }
+
+      return { userMsg, agentMsg: await this.dispatchToAI(conversation, platform, externalChatId) };
+    } finally {
+      if (clientMessageId) this.processingMessages.delete(clientMessageId);
+    }
   }
 
   // ─── Worker Task Handling ──────────────────────────────────
@@ -396,12 +429,19 @@ export class MessageService {
   ): Promise<StoredMessage> {
     const messages = this.contextBuilder.buildGatewayMessages(conversation.id, conversation.userId, 50);
 
+    // ─── Abort tracking ──────────────────────────────────
+    const abortController = new AbortController();
+    this.activeRequests.set(conversation.id, abortController);
+
     let agentContent: string;
     let gatewayMeta: Record<string, unknown> | undefined;
     try {
       const service = getModelHubService();
       const encryptionKey = getModelHubEncryptionKey();
-      const result = await service.dispatchWithFallback('p1', encryptionKey, { messages });
+      const result = await service.dispatchWithFallback('p1', encryptionKey, { messages }, {
+        signal: abortController.signal,
+        modelOverride: conversation.modelOverride ?? undefined,
+      });
 
       if (result.ok) {
         agentContent = result.text || 'No response from model.';
@@ -421,11 +461,18 @@ export class MessageService {
         };
       }
     } catch (error) {
-      agentContent = `⚠️ ${error instanceof Error ? error.message : 'AI dispatch failed'}`;
-      gatewayMeta = {
-        ok: false,
-        error: error instanceof Error ? error.message : 'AI dispatch failed',
-      };
+      if (error instanceof Error && error.name === 'AbortError') {
+        agentContent = '⚠️ Generation aborted.';
+        gatewayMeta = { ok: false, aborted: true };
+      } else {
+        agentContent = `⚠️ ${error instanceof Error ? error.message : 'AI dispatch failed'}`;
+        gatewayMeta = {
+          ok: false,
+          error: error instanceof Error ? error.message : 'AI dispatch failed',
+        };
+      }
+    } finally {
+      this.activeRequests.delete(conversation.id);
     }
 
     const agentMsg = this.historyManager.appendAgentMessage(
@@ -452,6 +499,35 @@ export class MessageService {
     }
 
     return agentMsg;
+  }
+
+  // ─── Abort / Delete / Model Override ───────────────────────
+
+  /**
+   * Abort the currently running AI generation for a conversation.
+   * Returns true if an active request was found and aborted.
+   */
+  abortGeneration(conversationId: string): boolean {
+    const controller = this.activeRequests.get(conversationId);
+    if (!controller) return false;
+    controller.abort();
+    return true;
+  }
+
+  /**
+   * Delete a conversation and all its messages.
+   * Aborts any in-flight generation first.
+   */
+  deleteConversation(conversationId: string, userId: string): boolean {
+    this.abortGeneration(conversationId);
+    return this.repo.deleteConversation(conversationId, userId);
+  }
+
+  /**
+   * Set or clear a per-session model override.
+   */
+  setModelOverride(conversationId: string, modelOverride: string | null, userId: string): void {
+    this.repo.updateModelOverride(conversationId, modelOverride, userId);
   }
 
   // ─── Helper: Send & Broadcast Response ─────────────────────
@@ -500,7 +576,8 @@ export class MessageService {
     conversationId: string,
     content: string,
     userId?: string,
-  ): Promise<{ userMsg: StoredMessage; agentMsg: StoredMessage }> {
+    clientMessageId?: string,
+  ): Promise<{ userMsg: StoredMessage; agentMsg: StoredMessage; newConversationId?: string }> {
     const conversation = this.sessionManager.resolveConversationForWebChat(
       this.repo,
       conversationId,
@@ -514,6 +591,7 @@ export class MessageService {
       undefined,
       undefined,
       conversation.userId,
+      clientMessageId,
     );
   }
 

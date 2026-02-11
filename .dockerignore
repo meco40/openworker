@@ -1,0 +1,18 @@
+# ─── Docker Ignore ────────────────────────────────────────────
+node_modules
+.next
+.git
+.gitignore
+*.md
+!README.md
+.local
+.env.local
+.env.*.local
+backups
+demo
+docs
+tests
+vitest.config.ts
+eslint.config.js
+.vscode
+*.log

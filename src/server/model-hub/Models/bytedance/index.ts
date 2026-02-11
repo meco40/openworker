@@ -37,12 +37,13 @@ const bytedanceProviderAdapter: ProviderAdapter = {
       : { ok: false, message: `ByteDance connectivity failed: ${result.message}` };
   },
 
-  dispatchGateway: ({ secret }, request) =>
+  dispatchGateway: ({ secret }, request, options) =>
     dispatchOpenAICompatibleChat(
       'https://ark.cn-beijing.volces.com/api/v3',
       secret,
       'bytedance',
       request,
+      { signal: options?.signal },
     ),
 };
 

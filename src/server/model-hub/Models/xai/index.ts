@@ -15,8 +15,8 @@ const xAIProviderAdapter: ProviderAdapter = {
       'xAI connectivity verified (models list reachable).',
       'xAI connectivity failed: ',
     ),
-  dispatchGateway: ({ secret }, request) =>
-    dispatchOpenAICompatibleChat('https://api.x.ai/v1', secret, 'xai', request),
+  dispatchGateway: ({ secret }, request, options) =>
+    dispatchOpenAICompatibleChat('https://api.x.ai/v1', secret, 'xai', request, { signal: options?.signal }),
 };
 
 export default xAIProviderAdapter;

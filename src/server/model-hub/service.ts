@@ -112,6 +112,7 @@ export class ModelHubService {
     profileId: string,
     encryptionKey: string,
     request: Omit<GatewayRequest, 'model'>,
+    options?: { signal?: AbortSignal; modelOverride?: string },
   ): Promise<GatewayResponse> {
     const pipeline = this.repository.listPipelineModels(profileId);
     const activeModels = pipeline.filter((m) => m.status === 'active');
@@ -126,15 +127,41 @@ export class ModelHubService {
       };
     }
 
+    // Model override: skip pipeline iteration — dispatch only the specified model
+    if (options?.modelOverride) {
+      const target = activeModels.find((m) => m.modelName === options.modelOverride);
+      if (!target) {
+        return {
+          ok: false, text: '', model: options.modelOverride, provider: '',
+          error: `Override model "${options.modelOverride}" not found in active pipeline.`,
+        };
+      }
+      const account = this.repository.getAccountRecordById(target.accountId);
+      if (!account) {
+        return {
+          ok: false, text: '', model: options.modelOverride, provider: '',
+          error: `Account for override model not found.`,
+        };
+      }
+      return dispatchGatewayRequest(account, encryptionKey, {
+        ...request, model: target.modelName,
+      }, { signal: options?.signal });
+    }
+
     const errors: string[] = [];
     for (const entry of activeModels) {
+      // Check abort before each model attempt
+      if (options?.signal?.aborted) {
+        return { ok: false, text: '', model: '', provider: '', error: 'Aborted' };
+      }
+
       const account = this.repository.getAccountRecordById(entry.accountId);
       if (!account) continue;
 
       const result = await dispatchGatewayRequest(account, encryptionKey, {
         ...request,
         model: entry.modelName,
-      });
+      }, { signal: options?.signal });
 
       if (result.ok) {
         return result;

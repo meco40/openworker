@@ -32,9 +32,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     pendingFile,
     setPendingFile,
     isDragOver,
+    isGenerating,
     scrollRef,
     fileInputRef,
     handleSend,
+    handleAbort,
     handleFileSelect,
     handleDragOver,
     handleDragLeave,
@@ -77,8 +79,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           input={input}
           pendingFile={pendingFile}
           fileInputRef={fileInputRef}
+          isGenerating={isGenerating}
           onInputChange={setInput}
           onSend={handleSend}
+          onAbort={handleAbort}
           onFileSelect={handleFileSelect}
           onRemovePendingFile={() => setPendingFile(null)}
         />

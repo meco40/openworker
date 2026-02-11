@@ -96,6 +96,11 @@ async function pollOnce(): Promise<void> {
 
     if (!response.ok) {
       console.error('[Telegram Polling] getUpdates HTTP error:', response.status);
+      // 401/404 means the bot token is invalid — stop polling to avoid spam
+      if (response.status === 401 || response.status === 404) {
+        console.warn('[Telegram Polling] Bot token appears invalid (HTTP %d). Stopping polling.', response.status);
+        stopTelegramPolling();
+      }
       return;
     }
 

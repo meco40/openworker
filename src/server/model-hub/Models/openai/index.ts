@@ -15,8 +15,8 @@ const openAIProviderAdapter: ProviderAdapter = {
       'OpenAI connectivity verified (models list reachable).',
       'OpenAI connectivity failed: ',
     ),
-  dispatchGateway: ({ secret }, request) =>
-    dispatchOpenAICompatibleChat('https://api.openai.com/v1', secret, 'openai', request),
+  dispatchGateway: ({ secret }, request, options) =>
+    dispatchOpenAICompatibleChat('https://api.openai.com/v1', secret, 'openai', request, { signal: options?.signal }),
 };
 
 export default openAIProviderAdapter;

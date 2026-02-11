@@ -46,6 +46,8 @@
   "exclude": [
     "dist",
     "node_modules",
-    "coverage"
+    "coverage",
+    "demo",
+    "backups"
   ]
 }

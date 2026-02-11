@@ -113,6 +113,8 @@ const App: React.FC = () => {
         ? `${content}\n\n[Attached file: ${attachment.name} (${attachment.type})]`
         : content;
 
+      const clientMessageId = crypto.randomUUID();
+
       setIsServerResponding(true);
       addEventLog('CHAN', `Signal via ${platform}`);
 
@@ -123,6 +125,7 @@ const App: React.FC = () => {
           body: JSON.stringify({
             conversationId: activeConversationId,
             content: fullContent,
+            clientMessageId,
           }),
         });
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View } from '../types';
+import ConnectionStatus from './ConnectionStatus';
 
 interface SidebarProps {
   activeView: View;
@@ -114,6 +115,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onToggleCan
               <span className="text-xs text-zinc-400">iOS Node</span>
               <span className="h-2 w-2 rounded-full bg-zinc-600" />
             </div>
+            <ConnectionStatus />
           </div>
         </div>
       </div>

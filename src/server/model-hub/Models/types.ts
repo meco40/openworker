@@ -61,5 +61,6 @@ export interface ProviderAdapter {
   dispatchGateway?: (
     context: ProviderExecutionContext,
     request: GatewayRequest,
+    options?: { signal?: AbortSignal },
   ) => Promise<GatewayResponse>;
 }

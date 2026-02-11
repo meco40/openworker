@@ -40,7 +40,7 @@ const anthropicProviderAdapter: ProviderAdapter = {
       : { ok: false, message: `Anthropic connectivity failed: ${result.message}` };
   },
 
-  async dispatchGateway({ secret }, request) {
+  async dispatchGateway({ secret }, request, options) {
     const systemMessages = request.messages
       .filter((message) => message.role === 'system')
       .map((message) => message.content)
@@ -70,7 +70,7 @@ const anthropicProviderAdapter: ProviderAdapter = {
         'content-type': 'application/json',
       },
       body: JSON.stringify(body),
-    }, 60_000);
+    }, 60_000, options?.signal);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');

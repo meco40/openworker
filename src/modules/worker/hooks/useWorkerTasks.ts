@@ -1,14 +1,15 @@
 // ─── Worker Tasks Hook ──────────────────────────────────────
 // Central hook for all worker task interactions via API.
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { WorkerTask, WorkspaceType } from '../../../../types';
+import { WorkerTaskStatus } from '../../../../types';
+import { getGatewayClient } from '../../gateway/ws-client';
 
 export function useWorkerTasks() {
   const [tasks, setTasks] = useState<WorkerTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const sseRef = useRef<EventSource | null>(null);
 
   // ─── Fetch Tasks ──────────────────────────────────────────
   const fetchTasks = useCallback(async () => {
@@ -94,38 +95,31 @@ export function useWorkerTasks() {
     }
   }, []);
 
-  // ─── SSE Live Updates ─────────────────────────────────────
+  // ─── WebSocket Live Updates ────────────────────────────────
   useEffect(() => {
-    try {
-      const sse = new EventSource('/api/sse');
-      sseRef.current = sse;
+    const client = getGatewayClient();
+    client.connect();
 
-      sse.addEventListener('worker-status', (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          setTasks((prev) =>
-            prev.map((t) => (t.id === data.taskId ? { ...t, status: data.status } : t)),
-          );
-        } catch {
-          /* ignore parse errors */
-        }
-      });
+    const unsub = client.on('worker.status', (payload) => {
+      try {
+        const data = payload as { taskId: string; status: string };
+        setTasks((prev) =>
+          prev.map((t) => (t.id === data.taskId ? { ...t, status: data.status as WorkerTaskStatus } : t)),
+        );
+      } catch { /* ignore */ }
+    });
 
-      sse.onerror = () => {
-        // Reconnect after 5 seconds
-        setTimeout(() => {
-          sseRef.current?.close();
-          sseRef.current = null;
-        }, 5000);
-      };
-    } catch {
-      // SSE not available
-    }
+    // Also listen for SSE-bridged legacy event name
+    const unsubLegacy = client.on('worker-status', (payload) => {
+      try {
+        const data = payload as { taskId: string; status: string };
+        setTasks((prev) =>
+          prev.map((t) => (t.id === data.taskId ? { ...t, status: data.status as WorkerTaskStatus } : t)),
+        );
+      } catch { /* ignore */ }
+    });
 
-    return () => {
-      sseRef.current?.close();
-      sseRef.current = null;
-    };
+    return () => { unsub(); unsubLegacy(); };
   }, []);
 
   // Initial fetch

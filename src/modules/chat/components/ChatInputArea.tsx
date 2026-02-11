@@ -7,8 +7,10 @@ interface ChatInputAreaProps {
   input: string;
   pendingFile: MessageAttachment | null;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  isGenerating?: boolean;
   onInputChange: (value: string) => void;
   onSend: () => void;
+  onAbort?: () => void;
   onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onRemovePendingFile: () => void;
 }
@@ -18,8 +20,10 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
   input,
   pendingFile,
   fileInputRef,
+  isGenerating = false,
   onInputChange,
   onSend,
+  onAbort,
   onFileSelect,
   onRemovePendingFile,
 }) => {
@@ -89,33 +93,47 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
             type="text"
             value={input}
             onChange={(event) => onInputChange(event.target.value)}
-            onKeyDown={(event) => event.key === 'Enter' && onSend()}
+            onKeyDown={(event) => event.key === 'Enter' && !isGenerating && onSend()}
             placeholder={
-              activeConversation
-                ? `Nachricht an ${activeConversation.channelType}...`
-                : 'Conversation auswählen...'
+              isGenerating
+                ? 'KI generiert Antwort...'
+                : activeConversation
+                  ? `Nachricht an ${activeConversation.channelType}...`
+                  : 'Conversation auswählen...'
             }
-            disabled={!activeConversation}
+            disabled={!activeConversation || isGenerating}
             className="flex-1 bg-transparent text-sm text-white focus:outline-none placeholder-zinc-700 font-medium py-2 disabled:opacity-50 disabled:cursor-not-allowed"
           />
-          <button
-            onClick={onSend}
-            disabled={!canSend}
-            className={`p-2.5 rounded-lg transition-all shrink-0 ${
-              canSend
-                ? 'bg-violet-600 text-white shadow-lg active:scale-95'
-                : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-            }`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-              />
-            </svg>
-          </button>
+          {isGenerating ? (
+            <button
+              onClick={onAbort}
+              className="p-2.5 rounded-lg transition-all shrink-0 bg-red-600 hover:bg-red-500 text-white shadow-lg active:scale-95 animate-pulse"
+              title="Generation abbrechen"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="6" y="6" width="12" height="12" rx="2" strokeWidth={2} fill="currentColor" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              onClick={onSend}
+              disabled={!canSend}
+              className={`p-2.5 rounded-lg transition-all shrink-0 ${
+                canSend
+                  ? 'bg-violet-600 text-white shadow-lg active:scale-95'
+                  : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
     </div>

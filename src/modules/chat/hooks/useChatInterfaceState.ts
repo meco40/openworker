@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type React from 'react';
 import type { ChannelType, Conversation, Message, MessageAttachment } from '../../../../types';
 import { validateAttachmentFile } from '../uiUtils';
+import { getGatewayClient } from '../../gateway/ws-client';
 
 interface UseChatInterfaceStateArgs {
   conversations: Conversation[];
@@ -21,6 +22,7 @@ export function useChatInterfaceState({
   const [input, setInput] = useState('');
   const [pendingFile, setPendingFile] = useState<MessageAttachment | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,14 +44,39 @@ export function useChatInterfaceState({
   }, [messages, isTyping, activeConversationId]);
 
   const handleSend = useCallback(() => {
-    if ((!input.trim() && !pendingFile) || !activeConversation) {
+    if ((!input.trim() && !pendingFile) || !activeConversation || isGenerating) {
       return;
     }
 
+    setIsGenerating(true);
     onSendMessage(input, activeConversation.channelType, pendingFile || undefined);
     setInput('');
     setPendingFile(null);
-  }, [activeConversation, input, onSendMessage, pendingFile]);
+  }, [activeConversation, input, onSendMessage, pendingFile, isGenerating]);
+
+  // Reset isGenerating when a new agent message arrives
+  useEffect(() => {
+    if (messages.length > 0) {
+      const last = messages[messages.length - 1];
+      if (last.role === 'agent' || last.role === 'system') {
+        setIsGenerating(false);
+      }
+    }
+  }, [messages]);
+
+  // Reset isGenerating when switching conversations
+  useEffect(() => {
+    setIsGenerating(false);
+  }, [activeConversationId]);
+
+  const handleAbort = useCallback(() => {
+    if (!activeConversation) return;
+    const client = getGatewayClient();
+    client.request('chat.abort', { conversationId: activeConversation.id }).catch(() => {
+      // If abort fails, just clear the generating state
+    });
+    setIsGenerating(false);
+  }, [activeConversation]);
 
   const processFile = useCallback((file: File) => {
     const validationError = validateAttachmentFile(file);
@@ -113,9 +140,11 @@ export function useChatInterfaceState({
     pendingFile,
     setPendingFile,
     isDragOver,
+    isGenerating,
     scrollRef,
     fileInputRef,
     handleSend,
+    handleAbort,
     handleFileSelect,
     handleDragOver,
     handleDragLeave,

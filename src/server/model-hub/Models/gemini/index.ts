@@ -67,9 +67,14 @@ const geminiProviderAdapter: ProviderAdapter = {
     }
   },
 
-  async dispatchGateway({ secret }, request) {
+  async dispatchGateway({ secret }, request, options) {
     try {
       const ai = new GoogleGenAI({ apiKey: secret });
+
+      // Check abort before starting the request
+      if (options?.signal?.aborted) {
+        throw Object.assign(new Error('Aborted'), { name: 'AbortError' });
+      }
 
       // Merge system messages from GatewayMessage[] with explicit systemInstruction
       const systemFromMessages = request.messages
@@ -96,11 +101,30 @@ const geminiProviderAdapter: ProviderAdapter = {
         config.tools = request.tools;
       }
 
-      const result = await (ai.models as any).generateContent({
+      const generatePromise = (ai.models as any).generateContent({
         model: request.model,
         contents,
         config,
       });
+
+      // Race with abort signal if provided
+      let result: any;
+      if (options?.signal) {
+        result = await Promise.race([
+          generatePromise,
+          new Promise((_resolve, reject) => {
+            if (options.signal!.aborted) {
+              reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+              return;
+            }
+            options.signal!.addEventListener('abort', () => {
+              reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+            }, { once: true });
+          }),
+        ]);
+      } else {
+        result = await generatePromise;
+      }
 
       // Extract function calls from Gemini response
       const functionCalls = extractGeminiFunctionCalls(result);

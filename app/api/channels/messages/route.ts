@@ -51,6 +51,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       conversationId?: string;
       content?: string;
+      clientMessageId?: string;
     };
 
     if (!body.content?.trim()) {
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
     if (!isPersistentSessionV2Enabled()) {
       const service = getMessageService();
       const conversationId = body.conversationId || service.getDefaultWebChatConversation().id;
-      const result = await service.handleWebUIMessage(conversationId, body.content);
+      const result = await service.handleWebUIMessage(conversationId, body.content, undefined, body.clientMessageId);
       return NextResponse.json({
         ok: true,
         userMessage: result.userMsg,
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
 
     const service = getMessageService();
     const conversationId = body.conversationId || service.getDefaultWebChatConversation(userContext.userId).id;
-    const result = await service.handleWebUIMessage(conversationId, body.content, userContext.userId);
+    const result = await service.handleWebUIMessage(conversationId, body.content, userContext.userId, body.clientMessageId);
 
     return NextResponse.json({
       ok: true,

@@ -22,6 +22,7 @@ function toConversation(row: Record<string, unknown>): Conversation {
     externalChatId: (row.external_chat_id as string) || null,
     userId: (row.user_id as string) || LEGACY_LOCAL_USER_ID,
     title: row.title as string,
+    modelOverride: (row.model_override as string) || null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -159,6 +160,20 @@ export class SqliteMessageRepository implements MessageRepository {
       CREATE INDEX IF NOT EXISTS idx_msg_conv_seq
         ON messages (conversation_id, seq);
     `);
+
+    // ─── Additive migrations (F4: Idempotency, F5: Model Override) ──
+    if (!this.hasColumn('messages', 'client_message_id')) {
+      this.db.exec(`ALTER TABLE messages ADD COLUMN client_message_id TEXT`);
+    }
+    this.db.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_msg_dedupe
+        ON messages (conversation_id, client_message_id)
+        WHERE client_message_id IS NOT NULL;
+    `);
+
+    if (!this.hasColumn('conversations', 'model_override')) {
+      this.db.exec(`ALTER TABLE conversations ADD COLUMN model_override TEXT`);
+    }
   }
 
   // ─── Conversations ──────────────────────────────────────────
@@ -246,6 +261,12 @@ export class SqliteMessageRepository implements MessageRepository {
   // ─── Messages ───────────────────────────────────────────────
 
   saveMessage(input: SaveMessageInput): StoredMessage {
+    // Idempotency: if clientMessageId is provided, check for existing message
+    if (input.clientMessageId) {
+      const existing = this.findMessageByClientId(input.conversationId, input.clientMessageId);
+      if (existing) return existing;
+    }
+
     const id = `msg-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
     const now = new Date().toISOString();
     const maxSeqRow = this.db
@@ -256,8 +277,8 @@ export class SqliteMessageRepository implements MessageRepository {
     this.db
       .prepare(
         `
-        INSERT INTO messages (id, conversation_id, seq, role, content, platform, external_msg_id, sender_name, metadata, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO messages (id, conversation_id, seq, role, content, platform, external_msg_id, sender_name, metadata, client_message_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       )
       .run(
@@ -270,6 +291,7 @@ export class SqliteMessageRepository implements MessageRepository {
         input.externalMsgId || null,
         input.senderName || null,
         input.metadata ? JSON.stringify(input.metadata) : null,
+        input.clientMessageId || null,
         now,
       );
 
@@ -405,6 +427,39 @@ export class SqliteMessageRepository implements MessageRepository {
       summaryUptoSeq,
       updatedAt: now,
     };
+  }
+
+  // ─── Delete ──────────────────────────────────────────────────
+
+  deleteConversation(id: string, userId: string): boolean {
+    const normalizedUserId = this.normalizeUserId(userId);
+    const conv = this.getConversation(id, normalizedUserId);
+    if (!conv) return false;
+
+    // Delete in FK-safe order: messages → context → conversation
+    this.db.prepare('DELETE FROM messages WHERE conversation_id = ?').run(id);
+    this.db.prepare('DELETE FROM conversation_context WHERE conversation_id = ?').run(id);
+    this.db.prepare('DELETE FROM conversations WHERE id = ? AND user_id = ?').run(id, normalizedUserId);
+    return true;
+  }
+
+  // ─── Model Override ─────────────────────────────────────────
+
+  updateModelOverride(id: string, modelOverride: string | null, userId: string): void {
+    const normalizedUserId = this.normalizeUserId(userId);
+    const now = new Date().toISOString();
+    this.db
+      .prepare('UPDATE conversations SET model_override = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+      .run(modelOverride, now, id, normalizedUserId);
+  }
+
+  // ─── Idempotency ───────────────────────────────────────────
+
+  findMessageByClientId(conversationId: string, clientMessageId: string): StoredMessage | null {
+    const row = this.db
+      .prepare('SELECT * FROM messages WHERE conversation_id = ? AND client_message_id = ?')
+      .get(conversationId, clientMessageId) as Record<string, unknown> | undefined;
+    return row ? toMessage(row) : null;
   }
 
   close(): void {
