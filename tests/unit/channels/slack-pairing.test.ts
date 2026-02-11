@@ -1,9 +1,19 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('slack pairing', () => {
+  let previousMessagesDbPath: string | undefined;
+
   beforeEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
+    previousMessagesDbPath = process.env.MESSAGES_DB_PATH;
+    process.env.MESSAGES_DB_PATH = ':memory:';
+    globalThis.__credentialStore = undefined;
+  });
+
+  afterEach(() => {
+    process.env.MESSAGES_DB_PATH = previousMessagesDbPath;
+    globalThis.__credentialStore = undefined;
   });
 
   it('pairs slack channel with bot token and stores credentials', async () => {

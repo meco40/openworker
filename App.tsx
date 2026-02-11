@@ -29,6 +29,7 @@ import { useGatewayState } from './src/modules/app-shell/useGatewayState';
 import { useTaskScheduler } from './src/modules/app-shell/useTaskScheduler';
 import { useAgentRuntime } from './src/modules/app-shell/useAgentRuntime';
 import { useControlPlaneMetrics } from './src/modules/app-shell/useControlPlaneMetrics';
+import { useChannelStateSync } from './src/modules/app-shell/useChannelStateSync';
 import { toMessage } from './src/modules/chat/services/routeMessage';
 import AppShellHeader from './src/modules/app-shell/components/AppShellHeader';
 import AppShellViewContent from './src/modules/app-shell/components/AppShellViewContent';
@@ -221,6 +222,7 @@ const App: React.FC = () => {
   const handleUpdateCoupling = useCallback((id: string, update: Partial<CoupledChannel>) => {
     setCoupledChannels((previous) => ({ ...previous, [id]: { ...previous[id], ...update } }));
   }, []);
+  useChannelStateSync({ onUpdateCoupling: handleUpdateCoupling });
 
   if (!onboarded) {
     return <TerminalWizard onComplete={() => setOnboarded(true)} />;
