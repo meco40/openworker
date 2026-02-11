@@ -3,6 +3,7 @@ import { deliverTelegram } from './telegram';
 import { deliverWhatsApp } from './whatsapp';
 import { deliverDiscord } from './discord';
 import { deliveriMessage } from './imessage';
+import { deliverSlack } from './slack';
 import type { ChannelKey } from '../adapters/types';
 import { getAdapter, registerAdapter } from '../routing/adapterRegistry';
 import { routeOutbound } from '../routing/outboundRouter';
@@ -55,6 +56,12 @@ function ensureDefaultAdapters(): void {
     registerAdapter({
       channel: 'imessage',
       send: async ({ externalChatId, content }) => deliveriMessage(externalChatId, content),
+    });
+  }
+  if (!getAdapter('slack')) {
+    registerAdapter({
+      channel: 'slack',
+      send: async ({ externalChatId, content }) => deliverSlack(externalChatId, content),
     });
   }
 
