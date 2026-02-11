@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getMessageService } from '../../../../../src/server/channels/messages/runtime';
 import { verifyDiscordWebhook } from '../../../../../src/server/channels/webhookAuth';
 import { ChannelType } from '../../../../../types';
+import { normalizeDiscordInbound } from '../../../../../src/server/channels/inbound/normalizers';
 
 export const runtime = 'nodejs';
 
@@ -42,13 +43,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
+    const envelope = normalizeDiscordInbound(payload);
+    if (!envelope) {
+      return NextResponse.json({ ok: true });
+    }
+
     const service = getMessageService();
     await service.handleInbound(
       ChannelType.DISCORD,
-      payload.channel_id,
-      payload.content,
-      payload.author.username,
-      payload.id,
+      envelope.externalChatId,
+      envelope.content,
+      envelope.senderName || undefined,
+      envelope.externalMessageId || undefined,
     );
 
     return NextResponse.json({ ok: true });
