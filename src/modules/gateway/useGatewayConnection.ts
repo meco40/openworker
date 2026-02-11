@@ -18,8 +18,7 @@ export function useGatewayConnection(): {
   state: ConnectionState;
   client: GatewayClient;
 } {
-  const clientRef = useRef(getGatewayClient());
-  const client = clientRef.current;
+  const client = getGatewayClient();
 
   const state = useSyncExternalStore(
     (onChange) => {
@@ -49,7 +48,10 @@ export function useGatewayEvent<T = unknown>(
 ): void {
   const client = getGatewayClient();
   const handlerRef = useRef(handler);
-  handlerRef.current = handler;
+
+  useEffect(() => {
+    handlerRef.current = handler;
+  }, [handler]);
 
   useEffect(() => {
     const unsub = client.on(event, (payload, seq) => {

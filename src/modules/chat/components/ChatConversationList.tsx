@@ -1,12 +1,18 @@
 import React from 'react';
 import type { Conversation } from '../../../../types';
 import { getPlatformMeta } from '../uiUtils';
+import InboxFilters from './InboxFilters';
 
 interface ChatConversationListProps {
   conversations: Conversation[];
   activeConversationId: string | null;
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
+  channelFilter: string;
+  onChannelFilterChange: (value: string) => void;
+  searchQuery: string;
+  onSearchQueryChange: (value: string) => void;
+  availableChannels: string[];
 }
 
 const ChatConversationList: React.FC<ChatConversationListProps> = ({
@@ -14,6 +20,11 @@ const ChatConversationList: React.FC<ChatConversationListProps> = ({
   activeConversationId,
   onSelectConversation,
   onNewConversation,
+  channelFilter,
+  onChannelFilterChange,
+  searchQuery,
+  onSearchQueryChange,
+  availableChannels,
 }) => {
   return (
     <div className="w-64 border-r border-zinc-800 flex flex-col bg-zinc-950/50">
@@ -29,6 +40,13 @@ const ChatConversationList: React.FC<ChatConversationListProps> = ({
           </svg>
         </button>
       </div>
+      <InboxFilters
+        channels={availableChannels}
+        activeChannel={channelFilter}
+        searchQuery={searchQuery}
+        onChannelChange={onChannelFilterChange}
+        onSearchChange={onSearchQueryChange}
+      />
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {conversations.length === 0 && (
           <div className="text-center py-8 px-4">

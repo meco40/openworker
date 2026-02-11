@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { processTelegramInboundMessage } from '../../../../../src/server/channels/pairing/telegramInbound';
 import { verifyTelegramWebhook } from '../../../../../src/server/channels/webhookAuth';
+import { normalizeTelegramInbound } from '../../../../../src/server/channels/inbound/normalizers';
 
 export const runtime = 'nodejs';
 
@@ -28,8 +29,13 @@ export async function POST(request: Request) {
 
     const update = (await request.json()) as TelegramUpdate;
 
-    if (!update.message?.text) {
+    const envelope = normalizeTelegramInbound(update);
+    if (!envelope) {
       // Non-text update (sticker, photo, etc.) — acknowledge silently
+      return NextResponse.json({ ok: true });
+    }
+
+    if (!update.message) {
       return NextResponse.json({ ok: true });
     }
 

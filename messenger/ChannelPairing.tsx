@@ -11,7 +11,7 @@ interface ChannelPairingProps {
   onSimulateIncoming?: (content: string, platform: ChannelType) => void;
 }
 
-type ActiveTab = 'whatsapp' | 'telegram' | 'discord' | 'imessage';
+type ActiveTab = 'whatsapp' | 'telegram' | 'discord' | 'imessage' | 'slack';
 
 const ChannelPairing: React.FC<ChannelPairingProps> = ({ coupledChannels, onUpdateCoupling, onSimulateIncoming }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('whatsapp');
@@ -41,7 +41,10 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({ coupledChannels, onUpda
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           channel: activeTab,
-          token: activeTab === 'telegram' || activeTab === 'discord' ? inputToken : undefined,
+          token:
+            activeTab === 'telegram' || activeTab === 'discord' || activeTab === 'slack'
+              ? inputToken
+              : undefined,
         }),
       });
       const payload = await response.json();
@@ -209,6 +212,7 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({ coupledChannels, onUpda
              { id: 'telegram', label: 'Telegram', icon: '✈️', color: 'blue' },
              { id: 'discord', label: 'Discord Bot', icon: '👾', color: 'indigo' },
              { id: 'imessage', label: 'iMessage', icon: '☁️', color: 'sky' },
+             { id: 'slack', label: 'Slack', icon: '🟦', color: 'cyan' },
            ].map((tab) => (
              <button
                key={tab.id}
@@ -273,6 +277,23 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({ coupledChannels, onUpda
                   icon="☁️"
                   description="Relay iMessages through a local smid-enabled macOS node."
                   accent="sky"
+                  simMessage={simMessage}
+                  setSimMessage={setSimMessage}
+                  onStartPairing={startPairing}
+                  onDisconnect={disconnect}
+                  onSimulate={handleSimulate}
+                />
+              )}
+              {activeTab === 'slack' && (
+                <GenericChannelHandler
+                  channel={currentChannel}
+                  title="Slack Bot"
+                  icon="🟦"
+                  description="Connect a Slack Bot Token for channel and DM relay."
+                  accent="indigo"
+                  token={inputToken}
+                  setToken={setInputToken}
+                  tokenPlaceholder="SLACK_BOT_TOKEN"
                   simMessage={simMessage}
                   setSimMessage={setSimMessage}
                   onStartPairing={startPairing}

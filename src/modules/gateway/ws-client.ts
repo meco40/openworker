@@ -109,6 +109,14 @@ export class GatewayClient {
     });
   }
 
+  async listChannels<T = unknown>(): Promise<T> {
+    return this.request<T>('channels.list');
+  }
+
+  async listInbox<T = unknown>(params?: { channel?: string; q?: string; limit?: number }): Promise<T> {
+    return this.request<T>('inbox.list', params);
+  }
+
   /**
    * Send an RPC request that returns a token stream.
    * Calls `onChunk` for each delta, resolves when done.

@@ -1,4 +1,10 @@
 import type { ChannelType, Conversation } from '../../../../types';
+import type { ChannelKey } from '../adapters/types';
+import type {
+  ChannelBinding,
+  ChannelBindingStatus,
+  UpsertChannelBindingInput,
+} from './channelBindings';
 
 // ─── Data shapes ─────────────────────────────────────────────
 
@@ -79,4 +85,13 @@ export interface MessageRepository {
     summaryUptoSeq: number,
     userId?: string,
   ): ConversationContextState;
+
+  upsertChannelBinding?(input: UpsertChannelBindingInput): ChannelBinding;
+  listChannelBindings?(userId: string): ChannelBinding[];
+  touchChannelLastSeen?(
+    userId: string,
+    channel: ChannelKey,
+    atIso?: string,
+    status?: ChannelBindingStatus,
+  ): void;
 }

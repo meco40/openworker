@@ -8,6 +8,7 @@ import './methods/worker';
 import './methods/logs';
 import './methods/presence';
 import './methods/sessions';
+import './methods/channels';
 
 // Re-export for use in server.ts
 export { handleConnection } from './connection-handler';

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getMessageService } from '../../../../../src/server/channels/messages/runtime';
 import { verifySharedSecret } from '../../../../../src/server/channels/webhookAuth';
 import { ChannelType } from '../../../../../types';
+import { normalizeIMessageInbound } from '../../../../../src/server/channels/inbound/normalizers';
 
 export const runtime = 'nodejs';
 
@@ -22,17 +23,18 @@ export async function POST(request: Request) {
 
     const payload = (await request.json()) as iMessageWebhookPayload;
 
-    if (!payload.text?.trim() || !payload.chatGuid) {
+    const envelope = normalizeIMessageInbound(payload);
+    if (!envelope) {
       return NextResponse.json({ ok: true });
     }
 
     const service = getMessageService();
     await service.handleInbound(
       ChannelType.IMESSAGE,
-      payload.chatGuid,
-      payload.text,
-      payload.senderName || 'iMessage User',
-      payload.messageId,
+      envelope.externalChatId,
+      envelope.content,
+      envelope.senderName || 'iMessage User',
+      envelope.externalMessageId || undefined,
     );
 
     return NextResponse.json({ ok: true });

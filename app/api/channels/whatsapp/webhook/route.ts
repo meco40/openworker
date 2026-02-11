@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getMessageService } from '../../../../../src/server/channels/messages/runtime';
 import { verifySharedSecret } from '../../../../../src/server/channels/webhookAuth';
 import { ChannelType } from '../../../../../types';
+import { normalizeWhatsAppInbound } from '../../../../../src/server/channels/inbound/normalizers';
 
 export const runtime = 'nodejs';
 
@@ -23,16 +24,19 @@ export async function POST(request: Request) {
 
     const payload = (await request.json()) as WhatsAppWebhookPayload;
 
-    if (!payload.body?.trim()) {
+    const envelope = normalizeWhatsAppInbound(payload);
+    if (!envelope) {
       return NextResponse.json({ ok: true });
     }
 
-    const chatId = payload.chatId || payload.from || 'unknown';
-    const text = payload.body;
-    const senderName = payload.senderName || payload.from || 'WhatsApp User';
-
     const service = getMessageService();
-    await service.handleInbound(ChannelType.WHATSAPP, chatId, text, senderName, payload.messageId);
+    await service.handleInbound(
+      ChannelType.WHATSAPP,
+      envelope.externalChatId,
+      envelope.content,
+      envelope.senderName || 'WhatsApp User',
+      envelope.externalMessageId || undefined,
+    );
 
     return NextResponse.json({ ok: true });
   } catch (error) {

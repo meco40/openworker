@@ -1,6 +1,6 @@
 import { getCredentialStore } from '../credentials';
 
-export type UnpairChannelType = 'whatsapp' | 'telegram' | 'discord' | 'imessage';
+export type UnpairChannelType = 'whatsapp' | 'telegram' | 'discord' | 'imessage' | 'slack';
 
 /**
  * Disconnects a channel by removing webhooks and clearing credentials.
@@ -18,6 +18,9 @@ export async function unpairChannel(channel: UnpairChannelType): Promise<void> {
       break;
     case 'imessage':
       await unpairBridge('imessage', getCredentialStore());
+      break;
+    case 'slack':
+      unpairSlack(getCredentialStore());
       break;
     default:
       throw new Error(`Unsupported channel for unpair: ${channel}`);
@@ -46,6 +49,11 @@ function unpairDiscord(store: ReturnType<typeof getCredentialStore>): void {
   // Discord bot connections don't have a webhook to remove in this flow
   store.deleteCredentials('discord');
   delete process.env.DISCORD_BOT_TOKEN;
+}
+
+function unpairSlack(store: ReturnType<typeof getCredentialStore>): void {
+  store.deleteCredentials('slack');
+  delete process.env.SLACK_BOT_TOKEN;
 }
 
 async function unpairBridge(

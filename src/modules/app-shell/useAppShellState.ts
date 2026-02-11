@@ -9,6 +9,7 @@ export function buildInitialShellState(): AppShellState {
       telegram: { type: ChannelType.TELEGRAM, status: 'idle' },
       discord: { type: ChannelType.DISCORD, status: 'idle' },
       imessage: { type: ChannelType.IMESSAGE, status: 'idle' },
+      slack: { type: ChannelType.SLACK, status: 'idle' },
     },
   };
 }

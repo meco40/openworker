@@ -63,6 +63,15 @@ function createRepo(): MessageRepository {
     upsertConversationContext: () => {
       throw new Error('unused');
     },
+    deleteConversation: () => {
+      throw new Error('unused');
+    },
+    updateModelOverride: () => {
+      throw new Error('unused');
+    },
+    findMessageByClientId: () => {
+      throw new Error('unused');
+    },
   };
 }
 

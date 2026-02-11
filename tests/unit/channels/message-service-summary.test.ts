@@ -66,6 +66,13 @@ function buildRepository(upsert: MessageRepository['upsertConversationContext'])
       updatedAt: new Date().toISOString(),
     }),
     upsertConversationContext: upsert,
+    deleteConversation: () => {
+      throw new Error('unused');
+    },
+    updateModelOverride: () => {
+      throw new Error('unused');
+    },
+    findMessageByClientId: () => null,
   };
 }
 
@@ -107,6 +114,7 @@ describe('MessageService summary refresh', () => {
       externalChatId: 'default',
       userId: 'user-1',
       title: 'Summary Test',
+      modelOverride: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

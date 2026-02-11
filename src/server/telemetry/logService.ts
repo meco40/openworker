@@ -85,3 +85,17 @@ export function logFromSystemEvent(type: string, message: string): LogEntry {
 
   return log(effectiveLevel, type, message);
 }
+
+/**
+ * Structured channel telemetry for omnichannel ingress/egress paths.
+ */
+export function logChannelEvent(
+  direction: 'inbound' | 'outbound',
+  channel: string,
+  outcome: 'accepted' | 'rejected' | 'failed',
+  metadata?: Record<string, unknown>,
+): LogEntry {
+  const level: LogLevel =
+    outcome === 'failed' ? 'error' : outcome === 'rejected' ? 'warn' : 'info';
+  return log(level, 'CHAN', `channel.${direction}.${outcome}:${channel}`, metadata);
+}
