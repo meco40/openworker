@@ -13,6 +13,8 @@ export interface GatewayClient {
   subscriptions: Set<string>;
   requestCount: number;
   requestWindowStart: number;
+  /** Per-connection sequence counter — each client gets its own contiguous sequence. */
+  seq: number;
 }
 
 // ─── Registry ────────────────────────────────────────────────

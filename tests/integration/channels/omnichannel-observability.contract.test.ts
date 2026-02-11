@@ -1,14 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { LogRepository } from '../../../src/server/telemetry/logRepository';
-
-vi.mock('../../../src/server/channels/sse/manager', () => ({
-  getSSEManager: () => ({
-    broadcast: vi.fn(),
-    addClient: vi.fn(),
-    removeClient: vi.fn(),
-  }),
-}));
+import { LogRepository } from '../../../src/logging/logRepository';
 
 describe('omnichannel observability contract', () => {
   let repo: LogRepository;
@@ -24,7 +16,7 @@ describe('omnichannel observability contract', () => {
   });
 
   it('emits structured channel telemetry log entries', async () => {
-    const { logChannelEvent } = await import('../../../src/server/telemetry/logService');
+    const { logChannelEvent } = await import('../../../src/logging/logService');
 
     logChannelEvent('inbound', 'telegram', 'accepted', { latencyMs: 7 });
     logChannelEvent('outbound', 'slack', 'failed', { reason: 'token_invalid' });

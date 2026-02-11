@@ -126,6 +126,113 @@
   font-weight: 600;
 }
 
+/* ─── Task Card Delete & Layout ──────────────────────────── */
+.worker-task-list__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.worker-task-card__header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.worker-task-card__delete-btn {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--text-tertiary, #666);
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.worker-task-card:hover .worker-task-card__delete-btn {
+  opacity: 1;
+}
+
+.worker-task-card__delete-btn:hover {
+  background: #ef444422;
+  color: #ef4444;
+}
+
+.worker-task-card__body {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ─── Confirmation Modal ─────────────────────────────────── */
+.worker-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: worker-fade-in 0.15s ease;
+}
+
+@keyframes worker-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.worker-modal {
+  background: var(--bg-secondary, #1a1a1a);
+  border: 1px solid var(--border-primary, #333);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 420px;
+  width: 90%;
+  animation: worker-modal-enter 0.2s ease;
+}
+
+@keyframes worker-modal-enter {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.worker-modal h3 {
+  color: var(--text-primary, #f0f0f0);
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+}
+
+.worker-modal p {
+  color: var(--text-secondary, #999);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0 0 1.25rem;
+}
+
+.worker-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.worker-btn--danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.worker-btn--ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ─── Empty State ────────────────────────────────────────── */
 .worker-empty-state {
   display: flex;

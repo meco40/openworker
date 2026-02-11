@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import Database from 'better-sqlite3';
 
 const MAX_RESULT_ROWS = 200;
 
@@ -25,7 +25,7 @@ export async function dbQueryHandler(args: Record<string, unknown>) {
   }
 
   const resolved = ensureWorkspacePath(dbPath);
-  const db = new DatabaseSync(resolved, { readOnly: true });
+  const db = new Database(resolved, { readonly: true });
   try {
     const statement = db.prepare(query);
     const rows = statement.all();

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { DatabaseSync } from 'node:sqlite';
+import Database from 'better-sqlite3';
 import type {
   CreatePipelineModelInput,
   CreateProviderAccountInput,
@@ -41,12 +41,12 @@ function toPipelineEntry(row: any): PipelineModelEntry {
 }
 
 export class SqliteModelHubRepository implements ModelHubRepository {
-  private readonly db: DatabaseSync;
+  private readonly db: ReturnType<typeof Database>;
 
   constructor(dbPath = process.env.MODEL_HUB_DB_PATH || '.local/model-hub.db') {
     const fullPath = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    this.db = new DatabaseSync(fullPath);
+    this.db = new Database(fullPath);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS model_hub_accounts (
         id TEXT PRIMARY KEY,

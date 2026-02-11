@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import Database from 'better-sqlite3';
 import type { MemoryNode } from '../../../core/memory/types';
 import type { MemoryRepository } from './repository';
 
@@ -31,18 +31,18 @@ function toNode(row: MemoryRow): MemoryNode {
 }
 
 export class SqliteMemoryRepository implements MemoryRepository {
-  private readonly db: DatabaseSync;
+  private readonly db: ReturnType<typeof Database>;
 
   constructor(
     dbPath =
       process.env.MEMORY_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db',
   ) {
     if (dbPath === ':memory:') {
-      this.db = new DatabaseSync(':memory:');
+      this.db = new Database(':memory:');
     } else {
       const fullPath = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new DatabaseSync(fullPath);
+      this.db = new Database(fullPath);
     }
     this.migrate();
   }

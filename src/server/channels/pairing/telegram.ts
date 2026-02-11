@@ -69,7 +69,7 @@ export async function pairTelegram(token: string) {
 
   // Start polling loop automatically when webhook is not available
   if (transport === 'polling') {
-    startTelegramPolling();
+    await startTelegramPolling();
   }
 
   return {

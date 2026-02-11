@@ -22,6 +22,7 @@ export function handleConnection(socket: WebSocket, userId: string): void {
     subscriptions: new Set(),
     requestCount: 0,
     requestWindowStart: Date.now(),
+    seq: 0,
   };
 
   const registry = getClientRegistry();

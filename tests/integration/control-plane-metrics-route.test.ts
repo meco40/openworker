@@ -6,7 +6,7 @@ type GlobalSingletons = typeof globalThis & {
   __tokenUsageRepository?: unknown;
   __memoryRepository?: unknown;
   __memoryService?: unknown;
-  __sseManager?: unknown;
+  __gatewayClientRegistry?: unknown;
 };
 
 function uniqueDbPath(name: string): string {
@@ -36,7 +36,7 @@ describe('GET /api/control-plane/metrics', () => {
     (globalThis as GlobalSingletons).__tokenUsageRepository = undefined;
     (globalThis as GlobalSingletons).__memoryRepository = undefined;
     (globalThis as GlobalSingletons).__memoryService = undefined;
-    (globalThis as GlobalSingletons).__sseManager = undefined;
+    (globalThis as GlobalSingletons).__gatewayClientRegistry = undefined;
 
     const { getWorkerRepository } = await import('../../src/server/worker/workerRepository');
     const workerRepo = getWorkerRepository();
@@ -88,17 +88,25 @@ describe('GET /api/control-plane/metrics', () => {
     (globalThis as GlobalSingletons).__memoryRepository = memoryRepo;
     (globalThis as GlobalSingletons).__memoryService = memoryService;
 
-    const { getSSEManager } = await import('../../src/server/channels/sse/manager');
-    const sseManager = getSSEManager();
+    const { getClientRegistry } = await import('../../src/server/gateway/client-registry');
+    const clientRegistry = getClientRegistry();
     for (let i = 0; i < 7; i += 1) {
-      sseManager.addClient(
-        {
-          enqueue: () => {
-            // no-op test stream
-          },
-        } as unknown as ReadableStreamDefaultController,
-        'test-user',
-      );
+      clientRegistry.register({
+        connId: `conn-${i}`,
+        userId: 'test-user',
+        connectedAt: Date.now(),
+        subscriptions: new Set<string>(),
+        requestCount: 0,
+        requestWindowStart: Date.now(),
+        seq: 0,
+        socket: {
+          OPEN: 1,
+          readyState: 1,
+          bufferedAmount: 0,
+          send: () => undefined,
+          close: () => undefined,
+        } as never,
+      });
     }
   });
 
@@ -106,7 +114,7 @@ describe('GET /api/control-plane/metrics', () => {
     (globalThis as GlobalSingletons).__tokenUsageRepository = undefined;
     (globalThis as GlobalSingletons).__memoryRepository = undefined;
     (globalThis as GlobalSingletons).__memoryService = undefined;
-    (globalThis as GlobalSingletons).__sseManager = undefined;
+    (globalThis as GlobalSingletons).__gatewayClientRegistry = undefined;
 
     for (const dbFile of createdDbFiles.splice(0, createdDbFiles.length)) {
       if (fs.existsSync(dbFile)) {
@@ -119,7 +127,7 @@ describe('GET /api/control-plane/metrics', () => {
     }
   });
 
-  it('aggregates uptime, pending tasks, SSE sessions, tokens today and vector node count', async () => {
+  it('aggregates uptime, pending tasks, WS sessions, tokens today and vector node count', async () => {
     const { GET } = await import('../../app/api/control-plane/metrics/route');
     const response = await GET();
     const payload = (await response.json()) as {
@@ -127,7 +135,7 @@ describe('GET /api/control-plane/metrics', () => {
       metrics?: {
         uptimeSeconds: number;
         pendingWorkerTasks: number;
-        activeSseSessions: number;
+        activeWsSessions: number;
         tokensToday: number;
         vectorNodeCount: number;
         generatedAt: string;
@@ -140,7 +148,7 @@ describe('GET /api/control-plane/metrics', () => {
     expect(payload.metrics).toBeDefined();
     expect(payload.metrics?.uptimeSeconds).toBeGreaterThanOrEqual(0);
     expect(payload.metrics?.pendingWorkerTasks).toBe(2);
-    expect(payload.metrics?.activeSseSessions).toBe(7);
+    expect(payload.metrics?.activeWsSessions).toBe(7);
     expect(payload.metrics?.tokensToday).toBe(100);
     expect(payload.metrics?.vectorNodeCount).toBe(2);
     expect(typeof payload.metrics?.generatedAt).toBe('string');

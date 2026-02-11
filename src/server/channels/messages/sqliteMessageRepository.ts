@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { DatabaseSync } from 'node:sqlite';
+import Database from 'better-sqlite3';
 import { ChannelType } from '../../../../types';
 import type {
   ConversationContextState,
@@ -67,15 +67,15 @@ function toChannelBinding(row: Record<string, unknown>): ChannelBinding {
 // ─── SQLite Implementation ───────────────────────────────────
 
 export class SqliteMessageRepository implements MessageRepository {
-  private readonly db: DatabaseSync;
+  private readonly db: ReturnType<typeof Database>;
 
   constructor(dbPath = process.env.MESSAGES_DB_PATH || '.local/messages.db') {
     if (dbPath === ':memory:') {
-      this.db = new DatabaseSync(':memory:');
+      this.db = new Database(':memory:');
     } else {
       const fullPath = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new DatabaseSync(fullPath);
+      this.db = new Database(fullPath);
     }
     this.migrate();
   }

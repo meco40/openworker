@@ -111,6 +111,7 @@ describe('channel pair route requests', () => {
 
   it('handles whatsapp bridge health request', async () => {
     const { POST: pairPost } = await import('../app/api/channels/pair/route');
+    const { getCredentialStore } = await import('../src/server/channels/credentials');
     process.env.WHATSAPP_BRIDGE_URL = 'http://localhost:8787';
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ peerName: 'wa-bridge' }), {
@@ -125,11 +126,13 @@ describe('channel pair route requests', () => {
     expect(response.status).toBe(200);
     expect(json.ok).toBe(true);
     expect(json.peerName).toBe('wa-bridge');
+    expect(getCredentialStore().getCredential('whatsapp', 'pairing_status')).toBe('connected');
     fetchMock.mockRestore();
   });
 
   it('handles imessage bridge health request', async () => {
     const { POST: pairPost } = await import('../app/api/channels/pair/route');
+    const { getCredentialStore } = await import('../src/server/channels/credentials');
     process.env.IMESSAGE_BRIDGE_URL = 'http://localhost:8788';
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ peerName: 'imessage-bridge' }), {
@@ -144,6 +147,7 @@ describe('channel pair route requests', () => {
     expect(response.status).toBe(200);
     expect(json.ok).toBe(true);
     expect(json.peerName).toBe('imessage-bridge');
+    expect(getCredentialStore().getCredential('imessage', 'pairing_status')).toBe('connected');
     fetchMock.mockRestore();
   });
 });

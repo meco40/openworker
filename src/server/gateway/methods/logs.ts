@@ -10,12 +10,13 @@ import type { GatewayClient } from '../client-registry';
 registerMethod(
   'logs.list',
   async (params: Record<string, unknown>, _client: GatewayClient, respond: RespondFn, _ctx) => {
-    const { getLogRepository } = await import('../../telemetry/logRepository');
+    const { getLogRepository } = await import('../../../logging/logRepository');
     const repo = getLogRepository();
 
     const filter: Record<string, unknown> = {};
     if (params.level) filter.level = params.level;
     if (params.source) filter.source = params.source;
+    if (params.category) filter.category = params.category;
     if (params.search) filter.search = params.search;
     if (params.limit) filter.limit = Number(params.limit);
     if (params.before) filter.before = params.before;
@@ -63,9 +64,18 @@ registerMethod(
 registerMethod(
   'logs.sources',
   async (_params: Record<string, unknown>, _client: GatewayClient, respond: RespondFn, _ctx) => {
-    const { getLogRepository } = await import('../../telemetry/logRepository');
+    const { getLogRepository } = await import('../../../logging/logRepository');
     const repo = getLogRepository();
     respond(repo.getSources());
+  },
+);
+
+registerMethod(
+  'logs.categories',
+  async (_params: Record<string, unknown>, _client: GatewayClient, respond: RespondFn, _ctx) => {
+    const { getLogRepository } = await import('../../../logging/logRepository');
+    const repo = getLogRepository();
+    respond(repo.getCategories());
   },
 );
 
@@ -75,7 +85,7 @@ registerMethod(
 registerMethod(
   'logs.clear',
   async (_params: Record<string, unknown>, _client: GatewayClient, respond: RespondFn, _ctx) => {
-    const { getLogRepository } = await import('../../telemetry/logRepository');
+    const { getLogRepository } = await import('../../../logging/logRepository');
     const repo = getLogRepository();
     const cleared = repo.clearLogs();
     respond({ cleared });

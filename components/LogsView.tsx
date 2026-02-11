@@ -9,12 +9,77 @@ interface LogEntry {
   timestamp: string;
   level: 'debug' | 'info' | 'warn' | 'error';
   source: string;
+  category:
+    | 'system'
+    | 'security'
+    | 'channel'
+    | 'tooling'
+    | 'memory'
+    | 'worker'
+    | 'diagnostics'
+    | 'integration';
   message: string;
   metadata: Record<string, unknown> | null;
   createdAt: string;
 }
 
 type LevelFilter = 'all' | 'debug' | 'info' | 'warn' | 'error';
+type DiagnosticsStatus = 'ok' | 'degraded' | 'critical' | 'unknown';
+
+interface HealthSummary {
+  ok: number;
+  warning: number;
+  critical: number;
+  skipped: number;
+}
+
+interface HealthDiagnosticsState {
+  status: DiagnosticsStatus;
+  summary: HealthSummary | null;
+  issues: string[];
+  generatedAt: string | null;
+  error: string | null;
+}
+
+interface DoctorDiagnosticsState {
+  status: DiagnosticsStatus;
+  findingsCount: number;
+  recommendationsCount: number;
+  findingDetails: string[];
+  recommendations: string[];
+  generatedAt: string | null;
+  error: string | null;
+}
+
+interface HealthCheckSnapshot {
+  id?: unknown;
+  status?: unknown;
+  message?: unknown;
+}
+
+interface DoctorFindingSnapshot {
+  severity?: unknown;
+  title?: unknown;
+  detail?: unknown;
+}
+
+interface HealthApiResponse {
+  ok?: boolean;
+  status?: 'ok' | 'degraded' | 'critical';
+  summary?: HealthSummary;
+  checks?: HealthCheckSnapshot[];
+  generatedAt?: string;
+  error?: string;
+}
+
+interface DoctorApiResponse {
+  ok?: boolean;
+  status?: 'ok' | 'degraded' | 'critical';
+  findings?: DoctorFindingSnapshot[];
+  recommendations?: string[];
+  generatedAt?: string;
+  error?: string;
+}
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -57,19 +122,107 @@ const SOURCE_COLORS: Record<string, string> = {
   SKILLS: 'text-teal-400',
 };
 
+const DIAGNOSTIC_STATUS_CONFIG: Record<
+  DiagnosticsStatus,
+  { label: string; textClass: string; borderClass: string; bgClass: string }
+> = {
+  ok: {
+    label: 'OK',
+    textClass: 'text-emerald-400',
+    borderClass: 'border-emerald-500/40',
+    bgClass: 'bg-emerald-500/10',
+  },
+  degraded: {
+    label: 'DEGRADED',
+    textClass: 'text-amber-400',
+    borderClass: 'border-amber-500/40',
+    bgClass: 'bg-amber-500/10',
+  },
+  critical: {
+    label: 'CRITICAL',
+    textClass: 'text-rose-400',
+    borderClass: 'border-rose-500/40',
+    bgClass: 'bg-rose-500/10',
+  },
+  unknown: {
+    label: 'UNKNOWN',
+    textClass: 'text-zinc-500',
+    borderClass: 'border-zinc-700',
+    bgClass: 'bg-zinc-800/70',
+  },
+};
+
+function parseDiagnosticsStatus(value: unknown): DiagnosticsStatus {
+  if (value === 'ok' || value === 'degraded' || value === 'critical') {
+    return value;
+  }
+  return 'unknown';
+}
+
+export function extractHealthIssues(
+  checks: HealthCheckSnapshot[] | undefined,
+  limit = 3,
+): string[] {
+  if (!Array.isArray(checks)) return [];
+
+  return checks
+    .filter((check) => check?.status === 'warning' || check?.status === 'critical')
+    .map((check) => {
+      const id = typeof check.id === 'string' ? check.id : 'unknown_check';
+      const message = typeof check.message === 'string' ? check.message : 'No details available.';
+      return `${id}: ${message}`;
+    })
+    .slice(0, limit);
+}
+
+export function extractDoctorFindingDetails(
+  findings: DoctorFindingSnapshot[] | undefined,
+  limit = 3,
+): string[] {
+  if (!Array.isArray(findings)) return [];
+
+  return findings
+    .map((finding) => {
+      const title = typeof finding.title === 'string' ? finding.title : 'Finding';
+      const detail =
+        typeof finding.detail === 'string' ? finding.detail : 'No details available.';
+      return `${title}: ${detail}`;
+    })
+    .slice(0, limit);
+}
+
 // ── Component ────────────────────────────────────────────────────
 
 const LogsView: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [levelFilter, setLevelFilter] = useState<LevelFilter>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [sources, setSources] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [healthDiagnostics, setHealthDiagnostics] = useState<HealthDiagnosticsState>({
+    status: 'unknown',
+    summary: null,
+    issues: [],
+    generatedAt: null,
+    error: null,
+  });
+  const [doctorDiagnostics, setDoctorDiagnostics] = useState<DoctorDiagnosticsState>({
+    status: 'unknown',
+    findingsCount: 0,
+    recommendationsCount: 0,
+    findingDetails: [],
+    recommendations: [],
+    generatedAt: null,
+    error: null,
+  });
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -80,6 +233,7 @@ const LogsView: React.FC = () => {
       const params = new URLSearchParams();
       if (levelFilter !== 'all') params.set('level', levelFilter);
       if (sourceFilter !== 'all') params.set('source', sourceFilter);
+      if (categoryFilter !== 'all') params.set('category', categoryFilter);
       if (search) params.set('search', search);
       params.set('limit', '500');
 
@@ -94,13 +248,23 @@ const LogsView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [levelFilter, sourceFilter, search]);
+  }, [categoryFilter, levelFilter, sourceFilter, search]);
 
   const fetchSources = useCallback(async () => {
     try {
       const res = await fetch('/api/logs?sources=1');
       const data = await res.json();
       if (data.ok) setSources(data.sources);
+    } catch {
+      // Silently fail
+    }
+  }, []);
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await fetch('/api/logs?categories=1');
+      const data = await res.json();
+      if (data.ok) setCategories(data.categories);
     } catch {
       // Silently fail
     }
@@ -113,6 +277,123 @@ const LogsView: React.FC = () => {
   useEffect(() => {
     void fetchSources();
   }, [fetchSources]);
+
+  useEffect(() => {
+    void fetchCategories();
+  }, [fetchCategories]);
+
+  const fetchDiagnostics = useCallback(async () => {
+    setDiagnosticsLoading(true);
+
+    const [healthResult, doctorResult] = await Promise.allSettled([
+      fetch('/api/health'),
+      fetch('/api/doctor'),
+    ]);
+
+    if (healthResult.status === 'fulfilled') {
+      try {
+        const payload = (await healthResult.value.json()) as HealthApiResponse;
+        if (!healthResult.value.ok || payload.ok === false) {
+          setHealthDiagnostics({
+            status: 'unknown',
+            summary: null,
+            issues: [],
+            generatedAt: null,
+            error: payload.error || 'Health endpoint is not accessible.',
+          });
+        } else {
+          setHealthDiagnostics({
+            status: parseDiagnosticsStatus(payload.status),
+            summary: payload.summary || null,
+            issues: extractHealthIssues(payload.checks),
+            generatedAt: payload.generatedAt || null,
+            error: null,
+          });
+        }
+      } catch {
+        setHealthDiagnostics({
+          status: 'unknown',
+          summary: null,
+          issues: [],
+          generatedAt: null,
+          error: 'Health response parsing failed.',
+        });
+      }
+    } else {
+      setHealthDiagnostics({
+        status: 'unknown',
+        summary: null,
+        issues: [],
+        generatedAt: null,
+        error: 'Health diagnostics request failed.',
+      });
+    }
+
+    if (doctorResult.status === 'fulfilled') {
+      try {
+        const payload = (await doctorResult.value.json()) as DoctorApiResponse;
+        if (!doctorResult.value.ok || payload.ok === false) {
+          setDoctorDiagnostics({
+            status: 'unknown',
+            findingsCount: 0,
+            recommendationsCount: 0,
+            findingDetails: [],
+            recommendations: [],
+            generatedAt: null,
+            error: payload.error || 'Doctor endpoint is not accessible.',
+          });
+        } else {
+          setDoctorDiagnostics({
+            status: parseDiagnosticsStatus(payload.status),
+            findingsCount: Array.isArray(payload.findings) ? payload.findings.length : 0,
+            recommendationsCount: Array.isArray(payload.recommendations)
+              ? payload.recommendations.length
+              : 0,
+            findingDetails: extractDoctorFindingDetails(payload.findings),
+            recommendations: Array.isArray(payload.recommendations)
+              ? payload.recommendations.slice(0, 3)
+              : [],
+            generatedAt: payload.generatedAt || null,
+            error: null,
+          });
+        }
+      } catch {
+        setDoctorDiagnostics({
+          status: 'unknown',
+          findingsCount: 0,
+          recommendationsCount: 0,
+          findingDetails: [],
+          recommendations: [],
+          generatedAt: null,
+          error: 'Doctor response parsing failed.',
+        });
+      }
+    } else {
+      setDoctorDiagnostics({
+        status: 'unknown',
+        findingsCount: 0,
+        recommendationsCount: 0,
+        findingDetails: [],
+        recommendations: [],
+        generatedAt: null,
+        error: 'Doctor diagnostics request failed.',
+      });
+    }
+
+    setDiagnosticsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void fetchDiagnostics();
+  }, [fetchDiagnostics]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void fetchDiagnostics();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [fetchDiagnostics]);
 
   // ── WebSocket real-time stream ───────────────────────────────
 
@@ -142,25 +423,14 @@ const LogsView: React.FC = () => {
           }
           return prev;
         });
-      } catch { /* Invalid event data */ }
-    });
 
-    // Also listen for SSE-bridged legacy event
-    const unsubLegacy = client.on('system_log', (payload) => {
-      try {
-        const entry = payload as LogEntry;
-        setLogs((prev) => {
-          const next = [...prev, entry];
-          return next.length > 1000 ? next.slice(-1000) : next;
-        });
-        setTotalCount((c) => c + 1);
-        setSources((prev) => {
-          if (!prev.includes(entry.source)) {
-            return [...prev, entry.source].sort();
+        setCategories((prev) => {
+          if (!prev.includes(entry.category)) {
+            return [...prev, entry.category].sort();
           }
           return prev;
         });
-      } catch { /* ignore */ }
+      } catch { /* Invalid event data */ }
     });
 
     // Set connected if already connected
@@ -168,7 +438,6 @@ const LogsView: React.FC = () => {
 
     return () => {
       unsub();
-      unsubLegacy();
       unsubState();
       client.request('logs.unsubscribe', {}).catch(() => {});
       setIsConnected(false);
@@ -226,6 +495,7 @@ const LogsView: React.FC = () => {
   const filteredLogs = logs.filter((l) => {
     if (levelFilter !== 'all' && l.level !== levelFilter) return false;
     if (sourceFilter !== 'all' && l.source !== sourceFilter) return false;
+    if (categoryFilter !== 'all' && l.category !== categoryFilter) return false;
     if (search && !l.message.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -266,6 +536,140 @@ const LogsView: React.FC = () => {
               </span>
             )}
           </p>
+        </div>
+      </div>
+
+      {/* Diagnostics Summary */}
+      <div className="bg-zinc-950/70 border border-zinc-800 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-black tracking-wide uppercase text-zinc-200">
+              System Diagnostics
+            </h3>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Quick view of Health and Doctor checks.
+            </p>
+          </div>
+          <button
+            onClick={() => void fetchDiagnostics()}
+            className="px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide bg-zinc-900/80 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors"
+          >
+            {diagnosticsLoading ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {(() => {
+            const config = DIAGNOSTIC_STATUS_CONFIG[healthDiagnostics.status];
+            return (
+              <div className={`rounded-lg border p-3 ${config.borderClass} ${config.bgClass}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wide text-zinc-200">Health</span>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${config.textClass} ${config.borderClass}`}>
+                    {config.label}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-2 mt-2 text-[11px]">
+                  <div className="rounded bg-black/30 px-2 py-1">
+                    <div className="text-zinc-500 uppercase">OK</div>
+                    <div className="text-zinc-200 font-bold">{healthDiagnostics.summary?.ok ?? 0}</div>
+                  </div>
+                  <div className="rounded bg-black/30 px-2 py-1">
+                    <div className="text-zinc-500 uppercase">Warn</div>
+                    <div className="text-zinc-200 font-bold">{healthDiagnostics.summary?.warning ?? 0}</div>
+                  </div>
+                  <div className="rounded bg-black/30 px-2 py-1">
+                    <div className="text-zinc-500 uppercase">Crit</div>
+                    <div className="text-zinc-200 font-bold">{healthDiagnostics.summary?.critical ?? 0}</div>
+                  </div>
+                  <div className="rounded bg-black/30 px-2 py-1">
+                    <div className="text-zinc-500 uppercase">Skip</div>
+                    <div className="text-zinc-200 font-bold">{healthDiagnostics.summary?.skipped ?? 0}</div>
+                  </div>
+                </div>
+                <div className="mt-2 text-[10px] text-zinc-500">
+                  {healthDiagnostics.error
+                    ? healthDiagnostics.error
+                    : healthDiagnostics.generatedAt
+                      ? `Updated ${relativeTime(healthDiagnostics.generatedAt)}`
+                      : 'No health snapshot yet.'}
+                </div>
+                <div className="mt-2 rounded border border-zinc-800/80 bg-black/30 px-2 py-1.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                    Current Warnings
+                  </div>
+                  {healthDiagnostics.issues.length === 0 ? (
+                    <div className="mt-1 text-[11px] text-zinc-400">No active warnings</div>
+                  ) : (
+                    <div className="mt-1 space-y-1">
+                      {healthDiagnostics.issues.map((issue, index) => (
+                        <div key={`${issue}-${index}`} className="text-[11px] text-amber-300 break-words">
+                          {issue}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {(() => {
+            const config = DIAGNOSTIC_STATUS_CONFIG[doctorDiagnostics.status];
+            return (
+              <div className={`rounded-lg border p-3 ${config.borderClass} ${config.bgClass}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wide text-zinc-200">Doctor</span>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${config.textClass} ${config.borderClass}`}>
+                    {config.label}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2 text-[11px]">
+                  <div className="rounded bg-black/30 px-2 py-1">
+                    <div className="text-zinc-500 uppercase">Findings</div>
+                    <div className="text-zinc-200 font-bold">{doctorDiagnostics.findingsCount}</div>
+                  </div>
+                  <div className="rounded bg-black/30 px-2 py-1">
+                    <div className="text-zinc-500 uppercase">Recommendations</div>
+                    <div className="text-zinc-200 font-bold">{doctorDiagnostics.recommendationsCount}</div>
+                  </div>
+                </div>
+                <div className="mt-2 text-[10px] text-zinc-500">
+                  {doctorDiagnostics.error
+                    ? doctorDiagnostics.error
+                    : doctorDiagnostics.generatedAt
+                      ? `Updated ${relativeTime(doctorDiagnostics.generatedAt)}`
+                      : 'No doctor snapshot yet.'}
+                </div>
+                <div className="mt-2 rounded border border-zinc-800/80 bg-black/30 px-2 py-1.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                    Finding Details
+                  </div>
+                  {doctorDiagnostics.findingDetails.length === 0 ? (
+                    <div className="mt-1 text-[11px] text-zinc-400">No active findings</div>
+                  ) : (
+                    <div className="mt-1 space-y-1">
+                      {doctorDiagnostics.findingDetails.map((detail, index) => (
+                        <div key={`${detail}-${index}`} className="text-[11px] text-amber-300 break-words">
+                          {detail}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {doctorDiagnostics.recommendations.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-zinc-800/80">
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                        Top Recommendation
+                      </div>
+                      <div className="mt-1 text-[11px] text-zinc-300 break-words">
+                        {doctorDiagnostics.recommendations[0]}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -342,6 +746,19 @@ const LogsView: React.FC = () => {
           {sources.map((s) => (
             <option key={s} value={s}>
               {s}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="bg-zinc-900/80 text-xs font-bold text-zinc-300 px-3 py-2 rounded-lg border border-zinc-800 focus:outline-none focus:border-zinc-600 transition-colors cursor-pointer"
+        >
+          <option value="all">ALL CATEGORIES</option>
+          {categories.map((category) => (
+            <option key={category} value={category}>
+              {category.toUpperCase()}
             </option>
           ))}
         </select>
@@ -454,6 +871,7 @@ const LogsView: React.FC = () => {
                       {log.source}
                     </span>
                     <span className="flex-1 text-zinc-400 group-hover:text-zinc-200 transition-colors break-all">
+                      <span className="text-zinc-600 mr-2">[{log.category}]</span>
                       {log.message}
                     </span>
                     <span className="w-20 shrink-0 text-right text-zinc-700 tabular-nums">
@@ -486,7 +904,7 @@ const LogsView: React.FC = () => {
               </span>
             )}
             <span className={isConnected ? 'text-emerald-600' : 'text-zinc-700'}>
-              SSE {isConnected ? 'Connected' : 'Disconnected'}
+              WS {isConnected ? 'Connected' : 'Disconnected'}
             </span>
           </div>
         </div>

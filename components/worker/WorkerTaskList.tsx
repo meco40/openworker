@@ -1,7 +1,7 @@
 // ─── Worker Task List ───────────────────────────────────────
 // Displays all worker tasks with status badges and workspace type.
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import type { WorkerTask } from '../../types';
 
 interface WorkerTaskListProps {
@@ -10,6 +10,8 @@ interface WorkerTaskListProps {
   error: string | null;
   onSelectTask: (task: WorkerTask) => void;
   onCreateNew: () => void;
+  onDeleteTask: (id: string) => Promise<void>;
+  onDeleteAllTasks: () => Promise<void>;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
@@ -54,7 +56,33 @@ const WorkerTaskList: React.FC<WorkerTaskListProps> = ({
   error,
   onSelectTask,
   onCreateNew,
+  onDeleteTask,
+  onDeleteAllTasks,
 }) => {
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
+
+  const handleDeleteSingle = useCallback(async (id: string) => {
+    setDeleting(id);
+    try {
+      await onDeleteTask(id);
+    } finally {
+      setDeleting(null);
+      setConfirmDelete(null);
+    }
+  }, [onDeleteTask]);
+
+  const handleDeleteAll = useCallback(async () => {
+    setDeletingAll(true);
+    try {
+      await onDeleteAllTasks();
+    } finally {
+      setDeletingAll(false);
+      setConfirmDeleteAll(false);
+    }
+  }, [onDeleteAllTasks]);
   if (loading && tasks.length === 0) {
     return (
       <div className="worker-task-list worker-task-list--loading">
@@ -68,9 +96,20 @@ const WorkerTaskList: React.FC<WorkerTaskListProps> = ({
     <div className="worker-task-list">
       <div className="worker-task-list__header">
         <h2>Workspaces</h2>
-        <button className="worker-btn worker-btn--primary" onClick={onCreateNew}>
-          + Neuer Workspace
-        </button>
+        <div className="worker-task-list__actions">
+          {tasks.length > 0 && (
+            <button
+              className="worker-btn worker-btn--danger"
+              onClick={() => setConfirmDeleteAll(true)}
+              title="Alle Workspaces löschen"
+            >
+              🗑️ Alle löschen
+            </button>
+          )}
+          <button className="worker-btn worker-btn--primary" onClick={onCreateNew}>
+            + Neuer Workspace
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -95,29 +134,45 @@ const WorkerTaskList: React.FC<WorkerTaskListProps> = ({
             const typeIcon = TYPE_ICONS[task.workspaceType] || TYPE_ICONS.general;
 
             return (
-              <button
+              <div
                 key={task.id}
                 className={`worker-task-card worker-task-card--${task.status}`}
-                onClick={() => onSelectTask(task)}
               >
                 <div className="worker-task-card__header">
                   <span className="worker-task-card__type" title={task.workspaceType}>
                     {typeIcon}
                   </span>
-                  <span
-                    className="worker-task-card__status"
-                    style={{ backgroundColor: `${config.color}22`, color: config.color }}
-                  >
-                    {config.icon} {config.label}
-                  </span>
+                  <div className="worker-task-card__header-right">
+                    <span
+                      className="worker-task-card__status"
+                      style={{ backgroundColor: `${config.color}22`, color: config.color }}
+                    >
+                      {config.icon} {config.label}
+                    </span>
+                    <button
+                      className="worker-task-card__delete-btn"
+                      title="Workspace löschen"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDelete(task.id);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
 
-                <h3 className="worker-task-card__title">{task.title}</h3>
-                <p className="worker-task-card__objective">
-                  {task.objective.length > 100
-                    ? task.objective.slice(0, 100) + '…'
-                    : task.objective}
-                </p>
+                <button
+                  className="worker-task-card__body"
+                  onClick={() => onSelectTask(task)}
+                >
+                  <h3 className="worker-task-card__title">{task.title}</h3>
+                  <p className="worker-task-card__objective">
+                    {task.objective.length > 100
+                      ? task.objective.slice(0, 100) + '…'
+                      : task.objective}
+                  </p>
+                </button>
 
                 <div className="worker-task-card__footer">
                   <span className="worker-task-card__date">{formatDate(task.createdAt)}</span>
@@ -135,9 +190,63 @@ const WorkerTaskList: React.FC<WorkerTaskListProps> = ({
                     </span>
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ─── Delete Single Confirmation Modal ───────────────── */}
+      {confirmDelete && (
+        <div className="worker-modal-overlay" onClick={() => setConfirmDelete(null)}>
+          <div className="worker-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Workspace löschen?</h3>
+            <p>Der Workspace und alle zugehörigen Dateien, Schritte und Artefakte werden unwiderruflich gelöscht.</p>
+            <div className="worker-modal__actions">
+              <button
+                className="worker-btn worker-btn--ghost"
+                onClick={() => setConfirmDelete(null)}
+                disabled={!!deleting}
+              >
+                Abbrechen
+              </button>
+              <button
+                className="worker-btn worker-btn--danger"
+                onClick={() => handleDeleteSingle(confirmDelete)}
+                disabled={!!deleting}
+              >
+                {deleting ? 'Löschen…' : '🗑️ Endgültig löschen'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Delete All Confirmation Modal ────────────────────── */}
+      {confirmDeleteAll && (
+        <div className="worker-modal-overlay" onClick={() => setConfirmDeleteAll(false)}>
+          <div className="worker-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Alle Workspaces löschen?</h3>
+            <p>
+              <strong>{tasks.length}</strong> Workspaces und alle zugehörigen Dateien werden unwiderruflich gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.
+            </p>
+            <div className="worker-modal__actions">
+              <button
+                className="worker-btn worker-btn--ghost"
+                onClick={() => setConfirmDeleteAll(false)}
+                disabled={deletingAll}
+              >
+                Abbrechen
+              </button>
+              <button
+                className="worker-btn worker-btn--danger"
+                onClick={handleDeleteAll}
+                disabled={deletingAll}
+              >
+                {deletingAll ? 'Löschen…' : `🗑️ Alle ${tasks.length} löschen`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

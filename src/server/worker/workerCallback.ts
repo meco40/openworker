@@ -51,7 +51,7 @@ export async function notifyApprovalRequest(
 
 async function sendNotification(task: WorkerTaskRecord, message: string): Promise<void> {
   try {
-    // 1. Save in conversation + SSE broadcast
+    // 1. Save in conversation + WS broadcast
     const msgService = getMessageService();
     msgService.saveDirectMessage(task.originConversation, 'agent', message, task.originPlatform);
 

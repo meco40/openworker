@@ -95,6 +95,17 @@ export function useWorkerTasks() {
     }
   }, []);
 
+  const deleteAllTasks = useCallback(async () => {
+    try {
+      setError(null);
+      const res = await fetch('/api/worker', { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setTasks([]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Alle löschen fehlgeschlagen');
+    }
+  }, []);
+
   // ─── WebSocket Live Updates ────────────────────────────────
   useEffect(() => {
     const client = getGatewayClient();
@@ -108,18 +119,7 @@ export function useWorkerTasks() {
         );
       } catch { /* ignore */ }
     });
-
-    // Also listen for SSE-bridged legacy event name
-    const unsubLegacy = client.on('worker-status', (payload) => {
-      try {
-        const data = payload as { taskId: string; status: string };
-        setTasks((prev) =>
-          prev.map((t) => (t.id === data.taskId ? { ...t, status: data.status as WorkerTaskStatus } : t)),
-        );
-      } catch { /* ignore */ }
-    });
-
-    return () => { unsub(); unsubLegacy(); };
+    return () => { unsub(); };
   }, []);
 
   // Initial fetch
@@ -137,6 +137,7 @@ export function useWorkerTasks() {
     resumeTask,
     approveTask,
     deleteTask,
+    deleteAllTasks,
     refreshTasks: fetchTasks,
   };
 }

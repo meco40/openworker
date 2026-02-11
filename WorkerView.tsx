@@ -19,6 +19,7 @@ const WorkerView: React.FC = () => {
     resumeTask,
     approveTask,
     deleteTask,
+    deleteAllTasks,
     refreshTasks,
   } = useWorkerTasks();
 
@@ -82,6 +83,8 @@ const WorkerView: React.FC = () => {
           error={error}
           onSelectTask={handleSelectTask}
           onCreateNew={() => setView('create')}
+          onDeleteTask={deleteTask}
+          onDeleteAllTasks={deleteAllTasks}
         />
       )}
 

@@ -1,4 +1,3 @@
-import { getSSEManager } from '../../../../src/server/channels/sse/manager';
 import type { WorkerTaskStatus } from '../../../../src/server/worker/workerTypes';
 import { getWorkerRepository } from '../../../../src/server/worker/workerRepository';
 import { getTokenUsageRepository } from '../../../../src/server/stats/tokenUsageRepository';
@@ -33,7 +32,6 @@ export async function GET() {
       .listTasks()
       .filter((task) => OPEN_STATUSES.has(task.status)).length;
 
-    const activeSseSessions = getSSEManager().connectionCount;
     const activeWsSessions = getClientRegistry().connectionCount;
 
     const { from, to } = resolveTodayRange();
@@ -46,7 +44,6 @@ export async function GET() {
       metrics: {
         uptimeSeconds,
         pendingWorkerTasks,
-        activeSseSessions,
         activeWsSessions,
         tokensToday,
         vectorNodeCount,

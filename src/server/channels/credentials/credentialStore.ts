@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import Database from 'better-sqlite3';
 
 // ─── Channel Credential Store ────────────────────────────────
 // Persists bot tokens and secrets in SQLite instead of process.env.
@@ -13,15 +13,15 @@ export interface ChannelCredential {
 }
 
 export class CredentialStore {
-  private readonly db: DatabaseSync;
+  private readonly db: ReturnType<typeof Database>;
 
   constructor(dbPath = process.env.MESSAGES_DB_PATH || '.local/messages.db') {
     if (dbPath === ':memory:') {
-      this.db = new DatabaseSync(':memory:');
+      this.db = new Database(':memory:');
     } else {
       const fullPath = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new DatabaseSync(fullPath);
+      this.db = new Database(fullPath);
     }
     this.migrate();
   }

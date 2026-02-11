@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import Database from 'better-sqlite3';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { POST as executeSkillPost } from '../app/api/skills/execute/route';
 
@@ -19,7 +19,7 @@ describe('skills execute route requests', () => {
     const dbPath = path.join(localDir, 'skills.db');
     process.env.SQLITE_DB_PATH = '.local/skills.db';
 
-    const db = new DatabaseSync(dbPath);
+    const db = new Database(dbPath);
     db.exec(
       "CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, title TEXT); DELETE FROM notes; INSERT INTO notes(title) VALUES ('alpha'),('beta');",
     );

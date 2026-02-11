@@ -3,7 +3,7 @@
 **Datum:** 2026-02-11  
 **Feature:** #1 aus OPENCLAW_FUNKTIONSANALYSE.md  
 **Priorität:** ⭐⭐⭐⭐⭐ Kritisch  
-**Status:** Vollständig implementiert & validiert
+**Status:** Vollständig implementiert, validiert und auf WS-only konsolidiert (SSE-Legacy entfernt)
 
 ---
 
@@ -189,8 +189,6 @@ Alle 4 SSE-Konsumenten wurden auf WebSocket migriert:
 | `WorkerTaskDetail.tsx` | `new EventSource(...)` | `client.request('worker.task.subscribe')` + `on('worker.status')` |
 | `LogsView.tsx` | `new EventSource('/api/logs/stream')` | `client.request('logs.subscribe')` + `on('log.entry')` |
 
-Abwärtskompatibilität: Alle Komponenten hören auch auf Legacy-Event-Namen (`message`, `worker-status`, `system_log`), da die SSE-Bridge diese weiterleitet.
-
 ### Phase 5: AI Token Streaming
 
 **`chat.stream` Methode** — Simuliertes Wort-für-Wort-Streaming:
@@ -248,20 +246,11 @@ Client                          Server
 
 ### Zusätzlich: Native WS-Broadcasts
 
-Neben der SSE-Bridge wurden **native WebSocket-Broadcasts** in die Kern-Services integriert:
+Native WebSocket-Broadcasts wurden in die Kern-Services integriert:
 
 - **`workerAgent.ts`** → Sendet `worker.status` direkt an WS-Clients mit `worker:{taskId}` Subscription
 - **`logService.ts`** → Sendet `log.entry` direkt an WS-Clients mit `logs` Subscription
-- **SSE Manager** → Bridge-Modus: Leitet SSE-Events automatisch an WS-Gateway weiter
-
-Pattern: Cached Async Import für ESM-Kompatibilität:
-```typescript
-let _wsBroadcast: typeof BroadcastFn | null = null;
-async function loadGatewayBroadcast() {
-  const mod = await import('../gateway/broadcast.js');
-  _wsBroadcast = mod.broadcastToSubscribed;
-}
-```
+- **`messageService.ts`** → Sendet `chat.message` direkt user-skopiert über `broadcastToUser`
 
 ---
 
@@ -353,15 +342,15 @@ tests/unit/gateway/
 
 ---
 
-## 7. Abwärtskompatibilität
+## 7. Abschluss der Migration
 
-Die Migration ist **nicht-destruktiv**:
+Die Migration ist abgeschlossen und auf WS-only konsolidiert:
 
-1. **SSE-Manager bleibt aktiv** — Bestehende SSE-Endpoints funktionieren weiter
-2. **SSE → WS Bridge** — SSE-Events werden automatisch an WS-Clients weitergeleitet
-3. **Legacy Event-Names** — Frontend-Komponenten hören auf alte UND neue Event-Namen
-4. **REST-APIs unverändert** — Alle `/api/` Routen funktionieren wie zuvor
-5. **Schrittweise Migration** — Neue Features nutzen WS, alte können graduell umgestellt werden
+1. **SSE-Endpunkte entfernt** — `app/api/channels/stream/route.ts` und `app/api/logs/stream/route.ts` gelöscht
+2. **SSE-Manager entfernt** — `src/server/channels/sse/manager.ts` gelöscht
+3. **Legacy Event-Namen entfernt** — Frontend hört nur noch auf `chat.message`, `worker.status`, `log.entry`
+4. **REST-APIs unverändert** — CRUD-/Webhook-Routen funktionieren unverändert
+5. **Control-Plane-Metriken bereinigt** — Fokus auf `activeWsSessions`
 
 ---
 

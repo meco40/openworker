@@ -23,6 +23,7 @@ function makeClient(overrides: Partial<GatewayClient> = {}): GatewayClient {
     subscriptions: new Set(),
     requestCount: 0,
     requestWindowStart: Date.now(),
+    seq: 0,
     ...overrides,
   };
 }

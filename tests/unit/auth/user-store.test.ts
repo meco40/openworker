@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AuthUserStore } from '../../../src/server/auth/userStore';
 
@@ -83,7 +83,7 @@ describe('AuthUserStore', () => {
       () => {
         const store = new AuthUserStore(dbPath);
 
-        const reader = new DatabaseSync(dbPath);
+        const reader = new Database(dbPath);
         const row = reader
           .prepare('SELECT password_hash FROM auth_users WHERE email = ?')
           .get('security-test@local.dev') as { password_hash: string };
@@ -108,7 +108,7 @@ describe('AuthUserStore', () => {
       },
       () => {
         const store = new AuthUserStore(dbPath);
-        const db = new DatabaseSync(dbPath);
+        const db = new Database(dbPath);
 
         const password = 'legacy-password';
         const sha256Hash = crypto.createHash('sha256').update(password).digest('hex');

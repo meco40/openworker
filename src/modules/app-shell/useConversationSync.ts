@@ -79,21 +79,6 @@ export function useConversationSync() {
       }
     });
 
-    // Also listen for legacy SSE-bridged 'message' events during transition
-    const unsubLegacy = client.on('message', (payload) => {
-      try {
-        const data = payload as StreamConversationMessage;
-        if (data.conversationId === activeConversationRef.current) {
-          setMessages((previous) =>
-            appendMessageIfMissing(previous, mapConversationStreamMessage(data)),
-          );
-        }
-        setConversations((previous) =>
-          upsertConversationActivity(previous, data.conversationId, data.createdAt),
-        );
-      } catch { /* ignore */ }
-    });
-
     // ─── Session lifecycle events ────────────────────────
     const unsubDeleted = client.on('conversation.deleted', (payload) => {
       const { conversationId } = payload as { conversationId: string };
@@ -122,7 +107,7 @@ export function useConversationSync() {
       // No special UI action needed — the aborted message arrives via chat.message
     });
 
-    return () => { unsub(); unsubLegacy(); unsubDeleted(); unsubReset(); unsubAborted(); };
+    return () => { unsub(); unsubDeleted(); unsubReset(); unsubAborted(); };
   }, []);
 
   useEffect(() => {

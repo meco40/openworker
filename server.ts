@@ -2,7 +2,6 @@
 // Wraps Next.js with an HTTP server that handles WebSocket upgrades on /ws.
 
 import { createServer } from 'node:http';
-import { parse } from 'node:url';
 import next from 'next';
 import { WebSocketServer } from 'ws';
 import { getToken } from 'next-auth/jwt';
@@ -24,10 +23,14 @@ const SECRET =
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
+function getRequestUrl(req: { url?: string; headers: { host?: string | undefined } }): URL {
+  const host = req.headers.host || `${hostname}:${port}`;
+  return new URL(req.url || '/', `http://${host}`);
+}
+
 app.prepare().then(() => {
   const server = createServer((req, res) => {
-    const parsedUrl = parse(req.url || '/', true);
-    handle(req, res, parsedUrl);
+    handle(req, res);
   });
 
   const wss = new WebSocketServer({
@@ -37,7 +40,7 @@ app.prepare().then(() => {
 
   // ─── WebSocket Upgrade ─────────────────────────────────────
   server.on('upgrade', async (req, socket, head) => {
-    const { pathname } = parse(req.url || '/', true);
+    const { pathname } = getRequestUrl(req);
 
     if (pathname !== '/ws') {
       // Let Next.js handle non-WS upgrades (e.g., HMR in dev)

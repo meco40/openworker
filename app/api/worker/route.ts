@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { getWorkerRepository } from '@/server/worker/workerRepository';
 import { processQueue } from '@/server/worker/workerAgent';
+import { getWorkspaceManager } from '@/server/worker/workspaceManager';
 import type { WorkerTaskStatus } from '@/server/worker/workerTypes';
 
 export const runtime = 'nodejs';
@@ -22,6 +23,28 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, tasks });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to list tasks';
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE() {
+  try {
+    const repo = getWorkerRepository();
+    const wsMgr = getWorkspaceManager();
+    const tasks = repo.listTasks({ limit: 1000 });
+
+    let deleted = 0;
+    for (const task of tasks) {
+      try {
+        wsMgr.deleteWorkspace(task.id);
+      } catch { /* workspace may not exist */ }
+      repo.deleteTask(task.id);
+      deleted++;
+    }
+
+    return NextResponse.json({ ok: true, message: `${deleted} tasks deleted`, deleted });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete all tasks';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

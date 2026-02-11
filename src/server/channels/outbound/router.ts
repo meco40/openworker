@@ -85,7 +85,7 @@ export async function deliverOutbound(
   }
 
   if (channel === 'webchat') {
-    // WebChat relies on SSE/WS broadcast, no external delivery needed.
+    // WebChat relies on WS broadcast, no external delivery needed.
     return;
   }
 

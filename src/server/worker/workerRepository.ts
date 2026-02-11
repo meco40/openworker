@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { DatabaseSync } from 'node:sqlite';
+import Database from 'better-sqlite3';
 
 type SQLParam = string | number | null | bigint | Uint8Array;
 import type {
@@ -80,15 +80,15 @@ function toApprovalRule(row: Record<string, unknown>): ApprovalRule {
 // ─── SQLite Implementation ───────────────────────────────────
 
 export class SqliteWorkerRepository implements WorkerRepository {
-  private readonly db: DatabaseSync;
+  private readonly db: ReturnType<typeof Database>;
 
   constructor(dbPath = process.env.WORKER_DB_PATH || '.local/worker.db') {
     if (dbPath === ':memory:') {
-      this.db = new DatabaseSync(':memory:');
+      this.db = new Database(':memory:');
     } else {
       const fullPath = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new DatabaseSync(fullPath);
+      this.db = new Database(fullPath);
     }
     this.db.exec('PRAGMA journal_mode = WAL');
     this.migrate();

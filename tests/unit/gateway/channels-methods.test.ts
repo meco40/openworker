@@ -18,6 +18,7 @@ function makeClient(userId = 'user-1'): GatewayClient {
     subscriptions: new Set(),
     requestCount: 0,
     requestWindowStart: Date.now(),
+    seq: 0,
   };
 }
 

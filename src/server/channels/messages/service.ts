@@ -1,6 +1,7 @@
 import type { ChannelType } from '../../../../types';
 import type { MessageRepository, StoredMessage, Conversation } from './repository';
-import { getSSEManager } from '../sse/manager';
+import { broadcastToUser } from '../../gateway/broadcast';
+import { GatewayEvents } from '../../gateway/events';
 import { deliverOutbound } from '../outbound/router';
 import { getModelHubService, getModelHubEncryptionKey } from '../../model-hub/runtime';
 import { routeMessage } from './messageRouter';
@@ -103,13 +104,7 @@ export class MessageService {
         clientMessageId,
       });
 
-      getSSEManager().broadcast(
-        {
-          type: 'message',
-          data: userMsg,
-        },
-        conversation.userId,
-      );
+      broadcastToUser(conversation.userId, GatewayEvents.CHAT_MESSAGE, userMsg);
 
       const route = routeMessage(content);
 
@@ -482,13 +477,7 @@ export class MessageService {
       gatewayMeta,
     );
 
-    getSSEManager().broadcast(
-      {
-        type: 'message',
-        data: agentMsg,
-      },
-      conversation.userId,
-    );
+    broadcastToUser(conversation.userId, GatewayEvents.CHAT_MESSAGE, agentMsg);
 
     void this.maybeRefreshConversationSummary(conversation);
 
@@ -540,7 +529,7 @@ export class MessageService {
   ): Promise<StoredMessage> {
     const agentMsg = this.historyManager.appendAgentMessage(conversation.id, platform, content);
 
-    getSSEManager().broadcast({ type: 'message', data: agentMsg }, conversation.userId);
+    broadcastToUser(conversation.userId, GatewayEvents.CHAT_MESSAGE, agentMsg);
 
     try {
       await deliverOutbound(platform, externalChatId, content);
@@ -614,7 +603,7 @@ export class MessageService {
     }
 
     const msg = this.repo.saveMessage({ conversationId, role, content, platform });
-    getSSEManager().broadcast({ type: 'message', data: msg }, conversation.userId);
+    broadcastToUser(conversation.userId, GatewayEvents.CHAT_MESSAGE, msg);
     return msg;
   }
 

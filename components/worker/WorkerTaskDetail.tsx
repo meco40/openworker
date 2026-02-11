@@ -214,27 +214,8 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
       } catch { /* ignore */ }
     });
 
-    // Also listen for SSE-bridged legacy event
-    const unsubLegacy = client.on('worker-status', (payload) => {
-      try {
-        const data = payload as { taskId: string; status?: string; message?: string };
-        if (data.taskId === task.id) {
-          const ts = new Date().toLocaleTimeString('de-DE', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          });
-          setTerminalLogs((prev) => [
-            ...prev,
-            `[${ts}] ${data.status?.toUpperCase() || 'UPDATE'}: ${data.message || JSON.stringify(data)}`,
-          ]);
-        }
-      } catch { /* ignore */ }
-    });
-
     return () => {
       unsub();
-      unsubLegacy();
       client.request('worker.task.unsubscribe', { taskId: task.id }).catch(() => {});
     };
   }, [activeTab, task.id]);
@@ -497,7 +478,7 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
               {terminalLogs.length === 0 ? (
                 <p className="worker-terminal__empty">
                   {isActive
-                    ? 'Warte auf Live-Updates… (SSE verbunden)'
+                    ? 'Warte auf Live-Updates… (WS verbunden)'
                     : 'Kein Live-Terminal für abgeschlossene Tasks.'}
                 </p>
               ) : (

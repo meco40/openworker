@@ -66,9 +66,9 @@ const Dashboard: React.FC<DashboardProps> = ({ state, metricsState }) => {
       icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 5a2 2 0 002 2h2a2 2 0 002-2',
     },
     {
-      label: 'Active SSE Sessions',
+      label: 'Active WS Sessions',
       value:
-        typeof metrics?.activeSseSessions === 'number' ? formatNumber(metrics.activeSseSessions) : '--',
+        typeof metrics?.activeWsSessions === 'number' ? formatNumber(metrics.activeWsSessions) : '--',
       detail: 'Realtime Connections',
       icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16h6M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2',
     },

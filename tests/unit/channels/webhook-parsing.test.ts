@@ -128,7 +128,7 @@ describe('Outbound Router Logic', () => {
   });
 
   it('WebChat should not trigger external delivery', () => {
-    // WebChat relies on SSE only
+    // WebChat relies on WS-only internal broadcast
     const shouldDeliver = ChannelType.WEBCHAT !== ChannelType.WEBCHAT;
     expect(shouldDeliver).toBe(false);
   });

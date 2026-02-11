@@ -153,7 +153,7 @@ const App: React.FC = () => {
           throw new Error(data.error || `HTTP ${response.status}`);
         }
 
-        // Fallback in case SSE is delayed/missed: append API response once.
+        // Fallback in case WS event delivery is delayed/missed: append API response once.
         if (data.userMessage && data.agentMessage) {
           const mappedUser = mapConversationApiMessage(data.userMessage);
           const mappedAgent = mapConversationApiMessage(data.agentMessage);

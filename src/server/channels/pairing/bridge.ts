@@ -1,3 +1,5 @@
+import { getCredentialStore } from '../credentials';
+
 export async function pairBridgeChannel(channel: 'whatsapp' | 'imessage') {
   const envName = channel === 'whatsapp' ? 'WHATSAPP_BRIDGE_URL' : 'IMESSAGE_BRIDGE_URL';
   const bridgeUrl = process.env[envName];
@@ -28,6 +30,13 @@ export async function pairBridgeChannel(channel: 'whatsapp' | 'imessage') {
     }
   } else {
     console.warn('APP_URL not set — bridge webhook not registered.');
+  }
+
+  try {
+    const store = getCredentialStore();
+    store.setCredential(channel, 'pairing_status', 'connected');
+  } catch (error) {
+    console.warn(`${channel} pairing status persistence warning:`, error);
   }
 
   return {

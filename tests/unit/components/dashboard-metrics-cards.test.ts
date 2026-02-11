@@ -22,7 +22,7 @@ const metricsState: ControlPlaneMetricsState = {
   metrics: {
     uptimeSeconds: 3661,
     pendingWorkerTasks: 4,
-    activeSseSessions: 9,
+    activeWsSessions: 9,
     tokensToday: 12345,
     vectorNodeCount: 7,
     generatedAt: '2026-02-11T12:00:00.000Z',
@@ -43,7 +43,7 @@ describe('Dashboard top KPI cards', () => {
 
     expect(html).toContain('Uptime');
     expect(html).toContain('Pending Worker Tasks');
-    expect(html).toContain('Active SSE Sessions');
+    expect(html).toContain('Active WS Sessions');
     expect(html).toContain('Tokens Today');
 
     expect(html).not.toContain('Proactive Ratio');

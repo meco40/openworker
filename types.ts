@@ -77,7 +77,7 @@ export interface GatewayState {
 export interface ControlPlaneMetrics {
   uptimeSeconds: number;
   pendingWorkerTasks: number;
-  activeSseSessions: number;
+  activeWsSessions: number;
   tokensToday: number;
   vectorNodeCount: number;
   generatedAt: string;
