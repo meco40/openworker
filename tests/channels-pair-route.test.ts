@@ -1,5 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
-import { POST as pairPost } from '../app/api/channels/pair/route';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+type TestGlobals = typeof globalThis & {
+  __credentialStore?: unknown;
+  __messageRepository?: unknown;
+  __messageService?: unknown;
+  __pollingResumeChecked?: boolean;
+  __telegramPollingTimer?: ReturnType<typeof setTimeout>;
+  __telegramPollingActive?: boolean;
+};
 
 function makeRequest(body: Record<string, unknown>) {
   return new Request('http://localhost/api/channels/pair', {
@@ -10,7 +18,44 @@ function makeRequest(body: Record<string, unknown>) {
 }
 
 describe('channel pair route requests', () => {
+  let previousMessagesDbPath: string | undefined;
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.restoreAllMocks();
+
+    previousMessagesDbPath = process.env.MESSAGES_DB_PATH;
+    process.env.MESSAGES_DB_PATH = ':memory:';
+
+    const globals = globalThis as TestGlobals;
+    if (globals.__telegramPollingTimer) {
+      clearTimeout(globals.__telegramPollingTimer);
+    }
+    globals.__credentialStore = undefined;
+    globals.__messageRepository = undefined;
+    globals.__messageService = undefined;
+    globals.__pollingResumeChecked = undefined;
+    globals.__telegramPollingTimer = undefined;
+    globals.__telegramPollingActive = undefined;
+  });
+
+  afterEach(() => {
+    process.env.MESSAGES_DB_PATH = previousMessagesDbPath;
+    const globals = globalThis as TestGlobals;
+    if (globals.__telegramPollingTimer) {
+      clearTimeout(globals.__telegramPollingTimer);
+    }
+    globals.__credentialStore = undefined;
+    globals.__messageRepository = undefined;
+    globals.__messageService = undefined;
+    globals.__pollingResumeChecked = undefined;
+    globals.__telegramPollingTimer = undefined;
+    globals.__telegramPollingActive = undefined;
+    vi.restoreAllMocks();
+  });
+
   it('handles telegram pairing request', async () => {
+    const { POST: pairPost } = await import('../app/api/channels/pair/route');
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(
@@ -43,6 +88,7 @@ describe('channel pair route requests', () => {
   });
 
   it('handles discord pairing request', async () => {
+    const { POST: pairPost } = await import('../app/api/channels/pair/route');
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -64,6 +110,7 @@ describe('channel pair route requests', () => {
   });
 
   it('handles whatsapp bridge health request', async () => {
+    const { POST: pairPost } = await import('../app/api/channels/pair/route');
     process.env.WHATSAPP_BRIDGE_URL = 'http://localhost:8787';
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ peerName: 'wa-bridge' }), {
@@ -82,6 +129,7 @@ describe('channel pair route requests', () => {
   });
 
   it('handles imessage bridge health request', async () => {
+    const { POST: pairPost } = await import('../app/api/channels/pair/route');
     process.env.IMESSAGE_BRIDGE_URL = 'http://localhost:8788';
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ peerName: 'imessage-bridge' }), {
