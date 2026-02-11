@@ -5,6 +5,7 @@ import { LEGACY_LOCAL_USER_ID } from '../../../../src/server/auth/constants';
 import { getMessageRepository } from '../../../../src/server/channels/messages/runtime';
 import { isPersistentSessionV2Enabled } from '../../../../src/server/channels/messages/featureFlag';
 import { CHANNEL_CAPABILITIES } from '../../../../src/server/channels/adapters/capabilities';
+import type { ChannelKey } from '../../../../src/server/channels/adapters/types';
 
 export const runtime = 'nodejs';
 
@@ -24,7 +25,7 @@ export async function GET() {
   const bindingMap = new Map(bindings.map((binding) => [binding.channel, binding]));
 
   const channels = Object.entries(CHANNEL_CAPABILITIES).map(([channel, capabilities]) => {
-    const binding = bindingMap.get(channel);
+    const binding = bindingMap.get(channel as ChannelKey);
     return {
       channel,
       status: binding?.status ?? 'idle',

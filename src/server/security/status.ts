@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { SECURITY_RULES } from '../../../constants';
 import type { CommandPermission } from '../../../types';
+import { getCredentialStore } from '../channels/credentials';
 
 export type SecurityCheckStatus = 'ok' | 'warning' | 'critical';
 
@@ -14,12 +15,21 @@ export interface SecurityCheck {
 
 export interface SecurityStatusSnapshot {
   checks: SecurityCheck[];
+  channels: ChannelSecurityDiagnostic[];
   summary: {
     ok: number;
     warning: number;
     critical: number;
   };
   generatedAt: string;
+}
+
+export interface ChannelSecurityDiagnostic {
+  channel: string;
+  verification: 'signed' | 'shared_secret' | 'none';
+  secretConfigured: boolean;
+  status: 'ok' | 'warning';
+  detail: string;
 }
 
 interface BuildSecurityStatusInput {
@@ -137,6 +147,65 @@ function buildIsolationCheck(commands: CommandPermission[]): SecurityCheck {
   };
 }
 
+function hasConfiguredSecret(channel: string, key: string, envName: string): boolean {
+  const envValue = process.env[envName];
+  if (envValue && envValue.trim()) {
+    return true;
+  }
+
+  try {
+    const store = getCredentialStore();
+    const value = store.getCredential(channel, key);
+    return Boolean(value && value.trim());
+  } catch {
+    return false;
+  }
+}
+
+function buildChannelSecurityDiagnostics(): ChannelSecurityDiagnostic[] {
+  const channels: Array<{
+    channel: string;
+    verification: ChannelSecurityDiagnostic['verification'];
+    secretConfigured: boolean;
+  }> = [
+    {
+      channel: 'telegram',
+      verification: 'signed',
+      secretConfigured: hasConfiguredSecret('telegram', 'webhook_secret', 'TELEGRAM_WEBHOOK_SECRET'),
+    },
+    {
+      channel: 'discord',
+      verification: 'signed',
+      secretConfigured: Boolean(process.env.DISCORD_PUBLIC_KEY?.trim()),
+    },
+    {
+      channel: 'whatsapp',
+      verification: 'shared_secret',
+      secretConfigured: Boolean(process.env.WHATSAPP_WEBHOOK_SECRET?.trim()),
+    },
+    {
+      channel: 'imessage',
+      verification: 'shared_secret',
+      secretConfigured: Boolean(process.env.IMESSAGE_WEBHOOK_SECRET?.trim()),
+    },
+    {
+      channel: 'slack',
+      verification: 'shared_secret',
+      secretConfigured: Boolean(process.env.SLACK_WEBHOOK_SECRET?.trim()),
+    },
+  ];
+
+  return channels.map((entry) => ({
+    channel: entry.channel,
+    verification: entry.verification,
+    secretConfigured: entry.secretConfigured,
+    status: entry.secretConfigured ? 'ok' : 'warning',
+    detail: entry.secretConfigured
+      ? 'Verification secret configured.'
+      : 'Verification secret missing.',
+  }));
+}
+
 export function buildSecurityStatusSnapshot(
   input: BuildSecurityStatusInput = {},
 ): SecurityStatusSnapshot {
@@ -162,6 +231,7 @@ export function buildSecurityStatusSnapshot(
 
   return {
     checks,
+    channels: buildChannelSecurityDiagnostics(),
     summary,
     generatedAt: new Date().toISOString(),
   };
