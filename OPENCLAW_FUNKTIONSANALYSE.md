@@ -591,3 +591,4 @@ GraphQL: Optional für komplexe Queries
 **Datum:** 2025-02-11  
 **Version:** 1.0  
 **Status:** Bereit für Team-Review
+

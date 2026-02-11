@@ -1,0 +1,18 @@
+[Unit]
+Description=OpenClaw Web Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/openclaw
+Environment=NODE_ENV=production
+Environment=HOSTNAME=0.0.0.0
+Environment=PORT=3000
+ExecStart=/usr/bin/env node --import tsx /opt/openclaw/server.ts
+Restart=always
+RestartSec=5
+User=openclaw
+Group=openclaw
+
+[Install]
+WantedBy=multi-user.target

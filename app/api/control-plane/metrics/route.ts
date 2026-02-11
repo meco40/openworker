@@ -39,6 +39,21 @@ export async function GET() {
 
     const vectorNodeCount = getMemoryService().snapshot().length;
 
+    let automationMetrics: {
+      activeRules: number;
+      queuedRuns: number;
+      runningRuns: number;
+      deadLetterRuns: number;
+      leaseAgeSeconds: number | null;
+    } | null = null;
+
+    try {
+      const { getAutomationService } = await import('../../../../src/server/automation/runtime');
+      automationMetrics = getAutomationService().getMetrics();
+    } catch {
+      automationMetrics = null;
+    }
+
     return Response.json({
       ok: true,
       metrics: {
@@ -47,6 +62,7 @@ export async function GET() {
         activeWsSessions,
         tokensToday,
         vectorNodeCount,
+        automation: automationMetrics,
         generatedAt: new Date().toISOString(),
       },
     });

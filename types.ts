@@ -256,3 +256,4 @@ export interface CommandPermission {
   risk: 'Low' | 'Medium' | 'High';
   enabled: boolean;
 }
+

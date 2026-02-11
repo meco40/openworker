@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch server.ts",
+    "dev:scheduler": "tsx watch scheduler.ts",
     "dev:next": "next dev",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -15,12 +16,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "next build",
-    "start": "node --import tsx server.ts"
+    "start:web": "node --import tsx server.ts",
+    "start:scheduler": "node --import tsx scheduler.ts",
+    "start": "npm run start:web"
   },
   "dependencies": {
     "@google/genai": "^1.40.0",
     "archiver": "^7.0.1",
     "better-sqlite3": "^12.6.2",
+    "cron-parser": "^5.5.0",
     "next": "^16.1.6",
     "next-auth": "^4.24.13",
     "react": "^19.2.4",

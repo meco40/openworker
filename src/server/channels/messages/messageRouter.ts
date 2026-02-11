@@ -1,9 +1,9 @@
 // ─── Message Router ──────────────────────────────────────────
-// Deterministic prefix-based routing for @worker / /worker commands.
+// Deterministic prefix-based routing for @worker / /worker and /cron commands.
 // Pure function, zero dependencies, zero token cost.
 
 export interface RouteResult {
-  target: 'chat' | 'worker' | 'worker-command' | 'session-command';
+  target: 'chat' | 'worker' | 'worker-command' | 'session-command' | 'automation-command';
   payload: string;
   command?: string;
 }
@@ -24,13 +24,7 @@ const WORKER_COMMANDS = [
 const SESSION_COMMANDS = ['/new', '/reset'] as const;
 
 /**
- * Routes an incoming message to either the chat agent or the worker system.
- *
- * - `@worker <objective>` or `/worker <objective>` → creates a worker task
- * - `/worker-status [id]`, `/worker-cancel <id>`, etc. → worker commands
- * - Everything else → normal chat agent
- *
- * Case-insensitive. Trims whitespace. Requires a space after the prefix.
+ * Routes an incoming message to either the chat agent, worker system, or automation system.
  */
 export function routeMessage(content: string): RouteResult {
   const trimmed = content.trim();
@@ -42,6 +36,11 @@ export function routeMessage(content: string): RouteResult {
       const payload = trimmed.slice(cmd.length).trim();
       return { target: 'session-command', payload, command: cmd };
     }
+  }
+
+  if (lower === '/cron' || lower.startsWith('/cron ')) {
+    const payload = trimmed.slice('/cron'.length).trim();
+    return { target: 'automation-command', payload, command: '/cron' };
   }
 
   // Check worker commands (more specific)
