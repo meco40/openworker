@@ -32,6 +32,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     pendingFile,
     setPendingFile,
     isDragOver,
+    channelFilter,
+    setChannelFilter,
+    searchQuery,
+    setSearchQuery,
+    availableChannels,
+    visibleConversations,
     scrollRef,
     fileInputRef,
     handleSend,
@@ -59,10 +65,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       {isDragOver && <ChatDragOverlay />}
 
       <ChatConversationList
-        conversations={conversations}
+        conversations={visibleConversations}
         activeConversationId={activeConversationId}
         onSelectConversation={onSelectConversation}
         onNewConversation={onNewConversation}
+        channelFilter={channelFilter}
+        onChannelFilterChange={setChannelFilter}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        availableChannels={availableChannels}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
