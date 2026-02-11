@@ -12,6 +12,12 @@ import type {
   StoredMessage,
 } from './repository';
 import { LEGACY_LOCAL_USER_ID } from '../../auth/constants';
+import type {
+  ChannelBinding,
+  ChannelBindingStatus,
+  UpsertChannelBindingInput,
+} from './channelBindings';
+import type { ChannelKey } from '../adapters/types';
 
 // ─── Row mappers ─────────────────────────────────────────────
 
@@ -39,6 +45,21 @@ function toMessage(row: Record<string, unknown>): StoredMessage {
     senderName: (row.sender_name as string) || null,
     metadata: (row.metadata as string) || null,
     createdAt: row.created_at as string,
+  };
+}
+
+function toChannelBinding(row: Record<string, unknown>): ChannelBinding {
+  return {
+    userId: row.user_id as string,
+    channel: row.channel as ChannelKey,
+    status: row.status as ChannelBindingStatus,
+    externalPeerId: (row.external_peer_id as string) || null,
+    peerName: (row.peer_name as string) || null,
+    transport: (row.transport as string) || null,
+    metadata: (row.metadata as string) || null,
+    lastSeenAt: (row.last_seen_at as string) || null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
   };
 }
 
@@ -132,6 +153,22 @@ export class SqliteMessageRepository implements MessageRepository {
       );
     `);
 
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS channel_bindings (
+        user_id TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'idle',
+        external_peer_id TEXT,
+        peer_name TEXT,
+        transport TEXT,
+        metadata TEXT,
+        last_seen_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, channel)
+      );
+    `);
+
     if (!this.hasColumn('conversations', 'user_id')) {
       this.db.exec(`ALTER TABLE conversations ADD COLUMN user_id TEXT`);
       this.db
@@ -158,6 +195,11 @@ export class SqliteMessageRepository implements MessageRepository {
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_msg_conv_seq
         ON messages (conversation_id, seq);
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_channel_bindings_user_updated
+        ON channel_bindings (user_id, updated_at DESC);
     `);
   }
 
@@ -405,6 +447,97 @@ export class SqliteMessageRepository implements MessageRepository {
       summaryUptoSeq,
       updatedAt: now,
     };
+  }
+
+  upsertChannelBinding(input: UpsertChannelBindingInput): ChannelBinding {
+    const userId = this.normalizeUserId(input.userId);
+    const now = new Date().toISOString();
+
+    this.db
+      .prepare(
+        `
+        INSERT INTO channel_bindings (
+          user_id,
+          channel,
+          status,
+          external_peer_id,
+          peer_name,
+          transport,
+          metadata,
+          last_seen_at,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, channel)
+        DO UPDATE SET
+          status = excluded.status,
+          external_peer_id = excluded.external_peer_id,
+          peer_name = excluded.peer_name,
+          transport = excluded.transport,
+          metadata = excluded.metadata,
+          updated_at = excluded.updated_at
+      `,
+      )
+      .run(
+        userId,
+        input.channel,
+        input.status,
+        input.externalPeerId || null,
+        input.peerName || null,
+        input.transport || null,
+        input.metadata ? JSON.stringify(input.metadata) : null,
+        null,
+        now,
+        now,
+      );
+
+    const row = this.db
+      .prepare('SELECT * FROM channel_bindings WHERE user_id = ? AND channel = ?')
+      .get(userId, input.channel) as Record<string, unknown>;
+    return toChannelBinding(row);
+  }
+
+  listChannelBindings(userId: string): ChannelBinding[] {
+    const normalizedUserId = this.normalizeUserId(userId);
+    const rows = this.db
+      .prepare('SELECT * FROM channel_bindings WHERE user_id = ? ORDER BY updated_at DESC')
+      .all(normalizedUserId) as Array<Record<string, unknown>>;
+    return rows.map(toChannelBinding);
+  }
+
+  touchChannelLastSeen(
+    userId: string,
+    channel: ChannelKey,
+    atIso = new Date().toISOString(),
+    status: ChannelBindingStatus = 'connected',
+  ): void {
+    const normalizedUserId = this.normalizeUserId(userId);
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `
+        INSERT INTO channel_bindings (
+          user_id,
+          channel,
+          status,
+          external_peer_id,
+          peer_name,
+          transport,
+          metadata,
+          last_seen_at,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?)
+        ON CONFLICT(user_id, channel)
+        DO UPDATE SET
+          status = excluded.status,
+          last_seen_at = excluded.last_seen_at,
+          updated_at = excluded.updated_at
+      `,
+      )
+      .run(normalizedUserId, channel, status, atIso, now, now);
   }
 
   close(): void {
