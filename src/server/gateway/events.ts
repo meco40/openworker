@@ -53,6 +53,22 @@ export interface PresenceUpdatePayload {
   connectionCount: number;
 }
 
+// ─── Channel/Inbox Events ───────────────────────────────────
+
+export interface ChannelStatusPayload {
+  channel: string;
+  status: string;
+  peerName?: string;
+  transport?: string;
+  updatedAt: string;
+}
+
+export interface InboxUpdatedPayload {
+  conversationId: string;
+  channelType: string;
+  updatedAt: string;
+}
+
 // ─── System Events ───────────────────────────────────────────
 
 export interface TickPayload {
@@ -75,6 +91,8 @@ export const GatewayEvents = {
   WORKER_APPROVAL_REQUESTED: 'worker.approval.requested',
   LOG_ENTRY: 'log.entry',
   PRESENCE_UPDATE: 'presence.update',
+  CHANNELS_STATUS: 'channels.status',
+  INBOX_UPDATED: 'inbox.updated',
   TICK: 'tick',
 } as const;
 
