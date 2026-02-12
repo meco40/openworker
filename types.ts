@@ -40,6 +40,7 @@ export interface Conversation {
   userId: string;
   title: string;
   modelOverride: string | null;
+  personaId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,6 +113,7 @@ export enum View {
   MODELS = 'models',
   WORKER = 'worker',
   TEAMS = 'teams',
+  PERSONAS = 'personas',
 }
 
 export interface CoupledChannel {
