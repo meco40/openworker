@@ -78,6 +78,9 @@ export class SqliteMessageRepository implements MessageRepository {
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
       this.db = new Database(fullPath);
     }
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('busy_timeout = 5000');
+    this.db.pragma('foreign_keys = ON');
     this.migrate();
   }
 

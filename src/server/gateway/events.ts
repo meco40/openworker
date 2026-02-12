@@ -81,6 +81,45 @@ export interface InboxUpdatedPayload {
   updatedAt: string;
 }
 
+// ─── Rooms Events ────────────────────────────────────────────
+
+export interface RoomMessagePayload {
+  roomId: string;
+  seq: number;
+  speakerType: 'persona' | 'system' | 'user';
+  speakerPersonaId: string | null;
+  content: string;
+  createdAt: string;
+}
+
+export interface RoomMemberStatusPayload {
+  roomId: string;
+  personaId: string;
+  status: 'idle' | 'busy';
+  reason: string | null;
+  updatedAt: string;
+}
+
+export interface RoomRunStatusPayload {
+  roomId: string;
+  runState: 'stopped' | 'running' | 'degraded';
+  updatedAt: string;
+}
+
+export interface RoomInterventionPayload {
+  roomId: string;
+  interventionId: string;
+  note: string;
+  createdAt: string;
+}
+
+export interface RoomMetricsPayload {
+  roomId: string;
+  messageCount: number;
+  memberCount: number;
+  generatedAt: string;
+}
+
 // ─── System Events ───────────────────────────────────────────
 
 export interface TickPayload {
@@ -109,6 +148,11 @@ export const GatewayEvents = {
   PRESENCE_UPDATE: 'presence.update',
   CHANNELS_STATUS: 'channels.status',
   INBOX_UPDATED: 'inbox.updated',
+  ROOM_MESSAGE: 'room.message',
+  ROOM_MEMBER_STATUS: 'room.member.status',
+  ROOM_RUN_STATUS: 'room.run.status',
+  ROOM_INTERVENTION: 'room.intervention',
+  ROOM_METRICS: 'room.metrics',
   TICK: 'tick',
 } as const;
 

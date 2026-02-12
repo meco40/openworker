@@ -4,13 +4,19 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getSkillRepository } from '@/server/skills/skillRepository';
-import { installFromSource } from '@/server/skills/skillInstaller';
+import { getSkillRepository } from '../../../src/server/skills/skillRepository';
+import { installFromSource } from '../../../src/server/skills/skillInstaller';
+import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
 
 export async function GET() {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const repo = await getSkillRepository();
     const skills = repo.listSkills();
     return NextResponse.json({ ok: true, skills });
@@ -27,6 +33,11 @@ interface InstallRequest {
 
 export async function POST(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = (await request.json()) as InstallRequest;
     const skill = await installFromSource(body.source, body.value);
     return NextResponse.json({ ok: true, skill });

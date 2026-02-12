@@ -5,6 +5,22 @@ import { usePersona } from '../src/modules/personas/PersonaContext';
 import type { PersonaWithFiles, PersonaFileName } from '../src/server/personas/personaTypes';
 import { PERSONA_FILE_NAMES } from '../src/server/personas/personaTypes';
 import type { PersonaTemplate } from '../lib/persona-templates';
+import { RoomsColumn } from '../src/modules/rooms/components/RoomsColumn';
+import { RoomDetailPanel } from '../src/modules/rooms/components/RoomDetailPanel';
+import {
+  addRoomMember,
+  createRoom,
+  deleteRoom,
+  getActiveRoomCountsByPersona,
+  getRoomMessages,
+  getRoomState,
+  listRooms,
+  removeRoomMember,
+  startRoom,
+  stopRoom,
+} from '../src/modules/rooms/api';
+import { useRoomSync } from '../src/modules/rooms/useRoomSync';
+import type { RoomMember, RoomState, RoomSummary, RoomMessage, RoomMemberStatus } from '../src/modules/rooms/types';
 
 // ─── File tab labels ─────────────────────────────────────────
 const FILE_LABELS: Record<PersonaFileName, string> = {
@@ -38,6 +54,30 @@ const PersonasView: React.FC = () => {
   const [metaName, setMetaName] = useState('');
   const [metaEmoji, setMetaEmoji] = useState('');
   const [metaVibe, setMetaVibe] = useState('');
+  const [rooms, setRooms] = useState<RoomSummary[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
+  const [roomCreating, setRoomCreating] = useState(false);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [selectedRoomState, setSelectedRoomState] = useState<RoomState | null>(null);
+  const [selectedRoomMembers, setSelectedRoomMembers] = useState<RoomMember[]>([]);
+  const [selectedRoomMessages, setSelectedRoomMessages] = useState<RoomMessage[]>([]);
+  const [initialRoomMemberStatus, setInitialRoomMemberStatus] = useState<Record<string, RoomMemberStatus>>({});
+  const [activeRoomCountsByPersona, setActiveRoomCountsByPersona] = useState<Record<string, number>>({});
+
+  const selectedRoom = selectedRoomId ? rooms.find((room) => room.id === selectedRoomId) || null : null;
+
+  const {
+    messages: liveRoomMessages,
+    memberStatus: liveMemberStatus,
+    runStatus: liveRunStatus,
+    interventions: liveInterventions,
+    metrics: liveMetrics,
+  } = useRoomSync(
+    selectedRoomId,
+    selectedRoomMessages,
+  );
+
+  const mergedMemberStatus = { ...initialRoomMemberStatus, ...liveMemberStatus };
 
   // ─── Load persona detail ──────────────────────────────────
   const loadPersona = useCallback(async (id: string) => {
@@ -56,11 +96,153 @@ const PersonasView: React.FC = () => {
     }
   }, [activeFile]);
 
+  const refreshRooms = useCallback(async () => {
+    setRoomsLoading(true);
+    try {
+      const [items, counts] = await Promise.all([
+        listRooms(),
+        getActiveRoomCountsByPersona().catch(() => ({})),
+      ]);
+      setRooms(items);
+      setActiveRoomCountsByPersona(counts);
+    } catch {
+      /* ignore */
+    } finally {
+      setRoomsLoading(false);
+    }
+  }, []);
+
+  const loadRoomDetail = useCallback(async (roomId: string) => {
+    try {
+      const [statePayload, messages] = await Promise.all([
+        getRoomState(roomId),
+        getRoomMessages(roomId, 120),
+      ]);
+      setSelectedRoomState(statePayload.state);
+      setSelectedRoomMembers(statePayload.members);
+      setSelectedRoomMessages(messages);
+      const initialStatus: Record<string, RoomMemberStatus> = {};
+      for (const status of statePayload.memberRuntime) {
+        initialStatus[status.personaId] = status;
+      }
+      setInitialRoomMemberStatus(initialStatus);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const selectRoom = useCallback(
+    (roomId: string) => {
+      if (dirty && !window.confirm('Ungespeicherte Änderungen verwerfen?')) return;
+      setSelectedRoomId(roomId);
+      setSelectedId(null);
+      setSelectedPersona(null);
+      setDirty(false);
+      setEditingMeta(false);
+    },
+    [dirty],
+  );
+
+  const createRoomFlow = useCallback(async () => {
+    const name = window.prompt('Room-Name (z.B. Office, Home):');
+    if (!name || !name.trim()) {
+      return;
+    }
+
+    const simulation = window.confirm(
+      'Simulation-Modus aktivieren?\nOK = simulation, Abbrechen = planning',
+    );
+    setRoomCreating(true);
+    try {
+      const room = await createRoom({
+        name: name.trim(),
+        goalMode: simulation ? 'simulation' : 'planning',
+        routingProfileId: 'p1',
+      });
+      await refreshRooms();
+      setSelectedRoomId(room.id);
+      setSelectedId(null);
+    } catch {
+      /* ignore */
+    } finally {
+      setRoomCreating(false);
+    }
+  }, [refreshRooms]);
+
+  const startSelectedRoom = useCallback(async () => {
+    if (!selectedRoomId) return;
+    try {
+      await startRoom(selectedRoomId);
+      await loadRoomDetail(selectedRoomId);
+      await refreshRooms();
+    } catch {
+      /* ignore */
+    }
+  }, [selectedRoomId, loadRoomDetail, refreshRooms]);
+
+  const stopSelectedRoom = useCallback(async () => {
+    if (!selectedRoomId) return;
+    try {
+      await stopRoom(selectedRoomId);
+      await loadRoomDetail(selectedRoomId);
+      await refreshRooms();
+    } catch {
+      /* ignore */
+    }
+  }, [selectedRoomId, loadRoomDetail, refreshRooms]);
+
+  const addMemberToSelectedRoom = useCallback(
+    async (personaId: string, roleLabel: string, modelOverride: string) => {
+      if (!selectedRoomId) return;
+      try {
+        await addRoomMember(selectedRoomId, {
+          personaId,
+          roleLabel,
+          modelOverride: modelOverride || null,
+        });
+        await loadRoomDetail(selectedRoomId);
+      } catch {
+        /* ignore */
+      }
+    },
+    [selectedRoomId, loadRoomDetail],
+  );
+
+  const deleteSelectedRoom = useCallback(async () => {
+    if (!selectedRoomId) return;
+    if (!window.confirm('Room endgültig löschen?')) return;
+    try {
+      await deleteRoom(selectedRoomId);
+      setSelectedRoomId(null);
+      setSelectedRoomState(null);
+      setSelectedRoomMembers([]);
+      setSelectedRoomMessages([]);
+      setInitialRoomMemberStatus({});
+      await refreshRooms();
+    } catch {
+      /* ignore */
+    }
+  }, [selectedRoomId, refreshRooms]);
+
+  const removeMemberFromSelectedRoom = useCallback(
+    async (personaId: string) => {
+      if (!selectedRoomId) return;
+      try {
+        await removeRoomMember(selectedRoomId, personaId);
+        await loadRoomDetail(selectedRoomId);
+      } catch {
+        /* ignore */
+      }
+    },
+    [selectedRoomId, loadRoomDetail],
+  );
+
   // ─── Select persona ───────────────────────────────────────
   const selectPersona = useCallback(
     (id: string) => {
       if (dirty && !window.confirm('Ungespeicherte Änderungen verwerfen?')) return;
       setSelectedId(id);
+      setSelectedRoomId(null);
       setDirty(false);
       setEditingMeta(false);
     },
@@ -76,6 +258,21 @@ const PersonasView: React.FC = () => {
       setEditorContent('');
     }
   }, [selectedId, loadPersona]);
+
+  useEffect(() => {
+    refreshRooms();
+  }, [refreshRooms]);
+
+  useEffect(() => {
+    if (!selectedRoomId) {
+      setSelectedRoomState(null);
+      setSelectedRoomMembers([]);
+      setSelectedRoomMessages([]);
+      setInitialRoomMemberStatus({});
+      return;
+    }
+    loadRoomDetail(selectedRoomId);
+  }, [selectedRoomId, loadRoomDetail]);
 
   // ─── When switching file tabs ─────────────────────────────
   useEffect(() => {
@@ -301,9 +498,43 @@ const PersonasView: React.FC = () => {
         </div>
       </div>
 
+      <RoomsColumn
+        rooms={rooms}
+        selectedRoomId={selectedRoomId}
+        loading={roomsLoading}
+        creating={roomCreating}
+        onSelectRoom={selectRoom}
+        onCreateRoom={createRoomFlow}
+      />
+
       {/* ── Right Panel: Editor ───────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
-        {!selectedPersona ? (
+        {selectedRoomId ? (
+          <RoomDetailPanel
+            room={selectedRoom}
+            state={selectedRoomState}
+            members={selectedRoomMembers}
+            messages={liveRoomMessages}
+            memberStatus={mergedMemberStatus}
+            activeRoomCountsByPersona={activeRoomCountsByPersona}
+            liveRunStatus={liveRunStatus}
+            interventions={liveInterventions}
+            metrics={liveMetrics}
+            personas={personas}
+            loading={roomsLoading}
+            onStart={startSelectedRoom}
+            onStop={stopSelectedRoom}
+            onRefresh={() => {
+              if (selectedRoomId) {
+                loadRoomDetail(selectedRoomId);
+                refreshRooms();
+              }
+            }}
+            onDelete={deleteSelectedRoom}
+            onAddMember={addMemberToSelectedRoom}
+            onRemoveMember={removeMemberFromSelectedRoom}
+          />
+        ) : !selectedPersona ? (
           <div className="flex-1 flex items-center justify-center text-zinc-600">
             <div className="text-center space-y-2">
               <div className="text-4xl">🎭</div>

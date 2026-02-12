@@ -1,0 +1,777 @@
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import Database from 'better-sqlite3';
+import type { RoomRepository } from './repository';
+import type {
+  AppendRoomMessageInput,
+  CreateRoomInput,
+  PersonaPermissions,
+  Room,
+  RoomMemberRuntime,
+  RoomPersonaContext,
+  RoomPersonaSession,
+  RoomIntervention,
+  RoomRun,
+  RoomMember,
+  RoomMessage,
+  RoomRunState,
+  UpsertMemberRuntimeInput,
+} from './types';
+
+function toRoom(row: Record<string, unknown>): Room {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    name: row.name as string,
+    goalMode: row.goal_mode as Room['goalMode'],
+    routingProfileId: row.routing_profile_id as string,
+    runState: row.run_state as RoomRunState,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function toMember(row: Record<string, unknown>): RoomMember {
+  return {
+    roomId: row.room_id as string,
+    personaId: row.persona_id as string,
+    roleLabel: row.role_label as string,
+    turnPriority: row.turn_priority as number,
+    modelOverride: (row.model_override as string) || null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function toMessage(row: Record<string, unknown>): RoomMessage {
+  return {
+    id: row.id as string,
+    roomId: row.room_id as string,
+    seq: row.seq as number,
+    speakerType: row.speaker_type as RoomMessage['speakerType'],
+    speakerPersonaId: (row.speaker_persona_id as string) || null,
+    content: row.content as string,
+    metadata: row.metadata_json
+      ? (JSON.parse(row.metadata_json as string) as Record<string, unknown>)
+      : {},
+    createdAt: row.created_at as string,
+  };
+}
+
+function toIntervention(row: Record<string, unknown>): RoomIntervention {
+  return {
+    id: row.id as string,
+    roomId: row.room_id as string,
+    userId: row.user_id as string,
+    note: row.note as string,
+    createdAt: row.created_at as string,
+  };
+}
+
+function toRun(row: Record<string, unknown>): RoomRun {
+  return {
+    id: row.id as string,
+    roomId: row.room_id as string,
+    runState: row.run_state as RoomRunState,
+    leaseOwner: (row.lease_owner as string) || null,
+    leaseExpiresAt: (row.lease_expires_at as string) || null,
+    heartbeatAt: (row.heartbeat_at as string) || null,
+    failureReason: (row.failure_reason as string) || null,
+    startedAt: row.started_at as string,
+    endedAt: (row.ended_at as string) || null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function toMemberRuntime(row: Record<string, unknown>): RoomMemberRuntime {
+  return {
+    roomId: row.room_id as string,
+    personaId: row.persona_id as string,
+    status: row.status as 'idle' | 'busy',
+    busyReason: (row.busy_reason as string) || null,
+    busyUntil: (row.busy_until as string) || null,
+    currentTask: (row.current_task as string) || null,
+    lastModel: (row.last_model as string) || null,
+    lastProfileId: (row.last_profile_id as string) || null,
+    lastTool: (row.last_tool as string) || null,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function toPersonaSession(row: Record<string, unknown>): RoomPersonaSession {
+  return {
+    roomId: row.room_id as string,
+    personaId: row.persona_id as string,
+    providerId: row.provider_id as string,
+    model: row.model as string,
+    sessionId: row.session_id as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function toPersonaContext(row: Record<string, unknown>): RoomPersonaContext {
+  return {
+    roomId: row.room_id as string,
+    personaId: row.persona_id as string,
+    summary: row.summary_text as string,
+    lastMessageSeq: row.last_message_seq as number,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+export class SqliteRoomRepository implements RoomRepository {
+  private readonly db: ReturnType<typeof Database>;
+
+  constructor(dbPath = process.env.ROOMS_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db') {
+    if (dbPath === ':memory:') {
+      this.db = new Database(':memory:');
+    } else {
+      const fullPath = path.resolve(dbPath);
+      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+      this.db = new Database(fullPath);
+    }
+
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('busy_timeout = 5000');
+    this.db.pragma('foreign_keys = ON');
+    this.migrate();
+  }
+
+  private migrate(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS rooms (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        goal_mode TEXT NOT NULL CHECK (goal_mode IN ('planning', 'simulation')),
+        routing_profile_id TEXT NOT NULL DEFAULT 'p1',
+        run_state TEXT NOT NULL DEFAULT 'stopped' CHECK (run_state IN ('stopped', 'running', 'degraded')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_rooms_user_updated
+        ON rooms (user_id, updated_at DESC);
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS room_members (
+        room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        persona_id TEXT NOT NULL,
+        role_label TEXT NOT NULL,
+        turn_priority INTEGER NOT NULL DEFAULT 1,
+        model_override TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (room_id, persona_id)
+      );
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_room_members_room
+        ON room_members (room_id, turn_priority ASC, created_at ASC);
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS room_messages (
+        id TEXT PRIMARY KEY,
+        room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        seq INTEGER NOT NULL,
+        speaker_type TEXT NOT NULL CHECK (speaker_type IN ('persona', 'system', 'user')),
+        speaker_persona_id TEXT,
+        content TEXT NOT NULL,
+        metadata_json TEXT,
+        created_at TEXT NOT NULL,
+        UNIQUE (room_id, seq)
+      );
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_room_messages_room_seq
+        ON room_messages (room_id, seq DESC);
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS room_runs (
+        id TEXT PRIMARY KEY,
+        room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        run_state TEXT NOT NULL CHECK (run_state IN ('running', 'degraded', 'stopped')),
+        lease_owner TEXT,
+        lease_expires_at TEXT,
+        heartbeat_at TEXT,
+        failure_reason TEXT,
+        started_at TEXT NOT NULL,
+        ended_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    this.db.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_room_runs_room_active
+        ON room_runs (room_id)
+        WHERE ended_at IS NULL;
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS room_member_runtime (
+        room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        persona_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('idle', 'busy')),
+        busy_reason TEXT,
+        busy_until TEXT,
+        current_task TEXT,
+        last_model TEXT,
+        last_profile_id TEXT,
+        last_tool TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (room_id, persona_id)
+      );
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS room_persona_sessions (
+        room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        persona_id TEXT NOT NULL,
+        provider_id TEXT NOT NULL,
+        model TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (room_id, persona_id)
+      );
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS room_persona_context (
+        room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        persona_id TEXT NOT NULL,
+        summary_text TEXT NOT NULL DEFAULT '',
+        last_message_seq INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (room_id, persona_id)
+      );
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS persona_permissions (
+        persona_id TEXT PRIMARY KEY,
+        tools_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS room_interventions (
+        id TEXT PRIMARY KEY,
+        room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL,
+        note TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_room_interventions_room_created
+        ON room_interventions (room_id, created_at DESC);
+    `);
+  }
+
+  createRoom(input: CreateRoomInput): Room {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `
+        INSERT INTO rooms (id, user_id, name, goal_mode, routing_profile_id, run_state, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 'stopped', ?, ?)
+      `,
+      )
+      .run(id, input.userId, input.name, input.goalMode, input.routingProfileId, now, now);
+    return this.getRoom(id)!;
+  }
+
+  getRoom(id: string): Room | null {
+    const row = this.db.prepare('SELECT * FROM rooms WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+    return row ? toRoom(row) : null;
+  }
+
+  listRooms(userId: string): Room[] {
+    const rows = this.db
+      .prepare('SELECT * FROM rooms WHERE user_id = ? ORDER BY updated_at DESC')
+      .all(userId) as Array<Record<string, unknown>>;
+    return rows.map(toRoom);
+  }
+
+  deleteRoom(roomId: string): boolean {
+    const result = this.db.prepare('DELETE FROM rooms WHERE id = ?').run(roomId);
+    return result.changes > 0;
+  }
+
+  listRunningRooms(): Room[] {
+    const rows = this.db
+      .prepare("SELECT * FROM rooms WHERE run_state = 'running' ORDER BY updated_at DESC")
+      .all() as Array<Record<string, unknown>>;
+    return rows.map(toRoom);
+  }
+
+  updateRunState(roomId: string, runState: RoomRunState): Room {
+    const now = new Date().toISOString();
+    this.db
+      .prepare('UPDATE rooms SET run_state = ?, updated_at = ? WHERE id = ?')
+      .run(runState, now, roomId);
+
+    const room = this.getRoom(roomId);
+    if (!room) {
+      throw new Error(`Room not found: ${roomId}`);
+    }
+    return room;
+  }
+
+  addMember(
+    roomId: string,
+    personaId: string,
+    roleLabel: string,
+    turnPriority = 1,
+    modelOverride: string | null = null,
+  ): RoomMember {
+    const now = new Date().toISOString();
+    try {
+      this.db
+        .prepare(
+          `
+          INSERT INTO room_members (
+            room_id, persona_id, role_label, turn_priority, model_override, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        `,
+        )
+        .run(roomId, personaId, roleLabel, turnPriority, modelOverride, now, now);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('UNIQUE')) {
+        throw new Error(`Persona ${personaId} is already a room member`);
+      }
+      throw error;
+    }
+
+    return this.listMembers(roomId).find((m) => m.personaId === personaId)!;
+  }
+
+  removeMember(roomId: string, personaId: string): boolean {
+    const result = this.db
+      .prepare('DELETE FROM room_members WHERE room_id = ? AND persona_id = ?')
+      .run(roomId, personaId);
+    return result.changes > 0;
+  }
+
+  listMembers(roomId: string): RoomMember[] {
+    const rows = this.db
+      .prepare('SELECT * FROM room_members WHERE room_id = ? ORDER BY turn_priority ASC, created_at ASC')
+      .all(roomId) as Array<Record<string, unknown>>;
+    return rows.map(toMember);
+  }
+
+  appendMessage(input: AppendRoomMessageInput): RoomMessage {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const tx = this.db.transaction((payload: AppendRoomMessageInput) => {
+      const row = this.db
+        .prepare('SELECT COALESCE(MAX(seq), 0) AS max_seq FROM room_messages WHERE room_id = ?')
+        .get(payload.roomId) as { max_seq: number };
+      const seq = Number(row.max_seq || 0) + 1;
+      this.db
+        .prepare(
+          `
+          INSERT INTO room_messages (
+            id, room_id, seq, speaker_type, speaker_persona_id, content, metadata_json, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        )
+        .run(
+          id,
+          payload.roomId,
+          seq,
+          payload.speakerType,
+          payload.speakerPersonaId || null,
+          payload.content,
+          JSON.stringify(payload.metadata || {}),
+          now,
+        );
+      return seq;
+    });
+
+    const seq = tx(input);
+    const row = this.db
+      .prepare('SELECT * FROM room_messages WHERE room_id = ? AND seq = ?')
+      .get(input.roomId, seq) as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error('Failed to load inserted room message');
+    }
+    return toMessage(row);
+  }
+
+  listMessages(roomId: string, limit = 100, beforeSeq?: number): RoomMessage[] {
+    const cappedLimit = Math.max(1, Math.min(limit, 200));
+    let rows: Array<Record<string, unknown>>;
+    if (typeof beforeSeq === 'number') {
+      rows = this.db
+        .prepare(
+          `
+          SELECT * FROM room_messages
+          WHERE room_id = ? AND seq < ?
+          ORDER BY seq ASC
+          LIMIT ?
+        `,
+        )
+        .all(roomId, beforeSeq, cappedLimit) as Array<Record<string, unknown>>;
+    } else {
+      rows = this.db
+        .prepare(
+          `
+          SELECT * FROM room_messages
+          WHERE room_id = ?
+          ORDER BY seq ASC
+          LIMIT ?
+        `,
+        )
+        .all(roomId, cappedLimit) as Array<Record<string, unknown>>;
+    }
+    return rows.map(toMessage);
+  }
+
+  countMessages(roomId: string): number {
+    const row = this.db
+      .prepare('SELECT COUNT(*) AS count FROM room_messages WHERE room_id = ?')
+      .get(roomId) as { count: number };
+    return Number(row.count || 0);
+  }
+
+  addIntervention(roomId: string, userId: string, note: string): RoomIntervention {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `
+        INSERT INTO room_interventions (id, room_id, user_id, note, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `,
+      )
+      .run(id, roomId, userId, note, now);
+    return { id, roomId, userId, note, createdAt: now };
+  }
+
+  listInterventions(roomId: string, limit = 50): RoomIntervention[] {
+    const cappedLimit = Math.max(1, Math.min(limit, 200));
+    const rows = this.db
+      .prepare(
+        `
+        SELECT * FROM room_interventions
+        WHERE room_id = ?
+        ORDER BY created_at DESC
+        LIMIT ?
+      `,
+      )
+      .all(roomId, cappedLimit) as Array<Record<string, unknown>>;
+    return rows.map(toIntervention);
+  }
+
+  setPersonaPermissions(personaId: string, permissions: PersonaPermissions): void {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `
+        INSERT INTO persona_permissions (persona_id, tools_json, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(persona_id) DO UPDATE
+          SET tools_json = excluded.tools_json,
+              updated_at = excluded.updated_at
+      `,
+      )
+      .run(personaId, JSON.stringify(permissions.tools || {}), now);
+  }
+
+  getPersonaPermissions(personaId: string): PersonaPermissions | null {
+    const row = this.db
+      .prepare('SELECT tools_json FROM persona_permissions WHERE persona_id = ?')
+      .get(personaId) as { tools_json: string } | undefined;
+    if (!row) {
+      return null;
+    }
+    return { tools: JSON.parse(row.tools_json) as Record<string, boolean> };
+  }
+
+  acquireRoomLease(roomId: string, leaseOwner: string, leaseExpiresAt: string): RoomRun {
+    const now = new Date().toISOString();
+    const tx = this.db.transaction(() => {
+      const active = this.db
+        .prepare('SELECT * FROM room_runs WHERE room_id = ? AND ended_at IS NULL')
+        .get(roomId) as Record<string, unknown> | undefined;
+
+      if (active) {
+        const activeLeaseOwner = (active.lease_owner as string) || null;
+        const activeLeaseExpiresAt = (active.lease_expires_at as string) || null;
+        if (
+          activeLeaseOwner &&
+          activeLeaseOwner !== leaseOwner &&
+          activeLeaseExpiresAt &&
+          activeLeaseExpiresAt > now
+        ) {
+          return toRun(active);
+        }
+
+        this.db
+          .prepare(
+            `
+            UPDATE room_runs
+            SET run_state = 'running',
+                lease_owner = ?,
+                lease_expires_at = ?,
+                heartbeat_at = ?,
+                failure_reason = NULL,
+                updated_at = ?,
+                ended_at = NULL
+            WHERE id = ?
+          `,
+          )
+          .run(leaseOwner, leaseExpiresAt, now, now, active.id as string);
+      } else {
+        this.db
+          .prepare(
+            `
+            INSERT INTO room_runs (
+              id, room_id, run_state, lease_owner, lease_expires_at, heartbeat_at, failure_reason, started_at, ended_at, created_at, updated_at
+            ) VALUES (?, ?, 'running', ?, ?, ?, NULL, ?, NULL, ?, ?)
+          `,
+          )
+          .run(crypto.randomUUID(), roomId, leaseOwner, leaseExpiresAt, now, now, now, now);
+      }
+
+      this.db
+        .prepare('UPDATE rooms SET run_state = ?, updated_at = ? WHERE id = ?')
+        .run('running', now, roomId);
+
+      const current = this.db
+        .prepare('SELECT * FROM room_runs WHERE room_id = ? AND ended_at IS NULL')
+        .get(roomId) as Record<string, unknown>;
+      return toRun(current);
+    });
+
+    return tx();
+  }
+
+  heartbeatRoomLease(
+    roomId: string,
+    runId: string,
+    leaseOwner: string,
+    leaseExpiresAt: string,
+  ): RoomRun {
+    const now = new Date().toISOString();
+    const result = this.db
+      .prepare(
+        `
+        UPDATE room_runs
+        SET heartbeat_at = ?, lease_expires_at = ?, updated_at = ?
+        WHERE id = ? AND room_id = ? AND lease_owner = ? AND ended_at IS NULL
+      `,
+      )
+      .run(now, leaseExpiresAt, now, runId, roomId, leaseOwner);
+    if (result.changes === 0) {
+      throw new Error(`Could not heartbeat run lease: ${roomId}/${runId}`);
+    }
+    const row = this.db
+      .prepare('SELECT * FROM room_runs WHERE id = ?')
+      .get(runId) as Record<string, unknown>;
+    return toRun(row);
+  }
+
+  getActiveRoomRun(roomId: string): RoomRun | null {
+    const row = this.db
+      .prepare('SELECT * FROM room_runs WHERE room_id = ? AND ended_at IS NULL')
+      .get(roomId) as Record<string, unknown> | undefined;
+    return row ? toRun(row) : null;
+  }
+
+  closeActiveRoomRun(
+    roomId: string,
+    endedState: RoomRunState = 'stopped',
+    failureReason: string | null = null,
+  ): void {
+    const now = new Date().toISOString();
+    const active = this.getActiveRoomRun(roomId);
+    if (active) {
+      this.db
+        .prepare(
+          `
+          UPDATE room_runs
+          SET run_state = ?, failure_reason = ?, lease_owner = NULL, lease_expires_at = NULL, heartbeat_at = ?, ended_at = ?, updated_at = ?
+          WHERE id = ?
+        `,
+        )
+        .run(endedState, failureReason, now, now, now, active.id);
+    }
+
+    this.db
+      .prepare('UPDATE rooms SET run_state = ?, updated_at = ? WHERE id = ?')
+      .run(endedState, now, roomId);
+  }
+
+  upsertMemberRuntime(input: UpsertMemberRuntimeInput): RoomMemberRuntime {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `
+        INSERT INTO room_member_runtime (
+          room_id, persona_id, status, busy_reason, busy_until, current_task, last_model, last_profile_id, last_tool, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(room_id, persona_id) DO UPDATE SET
+          status = excluded.status,
+          busy_reason = excluded.busy_reason,
+          busy_until = excluded.busy_until,
+          current_task = excluded.current_task,
+          last_model = excluded.last_model,
+          last_profile_id = excluded.last_profile_id,
+          last_tool = excluded.last_tool,
+          updated_at = excluded.updated_at
+      `,
+      )
+      .run(
+        input.roomId,
+        input.personaId,
+        input.status,
+        input.busyReason || null,
+        input.busyUntil || null,
+        input.currentTask || null,
+        input.lastModel || null,
+        input.lastProfileId || null,
+        input.lastTool || null,
+        now,
+      );
+
+    return this.getMemberRuntime(input.roomId, input.personaId)!;
+  }
+
+  getMemberRuntime(roomId: string, personaId: string): RoomMemberRuntime | null {
+    const row = this.db
+      .prepare('SELECT * FROM room_member_runtime WHERE room_id = ? AND persona_id = ?')
+      .get(roomId, personaId) as Record<string, unknown> | undefined;
+    return row ? toMemberRuntime(row) : null;
+  }
+
+  listMemberRuntime(roomId: string): RoomMemberRuntime[] {
+    const rows = this.db
+      .prepare('SELECT * FROM room_member_runtime WHERE room_id = ? ORDER BY updated_at DESC')
+      .all(roomId) as Array<Record<string, unknown>>;
+    return rows.map(toMemberRuntime);
+  }
+
+  upsertPersonaSession(
+    roomId: string,
+    personaId: string,
+    input: { providerId: string; model: string; sessionId: string },
+  ): RoomPersonaSession {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `
+        INSERT INTO room_persona_sessions (room_id, persona_id, provider_id, model, session_id, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(room_id, persona_id) DO UPDATE SET
+          provider_id = excluded.provider_id,
+          model = excluded.model,
+          session_id = excluded.session_id,
+          updated_at = excluded.updated_at
+      `,
+      )
+      .run(roomId, personaId, input.providerId, input.model, input.sessionId, now);
+    return this.getPersonaSession(roomId, personaId)!;
+  }
+
+  getPersonaSession(roomId: string, personaId: string): RoomPersonaSession | null {
+    const row = this.db
+      .prepare('SELECT * FROM room_persona_sessions WHERE room_id = ? AND persona_id = ?')
+      .get(roomId, personaId) as Record<string, unknown> | undefined;
+    return row ? toPersonaSession(row) : null;
+  }
+
+  upsertPersonaContext(
+    roomId: string,
+    personaId: string,
+    input: { summary: string; lastMessageSeq: number },
+  ): RoomPersonaContext {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `
+        INSERT INTO room_persona_context (room_id, persona_id, summary_text, last_message_seq, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(room_id, persona_id) DO UPDATE SET
+          summary_text = excluded.summary_text,
+          last_message_seq = excluded.last_message_seq,
+          updated_at = excluded.updated_at
+      `,
+      )
+      .run(roomId, personaId, input.summary, input.lastMessageSeq, now);
+    return this.getPersonaContext(roomId, personaId)!;
+  }
+
+  getPersonaContext(roomId: string, personaId: string): RoomPersonaContext | null {
+    const row = this.db
+      .prepare('SELECT * FROM room_persona_context WHERE room_id = ? AND persona_id = ?')
+      .get(roomId, personaId) as Record<string, unknown> | undefined;
+    return row ? toPersonaContext(row) : null;
+  }
+
+  listActiveRoomCountsByPersona(userId: string): Record<string, number> {
+    const rows = this.db
+      .prepare(
+        `
+        SELECT rm.persona_id AS persona_id, COUNT(*) AS count
+        FROM room_members rm
+        INNER JOIN rooms r ON r.id = rm.room_id
+        WHERE r.user_id = ? AND r.run_state = 'running'
+        GROUP BY rm.persona_id
+      `,
+      )
+      .all(userId) as Array<{ persona_id: string; count: number }>;
+
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      counts[row.persona_id] = Number(row.count || 0);
+    }
+    return counts;
+  }
+
+  getMetrics(): {
+    totalRooms: number;
+    runningRooms: number;
+    totalMembers: number;
+    totalMessages: number;
+  } {
+    const totalRooms = Number(
+      (this.db.prepare('SELECT COUNT(*) AS count FROM rooms').get() as { count: number }).count || 0,
+    );
+    const runningRooms = Number(
+      (
+        this.db
+          .prepare("SELECT COUNT(*) AS count FROM rooms WHERE run_state = 'running'")
+          .get() as { count: number }
+      ).count || 0,
+    );
+    const totalMembers = Number(
+      (this.db.prepare('SELECT COUNT(*) AS count FROM room_members').get() as { count: number })
+        .count || 0,
+    );
+    const totalMessages = Number(
+      (this.db.prepare('SELECT COUNT(*) AS count FROM room_messages').get() as { count: number })
+        .count || 0,
+    );
+
+    return { totalRooms, runningRooms, totalMembers, totalMessages };
+  }
+
+  close(): void {
+    this.db.close();
+  }
+}
