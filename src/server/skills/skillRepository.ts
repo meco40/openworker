@@ -67,7 +67,7 @@ export class SkillRepository {
   private readonly db: ReturnType<typeof Database>;
 
   constructor(dbPath = process.env.SKILLS_DB_PATH || '.local/skills.db') {
-    const fullPath = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
+    const fullPath = path.resolve(dbPath);
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
     this.db = new Database(fullPath);
 
@@ -208,3 +208,4 @@ export async function getSkillRepository(): Promise<SkillRepository> {
   }
   return _instance;
 }
+

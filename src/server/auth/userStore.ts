@@ -52,7 +52,7 @@ export class AuthUserStore {
   private readonly db: ReturnType<typeof Database>;
 
   constructor(dbPath = process.env.AUTH_DB_PATH || '.local/auth.db') {
-    const fullPath = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
+    const fullPath = path.resolve(dbPath);
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
     this.db = new Database(fullPath);
     this.migrate();
@@ -191,3 +191,4 @@ export function getAuthUserStore(): AuthUserStore {
   }
   return globalThis.__authUserStore;
 }
+

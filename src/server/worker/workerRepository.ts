@@ -86,7 +86,7 @@ export class SqliteWorkerRepository implements WorkerRepository {
     if (dbPath === ':memory:') {
       this.db = new Database(':memory:');
     } else {
-      const fullPath = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
+      const fullPath = path.resolve(dbPath);
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
       this.db = new Database(fullPath);
     }
@@ -444,3 +444,4 @@ export function getWorkerRepository(): SqliteWorkerRepository {
   }
   return instance;
 }
+

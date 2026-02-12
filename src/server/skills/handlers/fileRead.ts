@@ -4,7 +4,7 @@ import path from 'node:path';
 const MAX_FILE_BYTES = 256_000;
 
 function ensureWorkspacePath(userPath: string): string {
-  const workspaceRoot = process.cwd();
+  const workspaceRoot = path.resolve('.');
   const resolved = path.resolve(workspaceRoot, userPath);
   if (!resolved.startsWith(workspaceRoot)) {
     throw new Error('Path escapes workspace root.');
@@ -26,3 +26,4 @@ export async function fileReadHandler(args: Record<string, unknown>) {
     content: truncated ? content.slice(0, MAX_FILE_BYTES) : content,
   };
 }
+

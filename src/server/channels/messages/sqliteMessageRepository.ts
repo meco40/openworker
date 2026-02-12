@@ -73,7 +73,7 @@ export class SqliteMessageRepository implements MessageRepository {
     if (dbPath === ':memory:') {
       this.db = new Database(':memory:');
     } else {
-      const fullPath = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
+      const fullPath = path.resolve(dbPath);
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
       this.db = new Database(fullPath);
     }
@@ -599,3 +599,4 @@ export class SqliteMessageRepository implements MessageRepository {
     this.db.close();
   }
 }
+
