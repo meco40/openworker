@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import type { GatewayStreamChunk } from '../../../services/gateway';
 
 /**
  * Tests for services/gateway.ts — the client-side AI gateway service.
@@ -10,6 +11,9 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 // ── Dynamic import so we can mock fetch before the module loads ─
 
 describe('services/gateway', () => {
+  type FetchMockCall = [string, { body?: string } & Record<string, unknown>];
+  type FetchWithMockCalls = typeof fetch & { mock: { calls: FetchMockCall[] } };
+
   let ai: typeof import('../../../services/gateway').ai;
   let originalFetch: typeof globalThis.fetch;
 
@@ -36,6 +40,10 @@ describe('services/gateway', () => {
     const mod = await import('../../../services/gateway');
     ai = mod.ai;
     return mod;
+  }
+
+  function fetchMockCalls(): FetchMockCall[] {
+    return (globalThis.fetch as FetchWithMockCalls).mock.calls;
   }
 
   // ── ai.models.generateContent ───────────────────────────────
@@ -77,7 +85,7 @@ describe('services/gateway', () => {
         },
       });
 
-      const callBody = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body);
+      const callBody = JSON.parse(String(fetchMockCalls()[0][1].body));
       expect(callBody.systemInstruction).toBe('You are helpful');
       expect(callBody.tools).toHaveLength(1);
       expect(callBody.responseMimeType).toBe('application/json');
@@ -119,7 +127,7 @@ describe('services/gateway', () => {
         ],
       });
 
-      const callBody = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body);
+      const callBody = JSON.parse(String(fetchMockCalls()[0][1].body));
       expect(callBody.messages).toHaveLength(3);
       expect(callBody.messages[0].role).toBe('user');
       expect(callBody.messages[1].role).toBe('assistant');
@@ -141,7 +149,7 @@ describe('services/gateway', () => {
 
       expect(result.embedding?.values).toEqual([0.1, 0.2, 0.3]);
 
-      const callBody = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body);
+      const callBody = JSON.parse(String(fetchMockCalls()[0][1].body));
       expect(callBody.operation).toBe('embedContent');
     });
   });
@@ -161,7 +169,7 @@ describe('services/gateway', () => {
       });
 
       const stream = await chat.sendMessageStream({ message: 'Hello!' });
-      const chunks: any[] = [];
+      const chunks: GatewayStreamChunk[] = [];
       for await (const chunk of stream) {
         chunks.push(chunk);
       }
@@ -203,7 +211,7 @@ describe('services/gateway', () => {
         /* consume */
       }
 
-      const secondCallBody = JSON.parse((globalThis.fetch as any).mock.calls[1][1].body);
+      const secondCallBody = JSON.parse(String(fetchMockCalls()[1][1].body));
       expect(secondCallBody.messages).toHaveLength(4); // system + user1 + assistant1 + user2
       expect(secondCallBody.messages[0].role).toBe('system');
       expect(secondCallBody.messages[1].role).toBe('user');
@@ -224,7 +232,7 @@ describe('services/gateway', () => {
         /* consume */
       }
 
-      const callBody = JSON.parse((globalThis.fetch as any).mock.calls[0][1].body);
+      const callBody = JSON.parse(String(fetchMockCalls()[0][1].body));
       expect(callBody.model).toBeUndefined();
     });
   });

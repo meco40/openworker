@@ -89,6 +89,7 @@ const FilePreview: React.FC<{
     if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext)) {
       return (
         <div className="worker-file-preview worker-file-preview--image">
+          {/* eslint-disable-next-line @next/next/no-img-element -- uses local base64 data URLs from workspace file API */}
           <img
             src={`data:${file.mimeType || 'image/png'};base64,${file.content}`}
             alt={file.path}

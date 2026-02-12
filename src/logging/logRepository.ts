@@ -59,7 +59,7 @@ export class LogRepository {
       this.db = new Database(':memory:');
     } else {
       const fullPath = path.resolve(dbPath);
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is derived from controlled app config
+       
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
       this.db = new Database(fullPath);
     }

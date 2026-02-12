@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ContextBuilder } from '../../../src/server/channels/messages/contextBuilder';
 import type { MessageRepository } from '../../../src/server/channels/messages/repository';
+import { ChannelType } from '../../../types';
 
 function createRepo(): MessageRepository {
   return {
@@ -32,7 +33,7 @@ function createRepo(): MessageRepository {
         seq: 1,
         role: 'user',
         content: 'First',
-        platform: 'WebChat' as any,
+        platform: ChannelType.WEBCHAT,
         externalMsgId: null,
         senderName: null,
         metadata: null,
@@ -44,7 +45,7 @@ function createRepo(): MessageRepository {
         seq: 2,
         role: 'agent',
         content: 'Second',
-        platform: 'WebChat' as any,
+        platform: ChannelType.WEBCHAT,
         externalMsgId: null,
         senderName: null,
         metadata: null,
@@ -67,6 +68,9 @@ function createRepo(): MessageRepository {
       throw new Error('unused');
     },
     updateModelOverride: () => {
+      throw new Error('unused');
+    },
+    updatePersonaId: () => {
       throw new Error('unused');
     },
     findMessageByClientId: () => {

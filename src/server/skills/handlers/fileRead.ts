@@ -16,7 +16,7 @@ export async function fileReadHandler(args: Record<string, unknown>) {
   const inputPath = String(args.path || '').trim();
   if (!inputPath) throw new Error('file_read requires a non-empty path.');
   const resolvedPath = ensureWorkspacePath(inputPath);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is constrained via ensureWorkspacePath.
+   
   const content = await readFile(resolvedPath, 'utf-8');
   const truncated = content.length > MAX_FILE_BYTES;
   return {

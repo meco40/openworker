@@ -27,7 +27,9 @@ const manifest: SkillManifest = {
   },
 };
 
-export default {
+const githubManagerSkill = {
   ...manifest,
   execute: async (args: Record<string, unknown>) => executeSkillApi('github_query', args),
 };
+
+export default githubManagerSkill;

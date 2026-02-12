@@ -26,7 +26,9 @@ const manifest: SkillManifest = {
   },
 };
 
-export default {
+const visionSkill = {
   ...manifest,
   execute: async (args: Record<string, unknown>) => executeSkillApi('vision_analyze', args),
 };
+
+export default visionSkill;

@@ -22,7 +22,9 @@ const manifest: SkillManifest = {
   },
 };
 
-export default {
+const pythonRuntimeSkill = {
   ...manifest,
   execute: async (args: Record<string, unknown>) => executeSkillApi('python_execute', args),
 };
+
+export default pythonRuntimeSkill;

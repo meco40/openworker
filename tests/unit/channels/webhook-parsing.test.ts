@@ -31,16 +31,21 @@ describe('Telegram Webhook Parsing', () => {
       },
     };
 
-    const senderName =
-      (update.message.from as any).username ||
-      update.message.from.first_name ||
-      `user-${update.message.from.id}`;
+    const sender = update.message.from as {
+      id: number;
+      first_name?: string;
+      username?: string;
+    };
+    const senderName = sender.username || sender.first_name || `user-${sender.id}`;
     expect(senderName).toBe('Anna');
   });
 
   it('ignores non-text updates', () => {
-    const update = { update_id: 2, message: { message_id: 2, chat: { id: 1, type: 'private' } } };
-    expect((update.message as any).text).toBeUndefined();
+    const update: {
+      update_id: number;
+      message: { message_id: number; chat: { id: number; type: string }; text?: string };
+    } = { update_id: 2, message: { message_id: 2, chat: { id: 1, type: 'private' } } };
+    expect(update.message.text).toBeUndefined();
   });
 });
 
@@ -62,8 +67,8 @@ describe('WhatsApp Webhook Parsing', () => {
   });
 
   it('falls back to from when chatId is missing', () => {
-    const payload = { from: '+49111', body: 'Test' };
-    const chatId = (payload as any).chatId || payload.from || 'unknown';
+    const payload: { from: string; body: string; chatId?: string } = { from: '+49111', body: 'Test' };
+    const chatId = payload.chatId || payload.from || 'unknown';
     expect(chatId).toBe('+49111');
   });
 });

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 function read(relativePath: string): string {
   const absolutePath = path.join(process.cwd(), relativePath);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename -- controlled test fixture paths
+   
   return fs.readFileSync(absolutePath, 'utf-8');
 }
 

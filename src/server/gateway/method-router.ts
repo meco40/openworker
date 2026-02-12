@@ -2,7 +2,7 @@
 // Dispatches RPC requests to registered method handlers.
 
 import type { RequestFrame } from './protocol';
-import { makeResponse, makeError, makeStream } from './protocol';
+import { makeResponse, makeError } from './protocol';
 import type { GatewayClient } from './client-registry';
 
 // ─── Types ───────────────────────────────────────────────────

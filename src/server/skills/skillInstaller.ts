@@ -69,11 +69,39 @@ function validateManifest(data: unknown): SkillManifest {
 // ── GitHub ────────────────────────────────────────────────────────
 
 function parseGitHubUrl(url: string): { owner: string; repo: string; branch: string } {
-  // Support: https://github.com/owner/repo  or  owner/repo
-  const cleaned = url.replace(/\.git$/, '').replace(/\/$/, '');
-  const match = cleaned.match(/(?:github\.com\/)?([^/]+)\/([^/@#]+)(?:[@#](.+))?$/);
-  if (!match) throw new Error(`Cannot parse GitHub URL: ${url}`);
-  return { owner: match[1], repo: match[2], branch: match[3] || 'main' };
+  // Support: https://github.com/owner/repo[#branch] or owner/repo[#branch]
+  const cleaned = url.trim().replace(/\.git$/i, '').replace(/\/+$/, '');
+  if (!cleaned) {
+    throw new Error(`Cannot parse GitHub URL: ${url}`);
+  }
+
+  let repoRef = cleaned;
+  if (cleaned.includes('://')) {
+    let parsed: URL;
+    try {
+      parsed = new URL(cleaned);
+    } catch {
+      throw new Error(`Cannot parse GitHub URL: ${url}`);
+    }
+    if (!parsed.hostname.toLowerCase().includes('github.com')) {
+      throw new Error(`Cannot parse GitHub URL: ${url}`);
+    }
+    repoRef = parsed.pathname.replace(/^\/+/, '');
+  } else if (cleaned.toLowerCase().startsWith('github.com/')) {
+    repoRef = cleaned.slice('github.com/'.length);
+  }
+
+  const [repoPath, branchRef] = repoRef.split(/[@#]/, 2);
+  const segments = repoPath.split('/').filter(Boolean);
+  if (segments.length < 2) {
+    throw new Error(`Cannot parse GitHub URL: ${url}`);
+  }
+
+  return {
+    owner: segments[0],
+    repo: segments[1],
+    branch: branchRef || 'main',
+  };
 }
 
 async function fetchGitHubManifest(url: string): Promise<SkillManifest> {

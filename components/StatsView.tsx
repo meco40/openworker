@@ -368,8 +368,7 @@ const StatsView: React.FC = () => {
                         fontSize: '11px',
                         color: '#d4d4d8',
                       }}
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      formatter={(value: any, name: any) => [
+                      formatter={(value: unknown, name: unknown) => [
                         formatNumber(Number(value ?? 0)),
                         String(name ?? ''),
                       ]}

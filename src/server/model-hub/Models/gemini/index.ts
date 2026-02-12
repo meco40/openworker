@@ -2,6 +2,31 @@ import { GoogleGenAI } from '@google/genai';
 import type { ProviderAdapter } from '../types';
 import { fetchWithTimeout } from '../shared/http';
 
+interface GeminiUsageMetadata {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  totalTokenCount?: number;
+}
+
+interface GeminiGenerateContentResult {
+  text?: string;
+  usageMetadata?: GeminiUsageMetadata;
+  functionCalls?: Array<{ name: string; args?: unknown }>;
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ functionCall?: { name: string; args?: unknown } }>;
+    };
+  }>;
+}
+
+interface GeminiModelsApi {
+  generateContent(payload: {
+    model: string;
+    contents: Array<{ role: 'model' | 'user'; parts: Array<{ text: string }> }>;
+    config: Record<string, unknown>;
+  }): Promise<GeminiGenerateContentResult>;
+}
+
 function extractGeminiFunctionCalls(result: unknown): Array<{ name: string; args?: unknown }> {
   if (!result || typeof result !== 'object') return [];
   const typed = result as {
@@ -101,18 +126,18 @@ const geminiProviderAdapter: ProviderAdapter = {
         config.tools = request.tools;
       }
 
-      const generatePromise = (ai.models as any).generateContent({
+      const generatePromise = (ai.models as GeminiModelsApi).generateContent({
         model: request.model,
         contents,
         config,
       });
 
       // Race with abort signal if provided
-      let result: any;
+      let result: GeminiGenerateContentResult;
       if (options?.signal) {
-        result = await Promise.race([
+        result = await Promise.race<GeminiGenerateContentResult>([
           generatePromise,
-          new Promise((_resolve, reject) => {
+          new Promise<GeminiGenerateContentResult>((_resolve, reject) => {
             if (options.signal!.aborted) {
               reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
               return;

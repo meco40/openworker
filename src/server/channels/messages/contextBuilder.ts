@@ -1,4 +1,5 @@
 import type { MessageRepository } from './repository';
+import { getPersonaRepository } from '../../personas/personaRepository';
 
 interface GatewayMessage {
   role: 'system' | 'user' | 'assistant';
@@ -35,7 +36,6 @@ export class ContextBuilder {
     // Prepend persona system instruction (if active)
     if (personaId) {
       try {
-        const { getPersonaRepository } = require('../../personas/personaRepository');
         const personaRepo = getPersonaRepository();
         const instruction = personaRepo.getPersonaSystemInstruction(personaId);
         if (instruction) {

@@ -5,10 +5,10 @@
 import { getModelHubService, getModelHubEncryptionKey } from '../model-hub/runtime';
 import { getWorkerRepository } from './workerRepository';
 import { getWorkspaceManager } from './workspaceManager';
-import { shellExecuteHandler } from '../skills/handlers/shellExecute';
-import { fileReadHandler } from '../skills/handlers/fileRead';
-import { browserSnapshotHandler } from '../skills/handlers/browserSnapshot';
-import { pythonExecuteHandler } from '../skills/handlers/pythonExecute';
+import { shellExecuteHandler } from '../skills/handlers/shellExecute.ts';
+import { fileReadHandler } from '../skills/handlers/fileRead.ts';
+import { browserSnapshotHandler } from '../skills/handlers/browserSnapshot.ts';
+import { pythonExecuteHandler } from '../skills/handlers/pythonExecute.ts';
 import type { WorkerTaskRecord, WorkerStepRecord, WorkerArtifactRecord } from './workerTypes';
 
 // ─── Tool Definitions ───────────────────────────────────────

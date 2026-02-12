@@ -21,7 +21,9 @@ const manifest: SkillManifest = {
   },
 };
 
-export default {
+const sqlBridgeSkill = {
   ...manifest,
   execute: async (args: Record<string, unknown>) => executeSkillApi('db_query', args),
 };
+
+export default sqlBridgeSkill;

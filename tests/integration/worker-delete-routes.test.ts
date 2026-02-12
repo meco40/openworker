@@ -27,7 +27,7 @@ describe('worker delete routes', () => {
   afterAll(() => {
     for (const taskId of createdWorkspaceIds) {
       const wsPath = path.join(process.cwd(), 'workspaces', taskId);
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
+       
       if (fs.existsSync(wsPath)) {
         try {
           fs.rmSync(wsPath, { recursive: true, force: true });
@@ -38,10 +38,10 @@ describe('worker delete routes', () => {
     }
 
     for (const candidate of [workerDbPath, `${workerDbPath}-wal`, `${workerDbPath}-shm`]) {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
+       
       if (fs.existsSync(candidate)) {
         try {
-          // eslint-disable-next-line security/detect-non-literal-fs-filename
+           
           fs.unlinkSync(candidate);
         } catch {
           // ignore transient lock

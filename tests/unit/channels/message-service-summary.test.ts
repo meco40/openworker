@@ -72,6 +72,9 @@ function buildRepository(upsert: MessageRepository['upsertConversationContext'])
     updateModelOverride: () => {
       throw new Error('unused');
     },
+    updatePersonaId: () => {
+      throw new Error('unused');
+    },
     findMessageByClientId: () => null,
   };
 }
@@ -115,6 +118,7 @@ describe('MessageService summary refresh', () => {
       userId: 'user-1',
       title: 'Summary Test',
       modelOverride: null,
+      personaId: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

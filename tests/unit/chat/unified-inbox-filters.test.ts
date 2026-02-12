@@ -11,6 +11,7 @@ function conversation(overrides: Partial<Conversation>): Conversation {
     userId: overrides.userId || 'u-1',
     title: overrides.title || 'Untitled',
     modelOverride: overrides.modelOverride || null,
+    personaId: overrides.personaId || null,
     createdAt: overrides.createdAt || '2026-02-11T00:00:00.000Z',
     updatedAt: overrides.updatedAt || '2026-02-11T00:00:00.000Z',
   };

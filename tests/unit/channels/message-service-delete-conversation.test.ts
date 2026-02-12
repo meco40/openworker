@@ -35,6 +35,9 @@ function buildRepository(deleteConversation: MessageRepository['deleteConversati
     updateModelOverride: () => {
       throw new Error('unused');
     },
+    updatePersonaId: () => {
+      throw new Error('unused');
+    },
     findMessageByClientId: () => null,
     getConversationContext: () => null,
     upsertConversationContext: () => {

@@ -8,15 +8,18 @@ interface VoiceOverlayProps {
   onClose: () => void;
 }
 
+type LiveSession = Awaited<ReturnType<typeof ai.live.connect>>;
+type WindowWithWebkitAudioContext = Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
+
 const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
   const [isActive, setIsActive] = useState(false);
   const [status, setStatus] = useState('Connecting...');
-  
+
   const audioContextIn = useRef<AudioContext | null>(null);
   const audioContextOut = useRef<AudioContext | null>(null);
   const nextStartTime = useRef(0);
   const sources = useRef(new Set<AudioBufferSourceNode>());
-  const sessionRef = useRef<any>(null);
+  const sessionRef = useRef<LiveSession | null>(null);
 
   useEffect(() => {
     const startVoice = async () => {
@@ -27,9 +30,14 @@ const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioContextIn.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-        audioContextOut.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-        
+        const audioContextCtor =
+          window.AudioContext || (window as WindowWithWebkitAudioContext).webkitAudioContext;
+        if (!audioContextCtor) {
+          throw new Error('AudioContext not supported');
+        }
+        audioContextIn.current = new audioContextCtor({ sampleRate: 16000 });
+        audioContextOut.current = new audioContextCtor({ sampleRate: 24000 });
+
         const outputNode = audioContextOut.current.createGain();
         outputNode.connect(audioContextOut.current.destination);
 
@@ -68,7 +76,7 @@ const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
               }
 
               if (message.serverContent?.interrupted) {
-                sources.current.forEach(s => s.stop());
+                sources.current.forEach((s) => s.stop());
                 sources.current.clear();
                 nextStartTime.current = 0;
               }
@@ -80,16 +88,16 @@ const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
             onclose: () => {
               setIsActive(false);
               setStatus('Disconnected.');
-            }
+            },
           },
           config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
-            systemInstruction: SYSTEM_INSTRUCTION
-          }
+            systemInstruction: SYSTEM_INSTRUCTION,
+          },
         });
-        
-        sessionPromise.then(session => {
+
+        sessionPromise.then((session) => {
           sessionRef.current = session;
         });
       } catch (err) {

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { ModelHubRepository } from '../../../src/server/model-hub/repository';
 
 /**
  * Tests for the ModelHub service dispatchWithFallback method.
@@ -7,11 +8,12 @@ import { describe, expect, it, vi } from 'vitest';
  * the pipeline fallback logic.
  */
 
-function createMockRepository(overrides: Record<string, unknown> = {}) {
+function createMockRepository(overrides: Partial<ModelHubRepository> = {}): ModelHubRepository {
   return {
     listPipelineModels: vi.fn().mockReturnValue([]),
     getAccountRecordById: vi.fn().mockReturnValue(null),
     updatePipelineModelStatus: vi.fn(),
+    updatePipelineModelPriority: vi.fn(),
     listAccounts: vi.fn().mockReturnValue([]),
     createAccount: vi.fn(),
     deleteAccount: vi.fn(),
@@ -20,7 +22,7 @@ function createMockRepository(overrides: Record<string, unknown> = {}) {
     removePipelineModel: vi.fn(),
     replacePipeline: vi.fn(),
     ...overrides,
-  } as any;
+  };
 }
 
 describe('ModelHubService.dispatchWithFallback', () => {

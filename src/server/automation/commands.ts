@@ -24,15 +24,25 @@ type ParsedCronCommand =
   | { action: 'unsupported'; reason: string };
 
 function extractQuotedValue(input: string, flag: string): string | null {
-  const escaped = flag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = input.match(new RegExp(`${escaped}\\s+"([^"]+)"`, 'i'));
-  return match?.[1] || null;
+  const flagIndex = input.toLowerCase().indexOf(flag.toLowerCase());
+  if (flagIndex < 0) return null;
+
+  const valueStart = flagIndex + flag.length;
+  const afterFlag = input.slice(valueStart).trimStart();
+  if (!afterFlag.startsWith('"')) return null;
+
+  const endQuoteIndex = afterFlag.indexOf('"', 1);
+  if (endQuoteIndex <= 1) return null;
+
+  return afterFlag.slice(1, endQuoteIndex);
 }
 
 function extractRuleId(input: string, action: string): string | null {
-  const escaped = action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = input.match(new RegExp(`^/cron\\s+${escaped}\\s+([^\\s]+)$`, 'i'));
-  return match?.[1] || null;
+  const segments = input.trim().split(/\s+/);
+  if (segments.length !== 3) return null;
+  if (segments[0]?.toLowerCase() !== '/cron') return null;
+  if (segments[1]?.toLowerCase() !== action.toLowerCase()) return null;
+  return segments[2];
 }
 
 export function parseCronCommand(content: string): ParsedCronCommand {

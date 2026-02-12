@@ -21,7 +21,9 @@ const manifest: SkillManifest = {
   },
 };
 
-export default {
+const shellAccessSkill = {
   ...manifest,
   execute: async (args: Record<string, unknown>) => executeSkillApi('shell_execute', args),
 };
+
+export default shellAccessSkill;

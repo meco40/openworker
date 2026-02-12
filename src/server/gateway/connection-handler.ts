@@ -4,7 +4,7 @@
 import type { WebSocket } from 'ws';
 import { getClientRegistry, type GatewayClient } from './client-registry';
 import { broadcastToUser } from './broadcast';
-import { parseFrame, makeResponse, makeError, makeEvent } from './protocol';
+import { parseFrame, makeError, makeEvent } from './protocol';
 import { GatewayEvents, type HelloOkPayload } from './events';
 import { GATEWAY_VERSION, MAX_REQUESTS_PER_MINUTE } from './constants';
 import { dispatchMethod, getRegisteredMethods } from './method-router';

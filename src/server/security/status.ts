@@ -212,7 +212,7 @@ export function buildSecurityStatusSnapshot(
   const commands = input.commands ?? SECURITY_RULES;
   const appUrl = input.appUrl ?? process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? '';
   const dbPath = resolveMessagesDbPath();
-  // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is derived from controlled app config
+   
   const dbExists = input.dbExists ?? fs.existsSync(dbPath);
   const secureCrypto = input.secureCrypto ?? Boolean(globalThis.crypto?.subtle);
 

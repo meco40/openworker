@@ -23,7 +23,9 @@ const manifest: SkillManifest = {
   },
 };
 
-export default {
+const browserSkill = {
   ...manifest,
   execute: async (args: Record<string, unknown>) => executeSkillApi('browser_snapshot', args),
 };
+
+export default browserSkill;

@@ -40,13 +40,13 @@ describe('worker files API integration', () => {
     it('creates a workspace with scaffold directories', () => {
       const wsPath = mgr.createWorkspace(TEST_TASK_ID, 'research');
       expect(fs.existsSync(wsPath)).toBe(true);
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
+       
       expect(fs.existsSync(path.join(wsPath, 'sources'))).toBe(true);
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
+       
       expect(fs.existsSync(path.join(wsPath, 'notes'))).toBe(true);
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
+       
       expect(fs.existsSync(path.join(wsPath, 'output'))).toBe(true);
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
+       
       expect(fs.existsSync(path.join(wsPath, 'logs'))).toBe(true);
     });
 

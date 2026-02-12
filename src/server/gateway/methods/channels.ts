@@ -2,7 +2,7 @@ import { registerMethod, type RespondFn } from '../method-router';
 import type { GatewayClient } from '../client-registry';
 import { broadcastToUser } from '../broadcast';
 import { GatewayEvents } from '../events';
-import { CHANNEL_CAPABILITIES, normalizeChannelKey } from '../../channels/adapters/capabilities';
+import { CHANNEL_CAPABILITIES } from '../../channels/adapters/capabilities';
 import type { ChannelKey } from '../../channels/adapters/types';
 
 function safeString(value: unknown): string {

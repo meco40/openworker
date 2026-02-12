@@ -15,7 +15,9 @@ const manifest: SkillManifest = {
   },
 };
 
-export default {
+const searchSkill = {
   ...manifest,
   execute: async () => 'Search completed via Grounding.',
 };
+
+export default searchSkill;

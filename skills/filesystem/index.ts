@@ -21,7 +21,9 @@ const manifest: SkillManifest = {
   },
 };
 
-export default {
+const filesystemSkill = {
   ...manifest,
   execute: async (args: Record<string, unknown>) => executeSkillApi('file_read', args),
 };
+
+export default filesystemSkill;

@@ -205,7 +205,7 @@ const TeamManager: React.FC<TeamManagerProps> = ({ teams, setTeams, tasks }) => 
                   {['Starter', 'Pro', 'Enterprise'].map((t) => (
                     <button
                       key={t}
-                      onClick={() => setNewTeamTier(t as any)}
+                      onClick={() => setNewTeamTier(t as Team['tier'])}
                       className={`rounded-xl border py-3 text-[9px] font-black uppercase transition-all ${newTeamTier === t ? 'border-indigo-500 bg-indigo-600 text-white shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-500'}`}
                     >
                       {t}

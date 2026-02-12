@@ -29,6 +29,7 @@ export const WhatsAppHandler: React.FC<WhatsAppHandlerProps> = ({
     return (
       <div className="space-y-6 flex flex-col items-center">
         <div className="w-48 h-48 bg-white p-4 rounded-xl shadow-2xl relative overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element -- external QR image source is generated at runtime */}
           <img src="https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=openclaw-wa-link" className="w-full h-full" alt="QR" />
           <div className="absolute inset-0 bg-white/40 backdrop-blur-sm flex items-center justify-center">
             <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />

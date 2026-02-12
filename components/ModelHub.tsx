@@ -17,7 +17,6 @@ import { filterLiveModels, getDefaultActiveModel } from './model-hub/utils';
 
 const ModelHub: React.FC = () => {
   const [providerCatalog, setProviderCatalog] = useState<ProviderCatalogEntry[]>([]);
-  const [isLoadingProviders, setIsLoadingProviders] = useState(true);
 
   const [providerAccounts, setProviderAccounts] = useState<ProviderAccount[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
@@ -81,7 +80,6 @@ const ModelHub: React.FC = () => {
   );
 
   const loadProviders = useCallback(async () => {
-    setIsLoadingProviders(true);
     try {
       const response = await fetch('/api/model-hub/providers');
       const data = (await response.json()) as ApiResponse & { providers?: ProviderCatalogEntry[] };
@@ -93,8 +91,6 @@ const ModelHub: React.FC = () => {
       }
     } catch {
       // fallback: leave empty, user will see loading error
-    } finally {
-      setIsLoadingProviders(false);
     }
   }, [connectProviderId]);
 

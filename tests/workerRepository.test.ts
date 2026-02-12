@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SqliteWorkerRepository } from '../src/server/worker/workerRepository';
-import type { WorkerTaskRecord } from '../src/server/worker/workerTypes';
 
 describe('SqliteWorkerRepository', () => {
   let repo: SqliteWorkerRepository;

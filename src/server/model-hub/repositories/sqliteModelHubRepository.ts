@@ -11,7 +11,37 @@ import type {
   ProviderAccountView,
 } from '../repository';
 
-function toView(row: any): ProviderAccountView {
+interface ProviderAccountRow {
+  id: string;
+  provider_id: string;
+  label: string;
+  auth_method: 'api_key' | 'oauth';
+  encrypted_secret: string;
+  encrypted_refresh_token: string | null;
+  secret_masked: string;
+  created_at: string;
+  updated_at: string;
+  last_check_at: string | null;
+  last_check_ok: number | null;
+}
+
+interface PipelineRow {
+  id: string;
+  profile_id: string;
+  account_id: string;
+  provider_id: string;
+  model_name: string;
+  priority: number;
+  status: 'active' | 'rate-limited' | 'offline';
+  created_at: string;
+  updated_at: string;
+}
+
+interface SqlRunResult {
+  changes: number;
+}
+
+function toView(row: ProviderAccountRow): ProviderAccountView {
   return {
     id: row.id,
     providerId: row.provider_id,
@@ -26,7 +56,7 @@ function toView(row: any): ProviderAccountView {
   };
 }
 
-function toPipelineEntry(row: any): PipelineModelEntry {
+function toPipelineEntry(row: PipelineRow): PipelineModelEntry {
   return {
     id: row.id,
     profileId: row.profile_id,
@@ -107,21 +137,24 @@ export class SqliteModelHubRepository implements ModelHubRepository {
 
     const row = this.db
       .prepare('SELECT * FROM model_hub_accounts WHERE id = ?')
-      .get(id) as any;
+      .get(id) as ProviderAccountRow | undefined;
+    if (!row) {
+      throw new Error(`Failed to read inserted account ${id}`);
+    }
     return toView(row);
   }
 
   listAccounts(): ProviderAccountView[] {
     const rows = this.db
       .prepare('SELECT * FROM model_hub_accounts ORDER BY created_at DESC')
-      .all() as any[];
+      .all() as ProviderAccountRow[];
     return rows.map(toView);
   }
 
   getAccountRecordById(id: string): ProviderAccountRecord | null {
     const row = this.db
       .prepare('SELECT * FROM model_hub_accounts WHERE id = ?')
-      .get(id) as any;
+      .get(id) as ProviderAccountRow | undefined;
     if (!row) return null;
 
     return {
@@ -150,8 +183,8 @@ export class SqliteModelHubRepository implements ModelHubRepository {
 
     const result = this.db
       .prepare('DELETE FROM model_hub_accounts WHERE id = ?')
-      .run(id);
-    return (result as any).changes > 0;
+      .run(id) as SqlRunResult;
+    return result.changes > 0;
   }
 
   // ─── Pipeline methods ──────────────────────────────────────────
@@ -159,7 +192,7 @@ export class SqliteModelHubRepository implements ModelHubRepository {
   listPipelineModels(profileId: string): PipelineModelEntry[] {
     const rows = this.db
       .prepare('SELECT * FROM model_hub_pipeline WHERE profile_id = ? ORDER BY priority ASC')
-      .all(profileId) as any[];
+      .all(profileId) as PipelineRow[];
     return rows.map(toPipelineEntry);
   }
 
@@ -187,15 +220,18 @@ export class SqliteModelHubRepository implements ModelHubRepository {
 
     const row = this.db
       .prepare('SELECT * FROM model_hub_pipeline WHERE id = ?')
-      .get(id) as any;
+      .get(id) as PipelineRow | undefined;
+    if (!row) {
+      throw new Error(`Failed to read inserted pipeline model ${id}`);
+    }
     return toPipelineEntry(row);
   }
 
   removePipelineModel(id: string): boolean {
     const result = this.db
       .prepare('DELETE FROM model_hub_pipeline WHERE id = ?')
-      .run(id);
-    return (result as any).changes > 0;
+      .run(id) as SqlRunResult;
+    return result.changes > 0;
   }
 
   updatePipelineModelStatus(id: string, status: 'active' | 'rate-limited' | 'offline'): void {

@@ -28,19 +28,22 @@ const config = [
       'sonarjs/no-useless-catch': 'error',
       'react-hooks/set-state-in-effect': 'off',
       'security/detect-object-injection': 'off',
+      // High false-positive rate for controlled path operations in this codebase.
+      'security/detect-non-literal-fs-filename': 'off',
       'sonarjs/no-duplicate-string': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
     },
   },
   {
     name: 'project/typescript-rules',
     files: ['**/*.{ts,tsx}'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'warn',
-    },
-  },
-  {
-    name: 'project/critical-any',
-    files: ['services/gemini.ts', 'core/memory/embeddings.ts', 'components/LogsView.tsx'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
     },

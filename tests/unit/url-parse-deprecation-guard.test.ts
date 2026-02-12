@@ -6,13 +6,28 @@ const ROOT = process.cwd();
 const SCAN_DIRS = ['src', 'tests'];
 const SCAN_FILES = ['server.ts'];
 
-const DEPRECATED_URL_PARSE_PATTERNS = [
-  /import\s+\{\s*parse(?:\s+as\s+\w+)?\s*\}\s+from\s+['"]node:url['"]/,
-  /import\s+\{\s*parse(?:\s+as\s+\w+)?\s*\}\s+from\s+['"]url['"]/,
-  /\brequire\(['"]node:url['"]\)\.parse\s*\(/,
-  /\brequire\(['"]url['"]\)\.parse\s*\(/,
-  /\burl\.parse\s*\(/,
+const DEPRECATED_URL_PARSE_SNIPPETS = [
+  "require('node:url').parse(",
+  'require("node:url").parse(',
+  "require('url').parse(",
+  'require("url").parse(',
+  'url.parse(',
 ];
+
+function containsDeprecatedUrlParse(content: string): boolean {
+  const normalized = content.replace(/\s+/g, ' ');
+  const hasParseImport =
+    normalized.includes('import { parse') || normalized.includes('import {parse');
+  const importsNodeUrl =
+    normalized.includes("from 'node:url'") || normalized.includes('from "node:url"');
+  const importsUrl = normalized.includes("from 'url'") || normalized.includes('from "url"');
+
+  if (hasParseImport && (importsNodeUrl || importsUrl)) {
+    return true;
+  }
+
+  return DEPRECATED_URL_PARSE_SNIPPETS.some((snippet) => normalized.includes(snippet));
+}
 
 function collectTsFiles(dir: string): string[] {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -49,7 +64,7 @@ describe('url.parse deprecation guard', () => {
 
     for (const filePath of filesToScan) {
       const content = fs.readFileSync(filePath, 'utf8');
-      if (DEPRECATED_URL_PARSE_PATTERNS.some((pattern) => pattern.test(content))) {
+      if (containsDeprecatedUrlParse(content)) {
         violations.push(path.relative(ROOT, filePath));
       }
     }

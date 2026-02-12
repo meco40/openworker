@@ -98,6 +98,7 @@ describe('app-shell runtime logic', () => {
         userId: 'user-a',
         title: 'Chat 1',
         modelOverride: null,
+        personaId: null,
         createdAt: '2026-02-10T08:00:00.000Z',
         updatedAt: '2026-02-10T08:00:00.000Z',
       },
@@ -108,6 +109,7 @@ describe('app-shell runtime logic', () => {
         userId: 'user-a',
         title: 'Chat 2',
         modelOverride: null,
+        personaId: null,
         createdAt: '2026-02-10T08:05:00.000Z',
         updatedAt: '2026-02-10T08:05:00.000Z',
       },
@@ -129,6 +131,7 @@ describe('app-shell runtime logic', () => {
         userId: 'user-a',
         title: 'Chat 1',
         modelOverride: null,
+        personaId: null,
         createdAt: '2026-02-10T08:00:00.000Z',
         updatedAt: '2026-02-10T08:00:00.000Z',
       },
@@ -139,6 +142,7 @@ describe('app-shell runtime logic', () => {
         userId: 'user-a',
         title: 'Chat 2',
         modelOverride: null,
+        personaId: null,
         createdAt: '2026-02-10T08:05:00.000Z',
         updatedAt: '2026-02-10T08:05:00.000Z',
       },
@@ -158,6 +162,7 @@ describe('app-shell runtime logic', () => {
         userId: 'user-a',
         title: 'Chat 1',
         modelOverride: null,
+        personaId: null,
         createdAt: '2026-02-10T08:00:00.000Z',
         updatedAt: '2026-02-10T08:00:00.000Z',
       },
@@ -168,6 +173,7 @@ describe('app-shell runtime logic', () => {
         userId: 'user-a',
         title: 'Chat 2',
         modelOverride: null,
+        personaId: null,
         createdAt: '2026-02-10T08:05:00.000Z',
         updatedAt: '2026-02-10T08:05:00.000Z',
       },
@@ -187,6 +193,7 @@ describe('app-shell runtime logic', () => {
         userId: 'user-a',
         title: 'Chat 1',
         modelOverride: null,
+        personaId: null,
         createdAt: '2026-02-10T08:00:00.000Z',
         updatedAt: '2026-02-10T08:00:00.000Z',
       },
@@ -206,6 +213,7 @@ describe('app-shell runtime logic', () => {
         userId: 'user-a',
         title: 'Chat 2',
         modelOverride: null,
+        personaId: null,
         createdAt: '2026-02-10T08:05:00.000Z',
         updatedAt: '2026-02-10T08:05:00.000Z',
       },
@@ -215,3 +223,4 @@ describe('app-shell runtime logic', () => {
     expect(nextActive).toBe('conv-2');
   });
 });
+

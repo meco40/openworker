@@ -17,6 +17,11 @@ interface ConnectProviderAccountInput {
   encryptionKey: string;
 }
 
+interface GeminiEmbeddingModelsApi {
+  embedContent(payload: Record<string, unknown>): Promise<Record<string, unknown>>;
+  batchEmbedContents?(payload: Record<string, unknown>): Promise<Record<string, unknown>>;
+}
+
 export class ModelHubService {
   constructor(private readonly repository: ModelHubRepository) {}
 
@@ -210,18 +215,18 @@ export class ModelHubService {
 
     const { GoogleGenAI } = await import('@google/genai');
     const ai = new GoogleGenAI({ apiKey: secret });
+    const modelsApi = ai.models as unknown as GeminiEmbeddingModelsApi;
 
     try {
       if (input.operation === 'embedContent') {
-        const result = await (ai.models as any).embedContent(input.payload);
+        const result = await modelsApi.embedContent(input.payload);
         return result ?? {};
       }
       if (input.operation === 'batchEmbedContents') {
-        const modelsObj = ai.models as any;
-        if (typeof modelsObj.batchEmbedContents !== 'function') {
+        if (typeof modelsApi.batchEmbedContents !== 'function') {
           return { embeddings: [] };
         }
-        const result = await modelsObj.batchEmbedContents(input.payload);
+        const result = await modelsApi.batchEmbedContents(input.payload);
         return result ?? {};
       }
       return { error: `Unknown embedding operation: ${input.operation}` };
