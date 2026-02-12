@@ -47,6 +47,7 @@ interface RoomDetailPanelProps {
   onDelete: () => void;
   onAddMember: (personaId: string, roleLabel: string, modelOverride: string) => void;
   onRemoveMember: (personaId: string) => void;
+  onToggleMemberPause: (personaId: string, paused: boolean) => void;
   onSendMessage: (content: string) => void;
 }
 
@@ -68,6 +69,7 @@ export function RoomDetailPanel({
   onDelete,
   onAddMember,
   onRemoveMember,
+  onToggleMemberPause,
   onSendMessage,
 }: RoomDetailPanelProps) {
   const [selectedPersonaId, setSelectedPersonaId] = useState('');
@@ -192,8 +194,10 @@ export function RoomDetailPanel({
                   interrupting: { bg: 'bg-orange-600/20', text: 'text-orange-300', label: 'Interrupting' },
                   interrupted: { bg: 'bg-zinc-600/20', text: 'text-zinc-300', label: 'Interrupted' },
                   error: { bg: 'bg-rose-600/20', text: 'text-rose-300', label: 'Error' },
+                  paused: { bg: 'bg-sky-600/20', text: 'text-sky-300', label: 'Paused' },
                 };
                 const cfg = statusConfig[memberState] ?? statusConfig.idle;
+                const isPaused = memberState === 'paused';
                 return (
                   <div key={member.personaId} className="p-2 rounded-lg bg-zinc-900 border border-zinc-800">
                     <div className="flex items-center justify-between gap-2">
@@ -206,6 +210,14 @@ export function RoomDetailPanel({
                         >
                           {cfg.label}
                         </span>
+                        <button
+                          onClick={() => onToggleMemberPause(member.personaId, !isPaused)}
+                          className={`text-[10px] px-2 py-0.5 rounded text-zinc-100 ${
+                            isPaused ? 'bg-emerald-700 hover:bg-emerald-600' : 'bg-sky-700 hover:bg-sky-600'
+                          }`}
+                        >
+                          {isPaused ? 'Resume' : 'Pause'}
+                        </button>
                         <button
                           onClick={() => onRemoveMember(member.personaId)}
                           className="text-[10px] px-2 py-0.5 rounded bg-zinc-800 hover:bg-rose-700 text-zinc-200"

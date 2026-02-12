@@ -26,3 +26,26 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }
+
+export async function PATCH(request: Request, context: RouteContext) {
+  try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return unauthorized();
+    }
+
+    const params = await context.params;
+    const body = (await request.json()) as { paused?: boolean };
+    if (typeof body.paused !== 'boolean') {
+      return NextResponse.json({ ok: false, error: 'paused must be a boolean' }, { status: 400 });
+    }
+
+    const service = getRoomService();
+    const runtime = service.setMemberPaused(userContext.userId, params.id, params.personaId, body.paused);
+    return NextResponse.json({ ok: true, runtime });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = message.includes('not found') ? 404 : 500;
+    return NextResponse.json({ ok: false, error: message }, { status });
+  }
+}

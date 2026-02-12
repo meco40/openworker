@@ -136,6 +136,37 @@ export class RoomService {
     return this.repository.removeMember(roomId, personaId);
   }
 
+  setMemberPaused(userId: string, roomId: string, personaId: string, paused: boolean): RoomMemberRuntime {
+    const room = assertRoomOwner(this.repository.getRoom(roomId), userId);
+    const member = this.repository.listMembers(roomId).find((item) => item.personaId === personaId);
+    if (!member) {
+      throw new Error('Room member not found');
+    }
+
+    const existing = this.repository.getMemberRuntime(roomId, personaId);
+    const updated = this.repository.upsertMemberRuntime({
+      roomId,
+      personaId,
+      status: paused ? 'paused' : 'idle',
+      busyReason: paused ? 'Paused by user' : null,
+      busyUntil: null,
+      currentTask: null,
+      lastModel: existing?.lastModel ?? null,
+      lastProfileId: existing?.lastProfileId ?? null,
+      lastTool: existing?.lastTool ?? null,
+    });
+
+    broadcastToUser(room.userId, GatewayEvents.ROOM_MEMBER_STATUS, {
+      roomId,
+      personaId,
+      status: updated.status,
+      reason: updated.busyReason,
+      updatedAt: updated.updatedAt,
+    });
+
+    return updated;
+  }
+
   interruptMember(userId: string, roomId: string, personaId: string): RoomMemberRuntime {
     const room = assertRoomOwner(this.repository.getRoom(roomId), userId);
     const runtime = this.repository.getMemberRuntime(roomId, personaId);

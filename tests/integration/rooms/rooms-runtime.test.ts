@@ -158,7 +158,7 @@ describe('rooms runtime orchestrator', () => {
     });
     repo.addMember(room.id, 'persona-1', 'Researcher', 1, null);
 
-    for (const status of ['idle', 'busy', 'interrupting', 'interrupted', 'error'] as const) {
+    for (const status of ['idle', 'busy', 'interrupting', 'interrupted', 'error', 'paused'] as const) {
       const runtime = repo.upsertMemberRuntime({
         roomId: room.id,
         personaId: 'persona-1',
@@ -167,5 +167,36 @@ describe('rooms runtime orchestrator', () => {
       });
       expect(runtime.status).toBe(status);
     }
+  });
+
+  it('skips paused members during orchestration', async () => {
+    const repo = new SqliteRoomRepository(':memory:');
+    const room = repo.createRoom({
+      userId: 'user-a',
+      name: 'Office',
+      goalMode: 'planning',
+      routingProfileId: 'p1',
+    });
+    repo.addMember(room.id, 'persona-1', 'Researcher', 1, 'grok-4');
+    repo.addMember(room.id, 'persona-2', 'Reviewer', 1, 'grok-4');
+    repo.updateRunState(room.id, 'running');
+
+    repo.upsertMemberRuntime({
+      roomId: room.id,
+      personaId: 'persona-1',
+      status: 'paused',
+      busyReason: 'Paused by user',
+    });
+
+    const orchestrator = new RoomOrchestrator(repo, {
+      instanceId: 'scheduler-a',
+      activeModelsByProfile: { p1: ['grok-4'] },
+    });
+    const result = await orchestrator.runOnce();
+    const messages = repo.listMessages(room.id, 10);
+
+    expect(result.processedRooms).toBe(1);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.speakerPersonaId).toBe('persona-2');
   });
 });

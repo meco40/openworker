@@ -214,7 +214,7 @@ export class SqliteRoomRepository implements RoomRepository {
             CREATE TABLE _room_member_runtime_new (
               room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
               persona_id TEXT NOT NULL,
-              status TEXT NOT NULL CHECK (status IN ('idle', 'busy', 'interrupting', 'interrupted', 'error')),
+              status TEXT NOT NULL CHECK (status IN ('idle', 'busy', 'interrupting', 'interrupted', 'error', 'paused')),
               busy_reason TEXT,
               busy_until TEXT,
               current_task TEXT,
@@ -236,6 +236,44 @@ export class SqliteRoomRepository implements RoomRepository {
       } else {
         this.db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
           'runtime_add_extended_statuses', new Date().toISOString(),
+        );
+      }
+    }
+
+    if (!applied.has('runtime_add_paused_status')) {
+      const runtimeInfo = this.db.prepare(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='room_member_runtime'"
+      ).get() as { sql: string } | undefined;
+
+      if (runtimeInfo && !runtimeInfo.sql.includes("'paused'")) {
+        this.db.exec('PRAGMA foreign_keys = OFF');
+        this.db.transaction(() => {
+          this.db.exec(`
+            CREATE TABLE _room_member_runtime_paused_new (
+              room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+              persona_id TEXT NOT NULL,
+              status TEXT NOT NULL CHECK (status IN ('idle', 'busy', 'interrupting', 'interrupted', 'error', 'paused')),
+              busy_reason TEXT,
+              busy_until TEXT,
+              current_task TEXT,
+              last_model TEXT,
+              last_profile_id TEXT,
+              last_tool TEXT,
+              updated_at TEXT NOT NULL,
+              PRIMARY KEY (room_id, persona_id)
+            )
+          `);
+          this.db.exec('INSERT INTO _room_member_runtime_paused_new SELECT * FROM room_member_runtime');
+          this.db.exec('DROP TABLE room_member_runtime');
+          this.db.exec('ALTER TABLE _room_member_runtime_paused_new RENAME TO room_member_runtime');
+          this.db.prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+            'runtime_add_paused_status', new Date().toISOString(),
+          );
+        })();
+        this.db.exec('PRAGMA foreign_keys = ON');
+      } else {
+        this.db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+          'runtime_add_paused_status', new Date().toISOString(),
         );
       }
     }
@@ -399,7 +437,7 @@ export class SqliteRoomRepository implements RoomRepository {
       CREATE TABLE IF NOT EXISTS room_member_runtime (
         room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
         persona_id TEXT NOT NULL,
-        status TEXT NOT NULL CHECK (status IN ('idle', 'busy', 'interrupting', 'interrupted', 'error')),
+        status TEXT NOT NULL CHECK (status IN ('idle', 'busy', 'interrupting', 'interrupted', 'error', 'paused')),
         busy_reason TEXT,
         busy_until TEXT,
         current_task TEXT,

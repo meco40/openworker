@@ -63,7 +63,7 @@ export interface RoomRun {
   updatedAt: string;
 }
 
-export type RoomMemberRuntimeStatus = 'idle' | 'busy' | 'interrupting' | 'interrupted' | 'error';
+export type RoomMemberRuntimeStatus = 'idle' | 'busy' | 'interrupting' | 'interrupted' | 'error' | 'paused';
 
 export interface RoomMemberRuntime {
   roomId: string;

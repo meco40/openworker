@@ -140,4 +140,23 @@ describe('SqliteRoomRepository', () => {
     expect(context?.summary).toContain('Nadine');
     expect(context?.lastMessageSeq).toBe(5);
   });
+
+  it('supports paused member runtime status', () => {
+    const room = repo.createRoom({
+      userId: 'user-a',
+      name: 'Office',
+      goalMode: 'planning',
+      routingProfileId: 'p1',
+    });
+    repo.addMember(room.id, 'persona-1', 'Lead Analyst', 1, null);
+
+    const runtime = repo.upsertMemberRuntime({
+      roomId: room.id,
+      personaId: 'persona-1',
+      status: 'paused',
+      busyReason: 'Paused by user',
+    });
+    expect(runtime.status).toBe('paused');
+    expect(runtime.busyReason).toContain('Paused');
+  });
 });

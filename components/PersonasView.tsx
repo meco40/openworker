@@ -16,6 +16,7 @@ import {
   getRoomState,
   listRooms,
   removeRoomMember,
+  setRoomMemberPaused,
   sendRoomMessage,
   startRoom,
   stopRoom,
@@ -228,6 +229,19 @@ const PersonasView: React.FC = () => {
       if (!selectedRoomId) return;
       try {
         await removeRoomMember(selectedRoomId, personaId);
+        await loadRoomDetail(selectedRoomId);
+      } catch {
+        /* ignore */
+      }
+    },
+    [selectedRoomId, loadRoomDetail],
+  );
+
+  const toggleMemberPauseInSelectedRoom = useCallback(
+    async (personaId: string, paused: boolean) => {
+      if (!selectedRoomId) return;
+      try {
+        await setRoomMemberPaused(selectedRoomId, personaId, paused);
         await loadRoomDetail(selectedRoomId);
       } catch {
         /* ignore */
@@ -621,6 +635,7 @@ const PersonasView: React.FC = () => {
             onDelete={deleteSelectedRoom}
             onAddMember={addMemberToSelectedRoom}
             onRemoveMember={removeMemberFromSelectedRoom}
+            onToggleMemberPause={toggleMemberPauseInSelectedRoom}
             onSendMessage={sendMessageToSelectedRoom}
           />
         ) : !selectedPersona ? (

@@ -288,6 +288,64 @@ describe('rooms routes', () => {
     expect(counts.counts['persona-1']).toBe(2);
   });
 
+  it('pauses and resumes a room member via PATCH route', async () => {
+    mockUserContext({ userId: 'legacy-local-user', authenticated: false });
+
+    const roomsRoute = await import('../../../app/api/rooms/route');
+    const createdRes = await roomsRoute.POST(
+      new Request('http://localhost/api/rooms', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'Pause Test', goalMode: 'planning', routingProfileId: 'p1' }),
+      }),
+    );
+    const created = (await createdRes.json()) as { room: { id: string } };
+    const roomId = created.room.id;
+
+    const membersRoute = await import('../../../app/api/rooms/[id]/members/route');
+    await membersRoute.POST(
+      new Request('http://localhost/api/rooms/x/members', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ personaId: 'persona-1', roleLabel: 'Analyst' }),
+      }),
+      { params: Promise.resolve({ id: roomId }) },
+    );
+
+    const memberRoute = await import('../../../app/api/rooms/[id]/members/[personaId]/route');
+    const pauseRes = await memberRoute.PATCH(
+      new Request('http://localhost/api/rooms/x/members/persona-1', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ paused: true }),
+      }),
+      { params: Promise.resolve({ id: roomId, personaId: 'persona-1' }) },
+    );
+    expect(pauseRes.status).toBe(200);
+
+    const stateRoute = await import('../../../app/api/rooms/[id]/state/route');
+    const pausedStateRes = await stateRoute.GET(
+      new Request('http://localhost/api/rooms/x/state'),
+      { params: Promise.resolve({ id: roomId }) },
+    );
+    const pausedState = (await pausedStateRes.json()) as {
+      ok: boolean;
+      memberRuntime: Array<{ personaId: string; status: string }>;
+    };
+    expect(pausedState.ok).toBe(true);
+    expect(pausedState.memberRuntime.find((item) => item.personaId === 'persona-1')?.status).toBe('paused');
+
+    const resumeRes = await memberRoute.PATCH(
+      new Request('http://localhost/api/rooms/x/members/persona-1', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ paused: false }),
+      }),
+      { params: Promise.resolve({ id: roomId, personaId: 'persona-1' }) },
+    );
+    expect(resumeRes.status).toBe(200);
+  });
+
   it('removes room member and deletes room', async () => {
     mockUserContext({ userId: 'legacy-local-user', authenticated: false });
     const roomsRoute = await import('../../../app/api/rooms/route');

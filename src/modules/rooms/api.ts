@@ -66,6 +66,17 @@ export async function removeRoomMember(roomId: string, personaId: string): Promi
   }
 }
 
+export async function setRoomMemberPaused(roomId: string, personaId: string, paused: boolean): Promise<void> {
+  const response = await fetch(`/api/rooms/${roomId}/members/${personaId}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ paused }),
+  });
+  if (!response.ok) {
+    throw new Error(paused ? 'Failed to pause room member' : 'Failed to resume room member');
+  }
+}
+
 export async function startRoom(roomId: string): Promise<void> {
   const response = await fetch(`/api/rooms/${roomId}/start`, { method: 'POST' });
   if (!response.ok) {

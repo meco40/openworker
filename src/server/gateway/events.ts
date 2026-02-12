@@ -96,7 +96,7 @@ export interface RoomMessagePayload {
 export interface RoomMemberStatusPayload {
   roomId: string;
   personaId: string;
-  status: 'idle' | 'busy';
+  status: 'idle' | 'busy' | 'interrupting' | 'interrupted' | 'error' | 'paused';
   reason: string | null;
   updatedAt: string;
 }

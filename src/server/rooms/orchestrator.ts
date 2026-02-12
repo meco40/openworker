@@ -108,6 +108,7 @@ export class RoomOrchestrator {
         // ── Round-robin speaker selection ────────────────────────────
         // Find valid members (those with a resolvable model), then pick
         // the next one after the last persona who spoke.
+        const routableMembers: { personaId: string; model: string; profileId: string }[] = [];
         const validMembers: { personaId: string; model: string; profileId: string }[] = [];
         for (const member of members) {
           const resolved = resolveRoomRouting({
@@ -116,15 +117,20 @@ export class RoomOrchestrator {
             activeModelsByProfile,
           });
           if (resolved.model && resolved.profileId) {
-            validMembers.push({
+            const candidate = {
               personaId: member.personaId,
               model: resolved.model,
               profileId: resolved.profileId,
-            });
+            };
+            routableMembers.push(candidate);
+            const runtime = this.repository.getMemberRuntime(room.id, member.personaId);
+            if (runtime?.status !== 'paused') {
+              validMembers.push(candidate);
+            }
           }
         }
 
-        if (validMembers.length === 0) {
+        if (routableMembers.length === 0) {
           if (this.canMarkRoomDegraded(room.id)) {
             this.repository.closeActiveRoomRun(room.id, 'degraded', 'No active model for room members.');
             broadcastToUser(room.userId, GatewayEvents.ROOM_RUN_STATUS, {
@@ -133,6 +139,10 @@ export class RoomOrchestrator {
               updatedAt: this.now().toISOString(),
             });
           }
+          continue;
+        }
+
+        if (validMembers.length === 0) {
           continue;
         }
 
@@ -151,6 +161,11 @@ export class RoomOrchestrator {
           const lastIndex = validMembers.findIndex((m) => m.personaId === lastSpeakerId);
           const nextIndex = (lastIndex + 1) % validMembers.length;
           selected = validMembers[nextIndex]!;
+        }
+
+        const selectedRuntime = this.repository.getMemberRuntime(room.id, selected.personaId);
+        if (selectedRuntime?.status === 'paused') {
+          continue;
         }
 
         processedRooms += 1;
@@ -431,7 +446,11 @@ export class RoomOrchestrator {
 
         // Only persist if we got a response (not interrupted / errored out with break)
         const currentStatus = this.repository.getMemberRuntime(room.id, selected.personaId);
-        if (currentStatus?.status === 'interrupted' || currentStatus?.status === 'error') {
+        if (
+          currentStatus?.status === 'interrupted' ||
+          currentStatus?.status === 'error' ||
+          currentStatus?.status === 'paused'
+        ) {
           // Already handled above — skip message persist
           this.repository.heartbeatRoomLease(room.id, lease.id, this.instanceId, this.resolveLeaseExpiryIso());
           continue;
