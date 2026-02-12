@@ -82,7 +82,7 @@ export class SqliteAutomationRepository implements AutomationRepository {
     if (dbPath === ':memory:') {
       this.db = new Database(':memory:');
     } else {
-      const fullPath = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
+      const fullPath = path.resolve(dbPath);
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
       this.db = new Database(fullPath);
     }
@@ -508,3 +508,4 @@ export class SqliteAutomationRepository implements AutomationRepository {
     this.db.close();
   }
 }
+

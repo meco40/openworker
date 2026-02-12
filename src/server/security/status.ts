@@ -40,7 +40,7 @@ interface BuildSecurityStatusInput {
 }
 
 function resolveMessagesDbPath(rawPath = process.env.MESSAGES_DB_PATH || '.local/messages.db'): string {
-  return path.isAbsolute(rawPath) ? rawPath : path.join(process.cwd(), rawPath);
+  return path.resolve(rawPath);
 }
 
 function hasDangerousCommandEnabled(commands: CommandPermission[]): boolean {
@@ -236,3 +236,4 @@ export function buildSecurityStatusSnapshot(
     generatedAt: new Date().toISOString(),
   };
 }
+

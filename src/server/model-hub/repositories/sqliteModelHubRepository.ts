@@ -44,7 +44,7 @@ export class SqliteModelHubRepository implements ModelHubRepository {
   private readonly db: ReturnType<typeof Database>;
 
   constructor(dbPath = process.env.MODEL_HUB_DB_PATH || '.local/model-hub.db') {
-    const fullPath = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
+    const fullPath = path.resolve(dbPath);
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
     this.db = new Database(fullPath);
     this.db.exec(`
@@ -224,3 +224,4 @@ export class SqliteModelHubRepository implements ModelHubRepository {
     return entries;
   }
 }
+

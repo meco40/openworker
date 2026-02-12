@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 const MAX_RESULT_ROWS = 200;
 
 function ensureWorkspacePath(userPath: string): string {
-  const workspaceRoot = process.cwd();
+  const workspaceRoot = path.resolve('.');
   const resolved = path.resolve(workspaceRoot, userPath);
   if (!resolved.startsWith(workspaceRoot)) {
     throw new Error('Path escapes workspace root.');
@@ -38,3 +38,4 @@ export async function dbQueryHandler(args: Record<string, unknown>) {
     db.close();
   }
 }
+
