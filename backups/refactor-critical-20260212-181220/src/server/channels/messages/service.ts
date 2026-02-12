@@ -1,5 +1,6 @@
 import { ChannelType } from '../../../../types';
 import type { MessageRepository, StoredMessage, Conversation } from './repository';
+import type { ChannelKey } from '../adapters/types';
 import { broadcastToUser } from '../../gateway/broadcast';
 import { GatewayEvents } from '../../gateway/events';
 import { deliverOutbound } from '../outbound/router';
@@ -11,13 +12,6 @@ import { SessionManager } from './sessionManager';
 import { HistoryManager } from './historyManager';
 import { ContextBuilder } from './contextBuilder';
 import { getPersonaRepository } from '../../personas/personaRepository';
-import { statusIconForWorker } from './statusIcons';
-import { buildFallbackSummary, isAiSummaryEnabled } from './summary';
-import {
-  applyChannelBindingPersona,
-  getChannelBindingPersonaId,
-  setChannelBindingPersona,
-} from './channelBindingPersona';
 
 // ─── MessageService ──────────────────────────────────────────
 
@@ -178,7 +172,7 @@ export class MessageService {
       }
 
       // For external channels, auto-apply persona from channel binding
-      const effectiveConversation = applyChannelBindingPersona(this.repo, conversation, platform);
+      const effectiveConversation = this.applyChannelBindingPersona(conversation, platform);
 
       return { userMsg, agentMsg: await this.dispatchToAI(effectiveConversation, platform, externalChatId) };
     } finally {
@@ -245,7 +239,7 @@ export class MessageService {
           );
         }
         const lines = tasks.map(
-          (t) => `• ${statusIconForWorker(t.status)} **${t.title}** (\`${t.id}\`) — ${t.status}`,
+          (t) => `• ${this.statusIcon(t.status)} **${t.title}** (\`${t.id}\`) — ${t.status}`,
         );
         return this.sendResponse(conversation, `📋 **Tasks:**\n${lines.join('\n')}`, platform, externalChatId);
       }
@@ -281,7 +275,7 @@ export class MessageService {
           );
         return this.sendResponse(
           conversation,
-          `${statusIconForWorker(task.status)} **${task.title}**\nStatus: ${task.status}\nSchritt: ${task.currentStep}/${task.totalSteps}${task.resultSummary ? `\n\n${task.resultSummary}` : ''}${task.errorMessage ? `\n\n⚠️ ${task.errorMessage}` : ''}`,
+          `${this.statusIcon(task.status)} **${task.title}**\nStatus: ${task.status}\nSchritt: ${task.currentStep}/${task.totalSteps}${task.resultSummary ? `\n\n${task.resultSummary}` : ''}${task.errorMessage ? `\n\n⚠️ ${task.errorMessage}` : ''}`,
           platform,
           externalChatId,
         );
@@ -754,7 +748,7 @@ export class MessageService {
 
     // /persona (no args) → show current + help
     if (!lower) {
-      const currentPersonaId = getChannelBindingPersonaId(this.repo, conversation.userId, platform);
+      const currentPersonaId = this.getChannelBindingPersonaId(conversation.userId, platform);
       const currentPersona = currentPersonaId ? personaRepo.getPersona(currentPersonaId) : null;
 
       const lines = [
@@ -783,7 +777,7 @@ export class MessageService {
         );
       }
 
-      const currentPersonaId = getChannelBindingPersonaId(this.repo, conversation.userId, platform);
+      const currentPersonaId = this.getChannelBindingPersonaId(conversation.userId, platform);
       const lines = ['🎭 **Verfügbare Personas:**', ''];
       for (const p of personas) {
         const active = p.id === currentPersonaId ? ' ✅' : '';
@@ -796,7 +790,7 @@ export class MessageService {
 
     // /persona off|clear|default → deactivate
     if (lower === 'off' || lower === 'clear' || lower === 'default') {
-      setChannelBindingPersona(this.repo, conversation.userId, platform, null);
+      this.setChannelBindingPersona(conversation.userId, platform, null);
       // Also clear on current conversation
       this.repo.updatePersonaId(conversation.id, null, conversation.userId);
       return this.sendResponse(
@@ -823,7 +817,7 @@ export class MessageService {
     }
 
     // Apply persona to channel binding + current conversation
-    setChannelBindingPersona(this.repo, conversation.userId, platform, match.id);
+    this.setChannelBindingPersona(conversation.userId, platform, match.id);
     this.repo.updatePersonaId(conversation.id, match.id, conversation.userId);
 
     return this.sendResponse(
@@ -832,6 +826,46 @@ export class MessageService {
       platform,
       externalChatId,
     );
+  }
+
+  // ─── Channel Binding Persona Helpers ────────────────────────
+
+  /**
+   * Get the persona ID from the channel binding for this user + platform.
+   */
+  private getChannelBindingPersonaId(userId: string, platform: ChannelType): string | null {
+    if (!this.repo.getChannelBinding) return null;
+    const binding = this.repo.getChannelBinding(userId, platform as string as ChannelKey);
+    return binding?.personaId ?? null;
+  }
+
+  /**
+   * Set the persona for a channel binding.
+   */
+  private setChannelBindingPersona(userId: string, platform: ChannelType, personaId: string | null): void {
+    if (!this.repo.updateChannelBindingPersona) return;
+    this.repo.updateChannelBindingPersona(userId, platform as string as ChannelKey, personaId);
+  }
+
+  /**
+   * For external channels (Telegram, WhatsApp, etc.), look up the channel binding persona
+   * and apply it to the conversation if the conversation doesn't already have one.
+   * Returns a conversation copy with the effective personaId.
+   */
+  private applyChannelBindingPersona(conversation: Conversation, platform: ChannelType): Conversation {
+    // WebChat uses the React Context — skip
+    if (platform === ChannelType.WEBCHAT) return conversation;
+
+    // If the conversation already has a persona, use it
+    if (conversation.personaId) return conversation;
+
+    // Look up channel binding persona
+    const bindingPersonaId = this.getChannelBindingPersonaId(conversation.userId, platform);
+    if (!bindingPersonaId) return conversation;
+
+    // Apply to conversation (persist + return updated copy)
+    this.repo.updatePersonaId(conversation.id, bindingPersonaId, conversation.userId);
+    return { ...conversation, personaId: bindingPersonaId };
   }
 
   // ─── Helper: Send & Broadcast Response ─────────────────────
@@ -853,6 +887,22 @@ export class MessageService {
     }
 
     return agentMsg;
+  }
+
+  private statusIcon(status: string): string {
+    const icons: Record<string, string> = {
+      queued: '⏳',
+      planning: '📝',
+      executing: '⚙️',
+      completed: '✅',
+      failed: '❌',
+      cancelled: '🛑',
+      interrupted: '⚡',
+      waiting_approval: '⚠️',
+      clarifying: '❓',
+      review: '🔍',
+    };
+    return icons[status] || '❔';
   }
 
   // ─── WebUI Handler ─────────────────────────────────────────
@@ -967,9 +1017,9 @@ export class MessageService {
     messages: Array<{ role: 'user' | 'agent' | 'system'; content: string }>,
     conversationId: string,
   ): Promise<string> {
-    const fallbackSummary = buildFallbackSummary(previousSummary, messages);
+    const fallbackSummary = this.buildFallbackSummary(previousSummary, messages);
 
-    if (!isAiSummaryEnabled()) {
+    if (!this.isAiSummaryEnabled()) {
       return fallbackSummary;
     }
 
@@ -1014,6 +1064,26 @@ export class MessageService {
     }
   }
 
+  private buildFallbackSummary(
+    previousSummary: string,
+    messages: Array<{ role: 'user' | 'agent' | 'system'; content: string }>,
+  ): string {
+    const summaryChunk = messages
+      .map((message) => `[${message.role}] ${message.content.replace(/\s+/g, ' ').trim()}`)
+      .join(' ')
+      .slice(0, 2500);
+
+    if (!summaryChunk) {
+      return previousSummary.slice(-5000);
+    }
+
+    return previousSummary ? `${previousSummary}\n${summaryChunk}`.slice(-5000) : summaryChunk;
+  }
+
+  private isAiSummaryEnabled(): boolean {
+    const mode = String(process.env.CHAT_SUMMARY_MODE || 'ai').toLowerCase();
+    return mode !== 'fallback' && mode !== 'concat';
+  }
 }
 
 

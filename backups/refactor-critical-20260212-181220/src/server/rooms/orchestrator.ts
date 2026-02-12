@@ -2,19 +2,12 @@ import type { RoomRepository } from './repository';
 import type { GatewayMessage } from '../model-hub/Models/types';
 import { broadcastToUser } from '../gateway/broadcast';
 import { GatewayEvents } from '../gateway/events';
+import { resolveRoomRouting } from './service';
 import { executeRoomTool } from './toolExecutor';
 import { getPersonaRepository } from '../personas/personaRepository';
 import { getSkillRepository } from '../skills/skillRepository';
 import { mapSkillsToTools } from '../../../skills/definitions';
 import type { Skill } from '../../../types';
-import {
-  buildGatewayHistoryMessages,
-  buildPersonaNameMap,
-  buildSystemPromptParts,
-  resolveRoutableMembers,
-  selectNextSpeaker,
-  stripSpeakerPrefix,
-} from './orchestratorUtils';
 
 export interface RoomOrchestratorRunResult {
   processedRooms: number;
@@ -115,13 +108,27 @@ export class RoomOrchestrator {
         // ── Round-robin speaker selection ────────────────────────────
         // Find valid members (those with a resolvable model), then pick
         // the next one after the last persona who spoke.
-        const { routableMembers, validMembers } = resolveRoutableMembers(
-          this.repository,
-          members,
-          room.id,
-          room.routingProfileId,
-          activeModelsByProfile,
-        );
+        const routableMembers: { personaId: string; model: string; profileId: string }[] = [];
+        const validMembers: { personaId: string; model: string; profileId: string }[] = [];
+        for (const member of members) {
+          const resolved = resolveRoomRouting({
+            roomProfileId: room.routingProfileId,
+            memberModelOverride: member.modelOverride,
+            activeModelsByProfile,
+          });
+          if (resolved.model && resolved.profileId) {
+            const candidate = {
+              personaId: member.personaId,
+              model: resolved.model,
+              profileId: resolved.profileId,
+            };
+            routableMembers.push(candidate);
+            const runtime = this.repository.getMemberRuntime(room.id, member.personaId);
+            if (runtime?.status !== 'paused') {
+              validMembers.push(candidate);
+            }
+          }
+        }
 
         if (routableMembers.length === 0) {
           if (this.canMarkRoomDegraded(room.id)) {
@@ -146,9 +153,14 @@ export class RoomOrchestrator {
           .find((m) => m.speakerType === 'persona' && m.speakerPersonaId);
         const lastSpeakerId = lastPersonaMessage?.speakerPersonaId;
 
-        const selected = selectNextSpeaker(validMembers, lastSpeakerId || null);
-        if (!selected) {
-          continue;
+        let selected: { personaId: string; model: string; profileId: string };
+        if (!lastSpeakerId) {
+          // No persona has spoken yet — pick the first valid member
+          selected = validMembers[0]!;
+        } else {
+          const lastIndex = validMembers.findIndex((m) => m.personaId === lastSpeakerId);
+          const nextIndex = (lastIndex + 1) % validMembers.length;
+          selected = validMembers[nextIndex]!;
         }
 
         const selectedRuntime = this.repository.getMemberRuntime(room.id, selected.personaId);
@@ -188,11 +200,26 @@ export class RoomOrchestrator {
         const systemInstruction = personaRepo.getPersonaSystemInstruction(selected.personaId);
         const persona = personaRepo.getPersona(selected.personaId);
 
-        const systemParts = buildSystemPromptParts({
-          systemInstruction,
-          persona: persona ? { name: persona.name, vibe: persona.vibe } : null,
-          roomDescription: room.description ?? null,
-        });
+        // Build system prompt parts
+        const systemParts: string[] = [];
+
+        // SOUL.md / AGENTS.md / USER.md first
+        if (systemInstruction) {
+          systemParts.push(systemInstruction);
+        } else if (persona) {
+          // Fallback when no personality files exist
+          const fallback = [`Dein Name ist "${persona.name}".`];
+          if (persona.vibe) fallback.push(`Vibe: ${persona.vibe}`);
+          systemParts.push(fallback.join(' '));
+        }
+
+        // Room context
+        if (room.description) {
+          systemParts.push(`---\nKontext: ${room.description}\n---`);
+        }
+
+        // Group behavior
+        systemParts.push('Du bist in einer Gruppendiskussion. Antworte nur als du selbst.');
 
         // 2. Context summary (if available)
         const previousContext = this.repository.getPersonaContext(room.id, selected.personaId);
@@ -201,18 +228,35 @@ export class RoomOrchestrator {
         const recentMessages = this.repository.listMessages(room.id, 20);
 
         // Build a persona ID → name map for message attribution (no emoji)
-        const personaNameMap = buildPersonaNameMap(members, (personaId) =>
-          personaRepo.getPersona(personaId),
-        );
+        const personaNameMap = new Map<string, string>();
+        for (const m of members) {
+          const p = personaRepo.getPersona(m.personaId);
+          personaNameMap.set(m.personaId, p?.name || m.personaId);
+        }
 
         const gatewayMessages: GatewayMessage[] = [];
 
         // Prepend system message (same pattern as normal WebUI chat)
         gatewayMessages.push({ role: 'system', content: systemParts.join('\n\n') });
 
-        gatewayMessages.push(
-          ...buildGatewayHistoryMessages(recentMessages, selected.personaId, personaNameMap),
-        );
+        // Add conversation history
+        for (const msg of recentMessages) {
+          const isOwnMessage = msg.speakerType === 'persona' && msg.speakerPersonaId === selected.personaId;
+          let content = msg.content;
+          if (msg.speakerType === 'persona' && msg.speakerPersonaId && !isOwnMessage) {
+            // Only prefix OTHER personas' messages — own messages go as plain assistant role
+            const name = personaNameMap.get(msg.speakerPersonaId) || msg.speakerPersonaId;
+            content = `[${name}]: ${msg.content}`;
+          } else if (msg.speakerType === 'user') {
+            content = `[User]: ${msg.content}`;
+          } else if (msg.speakerType === 'system') {
+            content = `[System]: ${msg.content}`;
+          }
+          gatewayMessages.push({
+            role: isOwnMessage ? 'assistant' as const : 'user' as const,
+            content,
+          });
+        }
 
         // If no messages yet, seed with context summary or task-aware prompt
         if (gatewayMessages.length === 0) {
@@ -415,7 +459,7 @@ export class RoomOrchestrator {
         if (responseText) {
           // Strip any [Name]: prefix the model may have echoed — speaker attribution
           // is already stored via speakerPersonaId, not inline text.
-          responseText = stripSpeakerPrefix(responseText);
+          responseText = responseText.replace(/^\[[^\]]{1,30}\]:\s*/g, '').trim();
 
           const message = this.repository.appendMessage({
             roomId: room.id,
