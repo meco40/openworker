@@ -3,7 +3,13 @@ import type { HealthCheck } from './healthTypes';
 export type DoctorFindingSeverity = 'warning' | 'critical';
 
 export interface DoctorFinding {
-  id: 'security_critical' | 'bridge_unreachable' | 'error_spike' | 'task_backlog';
+  id:
+    | 'security_critical'
+    | 'security_warning'
+    | 'bridge_unreachable'
+    | 'error_trend_anomaly'
+    | 'error_spike'
+    | 'task_backlog';
   severity: DoctorFindingSeverity;
   title: string;
   detail: string;
@@ -13,6 +19,7 @@ export interface DoctorFinding {
 interface BuildDoctorFindingsInput {
   checks: HealthCheck[];
   errorCountLast15m: number;
+  errorCountPrevious15m: number;
   openTaskCount: number;
 }
 
@@ -32,6 +39,15 @@ export function buildDoctorFindings(input: BuildDoctorFindingsInput): DoctorFind
       detail: securityCheck.message,
       recommendation:
         'Review `/api/security/status`, disable high-risk command permissions, and fix missing secrets.',
+    });
+  } else if (securityCheck?.status === 'warning') {
+    findings.push({
+      id: 'security_warning',
+      severity: 'warning',
+      title: 'Security Warnings Present',
+      detail: securityCheck.message,
+      recommendation:
+        'Open `/api/security/status` and resolve the reported warnings before promoting to production.',
     });
   }
 
@@ -59,6 +75,28 @@ export function buildDoctorFindings(input: BuildDoctorFindingsInput): DoctorFind
       title: 'Error Spike Detected',
       detail: `${input.errorCountLast15m} error logs in the last 15 minutes.`,
       recommendation: 'Inspect recent error logs and correlate with recent deployments or outages.',
+    });
+  }
+
+  if (
+    input.errorCountLast15m >= 8 &&
+    ((input.errorCountPrevious15m === 0 && input.errorCountLast15m >= 10) ||
+      (input.errorCountPrevious15m > 0 &&
+        input.errorCountLast15m >= input.errorCountPrevious15m * 2 &&
+        input.errorCountLast15m - input.errorCountPrevious15m >= 5))
+  ) {
+    findings.push({
+      id: 'error_trend_anomaly',
+      severity:
+        input.errorCountPrevious15m === 0
+          ? 'critical'
+          : input.errorCountLast15m >= input.errorCountPrevious15m * 3
+            ? 'critical'
+            : 'warning',
+      title: 'Error Trend Anomaly',
+      detail: `Error trend changed from ${input.errorCountPrevious15m} to ${input.errorCountLast15m} in consecutive 15-minute windows.`,
+      recommendation:
+        'Investigate recent deployments or upstream dependency changes and set temporary alert escalation.',
     });
   }
 

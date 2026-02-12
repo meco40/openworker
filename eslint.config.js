@@ -10,7 +10,7 @@ const config = [
   ...nextTypescript,
   {
     name: 'project/ignores',
-    ignores: ['.next/**', 'out/**', 'build/**', 'dist/**', 'coverage/**', 'node_modules/**'],
+    ignores: ['.next/**', '.worktrees/**', 'demo/**', 'out/**', 'build/**', 'dist/**', 'coverage/**', 'node_modules/**'],
   },
   {
     name: 'project/quality-rules',

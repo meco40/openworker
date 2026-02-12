@@ -25,6 +25,7 @@ interface LogEntry {
 
 type LevelFilter = 'all' | 'debug' | 'info' | 'warn' | 'error';
 type DiagnosticsStatus = 'ok' | 'degraded' | 'critical' | 'unknown';
+export const DIAGNOSTICS_REFRESH_INTERVAL_MS = 60000;
 
 interface HealthSummary {
   ok: number;
@@ -79,6 +80,17 @@ interface DoctorApiResponse {
   recommendations?: string[];
   generatedAt?: string;
   error?: string;
+}
+
+type DiagnosticsIssueSeverity = 'warning' | 'critical';
+
+export interface HealthIssueInsight {
+  code: string;
+  rawMessage: string;
+  severity: DiagnosticsIssueSeverity;
+  title: string;
+  meaning: string;
+  action: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -157,6 +169,80 @@ function parseDiagnosticsStatus(value: unknown): DiagnosticsStatus {
     return value;
   }
   return 'unknown';
+}
+
+const HEALTH_ISSUE_HINTS: Record<
+  string,
+  Pick<HealthIssueInsight, 'title' | 'meaning' | 'action'>
+> = {
+  'security.snapshot': {
+    title: 'Security-Check hat Warnungen',
+    meaning: 'Sicherheitsregeln oder Secrets sind nicht vollständig abgesichert.',
+    action: 'Open `/api/security/status` and resolve warning entries.',
+  },
+  'diagnostics.task_backlog': {
+    title: 'Worker-Backlog ist hoch',
+    meaning: 'Zu viele offene Tasks verlangsamen Antworten und Verarbeitung.',
+    action: 'Offene Tasks reduzieren oder Worker-Kapazitaet erhoehen.',
+  },
+  'diagnostics.memory_pressure': {
+    title: 'Arbeitsspeicher ist fast voll',
+    meaning: 'Der Arbeitsspeicher (Node-Heap) ist nahe am Limit und kann instabil werden.',
+    action: 'Worker-Last reduzieren, alte Tasks aufraeumen und Prozess neu starten.',
+  },
+  'diagnostics.error_budget': {
+    title: 'Fehlerquote zu hoch',
+    meaning: 'Zu viele Fehler im Zeitfenster deuten auf ein akutes Incident-Risiko hin.',
+    action: 'Error-Logs korrelieren, letzte Aenderungen pruefen und Rollback erwägen.',
+  },
+  'integration.whatsapp_bridge': {
+    title: 'WhatsApp-Integration gestoert',
+    meaning: 'Die Bridge ist erreichbar, meldet aber Fehler oder Timeouts.',
+    action: 'Bridge-Service und Credentials pruefen, danach Health neu laden.',
+  },
+  'integration.imessage_bridge': {
+    title: 'iMessage-Integration gestoert',
+    meaning: 'Die Bridge ist erreichbar, meldet aber Fehler oder Timeouts.',
+    action: 'Bridge-Service und Credentials pruefen, danach Health neu laden.',
+  },
+};
+
+function normalizeIssueMessage(raw: string): string {
+  return raw.replace(/\s+/g, ' ').trim();
+}
+
+function resolveIssueSeverity(message: string): DiagnosticsIssueSeverity {
+  const normalized = message.toLowerCase();
+  if (normalized.includes('critical')) {
+    return 'critical';
+  }
+  return 'warning';
+}
+
+export function toHealthIssueInsight(issue: string): HealthIssueInsight {
+  const separator = issue.indexOf(':');
+  const code = separator > 0 ? issue.slice(0, separator).trim() : 'unknown.check';
+  const rawMessage = normalizeIssueMessage(
+    separator > 0 ? issue.slice(separator + 1) : issue,
+  );
+  const severity = resolveIssueSeverity(rawMessage);
+
+  const hint = HEALTH_ISSUE_HINTS[code] ?? {
+    title: 'Diagnose-Check auffaellig',
+    meaning:
+      'Ein Diagnose-Check hat eine Warnung oder einen kritischen Status gemeldet.',
+    action:
+      'Details im Health-Report pruefen (`/api/health`) und Logs auf zusammenhaengende Fehler filtern.',
+  };
+
+  return {
+    code,
+    rawMessage,
+    severity,
+    title: hint.title,
+    meaning: hint.meaning,
+    action: hint.action,
+  };
 }
 
 export function extractHealthIssues(
@@ -390,7 +476,7 @@ const LogsView: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       void fetchDiagnostics();
-    }, 30000);
+    }, DIAGNOSTICS_REFRESH_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [fetchDiagnostics]);
@@ -499,16 +585,7 @@ const LogsView: React.FC = () => {
     if (search && !l.message.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
-
-  // ── Level counts ───────────────────────────────────────────
-
-  const levelCounts = logs.reduce(
-    (acc, l) => {
-      acc[l.level] = (acc[l.level] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
+  const healthIssueInsights = healthDiagnostics.issues.map(toHealthIssueInsight);
 
   // ── Render ─────────────────────────────────────────────────
 
@@ -596,15 +673,32 @@ const LogsView: React.FC = () => {
                 </div>
                 <div className="mt-2 rounded border border-zinc-800/80 bg-black/30 px-2 py-1.5">
                   <div className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
-                    Current Warnings
+                    Was Bedeutet Das?
                   </div>
-                  {healthDiagnostics.issues.length === 0 ? (
+                  {healthIssueInsights.length === 0 ? (
                     <div className="mt-1 text-[11px] text-zinc-400">No active warnings</div>
                   ) : (
                     <div className="mt-1 space-y-1">
-                      {healthDiagnostics.issues.map((issue, index) => (
-                        <div key={`${issue}-${index}`} className="text-[11px] text-amber-300 break-words">
-                          {issue}
+                      {healthIssueInsights.map((issue, index) => (
+                        <div
+                          key={`${issue.code}-${index}`}
+                          className="rounded border border-zinc-800/80 bg-black/40 px-2 py-1.5"
+                        >
+                          <div
+                            className={`text-[11px] font-bold break-words ${
+                              issue.severity === 'critical'
+                                ? 'text-rose-300'
+                                : 'text-amber-300'
+                            }`}
+                          >
+                            {issue.code}: {issue.rawMessage}
+                          </div>
+                          <div className="mt-1 text-[11px] text-zinc-300 break-words">
+                            Bedeutung: {issue.meaning}
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-zinc-400 break-words">
+                            Aktion: {issue.action}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -671,30 +765,6 @@ const LogsView: React.FC = () => {
             );
           })()}
         </div>
-      </div>
-
-      {/* Stats Bar */}
-      <div className="grid grid-cols-4 gap-3">
-        {(['info', 'warn', 'error', 'debug'] as const).map((level) => {
-          const config = LEVEL_CONFIG[level];
-          const count = levelCounts[level] || 0;
-          return (
-            <button
-              key={level}
-              onClick={() => setLevelFilter((prev) => (prev === level ? 'all' : level))}
-              className={`px-4 py-2.5 rounded-lg border transition-all text-left group ${
-                levelFilter === level
-                  ? `${config.bg} ${config.badge} border`
-                  : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'
-              }`}
-            >
-              <div className={`text-[10px] font-black uppercase tracking-widest ${config.color}`}>
-                {level}
-              </div>
-              <div className="text-lg font-bold text-white">{count}</div>
-            </button>
-          );
-        })}
       </div>
 
       {/* Toolbar */}

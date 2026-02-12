@@ -95,8 +95,11 @@ describe('automation runtime', () => {
     });
 
     await runtime.runOnce();
+    await new Promise((resolve) => setTimeout(resolve, 2));
     await runtime.runOnce();
+    await new Promise((resolve) => setTimeout(resolve, 2));
     await runtime.runOnce();
+    await new Promise((resolve) => setTimeout(resolve, 2));
     await runtime.runOnce();
 
     const runs = service.listRuns(rule.id, rule.userId);

@@ -11,7 +11,11 @@ afterEach(() => {
   delete process.env.WHATSAPP_BRIDGE_URL;
   delete process.env.IMESSAGE_BRIDGE_URL;
   delete process.env.MESSAGES_DB_PATH;
+  delete process.env.WORKER_DB_PATH;
+  delete process.env.LOGS_DB_PATH;
+  delete process.env.ALERT_WEBHOOK_URL;
   globalThis.__credentialStore = undefined;
+  globalThis.__logRepository = undefined;
 });
 
 describe('runHealthCommand', () => {
@@ -27,7 +31,16 @@ describe('runHealthCommand', () => {
 
   it('marks report as degraded when a configured bridge health check fails', async () => {
     process.env.MESSAGES_DB_PATH = ':memory:';
+    process.env.WORKER_DB_PATH = ':memory:';
+    process.env.LOGS_DB_PATH = ':memory:';
     process.env.WHATSAPP_BRIDGE_URL = 'http://bridge.local';
+    vi.doMock('../../../src/server/security/status', () => ({
+      buildSecurityStatusSnapshot: (): SecuritySnapshot => ({
+        checks: [],
+        summary: { ok: 1, warning: 0, critical: 0 },
+      }),
+    }));
+
     const { getCredentialStore } = await import('../../../src/server/channels/credentials');
     getCredentialStore().setCredential('whatsapp', 'pairing_status', 'connected');
 
@@ -96,5 +109,39 @@ describe('runHealthCommand', () => {
     const bridgeCheck = report.checks.find((c) => c.id === 'integration.whatsapp_bridge');
     expect(bridgeCheck?.status).toBe('critical');
     expect(report.status).toBe('critical');
+  });
+
+  it('includes diagnostics checks for error budget, backlog, memory pressure and alert routing', async () => {
+    process.env.MESSAGES_DB_PATH = ':memory:';
+
+    const { LogRepository } = await import('../../../src/logging/logRepository');
+    const { getWorkerRepository } = await import('../../../src/server/worker/workerRepository');
+    const repo = new LogRepository(':memory:');
+    globalThis.__logRepository = repo;
+
+    for (let i = 0; i < 30; i += 1) {
+      repo.insertLog('info', 'SYS', `info-${i}`, { i }, 'system');
+    }
+    for (let i = 0; i < 2; i += 1) {
+      repo.insertLog('error', 'SYS', `error-${i}`, { i }, 'system');
+    }
+
+    const workerRepo = getWorkerRepository();
+    for (let i = 0; i < 21; i += 1) {
+      workerRepo.createTask({
+        title: `Task ${i}`,
+        objective: 'health diagnostics backlog test',
+        originPlatform: 'WebChat' as never,
+        originConversation: `conv-${i}`,
+      });
+    }
+
+    const { runHealthCommand } = await import('../../../src/commands/healthCommand');
+    const report = await runHealthCommand();
+
+    expect(report.checks.some((c) => c.id === 'diagnostics.error_budget')).toBe(true);
+    expect(report.checks.some((c) => c.id === 'diagnostics.task_backlog')).toBe(true);
+    expect(report.checks.some((c) => c.id === 'diagnostics.memory_pressure')).toBe(true);
+    expect(report.checks.find((c) => c.id === 'diagnostics.alert_routing')?.status).toBe('skipped');
   });
 });

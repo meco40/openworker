@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  DIAGNOSTICS_REFRESH_INTERVAL_MS,
   extractDoctorFindingDetails,
   extractHealthIssues,
+  toHealthIssueInsight,
 } from '../../../components/LogsView';
 
 describe('LogsView diagnostics data helpers', () => {
@@ -31,5 +33,29 @@ describe('LogsView diagnostics data helpers', () => {
     expect(details).toEqual([
       'Bridge Health Degraded: Bridge timeout while probing health endpoint',
     ]);
+  });
+
+  it('maps memory pressure issues to clear meaning and action', () => {
+    const insight = toHealthIssueInsight(
+      'diagnostics.memory_pressure: Memory pressure critical: 98.2% heap usage.',
+    );
+
+    expect(insight.code).toBe('diagnostics.memory_pressure');
+    expect(insight.severity).toBe('critical');
+    expect(insight.meaning).toContain('Arbeitsspeicher');
+    expect(insight.action).toContain('Worker');
+  });
+
+  it('uses generic fallback for unknown issue codes', () => {
+    const insight = toHealthIssueInsight('unknown.check: Something unexpected happened');
+
+    expect(insight.code).toBe('unknown.check');
+    expect(insight.severity).toBe('warning');
+    expect(insight.meaning).toContain('Diagnose-Check');
+    expect(insight.action).toContain('/api/health');
+  });
+
+  it('uses 60-second diagnostics refresh interval', () => {
+    expect(DIAGNOSTICS_REFRESH_INTERVAL_MS).toBe(60000);
   });
 });

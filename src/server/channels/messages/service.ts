@@ -570,7 +570,6 @@ export class MessageService {
         );
     }
   }
-
   // ─── AI Dispatch (existing logic) ──────────────────────────
 
   private async dispatchToAI(
@@ -886,3 +885,5 @@ export class MessageService {
     return mode !== 'fallback' && mode !== 'concat';
   }
 }
+
+

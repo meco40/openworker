@@ -8,6 +8,22 @@ import { getLogRepository } from '../logging/logRepository';
 import type { HealthCheck, HealthCheckStatus, HealthCommandOptions } from './healthTypes';
 
 const DEFAULT_TIMEOUT_MS = 3000;
+const ERROR_BUDGET_WINDOW_MS = 15 * 60 * 1000;
+const ERROR_BUDGET_MIN_SAMPLE = 20;
+const ERROR_BUDGET_WARNING_RATIO = 0.05;
+const ERROR_BUDGET_CRITICAL_RATIO = 0.1;
+const TASK_BACKLOG_WARNING_THRESHOLD = 20;
+const TASK_BACKLOG_CRITICAL_THRESHOLD = 50;
+const MEMORY_PRESSURE_WARNING = 0.8;
+const MEMORY_PRESSURE_CRITICAL = 0.9;
+const OPEN_TASK_STATUSES = new Set([
+  'queued',
+  'planning',
+  'clarifying',
+  'executing',
+  'review',
+  'waiting_approval',
+]);
 
 function elapsedMs(start: number): number {
   return Date.now() - start;
@@ -41,6 +57,30 @@ function skippedCheck(
   details?: Record<string, unknown>,
 ): HealthCheck {
   return { id, category, status: 'skipped', message, details, latencyMs: 0 };
+}
+
+function formatPercent(value: number): string {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function resolveRecentLogWindowStats(): { total: number; errors: number; windowMinutes: number } {
+  const threshold = Date.now() - ERROR_BUDGET_WINDOW_MS;
+  const logs = getLogRepository().listLogs({ limit: 4000 });
+  let total = 0;
+  let errors = 0;
+
+  for (const entry of logs) {
+    const ts = Date.parse(entry.createdAt || entry.timestamp);
+    if (!Number.isFinite(ts) || ts < threshold) {
+      continue;
+    }
+    total += 1;
+    if (entry.level === 'error') {
+      errors += 1;
+    }
+  }
+
+  return { total, errors, windowMinutes: ERROR_BUDGET_WINDOW_MS / 60_000 };
 }
 
 async function runBridgeHealthCheck(
@@ -226,6 +266,209 @@ export async function runHealthChecks(options: HealthCommandOptions = {}): Promi
           `Gateway registry check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         ),
       );
+    }
+  }
+
+  {
+    const start = Date.now();
+    try {
+      const stats = resolveRecentLogWindowStats();
+      if (stats.total < ERROR_BUDGET_MIN_SAMPLE) {
+        checks.push(
+          skippedCheck(
+            'diagnostics.error_budget',
+            'diagnostics',
+            `Error budget skipped: insufficient sample size (${stats.total}/${ERROR_BUDGET_MIN_SAMPLE}).`,
+            { ...stats },
+          ),
+        );
+      } else {
+        const ratio = stats.errors / stats.total;
+        if (ratio >= ERROR_BUDGET_CRITICAL_RATIO) {
+          checks.push(
+            failCheck(
+              'diagnostics.error_budget',
+              'diagnostics',
+              start,
+              'critical',
+              `Error budget exceeded: ${formatPercent(ratio)} in last ${stats.windowMinutes}m.`,
+              { ...stats, ratio },
+            ),
+          );
+        } else if (ratio >= ERROR_BUDGET_WARNING_RATIO) {
+          checks.push(
+            failCheck(
+              'diagnostics.error_budget',
+              'diagnostics',
+              start,
+              'warning',
+              `Error budget degraded: ${formatPercent(ratio)} in last ${stats.windowMinutes}m.`,
+              { ...stats, ratio },
+            ),
+          );
+        } else {
+          checks.push(
+            okCheck(
+              'diagnostics.error_budget',
+              'diagnostics',
+              start,
+              `Error budget healthy: ${formatPercent(ratio)} in last ${stats.windowMinutes}m.`,
+              { ...stats, ratio },
+            ),
+          );
+        }
+      }
+    } catch (error) {
+      checks.push(
+        failCheck(
+          'diagnostics.error_budget',
+          'diagnostics',
+          start,
+          'warning',
+          `Error budget check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ),
+      );
+    }
+  }
+
+  {
+    const start = Date.now();
+    try {
+      const tasks = getWorkerRepository().listTasks({ limit: 5000 });
+      const openTaskCount = tasks.filter((task) => OPEN_TASK_STATUSES.has(task.status)).length;
+      if (openTaskCount > TASK_BACKLOG_CRITICAL_THRESHOLD) {
+        checks.push(
+          failCheck(
+            'diagnostics.task_backlog',
+            'diagnostics',
+            start,
+            'critical',
+            `Task backlog critical: ${openTaskCount} open tasks.`,
+            { openTaskCount },
+          ),
+        );
+      } else if (openTaskCount > TASK_BACKLOG_WARNING_THRESHOLD) {
+        checks.push(
+          failCheck(
+            'diagnostics.task_backlog',
+            'diagnostics',
+            start,
+            'warning',
+            `Task backlog warning: ${openTaskCount} open tasks.`,
+            { openTaskCount },
+          ),
+        );
+      } else {
+        checks.push(
+          okCheck(
+            'diagnostics.task_backlog',
+            'diagnostics',
+            start,
+            `Task backlog healthy: ${openTaskCount} open tasks.`,
+            { openTaskCount },
+          ),
+        );
+      }
+    } catch (error) {
+      checks.push(
+        failCheck(
+          'diagnostics.task_backlog',
+          'diagnostics',
+          start,
+          'warning',
+          `Task backlog check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ),
+      );
+    }
+  }
+
+  {
+    const start = Date.now();
+    try {
+      const usage = process.memoryUsage();
+      const ratio = usage.heapTotal > 0 ? usage.heapUsed / usage.heapTotal : 0;
+      if (ratio >= MEMORY_PRESSURE_CRITICAL) {
+        checks.push(
+          failCheck(
+            'diagnostics.memory_pressure',
+            'diagnostics',
+            start,
+            'critical',
+            `Memory pressure critical: ${formatPercent(ratio)} heap usage.`,
+            { heapUsed: usage.heapUsed, heapTotal: usage.heapTotal, ratio },
+          ),
+        );
+      } else if (ratio >= MEMORY_PRESSURE_WARNING) {
+        checks.push(
+          failCheck(
+            'diagnostics.memory_pressure',
+            'diagnostics',
+            start,
+            'warning',
+            `Memory pressure elevated: ${formatPercent(ratio)} heap usage.`,
+            { heapUsed: usage.heapUsed, heapTotal: usage.heapTotal, ratio },
+          ),
+        );
+      } else {
+        checks.push(
+          okCheck(
+            'diagnostics.memory_pressure',
+            'diagnostics',
+            start,
+            `Memory pressure healthy: ${formatPercent(ratio)} heap usage.`,
+            { heapUsed: usage.heapUsed, heapTotal: usage.heapTotal, ratio },
+          ),
+        );
+      }
+    } catch (error) {
+      checks.push(
+        failCheck(
+          'diagnostics.memory_pressure',
+          'diagnostics',
+          start,
+          'warning',
+          `Memory pressure check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ),
+      );
+    }
+  }
+
+  {
+    const alertWebhook = process.env.ALERT_WEBHOOK_URL?.trim();
+    if (!alertWebhook) {
+      checks.push(
+        skippedCheck(
+          'diagnostics.alert_routing',
+          'diagnostics',
+          'Alert routing not configured (optional).',
+        ),
+      );
+    } else {
+      const start = Date.now();
+      try {
+        // Validate URL shape so broken config is visible without sending traffic.
+        const normalized = new URL(alertWebhook).toString();
+        checks.push(
+          okCheck(
+            'diagnostics.alert_routing',
+            'diagnostics',
+            start,
+            'Alert routing configured.',
+            { alertWebhook: normalized },
+          ),
+        );
+      } catch {
+        checks.push(
+          failCheck(
+            'diagnostics.alert_routing',
+            'diagnostics',
+            start,
+            'warning',
+            'Alert routing URL is invalid.',
+            { alertWebhook },
+          ),
+        );
+      }
     }
   }
 
