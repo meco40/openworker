@@ -4,7 +4,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getSkillRepository } from '@/server/skills/skillRepository';
+import { getSkillRepository } from '../../../../src/server/skills/skillRepository';
+import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,11 @@ interface PatchBody {
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = (await request.json()) as PatchBody;
     const repo = await getSkillRepository();
@@ -33,6 +39,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
     const repo = await getSkillRepository();
     const skill = repo.getSkill(id);

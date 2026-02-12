@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { testProviderAccountConnectivity } from '../../../../../src/server/model-hub/connectivity';
 import { getModelHubEncryptionKey, getModelHubService } from '../../../../../src/server/model-hub/runtime';
+import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,11 @@ interface ConnectivityResultItem {
 
 export async function POST(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = (await request.json().catch(() => ({}))) as TestAllRequestBody;
     const modelByAccountId = body.modelByAccountId || {};
 

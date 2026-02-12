@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PROVIDER_CATALOG } from '../../../../src/server/model-hub/providerCatalog';
 import { getModelHubEncryptionKey, getModelHubService } from '../../../../src/server/model-hub/runtime';
+import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
 
@@ -37,6 +38,11 @@ function validateCreateInput(body: CreateAccountRequest) {
 
 export async function GET() {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const service = getModelHubService();
     return NextResponse.json({ ok: true, accounts: service.listAccounts() });
   } catch (error) {
@@ -47,6 +53,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const payload = (await request.json()) as CreateAccountRequest;
     const input = validateCreateInput(payload);
     const service = getModelHubService();

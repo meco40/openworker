@@ -46,12 +46,25 @@ export async function GET() {
       deadLetterRuns: number;
       leaseAgeSeconds: number | null;
     } | null = null;
+    let roomMetrics: {
+      totalRooms: number;
+      runningRooms: number;
+      totalMembers: number;
+      totalMessages: number;
+    } | null = null;
 
     try {
       const { getAutomationService } = await import('../../../../src/server/automation/runtime');
       automationMetrics = getAutomationService().getMetrics();
     } catch {
       automationMetrics = null;
+    }
+
+    try {
+      const { getRoomRepository } = await import('../../../../src/server/rooms/runtime');
+      roomMetrics = getRoomRepository().getMetrics();
+    } catch {
+      roomMetrics = null;
     }
 
     return Response.json({
@@ -63,6 +76,7 @@ export async function GET() {
         tokensToday,
         vectorNodeCount,
         automation: automationMetrics,
+        rooms: roomMetrics,
         generatedAt: new Date().toISOString(),
       },
     });

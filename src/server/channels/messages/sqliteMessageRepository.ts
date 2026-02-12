@@ -59,6 +59,7 @@ function toChannelBinding(row: Record<string, unknown>): ChannelBinding {
     peerName: (row.peer_name as string) || null,
     transport: (row.transport as string) || null,
     metadata: (row.metadata as string) || null,
+    personaId: (row.persona_id as string) || null,
     lastSeenAt: (row.last_seen_at as string) || null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -78,6 +79,9 @@ export class SqliteMessageRepository implements MessageRepository {
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
       this.db = new Database(fullPath);
     }
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('busy_timeout = 5000');
+    this.db.pragma('foreign_keys = ON');
     this.migrate();
   }
 
@@ -215,6 +219,10 @@ export class SqliteMessageRepository implements MessageRepository {
 
     if (!this.hasColumn('conversations', 'persona_id')) {
       this.db.exec(`ALTER TABLE conversations ADD COLUMN persona_id TEXT`);
+    }
+
+    if (!this.hasColumn('channel_bindings', 'persona_id')) {
+      this.db.exec(`ALTER TABLE channel_bindings ADD COLUMN persona_id TEXT`);
     }
 
     this.db.exec(`
@@ -574,6 +582,22 @@ export class SqliteMessageRepository implements MessageRepository {
     return rows.map(toChannelBinding);
   }
 
+  getChannelBinding(userId: string, channel: ChannelKey): ChannelBinding | null {
+    const normalizedUserId = this.normalizeUserId(userId);
+    const row = this.db
+      .prepare('SELECT * FROM channel_bindings WHERE user_id = ? AND channel = ?')
+      .get(normalizedUserId, channel) as Record<string, unknown> | undefined;
+    return row ? toChannelBinding(row) : null;
+  }
+
+  updateChannelBindingPersona(userId: string, channel: ChannelKey, personaId: string | null): void {
+    const normalizedUserId = this.normalizeUserId(userId);
+    const now = new Date().toISOString();
+    this.db
+      .prepare('UPDATE channel_bindings SET persona_id = ?, updated_at = ? WHERE user_id = ? AND channel = ?')
+      .run(personaId, now, normalizedUserId, channel);
+  }
+
   touchChannelLastSeen(
     userId: string,
     channel: ChannelKey,
@@ -612,4 +636,5 @@ export class SqliteMessageRepository implements MessageRepository {
     this.db.close();
   }
 }
+
 

@@ -3,7 +3,7 @@
 // Pure function, zero dependencies, zero token cost.
 
 export interface RouteResult {
-  target: 'chat' | 'worker' | 'worker-command' | 'session-command' | 'automation-command';
+  target: 'chat' | 'worker' | 'worker-command' | 'session-command' | 'automation-command' | 'persona-command';
   payload: string;
   command?: string;
 }
@@ -36,6 +36,12 @@ export function routeMessage(content: string): RouteResult {
       const payload = trimmed.slice(cmd.length).trim();
       return { target: 'session-command', payload, command: cmd };
     }
+  }
+
+  // Check /persona commands
+  if (lower === '/persona' || lower.startsWith('/persona ')) {
+    const payload = trimmed.slice('/persona'.length).trim();
+    return { target: 'persona-command', payload, command: '/persona' };
   }
 
   if (lower === '/cron' || lower.startsWith('/cron ')) {

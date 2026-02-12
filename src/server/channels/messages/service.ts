@@ -1,5 +1,6 @@
-import type { ChannelType } from '../../../../types';
+import { ChannelType } from '../../../../types';
 import type { MessageRepository, StoredMessage, Conversation } from './repository';
+import type { ChannelKey } from '../adapters/types';
 import { broadcastToUser } from '../../gateway/broadcast';
 import { GatewayEvents } from '../../gateway/events';
 import { deliverOutbound } from '../outbound/router';
@@ -10,6 +11,7 @@ import { processQueue } from '../../worker/workerAgent';
 import { SessionManager } from './sessionManager';
 import { HistoryManager } from './historyManager';
 import { ContextBuilder } from './contextBuilder';
+import { getPersonaRepository } from '../../personas/personaRepository';
 
 // ─── MessageService ──────────────────────────────────────────
 
@@ -157,7 +159,22 @@ export class MessageService {
         };
       }
 
-      return { userMsg, agentMsg: await this.dispatchToAI(conversation, platform, externalChatId) };
+      if (route.target === 'persona-command') {
+        return {
+          userMsg,
+          agentMsg: await this.handlePersonaCommand(
+            conversation,
+            route.payload,
+            platform,
+            externalChatId,
+          ),
+        };
+      }
+
+      // For external channels, auto-apply persona from channel binding
+      const effectiveConversation = this.applyChannelBindingPersona(conversation, platform);
+
+      return { userMsg, agentMsg: await this.dispatchToAI(effectiveConversation, platform, externalChatId) };
     } finally {
       if (clientMessageId) this.processingMessages.delete(clientMessageId);
     }
@@ -695,6 +712,160 @@ export class MessageService {
 
   setPersonaId(conversationId: string, personaId: string | null, userId: string): void {
     this.repo.updatePersonaId(conversationId, personaId, userId);
+  }
+
+  // ─── Persona Command Handling ──────────────────────────────
+
+  /**
+   * Handle /persona commands from any channel (primarily Telegram/WhatsApp).
+   * - /persona list       → show all available personas
+   * - /persona <name>     → switch to a persona by name (fuzzy match)
+   * - /persona off|clear  → deactivate persona for this channel
+   * - /persona            → show current persona + help
+   */
+  private async handlePersonaCommand(
+    conversation: Conversation,
+    payload: string,
+    platform: ChannelType,
+    externalChatId: string,
+  ): Promise<StoredMessage> {
+    const lower = payload.toLowerCase().trim();
+
+    // Load persona repository
+    let personaRepo: ReturnType<typeof getPersonaRepository>;
+    try {
+      personaRepo = getPersonaRepository();
+    } catch {
+      return this.sendResponse(
+        conversation,
+        '⚠️ Persona-System nicht verfügbar.',
+        platform,
+        externalChatId,
+      );
+    }
+
+    const personas = personaRepo.listPersonas(conversation.userId);
+
+    // /persona (no args) → show current + help
+    if (!lower) {
+      const currentPersonaId = this.getChannelBindingPersonaId(conversation.userId, platform);
+      const currentPersona = currentPersonaId ? personaRepo.getPersona(currentPersonaId) : null;
+
+      const lines = [
+        '🎭 **Persona-System**',
+        '',
+        currentPersona
+          ? `Aktive Persona: ${currentPersona.emoji} **${currentPersona.name}**`
+          : 'Keine Persona aktiv (Default-Modus)',
+        '',
+        '**Befehle:**',
+        '`/persona list` — Alle Personas anzeigen',
+        '`/persona <Name>` — Persona wechseln',
+        '`/persona off` — Persona deaktivieren',
+      ];
+      return this.sendResponse(conversation, lines.join('\n'), platform, externalChatId);
+    }
+
+    // /persona list → list all personas
+    if (lower === 'list') {
+      if (personas.length === 0) {
+        return this.sendResponse(
+          conversation,
+          '🎭 Keine Personas erstellt.\nErstelle Personas in der WebApp unter "Agent Personas".',
+          platform,
+          externalChatId,
+        );
+      }
+
+      const currentPersonaId = this.getChannelBindingPersonaId(conversation.userId, platform);
+      const lines = ['🎭 **Verfügbare Personas:**', ''];
+      for (const p of personas) {
+        const active = p.id === currentPersonaId ? ' ✅' : '';
+        const vibe = p.vibe ? ` — _${p.vibe}_` : '';
+        lines.push(`${p.emoji} **${p.name}**${vibe}${active}`);
+      }
+      lines.push('', 'Wechseln: `/persona <Name>`');
+      return this.sendResponse(conversation, lines.join('\n'), platform, externalChatId);
+    }
+
+    // /persona off|clear|default → deactivate
+    if (lower === 'off' || lower === 'clear' || lower === 'default') {
+      this.setChannelBindingPersona(conversation.userId, platform, null);
+      // Also clear on current conversation
+      this.repo.updatePersonaId(conversation.id, null, conversation.userId);
+      return this.sendResponse(
+        conversation,
+        '🎭 Persona deaktiviert. Du chattest jetzt im Default-Modus.',
+        platform,
+        externalChatId,
+      );
+    }
+
+    // /persona <name> → fuzzy match by name
+    const match = personas.find(
+      (p) => p.name.toLowerCase() === lower || p.name.toLowerCase().startsWith(lower),
+    );
+
+    if (!match) {
+      const available = personas.map((p) => `${p.emoji} ${p.name}`).join(', ');
+      return this.sendResponse(
+        conversation,
+        `⚠️ Persona "${payload}" nicht gefunden.\nVerfügbar: ${available || '(keine)'}`,
+        platform,
+        externalChatId,
+      );
+    }
+
+    // Apply persona to channel binding + current conversation
+    this.setChannelBindingPersona(conversation.userId, platform, match.id);
+    this.repo.updatePersonaId(conversation.id, match.id, conversation.userId);
+
+    return this.sendResponse(
+      conversation,
+      `🎭 Persona gewechselt: ${match.emoji} **${match.name}**\nAlle neuen Nachrichten in ${platform} nutzen jetzt diese Persona.`,
+      platform,
+      externalChatId,
+    );
+  }
+
+  // ─── Channel Binding Persona Helpers ────────────────────────
+
+  /**
+   * Get the persona ID from the channel binding for this user + platform.
+   */
+  private getChannelBindingPersonaId(userId: string, platform: ChannelType): string | null {
+    if (!this.repo.getChannelBinding) return null;
+    const binding = this.repo.getChannelBinding(userId, platform as string as ChannelKey);
+    return binding?.personaId ?? null;
+  }
+
+  /**
+   * Set the persona for a channel binding.
+   */
+  private setChannelBindingPersona(userId: string, platform: ChannelType, personaId: string | null): void {
+    if (!this.repo.updateChannelBindingPersona) return;
+    this.repo.updateChannelBindingPersona(userId, platform as string as ChannelKey, personaId);
+  }
+
+  /**
+   * For external channels (Telegram, WhatsApp, etc.), look up the channel binding persona
+   * and apply it to the conversation if the conversation doesn't already have one.
+   * Returns a conversation copy with the effective personaId.
+   */
+  private applyChannelBindingPersona(conversation: Conversation, platform: ChannelType): Conversation {
+    // WebChat uses the React Context — skip
+    if (platform === ChannelType.WEBCHAT) return conversation;
+
+    // If the conversation already has a persona, use it
+    if (conversation.personaId) return conversation;
+
+    // Look up channel binding persona
+    const bindingPersonaId = this.getChannelBindingPersonaId(conversation.userId, platform);
+    if (!bindingPersonaId) return conversation;
+
+    // Apply to conversation (persist + return updated copy)
+    this.repo.updatePersonaId(conversation.id, bindingPersonaId, conversation.userId);
+    return { ...conversation, personaId: bindingPersonaId };
   }
 
   // ─── Helper: Send & Broadcast Response ─────────────────────

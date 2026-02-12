@@ -16,6 +16,7 @@ export interface ChannelBinding {
   peerName: string | null;
   transport: string | null;
   metadata: string | null;
+  personaId: string | null;
   lastSeenAt: string | null;
   createdAt: string;
   updatedAt: string;

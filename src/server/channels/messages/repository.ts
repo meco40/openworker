@@ -90,6 +90,8 @@ export interface MessageRepository {
 
   upsertChannelBinding?(input: UpsertChannelBindingInput): ChannelBinding;
   listChannelBindings?(userId: string): ChannelBinding[];
+  getChannelBinding?(userId: string, channel: ChannelKey): ChannelBinding | null;
+  updateChannelBindingPersona?(userId: string, channel: ChannelKey, personaId: string | null): void;
   touchChannelLastSeen?(
     userId: string,
     channel: ChannelKey,

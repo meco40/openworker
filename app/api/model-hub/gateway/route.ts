@@ -4,6 +4,7 @@ import {
   getModelHubService,
 } from '../../../../src/server/model-hub/runtime';
 import type { GatewayMessage } from '../../../../src/server/model-hub/gateway';
+import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
 
@@ -27,6 +28,11 @@ interface GatewayRequestBody {
 
 export async function POST(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = (await request.json()) as GatewayRequestBody;
 
     // ─── Embeddings pass-through ──────────────────────────────

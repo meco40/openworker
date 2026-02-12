@@ -41,6 +41,8 @@ function collectTsFiles(dir: string): string[] {
     }
 
     if (entry.isFile() && (fullPath.endsWith('.ts') || fullPath.endsWith('.tsx'))) {
+      // Skip this test file itself — it contains the deprecated patterns as string literals
+      if (fullPath.includes('url-parse-deprecation-guard')) continue;
       files.push(fullPath);
     }
   }

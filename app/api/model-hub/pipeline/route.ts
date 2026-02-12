@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getModelHubService } from '../../../../src/server/model-hub/runtime';
+import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
 
@@ -36,6 +37,11 @@ const DEFAULT_PROFILE = 'p1';
 
 export async function GET(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const url = new URL(request.url);
     const profileId = url.searchParams.get('profileId')?.trim() || DEFAULT_PROFILE;
 
@@ -51,6 +57,11 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = (await request.json()) as SavePipelineBody;
     const profileId = body.profileId?.trim() || DEFAULT_PROFILE;
     const models = body.models;
@@ -89,6 +100,11 @@ export async function PUT(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = (await request.json()) as AddModelBody & RemoveModelBody & UpdateStatusBody & { action?: string };
     const action = body.action || 'add';
 

@@ -1,0 +1,177 @@
+import type { RoomRepository } from './repository';
+import type {
+  Room,
+  RoomIntervention,
+  RoomMember,
+  RoomMemberRuntime,
+  RoomMessage,
+  RoomRunState,
+} from './types';
+import { broadcastToUser } from '../gateway/broadcast';
+import { GatewayEvents } from '../gateway/events';
+
+export interface ResolveRoomRoutingInput {
+  roomProfileId: string;
+  memberModelOverride: string | null;
+  activeModelsByProfile: Record<string, string[]>;
+}
+
+export interface ResolveRoomRoutingResult {
+  profileId: string | null;
+  model: string | null;
+  fallbackUsed: boolean;
+}
+
+export function resolveRoomRouting(input: ResolveRoomRoutingInput): ResolveRoomRoutingResult {
+  const roomModels = input.activeModelsByProfile[input.roomProfileId] || [];
+  const defaultModels = input.activeModelsByProfile.p1 || [];
+
+  if (input.memberModelOverride && roomModels.includes(input.memberModelOverride)) {
+    return {
+      profileId: input.roomProfileId,
+      model: input.memberModelOverride,
+      fallbackUsed: false,
+    };
+  }
+
+  if (roomModels.length > 0) {
+    return {
+      profileId: input.roomProfileId,
+      model: roomModels[0],
+      fallbackUsed: Boolean(input.memberModelOverride),
+    };
+  }
+
+  if (defaultModels.length > 0) {
+    return {
+      profileId: 'p1',
+      model: defaultModels[0],
+      fallbackUsed: true,
+    };
+  }
+
+  return {
+    profileId: null,
+    model: null,
+    fallbackUsed: true,
+  };
+}
+
+function assertRoomOwner(room: Room | null, userId: string): Room {
+  if (!room || room.userId !== userId) {
+    throw new Error('Room not found');
+  }
+  return room;
+}
+
+export class RoomService {
+  constructor(private readonly repository: RoomRepository) {}
+
+  createRoom(userId: string, input: { name: string; goalMode: Room['goalMode']; routingProfileId: string }): Room {
+    const room = this.repository.createRoom({
+      userId,
+      name: input.name,
+      goalMode: input.goalMode,
+      routingProfileId: input.routingProfileId || 'p1',
+    });
+    broadcastToUser(userId, GatewayEvents.ROOM_RUN_STATUS, {
+      roomId: room.id,
+      runState: room.runState,
+      updatedAt: room.updatedAt,
+    });
+    return room;
+  }
+
+  listRooms(userId: string): Room[] {
+    return this.repository.listRooms(userId);
+  }
+
+  getRoom(userId: string, roomId: string): Room {
+    return assertRoomOwner(this.repository.getRoom(roomId), userId);
+  }
+
+  deleteRoom(userId: string, roomId: string): boolean {
+    assertRoomOwner(this.repository.getRoom(roomId), userId);
+    return this.repository.deleteRoom(roomId);
+  }
+
+  addMember(
+    userId: string,
+    roomId: string,
+    input: { personaId: string; roleLabel: string; turnPriority?: number; modelOverride?: string | null },
+  ): RoomMember {
+    assertRoomOwner(this.repository.getRoom(roomId), userId);
+    const member = this.repository.addMember(
+      roomId,
+      input.personaId,
+      input.roleLabel,
+      input.turnPriority ?? 1,
+      input.modelOverride ?? null,
+    );
+    broadcastToUser(userId, GatewayEvents.ROOM_MEMBER_STATUS, {
+      roomId,
+      personaId: member.personaId,
+      status: 'idle',
+      reason: null,
+      updatedAt: member.updatedAt,
+    });
+    return member;
+  }
+
+  removeMember(userId: string, roomId: string, personaId: string): boolean {
+    assertRoomOwner(this.repository.getRoom(roomId), userId);
+    return this.repository.removeMember(roomId, personaId);
+  }
+
+  updateRunState(userId: string, roomId: string, runState: RoomRunState): Room {
+    assertRoomOwner(this.repository.getRoom(roomId), userId);
+    if (runState === 'stopped') {
+      this.repository.closeActiveRoomRun(roomId, 'stopped', null);
+    } else {
+      this.repository.updateRunState(roomId, runState);
+    }
+    const room = this.repository.getRoom(roomId)!;
+    broadcastToUser(userId, GatewayEvents.ROOM_RUN_STATUS, {
+      roomId,
+      runState: room.runState,
+      updatedAt: room.updatedAt,
+    });
+    return room;
+  }
+
+  getRoomState(
+    userId: string,
+    roomId: string,
+  ): { room: Room; members: RoomMember[]; memberRuntime: RoomMemberRuntime[] } {
+    const room = assertRoomOwner(this.repository.getRoom(roomId), userId);
+    const members = this.repository.listMembers(roomId);
+    const memberRuntime = this.repository.listMemberRuntime(roomId);
+    return { room, members, memberRuntime };
+  }
+
+  listMessages(userId: string, roomId: string, limit?: number, beforeSeq?: number): RoomMessage[] {
+    assertRoomOwner(this.repository.getRoom(roomId), userId);
+    return this.repository.listMessages(roomId, limit, beforeSeq);
+  }
+
+  addIntervention(userId: string, roomId: string, note: string): RoomIntervention {
+    assertRoomOwner(this.repository.getRoom(roomId), userId);
+    const intervention = this.repository.addIntervention(roomId, userId, note);
+    broadcastToUser(userId, GatewayEvents.ROOM_INTERVENTION, {
+      roomId,
+      interventionId: intervention.id,
+      note: intervention.note,
+      createdAt: intervention.createdAt,
+    });
+    return intervention;
+  }
+
+  listInterventions(userId: string, roomId: string, limit?: number): RoomIntervention[] {
+    assertRoomOwner(this.repository.getRoom(roomId), userId);
+    return this.repository.listInterventions(roomId, limit);
+  }
+
+  listActiveRoomCountsByPersona(userId: string): Record<string, number> {
+    return this.repository.listActiveRoomCountsByPersona(userId);
+  }
+}
