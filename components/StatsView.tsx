@@ -11,6 +11,7 @@ import {
   CartesianGrid,
   Cell,
 } from 'recharts';
+import PromptLogsTab from './stats/PromptLogsTab';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ interface StatsResponse {
 }
 
 type Preset = 'today' | 'week' | 'month' | 'custom';
+type StatsTab = 'overview' | 'logs';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -86,6 +88,8 @@ const StatsView: React.FC = () => {
   const [preset, setPreset] = useState<Preset>('month');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
+  const [activeTab, setActiveTab] = useState<StatsTab>('overview');
+  const [logsReloadKey, setLogsReloadKey] = useState(0);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -120,6 +124,14 @@ const StatsView: React.FC = () => {
 
   // ── Render ─────────────────────────────────────────────────────
 
+  const handleRefresh = useCallback(() => {
+    if (activeTab === 'overview') {
+      void fetchStats();
+      return;
+    }
+    setLogsReloadKey((prev) => prev + 1);
+  }, [activeTab, fetchStats]);
+
   return (
     <div className="animate-in fade-in space-y-6 duration-700">
       {/* Header */}
@@ -129,7 +141,7 @@ const StatsView: React.FC = () => {
           <p className="mt-0.5 text-xs text-zinc-500">Token consumption & model analytics</p>
         </div>
         <button
-          onClick={fetchStats}
+          onClick={handleRefresh}
           className="flex items-center space-x-1.5 rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-300 transition-colors hover:bg-zinc-700"
         >
           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,6 +153,29 @@ const StatsView: React.FC = () => {
             />
           </svg>
           <span>Refresh</span>
+        </button>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-200 ${
+            activeTab === 'overview'
+              ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20'
+              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
+          }`}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab('logs')}
+          className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-200 ${
+            activeTab === 'logs'
+              ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20'
+              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
+          }`}
+        >
+          Logs
         </button>
       </div>
 
@@ -194,6 +229,17 @@ const StatsView: React.FC = () => {
         </div>
       </div>
 
+      {activeTab === 'logs' && (
+        <PromptLogsTab
+          preset={preset}
+          customFrom={customFrom}
+          customTo={customTo}
+          reloadKey={logsReloadKey}
+        />
+      )}
+
+      {activeTab === 'overview' && (
+        <>
       {/* Loading / Error */}
       {loading && (
         <div className="flex items-center justify-center py-16">
@@ -501,6 +547,8 @@ const StatsView: React.FC = () => {
               </div>
             </div>
           </div>
+        </>
+      )}
         </>
       )}
     </div>

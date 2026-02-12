@@ -8,6 +8,7 @@ interface ChatConversationListProps {
   activeConversationId: string | null;
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
+  onDeleteConversation: (id: string) => void;
   channelFilter: string;
   onChannelFilterChange: (value: string) => void;
   searchQuery: string;
@@ -20,6 +21,7 @@ const ChatConversationList: React.FC<ChatConversationListProps> = ({
   activeConversationId,
   onSelectConversation,
   onNewConversation,
+  onDeleteConversation,
   channelFilter,
   onChannelFilterChange,
   searchQuery,
@@ -31,6 +33,7 @@ const ChatConversationList: React.FC<ChatConversationListProps> = ({
       <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-800">
         <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Conversations</h3>
         <button
+          type="button"
           onClick={onNewConversation}
           title="Neue Conversation"
           className="w-8 h-8 rounded-lg bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400 hover:bg-violet-600/20 hover:border-violet-500/40 transition-all active:scale-90"
@@ -59,33 +62,56 @@ const ChatConversationList: React.FC<ChatConversationListProps> = ({
           const meta = getPlatformMeta(conversation.channelType);
           const isActive = conversation.id === activeConversationId;
           return (
-            <button
+            <div
               key={conversation.id}
-              onClick={() => onSelectConversation(conversation.id)}
               className={`w-full text-left px-3 py-3 rounded-xl transition-all ${
                 isActive
                   ? 'bg-zinc-800/80 border border-zinc-700 shadow-md'
                   : 'hover:bg-zinc-900/50 border border-transparent'
               }`}
             >
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm">{meta.icon}</span>
-                  <span className={`text-[10px] font-black uppercase tracking-wider ${meta.text}`}>
-                    {conversation.channelType}
-                  </span>
-                </div>
-                <span className="text-[9px] text-zinc-600 font-mono">
-                  {new Date(conversation.updatedAt).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
+              <div className="flex items-start gap-2">
+                <button
+                  type="button"
+                  onClick={() => onSelectConversation(conversation.id)}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm">{meta.icon}</span>
+                      <span className={`text-[10px] font-black uppercase tracking-wider ${meta.text}`}>
+                        {conversation.channelType}
+                      </span>
+                    </div>
+                    <span className="text-[9px] text-zinc-600 font-mono">
+                      {new Date(conversation.updatedAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                  <div className="text-xs font-medium text-zinc-300 truncate pl-6">
+                    {conversation.title || 'Untitled Chat'}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDeleteConversation(conversation.id)}
+                  title="Conversation löschen"
+                  className="mt-0.5 h-6 w-6 shrink-0 rounded-md border border-zinc-700/80 text-zinc-500 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                  aria-label={`Delete conversation ${conversation.title}`}
+                >
+                  <svg className="mx-auto h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 7h12m-9 0V5h6v2m-7 0l1 12h6l1-12"
+                    />
+                  </svg>
+                </button>
               </div>
-              <div className="text-xs font-medium text-zinc-300 truncate pl-6">
-                {conversation.title || 'Untitled Chat'}
-              </div>
-            </button>
+            </div>
           );
         })}
       </div>

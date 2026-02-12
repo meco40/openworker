@@ -3,6 +3,8 @@ import type { Conversation, Message, ScheduledTask } from '../../../types';
 import {
   appendMessageIfMissing,
   mapConversationApiMessage,
+  removeConversationById,
+  resolveActiveConversationAfterDeletion,
   upsertConversationActivity,
 } from '../../../src/modules/app-shell/runtimeLogic';
 import { parseTaskScheduleArgs, markDueTasksTriggered } from '../../../src/modules/app-shell/taskScheduling';
@@ -116,5 +118,100 @@ describe('app-shell runtime logic', () => {
     expect(updated[0].id).toBe('conv-1');
     expect(updated[0].updatedAt).toBe('2026-02-10T09:00:00.000Z');
     expect(updated[1].id).toBe('conv-2');
+  });
+
+  it('removes deleted conversation from the list', () => {
+    const conversations: Conversation[] = [
+      {
+        id: 'conv-1',
+        channelType: 'WebChat' as never,
+        externalChatId: null,
+        userId: 'user-a',
+        title: 'Chat 1',
+        modelOverride: null,
+        createdAt: '2026-02-10T08:00:00.000Z',
+        updatedAt: '2026-02-10T08:00:00.000Z',
+      },
+      {
+        id: 'conv-2',
+        channelType: 'Telegram' as never,
+        externalChatId: null,
+        userId: 'user-a',
+        title: 'Chat 2',
+        modelOverride: null,
+        createdAt: '2026-02-10T08:05:00.000Z',
+        updatedAt: '2026-02-10T08:05:00.000Z',
+      },
+    ];
+
+    const updated = removeConversationById(conversations, 'conv-1');
+    expect(updated).toHaveLength(1);
+    expect(updated[0].id).toBe('conv-2');
+  });
+
+  it('selects next active conversation after deleting the active one', () => {
+    const conversations: Conversation[] = [
+      {
+        id: 'conv-1',
+        channelType: 'WebChat' as never,
+        externalChatId: null,
+        userId: 'user-a',
+        title: 'Chat 1',
+        modelOverride: null,
+        createdAt: '2026-02-10T08:00:00.000Z',
+        updatedAt: '2026-02-10T08:00:00.000Z',
+      },
+      {
+        id: 'conv-2',
+        channelType: 'Telegram' as never,
+        externalChatId: null,
+        userId: 'user-a',
+        title: 'Chat 2',
+        modelOverride: null,
+        createdAt: '2026-02-10T08:05:00.000Z',
+        updatedAt: '2026-02-10T08:05:00.000Z',
+      },
+    ];
+
+    const remaining = removeConversationById(conversations, 'conv-1');
+    const nextActive = resolveActiveConversationAfterDeletion(remaining, 'conv-1', 'conv-1');
+    expect(nextActive).toBe('conv-2');
+  });
+
+  it('returns null active conversation if last conversation gets deleted', () => {
+    const conversations: Conversation[] = [
+      {
+        id: 'conv-1',
+        channelType: 'WebChat' as never,
+        externalChatId: null,
+        userId: 'user-a',
+        title: 'Chat 1',
+        modelOverride: null,
+        createdAt: '2026-02-10T08:00:00.000Z',
+        updatedAt: '2026-02-10T08:00:00.000Z',
+      },
+    ];
+
+    const remaining = removeConversationById(conversations, 'conv-1');
+    const nextActive = resolveActiveConversationAfterDeletion(remaining, 'conv-1', 'conv-1');
+    expect(nextActive).toBeNull();
+  });
+
+  it('selects first conversation if no active conversation is set', () => {
+    const conversations: Conversation[] = [
+      {
+        id: 'conv-2',
+        channelType: 'Telegram' as never,
+        externalChatId: null,
+        userId: 'user-a',
+        title: 'Chat 2',
+        modelOverride: null,
+        createdAt: '2026-02-10T08:05:00.000Z',
+        updatedAt: '2026-02-10T08:05:00.000Z',
+      },
+    ];
+
+    const nextActive = resolveActiveConversationAfterDeletion(conversations, null, 'conv-1');
+    expect(nextActive).toBe('conv-2');
   });
 });

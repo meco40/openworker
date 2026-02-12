@@ -53,6 +53,30 @@ export function upsertConversationActivity(
   ];
 }
 
+export function removeConversationById(
+  conversations: Conversation[],
+  conversationId: string,
+): Conversation[] {
+  return conversations.filter((conversation) => conversation.id !== conversationId);
+}
+
+export function resolveActiveConversationAfterDeletion(
+  remainingConversations: Conversation[],
+  activeConversationId: string | null,
+  deletedConversationId: string,
+): string | null {
+  if (!activeConversationId) {
+    return remainingConversations[0]?.id ?? null;
+  }
+  const activeStillExists = remainingConversations.some(
+    (conversation) => conversation.id === activeConversationId,
+  );
+  if (activeConversationId !== deletedConversationId && activeStillExists) {
+    return activeConversationId;
+  }
+  return remainingConversations[0]?.id ?? null;
+}
+
 export function buildConversationTitle(now: Date = new Date()): string {
   const stamp = now.toLocaleString('de-DE', {
     day: '2-digit',

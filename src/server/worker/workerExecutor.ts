@@ -197,6 +197,11 @@ export async function executeStep(
     const result = await service.dispatchWithFallback('p1', encryptionKey, {
       messages,
       tools: TOOL_DEFINITIONS,
+      auditContext: {
+        kind: 'worker_executor',
+        taskId: task.id,
+        stepId: step.id,
+      },
     });
 
     if (!result.ok) {

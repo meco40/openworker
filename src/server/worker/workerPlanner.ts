@@ -31,6 +31,10 @@ export async function planTask(task: WorkerTaskRecord): Promise<TaskPlan> {
       { role: 'system', content: PLANNER_PROMPT },
       { role: 'user', content: `Titel: ${task.title}\n\nObjective: ${task.objective}` },
     ],
+    auditContext: {
+      kind: 'worker_planner',
+      taskId: task.id,
+    },
   });
 
   if (!result.ok || !result.text) {

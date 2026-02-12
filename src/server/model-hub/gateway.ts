@@ -10,6 +10,18 @@ import { PROVIDER_CATALOG } from './providerCatalog';
 import type { ProviderAccountRecord } from './repository';
 import type { ProviderCatalogEntry } from './types';
 import { getTokenUsageRepository } from '../stats/tokenUsageRepository';
+import { getPromptDispatchRepository } from '../stats/promptDispatchRepository';
+import {
+  detectPromptInjection,
+  estimatePromptTokens,
+  redactGatewayRequest,
+} from '../stats/promptAudit';
+import {
+  markPromptDispatchAttempt,
+  markPromptDispatchError,
+  markPromptDispatchInsert,
+} from '../stats/promptDispatchDiagnostics';
+import { getOpenRouterModelPricing } from '../stats/openRouterPricing';
 
 function findProvider(providerId: string): ProviderCatalogEntry | null {
   return PROVIDER_CATALOG.find((provider) => provider.id === providerId) ?? null;
@@ -79,6 +91,66 @@ export async function dispatchGatewayRequest(
     } catch {
       // Silently ignore — stats must never break AI dispatch
     }
+  }
+
+  // Record prompt dispatch logs (fire-and-forget, never breaks dispatch)
+  try {
+    markPromptDispatchAttempt();
+    const redactedRequest = redactGatewayRequest(request);
+    const promptTokens =
+      typeof result.usage?.prompt_tokens === 'number'
+        ? result.usage.prompt_tokens
+        : estimatePromptTokens(redactedRequest);
+    const completionTokens = result.usage?.completion_tokens ?? 0;
+    const totalTokens = result.usage?.total_tokens ?? promptTokens + completionTokens;
+    const promptPayloadJson = JSON.stringify(redactedRequest);
+    let promptCostUsd: number | null = null;
+    let completionCostUsd: number | null = null;
+    let totalCostUsd: number | null = null;
+
+    if (account.providerId === 'openrouter') {
+      const pricing = await getOpenRouterModelPricing(request.model, promptTokens, secret);
+      if (pricing) {
+        const requestCostUsd = Number.isFinite(pricing.requestPriceUsd)
+          ? Math.max(0, pricing.requestPriceUsd)
+          : 0;
+        promptCostUsd = Math.max(0, promptTokens * pricing.promptPricePerTokenUsd);
+        completionCostUsd = Math.max(0, completionTokens * pricing.completionPricePerTokenUsd);
+        totalCostUsd = promptCostUsd + completionCostUsd + requestCostUsd;
+      }
+    }
+
+    const promptPreview = redactedRequest.messages
+      .map((message) => message.content.replace(/\s+/g, ' ').trim())
+      .join(' ')
+      .slice(0, 600);
+
+    const risk = detectPromptInjection([promptPreview, promptPayloadJson].join('\n'));
+
+    const entry = getPromptDispatchRepository().recordDispatch({
+      providerId: account.providerId,
+      modelName: request.model,
+      accountId: account.id,
+      dispatchKind: request.auditContext?.kind || 'api_gateway',
+      promptTokens: Math.max(0, promptTokens),
+      promptTokensSource: typeof result.usage?.prompt_tokens === 'number' ? 'exact' : 'estimated',
+      completionTokens: Math.max(0, completionTokens),
+      totalTokens: Math.max(0, totalTokens),
+      status: result.ok ? 'success' : 'error',
+      errorMessage: result.ok ? null : result.error || null,
+      riskLevel: risk.riskLevel,
+      riskScore: risk.score,
+      riskReasons: risk.reasons,
+      promptPreview: promptPreview || '(empty prompt)',
+      promptPayloadJson,
+      promptCostUsd,
+      completionCostUsd,
+      totalCostUsd,
+    });
+    markPromptDispatchInsert(entry.createdAt);
+  } catch (error) {
+    markPromptDispatchError(error);
+    // Silently ignore — prompt logging must never break AI dispatch
   }
 
   return result;

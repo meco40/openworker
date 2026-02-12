@@ -588,10 +588,21 @@ export class MessageService {
     try {
       const service = getModelHubService();
       const encryptionKey = getModelHubEncryptionKey();
-      const result = await service.dispatchWithFallback('p1', encryptionKey, { messages }, {
-        signal: abortController.signal,
-        modelOverride: conversation.modelOverride ?? undefined,
-      });
+      const result = await service.dispatchWithFallback(
+        'p1',
+        encryptionKey,
+        {
+          messages,
+          auditContext: {
+            kind: 'chat',
+            conversationId: conversation.id,
+          },
+        },
+        {
+          signal: abortController.signal,
+          modelOverride: conversation.modelOverride ?? undefined,
+        },
+      );
 
       if (result.ok) {
         agentContent = result.text || 'No response from model.';
@@ -655,6 +666,7 @@ export class MessageService {
     const controller = this.activeRequests.get(conversationId);
     if (!controller) return false;
     controller.abort();
+    this.activeRequests.delete(conversationId);
     return true;
   }
 
@@ -664,6 +676,8 @@ export class MessageService {
    */
   deleteConversation(conversationId: string, userId: string): boolean {
     this.abortGeneration(conversationId);
+    this.activeRequests.delete(conversationId);
+    this.summaryRefreshInFlight.delete(conversationId);
     return this.repo.deleteConversation(conversationId, userId);
   }
 
@@ -795,6 +809,7 @@ export class MessageService {
           role: message.role,
           content: message.content,
         })),
+        conversation.id,
       );
 
       if (!mergedSummary) {
@@ -820,6 +835,7 @@ export class MessageService {
   private async buildConversationSummary(
     previousSummary: string,
     messages: Array<{ role: 'user' | 'agent' | 'system'; content: string }>,
+    conversationId: string,
   ): Promise<string> {
     const fallbackSummary = this.buildFallbackSummary(previousSummary, messages);
 
@@ -852,6 +868,10 @@ export class MessageService {
 
       const result = await service.dispatchWithFallback('p1', encryptionKey, {
         messages: summaryMessages,
+        auditContext: {
+          kind: 'summary',
+          conversationId,
+        },
       });
 
       if (result.ok && result.text?.trim()) {

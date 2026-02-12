@@ -64,6 +64,7 @@ export async function POST(request: Request) {
         messages: body.messages,
         max_tokens: body.max_tokens,
         temperature: body.temperature,
+        auditContext: { kind: 'api_gateway' },
         ...extraFields,
       });
       return NextResponse.json(result, { status: result.ok ? 200 : 502 });
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
       messages: body.messages,
       max_tokens: body.max_tokens,
       temperature: body.temperature,
+      auditContext: { kind: 'api_gateway' },
       ...extraFields,
     });
     return NextResponse.json(result, { status: result.ok ? 200 : 502 });

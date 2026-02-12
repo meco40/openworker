@@ -4,9 +4,9 @@
  * DELETE /api/worker/:id  → Delete task + workspace\r\n */
 
 import { NextResponse } from 'next/server';
-import { getWorkerRepository } from '@/server/worker/workerRepository';
-import { processQueue } from '@/server/worker/workerAgent';
-import { getWorkspaceManager } from '@/server/worker/workspaceManager';
+import { getWorkerRepository } from '../../../../src/server/worker/workerRepository';
+import { processQueue } from '../../../../src/server/worker/workerAgent';
+import { getWorkspaceManager } from '../../../../src/server/worker/workspaceManager';
 
 export const runtime = 'nodejs';
 

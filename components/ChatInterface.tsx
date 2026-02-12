@@ -11,6 +11,7 @@ interface ChatInterfaceProps {
   activeConversationId: string | null;
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
+  onDeleteConversation: (id: string) => void;
   messages: Message[];
   onSendMessage: (content: string, platform: ChannelType, attachment?: MessageAttachment) => void;
   isTyping?: boolean;
@@ -21,6 +22,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   activeConversationId,
   onSelectConversation,
   onNewConversation,
+  onDeleteConversation,
   messages,
   onSendMessage,
   isTyping,
@@ -71,6 +73,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         activeConversationId={activeConversationId}
         onSelectConversation={onSelectConversation}
         onNewConversation={onNewConversation}
+        onDeleteConversation={onDeleteConversation}
         channelFilter={channelFilter}
         onChannelFilterChange={setChannelFilter}
         searchQuery={searchQuery}

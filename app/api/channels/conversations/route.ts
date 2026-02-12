@@ -89,6 +89,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Conversation not found' }, { status: 404 });
     }
 
+    const { broadcastToUser } = await import('../../../../src/server/gateway/broadcast');
+    const { GatewayEvents } = await import('../../../../src/server/gateway/events');
+    broadcastToUser(userContext.userId, GatewayEvents.CONVERSATION_DELETED, { conversationId });
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

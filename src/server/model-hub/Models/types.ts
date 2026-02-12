@@ -20,6 +20,20 @@ export interface GatewayMessage {
   content: string;
 }
 
+export type GatewayAuditKind =
+  | 'chat'
+  | 'summary'
+  | 'worker_planner'
+  | 'worker_executor'
+  | 'api_gateway';
+
+export interface GatewayAuditContext {
+  kind: GatewayAuditKind;
+  conversationId?: string;
+  taskId?: string;
+  stepId?: string;
+}
+
 export interface GatewayRequest {
   model: string;
   messages: GatewayMessage[];
@@ -29,6 +43,7 @@ export interface GatewayRequest {
   systemInstruction?: string;
   tools?: unknown[];
   responseMimeType?: string;
+  auditContext?: GatewayAuditContext;
 }
 
 export interface GatewayResponse {

@@ -243,6 +243,11 @@ export class TokenUsageRepository {
     return Number(row.cnt);
   }
 
+  clearEntries(): number {
+    const result = this.db.prepare('DELETE FROM token_usage').run() as { changes: number };
+    return result.changes;
+  }
+
   // ── Lifecycle ───────────────────────────────────────────────
 
   close(): void {

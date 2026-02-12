@@ -142,4 +142,17 @@ describe('TokenUsageRepository', () => {
       expect(repo.getEntryCount()).toBe(2);
     });
   });
+
+  describe('clearEntries', () => {
+    it('should delete all token usage rows and return deleted count', () => {
+      repo.recordUsage('openrouter', 'x-ai/grok-4-fast', 10, 5, 15);
+      repo.recordUsage('manual', 'manual-model', 1, 0, 1);
+
+      const deleted = repo.clearEntries();
+
+      expect(deleted).toBe(2);
+      expect(repo.getEntryCount()).toBe(0);
+      expect(repo.getTotalTokens().totalTokens).toBe(0);
+    });
+  });
 });

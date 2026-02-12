@@ -31,6 +31,19 @@ describe('react/next best-practices refactor', () => {
     expect(viewContent).toContain("dynamic(() => import('../../../../components/ModelHub'))");
   });
 
+  it('loads fonts via next/font self-hosting instead of Google stylesheet links', () => {
+    const layout = read('app/layout.tsx');
+    const globalsCss = read('app/globals.css');
+
+    expect(layout).toContain("from 'next/font/google'");
+    expect(layout).toContain('Inter(');
+    expect(layout).toContain('Fira_Code(');
+    expect(layout).not.toContain('fonts.googleapis.com');
+    expect(layout).not.toContain('fonts.gstatic.com');
+    expect(globalsCss).toContain('var(--font-sans)');
+    expect(globalsCss).toContain('var(--font-mono)');
+  });
+
   it('parallelizes independent skill function calls', () => {
     const runtime = read('src/modules/app-shell/useAgentRuntime.ts');
     expect(runtime).toContain('Promise.all(');

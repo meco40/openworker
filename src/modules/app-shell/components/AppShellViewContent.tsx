@@ -48,6 +48,7 @@ interface AppShellViewContentProps {
   onSendMessage: (content: string, platform: ChannelType, attachment?: MessageAttachment) => void;
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
+  onDeleteConversation: (id: string) => void;
   coupledChannels: Record<string, CoupledChannel>;
   onUpdateCoupling: (id: string, update: Partial<CoupledChannel>) => void;
   onSimulateIncoming: (content: string, platform: ChannelType) => void;
@@ -70,6 +71,7 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
   onSendMessage,
   onSelectConversation,
   onNewConversation,
+  onDeleteConversation,
   coupledChannels,
   onUpdateCoupling,
   onSimulateIncoming,
@@ -109,6 +111,7 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
             activeConversationId={activeConversationId}
             onSelectConversation={onSelectConversation}
             onNewConversation={onNewConversation}
+            onDeleteConversation={onDeleteConversation}
           />
         </ViewErrorBoundary>
       )}

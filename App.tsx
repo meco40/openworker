@@ -22,6 +22,8 @@ import {
   appendMessageIfMissing,
   buildConversationTitle,
   mapConversationApiMessage,
+  removeConversationById,
+  resolveActiveConversationAfterDeletion,
 } from './src/modules/app-shell/runtimeLogic';
 import { getClientStorage } from './src/modules/app-shell/clientStorage';
 import { useConversationSync } from './src/modules/app-shell/useConversationSync';
@@ -222,6 +224,63 @@ const App: React.FC = () => {
     }
   }, [addEventLog, setActiveConversationId, setConversations, setMessages]);
 
+  const handleDeleteConversation = useCallback(
+    async (conversationId: string) => {
+      const conversation = conversations.find((item) => item.id === conversationId);
+      const confirmationLabel = conversation?.title || conversationId;
+      if (typeof window !== 'undefined') {
+        const confirmed = window.confirm(
+          `Conversation "${confirmationLabel}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      try {
+        const response = await fetch(
+          `/api/channels/conversations?id=${encodeURIComponent(conversationId)}`,
+          { method: 'DELETE' },
+        );
+        const data = (await response.json()) as { ok?: boolean; error?: string };
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        const remainingConversations = removeConversationById(conversations, conversationId);
+        const nextActiveConversationId = resolveActiveConversationAfterDeletion(
+          remainingConversations,
+          activeConversationId,
+          conversationId,
+        );
+
+        setConversations(remainingConversations);
+        setActiveConversationId(nextActiveConversationId);
+        if (activeConversationId === conversationId) {
+          setMessages([]);
+        }
+
+        addEventLog('SYS', `Conversation gelöscht: ${confirmationLabel}`);
+
+        if (remainingConversations.length === 0) {
+          await handleNewConversation();
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Conversation konnte nicht gelöscht werden.';
+        addEventLog('SYS', message);
+      }
+    },
+    [
+      activeConversationId,
+      addEventLog,
+      conversations,
+      handleNewConversation,
+      setActiveConversationId,
+      setConversations,
+      setMessages,
+    ],
+  );
+
   const handleUpdateCoupling = useCallback((id: string, update: Partial<CoupledChannel>) => {
     setCoupledChannels((previous) => ({ ...previous, [id]: { ...previous[id], ...update } }));
   }, []);
@@ -262,6 +321,7 @@ const App: React.FC = () => {
           }
           onSelectConversation={setActiveConversationId}
           onNewConversation={handleNewConversation}
+          onDeleteConversation={handleDeleteConversation}
           coupledChannels={coupledChannels}
           onUpdateCoupling={handleUpdateCoupling}
           onSimulateIncoming={(content, platform) => routeMessage(content, platform, 'user')}

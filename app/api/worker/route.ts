@@ -4,10 +4,10 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getWorkerRepository } from '@/server/worker/workerRepository';
-import { processQueue } from '@/server/worker/workerAgent';
-import { getWorkspaceManager } from '@/server/worker/workspaceManager';
-import type { WorkerTaskStatus } from '@/server/worker/workerTypes';
+import { getWorkerRepository } from '../../../src/server/worker/workerRepository';
+import { processQueue } from '../../../src/server/worker/workerAgent';
+import { getWorkspaceManager } from '../../../src/server/worker/workspaceManager';
+import type { WorkerTaskStatus } from '../../../src/server/worker/workerTypes';
 
 export const runtime = 'nodejs';
 
@@ -31,7 +31,7 @@ export async function DELETE() {
   try {
     const repo = getWorkerRepository();
     const wsMgr = getWorkspaceManager();
-    const tasks = repo.listTasks({ limit: 1000 });
+    const tasks = repo.listTasks();
 
     let deleted = 0;
     for (const task of tasks) {
