@@ -1,9 +1,10 @@
-export type RoomGoalMode = 'planning' | 'simulation';
+export type RoomGoalMode = 'planning' | 'simulation' | 'free';
 export type RoomRunState = 'running' | 'stopped' | 'degraded';
 
 export interface RoomSummary {
   id: string;
   name: string;
+  description: string | null;
   goalMode: RoomGoalMode;
   routingProfileId: string;
   runState: RoomRunState;
@@ -38,10 +39,12 @@ export interface RoomMessage {
   createdAt: string;
 }
 
+export type RoomMemberRuntimeStatus = 'idle' | 'busy' | 'interrupting' | 'interrupted' | 'error';
+
 export interface RoomMemberStatus {
   roomId: string;
   personaId: string;
-  status: 'idle' | 'busy';
+  status: RoomMemberRuntimeStatus;
   reason: string | null;
   updatedAt: string;
 }

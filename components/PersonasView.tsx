@@ -5,8 +5,8 @@ import { usePersona } from '../src/modules/personas/PersonaContext';
 import type { PersonaWithFiles, PersonaFileName } from '../src/server/personas/personaTypes';
 import { PERSONA_FILE_NAMES } from '../src/server/personas/personaTypes';
 import type { PersonaTemplate } from '../lib/persona-templates';
-import { RoomsColumn } from '../src/modules/rooms/components/RoomsColumn';
 import { RoomDetailPanel } from '../src/modules/rooms/components/RoomDetailPanel';
+import { CreateRoomModal } from '../src/modules/rooms/components/CreateRoomModal';
 import {
   addRoomMember,
   createRoom,
@@ -16,6 +16,7 @@ import {
   getRoomState,
   listRooms,
   removeRoomMember,
+  sendRoomMessage,
   startRoom,
   stopRoom,
 } from '../src/modules/rooms/api';
@@ -143,25 +144,25 @@ const PersonasView: React.FC = () => {
     [dirty],
   );
 
-  const createRoomFlow = useCallback(async () => {
-    const name = window.prompt('Room-Name (z.B. Office, Home):');
-    if (!name || !name.trim()) {
-      return;
-    }
+  const [showCreateRoomModal, setShowCreateRoomModal] = useState(false);
 
-    const simulation = window.confirm(
-      'Simulation-Modus aktivieren?\nOK = simulation, Abbrechen = planning',
-    );
+  const createRoomFlow = useCallback(() => {
+    setShowCreateRoomModal(true);
+  }, []);
+
+  const handleCreateRoom = useCallback(async (input: {
+    name: string;
+    description: string | null;
+    goalMode: 'planning' | 'simulation' | 'free';
+    routingProfileId: string;
+  }) => {
     setRoomCreating(true);
     try {
-      const room = await createRoom({
-        name: name.trim(),
-        goalMode: simulation ? 'simulation' : 'planning',
-        routingProfileId: 'p1',
-      });
+      const room = await createRoom(input);
       await refreshRooms();
       setSelectedRoomId(room.id);
       setSelectedId(null);
+      setShowCreateRoomModal(false);
     } catch {
       /* ignore */
     } finally {
@@ -235,6 +236,18 @@ const PersonasView: React.FC = () => {
       }
     },
     [selectedRoomId, loadRoomDetail],
+  );
+
+  const sendMessageToSelectedRoom = useCallback(
+    async (content: string) => {
+      if (!selectedRoomId) return;
+      try {
+        await sendRoomMessage(selectedRoomId, content);
+      } catch {
+        /* ignore */
+      }
+    },
+    [selectedRoomId],
   );
 
   // ─── Select persona ───────────────────────────────────────
@@ -433,8 +446,9 @@ const PersonasView: React.FC = () => {
 
   return (
     <div className="flex h-full animate-in fade-in duration-500">
-      {/* ── Left Panel: Persona List ──────────────────────── */}
+      {/* ── Left Panel: Personas + Rooms combined ─────────── */}
       <div className="w-72 shrink-0 border-r border-zinc-800 flex flex-col">
+        {/* Personas Section */}
         <div className="p-4 border-b border-zinc-800">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-black text-white uppercase tracking-widest">Personas</h2>
@@ -484,7 +498,7 @@ const PersonasView: React.FC = () => {
         </div>
 
         {/* Persona list */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto p-2 space-y-1 min-h-0">
           {loading && personas.length === 0 && (
             <div className="text-zinc-600 text-sm text-center py-8">Laden...</div>
           )}
@@ -523,16 +537,65 @@ const PersonasView: React.FC = () => {
             </button>
           ))}
         </div>
-      </div>
 
-      <RoomsColumn
-        rooms={rooms}
-        selectedRoomId={selectedRoomId}
-        loading={roomsLoading}
-        creating={roomCreating}
-        onSelectRoom={selectRoom}
-        onCreateRoom={createRoomFlow}
-      />
+        {/* Rooms Section */}
+        <div className="border-t border-zinc-800 flex flex-col min-h-0" style={{ maxHeight: '45%' }}>
+          <div className="p-4 border-b border-zinc-800">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-black text-white uppercase tracking-widest">Rooms</h2>
+              <button
+                onClick={createRoomFlow}
+                disabled={roomCreating}
+                className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-60"
+                title="Neuen Room erstellen"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {roomsLoading && rooms.length === 0 && (
+              <div className="text-zinc-600 text-sm text-center py-4">Laden...</div>
+            )}
+            {!roomsLoading && rooms.length === 0 && (
+              <div className="text-zinc-600 text-sm text-center py-4">
+                Keine Rooms erstellt.
+              </div>
+            )}
+            {rooms.map((room) => (
+              <button
+                key={room.id}
+                onClick={() => selectRoom(room.id)}
+                className={`w-full text-left px-3 py-2.5 rounded-xl transition-all border ${
+                  selectedRoomId === room.id
+                    ? 'bg-emerald-600/20 border-emerald-500/30 text-white'
+                    : 'hover:bg-zinc-800/60 text-zinc-400 hover:text-white border-transparent'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-semibold truncate">{room.name}</div>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      room.runState === 'running'
+                        ? 'bg-emerald-600/20 text-emerald-300'
+                        : room.runState === 'degraded'
+                          ? 'bg-amber-700/30 text-amber-300'
+                          : 'bg-zinc-700/60 text-zinc-300'
+                    }`}
+                  >
+                    {room.runState}
+                  </span>
+                </div>
+                <div className="text-[10px] text-zinc-500 truncate mt-1">
+                  {room.goalMode} • {room.routingProfileId}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* ── Right Panel: Editor ───────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -560,6 +623,7 @@ const PersonasView: React.FC = () => {
             onDelete={deleteSelectedRoom}
             onAddMember={addMemberToSelectedRoom}
             onRemoveMember={removeMemberFromSelectedRoom}
+            onSendMessage={sendMessageToSelectedRoom}
           />
         ) : !selectedPersona ? (
           <div className="flex-1 flex items-center justify-center text-zinc-600">
@@ -710,6 +774,13 @@ const PersonasView: React.FC = () => {
           </>
         )}
       </div>
+
+      <CreateRoomModal
+        open={showCreateRoomModal}
+        creating={roomCreating}
+        onClose={() => setShowCreateRoomModal(false)}
+        onCreate={handleCreateRoom}
+      />
     </div>
   );
 };

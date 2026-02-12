@@ -22,6 +22,12 @@ describe('GET /api/health', () => {
   });
 
   it('returns health report for authenticated or legacy-local context', async () => {
+    const runHealthCommand = vi.fn().mockResolvedValue({
+      status: 'ok',
+      checks: [],
+      summary: { ok: 1, warning: 0, critical: 0, skipped: 0 },
+      generatedAt: '2026-02-11T00:00:00.000Z',
+    });
     vi.doMock('../../../src/server/auth/userContext', () => ({
       resolveRequestUserContext: vi.fn().mockResolvedValue({
         userId: 'legacy-local-user',
@@ -29,21 +35,19 @@ describe('GET /api/health', () => {
       }),
     }));
     vi.doMock('../../../src/commands/healthCommand', () => ({
-      runHealthCommand: vi.fn().mockResolvedValue({
-        status: 'ok',
-        checks: [],
-        summary: { ok: 1, warning: 0, critical: 0, skipped: 0 },
-        generatedAt: '2026-02-11T00:00:00.000Z',
-      }),
+      runHealthCommand,
     }));
 
     const { GET } = await import('../../../app/api/health/route');
-    const response = await GET();
+    const response = await GET(
+      new Request('http://localhost/api/health?memoryDiagnostics=1'),
+    );
     const payload = (await response.json()) as { ok: boolean; status: string };
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
     expect(payload.status).toBe('ok');
+    expect(runHealthCommand).toHaveBeenCalledWith({ memoryDiagnosticsEnabled: true });
   });
 
   it('returns 401 when REQUIRE_AUTH is true and no session exists', async () => {

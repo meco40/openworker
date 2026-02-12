@@ -33,3 +33,27 @@ export async function GET(request: Request, context: RouteContext) {
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }
+
+export async function POST(request: Request, context: RouteContext) {
+  try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return unauthorized();
+    }
+
+    const params = await context.params;
+    const body = (await request.json()) as { content?: string };
+    const content = body.content?.trim();
+    if (!content) {
+      return NextResponse.json({ ok: false, error: 'content is required' }, { status: 400 });
+    }
+
+    const service = getRoomService();
+    const msg = service.sendUserMessage(userContext.userId, params.id, content);
+    return NextResponse.json({ ok: true, message: msg }, { status: 201 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = message.includes('not found') ? 404 : 500;
+    return NextResponse.json({ ok: false, error: message }, { status });
+  }
+}

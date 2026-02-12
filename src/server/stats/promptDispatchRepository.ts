@@ -15,7 +15,8 @@ export type PromptDispatchKind =
   | 'summary'
   | 'worker_planner'
   | 'worker_executor'
-  | 'api_gateway';
+  | 'api_gateway'
+  | 'room';
 
 export type PromptTokensSource = 'exact' | 'estimated';
 export type PromptDispatchStatus = 'success' | 'error';

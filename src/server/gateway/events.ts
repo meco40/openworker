@@ -84,6 +84,7 @@ export interface InboxUpdatedPayload {
 // ─── Rooms Events ────────────────────────────────────────────
 
 export interface RoomMessagePayload {
+  id: string;
   roomId: string;
   seq: number;
   speakerType: 'persona' | 'system' | 'user';

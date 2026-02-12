@@ -28,4 +28,5 @@ export interface HealthReport {
 export interface HealthCommandOptions {
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+  memoryDiagnosticsEnabled?: boolean;
 }

@@ -24,6 +24,7 @@ function toRoom(row: Record<string, unknown>): Room {
     id: row.id as string,
     userId: row.user_id as string,
     name: row.name as string,
+    description: (row.description as string) || null,
     goalMode: row.goal_mode as Room['goalMode'],
     routingProfileId: row.routing_profile_id as string,
     runState: row.run_state as RoomRunState,
@@ -89,7 +90,7 @@ function toMemberRuntime(row: Record<string, unknown>): RoomMemberRuntime {
   return {
     roomId: row.room_id as string,
     personaId: row.persona_id as string,
-    status: row.status as 'idle' | 'busy',
+    status: row.status as RoomMemberRuntime['status'],
     busyReason: (row.busy_reason as string) || null,
     busyUntil: (row.busy_until as string) || null,
     currentTask: (row.current_task as string) || null,
@@ -139,13 +140,171 @@ export class SqliteRoomRepository implements RoomRepository {
     this.migrate();
   }
 
+  /**
+   * Migrate CHECK constraints on existing tables that were created with older schemas.
+   * SQLite does not support ALTER TABLE to change CHECK constraints, so we rebuild
+   * affected tables using: create new → copy data → drop old → rename new.
+   *
+   * Uses a migrations tracking table to ensure each migration runs exactly once.
+   */
+  private migrateCheckConstraints(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS _room_migrations (
+        id TEXT PRIMARY KEY,
+        applied_at TEXT NOT NULL
+      )
+    `);
+
+    const applied = new Set(
+      (this.db.prepare('SELECT id FROM _room_migrations').all() as { id: string }[]).map((r) => r.id),
+    );
+
+    // ── Fix broken FK references from previous migration attempt ──
+    if (!applied.has('fix_broken_fk_refs')) {
+      this.fixBrokenForeignKeys();
+      this.db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+        'fix_broken_fk_refs', new Date().toISOString(),
+      );
+    }
+
+    if (!applied.has('rooms_add_free_goal_mode')) {
+      const roomsInfo = this.db.prepare(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='rooms'"
+      ).get() as { sql: string } | undefined;
+
+      if (roomsInfo && !roomsInfo.sql.includes("'free'")) {
+        this.db.exec('PRAGMA foreign_keys = OFF');
+        this.db.transaction(() => {
+          this.db.exec(`
+            CREATE TABLE _rooms_new (
+              id TEXT PRIMARY KEY,
+              user_id TEXT NOT NULL,
+              name TEXT NOT NULL,
+              goal_mode TEXT NOT NULL CHECK (goal_mode IN ('planning', 'simulation', 'free')),
+              routing_profile_id TEXT NOT NULL DEFAULT 'p1',
+              run_state TEXT NOT NULL DEFAULT 'stopped' CHECK (run_state IN ('stopped', 'running', 'degraded')),
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+          `);
+          this.db.exec('INSERT INTO _rooms_new SELECT * FROM rooms');
+          this.db.exec('DROP TABLE rooms');
+          this.db.exec('ALTER TABLE _rooms_new RENAME TO rooms');
+          this.db.prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+            'rooms_add_free_goal_mode', new Date().toISOString(),
+          );
+        })();
+        this.db.exec('PRAGMA foreign_keys = ON');
+      } else {
+        this.db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+          'rooms_add_free_goal_mode', new Date().toISOString(),
+        );
+      }
+    }
+
+    if (!applied.has('runtime_add_extended_statuses')) {
+      const runtimeInfo = this.db.prepare(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='room_member_runtime'"
+      ).get() as { sql: string } | undefined;
+
+      if (runtimeInfo && !runtimeInfo.sql.includes("'interrupting'")) {
+        this.db.exec('PRAGMA foreign_keys = OFF');
+        this.db.transaction(() => {
+          this.db.exec(`
+            CREATE TABLE _room_member_runtime_new (
+              room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+              persona_id TEXT NOT NULL,
+              status TEXT NOT NULL CHECK (status IN ('idle', 'busy', 'interrupting', 'interrupted', 'error')),
+              busy_reason TEXT,
+              busy_until TEXT,
+              current_task TEXT,
+              last_model TEXT,
+              last_profile_id TEXT,
+              last_tool TEXT,
+              updated_at TEXT NOT NULL,
+              PRIMARY KEY (room_id, persona_id)
+            )
+          `);
+          this.db.exec('INSERT INTO _room_member_runtime_new SELECT * FROM room_member_runtime');
+          this.db.exec('DROP TABLE room_member_runtime');
+          this.db.exec('ALTER TABLE _room_member_runtime_new RENAME TO room_member_runtime');
+          this.db.prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+            'runtime_add_extended_statuses', new Date().toISOString(),
+          );
+        })();
+        this.db.exec('PRAGMA foreign_keys = ON');
+      } else {
+        this.db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+          'runtime_add_extended_statuses', new Date().toISOString(),
+        );
+      }
+    }
+
+    // ── Add description column to rooms ────────────────────────
+    if (!applied.has('rooms_add_description')) {
+      const roomsInfo = this.db.prepare(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='rooms'"
+      ).get() as { sql: string } | undefined;
+
+      if (roomsInfo && !roomsInfo.sql.includes('description')) {
+        this.db.exec('ALTER TABLE rooms ADD COLUMN description TEXT');
+      }
+      this.db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+        'rooms_add_description', new Date().toISOString(),
+      );
+    }
+  }
+
+  /**
+   * Repairs tables whose REFERENCES were broken by a previous migration
+   * that used ALTER TABLE … RENAME TO (which SQLite rewrites FK refs to).
+   * Rebuilds any table referencing "_rooms_old" to point back to "rooms".
+   */
+  private fixBrokenForeignKeys(): void {
+    const brokenTables = (
+      this.db.prepare(
+        "SELECT name, sql FROM sqlite_master WHERE type='table' AND sql LIKE '%_rooms_old%'"
+      ).all() as { name: string; sql: string }[]
+    );
+
+    if (brokenTables.length === 0) return;
+
+    this.db.exec('PRAGMA foreign_keys = OFF');
+    this.db.transaction(() => {
+      for (const table of brokenTables) {
+        const fixedSql = table.sql.replace(/"_rooms_old"/g, 'rooms');
+        const columns = this.db.prepare(`PRAGMA table_info("${table.name}")`).all() as { name: string }[];
+        const colList = columns.map((c) => `"${c.name}"`).join(', ');
+
+        // Create temp table with fixed schema, copy data, drop old, rename
+        const tempName = `_${table.name}_fkfix`;
+        const createSql = fixedSql.replace(
+          `CREATE TABLE ${table.name}`,
+          `CREATE TABLE "${tempName}"`,
+        ).replace(
+          `CREATE TABLE "${table.name}"`,
+          `CREATE TABLE "${tempName}"`,
+        );
+        this.db.exec(createSql);
+        this.db.exec(`INSERT INTO "${tempName}" (${colList}) SELECT ${colList} FROM "${table.name}"`);
+        this.db.exec(`DROP TABLE "${table.name}"`);
+        this.db.exec(`ALTER TABLE "${tempName}" RENAME TO "${table.name}"`);
+      }
+    })();
+    this.db.exec('PRAGMA foreign_keys = ON');
+  }
+
   private migrate(): void {
+    // ── Schema migrations for existing DBs ─────────────────────
+    this.migrateCheckConstraints();
+
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS rooms (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         name TEXT NOT NULL,
-        goal_mode TEXT NOT NULL CHECK (goal_mode IN ('planning', 'simulation')),
+        description TEXT,
+        goal_mode TEXT NOT NULL CHECK (goal_mode IN ('planning', 'simulation', 'free')),
         routing_profile_id TEXT NOT NULL DEFAULT 'p1',
         run_state TEXT NOT NULL DEFAULT 'stopped' CHECK (run_state IN ('stopped', 'running', 'degraded')),
         created_at TEXT NOT NULL,
@@ -221,7 +380,7 @@ export class SqliteRoomRepository implements RoomRepository {
       CREATE TABLE IF NOT EXISTS room_member_runtime (
         room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
         persona_id TEXT NOT NULL,
-        status TEXT NOT NULL CHECK (status IN ('idle', 'busy')),
+        status TEXT NOT NULL CHECK (status IN ('idle', 'busy', 'interrupting', 'interrupted', 'error')),
         busy_reason TEXT,
         busy_until TEXT,
         current_task TEXT,
@@ -286,11 +445,11 @@ export class SqliteRoomRepository implements RoomRepository {
     this.db
       .prepare(
         `
-        INSERT INTO rooms (id, user_id, name, goal_mode, routing_profile_id, run_state, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'stopped', ?, ?)
+        INSERT INTO rooms (id, user_id, name, description, goal_mode, routing_profile_id, run_state, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'stopped', ?, ?)
       `,
       )
-      .run(id, input.userId, input.name, input.goalMode, input.routingProfileId, now, now);
+      .run(id, input.userId, input.name, input.description ?? null, input.goalMode, input.routingProfileId, now, now);
     return this.getRoom(id)!;
   }
 
@@ -419,10 +578,12 @@ export class SqliteRoomRepository implements RoomRepository {
       rows = this.db
         .prepare(
           `
-          SELECT * FROM room_messages
-          WHERE room_id = ? AND seq < ?
-          ORDER BY seq ASC
-          LIMIT ?
+          SELECT * FROM (
+            SELECT * FROM room_messages
+            WHERE room_id = ? AND seq < ?
+            ORDER BY seq DESC
+            LIMIT ?
+          ) sub ORDER BY seq ASC
         `,
         )
         .all(roomId, beforeSeq, cappedLimit) as Array<Record<string, unknown>>;
@@ -430,10 +591,12 @@ export class SqliteRoomRepository implements RoomRepository {
       rows = this.db
         .prepare(
           `
-          SELECT * FROM room_messages
-          WHERE room_id = ?
-          ORDER BY seq ASC
-          LIMIT ?
+          SELECT * FROM (
+            SELECT * FROM room_messages
+            WHERE room_id = ?
+            ORDER BY seq DESC
+            LIMIT ?
+          ) sub ORDER BY seq ASC
         `,
         )
         .all(roomId, cappedLimit) as Array<Record<string, unknown>>;

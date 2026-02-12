@@ -22,6 +22,21 @@ describe('GET /api/doctor', () => {
   });
 
   it('returns doctor report for authenticated or legacy-local context', async () => {
+    const runDoctorCommand = vi.fn().mockResolvedValue({
+      status: 'degraded',
+      checks: [],
+      findings: [
+        {
+          id: 'bridge_unreachable',
+          severity: 'warning',
+          title: 'Bridge Health Degraded',
+          detail: 'Bridge health failed with 503.',
+          recommendation: 'Verify bridge.',
+        },
+      ],
+      recommendations: ['Verify bridge.'],
+      generatedAt: '2026-02-11T00:00:00.000Z',
+    });
     vi.doMock('../../../src/server/auth/userContext', () => ({
       resolveRequestUserContext: vi.fn().mockResolvedValue({
         userId: 'legacy-local-user',
@@ -29,31 +44,20 @@ describe('GET /api/doctor', () => {
       }),
     }));
     vi.doMock('../../../src/commands/doctorCommand', () => ({
-      runDoctorCommand: vi.fn().mockResolvedValue({
-        status: 'degraded',
-        checks: [],
-        findings: [
-          {
-            id: 'bridge_unreachable',
-            severity: 'warning',
-            title: 'Bridge Health Degraded',
-            detail: 'Bridge health failed with 503.',
-            recommendation: 'Verify bridge.',
-          },
-        ],
-        recommendations: ['Verify bridge.'],
-        generatedAt: '2026-02-11T00:00:00.000Z',
-      }),
+      runDoctorCommand,
     }));
 
     const { GET } = await import('../../../app/api/doctor/route');
-    const response = await GET();
+    const response = await GET(
+      new Request('http://localhost/api/doctor?memoryDiagnostics=true'),
+    );
     const payload = (await response.json()) as { ok: boolean; status: string; findings: unknown[] };
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
     expect(payload.status).toBe('degraded');
     expect(payload.findings).toHaveLength(1);
+    expect(runDoctorCommand).toHaveBeenCalledWith({ memoryDiagnosticsEnabled: true });
   });
 
   it('returns 401 when REQUIRE_AUTH is true and no session exists', async () => {

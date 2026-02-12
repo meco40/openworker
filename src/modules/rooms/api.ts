@@ -17,7 +17,8 @@ export async function listRooms(): Promise<RoomSummary[]> {
 
 export async function createRoom(input: {
   name: string;
-  goalMode: 'planning' | 'simulation';
+  description?: string | null;
+  goalMode: 'planning' | 'simulation' | 'free';
   routingProfileId: string;
 }): Promise<RoomSummary> {
   const response = await fetch('/api/rooms', {
@@ -117,4 +118,17 @@ export async function getActiveRoomCountsByPersona(): Promise<Record<string, num
   }
   const payload = (await response.json()) as { ok: boolean; counts: Record<string, number> };
   return payload.counts || {};
+}
+
+export async function sendRoomMessage(roomId: string, content: string): Promise<RoomMessage> {
+  const response = await fetch(`/api/rooms/${roomId}/messages`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to send message');
+  }
+  const payload = (await response.json()) as { ok: boolean; message: RoomMessage };
+  return payload.message;
 }

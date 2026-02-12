@@ -71,4 +71,33 @@ describe('SqliteMemoryRepository', () => {
     expect(nodes).toHaveLength(1);
     expect(nodes[0].id).toBe('mem-persist');
   });
+
+  it('returns storage breakdown by type and largest nodes', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+    repo.insertNode(
+      createNode({
+        id: 'fact-large',
+        type: 'fact',
+        content: 'A'.repeat(300),
+        embedding: Array.from({ length: 128 }, (_, idx) => idx / 100),
+      }),
+    );
+    repo.insertNode(
+      createNode({
+        id: 'pref-medium',
+        type: 'preference',
+        content: 'B'.repeat(150),
+        embedding: Array.from({ length: 64 }, (_, idx) => idx / 100),
+      }),
+    );
+
+    const snapshot = repo.getStorageSnapshot(1);
+
+    expect(snapshot.summary.totalNodes).toBe(2);
+    expect(snapshot.summary.totalBytes).toBeGreaterThan(0);
+    expect(snapshot.byType.some((row) => row.type === 'fact')).toBe(true);
+    expect(snapshot.byType.some((row) => row.type === 'preference')).toBe(true);
+    expect(snapshot.largestNodes).toHaveLength(1);
+    expect(snapshot.largestNodes[0].id).toBe('fact-large');
+  });
 });

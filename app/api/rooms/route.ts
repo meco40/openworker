@@ -29,6 +29,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as {
       name?: string;
+      description?: string;
       goalMode?: RoomGoalMode;
       routingProfileId?: string;
     };
@@ -38,11 +39,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'name is required' }, { status: 400 });
     }
 
-    const goalMode = body.goalMode === 'simulation' ? 'simulation' : 'planning';
+    const VALID_GOAL_MODES = new Set<string>(['planning', 'simulation', 'free']);
+    const goalMode = VALID_GOAL_MODES.has(body.goalMode ?? '') ? body.goalMode! : 'planning';
     const routingProfileId = body.routingProfileId?.trim() || 'p1';
+    const description = body.description?.trim() || null;
 
     const service = getRoomService();
-    const room = service.createRoom(userContext.userId, { name, goalMode, routingProfileId });
+    const room = service.createRoom(userContext.userId, { name, description, goalMode, routingProfileId });
     return NextResponse.json({ ok: true, room }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

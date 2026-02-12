@@ -121,5 +121,150 @@ export class SqliteMemoryRepository implements MemoryRepository {
         node.id,
       );
   }
+
+  getStorageSnapshot(limit = 5): MemoryStorageSnapshot {
+    const normalizedLimit = Number.isFinite(limit)
+      ? Math.max(1, Math.min(50, Math.floor(limit)))
+      : 5;
+
+    const summaryRow = this.db
+      .prepare(
+        `
+        SELECT
+          COUNT(*) AS total_nodes,
+          COALESCE(SUM(LENGTH(CAST(content AS BLOB))), 0) AS content_bytes,
+          COALESCE(SUM(LENGTH(CAST(embedding_json AS BLOB))), 0) AS embedding_bytes,
+          COALESCE(SUM(LENGTH(CAST(COALESCE(metadata_json, '') AS BLOB))), 0) AS metadata_bytes
+        FROM memory_nodes
+      `,
+      )
+      .get() as {
+      total_nodes: number;
+      content_bytes: number;
+      embedding_bytes: number;
+      metadata_bytes: number;
+    };
+
+    const byTypeRows = this.db
+      .prepare(
+        `
+        SELECT
+          type,
+          COUNT(*) AS node_count,
+          COALESCE(SUM(LENGTH(CAST(content AS BLOB))), 0) AS content_bytes,
+          COALESCE(SUM(LENGTH(CAST(embedding_json AS BLOB))), 0) AS embedding_bytes,
+          COALESCE(SUM(LENGTH(CAST(COALESCE(metadata_json, '') AS BLOB))), 0) AS metadata_bytes
+        FROM memory_nodes
+        GROUP BY type
+        ORDER BY
+          (content_bytes + embedding_bytes + metadata_bytes) DESC,
+          node_count DESC
+      `,
+      )
+      .all() as Array<{
+      type: string;
+      node_count: number;
+      content_bytes: number;
+      embedding_bytes: number;
+      metadata_bytes: number;
+    }>;
+
+    const largestRows = this.db
+      .prepare(
+        `
+        SELECT
+          id,
+          type,
+          LENGTH(CAST(content AS BLOB)) AS content_bytes,
+          LENGTH(CAST(embedding_json AS BLOB)) AS embedding_bytes,
+          LENGTH(CAST(COALESCE(metadata_json, '') AS BLOB)) AS metadata_bytes
+        FROM memory_nodes
+        ORDER BY
+          (content_bytes + embedding_bytes + metadata_bytes) DESC,
+          updated_at DESC
+        LIMIT ?
+      `,
+      )
+      .all(normalizedLimit) as Array<{
+      id: string;
+      type: string;
+      content_bytes: number;
+      embedding_bytes: number;
+      metadata_bytes: number;
+    }>;
+
+    const summary: MemoryStorageSummary = {
+      totalNodes: Number(summaryRow.total_nodes || 0),
+      contentBytes: Number(summaryRow.content_bytes || 0),
+      embeddingBytes: Number(summaryRow.embedding_bytes || 0),
+      metadataBytes: Number(summaryRow.metadata_bytes || 0),
+      totalBytes:
+        Number(summaryRow.content_bytes || 0) +
+        Number(summaryRow.embedding_bytes || 0) +
+        Number(summaryRow.metadata_bytes || 0),
+    };
+
+    const byType: MemoryStorageByType[] = byTypeRows.map((row) => {
+      const contentBytes = Number(row.content_bytes || 0);
+      const embeddingBytes = Number(row.embedding_bytes || 0);
+      const metadataBytes = Number(row.metadata_bytes || 0);
+      return {
+        type: row.type,
+        count: Number(row.node_count || 0),
+        contentBytes,
+        embeddingBytes,
+        metadataBytes,
+        totalBytes: contentBytes + embeddingBytes + metadataBytes,
+      };
+    });
+
+    const largestNodes: MemoryStorageNodeSize[] = largestRows.map((row) => {
+      const contentBytes = Number(row.content_bytes || 0);
+      const embeddingBytes = Number(row.embedding_bytes || 0);
+      const metadataBytes = Number(row.metadata_bytes || 0);
+      return {
+        id: row.id,
+        type: row.type,
+        contentBytes,
+        embeddingBytes,
+        metadataBytes,
+        totalBytes: contentBytes + embeddingBytes + metadataBytes,
+      };
+    });
+
+    return { summary, byType, largestNodes };
+  }
+}
+
+export interface MemoryStorageSummary {
+  totalNodes: number;
+  totalBytes: number;
+  contentBytes: number;
+  embeddingBytes: number;
+  metadataBytes: number;
+}
+
+export interface MemoryStorageByType {
+  type: string;
+  count: number;
+  totalBytes: number;
+  contentBytes: number;
+  embeddingBytes: number;
+  metadataBytes: number;
+}
+
+export interface MemoryStorageNodeSize {
+  id: string;
+  type: string;
+  totalBytes: number;
+  contentBytes: number;
+  embeddingBytes: number;
+  metadataBytes: number;
+}
+
+export interface MemoryStorageSnapshot {
+  summary: MemoryStorageSummary;
+  byType: MemoryStorageByType[];
+  largestNodes: MemoryStorageNodeSize[];
 }
 

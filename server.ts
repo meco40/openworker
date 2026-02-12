@@ -7,6 +7,7 @@ import { WebSocketServer } from 'ws';
 import { getToken } from 'next-auth/jwt';
 import { handleConnection, getClientRegistry, broadcast } from './src/server/gateway/index.js';
 import { TICK_INTERVAL_MS, MAX_PAYLOAD_BYTES } from './src/server/gateway/constants.js';
+import { getRoomOrchestrator } from './src/server/rooms/runtime.js';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
@@ -89,10 +90,36 @@ app.prepare().then(() => {
     broadcast('tick', { ts: Date.now() });
   }, TICK_INTERVAL_MS);
 
+  // ─── Room Orchestrator (inline scheduler) ─────────────────
+  const ROOM_INTERVAL_MS = Number(process.env.ROOM_ORCHESTRATOR_INTERVAL_MS || 30_000);
+  let roomTimer: ReturnType<typeof setInterval> | null = null;
+
+  async function runRoomCycle(): Promise<void> {
+    try {
+      const orchestrator = getRoomOrchestrator({ instanceId: `server-${process.pid}` });
+      const result = await orchestrator.runOnce();
+      if (result.processedRooms > 0) {
+        console.log(`[rooms] processed ${result.processedRooms} rooms, ${result.createdMessages} messages`);
+      }
+    } catch (error) {
+      console.warn('[rooms] cycle failed:', error);
+    }
+  }
+
+  function startRoomScheduler(): void {
+    console.log(`[rooms] scheduler started (interval=${ROOM_INTERVAL_MS}ms)`);
+    void runRoomCycle();
+    roomTimer = setInterval(() => void runRoomCycle(), ROOM_INTERVAL_MS);
+    roomTimer.unref();
+  }
+
+  startRoomScheduler();
+
   // ─── Graceful Shutdown ─────────────────────────────────────
   function shutdown() {
     console.log('[gateway] Shutting down...');
     clearInterval(tickInterval);
+    if (roomTimer) clearInterval(roomTimer);
 
     const registry = getClientRegistry();
     for (const client of registry.getAll()) {

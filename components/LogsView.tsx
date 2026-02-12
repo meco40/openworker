@@ -26,6 +26,7 @@ interface LogEntry {
 type LevelFilter = 'all' | 'debug' | 'info' | 'warn' | 'error';
 type DiagnosticsStatus = 'ok' | 'degraded' | 'critical' | 'unknown';
 export const DIAGNOSTICS_REFRESH_INTERVAL_MS = 60000;
+const MEMORY_DIAGNOSTICS_STORAGE_KEY = 'openclaw-memory-diagnostics-enabled';
 
 interface HealthSummary {
   ok: number;
@@ -309,6 +310,7 @@ const LogsView: React.FC = () => {
     error: null,
   });
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(true);
+  const [memoryDiagnosticsEnabled, setMemoryDiagnosticsEnabled] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -368,12 +370,35 @@ const LogsView: React.FC = () => {
     void fetchCategories();
   }, [fetchCategories]);
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(MEMORY_DIAGNOSTICS_STORAGE_KEY);
+      if (stored === '1' || stored === 'true') {
+        setMemoryDiagnosticsEnabled(true);
+      }
+    } catch {
+      // Ignore storage access errors (SSR/private mode edge cases)
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        MEMORY_DIAGNOSTICS_STORAGE_KEY,
+        memoryDiagnosticsEnabled ? '1' : '0',
+      );
+    } catch {
+      // Ignore storage access errors.
+    }
+  }, [memoryDiagnosticsEnabled]);
+
   const fetchDiagnostics = useCallback(async () => {
     setDiagnosticsLoading(true);
+    const memoryDiagnosticsFlag = memoryDiagnosticsEnabled ? '1' : '0';
 
     const [healthResult, doctorResult] = await Promise.allSettled([
-      fetch('/api/health'),
-      fetch('/api/doctor'),
+      fetch(`/api/health?memoryDiagnostics=${memoryDiagnosticsFlag}`),
+      fetch(`/api/doctor?memoryDiagnostics=${memoryDiagnosticsFlag}`),
     ]);
 
     if (healthResult.status === 'fulfilled') {
@@ -467,7 +492,7 @@ const LogsView: React.FC = () => {
     }
 
     setDiagnosticsLoading(false);
-  }, []);
+  }, [memoryDiagnosticsEnabled]);
 
   useEffect(() => {
     void fetchDiagnostics();
@@ -627,12 +652,29 @@ const LogsView: React.FC = () => {
               Quick view of Health and Doctor checks.
             </p>
           </div>
-          <button
-            onClick={() => void fetchDiagnostics()}
-            className="px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide bg-zinc-900/80 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors"
-          >
-            {diagnosticsLoading ? 'Refreshing...' : 'Refresh'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMemoryDiagnosticsEnabled((prev) => !prev)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide border transition-colors ${
+                memoryDiagnosticsEnabled
+                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-300'
+                  : 'bg-zinc-900/80 border-zinc-800 text-zinc-500 hover:text-zinc-200 hover:border-zinc-700'
+              }`}
+              title={
+                memoryDiagnosticsEnabled
+                  ? 'Detaillierte Memory-Diagnostik aktiv'
+                  : 'Detaillierte Memory-Diagnostik aus'
+              }
+            >
+              Memory Profiling {memoryDiagnosticsEnabled ? 'ON' : 'OFF'}
+            </button>
+            <button
+              onClick={() => void fetchDiagnostics()}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide bg-zinc-900/80 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors"
+            >
+              {diagnosticsLoading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

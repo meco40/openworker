@@ -125,14 +125,20 @@ export async function dispatchOpenAICompatibleChat(
   }
 
   const json = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
+    choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
     model?: string;
   };
 
+  let text = json.choices?.[0]?.message?.content ?? '';
+
+  // Strip thinking/reasoning blocks that some models embed in content
+  // e.g. DeepSeek R1, Grok 4 via OpenRouter: <think>...</think>
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
   return {
     ok: true,
-    text: json.choices?.[0]?.message?.content ?? '',
+    text,
     model: json.model ?? request.model,
     provider: providerId,
     usage: json.usage

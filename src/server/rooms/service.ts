@@ -9,6 +9,7 @@ import type {
 } from './types';
 import { broadcastToUser } from '../gateway/broadcast';
 import { GatewayEvents } from '../gateway/events';
+import { getPersonaRepository } from '../personas/personaRepository';
 
 export interface ResolveRoomRoutingInput {
   roomProfileId: string;
@@ -67,10 +68,11 @@ function assertRoomOwner(room: Room | null, userId: string): Room {
 export class RoomService {
   constructor(private readonly repository: RoomRepository) {}
 
-  createRoom(userId: string, input: { name: string; goalMode: Room['goalMode']; routingProfileId: string }): Room {
+  createRoom(userId: string, input: { name: string; description?: string | null; goalMode: Room['goalMode']; routingProfileId: string }): Room {
     const room = this.repository.createRoom({
       userId,
       name: input.name,
+      description: input.description ?? null,
       goalMode: input.goalMode,
       routingProfileId: input.routingProfileId || 'p1',
     });
@@ -91,7 +93,11 @@ export class RoomService {
   }
 
   deleteRoom(userId: string, roomId: string): boolean {
-    assertRoomOwner(this.repository.getRoom(roomId), userId);
+    const room = assertRoomOwner(this.repository.getRoom(roomId), userId);
+    // Stop the room if it's still running before deleting
+    if (room.runState === 'running' || room.runState === 'degraded') {
+      this.repository.closeActiveRoomRun(roomId, 'stopped', null);
+    }
     return this.repository.deleteRoom(roomId);
   }
 
@@ -101,6 +107,13 @@ export class RoomService {
     input: { personaId: string; roleLabel: string; turnPriority?: number; modelOverride?: string | null },
   ): RoomMember {
     assertRoomOwner(this.repository.getRoom(roomId), userId);
+
+    // Validate persona ownership
+    const persona = getPersonaRepository().getPersona(input.personaId);
+    if (!persona || persona.userId !== userId) {
+      throw new Error('Persona not found');
+    }
+
     const member = this.repository.addMember(
       roomId,
       input.personaId,
@@ -121,6 +134,35 @@ export class RoomService {
   removeMember(userId: string, roomId: string, personaId: string): boolean {
     assertRoomOwner(this.repository.getRoom(roomId), userId);
     return this.repository.removeMember(roomId, personaId);
+  }
+
+  interruptMember(userId: string, roomId: string, personaId: string): RoomMemberRuntime {
+    const room = assertRoomOwner(this.repository.getRoom(roomId), userId);
+    const runtime = this.repository.getMemberRuntime(roomId, personaId);
+    if (!runtime) {
+      throw new Error('Member runtime not found');
+    }
+    if (runtime.status !== 'busy') {
+      throw new Error(`Cannot interrupt member in "${runtime.status}" state`);
+    }
+    const updated = this.repository.upsertMemberRuntime({
+      roomId,
+      personaId,
+      status: 'interrupting',
+      busyReason: 'Interrupting…',
+      currentTask: runtime.currentTask,
+      lastModel: runtime.lastModel,
+      lastProfileId: runtime.lastProfileId,
+      lastTool: runtime.lastTool,
+    });
+    broadcastToUser(room.userId, GatewayEvents.ROOM_MEMBER_STATUS, {
+      roomId,
+      personaId,
+      status: 'interrupting',
+      reason: 'Interrupting…',
+      updatedAt: updated.updatedAt,
+    });
+    return updated;
   }
 
   updateRunState(userId: string, roomId: string, runState: RoomRunState): Room {
@@ -152,6 +194,26 @@ export class RoomService {
   listMessages(userId: string, roomId: string, limit?: number, beforeSeq?: number): RoomMessage[] {
     assertRoomOwner(this.repository.getRoom(roomId), userId);
     return this.repository.listMessages(roomId, limit, beforeSeq);
+  }
+
+  sendUserMessage(userId: string, roomId: string, content: string): RoomMessage {
+    const room = assertRoomOwner(this.repository.getRoom(roomId), userId);
+    const message = this.repository.appendMessage({
+      roomId,
+      speakerType: 'user',
+      speakerPersonaId: null,
+      content,
+    });
+    broadcastToUser(room.userId, GatewayEvents.ROOM_MESSAGE, {
+      id: message.id,
+      roomId: message.roomId,
+      seq: message.seq,
+      speakerType: message.speakerType,
+      speakerPersonaId: message.speakerPersonaId,
+      content: message.content,
+      createdAt: message.createdAt,
+    });
+    return message;
   }
 
   addIntervention(userId: string, roomId: string, note: string): RoomIntervention {

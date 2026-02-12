@@ -144,4 +144,56 @@ describe('runHealthCommand', () => {
     expect(report.checks.some((c) => c.id === 'diagnostics.memory_pressure')).toBe(true);
     expect(report.checks.find((c) => c.id === 'diagnostics.alert_routing')?.status).toBe('skipped');
   });
+
+  it('captures detailed memory diagnostics and persists a memory sample log when enabled', async () => {
+    process.env.MESSAGES_DB_PATH = ':memory:';
+    process.env.LOGS_DB_PATH = ':memory:';
+
+    const { LogRepository } = await import('../../../src/logging/logRepository');
+    const repo = new LogRepository(':memory:');
+    globalThis.__logRepository = repo;
+
+    const { runHealthCommand } = await import('../../../src/commands/healthCommand');
+    const report = await runHealthCommand({ memoryDiagnosticsEnabled: true });
+    const memoryCheck = report.checks.find((c) => c.id === 'diagnostics.memory_pressure');
+
+    expect(memoryCheck).toBeDefined();
+    expect(memoryCheck?.details).toBeDefined();
+    const details = (memoryCheck?.details ?? {}) as Record<string, unknown>;
+    expect(typeof details.heapUsed).toBe('number');
+    expect(typeof details.heapTotal).toBe('number');
+    expect(details.currentProcess).toBeDefined();
+    expect(details.nodeProcesses).toBeDefined();
+    expect(details.memoryNodes).toBeDefined();
+
+    const memLogs = repo.listLogs({ source: 'MEM', limit: 10 });
+    expect(memLogs.some((entry) => entry.message.startsWith('memory.diagnostics.sample'))).toBe(true);
+  });
+
+  it('skips expensive memory diagnostics and sample logging when disabled', async () => {
+    process.env.MESSAGES_DB_PATH = ':memory:';
+    process.env.LOGS_DB_PATH = ':memory:';
+
+    const { LogRepository } = await import('../../../src/logging/logRepository');
+    const repo = new LogRepository(':memory:');
+    globalThis.__logRepository = repo;
+
+    const { runHealthCommand } = await import('../../../src/commands/healthCommand');
+    const report = await runHealthCommand({ memoryDiagnosticsEnabled: false });
+    const memoryCheck = report.checks.find((c) => c.id === 'diagnostics.memory_pressure');
+
+    expect(memoryCheck).toBeDefined();
+    expect(memoryCheck?.details).toBeDefined();
+    const details = (memoryCheck?.details ?? {}) as Record<string, unknown>;
+    expect(typeof details.heapUsed).toBe('number');
+    expect(typeof details.heapTotal).toBe('number');
+    expect(details.currentProcess).toBeUndefined();
+    expect(details.nodeProcesses).toBeUndefined();
+    expect(details.memoryNodes).toBeUndefined();
+
+    const memLogs = repo.listLogs({ source: 'MEM', limit: 10 });
+    expect(memLogs.some((entry) => entry.message.startsWith('memory.diagnostics.sample'))).toBe(
+      false,
+    );
+  });
 });

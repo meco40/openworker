@@ -6,6 +6,20 @@ function mockUserContext(context: MockUserContext): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
     resolveRequestUserContext: vi.fn().mockResolvedValue(context),
   }));
+
+  // Mock persona repository so persona ownership checks pass in tests.
+  // Every persona lookup returns a persona owned by the mocked user.
+  vi.doMock('../../../src/server/personas/personaRepository', () => ({
+    getPersonaRepository: () => ({
+      getPersona: (id: string) => ({
+        id,
+        userId: context?.userId ?? 'legacy-local-user',
+        name: `Test Persona ${id}`,
+        emoji: '🤖',
+      }),
+      getPersonaSystemInstruction: () => null,
+    }),
+  }));
 }
 
 describe('rooms routes', () => {

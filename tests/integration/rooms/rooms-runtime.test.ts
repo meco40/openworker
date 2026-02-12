@@ -1,10 +1,50 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { RoomOrchestrator } from '../../../src/server/rooms/orchestrator';
 import { SqliteRoomRepository } from '../../../src/server/rooms/sqliteRoomRepository';
 
+// Mock the model hub runtime — return a simple text response
+vi.mock('../../../src/server/model-hub/runtime', () => ({
+  getModelHubService: () => ({
+    dispatchWithFallback: vi.fn().mockResolvedValue({
+      ok: true,
+      text: 'AI response from room orchestrator',
+      model: 'grok-4',
+      provider: 'xai',
+      usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+    }),
+  }),
+  getModelHubEncryptionKey: () => 'test-encryption-key',
+}));
+
+// Mock persona repository
+vi.mock('../../../src/server/personas/personaRepository', () => ({
+  getPersonaRepository: () => ({
+    getPersonaSystemInstruction: vi.fn().mockReturnValue('You are a helpful assistant.'),
+    getPersona: vi.fn().mockReturnValue({
+      id: 'persona-1',
+      userId: 'user-a',
+      name: 'Test Persona',
+      emoji: '🤖',
+      vibe: 'helpful',
+    }),
+  }),
+}));
+
+// Mock skill repository — return empty skills (no tools available)
+vi.mock('../../../src/server/skills/skillRepository', () => ({
+  getSkillRepository: vi.fn().mockResolvedValue({
+    listSkills: () => [],
+  }),
+}));
+
+// Mock skill definitions
+vi.mock('../../../skills/definitions', () => ({
+  mapSkillsToTools: vi.fn().mockReturnValue([]),
+}));
+
 describe('rooms runtime orchestrator', () => {
-  it('processes running rooms and appends a proactive room message', async () => {
+  it('processes running rooms and appends an AI-generated room message', async () => {
     const repo = new SqliteRoomRepository(':memory:');
     const room = repo.createRoom({
       userId: 'user-a',
@@ -26,7 +66,7 @@ describe('rooms runtime orchestrator', () => {
     const messages = repo.listMessages(room.id, 10);
     expect(messages).toHaveLength(1);
     expect(messages[0]?.speakerType).toBe('persona');
-    expect(messages[0]?.content).toContain('Tool executed');
+    expect(messages[0]?.content).toBe('AI response from room orchestrator');
   });
 
   it('acquires lease for running room and records the active run', async () => {
@@ -94,5 +134,37 @@ describe('rooms runtime orchestrator', () => {
 
     const updated = repo.getRoom(room.id);
     expect(updated?.runState).toBe('degraded');
+  });
+
+  it('creates room with free goal mode', () => {
+    const repo = new SqliteRoomRepository(':memory:');
+    const room = repo.createRoom({
+      userId: 'user-a',
+      name: 'Open Discussion',
+      goalMode: 'free',
+      routingProfileId: 'p1',
+    });
+    expect(room.goalMode).toBe('free');
+  });
+
+  it('supports extended member runtime statuses', () => {
+    const repo = new SqliteRoomRepository(':memory:');
+    const room = repo.createRoom({
+      userId: 'user-a',
+      name: 'Office',
+      goalMode: 'planning',
+      routingProfileId: 'p1',
+    });
+    repo.addMember(room.id, 'persona-1', 'Researcher', 1, null);
+
+    for (const status of ['idle', 'busy', 'interrupting', 'interrupted', 'error'] as const) {
+      const runtime = repo.upsertMemberRuntime({
+        roomId: room.id,
+        personaId: 'persona-1',
+        status,
+        busyReason: status === 'idle' ? null : `Reason: ${status}`,
+      });
+      expect(runtime.status).toBe(status);
+    }
   });
 });

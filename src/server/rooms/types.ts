@@ -1,4 +1,4 @@
-export type RoomGoalMode = 'planning' | 'simulation';
+export type RoomGoalMode = 'planning' | 'simulation' | 'free';
 
 export type RoomRunState = 'stopped' | 'running' | 'degraded';
 
@@ -6,6 +6,7 @@ export interface Room {
   id: string;
   userId: string;
   name: string;
+  description: string | null;
   goalMode: RoomGoalMode;
   routingProfileId: string;
   runState: RoomRunState;
@@ -62,10 +63,12 @@ export interface RoomRun {
   updatedAt: string;
 }
 
+export type RoomMemberRuntimeStatus = 'idle' | 'busy' | 'interrupting' | 'interrupted' | 'error';
+
 export interface RoomMemberRuntime {
   roomId: string;
   personaId: string;
-  status: 'idle' | 'busy';
+  status: RoomMemberRuntimeStatus;
   busyReason: string | null;
   busyUntil: string | null;
   currentTask: string | null;
@@ -95,7 +98,7 @@ export interface RoomPersonaContext {
 export interface UpsertMemberRuntimeInput {
   roomId: string;
   personaId: string;
-  status: 'idle' | 'busy';
+  status: RoomMemberRuntimeStatus;
   busyReason?: string | null;
   busyUntil?: string | null;
   currentTask?: string | null;
@@ -107,6 +110,7 @@ export interface UpsertMemberRuntimeInput {
 export interface CreateRoomInput {
   userId: string;
   name: string;
+  description?: string | null;
   goalMode: RoomGoalMode;
   routingProfileId: string;
 }

@@ -25,7 +25,8 @@ export type GatewayAuditKind =
   | 'summary'
   | 'worker_planner'
   | 'worker_executor'
-  | 'api_gateway';
+  | 'api_gateway'
+  | 'room';
 
 export interface GatewayAuditContext {
   kind: GatewayAuditKind;
