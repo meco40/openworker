@@ -30,6 +30,7 @@ const ConfigEditor = dynamic(() => import('../../config/components/ConfigEditor'
 const ProfileView = dynamic(() => import('../../../../components/ProfileView'));
 const ExposureManager = dynamic(() => import('../../exposure/components/ExposureManager'));
 const StatsView = dynamic(() => import('../../../../components/StatsView'));
+const PersonasView = dynamic(() => import('../../../../components/PersonasView'));
 
 interface AppShellViewContentProps {
   currentView: View;
@@ -162,6 +163,11 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
       {currentView === View.STATS && (
         <ViewErrorBoundary label="Usage Stats">
           <StatsView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.PERSONAS && (
+        <ViewErrorBoundary label="Agent Personas">
+          <PersonasView />
         </ViewErrorBoundary>
       )}
     </div>

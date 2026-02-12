@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type React from 'react';
 import type { ChannelType, Message, ScheduledTask, Skill, SystemLog } from '../../../types';
-import { ai, SYSTEM_INSTRUCTION } from '../../../services/gateway';
+import { ai, getSystemInstruction } from '../../../services/gateway';
 import type { GatewayChat, GatewayStreamChunk } from '../../../services/gateway';
 import { mapSkillsToTools } from '../../../skills/definitions';
 import { executeSkillFunctionCall } from '../../../skills/execute';
 import { CORE_MEMORY_TOOLS, handleCoreMemoryCall } from '../../../core/memory';
 import { createAgentPlaceholder } from '../chat/services/handleAgentResponse';
 import { parseTaskScheduleArgs } from './taskScheduling';
+import { usePersona } from '../personas/PersonaContext';
 
 interface UseAgentRuntimeArgs {
   skills: Skill[];
@@ -26,18 +27,35 @@ export function useAgentRuntime({
 }: UseAgentRuntimeArgs) {
   const [isAgentTyping, setIsAgentTyping] = useState(false);
   const chatRef = useRef<GatewayChat | null>(null);
+  const { activePersona } = usePersona();
 
   useEffect(() => {
     const optionalTools = mapSkillsToTools(skills, 'gemini');
     const allTools = [...CORE_MEMORY_TOOLS, ...optionalTools];
 
+    // Build system instruction from active persona or fall back to default
+    let instruction = getSystemInstruction();
+    if (activePersona) {
+      const personaFiles = activePersona.files || [];
+      const instructionParts: string[] = [];
+      for (const fname of ['SOUL.md', 'AGENTS.md', 'USER.md'] as const) {
+        const file = personaFiles.find((f) => f.filename === fname);
+        if (file?.content?.trim()) {
+          instructionParts.push(file.content.trim());
+        }
+      }
+      if (instructionParts.length > 0) {
+        instruction = instructionParts.join('\n\n---\n\n').slice(0, 4000);
+      }
+    }
+
     chatRef.current = ai.chats.create({
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction: instruction,
         tools: allTools,
       },
     });
-  }, [skills]);
+  }, [skills, activePersona]);
 
   const handleAgentResponse = useCallback(
     async (userContent: string, platform: ChannelType) => {

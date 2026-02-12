@@ -577,7 +577,12 @@ export class MessageService {
     platform: ChannelType,
     externalChatId: string,
   ): Promise<StoredMessage> {
-    const messages = this.contextBuilder.buildGatewayMessages(conversation.id, conversation.userId, 50);
+    const messages = this.contextBuilder.buildGatewayMessages(
+      conversation.id,
+      conversation.userId,
+      50,
+      conversation.personaId,
+    );
 
     // ─── Abort tracking ──────────────────────────────────
     const abortController = new AbortController();
@@ -686,6 +691,10 @@ export class MessageService {
    */
   setModelOverride(conversationId: string, modelOverride: string | null, userId: string): void {
     this.repo.updateModelOverride(conversationId, modelOverride, userId);
+  }
+
+  setPersonaId(conversationId: string, personaId: string | null, userId: string): void {
+    this.repo.updatePersonaId(conversationId, personaId, userId);
   }
 
   // ─── Helper: Send & Broadcast Response ─────────────────────

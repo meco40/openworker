@@ -3,11 +3,14 @@
 import React from 'react';
 import App from '../../../App';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { PersonaProvider } from '../personas/PersonaContext';
 
 const AppShell: React.FC = () => {
   return (
     <ErrorBoundary label="OpenClaw Gateway" fullPage>
-      <App />
+      <PersonaProvider>
+        <App />
+      </PersonaProvider>
     </ErrorBoundary>
   );
 };

@@ -120,6 +120,7 @@ export class PersonaRepository {
   }
 
   createPersona(input: CreatePersonaInput): PersonaProfile {
+    const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
     this.db
@@ -127,7 +128,7 @@ export class PersonaRepository {
         `INSERT INTO personas (id, name, emoji, vibe, user_id, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(input.id, input.name, input.emoji, input.vibe, input.userId, now, now);
+      .run(id, input.name, input.emoji, input.vibe, input.userId, now, now);
 
     // Seed all file slots with provided content or empty string
     const insertFile = this.db.prepare(
@@ -135,10 +136,10 @@ export class PersonaRepository {
     );
     for (const filename of PERSONA_FILE_NAMES) {
       const content = input.files?.[filename] ?? '';
-      insertFile.run(input.id, filename, content);
+      insertFile.run(id, filename, content);
     }
 
-    return this.getPersona(input.id)!;
+    return this.getPersona(id)!;
   }
 
   updatePersona(id: string, updates: { name?: string; emoji?: string; vibe?: string }): void {

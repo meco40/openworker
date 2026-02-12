@@ -102,6 +102,7 @@ export const GatewayEvents = {
   CHAT_ABORTED: 'chat.aborted',
   CONVERSATION_DELETED: 'conversation.deleted',
   CONVERSATION_RESET: 'conversation.reset',
+  PERSONA_CHANGED: 'persona.changed',
   WORKER_STATUS: 'worker.status',
   WORKER_APPROVAL_REQUESTED: 'worker.approval.requested',
   LOG_ENTRY: 'log.entry',

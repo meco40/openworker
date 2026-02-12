@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       channelType?: ChannelType;
       title?: string;
+      personaId?: string;
     };
 
     if (!body.channelType) {
@@ -61,6 +62,12 @@ export async function POST(request: Request) {
       body.title,
       userContext.userId,
     );
+
+    // Bind persona to conversation if provided
+    if (body.personaId) {
+      service.setPersonaId(conversation.id, body.personaId, userContext.userId);
+      conversation.personaId = body.personaId;
+    }
 
     return NextResponse.json({ ok: true, conversation });
   } catch (error) {
@@ -101,12 +108,13 @@ export async function DELETE(request: NextRequest) {
 }
 
 // ─── PATCH /api/channels/conversations ───────────────────────
-// Body: { conversationId, modelOverride?: string | null }
+// Body: { conversationId, modelOverride?: string | null, personaId?: string | null }
 export async function PATCH(request: Request) {
   try {
     const body = (await request.json()) as {
       conversationId?: string;
       modelOverride?: string | null;
+      personaId?: string | null;
     };
 
     if (!body.conversationId) {
@@ -122,6 +130,10 @@ export async function PATCH(request: Request) {
 
     if ('modelOverride' in body) {
       service.setModelOverride(body.conversationId, body.modelOverride ?? null, userContext.userId);
+    }
+
+    if ('personaId' in body) {
+      service.setPersonaId(body.conversationId, body.personaId ?? null, userContext.userId);
     }
 
     return NextResponse.json({ ok: true });

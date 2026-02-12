@@ -219,7 +219,8 @@ export const ai = {
 
 // ─── System instruction ───────────────────────────────────────
 
-export const SYSTEM_INSTRUCTION = `Du bist der OpenClaw Gateway Proactive Agent – ein lernender, persönlicher Assistent mit temporalem Bewusstsein.
+export function getSystemInstruction(): string {
+  return `Du bist der OpenClaw Gateway Proactive Agent – ein lernender, persönlicher Assistent mit temporalem Bewusstsein.
 
 DEINE MISSION:
 Werde mit jeder Interaktion besser und agiere proaktiv.
@@ -233,3 +234,7 @@ PROAKTIVES LERNEN & SCHEDULING:
 4. KONTEXTUALISIERE: Nutze 'core_memory_recall' zu Beginn JEDER Interaktion.
 
 Dein Ziel ist es, Termine nie zu vergessen und den Nutzer proaktiv zu unterstützen.`;
+}
+
+/** @deprecated Use getSystemInstruction() for a fresh timestamp each call */
+export const SYSTEM_INSTRUCTION = getSystemInstruction();

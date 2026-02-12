@@ -30,6 +30,7 @@ export interface CreateConversationInput {
   externalChatId?: string;
   title?: string;
   userId?: string;
+  personaId?: string;
 }
 
 export interface SaveMessageInput {
@@ -76,6 +77,7 @@ export interface MessageRepository {
 
   deleteConversation(id: string, userId: string): boolean;
   updateModelOverride(id: string, modelOverride: string | null, userId: string): void;
+  updatePersonaId(id: string, personaId: string | null, userId: string): void;
   findMessageByClientId(conversationId: string, clientMessageId: string): StoredMessage | null;
 
   getConversationContext(conversationId: string, userId?: string): ConversationContextState | null;

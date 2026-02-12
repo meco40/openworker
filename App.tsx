@@ -35,6 +35,7 @@ import { useChannelStateSync } from './src/modules/app-shell/useChannelStateSync
 import { toMessage } from './src/modules/chat/services/routeMessage';
 import AppShellHeader from './src/modules/app-shell/components/AppShellHeader';
 import AppShellViewContent from './src/modules/app-shell/components/AppShellViewContent';
+import { usePersona } from './src/modules/personas/PersonaContext';
 
 const TerminalWizard = dynamic(() => import('./components/TerminalWizard'));
 const LiveCanvas = dynamic(() => import('./components/LiveCanvas').then((mod) => mod.LiveCanvas), {
@@ -52,6 +53,7 @@ const App: React.FC = () => {
   const [teams, setTeams] = useState<Team[]>(INITIAL_TEAMS);
   const [tasks] = useState<WorkerTask[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const { activePersonaId } = usePersona();
 
   // Load persisted skills from SQLite on mount
   useEffect(() => {
@@ -210,6 +212,7 @@ const App: React.FC = () => {
         body: JSON.stringify({
           channelType: ChannelType.WEBCHAT,
           title: buildConversationTitle(),
+          personaId: activePersonaId || undefined,
         }),
       });
       const data = await response.json();
@@ -222,7 +225,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Failed to create conversation:', error);
     }
-  }, [addEventLog, setActiveConversationId, setConversations, setMessages]);
+  }, [addEventLog, activePersonaId, setActiveConversationId, setConversations, setMessages]);
 
   const handleDeleteConversation = useCallback(
     async (conversationId: string) => {

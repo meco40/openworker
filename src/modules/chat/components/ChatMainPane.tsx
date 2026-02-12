@@ -2,6 +2,7 @@ import React from 'react';
 import type { Conversation, Message } from '../../../../types';
 import { getPlatformMeta } from '../uiUtils';
 import ChatMessageAttachment from './ChatMessageAttachment';
+import { usePersona } from '../../personas/PersonaContext';
 
 interface ChatMainPaneProps {
   activeConversation: Conversation | undefined;
@@ -17,6 +18,8 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
   scrollRef,
 }) => {
   const activeMeta = activeConversation ? getPlatformMeta(activeConversation.channelType) : null;
+  const { activePersona, personas, activePersonaId, setActivePersonaId } = usePersona();
+  const [showPersonaDropdown, setShowPersonaDropdown] = React.useState(false);
 
   return (
     <>
@@ -41,6 +44,53 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
             </>
           ) : (
             <div className="text-zinc-500 text-sm font-medium">Conversation auswählen</div>
+          )}
+        </div>
+
+        {/* Persona Switcher */}
+        <div className="relative">
+          <button
+            onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+              activePersona
+                ? 'bg-indigo-600/15 border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/25'
+                : 'bg-zinc-800/50 border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600'
+            }`}
+          >
+            <span>{activePersona?.emoji || '🤖'}</span>
+            <span>{activePersona?.name || 'Default'}</span>
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          {showPersonaDropdown && (
+            <div className="absolute right-0 top-full mt-1 w-56 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50">
+              <button
+                onClick={() => { setActivePersonaId(null); setShowPersonaDropdown(false); }}
+                className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 ${
+                  !activePersonaId ? 'bg-indigo-600/20 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+                }`}
+              >
+                <span>🤖</span>
+                <span>Default (kein Persona)</span>
+              </button>
+              {personas.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => { setActivePersonaId(p.id); setShowPersonaDropdown(false); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 ${
+                    activePersonaId === p.id ? 'bg-indigo-600/20 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+                  }`}
+                >
+                  <span>{p.emoji}</span>
+                  <span className="truncate">{p.name}</span>
+                </button>
+              ))}
+              {personas.length === 0 && (
+                <div className="px-4 py-3 text-xs text-zinc-600">Keine Personas erstellt</div>
+              )}
+            </div>
           )}
         </div>
       </header>

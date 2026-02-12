@@ -8,7 +8,12 @@ interface GatewayMessage {
 export class ContextBuilder {
   constructor(private readonly repo: MessageRepository) {}
 
-  buildGatewayMessages(conversationId: string, userId: string, limit = 50): GatewayMessage[] {
+  buildGatewayMessages(
+    conversationId: string,
+    userId: string,
+    limit = 50,
+    personaId?: string | null,
+  ): GatewayMessage[] {
     const context = this.repo.getConversationContext(conversationId, userId);
     const history = this.repo.listMessages(conversationId, limit, undefined, userId);
     const unsummarizedHistory = context
@@ -25,16 +30,30 @@ export class ContextBuilder {
       content: message.content,
     }));
 
-    if (context?.summaryText?.trim()) {
-      return [
-        {
-          role: 'system',
-          content: `Conversation summary: ${context.summaryText.trim()}`,
-        },
-        ...mapped,
-      ];
+    const prefix: GatewayMessage[] = [];
+
+    // Prepend persona system instruction (if active)
+    if (personaId) {
+      try {
+        const { getPersonaRepository } = require('../../personas/personaRepository');
+        const personaRepo = getPersonaRepository();
+        const instruction = personaRepo.getPersonaSystemInstruction(personaId);
+        if (instruction) {
+          prefix.push({ role: 'system', content: instruction });
+        }
+      } catch {
+        // Persona module unavailable — skip silently
+      }
     }
 
-    return mapped;
+    // Prepend conversation summary
+    if (context?.summaryText?.trim()) {
+      prefix.push({
+        role: 'system',
+        content: `Conversation summary: ${context.summaryText.trim()}`,
+      });
+    }
+
+    return [...prefix, ...mapped];
   }
 }

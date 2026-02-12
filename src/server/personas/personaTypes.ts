@@ -47,7 +47,6 @@ export interface PersonaSummary {
 }
 
 export interface CreatePersonaInput {
-  id: string;
   name: string;
   emoji: string;
   vibe: string;

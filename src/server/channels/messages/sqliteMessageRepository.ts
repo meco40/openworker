@@ -29,6 +29,7 @@ function toConversation(row: Record<string, unknown>): Conversation {
     userId: (row.user_id as string) || LEGACY_LOCAL_USER_ID,
     title: row.title as string,
     modelOverride: (row.model_override as string) || null,
+    personaId: (row.persona_id as string) || null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -212,6 +213,10 @@ export class SqliteMessageRepository implements MessageRepository {
       this.db.exec(`ALTER TABLE conversations ADD COLUMN model_override TEXT`);
     }
 
+    if (!this.hasColumn('conversations', 'persona_id')) {
+      this.db.exec(`ALTER TABLE conversations ADD COLUMN persona_id TEXT`);
+    }
+
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_channel_bindings_user_updated
         ON channel_bindings (user_id, updated_at DESC);
@@ -229,11 +234,11 @@ export class SqliteMessageRepository implements MessageRepository {
     this.db
       .prepare(
         `
-        INSERT INTO conversations (id, channel_type, external_chat_id, user_id, title, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO conversations (id, channel_type, external_chat_id, user_id, title, persona_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       )
-      .run(id, input.channelType, input.externalChatId || null, userId, title, now, now);
+      .run(id, input.channelType, input.externalChatId || null, userId, title, input.personaId || null, now, now);
 
     return this.getConversation(id, userId)!;
   }
@@ -493,6 +498,14 @@ export class SqliteMessageRepository implements MessageRepository {
     this.db
       .prepare('UPDATE conversations SET model_override = ?, updated_at = ? WHERE id = ? AND user_id = ?')
       .run(modelOverride, now, id, normalizedUserId);
+  }
+
+  updatePersonaId(id: string, personaId: string | null, userId: string): void {
+    const normalizedUserId = this.normalizeUserId(userId);
+    const now = new Date().toISOString();
+    this.db
+      .prepare('UPDATE conversations SET persona_id = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+      .run(personaId, now, id, normalizedUserId);
   }
 
   // ─── Idempotency ───────────────────────────────────────────
