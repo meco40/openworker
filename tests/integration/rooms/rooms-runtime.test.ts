@@ -63,6 +63,7 @@ describe('rooms runtime orchestrator', () => {
     const result = await orchestrator.runOnce();
 
     expect(result.processedRooms).toBe(1);
+    expect(result.createdMessages).toBe(1);
     const messages = repo.listMessages(room.id, 10);
     expect(messages).toHaveLength(1);
     expect(messages[0]?.speakerType).toBe('persona');

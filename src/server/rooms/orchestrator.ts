@@ -26,6 +26,7 @@ export class RoomOrchestrator {
   private readonly leaseTtlMs: number;
   private readonly now: () => Date;
   private readonly staticActiveModelsByProfile?: Record<string, string[]>;
+  private runInProgress = false;
 
   constructor(private readonly repository: RoomRepository, options: RoomOrchestratorOptions = {}) {
     this.instanceId = options.instanceId || `room-orchestrator-${process.pid}`;
@@ -36,6 +37,18 @@ export class RoomOrchestrator {
 
   private resolveLeaseExpiryIso(): string {
     return new Date(this.now().getTime() + this.leaseTtlMs).toISOString();
+  }
+
+  private canMarkRoomDegraded(roomId: string): boolean {
+    const currentRoom = this.repository.getRoom(roomId);
+    if (!currentRoom || currentRoom.runState === 'stopped') {
+      return false;
+    }
+    const activeRun = this.repository.getActiveRoomRun(roomId);
+    if (!activeRun) {
+      return false;
+    }
+    return !activeRun.leaseOwner || activeRun.leaseOwner === this.instanceId;
   }
 
   private async resolveActiveModelsByProfile(roomProfileId: string): Promise<Record<string, string[]>> {
@@ -67,17 +80,25 @@ export class RoomOrchestrator {
   }
 
   async runOnce(): Promise<RoomOrchestratorRunResult> {
-    const runningRooms = this.repository.listRunningRooms();
-    let createdMessages = 0;
-    let processedRooms = 0;
+    if (this.runInProgress) {
+      return {
+        processedRooms: 0,
+        createdMessages: 0,
+      };
+    }
+    this.runInProgress = true;
+    try {
+      const runningRooms = this.repository.listRunningRooms();
+      let createdMessages = 0;
+      let processedRooms = 0;
 
-    for (const room of runningRooms) {
-      try {
-        const leaseExpiry = this.resolveLeaseExpiryIso();
-        const lease = this.repository.acquireRoomLease(room.id, this.instanceId, leaseExpiry);
-        if (lease.leaseOwner !== this.instanceId) {
-          continue;
-        }
+      for (const room of runningRooms) {
+        try {
+          const leaseExpiry = this.resolveLeaseExpiryIso();
+          const lease = this.repository.acquireRoomLease(room.id, this.instanceId, leaseExpiry);
+          if (lease.leaseOwner !== this.instanceId) {
+            continue;
+          }
 
         this.repository.heartbeatRoomLease(room.id, lease.id, this.instanceId, leaseExpiry);
 
@@ -104,12 +125,14 @@ export class RoomOrchestrator {
         }
 
         if (validMembers.length === 0) {
-          this.repository.closeActiveRoomRun(room.id, 'degraded', 'No active model for room members.');
-          broadcastToUser(room.userId, GatewayEvents.ROOM_RUN_STATUS, {
-            roomId: room.id,
-            runState: 'degraded',
-            updatedAt: this.now().toISOString(),
-          });
+          if (this.canMarkRoomDegraded(room.id)) {
+            this.repository.closeActiveRoomRun(room.id, 'degraded', 'No active model for room members.');
+            broadcastToUser(room.userId, GatewayEvents.ROOM_RUN_STATUS, {
+              roomId: room.id,
+              runState: 'degraded',
+              updatedAt: this.now().toISOString(),
+            });
+          }
           continue;
         }
 
@@ -267,116 +290,144 @@ export class RoomOrchestrator {
         let responseText = '';
         let lastToolUsed: string | null = null;
         const MAX_TOOL_ROUNDS = 3;
-
-        for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-          // Check if member was interrupted
-          const currentRuntime = this.repository.getMemberRuntime(room.id, selected.personaId);
-          if (currentRuntime?.status === 'interrupting') {
-            this.repository.upsertMemberRuntime({
-              roomId: room.id,
-              personaId: selected.personaId,
-              status: 'interrupted',
-              busyReason: 'Interrupted by user',
-              currentTask: null,
-              lastModel: selected.model,
-              lastProfileId: selected.profileId,
-              lastTool: lastToolUsed,
-            });
-            broadcastToUser(room.userId, GatewayEvents.ROOM_MEMBER_STATUS, {
-              roomId: room.id,
-              personaId: selected.personaId,
-              status: 'interrupted',
-              reason: 'Interrupted by user',
-              updatedAt: this.now().toISOString(),
-            });
-            break;
+        const dispatchAbortController = new AbortController();
+        let lostLease = false;
+        const keepaliveIntervalMs = Math.max(25, Math.floor(this.leaseTtlMs / 3));
+        const keepaliveTimer = setInterval(() => {
+          if (lostLease) return;
+          try {
+            this.repository.heartbeatRoomLease(room.id, lease.id, this.instanceId, this.resolveLeaseExpiryIso());
+          } catch {
+            lostLease = true;
+            dispatchAbortController.abort();
           }
+        }, keepaliveIntervalMs);
+        keepaliveTimer.unref?.();
 
-          const aiResponse = await hubService.dispatchWithFallback(
-            selected.profileId,
-            encryptionKey,
-            {
-              messages: gatewayMessages,
-              tools,
-              auditContext: {
-                kind: 'room',
-                conversationId: room.id,
-                taskId: session.sessionId,
+        try {
+          for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+            if (lostLease) {
+              break;
+            }
+
+            // Check if member was interrupted
+            const currentRuntime = this.repository.getMemberRuntime(room.id, selected.personaId);
+            if (currentRuntime?.status === 'interrupting') {
+              this.repository.upsertMemberRuntime({
+                roomId: room.id,
+                personaId: selected.personaId,
+                status: 'interrupted',
+                busyReason: 'Interrupted by user',
+                currentTask: null,
+                lastModel: selected.model,
+                lastProfileId: selected.profileId,
+                lastTool: lastToolUsed,
+              });
+              broadcastToUser(room.userId, GatewayEvents.ROOM_MEMBER_STATUS, {
+                roomId: room.id,
+                personaId: selected.personaId,
+                status: 'interrupted',
+                reason: 'Interrupted by user',
+                updatedAt: this.now().toISOString(),
+              });
+              break;
+            }
+
+            const aiResponse = await hubService.dispatchWithFallback(
+              selected.profileId,
+              encryptionKey,
+              {
+                messages: gatewayMessages,
+                tools,
+                auditContext: {
+                  kind: 'room',
+                  conversationId: room.id,
+                  taskId: session.sessionId,
+                },
               },
-            },
-            { modelOverride: selected.model },
-          );
+              { modelOverride: selected.model, signal: dispatchAbortController.signal },
+            );
 
-          if (!aiResponse.ok) {
-            // Set error state
-            this.repository.upsertMemberRuntime({
-              roomId: room.id,
-              personaId: selected.personaId,
-              status: 'error',
-              busyReason: aiResponse.error || 'AI dispatch failed',
-              currentTask: null,
-              lastModel: selected.model,
-              lastProfileId: selected.profileId,
-              lastTool: lastToolUsed,
-            });
-            broadcastToUser(room.userId, GatewayEvents.ROOM_MEMBER_STATUS, {
-              roomId: room.id,
-              personaId: selected.personaId,
-              status: 'error',
-              reason: aiResponse.error || 'AI dispatch failed',
-              updatedAt: this.now().toISOString(),
-            });
+            if (!aiResponse.ok) {
+              if (lostLease && (aiResponse.error || '').toLowerCase().includes('aborted')) {
+                break;
+              }
+              // Set error state
+              this.repository.upsertMemberRuntime({
+                roomId: room.id,
+                personaId: selected.personaId,
+                status: 'error',
+                busyReason: aiResponse.error || 'AI dispatch failed',
+                currentTask: null,
+                lastModel: selected.model,
+                lastProfileId: selected.profileId,
+                lastTool: lastToolUsed,
+              });
+              broadcastToUser(room.userId, GatewayEvents.ROOM_MEMBER_STATUS, {
+                roomId: room.id,
+                personaId: selected.personaId,
+                status: 'error',
+                reason: aiResponse.error || 'AI dispatch failed',
+                updatedAt: this.now().toISOString(),
+              });
+              break;
+            }
+
+            // Handle function calls
+            if (aiResponse.functionCalls && aiResponse.functionCalls.length > 0 && round < MAX_TOOL_ROUNDS) {
+              const fc = aiResponse.functionCalls[0]!;
+              lastToolUsed = fc.name;
+
+              this.repository.upsertMemberRuntime({
+                roomId: room.id,
+                personaId: selected.personaId,
+                status: 'busy',
+                busyReason: `Using tool: ${fc.name}`,
+                currentTask: 'tool_call',
+                lastModel: selected.model,
+                lastProfileId: selected.profileId,
+                lastTool: fc.name,
+              });
+              broadcastToUser(room.userId, GatewayEvents.ROOM_MEMBER_STATUS, {
+                roomId: room.id,
+                personaId: selected.personaId,
+                status: 'busy',
+                reason: `Using tool: ${fc.name}`,
+                updatedAt: this.now().toISOString(),
+              });
+
+              const permissions = this.repository.getPersonaPermissions(selected.personaId);
+              const toolResult = await executeRoomTool({
+                functionName: fc.name,
+                args: (fc.args as Record<string, unknown>) ?? {},
+                permissions,
+              });
+
+              // Append tool result to conversation for next round
+              gatewayMessages.push({ role: 'assistant', content: `[Tool call: ${fc.name}]` });
+              gatewayMessages.push({
+                role: 'user',
+                content: toolResult.ok
+                  ? `Tool "${fc.name}" result:\n${toolResult.output}`
+                  : `Tool "${fc.name}" failed: ${toolResult.output}`,
+              });
+
+              continue; // Go to next round
+            }
+
+            // No function calls — we have final text
+            responseText = aiResponse.text;
             break;
           }
-
-          // Handle function calls
-          if (aiResponse.functionCalls && aiResponse.functionCalls.length > 0 && round < MAX_TOOL_ROUNDS) {
-            const fc = aiResponse.functionCalls[0]!;
-            lastToolUsed = fc.name;
-
-            this.repository.upsertMemberRuntime({
-              roomId: room.id,
-              personaId: selected.personaId,
-              status: 'busy',
-              busyReason: `Using tool: ${fc.name}`,
-              currentTask: 'tool_call',
-              lastModel: selected.model,
-              lastProfileId: selected.profileId,
-              lastTool: fc.name,
-            });
-            broadcastToUser(room.userId, GatewayEvents.ROOM_MEMBER_STATUS, {
-              roomId: room.id,
-              personaId: selected.personaId,
-              status: 'busy',
-              reason: `Using tool: ${fc.name}`,
-              updatedAt: this.now().toISOString(),
-            });
-
-            const permissions = this.repository.getPersonaPermissions(selected.personaId);
-            const toolResult = await executeRoomTool({
-              functionName: fc.name,
-              args: (fc.args as Record<string, unknown>) ?? {},
-              permissions,
-            });
-
-            // Append tool result to conversation for next round
-            gatewayMessages.push({ role: 'assistant', content: `[Tool call: ${fc.name}]` });
-            gatewayMessages.push({
-              role: 'user',
-              content: toolResult.ok
-                ? `Tool "${fc.name}" result:\n${toolResult.output}`
-                : `Tool "${fc.name}" failed: ${toolResult.output}`,
-            });
-
-            continue; // Go to next round
-          }
-
-          // No function calls — we have final text
-          responseText = aiResponse.text;
-          break;
+        } finally {
+          clearInterval(keepaliveTimer);
         }
 
         // ── Persist response & reset state ──────────────────────────
+
+        if (lostLease) {
+          continue;
+        }
 
         // Only persist if we got a response (not interrupted / errored out with break)
         const currentStatus = this.repository.getMemberRuntime(room.id, selected.personaId);
@@ -455,21 +506,26 @@ export class RoomOrchestrator {
         });
 
         this.repository.heartbeatRoomLease(room.id, lease.id, this.instanceId, this.resolveLeaseExpiryIso());
-        createdMessages += 1;
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : 'Room cycle failed.';
-        this.repository.closeActiveRoomRun(room.id, 'degraded', reason);
-        broadcastToUser(room.userId, GatewayEvents.ROOM_RUN_STATUS, {
-          roomId: room.id,
-          runState: 'degraded',
-          updatedAt: this.now().toISOString(),
-        });
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : 'Room cycle failed.';
+          if (!this.canMarkRoomDegraded(room.id)) {
+            continue;
+          }
+          this.repository.closeActiveRoomRun(room.id, 'degraded', reason);
+          broadcastToUser(room.userId, GatewayEvents.ROOM_RUN_STATUS, {
+            roomId: room.id,
+            runState: 'degraded',
+            updatedAt: this.now().toISOString(),
+          });
+        }
       }
-    }
 
-    return {
-      processedRooms,
-      createdMessages,
-    };
+      return {
+        processedRooms,
+        createdMessages,
+      };
+    } finally {
+      this.runInProgress = false;
+    }
   }
 }

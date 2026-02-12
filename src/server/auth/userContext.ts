@@ -24,6 +24,20 @@ export function resolveUserIdFromSession(
   return LEGACY_LOCAL_USER_ID;
 }
 
+function isMissingRequestScopeAuthError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = String(error.message || '');
+  return (
+    message.includes('outside a request scope') ||
+    message.includes('next-dynamic-api-wrong-context') ||
+    message.includes('headers') ||
+    message.includes('cookies')
+  );
+}
+
 export async function resolveRequestUserContext(): Promise<
   | {
       userId: string;
@@ -31,8 +45,27 @@ export async function resolveRequestUserContext(): Promise<
     }
   | null
 > {
-  const session = await auth();
-  const userId = resolveUserIdFromSession(session, isAuthRequired());
+  const requireAuth = isAuthRequired();
+  let session: Pick<Session, 'user'> | null | undefined;
+
+  try {
+    session = await auth();
+  } catch (error) {
+    if (!isMissingRequestScopeAuthError(error)) {
+      throw error;
+    }
+
+    if (requireAuth) {
+      return null;
+    }
+
+    return {
+      userId: LEGACY_LOCAL_USER_ID,
+      authenticated: false,
+    };
+  }
+
+  const userId = resolveUserIdFromSession(session, requireAuth);
 
   if (!userId) {
     return null;

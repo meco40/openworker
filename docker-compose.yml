@@ -11,6 +11,7 @@ services:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
       PORT: 3000
+      ROOMS_RUNNER: scheduler
     volumes:
       - ./.local:/app/.local
     healthcheck:
@@ -30,6 +31,7 @@ services:
     environment:
       NODE_ENV: production
       SCHEDULER_INSTANCE_ID: scheduler-1
+      ROOMS_RUNNER: scheduler
       AUTOMATION_TICK_INTERVAL_MS: 15000
       AUTOMATION_LEASE_TTL_MS: 30000
       AUTOMATION_MAX_ATTEMPTS: 3

@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { startAutomationRuntime, stopAutomationRuntime } from './src/server/automation/runtime';
 import { getRoomOrchestrator } from './src/server/rooms/runtime';
+import { shouldRunRooms } from './src/server/rooms/runtimeRole';
 
 const instanceId = process.env.SCHEDULER_INSTANCE_ID || `scheduler-${process.pid}`;
 const heartbeatFile = process.env.AUTOMATION_HEARTBEAT_FILE || path.join(process.cwd(), '.local', 'scheduler.heartbeat');
@@ -70,7 +71,11 @@ function shutdown(): void {
 console.log(`[automation-scheduler] starting with instance ${instanceId}`);
 startAutomationRuntime(instanceId);
 startHeartbeat();
-startRoomScheduler();
+if (shouldRunRooms('scheduler')) {
+  startRoomScheduler();
+} else {
+  console.log('[rooms-scheduler] room cycle disabled in scheduler process by ROOMS_RUNNER');
+}
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);

@@ -174,8 +174,7 @@ const PersonasView: React.FC = () => {
     if (!selectedRoomId) return;
     try {
       await startRoom(selectedRoomId);
-      await loadRoomDetail(selectedRoomId);
-      await refreshRooms();
+      await Promise.all([loadRoomDetail(selectedRoomId), refreshRooms()]);
     } catch {
       /* ignore */
     }
@@ -185,8 +184,7 @@ const PersonasView: React.FC = () => {
     if (!selectedRoomId) return;
     try {
       await stopRoom(selectedRoomId);
-      await loadRoomDetail(selectedRoomId);
-      await refreshRooms();
+      await Promise.all([loadRoomDetail(selectedRoomId), refreshRooms()]);
     } catch {
       /* ignore */
     }

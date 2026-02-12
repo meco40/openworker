@@ -8,6 +8,18 @@ Scope: aktueller Implementierungsstand von Rooms-Orchestrator, Scheduler, Reposi
 Der Aufbau ist solide, aber nicht Best-Case fuer Stabilitaet und Performance.
 Die urspruengliche Analyse war groesstenteils korrekt; ein Punkt war ueberzeichnet und wurde praezisiert.
 
+## Implementierungsstatus (Update: 2026-02-12)
+
+Umgesetzte Hardening-Massnahmen:
+
+1. Reentrancy-Guard in `RoomOrchestrator.runOnce()`.
+2. Runtime-Rollensteuerung via `ROOMS_RUNNER` (web/scheduler/both) + Compose-Default auf `scheduler`.
+3. Stop-Race-Schutz: `stopped` wird nicht mehr auf `degraded` ueberschrieben.
+4. Lease-Keepalive waehrend langem Dispatch inkl. Abort bei Lease-Verlust.
+5. Atomischer Sequenz-Allocator via `room_message_sequences` statt `MAX(seq)+1`.
+6. Korrekte `createdMessages`-Zaehllogik.
+7. Harte `beforeSeq`-Validierung auf API-Grenze (400 bei invaliden Werten).
+
 ## Validierte Findings (nach Schweregrad)
 
 1. Kritisch (teilweise korrigiert): Re-entrant Orchestrator-Laeufe sind moeglich.

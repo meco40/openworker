@@ -202,6 +202,36 @@ describe('rooms routes', () => {
     expect(page.messages.map((item) => item.content)).toEqual(['m1', 'm2']);
   });
 
+  it('rejects invalid beforeSeq values', async () => {
+    mockUserContext({ userId: 'legacy-local-user', authenticated: false });
+
+    const roomsRoute = await import('../../../app/api/rooms/route');
+    const createRes = await roomsRoute.POST(
+      new Request('http://localhost/api/rooms', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Invalid beforeSeq',
+          goalMode: 'simulation',
+          routingProfileId: 'p1',
+        }),
+      }),
+    );
+    const created = (await createRes.json()) as { room: { id: string } };
+    const roomId = created.room.id;
+
+    const messagesRoute = await import('../../../app/api/rooms/[id]/messages/route');
+    const invalidRes = await messagesRoute.GET(
+      new Request(`http://localhost/api/rooms/${roomId}/messages?limit=2&beforeSeq=NaN`),
+      { params: Promise.resolve({ id: roomId }) },
+    );
+
+    expect(invalidRes.status).toBe(400);
+    const invalidPayload = (await invalidRes.json()) as { ok: boolean; error: string };
+    expect(invalidPayload.ok).toBe(false);
+    expect(invalidPayload.error).toContain('beforeSeq');
+  });
+
   it('returns active room counts per persona for global busy indicators', async () => {
     mockUserContext({ userId: 'legacy-local-user', authenticated: false });
 

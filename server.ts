@@ -8,6 +8,7 @@ import { getToken } from 'next-auth/jwt';
 import { handleConnection, getClientRegistry, broadcast } from './src/server/gateway/index.js';
 import { TICK_INTERVAL_MS, MAX_PAYLOAD_BYTES } from './src/server/gateway/constants.js';
 import { getRoomOrchestrator } from './src/server/rooms/runtime.js';
+import { shouldRunRooms } from './src/server/rooms/runtimeRole.js';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
@@ -113,7 +114,11 @@ app.prepare().then(() => {
     roomTimer.unref();
   }
 
-  startRoomScheduler();
+  if (shouldRunRooms('web')) {
+    startRoomScheduler();
+  } else {
+    console.log('[rooms] scheduler disabled in web process by ROOMS_RUNNER');
+  }
 
   // ─── Graceful Shutdown ─────────────────────────────────────
   function shutdown() {

@@ -49,6 +49,29 @@ describe('react/next best-practices refactor', () => {
     expect(runtime).toContain('Promise.all(');
   });
 
+  it('parallelizes independent room refresh actions in PersonasView', () => {
+    const personasView = read('components/PersonasView.tsx');
+    expect(personasView).toContain('await Promise.all([loadRoomDetail(selectedRoomId), refreshRooms()]);');
+  });
+
+  it('parallelizes independent async work in skill and metrics routes', () => {
+    const skillRoute = read('app/api/skills/[id]/route.ts');
+    const metricsRoute = read('app/api/control-plane/metrics/route.ts');
+
+    expect(skillRoute).toContain('const [resolvedParams, body, repo] = await Promise.all([');
+    expect(metricsRoute).toContain('const [automationImport, roomImport] = await Promise.allSettled([');
+  });
+
+  it('avoids re-sorting the full room message list on every websocket event', () => {
+    const roomSync = read('src/modules/rooms/useRoomSync.ts');
+    expect(roomSync).not.toContain('.sort((a, b) => a.seq - b.seq)');
+  });
+
+  it('memoizes PersonaContext value to avoid unnecessary consumer rerenders', () => {
+    const personaContext = read('src/modules/personas/PersonaContext.tsx');
+    expect(personaContext).toContain('const value = React.useMemo<PersonaContextValue>(');
+  });
+
   it('avoids mutating sort in Dashboard render path', () => {
     const dashboard = read('components/Dashboard.tsx');
     expect(dashboard).not.toContain('scheduled.sort(');

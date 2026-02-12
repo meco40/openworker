@@ -94,14 +94,17 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const value: PersonaContextValue = {
-    personas,
-    activePersona,
-    activePersonaId,
-    setActivePersonaId,
-    refreshPersonas,
-    loading,
-  };
+  const value = React.useMemo<PersonaContextValue>(
+    () => ({
+      personas,
+      activePersona,
+      activePersonaId,
+      setActivePersonaId,
+      refreshPersonas,
+      loading,
+    }),
+    [personas, activePersona, activePersonaId, setActivePersonaId, refreshPersonas, loading],
+  );
 
   return <PersonaContext.Provider value={value}>{children}</PersonaContext.Provider>;
 }

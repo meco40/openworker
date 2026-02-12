@@ -10,6 +10,25 @@ import type {
   RoomRunStatusEvent,
 } from './types';
 
+export function upsertRoomMessage(previous: RoomMessage[], incoming: RoomMessage): RoomMessage[] {
+  if (previous.some((item) => item.id === incoming.id || item.seq === incoming.seq)) {
+    return previous;
+  }
+
+  if (previous.length === 0 || previous[previous.length - 1]!.seq < incoming.seq) {
+    return [...previous, incoming];
+  }
+
+  const next = [...previous];
+  const insertIndex = next.findIndex((item) => item.seq > incoming.seq);
+  if (insertIndex === -1) {
+    next.push(incoming);
+  } else {
+    next.splice(insertIndex, 0, incoming);
+  }
+  return next;
+}
+
 export function useRoomSync(roomId: string | null, initialMessages: RoomMessage[]) {
   useGatewayConnection();
 
@@ -37,12 +56,7 @@ export function useRoomSync(roomId: string | null, initialMessages: RoomMessage[
       return;
     }
 
-    setMessages((prev) => {
-      if (prev.some((item) => item.id === payload.id || item.seq === payload.seq)) {
-        return prev;
-      }
-      return [...prev, payload].sort((a, b) => a.seq - b.seq);
-    });
+    setMessages((prev) => upsertRoomMessage(prev, payload));
   });
 
   useGatewayEvent<RoomMemberStatus>('room.member.status', (payload) => {

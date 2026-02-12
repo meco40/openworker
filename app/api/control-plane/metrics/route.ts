@@ -53,18 +53,17 @@ export async function GET() {
       totalMessages: number;
     } | null = null;
 
-    try {
-      const { getAutomationService } = await import('../../../../src/server/automation/runtime');
-      automationMetrics = getAutomationService().getMetrics();
-    } catch {
-      automationMetrics = null;
+    const [automationImport, roomImport] = await Promise.allSettled([
+      import('../../../../src/server/automation/runtime'),
+      import('../../../../src/server/rooms/runtime'),
+    ]);
+
+    if (automationImport.status === 'fulfilled') {
+      automationMetrics = automationImport.value.getAutomationService().getMetrics();
     }
 
-    try {
-      const { getRoomRepository } = await import('../../../../src/server/rooms/runtime');
-      roomMetrics = getRoomRepository().getMetrics();
-    } catch {
-      roomMetrics = null;
+    if (roomImport.status === 'fulfilled') {
+      roomMetrics = roomImport.value.getRoomRepository().getMetrics();
     }
 
     return Response.json({

@@ -1,7 +1,7 @@
 # Persona & Rooms System — Technische Dokumentation
 
 > **OpenClaw** — Multi-Persona Gruppendiskussions-Engine  
-> Letzte Aktualisierung: 2025-07
+> Letzte Aktualisierung: 2026-02
 
 ---
 
@@ -14,7 +14,7 @@
    - 2.3 [System Instruction — Komposition](#23-system-instruction--komposition)
    - 2.4 [Repository-Methoden](#24-repository-methoden)
 3. [Rooms-System](#3-rooms-system)
-   - 3.1 [Datenbank-Schema (9 Tabellen)](#31-datenbank-schema-9-tabellen)
+   - 3.1 [Datenbank-Schema (11 Tabellen)](#31-datenbank-schema-11-tabellen)
    - 3.2 [Typen & Zustände](#32-typen--zustände)
    - 3.3 [RoomService — API-Schicht](#33-roomservice--api-schicht)
    - 3.4 [Model-Routing](#34-model-routing)
@@ -140,7 +140,7 @@ Der Benutzer bevorzugt kurze Antworten...
 
 ## 3. Rooms-System
 
-### 3.1 Datenbank-Schema (9 Tabellen)
+### 3.1 Datenbank-Schema (11 Tabellen)
 
 **Datei:** `.local/messages.db`
 
@@ -185,18 +185,28 @@ Der Benutzer bevorzugt kurze Antworten...
 | `created_at` | TEXT | NOT NULL |
 | | | UNIQUE (room_id, seq) |
 
+#### Tabelle `room_message_sequences`
+
+| Spalte | Typ | Constraints |
+|---|---|---|
+| `room_id` | TEXT | PRIMARY KEY, FK → rooms(id) ON DELETE CASCADE |
+| `last_seq` | INTEGER | NOT NULL DEFAULT 0 |
+
 #### Tabelle `room_runs` (Lease-System)
 
 | Spalte | Typ | Constraints |
 |---|---|---|
 | `id` | TEXT | PRIMARY KEY |
 | `room_id` | TEXT | NOT NULL, FK → rooms(id) ON DELETE CASCADE |
-| `instance_id` | TEXT | NOT NULL |
+| `run_state` | TEXT | NOT NULL, CHECK IN ('running','degraded','stopped') |
+| `lease_owner` | TEXT | |
+| `lease_expires_at` | TEXT | |
+| `heartbeat_at` | TEXT | |
+| `failure_reason` | TEXT | |
 | `started_at` | TEXT | NOT NULL |
 | `ended_at` | TEXT | |
-| `end_reason` | TEXT | |
-| `error_detail` | TEXT | |
-| `lease_expires_at` | TEXT | NOT NULL |
+| `created_at` | TEXT | NOT NULL |
+| `updated_at` | TEXT | NOT NULL |
 | | | UNIQUE INDEX (room_id) WHERE ended_at IS NULL |
 
 #### Tabelle `room_member_runtime`
@@ -207,7 +217,11 @@ Der Benutzer bevorzugt kurze Antworten...
 | `persona_id` | TEXT | NOT NULL |
 | `status` | TEXT | NOT NULL DEFAULT 'idle', CHECK IN ('idle','busy','interrupting','interrupted','error') |
 | `busy_reason` | TEXT | |
-| `started_at` | TEXT | |
+| `busy_until` | TEXT | |
+| `current_task` | TEXT | |
+| `last_model` | TEXT | |
+| `last_profile_id` | TEXT | |
+| `last_tool` | TEXT | |
 | `updated_at` | TEXT | NOT NULL |
 | | | PRIMARY KEY (room_id, persona_id) |
 
@@ -215,8 +229,10 @@ Der Benutzer bevorzugt kurze Antworten...
 
 | Spalte | Typ | Constraints |
 |---|---|---|
-| `room_id` | TEXT | NOT NULL |
+| `room_id` | TEXT | NOT NULL, FK → rooms(id) ON DELETE CASCADE |
 | `persona_id` | TEXT | NOT NULL |
+| `provider_id` | TEXT | NOT NULL |
+| `model` | TEXT | NOT NULL |
 | `session_id` | TEXT | NOT NULL |
 | `updated_at` | TEXT | NOT NULL |
 | | | PRIMARY KEY (room_id, persona_id) |
@@ -225,7 +241,7 @@ Der Benutzer bevorzugt kurze Antworten...
 
 | Spalte | Typ | Constraints |
 |---|---|---|
-| `room_id` | TEXT | NOT NULL |
+| `room_id` | TEXT | NOT NULL, FK → rooms(id) ON DELETE CASCADE |
 | `persona_id` | TEXT | NOT NULL |
 | `summary_text` | TEXT | NOT NULL DEFAULT '' |
 | `last_message_seq` | INTEGER | NOT NULL DEFAULT 0 |
@@ -325,7 +341,7 @@ Die Funktion `resolveRoomRouting()` bestimmt, welches KI-Modell für ein Mitglie
 
 ## 4. Orchestrator — Die KI-Dispatch-Engine
 
-**Datei:** `src/server/rooms/orchestrator.ts` (~476 Zeilen)
+**Datei:** `src/server/rooms/orchestrator.ts` (~532 Zeilen)
 
 Der Orchestrator ist das Herzstück des Rooms-Systems. Er läuft als Hintergrundprozess und steuert die KI-Generierung für alle aktiven Räume.
 
@@ -344,9 +360,21 @@ interface RoomOrchestratorOptions {
 
 **Scheduling** (in `server.ts`):
 - Intervall: `ROOM_INTERVAL_MS` = 30 Sekunden (konfigurierbar via `ROOM_ORCHESTRATOR_INTERVAL_MS`)
-- Start: `startRoomScheduler()` wird beim Server-Start aufgerufen
+- Start: `startRoomScheduler()` wird abhängig von `ROOMS_RUNNER` gestartet (`web`, `scheduler`, `both`)
+  - `shouldRunRooms(processRole)` in `src/server/rooms/runtimeRole.ts`
+  - Env-Variable `ROOMS_RUNNER`: `web` | `scheduler` | `both` (Default: `both`)
 - Ausführung: sofort + dann per `setInterval`
 - Timer: `.unref()` — hält den Prozess nicht am Leben
+
+**Reentrancy-Schutz:**
+- `runOnce()` besitzt einen In-Process-Guard (`runInProgress` Flag), der überlappende Aufrufe auf derselben Orchestrator-Instanz überspringt.
+
+**Stop-Race-Schutz:**
+- `canMarkRoomDegraded(roomId)` prüft vor jeder Degradierung:
+  1. Raum existiert noch und ist nicht bereits `stopped`
+  2. Es gibt einen aktiven Run
+  3. Lease-Owner ist leer oder gehört dieser Instanz
+- Verhindert, dass ein User-Stop vom Orchestrator auf `degraded` überschrieben wird.
 
 **Lease-Mechanismus:**
 - Verhindert parallele Verarbeitung desselben Raums bei Multi-Instanz-Betrieb
@@ -370,18 +398,28 @@ Jeder Zyklus (`runOnce()`) durchläuft folgende Schritte für **jeden laufenden 
 9.  System-Prompt bauen             → SOUL.md + Kontext + Gruppenanweisung
 10. Konversationshistorie bauen     → Letzte 20 Nachrichten mit Rollenformat
 11. Tool-Definitionen laden         → Skills → OpenAI-Tool-Format
-12. KI-Dispatch-Loop                → Max. 3 Tool-Runden
+12. Lease-Keepalive starten         → setInterval(leaseTtl/3), AbortController
+13. KI-Dispatch-Loop                → Max. 3 Tool-Runden
+    ├── Lease-Verlust?              → Abort + skip Persistierung
     ├── Interrupt-Check             → 'interrupting' → Abbruch
-    ├── dispatchWithFallback()      → KI-Provider-Aufruf
+    ├── dispatchWithFallback()      → KI-Provider-Aufruf (mit AbortSignal)
     ├── Tool-Calls?                 → executeRoomTool(), Loop
     └── Text-Antwort?              → Capture, Break
-13. Antwort bereinigen              → [Name]: Prefix entfernen
-14. appendMessage()                 → Persistieren + broadcast
-15. upsertPersonaContext()          → Rolling Summary (max 1000 Zeichen)
-16. Status auf 'idle' + broadcast
+14. Lease-Keepalive stoppen         → clearInterval
+15. Antwort bereinigen              → [Name]: Prefix entfernen
+16. appendMessage()                 → Persistieren + broadcast (atomar via room_message_sequences)
+17. upsertPersonaContext()          → Rolling Summary (max 1000 Zeichen)
+18. Status auf 'idle' + broadcast
 ```
 
 **Rückgabe:** `{ processedRooms: number, createdMessages: number }`
+
+**Wichtige Guards (V1-Hardening):**
+- **Reentrancy-Guard:** `runInProgress` Flag verhindert parallele `runOnce()`-Aufrufe.
+- **Stop-Race-Schutz:** `canMarkRoomDegraded()` prüft ob Raum nicht bereits gestoppt wurde.
+- **Lease-Keepalive:** `setInterval(leaseTtl/3)` erneuert Lease während langer Dispatch-Phasen.
+- **Lease-Abort:** Bei Lease-Verlust wird `AbortController.abort()` aufgerufen, Persistierung übersprungen.
+- **Atomare Sequenz:** `room_message_sequences` Tabelle statt `MAX(seq)+1`.
 
 ### 4.3 Round-Robin Rednerwahl
 
@@ -689,3 +727,21 @@ personas.db                          messages.db
 2. Test-Modus? → `:memory:`
 3. `MESSAGES_DB_PATH` (Env-Variable)
 4. Fallback: `.local/messages.db`
+
+---
+
+## Anhang: Test-Abdeckung
+
+| Testdatei | Tests | Fokus |
+|---|---|---|
+| `room-repository.test.ts` | 5 | CRUD, Members, Messages |
+| `room-service.test.ts` | 4 | Service-Schicht, Owner-Checks |
+| `runtime-role.test.ts` | 4 | `ROOMS_RUNNER` Parsing |
+| `orchestrator-reentrancy.test.ts` | 1 | Reentrancy-Guard |
+| `orchestrator-stop-race.test.ts` | 1 | Stop-Race-Schutz |
+| `rooms-runtime.test.ts` | 6 | Orchestrator Round-Robin, Dispatch |
+| `rooms-routes.test.ts` | 7 | HTTP-API, Auth, Validation |
+| `rooms-hardening-baseline.test.ts` | 1 | Baseline-Szenario |
+| `room-message-seq-concurrency.test.ts` | 1 | Atomare Sequenz-Vergabe |
+| `orchestrator-lease-keepalive.test.ts` | 1 | Lease-Keepalive während Dispatch |
+| **Gesamt** | **31** | |

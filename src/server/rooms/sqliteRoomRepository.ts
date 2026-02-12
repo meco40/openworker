@@ -355,6 +355,25 @@ export class SqliteRoomRepository implements RoomRepository {
     `);
 
     this.db.exec(`
+      CREATE TABLE IF NOT EXISTS room_message_sequences (
+        room_id TEXT PRIMARY KEY REFERENCES rooms(id) ON DELETE CASCADE,
+        last_seq INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+
+    this.db.exec(`
+      INSERT INTO room_message_sequences (room_id, last_seq)
+      SELECT room_id, COALESCE(MAX(seq), 0) AS last_seq
+      FROM room_messages
+      GROUP BY room_id
+      ON CONFLICT(room_id) DO UPDATE SET
+        last_seq = CASE
+          WHEN excluded.last_seq > room_message_sequences.last_seq THEN excluded.last_seq
+          ELSE room_message_sequences.last_seq
+        END;
+    `);
+
+    this.db.exec(`
       CREATE TABLE IF NOT EXISTS room_runs (
         id TEXT PRIMARY KEY,
         room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -536,10 +555,28 @@ export class SqliteRoomRepository implements RoomRepository {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const tx = this.db.transaction((payload: AppendRoomMessageInput) => {
+      this.db
+        .prepare(
+          `
+          INSERT INTO room_message_sequences (room_id, last_seq)
+          VALUES (?, 0)
+          ON CONFLICT(room_id) DO NOTHING
+        `,
+        )
+        .run(payload.roomId);
+
+      this.db
+        .prepare('UPDATE room_message_sequences SET last_seq = last_seq + 1 WHERE room_id = ?')
+        .run(payload.roomId);
+
       const row = this.db
-        .prepare('SELECT COALESCE(MAX(seq), 0) AS max_seq FROM room_messages WHERE room_id = ?')
-        .get(payload.roomId) as { max_seq: number };
-      const seq = Number(row.max_seq || 0) + 1;
+        .prepare('SELECT last_seq FROM room_message_sequences WHERE room_id = ?')
+        .get(payload.roomId) as { last_seq: number } | undefined;
+      const seq = Number(row?.last_seq || 0);
+      if (!seq) {
+        throw new Error(`Failed to allocate room message sequence for room ${payload.roomId}`);
+      }
+
       this.db
         .prepare(
           `

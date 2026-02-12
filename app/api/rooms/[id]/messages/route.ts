@@ -22,7 +22,18 @@ export async function GET(request: Request, context: RouteContext) {
     const rawLimit = Number.parseInt(url.searchParams.get('limit') || '100', 10);
     const limit = Number.isFinite(rawLimit) ? rawLimit : 100;
     const rawBeforeSeq = url.searchParams.get('beforeSeq');
-    const beforeSeq = rawBeforeSeq ? Number.parseInt(rawBeforeSeq, 10) : undefined;
+    let beforeSeq: number | undefined;
+    if (rawBeforeSeq !== null) {
+      const trimmed = rawBeforeSeq.trim();
+      if (!/^\d+$/.test(trimmed)) {
+        return NextResponse.json({ ok: false, error: 'beforeSeq must be a positive integer' }, { status: 400 });
+      }
+      const parsed = Number.parseInt(trimmed, 10);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        return NextResponse.json({ ok: false, error: 'beforeSeq must be a positive integer' }, { status: 400 });
+      }
+      beforeSeq = parsed;
+    }
 
     const service = getRoomService();
     const messages = service.listMessages(userContext.userId, params.id, limit, beforeSeq);
@@ -57,3 +68,4 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }
+

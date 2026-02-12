@@ -20,9 +20,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = await params;
-    const body = (await request.json()) as PatchBody;
-    const repo = await getSkillRepository();
+    const [resolvedParams, body, repo] = await Promise.all([
+      params,
+      request.json() as Promise<PatchBody>,
+      getSkillRepository(),
+    ]);
+    const { id } = resolvedParams;
     const updated = repo.setInstalled(id, body.installed);
 
     if (!updated) {
@@ -44,8 +47,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = await params;
-    const repo = await getSkillRepository();
+    const [resolvedParams, repo] = await Promise.all([params, getSkillRepository()]);
+    const { id } = resolvedParams;
     const skill = repo.getSkill(id);
 
     if (!skill) {
