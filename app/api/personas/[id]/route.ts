@@ -60,7 +60,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ ok: false, error: 'No updates provided' }, { status: 400 });
     }
 
-    const updated = repo.updatePersona(id, updates);
+    repo.updatePersona(id, updates);
+    const updated = repo.getPersonaWithFiles(id);
     return NextResponse.json({ ok: true, persona: updated });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

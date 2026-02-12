@@ -44,23 +44,25 @@ export async function POST(request: Request) {
 
     const repo = getPersonaRepository();
 
+    // Validate and filter files (if provided) before passing to createPersona
+    const validatedFiles: Partial<Record<string, string>> = {};
+    if (body.files && typeof body.files === 'object') {
+      for (const [filename, content] of Object.entries(body.files)) {
+        if (typeof content === 'string' && PERSONA_FILE_NAMES.includes(filename as PersonaFileName)) {
+          validatedFiles[filename] = content;
+        }
+      }
+    }
+
     const input: CreatePersonaInput = {
       userId: userContext.userId,
       name: body.name.trim(),
       emoji: body.emoji?.trim() || '🤖',
       vibe: body.vibe?.trim() || '',
+      files: Object.keys(validatedFiles).length > 0 ? validatedFiles as Partial<Record<PersonaFileName, string>> : undefined,
     };
 
     const persona = repo.createPersona(input);
-
-    // Save initial files if provided
-    if (body.files && typeof body.files === 'object') {
-      for (const [filename, content] of Object.entries(body.files)) {
-        if (typeof content === 'string' && PERSONA_FILE_NAMES.includes(filename as PersonaFileName)) {
-          repo.saveFile(persona.id, filename as PersonaFileName, content);
-        }
-      }
-    }
 
     const full = repo.getPersonaWithFiles(persona.id);
     return NextResponse.json({ ok: true, persona: full }, { status: 201 });

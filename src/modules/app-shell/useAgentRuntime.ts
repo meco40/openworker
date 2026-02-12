@@ -36,12 +36,12 @@ export function useAgentRuntime({
     // Build system instruction from active persona or fall back to default
     let instruction = getSystemInstruction();
     if (activePersona) {
-      const personaFiles = activePersona.files || [];
+      const personaFiles = activePersona.files || {};
       const instructionParts: string[] = [];
       for (const fname of ['SOUL.md', 'AGENTS.md', 'USER.md'] as const) {
-        const file = personaFiles.find((f) => f.filename === fname);
-        if (file?.content?.trim()) {
-          instructionParts.push(file.content.trim());
+        const content = personaFiles[fname];
+        if (content?.trim()) {
+          instructionParts.push(content.trim());
         }
       }
       if (instructionParts.length > 0) {
