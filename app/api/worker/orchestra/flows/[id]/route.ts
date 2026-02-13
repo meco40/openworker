@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../../../../src/server/auth/userContext';
 import { getWorkerRepository } from '../../../../../../src/server/worker/workerRepository';
+import { getOrchestraService } from '../../../../../../src/server/worker/orchestraService';
 import type { WorkspaceType } from '../../../../../../src/server/worker/workspaceManager';
 
 export const runtime = 'nodejs';
@@ -14,11 +15,11 @@ function normalizeWorkspaceType(value: unknown): WorkspaceType | undefined {
   return normalized as WorkspaceType;
 }
 
-function normalizeGraphJson(graph: unknown): string {
+function normalizeGraph(graph: unknown): Record<string, unknown> {
   if (!graph || typeof graph !== 'object') {
     throw new Error('graph is required');
   }
-  return JSON.stringify(graph);
+  return graph as Record<string, unknown>;
 }
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -59,7 +60,7 @@ export async function PATCH(
       workspaceType?: string;
     };
 
-    const updates: { name?: string; graphJson?: string; workspaceType?: WorkspaceType } = {};
+    const updates: { name?: string; graph?: Record<string, unknown>; workspaceType?: WorkspaceType } = {};
     if (typeof body.name === 'string') {
       const trimmed = body.name.trim();
       if (trimmed.length === 0) {
@@ -69,7 +70,7 @@ export async function PATCH(
     }
     if (body.graph !== undefined) {
       try {
-        updates.graphJson = normalizeGraphJson(body.graph);
+        updates.graph = normalizeGraph(body.graph);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'invalid graph';
         return NextResponse.json({ ok: false, error: message }, { status: 400 });
@@ -87,8 +88,16 @@ export async function PATCH(
       return NextResponse.json({ ok: false, error: 'No updates provided' }, { status: 400 });
     }
 
-    const repo = getWorkerRepository();
-    const flow = repo.updateFlowDraft(id, userContext.userId, updates);
+    const orchestraService = getOrchestraService();
+    if (updates.graph) {
+      const validation = orchestraService.validateGraphForUser(userContext.userId, updates.graph);
+      if (!validation.ok) {
+        return NextResponse.json({ ok: false, error: validation.error }, { status: 400 });
+      }
+      updates.graph = validation.graph;
+    }
+
+    const flow = orchestraService.updateDraft(id, userContext.userId, updates);
     if (!flow) {
       return NextResponse.json({ ok: false, error: 'Flow not found' }, { status: 404 });
     }

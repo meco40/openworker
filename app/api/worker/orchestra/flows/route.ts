@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
 import { getWorkerRepository } from '../../../../../src/server/worker/workerRepository';
+import { getOrchestraService } from '../../../../../src/server/worker/orchestraService';
 import type { WorkspaceType } from '../../../../../src/server/worker/workspaceManager';
 
 export const runtime = 'nodejs';
@@ -15,11 +16,11 @@ function normalizeWorkspaceType(value: unknown): WorkspaceType {
     : 'general';
 }
 
-function normalizeGraphJson(graph: unknown): string {
+function normalizeGraph(graph: unknown): Record<string, unknown> {
   if (!graph || typeof graph !== 'object') {
     throw new Error('graph is required');
   }
-  return JSON.stringify(graph);
+  return graph as Record<string, unknown>;
 }
 
 export async function GET(request: Request) {
@@ -60,20 +61,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'name is required' }, { status: 400 });
     }
 
-    let graphJson: string;
+    let graph: Record<string, unknown>;
     try {
-      graphJson = normalizeGraphJson(body.graph);
+      graph = normalizeGraph(body.graph);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'invalid graph';
       return NextResponse.json({ ok: false, error: message }, { status: 400 });
     }
 
-    const repo = getWorkerRepository();
-    const flow = repo.createFlowDraft({
+    const orchestraService = getOrchestraService();
+    const validation = orchestraService.validateGraphForUser(userContext.userId, graph);
+    if (!validation.ok) {
+      return NextResponse.json({ ok: false, error: validation.error }, { status: 400 });
+    }
+
+    const flow = orchestraService.createDraft({
       userId: userContext.userId,
       workspaceType: normalizeWorkspaceType(body.workspaceType),
       name: body.name.trim(),
-      graphJson,
+      graph: validation.graph,
       templateId: body.templateId ?? null,
     });
 

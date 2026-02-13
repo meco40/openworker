@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../../../../../src/server/auth/userContext';
-import { getWorkerRepository } from '../../../../../../../src/server/worker/workerRepository';
+import { getOrchestraService } from '../../../../../../../src/server/worker/orchestraService';
 
 export const runtime = 'nodejs';
 
@@ -12,8 +12,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     }
 
     const { id } = await params;
-    const repo = getWorkerRepository();
-    const published = repo.publishFlowDraft(id, userContext.userId);
+    const published = getOrchestraService().publishDraft(id, userContext.userId);
     if (!published) {
       return NextResponse.json({ ok: false, error: 'Flow not found' }, { status: 404 });
     }
