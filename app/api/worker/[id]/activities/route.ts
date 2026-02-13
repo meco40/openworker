@@ -3,6 +3,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
 import { getWorkerRepository } from '../../../../../src/server/worker/workerRepository';
 
 export const runtime = 'nodejs';
@@ -13,10 +14,15 @@ interface RouteParams {
 
 export async function GET(request: Request, { params }: RouteParams) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
     const repo = getWorkerRepository();
 
-    const task = repo.getTask(id);
+    const task = repo.getTaskForUser(id, userContext.userId);
     if (!task) {
       return NextResponse.json({ ok: false, error: 'Task not found' }, { status: 404 });
     }

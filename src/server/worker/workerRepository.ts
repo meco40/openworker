@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import BetterSqlite3 from 'better-sqlite3';
+import { LEGACY_LOCAL_USER_ID } from '../auth/constants';
 
 type SQLParam = string | number | null | bigint | Uint8Array;
 import type {
@@ -18,6 +19,7 @@ import type {
   SaveActivityInput,
   TaskActivityRecord,
 } from './workerTypes';
+import type { WorkerFlowDraftRecord, WorkerFlowPublishedRecord, WorkerRunRecord } from './orchestraTypes';
 import { toApprovalRule, toArtifact, toStep, toTask, toActivity } from './workerRowMappers';
 
 // ─── SQLite Implementation ───────────────────────────────────
@@ -48,6 +50,7 @@ export class SqliteWorkerRepository implements WorkerRepository {
         origin_platform      TEXT NOT NULL,
         origin_conversation  TEXT NOT NULL,
         origin_external_chat TEXT,
+        user_id              TEXT,
         current_step         INTEGER DEFAULT 0,
         total_steps          INTEGER DEFAULT 0,
         result_summary       TEXT,
@@ -70,6 +73,11 @@ export class SqliteWorkerRepository implements WorkerRepository {
     }
     try {
       this.db.exec(`ALTER TABLE worker_tasks ADD COLUMN workspace_type TEXT DEFAULT 'general'`);
+    } catch {
+      /* column already exists */
+    }
+    try {
+      this.db.exec(`ALTER TABLE worker_tasks ADD COLUMN user_id TEXT`);
     } catch {
       /* column already exists */
     }
@@ -273,6 +281,52 @@ export class SqliteWorkerRepository implements WorkerRepository {
     `);
   }
 
+  private shouldIncludeLegacyRows(userId: string): boolean {
+    return userId === LEGACY_LOCAL_USER_ID;
+  }
+
+  private toFlowDraft(row: Record<string, unknown>): WorkerFlowDraftRecord {
+    return {
+      id: row.id as string,
+      templateId: (row.template_id as string) || null,
+      userId: row.user_id as string,
+      workspaceType: row.workspace_type as WorkerFlowDraftRecord['workspaceType'],
+      name: row.name as string,
+      graphJson: row.graph_json as string,
+      status: row.status as WorkerFlowDraftRecord['status'],
+      createdAt: row.created_at as string,
+      updatedAt: row.updated_at as string,
+    };
+  }
+
+  private toFlowPublished(row: Record<string, unknown>): WorkerFlowPublishedRecord {
+    return {
+      id: row.id as string,
+      draftId: (row.draft_id as string) || null,
+      templateId: (row.template_id as string) || null,
+      userId: row.user_id as string,
+      workspaceType: row.workspace_type as WorkerFlowPublishedRecord['workspaceType'],
+      name: row.name as string,
+      graphJson: row.graph_json as string,
+      version: Number(row.version || 1),
+      createdAt: row.created_at as string,
+    };
+  }
+
+  private toRun(row: Record<string, unknown>): WorkerRunRecord {
+    return {
+      id: row.id as string,
+      taskId: row.task_id as string,
+      userId: row.user_id as string,
+      flowPublishedId: row.flow_published_id as string,
+      status: row.status as WorkerRunRecord['status'],
+      errorMessage: (row.error_message as string) || null,
+      createdAt: row.created_at as string,
+      startedAt: (row.started_at as string) || null,
+      completedAt: (row.completed_at as string) || null,
+    };
+  }
+
   // ─── Tasks ──────────────────────────────────────────────────
 
   createTask(input: CreateTaskInput): WorkerTaskRecord {
@@ -286,8 +340,8 @@ export class SqliteWorkerRepository implements WorkerRepository {
         `
       INSERT INTO worker_tasks (id, title, objective, status, priority,
         origin_platform, origin_conversation, origin_external_chat,
-        workspace_type, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        workspace_type, user_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       )
       .run(
@@ -300,6 +354,7 @@ export class SqliteWorkerRepository implements WorkerRepository {
         input.originConversation,
         input.originExternalChat || null,
         input.workspaceType || 'general',
+        input.userId || null,
         now,
       );
 
@@ -308,6 +363,18 @@ export class SqliteWorkerRepository implements WorkerRepository {
 
   getTask(id: string): WorkerTaskRecord | null {
     const row = this.db.prepare('SELECT * FROM worker_tasks WHERE id = ?').get(id) as
+      | Record<string, unknown>
+      | undefined;
+    return row ? toTask(row) : null;
+  }
+
+  getTaskForUser(id: string, userId: string): WorkerTaskRecord | null {
+    const includeLegacy = this.shouldIncludeLegacyRows(userId);
+    const row = (includeLegacy
+      ? this.db
+          .prepare('SELECT * FROM worker_tasks WHERE id = ? AND (user_id = ? OR user_id IS NULL)')
+          .get(id, userId)
+      : this.db.prepare('SELECT * FROM worker_tasks WHERE id = ? AND user_id = ?').get(id, userId)) as
       | Record<string, unknown>
       | undefined;
     return row ? toTask(row) : null;
@@ -349,6 +416,32 @@ export class SqliteWorkerRepository implements WorkerRepository {
 
     if (filter?.status) {
       sql += ' WHERE status = ?';
+      params.push(filter.status);
+    }
+    sql += ' ORDER BY created_at DESC';
+    if (filter?.limit) {
+      sql += ' LIMIT ?';
+      params.push(filter.limit);
+    }
+
+    const rows = this.db.prepare(sql).all(...params) as Array<Record<string, unknown>>;
+    return rows.map(toTask);
+  }
+
+  listTasksForUser(
+    userId: string,
+    filter?: { status?: WorkerTaskStatus; limit?: number },
+  ): WorkerTaskRecord[] {
+    let sql = 'SELECT * FROM worker_tasks WHERE (user_id = ?';
+    const params: SQLParam[] = [userId];
+
+    if (this.shouldIncludeLegacyRows(userId)) {
+      sql += ' OR user_id IS NULL';
+    }
+    sql += ')';
+
+    if (filter?.status) {
+      sql += ' AND status = ?';
       params.push(filter.status);
     }
     sql += ' ORDER BY created_at DESC';
@@ -562,6 +655,163 @@ export class SqliteWorkerRepository implements WorkerRepository {
       )
       .all(taskId, limit) as Array<Record<string, unknown>>;
     return rows.map(toActivity);
+  }
+
+  // ─── Orchestra Flows ───────────────────────────────────────
+
+  listFlowDrafts(userId: string, workspaceType?: WorkerFlowDraftRecord['workspaceType']) {
+    let sql = 'SELECT * FROM worker_flow_drafts WHERE user_id = ?';
+    const params: SQLParam[] = [userId];
+    if (workspaceType) {
+      sql += ' AND workspace_type = ?';
+      params.push(workspaceType);
+    }
+    sql += ' ORDER BY updated_at DESC';
+
+    const rows = this.db.prepare(sql).all(...params) as Array<Record<string, unknown>>;
+    return rows.map((row) => this.toFlowDraft(row));
+  }
+
+  getFlowDraft(id: string, userId: string): WorkerFlowDraftRecord | null {
+    const row = this.db
+      .prepare('SELECT * FROM worker_flow_drafts WHERE id = ? AND user_id = ?')
+      .get(id, userId) as Record<string, unknown> | undefined;
+    return row ? this.toFlowDraft(row) : null;
+  }
+
+  createFlowDraft(input: {
+    userId: string;
+    workspaceType: WorkerFlowDraftRecord['workspaceType'];
+    name: string;
+    graphJson: string;
+    templateId?: string | null;
+  }): WorkerFlowDraftRecord {
+    const id = `flow-draft-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO worker_flow_drafts
+         (id, template_id, user_id, workspace_type, name, graph_json, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?)`,
+      )
+      .run(
+        id,
+        input.templateId || null,
+        input.userId,
+        input.workspaceType,
+        input.name,
+        input.graphJson,
+        now,
+        now,
+      );
+
+    return this.getFlowDraft(id, input.userId)!;
+  }
+
+  updateFlowDraft(
+    id: string,
+    userId: string,
+    updates: { name?: string; graphJson?: string; workspaceType?: WorkerFlowDraftRecord['workspaceType'] },
+  ): WorkerFlowDraftRecord | null {
+    const existing = this.getFlowDraft(id, userId);
+    if (!existing) return null;
+
+    const now = new Date().toISOString();
+    const nextName = updates.name ?? existing.name;
+    const nextGraphJson = updates.graphJson ?? existing.graphJson;
+    const nextWorkspaceType = updates.workspaceType ?? existing.workspaceType;
+
+    this.db
+      .prepare(
+        `UPDATE worker_flow_drafts
+         SET name = ?, graph_json = ?, workspace_type = ?, updated_at = ?
+         WHERE id = ? AND user_id = ?`,
+      )
+      .run(nextName, nextGraphJson, nextWorkspaceType, now, id, userId);
+
+    return this.getFlowDraft(id, userId);
+  }
+
+  publishFlowDraft(id: string, userId: string): WorkerFlowPublishedRecord | null {
+    const draft = this.getFlowDraft(id, userId);
+    if (!draft) return null;
+
+    const versionRow = this.db
+      .prepare(
+        `SELECT COALESCE(MAX(version), 0) + 1 AS next_version
+         FROM worker_flow_published
+         WHERE user_id = ? AND name = ?`,
+      )
+      .get(userId, draft.name) as { next_version: number };
+
+    const publishedId = `flow-pub-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO worker_flow_published
+         (id, draft_id, template_id, user_id, workspace_type, name, graph_json, version, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        publishedId,
+        draft.id,
+        draft.templateId,
+        userId,
+        draft.workspaceType,
+        draft.name,
+        draft.graphJson,
+        Number(versionRow.next_version || 1),
+        now,
+      );
+
+    return this.getFlowPublished(publishedId, userId);
+  }
+
+  getFlowPublished(id: string, userId: string): WorkerFlowPublishedRecord | null {
+    const row = this.db
+      .prepare('SELECT * FROM worker_flow_published WHERE id = ? AND user_id = ?')
+      .get(id, userId) as Record<string, unknown> | undefined;
+    return row ? this.toFlowPublished(row) : null;
+  }
+
+  listPublishedFlows(
+    userId: string,
+    workspaceType?: WorkerFlowPublishedRecord['workspaceType'],
+  ): WorkerFlowPublishedRecord[] {
+    let sql = 'SELECT * FROM worker_flow_published WHERE user_id = ?';
+    const params: SQLParam[] = [userId];
+    if (workspaceType) {
+      sql += ' AND workspace_type = ?';
+      params.push(workspaceType);
+    }
+    sql += ' ORDER BY created_at DESC';
+
+    const rows = this.db.prepare(sql).all(...params) as Array<Record<string, unknown>>;
+    return rows.map((row) => this.toFlowPublished(row));
+  }
+
+  createRun(input: {
+    taskId: string;
+    userId: string;
+    flowPublishedId: string;
+    status?: WorkerRunRecord['status'];
+  }): WorkerRunRecord {
+    const id = `run-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    const status = input.status ?? 'pending';
+    this.db
+      .prepare(
+        `INSERT INTO worker_runs
+         (id, task_id, user_id, flow_published_id, status, created_at, started_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(id, input.taskId, input.userId, input.flowPublishedId, status, now, now);
+
+    const row = this.db.prepare('SELECT * FROM worker_runs WHERE id = ?').get(id) as Record<
+      string,
+      unknown
+    >;
+    return this.toRun(row);
   }
 
   // ─── Approval Rules ────────────────────────────────────────

@@ -29,6 +29,7 @@ export interface PersonaProfile {
   name: string;
   emoji: string;
   vibe: string;
+  preferredModelId: string | null;
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +44,7 @@ export interface PersonaSummary {
   name: string;
   emoji: string;
   vibe: string;
+  preferredModelId: string | null;
   updatedAt: string;
 }
 
@@ -51,5 +53,6 @@ export interface CreatePersonaInput {
   emoji: string;
   vibe: string;
   userId: string;
+  preferredModelId?: string | null;
   files?: Partial<Record<PersonaFileName, string>>;
 }

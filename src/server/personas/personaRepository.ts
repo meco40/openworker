@@ -22,6 +22,7 @@ function toPersona(row: Record<string, unknown>): PersonaProfile {
     name: row.name as string,
     emoji: row.emoji as string,
     vibe: row.vibe as string,
+    preferredModelId: (row.preferred_model_id as string) || null,
     userId: row.user_id as string,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -34,6 +35,7 @@ function toSummary(row: Record<string, unknown>): PersonaSummary {
     name: row.name as string,
     emoji: row.emoji as string,
     vibe: row.vibe as string,
+    preferredModelId: (row.preferred_model_id as string) || null,
     updatedAt: row.updated_at as string,
   };
 }
@@ -62,11 +64,18 @@ export class PersonaRepository {
         name TEXT NOT NULL,
         emoji TEXT NOT NULL DEFAULT '🤖',
         vibe TEXT NOT NULL DEFAULT '',
+        preferred_model_id TEXT,
         user_id TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
     `);
+
+    try {
+      this.db.exec('ALTER TABLE personas ADD COLUMN preferred_model_id TEXT');
+    } catch {
+      // column already exists
+    }
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS persona_files (
@@ -125,10 +134,19 @@ export class PersonaRepository {
 
     this.db
       .prepare(
-        `INSERT INTO personas (id, name, emoji, vibe, user_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO personas (id, name, emoji, vibe, preferred_model_id, user_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(id, input.name, input.emoji, input.vibe, input.userId, now, now);
+      .run(
+        id,
+        input.name,
+        input.emoji,
+        input.vibe,
+        input.preferredModelId || null,
+        input.userId,
+        now,
+        now,
+      );
 
     // Seed all file slots with provided content or empty string
     const insertFile = this.db.prepare(
@@ -142,7 +160,12 @@ export class PersonaRepository {
     return this.getPersona(id)!;
   }
 
-  updatePersona(id: string, updates: { name?: string; emoji?: string; vibe?: string }): void {
+  updatePersona(id: string, updates: {
+    name?: string;
+    emoji?: string;
+    vibe?: string;
+    preferredModelId?: string | null;
+  }): void {
     const now = new Date().toISOString();
     const setClauses: string[] = ['updated_at = ?'];
     const values: unknown[] = [now];
@@ -158,6 +181,10 @@ export class PersonaRepository {
     if (updates.vibe !== undefined) {
       setClauses.push('vibe = ?');
       values.push(updates.vibe);
+    }
+    if (updates.preferredModelId !== undefined) {
+      setClauses.push('preferred_model_id = ?');
+      values.push(updates.preferredModelId);
     }
 
     values.push(id);

@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import { getModelHubService } from '../../../../src/server/model-hub/runtime';
 import { getPersonaRepository } from '../../../../src/server/personas/personaRepository';
 
 export const runtime = 'nodejs';
+
+function isPreferredModelAvailable(preferredModelId: string): boolean {
+  const modelHub = getModelHubService();
+  const activePipeline = modelHub.listPipeline('p1');
+  return activePipeline.some(
+    (entry) => entry.status === 'active' && entry.modelName === preferredModelId,
+  );
+}
 
 // ─── GET /api/personas/[id] ─── Get a persona with all files
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -49,12 +58,37 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       name?: string;
       emoji?: string;
       vibe?: string;
+      preferredModelId?: string | null;
     };
 
-    const updates: Record<string, string> = {};
+    const updates: {
+      name?: string;
+      emoji?: string;
+      vibe?: string;
+      preferredModelId?: string | null;
+    } = {};
     if (body.name !== undefined) updates.name = body.name.trim();
     if (body.emoji !== undefined) updates.emoji = body.emoji.trim();
     if (body.vibe !== undefined) updates.vibe = body.vibe.trim();
+    if (body.preferredModelId !== undefined) {
+      if (body.preferredModelId === null) {
+        updates.preferredModelId = null;
+      } else if (typeof body.preferredModelId === 'string' && body.preferredModelId.trim().length) {
+        const normalizedModelId = body.preferredModelId.trim();
+        if (!isPreferredModelAvailable(normalizedModelId)) {
+          return NextResponse.json(
+            { ok: false, error: `preferredModelId "${normalizedModelId}" is not available.` },
+            { status: 400 },
+          );
+        }
+        updates.preferredModelId = normalizedModelId;
+      } else {
+        return NextResponse.json(
+          { ok: false, error: 'preferredModelId must be a non-empty string or null' },
+          { status: 400 },
+        );
+      }
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ ok: false, error: 'No updates provided' }, { status: 400 });
