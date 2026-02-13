@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../../../../src/server/auth/userContext';
 import { getWorkerRepository } from '../../../../../../src/server/worker/workerRepository';
 import { getOrchestraService } from '../../../../../../src/server/worker/orchestraService';
+import type { OrchestraFlowGraph } from '../../../../../../src/server/worker/orchestraGraph';
 import type { WorkspaceType } from '../../../../../../src/server/worker/workspaceManager';
 
 export const runtime = 'nodejs';
@@ -15,11 +16,11 @@ function normalizeWorkspaceType(value: unknown): WorkspaceType | undefined {
   return normalized as WorkspaceType;
 }
 
-function normalizeGraph(graph: unknown): Record<string, unknown> {
+function normalizeGraph(graph: unknown): OrchestraFlowGraph {
   if (!graph || typeof graph !== 'object') {
     throw new Error('graph is required');
   }
-  return graph as Record<string, unknown>;
+  return graph as OrchestraFlowGraph;
 }
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -60,7 +61,7 @@ export async function PATCH(
       workspaceType?: string;
     };
 
-    const updates: { name?: string; graph?: Record<string, unknown>; workspaceType?: WorkspaceType } = {};
+    const updates: { name?: string; graph?: OrchestraFlowGraph; workspaceType?: WorkspaceType } = {};
     if (typeof body.name === 'string') {
       const trimmed = body.name.trim();
       if (trimmed.length === 0) {

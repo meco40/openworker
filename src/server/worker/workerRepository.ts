@@ -497,6 +497,25 @@ export class SqliteWorkerRepository implements WorkerRepository {
       .run(JSON.stringify(checkpoint), id);
   }
 
+  setTaskRunContext(
+    id: string,
+    updates: { flowPublishedId?: string | null; currentRunId?: string | null },
+  ): void {
+    const clauses: string[] = [];
+    const values: SQLParam[] = [];
+    if (updates.flowPublishedId !== undefined) {
+      clauses.push('flow_published_id = ?');
+      values.push(updates.flowPublishedId);
+    }
+    if (updates.currentRunId !== undefined) {
+      clauses.push('current_run_id = ?');
+      values.push(updates.currentRunId);
+    }
+    if (clauses.length === 0) return;
+    values.push(id);
+    this.db.prepare(`UPDATE worker_tasks SET ${clauses.join(', ')} WHERE id = ?`).run(...values);
+  }
+
   setCurrentStep(id: string, stepIndex: number): void {
     this.db.prepare(`UPDATE worker_tasks SET current_step = ? WHERE id = ?`).run(stepIndex, id);
   }

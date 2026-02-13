@@ -172,6 +172,10 @@ export interface WorkerRepository {
   getActiveTask(): WorkerTaskRecord | null;
   markInterrupted(id: string): void;
   saveCheckpoint(id: string, checkpoint: Record<string, unknown>): void;
+  setTaskRunContext(
+    id: string,
+    updates: { flowPublishedId?: string | null; currentRunId?: string | null },
+  ): void;
 
   // Steps
   saveSteps(taskId: string, steps: SaveStepInput[]): void;

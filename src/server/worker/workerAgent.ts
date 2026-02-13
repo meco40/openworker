@@ -4,13 +4,16 @@
 
 import { getWorkerRepository } from './workerRepository';
 import { planTask } from './workerPlanner';
-import { executeStep } from './workerExecutor';
+import { executeOrchestraNode, executeStep } from './workerExecutor';
 import { notifyTaskCompleted, notifyTaskFailed } from './workerCallback';
 import { getWorkspaceManager } from './workspaceManager';
 import { runWebappTests } from './workerTester';
 import type { WorkerTaskRecord } from './workerTypes';
+import type { OrchestraFlowGraph } from './orchestraGraph';
+import { runOrchestraFlow } from './orchestraRunner';
 import { broadcast } from '../gateway/broadcast';
 import { GatewayEvents } from '../gateway/events';
+import { LEGACY_LOCAL_USER_ID } from '../auth/constants';
 
 // ─── Queue Processor ─────────────────────────────────────────
 
@@ -75,6 +78,101 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
     repo.setWorkspacePath(task.id, wsPath);
   }
   broadcastStatus(task.id, 'planning', 'Workspace erstellt. Aufgabe wird analysiert...');
+
+  // ─── Orchestra Path (published flow attached) ──────────────
+  if (task.flowPublishedId) {
+    const userId = task.userId || LEGACY_LOCAL_USER_ID;
+    const publishedFlow = repo.getFlowPublished(task.flowPublishedId, userId);
+    if (!publishedFlow) {
+      repo.updateStatus(task.id, 'failed', {
+        error: `Published flow ${task.flowPublishedId} not found`,
+      });
+      await notifyTaskFailed(task, `Flow ${task.flowPublishedId} nicht gefunden.`);
+      return;
+    }
+
+    let graph: OrchestraFlowGraph;
+    try {
+      graph = JSON.parse(publishedFlow.graphJson) as OrchestraFlowGraph;
+    } catch {
+      repo.updateStatus(task.id, 'failed', {
+        error: `Published flow ${publishedFlow.id} has invalid graph JSON`,
+      });
+      await notifyTaskFailed(task, `Flow ${publishedFlow.id} enthält ungültiges Graph-JSON.`);
+      return;
+    }
+
+    repo.updateStatus(task.id, 'executing');
+    repo.addActivity({
+      taskId: task.id,
+      type: 'status_change',
+      message: `Orchestra-Ausführung gestartet (${publishedFlow.name} v${publishedFlow.version})`,
+      metadata: { from: 'queued', to: 'executing', flowPublishedId: publishedFlow.id },
+    });
+
+    const run = repo.createRun({
+      taskId: task.id,
+      userId,
+      flowPublishedId: publishedFlow.id,
+      status: 'running',
+    });
+    repo.setTaskRunContext(task.id, { flowPublishedId: publishedFlow.id, currentRunId: run.id });
+
+    const runResult = await runOrchestraFlow({
+      taskId: task.id,
+      flowPublishedId: publishedFlow.id,
+      graph,
+      executeNode: async (nodeId: string) => {
+        const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+        repo.addActivity({
+          taskId: task.id,
+          type: 'note',
+          message: `Orchestra-Node gestartet: ${nodeId}`,
+          metadata: { nodeId, runId: run.id },
+        });
+
+        const stepResult = await executeOrchestraNode(task, {
+          id: nodeId,
+          description: node ? `Node ${nodeId} (${node.personaId})` : `Node ${nodeId}`,
+        });
+
+        repo.addActivity({
+          taskId: task.id,
+          type: 'step_completed',
+          message: `Orchestra-Node abgeschlossen: ${nodeId}`,
+          metadata: { nodeId, runId: run.id },
+        });
+
+        return { summary: stepResult.output };
+      },
+    });
+
+    if (runResult.status === 'failed') {
+      const failedNode = Object.entries(runResult.nodes).find(([, state]) => state.status === 'failed');
+      const failReason =
+        failedNode?.[1].error || `Orchestra run ${run.id} failed (flow ${publishedFlow.id})`;
+      repo.updateStatus(task.id, 'failed', { error: failReason });
+      repo.addActivity({
+        taskId: task.id,
+        type: 'error',
+        message: `Orchestra fehlgeschlagen: ${failReason}`,
+        metadata: { runId: run.id, flowPublishedId: publishedFlow.id },
+      });
+      await notifyTaskFailed(task, failReason);
+      return;
+    }
+
+    const summary = `✅ Orchestra-Task "${task.title}" abgeschlossen (${publishedFlow.name} v${publishedFlow.version}).`;
+    repo.updateStatus(task.id, 'completed', { summary });
+    repo.addActivity({
+      taskId: task.id,
+      type: 'status_change',
+      message: `Task abgeschlossen via Orchestra — ${Object.keys(runResult.nodes).length} Nodes`,
+      metadata: { from: 'executing', to: 'completed', runId: run.id },
+    });
+    await notifyTaskCompleted(task, summary);
+    return;
+  }
 
   // ─── Phase 1: PLANNING ──────────────────────────────────
   repo.updateStatus(task.id, 'planning');
