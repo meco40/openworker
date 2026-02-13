@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AuthUserStore } from '../../../src/server/auth/userStore';
 
@@ -83,7 +83,7 @@ describe('AuthUserStore', () => {
       () => {
         const store = new AuthUserStore(dbPath);
 
-        const reader = new Database(dbPath);
+        const reader = new BetterSqlite3(dbPath);
         const row = reader
           .prepare('SELECT password_hash FROM auth_users WHERE email = ?')
           .get('security-test@local.dev') as { password_hash: string };
@@ -108,7 +108,7 @@ describe('AuthUserStore', () => {
       },
       () => {
         const store = new AuthUserStore(dbPath);
-        const db = new Database(dbPath);
+        const db = new BetterSqlite3(dbPath);
 
         const password = 'legacy-password';
         const sha256Hash = crypto.createHash('sha256').update(password).digest('hex');

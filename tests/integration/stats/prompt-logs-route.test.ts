@@ -3,15 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PromptDispatchRepository } from '../../../src/server/stats/promptDispatchRepository';
 import { TokenUsageRepository } from '../../../src/server/stats/tokenUsageRepository';
 
+function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
+  vi.doMock('../../../src/server/auth/userContext', () => ({
+    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+  }));
+}
+
 describe('GET /api/stats/prompt-logs', () => {
   let repo: PromptDispatchRepository;
   let tokenRepo: TokenUsageRepository;
-
-  function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
-    vi.doMock('../../../src/server/auth/userContext', () => ({
-      resolveRequestUserContext: vi.fn().mockResolvedValue(context),
-    }));
-  }
 
   beforeEach(() => {
     repo = new PromptDispatchRepository(':memory:');

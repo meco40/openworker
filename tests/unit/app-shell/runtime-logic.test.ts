@@ -11,7 +11,7 @@ import { parseTaskScheduleArgs, markDueTasksTriggered } from '../../../src/modul
 
 describe('app-shell runtime logic', () => {
   it('parses scheduling arguments only when values are strings', () => {
-    expect(parseTaskScheduleArgs(undefined)).toEqual({});
+    expect(parseTaskScheduleArgs()).toEqual({});
     expect(parseTaskScheduleArgs({ time_iso: 123, message: true })).toEqual({});
     expect(parseTaskScheduleArgs({ time_iso: '2026-02-10T10:00:00.000Z', message: 'Ping' })).toEqual({
       time_iso: '2026-02-10T10:00:00.000Z',

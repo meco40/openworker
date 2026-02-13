@@ -1,4 +1,4 @@
-import React from 'react';
+import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import Dashboard from '../../../components/Dashboard';
@@ -31,7 +31,7 @@ describe('Dashboard chart sizing', () => {
 
     try {
       renderToStaticMarkup(
-        React.createElement(Dashboard, {
+        createElement(Dashboard, {
           state: baseState,
           metricsState: baseMetricsState,
         }),

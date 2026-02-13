@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { resolveRoomRunnerMode, shouldRunRooms } from '../../../src/server/rooms/runtimeRole';
 
-describe('room runtime role', () => {
-  function withMode(mode: string): NodeJS.ProcessEnv {
-    return { NODE_ENV: 'test', ROOMS_RUNNER: mode } as unknown as NodeJS.ProcessEnv;
-  }
+function withMode(mode: string): NodeJS.ProcessEnv {
+  return { NODE_ENV: 'test', ROOMS_RUNNER: mode } as unknown as NodeJS.ProcessEnv;
+}
 
+describe('room runtime role', () => {
   it('defaults to both when env is unset', () => {
     expect(resolveRoomRunnerMode({} as NodeJS.ProcessEnv)).toBe('both');
     expect(shouldRunRooms('web', {} as NodeJS.ProcessEnv)).toBe(true);

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 import type {
   CreatePipelineModelInput,
   CreateProviderAccountInput,
@@ -76,7 +76,7 @@ export class SqliteModelHubRepository implements ModelHubRepository {
   constructor(dbPath = process.env.MODEL_HUB_DB_PATH || '.local/model-hub.db') {
     const fullPath = path.resolve(dbPath);
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    this.db = new Database(fullPath);
+    this.db = new BetterSqlite3(fullPath);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS model_hub_accounts (
         id TEXT PRIMARY KEY,

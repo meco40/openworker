@@ -1,4 +1,4 @@
-import React from 'react';
+import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
@@ -6,7 +6,7 @@ import PromptLogsTab from '../../../components/stats/PromptLogsTab';
 
 describe('PromptLogsTab', () => {
   it('renders logs panel shell with filters and table headers', () => {
-    const html = renderToStaticMarkup(React.createElement(PromptLogsTab));
+    const html = renderToStaticMarkup(createElement(PromptLogsTab));
 
     expect(html).toContain('Prompt Dispatch Logs');
     expect(html).toContain('Reset All Data');

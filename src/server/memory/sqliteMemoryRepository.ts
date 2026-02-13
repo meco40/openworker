@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 import type { MemoryNode } from '../../../core/memory/types';
 import type { MemoryRepository } from './repository';
 
@@ -38,11 +38,11 @@ export class SqliteMemoryRepository implements MemoryRepository {
       process.env.MEMORY_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db',
   ) {
     if (dbPath === ':memory:') {
-      this.db = new Database(':memory:');
+      this.db = new BetterSqlite3(':memory:');
     } else {
       const fullPath = path.resolve(dbPath);
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new Database(fullPath);
+      this.db = new BetterSqlite3(fullPath);
     }
     this.migrate();
   }

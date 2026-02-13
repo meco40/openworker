@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 import type { SkillToolDefinition } from '../../shared/toolSchema';
 import type { BuiltInSkillSeed } from './builtInSkills';
 
@@ -69,7 +69,7 @@ export class SkillRepository {
   constructor(dbPath = process.env.SKILLS_DB_PATH || '.local/skills.db') {
     const fullPath = path.resolve(dbPath);
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    this.db = new Database(fullPath);
+    this.db = new BetterSqlite3(fullPath);
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS skills (

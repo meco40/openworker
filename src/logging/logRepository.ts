@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 
 import type { LogCategory, LogEntry, LogFilter, LogLevel } from './logTypes';
 
@@ -56,12 +56,12 @@ export class LogRepository {
 
   constructor(dbPath = process.env.LOGS_DB_PATH || '.local/logs.db') {
     if (dbPath === ':memory:') {
-      this.db = new Database(':memory:');
+      this.db = new BetterSqlite3(':memory:');
     } else {
       const fullPath = path.resolve(dbPath);
        
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new Database(fullPath);
+      this.db = new BetterSqlite3(fullPath);
     }
     this.migrate();
   }

@@ -54,8 +54,10 @@ const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
                 const inputData = e.inputBuffer.getChannelData(0);
                 const pcmData = createPcmBlob(inputData);
                 // Rely solely on sessionPromise to send data to the model.
-                sessionPromise.then((session) => {
+                void sessionPromise.then((session) => {
                   session.sendRealtimeInput({ media: { data: pcmData, mimeType: 'audio/pcm;rate=16000' } });
+                }).catch((error: unknown) => {
+                  console.error('Voice session unavailable during audio processing:', error);
                 });
               };
               source.connect(scriptProcessor);
@@ -97,8 +99,10 @@ const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
           },
         });
 
-        sessionPromise.then((session) => {
+        void sessionPromise.then((session) => {
           sessionRef.current = session;
+        }).catch((error: unknown) => {
+          console.error('Failed to establish live voice session:', error);
         });
       } catch (err) {
         console.error('Failed to init voice:', err);

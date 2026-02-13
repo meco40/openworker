@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Conversation, Message } from '../../../../types';
 import { getPlatformMeta } from '../uiUtils';
 import ChatMessageAttachment from './ChatMessageAttachment';
@@ -19,7 +19,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
 }) => {
   const activeMeta = activeConversation ? getPlatformMeta(activeConversation.channelType) : null;
   const { activePersona, personas, activePersonaId, setActivePersonaId } = usePersona();
-  const [showPersonaDropdown, setShowPersonaDropdown] = React.useState(false);
+  const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
 
   return (
     <>

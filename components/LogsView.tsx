@@ -344,9 +344,11 @@ const LogsView: React.FC = () => {
 
   const handleCopyLog = useCallback((log: LogEntry) => {
     const text = `[${log.timestamp}] [${log.level.toUpperCase()}] ${log.source}: ${log.message}`;
-    navigator.clipboard.writeText(text).then(() => {
+    void navigator.clipboard.writeText(text).then(() => {
       setCopiedId(log.id);
       setTimeout(() => setCopiedId(null), 1500);
+    }).catch((error: unknown) => {
+      console.warn('Failed to copy log entry:', error);
     });
   }, []);
 

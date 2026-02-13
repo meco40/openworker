@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { LogRepository } from '../../../src/logging/logRepository';
@@ -46,7 +46,7 @@ describe('LogRepository category support', () => {
     const dbPath = uniqueDbPath('logs-category-migration');
     tempFiles.push(dbPath);
 
-    const db = new Database(dbPath);
+    const db = new BetterSqlite3(dbPath);
     db.exec(`
       CREATE TABLE system_logs (
         id TEXT PRIMARY KEY,
@@ -78,7 +78,7 @@ describe('LogRepository category support', () => {
     expect(logs[0].category).toBe('system');
     repo.close();
 
-    const migrated = new Database(dbPath);
+    const migrated = new BetterSqlite3(dbPath);
     const columns = migrated
       .prepare(`PRAGMA table_info('system_logs')`)
       .all() as Array<{ name: string }>;

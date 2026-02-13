@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 import { ChannelType } from '../../../../types';
 import type {
   ConversationContextState,
@@ -27,11 +27,11 @@ export class SqliteMessageRepository implements MessageRepository {
 
   constructor(dbPath = process.env.MESSAGES_DB_PATH || '.local/messages.db') {
     if (dbPath === ':memory:') {
-      this.db = new Database(':memory:');
+      this.db = new BetterSqlite3(':memory:');
     } else {
       const fullPath = path.resolve(dbPath);
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new Database(fullPath);
+      this.db = new BetterSqlite3(fullPath);
     }
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('busy_timeout = 5000');

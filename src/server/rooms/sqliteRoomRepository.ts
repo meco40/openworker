@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 import type { RoomRepository } from './repository';
 import type {
   AppendRoomMessageInput,
@@ -34,11 +34,11 @@ export class SqliteRoomRepository implements RoomRepository {
 
   constructor(dbPath = process.env.ROOMS_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db') {
     if (dbPath === ':memory:') {
-      this.db = new Database(':memory:');
+      this.db = new BetterSqlite3(':memory:');
     } else {
       const fullPath = path.resolve(dbPath);
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new Database(fullPath);
+      this.db = new BetterSqlite3(fullPath);
     }
 
     this.db.pragma('journal_mode = WAL');

@@ -103,8 +103,8 @@ describe('GET /api/control-plane/metrics', () => {
           OPEN: 1,
           readyState: 1,
           bufferedAmount: 0,
-          send: () => undefined,
-          close: () => undefined,
+          send: () => {},
+          close: () => {},
         } as never,
       });
     }

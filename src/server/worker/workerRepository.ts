@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 
 type SQLParam = string | number | null | bigint | Uint8Array;
 import type {
@@ -25,11 +25,11 @@ export class SqliteWorkerRepository implements WorkerRepository {
 
   constructor(dbPath = process.env.WORKER_DB_PATH || '.local/worker.db') {
     if (dbPath === ':memory:') {
-      this.db = new Database(':memory:');
+      this.db = new BetterSqlite3(':memory:');
     } else {
       const fullPath = path.resolve(dbPath);
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new Database(fullPath);
+      this.db = new BetterSqlite3(fullPath);
     }
     this.db.exec('PRAGMA journal_mode = WAL');
     this.migrate();

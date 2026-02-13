@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LogRepository } from '../../../src/logging/logRepository';
 
+function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
+  vi.doMock('../../../src/server/auth/userContext', () => ({
+    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+  }));
+}
+
 describe('POST /api/logs/ingest', () => {
   let repo: LogRepository;
-
-  function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
-    vi.doMock('../../../src/server/auth/userContext', () => ({
-      resolveRequestUserContext: vi.fn().mockResolvedValue(context),
-    }));
-  }
 
   beforeEach(() => {
     repo = new LogRepository(':memory:');

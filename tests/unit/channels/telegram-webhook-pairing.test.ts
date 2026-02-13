@@ -52,7 +52,7 @@ describe('telegram webhook pairing gate', () => {
     beginTelegramCodePairing();
 
     handleInbound.mockReset();
-    handleInbound.mockResolvedValue(undefined);
+    handleInbound.mockResolvedValue();
 
     fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {

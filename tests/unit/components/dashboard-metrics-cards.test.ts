@@ -1,4 +1,4 @@
-import React from 'react';
+import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import Dashboard from '../../../components/Dashboard';
@@ -35,7 +35,7 @@ const metricsState: ControlPlaneMetricsState = {
 describe('Dashboard top KPI cards', () => {
   it('renders Ops Core KPI labels and does not render old placeholders', () => {
     const html = renderToStaticMarkup(
-      React.createElement(Dashboard, {
+      createElement(Dashboard, {
         state: baseState,
         metricsState,
       }),

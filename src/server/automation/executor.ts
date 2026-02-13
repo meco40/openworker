@@ -32,7 +32,7 @@ export async function executeAgentRunAction(
 ): Promise<AgentRunExecutionResult> {
   const timeoutMs = Math.max(1, input.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
-  const timeoutPromise = new Promise<never>((_, reject) => {
+  const timeoutPromise = new Promise<never>((_resolve, reject) => {
     setTimeout(() => {
       reject(new TimeoutError(`Automation run exceeded timeout (${timeoutMs}ms)`));
     }, timeoutMs).unref();

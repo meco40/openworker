@@ -16,7 +16,7 @@ describe('worker files API integration', () => {
 
   beforeAll(() => {
     mgr = new WorkspaceManagerImpl();
-    repo = new SqliteWorkerRepository();
+    repo = new SqliteWorkerRepository(':memory:');
 
     // Create a test task with required fields
     repo.createTask({

@@ -1,5 +1,5 @@
 import path from 'node:path';
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 
 const MAX_RESULT_ROWS = 200;
 
@@ -25,7 +25,7 @@ export async function dbQueryHandler(args: Record<string, unknown>) {
   }
 
   const resolved = ensureWorkspacePath(dbPath);
-  const db = new Database(resolved, { readonly: true });
+  const db = new BetterSqlite3(resolved, { readonly: true });
   try {
     const statement = db.prepare(query);
     const rows = statement.all();

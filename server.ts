@@ -152,4 +152,7 @@ app.prepare().then(() => {
     console.log(`[gateway] Server ready on http://${hostname}:${port}`);
     console.log(`[gateway] WebSocket endpoint: ws://${hostname}:${port}/ws`);
   });
+}).catch((error: unknown) => {
+  console.error('[gateway] Failed to prepare Next.js app:', error);
+  process.exit(1);
 });

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SqliteMessageRepository } from '../../../src/server/channels/messages/sqliteMessageRepository';
 import { LEGACY_LOCAL_USER_ID } from '../../../src/server/auth/constants';
@@ -22,7 +22,7 @@ describe('SqliteMessageRepository migration idempotency', () => {
     const dbPath = path.join(os.tmpdir(), `messages-legacy-migrate-${Date.now()}.db`);
     tempPaths.push(dbPath);
 
-    const legacyDb = new Database(dbPath);
+    const legacyDb = new BetterSqlite3(dbPath);
     legacyDb.exec(`
       CREATE TABLE conversations (
         id TEXT PRIMARY KEY,
@@ -80,7 +80,7 @@ describe('SqliteMessageRepository migration idempotency', () => {
     expect(messages[0].seq).toBe(1);
     repo.close();
 
-    const migratedDb = new Database(dbPath);
+    const migratedDb = new BetterSqlite3(dbPath);
     const conversationColumns = migratedDb
       .prepare('PRAGMA table_info(conversations)')
       .all() as Array<{ name: string }>;

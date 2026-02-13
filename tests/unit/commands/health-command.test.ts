@@ -113,6 +113,7 @@ describe('runHealthCommand', () => {
 
   it('includes diagnostics checks for error budget, backlog, memory pressure and alert routing', async () => {
     process.env.MESSAGES_DB_PATH = ':memory:';
+    process.env.WORKER_DB_PATH = ':memory:';
 
     const { LogRepository } = await import('../../../src/logging/logRepository');
     const { getWorkerRepository } = await import('../../../src/server/worker/workerRepository');
