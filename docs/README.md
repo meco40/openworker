@@ -1,19 +1,31 @@
-# OpenClaw Gateway Dokumentation
+# Documentation Index
 
-Willkommen in der technischen Dokumentation des OpenClaw Gateway Control Plane. Dieses Projekt ist eine hochmoderne Steuerzentrale für autonome KI-Agenten und Multi-Channel-Kommunikation.
+Stand: 2026-02-13
 
-## Inhaltsverzeichnis
+Diese Seite ist der Einstieg in die aktive Projektdokumentation.
+Historische Reports, Reviews und alte Plaene wurden nach `docs/archive/` verschoben.
 
-1. [Architektur & Module](./ARCHITECTURE.md)
-   - Aufbau des Systems und Komponentenstruktur.
-2. [API & KI-Integration](./API_INTEGRATION.md)
-   - Details zur Gemini API Anbindung und Modell-Nutzung.
-3. [Sicherheitskonzept](./SECURITY.md)
-   - Firewall, Whitelists und Sandbox-Logik.
-4. [Benutzerhandbuch](./USER_MANUAL.md)
-   - Anleitung zur Bedienung der SaaS-Funktionen.
+## Active Technical Docs
 
-## System-Status
-- **Version:** 1.2.4-stable
-- **Runtime:** React (ESM)
-- **Modul-Limit:** < 500 Zeilen pro Datei
+1. `docs/CORE_HANDBOOK.md`
+   - Aktueller technischer Gesamtueberblick (Stack, Regeln, Runtime, Quality Gates).
+2. `docs/PERSONA_ROOMS_SYSTEM.md`
+   - Persona- und Rooms-Architektur inkl. Runtime/Orchestrator-Status.
+3. `docs/OMNICHANNEL_GATEWAY_OPERATIONS.md`
+   - Betrieb von Omnichannel + WebSocket Gateway (Pairing, Security, Troubleshooting).
+4. `docs/SESSION_MANAGEMENT_IMPLEMENTATION.md`
+   - Umsetzungsstand und technische Details zum Session-Management.
+5. `docs/architecture/model-hub-provider-matrix.md`
+   - Provider/Auth-Referenz fuer den Model Hub.
+
+## Plans
+
+- `docs/plans/README.md`
+
+## Archive
+
+- `docs/archive/README.md`
+
+## Usage Rule
+
+Wenn Inhalte in aktiven Dateien und Archivdateien widersprechen, gelten die aktiven Dateien.

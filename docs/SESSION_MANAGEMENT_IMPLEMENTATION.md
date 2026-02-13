@@ -1,7 +1,7 @@
 # Session Management — Implementierungsbericht
 
 **Datum:** 2026-02-12  
-**Bezug:** OPENCLAW_FUNKTIONSANALYSE.md → Feature #3 (Session Management System)  
+**Bezug:** docs/archive/analysis/OPENCLAW_FUNKTIONSANALYSE.md → Feature #3 (Session Management System)  
 **Priorität:** ⭐⭐⭐⭐⭐ Kritisch  
 **Status:** Vollständig implementiert, auditiert & validiert (349/349 Tests, Build OK)
 
@@ -11,7 +11,7 @@
 
 ### Das Problem
 
-Die OPENCLAW_FUNKTIONSANALYSE.md bewertete das Session Management unserer WebApp mit **⚠️ Basic** (3/10) — im Vergleich zum OpenClaw-Referenzsystem mit **✅ Fortgeschritten** (9/10). Session Management war als **MUST HAVE #3** eingestuft:
+Die docs/archive/analysis/OPENCLAW_FUNKTIONSANALYSE.md bewertete das Session Management unserer WebApp mit **⚠️ Basic** (3/10) — im Vergleich zum OpenClaw-Referenzsystem mit **✅ Fortgeschritten** (9/10). Session Management war als **MUST HAVE #3** eingestuft:
 
 | Aspekt | OpenClaw (Referenz) | WebApp (vorher) |
 |--------|-------------------|-----------------|
@@ -315,7 +315,7 @@ Die verbleibenden 2 Punkte betreffen OpenClaw-Features, die noch nicht implement
 - **Session-Tools für Agents** (`sessions_list`, `sessions_send`, `sessions_history`) — Agent-zu-Agent-Kommunikation
 - **Queue Modes / Activation Modes** — Erweiterte Session-Orchestrierung
 
-Diese sind in der OPENCLAW_FUNKTIONEN_ANALYSE_WEBAPP.md als Phase 2 geplant.
+Diese sind in der docs/archive/analysis/OPENCLAW_FUNKTIONEN_ANALYSE_WEBAPP.md als Phase 2 geplant.
 
 ---
 
@@ -423,4 +423,4 @@ Der Override umgeht bewusst die Fallback-Kette, damit der Nutzer deterministisch
 
 **Abgeschlossen:** 2026-02-12  
 **Verifiziert:** 45/45 Checkpoints, 349/349 Tests, Build erfolgreich  
-**Nächste Schritte:** Agent-zu-Agent Sessions (Phase 2 lt. OPENCLAW_FUNKTIONEN_ANALYSE_WEBAPP.md)
+**Nächste Schritte:** Agent-zu-Agent Sessions (Phase 2 lt. docs/archive/analysis/OPENCLAW_FUNKTIONEN_ANALYSE_WEBAPP.md)
