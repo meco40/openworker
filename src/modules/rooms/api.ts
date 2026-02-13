@@ -1,10 +1,4 @@
-import type {
-  RoomMemberStatus,
-  RoomMember,
-  RoomMessage,
-  RoomState,
-  RoomSummary,
-} from './types';
+import type { RoomMemberStatus, RoomMember, RoomMessage, RoomState, RoomSummary } from './types';
 
 export async function listRooms(): Promise<RoomSummary[]> {
   const response = await fetch('/api/rooms');
@@ -40,11 +34,14 @@ export async function deleteRoom(roomId: string): Promise<void> {
   }
 }
 
-export async function addRoomMember(roomId: string, input: {
-  personaId: string;
-  roleLabel: string;
-  modelOverride?: string | null;
-}): Promise<RoomMember> {
+export async function addRoomMember(
+  roomId: string,
+  input: {
+    personaId: string;
+    roleLabel: string;
+    modelOverride?: string | null;
+  },
+): Promise<RoomMember> {
   const response = await fetch(`/api/rooms/${roomId}/members`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -66,7 +63,11 @@ export async function removeRoomMember(roomId: string, personaId: string): Promi
   }
 }
 
-export async function setRoomMemberPaused(roomId: string, personaId: string, paused: boolean): Promise<void> {
+export async function setRoomMemberPaused(
+  roomId: string,
+  personaId: string,
+  paused: boolean,
+): Promise<void> {
   const response = await fetch(`/api/rooms/${roomId}/members/${personaId}`, {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },

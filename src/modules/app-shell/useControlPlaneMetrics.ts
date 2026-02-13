@@ -7,7 +7,9 @@ interface ControlPlaneMetricsResponse {
   error?: string;
 }
 
-export function useControlPlaneMetrics(): ControlPlaneMetricsState & { refresh: () => Promise<void> } {
+export function useControlPlaneMetrics(): ControlPlaneMetricsState & {
+  refresh: () => Promise<void>;
+} {
   const [metrics, setMetrics] = useState<ControlPlaneMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [stale, setStale] = useState(false);
@@ -27,7 +29,9 @@ export function useControlPlaneMetrics(): ControlPlaneMetricsState & { refresh: 
       setError(null);
     } catch (requestError) {
       const message =
-        requestError instanceof Error ? requestError.message : 'Unable to load control-plane metrics.';
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to load control-plane metrics.';
       setError(message);
       setStale(true);
       setMetrics((previous) => previous ?? null);

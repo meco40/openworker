@@ -39,18 +39,36 @@ async function setupForChannelsTests() {
     broadcastToUser,
   }));
   vi.doMock('../../../src/server/channels/pairing', () => ({
-    isPairChannelType: (value: string) => ['telegram', 'discord', 'whatsapp', 'imessage'].includes(value),
+    isPairChannelType: (value: string) =>
+      ['telegram', 'discord', 'whatsapp', 'imessage'].includes(value),
     pairChannel,
     unpairChannel,
   }));
   vi.doMock('../../../src/server/channels/messages/runtime', () => ({
     getMessageRepository: () => ({
-      listChannelBindings: () => [{ channel: 'telegram', status: 'connected', peerName: 'telegram:test' }],
+      listChannelBindings: () => [
+        { channel: 'telegram', status: 'connected', peerName: 'telegram:test' },
+      ],
       upsertChannelBinding,
     }),
     getMessageService: () => ({
-      listConversations: () => [{ id: 'conv-1', channelType: 'Telegram', title: 'Chat', updatedAt: '2026-02-11T00:00:00.000Z' }],
-      listMessages: () => [{ id: 'msg-1', role: 'user', content: 'hello', createdAt: '2026-02-11T00:00:01.000Z', platform: 'Telegram' }],
+      listConversations: () => [
+        {
+          id: 'conv-1',
+          channelType: 'Telegram',
+          title: 'Chat',
+          updatedAt: '2026-02-11T00:00:00.000Z',
+        },
+      ],
+      listMessages: () => [
+        {
+          id: 'msg-1',
+          role: 'user',
+          content: 'hello',
+          createdAt: '2026-02-11T00:00:01.000Z',
+          platform: 'Telegram',
+        },
+      ],
     }),
   }));
 
@@ -60,7 +78,11 @@ async function setupForChannelsTests() {
   return { dispatchMethod, pairChannel, unpairChannel, upsertChannelBinding, broadcastToUser };
 }
 
-function makeRequest(method: string, params?: Record<string, unknown>, id: string | number = 'req-1'): RequestFrame {
+function makeRequest(
+  method: string,
+  params?: Record<string, unknown>,
+  id: string | number = 'req-1',
+): RequestFrame {
   return { type: 'req', id, method, params };
 }
 
@@ -72,14 +94,19 @@ describe('gateway channels methods', () => {
     await dispatchMethod(makeRequest('channels.list'), makeClient(), (frame) => sent.push(frame));
 
     expect(sent).toHaveLength(1);
-    const response = sent[0] as { type: string; ok: boolean; payload: { channels: Array<{ channel: string; status: string }> } };
+    const response = sent[0] as {
+      type: string;
+      ok: boolean;
+      payload: { channels: Array<{ channel: string; status: string }> };
+    };
     expect(response.type).toBe('res');
     expect(response.ok).toBe(true);
     expect(response.payload.channels.length).toBeGreaterThan(0);
   });
 
   it('pairs a channel via channels.pair', async () => {
-    const { dispatchMethod, pairChannel, upsertChannelBinding, broadcastToUser } = await setupForChannelsTests();
+    const { dispatchMethod, pairChannel, upsertChannelBinding, broadcastToUser } =
+      await setupForChannelsTests();
     const sent: unknown[] = [];
 
     await dispatchMethod(
@@ -100,11 +127,16 @@ describe('gateway channels methods', () => {
     const { dispatchMethod } = await setupForChannelsTests();
     const sent: unknown[] = [];
 
-    await dispatchMethod(makeRequest('inbox.list', { channel: 'telegram' }), makeClient(), (frame) =>
-      sent.push(frame),
+    await dispatchMethod(
+      makeRequest('inbox.list', { channel: 'telegram' }),
+      makeClient(),
+      (frame) => sent.push(frame),
     );
 
-    const response = sent[0] as { ok: boolean; payload: { items: Array<{ conversationId: string }> } };
+    const response = sent[0] as {
+      ok: boolean;
+      payload: { items: Array<{ conversationId: string }> };
+    };
     expect(response.ok).toBe(true);
     expect(response.payload.items).toHaveLength(1);
     expect(response.payload.items[0].conversationId).toBe('conv-1');
@@ -114,8 +146,10 @@ describe('gateway channels methods', () => {
     const { dispatchMethod, unpairChannel, upsertChannelBinding } = await setupForChannelsTests();
     const sent: unknown[] = [];
 
-    await dispatchMethod(makeRequest('channels.unpair', { channel: 'telegram' }), makeClient('user-a'), (frame) =>
-      sent.push(frame),
+    await dispatchMethod(
+      makeRequest('channels.unpair', { channel: 'telegram' }),
+      makeClient('user-a'),
+      (frame) => sent.push(frame),
     );
 
     expect(unpairChannel).toHaveBeenCalledWith('telegram');

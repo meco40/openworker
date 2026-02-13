@@ -11,31 +11,36 @@ Monolithic Next.js 16 (App Router, React 19) application with a **custom server*
 
 ## Project Layout
 
-| Path | Purpose |
-|---|---|
-| `app/api/` | Next.js API routes — validate input, delegate to `src/server/` services |
-| `src/server/` | Domain services: `gateway/`, `worker/`, `rooms/`, `channels/`, `personas/`, `skills/`, `model-hub/`, `memory/`, `auth/`, `stats/`, `automation/` |
-| `src/modules/` | Frontend feature modules with `hooks/`, `services/`, `components/` — e.g., `app-shell/`, `gateway/`, `chat/`, `worker/` |
-| `src/shared/` | Cross-cutting utilities and types — consumed by both `src/modules/` and `src/server/`, never the reverse |
-| `components/` | Presentational React components wired by `App.tsx` |
-| `skills/` | Skill plugins: `browser/`, `filesystem/`, `github-manager/`, `python-runtime/`, `search/`, `shell-access/`, `sql-bridge/`, `vision/` |
-| `tests/` | `unit/` mirrors `src/server/` structure, `integration/` for route-level tests, `contract/` for API surface stability |
+| Path           | Purpose                                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `app/api/`     | Next.js API routes — validate input, delegate to `src/server/` services                                                                          |
+| `src/server/`  | Domain services: `gateway/`, `worker/`, `rooms/`, `channels/`, `personas/`, `skills/`, `model-hub/`, `memory/`, `auth/`, `stats/`, `automation/` |
+| `src/modules/` | Frontend feature modules with `hooks/`, `services/`, `components/` — e.g., `app-shell/`, `gateway/`, `chat/`, `worker/`                          |
+| `src/shared/`  | Cross-cutting utilities and types — consumed by both `src/modules/` and `src/server/`, never the reverse                                         |
+| `components/`  | Presentational React components wired by `App.tsx`                                                                                               |
+| `skills/`      | Skill plugins: `browser/`, `filesystem/`, `github-manager/`, `python-runtime/`, `search/`, `shell-access/`, `sql-bridge/`, `vision/`             |
+| `tests/`       | `unit/` mirrors `src/server/` structure, `integration/` for route-level tests, `contract/` for API surface stability                             |
 
 ## Key Patterns
 
 ### API Routes
+
 Export named HTTP handlers (`GET`, `POST`, etc.). Always set `export const runtime = 'nodejs'` for SQLite access. Auth via `resolveRequestUserContext()` from `src/server/auth/userContext.ts`. Return `NextResponse.json({ ok: true, ... })` or `{ ok: false, error }`.
 
 ### Repository Singletons
+
 Domain services use lazy singletons — module-level `let _instance` with `getSomeRepository()` factories (e.g., `getWorkerRepository()`, `getSkillRepository()`). For tests, instantiate with `:memory:` SQLite.
 
 ### Gateway Methods
+
 Register handlers via `registerMethod('domain.action', handler)` in `src/server/gateway/methods/`. Method names follow `domain.action` convention (e.g., `chat.send`, `worker.submit`, `sessions.delete`). Registration is side-effect-based — importing the file registers the method.
 
 ### Path Alias
+
 `@` resolves to project root: `import { ... } from '@/src/server/worker/repository'`.
 
 ### ID Generation
+
 Use `createId(prefix)` from `src/shared/lib/` — produces `prefix-timestamp-random` format.
 
 ## Development Commands
@@ -70,16 +75,16 @@ npm run build        # next build (production)
 
 ## Environment Variables
 
-| Variable | Purpose |
-|---|---|
-| `GEMINI_API_KEY` | Required — primary AI provider key |
-| `REQUIRE_AUTH` | `true` to enforce NextAuth login (default: `false`) |
-| `NEXTAUTH_SECRET` / `AUTH_SECRET` | JWT signing secret |
-| `ROOMS_RUNNER` | `scheduler` or `server` — controls which process runs room orchestrator |
-| `MEMORY_DB_PATH` | SQLite path for persistent core memory |
-| `GITHUB_TOKEN` | Enables authenticated GitHub skill calls |
-| `SQLITE_DB_PATH` | Path for `db_query` skill (read-only) |
-| `WHATSAPP_BRIDGE_URL` / `IMESSAGE_BRIDGE_URL` | Channel bridge endpoints |
+| Variable                                      | Purpose                                                                 |
+| --------------------------------------------- | ----------------------------------------------------------------------- |
+| `GEMINI_API_KEY`                              | Required — primary AI provider key                                      |
+| `REQUIRE_AUTH`                                | `true` to enforce NextAuth login (default: `false`)                     |
+| `NEXTAUTH_SECRET` / `AUTH_SECRET`             | JWT signing secret                                                      |
+| `ROOMS_RUNNER`                                | `scheduler` or `server` — controls which process runs room orchestrator |
+| `MEMORY_DB_PATH`                              | SQLite path for persistent core memory                                  |
+| `GITHUB_TOKEN`                                | Enables authenticated GitHub skill calls                                |
+| `SQLITE_DB_PATH`                              | Path for `db_query` skill (read-only)                                   |
+| `WHATSAPP_BRIDGE_URL` / `IMESSAGE_BRIDGE_URL` | Channel bridge endpoints                                                |
 
 ---
 
@@ -108,6 +113,7 @@ npm run build        # next build (production)
 6. **Transition to implementation** — invoke Writing Plans skill to create implementation plan
 
 **Key Principles:**
+
 - One question at a time — don't overwhelm
 - YAGNI ruthlessly — remove unnecessary features from all designs
 - Explore alternatives — always propose 2–3 approaches before settling
@@ -126,6 +132,7 @@ npm run build        # next build (production)
 **Save plans to:** `docs/plans/YYYY-MM-DD-<feature-name>.md`
 
 **Bite-Sized Task Granularity — each step is one action (2–5 minutes):**
+
 - "Write the failing test" — step
 - "Run it to make sure it fails" — step
 - "Implement the minimal code to make the test pass" — step
@@ -133,10 +140,12 @@ npm run build        # next build (production)
 - "Commit" — step
 
 **Task Structure:**
+
 ```markdown
 ### Task N: [Component Name]
 
 **Files:**
+
 - Create: `exact/path/to/file.ts`
 - Modify: `exact/path/to/existing.ts`
 - Test: `tests/exact/path/to/test.ts`
@@ -159,6 +168,7 @@ Expected: PASS
 ```
 
 **Remember:**
+
 - Exact file paths always
 - Complete code in plan (not "add validation")
 - Exact commands with expected output
@@ -182,6 +192,7 @@ Expected: PASS
 4. **Continue** — Apply changes if needed, execute next batch, repeat until complete.
 
 **When to STOP and ask:**
+
 - Hit a blocker mid-batch (missing dependency, test fails, instruction unclear)
 - Plan has critical gaps
 - You don't understand an instruction
@@ -198,6 +209,7 @@ Expected: PASS
 **Core Principle:** If you didn't watch the test fail, you don't know if it tests the right thing.
 
 **The Iron Law:**
+
 ```
 NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
 ```
@@ -209,17 +221,21 @@ Write code before the test? Delete it. Start over. No exceptions — don't keep 
 1. **RED — Write Failing Test:** One minimal test showing what should happen. One behavior, clear name, real code (no mocks unless unavoidable).
 
 2. **Verify RED — Watch It Fail (MANDATORY, never skip):**
+
    ```bash
    npm test -- path/to/test.test.ts
    ```
+
    Confirm: test fails (not errors), failure message is expected, fails because feature is missing (not typos). Test passes? You're testing existing behavior — fix test.
 
 3. **GREEN — Minimal Code:** Write simplest code to pass the test. Don't add features, refactor other code, or "improve" beyond the test.
 
 4. **Verify GREEN — Watch It Pass (MANDATORY):**
+
    ```bash
    npm test -- path/to/test.test.ts
    ```
+
    Confirm: test passes, other tests still pass, output pristine. Test fails? Fix code, not test.
 
 5. **REFACTOR — Clean Up:** After green only. Remove duplication, improve names, extract helpers. Keep tests green. Don't add behavior.
@@ -228,13 +244,14 @@ Write code before the test? Delete it. Start over. No exceptions — don't keep 
 
 **Good Tests:**
 
-| Quality | Good | Bad |
-|---------|------|-----|
-| Minimal | One thing. "and" in name? Split it. | `test('validates email and domain and whitespace')` |
-| Clear | Name describes behavior | `test('test1')` |
-| Shows intent | Demonstrates desired API | Obscures what code should do |
+| Quality      | Good                                | Bad                                                 |
+| ------------ | ----------------------------------- | --------------------------------------------------- |
+| Minimal      | One thing. "and" in name? Split it. | `test('validates email and domain and whitespace')` |
+| Clear        | Name describes behavior             | `test('test1')`                                     |
+| Shows intent | Demonstrates desired API            | Obscures what code should do                        |
 
 **Red Flags — STOP and Start Over:**
+
 - Code before test
 - Test passes immediately
 - Can't explain why test failed
@@ -242,6 +259,7 @@ Write code before the test? Delete it. Start over. No exceptions — don't keep 
 - "I already manually tested it"
 
 **Verification Checklist (before marking work complete):**
+
 - [ ] Every new function/method has a test
 - [ ] Watched each test fail before implementing
 - [ ] Wrote minimal code to pass each test
@@ -259,6 +277,7 @@ Write code before the test? Delete it. Start over. No exceptions — don't keep 
 **Core Principle:** ALWAYS find root cause before attempting fixes. Symptom fixes are failure.
 
 **The Iron Law:**
+
 ```
 NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
 ```
@@ -266,6 +285,7 @@ NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
 **The Four Phases (complete each before proceeding):**
 
 #### Phase 1: Root Cause Investigation
+
 1. **Read Error Messages Carefully** — Don't skip past errors/warnings. Read stack traces completely. Note line numbers, file paths, error codes.
 2. **Reproduce Consistently** — Can you trigger it reliably? What are the exact steps? If not reproducible → gather more data, don't guess.
 3. **Check Recent Changes** — Git diff, recent commits, new dependencies, config changes, environmental differences.
@@ -273,23 +293,27 @@ NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
 5. **Trace Data Flow** — Where does bad value originate? What called this with bad value? Keep tracing up until you find the source. Fix at source, not at symptom.
 
 #### Phase 2: Pattern Analysis
+
 1. **Find Working Examples** — Locate similar working code in same codebase.
 2. **Compare Against References** — Read reference implementation COMPLETELY. Don't skim.
 3. **Identify Differences** — List every difference between working and broken, however small.
 4. **Understand Dependencies** — What other components, settings, config, environment does this need?
 
 #### Phase 3: Hypothesis and Testing
+
 1. **Form Single Hypothesis** — "I think X is the root cause because Y" — be specific.
 2. **Test Minimally** — SMALLEST possible change. One variable at a time. Don't fix multiple things at once.
 3. **Verify Before Continuing** — Worked? → Phase 4. Didn't work? → NEW hypothesis. Don't add more fixes on top.
 
 #### Phase 4: Implementation
+
 1. **Create Failing Test Case** — MUST have before fixing.
 2. **Implement Single Fix** — Address root cause. ONE change at a time. No "while I'm here" improvements.
 3. **Verify Fix** — Test passes? No other tests broken? Issue actually resolved?
 4. **If 3+ Fixes Failed → Question Architecture** — Each fix reveals new problem in different place? STOP. Discuss with user before attempting more fixes.
 
 **Red Flags — STOP and Return to Phase 1:**
+
 - "Quick fix for now, investigate later"
 - "Just try changing X and see if it works"
 - "It's probably X, let me fix that"
@@ -305,11 +329,13 @@ NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
 **Core Principle:** Evidence before claims, always.
 
 **The Iron Law:**
+
 ```
 NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
 ```
 
 **The Gate Function:**
+
 1. **IDENTIFY:** What command proves this claim?
 2. **RUN:** Execute the FULL command (fresh, complete)
 3. **READ:** Full output, check exit code, count failures
@@ -320,14 +346,15 @@ NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
 
 **Common Failures:**
 
-| Claim | Requires | Not Sufficient |
-|-------|----------|----------------|
-| Tests pass | Test command output: 0 failures | Previous run, "should pass" |
-| Linter clean | Linter output: 0 errors | Partial check, extrapolation |
-| Build succeeds | Build command: exit 0 | Linter passing, logs look good |
-| Bug fixed | Original symptom test: passes | Code changed, assumed fixed |
+| Claim          | Requires                        | Not Sufficient                 |
+| -------------- | ------------------------------- | ------------------------------ |
+| Tests pass     | Test command output: 0 failures | Previous run, "should pass"    |
+| Linter clean   | Linter output: 0 errors         | Partial check, extrapolation   |
+| Build succeeds | Build command: exit 0           | Linter passing, logs look good |
+| Bug fixed      | Original symptom test: passes   | Code changed, assumed fixed    |
 
 **Red Flags — STOP:**
+
 - Using "should", "probably", "seems to"
 - Expressing satisfaction before verification ("Great!", "Perfect!", "Done!")
 - About to commit/push/PR without verification

@@ -43,9 +43,7 @@ function walkDiff(before: unknown, after: unknown, basePath: string, out: DiffIt
 export function summarizeConfigDiff(before: unknown, after: unknown): DiffItem[] {
   const items: DiffItem[] = [];
   walkDiff(before, after, '', items);
-  return items
-    .filter((item) => item.path.length > 0)
-    .sort((a, b) => a.path.localeCompare(b.path));
+  return items.filter((item) => item.path.length > 0).sort((a, b) => a.path.localeCompare(b.path));
 }
 
 export function hasHighRiskDiff(items: DiffItem[]): boolean {

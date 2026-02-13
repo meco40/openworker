@@ -17,14 +17,14 @@ const AppShellHeader: React.FC<AppShellHeaderProps> = ({ metricsState }) => {
   const vectorNodeCount = metricsState.metrics?.vectorNodeCount;
 
   return (
-    <header className="h-16 border-b border-zinc-800 flex items-center justify-between px-6 bg-[#0c0c0c] z-10">
+    <header className="z-10 flex h-16 items-center justify-between border-b border-zinc-800 bg-[#0c0c0c] px-6">
       <div className="flex items-center space-x-4">
-        <h1 className="text-lg font-bold text-white tracking-tight">OpenClaw Gateway</h1>
-        <div className="px-2 py-0.5 rounded border border-violet-500/30 bg-violet-500/5 text-[9px] font-black text-violet-400 uppercase tracking-widest">
+        <h1 className="text-lg font-bold tracking-tight text-white">OpenClaw Gateway</h1>
+        <div className="rounded border border-violet-500/30 bg-violet-500/5 px-2 py-0.5 text-[9px] font-black tracking-widest text-violet-400 uppercase">
           Active Bridge Node
         </div>
         {metricsState.stale && (
-          <div className="px-2 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-[9px] font-black text-amber-400 uppercase tracking-widest">
+          <div className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-black tracking-widest text-amber-400 uppercase">
             Metrics Stale
           </div>
         )}
@@ -32,11 +32,11 @@ const AppShellHeader: React.FC<AppShellHeaderProps> = ({ metricsState }) => {
       <div className="flex items-center space-x-6">
         <div className="text-right">
           <div className="text-[10px] text-zinc-600 uppercase">Open Tasks</div>
-          <div className="text-emerald-500 font-mono font-bold">{renderMetric(openTaskCount)}</div>
+          <div className="font-mono font-bold text-emerald-500">{renderMetric(openTaskCount)}</div>
         </div>
         <div className="text-right">
           <div className="text-[10px] text-zinc-600 uppercase">Vector Nodes</div>
-          <div className="text-zinc-300 font-mono">{renderMetric(vectorNodeCount)}</div>
+          <div className="font-mono text-zinc-300">{renderMetric(vectorNodeCount)}</div>
         </div>
       </div>
     </header>

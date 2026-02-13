@@ -26,7 +26,8 @@ export async function POST(request: Request) {
       connectedAt: new Date().toISOString(),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown Telegram pairing confirmation error';
+    const message =
+      error instanceof Error ? error.message : 'Unknown Telegram pairing confirmation error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

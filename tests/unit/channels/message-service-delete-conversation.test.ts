@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { MessageRepository } from '../../../src/server/channels/messages/repository';
 import { MessageService } from '../../../src/server/channels/messages/service';
 
-function buildRepository(deleteConversation: MessageRepository['deleteConversation']): MessageRepository {
+function buildRepository(
+  deleteConversation: MessageRepository['deleteConversation'],
+): MessageRepository {
   return {
     createConversation: () => {
       throw new Error('unused');

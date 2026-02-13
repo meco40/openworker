@@ -1,14 +1,17 @@
-
 import { MemoryNode, SearchResult } from './types';
 import { cosineSimilarity, getEmbedding } from './embeddings';
 
 class VectorStore {
   private nodes: MemoryNode[] = [];
 
-  async addNode(type: MemoryNode['type'], content: string, importance: number): Promise<MemoryNode> {
+  async addNode(
+    type: MemoryNode['type'],
+    content: string,
+    importance: number,
+  ): Promise<MemoryNode> {
     // Check for duplicates or similar entries to increase confidence instead of creating new ones
     const queryVector = await getEmbedding(content);
-    const existing = this.nodes.find(n => cosineSimilarity(queryVector, n.embedding) > 0.95);
+    const existing = this.nodes.find((n) => cosineSimilarity(queryVector, n.embedding) > 0.95);
 
     if (existing) {
       existing.confidence = Math.min(1.0, existing.confidence + 0.1);
@@ -25,7 +28,7 @@ class VectorStore {
       importance,
       confidence: 0.3, // Startet niedrig, wächst durch Wiederholung
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      metadata: { lastVerified: new Date().toISOString() }
+      metadata: { lastVerified: new Date().toISOString() },
     };
     this.nodes.push(node);
     return node;
@@ -33,9 +36,9 @@ class VectorStore {
 
   async search(query: string, limit: number = 5): Promise<SearchResult[]> {
     const queryVector = await getEmbedding(query);
-    const results: SearchResult[] = this.nodes.map(node => ({
+    const results: SearchResult[] = this.nodes.map((node) => ({
       node,
-      similarity: cosineSimilarity(queryVector, node.embedding)
+      similarity: cosineSimilarity(queryVector, node.embedding),
     }));
 
     // Wir gewichten Similarity zusätzlich mit Importance und Confidence

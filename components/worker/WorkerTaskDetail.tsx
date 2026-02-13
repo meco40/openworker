@@ -179,7 +179,9 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
   onApprove,
   onDelete,
 }) => {
-  const [activeTab, setActiveTab] = useState<'steps' | 'files' | 'output' | 'activities' | 'terminal' | 'planning'>('steps');
+  const [activeTab, setActiveTab] = useState<
+    'steps' | 'files' | 'output' | 'activities' | 'terminal' | 'planning'
+  >('steps');
   const [steps, setSteps] = useState<WorkerStep[]>(task.steps || []);
   const {
     files,
@@ -217,7 +219,9 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
             `[${ts}] ${data.status?.toUpperCase() || 'UPDATE'}: ${data.message || JSON.stringify(data)}`,
           ]);
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     });
 
     return () => {
@@ -260,9 +264,14 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
     if (activeTab === 'files') refreshFiles();
   }, [activeTab, refreshFiles]);
 
-  const isActive = ['queued', 'planning', 'clarifying', 'executing', 'waiting_approval', 'testing'].includes(
-    task.status,
-  );
+  const isActive = [
+    'queued',
+    'planning',
+    'clarifying',
+    'executing',
+    'waiting_approval',
+    'testing',
+  ].includes(task.status);
 
   return (
     <div className="worker-detail">
@@ -283,9 +292,7 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
         </div>
         <p className="worker-detail__objective">{task.objective}</p>
         {task.assignedPersonaId && (
-          <span className="worker-detail__persona-badge">
-            👤 Persona zugewiesen
-          </span>
+          <span className="worker-detail__persona-badge">👤 Persona zugewiesen</span>
         )}
       </div>
 
@@ -490,9 +497,7 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
         )}
 
         {/* Activities Tab */}
-        {activeTab === 'activities' && (
-          <WorkerActivityTab taskId={task.id} />
-        )}
+        {activeTab === 'activities' && <WorkerActivityTab taskId={task.id} />}
 
         {/* Terminal Tab */}
         {activeTab === 'terminal' && (

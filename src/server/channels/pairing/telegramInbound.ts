@@ -1,10 +1,7 @@
 import { ChannelType } from '../../../../types';
 import { getMessageService } from '../messages/runtime';
 import { deliverTelegram } from '../outbound/telegram';
-import {
-  ensureTelegramPairingCode,
-  isTelegramChatAuthorized,
-} from './telegramCodePairing';
+import { ensureTelegramPairingCode, isTelegramChatAuthorized } from './telegramCodePairing';
 
 export interface TelegramInboundMessage {
   message_id: number;
@@ -28,9 +25,7 @@ export async function processTelegramInboundMessage(
   const chatId = String(message.chat.id);
   const text = message.text;
   const senderName =
-    message.from?.username ||
-    message.from?.first_name ||
-    `user-${message.from?.id}`;
+    message.from?.username || message.from?.first_name || `user-${message.from?.id}`;
   const externalMsgId = String(message.message_id);
 
   if (!isTelegramChatAuthorized(chatId)) {

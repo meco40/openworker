@@ -18,16 +18,13 @@ export class ContextBuilder {
     const context = this.repo.getConversationContext(conversationId, userId);
     const history = this.repo.listMessages(conversationId, limit, undefined, userId);
     const unsummarizedHistory = context
-      ? history.filter((message) => typeof message.seq !== 'number' || message.seq > context.summaryUptoSeq)
+      ? history.filter(
+          (message) => typeof message.seq !== 'number' || message.seq > context.summaryUptoSeq,
+        )
       : history;
 
     const mapped: GatewayMessage[] = unsummarizedHistory.map((message) => ({
-      role:
-        message.role === 'agent'
-          ? 'assistant'
-          : message.role === 'system'
-            ? 'system'
-            : 'user',
+      role: message.role === 'agent' ? 'assistant' : message.role === 'system' ? 'system' : 'user',
       content: message.content,
     }));
 

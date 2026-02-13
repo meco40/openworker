@@ -14,12 +14,8 @@ export function buildSkillConfigHints(
     return { requiredHint: null, optionalHint: null };
   }
 
-  const required = configs
-    .filter((config) => config.required)
-    .map((config) => config.label);
-  const optional = configs
-    .filter((config) => !config.required)
-    .map((config) => config.label);
+  const required = configs.filter((config) => config.required).map((config) => config.label);
+  const optional = configs.filter((config) => !config.required).map((config) => config.label);
 
   return {
     requiredHint: required.length > 0 ? `Requires setup: ${required.join(', ')}` : null,

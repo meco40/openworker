@@ -31,7 +31,12 @@ export function useWorkerTasks() {
   const createTask = useCallback(
     async (
       objective: string,
-      options?: { title?: string; priority?: string; workspaceType?: WorkspaceType; usePlanning?: boolean },
+      options?: {
+        title?: string;
+        priority?: string;
+        workspaceType?: WorkspaceType;
+        usePlanning?: boolean;
+      },
     ) => {
       try {
         setError(null);
@@ -116,11 +121,17 @@ export function useWorkerTasks() {
       try {
         const data = payload as { taskId: string; status: string };
         setTasks((prev) =>
-          prev.map((t) => (t.id === data.taskId ? { ...t, status: data.status as WorkerTaskStatus } : t)),
+          prev.map((t) =>
+            t.id === data.taskId ? { ...t, status: data.status as WorkerTaskStatus } : t,
+          ),
         );
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     });
-    return () => { unsub(); };
+    return () => {
+      unsub();
+    };
   }, []);
 
   // Initial fetch

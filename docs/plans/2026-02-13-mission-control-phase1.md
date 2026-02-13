@@ -9,27 +9,28 @@
 
 ## Übersicht der Tasks
 
-| # | Task | Dateien | Geschätzt |
-|---|------|---------|-----------|
-| 1 | State Machine erstellen | 1 neu, 1 test neu | 20 min |
-| 2 | Status-Enum erweitern (Backend) | 2 ändern | 10 min |
-| 3 | Status-Enum erweitern (Frontend) | 3 ändern | 10 min |
-| 4 | Repository anpassen | 1 ändern, 1 test ändern | 15 min |
-| 5 | Agent Cancellation-Check härten | 1 ändern | 5 min |
-| 6 | PATCH-Route erweitern (Status-Transitions + processQueue Trigger) | 1 ändern | 15 min |
-| 7 | Gateway Worker-Methode erweitern | 1 ändern | 10 min |
-| 8 | Chat-Commands anpassen | 1 ändern | 10 min |
-| 9 | Kanban Board UI erstellen | 1 neu, 1 CSS | 30 min |
-| 10 | WorkerView umbauen | 1 ändern | 15 min |
-| 11 | WorkerTaskList STATUS_CONFIG erweitern | 1 ändern | 5 min |
-| 12 | WorkerFlow + WorkerTaskDetail erweitern | 2 ändern | 10 min |
-| 13 | End-to-End Verifikation | — | 10 min |
+| #   | Task                                                              | Dateien                 | Geschätzt |
+| --- | ----------------------------------------------------------------- | ----------------------- | --------- |
+| 1   | State Machine erstellen                                           | 1 neu, 1 test neu       | 20 min    |
+| 2   | Status-Enum erweitern (Backend)                                   | 2 ändern                | 10 min    |
+| 3   | Status-Enum erweitern (Frontend)                                  | 3 ändern                | 10 min    |
+| 4   | Repository anpassen                                               | 1 ändern, 1 test ändern | 15 min    |
+| 5   | Agent Cancellation-Check härten                                   | 1 ändern                | 5 min     |
+| 6   | PATCH-Route erweitern (Status-Transitions + processQueue Trigger) | 1 ändern                | 15 min    |
+| 7   | Gateway Worker-Methode erweitern                                  | 1 ändern                | 10 min    |
+| 8   | Chat-Commands anpassen                                            | 1 ändern                | 10 min    |
+| 9   | Kanban Board UI erstellen                                         | 1 neu, 1 CSS            | 30 min    |
+| 10  | WorkerView umbauen                                                | 1 ändern                | 15 min    |
+| 11  | WorkerTaskList STATUS_CONFIG erweitern                            | 1 ändern                | 5 min     |
+| 12  | WorkerFlow + WorkerTaskDetail erweitern                           | 2 ändern                | 10 min    |
+| 13  | End-to-End Verifikation                                           | —                       | 10 min    |
 
 ---
 
 ## Task 1: State Machine erstellen
 
 **Files:**
+
 - Create: `src/server/worker/workerStateMachine.ts`
 - Create: `tests/unit/worker/worker-state-machine.test.ts`
 
@@ -231,20 +232,20 @@ export function isActiveStatus(status: WorkerTaskStatus): boolean {
  * `cancelled` is always allowed as a target for any status.
  */
 const MANUAL_TRANSITIONS: Record<string, ReadonlySet<string>> = {
-  inbox:             new Set(['queued', 'assigned', 'cancelled']),
-  assigned:          new Set(['queued', 'inbox', 'cancelled']),
-  queued:            new Set(['inbox', 'cancelled']),
+  inbox: new Set(['queued', 'assigned', 'cancelled']),
+  assigned: new Set(['queued', 'inbox', 'cancelled']),
+  queued: new Set(['inbox', 'cancelled']),
   // Active statuses: only cancelled allowed (enforced below)
-  planning:          new Set(['cancelled']),
-  executing:         new Set(['cancelled']),
-  clarifying:        new Set(['cancelled']),
-  waiting_approval:  new Set(['cancelled']),
-  testing:           new Set(['review', 'assigned', 'cancelled']),
-  review:            new Set(['completed', 'assigned', 'cancelled']),
-  completed:         new Set(['review']),
-  failed:            new Set(['queued', 'cancelled']),
-  interrupted:       new Set(['queued', 'cancelled']),
-  cancelled:         new Set([]),
+  planning: new Set(['cancelled']),
+  executing: new Set(['cancelled']),
+  clarifying: new Set(['cancelled']),
+  waiting_approval: new Set(['cancelled']),
+  testing: new Set(['review', 'assigned', 'cancelled']),
+  review: new Set(['completed', 'assigned', 'cancelled']),
+  completed: new Set(['review']),
+  failed: new Set(['queued', 'cancelled']),
+  interrupted: new Set(['queued', 'cancelled']),
+  cancelled: new Set([]),
 };
 
 /**
@@ -253,13 +254,13 @@ const MANUAL_TRANSITIONS: Record<string, ReadonlySet<string>> = {
  * `failed`, `cancelled`, `interrupted` are always allowed as targets.
  */
 const SYSTEM_TRANSITIONS: Record<string, ReadonlySet<string>> = {
-  queued:            new Set(['planning']),
-  planning:         new Set(['executing', 'clarifying']),
-  clarifying:       new Set(['planning', 'executing']),
-  executing:        new Set(['testing', 'review', 'waiting_approval', 'completed']),
+  queued: new Set(['planning']),
+  planning: new Set(['executing', 'clarifying']),
+  clarifying: new Set(['planning', 'executing']),
+  executing: new Set(['testing', 'review', 'waiting_approval', 'completed']),
   waiting_approval: new Set(['executing']),
-  testing:          new Set(['review', 'executing']),
-  review:           new Set(['completed']),
+  testing: new Set(['review', 'executing']),
+  review: new Set(['completed']),
 };
 
 /** Universal system targets — always reachable from any status. */
@@ -278,7 +279,7 @@ const UNIVERSAL_SYSTEM_TARGETS: ReadonlySet<string> = new Set([
 export function canTransition(
   from: WorkerTaskStatus,
   to: WorkerTaskStatus,
-  source: TransitionSource
+  source: TransitionSource,
 ): boolean {
   if (from === to) return false;
 
@@ -301,13 +302,13 @@ export interface KanbanColumn {
 }
 
 export const KANBAN_COLUMNS: readonly KanbanColumn[] = [
-  { id: 'planning',    label: 'Planung',        statuses: ['planning', 'clarifying'] },
-  { id: 'inbox',       label: 'Eingang',        statuses: ['inbox'] },
-  { id: 'assigned',    label: 'Zugewiesen',     statuses: ['queued', 'assigned'] },
-  { id: 'in-progress', label: 'In Arbeit',      statuses: ['executing', 'waiting_approval'] },
-  { id: 'testing',     label: 'Testing',        statuses: ['testing'] },
-  { id: 'review',      label: 'Review',         statuses: ['review'] },
-  { id: 'done',        label: 'Erledigt',       statuses: ['completed', 'failed', 'cancelled', 'interrupted'] },
+  { id: 'planning', label: 'Planung', statuses: ['planning', 'clarifying'] },
+  { id: 'inbox', label: 'Eingang', statuses: ['inbox'] },
+  { id: 'assigned', label: 'Zugewiesen', statuses: ['queued', 'assigned'] },
+  { id: 'in-progress', label: 'In Arbeit', statuses: ['executing', 'waiting_approval'] },
+  { id: 'testing', label: 'Testing', statuses: ['testing'] },
+  { id: 'review', label: 'Review', statuses: ['review'] },
+  { id: 'done', label: 'Erledigt', statuses: ['completed', 'failed', 'cancelled', 'interrupted'] },
 ] as const;
 ```
 
@@ -331,6 +332,7 @@ git commit -m "feat(worker): add state machine for Kanban transitions"
 ## Task 2: Status-Enum erweitern (Backend)
 
 **Files:**
+
 - Modify: `src/server/worker/workerTypes.ts`
 - Modify: `src/server/worker/workerRepository.ts` (nur der Type-Import wird implizit geprüft)
 
@@ -341,15 +343,32 @@ git commit -m "feat(worker): add state machine for Kanban transitions"
 ```typescript
 // VORHER (L7-L10):
 export type WorkerTaskStatus =
-  | 'queued' | 'planning' | 'clarifying' | 'executing'
-  | 'review' | 'completed' | 'failed' | 'cancelled'
-  | 'interrupted' | 'waiting_approval';
+  | 'queued'
+  | 'planning'
+  | 'clarifying'
+  | 'executing'
+  | 'review'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'interrupted'
+  | 'waiting_approval';
 
 // NACHHER:
 export type WorkerTaskStatus =
-  | 'inbox' | 'queued' | 'assigned' | 'planning' | 'clarifying' | 'executing'
-  | 'testing' | 'review' | 'completed' | 'failed' | 'cancelled'
-  | 'interrupted' | 'waiting_approval';
+  | 'inbox'
+  | 'queued'
+  | 'assigned'
+  | 'planning'
+  | 'clarifying'
+  | 'executing'
+  | 'testing'
+  | 'review'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'interrupted'
+  | 'waiting_approval';
 ```
 
 ### Step 2: Typecheck
@@ -372,6 +391,7 @@ git commit -m "feat(worker): add inbox, assigned, testing status values to backe
 ## Task 3: Status-Enum erweitern (Frontend)
 
 **Files:**
+
 - Modify: `types.ts` (root)
 
 ### Step 1: types.ts — Enum + Typen erweitern
@@ -431,6 +451,7 @@ git commit -m "feat(worker): add INBOX, ASSIGNED, TESTING to frontend WorkerTask
 ## Task 4: Repository anpassen
 
 **Files:**
+
 - Modify: `src/server/worker/workerRepository.ts`
 - Modify: `tests/workerRepository.test.ts`
 
@@ -482,14 +503,14 @@ Erwartet: PASS — bestehende Logik deckt das bereits ab.
 ```typescript
 // VORHER — started_at Logik:
 if (status === 'executing' || status === 'planning') {
-  sets.push('started_at = datetime(\'now\')');
+  sets.push("started_at = datetime('now')");
 }
 
 // NACHHER — keine Änderung nötig, 'planning' ist bereits enthalten.
 
 // VORHER — completed_at Logik:
 if (status === 'completed' || status === 'failed' || status === 'cancelled') {
-  sets.push('completed_at = datetime(\'now\')');
+  sets.push("completed_at = datetime('now')");
 }
 
 // NACHHER — keine Änderung nötig, diese Statuses sind bereits abgedeckt.
@@ -527,11 +548,13 @@ git commit -m "test(worker): add state machine integration tests to repository"
 ## Task 5: Agent Cancellation-Check härten
 
 **Files:**
+
 - Modify: `src/server/worker/workerAgent.ts`
 
 ### Step 1: Problem identifizieren
 
 In `workerAgent.ts` L99-L103 prüft der Cancellation-Check nur:
+
 ```typescript
 if (!freshTask || freshTask.status === 'cancelled') {
 ```
@@ -555,7 +578,9 @@ const freshTask = repo.getTask(task.id);
 if (!freshTask || freshTask.status !== 'executing') {
   // Task was cancelled, moved, or externally modified — stop processing
   if (freshTask && freshTask.status !== 'cancelled' && freshTask.status !== 'failed') {
-    repo.updateStatus(task.id, 'interrupted', { error: 'Task status changed externally during execution' });
+    repo.updateStatus(task.id, 'interrupted', {
+      error: 'Task status changed externally during execution',
+    });
   }
   return;
 }
@@ -582,6 +607,7 @@ git commit -m "fix(worker): harden agent cancellation check to detect any status
 ## Task 6: PATCH-Route erweitern
 
 **Files:**
+
 - Modify: `app/api/worker/[id]/route.ts`
 
 ### Step 1: Neue `move` Action hinzufügen
@@ -646,6 +672,7 @@ git commit -m "feat(worker): add 'move' action to PATCH route with state machine
 ## Task 7: Gateway Worker-Methode erweitern
 
 **Files:**
+
 - Modify: `src/server/gateway/methods/worker.ts`
 
 ### Step 1: Neue Methode `worker.task.updateStatus` registrieren
@@ -706,6 +733,7 @@ git commit -m "feat(gateway): add worker.task.updateStatus method for Kanban tra
 ## Task 8: Chat-Commands anpassen
 
 **Files:**
+
 - Modify: `src/server/channels/messages/service.ts`
 
 ### Step 1: STATUS_ICONS Map erweitern
@@ -750,6 +778,7 @@ git commit -m "feat(worker): add new status icons to chat commands"
 ## Task 9: Kanban Board UI erstellen
 
 **Files:**
+
 - Create: `components/worker/WorkerKanbanBoard.tsx`
 - Modify: `styles/worker.css`
 
@@ -762,7 +791,11 @@ git commit -m "feat(worker): add new status icons to chat commands"
 
 import React, { useCallback, useState } from 'react';
 import { WorkerTask, WorkerTaskStatus } from '@/types';
-import { KANBAN_COLUMNS, canTransition, type KanbanColumn } from '@/src/server/worker/workerStateMachine';
+import {
+  KANBAN_COLUMNS,
+  canTransition,
+  type KanbanColumn,
+} from '@/src/server/worker/workerStateMachine';
 
 interface WorkerKanbanBoardProps {
   tasks: WorkerTask[];
@@ -772,29 +805,34 @@ interface WorkerKanbanBoardProps {
 }
 
 const STATUS_LABELS: Record<string, { label: string; icon: string }> = {
-  inbox:             { label: 'Eingang',            icon: '📥' },
-  queued:            { label: 'Warteschlange',      icon: '⏳' },
-  assigned:          { label: 'Zugewiesen',         icon: '👤' },
-  planning:          { label: 'Planung',            icon: '🧠' },
-  clarifying:        { label: 'Rückfragen',         icon: '❓' },
-  executing:         { label: 'In Arbeit',          icon: '⚙️' },
-  waiting_approval:  { label: 'Genehmigung',        icon: '🔒' },
-  testing:           { label: 'Testing',            icon: '🧪' },
-  review:            { label: 'Review',             icon: '👀' },
-  completed:         { label: 'Abgeschlossen',      icon: '✅' },
-  failed:            { label: 'Fehlgeschlagen',     icon: '❌' },
-  cancelled:         { label: 'Abgebrochen',        icon: '🚫' },
-  interrupted:       { label: 'Unterbrochen',       icon: '⚡' },
+  inbox: { label: 'Eingang', icon: '📥' },
+  queued: { label: 'Warteschlange', icon: '⏳' },
+  assigned: { label: 'Zugewiesen', icon: '👤' },
+  planning: { label: 'Planung', icon: '🧠' },
+  clarifying: { label: 'Rückfragen', icon: '❓' },
+  executing: { label: 'In Arbeit', icon: '⚙️' },
+  waiting_approval: { label: 'Genehmigung', icon: '🔒' },
+  testing: { label: 'Testing', icon: '🧪' },
+  review: { label: 'Review', icon: '👀' },
+  completed: { label: 'Abgeschlossen', icon: '✅' },
+  failed: { label: 'Fehlgeschlagen', icon: '❌' },
+  cancelled: { label: 'Abgebrochen', icon: '🚫' },
+  interrupted: { label: 'Unterbrochen', icon: '⚡' },
 };
 
-export function WorkerKanbanBoard({ tasks, onMoveTask, onSelectTask, onCreateTask }: WorkerKanbanBoardProps) {
+export function WorkerKanbanBoard({
+  tasks,
+  onMoveTask,
+  onSelectTask,
+  onCreateTask,
+}: WorkerKanbanBoardProps) {
   const [draggedTask, setDraggedTask] = useState<WorkerTask | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   const getTasksForColumn = useCallback(
     (column: KanbanColumn): WorkerTask[] =>
       tasks.filter((t) => column.statuses.includes(t.status as WorkerTaskStatus)),
-    [tasks]
+    [tasks],
   );
 
   const getDropStatus = useCallback(
@@ -808,7 +846,7 @@ export function WorkerKanbanBoard({ tasks, onMoveTask, onSelectTask, onCreateTas
       }
       return null;
     },
-    [draggedTask]
+    [draggedTask],
   );
 
   const handleDragStart = useCallback((e: React.DragEvent, task: WorkerTask) => {
@@ -826,7 +864,7 @@ export function WorkerKanbanBoard({ tasks, onMoveTask, onSelectTask, onCreateTas
         setDropTarget(column.id);
       }
     },
-    [getDropStatus]
+    [getDropStatus],
   );
 
   const handleDragLeave = useCallback(() => {
@@ -845,7 +883,7 @@ export function WorkerKanbanBoard({ tasks, onMoveTask, onSelectTask, onCreateTas
       }
       setDraggedTask(null);
     },
-    [draggedTask, getDropStatus, onMoveTask]
+    [draggedTask, getDropStatus, onMoveTask],
   );
 
   const handleDragEnd = useCallback(() => {
@@ -880,7 +918,10 @@ export function WorkerKanbanBoard({ tasks, onMoveTask, onSelectTask, onCreateTas
               </div>
               <div className="kanban-column__body">
                 {columnTasks.map((task) => {
-                  const statusInfo = STATUS_LABELS[task.status] || { label: task.status, icon: '❔' };
+                  const statusInfo = STATUS_LABELS[task.status] || {
+                    label: task.status,
+                    icon: '❔',
+                  };
                   return (
                     <div
                       key={task.id}
@@ -895,17 +936,19 @@ export function WorkerKanbanBoard({ tasks, onMoveTask, onSelectTask, onCreateTas
                         <span className="kanban-card__priority">{task.priority}</span>
                       </div>
                       <div className="kanban-card__title">{task.title}</div>
-                      {task.currentStep !== undefined && task.totalSteps !== undefined && task.totalSteps > 0 && (
-                        <div className="kanban-card__progress">
-                          <div
-                            className="kanban-card__progress-bar"
-                            style={{ width: `${(task.currentStep / task.totalSteps) * 100}%` }}
-                          />
-                          <span className="kanban-card__progress-text">
-                            {task.currentStep}/{task.totalSteps}
-                          </span>
-                        </div>
-                      )}
+                      {task.currentStep !== undefined &&
+                        task.totalSteps !== undefined &&
+                        task.totalSteps > 0 && (
+                          <div className="kanban-card__progress">
+                            <div
+                              className="kanban-card__progress-bar"
+                              style={{ width: `${(task.currentStep / task.totalSteps) * 100}%` }}
+                            />
+                            <span className="kanban-card__progress-text">
+                              {task.currentStep}/{task.totalSteps}
+                            </span>
+                          </div>
+                        )}
                     </div>
                   );
                 })}
@@ -998,7 +1041,9 @@ export function WorkerKanbanBoard({ tasks, onMoveTask, onSelectTask, onCreateTas
   border-radius: 6px;
   padding: 0.75rem;
   cursor: grab;
-  transition: box-shadow 0.15s ease, opacity 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .kanban-card:hover {
@@ -1079,6 +1124,7 @@ git commit -m "feat(worker): add Kanban Board UI with HTML5 native DnD"
 ## Task 10: WorkerView umbauen
 
 **Files:**
+
 - Modify: `WorkerView.tsx`
 
 ### Step 1: WorkerView erweitern
@@ -1159,6 +1205,7 @@ git commit -m "feat(worker): integrate Kanban Board as default view in WorkerVie
 ## Task 11: WorkerTaskList STATUS_CONFIG erweitern
 
 **Files:**
+
 - Modify: `components/worker/WorkerTaskList.tsx`
 
 ### Step 1: STATUS_CONFIG Map um 3 neue Statuses erweitern
@@ -1166,19 +1213,19 @@ git commit -m "feat(worker): integrate Kanban Board as default view in WorkerVie
 ```typescript
 // In STATUS_CONFIG Map (L17-L28), neue Einträge hinzufügen:
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-  inbox:             { label: 'Eingang',            color: '#8b5cf6', icon: '📥' },
-  queued:            { label: 'In Warteschlange',   color: '#6b7280', icon: '⏳' },
-  assigned:          { label: 'Zugewiesen',         color: '#0ea5e9', icon: '👤' },
-  planning:          { label: 'Planung',            color: '#3b82f6', icon: '🧠' },
-  clarifying:        { label: 'Rückfragen',         color: '#8b5cf6', icon: '❓' },
-  executing:         { label: 'In Arbeit',          color: '#f59e0b', icon: '⚙️' },
-  waiting_approval:  { label: 'Genehmigung',        color: '#ec4899', icon: '🔒' },
-  testing:           { label: 'Testing',            color: '#14b8a6', icon: '🧪' },
-  review:            { label: 'Review',             color: '#06b6d4', icon: '👀' },
-  completed:         { label: 'Abgeschlossen',      color: '#10b981', icon: '✅' },
-  failed:            { label: 'Fehlgeschlagen',     color: '#ef4444', icon: '❌' },
-  cancelled:         { label: 'Abgebrochen',        color: '#6b7280', icon: '🚫' },
-  interrupted:       { label: 'Unterbrochen',       color: '#f97316', icon: '⚡' },
+  inbox: { label: 'Eingang', color: '#8b5cf6', icon: '📥' },
+  queued: { label: 'In Warteschlange', color: '#6b7280', icon: '⏳' },
+  assigned: { label: 'Zugewiesen', color: '#0ea5e9', icon: '👤' },
+  planning: { label: 'Planung', color: '#3b82f6', icon: '🧠' },
+  clarifying: { label: 'Rückfragen', color: '#8b5cf6', icon: '❓' },
+  executing: { label: 'In Arbeit', color: '#f59e0b', icon: '⚙️' },
+  waiting_approval: { label: 'Genehmigung', color: '#ec4899', icon: '🔒' },
+  testing: { label: 'Testing', color: '#14b8a6', icon: '🧪' },
+  review: { label: 'Review', color: '#06b6d4', icon: '👀' },
+  completed: { label: 'Abgeschlossen', color: '#10b981', icon: '✅' },
+  failed: { label: 'Fehlgeschlagen', color: '#ef4444', icon: '❌' },
+  cancelled: { label: 'Abgebrochen', color: '#6b7280', icon: '🚫' },
+  interrupted: { label: 'Unterbrochen', color: '#f97316', icon: '⚡' },
 };
 ```
 
@@ -1200,6 +1247,7 @@ git commit -m "feat(worker): add inbox, assigned, testing to TaskList STATUS_CON
 ## Task 12: WorkerFlow + WorkerTaskDetail erweitern
 
 **Files:**
+
 - Modify: `components/WorkerFlow.tsx`
 - Modify: `components/worker/WorkerTaskDetail.tsx`
 
@@ -1222,10 +1270,19 @@ if (status === 'testing') {
 
 ```typescript
 // VORHER (L254):
-const isActive = ['queued', 'planning', 'clarifying', 'executing', 'waiting_approval'].includes(task.status);
+const isActive = ['queued', 'planning', 'clarifying', 'executing', 'waiting_approval'].includes(
+  task.status,
+);
 
 // NACHHER:
-const isActive = ['queued', 'planning', 'clarifying', 'executing', 'waiting_approval', 'testing'].includes(task.status);
+const isActive = [
+  'queued',
+  'planning',
+  'clarifying',
+  'executing',
+  'waiting_approval',
+  'testing',
+].includes(task.status);
 ```
 
 ### Step 3: Typecheck

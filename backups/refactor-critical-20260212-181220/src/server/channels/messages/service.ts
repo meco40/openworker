@@ -114,7 +114,7 @@ export class MessageService {
       if (route.target === 'session-command') {
         const newConv = this.repo.createConversation({
           channelType: platform,
-          externalChatId: `manual-${(userId || 'local')}-${Date.now()}`,
+          externalChatId: `manual-${userId || 'local'}-${Date.now()}`,
           title: route.payload || undefined,
           userId: conversation.userId,
         });
@@ -130,7 +130,12 @@ export class MessageService {
       if (route.target === 'worker') {
         return {
           userMsg,
-          agentMsg: await this.handleWorkerTask(conversation, route.payload, platform, externalChatId),
+          agentMsg: await this.handleWorkerTask(
+            conversation,
+            route.payload,
+            platform,
+            externalChatId,
+          ),
         };
       }
 
@@ -174,7 +179,10 @@ export class MessageService {
       // For external channels, auto-apply persona from channel binding
       const effectiveConversation = this.applyChannelBindingPersona(conversation, platform);
 
-      return { userMsg, agentMsg: await this.dispatchToAI(effectiveConversation, platform, externalChatId) };
+      return {
+        userMsg,
+        agentMsg: await this.dispatchToAI(effectiveConversation, platform, externalChatId),
+      };
     } finally {
       if (clientMessageId) this.processingMessages.delete(clientMessageId);
     }
@@ -241,7 +249,12 @@ export class MessageService {
         const lines = tasks.map(
           (t) => `• ${this.statusIcon(t.status)} **${t.title}** (\`${t.id}\`) — ${t.status}`,
         );
-        return this.sendResponse(conversation, `📋 **Tasks:**\n${lines.join('\n')}`, platform, externalChatId);
+        return this.sendResponse(
+          conversation,
+          `📋 **Tasks:**\n${lines.join('\n')}`,
+          platform,
+          externalChatId,
+        );
       }
 
       case '/worker-status': {
@@ -504,7 +517,9 @@ export class MessageService {
       }
 
       case 'pause': {
-        const rule = automationService.updateRule(parsed.ruleId, conversation.userId, { enabled: false });
+        const rule = automationService.updateRule(parsed.ruleId, conversation.userId, {
+          enabled: false,
+        });
         if (!rule) {
           return this.sendResponse(
             conversation,
@@ -522,7 +537,9 @@ export class MessageService {
       }
 
       case 'resume': {
-        const rule = automationService.updateRule(parsed.ruleId, conversation.userId, { enabled: true });
+        const rule = automationService.updateRule(parsed.ruleId, conversation.userId, {
+          enabled: true,
+        });
         if (!rule) {
           return this.sendResponse(
             conversation,
@@ -567,13 +584,9 @@ export class MessageService {
             externalChatId,
           );
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Run konnte nicht erstellt werden.';
-          return this.sendResponse(
-            conversation,
-            `❌ ${message}`,
-            platform,
-            externalChatId,
-          );
+          const message =
+            error instanceof Error ? error.message : 'Run konnte nicht erstellt werden.';
+          return this.sendResponse(conversation, `❌ ${message}`, platform, externalChatId);
         }
       }
 
@@ -842,7 +855,11 @@ export class MessageService {
   /**
    * Set the persona for a channel binding.
    */
-  private setChannelBindingPersona(userId: string, platform: ChannelType, personaId: string | null): void {
+  private setChannelBindingPersona(
+    userId: string,
+    platform: ChannelType,
+    personaId: string | null,
+  ): void {
     if (!this.repo.updateChannelBindingPersona) return;
     this.repo.updateChannelBindingPersona(userId, platform as string as ChannelKey, personaId);
   }
@@ -852,7 +869,10 @@ export class MessageService {
    * and apply it to the conversation if the conversation doesn't already have one.
    * Returns a conversation copy with the effective personaId.
    */
-  private applyChannelBindingPersona(conversation: Conversation, platform: ChannelType): Conversation {
+  private applyChannelBindingPersona(
+    conversation: Conversation,
+    platform: ChannelType,
+  ): Conversation {
     // WebChat uses the React Context — skip
     if (platform === ChannelType.WEBCHAT) return conversation;
 
@@ -1085,5 +1105,3 @@ export class MessageService {
     return mode !== 'fallback' && mode !== 'concat';
   }
 }
-
-

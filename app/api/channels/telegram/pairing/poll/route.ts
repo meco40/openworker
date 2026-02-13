@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getCredentialStore } from '../../../../../../src/server/channels/credentials';
-import { isTelegramPollingActive, startTelegramPolling } from '../../../../../../src/server/channels/pairing/telegramPolling';
+import {
+  isTelegramPollingActive,
+  startTelegramPolling,
+} from '../../../../../../src/server/channels/pairing/telegramPolling';
 
 export const runtime = 'nodejs';
 
@@ -15,7 +18,10 @@ export async function POST(_request: Request) {
 
     const token = store.getCredential('telegram', 'bot_token') || process.env.TELEGRAM_BOT_TOKEN;
     if (!token) {
-      return NextResponse.json({ ok: false, error: 'Telegram bot token not configured.' }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: 'Telegram bot token not configured.' },
+        { status: 500 },
+      );
     }
 
     // If background polling is already running, do NOT call getUpdates from

@@ -13,29 +13,29 @@
 
 Die WebApp nutzte bisher **Server-Sent Events (SSE)** für Echtzeit-Kommunikation. Dabei traten mehrere fundamentale Probleme auf:
 
-| Problem | Auswirkung |
-|---------|-----------|
-| **Unidirektional** | SSE kann nur Server → Client senden. Für Client → Server brauchte man separate REST-Calls — zwei verschiedene Transport-Schichten für eine logische Verbindung. |
-| **Kein RPC-Modell** | Jede Aktion erforderte einen HTTP-Request + separate SSE-Subscription. Keine Request/Response-Korrelation. |
-| **Kaputte Routen** | `/api/sse` existierte nicht (404). `/api/logs/stream` unklar. Event-Namen inkonsistent (`worker-update` vs `worker-status`). |
-| **Kein Presence-Tracking** | Keine Möglichkeit zu wissen, welche User gerade online sind. |
-| **Kein Streaming** | KI-Antworten kamen nur als Batch. Token-by-Token-Streaming war architektonisch nicht möglich. |
-| **Mehrfache Verbindungen** | Jede Komponente (Chat, Worker, Logs) öffnete eine eigene EventSource. Kein zentraler Verbindungsmanager. |
-| **Kein Backpressure** | Langsame Clients konnten den Server blockieren. Kein Slow-Consumer-Detection. |
+| Problem                    | Auswirkung                                                                                                                                                      |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Unidirektional**         | SSE kann nur Server → Client senden. Für Client → Server brauchte man separate REST-Calls — zwei verschiedene Transport-Schichten für eine logische Verbindung. |
+| **Kein RPC-Modell**        | Jede Aktion erforderte einen HTTP-Request + separate SSE-Subscription. Keine Request/Response-Korrelation.                                                      |
+| **Kaputte Routen**         | `/api/sse` existierte nicht (404). `/api/logs/stream` unklar. Event-Namen inkonsistent (`worker-update` vs `worker-status`).                                    |
+| **Kein Presence-Tracking** | Keine Möglichkeit zu wissen, welche User gerade online sind.                                                                                                    |
+| **Kein Streaming**         | KI-Antworten kamen nur als Batch. Token-by-Token-Streaming war architektonisch nicht möglich.                                                                   |
+| **Mehrfache Verbindungen** | Jede Komponente (Chat, Worker, Logs) öffnete eine eigene EventSource. Kein zentraler Verbindungsmanager.                                                        |
+| **Kein Backpressure**      | Langsame Clients konnten den Server blockieren. Kein Slow-Consumer-Detection.                                                                                   |
 
 ### Warum WebSocket besser ist
 
-| Aspekt | SSE (alt) | WebSocket (neu) |
-|--------|-----------|-----------------|
-| Richtung | Server → Client only | Bidirektional |
-| Protokoll | HTTP/1.1 chunked | Eigenes Binary/Text-Framing |
-| Verbindungen | Eine pro Feature-Stream | Eine einzige für alles |
-| RPC | Nicht möglich | `req`/`res` Frames mit Korrelation |
-| Streaming | Nicht möglich | `stream` Frames (Token-by-Token) |
-| Presence | Nicht möglich | Nativ (connect/disconnect Events) |
-| Reconnect | Browser-nativ aber simpel | Custom mit Exponential Backoff + Jitter |
-| Backpressure | Keins | `bufferedAmount`-Überwachung, Slow-Consumer-Close |
-| Overhead | HTTP-Header bei jedem Reconnect | Einmaliger Handshake, dann Framing |
+| Aspekt       | SSE (alt)                       | WebSocket (neu)                                   |
+| ------------ | ------------------------------- | ------------------------------------------------- |
+| Richtung     | Server → Client only            | Bidirektional                                     |
+| Protokoll    | HTTP/1.1 chunked                | Eigenes Binary/Text-Framing                       |
+| Verbindungen | Eine pro Feature-Stream         | Eine einzige für alles                            |
+| RPC          | Nicht möglich                   | `req`/`res` Frames mit Korrelation                |
+| Streaming    | Nicht möglich                   | `stream` Frames (Token-by-Token)                  |
+| Presence     | Nicht möglich                   | Nativ (connect/disconnect Events)                 |
+| Reconnect    | Browser-nativ aber simpel       | Custom mit Exponential Backoff + Jitter           |
+| Backpressure | Keins                           | `bufferedAmount`-Überwachung, Slow-Consumer-Close |
+| Overhead     | HTTP-Header bei jedem Reconnect | Einmaliger Handshake, dann Framing                |
 
 ---
 
@@ -56,6 +56,7 @@ Die WebApp nutzte bisher **Server-Sent Events (SSE)** für Echtzeit-Kommunikatio
 ```
 
 **Betroffene Komponenten (alt):**
+
 - `useConversationSync.ts` → EventSource auf `/api/sse`
 - `useWorkerTasks.ts` → EventSource auf `/api/worker/stream`
 - `WorkerTaskDetail.tsx` → EventSource auf `/api/worker/stream?taskId=...`
@@ -84,6 +85,7 @@ Die WebApp nutzte bisher **Server-Sent Events (SSE)** für Echtzeit-Kommunikatio
 ### Phase 1: Core Infrastruktur
 
 **Custom Server** (`server.ts`) — Next.js + WebSocket auf demselben Port (3000):
+
 - HTTP-Server wrapped Next.js Request Handler
 - WebSocket-Upgrade auf `/ws` mit JWT-Cookie-Authentifizierung (NextAuth)
 - Max 5 Verbindungen pro User (Multi-Tab-Support)
@@ -101,11 +103,13 @@ StreamFrame    { type: 'stream', id, delta, done }        // Server → Client T
 ```
 
 **Client Registry** (`src/server/gateway/client-registry.ts`):
+
 - Doppel-Index: `connId → Client` + `userId → Set<connId>`
 - O(1) Lookup nach Connection oder User
 - Singleton via `globalThis.__gatewayClientRegistry`
 
 **Broadcast** (`src/server/gateway/broadcast.ts`):
+
 - `broadcast()` — An alle Clients
 - `broadcastToUser()` — An alle Verbindungen eines Users
 - `broadcastToSubscribed()` — An Clients mit bestimmter Subscription
@@ -113,52 +117,55 @@ StreamFrame    { type: 'stream', id, delta, done }        // Server → Client T
 - Slow-Consumer-Detection: Schließt Verbindungen bei `bufferedAmount > 1.5MB`
 
 **Connection Handler** (`src/server/gateway/connection-handler.ts`):
+
 - Client-Registrierung + Hello-OK-Event mit Server-Info
 - Presence-Broadcast bei Connect/Disconnect
 - Rate-Limiting: Max 60 Requests/Minute pro Verbindung
 - Frame-Parsing + Dispatch an Method Router
 
 **Method Router** (`src/server/gateway/method-router.ts`):
+
 - Plugin-artiges Handler-System via `registerMethod(name, handler)`
 - Automatische Error-Serialisierung
 - Streaming-Support durch `context.sendRaw` Parameter
 
 **Konstanten** (`src/server/gateway/constants.ts`):
 
-| Konstante | Wert | Zweck |
-|-----------|------|-------|
-| `MAX_PAYLOAD_BYTES` | 512 KB | Max Frame-Größe |
-| `MAX_BUFFERED_BYTES` | 1.5 MB | Slow-Consumer-Schwelle |
-| `TICK_INTERVAL_MS` | 30s | Keepalive-Intervall |
-| `MAX_CONNECTIONS_PER_USER` | 5 | Multi-Tab-Limit |
-| `MAX_REQUESTS_PER_MINUTE` | 60 | Rate-Limiting |
+| Konstante                  | Wert   | Zweck                  |
+| -------------------------- | ------ | ---------------------- |
+| `MAX_PAYLOAD_BYTES`        | 512 KB | Max Frame-Größe        |
+| `MAX_BUFFERED_BYTES`       | 1.5 MB | Slow-Consumer-Schwelle |
+| `TICK_INTERVAL_MS`         | 30s    | Keepalive-Intervall    |
+| `MAX_CONNECTIONS_PER_USER` | 5      | Multi-Tab-Limit        |
+| `MAX_REQUESTS_PER_MINUTE`  | 60     | Rate-Limiting          |
 
 ### Phase 2: RPC Method Handlers
 
 **16 Methoden** über 4 Handler-Dateien:
 
-| Methode | Datei | Beschreibung |
-|---------|-------|-------------|
-| `chat.send` | `methods/chat.ts` | Nachricht senden, AI-Antwort als Event |
-| `chat.stream` | `methods/chat.ts` | Nachricht senden, AI-Antwort als Token-Stream |
-| `chat.history` | `methods/chat.ts` | Nachrichtenverlauf laden |
-| `chat.conversations.list` | `methods/chat.ts` | Konversationsliste |
-| `worker.task.list` | `methods/worker.ts` | Worker-Tasks auflisten |
-| `worker.task.get` | `methods/worker.ts` | Task-Details abrufen |
-| `worker.task.subscribe` | `methods/worker.ts` | Live-Updates für Task |
-| `worker.task.unsubscribe` | `methods/worker.ts` | Updates beenden |
-| `worker.approval.respond` | `methods/worker.ts` | Command-Approval antworten |
-| `logs.list` | `methods/logs.ts` | Logs laden (gefiltert) |
-| `logs.subscribe` | `methods/logs.ts` | Live-Log-Stream |
-| `logs.unsubscribe` | `methods/logs.ts` | Log-Stream beenden |
-| `logs.sources` | `methods/logs.ts` | Log-Quellen auflisten |
-| `logs.clear` | `methods/logs.ts` | Logs löschen |
-| `presence.list` | `methods/presence.ts` | Online-User anzeigen |
-| `presence.whoami` | `methods/presence.ts` | Eigene Verbindungsinfo |
+| Methode                   | Datei                 | Beschreibung                                  |
+| ------------------------- | --------------------- | --------------------------------------------- |
+| `chat.send`               | `methods/chat.ts`     | Nachricht senden, AI-Antwort als Event        |
+| `chat.stream`             | `methods/chat.ts`     | Nachricht senden, AI-Antwort als Token-Stream |
+| `chat.history`            | `methods/chat.ts`     | Nachrichtenverlauf laden                      |
+| `chat.conversations.list` | `methods/chat.ts`     | Konversationsliste                            |
+| `worker.task.list`        | `methods/worker.ts`   | Worker-Tasks auflisten                        |
+| `worker.task.get`         | `methods/worker.ts`   | Task-Details abrufen                          |
+| `worker.task.subscribe`   | `methods/worker.ts`   | Live-Updates für Task                         |
+| `worker.task.unsubscribe` | `methods/worker.ts`   | Updates beenden                               |
+| `worker.approval.respond` | `methods/worker.ts`   | Command-Approval antworten                    |
+| `logs.list`               | `methods/logs.ts`     | Logs laden (gefiltert)                        |
+| `logs.subscribe`          | `methods/logs.ts`     | Live-Log-Stream                               |
+| `logs.unsubscribe`        | `methods/logs.ts`     | Log-Stream beenden                            |
+| `logs.sources`            | `methods/logs.ts`     | Log-Quellen auflisten                         |
+| `logs.clear`              | `methods/logs.ts`     | Logs löschen                                  |
+| `presence.list`           | `methods/presence.ts` | Online-User anzeigen                          |
+| `presence.whoami`         | `methods/presence.ts` | Eigene Verbindungsinfo                        |
 
 ### Phase 3: Browser Client + React Hooks
 
 **WebSocket Client** (`src/modules/gateway/ws-client.ts`):
+
 - Automatische Reconnection mit Exponential Backoff + Jitter
 - Request/Response-Korrelation via `Map<id, Promise>`
 - Stream-Handler für Token-by-Token-Empfang (`requestStream()`)
@@ -169,12 +176,13 @@ StreamFrame    { type: 'stream', id, delta, done }        // Server → Client T
 **React Hooks** (`src/modules/gateway/useGatewayConnection.ts`):
 
 ```typescript
-useGatewayConnection()    // → { state, client } — Auto-Connect on Mount
-useGatewayEvent(event, h) // → Stabiles Event-Listening mit useRef
-useGatewayRequest(method) // → { execute, loading, error } — RPC-Wrapper
+useGatewayConnection(); // → { state, client } — Auto-Connect on Mount
+useGatewayEvent(event, h); // → Stabiles Event-Listening mit useRef
+useGatewayRequest(method); // → { execute, loading, error } — RPC-Wrapper
 ```
 
 **Connection Status** (`components/ConnectionStatus.tsx`):
+
 - Visueller Indikator in der Sidebar
 - Farbkodiert: Grün (Live), Gelb pulsierend (Connecting), Rot (Offline)
 
@@ -182,12 +190,12 @@ useGatewayRequest(method) // → { execute, loading, error } — RPC-Wrapper
 
 Alle 4 SSE-Konsumenten wurden auf WebSocket migriert:
 
-| Komponente | Vorher | Nachher |
-|-----------|--------|---------|
-| `useConversationSync.ts` | `new EventSource('/api/sse')` | `getGatewayClient().on('chat.message')` |
-| `useWorkerTasks.ts` | `new EventSource('/api/worker/stream')` | `client.on('worker.status')` |
-| `WorkerTaskDetail.tsx` | `new EventSource(...)` | `client.request('worker.task.subscribe')` + `on('worker.status')` |
-| `LogsView.tsx` | `new EventSource('/api/logs/stream')` | `client.request('logs.subscribe')` + `on('log.entry')` |
+| Komponente               | Vorher                                  | Nachher                                                           |
+| ------------------------ | --------------------------------------- | ----------------------------------------------------------------- |
+| `useConversationSync.ts` | `new EventSource('/api/sse')`           | `getGatewayClient().on('chat.message')`                           |
+| `useWorkerTasks.ts`      | `new EventSource('/api/worker/stream')` | `client.on('worker.status')`                                      |
+| `WorkerTaskDetail.tsx`   | `new EventSource(...)`                  | `client.request('worker.task.subscribe')` + `on('worker.status')` |
+| `LogsView.tsx`           | `new EventSource('/api/logs/stream')`   | `client.request('logs.subscribe')` + `on('log.entry')`            |
 
 ### Phase 5: AI Token Streaming
 
@@ -213,12 +221,14 @@ Client                          Server
 ### Phase 6: Docker + Deployment
 
 **Dockerfile** — Multi-Stage Build:
+
 1. `deps` Stage: `npm ci --omit=dev` (nur Prod-Dependencies)
 2. `builder` Stage: `npm ci` + `npm run build` (Next.js standalone)
 3. `runner` Stage: Alpine mit Standalone-Output, non-root User
 4. Healthcheck: `wget --spider http://localhost:3000`
 
 **Scripts** (`package.json`):
+
 ```json
 {
   "dev": "tsx watch server.ts",
@@ -234,13 +244,14 @@ Client                          Server
 
 **37 Gateway-Tests** in 3 Dateien:
 
-| Testdatei | Tests | Getestete Module |
-|-----------|-------|-----------------|
-| `protocol.test.ts` | 14 | `parseFrame`, `makeResponse`, `makeError`, `makeEvent`, `makeStream` — alle Frame-Typen, Edge Cases, Invalid Input |
-| `client-registry.test.ts` | 10 | Register/Unregister, User-Index, Connection Count, Multi-Connection-Cleanup |
-| `method-router.test.ts` | 5+ | Dispatch, Unknown Method, Error Handling, Context Passthrough |
+| Testdatei                 | Tests | Getestete Module                                                                                                   |
+| ------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------ |
+| `protocol.test.ts`        | 14    | `parseFrame`, `makeResponse`, `makeError`, `makeEvent`, `makeStream` — alle Frame-Typen, Edge Cases, Invalid Input |
+| `client-registry.test.ts` | 10    | Register/Unregister, User-Index, Connection Count, Multi-Connection-Cleanup                                        |
+| `method-router.test.ts`   | 5+    | Dispatch, Unknown Method, Error Handling, Context Passthrough                                                      |
 
 **Validierung:**
+
 - 0 TypeScript-Fehler (außerhalb `demo/`)
 - 349/349 Tests bestanden (73 Dateien)
 
@@ -299,6 +310,7 @@ tests/unit/gateway/
 **Entscheidung:** Next.js + WebSocket im selben Prozess auf Port 3000.
 
 **Begründung:**
+
 - Sidecar (separater WS-Server auf Port 3001) hätte CORS-, Reverse-Proxy- und Session-Sharing-Probleme verursacht
 - Custom Server teilt HTTP-Server, verwendet denselben NextAuth-Cookie
 - Kein separater Prozess, kein IPC, kein Docker-Service-Mesh
@@ -309,6 +321,7 @@ tests/unit/gateway/
 **Entscheidung:** JSON mit 4 Frame-Typen (`req`, `res`, `event`, `stream`).
 
 **Begründung:**
+
 - Debug-Freundlich (DevTools Network-Tab zeigt Klartext)
 - Kein Schema-Tooling nötig
 - Bei den Payload-Größen dieser App (< 100KB) ist JSON-Overhead vernachlässigbar
@@ -319,6 +332,7 @@ tests/unit/gateway/
 **Entscheidung:** Clients subscriben explizit auf Events (`worker.task.subscribe`, `logs.subscribe`).
 
 **Begründung:**
+
 - Server sendet nur relevante Events → weniger Traffic
 - Client kontrolliert granular, was er empfängt
 - Skaliert besser als "broadcast everything to everyone"
@@ -327,18 +341,18 @@ tests/unit/gateway/
 
 ## 6. Verbesserungen gegenüber dem alten System
 
-| Metrik | SSE (alt) | WebSocket (neu) | Verbesserung |
-|--------|-----------|-----------------|-------------|
-| Verbindungen pro Tab | 3-4 EventSources | 1 WebSocket | **75% weniger** |
-| Latenz (Client → Server) | HTTP Request (~50-200ms) | WS Frame (~1-5ms) | **~40x schneller** |
-| Presence-Tracking | Nicht vorhanden | Nativ | **Neu** |
-| AI Streaming | Nicht möglich | Token-by-Token | **Neu** |
-| Reconnect-Strategie | Browser-default (3s fixed) | Exponential Backoff + Jitter | **Robuster** |
-| Connection-Limit | Unbegrenzt | 5 pro User | **Ressourcenschutz** |
-| Rate-Limiting | Keins | 60 req/min | **DDoS-Schutz** |
-| Slow-Consumer | Kein Schutz | Auto-Close bei 1.5MB Buffer | **Serverstabilität** |
-| Error-Handling | Silent fail | Typed Error Codes | **Debuggbar** |
-| Sequence-Tracking | Keins | Globaler seq-Counter | **Gap-Detection** |
+| Metrik                   | SSE (alt)                  | WebSocket (neu)              | Verbesserung         |
+| ------------------------ | -------------------------- | ---------------------------- | -------------------- |
+| Verbindungen pro Tab     | 3-4 EventSources           | 1 WebSocket                  | **75% weniger**      |
+| Latenz (Client → Server) | HTTP Request (~50-200ms)   | WS Frame (~1-5ms)            | **~40x schneller**   |
+| Presence-Tracking        | Nicht vorhanden            | Nativ                        | **Neu**              |
+| AI Streaming             | Nicht möglich              | Token-by-Token               | **Neu**              |
+| Reconnect-Strategie      | Browser-default (3s fixed) | Exponential Backoff + Jitter | **Robuster**         |
+| Connection-Limit         | Unbegrenzt                 | 5 pro User                   | **Ressourcenschutz** |
+| Rate-Limiting            | Keins                      | 60 req/min                   | **DDoS-Schutz**      |
+| Slow-Consumer            | Kein Schutz                | Auto-Close bei 1.5MB Buffer  | **Serverstabilität** |
+| Error-Handling           | Silent fail                | Typed Error Codes            | **Debuggbar**        |
+| Sequence-Tracking        | Keins                      | Globaler seq-Counter         | **Gap-Detection**    |
 
 ---
 

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { testProviderAccountConnectivity } from '../../../../../../src/server/model-hub/connectivity';
-import { getModelHubEncryptionKey, getModelHubService } from '../../../../../../src/server/model-hub/runtime';
+import {
+  getModelHubEncryptionKey,
+  getModelHubService,
+} from '../../../../../../src/server/model-hub/runtime';
 import { resolveRequestUserContext } from '../../../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
@@ -39,9 +42,13 @@ export async function POST(request: Request, context: RouteContext) {
     const body = (await request.json().catch(() => ({}))) as ConnectivityRequestBody;
     const model = typeof body.model === 'string' ? body.model.trim() : undefined;
 
-    const connectivity = await testProviderAccountConnectivity(account, getModelHubEncryptionKey(), {
-      model,
-    });
+    const connectivity = await testProviderAccountConnectivity(
+      account,
+      getModelHubEncryptionKey(),
+      {
+        model,
+      },
+    );
     service.updateHealth(accountId, connectivity.ok);
 
     return NextResponse.json({ ok: true, connectivity });

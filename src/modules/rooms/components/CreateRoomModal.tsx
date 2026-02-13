@@ -7,28 +7,37 @@ interface CreateRoomModalProps {
   open: boolean;
   creating: boolean;
   onClose: () => void;
-  onCreate: (input: { name: string; description: string | null; goalMode: RoomGoalMode; routingProfileId: string }) => void;
+  onCreate: (input: {
+    name: string;
+    description: string | null;
+    goalMode: RoomGoalMode;
+    routingProfileId: string;
+  }) => void;
 }
 
 type Step = 'name' | 'mode' | 'description';
 
-const GOAL_MODE_INFO: Record<RoomGoalMode, { emoji: string; label: string; description: string }> = {
-  planning: {
-    emoji: '📋',
-    label: 'Planning',
-    description: 'Personas planen und diskutieren strukturiert. Ideal für Brainstorming und Strategieentwicklung.',
-  },
-  simulation: {
-    emoji: '🎭',
-    label: 'Simulation',
-    description: 'Personas agieren in Rollen und simulieren Szenarien. Ideal für Rollenspiel und Szenarien-Tests.',
-  },
-  free: {
-    emoji: '💬',
-    label: 'Free',
-    description: 'Offener Austausch ohne festes Schema. Ideal für freie Konversation und kreative Prozesse.',
-  },
-};
+const GOAL_MODE_INFO: Record<RoomGoalMode, { emoji: string; label: string; description: string }> =
+  {
+    planning: {
+      emoji: '📋',
+      label: 'Planning',
+      description:
+        'Personas planen und diskutieren strukturiert. Ideal für Brainstorming und Strategieentwicklung.',
+    },
+    simulation: {
+      emoji: '🎭',
+      label: 'Simulation',
+      description:
+        'Personas agieren in Rollen und simulieren Szenarien. Ideal für Rollenspiel und Szenarien-Tests.',
+    },
+    free: {
+      emoji: '💬',
+      label: 'Free',
+      description:
+        'Offener Austausch ohne festes Schema. Ideal für freie Konversation und kreative Prozesse.',
+    },
+  };
 
 export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoomModalProps) {
   const [step, setStep] = useState<Step>('name');
@@ -62,20 +71,26 @@ export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div className="mx-4 w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl">
         {/* Header */}
-        <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-zinc-800 p-5">
           <div>
             <h2 className="text-lg font-bold text-white">Neuen Room erstellen</h2>
-            <div className="text-xs text-zinc-500 mt-0.5">
+            <div className="mt-0.5 text-xs text-zinc-500">
               Schritt {step === 'name' ? '1/3' : step === 'mode' ? '2/3' : '3/3'}
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+            className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
@@ -86,7 +101,7 @@ export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoo
           {step === 'name' && (
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-2 block">
+                <label className="mb-2 block text-xs font-black tracking-widest text-zinc-400 uppercase">
                   Room-Name
                 </label>
                 <input
@@ -98,7 +113,7 @@ export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoo
                     }
                   }}
                   placeholder="z.B. Office, Home, Strategie-Team"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500 placeholder:text-zinc-600"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
                   autoFocus
                 />
               </div>
@@ -107,57 +122,60 @@ export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoo
 
           {step === 'mode' && (
             <div className="space-y-3">
-              <label className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-2 block">
+              <label className="mb-2 block text-xs font-black tracking-widest text-zinc-400 uppercase">
                 Modus wählen
               </label>
-              {(Object.entries(GOAL_MODE_INFO) as [RoomGoalMode, typeof GOAL_MODE_INFO.planning][]).map(
-                ([mode, info]) => (
-                  <button
-                    key={mode}
-                    onClick={() => setGoalMode(mode)}
-                    className={`w-full text-left p-4 rounded-xl border transition-all ${
-                      goalMode === mode
-                        ? 'bg-indigo-600/20 border-indigo-500/40 text-white'
-                        : 'bg-zinc-800/60 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">{info.emoji}</span>
-                      <div>
-                        <div className="text-sm font-bold">{info.label}</div>
-                        <div className="text-[11px] text-zinc-400 mt-0.5">{info.description}</div>
-                      </div>
+              {(
+                Object.entries(GOAL_MODE_INFO) as [RoomGoalMode, typeof GOAL_MODE_INFO.planning][]
+              ).map(([mode, info]) => (
+                <button
+                  key={mode}
+                  onClick={() => setGoalMode(mode)}
+                  className={`w-full rounded-xl border p-4 text-left transition-all ${
+                    goalMode === mode
+                      ? 'border-indigo-500/40 bg-indigo-600/20 text-white'
+                      : 'border-zinc-700 bg-zinc-800/60 text-zinc-300 hover:bg-zinc-800 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{info.emoji}</span>
+                    <div>
+                      <div className="text-sm font-bold">{info.label}</div>
+                      <div className="mt-0.5 text-[11px] text-zinc-400">{info.description}</div>
                     </div>
-                  </button>
-                ),
-              )}
+                  </div>
+                </button>
+              ))}
             </div>
           )}
 
           {step === 'description' && (
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-2 block">
+                <label className="mb-2 block text-xs font-black tracking-widest text-zinc-400 uppercase">
                   Aufgabe / Beschreibung
                 </label>
-                <p className="text-[11px] text-zinc-500 mb-3">
-                  Beschreibe die Aufgabe oder das Ziel dieses Rooms. Die Personas erhalten diesen Kontext.
+                <p className="mb-3 text-[11px] text-zinc-500">
+                  Beschreibe die Aufgabe oder das Ziel dieses Rooms. Die Personas erhalten diesen
+                  Kontext.
                 </p>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="z.B. Analysiert die Q1-Ergebnisse und erstellt Handlungsempfehlungen…"
                   rows={4}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500 placeholder:text-zinc-600 resize-none"
+                  className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
                   autoFocus
                 />
               </div>
 
               {/* Summary */}
-              <div className="p-3 rounded-lg bg-zinc-800/60 border border-zinc-700">
-                <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-2">Zusammenfassung</div>
-                <div className="text-sm text-zinc-100 font-semibold">{name}</div>
-                <div className="text-xs text-zinc-400 mt-1">
+              <div className="rounded-lg border border-zinc-700 bg-zinc-800/60 p-3">
+                <div className="mb-2 text-[10px] font-black tracking-wider text-zinc-400 uppercase">
+                  Zusammenfassung
+                </div>
+                <div className="text-sm font-semibold text-zinc-100">{name}</div>
+                <div className="mt-1 text-xs text-zinc-400">
                   {GOAL_MODE_INFO[goalMode].emoji} {GOAL_MODE_INFO[goalMode].label}
                 </div>
               </div>
@@ -166,10 +184,14 @@ export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoo
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-zinc-800 flex items-center justify-between">
+        <div className="flex items-center justify-between border-t border-zinc-800 p-5">
           <button
-            onClick={step === 'name' ? handleClose : () => setStep(step === 'description' ? 'mode' : 'name')}
-            className="px-4 py-2 text-xs rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+            onClick={
+              step === 'name'
+                ? handleClose
+                : () => setStep(step === 'description' ? 'mode' : 'name')
+            }
+            className="rounded-lg bg-zinc-800 px-4 py-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
           >
             {step === 'name' ? 'Abbrechen' : 'Zurück'}
           </button>
@@ -178,7 +200,7 @@ export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoo
             <button
               onClick={handleCreate}
               disabled={creating || !name.trim()}
-              className="px-6 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 transition-colors"
+              className="rounded-lg bg-emerald-600 px-6 py-2 text-xs font-bold tracking-wider text-white uppercase transition-colors hover:bg-emerald-500 disabled:opacity-40"
             >
               {creating ? 'Erstelle…' : 'Room erstellen'}
             </button>
@@ -186,7 +208,7 @@ export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoo
             <button
               onClick={() => setStep(step === 'name' ? 'mode' : 'description')}
               disabled={step === 'name' && !name.trim()}
-              className="px-6 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 transition-colors"
+              className="rounded-lg bg-indigo-600 px-6 py-2 text-xs font-bold tracking-wider text-white uppercase transition-colors hover:bg-indigo-500 disabled:opacity-40"
             >
               Weiter
             </button>

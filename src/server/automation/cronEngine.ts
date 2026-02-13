@@ -68,4 +68,3 @@ export function intervalToCronExpression(interval: string): string | null {
 
   return null;
 }
-

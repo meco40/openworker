@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
 import { getPersonaRepository } from '../../../src/server/personas/personaRepository';
-import { PERSONA_FILE_NAMES, type CreatePersonaInput, type PersonaFileName } from '../../../src/server/personas/personaTypes';
+import {
+  PERSONA_FILE_NAMES,
+  type CreatePersonaInput,
+  type PersonaFileName,
+} from '../../../src/server/personas/personaTypes';
 
 export const runtime = 'nodejs';
 
@@ -48,7 +52,10 @@ export async function POST(request: Request) {
     const validatedFiles: Partial<Record<string, string>> = {};
     if (body.files && typeof body.files === 'object') {
       for (const [filename, content] of Object.entries(body.files)) {
-        if (typeof content === 'string' && PERSONA_FILE_NAMES.includes(filename as PersonaFileName)) {
+        if (
+          typeof content === 'string' &&
+          PERSONA_FILE_NAMES.includes(filename as PersonaFileName)
+        ) {
           validatedFiles[filename] = content;
         }
       }
@@ -59,7 +66,10 @@ export async function POST(request: Request) {
       name: body.name.trim(),
       emoji: body.emoji?.trim() || '🤖',
       vibe: body.vibe?.trim() || '',
-      files: Object.keys(validatedFiles).length > 0 ? validatedFiles as Partial<Record<PersonaFileName, string>> : undefined,
+      files:
+        Object.keys(validatedFiles).length > 0
+          ? (validatedFiles as Partial<Record<PersonaFileName, string>>)
+          : undefined,
     };
 
     const persona = repo.createPersona(input);

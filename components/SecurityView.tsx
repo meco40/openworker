@@ -11,7 +11,10 @@ interface SecurityStatusResponse {
   error?: string;
 }
 
-const STATUS_META: Record<SecurityCheckStatus, { label: string; className: string; border: string }> = {
+const STATUS_META: Record<
+  SecurityCheckStatus,
+  { label: string; className: string; border: string }
+> = {
   ok: {
     label: 'OK',
     className: 'text-emerald-500',
@@ -89,11 +92,13 @@ const SecurityView: React.FC = () => {
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="animate-in fade-in space-y-8 duration-500">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black text-white uppercase tracking-tight">Security Panel</h2>
-          <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
+          <h2 className="text-2xl font-black tracking-tight text-white uppercase">
+            Security Panel
+          </h2>
+          <div className="mt-1 text-[10px] tracking-widest text-zinc-500 uppercase">
             {lastCheckedAt
               ? `Last Check: ${new Date(lastCheckedAt).toLocaleString()}`
               : 'Last Check: Pending'}
@@ -102,15 +107,15 @@ const SecurityView: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => void refreshStatus()}
-            className="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white disabled:opacity-60"
+            className="rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-[10px] font-black tracking-widest text-zinc-300 uppercase hover:text-white disabled:opacity-60"
             disabled={isChecking}
           >
             {isChecking ? 'Checking...' : 'Check Now'}
           </button>
-          <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
+          <div className="flex rounded-xl border border-zinc-800 bg-zinc-900/50 p-1">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+              className={`rounded-lg px-4 py-2 text-[10px] font-black tracking-widest uppercase ${
                 activeTab === 'overview' ? 'bg-indigo-600 text-white' : 'text-zinc-500'
               }`}
             >
@@ -118,7 +123,7 @@ const SecurityView: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('commands')}
-              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+              className={`rounded-lg px-4 py-2 text-[10px] font-black tracking-widest uppercase ${
                 activeTab === 'commands' ? 'bg-indigo-600 text-white' : 'text-zinc-500'
               }`}
             >
@@ -130,37 +135,42 @@ const SecurityView: React.FC = () => {
 
       {activeTab === 'overview' && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl">
-              <div className="text-[10px] text-zinc-600 uppercase tracking-widest">OK</div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+              <div className="text-[10px] tracking-widest text-zinc-600 uppercase">OK</div>
               <div className="text-2xl font-black text-emerald-500">{summary.ok}</div>
             </div>
-            <div className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl">
-              <div className="text-[10px] text-zinc-600 uppercase tracking-widest">Warnings</div>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+              <div className="text-[10px] tracking-widest text-zinc-600 uppercase">Warnings</div>
               <div className="text-2xl font-black text-amber-500">{summary.warning}</div>
             </div>
-            <div className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl">
-              <div className="text-[10px] text-zinc-600 uppercase tracking-widest">Critical</div>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+              <div className="text-[10px] tracking-widest text-zinc-600 uppercase">Critical</div>
               <div className="text-2xl font-black text-rose-500">{summary.critical}</div>
             </div>
           </div>
 
           {checkError && (
-            <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-xs text-rose-400">
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-xs text-rose-400">
               Security-Check fehlgeschlagen: {checkError}
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
             {checks.map((check) => {
               const status = STATUS_META[check.status];
               return (
-                <div key={check.id} className={`bg-zinc-900/50 border ${status.border} p-6 rounded-2xl`}>
-                  <h4 className="text-xs font-black text-white uppercase mb-2">{check.label}</h4>
-                  <div className={`text-[10px] font-mono uppercase ${status.className}`}>
+                <div
+                  key={check.id}
+                  className={`border bg-zinc-900/50 ${status.border} rounded-2xl p-6`}
+                >
+                  <h4 className="mb-2 text-xs font-black text-white uppercase">{check.label}</h4>
+                  <div className={`font-mono text-[10px] uppercase ${status.className}`}>
                     Status: {status.label}
                   </div>
-                  <div className="text-[10px] text-zinc-500 mt-2 leading-relaxed">{check.detail}</div>
+                  <div className="mt-2 text-[10px] leading-relaxed text-zinc-500">
+                    {check.detail}
+                  </div>
                 </div>
               );
             })}
@@ -169,9 +179,9 @@ const SecurityView: React.FC = () => {
       )}
 
       {activeTab === 'commands' && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
+        <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900">
           <table className="w-full text-left text-[11px]">
-            <thead className="bg-zinc-950 text-zinc-600 uppercase font-black tracking-widest">
+            <thead className="bg-zinc-950 font-black tracking-widest text-zinc-600 uppercase">
               <tr>
                 <th className="px-8 py-4">Command</th>
                 <th className="px-8 py-4">Risk</th>
@@ -184,7 +194,7 @@ const SecurityView: React.FC = () => {
                   <td className="px-8 py-5 font-mono text-indigo-400">{command.command}</td>
                   <td className="px-8 py-5">
                     <span
-                      className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                      className={`rounded px-2 py-0.5 text-[9px] font-black uppercase ${
                         command.risk === 'High'
                           ? 'text-rose-500'
                           : command.risk === 'Medium'
@@ -204,7 +214,7 @@ const SecurityView: React.FC = () => {
                           ),
                         )
                       }
-                      className={`px-3 py-1.5 rounded text-[9px] font-black uppercase ${
+                      className={`rounded px-3 py-1.5 text-[9px] font-black uppercase ${
                         command.enabled ? 'text-emerald-500' : 'text-zinc-600'
                       }`}
                     >

@@ -110,7 +110,9 @@ function toEntry(row: Record<string, unknown>): PromptDispatchEntry {
     errorMessage: row.error_message ? String(row.error_message) : null,
     riskLevel: String(row.risk_level) as PromptDispatchRiskLevel,
     riskScore: Number(row.risk_score),
-    riskReasons: row.risk_reasons_json ? (JSON.parse(String(row.risk_reasons_json)) as string[]) : [],
+    riskReasons: row.risk_reasons_json
+      ? (JSON.parse(String(row.risk_reasons_json)) as string[])
+      : [],
     promptPreview: String(row.prompt_preview),
     promptPayloadJson: String(row.prompt_payload_json),
     promptCostUsd: toNullableNumber(row.prompt_cost_usd),
@@ -156,7 +158,9 @@ function buildWhere(filter: PromptDispatchFilter): {
     }
   }
   if (filter.search) {
-    conditions.push('(prompt_preview LIKE ? OR prompt_payload_json LIKE ? OR COALESCE(error_message, \'\') LIKE ?)');
+    conditions.push(
+      "(prompt_preview LIKE ? OR prompt_payload_json LIKE ? OR COALESCE(error_message, '') LIKE ?)",
+    );
     const like = `%${filter.search}%`;
     params.push(like, like, like);
   }
@@ -176,7 +180,7 @@ export class PromptDispatchRepository {
       this.db = new BetterSqlite3(':memory:');
     } else {
       const fullPath = path.resolve(dbPath);
-       
+
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
       this.db = new BetterSqlite3(fullPath);
     }
@@ -232,7 +236,9 @@ export class PromptDispatchRepository {
   }
 
   private ensureColumnExists(table: string, column: string, type: string): void {
-    const rows = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<Record<string, unknown>>;
+    const rows = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<
+      Record<string, unknown>
+    >;
     const hasColumn = rows.some((row) => String(row.name) === column);
     if (!hasColumn) {
       this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
@@ -347,10 +353,9 @@ export class PromptDispatchRepository {
     const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
     this.db.prepare('DELETE FROM prompt_dispatch_logs WHERE created_at < ?').run(cutoff);
 
-    const countRow = this.db.prepare('SELECT COUNT(*) as cnt FROM prompt_dispatch_logs').get() as Record<
-      string,
-      unknown
-    >;
+    const countRow = this.db
+      .prepare('SELECT COUNT(*) as cnt FROM prompt_dispatch_logs')
+      .get() as Record<string, unknown>;
     const count = Number(countRow.cnt);
     if (count <= maxEntries) return;
 

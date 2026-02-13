@@ -68,7 +68,15 @@ function assertRoomOwner(room: Room | null, userId: string): Room {
 export class RoomService {
   constructor(private readonly repository: RoomRepository) {}
 
-  createRoom(userId: string, input: { name: string; description?: string | null; goalMode: Room['goalMode']; routingProfileId: string }): Room {
+  createRoom(
+    userId: string,
+    input: {
+      name: string;
+      description?: string | null;
+      goalMode: Room['goalMode'];
+      routingProfileId: string;
+    },
+  ): Room {
     const room = this.repository.createRoom({
       userId,
       name: input.name,
@@ -104,7 +112,12 @@ export class RoomService {
   addMember(
     userId: string,
     roomId: string,
-    input: { personaId: string; roleLabel: string; turnPriority?: number; modelOverride?: string | null },
+    input: {
+      personaId: string;
+      roleLabel: string;
+      turnPriority?: number;
+      modelOverride?: string | null;
+    },
   ): RoomMember {
     assertRoomOwner(this.repository.getRoom(roomId), userId);
 
@@ -136,7 +149,12 @@ export class RoomService {
     return this.repository.removeMember(roomId, personaId);
   }
 
-  setMemberPaused(userId: string, roomId: string, personaId: string, paused: boolean): RoomMemberRuntime {
+  setMemberPaused(
+    userId: string,
+    roomId: string,
+    personaId: string,
+    paused: boolean,
+  ): RoomMemberRuntime {
     const room = assertRoomOwner(this.repository.getRoom(roomId), userId);
     const member = this.repository.listMembers(roomId).find((item) => item.personaId === personaId);
     if (!member) {

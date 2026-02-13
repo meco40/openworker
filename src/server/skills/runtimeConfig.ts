@@ -79,7 +79,10 @@ function maskValue(kind: ConfigValueKind, value: string): string {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
-function readEnvValue(field: SkillRuntimeConfigField, env: Record<string, string | undefined>): string | null {
+function readEnvValue(
+  field: SkillRuntimeConfigField,
+  env: Record<string, string | undefined>,
+): string | null {
   for (const key of field.envVars) {
     const value = String(env[key] || '').trim();
     if (value) {
@@ -133,9 +136,9 @@ export class SkillRuntimeConfigStore {
 
   getValue(id: string): string | null {
     ensureKnownFieldId(id);
-    const row = this.db
-      .prepare('SELECT value FROM skill_runtime_config WHERE id = ?')
-      .get(id) as { value: string } | undefined;
+    const row = this.db.prepare('SELECT value FROM skill_runtime_config WHERE id = ?').get(id) as
+      | { value: string }
+      | undefined;
     return row?.value ?? null;
   }
 

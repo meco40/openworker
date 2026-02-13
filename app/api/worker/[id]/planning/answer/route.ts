@@ -4,13 +4,24 @@
 
 import { NextResponse } from 'next/server';
 import { getWorkerRepository } from '../../../../../../src/server/worker/workerRepository';
-import { getModelHubService, getModelHubEncryptionKey } from '../../../../../../src/server/model-hub/runtime';
+import {
+  getModelHubService,
+  getModelHubEncryptionKey,
+} from '../../../../../../src/server/model-hub/runtime';
 import { processQueue } from '../../../../../../src/server/worker/workerAgent';
-import type { PlanningMessage, PlanningQuestion } from '../../../../../../src/server/worker/workerTypes';
+import type {
+  PlanningMessage,
+  PlanningQuestion,
+} from '../../../../../../src/server/worker/workerTypes';
 
 export const runtime = 'nodejs';
 
-function parseLLMResponse(text: string): { type: 'question'; data: PlanningQuestion } | { type: 'specification'; data: { summary: string; steps: string[]; constraints: string[] } } | null {
+function parseLLMResponse(
+  text: string,
+):
+  | { type: 'question'; data: PlanningQuestion }
+  | { type: 'specification'; data: { summary: string; steps: string[]; constraints: string[] } }
+  | null {
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
@@ -45,10 +56,7 @@ function parseLLMResponse(text: string): { type: 'question'; data: PlanningQuest
   }
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const repo = getWorkerRepository();

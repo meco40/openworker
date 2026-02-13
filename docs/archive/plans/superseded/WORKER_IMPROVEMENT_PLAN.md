@@ -63,17 +63,13 @@ workspaces/
 Cross-Platform Filesystem-Service via `path.join()` — kein Hardcoden von `/` oder `\`.
 
 ```typescript
-import path from "node:path";
-const WORKSPACES_ROOT = path.join(process.cwd(), "workspaces");
+import path from 'node:path';
+const WORKSPACES_ROOT = path.join(process.cwd(), 'workspaces');
 
 export interface WorkspaceManager {
   createWorkspace(taskId: string, type: WorkspaceType): string;
   getWorkspacePath(taskId: string): string;
-  writeFile(
-    taskId: string,
-    relativePath: string,
-    content: string | Buffer,
-  ): void;
+  writeFile(taskId: string, relativePath: string, content: string | Buffer): void;
   readFile(taskId: string, relativePath: string): Buffer | null;
   listFiles(taskId: string): WorkspaceFile[];
   deleteWorkspace(taskId: string): void;
@@ -107,12 +103,7 @@ export interface WorkspaceManager {
 ### [MODIFY] [workerTypes.ts](file:///d:/web/clawtest/src/server/worker/workerTypes.ts)
 
 ```typescript
-export type WorkspaceType =
-  | "research"
-  | "webapp"
-  | "creative"
-  | "data"
-  | "general";
+export type WorkspaceType = 'research' | 'webapp' | 'creative' | 'data' | 'general';
 ```
 
 ### [MODIFY] [workerExecutor.ts](file:///d:/web/clawtest/src/server/worker/workerExecutor.ts)

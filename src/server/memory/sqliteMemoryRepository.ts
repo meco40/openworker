@@ -34,8 +34,7 @@ export class SqliteMemoryRepository implements MemoryRepository {
   private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(
-    dbPath =
-      process.env.MEMORY_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db',
+    dbPath = process.env.MEMORY_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db',
   ) {
     if (dbPath === ':memory:') {
       this.db = new BetterSqlite3(':memory:');
@@ -267,4 +266,3 @@ export interface MemoryStorageSnapshot {
   byType: MemoryStorageByType[];
   largestNodes: MemoryStorageNodeSize[];
 }
-

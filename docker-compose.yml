@@ -6,7 +6,7 @@ services:
     container_name: openclaw-web
     restart: always
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
@@ -15,7 +15,7 @@ services:
     volumes:
       - ./.local:/app/.local
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/']
       interval: 30s
       timeout: 5s
       retries: 3
@@ -27,7 +27,7 @@ services:
       dockerfile: Dockerfile
     container_name: openclaw-scheduler
     restart: always
-    command: ["node", "--import", "tsx", "scheduler.ts"]
+    command: ['node', '--import', 'tsx', 'scheduler.ts']
     environment:
       NODE_ENV: production
       SCHEDULER_INSTANCE_ID: scheduler-1
@@ -46,9 +46,9 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "node",
-          "-e",
+          'CMD',
+          'node',
+          '-e',
           "const fs=require('fs');const p='/app/.local/scheduler.heartbeat';if(!fs.existsSync(p)){process.exit(1);}const age=Date.now()-fs.statSync(p).mtimeMs;process.exit(age<60000?0:1);",
         ]
       interval: 30s

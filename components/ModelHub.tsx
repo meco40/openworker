@@ -53,7 +53,10 @@ const ModelHub: React.FC = () => {
   });
 
   const providerLookup = useMemo(
-    () => new Map<string, ProviderCatalogEntry>(providerCatalog.map((provider) => [provider.id, provider])),
+    () =>
+      new Map<string, ProviderCatalogEntry>(
+        providerCatalog.map((provider) => [provider.id, provider]),
+      ),
     [providerCatalog],
   );
 
@@ -150,12 +153,22 @@ const ModelHub: React.FC = () => {
       const startUrl = new URL('/api/model-hub/oauth/start', window.location.origin);
       startUrl.searchParams.set('providerId', selectedConnectProvider.id);
       startUrl.searchParams.set('label', connectLabel.trim());
-      const popup = window.open(startUrl.toString(), 'model-hub-oauth', 'popup=yes,width=620,height=760');
+      const popup = window.open(
+        startUrl.toString(),
+        'model-hub-oauth',
+        'popup=yes,width=620,height=760',
+      );
       if (!popup) {
-        setConnectMessage({ text: 'Popup blockiert. Bitte Popup-Blocker deaktivieren.', ok: false });
+        setConnectMessage({
+          text: 'Popup blockiert. Bitte Popup-Blocker deaktivieren.',
+          ok: false,
+        });
         return;
       }
-      setConnectMessage({ text: `OAuth gestartet für ${selectedConnectProvider.name}...`, ok: true });
+      setConnectMessage({
+        text: `OAuth gestartet für ${selectedConnectProvider.name}...`,
+        ok: true,
+      });
       return;
     }
 
@@ -184,7 +197,10 @@ const ModelHub: React.FC = () => {
       setConnectMessage({ text: `${selectedConnectProvider.name} Account verbunden!`, ok: true });
       await loadAccounts();
     } catch (error) {
-      setConnectMessage({ text: error instanceof Error ? error.message : 'Verbindung fehlgeschlagen', ok: false });
+      setConnectMessage({
+        text: error instanceof Error ? error.message : 'Verbindung fehlgeschlagen',
+        ok: false,
+      });
     } finally {
       setIsConnecting(false);
     }
@@ -195,7 +211,10 @@ const ModelHub: React.FC = () => {
       if (event.origin !== window.location.origin) return;
       const payload = event.data as { type?: string; ok?: boolean; message?: string } | undefined;
       if (!payload || payload.type !== 'MODEL_HUB_OAUTH_RESULT') return;
-      setConnectMessage({ text: payload.message || 'OAuth abgeschlossen.', ok: Boolean(payload.ok) });
+      setConnectMessage({
+        text: payload.message || 'OAuth abgeschlossen.',
+        ok: Boolean(payload.ok),
+      });
       if (payload.ok) {
         setConnectSecret('');
         void loadAccounts();
@@ -234,7 +253,9 @@ const ModelHub: React.FC = () => {
       const account = providerAccounts.find((entry) => entry.id === accountId);
       const provider = account ? providerLookup.get(account.providerId) : null;
       if (provider) {
-        setLiveModels(provider.defaultModels.map((id) => ({ id, name: id, provider: provider.id })));
+        setLiveModels(
+          provider.defaultModels.map((id) => ({ id, name: id, provider: provider.id })),
+        );
       }
     } finally {
       setIsLoadingModels(false);
@@ -254,10 +275,17 @@ const ModelHub: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: defaultModel.modelName }),
       });
-      const data = (await response.json()) as ApiResponse & { connectivity?: { ok: boolean; message: string } };
-      if (!response.ok || !data.ok || !data.connectivity) throw new Error(data.error || `HTTP ${response.status}`);
+      const data = (await response.json()) as ApiResponse & {
+        connectivity?: { ok: boolean; message: string };
+      };
+      if (!response.ok || !data.ok || !data.connectivity)
+        throw new Error(data.error || `HTTP ${response.status}`);
       setProbeResult(data.connectivity.message);
-      setSessionStats((prev) => ({ ...prev, requests: prev.requests + 1, lastProbeOk: data.connectivity?.ok ?? false }));
+      setSessionStats((prev) => ({
+        ...prev,
+        requests: prev.requests + 1,
+        lastProbeOk: data.connectivity?.ok ?? false,
+      }));
       await loadAccounts();
     } catch (error) {
       setProbeResult(`FEHLER: ${error instanceof Error ? error.message : 'Probe fehlgeschlagen'}`);
@@ -285,13 +313,19 @@ const ModelHub: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ modelByAccountId }),
       });
-      const data = (await response.json()) as ApiResponse & { successCount?: number; failureCount?: number; total?: number };
+      const data = (await response.json()) as ApiResponse & {
+        successCount?: number;
+        failureCount?: number;
+        total?: number;
+      };
       if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
       setBulkProbeSummary(`${data.successCount}/${data.total} OK, ${data.failureCount} FAILED`);
       setSessionStats((prev) => ({ ...prev, requests: prev.requests + (data.total ?? 0) }));
       await loadAccounts();
     } catch (error) {
-      setBulkProbeSummary(`FEHLER: ${error instanceof Error ? error.message : 'Bulk probe failed'}`);
+      setBulkProbeSummary(
+        `FEHLER: ${error instanceof Error ? error.message : 'Bulk probe failed'}`,
+      );
     } finally {
       setIsTestingAll(false);
     }
@@ -367,7 +401,7 @@ const ModelHub: React.FC = () => {
   }
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 max-w-6xl mx-auto">
+    <div className="animate-in fade-in slide-in-from-bottom-4 mx-auto max-w-6xl space-y-10 pb-20 duration-700">
       <HeaderSection
         pipelineLength={pipeline.length}
         providerCatalogLength={providerCatalog.length}
@@ -379,7 +413,7 @@ const ModelHub: React.FC = () => {
         onRunAllConnectionProbes={runAllConnectionProbes}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
         <PipelineSection
           isLoadingPipeline={isLoadingPipeline}
           pipeline={pipeline}

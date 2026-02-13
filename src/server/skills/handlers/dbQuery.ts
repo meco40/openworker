@@ -41,4 +41,3 @@ export async function dbQueryHandler(args: Record<string, unknown>) {
     db.close();
   }
 }
-

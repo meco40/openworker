@@ -26,11 +26,17 @@ export async function GET(request: Request, context: RouteContext) {
     if (rawBeforeSeq !== null) {
       const trimmed = rawBeforeSeq.trim();
       if (!/^\d+$/.test(trimmed)) {
-        return NextResponse.json({ ok: false, error: 'beforeSeq must be a positive integer' }, { status: 400 });
+        return NextResponse.json(
+          { ok: false, error: 'beforeSeq must be a positive integer' },
+          { status: 400 },
+        );
       }
       const parsed = Number.parseInt(trimmed, 10);
       if (!Number.isFinite(parsed) || parsed <= 0) {
-        return NextResponse.json({ ok: false, error: 'beforeSeq must be a positive integer' }, { status: 400 });
+        return NextResponse.json(
+          { ok: false, error: 'beforeSeq must be a positive integer' },
+          { status: 400 },
+        );
       }
       beforeSeq = parsed;
     }
@@ -68,4 +74,3 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }
-

@@ -79,9 +79,9 @@ describe('LogRepository category support', () => {
     repo.close();
 
     const migrated = new BetterSqlite3(dbPath);
-    const columns = migrated
-      .prepare(`PRAGMA table_info('system_logs')`)
-      .all() as Array<{ name: string }>;
+    const columns = migrated.prepare(`PRAGMA table_info('system_logs')`).all() as Array<{
+      name: string;
+    }>;
     expect(columns.some((column) => column.name === 'category')).toBe(true);
     migrated.close();
   });

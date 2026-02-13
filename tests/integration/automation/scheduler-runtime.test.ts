@@ -107,4 +107,3 @@ describe('automation runtime', () => {
     expect(failing).toHaveBeenCalled();
   });
 });
-

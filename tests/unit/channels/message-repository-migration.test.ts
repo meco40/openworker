@@ -62,7 +62,14 @@ describe('SqliteMessageRepository migration idempotency', () => {
         VALUES (?, ?, ?, ?, ?, ?)
       `,
       )
-      .run('conv-legacy', ChannelType.WEBCHAT, 'default', 'Legacy Chat', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+      .run(
+        'conv-legacy',
+        ChannelType.WEBCHAT,
+        'default',
+        'Legacy Chat',
+        '2026-01-01T00:00:00.000Z',
+        '2026-01-01T00:00:00.000Z',
+      );
 
     legacyDb
       .prepare(
@@ -71,7 +78,14 @@ describe('SqliteMessageRepository migration idempotency', () => {
         VALUES (?, ?, ?, ?, ?, ?)
       `,
       )
-      .run('msg-legacy', 'conv-legacy', 'user', 'hello from legacy', ChannelType.WEBCHAT, '2026-01-01T00:00:01.000Z');
+      .run(
+        'msg-legacy',
+        'conv-legacy',
+        'user',
+        'hello from legacy',
+        ChannelType.WEBCHAT,
+        '2026-01-01T00:00:01.000Z',
+      );
     legacyDb.close();
 
     const repo = new SqliteMessageRepository(dbPath);
@@ -84,7 +98,9 @@ describe('SqliteMessageRepository migration idempotency', () => {
     const conversationColumns = migratedDb
       .prepare('PRAGMA table_info(conversations)')
       .all() as Array<{ name: string }>;
-    const messageColumns = migratedDb.prepare('PRAGMA table_info(messages)').all() as Array<{ name: string }>;
+    const messageColumns = migratedDb.prepare('PRAGMA table_info(messages)').all() as Array<{
+      name: string;
+    }>;
     const migratedUserId = migratedDb
       .prepare('SELECT user_id FROM conversations WHERE id = ?')
       .get('conv-legacy') as { user_id: string };
@@ -101,7 +117,12 @@ describe('SqliteMessageRepository migration idempotency', () => {
     tempPaths.push(dbPath);
 
     const first = new SqliteMessageRepository(dbPath);
-    const conversation = first.getOrCreateConversation(ChannelType.WEBCHAT, 'default', 'WebChat', 'user-a');
+    const conversation = first.getOrCreateConversation(
+      ChannelType.WEBCHAT,
+      'default',
+      'WebChat',
+      'user-a',
+    );
     first.saveMessage({
       conversationId: conversation.id,
       role: 'user',

@@ -71,7 +71,11 @@ export function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-export function resolveRecentLogWindowStats(): { total: number; errors: number; windowMinutes: number } {
+export function resolveRecentLogWindowStats(): {
+  total: number;
+  errors: number;
+  windowMinutes: number;
+} {
   const threshold = Date.now() - ERROR_BUDGET_WINDOW_MS;
   const logs = getLogRepository().listLogs({ limit: 4000 });
   let total = 0;
@@ -137,7 +141,7 @@ export async function resolveNodeProcessDiagnostics(limit = 8): Promise<NodeProc
   try {
     if (process.platform === 'win32') {
       const script = [
-        "$items = Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | ForEach-Object {",
+        '$items = Get-CimInstance Win32_Process -Filter "Name = \'node.exe\'" | ForEach-Object {',
         '  [PSCustomObject]@{',
         '    pid = $_.ProcessId;',
         '    rssBytes = [int64]$_.WorkingSetSize;',
@@ -147,11 +151,10 @@ export async function resolveNodeProcessDiagnostics(limit = 8): Promise<NodeProc
         '};',
         '$items | ConvertTo-Json -Compress',
       ].join(' ');
-      const { stdout } = await execFileAsync(
-        'powershell',
-        ['-NoProfile', '-Command', script],
-        { timeout: PROCESS_DISCOVERY_TIMEOUT_MS, maxBuffer: 1024 * 1024 },
-      );
+      const { stdout } = await execFileAsync('powershell', ['-NoProfile', '-Command', script], {
+        timeout: PROCESS_DISCOVERY_TIMEOUT_MS,
+        maxBuffer: 1024 * 1024,
+      });
       const raw = stdout?.trim();
       if (!raw) {
         return { totalTracked: 0, topByRss: [] };
@@ -258,10 +261,17 @@ export async function runBridgeHealthCheck(
     const url = `${bridgeUrl.replace(/\/$/, '')}/health`;
     const response = await fetchImpl(url, { signal: controller.signal });
     if (!response.ok) {
-      return failCheck(id, 'integration', start, 'warning', `Bridge health failed with ${response.status}.`, {
-        url,
-        status: response.status,
-      });
+      return failCheck(
+        id,
+        'integration',
+        start,
+        'warning',
+        `Bridge health failed with ${response.status}.`,
+        {
+          url,
+          status: response.status,
+        },
+      );
     }
     const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     return okCheck(id, 'integration', start, 'Bridge health check passed.', payload);
@@ -271,10 +281,17 @@ export async function runBridgeHealthCheck(
       (error instanceof Error && error.name === 'AbortError') ||
       message.toLowerCase().includes('timeout') ||
       message.toLowerCase().includes('timed out');
-    return failCheck(id, 'integration', start, isTimeout ? 'critical' : 'warning', `Bridge health check failed: ${message}`, {
-      bridgeUrl,
-      timeoutMs,
-    });
+    return failCheck(
+      id,
+      'integration',
+      start,
+      isTimeout ? 'critical' : 'warning',
+      `Bridge health check failed: ${message}`,
+      {
+        bridgeUrl,
+        timeoutMs,
+      },
+    );
   } finally {
     clearTimeout(timer);
   }

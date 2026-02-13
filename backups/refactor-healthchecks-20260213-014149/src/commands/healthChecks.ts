@@ -44,7 +44,11 @@ export async function runHealthChecks(options: HealthCommandOptions = {}): Promi
     const start = Date.now();
     try {
       const total = getLogRepository().getLogCount();
-      checks.push(okCheck('core.logging_repository', 'core', start, 'Logging repository reachable.', { total }));
+      checks.push(
+        okCheck('core.logging_repository', 'core', start, 'Logging repository reachable.', {
+          total,
+        }),
+      );
     } catch (error) {
       checks.push(
         failCheck(
@@ -62,7 +66,11 @@ export async function runHealthChecks(options: HealthCommandOptions = {}): Promi
     const start = Date.now();
     try {
       const taskCount = getWorkerRepository().listTasks({ limit: 1_000 }).length;
-      checks.push(okCheck('core.worker_repository', 'core', start, 'Worker repository reachable.', { taskCount }));
+      checks.push(
+        okCheck('core.worker_repository', 'core', start, 'Worker repository reachable.', {
+          taskCount,
+        }),
+      );
     } catch (error) {
       checks.push(
         failCheck(
@@ -80,7 +88,11 @@ export async function runHealthChecks(options: HealthCommandOptions = {}): Promi
     const start = Date.now();
     try {
       const usageEntries = getTokenUsageRepository().getEntryCount();
-      checks.push(okCheck('core.stats_repository', 'core', start, 'Stats repository reachable.', { usageEntries }));
+      checks.push(
+        okCheck('core.stats_repository', 'core', start, 'Stats repository reachable.', {
+          usageEntries,
+        }),
+      );
     } catch (error) {
       checks.push(
         failCheck(
@@ -98,7 +110,11 @@ export async function runHealthChecks(options: HealthCommandOptions = {}): Promi
     const start = Date.now();
     try {
       const nodeCount = getMemoryRepository().getStorageSnapshot(1).summary.totalNodes;
-      checks.push(okCheck('core.memory_repository', 'core', start, 'Memory repository reachable.', { nodeCount }));
+      checks.push(
+        okCheck('core.memory_repository', 'core', start, 'Memory repository reachable.', {
+          nodeCount,
+        }),
+      );
     } catch (error) {
       checks.push(
         failCheck(
@@ -117,7 +133,11 @@ export async function runHealthChecks(options: HealthCommandOptions = {}): Promi
     try {
       const snapshot = buildSecurityStatusSnapshot();
       const status: HealthCheckStatus =
-        snapshot.summary.critical > 0 ? 'critical' : snapshot.summary.warning > 0 ? 'warning' : 'ok';
+        snapshot.summary.critical > 0
+          ? 'critical'
+          : snapshot.summary.warning > 0
+            ? 'warning'
+            : 'ok';
       checks.push({
         id: 'security.snapshot',
         category: 'security',
@@ -151,7 +171,11 @@ export async function runHealthChecks(options: HealthCommandOptions = {}): Promi
     const start = Date.now();
     try {
       const activeWsSessions = getClientRegistry().connectionCount;
-      checks.push(okCheck('core.gateway_registry', 'core', start, 'Gateway registry readable.', { activeWsSessions }));
+      checks.push(
+        okCheck('core.gateway_registry', 'core', start, 'Gateway registry readable.', {
+          activeWsSessions,
+        }),
+      );
     } catch (error) {
       checks.push(
         failCheck(
@@ -346,14 +370,17 @@ export async function runHealthChecks(options: HealthCommandOptions = {}): Promi
 
       if (detailedMemoryDiagnostics) {
         try {
-          const currentProcess = memoryDetails.currentProcess as Record<string, unknown> | undefined;
+          const currentProcess = memoryDetails.currentProcess as
+            | Record<string, unknown>
+            | undefined;
           const nodeProcesses = memoryDetails.nodeProcesses as NodeProcessDiagnostics | undefined;
           const memoryNodes = memoryDetails.memoryNodes as MemoryNodeDiagnostics | undefined;
-          const memoryLogLevel = ratio >= MEMORY_PRESSURE_CRITICAL
-            ? 'error'
-            : ratio >= MEMORY_PRESSURE_WARNING
-              ? 'warn'
-              : 'info';
+          const memoryLogLevel =
+            ratio >= MEMORY_PRESSURE_CRITICAL
+              ? 'error'
+              : ratio >= MEMORY_PRESSURE_WARNING
+                ? 'warn'
+                : 'info';
           log(
             memoryLogLevel,
             'MEM',
@@ -403,13 +430,9 @@ export async function runHealthChecks(options: HealthCommandOptions = {}): Promi
         // Validate URL shape so broken config is visible without sending traffic.
         const normalized = new URL(alertWebhook).toString();
         checks.push(
-          okCheck(
-            'diagnostics.alert_routing',
-            'diagnostics',
-            start,
-            'Alert routing configured.',
-            { alertWebhook: normalized },
-          ),
+          okCheck('diagnostics.alert_routing', 'diagnostics', start, 'Alert routing configured.', {
+            alertWebhook: normalized,
+          }),
         );
       } catch {
         checks.push(

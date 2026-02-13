@@ -1,5 +1,10 @@
-
-export type MemoryType = 'fact' | 'preference' | 'avoidance' | 'lesson' | 'personality_trait' | 'workflow_pattern';
+export type MemoryType =
+  | 'fact'
+  | 'preference'
+  | 'avoidance'
+  | 'lesson'
+  | 'personality_trait'
+  | 'workflow_pattern';
 
 export interface MemoryNode {
   id: string;

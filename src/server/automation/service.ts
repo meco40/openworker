@@ -49,7 +49,11 @@ export class AutomationService {
     return this.repo.createRule({ ...input, nextRunAt });
   }
 
-  updateRule(ruleId: string, userId: string, patch: UpdateAutomationRuleInput): AutomationRule | null {
+  updateRule(
+    ruleId: string,
+    userId: string,
+    patch: UpdateAutomationRuleInput,
+  ): AutomationRule | null {
     const existing = this.repo.getRule(ruleId, userId);
     if (!existing) {
       return null;
@@ -68,7 +72,10 @@ export class AutomationService {
     }
 
     let nextRunAt = patch.nextRunAt;
-    if (nextRunAt === undefined && (patch.cronExpression !== undefined || patch.timezone !== undefined)) {
+    if (
+      nextRunAt === undefined &&
+      (patch.cronExpression !== undefined || patch.timezone !== undefined)
+    ) {
       nextRunAt = existing.enabled
         ? computeNextRunAt(cronExpression, timezone, new Date().toISOString())
         : null;
@@ -76,7 +83,8 @@ export class AutomationService {
 
     if (patch.enabled !== undefined) {
       if (patch.enabled) {
-        nextRunAt = nextRunAt ?? computeNextRunAt(cronExpression, timezone, new Date().toISOString());
+        nextRunAt =
+          nextRunAt ?? computeNextRunAt(cronExpression, timezone, new Date().toISOString());
       } else {
         nextRunAt = null;
       }
@@ -145,7 +153,9 @@ export class AutomationService {
   } {
     const lease = this.repo.getLeaseState();
     const now = Date.now();
-    const leaseAgeSeconds = lease ? Math.floor((now - new Date(lease.updatedAt).getTime()) / 1000) : null;
+    const leaseAgeSeconds = lease
+      ? Math.floor((now - new Date(lease.updatedAt).getTime()) / 1000)
+      : null;
 
     return {
       activeRules: this.repo.countActiveRules(),
@@ -221,7 +231,8 @@ export class AutomationService {
           lastRunAt: run.scheduledFor,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown automation execution error';
+        const message =
+          error instanceof Error ? error.message : 'Unknown automation execution error';
         const attempt = run.attempt + 1;
 
         if (attempt >= options.maxAttempts) {
@@ -240,7 +251,8 @@ export class AutomationService {
           continue;
         }
 
-        const backoffMs = options.retryBackoffMs[Math.min(attempt - 1, options.retryBackoffMs.length - 1)] || 1_000;
+        const backoffMs =
+          options.retryBackoffMs[Math.min(attempt - 1, options.retryBackoffMs.length - 1)] || 1_000;
         const nextAttemptAt = new Date(Date.now() + backoffMs).toISOString();
         this.repo.markRunForRetry(run.id, attempt, message, nextAttemptAt);
       }

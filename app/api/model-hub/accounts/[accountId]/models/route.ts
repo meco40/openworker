@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getModelHubEncryptionKey, getModelHubService } from '../../../../../../src/server/model-hub/runtime';
+import {
+  getModelHubEncryptionKey,
+  getModelHubService,
+} from '../../../../../../src/server/model-hub/runtime';
 
 export const runtime = 'nodejs';
 

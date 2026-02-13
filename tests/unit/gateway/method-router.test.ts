@@ -57,11 +57,7 @@ describe('Method Router', () => {
     const sent: unknown[] = [];
     const sendRaw = (data: unknown) => sent.push(data);
 
-    await dispatchMethod(
-      makeFrame('test.echo', { hello: 'world' }),
-      makeClient(),
-      sendRaw,
-    );
+    await dispatchMethod(makeFrame('test.echo', { hello: 'world' }), makeClient(), sendRaw);
 
     expect(sent).toHaveLength(1);
     expect(sent[0]).toEqual({
@@ -76,11 +72,7 @@ describe('Method Router', () => {
     const sent: unknown[] = [];
     const sendRaw = (data: unknown) => sent.push(data);
 
-    await dispatchMethod(
-      makeFrame('nonexistent.method'),
-      makeClient(),
-      sendRaw,
-    );
+    await dispatchMethod(makeFrame('nonexistent.method'), makeClient(), sendRaw);
 
     expect(sent).toHaveLength(1);
     const resp = sent[0] as { type: string; ok: boolean; error: { code: string } };
@@ -128,11 +120,7 @@ describe('Method Router', () => {
     });
 
     const sendRaw = vi.fn();
-    await dispatchMethod(
-      { type: 'req', id: '1', method: 'test.noparams' },
-      makeClient(),
-      sendRaw,
-    );
+    await dispatchMethod({ type: 'req', id: '1', method: 'test.noparams' }, makeClient(), sendRaw);
 
     expect(capturedParams).toEqual({});
   });

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { PROVIDER_CATALOG } from '../../../../src/server/model-hub/providerCatalog';
-import { getModelHubEncryptionKey, getModelHubService } from '../../../../src/server/model-hub/runtime';
+import {
+  getModelHubEncryptionKey,
+  getModelHubService,
+} from '../../../../src/server/model-hub/runtime';
 import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';

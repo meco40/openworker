@@ -1,6 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { getFieldMetadata, mapValidationMessageToFieldPath } from '../src/shared/config/fieldMetadata';
-import { hasHighRiskDiff, summarizeConfigDiff, type DiffItem } from '../src/shared/config/diffSummary';
+import {
+  getFieldMetadata,
+  mapValidationMessageToFieldPath,
+} from '../src/shared/config/fieldMetadata';
+import {
+  hasHighRiskDiff,
+  summarizeConfigDiff,
+  type DiffItem,
+} from '../src/shared/config/diffSummary';
 import {
   ALLOWED_UI_DEFAULT_VIEWS,
   ALLOWED_UI_DENSITIES,
@@ -109,7 +116,8 @@ const STATUS_CLASS: Record<StatusTone, string> = {
 };
 
 function riskBadgeClass(risk: DiffItem['risk']): string {
-  if (risk === 'restart-required') return 'bg-amber-500/20 text-amber-200 border border-amber-400/40';
+  if (risk === 'restart-required')
+    return 'bg-amber-500/20 text-amber-200 border border-amber-400/40';
   if (risk === 'sensitive') return 'bg-rose-500/20 text-rose-200 border border-rose-400/40';
   return 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40';
 }
@@ -129,7 +137,9 @@ const ConfigEditor: React.FC = () => {
   const [configPath, setConfigPath] = useState(FALLBACK_PATH);
   const [configSource, setConfigSource] = useState<'default' | 'file' | 'unknown'>('unknown');
   const [showDiffPreview, setShowDiffPreview] = useState(false);
-  const [pendingParsedConfig, setPendingParsedConfig] = useState<Record<string, unknown> | null>(null);
+  const [pendingParsedConfig, setPendingParsedConfig] = useState<Record<string, unknown> | null>(
+    null,
+  );
   const [diffItems, setDiffItems] = useState<DiffItem[]>([]);
   const [conflictRevision, setConflictRevision] = useState<string | null>(null);
 
@@ -144,7 +154,11 @@ const ConfigEditor: React.FC = () => {
 
   const gateway = isObject(parsedConfig?.gateway) ? parsedConfig.gateway : {};
   const ui = isObject(parsedConfig?.ui) ? parsedConfig.ui : {};
-  const bindValue = readString(gateway, 'bind', normalizeBindFromHost(readString(gateway, 'host', '0.0.0.0')));
+  const bindValue = readString(
+    gateway,
+    'bind',
+    normalizeBindFromHost(readString(gateway, 'host', '0.0.0.0')),
+  );
   const bindPreset = bindValue === 'loopback' || bindValue === 'all' ? bindValue : 'custom';
   const hostValue = readString(gateway, 'host', normalizeHostFromBind(bindValue));
 
@@ -178,7 +192,10 @@ const ConfigEditor: React.FC = () => {
       if (payload.source === 'default') {
         setStatusMessage({ tone: 'info', text: 'No config file found. Loaded default config.' });
       } else if ((payload.warnings || []).length > 0) {
-        setStatusMessage({ tone: 'info', text: `Config loaded with ${(payload.warnings || []).length} compatibility warning(s).` });
+        setStatusMessage({
+          tone: 'info',
+          text: `Config loaded with ${(payload.warnings || []).length} compatibility warning(s).`,
+        });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load config.';
@@ -250,64 +267,64 @@ const ConfigEditor: React.FC = () => {
     return parsed;
   }, [config]);
 
-  const executeApply = useCallback(
-    async (parsed: Record<string, unknown>, revision: string) => {
-      setIsSaving(true);
-      setStatusMessage(null);
-      try {
-        const response = await fetch('/api/config', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ config: parsed, revision }),
-        });
-        const payload = (await response.json()) as ConfigResponse;
+  const executeApply = useCallback(async (parsed: Record<string, unknown>, revision: string) => {
+    setIsSaving(true);
+    setStatusMessage(null);
+    try {
+      const response = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: parsed, revision }),
+      });
+      const payload = (await response.json()) as ConfigResponse;
 
-        if (!response.ok || !payload.ok || !payload.config) {
-          const message = payload.error || 'Failed to save config.';
-          if (payload.code === 'CONFIG_STALE_REVISION') {
-            setConflictRevision(payload.currentRevision || null);
-            setStatusMessage({
-              tone: 'error',
-              text: 'Config changed in another session. Reload latest config or review diff before retry.',
-            });
-          } else {
-            setStatusMessage({ tone: 'error', text: message });
-          }
-          setValidationError(message);
-          setValidationFieldPath(mapValidationMessageToFieldPath(message));
-          return;
-        }
-
-        setConfig(toJsonString(payload.config));
-        setBaselineConfig(payload.config);
-        setBaselineRevision(String(payload.revision || ''));
-        setConfigPath(payload.displayPath || FALLBACK_PATH);
-        setConfigSource(payload.source || 'file');
-        setCompatibilityWarnings(payload.warnings || []);
-        setValidationError(null);
-        setValidationFieldPath(null);
-        setHasChanges(false);
-        setShowDiffPreview(false);
-        setPendingParsedConfig(null);
-        setDiffItems([]);
-        setConflictRevision(null);
-
-        if ((payload.warnings || []).length > 0) {
+      if (!response.ok || !payload.ok || !payload.config) {
+        const message = payload.error || 'Failed to save config.';
+        if (payload.code === 'CONFIG_STALE_REVISION') {
+          setConflictRevision(payload.currentRevision || null);
           setStatusMessage({
-            tone: 'info',
-            text: `Config saved with ${(payload.warnings || []).length} compatibility warning(s).`,
+            tone: 'error',
+            text: 'Config changed in another session. Reload latest config or review diff before retry.',
           });
         } else {
-          setStatusMessage({ tone: 'success', text: 'Config saved successfully.' });
+          setStatusMessage({ tone: 'error', text: message });
         }
-      } catch (error) {
-        setStatusMessage({ tone: 'error', text: error instanceof Error ? error.message : 'Failed to save config.' });
-      } finally {
-        setIsSaving(false);
+        setValidationError(message);
+        setValidationFieldPath(mapValidationMessageToFieldPath(message));
+        return;
       }
-    },
-    [],
-  );
+
+      setConfig(toJsonString(payload.config));
+      setBaselineConfig(payload.config);
+      setBaselineRevision(String(payload.revision || ''));
+      setConfigPath(payload.displayPath || FALLBACK_PATH);
+      setConfigSource(payload.source || 'file');
+      setCompatibilityWarnings(payload.warnings || []);
+      setValidationError(null);
+      setValidationFieldPath(null);
+      setHasChanges(false);
+      setShowDiffPreview(false);
+      setPendingParsedConfig(null);
+      setDiffItems([]);
+      setConflictRevision(null);
+
+      if ((payload.warnings || []).length > 0) {
+        setStatusMessage({
+          tone: 'info',
+          text: `Config saved with ${(payload.warnings || []).length} compatibility warning(s).`,
+        });
+      } else {
+        setStatusMessage({ tone: 'success', text: 'Config saved successfully.' });
+      }
+    } catch (error) {
+      setStatusMessage({
+        tone: 'error',
+        text: error instanceof Error ? error.message : 'Failed to save config.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
 
   const openDiffPreview = () => {
     const parsed = parseCurrentConfig();
@@ -321,7 +338,10 @@ const ConfigEditor: React.FC = () => {
     if (!pendingParsedConfig) return;
     const revisionToUse = revisionOverride || baselineRevision;
     if (!revisionToUse) {
-      setStatusMessage({ tone: 'error', text: 'Missing config revision. Reload config before applying changes.' });
+      setStatusMessage({
+        tone: 'error',
+        text: 'Missing config revision. Reload config before applying changes.',
+      });
       return;
     }
     await executeApply(pendingParsedConfig, revisionToUse);
@@ -332,10 +352,10 @@ const ConfigEditor: React.FC = () => {
   const hasHighRiskChanges = hasHighRiskDiff(diffItems);
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+    <div className="flex h-full flex-col space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Gateway Config</h2>
+          <h2 className="text-xl font-bold tracking-tight text-white">Gateway Config</h2>
           <p className="text-sm text-zinc-500">Simple tabbed setup with advanced JSON editing.</p>
         </div>
         <div className="flex space-x-3">
@@ -343,7 +363,7 @@ const ConfigEditor: React.FC = () => {
             aria-label="Reload config"
             disabled={isLoading || isSaving}
             onClick={() => void loadConfig()}
-            className="px-4 py-2 rounded text-xs font-bold uppercase tracking-widest bg-zinc-800 hover:bg-zinc-700 text-zinc-300 disabled:opacity-60"
+            className="rounded bg-zinc-800 px-4 py-2 text-xs font-bold tracking-widest text-zinc-300 uppercase hover:bg-zinc-700 disabled:opacity-60"
           >
             Reload
           </button>
@@ -351,8 +371,10 @@ const ConfigEditor: React.FC = () => {
             aria-label="Open apply preview"
             disabled={!canApply}
             onClick={openDiffPreview}
-            className={`px-6 py-2 rounded text-xs font-bold uppercase tracking-widest transition-all ${
-              canApply ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg' : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+            className={`rounded px-6 py-2 text-xs font-bold tracking-widest uppercase transition-all ${
+              canApply
+                ? 'bg-indigo-600 text-white shadow-lg hover:bg-indigo-700'
+                : 'cursor-not-allowed bg-zinc-800 text-zinc-600'
             }`}
           >
             {isSaving ? 'Saving...' : 'Apply Config'}
@@ -365,10 +387,10 @@ const ConfigEditor: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-3 py-2 rounded text-[11px] font-bold uppercase tracking-widest border ${
+            className={`rounded border px-3 py-2 text-[11px] font-bold tracking-widest uppercase ${
               activeTab === tab.id
-                ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40'
-                : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:text-zinc-300'
+                ? 'border-indigo-500/40 bg-indigo-600/20 text-indigo-300'
+                : 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:text-zinc-300'
             }`}
           >
             {tab.label}
@@ -384,13 +406,16 @@ const ConfigEditor: React.FC = () => {
 
       {conflictRevision && (
         <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3">
-          <div className="text-xs text-rose-200 mb-2">Stale revision detected.</div>
+          <div className="mb-2 text-xs text-rose-200">Stale revision detected.</div>
           <div className="flex flex-wrap gap-2">
-            <button className="px-3 py-1 rounded text-xs bg-zinc-800 text-zinc-200" onClick={() => void loadConfig()}>
+            <button
+              className="rounded bg-zinc-800 px-3 py-1 text-xs text-zinc-200"
+              onClick={() => void loadConfig()}
+            >
               Reload latest
             </button>
             <button
-              className="px-3 py-1 rounded text-xs bg-indigo-700 text-white"
+              className="rounded bg-indigo-700 px-3 py-1 text-xs text-white"
               onClick={() => {
                 if (pendingParsedConfig) {
                   void handleConfirmApply(conflictRevision);
@@ -405,7 +430,9 @@ const ConfigEditor: React.FC = () => {
 
       {showDiffPreview && (
         <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-4 py-3">
-          <h4 className="text-[10px] uppercase font-bold tracking-widest text-indigo-200 mb-2">Apply Preview</h4>
+          <h4 className="mb-2 text-[10px] font-bold tracking-widest text-indigo-200 uppercase">
+            Apply Preview
+          </h4>
           {diffItems.length === 0 ? (
             <div className="text-xs text-zinc-400">No effective changes found.</div>
           ) : (
@@ -413,7 +440,9 @@ const ConfigEditor: React.FC = () => {
               {diffItems.map((item) => (
                 <li key={item.path} className="flex items-center justify-between gap-3">
                   <span className="font-mono text-zinc-200">{item.path}</span>
-                  <span className={`px-2 py-0.5 rounded text-[10px] uppercase ${riskBadgeClass(item.risk)}`}>
+                  <span
+                    className={`rounded px-2 py-0.5 text-[10px] uppercase ${riskBadgeClass(item.risk)}`}
+                  >
                     {item.risk}
                   </span>
                 </li>
@@ -421,31 +450,41 @@ const ConfigEditor: React.FC = () => {
             </ul>
           )}
           {hasHighRiskChanges && (
-            <div className="mt-3 text-xs text-amber-200">This change contains high-risk fields. Confirm carefully.</div>
+            <div className="mt-3 text-xs text-amber-200">
+              This change contains high-risk fields. Confirm carefully.
+            </div>
           )}
           <div className="mt-3 flex gap-2">
-            <button className="px-3 py-1 rounded text-xs bg-zinc-800 text-zinc-200" onClick={() => setShowDiffPreview(false)}>
+            <button
+              className="rounded bg-zinc-800 px-3 py-1 text-xs text-zinc-200"
+              onClick={() => setShowDiffPreview(false)}
+            >
               Cancel
             </button>
-            <button className="px-3 py-1 rounded text-xs bg-indigo-700 text-white" onClick={() => void handleConfirmApply()}>
+            <button
+              className="rounded bg-indigo-700 px-3 py-1 text-xs text-white"
+              onClick={() => void handleConfirmApply()}
+            >
               Confirm Apply
             </button>
           </div>
         </div>
       )}
 
-      <div className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden flex flex-col">
-        <div className="bg-zinc-900 px-4 py-2 border-b border-zinc-800 flex items-center justify-between">
-          <span className="text-[10px] font-mono text-zinc-500">{configPath}</span>
+      <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+        <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900 px-4 py-2">
+          <span className="font-mono text-[10px] text-zinc-500">{configPath}</span>
           <div className="flex items-center space-x-4">
-            <span className="text-[10px] font-mono uppercase text-zinc-500">
+            <span className="font-mono text-[10px] text-zinc-500 uppercase">
               Source: {configSource === 'unknown' ? 'n/a' : configSource}
             </span>
-            <span className="text-[10px] font-mono uppercase text-zinc-500">Revision: {baselineRevision || 'n/a'}</span>
+            <span className="font-mono text-[10px] text-zinc-500 uppercase">
+              Revision: {baselineRevision || 'n/a'}
+            </span>
           </div>
         </div>
 
-        <div className="p-5 space-y-4 overflow-auto">
+        <div className="space-y-4 overflow-auto p-5">
           {simpleModeDisabled && (
             <div className="rounded border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
               Simple tab editing is disabled until the JSON in Advanced mode is valid.
@@ -453,26 +492,34 @@ const ConfigEditor: React.FC = () => {
           )}
 
           {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4">
-                <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1">Config Source</div>
-                <div className="text-sm font-mono text-zinc-200">{configSource}</div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="rounded border border-zinc-800 bg-zinc-900/60 p-4">
+                <div className="mb-1 text-[10px] tracking-widest text-zinc-500 uppercase">
+                  Config Source
+                </div>
+                <div className="font-mono text-sm text-zinc-200">{configSource}</div>
               </div>
-              <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4">
-                <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1">Pending Changes</div>
-                <div className="text-sm font-mono text-zinc-200">{hasChanges ? 'yes' : 'no'}</div>
+              <div className="rounded border border-zinc-800 bg-zinc-900/60 p-4">
+                <div className="mb-1 text-[10px] tracking-widest text-zinc-500 uppercase">
+                  Pending Changes
+                </div>
+                <div className="font-mono text-sm text-zinc-200">{hasChanges ? 'yes' : 'no'}</div>
               </div>
-              <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4">
-                <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1">Warnings</div>
-                <div className="text-sm font-mono text-zinc-200">{compatibilityWarnings.length}</div>
+              <div className="rounded border border-zinc-800 bg-zinc-900/60 p-4">
+                <div className="mb-1 text-[10px] tracking-widest text-zinc-500 uppercase">
+                  Warnings
+                </div>
+                <div className="font-mono text-sm text-zinc-200">
+                  {compatibilityWarnings.length}
+                </div>
               </div>
             </div>
           )}
 
           {activeTab === 'network' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <label className="space-y-2">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-500">Port</span>
+                <span className="text-[10px] tracking-widest text-zinc-500 uppercase">Port</span>
                 <input
                   aria-label="Gateway port"
                   type="number"
@@ -488,12 +535,16 @@ const ConfigEditor: React.FC = () => {
                       draftGateway.port = port;
                     });
                   }}
-                  className={`w-full bg-zinc-900 border rounded px-3 py-2 text-sm text-white ${fieldErrorFor('gateway.port') ? 'border-rose-500' : 'border-zinc-700'}`}
+                  className={`w-full rounded border bg-zinc-900 px-3 py-2 text-sm text-white ${fieldErrorFor('gateway.port') ? 'border-rose-500' : 'border-zinc-700'}`}
                 />
-                <div className="text-[11px] text-zinc-500">{getFieldMetadata('gateway.port')?.helper}</div>
+                <div className="text-[11px] text-zinc-500">
+                  {getFieldMetadata('gateway.port')?.helper}
+                </div>
               </label>
               <label className="space-y-2">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-500">Bind Preset</span>
+                <span className="text-[10px] tracking-widest text-zinc-500 uppercase">
+                  Bind Preset
+                </span>
                 <select
                   aria-label="Gateway bind preset"
                   value={bindPreset}
@@ -508,16 +559,18 @@ const ConfigEditor: React.FC = () => {
                       }
                     });
                   }}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-white"
+                  className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
                 >
                   <option value="loopback">Loopback (127.0.0.1)</option>
                   <option value="all">All Interfaces (0.0.0.0)</option>
                   <option value="custom">Custom</option>
                 </select>
-                <div className="text-[11px] text-zinc-500">{getFieldMetadata('gateway.bind')?.helper}</div>
+                <div className="text-[11px] text-zinc-500">
+                  {getFieldMetadata('gateway.bind')?.helper}
+                </div>
               </label>
               <label className="space-y-2 md:col-span-2">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-500">Host</span>
+                <span className="text-[10px] tracking-widest text-zinc-500 uppercase">Host</span>
                 <input
                   aria-label="Gateway host"
                   type="text"
@@ -531,16 +584,18 @@ const ConfigEditor: React.FC = () => {
                       draftGateway.bind = normalizeBindFromHost(host);
                     });
                   }}
-                  className={`w-full bg-zinc-900 border rounded px-3 py-2 text-sm text-white ${fieldErrorFor('gateway.host') ? 'border-rose-500' : 'border-zinc-700'}`}
+                  className={`w-full rounded border bg-zinc-900 px-3 py-2 text-sm text-white ${fieldErrorFor('gateway.host') ? 'border-rose-500' : 'border-zinc-700'}`}
                 />
-                <div className="text-[11px] text-zinc-500">{getFieldMetadata('gateway.host')?.helper}</div>
+                <div className="text-[11px] text-zinc-500">
+                  {getFieldMetadata('gateway.host')?.helper}
+                </div>
               </label>
             </div>
           )}
 
           {activeTab === 'runtime' && (
             <label className="space-y-2">
-              <span className="text-[10px] uppercase tracking-widest text-zinc-500">Log Level</span>
+              <span className="text-[10px] tracking-widest text-zinc-500 uppercase">Log Level</span>
               <select
                 aria-label="Gateway log level"
                 value={readString(gateway, 'logLevel', 'info')}
@@ -552,21 +607,25 @@ const ConfigEditor: React.FC = () => {
                     draftGateway.logLevel = logLevel;
                   });
                 }}
-                className={`w-full bg-zinc-900 border rounded px-3 py-2 text-sm text-white ${fieldErrorFor('gateway.logLevel') ? 'border-rose-500' : 'border-zinc-700'}`}
+                className={`w-full rounded border bg-zinc-900 px-3 py-2 text-sm text-white ${fieldErrorFor('gateway.logLevel') ? 'border-rose-500' : 'border-zinc-700'}`}
               >
                 <option value="debug">debug</option>
                 <option value="info">info</option>
                 <option value="warn">warn</option>
                 <option value="error">error</option>
               </select>
-              <div className="text-[11px] text-zinc-500">{getFieldMetadata('gateway.logLevel')?.helper}</div>
+              <div className="text-[11px] text-zinc-500">
+                {getFieldMetadata('gateway.logLevel')?.helper}
+              </div>
             </label>
           )}
 
           {activeTab === 'ui' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <label className="space-y-2">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-500">Default View</span>
+                <span className="text-[10px] tracking-widest text-zinc-500 uppercase">
+                  Default View
+                </span>
                 <select
                   aria-label="Default view"
                   value={readString(ui, 'defaultView', 'dashboard')}
@@ -576,7 +635,7 @@ const ConfigEditor: React.FC = () => {
                       getOrCreateObject(draft, 'ui').defaultView = event.target.value;
                     });
                   }}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-white"
+                  className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
                 >
                   {ALLOWED_UI_DEFAULT_VIEWS.map((value) => (
                     <option key={value} value={value}>
@@ -586,7 +645,7 @@ const ConfigEditor: React.FC = () => {
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-500">Density</span>
+                <span className="text-[10px] tracking-widest text-zinc-500 uppercase">Density</span>
                 <select
                   aria-label="UI density"
                   value={readString(ui, 'density', 'comfortable')}
@@ -596,7 +655,7 @@ const ConfigEditor: React.FC = () => {
                       getOrCreateObject(draft, 'ui').density = event.target.value;
                     });
                   }}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-white"
+                  className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
                 >
                   {ALLOWED_UI_DENSITIES.map((value) => (
                     <option key={value} value={value}>
@@ -606,7 +665,9 @@ const ConfigEditor: React.FC = () => {
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-500">Language</span>
+                <span className="text-[10px] tracking-widest text-zinc-500 uppercase">
+                  Language
+                </span>
                 <input
                   aria-label="UI language"
                   value={readString(ui, 'language', 'de-DE')}
@@ -616,11 +677,13 @@ const ConfigEditor: React.FC = () => {
                       getOrCreateObject(draft, 'ui').language = event.target.value;
                     });
                   }}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-white"
+                  className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-500">Time Format</span>
+                <span className="text-[10px] tracking-widest text-zinc-500 uppercase">
+                  Time Format
+                </span>
                 <select
                   aria-label="UI time format"
                   value={readString(ui, 'timeFormat', '24h')}
@@ -630,7 +693,7 @@ const ConfigEditor: React.FC = () => {
                       getOrCreateObject(draft, 'ui').timeFormat = event.target.value;
                     });
                   }}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-white"
+                  className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
                 >
                   {ALLOWED_UI_TIME_FORMATS.map((value) => (
                     <option key={value} value={value}>
@@ -667,23 +730,23 @@ const ConfigEditor: React.FC = () => {
               }}
               spellCheck={false}
               disabled={isLoading}
-              className="w-full min-h-[420px] bg-transparent p-4 font-mono text-sm text-indigo-300 focus:outline-none resize-y disabled:opacity-60 border border-zinc-800 rounded"
+              className="min-h-[420px] w-full resize-y rounded border border-zinc-800 bg-transparent p-4 font-mono text-sm text-indigo-300 focus:outline-none disabled:opacity-60"
             />
           )}
         </div>
       </div>
 
-      <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-lg">
-        <h4 className="text-[10px] uppercase font-bold text-zinc-500 mb-2">Validation</h4>
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
+        <h4 className="mb-2 text-[10px] font-bold text-zinc-500 uppercase">Validation</h4>
         {validationError ? (
-          <div className="text-xs font-mono text-rose-400">
+          <div className="font-mono text-xs text-rose-400">
             [ERROR] {validationError}
             {validationFieldPath && getFieldMetadata(validationFieldPath)
               ? ` | Field: ${getFieldMetadata(validationFieldPath)?.label}`
               : ''}
           </div>
         ) : (
-          <div className="text-xs font-mono text-emerald-500">[OK] No schema violations found.</div>
+          <div className="font-mono text-xs text-emerald-500">[OK] No schema violations found.</div>
         )}
       </div>
     </div>

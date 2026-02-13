@@ -33,7 +33,11 @@ describe('clawhub-client', () => {
   it('calls install endpoint with slug payload', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(
-        JSON.stringify({ ok: true, skills: [{ slug: 'calendar', version: '1.0.0' }], warnings: [] }),
+        JSON.stringify({
+          ok: true,
+          skills: [{ slug: 'calendar', version: '1.0.0' }],
+          warnings: [],
+        }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     );

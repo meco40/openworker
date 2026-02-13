@@ -324,16 +324,17 @@ describe('rooms routes', () => {
     expect(pauseRes.status).toBe(200);
 
     const stateRoute = await import('../../../app/api/rooms/[id]/state/route');
-    const pausedStateRes = await stateRoute.GET(
-      new Request('http://localhost/api/rooms/x/state'),
-      { params: Promise.resolve({ id: roomId }) },
-    );
+    const pausedStateRes = await stateRoute.GET(new Request('http://localhost/api/rooms/x/state'), {
+      params: Promise.resolve({ id: roomId }),
+    });
     const pausedState = (await pausedStateRes.json()) as {
       ok: boolean;
       memberRuntime: Array<{ personaId: string; status: string }>;
     };
     expect(pausedState.ok).toBe(true);
-    expect(pausedState.memberRuntime.find((item) => item.personaId === 'persona-1')?.status).toBe('paused');
+    expect(pausedState.memberRuntime.find((item) => item.personaId === 'persona-1')?.status).toBe(
+      'paused',
+    );
 
     const resumeRes = await memberRoute.PATCH(
       new Request('http://localhost/api/rooms/x/members/persona-1', {

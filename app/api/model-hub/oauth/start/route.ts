@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createOAuthNonce, createOAuthState, createPkcePair } from '../../../../../src/server/model-hub/oauth';
+import {
+  createOAuthNonce,
+  createOAuthState,
+  createPkcePair,
+} from '../../../../../src/server/model-hub/oauth';
 import { getModelHubEncryptionKey } from '../../../../../src/server/model-hub/runtime';
 import { PROVIDER_CATALOG } from '../../../../../src/server/model-hub/providerCatalog';
 
@@ -85,10 +89,9 @@ export async function GET(request: Request) {
     if (providerId === 'openrouter') {
       const { codeVerifier, codeChallenge } = createPkcePair();
       const state = createOAuthState({ ...oauthStateBase, codeVerifier }, signingKey);
-      return NextResponse.redirect(
-        buildOpenRouterAuthorizeUrl(state, callbackUrl, codeChallenge),
-        { status: 302 },
-      );
+      return NextResponse.redirect(buildOpenRouterAuthorizeUrl(state, callbackUrl, codeChallenge), {
+        status: 302,
+      });
     }
 
     const state = createOAuthState(oauthStateBase, signingKey);
@@ -96,7 +99,11 @@ export async function GET(request: Request) {
     if (providerId === 'github-copilot') {
       const clientId = process.env.GITHUB_OAUTH_CLIENT_ID?.trim();
       if (!clientId) {
-        return popupResult(false, 'GitHub OAuth ist nicht konfiguriert. Bitte GITHUB_OAUTH_CLIENT_ID und GITHUB_OAUTH_CLIENT_SECRET in .env.local setzen. Verwende stattdessen einen API Key (Personal Access Token).', 500);
+        return popupResult(
+          false,
+          'GitHub OAuth ist nicht konfiguriert. Bitte GITHUB_OAUTH_CLIENT_ID und GITHUB_OAUTH_CLIENT_SECRET in .env.local setzen. Verwende stattdessen einen API Key (Personal Access Token).',
+          500,
+        );
       }
 
       const authUrl = new URL('https://github.com/login/oauth/authorize');

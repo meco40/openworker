@@ -112,7 +112,12 @@ function formatDateTime(value: string | null): string {
   });
 }
 
-const PromptLogsTab: React.FC<PromptLogsTabProps> = ({ preset, customFrom, customTo, reloadKey }) => {
+const PromptLogsTab: React.FC<PromptLogsTabProps> = ({
+  preset,
+  customFrom,
+  customTo,
+  reloadKey,
+}) => {
   const [entries, setEntries] = useState<PromptLogEntry[]>([]);
   const [summary, setSummary] = useState<PromptLogSummary | null>(null);
   const [total, setTotal] = useState(0);
@@ -242,8 +247,12 @@ const PromptLogsTab: React.FC<PromptLogsTabProps> = ({ preset, customFrom, custo
     <div className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 shadow-lg">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-black tracking-widest text-white uppercase">Prompt Dispatch Logs</h3>
-          <p className="mt-1 text-xs text-zinc-500">All outbound prompts with token usage and injection risk.</p>
+          <h3 className="text-sm font-black tracking-widest text-white uppercase">
+            Prompt Dispatch Logs
+          </h3>
+          <p className="mt-1 text-xs text-zinc-500">
+            All outbound prompts with token usage and injection risk.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -263,20 +272,36 @@ const PromptLogsTab: React.FC<PromptLogsTabProps> = ({ preset, customFrom, custo
 
       <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
         <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
-          <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">Total</div>
-          <div className="mt-1 font-mono text-xl font-black text-white">{formatNumber(summary?.totalEntries ?? 0)}</div>
+          <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+            Total
+          </div>
+          <div className="mt-1 font-mono text-xl font-black text-white">
+            {formatNumber(summary?.totalEntries ?? 0)}
+          </div>
         </div>
         <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
-          <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">Flagged</div>
-          <div className="mt-1 font-mono text-xl font-black text-amber-400">{formatNumber(summary?.flaggedEntries ?? 0)}</div>
+          <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+            Flagged
+          </div>
+          <div className="mt-1 font-mono text-xl font-black text-amber-400">
+            {formatNumber(summary?.flaggedEntries ?? 0)}
+          </div>
         </div>
         <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
-          <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">Exact Tokens</div>
-          <div className="mt-1 font-mono text-xl font-black text-emerald-400">{formatNumber(summary?.promptTokensExactCount ?? 0)}</div>
+          <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+            Exact Tokens
+          </div>
+          <div className="mt-1 font-mono text-xl font-black text-emerald-400">
+            {formatNumber(summary?.promptTokensExactCount ?? 0)}
+          </div>
         </div>
         <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
-          <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">Estimated Tokens</div>
-          <div className="mt-1 font-mono text-xl font-black text-violet-400">{formatNumber(summary?.promptTokensEstimatedCount ?? 0)}</div>
+          <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+            Estimated Tokens
+          </div>
+          <div className="mt-1 font-mono text-xl font-black text-violet-400">
+            {formatNumber(summary?.promptTokensEstimatedCount ?? 0)}
+          </div>
         </div>
       </div>
 
@@ -371,7 +396,9 @@ const PromptLogsTab: React.FC<PromptLogsTabProps> = ({ preset, customFrom, custo
           {loading ? (
             <div className="px-3 py-5 text-xs text-zinc-500">Loading prompt logs...</div>
           ) : entries.length === 0 ? (
-            <div className="px-3 py-5 text-xs text-zinc-500">No prompt logs found for this filter set.</div>
+            <div className="px-3 py-5 text-xs text-zinc-500">
+              No prompt logs found for this filter set.
+            </div>
           ) : (
             entries.map((entry) => (
               <div key={entry.id} className="border-b border-zinc-800/70 last:border-b-0">
@@ -379,14 +406,22 @@ const PromptLogsTab: React.FC<PromptLogsTabProps> = ({ preset, customFrom, custo
                   onClick={() => setExpandedId((prev) => (prev === entry.id ? null : entry.id))}
                   className="grid w-full grid-cols-[180px_110px_1fr_130px_130px_90px] gap-3 px-3 py-2.5 text-left transition-colors hover:bg-zinc-900/50"
                 >
-                  <span className="font-mono text-[11px] text-zinc-500">{formatTimestamp(entry.createdAt)}</span>
-                  <span className="text-xs font-bold capitalize text-zinc-300">{entry.providerId}</span>
+                  <span className="font-mono text-[11px] text-zinc-500">
+                    {formatTimestamp(entry.createdAt)}
+                  </span>
+                  <span className="text-xs font-bold text-zinc-300 capitalize">
+                    {entry.providerId}
+                  </span>
                   <span className="space-y-1">
                     <div className="font-mono text-[11px] text-zinc-300">{entry.modelName}</div>
-                    <div className="line-clamp-2 text-[11px] text-zinc-500">{entry.promptPreview}</div>
+                    <div className="line-clamp-2 text-[11px] text-zinc-500">
+                      {entry.promptPreview}
+                    </div>
                   </span>
                   <span>
-                    <div className="font-mono text-sm font-bold text-zinc-200">{formatNumber(entry.promptTokens)}</div>
+                    <div className="font-mono text-sm font-bold text-zinc-200">
+                      {formatNumber(entry.promptTokens)}
+                    </div>
                     <div
                       className={`inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
                         entry.promptTokensSource === 'exact'
@@ -398,8 +433,12 @@ const PromptLogsTab: React.FC<PromptLogsTabProps> = ({ preset, customFrom, custo
                     </div>
                   </span>
                   <span className="space-y-1">
-                    <div className="font-mono text-sm font-bold text-zinc-200">{formatUsd(entry.promptCostUsd)}</div>
-                    <div className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase">prompt usd</div>
+                    <div className="font-mono text-sm font-bold text-zinc-200">
+                      {formatUsd(entry.promptCostUsd)}
+                    </div>
+                    <div className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase">
+                      prompt usd
+                    </div>
                   </span>
                   <span
                     className={`inline-flex h-fit rounded px-2 py-0.5 text-[10px] font-black uppercase ${
@@ -419,7 +458,11 @@ const PromptLogsTab: React.FC<PromptLogsTabProps> = ({ preset, customFrom, custo
                     <div className="flex flex-wrap items-center gap-4 text-zinc-400">
                       <span>
                         Status:{' '}
-                        <span className={entry.status === 'success' ? 'text-emerald-400' : 'text-rose-400'}>
+                        <span
+                          className={
+                            entry.status === 'success' ? 'text-emerald-400' : 'text-rose-400'
+                          }
+                        >
                           {entry.status}
                         </span>
                       </span>

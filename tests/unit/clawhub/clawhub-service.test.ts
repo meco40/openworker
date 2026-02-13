@@ -120,7 +120,9 @@ describe('ClawHubService', () => {
     expect(uninstalled.skills).toEqual([]);
     expect(uninstalled.warnings).toEqual([]);
     expect(fs.existsSync(path.join(rootDir, 'skills', 'calendar'))).toBe(false);
-    const lock = JSON.parse(fs.readFileSync(path.join(rootDir, '.clawhub', 'lock.json'), 'utf8')) as {
+    const lock = JSON.parse(
+      fs.readFileSync(path.join(rootDir, '.clawhub', 'lock.json'), 'utf8'),
+    ) as {
       skills?: Record<string, unknown>;
     };
     expect(lock.skills ?? {}).not.toHaveProperty('calendar');

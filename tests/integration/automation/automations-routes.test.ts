@@ -114,6 +114,3 @@ describe('automation routes', () => {
     expect(deleted.ok).toBe(true);
   }, 15_000);
 });
-
-
-

@@ -67,7 +67,10 @@ describe('WhatsApp Webhook Parsing', () => {
   });
 
   it('falls back to from when chatId is missing', () => {
-    const payload: { from: string; body: string; chatId?: string } = { from: '+49111', body: 'Test' };
+    const payload: { from: string; body: string; chatId?: string } = {
+      from: '+49111',
+      body: 'Test',
+    };
     const chatId = payload.chatId || payload.from || 'unknown';
     expect(chatId).toBe('+49111');
   });

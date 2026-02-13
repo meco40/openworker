@@ -53,12 +53,7 @@ const SYSTEM_TRANSITIONS: Record<string, ReadonlySet<string>> = {
   queued: new Set(['planning']),
   planning: new Set(['executing', 'clarifying']),
   clarifying: new Set(['planning', 'executing']),
-  executing: new Set([
-    'testing',
-    'review',
-    'waiting_approval',
-    'completed',
-  ]),
+  executing: new Set(['testing', 'review', 'waiting_approval', 'completed']),
   waiting_approval: new Set(['executing']),
   testing: new Set(['review', 'executing']),
   review: new Set(['completed']),

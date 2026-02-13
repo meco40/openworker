@@ -14,11 +14,11 @@ export async function shellExecuteHandler(args: Record<string, unknown>) {
   }
 
   try {
-    const { stdout, stderr } = await execFile(
-      'powershell',
-      ['-NoProfile', '-Command', command],
-      { cwd: process.cwd(), timeout: 15_000, maxBuffer: 1_000_000 },
-    );
+    const { stdout, stderr } = await execFile('powershell', ['-NoProfile', '-Command', command], {
+      cwd: process.cwd(),
+      timeout: 15_000,
+      maxBuffer: 1_000_000,
+    });
     return { stdout, stderr, exitCode: 0 };
   } catch (error) {
     const typed = error as {

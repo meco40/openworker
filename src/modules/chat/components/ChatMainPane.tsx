@@ -23,27 +23,29 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
 
   return (
     <>
-      <header className="h-16 border-b border-zinc-800 px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-2xl z-20">
+      <header className="z-20 flex h-16 items-center justify-between border-b border-zinc-800 bg-zinc-950/80 px-6 backdrop-blur-2xl">
         <div className="flex items-center space-x-4">
           {activeConversation ? (
             <>
-              <div className="w-10 h-10 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-violet-500/30 bg-violet-600/20 text-violet-400">
                 {activeMeta?.icon}
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white tracking-tight">{activeConversation.title}</h3>
+                <h3 className="text-sm font-bold tracking-tight text-white">
+                  {activeConversation.title}
+                </h3>
                 <div className="flex items-center space-x-2">
-                  <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">
+                  <span className="text-[9px] font-black tracking-widest text-zinc-600 uppercase">
                     ID:
                   </span>
-                  <span className="text-[9px] font-mono text-zinc-500">
+                  <span className="font-mono text-[9px] text-zinc-500">
                     {activeConversation.id.slice(0, 8)}...
                   </span>
                 </div>
               </div>
             </>
           ) : (
-            <div className="text-zinc-500 text-sm font-medium">Conversation auswählen</div>
+            <div className="text-sm font-medium text-zinc-500">Conversation auswählen</div>
           )}
         </div>
 
@@ -51,25 +53,36 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
         <div className="relative">
           <button
             onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
               activePersona
-                ? 'bg-indigo-600/15 border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/25'
-                : 'bg-zinc-800/50 border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600'
+                ? 'border-indigo-500/30 bg-indigo-600/15 text-indigo-300 hover:bg-indigo-600/25'
+                : 'border-zinc-700 bg-zinc-800/50 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300'
             }`}
           >
             <span>{activePersona?.emoji || '🤖'}</span>
             <span>{activePersona?.name || 'Default'}</span>
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <svg
+              className="h-3 w-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
             </svg>
           </button>
 
           {showPersonaDropdown && (
-            <div className="absolute right-0 top-full mt-1 w-56 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50">
+            <div className="absolute top-full right-0 z-50 mt-1 w-56 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
               <button
-                onClick={() => { setActivePersonaId(null); setShowPersonaDropdown(false); }}
-                className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 ${
-                  !activePersonaId ? 'bg-indigo-600/20 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+                onClick={() => {
+                  setActivePersonaId(null);
+                  setShowPersonaDropdown(false);
+                }}
+                className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
+                  !activePersonaId
+                    ? 'bg-indigo-600/20 text-white'
+                    : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
                 }`}
               >
                 <span>🤖</span>
@@ -78,9 +91,14 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
               {personas.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => { setActivePersonaId(p.id); setShowPersonaDropdown(false); }}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 ${
-                    activePersonaId === p.id ? 'bg-indigo-600/20 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+                  onClick={() => {
+                    setActivePersonaId(p.id);
+                    setShowPersonaDropdown(false);
+                  }}
+                  className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
+                    activePersonaId === p.id
+                      ? 'bg-indigo-600/20 text-white'
+                      : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
                   }`}
                 >
                   <span>{p.emoji}</span>
@@ -97,16 +115,21 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-6 space-y-6 bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.05),transparent)] scrollbar-thin"
+        className="scrollbar-thin flex-1 space-y-6 overflow-y-auto bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.05),transparent)] p-6"
       >
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-20">
-            <div className="w-16 h-16 rounded-full border-2 border-dashed border-zinc-800 flex items-center justify-center">
-              <svg className="w-8 h-8 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex h-full flex-col items-center justify-center space-y-4 opacity-20">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-dashed border-zinc-800">
+              <svg
+                className="h-8 w-8 text-zinc-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
-            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 text-center">
+            <span className="text-center text-[9px] font-black tracking-[0.3em] text-zinc-500 uppercase">
               Noch keine Nachrichten
             </span>
           </div>
@@ -120,10 +143,12 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                   message.role === 'user' ? 'items-end' : 'items-start'
                 } animate-in fade-in slide-in-from-bottom-2 duration-300`}
               >
-                <div className={`max-w-[80%] relative ${message.role === 'system' ? 'w-full max-w-none' : ''}`}>
+                <div
+                  className={`relative max-w-[80%] ${message.role === 'system' ? 'w-full max-w-none' : ''}`}
+                >
                   {message.role !== 'system' && (
                     <div
-                      className={`flex items-center space-x-2 mb-1 px-1 ${
+                      className={`mb-1 flex items-center space-x-2 px-1 ${
                         message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
                       }`}
                     >
@@ -131,7 +156,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                         {message.timestamp}
                       </span>
                       <span
-                        className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border ${meta.border} bg-zinc-900 ${meta.text}`}
+                        className={`rounded border px-1.5 py-0.5 text-[8px] font-black uppercase ${meta.border} bg-zinc-900 ${meta.text}`}
                       >
                         {message.platform}
                       </span>
@@ -141,10 +166,10 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                   <div
                     className={`transition-all duration-300 ${
                       message.role === 'agent'
-                        ? 'bg-zinc-900 border border-zinc-800 shadow-xl rounded-2xl rounded-tl-none p-4'
+                        ? 'rounded-2xl rounded-tl-none border border-zinc-800 bg-zinc-900 p-4 shadow-xl'
                         : message.role === 'system'
-                          ? 'bg-zinc-950 text-indigo-400 border border-indigo-500/10 text-center font-mono text-[9px] py-1.5 rounded uppercase tracking-widest'
-                          : `${meta.bg} text-white shadow-lg rounded-2xl rounded-tr-none p-4`
+                          ? 'rounded border border-indigo-500/10 bg-zinc-950 py-1.5 text-center font-mono text-[9px] tracking-widest text-indigo-400 uppercase'
+                          : `${meta.bg} rounded-2xl rounded-tr-none p-4 text-white shadow-lg`
                     }`}
                   >
                     <div
@@ -154,7 +179,9 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                     >
                       {message.content || (message.role === 'agent' ? '...' : '')}
                     </div>
-                    {message.attachment && <ChatMessageAttachment attachment={message.attachment} />}
+                    {message.attachment && (
+                      <ChatMessageAttachment attachment={message.attachment} />
+                    )}
                   </div>
                 </div>
               </div>
@@ -162,12 +189,12 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
           })
         )}
         {isTyping && (
-          <div className="flex flex-col items-start animate-pulse">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-none p-4 px-6">
+          <div className="flex animate-pulse flex-col items-start">
+            <div className="rounded-2xl rounded-tl-none border border-zinc-800 bg-zinc-900 p-4 px-6">
               <div className="flex space-x-1">
-                <div className="w-1.5 h-1.5 bg-zinc-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                <div className="w-1.5 h-1.5 bg-zinc-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                <div className="w-1.5 h-1.5 bg-zinc-600 rounded-full animate-bounce" />
+                <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:-0.3s]" />
+                <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:-0.15s]" />
+                <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600" />
               </div>
             </div>
           </div>

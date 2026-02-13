@@ -27,7 +27,11 @@ export function maskSecret(secret: string): string {
   return `${stars}${tail}`;
 }
 
-export function encryptSecret(secret: string, key: string, keyId = 'default'): EncryptedSecretPayload {
+export function encryptSecret(
+  secret: string,
+  key: string,
+  keyId = 'default',
+): EncryptedSecretPayload {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', normalizeKey(key), iv);
   const ciphertext = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);

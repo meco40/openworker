@@ -15,8 +15,18 @@ import {
   toPersonaSession,
   toPersonaContext,
 } from '../../../src/server/rooms/roomRowMappers';
-import { toRule, toRun as toAutomationRun, toDeadLetter, toLease } from '../../../src/server/automation/automationRowMappers';
-import { toTask, toStep, toArtifact, toApprovalRule } from '../../../src/server/worker/workerRowMappers';
+import {
+  toRule,
+  toRun as toAutomationRun,
+  toDeadLetter,
+  toLease,
+} from '../../../src/server/automation/automationRowMappers';
+import {
+  toTask,
+  toStep,
+  toArtifact,
+  toApprovalRule,
+} from '../../../src/server/worker/workerRowMappers';
 
 describe('repository row mapper modules', () => {
   it('maps channel message repository rows', () => {

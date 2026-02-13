@@ -245,7 +245,14 @@ export interface WorkerTask {
 export interface WorkerActivity {
   id: string;
   taskId: string;
-  type: 'status_change' | 'persona_assigned' | 'step_completed' | 'step_failed' | 'error' | 'note' | 'agent_message';
+  type:
+    | 'status_change'
+    | 'persona_assigned'
+    | 'step_completed'
+    | 'step_failed'
+    | 'error'
+    | 'note'
+    | 'agent_message';
   message: string;
   metadata: string | null;
   createdAt: string;
@@ -273,4 +280,3 @@ export interface CommandPermission {
   risk: 'Low' | 'Medium' | 'High';
   enabled: boolean;
 }
-

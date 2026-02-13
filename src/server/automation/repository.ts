@@ -10,7 +10,11 @@ import type {
 
 export interface AutomationRepository {
   createRule(input: CreateAutomationRuleInput): AutomationRule;
-  updateRule(ruleId: string, userId: string, patch: UpdateAutomationRuleInput): AutomationRule | null;
+  updateRule(
+    ruleId: string,
+    userId: string,
+    patch: UpdateAutomationRuleInput,
+  ): AutomationRule | null;
   deleteRule(ruleId: string, userId: string): boolean;
   getRule(ruleId: string, userId: string): AutomationRule | null;
   getRuleById(ruleId: string): AutomationRule | null;
@@ -32,7 +36,12 @@ export interface AutomationRepository {
   ): AutomationRun | null;
   markRunDeadLetter(runId: string, errorMessage: string, finishedAt: string): AutomationRun | null;
 
-  recordDeadLetter(runId: string, ruleId: string, reason: string, payload?: string | null): AutomationDeadLetter;
+  recordDeadLetter(
+    runId: string,
+    ruleId: string,
+    reason: string,
+    payload?: string | null,
+  ): AutomationDeadLetter;
 
   countActiveRules(): number;
   countRunsByStatus(status: AutomationRun['status']): number;

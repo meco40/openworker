@@ -22,7 +22,13 @@ import {
   stopRoom,
 } from '../src/modules/rooms/api';
 import { useRoomSync } from '../src/modules/rooms/useRoomSync';
-import type { RoomMember, RoomState, RoomSummary, RoomMessage, RoomMemberStatus } from '../src/modules/rooms/types';
+import type {
+  RoomMember,
+  RoomState,
+  RoomSummary,
+  RoomMessage,
+  RoomMemberStatus,
+} from '../src/modules/rooms/types';
 
 // ─── File tab labels ─────────────────────────────────────────
 const FILE_LABELS: Record<PersonaFileName, string> = {
@@ -35,13 +41,7 @@ const FILE_LABELS: Record<PersonaFileName, string> = {
 };
 
 const PersonasView: React.FC = () => {
-  const {
-    personas,
-    activePersonaId,
-    setActivePersonaId,
-    refreshPersonas,
-    loading,
-  } = usePersona();
+  const { personas, activePersonaId, setActivePersonaId, refreshPersonas, loading } = usePersona();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPersona, setSelectedPersona] = useState<PersonaWithFiles | null>(null);
@@ -63,10 +63,16 @@ const PersonasView: React.FC = () => {
   const [selectedRoomState, setSelectedRoomState] = useState<RoomState | null>(null);
   const [selectedRoomMembers, setSelectedRoomMembers] = useState<RoomMember[]>([]);
   const [selectedRoomMessages, setSelectedRoomMessages] = useState<RoomMessage[]>([]);
-  const [initialRoomMemberStatus, setInitialRoomMemberStatus] = useState<Record<string, RoomMemberStatus>>({});
-  const [activeRoomCountsByPersona, setActiveRoomCountsByPersona] = useState<Record<string, number>>({});
+  const [initialRoomMemberStatus, setInitialRoomMemberStatus] = useState<
+    Record<string, RoomMemberStatus>
+  >({});
+  const [activeRoomCountsByPersona, setActiveRoomCountsByPersona] = useState<
+    Record<string, number>
+  >({});
 
-  const selectedRoom = selectedRoomId ? rooms.find((room) => room.id === selectedRoomId) || null : null;
+  const selectedRoom = selectedRoomId
+    ? rooms.find((room) => room.id === selectedRoomId) || null
+    : null;
 
   const {
     messages: liveRoomMessages,
@@ -74,29 +80,29 @@ const PersonasView: React.FC = () => {
     runStatus: liveRunStatus,
     interventions: liveInterventions,
     metrics: liveMetrics,
-  } = useRoomSync(
-    selectedRoomId,
-    selectedRoomMessages,
-  );
+  } = useRoomSync(selectedRoomId, selectedRoomMessages);
 
   const mergedMemberStatus = { ...initialRoomMemberStatus, ...liveMemberStatus };
 
   // ─── Load persona detail ──────────────────────────────────
-  const loadPersona = useCallback(async (id: string) => {
-    try {
-      const res = await fetch(`/api/personas/${id}`);
-      if (res.ok) {
-        const data = await res.json();
-        const p = data.persona as PersonaWithFiles;
-        setSelectedPersona(p);
-        // Load current file content
-        setEditorContent(p.files[activeFile] ?? '');
-        setDirty(false);
+  const loadPersona = useCallback(
+    async (id: string) => {
+      try {
+        const res = await fetch(`/api/personas/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const p = data.persona as PersonaWithFiles;
+          setSelectedPersona(p);
+          // Load current file content
+          setEditorContent(p.files[activeFile] ?? '');
+          setDirty(false);
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
-    }
-  }, [activeFile]);
+    },
+    [activeFile],
+  );
 
   const refreshRooms = useCallback(async () => {
     setRoomsLoading(true);
@@ -151,25 +157,28 @@ const PersonasView: React.FC = () => {
     setShowCreateRoomModal(true);
   }, []);
 
-  const handleCreateRoom = useCallback(async (input: {
-    name: string;
-    description: string | null;
-    goalMode: 'planning' | 'simulation' | 'free';
-    routingProfileId: string;
-  }) => {
-    setRoomCreating(true);
-    try {
-      const room = await createRoom(input);
-      await refreshRooms();
-      setSelectedRoomId(room.id);
-      setSelectedId(null);
-      setShowCreateRoomModal(false);
-    } catch {
-      /* ignore */
-    } finally {
-      setRoomCreating(false);
-    }
-  }, [refreshRooms]);
+  const handleCreateRoom = useCallback(
+    async (input: {
+      name: string;
+      description: string | null;
+      goalMode: 'planning' | 'simulation' | 'free';
+      routingProfileId: string;
+    }) => {
+      setRoomCreating(true);
+      try {
+        const room = await createRoom(input);
+        await refreshRooms();
+        setSelectedRoomId(room.id);
+        setSelectedId(null);
+        setShowCreateRoomModal(false);
+      } catch {
+        /* ignore */
+      } finally {
+        setRoomCreating(false);
+      }
+    },
+    [refreshRooms],
+  );
 
   const startSelectedRoom = useCallback(async () => {
     if (!selectedRoomId) return;
@@ -457,19 +466,25 @@ const PersonasView: React.FC = () => {
   }, [dirty, selectedId, saveFile]);
 
   return (
-    <div className="flex h-full animate-in fade-in duration-500">
+    <div className="animate-in fade-in flex h-full duration-500">
       {/* ── Left Panel: Personas + Rooms combined ─────────── */}
-      <div className="w-72 shrink-0 border-r border-zinc-800 flex flex-col">
+      <div className="flex w-72 shrink-0 flex-col border-r border-zinc-800">
         {/* Personas Section */}
-        <div className="p-4 border-b border-zinc-800">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-black text-white uppercase tracking-widest">Personas</h2>
+        <div className="border-b border-zinc-800 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-black tracking-widest text-white uppercase">Personas</h2>
             <button
               onClick={() => setShowTemplates(!showTemplates)}
-              className="p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+              className="rounded-lg bg-indigo-600 p-1.5 text-white transition-colors hover:bg-indigo-500"
               title="Neue Persona"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
             </button>
@@ -477,15 +492,15 @@ const PersonasView: React.FC = () => {
 
           {/* Quick-create without template */}
           {showTemplates && (
-            <div className="space-y-2 mb-3 p-3 bg-zinc-900/60 rounded-xl border border-zinc-800">
+            <div className="mb-3 space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
               <button
                 onClick={() => createPersona('Neue Persona', '🤖', '')}
                 disabled={creating}
-                className="w-full text-left px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm text-white transition-colors"
+                className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-left text-sm text-white transition-colors hover:bg-zinc-700"
               >
                 ✨ Leere Persona erstellen
               </button>
-              <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mt-2 mb-1">
+              <div className="mt-2 mb-1 text-[9px] font-black tracking-widest text-zinc-500 uppercase">
                 Vorlagen
               </div>
               {templates.map((t) => (
@@ -498,11 +513,11 @@ const PersonasView: React.FC = () => {
                     createPersona(t.name, t.emoji, t.vibe, full?.files);
                   }}
                   disabled={creating}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-sm text-zinc-300 transition-colors flex items-center gap-2"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
                 >
                   <span>{t.emoji}</span>
                   <span>{t.name}</span>
-                  <span className="text-[10px] text-zinc-600 ml-auto">{t.vibe}</span>
+                  <span className="ml-auto text-[10px] text-zinc-600">{t.vibe}</span>
                 </button>
               ))}
             </div>
@@ -510,17 +525,17 @@ const PersonasView: React.FC = () => {
         </div>
 
         {/* Persona list */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 min-h-0">
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
           {loading && personas.length === 0 && (
-            <div className="text-zinc-600 text-sm text-center py-8">Laden...</div>
+            <div className="py-8 text-center text-sm text-zinc-600">Laden...</div>
           )}
           {!loading && personas.length === 0 && (
-            <div className="text-zinc-600 text-sm text-center py-8">
+            <div className="py-8 text-center text-sm text-zinc-600">
               Keine Personas erstellt.
               <br />
               <button
                 onClick={() => setShowTemplates(true)}
-                className="text-indigo-500 hover:text-indigo-400 mt-2 inline-block"
+                className="mt-2 inline-block text-indigo-500 hover:text-indigo-400"
               >
                 Erste Persona erstellen
               </button>
@@ -530,66 +545,71 @@ const PersonasView: React.FC = () => {
             <button
               key={p.id}
               onClick={() => selectPersona(p.id)}
-              className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 transition-all group ${
+              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${
                 selectedId === p.id
-                  ? 'bg-indigo-600/20 border border-indigo-500/30 text-white'
-                  : 'hover:bg-zinc-800/60 text-zinc-400 hover:text-white border border-transparent'
+                  ? 'border border-indigo-500/30 bg-indigo-600/20 text-white'
+                  : 'border border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-white'
               }`}
             >
               <span className="text-lg">{p.emoji}</span>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold truncate">{p.name}</div>
-                {p.vibe && (
-                  <div className="text-[10px] text-zinc-500 truncate">{p.vibe}</div>
-                )}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold">{p.name}</div>
+                {p.vibe && <div className="truncate text-[10px] text-zinc-500">{p.vibe}</div>}
               </div>
               {activePersonaId === p.id && (
-                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Aktiv" />
+                <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" title="Aktiv" />
               )}
             </button>
           ))}
         </div>
 
         {/* Rooms Section */}
-        <div className="border-t border-zinc-800 flex flex-col min-h-0" style={{ maxHeight: '45%' }}>
-          <div className="p-4 border-b border-zinc-800">
+        <div
+          className="flex min-h-0 flex-col border-t border-zinc-800"
+          style={{ maxHeight: '45%' }}
+        >
+          <div className="border-b border-zinc-800 p-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-white uppercase tracking-widest">Rooms</h2>
+              <h2 className="text-sm font-black tracking-widest text-white uppercase">Rooms</h2>
               <button
                 onClick={createRoomFlow}
                 disabled={roomCreating}
-                className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-60"
+                className="rounded-lg bg-emerald-600 p-1.5 text-white transition-colors hover:bg-emerald-500 disabled:opacity-60"
                 title="Neuen Room erstellen"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
               </button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="flex-1 space-y-1 overflow-y-auto p-2">
             {roomsLoading && rooms.length === 0 && (
-              <div className="text-zinc-600 text-sm text-center py-4">Laden...</div>
+              <div className="py-4 text-center text-sm text-zinc-600">Laden...</div>
             )}
             {!roomsLoading && rooms.length === 0 && (
-              <div className="text-zinc-600 text-sm text-center py-4">
-                Keine Rooms erstellt.
-              </div>
+              <div className="py-4 text-center text-sm text-zinc-600">Keine Rooms erstellt.</div>
             )}
             {rooms.map((room) => (
               <button
                 key={room.id}
                 onClick={() => selectRoom(room.id)}
-                className={`w-full text-left px-3 py-2.5 rounded-xl transition-all border ${
+                className={`w-full rounded-xl border px-3 py-2.5 text-left transition-all ${
                   selectedRoomId === room.id
-                    ? 'bg-emerald-600/20 border-emerald-500/30 text-white'
-                    : 'hover:bg-zinc-800/60 text-zinc-400 hover:text-white border-transparent'
+                    ? 'border-emerald-500/30 bg-emerald-600/20 text-white'
+                    : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-white'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-semibold truncate">{room.name}</div>
+                  <div className="truncate text-sm font-semibold">{room.name}</div>
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                    className={`rounded-full px-2 py-0.5 text-[10px] tracking-wider uppercase ${
                       room.runState === 'running'
                         ? 'bg-emerald-600/20 text-emerald-300'
                         : room.runState === 'degraded'
@@ -600,7 +620,7 @@ const PersonasView: React.FC = () => {
                     {room.runState}
                   </span>
                 </div>
-                <div className="text-[10px] text-zinc-500 truncate mt-1">
+                <div className="mt-1 truncate text-[10px] text-zinc-500">
                   {room.goalMode} • {room.routingProfileId}
                 </div>
               </button>
@@ -610,7 +630,7 @@ const PersonasView: React.FC = () => {
       </div>
 
       {/* ── Right Panel: Editor ───────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col">
         {selectedRoomId ? (
           <RoomDetailPanel
             room={selectedRoom}
@@ -639,8 +659,8 @@ const PersonasView: React.FC = () => {
             onSendMessage={sendMessageToSelectedRoom}
           />
         ) : !selectedPersona ? (
-          <div className="flex-1 flex items-center justify-center text-zinc-600">
-            <div className="text-center space-y-2">
+          <div className="flex flex-1 items-center justify-center text-zinc-600">
+            <div className="space-y-2 text-center">
               <div className="text-4xl">🎭</div>
               <div className="text-sm">Wähle oder erstelle eine Persona</div>
             </div>
@@ -648,58 +668,83 @@ const PersonasView: React.FC = () => {
         ) : (
           <>
             {/* Persona Header */}
-            <div className="p-4 border-b border-zinc-800 flex items-center gap-4">
+            <div className="flex items-center gap-4 border-b border-zinc-800 p-4">
               {editingMeta ? (
-                <div className="flex items-center gap-3 flex-1">
+                <div className="flex flex-1 items-center gap-3">
                   <input
                     value={metaEmoji}
                     onChange={(e) => setMetaEmoji(e.target.value)}
-                    className="w-12 text-center bg-zinc-900 border border-zinc-700 rounded-lg p-1 text-lg"
+                    className="w-12 rounded-lg border border-zinc-700 bg-zinc-900 p-1 text-center text-lg"
                     maxLength={4}
                   />
                   <input
                     value={metaName}
                     onChange={(e) => setMetaName(e.target.value)}
-                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-white"
+                    className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-white"
                     placeholder="Name"
                   />
                   <input
                     value={metaVibe}
                     onChange={(e) => setMetaVibe(e.target.value)}
-                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-300"
+                    className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-300"
                     placeholder="Vibe / Beschreibung"
                   />
-                  <button onClick={saveMeta} disabled={saving} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-colors">
+                  <button
+                    onClick={saveMeta}
+                    disabled={saving}
+                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-indigo-500"
+                  >
                     OK
                   </button>
-                  <button onClick={() => setEditingMeta(false)} className="px-3 py-1.5 text-zinc-500 hover:text-white text-xs transition-colors">
+                  <button
+                    onClick={() => setEditingMeta(false)}
+                    className="px-3 py-1.5 text-xs text-zinc-500 transition-colors hover:text-white"
+                  >
                     Abbrechen
                   </button>
                 </div>
               ) : (
                 <>
                   <span className="text-2xl">{selectedPersona.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-bold text-white truncate">{selectedPersona.name}</h3>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-lg font-bold text-white">
+                      {selectedPersona.name}
+                    </h3>
                     {selectedPersona.vibe && (
-                      <div className="text-xs text-zinc-500 truncate">{selectedPersona.vibe}</div>
+                      <div className="truncate text-xs text-zinc-500">{selectedPersona.vibe}</div>
                     )}
                   </div>
-                  <button onClick={startEditMeta} className="p-2 text-zinc-500 hover:text-white transition-colors" title="Bearbeiten">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                  <button
+                    onClick={startEditMeta}
+                    className="p-2 text-zinc-500 transition-colors hover:text-white"
+                    title="Bearbeiten"
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+                      />
                     </svg>
                   </button>
 
                   {/* Activate / Deactivate Button */}
                   <button
                     onClick={() =>
-                      setActivePersonaId(activePersonaId === selectedPersona.id ? null : selectedPersona.id)
+                      setActivePersonaId(
+                        activePersonaId === selectedPersona.id ? null : selectedPersona.id,
+                      )
                     }
-                    className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                    className={`rounded-lg px-4 py-1.5 text-xs font-bold tracking-wider uppercase transition-all ${
                       activePersonaId === selectedPersona.id
-                        ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-rose-600/20 hover:text-rose-400 hover:border-rose-500/30'
-                        : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                        ? 'border border-emerald-500/30 bg-emerald-600/20 text-emerald-400 hover:border-rose-500/30 hover:bg-rose-600/20 hover:text-rose-400'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-500'
                     }`}
                   >
                     {activePersonaId === selectedPersona.id ? 'Aktiv ✓' : 'Aktivieren'}
@@ -708,21 +753,41 @@ const PersonasView: React.FC = () => {
                   <button
                     onClick={duplicatePersona}
                     disabled={creating}
-                    className="p-2 text-zinc-500 hover:text-indigo-400 transition-colors"
+                    className="p-2 text-zinc-500 transition-colors hover:text-indigo-400"
                     title="Duplizieren"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"
+                      />
                     </svg>
                   </button>
 
                   <button
                     onClick={deletePersona}
-                    className="p-2 text-zinc-600 hover:text-rose-500 transition-colors"
+                    className="p-2 text-zinc-600 transition-colors hover:text-rose-500"
                     title="Löschen"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                      />
                     </svg>
                   </button>
                 </>
@@ -730,7 +795,7 @@ const PersonasView: React.FC = () => {
             </div>
 
             {/* File Tabs */}
-            <div className="flex border-b border-zinc-800 px-4 overflow-x-auto">
+            <div className="flex overflow-x-auto border-b border-zinc-800 px-4">
               {PERSONA_FILE_NAMES.map((fname) => (
                 <button
                   key={fname}
@@ -738,10 +803,10 @@ const PersonasView: React.FC = () => {
                     if (dirty && !window.confirm('Ungespeicherte Änderungen verwerfen?')) return;
                     setActiveFile(fname);
                   }}
-                  className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors whitespace-nowrap border-b-2 ${
+                  className={`border-b-2 px-4 py-2.5 text-xs font-bold tracking-wider whitespace-nowrap uppercase transition-colors ${
                     activeFile === fname
-                      ? 'text-indigo-400 border-indigo-500'
-                      : 'text-zinc-500 border-transparent hover:text-zinc-300'
+                      ? 'border-indigo-500 text-indigo-400'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-300'
                   }`}
                 >
                   {FILE_LABELS[fname]}
@@ -750,34 +815,34 @@ const PersonasView: React.FC = () => {
             </div>
 
             {/* Editor */}
-            <div className="flex-1 relative">
+            <div className="relative flex-1">
               <textarea
                 value={editorContent}
                 onChange={(e) => {
                   setEditorContent(e.target.value);
                   setDirty(true);
                 }}
-                className="absolute inset-0 w-full h-full bg-zinc-950 text-zinc-200 font-mono text-sm p-6 resize-none focus:outline-none leading-relaxed placeholder:text-zinc-700"
+                className="absolute inset-0 h-full w-full resize-none bg-zinc-950 p-6 font-mono text-sm leading-relaxed text-zinc-200 placeholder:text-zinc-700 focus:outline-none"
                 placeholder={`# ${FILE_LABELS[activeFile]}\n\nSchreibe hier die ${FILE_LABELS[activeFile]}-Definition für deine Persona...`}
                 spellCheck={false}
               />
             </div>
 
             {/* Bottom Bar */}
-            <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-800 bg-zinc-900/40">
-              <div className="text-[10px] text-zinc-600 font-mono">
+            <div className="flex items-center justify-between border-t border-zinc-800 bg-zinc-900/40 px-4 py-2">
+              <div className="font-mono text-[10px] text-zinc-600">
                 {activeFile}
-                {dirty && <span className="text-amber-500 ml-2">● Ungespeichert</span>}
+                {dirty && <span className="ml-2 text-amber-500">● Ungespeichert</span>}
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-[10px] text-zinc-600">{editorContent.length} Zeichen</span>
                 <button
                   onClick={saveFile}
                   disabled={!dirty || saving}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                  className={`rounded-lg px-4 py-1.5 text-xs font-bold tracking-wider uppercase transition-all ${
                     dirty
-                      ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                      : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-500'
+                      : 'cursor-not-allowed bg-zinc-800 text-zinc-600'
                   }`}
                 >
                   {saving ? 'Speichern...' : 'Speichern'}
@@ -799,4 +864,3 @@ const PersonasView: React.FC = () => {
 };
 
 export default PersonasView;
-

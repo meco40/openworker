@@ -15,6 +15,7 @@ Sie fasst den frueheren Integrationsbericht und das Runbook zusammen.
 - Outbound: platform-spezifische Adapter (Telegram, WhatsApp, Discord, iMessage, Slack).
 
 Kernpfade:
+
 - `src/server/gateway/*`
 - `src/server/channels/*`
 - `src/modules/gateway/*`
@@ -33,10 +34,12 @@ Kernpfade:
 ### Pair
 
 `POST /api/channels/pair` mit:
+
 - `channel`: `telegram|whatsapp|discord|imessage|slack`
 - `token`: erforderlich fuer `telegram`, `discord`, `slack`
 
 Erwartung:
+
 - `ok: true`
 - `status`: `connected` oder `awaiting_code`
 
@@ -47,6 +50,7 @@ Erwartung:
 ## Webhook Security
 
 Wichtige Secrets:
+
 - `TELEGRAM_WEBHOOK_SECRET`
 - `DISCORD_PUBLIC_KEY`
 - `WHATSAPP_WEBHOOK_SECRET`
@@ -54,6 +58,7 @@ Wichtige Secrets:
 - `SLACK_WEBHOOK_SECRET`
 
 Health/Diagnose:
+
 - `GET /api/security/status`
 
 ## Channel State und Inbox
@@ -62,6 +67,7 @@ Health/Diagnose:
 - `GET /api/channels/inbox?channel=<ChannelName>&q=<search>&limit=<n>`
 
 Gateway RPC Alternativen:
+
 - `channels.list`
 - `channels.pair`
 - `channels.unpair`
@@ -77,15 +83,19 @@ Gateway RPC Alternativen:
 ## Troubleshooting
 
 `Unsupported channel`:
+
 - Kanal nicht im Pairing-/Routing-Registry aktiviert.
 
 `403` am Webhook:
+
 - Secret/Signatur fehlt oder ist falsch.
 
 `Keine Live-Updates`:
+
 - WS-Verbindung und Event-Subscriptions pruefen.
 
 `pair ok, aber kein outbound`:
+
 - Credentials/Token in Store oder Env pruefen.
 - Ziel-Chat-ID auf externer Plattform pruefen.
 

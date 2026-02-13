@@ -7,7 +7,8 @@ import {
 
 const openAIProviderAdapter: ProviderAdapter = {
   id: 'openai',
-  fetchModels: ({ secret }) => fetchOpenAICompatibleModels('https://api.openai.com/v1', secret, 'openai'),
+  fetchModels: ({ secret }) =>
+    fetchOpenAICompatibleModels('https://api.openai.com/v1', secret, 'openai'),
   testConnectivity: ({ secret }) =>
     testOpenAICompatibleModelsEndpoint(
       'https://api.openai.com/v1',
@@ -16,7 +17,9 @@ const openAIProviderAdapter: ProviderAdapter = {
       'OpenAI connectivity failed: ',
     ),
   dispatchGateway: ({ secret }, request, options) =>
-    dispatchOpenAICompatibleChat('https://api.openai.com/v1', secret, 'openai', request, { signal: options?.signal }),
+    dispatchOpenAICompatibleChat('https://api.openai.com/v1', secret, 'openai', request, {
+      signal: options?.signal,
+    }),
 };
 
 export default openAIProviderAdapter;

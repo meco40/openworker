@@ -35,7 +35,10 @@ function isObjectBody(body: unknown): body is Record<string, unknown> {
   return typeof body === 'object' && body !== null && !Array.isArray(body);
 }
 
-function toSafeErrorPayload(error: unknown, fallbackMessage: string): { status: number; payload: ErrorPayload } {
+function toSafeErrorPayload(
+  error: unknown,
+  fallbackMessage: string,
+): { status: number; payload: ErrorPayload } {
   if (error instanceof GatewayConfigConflictError) {
     return {
       status: 409,
@@ -117,14 +120,22 @@ export async function PUT(request: Request) {
       rawBody = (await request.json()) as unknown;
     } catch {
       return NextResponse.json(
-        { ok: false, error: 'Invalid JSON body. Expected object.', code: 'CONFIG_VALIDATION_ERROR' },
+        {
+          ok: false,
+          error: 'Invalid JSON body. Expected object.',
+          code: 'CONFIG_VALIDATION_ERROR',
+        },
         { status: 400 },
       );
     }
 
     if (!isObjectBody(rawBody)) {
       return NextResponse.json(
-        { ok: false, error: 'Invalid JSON body. Expected object.', code: 'CONFIG_VALIDATION_ERROR' },
+        {
+          ok: false,
+          error: 'Invalid JSON body. Expected object.',
+          code: 'CONFIG_VALIDATION_ERROR',
+        },
         { status: 400 },
       );
     }

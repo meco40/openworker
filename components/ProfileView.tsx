@@ -1,105 +1,145 @@
-
 import React from 'react';
 
 const ProfileView: React.FC = () => {
   return (
-    <div className="max-w-6xl space-y-10 animate-in fade-in duration-500 mx-auto pb-20">
+    <div className="animate-in fade-in mx-auto max-w-6xl space-y-10 pb-20 duration-500">
       <header>
-        <h2 className="text-3xl font-black text-white tracking-tight uppercase">SaaS Identity & Billing</h2>
-        <p className="text-sm text-zinc-500 mt-1">Manage your multi-tenant organization, subscription plan, and operator profile.</p>
+        <h2 className="text-3xl font-black tracking-tight text-white uppercase">
+          SaaS Identity & Billing
+        </h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          Manage your multi-tenant organization, subscription plan, and operator profile.
+        </p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
         {/* Profile Card */}
-        <div className="lg:col-span-2 space-y-8">
-          <div className="bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] p-10 flex flex-col md:flex-row gap-10 items-start shadow-2xl">
-            <div className="flex flex-col items-center space-y-4 shrink-0">
-              <div className="w-40 h-40 rounded-[2rem] bg-gradient-to-br from-indigo-600 to-violet-700 flex items-center justify-center text-white text-6xl font-black shadow-[0_0_50px_rgba(79,70,229,0.3)]">
+        <div className="space-y-8 lg:col-span-2">
+          <div className="flex flex-col items-start gap-10 rounded-[2.5rem] border border-zinc-800 bg-zinc-900/40 p-10 shadow-2xl md:flex-row">
+            <div className="flex shrink-0 flex-col items-center space-y-4">
+              <div className="flex h-40 w-40 items-center justify-center rounded-[2rem] bg-gradient-to-br from-indigo-600 to-violet-700 text-6xl font-black text-white shadow-[0_0_50px_rgba(79,70,229,0.3)]">
                 C
               </div>
-              <button className="text-[10px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest transition-colors">Update Avatar</button>
+              <button className="text-[10px] font-black tracking-widest text-indigo-400 uppercase transition-colors hover:text-indigo-300">
+                Update Avatar
+              </button>
             </div>
 
-            <div className="flex-1 space-y-6 w-full">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="w-full flex-1 space-y-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2">Display Name</label>
-                  <input type="text" defaultValue="OpenClaw Operator" className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all" />
+                  <label className="ml-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+                    Display Name
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue="OpenClaw Operator"
+                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 p-4 text-sm text-white transition-all focus:border-indigo-500 focus:outline-none"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2">Global UUID</label>
-                  <input type="text" readOnly value="OC-F92-88-ALPHA" className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-500 font-mono cursor-not-allowed" />
+                  <label className="ml-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+                    Global UUID
+                  </label>
+                  <input
+                    type="text"
+                    readOnly
+                    value="OC-F92-88-ALPHA"
+                    className="w-full cursor-not-allowed rounded-2xl border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm text-zinc-500"
+                  />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2">Primary Contact</label>
-                <input type="email" defaultValue="operator@openclaw.io" className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all" />
+                <label className="ml-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+                  Primary Contact
+                </label>
+                <input
+                  type="email"
+                  defaultValue="operator@openclaw.io"
+                  className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 p-4 text-sm text-white transition-all focus:border-indigo-500 focus:outline-none"
+                />
               </div>
 
-              <div className="pt-6 border-t border-zinc-800 flex space-x-4">
-                <button className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-indigo-600/20 active:scale-95">
+              <div className="flex space-x-4 border-t border-zinc-800 pt-6">
+                <button className="flex-1 rounded-2xl bg-indigo-600 py-4 text-[10px] font-black tracking-widest text-white uppercase shadow-xl shadow-indigo-600/20 transition-all hover:bg-indigo-500 active:scale-95">
                   Save Changes
                 </button>
-                <button className="px-8 py-4 bg-zinc-900 hover:bg-rose-900/20 text-zinc-400 hover:text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-zinc-800 hover:border-rose-500/30 transition-all">
+                <button className="rounded-2xl border border-zinc-800 bg-zinc-900 px-8 py-4 text-[10px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:border-rose-500/30 hover:bg-rose-900/20 hover:text-rose-500">
                   Sign Out
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] p-10 space-y-8 shadow-2xl relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] -mr-32 -mt-32" />
-             <h3 className="text-xl font-black text-white uppercase tracking-tight relative">Subscription & Usage</h3>
-             
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-                <div className="p-6 bg-zinc-950/50 border border-zinc-800 rounded-2xl space-y-2">
-                  <div className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Active Plan</div>
-                  <div className="text-xl font-bold text-emerald-500">PRO_NODE</div>
+          <div className="relative space-y-8 overflow-hidden rounded-[2.5rem] border border-zinc-800 bg-zinc-900/40 p-10 shadow-2xl">
+            <div className="absolute top-0 right-0 -mt-32 -mr-32 h-64 w-64 rounded-full bg-emerald-500/5 blur-[80px]" />
+            <h3 className="relative text-xl font-black tracking-tight text-white uppercase">
+              Subscription & Usage
+            </h3>
+
+            <div className="relative grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div className="space-y-2 rounded-2xl border border-zinc-800 bg-zinc-950/50 p-6">
+                <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase">
+                  Active Plan
                 </div>
-                <div className="p-6 bg-zinc-950/50 border border-zinc-800 rounded-2xl space-y-2">
-                  <div className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Workspaces</div>
-                  <div className="text-xl font-bold text-white">12 / 50</div>
+                <div className="text-xl font-bold text-emerald-500">PRO_NODE</div>
+              </div>
+              <div className="space-y-2 rounded-2xl border border-zinc-800 bg-zinc-950/50 p-6">
+                <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase">
+                  Workspaces
                 </div>
-                <div className="p-6 bg-zinc-950/50 border border-zinc-800 rounded-2xl space-y-2">
-                  <div className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Monthly Credits</div>
-                  <div className="text-xl font-bold text-indigo-400">82% REM</div>
+                <div className="text-xl font-bold text-white">12 / 50</div>
+              </div>
+              <div className="space-y-2 rounded-2xl border border-zinc-800 bg-zinc-950/50 p-6">
+                <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase">
+                  Monthly Credits
                 </div>
-             </div>
-             
-             <button className="w-full py-5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-zinc-800 transition-all">
-               Upgrade to Enterprise Node
-             </button>
+                <div className="text-xl font-bold text-indigo-400">82% REM</div>
+              </div>
+            </div>
+
+            <button className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 py-5 text-[10px] font-black tracking-widest text-zinc-300 uppercase transition-all hover:bg-zinc-800">
+              Upgrade to Enterprise Node
+            </button>
           </div>
         </div>
 
         {/* Sidebar Info */}
         <div className="space-y-6">
-           <div className="bg-zinc-900/60 border border-zinc-800 rounded-[2.5rem] p-8 shadow-xl">
-              <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6">Cloud Synchronization</h4>
-              <div className="space-y-4">
-                 <div className="flex items-center justify-between p-4 bg-zinc-950 border border-zinc-800 rounded-2xl">
-                    <span className="text-xs text-zinc-400">Personal Data</span>
-                    <span className="text-[9px] font-black text-emerald-500 uppercase">Synced</span>
-                 </div>
-                 <div className="flex items-center justify-between p-4 bg-zinc-950 border border-zinc-800 rounded-2xl">
-                    <span className="text-xs text-zinc-400">Workspace History</span>
-                    <span className="text-[9px] font-black text-indigo-400 uppercase">Shared</span>
-                 </div>
-                 <div className="flex items-center justify-between p-4 bg-zinc-950 border border-zinc-800 rounded-2xl">
-                    <span className="text-xs text-zinc-400">Prompt Library</span>
-                    <span className="text-[9px] font-black text-zinc-600 uppercase">Local Only</span>
-                 </div>
+          <div className="rounded-[2.5rem] border border-zinc-800 bg-zinc-900/60 p-8 shadow-xl">
+            <h4 className="mb-6 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+              Cloud Synchronization
+            </h4>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+                <span className="text-xs text-zinc-400">Personal Data</span>
+                <span className="text-[9px] font-black text-emerald-500 uppercase">Synced</span>
               </div>
-           </div>
+              <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+                <span className="text-xs text-zinc-400">Workspace History</span>
+                <span className="text-[9px] font-black text-indigo-400 uppercase">Shared</span>
+              </div>
+              <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+                <span className="text-xs text-zinc-400">Prompt Library</span>
+                <span className="text-[9px] font-black text-zinc-600 uppercase">Local Only</span>
+              </div>
+            </div>
+          </div>
 
-           <div className="bg-zinc-900/60 border border-zinc-800 rounded-[2.5rem] p-8 shadow-xl">
-              <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6">Security Tokens</h4>
-              <div className="space-y-4">
-                <button className="w-full py-4 bg-zinc-950 hover:bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">Manage API Keys</button>
-                <button className="w-full py-4 bg-zinc-950 hover:bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">Audit Logs</button>
-              </div>
-           </div>
+          <div className="rounded-[2.5rem] border border-zinc-800 bg-zinc-900/60 p-8 shadow-xl">
+            <h4 className="mb-6 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+              Security Tokens
+            </h4>
+            <div className="space-y-4">
+              <button className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 py-4 text-[10px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-zinc-900 hover:text-white">
+                Manage API Keys
+              </button>
+              <button className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 py-4 text-[10px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-zinc-900 hover:text-white">
+                Audit Logs
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

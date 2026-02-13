@@ -67,15 +67,18 @@ const WorkerTaskList: React.FC<WorkerTaskListProps> = ({
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
 
-  const handleDeleteSingle = useCallback(async (id: string) => {
-    setDeleting(id);
-    try {
-      await onDeleteTask(id);
-    } finally {
-      setDeleting(null);
-      setConfirmDelete(null);
-    }
-  }, [onDeleteTask]);
+  const handleDeleteSingle = useCallback(
+    async (id: string) => {
+      setDeleting(id);
+      try {
+        await onDeleteTask(id);
+      } finally {
+        setDeleting(null);
+        setConfirmDelete(null);
+      }
+    },
+    [onDeleteTask],
+  );
 
   const handleDeleteAll = useCallback(async () => {
     setDeletingAll(true);
@@ -137,10 +140,7 @@ const WorkerTaskList: React.FC<WorkerTaskListProps> = ({
             const typeIcon = TYPE_ICONS[task.workspaceType] || TYPE_ICONS.general;
 
             return (
-              <div
-                key={task.id}
-                className={`worker-task-card worker-task-card--${task.status}`}
-              >
+              <div key={task.id} className={`worker-task-card worker-task-card--${task.status}`}>
                 <div className="worker-task-card__header">
                   <span className="worker-task-card__type" title={task.workspaceType}>
                     {typeIcon}
@@ -165,10 +165,7 @@ const WorkerTaskList: React.FC<WorkerTaskListProps> = ({
                   </div>
                 </div>
 
-                <button
-                  className="worker-task-card__body"
-                  onClick={() => onSelectTask(task)}
-                >
+                <button className="worker-task-card__body" onClick={() => onSelectTask(task)}>
                   <h3 className="worker-task-card__title">{task.title}</h3>
                   <p className="worker-task-card__objective">
                     {task.objective.length > 100
@@ -204,7 +201,10 @@ const WorkerTaskList: React.FC<WorkerTaskListProps> = ({
         <div className="worker-modal-overlay" onClick={() => setConfirmDelete(null)}>
           <div className="worker-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Workspace löschen?</h3>
-            <p>Der Workspace und alle zugehörigen Dateien, Schritte und Artefakte werden unwiderruflich gelöscht.</p>
+            <p>
+              Der Workspace und alle zugehörigen Dateien, Schritte und Artefakte werden
+              unwiderruflich gelöscht.
+            </p>
             <div className="worker-modal__actions">
               <button
                 className="worker-btn worker-btn--ghost"
@@ -231,7 +231,8 @@ const WorkerTaskList: React.FC<WorkerTaskListProps> = ({
           <div className="worker-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Alle Workspaces löschen?</h3>
             <p>
-              <strong>{tasks.length}</strong> Workspaces und alle zugehörigen Dateien werden unwiderruflich gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.
+              <strong>{tasks.length}</strong> Workspaces und alle zugehörigen Dateien werden
+              unwiderruflich gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.
             </p>
             <div className="worker-modal__actions">
               <button

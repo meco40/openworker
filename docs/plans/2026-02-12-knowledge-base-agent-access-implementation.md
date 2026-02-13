@@ -43,6 +43,7 @@
 ### Task 1: Create KB Domain Contracts and SQLite Schema
 
 **Files:**
+
 - Create: `src/server/knowledge/types.ts`
 - Create: `src/server/knowledge/repository.ts`
 - Create: `src/server/knowledge/sqliteKnowledgeRepository.ts`
@@ -55,9 +56,24 @@
 ```ts
 it('creates KB tables and persists namespace/document/chunk records', () => {
   const repo = new SqliteKnowledgeRepository(':memory:');
-  const ns = repo.createNamespace({ userId: 'u1', name: 'Team KB', scopeType: 'global', scopeRef: null });
-  const doc = repo.createDocument({ userId: 'u1', namespaceId: ns.id, title: 'runbook.md', mimeType: 'text/markdown' });
-  const chunk = repo.insertChunk({ documentId: doc.id, chunkIndex: 0, text: 'hello', tokenEstimate: 2 });
+  const ns = repo.createNamespace({
+    userId: 'u1',
+    name: 'Team KB',
+    scopeType: 'global',
+    scopeRef: null,
+  });
+  const doc = repo.createDocument({
+    userId: 'u1',
+    namespaceId: ns.id,
+    title: 'runbook.md',
+    mimeType: 'text/markdown',
+  });
+  const chunk = repo.insertChunk({
+    documentId: doc.id,
+    chunkIndex: 0,
+    text: 'hello',
+    tokenEstimate: 2,
+  });
   expect(chunk.chunkIndex).toBe(0);
 });
 ```
@@ -70,6 +86,7 @@ Expected: FAIL (`Cannot find module .../knowledge/sqliteKnowledgeRepository`)
 **Step 3: Implement schema + repository methods**
 
 Define tables in `sqliteKnowledgeRepository.ts`:
+
 - `kb_namespaces`
 - `kb_documents`
 - `kb_chunks`
@@ -80,6 +97,7 @@ Define tables in `sqliteKnowledgeRepository.ts`:
 - `kb_ingest_jobs`
 
 Enforce:
+
 - user scoping (`user_id` on namespace + document)
 - WAL/busy_timeout/foreign_keys pragmas
 - unique `(namespace_id, title, content_sha256)` to dedupe re-uploads
@@ -99,6 +117,7 @@ git commit -m "feat(kb): add knowledge repository and sqlite schema"
 ### Task 2: Build Ingestion Pipeline (Upload -> Parse -> Chunk -> Embed)
 
 **Files:**
+
 - Create: `src/server/knowledge/chunking.ts`
 - Create: `src/server/knowledge/parsers.ts`
 - Create: `src/server/knowledge/service.ts`
@@ -115,7 +134,12 @@ it('splits long text into stable chunk windows', () => {
 });
 
 it('stores document chunks with embeddings', async () => {
-  await service.ingestText({ userId: 'u1', namespaceId: 'ns1', title: 'doc.md', text: '# Title\nBody' });
+  await service.ingestText({
+    userId: 'u1',
+    namespaceId: 'ns1',
+    title: 'doc.md',
+    text: '# Title\nBody',
+  });
   expect(repo.listChunksByDocument(docId).length).toBeGreaterThan(0);
 });
 ```
@@ -128,6 +152,7 @@ Expected: FAIL
 **Step 3: Implement ingestion service**
 
 Implement in `knowledge/service.ts`:
+
 - `ingestText(...)`
 - `ingestFile(...)` with parser adapter by MIME/extension
 - batch embedding via existing model hub embedding runtime
@@ -135,6 +160,7 @@ Implement in `knowledge/service.ts`:
 - enqueue large files into `kb_ingest_jobs` when above threshold
 
 Add parser adapters in `parsers.ts`:
+
 - `text/plain`, `text/markdown` (required)
 - `application/pdf`, `.docx` (best-case path; if parser unavailable, explicit typed error)
 
@@ -153,6 +179,7 @@ git commit -m "feat(kb): add ingestion pipeline with chunking and embeddings"
 ### Task 3: Add Hybrid Retrieval Engine with Citations
 
 **Files:**
+
 - Create: `src/server/knowledge/retrieval.ts`
 - Modify: `src/server/knowledge/repository.ts`
 - Modify: `src/server/knowledge/sqliteKnowledgeRepository.ts`
@@ -180,6 +207,7 @@ Expected: FAIL
 **Step 3: Implement retrieval**
 
 Retrieval flow:
+
 1. FTS candidate pull (`kb_chunks_fts`) with score.
 2. Query embedding for semantic rerank.
 3. Combined score: lexical + cosine + freshness + importance.
@@ -201,6 +229,7 @@ git commit -m "feat(kb): implement hybrid retrieval with citations and logs"
 ### Task 4: Expose Authenticated KB API Surface
 
 **Files:**
+
 - Create: `app/api/knowledge/namespaces/route.ts`
 - Create: `app/api/knowledge/namespaces/[id]/documents/route.ts`
 - Create: `app/api/knowledge/documents/[id]/route.ts`
@@ -212,7 +241,9 @@ git commit -m "feat(kb): implement hybrid retrieval with citations and logs"
 
 ```ts
 it('rejects unauthenticated namespace creation', async () => {
-  const res = await POST(new Request('http://localhost/api/knowledge/namespaces', { method: 'POST' }));
+  const res = await POST(
+    new Request('http://localhost/api/knowledge/namespaces', { method: 'POST' }),
+  );
   expect(res.status).toBe(401);
 });
 
@@ -229,12 +260,14 @@ Expected: FAIL
 **Step 3: Implement routes with strict ownership checks**
 
 All routes must:
+
 - call `resolveRequestUserContext()`
 - enforce user ownership and namespace binding checks
 - sanitize and validate payloads
 - support pagination for listing documents/chunks
 
 Required endpoints:
+
 - `GET/POST /api/knowledge/namespaces`
 - `GET/POST /api/knowledge/namespaces/:id/documents`
 - `DELETE /api/knowledge/documents/:id`
@@ -256,6 +289,7 @@ git commit -m "feat(kb): add authenticated knowledge base API routes"
 ### Task 5: Add Agent Tooling (`kb_search`) + Server Handler
 
 **Files:**
+
 - Create: `skills/knowledge-base/index.ts`
 - Create: `src/server/skills/handlers/kbSearch.ts`
 - Modify: `skills/definitions.ts`
@@ -281,11 +315,13 @@ Expected: FAIL (`Unsupported skill: kb_search`)
 **Step 3: Implement skill manifest + handler wiring**
 
 Implement `kb_search` tool JSON schema with args:
+
 - `query` (required string)
 - `namespaceIds` (optional array)
 - `topK` (optional number)
 
 Server handler:
+
 - resolve user scope
 - call retrieval service
 - return compact citation-safe payload
@@ -305,6 +341,7 @@ git commit -m "feat(kb): add kb_search skill and server handler"
 ### Task 6: Integrate KB Access into Rooms and Chat Agents
 
 **Files:**
+
 - Modify: `src/server/rooms/orchestrator.ts`
 - Modify: `src/server/rooms/toolExecutor.ts`
 - Modify: `src/server/channels/messages/contextBuilder.ts`
@@ -334,6 +371,7 @@ Expected: FAIL
 **Step 3: Implement retrieval injection + metadata persistence**
 
 Room flow:
+
 - resolve KB namespaces bound to room/persona
 - run retrieval on latest user/system intent
 - prepend compact block in system/context section:
@@ -342,9 +380,11 @@ Room flow:
 - persist citations in message metadata (`metadata.kbCitations`)
 
 Chat flow:
+
 - in `contextBuilder.ts`, do the same for non-room agent turns.
 
 Tool executor:
+
 - ensure `kb_search` obeys persona permission + server policy ceiling.
 
 **Step 4: Run tests**
@@ -362,6 +402,7 @@ git commit -m "feat(kb): integrate retrieval context into rooms and chat agents"
 ### Task 7: Scheduler, Metrics, and Operational Hardening
 
 **Files:**
+
 - Modify: `scheduler.ts`
 - Modify: `app/api/control-plane/metrics/route.ts`
 - Create: `tests/integration/knowledge/knowledge-scheduler-runtime.test.ts`
@@ -422,6 +463,7 @@ Run in order:
 6. `npm run typecheck`
 
 Expected:
+
 - All new KB-related tests pass.
 - If global `typecheck` still fails due known unrelated telemetry imports, document as pre-existing blocker in PR notes.
 

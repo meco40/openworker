@@ -64,7 +64,10 @@ export async function GET(request: Request) {
     .filter((item) => !filterChannel || normalizeText(item.channelType) === filterChannel)
     .filter((item) => {
       if (!query) return true;
-      return normalizeText(item.title).includes(query) || normalizeText(item.lastMessage?.content || '').includes(query);
+      return (
+        normalizeText(item.title).includes(query) ||
+        normalizeText(item.lastMessage?.content || '').includes(query)
+      );
     });
 
   return NextResponse.json({

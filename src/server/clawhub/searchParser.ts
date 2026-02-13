@@ -1,7 +1,6 @@
 import type { ClawHubSearchItem, ClawHubSearchParseResult } from './types';
 
-const SEARCH_ROW =
-  /^([A-Za-z0-9._/-]+)\s+v([0-9A-Za-z.+-]+)\s+(.+?)\s+\(([-+]?\d*\.?\d+)\)\s*$/;
+const SEARCH_ROW = /^([A-Za-z0-9._/-]+)\s+v([0-9A-Za-z.+-]+)\s+(.+?)\s+\(([-+]?\d*\.?\d+)\)\s*$/;
 
 export function parseClawHubSearchOutput(output: string): ClawHubSearchParseResult {
   const items: ClawHubSearchItem[] = [];

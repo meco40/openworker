@@ -12,10 +12,14 @@ const REDACTION_RULES: Array<{ pattern: RegExp; replaceWith: string }> = [
   // Authorization header/token payloads.
   { pattern: /(Bearer\s+)[A-Za-z0-9._-]+/gi, replaceWith: `$1${SECRET_REPLACEMENT}` },
   // Common API key prefixes.
-  { pattern: /\b(sk-[A-Za-z0-9_-]{8,}|gh[opus]_[A-Za-z0-9_-]{8,}|xox[baprs]-[A-Za-z0-9-]{8,})\b/g, replaceWith: SECRET_REPLACEMENT },
+  {
+    pattern: /\b(sk-[A-Za-z0-9_-]{8,}|gh[opus]_[A-Za-z0-9_-]{8,}|xox[baprs]-[A-Za-z0-9-]{8,})\b/g,
+    replaceWith: SECRET_REPLACEMENT,
+  },
   // key=value / key: value secrets.
   {
-    pattern: /\b(api[-_]?key|token|password|secret|authorization)\b\s*[:=]\s*["']?[^"',\s}]+["']?/gi,
+    pattern:
+      /\b(api[-_]?key|token|password|secret|authorization)\b\s*[:=]\s*["']?[^"',\s}]+["']?/gi,
     replaceWith: '$1=[REDACTED]',
   },
 ];
@@ -124,4 +128,3 @@ export function detectPromptInjection(text: string): PromptInjectionDetection {
     reasons: Array.from(new Set(reasons)),
   };
 }
-

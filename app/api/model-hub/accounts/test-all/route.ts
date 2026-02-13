@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { testProviderAccountConnectivity } from '../../../../../src/server/model-hub/connectivity';
-import { getModelHubEncryptionKey, getModelHubService } from '../../../../../src/server/model-hub/runtime';
+import {
+  getModelHubEncryptionKey,
+  getModelHubService,
+} from '../../../../../src/server/model-hub/runtime';
 import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
@@ -37,9 +40,13 @@ export async function POST(request: Request) {
 
       const modelCandidate = modelByAccountId[account.id];
       const model = typeof modelCandidate === 'string' ? modelCandidate.trim() : undefined;
-      const connectivity = await testProviderAccountConnectivity(account, getModelHubEncryptionKey(), {
-        model,
-      });
+      const connectivity = await testProviderAccountConnectivity(
+        account,
+        getModelHubEncryptionKey(),
+        {
+          model,
+        },
+      );
       service.updateHealth(account.id, connectivity.ok);
 
       results.push({
@@ -64,4 +71,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
-

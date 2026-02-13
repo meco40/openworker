@@ -5,6 +5,7 @@
 ## Überblick
 
 Dieses Dokument beschreibt Deployment- und Betriebsaspekte von OpenClaw Gateway:
+
 - **Docker-Setup** für Produktion
 - **Environment-Variablen**
 - **Systemd-Services**
@@ -48,20 +49,20 @@ services:
   web:
     build: .
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       NODE_ENV: production
       ROOMS_RUNNER: scheduler
     volumes:
       - ./.local:/app/.local
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/']
       interval: 30s
       timeout: 5s
 
   scheduler:
     build: .
-    command: ["node", "--import", "tsx", "scheduler.ts"]
+    command: ['node', '--import', 'tsx', 'scheduler.ts']
     environment:
       SCHEDULER_INSTANCE_ID: scheduler-1
       ROOMS_RUNNER: scheduler
@@ -117,48 +118,48 @@ WantedBy=multi-user.target
 
 ### Erforderlich
 
-| Variable | Beschreibung |
-|----------|--------------|
+| Variable                   | Beschreibung        |
+| -------------------------- | ------------------- |
 | Mindestens ein `*_API_KEY` | KI-Provider API Key |
 
 ### Optional
 
-| Variable | Standard | Beschreibung |
-|----------|---------|--------------|
-| `NODE_ENV` | `development` | `production` für Prod |
-| `HOSTNAME` | `0.0.0.0` | Server-Hostname |
-| `PORT` | `3000` | Server-Port |
-| `MESSAGES_DB_PATH` | `.local/messages.db` | SQLite-Datenbank |
-| `MEMORY_DB_PATH` | - | Memory-Datenbank |
-| `ROOMS_RUNNER` | `both` | `web`, `scheduler`, `both` |
-| `SCHEDULER_INSTANCE_ID` | - | Scheduler-Instanz-ID |
+| Variable                | Standard             | Beschreibung               |
+| ----------------------- | -------------------- | -------------------------- |
+| `NODE_ENV`              | `development`        | `production` für Prod      |
+| `HOSTNAME`              | `0.0.0.0`            | Server-Hostname            |
+| `PORT`                  | `3000`               | Server-Port                |
+| `MESSAGES_DB_PATH`      | `.local/messages.db` | SQLite-Datenbank           |
+| `MEMORY_DB_PATH`        | -                    | Memory-Datenbank           |
+| `ROOMS_RUNNER`          | `both`               | `web`, `scheduler`, `both` |
+| `SCHEDULER_INSTANCE_ID` | -                    | Scheduler-Instanz-ID       |
 
 ### KI-Provider Keys
 
-| Variable | Provider |
-|----------|----------|
-| `GEMINI_API_KEY` | Google Gemini |
-| `OPENAI_API_KEY` | OpenAI |
-| `ANTHROPIC_API_KEY` | Anthropic |
-| `XAI_API_KEY` | xAI |
-| `MISTRAL_API_KEY` | Mistral |
-| `COHERE_API_KEY` | Cohere |
-| `OPENROUTER_API_KEY` | OpenRouter |
-| `Z_AI_API_KEY` | Z.AI |
-| `KIMI_API_KEY` | Kimi/Moonshot |
-| `BYTEDANCE_API_KEY` | ByteDance ModelArk |
+| Variable             | Provider           |
+| -------------------- | ------------------ |
+| `GEMINI_API_KEY`     | Google Gemini      |
+| `OPENAI_API_KEY`     | OpenAI             |
+| `ANTHROPIC_API_KEY`  | Anthropic          |
+| `XAI_API_KEY`        | xAI                |
+| `MISTRAL_API_KEY`    | Mistral            |
+| `COHERE_API_KEY`     | Cohere             |
+| `OPENROUTER_API_KEY` | OpenRouter         |
+| `Z_AI_API_KEY`       | Z.AI               |
+| `KIMI_API_KEY`       | Kimi/Moonshot      |
+| `BYTEDANCE_API_KEY`  | ByteDance ModelArk |
 
 ### Channel-Config
 
-| Variable | Beschreibung |
-|----------|--------------|
-| `WHATSAPP_BRIDGE_URL` | WhatsApp Bridge URL |
-| `IMESSAGE_BRIDGE_URL` | iMessage Bridge URL |
-| `TELEGRAM_WEBHOOK_SECRET` | Telegram Secret |
-| `DISCORD_PUBLIC_KEY` | Discord Public Key |
-| `WHATSAPP_WEBHOOK_SECRET` | WhatsApp Secret |
-| `IMESSAGE_WEBHOOK_SECRET` | iMessage Secret |
-| `SLACK_WEBHOOK_SECRET` | Slack Secret |
+| Variable                  | Beschreibung        |
+| ------------------------- | ------------------- |
+| `WHATSAPP_BRIDGE_URL`     | WhatsApp Bridge URL |
+| `IMESSAGE_BRIDGE_URL`     | iMessage Bridge URL |
+| `TELEGRAM_WEBHOOK_SECRET` | Telegram Secret     |
+| `DISCORD_PUBLIC_KEY`      | Discord Public Key  |
+| `WHATSAPP_WEBHOOK_SECRET` | WhatsApp Secret     |
+| `IMESSAGE_WEBHOOK_SECRET` | iMessage Secret     |
+| `SLACK_WEBHOOK_SECRET`    | Slack Secret        |
 
 ## Health-Checks
 
@@ -169,6 +170,7 @@ GET /api/health
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -195,6 +197,7 @@ GET /api/control-plane/metrics
 ```
 
 **Response:**
+
 ```json
 {
   "rooms": {

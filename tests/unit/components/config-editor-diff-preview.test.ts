@@ -13,13 +13,20 @@ describe('config editor diff preview utilities', () => {
     };
 
     const diff = summarizeConfigDiff(before, after);
-    expect(diff.some((item) => item.path === 'gateway.port' && item.risk === 'restart-required')).toBe(true);
-    expect(diff.some((item) => item.path === 'channels.telegram.token' && item.risk === 'sensitive')).toBe(true);
+    expect(
+      diff.some((item) => item.path === 'gateway.port' && item.risk === 'restart-required'),
+    ).toBe(true);
+    expect(
+      diff.some((item) => item.path === 'channels.telegram.token' && item.risk === 'sensitive'),
+    ).toBe(true);
     expect(hasHighRiskDiff(diff)).toBe(true);
   });
 
   it('detects no high-risk changes for safe fields only', () => {
-    const diff = summarizeConfigDiff({ ui: { density: 'comfortable' } }, { ui: { density: 'compact' } });
+    const diff = summarizeConfigDiff(
+      { ui: { density: 'comfortable' } },
+      { ui: { density: 'compact' } },
+    );
     expect(diff.some((item) => item.path === 'ui.density')).toBe(true);
     expect(hasHighRiskDiff(diff)).toBe(false);
   });

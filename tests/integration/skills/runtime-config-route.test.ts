@@ -31,8 +31,9 @@ describe('/api/skills/runtime-config', () => {
 
   it('stores and clears runtime config values', async () => {
     mockUserContext({ userId: 'legacy-local-user', authenticated: false });
-    (globalThis as Record<string, unknown>).__skillRuntimeConfigStore =
-      new SkillRuntimeConfigStore(':memory:');
+    (globalThis as Record<string, unknown>).__skillRuntimeConfigStore = new SkillRuntimeConfigStore(
+      ':memory:',
+    );
 
     const route = await import('../../../app/api/skills/runtime-config/route');
 

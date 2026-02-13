@@ -7,13 +7,18 @@ import {
   resolveActiveConversationAfterDeletion,
   upsertConversationActivity,
 } from '../../../src/modules/app-shell/runtimeLogic';
-import { parseTaskScheduleArgs, markDueTasksTriggered } from '../../../src/modules/app-shell/taskScheduling';
+import {
+  parseTaskScheduleArgs,
+  markDueTasksTriggered,
+} from '../../../src/modules/app-shell/taskScheduling';
 
 describe('app-shell runtime logic', () => {
   it('parses scheduling arguments only when values are strings', () => {
     expect(parseTaskScheduleArgs({})).toEqual({});
     expect(parseTaskScheduleArgs({ time_iso: 123, message: true })).toEqual({});
-    expect(parseTaskScheduleArgs({ time_iso: '2026-02-10T10:00:00.000Z', message: 'Ping' })).toEqual({
+    expect(
+      parseTaskScheduleArgs({ time_iso: '2026-02-10T10:00:00.000Z', message: 'Ping' }),
+    ).toEqual({
       time_iso: '2026-02-10T10:00:00.000Z',
       message: 'Ping',
     });
@@ -223,4 +228,3 @@ describe('app-shell runtime logic', () => {
     expect(nextActive).toBe('conv-2');
   });
 });
-

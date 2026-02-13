@@ -15,4 +15,3 @@ describe('ConfigEditor tabs', () => {
     expect(html).toContain('Advanced JSON');
   });
 });
-

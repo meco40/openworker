@@ -11,7 +11,12 @@ import {
 
 describe('parseFrame', () => {
   it('parses a valid request frame with string id', () => {
-    const raw = JSON.stringify({ type: 'req', id: 'abc', method: 'chat.send', params: { text: 'hi' } });
+    const raw = JSON.stringify({
+      type: 'req',
+      id: 'abc',
+      method: 'chat.send',
+      params: { text: 'hi' },
+    });
     const frame = parseFrame(raw);
     expect(frame).toEqual({ type: 'req', id: 'abc', method: 'chat.send', params: { text: 'hi' } });
   });

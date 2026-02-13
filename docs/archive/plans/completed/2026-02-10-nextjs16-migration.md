@@ -13,6 +13,7 @@
 ### Task 1: Runtime und Build-Tooling umstellen
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Create: `next.config.ts`
@@ -26,6 +27,7 @@
 ### Task 2: App Router Entry aufsetzen
 
 **Files:**
+
 - Create: `app/layout.tsx`
 - Create: `app/page.tsx`
 - Create/Modify: `app/globals.css`
@@ -38,6 +40,7 @@
 ### Task 3: Env-Handling für Next kompatibel machen
 
 **Files:**
+
 - Modify: `services/gemini.ts`
 - Modify: `.env.local` (optional Dokumentation)
 
@@ -47,6 +50,7 @@
 ### Task 4: Verifikation
 
 **Files:**
+
 - Modify: `README.md`
 
 1. `npm run lint`

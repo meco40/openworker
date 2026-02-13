@@ -5,6 +5,7 @@
 ## Überblick
 
 Das Security-System umfasst:
+
 - **Security-Checks** (Firewall, Encryption, Audit, Isolation)
 - **Channel-Webhook-Signaturen**
 - **Command-Permissions** mit Risk-Levels
@@ -22,30 +23,34 @@ src/server/channels/
 
 ## Security-Checks
 
-| Check | Aspekt | Status |
-|-------|--------|--------|
-| `firewall` | Aktive Firewall für High-Risk-Commands | ok/warning/critical |
-| `encryption` | E2E-Verschlüsselung und HTTPS | ok/warning/critical |
-| `audit` | Audit-Logging aktiv | ok/warning |
-| `isolation` | Task-Isolation für gefährliche Kommandos | ok/warning/critical |
+| Check        | Aspekt                                   | Status              |
+| ------------ | ---------------------------------------- | ------------------- |
+| `firewall`   | Aktive Firewall für High-Risk-Commands   | ok/warning/critical |
+| `encryption` | E2E-Verschlüsselung und HTTPS            | ok/warning/critical |
+| `audit`      | Audit-Logging aktiv                      | ok/warning          |
+| `isolation`  | Task-Isolation für gefährliche Kommandos | ok/warning/critical |
 
 ### Check-Details
 
 #### Firewall
+
 - Prüft Anzahl aktiver High-Risk-Commands
 - **Critical**: High-Risk-Commands aktiv
 - **Ok**: Alle High-Risk-Commands blockiert
 
 #### Encryption
+
 - **Critical**: WebCrypto nicht verfügbar
 - **Warning**: Kein HTTPS konfiguriert
 - **Ok**: HTTPS aktiv
 
 #### Audit
+
 - Prüft Existenz der Audit-Datenbank
 - **Warning**: DB nicht gefunden
 
 #### Isolation
+
 - Prüft auf gefährliche Shell-Kommandos (`rm -rf`, `del /f /q`)
 - **Critical**: Gefährliche Kommandos aktiviert
 
@@ -53,34 +58,32 @@ src/server/channels/
 
 Jeder Channel hat eigene Security-Anforderungen:
 
-| Channel | Verification | Secret-Env-Variable |
-|---------|--------------|-------------------|
-| Telegram | Signed | `TELEGRAM_WEBHOOK_SECRET` |
-| Discord | Signed | `DISCORD_PUBLIC_KEY` |
+| Channel  | Verification  | Secret-Env-Variable       |
+| -------- | ------------- | ------------------------- |
+| Telegram | Signed        | `TELEGRAM_WEBHOOK_SECRET` |
+| Discord  | Signed        | `DISCORD_PUBLIC_KEY`      |
 | WhatsApp | Shared Secret | `WHATSAPP_WEBHOOK_SECRET` |
 | iMessage | Shared Secret | `IMESSAGE_WEBHOOK_SECRET` |
-| Slack | Shared Secret | `SLACK_WEBHOOK_SECRET` |
+| Slack    | Shared Secret | `SLACK_WEBHOOK_SECRET`    |
 
 ### Webhook-Signatur
 
 ```typescript
 // Telegram
 const crypto = require('crypto');
-const isValid = crypto
-  .createHmac('sha256', TELEGRAM_WEBHOOK_SECRET)
-  .update(data)
-  .digest() === signature;
+const isValid =
+  crypto.createHmac('sha256', TELEGRAM_WEBHOOK_SECRET).update(data).digest() === signature;
 ```
 
 ## Command-Permissions
 
 Commands werden nach Risk-Level eingestuft:
 
-| Risk-Level | Beispiele | Standard |
-|------------|-----------|----------|
-| `Low` | read, list, search | ✅ Erlaubt |
-| `Medium` | write, create | ⚠️ Genehmigung |
-| `High` | delete, execute, shell | ❌ Blockiert |
+| Risk-Level | Beispiele              | Standard       |
+| ---------- | ---------------------- | -------------- |
+| `Low`      | read, list, search     | ✅ Erlaubt     |
+| `Medium`   | write, create          | ⚠️ Genehmigung |
+| `High`     | delete, execute, shell | ❌ Blockiert   |
 
 ### Risk-Level-Konfiguration
 
@@ -94,7 +97,7 @@ export const SECURITY_RULES: CommandPermission[] = [
   },
   {
     command: 'del /f /q',
-    risk: 'High', 
+    risk: 'High',
     enabled: false,
   },
   // ...
@@ -109,14 +112,14 @@ Sichere Speicherung von API-Keys und Secrets:
 // credentials.ts
 class CredentialStore {
   private store = new Map<string, Map<string, string>>();
-  
+
   setCredential(channel: string, key: string, value: string): void {
     if (!this.store.has(channel)) {
       this.store.set(channel, new Map());
     }
     this.store.get(channel)!.set(key, value);
   }
-  
+
   getCredential(channel: string, key: string): string | undefined {
     return this.store.get(channel)?.get(key);
   }
@@ -130,6 +133,7 @@ class CredentialStore {
 Security-Status abrufen.
 
 **Response:**
+
 ```json
 {
   "ok": true,
@@ -160,15 +164,15 @@ Security-Status abrufen.
 
 ## Umgebungsvariablen
 
-| Variable | Beschreibung |
-|----------|--------------|
-| `TELEGRAM_WEBHOOK_SECRET` | Telegram Webhook Secret |
-| `DISCORD_PUBLIC_KEY` | Discord Public Key |
-| `WHATSAPP_WEBHOOK_SECRET` | WhatsApp Webhook Secret |
-| `IMESSAGE_BRIDGE_URL` | iMessage Bridge URL |
-| `SLACK_WEBHOOK_SECRET` | Slack Webhook Secret |
-| `APP_URL` | Öffentliche URL (für HTTPS-Check) |
-| `MESSAGES_DB_PATH` | Pfad zur DB (für Audit-Check) |
+| Variable                  | Beschreibung                      |
+| ------------------------- | --------------------------------- |
+| `TELEGRAM_WEBHOOK_SECRET` | Telegram Webhook Secret           |
+| `DISCORD_PUBLIC_KEY`      | Discord Public Key                |
+| `WHATSAPP_WEBHOOK_SECRET` | WhatsApp Webhook Secret           |
+| `IMESSAGE_BRIDGE_URL`     | iMessage Bridge URL               |
+| `SLACK_WEBHOOK_SECRET`    | Slack Webhook Secret              |
+| `APP_URL`                 | Öffentliche URL (für HTTPS-Check) |
+| `MESSAGES_DB_PATH`        | Pfad zur DB (für Audit-Check)     |
 
 ## Verifikation
 

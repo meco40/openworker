@@ -27,4 +27,3 @@ describe('automation command parser', () => {
     expect(parsed).toEqual({ action: 'unsupported', reason: 'Unknown /cron subcommand' });
   });
 });
-

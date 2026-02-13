@@ -23,16 +23,16 @@ import {
   stopRoom,
 } from '../src/modules/rooms/api';
 import { useRoomSync } from '../src/modules/rooms/useRoomSync';
-import type { RoomMember, RoomState, RoomSummary, RoomMessage, RoomMemberStatus } from '../src/modules/rooms/types';
+import type {
+  RoomMember,
+  RoomState,
+  RoomSummary,
+  RoomMessage,
+  RoomMemberStatus,
+} from '../src/modules/rooms/types';
 
 const PersonasView: React.FC = () => {
-  const {
-    personas,
-    activePersonaId,
-    setActivePersonaId,
-    refreshPersonas,
-    loading,
-  } = usePersona();
+  const { personas, activePersonaId, setActivePersonaId, refreshPersonas, loading } = usePersona();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPersona, setSelectedPersona] = useState<PersonaWithFiles | null>(null);
@@ -54,10 +54,16 @@ const PersonasView: React.FC = () => {
   const [selectedRoomState, setSelectedRoomState] = useState<RoomState | null>(null);
   const [selectedRoomMembers, setSelectedRoomMembers] = useState<RoomMember[]>([]);
   const [selectedRoomMessages, setSelectedRoomMessages] = useState<RoomMessage[]>([]);
-  const [initialRoomMemberStatus, setInitialRoomMemberStatus] = useState<Record<string, RoomMemberStatus>>({});
-  const [activeRoomCountsByPersona, setActiveRoomCountsByPersona] = useState<Record<string, number>>({});
+  const [initialRoomMemberStatus, setInitialRoomMemberStatus] = useState<
+    Record<string, RoomMemberStatus>
+  >({});
+  const [activeRoomCountsByPersona, setActiveRoomCountsByPersona] = useState<
+    Record<string, number>
+  >({});
 
-  const selectedRoom = selectedRoomId ? rooms.find((room) => room.id === selectedRoomId) || null : null;
+  const selectedRoom = selectedRoomId
+    ? rooms.find((room) => room.id === selectedRoomId) || null
+    : null;
 
   const {
     messages: liveRoomMessages,
@@ -65,29 +71,29 @@ const PersonasView: React.FC = () => {
     runStatus: liveRunStatus,
     interventions: liveInterventions,
     metrics: liveMetrics,
-  } = useRoomSync(
-    selectedRoomId,
-    selectedRoomMessages,
-  );
+  } = useRoomSync(selectedRoomId, selectedRoomMessages);
 
   const mergedMemberStatus = { ...initialRoomMemberStatus, ...liveMemberStatus };
 
   // ─── Load persona detail ──────────────────────────────────
-  const loadPersona = useCallback(async (id: string) => {
-    try {
-      const res = await fetch(`/api/personas/${id}`);
-      if (res.ok) {
-        const data = await res.json();
-        const p = data.persona as PersonaWithFiles;
-        setSelectedPersona(p);
-        // Load current file content
-        setEditorContent(p.files[activeFile] ?? '');
-        setDirty(false);
+  const loadPersona = useCallback(
+    async (id: string) => {
+      try {
+        const res = await fetch(`/api/personas/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const p = data.persona as PersonaWithFiles;
+          setSelectedPersona(p);
+          // Load current file content
+          setEditorContent(p.files[activeFile] ?? '');
+          setDirty(false);
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
-    }
-  }, [activeFile]);
+    },
+    [activeFile],
+  );
 
   const refreshRooms = useCallback(async () => {
     setRoomsLoading(true);
@@ -142,25 +148,28 @@ const PersonasView: React.FC = () => {
     setShowCreateRoomModal(true);
   }, []);
 
-  const handleCreateRoom = useCallback(async (input: {
-    name: string;
-    description: string | null;
-    goalMode: 'planning' | 'simulation' | 'free';
-    routingProfileId: string;
-  }) => {
-    setRoomCreating(true);
-    try {
-      const room = await createRoom(input);
-      await refreshRooms();
-      setSelectedRoomId(room.id);
-      setSelectedId(null);
-      setShowCreateRoomModal(false);
-    } catch {
-      /* ignore */
-    } finally {
-      setRoomCreating(false);
-    }
-  }, [refreshRooms]);
+  const handleCreateRoom = useCallback(
+    async (input: {
+      name: string;
+      description: string | null;
+      goalMode: 'planning' | 'simulation' | 'free';
+      routingProfileId: string;
+    }) => {
+      setRoomCreating(true);
+      try {
+        const room = await createRoom(input);
+        await refreshRooms();
+        setSelectedRoomId(room.id);
+        setSelectedId(null);
+        setShowCreateRoomModal(false);
+      } catch {
+        /* ignore */
+      } finally {
+        setRoomCreating(false);
+      }
+    },
+    [refreshRooms],
+  );
 
   const startSelectedRoom = useCallback(async () => {
     if (!selectedRoomId) return;
@@ -448,7 +457,7 @@ const PersonasView: React.FC = () => {
   }, [dirty, selectedId, saveFile]);
 
   return (
-    <div className="flex h-full animate-in fade-in duration-500">
+    <div className="animate-in fade-in flex h-full duration-500">
       <PersonasSidebar
         personas={personas}
         activePersonaId={activePersonaId}
@@ -469,7 +478,7 @@ const PersonasView: React.FC = () => {
       />
 
       {/* ── Right Panel: Editor ───────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col">
         {selectedRoomId ? (
           <RoomDetailPanel
             room={selectedRoom}
@@ -498,8 +507,8 @@ const PersonasView: React.FC = () => {
             onSendMessage={sendMessageToSelectedRoom}
           />
         ) : !selectedPersona ? (
-          <div className="flex-1 flex items-center justify-center text-zinc-600">
-            <div className="text-center space-y-2">
+          <div className="flex flex-1 items-center justify-center text-zinc-600">
+            <div className="space-y-2 text-center">
               <div className="text-4xl">🎭</div>
               <div className="text-sm">Wähle oder erstelle eine Persona</div>
             </div>
@@ -546,4 +555,3 @@ const PersonasView: React.FC = () => {
 };
 
 export default PersonasView;
-

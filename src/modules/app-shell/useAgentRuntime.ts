@@ -129,7 +129,10 @@ export function useAgentRuntime({
                 };
                 setScheduledTasks((previous) => [...previous, newTask]);
                 addEventLog('TASK', `Cron scheduled: ${new Date(time_iso).toLocaleString()}`);
-                toolOutputs.push({ name: functionCall.name, result: { status: 'scheduled', task: newTask } });
+                toolOutputs.push({
+                  name: functionCall.name,
+                  result: { status: 'scheduled', task: newTask },
+                });
                 continue;
               }
 
@@ -137,7 +140,10 @@ export function useAgentRuntime({
                 functionCall.name === 'core_memory_store' ||
                 functionCall.name === 'core_memory_recall'
               ) {
-                const memoryResult = await handleCoreMemoryCall(functionCall.name, functionCall.args);
+                const memoryResult = await handleCoreMemoryCall(
+                  functionCall.name,
+                  functionCall.args,
+                );
                 if (memoryResult) {
                   if (memoryResult.action === 'store') {
                     await updateMemoryDisplay();

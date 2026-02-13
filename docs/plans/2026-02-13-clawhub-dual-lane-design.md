@@ -40,12 +40,15 @@ Use dual-lane architecture:
 ### Alternatives considered
 
 1. Unified single `skills` table with `kind=tool|instruction`.
+
 - Rejected for Phase 1 due migration complexity and high regression surface.
 
 2. Filesystem-only ClawHub management (no repository layer).
+
 - Rejected for weak UI state consistency and hard-to-test behavior.
 
 3. Automatic `SKILL.md` -> tool conversion.
+
 - Rejected due correctness and security risks.
 
 ## Component Design
@@ -196,7 +199,14 @@ Response:
 ```json
 {
   "ok": true,
-  "skills": [{ "slug": "calendar", "version": "1.0.0", "status": "installed", "localPath": "skills/calendar" }]
+  "skills": [
+    {
+      "slug": "calendar",
+      "version": "1.0.0",
+      "status": "installed",
+      "localPath": "skills/calendar"
+    }
+  ]
 }
 ```
 

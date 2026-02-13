@@ -22,7 +22,10 @@ function hashPassword(password: string): string {
   return `scrypt$${salt}$${derivedKey}`;
 }
 
-function verifyPasswordHash(password: string, storedHash: string): { ok: boolean; needsUpgrade: boolean } {
+function verifyPasswordHash(
+  password: string,
+  storedHash: string,
+): { ok: boolean; needsUpgrade: boolean } {
   // Legacy fallback for existing local dev hashes.
   if (/^[a-f0-9]{64}$/i.test(storedHash)) {
     const legacyHash = crypto.createHash('sha256').update(password).digest('hex');
@@ -191,4 +194,3 @@ export function getAuthUserStore(): AuthUserStore {
   }
   return globalThis.__authUserStore;
 }
-

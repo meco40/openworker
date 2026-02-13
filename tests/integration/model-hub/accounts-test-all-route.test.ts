@@ -59,4 +59,3 @@ describe('model-hub accounts test-all route', () => {
     global.fetch = originalFetch;
   });
 });
-

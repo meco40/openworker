@@ -6,7 +6,9 @@ import { getRoomOrchestrator } from './src/server/rooms/runtime';
 import { shouldRunRooms } from './src/server/rooms/runtimeRole';
 
 const instanceId = process.env.SCHEDULER_INSTANCE_ID || `scheduler-${process.pid}`;
-const heartbeatFile = process.env.AUTOMATION_HEARTBEAT_FILE || path.join(process.cwd(), '.local', 'scheduler.heartbeat');
+const heartbeatFile =
+  process.env.AUTOMATION_HEARTBEAT_FILE ||
+  path.join(process.cwd(), '.local', 'scheduler.heartbeat');
 const heartbeatIntervalMs = Number(process.env.AUTOMATION_HEARTBEAT_INTERVAL_MS || 10_000);
 
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;

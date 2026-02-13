@@ -5,8 +5,14 @@
 
 import { NextResponse } from 'next/server';
 import { getWorkerRepository } from '../../../../../src/server/worker/workerRepository';
-import { getModelHubService, getModelHubEncryptionKey } from '../../../../../src/server/model-hub/runtime';
-import type { PlanningMessage, PlanningQuestion } from '../../../../../src/server/worker/workerTypes';
+import {
+  getModelHubService,
+  getModelHubEncryptionKey,
+} from '../../../../../src/server/model-hub/runtime';
+import type {
+  PlanningMessage,
+  PlanningQuestion,
+} from '../../../../../src/server/worker/workerTypes';
 
 export const runtime = 'nodejs';
 
@@ -35,7 +41,12 @@ FORMAT (Finale Spezifikation nach genug Antworten):
   "constraints": ["Einschränkung 1", "Einschränkung 2"]
 }`;
 
-function parseLLMResponse(text: string): { type: 'question'; data: PlanningQuestion } | { type: 'specification'; data: { summary: string; steps: string[]; constraints: string[] } } | null {
+function parseLLMResponse(
+  text: string,
+):
+  | { type: 'question'; data: PlanningQuestion }
+  | { type: 'specification'; data: { summary: string; steps: string[]; constraints: string[] } }
+  | null {
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
@@ -71,10 +82,7 @@ function parseLLMResponse(text: string): { type: 'question'; data: PlanningQuest
 }
 
 // GET — return current planning state
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const repo = getWorkerRepository();
@@ -99,10 +107,7 @@ export async function GET(
 }
 
 // POST — start planning session (generate first question)
-export async function POST(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const repo = getWorkerRepository();

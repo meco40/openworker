@@ -17,7 +17,18 @@ const config = [
   importXPlugin.flatConfigs.typescript,
   {
     name: 'project/ignores',
-    ignores: ['.next/**', '.worktrees/**', '.tmp_merge/**', 'backups/**', 'demo/**', 'out/**', 'build/**', 'dist/**', 'coverage/**', 'node_modules/**'],
+    ignores: [
+      '.next/**',
+      '.worktrees/**',
+      '.tmp_merge/**',
+      'backups/**',
+      'demo/**',
+      'out/**',
+      'build/**',
+      'dist/**',
+      'coverage/**',
+      'node_modules/**',
+    ],
   },
   {
     name: 'project/quality-rules',

@@ -120,7 +120,7 @@ export class MessageService {
       if (route.target === 'session-command') {
         const newConv = this.repo.createConversation({
           channelType: platform,
-          externalChatId: `manual-${(userId || 'local')}-${Date.now()}`,
+          externalChatId: `manual-${userId || 'local'}-${Date.now()}`,
           title: route.payload || undefined,
           userId: conversation.userId,
         });
@@ -136,7 +136,12 @@ export class MessageService {
       if (route.target === 'worker') {
         return {
           userMsg,
-          agentMsg: await this.handleWorkerTask(conversation, route.payload, platform, externalChatId),
+          agentMsg: await this.handleWorkerTask(
+            conversation,
+            route.payload,
+            platform,
+            externalChatId,
+          ),
         };
       }
 
@@ -180,7 +185,10 @@ export class MessageService {
       // For external channels, auto-apply persona from channel binding
       const effectiveConversation = applyChannelBindingPersona(this.repo, conversation, platform);
 
-      return { userMsg, agentMsg: await this.dispatchToAI(effectiveConversation, platform, externalChatId) };
+      return {
+        userMsg,
+        agentMsg: await this.dispatchToAI(effectiveConversation, platform, externalChatId),
+      };
     } finally {
       if (clientMessageId) this.processingMessages.delete(clientMessageId);
     }
@@ -254,7 +262,12 @@ export class MessageService {
             : '';
           return `• ${statusIconForWorker(t.status)} **${t.title}** (\`${t.id}\`) — ${t.status}${personaTag}`;
         });
-        return this.sendResponse(conversation, `📋 **Tasks:**\n${lines.join('\n')}`, platform, externalChatId);
+        return this.sendResponse(
+          conversation,
+          `📋 **Tasks:**\n${lines.join('\n')}`,
+          platform,
+          externalChatId,
+        );
       }
 
       case '/worker-status': {
@@ -485,8 +498,9 @@ export class MessageService {
         const personaRepo = getPersonaRepository();
         const allPersonas = personaRepo.listPersonas('default');
         const match = allPersonas.find(
-          (p) => p.name.toLowerCase() === personaQuery.toLowerCase()
-            || p.name.toLowerCase().startsWith(personaQuery.toLowerCase()),
+          (p) =>
+            p.name.toLowerCase() === personaQuery.toLowerCase() ||
+            p.name.toLowerCase().startsWith(personaQuery.toLowerCase()),
         );
         if (!match) {
           return this.sendResponse(
@@ -581,7 +595,9 @@ export class MessageService {
       }
 
       case 'pause': {
-        const rule = automationService.updateRule(parsed.ruleId, conversation.userId, { enabled: false });
+        const rule = automationService.updateRule(parsed.ruleId, conversation.userId, {
+          enabled: false,
+        });
         if (!rule) {
           return this.sendResponse(
             conversation,
@@ -599,7 +615,9 @@ export class MessageService {
       }
 
       case 'resume': {
-        const rule = automationService.updateRule(parsed.ruleId, conversation.userId, { enabled: true });
+        const rule = automationService.updateRule(parsed.ruleId, conversation.userId, {
+          enabled: true,
+        });
         if (!rule) {
           return this.sendResponse(
             conversation,
@@ -644,13 +662,9 @@ export class MessageService {
             externalChatId,
           );
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Run konnte nicht erstellt werden.';
-          return this.sendResponse(
-            conversation,
-            `❌ ${message}`,
-            platform,
-            externalChatId,
-          );
+          const message =
+            error instanceof Error ? error.message : 'Run konnte nicht erstellt werden.';
+          return this.sendResponse(conversation, `❌ ${message}`, platform, externalChatId);
         }
       }
 
@@ -1084,7 +1098,4 @@ export class MessageService {
       return fallbackSummary;
     }
   }
-
 }
-
-

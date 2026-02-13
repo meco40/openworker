@@ -45,9 +45,9 @@ export class SqliteMessageRepository implements MessageRepository {
   }
 
   private hasColumn(tableName: string, columnName: string): boolean {
-    const rows = this.db
-      .prepare(`PRAGMA table_info(${tableName})`)
-      .all() as Array<{ name: string }>;
+    const rows = this.db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{
+      name: string;
+    }>;
     return rows.some((row) => row.name === columnName);
   }
 
@@ -200,7 +200,16 @@ export class SqliteMessageRepository implements MessageRepository {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       )
-      .run(id, input.channelType, input.externalChatId || null, userId, title, input.personaId || null, now, now);
+      .run(
+        id,
+        input.channelType,
+        input.externalChatId || null,
+        userId,
+        title,
+        input.personaId || null,
+        now,
+        now,
+      );
 
     return this.getConversation(id, userId)!;
   }
@@ -238,9 +247,18 @@ export class SqliteMessageRepository implements MessageRepository {
     userId?: string,
   ): Conversation {
     const normalizedUserId = this.normalizeUserId(userId);
-    const existing = this.getConversationByExternalChat(channelType, externalChatId, normalizedUserId);
+    const existing = this.getConversationByExternalChat(
+      channelType,
+      externalChatId,
+      normalizedUserId,
+    );
     if (existing) return existing;
-    return this.createConversation({ channelType, externalChatId, title, userId: normalizedUserId });
+    return this.createConversation({
+      channelType,
+      externalChatId,
+      title,
+      userId: normalizedUserId,
+    });
   }
 
   listConversations(limit = 50, userId?: string): Conversation[] {
@@ -264,7 +282,12 @@ export class SqliteMessageRepository implements MessageRepository {
 
   getDefaultWebChatConversation(userId?: string): Conversation {
     const normalizedUserId = this.normalizeUserId(userId);
-    return this.getOrCreateConversation(ChannelType.WEBCHAT, 'default', 'WebChat', normalizedUserId);
+    return this.getOrCreateConversation(
+      ChannelType.WEBCHAT,
+      'default',
+      'WebChat',
+      normalizedUserId,
+    );
   }
 
   // ─── Messages ───────────────────────────────────────────────
@@ -315,7 +338,12 @@ export class SqliteMessageRepository implements MessageRepository {
     return toMessage(row);
   }
 
-  listMessages(conversationId: string, limit = 100, before?: string, userId?: string): StoredMessage[] {
+  listMessages(
+    conversationId: string,
+    limit = 100,
+    before?: string,
+    userId?: string,
+  ): StoredMessage[] {
     const normalizedUserId = userId ? this.normalizeUserId(userId) : null;
     const beforeSeq = before && /^\d+$/.test(before) ? Number(before) : null;
 
@@ -332,9 +360,13 @@ export class SqliteMessageRepository implements MessageRepository {
               LIMIT ?
               `,
             )
-            .all(conversationId, beforeSeq, normalizedUserId, limit) as Array<Record<string, unknown>>)
+            .all(conversationId, beforeSeq, normalizedUserId, limit) as Array<
+            Record<string, unknown>
+          >)
         : (this.db
-            .prepare('SELECT * FROM messages WHERE conversation_id = ? AND seq < ? ORDER BY seq DESC LIMIT ?')
+            .prepare(
+              'SELECT * FROM messages WHERE conversation_id = ? AND seq < ? ORDER BY seq DESC LIMIT ?',
+            )
             .all(conversationId, beforeSeq, limit) as Array<Record<string, unknown>>);
       return rows.map(toMessage).reverse();
     }
@@ -389,7 +421,12 @@ export class SqliteMessageRepository implements MessageRepository {
     const row = this.db
       .prepare('SELECT * FROM conversation_context WHERE conversation_id = ?')
       .get(conversationId) as
-      | { conversation_id: string; summary_text: string; summary_upto_seq: number; updated_at: string }
+      | {
+          conversation_id: string;
+          summary_text: string;
+          summary_upto_seq: number;
+          updated_at: string;
+        }
       | undefined;
 
     if (!row) {
@@ -448,7 +485,9 @@ export class SqliteMessageRepository implements MessageRepository {
     // Delete in FK-safe order: messages → context → conversation
     this.db.prepare('DELETE FROM messages WHERE conversation_id = ?').run(id);
     this.db.prepare('DELETE FROM conversation_context WHERE conversation_id = ?').run(id);
-    this.db.prepare('DELETE FROM conversations WHERE id = ? AND user_id = ?').run(id, normalizedUserId);
+    this.db
+      .prepare('DELETE FROM conversations WHERE id = ? AND user_id = ?')
+      .run(id, normalizedUserId);
     return true;
   }
 
@@ -458,7 +497,9 @@ export class SqliteMessageRepository implements MessageRepository {
     const normalizedUserId = this.normalizeUserId(userId);
     const now = new Date().toISOString();
     this.db
-      .prepare('UPDATE conversations SET model_override = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+      .prepare(
+        'UPDATE conversations SET model_override = ?, updated_at = ? WHERE id = ? AND user_id = ?',
+      )
       .run(modelOverride, now, id, normalizedUserId);
   }
 
@@ -466,7 +507,9 @@ export class SqliteMessageRepository implements MessageRepository {
     const normalizedUserId = this.normalizeUserId(userId);
     const now = new Date().toISOString();
     this.db
-      .prepare('UPDATE conversations SET persona_id = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+      .prepare(
+        'UPDATE conversations SET persona_id = ?, updated_at = ? WHERE id = ? AND user_id = ?',
+      )
       .run(personaId, now, id, normalizedUserId);
   }
 
@@ -548,7 +591,9 @@ export class SqliteMessageRepository implements MessageRepository {
     const normalizedUserId = this.normalizeUserId(userId);
     const now = new Date().toISOString();
     this.db
-      .prepare('UPDATE channel_bindings SET persona_id = ?, updated_at = ? WHERE user_id = ? AND channel = ?')
+      .prepare(
+        'UPDATE channel_bindings SET persona_id = ?, updated_at = ? WHERE user_id = ? AND channel = ?',
+      )
       .run(personaId, now, normalizedUserId, channel);
   }
 
@@ -590,5 +635,3 @@ export class SqliteMessageRepository implements MessageRepository {
     this.db.close();
   }
 }
-
-

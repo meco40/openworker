@@ -398,9 +398,7 @@ export class SqliteWorkerRepository implements WorkerRepository {
   }
 
   completePlanning(taskId: string): void {
-    this.db
-      .prepare('UPDATE worker_tasks SET planning_complete = 1 WHERE id = ?')
-      .run(taskId);
+    this.db.prepare('UPDATE worker_tasks SET planning_complete = 1 WHERE id = ?').run(taskId);
   }
 
   // ─── Activities ─────────────────────────────────────────────
@@ -490,4 +488,3 @@ export function getWorkerRepository(): SqliteWorkerRepository {
   }
   return instance;
 }
-

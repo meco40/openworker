@@ -7,7 +7,12 @@ import type { WorkspaceType } from '../../types';
 interface WorkerTaskCreationProps {
   onSubmit: (
     objective: string,
-    options?: { title?: string; priority?: string; workspaceType?: WorkspaceType; usePlanning?: boolean },
+    options?: {
+      title?: string;
+      priority?: string;
+      workspaceType?: WorkspaceType;
+      usePlanning?: boolean;
+    },
   ) => Promise<unknown>;
   onCancel: () => void;
 }
@@ -176,8 +181,8 @@ const WorkerTaskCreation: React.FC<WorkerTaskCreationProps> = ({ onSubmit, onCan
           </label>
           {usePlanning && (
             <p className="worker-planning-toggle__hint">
-              Die KI wird gezielte Fragen stellen, um die Aufgabe optimal zu verstehen,
-              bevor sie mit der Ausführung beginnt.
+              Die KI wird gezielte Fragen stellen, um die Aufgabe optimal zu verstehen, bevor sie
+              mit der Ausführung beginnt.
             </p>
           )}
         </div>

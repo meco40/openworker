@@ -13,6 +13,7 @@
 ### Task 1: Define modular UI boundaries
 
 **Files:**
+
 - Modify: `components/ModelHub.tsx`
 - Create: `components/model-hub/types.ts`
 - Create: `components/model-hub/constants.ts`
@@ -24,6 +25,7 @@
 ### Task 2: TDD for pure derivation utilities
 
 **Files:**
+
 - Create: `components/model-hub/utils.ts`
 - Create: `tests/unit/model-hub/ui-utils.test.ts`
 
@@ -40,6 +42,7 @@ Expected: PASS.
 ### Task 3: Extract render sections into modules
 
 **Files:**
+
 - Create: `components/model-hub/sections/HeaderSection.tsx`
 - Create: `components/model-hub/sections/PipelineSection.tsx`
 - Create: `components/model-hub/sections/SidebarSection.tsx`
@@ -53,6 +56,7 @@ Expected: PASS.
 ### Task 4: Wire orchestrator and keep behavior parity
 
 **Files:**
+
 - Modify: `components/ModelHub.tsx`
 
 **Step 1: Replace inline section JSX with extracted components**
@@ -62,6 +66,7 @@ Expected: PASS.
 ### Task 5: Verify no regressions and compare with backup
 
 **Files:**
+
 - Compare: `backups/2026-02-10-model-hub-ui-pre-refactor/components/ModelHub.tsx.bak`
 - Compare: `components/ModelHub.tsx`
 

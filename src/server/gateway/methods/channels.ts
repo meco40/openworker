@@ -149,9 +149,7 @@ registerMethod(
     const filterChannel = normalizeText(safeString(params.channel));
     const query = normalizeText(safeString(params.q));
     const requestedLimit = Number(params.limit);
-    const limit = Number.isFinite(requestedLimit)
-      ? Math.max(1, Math.min(100, requestedLimit))
-      : 50;
+    const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(100, requestedLimit)) : 50;
 
     const { getMessageService } = await import('../../channels/messages/runtime');
     const service = getMessageService();

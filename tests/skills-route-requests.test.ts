@@ -27,7 +27,9 @@ describe('skills execute route requests', () => {
   });
 
   it('handles file_read request', async () => {
-    const response = await executeSkillPost(makeRequest({ name: 'file_read', args: { path: 'README.md' } }));
+    const response = await executeSkillPost(
+      makeRequest({ name: 'file_read', args: { path: 'README.md' } }),
+    );
     const json = await response.json();
     expect(response.status).toBe(200);
     expect(json.ok).toBe(true);

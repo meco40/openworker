@@ -35,4 +35,3 @@ describe('provider catalog coverage', () => {
     expect(anthropic?.authMethods.includes('oauth')).toBe(false);
   });
 });
-

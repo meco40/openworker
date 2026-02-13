@@ -82,7 +82,12 @@ export function useChannelStateSync({ onUpdateCoupling }: UseChannelStateSyncArg
     const client = getGatewayClient();
     client.connect();
     const unsubscribe = client.on('channels.status', (payload) => {
-      const data = payload as { channel?: string; status?: string; peerName?: string; updatedAt?: string };
+      const data = payload as {
+        channel?: string;
+        status?: string;
+        peerName?: string;
+        updatedAt?: string;
+      };
       if (!data.channel) return;
       const type = toChannelType(data.channel);
       if (!type) return;

@@ -5,18 +5,19 @@ import { loadChannelState } from '../../../src/modules/app-shell/useChannelState
 
 describe('channel state sync', () => {
   it('maps /api/channels/state payload into coupled-channel updates', async () => {
-    const updates = await loadChannelState(async () =>
-      new Response(
-        JSON.stringify({
-          ok: true,
-          channels: [
-            { channel: 'telegram', status: 'connected', peerName: 'telegram:test' },
-            { channel: 'slack', status: 'idle' },
-            { channel: 'unknown', status: 'connected' },
-          ],
-        }),
-        { status: 200 },
-      ),
+    const updates = await loadChannelState(
+      async () =>
+        new Response(
+          JSON.stringify({
+            ok: true,
+            channels: [
+              { channel: 'telegram', status: 'connected', peerName: 'telegram:test' },
+              { channel: 'slack', status: 'idle' },
+              { channel: 'unknown', status: 'connected' },
+            ],
+          }),
+          { status: 200 },
+        ),
     );
 
     expect(updates.telegram).toMatchObject({
@@ -32,8 +33,8 @@ describe('channel state sync', () => {
   });
 
   it('returns empty updates when state endpoint fails', async () => {
-    const updates = await loadChannelState(async () =>
-      new Response(JSON.stringify({ ok: false }), { status: 500 }),
+    const updates = await loadChannelState(
+      async () => new Response(JSON.stringify({ ok: false }), { status: 500 }),
     );
     expect(updates).toEqual({});
   });

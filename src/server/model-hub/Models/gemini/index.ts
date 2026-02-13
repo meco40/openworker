@@ -142,9 +142,13 @@ const geminiProviderAdapter: ProviderAdapter = {
               reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
               return;
             }
-            options.signal!.addEventListener('abort', () => {
-              reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
-            }, { once: true });
+            options.signal!.addEventListener(
+              'abort',
+              () => {
+                reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+              },
+              { once: true },
+            );
           }),
         ]);
       } else {

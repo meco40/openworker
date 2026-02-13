@@ -46,17 +46,15 @@ describe('ModelHubService.dispatchWithFallback', () => {
     const { ModelHubService } = await import('../../../src/server/model-hub/service');
 
     const repo = createMockRepository({
-      listPipelineModels: vi
-        .fn()
-        .mockReturnValue([
-          {
-            id: 'm1',
-            modelName: 'gpt-4',
-            providerId: 'openai',
-            accountId: 'a1',
-            status: 'offline',
-          },
-        ]),
+      listPipelineModels: vi.fn().mockReturnValue([
+        {
+          id: 'm1',
+          modelName: 'gpt-4',
+          providerId: 'openai',
+          accountId: 'a1',
+          status: 'offline',
+        },
+      ]),
     });
 
     const service = new ModelHubService(repo);
@@ -72,17 +70,15 @@ describe('ModelHubService.dispatchWithFallback', () => {
     const { ModelHubService } = await import('../../../src/server/model-hub/service');
 
     const repo = createMockRepository({
-      listPipelineModels: vi
-        .fn()
-        .mockReturnValue([
-          {
-            id: 'm1',
-            modelName: 'gemini-2.5-flash',
-            providerId: 'gemini',
-            accountId: 'missing',
-            status: 'active',
-          },
-        ]),
+      listPipelineModels: vi.fn().mockReturnValue([
+        {
+          id: 'm1',
+          modelName: 'gemini-2.5-flash',
+          providerId: 'gemini',
+          accountId: 'missing',
+          status: 'active',
+        },
+      ]),
       getAccountRecordById: vi.fn().mockReturnValue(null),
     });
 

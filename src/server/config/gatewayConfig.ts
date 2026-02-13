@@ -112,7 +112,9 @@ function ensureBoolean(value: unknown, label: string): boolean {
 
 function ensureIntInRange(value: unknown, label: string, min: number, max: number): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
-    throw new GatewayConfigValidationError(`${label} must be an integer between ${min} and ${max}.`);
+    throw new GatewayConfigValidationError(
+      `${label} must be an integer between ${min} and ${max}.`,
+    );
   }
   return value;
 }
@@ -129,11 +131,7 @@ function normalizeBindFromHost(host: string): string {
   return host;
 }
 
-function withWarning(
-  warnings: GatewayConfigWarning[],
-  code: string,
-  message: string,
-): void {
+function withWarning(warnings: GatewayConfigWarning[], code: string, message: string): void {
   warnings.push({ code, message });
 }
 
@@ -251,9 +249,13 @@ function normalizeGatewayConfig(
   ensureIntInRange(gateway.port, 'gateway.port', 1, 65535);
 
   let host =
-    typeof gateway.host === 'string' && gateway.host.trim().length > 0 ? gateway.host.trim() : undefined;
+    typeof gateway.host === 'string' && gateway.host.trim().length > 0
+      ? gateway.host.trim()
+      : undefined;
   let bind =
-    typeof gateway.bind === 'string' && gateway.bind.trim().length > 0 ? gateway.bind.trim() : undefined;
+    typeof gateway.bind === 'string' && gateway.bind.trim().length > 0
+      ? gateway.bind.trim()
+      : undefined;
 
   if (host && !bind) {
     bind = normalizeBindFromHost(host);
@@ -287,13 +289,20 @@ function normalizeGatewayConfig(
   gateway.bind = bind;
 
   const logLevelRaw = gateway.logLevel;
-  const logLevel = typeof logLevelRaw === 'string' && logLevelRaw.trim().length > 0 ? logLevelRaw.trim() : 'info';
+  const logLevel =
+    typeof logLevelRaw === 'string' && logLevelRaw.trim().length > 0 ? logLevelRaw.trim() : 'info';
   if (logLevelRaw === undefined) {
-    withWarning(warnings, 'gateway.logLevel.defaulted', 'gateway.logLevel was missing. Defaulted to info.');
+    withWarning(
+      warnings,
+      'gateway.logLevel.defaulted',
+      'gateway.logLevel was missing. Defaulted to info.',
+    );
   }
   const allowedLogLevels = new Set(['debug', 'info', 'warn', 'error']);
   if (!allowedLogLevels.has(logLevel)) {
-    throw new GatewayConfigValidationError('gateway.logLevel must be one of: debug, info, warn, error.');
+    throw new GatewayConfigValidationError(
+      'gateway.logLevel must be one of: debug, info, warn, error.',
+    );
   }
   gateway.logLevel = logLevel;
 
@@ -503,7 +512,12 @@ async function createBackupIfPresent(configPath: string): Promise<void> {
 export async function saveGatewayConfig(
   input: unknown,
   options?: { expectedRevision?: string },
-): Promise<{ config: GatewayConfig; path: string; warnings: GatewayConfigWarning[]; revision: string }> {
+): Promise<{
+  config: GatewayConfig;
+  path: string;
+  warnings: GatewayConfigWarning[];
+  revision: string;
+}> {
   const current = await loadGatewayConfig();
   const expectedRevision = String(options?.expectedRevision || '').trim();
   if (!expectedRevision || expectedRevision !== current.revision) {

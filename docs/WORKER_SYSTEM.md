@@ -5,6 +5,7 @@
 ## Überblick
 
 Das Worker-System ermöglicht autonome KI-Agenten, die komplexe mehrstufige Aufgaben ausführen:
+
 - **Task-Management** mit Zustandsautomaten
 - **Tool-Integration** mit Approval-Workflow
 - **Workspace-Management** für Datei-Operationen
@@ -32,27 +33,27 @@ queued → planning → clarifying → executing → review → completed
             cancelled      waiting_approval   failed   interrupted
 ```
 
-| Status | Beschreibung |
-|--------|--------------|
-| `queued` | Task wartet auf Verarbeitung |
-| `planning` | KI plant die Task-Schritte |
-| `clarifying` | Klärungsfragen an Benutzer |
-| `executing` | Task wird ausgeführt |
-| `review` | Ergebnisse werden überprüft |
-| `completed` | Task erfolgreich abgeschlossen |
-| `failed` | Task fehlgeschlagen |
-| `cancelled` | Task abgebrochen |
-| `interrupted` | Task unterbrochen |
+| Status             | Beschreibung                         |
+| ------------------ | ------------------------------------ |
+| `queued`           | Task wartet auf Verarbeitung         |
+| `planning`         | KI plant die Task-Schritte           |
+| `clarifying`       | Klärungsfragen an Benutzer           |
+| `executing`        | Task wird ausgeführt                 |
+| `review`           | Ergebnisse werden überprüft          |
+| `completed`        | Task erfolgreich abgeschlossen       |
+| `failed`           | Task fehlgeschlagen                  |
+| `cancelled`        | Task abgebrochen                     |
+| `interrupted`      | Task unterbrochen                    |
 | `waiting_approval` | wartet auf Shell-Command-Genehmigung |
 
 ## Task-Prioritäten
 
-| Priorität | Beschreibung |
-|----------|--------------|
-| `low` | Niedrige Priorität |
-| `normal` | Standard-Priorität |
-| `high` | Hohe Priorität |
-| `urgent` | Dringend |
+| Priorität | Beschreibung       |
+| --------- | ------------------ |
+| `low`     | Niedrige Priorität |
+| `normal`  | Standard-Priorität |
+| `high`    | Hohe Priorität     |
+| `urgent`  | Dringend           |
 
 ## Workspace-Typen
 
@@ -77,14 +78,14 @@ export async function executeStep(task: WorkerTaskRecord, step: WorkerStepRecord
 
 ### Verfügbare Tools
 
-| Tool | Beschreibung |
-|------|--------------|
-| `shell_execute` | Shell-Kommando ausführen |
-| `file_read` | Datei lesen |
-| `write_file` | Datei schreiben |
-| `browser_fetch` | URL fetchen |
-| `python_execute` | Python-Code ausführen |
-| `search_web` | Web-Suche |
+| Tool             | Beschreibung             |
+| ---------------- | ------------------------ |
+| `shell_execute`  | Shell-Kommando ausführen |
+| `file_read`      | Datei lesen              |
+| `write_file`     | Datei schreiben          |
+| `browser_fetch`  | URL fetchen              |
+| `python_execute` | Python-Code ausführen    |
+| `search_web`     | Web-Suche                |
 
 ## Command Approval
 
@@ -96,15 +97,15 @@ Shell-Kommandos erfordern Genehmigung:
 
 ## API-Oberfläche
 
-| Methode | Pfad | Beschreibung |
-|---------|------|--------------|
-| GET | /api/worker | Liste aller Tasks |
-| GET | /api/worker/[id] | Task-Details |
-| POST | /api/worker | Neue Task erstellen |
-| POST | /api/worker/[id]/start | Task starten |
-| POST | /api/worker/[id]/stop | Task stoppen |
-| GET | /api/worker/[id]/files | Workspace-Dateien |
-| POST | /api/worker/[id]/export | Workspace exportieren |
+| Methode | Pfad                    | Beschreibung          |
+| ------- | ----------------------- | --------------------- |
+| GET     | /api/worker             | Liste aller Tasks     |
+| GET     | /api/worker/[id]        | Task-Details          |
+| POST    | /api/worker             | Neue Task erstellen   |
+| POST    | /api/worker/[id]/start  | Task starten          |
+| POST    | /api/worker/[id]/stop   | Task stoppen          |
+| GET     | /api/worker/[id]/files  | Workspace-Dateien     |
+| POST    | /api/worker/[id]/export | Workspace exportieren |
 
 ## Verifikation
 

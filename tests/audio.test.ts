@@ -16,14 +16,6 @@ describe('audio utilities', () => {
     const decoded = decodeBase64(encoded);
     const int16 = new Int16Array(decoded.buffer);
 
-    expect(Array.from(int16)).toEqual([
-      -32768,
-      -32768,
-      -16384,
-      0,
-      16384,
-      32767,
-      32767,
-    ]);
+    expect(Array.from(int16)).toEqual([-32768, -32768, -16384, 0, 16384, 32767, 32767]);
   });
 });

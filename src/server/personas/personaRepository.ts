@@ -97,9 +97,9 @@ export class PersonaRepository {
   }
 
   getPersona(id: string): PersonaProfile | null {
-    const row = this.db
-      .prepare('SELECT * FROM personas WHERE id = ?')
-      .get(id) as Record<string, unknown> | undefined;
+    const row = this.db.prepare('SELECT * FROM personas WHERE id = ?').get(id) as
+      | Record<string, unknown>
+      | undefined;
     return row ? toPersona(row) : null;
   }
 
@@ -161,9 +161,7 @@ export class PersonaRepository {
     }
 
     values.push(id);
-    this.db
-      .prepare(`UPDATE personas SET ${setClauses.join(', ')} WHERE id = ?`)
-      .run(...values);
+    this.db.prepare(`UPDATE personas SET ${setClauses.join(', ')} WHERE id = ?`).run(...values);
   }
 
   deletePersona(id: string): boolean {
@@ -192,9 +190,7 @@ export class PersonaRepository {
       .run(personaId, filename, content);
 
     // Touch parent updated_at
-    this.db
-      .prepare('UPDATE personas SET updated_at = ? WHERE id = ?')
-      .run(now, personaId);
+    this.db.prepare('UPDATE personas SET updated_at = ? WHERE id = ?').run(now, personaId);
   }
 
   // ─── System Instruction Composition ─────────────────────────

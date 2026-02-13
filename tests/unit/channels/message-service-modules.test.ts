@@ -6,7 +6,10 @@ import {
   getChannelBindingPersonaId,
   setChannelBindingPersona,
 } from '../../../src/server/channels/messages/channelBindingPersona';
-import { buildFallbackSummary, isAiSummaryEnabled } from '../../../src/server/channels/messages/summary';
+import {
+  buildFallbackSummary,
+  isAiSummaryEnabled,
+} from '../../../src/server/channels/messages/summary';
 import { ChannelType } from '../../../types';
 import type { ChannelKey } from '../../../src/server/channels/adapters/types';
 import type { ChannelBinding } from '../../../src/server/channels/messages/channelBindings';
@@ -98,7 +101,11 @@ describe('message service extracted modules', () => {
     expect(updates).toHaveLength(1);
 
     const webchatConversation = { ...conversation, personaId: null };
-    const webchatUpdated = applyChannelBindingPersona(repo, webchatConversation, ChannelType.WEBCHAT);
+    const webchatUpdated = applyChannelBindingPersona(
+      repo,
+      webchatConversation,
+      ChannelType.WEBCHAT,
+    );
     expect(webchatUpdated).toBe(webchatConversation);
   });
 });

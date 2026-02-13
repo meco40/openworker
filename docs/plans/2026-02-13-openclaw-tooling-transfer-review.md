@@ -5,15 +5,15 @@
 
 ## 1) Validierung: Was ist wirklich ein Problem?
 
-| Thema | Realitätsstatus | Evidenz im Code | Mehrwert bei Fix/Übernahme | Aufwand |
-|---|---|---|---|---|
-| Externe Skills sind nicht End-to-End ausführbar | **Bestätigt** | `skills/definitions.ts`, `skills/execute.ts`, `src/server/skills/executeSkill.ts` nutzen statische Built-in-Mappings; `handlerPath` wird nur gespeichert (`src/server/skills/skillRepository.ts`) | **Sehr hoch** | **Hoch** |
-| `handlerPath` wird nicht runtime-seitig geladen | **Bestätigt** | `src/server/skills/skillInstaller.ts` schreibt `handlerPath`; keine Ausführung darüber | **Sehr hoch** | **Mittel-Hoch** |
-| Tool-Namensdrift zwischen Laufzeitpfaden | **Bestätigt** | Worker: `browser_fetch`, `search_web` (`src/server/worker/workerExecutor.ts`), Registry/Skills: `browser_snapshot` | **Hoch** | **Mittel** |
-| Pfad-Sicherheitscheck mit `startsWith` ist unsauber | **Bestätigt** | `src/server/skills/handlers/fileRead.ts`, `src/server/skills/handlers/dbQuery.ts`; Prefix-Kollision reproduzierbar (`clawtest` vs `clawtest2`) | **Sehr hoch (Security)** | **Niedrig** |
-| Security-Logik für Tool-Ausführung ist fragmentiert | **Bestätigt** | Blockliste in `shellExecute.ts`, separater Approval-Flow im Worker `workerExecutor.ts` | **Mittel-Hoch** | **Mittel** |
-| Runtime-Config ist statisch/hardcoded | **Bestätigt** | `SKILL_RUNTIME_CONFIG_FIELDS` in `src/server/skills/runtimeConfig.ts` | **Mittel** | **Mittel** |
-| OpenClaw-Optional/Channel-Tool-System direkt übernehmen | **Teilweise relevant** | Für OpenClaw sinnvoll, für aktuelle WebApp kein Top-Hebel | **Niedrig-Mittel** | **Hoch** |
+| Thema                                                   | Realitätsstatus        | Evidenz im Code                                                                                                                                                                                   | Mehrwert bei Fix/Übernahme | Aufwand         |
+| ------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | --------------- |
+| Externe Skills sind nicht End-to-End ausführbar         | **Bestätigt**          | `skills/definitions.ts`, `skills/execute.ts`, `src/server/skills/executeSkill.ts` nutzen statische Built-in-Mappings; `handlerPath` wird nur gespeichert (`src/server/skills/skillRepository.ts`) | **Sehr hoch**              | **Hoch**        |
+| `handlerPath` wird nicht runtime-seitig geladen         | **Bestätigt**          | `src/server/skills/skillInstaller.ts` schreibt `handlerPath`; keine Ausführung darüber                                                                                                            | **Sehr hoch**              | **Mittel-Hoch** |
+| Tool-Namensdrift zwischen Laufzeitpfaden                | **Bestätigt**          | Worker: `browser_fetch`, `search_web` (`src/server/worker/workerExecutor.ts`), Registry/Skills: `browser_snapshot`                                                                                | **Hoch**                   | **Mittel**      |
+| Pfad-Sicherheitscheck mit `startsWith` ist unsauber     | **Bestätigt**          | `src/server/skills/handlers/fileRead.ts`, `src/server/skills/handlers/dbQuery.ts`; Prefix-Kollision reproduzierbar (`clawtest` vs `clawtest2`)                                                    | **Sehr hoch (Security)**   | **Niedrig**     |
+| Security-Logik für Tool-Ausführung ist fragmentiert     | **Bestätigt**          | Blockliste in `shellExecute.ts`, separater Approval-Flow im Worker `workerExecutor.ts`                                                                                                            | **Mittel-Hoch**            | **Mittel**      |
+| Runtime-Config ist statisch/hardcoded                   | **Bestätigt**          | `SKILL_RUNTIME_CONFIG_FIELDS` in `src/server/skills/runtimeConfig.ts`                                                                                                                             | **Mittel**                 | **Mittel**      |
+| OpenClaw-Optional/Channel-Tool-System direkt übernehmen | **Teilweise relevant** | Für OpenClaw sinnvoll, für aktuelle WebApp kein Top-Hebel                                                                                                                                         | **Niedrig-Mittel**         | **Hoch**        |
 
 ## 2) Wo unsere WebApp heute bereits besser ist
 
@@ -82,6 +82,7 @@
 
 Der größte reale Hebel ist nicht ein weiteres UI-Refinement, sondern die technische Lücke zwischen **Skill-Installation** und **Skill-Ausführung**.  
 Die Punkte mit sofortigem Mehrwert sind:
+
 - Pfad-Sicherheitsfix,
 - zentrale Tool-Namen,
 - dynamische Runtime-Registry für externe Skills,

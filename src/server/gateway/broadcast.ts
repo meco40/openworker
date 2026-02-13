@@ -67,7 +67,9 @@ function sendRawToClient(client: GatewayClient, raw: string): void {
 
   // Slow consumer detection
   if (socket.bufferedAmount > MAX_BUFFERED_BYTES) {
-    console.warn(`[gateway] Closing slow consumer ${client.connId} (buffered: ${socket.bufferedAmount})`);
+    console.warn(
+      `[gateway] Closing slow consumer ${client.connId} (buffered: ${socket.bufferedAmount})`,
+    );
     try {
       socket.close(1008, 'slow consumer');
     } catch {

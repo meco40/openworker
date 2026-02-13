@@ -72,7 +72,12 @@ export interface MessageRepository {
   updateConversationTitle(id: string, title: string): void;
 
   saveMessage(input: SaveMessageInput): StoredMessage;
-  listMessages(conversationId: string, limit?: number, before?: string, userId?: string): StoredMessage[];
+  listMessages(
+    conversationId: string,
+    limit?: number,
+    before?: string,
+    userId?: string,
+  ): StoredMessage[];
   getDefaultWebChatConversation(userId?: string): Conversation;
 
   deleteConversation(id: string, userId: string): boolean;

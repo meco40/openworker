@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 function read(relativePath: string): string {
   const absolutePath = path.join(process.cwd(), relativePath);
-   
+
   return fs.readFileSync(absolutePath, 'utf-8');
 }
 
@@ -33,4 +33,3 @@ describe('turbopack path pattern guard', () => {
     }
   });
 });
-

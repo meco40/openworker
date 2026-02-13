@@ -139,7 +139,10 @@ export function confirmTelegramPairingCode(
 
   if (pendingExpiresAt.valueOf() <= now.valueOf()) {
     clearPendingPairingCode();
-    return { ok: false, error: 'Pairing code has expired. Send a new Telegram message to get a fresh code.' };
+    return {
+      ok: false,
+      error: 'Pairing code has expired. Send a new Telegram message to get a fresh code.',
+    };
   }
 
   if (pendingCode !== normalized) {

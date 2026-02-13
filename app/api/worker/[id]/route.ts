@@ -121,10 +121,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       case 'move': {
         const targetStatus = body.status;
         if (!targetStatus) {
-          return NextResponse.json(
-            { ok: false, error: 'Missing target status' },
-            { status: 400 },
-          );
+          return NextResponse.json({ ok: false, error: 'Missing target status' }, { status: 400 });
         }
         if (
           !canTransition(
@@ -141,15 +138,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
             { status: 409 },
           );
         }
-        repo.updateStatus(
-          id,
-          targetStatus as Parameters<typeof repo.updateStatus>[1],
-        );
+        repo.updateStatus(id, targetStatus as Parameters<typeof repo.updateStatus>[1]);
         // Trigger processQueue when task moves to queued
         if (targetStatus === 'queued') {
-          processQueue().catch((err: unknown) =>
-            console.error('[API Worker] Queue error:', err),
-          );
+          processQueue().catch((err: unknown) => console.error('[API Worker] Queue error:', err));
         }
         return NextResponse.json({ ok: true, task: repo.getTask(id) });
       }

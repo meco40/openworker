@@ -22,10 +22,16 @@ export async function POST(request: Request) {
     const body = (await request.json()) as InstallBody;
     const slug = (body.slug || '').trim();
     if (!slug) {
-      return NextResponse.json({ ok: false, error: 'Install requires non-empty "slug".' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: 'Install requires non-empty "slug".' },
+        { status: 400 },
+      );
     }
     if (!isValidClawHubSlug(slug)) {
-      return NextResponse.json({ ok: false, error: `Invalid ClawHub skill slug: ${slug}` }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: `Invalid ClawHub skill slug: ${slug}` },
+        { status: 400 },
+      );
     }
 
     const service = getClawHubService();

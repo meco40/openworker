@@ -39,9 +39,7 @@ describe('GET /api/health', () => {
     }));
 
     const { GET } = await import('../../../app/api/health/route');
-    const response = await GET(
-      new Request('http://localhost/api/health?memoryDiagnostics=1'),
-    );
+    const response = await GET(new Request('http://localhost/api/health?memoryDiagnostics=1'));
     const payload = (await response.json()) as { ok: boolean; status: string };
 
     expect(response.status).toBe(200);

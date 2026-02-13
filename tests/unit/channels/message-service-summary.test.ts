@@ -20,7 +20,9 @@ vi.mock('../../../src/server/model-hub/runtime', () => ({
 
 import { MessageService } from '../../../src/server/channels/messages/service';
 
-function buildRepository(upsert: MessageRepository['upsertConversationContext']): MessageRepository {
+function buildRepository(
+  upsert: MessageRepository['upsertConversationContext'],
+): MessageRepository {
   return {
     createConversation: () => {
       throw new Error('unused');
@@ -86,12 +88,7 @@ describe('MessageService summary refresh', () => {
 
   it('uses model hub summarization when refreshing conversation summary', async () => {
     const upsertContext = vi.fn(
-      (
-        conversationId: string,
-        summaryText: string,
-        summaryUptoSeq: number,
-        userId?: string,
-      ) => ({
+      (conversationId: string, summaryText: string, summaryUptoSeq: number, userId?: string) => ({
         userId,
         conversationId,
         summaryText,
@@ -123,8 +120,9 @@ describe('MessageService summary refresh', () => {
       updatedAt: new Date().toISOString(),
     };
 
-    await (service as unknown as { maybeRefreshConversationSummary: (c: Conversation) => Promise<void> })
-      .maybeRefreshConversationSummary(conversation);
+    await (
+      service as unknown as { maybeRefreshConversationSummary: (c: Conversation) => Promise<void> }
+    ).maybeRefreshConversationSummary(conversation);
 
     expect(dispatchWithFallbackMock).toHaveBeenCalledTimes(1);
     expect(upsertContext).toHaveBeenCalledTimes(1);

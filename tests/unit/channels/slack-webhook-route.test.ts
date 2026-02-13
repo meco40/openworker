@@ -44,7 +44,13 @@ describe('slack webhook route', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(handleInbound).toHaveBeenCalledWith('Slack', 'C123', 'hello from slack', 'U777', '1700000.01');
+    expect(handleInbound).toHaveBeenCalledWith(
+      'Slack',
+      'C123',
+      'hello from slack',
+      'U777',
+      '1700000.01',
+    );
   });
 
   it('responds to url_verification challenge', async () => {

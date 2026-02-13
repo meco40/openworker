@@ -59,7 +59,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   return (
     <div
-      className={`flex h-full bg-[#0a0a0a] border rounded-2xl overflow-hidden shadow-2xl relative transition-all ${
+      className={`relative flex h-full overflow-hidden rounded-2xl border bg-[#0a0a0a] shadow-2xl transition-all ${
         isDragOver ? 'border-violet-500/50 ring-2 ring-violet-500/20' : 'border-zinc-800'
       }`}
       onDragOver={handleDragOver}
@@ -81,7 +81,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         availableChannels={availableChannels}
       />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col">
         <ChatMainPane
           activeConversation={activeConversation}
           messages={messages}

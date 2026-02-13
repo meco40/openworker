@@ -12,7 +12,11 @@ describe('GET /api/channels/inbox', () => {
     process.env.CHAT_PERSISTENT_SESSION_V2 = 'false';
 
     repo = new SqliteMessageRepository(':memory:');
-    const telegramConversation = repo.getOrCreateConversation(ChannelType.TELEGRAM, 'chat-tele-1', 'Telegram Chat');
+    const telegramConversation = repo.getOrCreateConversation(
+      ChannelType.TELEGRAM,
+      'chat-tele-1',
+      'Telegram Chat',
+    );
     repo.saveMessage({
       conversationId: telegramConversation.id,
       role: 'user',
@@ -20,7 +24,11 @@ describe('GET /api/channels/inbox', () => {
       platform: ChannelType.TELEGRAM,
     });
 
-    const discordConversation = repo.getOrCreateConversation(ChannelType.DISCORD, 'chat-discord-1', 'Discord Chat');
+    const discordConversation = repo.getOrCreateConversation(
+      ChannelType.DISCORD,
+      'chat-discord-1',
+      'Discord Chat',
+    );
     repo.saveMessage({
       conversationId: discordConversation.id,
       role: 'user',
@@ -44,7 +52,11 @@ describe('GET /api/channels/inbox', () => {
     const response = await GET(new Request('http://localhost/api/channels/inbox?channel=Telegram'));
     const json = (await response.json()) as {
       ok: boolean;
-      items: Array<{ conversationId: string; channelType: string; lastMessage: { content: string } | null }>;
+      items: Array<{
+        conversationId: string;
+        channelType: string;
+        lastMessage: { content: string } | null;
+      }>;
     };
 
     expect(response.status).toBe(200);

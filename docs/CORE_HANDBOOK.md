@@ -17,6 +17,7 @@ Historische Analysen, Reviews und alte Planstaende liegen unter `docs/archive/`.
 - Auth: NextAuth v4 (JWT/Credentials)
 
 Quelle:
+
 - `package.json`
 - `server.ts`
 - `src/server/gateway/*`

@@ -85,4 +85,3 @@ export function getCredentialStore(): CredentialStore {
   }
   return globalThis.__credentialStore;
 }
-

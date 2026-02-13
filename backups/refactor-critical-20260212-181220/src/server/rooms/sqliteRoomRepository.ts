@@ -125,7 +125,9 @@ function toPersonaContext(row: Record<string, unknown>): RoomPersonaContext {
 export class SqliteRoomRepository implements RoomRepository {
   private readonly db: ReturnType<typeof Database>;
 
-  constructor(dbPath = process.env.ROOMS_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db') {
+  constructor(
+    dbPath = process.env.ROOMS_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db',
+  ) {
     if (dbPath === ':memory:') {
       this.db = new Database(':memory:');
     } else {
@@ -156,21 +158,23 @@ export class SqliteRoomRepository implements RoomRepository {
     `);
 
     const applied = new Set(
-      (this.db.prepare('SELECT id FROM _room_migrations').all() as { id: string }[]).map((r) => r.id),
+      (this.db.prepare('SELECT id FROM _room_migrations').all() as { id: string }[]).map(
+        (r) => r.id,
+      ),
     );
 
     // ── Fix broken FK references from previous migration attempt ──
     if (!applied.has('fix_broken_fk_refs')) {
       this.fixBrokenForeignKeys();
-      this.db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
-        'fix_broken_fk_refs', new Date().toISOString(),
-      );
+      this.db
+        .prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)')
+        .run('fix_broken_fk_refs', new Date().toISOString());
     }
 
     if (!applied.has('rooms_add_free_goal_mode')) {
-      const roomsInfo = this.db.prepare(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='rooms'"
-      ).get() as { sql: string } | undefined;
+      const roomsInfo = this.db
+        .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='rooms'")
+        .get() as { sql: string } | undefined;
 
       if (roomsInfo && !roomsInfo.sql.includes("'free'")) {
         this.db.exec('PRAGMA foreign_keys = OFF');
@@ -190,22 +194,22 @@ export class SqliteRoomRepository implements RoomRepository {
           this.db.exec('INSERT INTO _rooms_new SELECT * FROM rooms');
           this.db.exec('DROP TABLE rooms');
           this.db.exec('ALTER TABLE _rooms_new RENAME TO rooms');
-          this.db.prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
-            'rooms_add_free_goal_mode', new Date().toISOString(),
-          );
+          this.db
+            .prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)')
+            .run('rooms_add_free_goal_mode', new Date().toISOString());
         })();
         this.db.exec('PRAGMA foreign_keys = ON');
       } else {
-        this.db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
-          'rooms_add_free_goal_mode', new Date().toISOString(),
-        );
+        this.db
+          .prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)')
+          .run('rooms_add_free_goal_mode', new Date().toISOString());
       }
     }
 
     if (!applied.has('runtime_add_extended_statuses')) {
-      const runtimeInfo = this.db.prepare(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='room_member_runtime'"
-      ).get() as { sql: string } | undefined;
+      const runtimeInfo = this.db
+        .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='room_member_runtime'")
+        .get() as { sql: string } | undefined;
 
       if (runtimeInfo && !runtimeInfo.sql.includes("'interrupting'")) {
         this.db.exec('PRAGMA foreign_keys = OFF');
@@ -228,22 +232,22 @@ export class SqliteRoomRepository implements RoomRepository {
           this.db.exec('INSERT INTO _room_member_runtime_new SELECT * FROM room_member_runtime');
           this.db.exec('DROP TABLE room_member_runtime');
           this.db.exec('ALTER TABLE _room_member_runtime_new RENAME TO room_member_runtime');
-          this.db.prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
-            'runtime_add_extended_statuses', new Date().toISOString(),
-          );
+          this.db
+            .prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)')
+            .run('runtime_add_extended_statuses', new Date().toISOString());
         })();
         this.db.exec('PRAGMA foreign_keys = ON');
       } else {
-        this.db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
-          'runtime_add_extended_statuses', new Date().toISOString(),
-        );
+        this.db
+          .prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)')
+          .run('runtime_add_extended_statuses', new Date().toISOString());
       }
     }
 
     if (!applied.has('runtime_add_paused_status')) {
-      const runtimeInfo = this.db.prepare(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='room_member_runtime'"
-      ).get() as { sql: string } | undefined;
+      const runtimeInfo = this.db
+        .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='room_member_runtime'")
+        .get() as { sql: string } | undefined;
 
       if (runtimeInfo && !runtimeInfo.sql.includes("'paused'")) {
         this.db.exec('PRAGMA foreign_keys = OFF');
@@ -263,33 +267,35 @@ export class SqliteRoomRepository implements RoomRepository {
               PRIMARY KEY (room_id, persona_id)
             )
           `);
-          this.db.exec('INSERT INTO _room_member_runtime_paused_new SELECT * FROM room_member_runtime');
+          this.db.exec(
+            'INSERT INTO _room_member_runtime_paused_new SELECT * FROM room_member_runtime',
+          );
           this.db.exec('DROP TABLE room_member_runtime');
           this.db.exec('ALTER TABLE _room_member_runtime_paused_new RENAME TO room_member_runtime');
-          this.db.prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
-            'runtime_add_paused_status', new Date().toISOString(),
-          );
+          this.db
+            .prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)')
+            .run('runtime_add_paused_status', new Date().toISOString());
         })();
         this.db.exec('PRAGMA foreign_keys = ON');
       } else {
-        this.db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
-          'runtime_add_paused_status', new Date().toISOString(),
-        );
+        this.db
+          .prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)')
+          .run('runtime_add_paused_status', new Date().toISOString());
       }
     }
 
     // ── Add description column to rooms ────────────────────────
     if (!applied.has('rooms_add_description')) {
-      const roomsInfo = this.db.prepare(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='rooms'"
-      ).get() as { sql: string } | undefined;
+      const roomsInfo = this.db
+        .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='rooms'")
+        .get() as { sql: string } | undefined;
 
       if (roomsInfo && !roomsInfo.sql.includes('description')) {
         this.db.exec('ALTER TABLE rooms ADD COLUMN description TEXT');
       }
-      this.db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
-        'rooms_add_description', new Date().toISOString(),
-      );
+      this.db
+        .prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)')
+        .run('rooms_add_description', new Date().toISOString());
     }
   }
 
@@ -299,11 +305,9 @@ export class SqliteRoomRepository implements RoomRepository {
    * Rebuilds any table referencing "_rooms_old" to point back to "rooms".
    */
   private fixBrokenForeignKeys(): void {
-    const brokenTables = (
-      this.db.prepare(
-        "SELECT name, sql FROM sqlite_master WHERE type='table' AND sql LIKE '%_rooms_old%'"
-      ).all() as { name: string; sql: string }[]
-    );
+    const brokenTables = this.db
+      .prepare("SELECT name, sql FROM sqlite_master WHERE type='table' AND sql LIKE '%_rooms_old%'")
+      .all() as { name: string; sql: string }[];
 
     if (brokenTables.length === 0) return;
 
@@ -311,20 +315,20 @@ export class SqliteRoomRepository implements RoomRepository {
     this.db.transaction(() => {
       for (const table of brokenTables) {
         const fixedSql = table.sql.replace(/"_rooms_old"/g, 'rooms');
-        const columns = this.db.prepare(`PRAGMA table_info("${table.name}")`).all() as { name: string }[];
+        const columns = this.db.prepare(`PRAGMA table_info("${table.name}")`).all() as {
+          name: string;
+        }[];
         const colList = columns.map((c) => `"${c.name}"`).join(', ');
 
         // Create temp table with fixed schema, copy data, drop old, rename
         const tempName = `_${table.name}_fkfix`;
-        const createSql = fixedSql.replace(
-          `CREATE TABLE ${table.name}`,
-          `CREATE TABLE "${tempName}"`,
-        ).replace(
-          `CREATE TABLE "${table.name}"`,
-          `CREATE TABLE "${tempName}"`,
-        );
+        const createSql = fixedSql
+          .replace(`CREATE TABLE ${table.name}`, `CREATE TABLE "${tempName}"`)
+          .replace(`CREATE TABLE "${table.name}"`, `CREATE TABLE "${tempName}"`);
         this.db.exec(createSql);
-        this.db.exec(`INSERT INTO "${tempName}" (${colList}) SELECT ${colList} FROM "${table.name}"`);
+        this.db.exec(
+          `INSERT INTO "${tempName}" (${colList}) SELECT ${colList} FROM "${table.name}"`,
+        );
         this.db.exec(`DROP TABLE "${table.name}"`);
         this.db.exec(`ALTER TABLE "${tempName}" RENAME TO "${table.name}"`);
       }
@@ -506,12 +510,23 @@ export class SqliteRoomRepository implements RoomRepository {
         VALUES (?, ?, ?, ?, ?, ?, 'stopped', ?, ?)
       `,
       )
-      .run(id, input.userId, input.name, input.description ?? null, input.goalMode, input.routingProfileId, now, now);
+      .run(
+        id,
+        input.userId,
+        input.name,
+        input.description ?? null,
+        input.goalMode,
+        input.routingProfileId,
+        now,
+        now,
+      );
     return this.getRoom(id)!;
   }
 
   getRoom(id: string): Room | null {
-    const row = this.db.prepare('SELECT * FROM rooms WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+    const row = this.db.prepare('SELECT * FROM rooms WHERE id = ?').get(id) as
+      | Record<string, unknown>
+      | undefined;
     return row ? toRoom(row) : null;
   }
 
@@ -584,7 +599,9 @@ export class SqliteRoomRepository implements RoomRepository {
 
   listMembers(roomId: string): RoomMember[] {
     const rows = this.db
-      .prepare('SELECT * FROM room_members WHERE room_id = ? ORDER BY turn_priority ASC, created_at ASC')
+      .prepare(
+        'SELECT * FROM room_members WHERE room_id = ? ORDER BY turn_priority ASC, created_at ASC',
+      )
       .all(roomId) as Array<Record<string, unknown>>;
     return rows.map(toMember);
   }
@@ -818,9 +835,10 @@ export class SqliteRoomRepository implements RoomRepository {
     if (result.changes === 0) {
       throw new Error(`Could not heartbeat run lease: ${roomId}/${runId}`);
     }
-    const row = this.db
-      .prepare('SELECT * FROM room_runs WHERE id = ?')
-      .get(runId) as Record<string, unknown>;
+    const row = this.db.prepare('SELECT * FROM room_runs WHERE id = ?').get(runId) as Record<
+      string,
+      unknown
+    >;
     return toRun(row);
   }
 
@@ -988,7 +1006,8 @@ export class SqliteRoomRepository implements RoomRepository {
     totalMessages: number;
   } {
     const totalRooms = Number(
-      (this.db.prepare('SELECT COUNT(*) AS count FROM rooms').get() as { count: number }).count || 0,
+      (this.db.prepare('SELECT COUNT(*) AS count FROM rooms').get() as { count: number }).count ||
+        0,
     );
     const runningRooms = Number(
       (

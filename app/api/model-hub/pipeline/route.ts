@@ -105,7 +105,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = (await request.json()) as AddModelBody & RemoveModelBody & UpdateStatusBody & { action?: string };
+    const body = (await request.json()) as AddModelBody &
+      RemoveModelBody &
+      UpdateStatusBody & { action?: string };
     const action = body.action || 'add';
 
     const service = getModelHubService();

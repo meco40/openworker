@@ -24,8 +24,12 @@ describe('runHealthCommand', () => {
     const report = await runHealthCommand();
 
     expect(report.summary.skipped).toBeGreaterThanOrEqual(2);
-    expect(report.checks.find((c) => c.id === 'integration.whatsapp_bridge')?.status).toBe('skipped');
-    expect(report.checks.find((c) => c.id === 'integration.imessage_bridge')?.status).toBe('skipped');
+    expect(report.checks.find((c) => c.id === 'integration.whatsapp_bridge')?.status).toBe(
+      'skipped',
+    );
+    expect(report.checks.find((c) => c.id === 'integration.imessage_bridge')?.status).toBe(
+      'skipped',
+    );
     expect(['ok', 'degraded', 'critical']).toContain(report.status);
   });
 
@@ -167,7 +171,9 @@ describe('runHealthCommand', () => {
     expect(details.memoryNodes).toBeDefined();
 
     const memLogs = repo.listLogs({ source: 'MEM', limit: 10 });
-    expect(memLogs.some((entry) => entry.message.startsWith('memory.diagnostics.sample'))).toBe(true);
+    expect(memLogs.some((entry) => entry.message.startsWith('memory.diagnostics.sample'))).toBe(
+      true,
+    );
   });
 
   it('skips expensive memory diagnostics and sample logging when disabled', async () => {

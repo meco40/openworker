@@ -13,6 +13,7 @@
 ### Task 1: Baseline Safety Checks
 
 **Files:**
+
 - Verify: `tests/unit/model-hub/connectivity.test.ts`
 - Verify: `tests/integration/model-hub/*.test.ts`
 
@@ -29,6 +30,7 @@ Expected: Centralized provider branching found in fetcher/connectivity/gateway.
 ### Task 2: Add Provider Adapter Foundation
 
 **Files:**
+
 - Create: `src/server/model-hub/Models/types.ts`
 - Create: `src/server/model-hub/Models/shared/http.ts`
 - Create: `src/server/model-hub/Models/shared/openaiCompatible.ts`
@@ -48,6 +50,7 @@ Implement reusable helpers for OpenAI-compatible model listing, connectivity che
 ### Task 3: Provider Module Split
 
 **Files:**
+
 - Create: `src/server/model-hub/Models/<provider>/index.ts` for all current providers
 - Create: `src/server/model-hub/Models/registry.ts`
 - Create: `src/server/model-hub/Models/index.ts`
@@ -63,6 +66,7 @@ Expose helper to resolve adapter by provider id and keep fallback for unknown pr
 ### Task 4: Refactor Existing Entry Points
 
 **Files:**
+
 - Modify: `src/server/model-hub/modelFetcher.ts`
 - Modify: `src/server/model-hub/connectivity.ts`
 - Modify: `src/server/model-hub/gateway.ts`
@@ -82,6 +86,7 @@ Keep decryption, unknown provider handling, and openai-compatible generic fallba
 ### Task 5: Test Coverage for Modularization
 
 **Files:**
+
 - Create: `tests/unit/model-hub/provider-registry.test.ts`
 - Modify: `tests/unit/model-hub/connectivity.test.ts`
 
@@ -96,6 +101,7 @@ Ensure previous endpoint assertions still pass with modular architecture.
 ### Task 6: Verification and Backup Comparison
 
 **Files:**
+
 - Compare: `backups/2026-02-10-model-hub-pre-refactor/src/server/model-hub/*`
 - Compare: `src/server/model-hub/*`
 

@@ -38,13 +38,10 @@ function isMissingRequestScopeAuthError(error: unknown): boolean {
   );
 }
 
-export async function resolveRequestUserContext(): Promise<
-  | {
-      userId: string;
-      authenticated: boolean;
-    }
-  | null
-> {
+export async function resolveRequestUserContext(): Promise<{
+  userId: string;
+  authenticated: boolean;
+} | null> {
   const requireAuth = isAuthRequired();
   let session: Pick<Session, 'user'> | null | undefined;
 

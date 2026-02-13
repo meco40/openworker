@@ -27,8 +27,7 @@ const BUILT_IN_GUIDES: Record<string, BaseGuide> = {
     ],
   },
   search: {
-    whatItIs:
-      'Google Search provides grounded web search context directly to the model.',
+    whatItIs: 'Google Search provides grounded web search context directly to the model.',
     whatItCanDo: [
       'Retrieve fresh web results for current topics.',
       'Support answers with up-to-date context.',
@@ -41,8 +40,7 @@ const BUILT_IN_GUIDES: Record<string, BaseGuide> = {
     ],
   },
   'python-runtime': {
-    whatItIs:
-      'Python Executor runs short Python code snippets and returns stdout/stderr.',
+    whatItIs: 'Python Executor runs short Python code snippets and returns stdout/stderr.',
     whatItCanDo: [
       'Perform calculations and transformations.',
       'Run quick data inspection scripts.',
@@ -55,8 +53,7 @@ const BUILT_IN_GUIDES: Record<string, BaseGuide> = {
     ],
   },
   'shell-access': {
-    whatItIs:
-      'Safe Shell executes PowerShell commands with timeout and policy-based blocking.',
+    whatItIs: 'Safe Shell executes PowerShell commands with timeout and policy-based blocking.',
     whatItCanDo: [
       'Run local checks like tests, linting, and build commands.',
       'Inspect files, git state, and environment outputs.',
@@ -69,8 +66,7 @@ const BUILT_IN_GUIDES: Record<string, BaseGuide> = {
     ],
   },
   'github-manager': {
-    whatItIs:
-      'GitHub Connector calls GitHub APIs for repo metadata, issues, PRs, and code search.',
+    whatItIs: 'GitHub Connector calls GitHub APIs for repo metadata, issues, PRs, and code search.',
     whatItCanDo: [
       'Read repository info and open issues/PRs.',
       'Search code inside a repository.',
@@ -83,8 +79,7 @@ const BUILT_IN_GUIDES: Record<string, BaseGuide> = {
     ],
   },
   vision: {
-    whatItIs:
-      'Live Vision analyzes images with Gemini and returns structured visual insights.',
+    whatItIs: 'Live Vision analyzes images with Gemini and returns structured visual insights.',
     whatItCanDo: [
       'Describe scenes, objects, and visible text.',
       'Focus analysis on a user-defined target area.',
@@ -97,8 +92,7 @@ const BUILT_IN_GUIDES: Record<string, BaseGuide> = {
     ],
   },
   'sql-bridge': {
-    whatItIs:
-      'SQL Bridge executes read-only SQL queries against a configured SQLite database.',
+    whatItIs: 'SQL Bridge executes read-only SQL queries against a configured SQLite database.',
     whatItCanDo: [
       'Run SELECT/WITH/PRAGMA/EXPLAIN statements.',
       'Return query rows with safe truncation.',
@@ -111,8 +105,7 @@ const BUILT_IN_GUIDES: Record<string, BaseGuide> = {
     ],
   },
   filesystem: {
-    whatItIs:
-      'File Gateway reads files inside the workspace with path-safety checks.',
+    whatItIs: 'File Gateway reads files inside the workspace with path-safety checks.',
     whatItCanDo: [
       'Load local text files for analysis.',
       'Return truncated content for very large files.',
@@ -142,10 +135,7 @@ function appendSetupHints(
   return out;
 }
 
-export function getToolGuide(
-  skill: Skill,
-  runtimeConfigs: SkillRuntimeConfigStatus[],
-): ToolGuide {
+export function getToolGuide(skill: Skill, runtimeConfigs: SkillRuntimeConfigStatus[]): ToolGuide {
   const builtIn = BUILT_IN_GUIDES[skill.id];
   if (builtIn) {
     return {

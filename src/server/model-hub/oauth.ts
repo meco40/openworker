@@ -12,11 +12,7 @@ const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
 function toBase64Url(input: Buffer | string): string {
   const source = Buffer.isBuffer(input) ? input : Buffer.from(input, 'utf8');
-  return source
-    .toString('base64')
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replaceAll('=', '');
+  return source.toString('base64').replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 }
 
 function fromBase64Url(input: string): Buffer {
@@ -70,4 +66,3 @@ export function createPkcePair(): { codeVerifier: string; codeChallenge: string 
 export function createOAuthNonce(): string {
   return toBase64Url(crypto.randomBytes(16));
 }
-

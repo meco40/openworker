@@ -9,13 +9,10 @@ export async function fetchOpenAICompatibleModels(
   providerId: string,
 ): Promise<FetchedModel[]> {
   const url = `${baseUrl.replace(/\/$/, '')}/models`;
-  const response = await fetchWithTimeout(
-    url,
-    {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${secret}` },
-    },
-  );
+  const response = await fetchWithTimeout(url, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${secret}` },
+  });
 
   if (!response.ok) return [];
 
@@ -40,13 +37,10 @@ export async function testOpenAICompatibleModelsEndpoint(
 ): Promise<ConnectivityResult> {
   try {
     const url = `${baseUrl.replace(/\/$/, '')}/models`;
-    const response = await fetchWithTimeout(
-      url,
-      {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${secret}` },
-      },
-    );
+    const response = await fetchWithTimeout(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${secret}` },
+    });
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');

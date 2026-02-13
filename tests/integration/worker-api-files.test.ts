@@ -40,13 +40,13 @@ describe('worker files API integration', () => {
     it('creates a workspace with scaffold directories', () => {
       const wsPath = mgr.createWorkspace(TEST_TASK_ID, 'research');
       expect(fs.existsSync(wsPath)).toBe(true);
-       
+
       expect(fs.existsSync(path.join(wsPath, 'sources'))).toBe(true);
-       
+
       expect(fs.existsSync(path.join(wsPath, 'notes'))).toBe(true);
-       
+
       expect(fs.existsSync(path.join(wsPath, 'output'))).toBe(true);
-       
+
       expect(fs.existsSync(path.join(wsPath, 'logs'))).toBe(true);
     });
 

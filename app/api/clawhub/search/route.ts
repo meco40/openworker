@@ -15,7 +15,10 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const query = (url.searchParams.get('q') || '').trim();
     if (!query) {
-      return NextResponse.json({ ok: false, error: 'Missing query parameter "q".' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: 'Missing query parameter "q".' },
+        { status: 400 },
+      );
     }
 
     const limitRaw = Number.parseInt(url.searchParams.get('limit') || '', 10);

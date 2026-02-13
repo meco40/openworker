@@ -20,6 +20,7 @@
 ## Task 1: Baseline Safety Tests (freeze current behavior and bug repros)
 
 **Files:**
+
 - Create: `tests/integration/rooms/rooms-hardening-baseline.test.ts`
 - Modify: `tests/integration/rooms/rooms-runtime.test.ts` (optional shared mocks)
 - Test: `tests/integration/rooms/rooms-hardening-baseline.test.ts`
@@ -57,6 +58,7 @@ git commit -m "test(rooms): add baseline repros for critical/high stability issu
 ### Task 2: Prevent Reentrant `runOnce()` in one process
 
 **Files:**
+
 - Modify: `src/server/rooms/orchestrator.ts`
 - Create: `tests/unit/rooms/orchestrator-reentrancy.test.ts`
 - Test: `tests/unit/rooms/orchestrator-reentrancy.test.ts`
@@ -103,6 +105,7 @@ git commit -m "fix(rooms): prevent overlapping orchestrator cycles in one proces
 ### Task 3: Explicit Runtime Role Selection (web vs scheduler)
 
 **Files:**
+
 - Create: `src/server/rooms/runtimeRole.ts`
 - Modify: `server.ts`
 - Modify: `scheduler.ts`
@@ -158,6 +161,7 @@ git commit -m "fix(rooms): add explicit runtime role gating for room scheduler"
 ### Task 4: Stop-Race Hardening (`stopped` must win)
 
 **Files:**
+
 - Modify: `src/server/rooms/orchestrator.ts`
 - Create: `tests/unit/rooms/orchestrator-stop-race.test.ts`
 - Test: `tests/unit/rooms/orchestrator-stop-race.test.ts`
@@ -186,6 +190,7 @@ this.repository.closeActiveRoomRun(room.id, 'degraded', reason);
 ```
 
 Apply this check both:
+
 - around heartbeat failure near end-of-turn
 - in outer `catch` before degraded write.
 
@@ -204,6 +209,7 @@ git commit -m "fix(rooms): prevent degraded overwrite after user stop"
 ### Task 5: Lease Keepalive During Long Dispatch + Abort
 
 **Files:**
+
 - Modify: `src/server/rooms/orchestrator.ts`
 - Create: `tests/integration/rooms/orchestrator-lease-keepalive.test.ts`
 - Test: `tests/integration/rooms/orchestrator-lease-keepalive.test.ts`
@@ -235,6 +241,7 @@ finally { clearInterval(keepalive); }
 ```
 
 If keepalive detects lease loss:
+
 - abort dispatch
 - do not append persona message
 - do not degrade if room already stopped or lease transferred.
@@ -254,6 +261,7 @@ git commit -m "fix(rooms): keep lease alive during dispatch and abort on lease l
 ### Task 6: Replace `MAX(seq)+1` with Atomic Per-Room Sequence
 
 **Files:**
+
 - Modify: `src/server/rooms/sqliteRoomRepository.ts`
 - Modify: `src/server/rooms/repository.ts` (only if helper API needed)
 - Create: `tests/integration/rooms/room-message-seq-concurrency.test.ts`
@@ -315,6 +323,7 @@ git commit -m "fix(rooms): use atomic per-room message sequence allocator"
 ### Task 7: Correct Metrics and Input Validation Safety
 
 **Files:**
+
 - Modify: `src/server/rooms/orchestrator.ts`
 - Modify: `app/api/rooms/[id]/messages/route.ts`
 - Modify: `tests/integration/rooms/rooms-runtime.test.ts`
@@ -354,6 +363,7 @@ git commit -m "fix(rooms): correct createdMessages metric and harden beforeSeq v
 ### Task 8: Documentation + Rollout + Verification Gate
 
 **Files:**
+
 - Modify: `docs/PERSONA_ROOMS_SYSTEM.md`
 - Modify: `docs/2026-02-12-rooms-stability-performance-analysis.md`
 - Create: `docs/plans/2026-02-12-rooms-critical-high-hardening-rollout.md`
@@ -361,6 +371,7 @@ git commit -m "fix(rooms): correct createdMessages metric and harden beforeSeq v
 **Step 1: Add rollout docs**
 
 Include:
+
 - env matrix (`ROOMS_RUNNER`)
 - expected process topology
 - rollback switch (set `ROOMS_RUNNER=both` + disable keepalive flag if introduced)
@@ -386,6 +397,7 @@ Run:
 `docker compose logs -f scheduler web`
 
 Expected:
+
 - only configured runner emits room-cycle logs
 - no repetitive lease-heartbeat degradation after stop.
 

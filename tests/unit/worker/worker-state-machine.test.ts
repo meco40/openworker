@@ -58,9 +58,7 @@ describe('WorkerStateMachine', () => {
       expect(canTransition('planning', 'queued', 'manual')).toBe(false);
       expect(canTransition('planning', 'cancelled', 'manual')).toBe(true);
       expect(canTransition('clarifying', 'cancelled', 'manual')).toBe(true);
-      expect(canTransition('waiting_approval', 'cancelled', 'manual')).toBe(
-        true,
-      );
+      expect(canTransition('waiting_approval', 'cancelled', 'manual')).toBe(true);
     });
 
     it('allows testing → review', () => {

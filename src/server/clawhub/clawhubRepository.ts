@@ -52,7 +52,9 @@ export class ClawHubRepository {
   }
 
   private ensureColumnExists(column: string, type: string): void {
-    const rows = this.db.prepare('PRAGMA table_info(clawhub_skills)').all() as Array<Record<string, unknown>>;
+    const rows = this.db.prepare('PRAGMA table_info(clawhub_skills)').all() as Array<
+      Record<string, unknown>
+    >;
     const hasColumn = rows.some((row) => String(row.name) === column);
     if (!hasColumn) {
       this.db.exec(`ALTER TABLE clawhub_skills ADD COLUMN ${column} ${type}`);
@@ -146,9 +148,9 @@ export class ClawHubRepository {
   }
 
   getSkill(slug: string): ClawHubSkillRow | null {
-    const row = this.db
-      .prepare('SELECT * FROM clawhub_skills WHERE slug = ?')
-      .get(slug) as Record<string, unknown> | undefined;
+    const row = this.db.prepare('SELECT * FROM clawhub_skills WHERE slug = ?').get(slug) as
+      | Record<string, unknown>
+      | undefined;
     return row ? toRow(row) : null;
   }
 

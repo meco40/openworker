@@ -7,9 +7,7 @@ import SkillsRegistry from '../../../skills/SkillsRegistry';
 import type { Skill } from '../../../types';
 
 function noopSetSkills(
-  _updater:
-    | React.SetStateAction<Skill[]>
-    | ((prevState: Skill[]) => Skill[]),
+  _updater: React.SetStateAction<Skill[]> | ((prevState: Skill[]) => Skill[]),
 ) {
   // no-op
 }

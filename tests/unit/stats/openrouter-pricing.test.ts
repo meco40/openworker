@@ -59,4 +59,3 @@ describe('openRouter pricing', () => {
     expect(large?.promptPricePerTokenUsd).toBeCloseTo(0.0000005, 12);
   });
 });
-

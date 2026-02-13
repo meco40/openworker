@@ -15,6 +15,7 @@
 **Status vor dieser Revision:** Nicht vollständig production-ready.
 
 **Fehlende kritische Punkte (nun in diesem Plan ergänzt):**
+
 1. Klare Client/Server-Grenze für dynamische Tool-Registry (Browser darf keine Server-Registry direkt importieren).
 2. Provider-Kompatibilitätsschicht als explizite Komponente (OpenAI/Gemini/Claude/Kimi/Grok).
 3. Sicherheits-Härtung für externe Handler-Ausführung (Timeout, Ressourcenlimit, Isolationsstrategie, Kill-Switch).
@@ -44,6 +45,7 @@ npm run test -- tests/integration/clawhub/clawhub-routes.test.ts
 ### Task 0: Architecture Contracts and Risk Controls (must be done first)
 
 **Files:**
+
 - Create: `docs/architecture/skills-runtime-contract.md`
 - Create: `tests/contract/skills/skills-runtime-contract.test.ts`
 - Modify: `docs/SKILLS_SYSTEM.md`
@@ -51,6 +53,7 @@ npm run test -- tests/integration/clawhub/clawhub-routes.test.ts
 **Step 1: Write failing contract tests for architecture boundaries**
 
 Add contract tests for:
+
 - dynamic tool resolution for browser chat happens via API boundary, not direct server import.
 - provider adapter interface returns provider-specific tool payloads from one canonical source.
 - registry cache invalidation after install/update/uninstall events.
@@ -66,6 +69,7 @@ Expected: FAIL before contracts are introduced.
 **Step 3: Define explicit architecture contract doc**
 
 Document:
+
 - canonical tool spec (internal),
 - provider adapter contract (`toProviderTools(provider, canonicalTools)`),
 - execution contract for tool handlers,
@@ -92,6 +96,7 @@ git commit -m "docs+contract: define runtime architecture boundaries for skills"
 ### Task 1: Baseline Characterization for Current Good Behavior
 
 **Files:**
+
 - Create: `tests/integration/skills/skills-auth-guards.contract.test.ts`
 - Create: `tests/unit/skills/non-regression-baseline.test.ts`
 - Modify: `docs/SKILLS_SYSTEM.md`
@@ -102,6 +107,7 @@ git commit -m "docs+contract: define runtime architecture boundaries for skills"
 **Step 1: Write failing auth characterization test**
 
 Add tests for unauthenticated access returning `401` for:
+
 - `GET /api/skills`
 - `POST /api/skills`
 - `POST /api/skills/execute`
@@ -147,6 +153,7 @@ git commit -m "test: add non-regression characterization for auth and skill base
 ### Task 2: Path Security Fix (P0)
 
 **Files:**
+
 - Create: `src/server/skills/pathGuards.ts`
 - Create: `tests/unit/skills/path-guards.test.ts`
 - Modify: `src/server/skills/handlers/fileRead.ts`
@@ -156,6 +163,7 @@ git commit -m "test: add non-regression characterization for auth and skill base
 **Step 1: Write failing path guard test**
 
 Add tests for:
+
 - `D:\web\clawtest2\...` style prefix collision must be rejected.
 - `..\` traversal must be rejected.
 - in-root relative path must pass.
@@ -171,6 +179,7 @@ Expected: FAIL because helper does not exist.
 **Step 3: Add minimal path guard utility**
 
 Create `resolveWorkspacePathOrThrow(workspaceRoot, userPath)` using:
+
 - `path.resolve` + `path.relative`
 - reject when relative is empty? no (root file allowed)
 - reject when relative starts with `..` or is absolute
@@ -179,6 +188,7 @@ Create `resolveWorkspacePathOrThrow(workspaceRoot, userPath)` using:
 **Step 4: Replace duplicated `ensureWorkspacePath` in handlers**
 
 Update:
+
 - `src/server/skills/handlers/fileRead.ts`
 - `src/server/skills/handlers/dbQuery.ts`
 
@@ -205,6 +215,7 @@ git commit -m "fix: harden workspace path validation for skill handlers"
 ### Task 3: Canonical Tool Contract and Name Unification (P1)
 
 **Files:**
+
 - Create: `src/shared/toolContract.ts`
 - Create: `tests/unit/skills/tool-contract.test.ts`
 - Modify: `src/server/worker/workerExecutor.ts`
@@ -219,6 +230,7 @@ git commit -m "fix: harden workspace path validation for skill handlers"
 **Step 1: Write failing contract test**
 
 Add tests asserting:
+
 - canonical names include `browser_snapshot`, `file_read`, `shell_execute`, `python_execute`, `db_query`, `github_query`, `vision_analyze`.
 - legacy aliases map to canonical (`browser_fetch` -> `browser_snapshot`, `search_web` -> provider built-in path or explicit no-op mapping).
 
@@ -233,6 +245,7 @@ Expected: FAIL because contract file does not exist.
 **Step 3: Implement canonical contract**
 
 Create `toolContract.ts` with:
+
 - `CANONICAL_TOOL_NAMES`
 - `LEGACY_TOOL_ALIASES`
 - helper `normalizeToolName(name: string): string`
@@ -240,6 +253,7 @@ Create `toolContract.ts` with:
 **Step 4: Update worker tool definitions**
 
 `workerExecutor.ts`:
+
 - replace `browser_fetch` with canonical `browser_snapshot`
 - replace `search_web` usage with canonical strategy:
   - either built-in search adapter call, or
@@ -268,6 +282,7 @@ git commit -m "refactor: introduce canonical tool contract and align worker tool
 ### Task 4: Dynamic Runtime Registry for Built-in + External Skills (P2)
 
 **Files:**
+
 - Create: `src/server/skills/runtimeRegistry.ts`
 - Create: `src/server/skills/externalSkillLoader.ts`
 - Create: `src/server/skills/providerAdapters.ts`
@@ -287,6 +302,7 @@ git commit -m "refactor: introduce canonical tool contract and align worker tool
 **Step 1: Write failing registry tests**
 
 Cover:
+
 - built-ins are resolved dynamically.
 - DB-installed external skill with `handlerPath` becomes executable.
 - missing/invalid handler returns structured error, does not crash registry.
@@ -303,17 +319,20 @@ Expected: FAIL because registry does not exist.
 **Step 3: Implement minimal runtime registry**
 
 `runtimeRegistry.ts`:
+
 - load built-ins from existing manifests.
 - load DB skills from `getSkillRepository()`.
 - merge + validate + convert with `convertTools`.
 - add in-memory cache with version token and explicit invalidation method.
 
 `externalSkillLoader.ts`:
+
 - load handler module from `handlerPath` under workspace constraints.
 - require exported `execute(args)` (or configurable symbol).
 - return typed `SkillExecutor`.
 
 `providerAdapters.ts`:
+
 - canonical -> provider transformation for current providers.
 - normalize provider/tool quirks in one place.
 - explicit extension point for additional providers (e.g. Kimi, Grok).
@@ -321,6 +340,7 @@ Expected: FAIL because registry does not exist.
 **Step 4: Wire registry into existing call sites**
 
 Replace static maps in:
+
 - `skills/definitions.ts` delegates to new `/api/skills/tools` client when in browser context.
 - `skills/execute.ts` uses environment split:
   - browser path -> existing API execution (`/api/skills/execute`),
@@ -354,6 +374,7 @@ git commit -m "feat: add dynamic skill runtime registry with external handler ex
 ### Task 5: Unified Security/Policy Dispatcher (P3)
 
 **Files:**
+
 - Create: `src/server/skills/policy.ts`
 - Create: `src/server/skills/policyTypes.ts`
 - Create: `tests/unit/skills/policy.test.ts`
@@ -365,6 +386,7 @@ git commit -m "feat: add dynamic skill runtime registry with external handler ex
 **Step 1: Write failing policy tests**
 
 Cover:
+
 - default deny for unknown tool.
 - allow by context (chat/room/worker) + persona permissions.
 - shell commands requiring approval route through one policy decision point.
@@ -381,6 +403,7 @@ Expected: FAIL because policy module does not exist.
 **Step 3: Implement policy core**
 
 `policy.ts`:
+
 - `evaluateToolCall({ context, toolName, args, actor, permissions })`
 - centralize deny/allow/approval logic.
 - keep existing behavior parity first (do not broaden permissions).
@@ -388,6 +411,7 @@ Expected: FAIL because policy module does not exist.
 **Step 4: Integrate policy in all dispatch paths**
 
 Apply before execution in:
+
 - API skill execution path.
 - Rooms tool execution path.
 - Worker tool dispatch path.
@@ -416,6 +440,7 @@ git commit -m "refactor: unify tool execution policy and approval decisions"
 ### Task 6: External Handler Execution Hardening (production safety gate)
 
 **Files:**
+
 - Create: `src/server/skills/executionSandbox.ts`
 - Create: `tests/unit/skills/execution-sandbox.test.ts`
 - Modify: `src/server/skills/externalSkillLoader.ts`
@@ -425,6 +450,7 @@ git commit -m "refactor: unify tool execution policy and approval decisions"
 **Step 1: Write failing sandbox tests**
 
 Cover:
+
 - timeout enforcement on external handlers.
 - max payload size / output size guard.
 - cancellation support via abort signal.
@@ -441,6 +467,7 @@ Expected: FAIL before sandbox exists.
 **Step 3: Implement execution sandbox wrapper**
 
 Add wrapper around external handler execution with:
+
 - timeout budget per tool,
 - output truncation and size caps,
 - panic/fault isolation path,
@@ -453,6 +480,7 @@ Add wrapper around external handler execution with:
 **Step 4: Add structured observability**
 
 Emit log events for:
+
 - `skills.tool_call.started`
 - `skills.tool_call.completed`
 - `skills.tool_call.failed`
@@ -480,6 +508,7 @@ git commit -m "feat: harden external skill execution with sandbox guards and tel
 ### Task 7: Final Regression, Docs, and Rollout Safety
 
 **Files:**
+
 - Modify: `docs/SKILLS_SYSTEM.md`
 - Modify: `docs/plans/2026-02-13-openclaw-tooling-transfer-review.md`
 - Create: `docs/architecture/skills-runtime-registry.md`
@@ -488,6 +517,7 @@ git commit -m "feat: harden external skill execution with sandbox guards and tel
 **Step 1: Add migration notes**
 
 Document:
+
 - canonical tool naming and aliases
 - external handler loading contract
 - policy decision flow
@@ -538,6 +568,7 @@ git commit -m "docs: add skill runtime registry and policy architecture notes"
 ## Go/No-Go Production Checklist
 
 Go only if all are true:
+
 1. Regression suite green for auth/runtime-config/clawhub/tooling.
 2. Contract tests green for provider adapter and client/server boundary.
 3. No increase >10% in tool failure rate during canary.

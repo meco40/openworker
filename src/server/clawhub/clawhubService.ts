@@ -127,12 +127,20 @@ export class ClawHubService {
   async explore(limit = 25, sort = 'newest'): Promise<{ items: Array<Record<string, unknown>> }> {
     const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(200, Math.floor(limit))) : 25;
     const safeSort = sort.trim() || 'newest';
-    const result = await this.cli.run('explore', ['--json', '--limit', String(safeLimit), '--sort', safeSort]);
+    const result = await this.cli.run('explore', [
+      '--json',
+      '--limit',
+      String(safeLimit),
+      '--sort',
+      safeSort,
+    ]);
     const parsed = parseJsonObject<Array<Record<string, unknown>>>(result.stdout);
     return { items: parsed ?? [] };
   }
 
-  async install(input: ClawHubInstallInput): Promise<{ skills: ClawHubSkillRow[]; warnings: string[] }> {
+  async install(
+    input: ClawHubInstallInput,
+  ): Promise<{ skills: ClawHubSkillRow[]; warnings: string[] }> {
     const normalizedSlug = normalizeSkillSlugOrThrow(input.slug);
     const args = ['--force'];
     if (!input.force) {
@@ -147,7 +155,9 @@ export class ClawHubService {
     return { skills, warnings: [] };
   }
 
-  async update(input: ClawHubUpdateInput): Promise<{ skills: ClawHubSkillRow[]; warnings: string[] }> {
+  async update(
+    input: ClawHubUpdateInput,
+  ): Promise<{ skills: ClawHubSkillRow[]; warnings: string[] }> {
     const args: string[] = [];
     if (input.all) {
       args.push('--all');

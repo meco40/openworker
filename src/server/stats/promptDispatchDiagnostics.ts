@@ -41,7 +41,10 @@ export function markPromptDispatchInsert(at: string): void {
   diagnostics.lastInsertAt = at;
 }
 
-export function markPromptDispatchError(error: unknown, at: string = new Date().toISOString()): void {
+export function markPromptDispatchError(
+  error: unknown,
+  at: string = new Date().toISOString(),
+): void {
   const diagnostics = getMutableDiagnostics();
   diagnostics.lastErrorAt = at;
   diagnostics.lastError = error instanceof Error ? error.message : String(error);

@@ -2,7 +2,12 @@
 // Browser-side client with reconnect, request/response correlation,
 // event subscriptions, and seq-gap detection.
 
-import type { EventFrame, RequestFrame, ResponseFrame, StreamFrame } from '../../server/gateway/protocol';
+import type {
+  EventFrame,
+  RequestFrame,
+  ResponseFrame,
+  StreamFrame,
+} from '../../server/gateway/protocol';
 import type { GatewayEvent } from '../../server/gateway/events';
 
 // ─── Types ───────────────────────────────────────────────────
@@ -62,7 +67,10 @@ export class GatewayClient {
   }
 
   connect(): void {
-    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
+    if (
+      this.ws &&
+      (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)
+    ) {
       return;
     }
     this.intentionalClose = false;
@@ -113,7 +121,11 @@ export class GatewayClient {
     return this.request<T>('channels.list');
   }
 
-  async listInbox<T = unknown>(params?: { channel?: string; q?: string; limit?: number }): Promise<T> {
+  async listInbox<T = unknown>(params?: {
+    channel?: string;
+    q?: string;
+    limit?: number;
+  }): Promise<T> {
     return this.request<T>('inbox.list', params);
   }
 
@@ -228,7 +240,9 @@ export class GatewayClient {
           // Socket was rejected (likely 401) — never reached open state
           this.connectFailures++;
           if (this.connectFailures >= MAX_CONNECT_FAILURES) {
-            console.warn('[gateway] Too many connection failures — stopping reconnect (auth issue?)');
+            console.warn(
+              '[gateway] Too many connection failures — stopping reconnect (auth issue?)',
+            );
             this.setState('disconnected');
             return;
           }

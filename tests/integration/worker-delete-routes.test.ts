@@ -27,7 +27,7 @@ describe('worker delete routes', () => {
   afterAll(() => {
     for (const taskId of createdWorkspaceIds) {
       const wsPath = path.join(process.cwd(), 'workspaces', taskId);
-       
+
       if (fs.existsSync(wsPath)) {
         try {
           fs.rmSync(wsPath, { recursive: true, force: true });
@@ -38,10 +38,8 @@ describe('worker delete routes', () => {
     }
 
     for (const candidate of [workerDbPath, `${workerDbPath}-wal`, `${workerDbPath}-shm`]) {
-       
       if (fs.existsSync(candidate)) {
         try {
-           
           fs.unlinkSync(candidate);
         } catch {
           // ignore transient lock

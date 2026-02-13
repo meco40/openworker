@@ -59,7 +59,7 @@ export class LogRepository {
       this.db = new BetterSqlite3(':memory:');
     } else {
       const fullPath = path.resolve(dbPath);
-       
+
       fs.mkdirSync(path.dirname(fullPath), { recursive: true });
       this.db = new BetterSqlite3(fullPath);
     }
@@ -67,9 +67,9 @@ export class LogRepository {
   }
 
   private hasColumn(table: string, column: string): boolean {
-    const rows = this.db
-      .prepare(`PRAGMA table_info(${table})`)
-      .all() as Array<{ name: string | undefined }>;
+    const rows = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
+      name: string | undefined;
+    }>;
     return rows.some((row) => row.name === column);
   }
 
@@ -89,7 +89,9 @@ export class LogRepository {
 
     if (!this.hasColumn('system_logs', 'category')) {
       this.db.exec(`ALTER TABLE system_logs ADD COLUMN category TEXT NOT NULL DEFAULT 'system';`);
-      this.db.exec(`UPDATE system_logs SET category = 'system' WHERE category IS NULL OR category = '';`);
+      this.db.exec(
+        `UPDATE system_logs SET category = 'system' WHERE category IS NULL OR category = '';`,
+      );
     }
 
     this.db.exec(`
@@ -125,7 +127,16 @@ export class LogRepository {
         `INSERT INTO system_logs (id, timestamp, level, source, category, message, metadata, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(id, now, level, source, category, message, metadata ? JSON.stringify(metadata) : null, now);
+      .run(
+        id,
+        now,
+        level,
+        source,
+        category,
+        message,
+        metadata ? JSON.stringify(metadata) : null,
+        now,
+      );
 
     return {
       id,
@@ -152,16 +163,17 @@ export class LogRepository {
   }
 
   getLogCount(
-    levelOrFilter?: LogLevel | Pick<LogFilter, 'level' | 'source' | 'category' | 'search' | 'before'>,
+    levelOrFilter?:
+      | LogLevel
+      | Pick<LogFilter, 'level' | 'source' | 'category' | 'search' | 'before'>,
   ): number {
     const filter =
       typeof levelOrFilter === 'string' ? { level: levelOrFilter } : (levelOrFilter ?? {});
     const { where, params } = buildWhere(filter);
 
-    const row = this.db.prepare(`SELECT COUNT(*) as cnt FROM system_logs ${where}`).get(...params) as Record<
-      string,
-      unknown
-    >;
+    const row = this.db
+      .prepare(`SELECT COUNT(*) as cnt FROM system_logs ${where}`)
+      .get(...params) as Record<string, unknown>;
     return Number(row.cnt);
   }
 
@@ -199,4 +211,3 @@ export function getLogRepository(): LogRepository {
   }
   return globalThis.__logRepository;
 }
-

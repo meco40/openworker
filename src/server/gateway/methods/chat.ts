@@ -22,7 +22,12 @@ registerMethod(
     const { getMessageService } = await import('../../channels/messages/runtime');
     const service = getMessageService();
 
-    const result = await service.handleWebUIMessage(conversationId, content, client.userId, clientMessageId);
+    const result = await service.handleWebUIMessage(
+      conversationId,
+      content,
+      client.userId,
+      clientMessageId,
+    );
     respond({
       userMsgId: result.userMsg.id,
       agentMsgId: result.agentMsg.id,
@@ -57,7 +62,12 @@ registerMethod(
     const { getMessageService } = await import('../../channels/messages/runtime');
     const service = getMessageService();
 
-    const result = await service.handleWebUIMessage(conversationId, content, client.userId, clientMessageId);
+    const result = await service.handleWebUIMessage(
+      conversationId,
+      content,
+      client.userId,
+      clientMessageId,
+    );
     const agentContent = result.agentMsg.content || '';
 
     // Emit the response as StreamFrames (chunked by words for natural UX)

@@ -47,9 +47,10 @@ export function runWebappTests(workspacePath: string): TestSuiteResult {
   results.push({
     name: 'HTML-Dateien vorhanden',
     passed: htmlFiles.length > 0,
-    message: htmlFiles.length > 0
-      ? `${htmlFiles.length} HTML-Datei(en) gefunden`
-      : 'Keine HTML-Dateien im Output gefunden',
+    message:
+      htmlFiles.length > 0
+        ? `${htmlFiles.length} HTML-Datei(en) gefunden`
+        : 'Keine HTML-Dateien im Output gefunden',
   });
 
   // ─── 2. Validate HTML files ─────────────────────────────
@@ -178,7 +179,9 @@ function validateCSS(content: string, filePath: string): TestResult[] {
   results.push({
     name: `${filePath}: Klammern balanciert`,
     passed: balanced,
-    message: balanced ? `${opens} Blöcke korrekt` : `{ = ${opens}, } = ${closes} — nicht balanciert`,
+    message: balanced
+      ? `${opens} Blöcke korrekt`
+      : `{ = ${opens}, } = ${closes} — nicht balanciert`,
   });
 
   // Check for common CSS errors — double semicolons

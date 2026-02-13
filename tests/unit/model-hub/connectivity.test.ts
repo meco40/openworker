@@ -37,7 +37,9 @@ describe('model-hub connectivity adapters', () => {
     const result = await testProviderAccountConnectivity(buildAccount('openai', 'sk-test'), KEY);
     expect(result.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const firstCallUrl = String((fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0]);
+    const firstCallUrl = String(
+      (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0],
+    );
     expect(firstCallUrl).toContain('api.openai.com/v1/models');
 
     global.fetch = originalFetch;
@@ -53,10 +55,15 @@ describe('model-hub connectivity adapters', () => {
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const result = await testProviderAccountConnectivity(buildAccount('openrouter', 'or-sk-test'), KEY);
+    const result = await testProviderAccountConnectivity(
+      buildAccount('openrouter', 'or-sk-test'),
+      KEY,
+    );
     expect(result.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const firstCallUrl = String((fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0]);
+    const firstCallUrl = String(
+      (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0],
+    );
     expect(firstCallUrl).toContain('openrouter.ai/api/v1/key');
 
     global.fetch = originalFetch;
@@ -72,11 +79,16 @@ describe('model-hub connectivity adapters', () => {
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const account = { ...buildAccount('github-copilot', 'gho_test_token'), authMethod: 'oauth' as const };
+    const account = {
+      ...buildAccount('github-copilot', 'gho_test_token'),
+      authMethod: 'oauth' as const,
+    };
     const result = await testProviderAccountConnectivity(account, KEY);
     expect(result.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const firstCallUrl = String((fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0]);
+    const firstCallUrl = String(
+      (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0],
+    );
     expect(firstCallUrl).toContain('models.inference.ai.azure.com/info');
 
     global.fetch = originalFetch;

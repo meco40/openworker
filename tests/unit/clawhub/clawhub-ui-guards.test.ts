@@ -22,10 +22,7 @@ describe('ClawHub UI guardrails', () => {
     const target = new EventTarget();
     const listener = vi.fn();
 
-    const unsubscribe = subscribeClawHubChanged(
-      target as unknown as ClawHubEventTarget,
-      listener,
-    );
+    const unsubscribe = subscribeClawHubChanged(target as unknown as ClawHubEventTarget, listener);
 
     target.dispatchEvent(new Event(CLAWHUB_CHANGED_EVENT));
     expect(listener).toHaveBeenCalledTimes(1);

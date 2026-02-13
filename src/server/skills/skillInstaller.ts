@@ -70,7 +70,10 @@ function validateManifest(data: unknown): SkillManifest {
 
 function parseGitHubUrl(url: string): { owner: string; repo: string; branch: string } {
   // Support: https://github.com/owner/repo[#branch] or owner/repo[#branch]
-  const cleaned = url.trim().replace(/\.git$/i, '').replace(/\/+$/, '');
+  const cleaned = url
+    .trim()
+    .replace(/\.git$/i, '')
+    .replace(/\/+$/, '');
   if (!cleaned) {
     throw new Error(`Cannot parse GitHub URL: ${url}`);
   }

@@ -57,4 +57,3 @@ describe('model-hub oauth callback route', () => {
     global.fetch = originalFetch;
   });
 });
-

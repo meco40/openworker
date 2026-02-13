@@ -9,10 +9,7 @@ import { runWebappTests } from '../../../../../src/server/worker/workerTester';
 
 export const runtime = 'nodejs';
 
-export async function POST(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const repo = getWorkerRepository();
@@ -31,10 +28,7 @@ export async function POST(
 
     const wsMgr = getWorkspaceManager();
     if (!wsMgr.exists(id)) {
-      return NextResponse.json(
-        { ok: false, error: 'Workspace not found' },
-        { status: 404 },
-      );
+      return NextResponse.json({ ok: false, error: 'Workspace not found' }, { status: 404 });
     }
 
     const workspacePath = wsMgr.getWorkspacePath(id);

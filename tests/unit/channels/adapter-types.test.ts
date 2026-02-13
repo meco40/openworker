@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { CHANNEL_CAPABILITIES, normalizeChannelKey } from '../../../src/server/channels/adapters/capabilities';
+import {
+  CHANNEL_CAPABILITIES,
+  normalizeChannelKey,
+} from '../../../src/server/channels/adapters/capabilities';
 
 describe('channel adapter contracts', () => {
   it('normalizes known channel keys and exposes capabilities', () => {

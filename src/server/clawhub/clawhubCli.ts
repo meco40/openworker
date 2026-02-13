@@ -124,11 +124,15 @@ export class ClawHubCli {
         if (isInvalidSpawnForWindowsCmdLauncher(error, candidate.command)) {
           try {
             const command = process.env.ComSpec || 'cmd.exe';
-            const result = await this.exec(command, ['/d', '/c', candidate.command, ...candidate.argv], {
-              cwd: this.workdir,
-              timeout: this.timeoutMs,
-              maxBuffer: 1024 * 1024,
-            });
+            const result = await this.exec(
+              command,
+              ['/d', '/c', candidate.command, ...candidate.argv],
+              {
+                cwd: this.workdir,
+                timeout: this.timeoutMs,
+                maxBuffer: 1024 * 1024,
+              },
+            );
             return {
               stdout: result.stdout,
               stderr: result.stderr,
@@ -151,6 +155,8 @@ export class ClawHubCli {
       }
     }
 
-    throw lastError instanceof Error ? lastError : new Error('No supported ClawHub launcher found.');
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('No supported ClawHub launcher found.');
   }
 }

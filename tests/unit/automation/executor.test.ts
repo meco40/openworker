@@ -24,8 +24,9 @@ describe('automation executor', () => {
   });
 
   it('fails with TimeoutError when action exceeds timeout', async () => {
-    const runPrompt = vi.fn(async (): Promise<{ summary: string }> =>
-      await new Promise((resolve) => setTimeout(() => resolve({ summary: 'late' }), 25)),
+    const runPrompt = vi.fn(
+      async (): Promise<{ summary: string }> =>
+        await new Promise((resolve) => setTimeout(() => resolve({ summary: 'late' }), 25)),
     );
 
     await expect(
@@ -40,5 +41,3 @@ describe('automation executor', () => {
     ).rejects.toBeInstanceOf(TimeoutError);
   });
 });
-
-

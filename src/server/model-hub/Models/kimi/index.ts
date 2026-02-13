@@ -7,7 +7,8 @@ import {
 
 const kimiProviderAdapter: ProviderAdapter = {
   id: 'kimi',
-  fetchModels: ({ secret }) => fetchOpenAICompatibleModels('https://api.moonshot.cn/v1', secret, 'kimi'),
+  fetchModels: ({ secret }) =>
+    fetchOpenAICompatibleModels('https://api.moonshot.cn/v1', secret, 'kimi'),
   testConnectivity: ({ secret }) =>
     testOpenAICompatibleModelsEndpoint(
       'https://api.moonshot.cn/v1',

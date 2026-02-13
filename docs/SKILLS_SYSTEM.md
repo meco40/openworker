@@ -5,6 +5,7 @@
 ## Überblick
 
 Das Skills-System ermöglicht die Erweiterung der KI-Fähigkeiten durch installierbare Tools. Es unterstützt:
+
 - **8 Built-in Skills** (Core Extensions, Automation, Data & Media, System)
 - **Externe Skill-Installation** via npm, GitHub oder ClawHub
 - **Skill-basierte Tool-Execution** mit Approval-Workflow
@@ -29,16 +30,16 @@ skills/
 
 ## Built-in Skills
 
-| Skill | Default | Beschreibung |
-|-------|---------|---------------|
-| `browser` | ✅ | Website-Inhalte fetchen und analysieren |
-| `search` | ✅ | Web-Suche durchführen |
-| `python` | ✅ | Python-Code ausführen |
-| `vision` | ✅ | Bilder analysieren (OCR, Beschreibung) |
-| `filesystem` | ✅ | Dateien lesen/schreiben im Workspace |
-| `shell` | ❌ | Shell-Kommandos ausführen (riskant) |
-| `github` | ❌ | GitHub-API-Abfragen |
-| `sql` | ❌ | SQL-Queries (read-only) |
+| Skill        | Default | Beschreibung                            |
+| ------------ | ------- | --------------------------------------- |
+| `browser`    | ✅      | Website-Inhalte fetchen und analysieren |
+| `search`     | ✅      | Web-Suche durchführen                   |
+| `python`     | ✅      | Python-Code ausführen                   |
+| `vision`     | ✅      | Bilder analysieren (OCR, Beschreibung)  |
+| `filesystem` | ✅      | Dateien lesen/schreiben im Workspace    |
+| `shell`      | ❌      | Shell-Kommandos ausführen (riskant)     |
+| `github`     | ❌      | GitHub-API-Abfragen                     |
+| `sql`        | ❌      | SQL-Queries (read-only)                 |
 
 ## Skill-Installation
 
@@ -72,6 +73,7 @@ npm install <skill-package>
 Liste aller installierten Skills.
 
 **Response:**
+
 ```json
 {
   "ok": true,
@@ -92,6 +94,7 @@ Liste aller installierten Skills.
 Skill installieren.
 
 **Body:**
+
 ```json
 {
   "source": "npm|github|clawhub",
@@ -114,9 +117,9 @@ import { browser } from '../skills/browser';
 import { filesystem } from '../skills/filesystem';
 
 const SKILL_HANDLERS = {
-  'browser_fetch': browser.fetch,
-  'file_read': filesystem.readFile,
-  'file_write': filesystem.writeFile,
+  browser_fetch: browser.fetch,
+  file_read: filesystem.readFile,
+  file_write: filesystem.writeFile,
   // ...
 };
 
@@ -142,6 +145,7 @@ System: ⚠️ Genehmigung erforderlich für Shell-Kommando
 ### Risk-Levels
 
 Skills werden nach Risiko eingestuft:
+
 - **Low**: browser, search, filesystem (lesen), vision
 - **Medium**: filesystem (schreiben), python, sql
 - **High**: shell, github

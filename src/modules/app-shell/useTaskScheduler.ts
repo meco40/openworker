@@ -21,7 +21,10 @@ export function useTaskScheduler({ addEventLog, setMessages }: UseTaskSchedulerA
         }
 
         dueTasks.forEach((task) => {
-          const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const timestamp = new Date().toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
           setMessages((currentMessages) => [
             ...currentMessages,
             {

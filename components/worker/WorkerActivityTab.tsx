@@ -67,20 +67,26 @@ const WorkerActivityTab: React.FC<WorkerActivityTabProps> = ({ taskId }) => {
     <div className="worker-activity">
       {activities.map((activity) => {
         const icon = ACTIVITY_ICONS[activity.type] || '📌';
-        const meta = activity.metadata ? (() => {
-          try { return JSON.parse(activity.metadata); }
-          catch { return null; }
-        })() : null;
+        const meta = activity.metadata
+          ? (() => {
+              try {
+                return JSON.parse(activity.metadata);
+              } catch {
+                return null;
+              }
+            })()
+          : null;
 
         return (
-          <div key={activity.id} className={`worker-activity__item worker-activity__item--${activity.type}`}>
+          <div
+            key={activity.id}
+            className={`worker-activity__item worker-activity__item--${activity.type}`}
+          >
             <span className="worker-activity__icon">{icon}</span>
             <div className="worker-activity__content">
               <p className="worker-activity__message">{activity.message}</p>
               {meta && activity.type === 'persona_assigned' && meta.personaName && (
-                <span className="worker-activity__meta">
-                  Persona: {meta.personaName}
-                </span>
+                <span className="worker-activity__meta">Persona: {meta.personaName}</span>
               )}
             </div>
             <span className="worker-activity__time" title={activity.createdAt}>

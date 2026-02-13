@@ -111,8 +111,8 @@ export function RoomDetailPanel({
 
   if (!room) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-600">
-        <div className="text-center space-y-2">
+      <div className="flex flex-1 items-center justify-center text-zinc-600">
+        <div className="space-y-2 text-center">
           <div className="text-4xl">🏠</div>
           <div className="text-sm">Wähle oder erstelle einen Room</div>
         </div>
@@ -121,23 +121,23 @@ export function RoomDetailPanel({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-      <div className="p-4 border-b border-zinc-800 flex items-center gap-3">
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex items-center gap-3 border-b border-zinc-800 p-4">
         <span className="text-2xl">🏠</span>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-bold text-white truncate">{room.name}</h3>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-lg font-bold text-white">{room.name}</h3>
           <div className="text-xs text-zinc-500">
             {room.goalMode} • {state?.routingProfileId || room.routingProfileId}
           </div>
           {room.description && (
-            <div className="text-xs text-zinc-400 mt-0.5 truncate" title={room.description}>
+            <div className="mt-0.5 truncate text-xs text-zinc-400" title={room.description}>
               {room.description}
             </div>
           )}
         </div>
 
         <span
-          className={`text-[10px] px-2 py-1 rounded-full uppercase tracking-wider ${
+          className={`rounded-full px-2 py-1 text-[10px] tracking-wider uppercase ${
             (liveRunStatus?.runState || state?.runState) === 'running'
               ? 'bg-emerald-600/20 text-emerald-300'
               : (liveRunStatus?.runState || state?.runState) === 'degraded'
@@ -150,37 +150,37 @@ export function RoomDetailPanel({
 
         <button
           onClick={onRefresh}
-          className="px-3 py-1.5 text-xs rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-100"
+          className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-zinc-100 hover:bg-zinc-700"
         >
           Refresh
         </button>
         <button
           onClick={onDelete}
-          className="px-3 py-1.5 text-xs rounded-lg bg-zinc-800 hover:bg-rose-700 text-zinc-100"
+          className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-zinc-100 hover:bg-rose-700"
         >
           Delete
         </button>
         {state?.runState === 'running' ? (
           <button
             onClick={onStop}
-            className="px-3 py-1.5 text-xs rounded-lg bg-rose-600 hover:bg-rose-500 text-white"
+            className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs text-white hover:bg-rose-500"
           >
             Stop
           </button>
         ) : (
           <button
             onClick={onStart}
-            className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white"
+            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs text-white hover:bg-emerald-500"
           >
             Start
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 flex-1 min-h-0 overflow-hidden">
-        <div className="xl:col-span-1 border-r border-zinc-800 p-4 space-y-4 overflow-y-auto">
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden xl:grid-cols-3">
+        <div className="space-y-4 overflow-y-auto border-r border-zinc-800 p-4 xl:col-span-1">
           <div>
-            <div className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-2">
+            <div className="mb-2 text-xs font-black tracking-widest text-zinc-400 uppercase">
               Mitglieder
             </div>
             <div className="space-y-2">
@@ -191,51 +191,60 @@ export function RoomDetailPanel({
                 const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
                   idle: { bg: 'bg-emerald-600/20', text: 'text-emerald-300', label: 'Idle' },
                   busy: { bg: 'bg-amber-600/20', text: 'text-amber-300', label: 'Busy' },
-                  interrupting: { bg: 'bg-orange-600/20', text: 'text-orange-300', label: 'Interrupting' },
-                  interrupted: { bg: 'bg-zinc-600/20', text: 'text-zinc-300', label: 'Interrupted' },
+                  interrupting: {
+                    bg: 'bg-orange-600/20',
+                    text: 'text-orange-300',
+                    label: 'Interrupting',
+                  },
+                  interrupted: {
+                    bg: 'bg-zinc-600/20',
+                    text: 'text-zinc-300',
+                    label: 'Interrupted',
+                  },
                   error: { bg: 'bg-rose-600/20', text: 'text-rose-300', label: 'Error' },
                   paused: { bg: 'bg-sky-600/20', text: 'text-sky-300', label: 'Paused' },
                 };
                 const cfg = statusConfig[memberState] ?? statusConfig.idle;
                 const isPaused = memberState === 'paused';
                 return (
-                  <div key={member.personaId} className="p-2 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div
+                    key={member.personaId}
+                    className="rounded-lg border border-zinc-800 bg-zinc-900 p-2"
+                  >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm text-zinc-100 truncate">
+                      <div className="truncate text-sm text-zinc-100">
                         {persona?.emoji || '🤖'} {persona?.name || member.personaId}
                       </div>
                       <div className="flex items-center gap-2">
                         <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}
+                          className={`rounded-full px-2 py-0.5 text-[10px] ${cfg.bg} ${cfg.text}`}
                         >
                           {cfg.label}
                         </span>
                         <button
                           onClick={() => onToggleMemberPause(member.personaId, !isPaused)}
-                          className={`text-[10px] px-2 py-0.5 rounded text-zinc-100 ${
-                            isPaused ? 'bg-emerald-700 hover:bg-emerald-600' : 'bg-sky-700 hover:bg-sky-600'
+                          className={`rounded px-2 py-0.5 text-[10px] text-zinc-100 ${
+                            isPaused
+                              ? 'bg-emerald-700 hover:bg-emerald-600'
+                              : 'bg-sky-700 hover:bg-sky-600'
                           }`}
                         >
                           {isPaused ? 'Resume' : 'Pause'}
                         </button>
                         <button
                           onClick={() => onRemoveMember(member.personaId)}
-                          className="text-[10px] px-2 py-0.5 rounded bg-zinc-800 hover:bg-rose-700 text-zinc-200"
+                          className="rounded bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-200 hover:bg-rose-700"
                         >
                           Remove
                         </button>
                       </div>
                     </div>
-                    <div className="text-[11px] text-zinc-500 mt-1">
-                      Rolle: {member.roleLabel}
-                    </div>
-                    <div className="text-[11px] text-zinc-500 mt-1">
+                    <div className="mt-1 text-[11px] text-zinc-500">Rolle: {member.roleLabel}</div>
+                    <div className="mt-1 text-[11px] text-zinc-500">
                       active in {activeRoomCountsByPersona[member.personaId] || 0} rooms
                     </div>
                     {memberState !== 'idle' && status?.reason && (
-                      <div className={`text-[11px] mt-1 ${cfg.text}`}>
-                        {status.reason}
-                      </div>
+                      <div className={`mt-1 text-[11px] ${cfg.text}`}>{status.reason}</div>
                     )}
                   </div>
                 );
@@ -243,8 +252,8 @@ export function RoomDetailPanel({
             </div>
           </div>
 
-          <div className="pt-2 border-t border-zinc-800">
-            <div className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-2">
+          <div className="border-t border-zinc-800 pt-2">
+            <div className="mb-2 text-xs font-black tracking-widest text-zinc-400 uppercase">
               Persona hinzufügen
             </div>
             <select
@@ -257,7 +266,7 @@ export function RoomDetailPanel({
                   setRoleLabel(persona.name);
                 }
               }}
-              className="w-full mb-2 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100"
+              className="mb-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
             >
               <option value="">Persona wählen</option>
               {availablePersonas.map((persona) => (
@@ -270,13 +279,13 @@ export function RoomDetailPanel({
               value={roleLabel}
               onChange={(event) => setRoleLabel(event.target.value)}
               placeholder="Rolle (z.B. Mutter, Analyst)"
-              className="w-full mb-2 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100"
+              className="mb-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
             />
             <input
               value={modelOverride}
               onChange={(event) => setModelOverride(event.target.value)}
               placeholder="Model Override (optional)"
-              className="w-full mb-2 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100"
+              className="mb-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
             />
             <button
               onClick={() => {
@@ -288,42 +297,40 @@ export function RoomDetailPanel({
                 setRoleLabel('');
                 setModelOverride('');
               }}
-              className="w-full px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider"
+              className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold tracking-wider text-white uppercase hover:bg-indigo-500"
             >
               Hinzufügen
             </button>
           </div>
         </div>
 
-        <div className="xl:col-span-2 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex min-h-0 flex-col overflow-hidden xl:col-span-2">
           {/* Fixed header area — never scrolls */}
-          <div className="flex-shrink-0 px-4 pt-4 pb-2 border-b border-zinc-800/50">
+          <div className="flex-shrink-0 border-b border-zinc-800/50 px-4 pt-4 pb-2">
             {metrics && (
-              <div className="mb-2 p-2 rounded-lg border border-zinc-800 bg-zinc-900 text-[11px] text-zinc-300 flex items-center gap-4">
+              <div className="mb-2 flex items-center gap-4 rounded-lg border border-zinc-800 bg-zinc-900 p-2 text-[11px] text-zinc-300">
                 <span>Messages: {metrics.messageCount}</span>
                 <span>Members: {metrics.memberCount}</span>
               </div>
             )}
             {interventions.length > 0 && (
-              <div className="mb-2 p-2 rounded-lg border border-amber-800/50 bg-amber-950/20">
-                <div className="text-[10px] font-black uppercase tracking-wider text-amber-300 mb-1">
+              <div className="mb-2 rounded-lg border border-amber-800/50 bg-amber-950/20 p-2">
+                <div className="mb-1 text-[10px] font-black tracking-wider text-amber-300 uppercase">
                   Letzte Intervention
                 </div>
                 <div className="text-xs text-amber-100">{interventions[0]?.note}</div>
               </div>
             )}
-            <div className="text-xs font-black uppercase tracking-widest text-zinc-400">
+            <div className="text-xs font-black tracking-widest text-zinc-400 uppercase">
               Room Timeline
             </div>
           </div>
 
           {/* Scrollable messages area */}
           <div className="flex-1 overflow-y-auto px-4 py-3">
-            {loading && (
-              <div className="text-zinc-500 text-sm">Lade Room-Daten...</div>
-            )}
+            {loading && <div className="text-sm text-zinc-500">Lade Room-Daten...</div>}
             {!loading && messages.length === 0 && (
-              <div className="text-zinc-500 text-sm">Noch keine Nachrichten.</div>
+              <div className="text-sm text-zinc-500">Noch keine Nachrichten.</div>
             )}
             <div className="space-y-2">
               {messages.map((message) => {
@@ -349,23 +356,25 @@ export function RoomDetailPanel({
                 return (
                   <div
                     key={`${message.roomId}-${message.seq}`}
-                    className={`p-3 rounded-lg border ${
+                    className={`rounded-lg border p-3 ${
                       isUser
-                        ? 'bg-indigo-950/30 border-indigo-800/40'
+                        ? 'border-indigo-800/40 bg-indigo-950/30'
                         : isSystem
-                          ? 'bg-amber-950/20 border-amber-800/30'
-                          : 'bg-zinc-900 border-zinc-800'
+                          ? 'border-amber-800/30 bg-amber-950/20'
+                          : 'border-zinc-800 bg-zinc-900'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-[11px] text-zinc-300 font-semibold">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold text-zinc-300">
                         {speakerLabel}
                       </span>
                       <span className="text-[10px] text-zinc-500" title={message.createdAt}>
                         {formatTimestamp(message.createdAt)}
                       </span>
                     </div>
-                    <div className="text-sm text-zinc-100 whitespace-pre-wrap">{message.content}</div>
+                    <div className="text-sm whitespace-pre-wrap text-zinc-100">
+                      {message.content}
+                    </div>
                   </div>
                 );
               })}
@@ -374,7 +383,7 @@ export function RoomDetailPanel({
           </div>
 
           {/* User Chat Input */}
-          <div className="p-3 border-t border-zinc-800 bg-zinc-900/40">
+          <div className="border-t border-zinc-800 bg-zinc-900/40 p-3">
             <div className="flex gap-2">
               <textarea
                 value={chatInput}
@@ -387,12 +396,12 @@ export function RoomDetailPanel({
                 }}
                 placeholder="Nachricht an den Room senden…"
                 rows={1}
-                className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 resize-none focus:outline-none focus:border-indigo-500 placeholder:text-zinc-600"
+                className="flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
               />
               <button
                 onClick={handleSendMessage}
                 disabled={!chatInput.trim() || sending}
-                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold tracking-wider text-white uppercase transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Senden
               </button>

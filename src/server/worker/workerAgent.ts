@@ -257,7 +257,11 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
         message: 'Zur manuellen Überprüfung verschoben',
         metadata: { from: 'testing', to: 'review', reason: 'tests_failed' },
       });
-      broadcastStatus(task.id, 'review', 'Tests fehlgeschlagen — manuelle Überprüfung erforderlich');
+      broadcastStatus(
+        task.id,
+        'review',
+        'Tests fehlgeschlagen — manuelle Überprüfung erforderlich',
+      );
       return;
     }
 

@@ -79,9 +79,7 @@ describe('WorkerRepository — Planning', () => {
     it('overwrites previous messages on save', () => {
       const task = makeTask();
 
-      repo.savePlanningMessages(task.id, [
-        { role: 'system', content: 'v1' },
-      ]);
+      repo.savePlanningMessages(task.id, [{ role: 'system', content: 'v1' }]);
 
       repo.savePlanningMessages(task.id, [
         { role: 'system', content: 'v1' },

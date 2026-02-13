@@ -34,7 +34,9 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        const email = String(credentials?.email || '').trim().toLowerCase();
+        const email = String(credentials?.email || '')
+          .trim()
+          .toLowerCase();
         const password = String(credentials?.password || '');
 
         if (!email || !password) {

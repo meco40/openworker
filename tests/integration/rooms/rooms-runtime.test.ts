@@ -158,7 +158,14 @@ describe('rooms runtime orchestrator', () => {
     });
     repo.addMember(room.id, 'persona-1', 'Researcher', 1, null);
 
-    for (const status of ['idle', 'busy', 'interrupting', 'interrupted', 'error', 'paused'] as const) {
+    for (const status of [
+      'idle',
+      'busy',
+      'interrupting',
+      'interrupted',
+      'error',
+      'paused',
+    ] as const) {
       const runtime = repo.upsertMemberRuntime({
         roomId: room.id,
         personaId: 'persona-1',

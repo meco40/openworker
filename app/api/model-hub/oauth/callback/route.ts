@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { parseOAuthState } from '../../../../../src/server/model-hub/oauth';
 import { PROVIDER_CATALOG } from '../../../../../src/server/model-hub/providerCatalog';
-import { getModelHubEncryptionKey, getModelHubService } from '../../../../../src/server/model-hub/runtime';
+import {
+  getModelHubEncryptionKey,
+  getModelHubService,
+} from '../../../../../src/server/model-hub/runtime';
 
 export const runtime = 'nodejs';
 
@@ -96,7 +99,9 @@ async function exchangeGitHubCode(code: string, callbackUrl: string): Promise<Oa
 
   const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   if (!response.ok) {
-    throw new Error(ensureString(json.error_description) || `GitHub OAuth exchange failed (${response.status}).`);
+    throw new Error(
+      ensureString(json.error_description) || `GitHub OAuth exchange failed (${response.status}).`,
+    );
   }
 
   const accessToken = ensureString(json.access_token);
@@ -208,4 +213,3 @@ export async function GET(request: Request) {
     return htmlResult(false, message);
   }
 }
-

@@ -7,7 +7,8 @@ import {
 
 const mistralProviderAdapter: ProviderAdapter = {
   id: 'mistral',
-  fetchModels: ({ secret }) => fetchOpenAICompatibleModels('https://api.mistral.ai/v1', secret, 'mistral'),
+  fetchModels: ({ secret }) =>
+    fetchOpenAICompatibleModels('https://api.mistral.ai/v1', secret, 'mistral'),
   testConnectivity: ({ secret }) =>
     testOpenAICompatibleModelsEndpoint(
       'https://api.mistral.ai/v1',

@@ -61,14 +61,18 @@ const cohereProviderAdapter: ProviderAdapter = {
     if (request.max_tokens) body.max_tokens = request.max_tokens;
     if (request.temperature !== undefined) body.temperature = request.temperature;
 
-    const response = await fetchWithTimeout('https://api.cohere.com/v2/chat', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${secret}`,
-        'Content-Type': 'application/json',
+    const response = await fetchWithTimeout(
+      'https://api.cohere.com/v2/chat',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    }, 60_000);
+      60_000,
+    );
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');

@@ -41,7 +41,12 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const service = getRoomService();
-    const runtime = service.setMemberPaused(userContext.userId, params.id, params.personaId, body.paused);
+    const runtime = service.setMemberPaused(
+      userContext.userId,
+      params.id,
+      params.personaId,
+      body.paused,
+    );
     return NextResponse.json({ ok: true, runtime });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

@@ -100,4 +100,3 @@ describe('automation repository', () => {
     repo.close();
   });
 });
-

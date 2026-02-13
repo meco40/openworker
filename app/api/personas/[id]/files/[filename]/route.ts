@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../../../../src/server/auth/userContext';
 import { getPersonaRepository } from '../../../../../../src/server/personas/personaRepository';
-import { PERSONA_FILE_NAMES, type PersonaFileName } from '../../../../../../src/server/personas/personaTypes';
+import {
+  PERSONA_FILE_NAMES,
+  type PersonaFileName,
+} from '../../../../../../src/server/personas/personaTypes';
 
 export const runtime = 'nodejs';
 
@@ -68,7 +71,10 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     const body = (await request.json()) as { content?: string };
     if (typeof body.content !== 'string') {
-      return NextResponse.json({ ok: false, error: 'content (string) is required' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: 'content (string) is required' },
+        { status: 400 },
+      );
     }
 
     repo.saveFile(id, filename as PersonaFileName, body.content);

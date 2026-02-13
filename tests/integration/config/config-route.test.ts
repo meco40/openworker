@@ -130,7 +130,9 @@ describe('/api/config route', () => {
     expect(payload.ok).toBe(true);
     expect(payload.config.gateway?.host).toBe('127.0.0.1');
     expect(payload.config.gateway?.bind).toBe('loopback');
-    expect(payload.warnings?.some((warning) => warning.code === 'gateway.host.derived_from_bind')).toBe(true);
+    expect(
+      payload.warnings?.some((warning) => warning.code === 'gateway.host.derived_from_bind'),
+    ).toBe(true);
     expect(typeof payload.revision).toBe('string');
   });
 
@@ -163,7 +165,9 @@ describe('/api/config route', () => {
     expect(payload.ok).toBe(true);
     expect(payload.config.ui?.timeFormat).toBe('24h');
     expect(payload.config.ui?.density).toBe('comfortable');
-    expect(payload.warnings?.some((warning) => warning.code === 'ui.timeFormat.defaulted_from_invalid')).toBe(true);
+    expect(
+      payload.warnings?.some((warning) => warning.code === 'ui.timeFormat.defaulted_from_invalid'),
+    ).toBe(true);
   });
 
   it('redacts sensitive tokens in GET payload', async () => {
@@ -216,7 +220,9 @@ describe('/api/config route', () => {
       },
     };
 
-    const putResponse = await PUT(makePutRequest({ config: nextConfig, revision: firstPayload.revision }));
+    const putResponse = await PUT(
+      makePutRequest({ config: nextConfig, revision: firstPayload.revision }),
+    );
     const putPayload = (await putResponse.json()) as { ok: boolean; revision: string };
 
     expect(putResponse.status).toBe(200);
@@ -252,7 +258,9 @@ describe('/api/config route', () => {
     const getResponse = await GET();
     const getPayload = (await getResponse.json()) as { revision: string };
 
-    const response = await PUT(makePutRequest({ config: 'invalid', revision: getPayload.revision }));
+    const response = await PUT(
+      makePutRequest({ config: 'invalid', revision: getPayload.revision }),
+    );
     const payload = (await response.json()) as { ok: boolean; error: string };
 
     expect(response.status).toBe(400);

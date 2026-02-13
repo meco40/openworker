@@ -16,6 +16,7 @@ Status: Produktionsreif fuer Single-Instance, gezieltes Hardening sinnvoll
 **Risiko:** Unbehandelte Exceptions liefern inkonsistente Error-Responses.
 
 **Best-Case-Loesung:**
+
 - Einheitlichen API-Wrapper fuer Auth + Fehlerbehandlung einfuehren (`withAuth`, `handleRouteError`)
 - Standard-Envelope fuer Fehler (`{ ok: false, error, code? }`)
 
@@ -31,6 +32,7 @@ Status: Produktionsreif fuer Single-Instance, gezieltes Hardening sinnvoll
 **Risiko:** Langsame Provider blockieren schnellere Raeume.
 
 **Best-Case-Loesung:**
+
 - Bounded Parallelism statt strikt sequenziell, z. B. `p-limit` mit konfigurierbarer Parallelitaet
 - Weiterhin Lease-Schutz pro Room beibehalten
 
@@ -42,16 +44,19 @@ Status: Produktionsreif fuer Single-Instance, gezieltes Hardening sinnvoll
 **Risiko:** Brechend bei Message-Aenderungen im Service-Layer.
 
 **Best-Case-Loesung:**
+
 - Typisierte Domain-Errors (`RoomNotFoundError`, `PersonaNotFoundError`, ...)
 - Zentrale Error-to-HTTP-Mapping-Funktion
 
 ### 4. DRY-Verletzungen in Rooms-API
 
 **Befund:**
+
 - `unauthorized()` mehrfach dupliziert
 - Auth-Check + Error-Handling Pattern mehrfach dupliziert
 
 **Best-Case-Loesung:**
+
 - Gemeinsame Helpers in `app/api/rooms/_helpers.ts`
 - Optional: Route-Factory fuer Auth-geschuetzte Handler
 
@@ -64,6 +69,7 @@ Status: Produktionsreif fuer Single-Instance, gezieltes Hardening sinnvoll
 #### 5.1 `limit` auf API-Ebene nicht begrenzt
 
 **Dateien:**
+
 - `app/api/rooms/[id]/messages/route.ts`
 - `app/api/rooms/[id]/interventions/route.ts`
 
@@ -71,6 +77,7 @@ Status: Produktionsreif fuer Single-Instance, gezieltes Hardening sinnvoll
 **Wichtig:** Repository cappt bereits intern auf 200 (`src/server/rooms/sqliteRoomRepository.ts`).
 
 **Best-Case-Loesung:**
+
 - API-seitig ebenfalls explizit cappen (z. B. `Math.min(200, ...)`)
 - 400 fuer ungueltige/negative Limits
 
@@ -82,6 +89,7 @@ Status: Produktionsreif fuer Single-Instance, gezieltes Hardening sinnvoll
 **Risiko:** `NaN`, negative oder nicht-ganzzahlige Werte.
 
 **Best-Case-Loesung:**
+
 - `Number.isInteger && >= 0` validieren
 - 400 bei invaliden Werten
 
@@ -119,6 +127,7 @@ Status: Produktionsreif fuer Single-Instance, gezieltes Hardening sinnvoll
 **Datei:** `src/modules/rooms/useRoomSync.ts`
 
 **Befund:**
+
 - Dedupe via `some()` ist O(n)
 - Einfuegen via `findIndex()` ist O(n)
 - Das fruehere `sort()` pro Event ist nicht mehr vorhanden
@@ -153,6 +162,7 @@ Status: Produktionsreif fuer Single-Instance, gezieltes Hardening sinnvoll
 ### 13. Sehr hohe Test-Ueberlappung (nicht 1:1 identisch)
 
 **Dateien:**
+
 - `tests/unit/rooms/orchestrator-stop-race.test.ts`
 - `tests/integration/rooms/rooms-hardening-baseline.test.ts`
 
@@ -162,6 +172,7 @@ Status: Produktionsreif fuer Single-Instance, gezieltes Hardening sinnvoll
 ### 14. Fehlende Negativtests
 
 **Konkrete Luecken:**
+
 - Invalid JSON Body -> 400
 - Ungueltige `turnPriority`
 - API-Level `limit`-Validierung
@@ -236,7 +247,7 @@ Status: Produktionsreif fuer Single-Instance, gezieltes Hardening sinnvoll
 
 ## Priorisierter Best-Case-Fixplan
 
-1. API-Hardening in einem Schritt: zentraler Auth/Error-Wrapper, typed errors, JSON/limit/turnPriority-Validierung.  
-2. Orchestrator-Performance in einem Schritt: bounded concurrency + persona cache + dead-code cleanup.  
-3. UX/Frontend in einem Schritt: pagination + virtualisierung + markdown rendering.  
+1. API-Hardening in einem Schritt: zentraler Auth/Error-Wrapper, typed errors, JSON/limit/turnPriority-Validierung.
+2. Orchestrator-Performance in einem Schritt: bounded concurrency + persona cache + dead-code cleanup.
+3. UX/Frontend in einem Schritt: pagination + virtualisierung + markdown rendering.
 4. Security/Operations in einem Schritt: HTTP rate limits + room-scoped permissions + observability fuer slow rooms.

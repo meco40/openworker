@@ -18,4 +18,3 @@ describe('model-hub oauth start route', () => {
     expect(location).toContain('state=');
   });
 });
-

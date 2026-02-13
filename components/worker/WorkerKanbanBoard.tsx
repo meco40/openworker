@@ -57,9 +57,7 @@ export default function WorkerKanbanBoard({
 
   const getTasksForColumn = useCallback(
     (column: KanbanColumn): WorkerTask[] =>
-      tasks.filter((t) =>
-        column.statuses.includes(t.status as WorkerTaskStatus),
-      ),
+      tasks.filter((t) => column.statuses.includes(t.status as WorkerTaskStatus)),
     [tasks],
   );
 
@@ -67,13 +65,7 @@ export default function WorkerKanbanBoard({
     (column: KanbanColumn): WorkerTaskStatus | null => {
       if (!draggedTask) return null;
       for (const status of column.statuses) {
-        if (
-          canTransition(
-            draggedTask.status as WorkerTaskStatus,
-            status,
-            'manual',
-          )
-        ) {
+        if (canTransition(draggedTask.status as WorkerTaskStatus, status, 'manual')) {
           return status;
         }
       }
@@ -82,14 +74,11 @@ export default function WorkerKanbanBoard({
     [draggedTask],
   );
 
-  const handleDragStart = useCallback(
-    (e: React.DragEvent, task: WorkerTask) => {
-      setDraggedTask(task);
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', task.id);
-    },
-    [],
-  );
+  const handleDragStart = useCallback((e: React.DragEvent, task: WorkerTask) => {
+    setDraggedTask(task);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
+  }, []);
 
   const handleDragOver = useCallback(
     (e: React.DragEvent, column: KanbanColumn) => {
@@ -136,10 +125,7 @@ export default function WorkerKanbanBoard({
           <h2>Worker Tasks</h2>
           <span className="kanban-board__badge">{totalCount}</span>
         </div>
-        <button
-          className="worker-btn worker-btn--primary"
-          onClick={onCreateTask}
-        >
+        <button className="worker-btn worker-btn--primary" onClick={onCreateTask}>
           + Neuer Task
         </button>
       </div>
@@ -148,17 +134,14 @@ export default function WorkerKanbanBoard({
         {KANBAN_COLUMNS.map((column) => {
           const columnTasks = getTasksForColumn(column);
           const isValidTarget = dropTarget === column.id;
-          const accentColor =
-            COLUMN_COLORS[column.id] || 'var(--accent, #3b82f6)';
+          const accentColor = COLUMN_COLORS[column.id] || 'var(--accent, #3b82f6)';
 
           return (
             <div
               key={column.id}
               className={`kanban-column ${isValidTarget ? 'kanban-column--drop-target' : ''}`}
               style={
-                isValidTarget
-                  ? ({ '--col-accent': accentColor } as React.CSSProperties)
-                  : undefined
+                isValidTarget ? ({ '--col-accent': accentColor } as React.CSSProperties) : undefined
               }
               onDragOver={(e) => handleDragOver(e, column)}
               onDragLeave={handleDragLeave}
@@ -166,9 +149,7 @@ export default function WorkerKanbanBoard({
             >
               <div className="kanban-column__header">
                 <span className="kanban-column__title">{column.label}</span>
-                <span className="kanban-column__count">
-                  {columnTasks.length}
-                </span>
+                <span className="kanban-column__count">{columnTasks.length}</span>
               </div>
               <div className="kanban-column__body">
                 {columnTasks.map((task) => {
@@ -186,12 +167,8 @@ export default function WorkerKanbanBoard({
                       onClick={() => onSelectTask(task)}
                     >
                       <div className="kanban-card__header">
-                        <span className="kanban-card__status">
-                          {statusInfo.icon}
-                        </span>
-                        <span className="kanban-card__priority">
-                          {task.priority}
-                        </span>
+                        <span className="kanban-card__status">{statusInfo.icon}</span>
+                        <span className="kanban-card__priority">{task.priority}</span>
                       </div>
                       <div className="kanban-card__title">{task.title}</div>
                       {task.currentStep !== undefined &&

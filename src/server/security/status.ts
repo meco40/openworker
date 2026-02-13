@@ -39,15 +39,15 @@ interface BuildSecurityStatusInput {
   secureCrypto?: boolean;
 }
 
-function resolveMessagesDbPath(rawPath = process.env.MESSAGES_DB_PATH || '.local/messages.db'): string {
+function resolveMessagesDbPath(
+  rawPath = process.env.MESSAGES_DB_PATH || '.local/messages.db',
+): string {
   return path.resolve(rawPath);
 }
 
 function hasDangerousCommandEnabled(commands: CommandPermission[]): boolean {
   return commands.some(
-    (rule) =>
-      rule.enabled &&
-      /rm\s+-rf|del\s+\/f\s+\/q|powershell\s+-enc/i.test(rule.command),
+    (rule) => rule.enabled && /rm\s+-rf|del\s+\/f\s+\/q|powershell\s+-enc/i.test(rule.command),
   );
 }
 
@@ -127,9 +127,7 @@ function buildIsolationCheck(commands: CommandPermission[]): SecurityCheck {
     };
   }
 
-  const blockedHighRisk = commands.filter(
-    (rule) => rule.risk === 'High' && !rule.enabled,
-  ).length;
+  const blockedHighRisk = commands.filter((rule) => rule.risk === 'High' && !rule.enabled).length;
   if (blockedHighRisk === 0) {
     return {
       id: 'isolation',
@@ -171,7 +169,11 @@ function buildChannelSecurityDiagnostics(): ChannelSecurityDiagnostic[] {
     {
       channel: 'telegram',
       verification: 'signed',
-      secretConfigured: hasConfiguredSecret('telegram', 'webhook_secret', 'TELEGRAM_WEBHOOK_SECRET'),
+      secretConfigured: hasConfiguredSecret(
+        'telegram',
+        'webhook_secret',
+        'TELEGRAM_WEBHOOK_SECRET',
+      ),
     },
     {
       channel: 'discord',
@@ -212,7 +214,7 @@ export function buildSecurityStatusSnapshot(
   const commands = input.commands ?? SECURITY_RULES;
   const appUrl = input.appUrl ?? process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? '';
   const dbPath = resolveMessagesDbPath();
-   
+
   const dbExists = input.dbExists ?? fs.existsSync(dbPath);
   const secureCrypto = input.secureCrypto ?? Boolean(globalThis.crypto?.subtle);
 
@@ -236,4 +238,3 @@ export function buildSecurityStatusSnapshot(
     generatedAt: new Date().toISOString(),
   };
 }
-

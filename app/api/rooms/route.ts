@@ -45,7 +45,12 @@ export async function POST(request: Request) {
     const description = body.description?.trim() || null;
 
     const service = getRoomService();
-    const room = service.createRoom(userContext.userId, { name, description, goalMode, routingProfileId });
+    const room = service.createRoom(userContext.userId, {
+      name,
+      description,
+      goalMode,
+      routingProfileId,
+    });
     return NextResponse.json({ ok: true, room }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

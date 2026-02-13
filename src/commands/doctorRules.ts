@@ -70,8 +70,7 @@ export function buildDoctorFindings(input: BuildDoctorFindingsInput): DoctorFind
   if (input.errorCountLast15m >= ERROR_SPIKE_WARNING_THRESHOLD) {
     findings.push({
       id: 'error_spike',
-      severity:
-        input.errorCountLast15m >= ERROR_SPIKE_CRITICAL_THRESHOLD ? 'critical' : 'warning',
+      severity: input.errorCountLast15m >= ERROR_SPIKE_CRITICAL_THRESHOLD ? 'critical' : 'warning',
       title: 'Error Spike Detected',
       detail: `${input.errorCountLast15m} error logs in the last 15 minutes.`,
       recommendation: 'Inspect recent error logs and correlate with recent deployments or outages.',

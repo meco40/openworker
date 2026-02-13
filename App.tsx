@@ -293,7 +293,8 @@ const App: React.FC = () => {
           await handleNewConversation();
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Conversation konnte nicht gelöscht werden.';
+        const message =
+          error instanceof Error ? error.message : 'Conversation konnte nicht gelöscht werden.';
         addEventLog('SYS', message);
       }
     },

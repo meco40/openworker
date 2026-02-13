@@ -13,6 +13,7 @@
 ### Task 1: Baseline erfassen
 
 **Files:**
+
 - Modify: `package.json`
 
 1. `npm install` ausführen
@@ -22,6 +23,7 @@
 ### Task 2: Vitest per TDD integrieren
 
 **Files:**
+
 - Create: `vitest.config.ts`
 - Create: `tests/audio.test.ts`
 - Create: `tests/skills-definitions.test.ts`
@@ -34,6 +36,7 @@
 ### Task 3: Linting mit Security/Quality Plugins
 
 **Files:**
+
 - Create: `eslint.config.js`
 - Modify: `package.json`
 
@@ -45,6 +48,7 @@
 ### Task 4: App vervollständigen und Abschlussverifikation
 
 **Files:**
+
 - Modify: `messenger/ChannelPairing.tsx`
 - Create: `messenger/shared/GenericChannelHandler.tsx`
 - Create: `index.css`

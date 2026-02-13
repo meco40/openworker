@@ -31,7 +31,10 @@ export async function POST(request: Request) {
       );
     }
     if (!all && !isValidClawHubSlug(slug)) {
-      return NextResponse.json({ ok: false, error: `Invalid ClawHub skill slug: ${slug}` }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: `Invalid ClawHub skill slug: ${slug}` },
+        { status: 400 },
+      );
     }
     if (all && typeof body.version === 'string' && body.version.trim()) {
       return NextResponse.json(

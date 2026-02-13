@@ -62,15 +62,20 @@ const anthropicProviderAdapter: ProviderAdapter = {
     if (systemMessages) body.system = systemMessages;
     if (request.temperature !== undefined) body.temperature = request.temperature;
 
-    const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': secret,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
+    const response = await fetchWithTimeout(
+      'https://api.anthropic.com/v1/messages',
+      {
+        method: 'POST',
+        headers: {
+          'x-api-key': secret,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    }, 60_000, options?.signal);
+      60_000,
+      options?.signal,
+    );
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');

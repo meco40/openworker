@@ -30,26 +30,37 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
   onDeleteAccount,
 }) => {
   return (
-    <div className="lg:col-span-2 space-y-6">
+    <div className="space-y-6 lg:col-span-2">
       <div className="flex items-center justify-between gap-4 px-2">
-        <h3 className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center space-x-2">
-          <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h7" strokeWidth="2" strokeLinecap="round" /></svg>
+        <h3 className="flex items-center space-x-2 text-xs font-black tracking-[0.2em] text-zinc-500 uppercase">
+          <svg
+            className="h-4 w-4 text-indigo-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path d="M4 6h16M4 12h16M4 18h7" strokeWidth="2" strokeLinecap="round" />
+          </svg>
           <span>Active Model Pipeline</span>
         </h3>
-        <button onClick={onOpenAddModelModal} disabled={providerAccounts.length === 0} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+        <button
+          onClick={onOpenAddModelModal}
+          disabled={providerAccounts.length === 0}
+          className="rounded-xl bg-indigo-600 px-4 py-2 text-[10px] font-black tracking-widest text-white uppercase transition-all hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600"
+        >
           Model hinzufügen
         </button>
       </div>
 
       <div className="space-y-4">
         {isLoadingPipeline ? (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
-            <div className="text-sm text-zinc-500 animate-pulse">Pipeline wird geladen...</div>
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center">
+            <div className="animate-pulse text-sm text-zinc-500">Pipeline wird geladen...</div>
           </div>
         ) : pipeline.length === 0 ? (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center">
             <div className="text-sm font-bold text-white">Keine Modelle konfiguriert</div>
-            <p className="text-xs text-zinc-500 mt-2">
+            <p className="mt-2 text-xs text-zinc-500">
               Verbinde zuerst einen Provider-Account und füge danach ein Modell hinzu.
             </p>
           </div>
@@ -60,7 +71,7 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
             return (
               <div
                 key={model.id}
-                className={`bg-zinc-900 border transition-all duration-300 rounded-2xl p-6 flex items-center group relative ${
+                className={`group relative flex items-center rounded-2xl border bg-zinc-900 p-6 transition-all duration-300 ${
                   model.status === 'active'
                     ? 'border-zinc-800'
                     : model.status === 'rate-limited'
@@ -68,45 +79,74 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
                       : 'border-rose-500/30 opacity-50 grayscale'
                 }`}
               >
-                <div className="w-12 h-12 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-xl mr-6 shadow-inner shrink-0">
+                <div className="mr-6 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-xl shadow-inner">
                   {provider?.icon ?? '?'}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center space-x-2">
-                    <h4 className="font-bold text-white text-base truncate tracking-tight">{model.modelName}</h4>
-                    {idx === 0 && <span className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase px-2 py-0.5 rounded border border-emerald-500/20">Primary</span>}
-                    {model.status === 'rate-limited' && <span className="bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase px-2 py-0.5 rounded border border-amber-500/20">Rate Limited</span>}
+                    <h4 className="truncate text-base font-bold tracking-tight text-white">
+                      {model.modelName}
+                    </h4>
+                    {idx === 0 && (
+                      <span className="rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[8px] font-black text-emerald-500 uppercase">
+                        Primary
+                      </span>
+                    )}
+                    {model.status === 'rate-limited' && (
+                      <span className="rounded border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[8px] font-black text-amber-500 uppercase">
+                        Rate Limited
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center space-x-3 mt-1 flex-wrap">
-                    <span className="text-[10px] text-zinc-600 font-mono uppercase">Provider: {provider?.name ?? model.providerId}</span>
+                  <div className="mt-1 flex flex-wrap items-center space-x-3">
+                    <span className="font-mono text-[10px] text-zinc-600 uppercase">
+                      Provider: {provider?.name ?? model.providerId}
+                    </span>
                     {account && (
                       <>
                         <span className="text-zinc-800">·</span>
-                        <span className="text-[10px] text-zinc-600 font-mono">{account.label}</span>
+                        <span className="font-mono text-[10px] text-zinc-600">{account.label}</span>
                       </>
                     )}
                     <span className="text-zinc-800">·</span>
-                    <span className="text-[10px] text-zinc-600 font-mono">P{model.priority}</span>
+                    <span className="font-mono text-[10px] text-zinc-600">P{model.priority}</span>
                     <span className="text-zinc-800">·</span>
-                    <span className={`text-[9px] font-black uppercase ${
-                      model.status === 'active' ? 'text-emerald-500' : model.status === 'rate-limited' ? 'text-amber-500' : 'text-rose-500'
-                    }`}>{model.status}</span>
+                    <span
+                      className={`text-[9px] font-black uppercase ${
+                        model.status === 'active'
+                          ? 'text-emerald-500'
+                          : model.status === 'rate-limited'
+                            ? 'text-amber-500'
+                            : 'text-rose-500'
+                      }`}
+                    >
+                      {model.status}
+                    </span>
                   </div>
                   {provider && provider.capabilities.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
+                    <div className="mt-2 flex flex-wrap gap-1">
                       {provider.capabilities.map((capability) => (
-                        <span key={capability} className="text-[8px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">
+                        <span
+                          key={capability}
+                          className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[8px] text-zinc-400"
+                        >
                           {CAPABILITY_LABELS[capability] || capability}
                         </span>
                       ))}
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => onToggleModelStatus(model.id, model.status)} className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    onClick={() => onToggleModelStatus(model.id, model.status)}
+                    className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-zinc-700 hover:text-white"
+                  >
                     {model.status === 'active' ? 'Disable' : 'Enable'}
                   </button>
-                  <button onClick={() => onRemoveModelFromPipeline(model.id)} className="px-3 py-2 bg-zinc-800 hover:bg-rose-900/50 text-zinc-400 hover:text-rose-400 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">
+                  <button
+                    onClick={() => onRemoveModelFromPipeline(model.id)}
+                    className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-rose-900/50 hover:text-rose-400"
+                  >
                     ✕
                   </button>
                 </div>
@@ -116,52 +156,84 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
         )}
       </div>
 
-      <div className="space-y-4 mt-10">
-        <h3 className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em] px-2">Verbundene Accounts ({providerAccounts.length})</h3>
+      <div className="mt-10 space-y-4">
+        <h3 className="px-2 text-xs font-black tracking-[0.2em] text-zinc-500 uppercase">
+          Verbundene Accounts ({providerAccounts.length})
+        </h3>
         {isLoadingAccounts ? (
-          <div className="text-sm text-zinc-500 px-2 animate-pulse">Lädt...</div>
+          <div className="animate-pulse px-2 text-sm text-zinc-500">Lädt...</div>
         ) : providerAccounts.length === 0 ? (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-center">
             <p className="text-xs text-zinc-500">Noch keine Accounts verbunden.</p>
           </div>
         ) : (
           providerAccounts.map((account) => {
             const provider = providerLookup.get(account.providerId);
-            const modelsInPipeline = pipeline.filter((model) => model.accountId === account.id).length;
+            const modelsInPipeline = pipeline.filter(
+              (model) => model.accountId === account.id,
+            ).length;
             return (
-              <div key={account.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex items-center">
-                <div className="w-10 h-10 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center text-lg mr-4 shrink-0">
+              <div
+                key={account.id}
+                className="flex items-center rounded-2xl border border-zinc-800 bg-zinc-900 p-5"
+              >
+                <div className="mr-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950 text-lg">
                   {provider?.icon || '?'}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center space-x-2">
-                    <span className="font-bold text-white text-sm truncate">{account.label}</span>
-                    <span className="text-[8px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded uppercase">
+                    <span className="truncate text-sm font-bold text-white">{account.label}</span>
+                    <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[8px] text-zinc-400 uppercase">
                       {account.authMethod === 'oauth' ? 'OAuth' : 'API Key'}
                     </span>
-                    {account.lastCheckOk === true && <span className="w-2 h-2 rounded-full bg-emerald-500" title="Letzte Prüfung OK" />}
-                    {account.lastCheckOk === false && <span className="w-2 h-2 rounded-full bg-rose-500" title="Letzte Prüfung fehlgeschlagen" />}
+                    {account.lastCheckOk === true && (
+                      <span
+                        className="h-2 w-2 rounded-full bg-emerald-500"
+                        title="Letzte Prüfung OK"
+                      />
+                    )}
+                    {account.lastCheckOk === false && (
+                      <span
+                        className="h-2 w-2 rounded-full bg-rose-500"
+                        title="Letzte Prüfung fehlgeschlagen"
+                      />
+                    )}
                   </div>
-                  <div className="flex items-center space-x-3 mt-0.5">
-                    <span className="text-[10px] text-zinc-600 font-mono">{provider?.name || account.providerId}</span>
+                  <div className="mt-0.5 flex items-center space-x-3">
+                    <span className="font-mono text-[10px] text-zinc-600">
+                      {provider?.name || account.providerId}
+                    </span>
                     <span className="text-zinc-800">·</span>
-                    <span className="text-[10px] text-zinc-600 font-mono">{account.secretMasked}</span>
+                    <span className="font-mono text-[10px] text-zinc-600">
+                      {account.secretMasked}
+                    </span>
                     <span className="text-zinc-800">·</span>
-                    <span className="text-[10px] text-zinc-600 font-mono">{modelsInPipeline} Modell{modelsInPipeline !== 1 ? 'e' : ''}</span>
+                    <span className="font-mono text-[10px] text-zinc-600">
+                      {modelsInPipeline} Modell{modelsInPipeline !== 1 ? 'e' : ''}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex shrink-0 items-center gap-2">
                   {deletingAccountId === account.id ? (
                     <>
-                      <button onClick={() => onDeleteAccount(account.id)} className="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">
+                      <button
+                        onClick={() => onDeleteAccount(account.id)}
+                        className="rounded-xl bg-rose-600 px-3 py-2 text-[9px] font-black tracking-widest text-white uppercase hover:bg-rose-500"
+                      >
                         Bestätigen
                       </button>
-                      <button onClick={() => onSetDeletingAccountId(null)} className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-xl text-[9px] font-black uppercase tracking-widest">
+                      <button
+                        onClick={() => onSetDeletingAccountId(null)}
+                        className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase hover:bg-zinc-700"
+                      >
                         Abbrechen
                       </button>
                     </>
                   ) : (
-                    <button onClick={() => onSetDeletingAccountId(account.id)} className="px-3 py-2 bg-zinc-800 hover:bg-rose-900/50 text-zinc-400 hover:text-rose-400 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">
+                    <button
+                      onClick={() => onSetDeletingAccountId(account.id)}
+                      className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-rose-900/50 hover:text-rose-400"
+                    >
                       Entfernen
                     </button>
                   )}

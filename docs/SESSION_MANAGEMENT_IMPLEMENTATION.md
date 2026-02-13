@@ -13,18 +13,19 @@
 
 Die docs/archive/analysis/OPENCLAW_FUNKTIONSANALYSE.md bewertete das Session Management unserer WebApp mit **⚠️ Basic** (3/10) — im Vergleich zum OpenClaw-Referenzsystem mit **✅ Fortgeschritten** (9/10). Session Management war als **MUST HAVE #3** eingestuft:
 
-| Aspekt | OpenClaw (Referenz) | WebApp (vorher) |
-|--------|-------------------|-----------------|
-| Session-Persistenz | ✅ JSONL-Logs, Recovery | ✅ SQLite (vorhanden) |
-| Chat-Abbruch | ✅ AbortSignal-Chain | ❌ Nicht möglich |
-| Session löschen | ✅ CLI + API | ❌ Keine Löschfunktion |
-| Session zurücksetzen | ✅ `/new` Command | ❌ Kein Reset |
-| Duplikat-Erkennung | ✅ Idempotency | ❌ Keine Deduplizierung |
-| Model Override pro Session | ✅ Session-Patch | ❌ Nur globales Model |
+| Aspekt                     | OpenClaw (Referenz)     | WebApp (vorher)         |
+| -------------------------- | ----------------------- | ----------------------- |
+| Session-Persistenz         | ✅ JSONL-Logs, Recovery | ✅ SQLite (vorhanden)   |
+| Chat-Abbruch               | ✅ AbortSignal-Chain    | ❌ Nicht möglich        |
+| Session löschen            | ✅ CLI + API            | ❌ Keine Löschfunktion  |
+| Session zurücksetzen       | ✅ `/new` Command       | ❌ Kein Reset           |
+| Duplikat-Erkennung         | ✅ Idempotency          | ❌ Keine Deduplizierung |
+| Model Override pro Session | ✅ Session-Patch        | ❌ Nur globales Model   |
 
 ### Was fehlte
 
 Die WebApp konnte:
+
 - **Keine laufende KI-Generierung abbrechen** — einmal gesendet, lief die Anfrage bis zum Ende (oder Timeout)
 - **Keine Konversation löschen** — Nutzer konnten ungewollte Chats nie entfernen
 - **Keine Session zurücksetzen** — kein „neuer Chat" ohne manuelles Erstellen
@@ -55,27 +56,28 @@ Browser (Stop-Button)
 
 **Geänderte Dateien:**
 
-| Datei | Änderung |
-|-------|----------|
-| `src/server/channels/messages/service.ts` | `activeRequests` Map, `dispatchToAI()` mit AbortController, `abortGeneration()` Methode |
-| `src/server/model-hub/service.ts` | `dispatchWithFallback()` prüft `signal.aborted` vor jedem Versuch |
-| `src/server/model-hub/gateway.ts` | Forwarded `{ signal }` an Provider-Adapter |
-| `src/server/model-hub/Models/types.ts` | `dispatchGateway()` Interface erweitert um `options?: { signal?: AbortSignal }` |
-| `src/server/model-hub/Models/shared/http.ts` | `fetchWithTimeout()` kombiniert Timeout + externes Signal via `AbortSignal.any()` |
-| `src/server/model-hub/Models/shared/openaiCompatible.ts` | `dispatchOpenAICompatibleChat()` akzeptiert `signal` Option |
-| `src/server/model-hub/Models/openai/index.ts` | Forwarded `options.signal` an `dispatchOpenAICompatibleChat()` |
-| `src/server/model-hub/Models/xai/index.ts` | Forwarded `options.signal` an `dispatchOpenAICompatibleChat()` |
-| `src/server/model-hub/Models/bytedance/index.ts` | Forwarded `options.signal` an `dispatchOpenAICompatibleChat()` |
-| `src/server/model-hub/Models/anthropic/index.ts` | Forwarded `options.signal` an `fetchWithTimeout()` |
-| `src/server/model-hub/Models/gemini/index.ts` | `Promise.race()` mit AbortSignal (Google SDK unterstützt kein natives Signal) |
-| `src/server/gateway/methods/chat.ts` | `chat.abort` RPC-Methode + Broadcast |
-| `src/server/gateway/events.ts` | `CHAT_ABORTED` Event-Typ + Payload |
-| `src/modules/chat/components/ChatInputArea.tsx` | Stop-Button bei laufender Generierung |
-| `src/modules/chat/hooks/useChatInterfaceState.ts` | `isGenerating` State + `handleAbort` Callback |
-| `components/ChatInterface.tsx` | Drähtet `isGenerating`/`handleAbort` zur ChatInputArea |
-| `src/modules/app-shell/useConversationSync.ts` | Listener für `chat.aborted` Event |
+| Datei                                                    | Änderung                                                                                |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `src/server/channels/messages/service.ts`                | `activeRequests` Map, `dispatchToAI()` mit AbortController, `abortGeneration()` Methode |
+| `src/server/model-hub/service.ts`                        | `dispatchWithFallback()` prüft `signal.aborted` vor jedem Versuch                       |
+| `src/server/model-hub/gateway.ts`                        | Forwarded `{ signal }` an Provider-Adapter                                              |
+| `src/server/model-hub/Models/types.ts`                   | `dispatchGateway()` Interface erweitert um `options?: { signal?: AbortSignal }`         |
+| `src/server/model-hub/Models/shared/http.ts`             | `fetchWithTimeout()` kombiniert Timeout + externes Signal via `AbortSignal.any()`       |
+| `src/server/model-hub/Models/shared/openaiCompatible.ts` | `dispatchOpenAICompatibleChat()` akzeptiert `signal` Option                             |
+| `src/server/model-hub/Models/openai/index.ts`            | Forwarded `options.signal` an `dispatchOpenAICompatibleChat()`                          |
+| `src/server/model-hub/Models/xai/index.ts`               | Forwarded `options.signal` an `dispatchOpenAICompatibleChat()`                          |
+| `src/server/model-hub/Models/bytedance/index.ts`         | Forwarded `options.signal` an `dispatchOpenAICompatibleChat()`                          |
+| `src/server/model-hub/Models/anthropic/index.ts`         | Forwarded `options.signal` an `fetchWithTimeout()`                                      |
+| `src/server/model-hub/Models/gemini/index.ts`            | `Promise.race()` mit AbortSignal (Google SDK unterstützt kein natives Signal)           |
+| `src/server/gateway/methods/chat.ts`                     | `chat.abort` RPC-Methode + Broadcast                                                    |
+| `src/server/gateway/events.ts`                           | `CHAT_ABORTED` Event-Typ + Payload                                                      |
+| `src/modules/chat/components/ChatInputArea.tsx`          | Stop-Button bei laufender Generierung                                                   |
+| `src/modules/chat/hooks/useChatInterfaceState.ts`        | `isGenerating` State + `handleAbort` Callback                                           |
+| `components/ChatInterface.tsx`                           | Drähtet `isGenerating`/`handleAbort` zur ChatInputArea                                  |
+| `src/modules/app-shell/useConversationSync.ts`           | Listener für `chat.aborted` Event                                                       |
 
 **Verbesserung:**
+
 - Sofortiger Abbruch statt Warten auf Timeout (bis zu 60s Ersparnis)
 - Ressourcen werden freigegeben (HTTP-Verbindungen, Token-Verbrauch)
 - UX: Visuelles Feedback durch Stop-Button
@@ -98,17 +100,18 @@ sessions.delete { conversationId }
 
 **Geänderte Dateien:**
 
-| Datei | Änderung |
-|-------|----------|
-| `src/server/channels/messages/repository.ts` | `deleteConversation()` Interface |
+| Datei                                                     | Änderung                                                  |
+| --------------------------------------------------------- | --------------------------------------------------------- |
+| `src/server/channels/messages/repository.ts`              | `deleteConversation()` Interface                          |
 | `src/server/channels/messages/sqliteMessageRepository.ts` | SQL: `DELETE FROM messages` + `DELETE FROM conversations` |
-| `src/server/channels/messages/service.ts` | `deleteConversation(conversationId, userId)` |
-| `src/server/gateway/methods/sessions.ts` | `sessions.delete` RPC-Methode |
-| `src/server/gateway/events.ts` | `CONVERSATION_DELETED` Event |
-| `app/api/channels/conversations/route.ts` | `DELETE /api/channels/conversations` Handler |
-| `src/modules/app-shell/useConversationSync.ts` | Listener für `conversation.deleted` |
+| `src/server/channels/messages/service.ts`                 | `deleteConversation(conversationId, userId)`              |
+| `src/server/gateway/methods/sessions.ts`                  | `sessions.delete` RPC-Methode                             |
+| `src/server/gateway/events.ts`                            | `CONVERSATION_DELETED` Event                              |
+| `app/api/channels/conversations/route.ts`                 | `DELETE /api/channels/conversations` Handler              |
+| `src/modules/app-shell/useConversationSync.ts`            | Listener für `conversation.deleted`                       |
 
 **Verbesserung:**
+
 - Nutzer können ungewollte Chats entfernen
 - Datenschutz: Sensible Konversationen löschbar
 - Saubere Datenbank ohne verwaiste Einträge
@@ -136,15 +139,16 @@ sessions.reset { title? }
 
 **Geänderte Dateien:**
 
-| Datei | Änderung |
-|-------|----------|
+| Datei                                           | Änderung                                                                |
+| ----------------------------------------------- | ----------------------------------------------------------------------- |
 | `src/server/channels/messages/messageRouter.ts` | `SESSION_COMMANDS = ['/new', '/reset']`, neues `session-command` Target |
-| `src/server/channels/messages/service.ts` | Session-Command-Branch in `handleInbound()` |
-| `src/server/gateway/methods/sessions.ts` | `sessions.reset` RPC-Methode |
-| `src/server/gateway/events.ts` | `CONVERSATION_RESET` Event |
-| `src/modules/app-shell/useConversationSync.ts` | Listener für `conversation.reset` |
+| `src/server/channels/messages/service.ts`       | Session-Command-Branch in `handleInbound()`                             |
+| `src/server/gateway/methods/sessions.ts`        | `sessions.reset` RPC-Methode                                            |
+| `src/server/gateway/events.ts`                  | `CONVERSATION_RESET` Event                                              |
+| `src/modules/app-shell/useConversationSync.ts`  | Listener für `conversation.reset`                                       |
 
 **Verbesserung:**
+
 - Schneller Kontextwechsel ohne UI-Navigation
 - Konsistent mit dem OpenClaw `/new` Pattern
 - Funktioniert über Chat-Input UND WebSocket-RPC
@@ -169,17 +173,18 @@ Browser generiert: crypto.randomUUID()
 
 **Geänderte Dateien:**
 
-| Datei | Änderung |
-|-------|----------|
-| `App.tsx` | `sendChatMessage` generiert `crypto.randomUUID()` |
-| `src/server/channels/messages/repository.ts` | `SaveMessageInput.clientMessageId`, `findMessageByClientId()` |
+| Datei                                                     | Änderung                                                                          |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `App.tsx`                                                 | `sendChatMessage` generiert `crypto.randomUUID()`                                 |
+| `src/server/channels/messages/repository.ts`              | `SaveMessageInput.clientMessageId`, `findMessageByClientId()`                     |
 | `src/server/channels/messages/sqliteMessageRepository.ts` | `client_message_id TEXT` Spalte + Unique-Index, Duplikat-Check in `saveMessage()` |
-| `src/server/channels/messages/service.ts` | `processingMessages` Set für In-Flight-Dedup, Guard in `handleInbound()` |
-| `src/server/channels/messages/historyManager.ts` | `appendUserMessage` forwarded `clientMessageId` |
-| `src/server/gateway/methods/chat.ts` | `chat.send`/`chat.stream` akzeptieren `clientMessageId` |
-| `app/api/channels/messages/route.ts` | POST akzeptiert `clientMessageId` |
+| `src/server/channels/messages/service.ts`                 | `processingMessages` Set für In-Flight-Dedup, Guard in `handleInbound()`          |
+| `src/server/channels/messages/historyManager.ts`          | `appendUserMessage` forwarded `clientMessageId`                                   |
+| `src/server/gateway/methods/chat.ts`                      | `chat.send`/`chat.stream` akzeptieren `clientMessageId`                           |
+| `app/api/channels/messages/route.ts`                      | POST akzeptiert `clientMessageId`                                                 |
 
 **Verbesserung:**
+
 - Keine doppelten Nachrichten mehr bei Retry/Doppelklick
 - Zweischichtiger Schutz: In-Memory (Set) + Datenbank (Unique Index)
 - Idempotent: Wiederholte Requests liefern dasselbe Ergebnis
@@ -206,17 +211,18 @@ PATCH /api/channels/conversations { conversationId, modelOverride }
 
 **Geänderte Dateien:**
 
-| Datei | Änderung |
-|-------|----------|
-| `types.ts` | `Conversation.modelOverride: string \| null` |
-| `src/server/channels/messages/repository.ts` | `updateModelOverride()` Interface |
+| Datei                                                     | Änderung                                                                             |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `types.ts`                                                | `Conversation.modelOverride: string \| null`                                         |
+| `src/server/channels/messages/repository.ts`              | `updateModelOverride()` Interface                                                    |
 | `src/server/channels/messages/sqliteMessageRepository.ts` | `model_override TEXT` Spalte, `updateModelOverride()`, `toConversation()` mappt Feld |
-| `src/server/channels/messages/service.ts` | `setModelOverride()`, forwarded `modelOverride` an `dispatchWithFallback()` |
-| `src/server/model-hub/service.ts` | `modelOverride` Parameter in `dispatchWithFallback()` — Bypass-Logik |
-| `src/server/gateway/methods/sessions.ts` | `sessions.patch` RPC-Methode |
-| `app/api/channels/conversations/route.ts` | `PATCH` Handler |
+| `src/server/channels/messages/service.ts`                 | `setModelOverride()`, forwarded `modelOverride` an `dispatchWithFallback()`          |
+| `src/server/model-hub/service.ts`                         | `modelOverride` Parameter in `dispatchWithFallback()` — Bypass-Logik                 |
+| `src/server/gateway/methods/sessions.ts`                  | `sessions.patch` RPC-Methode                                                         |
+| `app/api/channels/conversations/route.ts`                 | `PATCH` Handler                                                                      |
 
 **Verbesserung:**
+
 - Model-Wechsel pro Chat ohne globale Seiteneffekte
 - Bypass der Fallback-Pipeline für deterministische Model-Nutzung
 - Rücksetzbar: `modelOverride = null` → zurück zum Standard
@@ -240,13 +246,13 @@ dispatchGateway({ secret }, request) {
 
 ### Fix
 
-| Provider | Strategie |
-|----------|-----------|
-| **OpenAI** | `options.signal` → `dispatchOpenAICompatibleChat({ signal })` → `fetch({ signal })` |
-| **xAI** | Identisch zu OpenAI (OpenAI-kompatible API) |
-| **ByteDance** | Identisch zu OpenAI (OpenAI-kompatible API) |
-| **Anthropic** | `options.signal` → `fetchWithTimeout(url, body, 60_000, signal)` → `AbortSignal.any([timeout, signal])` |
-| **Gemini** | Pre-Abort-Check + `Promise.race()` zwischen `ai.models.generateContent()` und Signal-Listener (Google GenAI SDK unterstützt kein natives AbortSignal) |
+| Provider      | Strategie                                                                                                                                             |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **OpenAI**    | `options.signal` → `dispatchOpenAICompatibleChat({ signal })` → `fetch({ signal })`                                                                   |
+| **xAI**       | Identisch zu OpenAI (OpenAI-kompatible API)                                                                                                           |
+| **ByteDance** | Identisch zu OpenAI (OpenAI-kompatible API)                                                                                                           |
+| **Anthropic** | `options.signal` → `fetchWithTimeout(url, body, 60_000, signal)` → `AbortSignal.any([timeout, signal])`                                               |
+| **Gemini**    | Pre-Abort-Check + `Promise.race()` zwischen `ai.models.generateContent()` und Signal-Listener (Google GenAI SDK unterstützt kein natives AbortSignal) |
 
 ### Gemini-Sonderlösung
 
@@ -280,14 +286,14 @@ async dispatchGateway({ secret }, request, options) {
 
 ### 45 Checkpoints, 5 Features
 
-| Feature | Checkpoints | Ergebnis |
-|---------|-------------|----------|
-| F1: Chat Abort | 13 | ✅ 13/13 PASS |
-| F2: Session Delete | 7 | ✅ 7/7 PASS |
-| F3: Session Reset | 8 | ✅ 8/8 PASS |
-| F4: Idempotency | 8 | ✅ 8/8 PASS |
-| F5: Model Override | 9 | ✅ 9/9 PASS |
-| **Gesamt** | **45** | **✅ 45/45 PASS** |
+| Feature            | Checkpoints | Ergebnis          |
+| ------------------ | ----------- | ----------------- |
+| F1: Chat Abort     | 13          | ✅ 13/13 PASS     |
+| F2: Session Delete | 7           | ✅ 7/7 PASS       |
+| F3: Session Reset  | 8           | ✅ 8/8 PASS       |
+| F4: Idempotency    | 8           | ✅ 8/8 PASS       |
+| F5: Model Override | 9           | ✅ 9/9 PASS       |
+| **Gesamt**         | **45**      | **✅ 45/45 PASS** |
 
 ### Automatisierte Validierung
 
@@ -300,18 +306,19 @@ npm run build    → Erfolgreich (0 Fehler)
 
 ## 5. Vergleich: Vorher vs. Nachher
 
-| Dimension | Vorher (3/10) | Nachher (8/10) | Delta |
-|-----------|--------------|----------------|-------|
-| **Chat Abort** | ❌ Unmöglich | ✅ End-to-End Signal, 5 Provider | +++ |
-| **Session Delete** | ❌ Keine Löschung | ✅ WS + REST, Broadcast | +++ |
-| **Session Reset** | ❌ Manuell | ✅ `/new` Command + RPC | ++ |
-| **Idempotency** | ❌ Duplikate möglich | ✅ UUID + DB-Unique-Index | +++ |
-| **Model Override** | ❌ Nur global | ✅ Pro Session, Pipeline-Bypass | ++ |
-| **Provider Abort** | ❌ Signal-Drop | ✅ Alle 5 Provider unterstützt | +++ |
+| Dimension          | Vorher (3/10)        | Nachher (8/10)                   | Delta |
+| ------------------ | -------------------- | -------------------------------- | ----- |
+| **Chat Abort**     | ❌ Unmöglich         | ✅ End-to-End Signal, 5 Provider | +++   |
+| **Session Delete** | ❌ Keine Löschung    | ✅ WS + REST, Broadcast          | +++   |
+| **Session Reset**  | ❌ Manuell           | ✅ `/new` Command + RPC          | ++    |
+| **Idempotency**    | ❌ Duplikate möglich | ✅ UUID + DB-Unique-Index        | +++   |
+| **Model Override** | ❌ Nur global        | ✅ Pro Session, Pipeline-Bypass  | ++    |
+| **Provider Abort** | ❌ Signal-Drop       | ✅ Alle 5 Provider unterstützt   | +++   |
 
 ### Warum 8/10 und nicht 10/10?
 
 Die verbleibenden 2 Punkte betreffen OpenClaw-Features, die noch nicht implementiert sind:
+
 - **Session-Tools für Agents** (`sessions_list`, `sessions_send`, `sessions_history`) — Agent-zu-Agent-Kommunikation
 - **Queue Modes / Activation Modes** — Erweiterte Session-Orchestrierung
 
@@ -359,65 +366,65 @@ Der Override umgeht bewusst die Fallback-Kette, damit der Nutzer deterministisch
 
 ### Neue Dateien
 
-| Datei | Zweck |
-|-------|-------|
+| Datei                                    | Zweck                                                     |
+| ---------------------------------------- | --------------------------------------------------------- |
 | `src/server/gateway/methods/sessions.ts` | `sessions.delete`, `sessions.reset`, `sessions.patch` RPC |
 
 ### Geänderte Dateien (Kern)
 
-| Datei | Änderungen |
-|-------|-----------|
-| `types.ts` | `Conversation.modelOverride` Feld |
-| `src/server/gateway/events.ts` | 3 neue Events (CHAT_ABORTED, CONVERSATION_DELETED, CONVERSATION_RESET) |
-| `src/server/gateway/index.ts` | Import `./methods/sessions` |
-| `src/server/gateway/methods/chat.ts` | `chat.abort` Methode, `clientMessageId` bei send/stream |
-| `src/server/channels/messages/service.ts` | `activeRequests`, `processingMessages`, `abortGeneration()`, `deleteConversation()`, `setModelOverride()`, Dedup-Guard |
-| `src/server/channels/messages/repository.ts` | 3 neue Methoden, `SaveMessageInput.clientMessageId` |
-| `src/server/channels/messages/sqliteMessageRepository.ts` | Migration (2 Spalten + Index), 3 neue Methoden, Dedup in `saveMessage()` |
-| `src/server/channels/messages/messageRouter.ts` | Session-Commands |
-| `src/server/channels/messages/historyManager.ts` | `clientMessageId` Forwarding |
-| `src/server/model-hub/service.ts` | `signal` + `modelOverride` in `dispatchWithFallback()` |
-| `src/server/model-hub/gateway.ts` | Signal-Forwarding an Adapter |
-| `src/server/model-hub/Models/types.ts` | `options` Parameter im Interface |
-| `src/server/model-hub/Models/shared/http.ts` | `externalSignal` + `AbortSignal.any()` |
-| `src/server/model-hub/Models/shared/openaiCompatible.ts` | `signal` Option |
+| Datei                                                     | Änderungen                                                                                                             |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `types.ts`                                                | `Conversation.modelOverride` Feld                                                                                      |
+| `src/server/gateway/events.ts`                            | 3 neue Events (CHAT_ABORTED, CONVERSATION_DELETED, CONVERSATION_RESET)                                                 |
+| `src/server/gateway/index.ts`                             | Import `./methods/sessions`                                                                                            |
+| `src/server/gateway/methods/chat.ts`                      | `chat.abort` Methode, `clientMessageId` bei send/stream                                                                |
+| `src/server/channels/messages/service.ts`                 | `activeRequests`, `processingMessages`, `abortGeneration()`, `deleteConversation()`, `setModelOverride()`, Dedup-Guard |
+| `src/server/channels/messages/repository.ts`              | 3 neue Methoden, `SaveMessageInput.clientMessageId`                                                                    |
+| `src/server/channels/messages/sqliteMessageRepository.ts` | Migration (2 Spalten + Index), 3 neue Methoden, Dedup in `saveMessage()`                                               |
+| `src/server/channels/messages/messageRouter.ts`           | Session-Commands                                                                                                       |
+| `src/server/channels/messages/historyManager.ts`          | `clientMessageId` Forwarding                                                                                           |
+| `src/server/model-hub/service.ts`                         | `signal` + `modelOverride` in `dispatchWithFallback()`                                                                 |
+| `src/server/model-hub/gateway.ts`                         | Signal-Forwarding an Adapter                                                                                           |
+| `src/server/model-hub/Models/types.ts`                    | `options` Parameter im Interface                                                                                       |
+| `src/server/model-hub/Models/shared/http.ts`              | `externalSignal` + `AbortSignal.any()`                                                                                 |
+| `src/server/model-hub/Models/shared/openaiCompatible.ts`  | `signal` Option                                                                                                        |
 
 ### Geänderte Dateien (Provider-Adapter)
 
-| Datei | Änderung |
-|-------|----------|
-| `src/server/model-hub/Models/openai/index.ts` | `options` → `{ signal }` forwarding |
-| `src/server/model-hub/Models/xai/index.ts` | `options` → `{ signal }` forwarding |
-| `src/server/model-hub/Models/bytedance/index.ts` | `options` → `{ signal }` forwarding |
-| `src/server/model-hub/Models/anthropic/index.ts` | `options.signal` → `fetchWithTimeout` |
-| `src/server/model-hub/Models/gemini/index.ts` | `options` → Pre-check + `Promise.race()` |
+| Datei                                            | Änderung                                 |
+| ------------------------------------------------ | ---------------------------------------- |
+| `src/server/model-hub/Models/openai/index.ts`    | `options` → `{ signal }` forwarding      |
+| `src/server/model-hub/Models/xai/index.ts`       | `options` → `{ signal }` forwarding      |
+| `src/server/model-hub/Models/bytedance/index.ts` | `options` → `{ signal }` forwarding      |
+| `src/server/model-hub/Models/anthropic/index.ts` | `options.signal` → `fetchWithTimeout`    |
+| `src/server/model-hub/Models/gemini/index.ts`    | `options` → Pre-check + `Promise.race()` |
 
 ### Geänderte Dateien (Frontend)
 
-| Datei | Änderung |
-|-------|----------|
-| `App.tsx` | `crypto.randomUUID()` für Idempotency |
-| `src/modules/chat/components/ChatInputArea.tsx` | Stop-Button |
-| `src/modules/chat/hooks/useChatInterfaceState.ts` | `isGenerating` + `handleAbort` |
-| `components/ChatInterface.tsx` | Prop-Wiring |
-| `src/modules/app-shell/useConversationSync.ts` | Event-Listener (deleted, reset, aborted) |
+| Datei                                             | Änderung                                 |
+| ------------------------------------------------- | ---------------------------------------- |
+| `App.tsx`                                         | `crypto.randomUUID()` für Idempotency    |
+| `src/modules/chat/components/ChatInputArea.tsx`   | Stop-Button                              |
+| `src/modules/chat/hooks/useChatInterfaceState.ts` | `isGenerating` + `handleAbort`           |
+| `components/ChatInterface.tsx`                    | Prop-Wiring                              |
+| `src/modules/app-shell/useConversationSync.ts`    | Event-Listener (deleted, reset, aborted) |
 
 ### REST-Endpunkte
 
-| Route | Methode | Zweck |
-|-------|---------|-------|
-| `/api/channels/conversations` | `DELETE` | Konversation löschen |
-| `/api/channels/conversations` | `PATCH` | Model-Override setzen |
-| `/api/channels/messages` | `POST` | `clientMessageId` Feld |
+| Route                         | Methode  | Zweck                  |
+| ----------------------------- | -------- | ---------------------- |
+| `/api/channels/conversations` | `DELETE` | Konversation löschen   |
+| `/api/channels/conversations` | `PATCH`  | Model-Override setzen  |
+| `/api/channels/messages`      | `POST`   | `clientMessageId` Feld |
 
 ### WebSocket-RPC-Methoden
 
-| Methode | Parameter | Beschreibung |
-|---------|-----------|-------------|
-| `chat.abort` | `{ conversationId }` | Laufende Generierung abbrechen |
-| `sessions.delete` | `{ conversationId }` | Konversation + Nachrichten löschen |
-| `sessions.reset` | `{ title? }` | Neue Konversation erstellen |
-| `sessions.patch` | `{ conversationId, modelOverride? }` | Session-Eigenschaften ändern |
+| Methode           | Parameter                            | Beschreibung                       |
+| ----------------- | ------------------------------------ | ---------------------------------- |
+| `chat.abort`      | `{ conversationId }`                 | Laufende Generierung abbrechen     |
+| `sessions.delete` | `{ conversationId }`                 | Konversation + Nachrichten löschen |
+| `sessions.reset`  | `{ title? }`                         | Neue Konversation erstellen        |
+| `sessions.patch`  | `{ conversationId, modelOverride? }` | Session-Eigenschaften ändern       |
 
 ---
 

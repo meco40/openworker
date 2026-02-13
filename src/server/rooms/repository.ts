@@ -43,9 +43,18 @@ export interface RoomRepository {
   getPersonaPermissions(personaId: string): PersonaPermissions | null;
 
   acquireRoomLease(roomId: string, leaseOwner: string, leaseExpiresAt: string): RoomRun;
-  heartbeatRoomLease(roomId: string, runId: string, leaseOwner: string, leaseExpiresAt: string): RoomRun;
+  heartbeatRoomLease(
+    roomId: string,
+    runId: string,
+    leaseOwner: string,
+    leaseExpiresAt: string,
+  ): RoomRun;
   getActiveRoomRun(roomId: string): RoomRun | null;
-  closeActiveRoomRun(roomId: string, endedState?: RoomRunState, failureReason?: string | null): void;
+  closeActiveRoomRun(
+    roomId: string,
+    endedState?: RoomRunState,
+    failureReason?: string | null,
+  ): void;
 
   upsertMemberRuntime(input: UpsertMemberRuntimeInput): RoomMemberRuntime;
   getMemberRuntime(roomId: string, personaId: string): RoomMemberRuntime | null;

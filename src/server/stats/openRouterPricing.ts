@@ -72,7 +72,10 @@ function parsePricing(raw: unknown): OpenRouterPricingTier[] {
   return tier ? [tier] : [];
 }
 
-function selectTier(tiers: OpenRouterPricingTier[], promptTokens: number): OpenRouterPricingTier | null {
+function selectTier(
+  tiers: OpenRouterPricingTier[],
+  promptTokens: number,
+): OpenRouterPricingTier | null {
   if (tiers.length === 0) return null;
   const normalizedPromptTokens = Math.max(0, Math.floor(promptTokens));
   let selected = tiers[0];
@@ -163,4 +166,3 @@ export async function getOpenRouterModelPricing(
     requestPriceUsd: tier.requestPriceUsd,
   };
 }
-

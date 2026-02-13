@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LEGACY_LOCAL_USER_ID, resolveUserIdFromSession } from '../../../src/server/auth/userContext';
+import {
+  LEGACY_LOCAL_USER_ID,
+  resolveUserIdFromSession,
+} from '../../../src/server/auth/userContext';
 
 const ORIGINAL_ENV = { ...process.env };
 

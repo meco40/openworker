@@ -37,7 +37,9 @@ export async function DELETE() {
     for (const task of tasks) {
       try {
         wsMgr.deleteWorkspace(task.id);
-      } catch { /* workspace may not exist */ }
+      } catch {
+        /* workspace may not exist */
+      }
       repo.deleteTask(task.id);
       deleted++;
     }

@@ -39,7 +39,13 @@ export interface RoomMessage {
   createdAt: string;
 }
 
-export type RoomMemberRuntimeStatus = 'idle' | 'busy' | 'interrupting' | 'interrupted' | 'error' | 'paused';
+export type RoomMemberRuntimeStatus =
+  | 'idle'
+  | 'busy'
+  | 'interrupting'
+  | 'interrupted'
+  | 'error'
+  | 'paused';
 
 export interface RoomMemberStatus {
   roomId: string;

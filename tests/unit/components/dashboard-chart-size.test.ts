@@ -37,11 +37,11 @@ describe('Dashboard chart sizing', () => {
         }),
       );
     } finally {
-      const warningMessages = warnSpy.mock.calls
-        .map((call) => String(call[0] ?? ''))
-        .join('\n');
+      const warningMessages = warnSpy.mock.calls.map((call) => String(call[0] ?? '')).join('\n');
 
-      expect(warningMessages).not.toContain('The width(-1) and height(-1) of chart should be greater than 0');
+      expect(warningMessages).not.toContain(
+        'The width(-1) and height(-1) of chart should be greater than 0',
+      );
       warnSpy.mockRestore();
     }
   });

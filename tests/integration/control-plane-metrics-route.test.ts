@@ -77,7 +77,8 @@ describe('GET /api/control-plane/metrics', () => {
     tokenRepo.recordUsage('openai', 'gpt-4.1', 40, 30, 70);
     (globalThis as GlobalSingletons).__tokenUsageRepository = tokenRepo;
 
-    const { SqliteMemoryRepository } = await import('../../src/server/memory/sqliteMemoryRepository');
+    const { SqliteMemoryRepository } =
+      await import('../../src/server/memory/sqliteMemoryRepository');
     const { MemoryService } = await import('../../src/server/memory/service');
     const memoryRepo = new SqliteMemoryRepository(process.env.MEMORY_DB_PATH);
     const memoryService = new MemoryService(memoryRepo, async (text) =>

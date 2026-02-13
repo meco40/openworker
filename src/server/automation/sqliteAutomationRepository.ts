@@ -130,7 +130,11 @@ export class SqliteAutomationRepository implements AutomationRepository {
     return this.getRule(id, input.userId)!;
   }
 
-  updateRule(ruleId: string, userId: string, patch: UpdateAutomationRuleInput): AutomationRule | null {
+  updateRule(
+    ruleId: string,
+    userId: string,
+    patch: UpdateAutomationRuleInput,
+  ): AutomationRule | null {
     const sets: string[] = [];
     const values: SqlParam[] = [];
 
@@ -192,7 +196,9 @@ export class SqliteAutomationRepository implements AutomationRepository {
 
     this.db.prepare('DELETE FROM automation_dead_letters WHERE rule_id = ?').run(ruleId);
     this.db.prepare('DELETE FROM automation_runs WHERE rule_id = ?').run(ruleId);
-    this.db.prepare('DELETE FROM automation_rules WHERE id = ? AND user_id = ?').run(ruleId, userId);
+    this.db
+      .prepare('DELETE FROM automation_rules WHERE id = ? AND user_id = ?')
+      .run(ruleId, userId);
     return true;
   }
 
@@ -204,9 +210,9 @@ export class SqliteAutomationRepository implements AutomationRepository {
   }
 
   getRuleById(ruleId: string): AutomationRule | null {
-    const row = this.db
-      .prepare('SELECT * FROM automation_rules WHERE id = ?')
-      .get(ruleId) as Record<string, unknown> | undefined;
+    const row = this.db.prepare('SELECT * FROM automation_rules WHERE id = ?').get(ruleId) as
+      | Record<string, unknown>
+      | undefined;
     return row ? toRule(row) : null;
   }
 
@@ -269,9 +275,9 @@ export class SqliteAutomationRepository implements AutomationRepository {
   }
 
   getRun(runId: string): AutomationRun | null {
-    const row = this.db
-      .prepare('SELECT * FROM automation_runs WHERE id = ?')
-      .get(runId) as Record<string, unknown> | undefined;
+    const row = this.db.prepare('SELECT * FROM automation_runs WHERE id = ?').get(runId) as
+      | Record<string, unknown>
+      | undefined;
     return row ? toRun(row) : null;
   }
 
@@ -365,7 +371,12 @@ export class SqliteAutomationRepository implements AutomationRepository {
     return this.getRun(runId);
   }
 
-  recordDeadLetter(runId: string, ruleId: string, reason: string, payload?: string | null): AutomationDeadLetter {
+  recordDeadLetter(
+    runId: string,
+    ruleId: string,
+    reason: string,
+    payload?: string | null,
+  ): AutomationDeadLetter {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
@@ -452,4 +463,3 @@ export class SqliteAutomationRepository implements AutomationRepository {
     this.db.close();
   }
 }
-

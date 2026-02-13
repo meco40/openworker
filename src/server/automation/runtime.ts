@@ -83,7 +83,8 @@ async function defaultRunPrompt(input: {
 }): Promise<{ summary?: string }> {
   const { getMessageService } = await import('../channels/messages/runtime');
   const messageService = getMessageService();
-  const conversationId = input.conversationId || messageService.getDefaultWebChatConversation(input.userId).id;
+  const conversationId =
+    input.conversationId || messageService.getDefaultWebChatConversation(input.userId).id;
   const result = await messageService.handleWebUIMessage(
     conversationId,
     input.prompt,
@@ -112,7 +113,9 @@ export function getAutomationService(): AutomationService {
   return globalThis.__automationService;
 }
 
-export function getAutomationRuntime(instanceId = process.env.SCHEDULER_INSTANCE_ID || 'scheduler-1'): AutomationRuntime {
+export function getAutomationRuntime(
+  instanceId = process.env.SCHEDULER_INSTANCE_ID || 'scheduler-1',
+): AutomationRuntime {
   if (!globalThis.__automationRuntime) {
     globalThis.__automationRuntime = new AutomationRuntime(getAutomationService(), {
       instanceId,

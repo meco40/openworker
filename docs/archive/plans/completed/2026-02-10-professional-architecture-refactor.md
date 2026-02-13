@@ -101,6 +101,7 @@ src/
 ### Task 1: Baseline absichern und Refactor-Risiko reduzieren
 
 **Files:**
+
 - Create: `docs/architecture/BOUNDARIES.md`
 - Modify: `package.json`
 - Modify: `tsconfig.json`
@@ -146,6 +147,7 @@ git commit -m "chore: add architecture boundaries and smoke baseline"
 ### Task 2: `src/` Root und Shared Layer einfuehren
 
 **Files:**
+
 - Create: `src/shared/types/global.ts`
 - Create: `src/shared/config/constants.ts`
 - Create: `src/shared/lib/ids.ts`
@@ -191,6 +193,7 @@ git commit -m "refactor: introduce src shared layer with typed utils"
 ### Task 3: App Shell vom Domain-Code entkoppeln
 
 **Files:**
+
 - Create: `src/modules/app-shell/AppShell.tsx`
 - Create: `src/modules/app-shell/useAppShellState.ts`
 - Create: `src/modules/app-shell/types.ts`
@@ -238,6 +241,7 @@ git commit -m "refactor: extract app shell state and rendering"
 ### Task 4: Chat-Orchestrierung in Use Cases zerlegen
 
 **Files:**
+
 - Create: `src/modules/chat/services/handleAgentResponse.ts`
 - Create: `src/modules/chat/services/routeMessage.ts`
 - Create: `src/modules/chat/types.ts`
@@ -284,6 +288,7 @@ git commit -m "refactor: split chat orchestration into services"
 ### Task 5: Worker-Domain von UI trennen
 
 **Files:**
+
 - Create: `src/modules/worker/services/analyzeTask.ts`
 - Create: `src/modules/worker/services/executeTaskPlan.ts`
 - Create: `src/modules/worker/hooks/useWorkerController.ts`
@@ -328,6 +333,7 @@ git commit -m "refactor: isolate worker use-cases from UI"
 ### Task 6: API Route `/api/skills/execute` in Handler zerlegen
 
 **Files:**
+
 - Create: `src/server/skills/handlers/fileRead.ts`
 - Create: `src/server/skills/handlers/shellExecute.ts`
 - Create: `src/server/skills/handlers/pythonExecute.ts`
@@ -378,6 +384,7 @@ git commit -m "refactor: split skills execute route into modular handlers"
 ### Task 7: API Route `/api/channels/pair` modularisieren
 
 **Files:**
+
 - Create: `src/server/channels/pairing/telegram.ts`
 - Create: `src/server/channels/pairing/discord.ts`
 - Create: `src/server/channels/pairing/bridge.ts`
@@ -423,6 +430,7 @@ git commit -m "refactor: modularize channel pairing providers"
 ### Task 8: Typhaertung und Lint-Gates anheben
 
 **Files:**
+
 - Modify: `tsconfig.json`
 - Modify: `eslint.config.js`
 - Modify: `services/gemini.ts`
@@ -468,6 +476,7 @@ git commit -m "chore: tighten typing and lint quality gates"
 ### Task 9: Placeholders in eigene Vertical Slices verschieben
 
 **Files:**
+
 - Create: `src/modules/telemetry/components/LogsView.tsx`
 - Create: `src/modules/tasks/components/TaskManagerView.tsx`
 - Create: `src/modules/config/components/ConfigEditor.tsx`
@@ -512,6 +521,7 @@ git commit -m "refactor: move placeholder views into feature slices"
 ### Task 10: Abschluss, Dokumentation, CI Quality Gate
 
 **Files:**
+
 - Create: `docs/architecture/TARGET-ARCHITECTURE.md`
 - Create: `docs/architecture/MIGRATION-MAP.md`
 - Modify: `README.md`

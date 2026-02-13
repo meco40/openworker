@@ -1,4 +1,9 @@
-import type { AutomationDeadLetter, AutomationRule, AutomationRun, SchedulerLeaseState } from './types';
+import type {
+  AutomationDeadLetter,
+  AutomationRule,
+  AutomationRun,
+  SchedulerLeaseState,
+} from './types';
 
 export function toRule(row: Record<string, unknown>): AutomationRule {
   return {

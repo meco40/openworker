@@ -130,9 +130,7 @@ registerMethod(
 
     if (status === 'queued') {
       const { processQueue } = await import('../../worker/workerAgent');
-      processQueue().catch((err: unknown) =>
-        console.error('[Gateway Worker] Queue error:', err),
-      );
+      processQueue().catch((err: unknown) => console.error('[Gateway Worker] Queue error:', err));
     }
 
     respond({ ok: true, task: repo.getTask(taskId) });

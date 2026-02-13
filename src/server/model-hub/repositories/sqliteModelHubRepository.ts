@@ -116,13 +116,15 @@ export class SqliteModelHubRepository implements ModelHubRepository {
     const now = new Date().toISOString();
 
     this.db
-      .prepare(`
+      .prepare(
+        `
         INSERT INTO model_hub_accounts (
           id, provider_id, label, auth_method,
           encrypted_secret, encrypted_refresh_token, secret_masked,
           created_at, updated_at, last_check_at, last_check_ok
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
-      `)
+      `,
+      )
       .run(
         id,
         input.providerId,
@@ -135,9 +137,9 @@ export class SqliteModelHubRepository implements ModelHubRepository {
         now,
       );
 
-    const row = this.db
-      .prepare('SELECT * FROM model_hub_accounts WHERE id = ?')
-      .get(id) as ProviderAccountRow | undefined;
+    const row = this.db.prepare('SELECT * FROM model_hub_accounts WHERE id = ?').get(id) as
+      | ProviderAccountRow
+      | undefined;
     if (!row) {
       throw new Error(`Failed to read inserted account ${id}`);
     }
@@ -152,9 +154,9 @@ export class SqliteModelHubRepository implements ModelHubRepository {
   }
 
   getAccountRecordById(id: string): ProviderAccountRecord | null {
-    const row = this.db
-      .prepare('SELECT * FROM model_hub_accounts WHERE id = ?')
-      .get(id) as ProviderAccountRow | undefined;
+    const row = this.db.prepare('SELECT * FROM model_hub_accounts WHERE id = ?').get(id) as
+      | ProviderAccountRow
+      | undefined;
     if (!row) return null;
 
     return {
@@ -177,9 +179,7 @@ export class SqliteModelHubRepository implements ModelHubRepository {
 
   deleteAccount(id: string): boolean {
     // Remove any pipeline entries referencing this account
-    this.db
-      .prepare('DELETE FROM model_hub_pipeline WHERE account_id = ?')
-      .run(id);
+    this.db.prepare('DELETE FROM model_hub_pipeline WHERE account_id = ?').run(id);
 
     const result = this.db
       .prepare('DELETE FROM model_hub_accounts WHERE id = ?')
@@ -201,12 +201,14 @@ export class SqliteModelHubRepository implements ModelHubRepository {
     const now = new Date().toISOString();
 
     this.db
-      .prepare(`
+      .prepare(
+        `
         INSERT INTO model_hub_pipeline (
           id, profile_id, account_id, provider_id,
           model_name, priority, status, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)
-      `)
+      `,
+      )
       .run(
         id,
         input.profileId,
@@ -218,9 +220,9 @@ export class SqliteModelHubRepository implements ModelHubRepository {
         now,
       );
 
-    const row = this.db
-      .prepare('SELECT * FROM model_hub_pipeline WHERE id = ?')
-      .get(id) as PipelineRow | undefined;
+    const row = this.db.prepare('SELECT * FROM model_hub_pipeline WHERE id = ?').get(id) as
+      | PipelineRow
+      | undefined;
     if (!row) {
       throw new Error(`Failed to read inserted pipeline model ${id}`);
     }
@@ -249,9 +251,7 @@ export class SqliteModelHubRepository implements ModelHubRepository {
   }
 
   replacePipeline(profileId: string, models: CreatePipelineModelInput[]): PipelineModelEntry[] {
-    this.db
-      .prepare('DELETE FROM model_hub_pipeline WHERE profile_id = ?')
-      .run(profileId);
+    this.db.prepare('DELETE FROM model_hub_pipeline WHERE profile_id = ?').run(profileId);
 
     const entries: PipelineModelEntry[] = [];
     for (const input of models) {
@@ -260,4 +260,3 @@ export class SqliteModelHubRepository implements ModelHubRepository {
     return entries;
   }
 }
-

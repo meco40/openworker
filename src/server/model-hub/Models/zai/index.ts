@@ -1,6 +1,9 @@
 import type { ProviderAdapter } from '../types';
 import { fetchJsonOk } from '../shared/http';
-import { dispatchOpenAICompatibleChat, fetchOpenAICompatibleModels } from '../shared/openaiCompatible';
+import {
+  dispatchOpenAICompatibleChat,
+  fetchOpenAICompatibleModels,
+} from '../shared/openaiCompatible';
 
 const zaiProviderAdapter: ProviderAdapter = {
   id: 'zai',

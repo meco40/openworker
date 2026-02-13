@@ -3,7 +3,13 @@
 // Pure function, zero dependencies, zero token cost.
 
 export interface RouteResult {
-  target: 'chat' | 'worker' | 'worker-command' | 'session-command' | 'automation-command' | 'persona-command';
+  target:
+    | 'chat'
+    | 'worker'
+    | 'worker-command'
+    | 'session-command'
+    | 'automation-command'
+    | 'persona-command';
   payload: string;
   command?: string;
 }

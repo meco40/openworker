@@ -13,6 +13,7 @@
 ### Task 1: IST-Basis absichern (Contracts + Risiken sichtbar machen)
 
 **Files:**
+
 - Modify: `tests/contract/public-api.contract.test.ts`
 - Create: `tests/contract/model-hub-current-state.contract.test.ts`
 - Modify: `docs/ARCHITECTURE.md`
@@ -24,11 +25,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('model hub current state', () => {
   it('documents gemini-only coupling that must be removed', () => {
-    expect([
-      '/api/gemini',
-      '/api/skills/execute',
-      '/api/channels/pair',
-    ]).toContain('/api/gemini');
+    expect(['/api/gemini', '/api/skills/execute', '/api/channels/pair']).toContain('/api/gemini');
   });
 });
 ```
@@ -58,6 +55,7 @@ git commit -m "test: lock current model-hub baseline and contracts"
 ### Task 2: Provider-Domain und Capability-Modell einfuehren
 
 **Files:**
+
 - Create: `src/server/model-hub/types.ts`
 - Create: `src/server/model-hub/providerCatalog.ts`
 - Modify: `types.ts`
@@ -73,19 +71,21 @@ import { PROVIDER_CATALOG } from '../../../src/server/model-hub/providerCatalog'
 describe('provider catalog', () => {
   it('contains required launch providers', () => {
     const ids = PROVIDER_CATALOG.map((p) => p.id);
-    expect(ids).toEqual(expect.arrayContaining([
-      'gemini',
-      'openai',
-      'anthropic',
-      'openrouter',
-      'xai',
-      'mistral',
-      'cohere',
-      'zai',
-      'kimi',
-      'bytedance',
-      'github-copilot',
-    ]));
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        'gemini',
+        'openai',
+        'anthropic',
+        'openrouter',
+        'xai',
+        'mistral',
+        'cohere',
+        'zai',
+        'kimi',
+        'bytedance',
+        'github-copilot',
+      ]),
+    );
   });
 });
 ```
@@ -118,6 +118,7 @@ git commit -m "feat: add typed provider catalog for multi-model hub"
 ### Task 3: Sichere Account-Storage-Schicht (API-Key + OAuth-Tokens)
 
 **Files:**
+
 - Create: `src/server/model-hub/crypto.ts`
 - Create: `src/server/model-hub/repository.ts`
 - Create: `src/server/model-hub/repositories/sqliteModelHubRepository.ts`
@@ -167,6 +168,7 @@ git commit -m "feat: add encrypted model-hub account repository"
 ### Task 4: Model-Hub API-Routen fuer Provider und Accounts
 
 **Files:**
+
 - Create: `app/api/model-hub/providers/route.ts`
 - Create: `app/api/model-hub/accounts/route.ts`
 - Create: `app/api/model-hub/accounts/[accountId]/test/route.ts`
@@ -216,6 +218,7 @@ git commit -m "feat: add model-hub provider and account APIs"
 ### Task 5: OAuth-Flow + Copilot Code Pairing (OpenAI OAuth + GitHub/Copilot)
 
 **Files:**
+
 - Create: `app/api/model-hub/oauth/[provider]/start/route.ts`
 - Create: `app/api/model-hub/oauth/[provider]/callback/route.ts`
 - Create: `app/api/model-hub/pairings/code/route.ts`
@@ -267,6 +270,7 @@ git commit -m "feat: add oauth flows and github copilot code pairing"
 ### Task 6: Provider-agnostischen AI Gateway einfuehren
 
 **Files:**
+
 - Create: `src/server/ai-gateway/types.ts`
 - Create: `src/server/ai-gateway/adapters/geminiAdapter.ts`
 - Create: `src/server/ai-gateway/adapters/openAiCompatibleAdapter.ts`
@@ -315,6 +319,7 @@ git commit -m "feat: introduce provider-agnostic ai gateway"
 ### Task 7: Client Gateway refactoren (weg von `services/gemini.ts`)
 
 **Files:**
+
 - Create: `services/aiGateway.ts`
 - Modify: `services/gemini.ts`
 - Modify: `App.tsx`
@@ -363,6 +368,7 @@ git commit -m "refactor: migrate client calls to unified ai gateway"
 ### Task 8: Model Hub UI auf echte Provider-Verbindungen umbauen
 
 **Files:**
+
 - Modify: `components/ModelHub.tsx`
 - Create: `src/modules/model-hub/components/ProviderCard.tsx`
 - Create: `src/modules/model-hub/components/ConnectAccountModal.tsx`
@@ -411,6 +417,7 @@ git commit -m "feat: ship multi-provider model hub UI"
 ### Task 9: Skills/Tool-Mapping provider-faehig machen
 
 **Files:**
+
 - Modify: `skills/definitions.ts`
 - Modify: `core/memory/gemini.ts`
 - Create: `core/memory/openai.ts`
@@ -456,6 +463,7 @@ git commit -m "feat: add provider-aware tool schema mapping"
 ### Task 10: Migration, Doku und Quality Gates finalisieren
 
 **Files:**
+
 - Modify: `README.md`
 - Modify: `docs/USER_MANUAL.md`
 - Create: `docs/architecture/MODEL-HUB-MULTIPROVIDER.md`
@@ -469,12 +477,9 @@ import { describe, expect, it } from 'vitest';
 
 describe('public api contract', () => {
   it('includes model-hub endpoints', () => {
-    expect([
-      '/api/gemini',
-      '/api/ai',
-      '/api/model-hub/providers',
-      '/api/model-hub/accounts',
-    ].length).toBeGreaterThan(3);
+    expect(
+      ['/api/gemini', '/api/ai', '/api/model-hub/providers', '/api/model-hub/accounts'].length,
+    ).toBeGreaterThan(3);
   });
 });
 ```
@@ -505,6 +510,7 @@ git commit -m "docs: finalize multi-provider model hub rollout and contracts"
 ### Task 11: Security, Governance und Tenant-Schutz haerten
 
 **Files:**
+
 - Create: `src/server/model-hub/authz.ts`
 - Create: `src/server/model-hub/audit.ts`
 - Modify: `app/api/model-hub/accounts/route.ts`
@@ -521,19 +527,21 @@ import { PROVIDER_CATALOG } from '../../../src/server/model-hub/providerCatalog'
 describe('provider catalog contract', () => {
   it('keeps top providers plus copilot', () => {
     const ids = PROVIDER_CATALOG.map((p) => p.id);
-    expect(ids).toEqual(expect.arrayContaining([
-      'openai',
-      'gemini',
-      'anthropic',
-      'openrouter',
-      'xai',
-      'mistral',
-      'cohere',
-      'zai',
-      'kimi',
-      'bytedance',
-      'github-copilot',
-    ]));
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        'openai',
+        'gemini',
+        'anthropic',
+        'openrouter',
+        'xai',
+        'mistral',
+        'cohere',
+        'zai',
+        'kimi',
+        'bytedance',
+        'github-copilot',
+      ]),
+    );
   });
 });
 ```
@@ -564,6 +572,7 @@ git commit -m "feat: enforce model hub rbac and audit trail"
 ### Task 12: Reliability, Quotas und Kostenkontrolle einbauen
 
 **Files:**
+
 - Create: `src/server/ai-gateway/reliability.ts`
 - Create: `src/server/model-hub/quotas.ts`
 - Modify: `src/server/ai-gateway/index.ts`
@@ -610,6 +619,7 @@ git commit -m "feat: add gateway reliability and quota enforcement"
 ### Task 13: Operations, Model-Sync und E2E-Freigabe
 
 **Files:**
+
 - Create: `src/server/model-hub/modelSync.ts`
 - Create: `src/server/model-hub/health.ts`
 - Create: `app/api/model-hub/health/route.ts`

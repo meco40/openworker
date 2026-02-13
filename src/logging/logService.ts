@@ -52,9 +52,13 @@ export function logFromSystemEvent(type: string, message: string): LogEntry {
   const lowerMessage = message.toLowerCase();
 
   const effectiveLevel: LogLevel =
-    lowerMessage.includes('failed') || lowerMessage.includes('error') || lowerMessage.includes('lost')
+    lowerMessage.includes('failed') ||
+    lowerMessage.includes('error') ||
+    lowerMessage.includes('lost')
       ? 'error'
-      : lowerMessage.includes('warning') || lowerMessage.includes('spike') || lowerMessage.includes('timeout')
+      : lowerMessage.includes('warning') ||
+          lowerMessage.includes('spike') ||
+          lowerMessage.includes('timeout')
         ? 'warn'
         : level;
 
@@ -67,7 +71,6 @@ export function logChannelEvent(
   outcome: 'accepted' | 'rejected' | 'failed',
   metadata?: Record<string, unknown>,
 ): LogEntry {
-  const level: LogLevel =
-    outcome === 'failed' ? 'error' : outcome === 'rejected' ? 'warn' : 'info';
+  const level: LogLevel = outcome === 'failed' ? 'error' : outcome === 'rejected' ? 'warn' : 'info';
   return log(level, 'CHAN', `channel.${direction}.${outcome}:${channel}`, metadata, 'channel');
 }

@@ -53,14 +53,11 @@ export async function startTelegramPolling(): Promise<void> {
   // Telegram returns 409 on getUpdates when a webhook is still registered.
   // Always delete the webhook before starting the polling loop.
   try {
-    const deleteResponse = await fetch(
-      `https://api.telegram.org/bot${token}/deleteWebhook`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ drop_pending_updates: false }),
-      },
-    );
+    const deleteResponse = await fetch(`https://api.telegram.org/bot${token}/deleteWebhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ drop_pending_updates: false }),
+    });
     if (deleteResponse.ok) {
       console.log('[Telegram Polling] Webhook cleared before starting polling.');
     }
@@ -116,13 +113,18 @@ async function pollOnce(): Promise<void> {
       console.error('[Telegram Polling] getUpdates HTTP error:', response.status);
       // 401/404 means the bot token is invalid — stop polling to avoid spam
       if (response.status === 401 || response.status === 404) {
-        console.warn('[Telegram Polling] Bot token appears invalid (HTTP %d). Stopping polling.', response.status);
+        console.warn(
+          '[Telegram Polling] Bot token appears invalid (HTTP %d). Stopping polling.',
+          response.status,
+        );
         stopTelegramPolling();
       }
       // 409 means another getUpdates call is in-flight (e.g. duplicate polling instance)
       // Back off and let the other caller finish.
       if (response.status === 409) {
-        console.warn('[Telegram Polling] Conflict (409) — another getUpdates is active. Backing off.');
+        console.warn(
+          '[Telegram Polling] Conflict (409) — another getUpdates is active. Backing off.',
+        );
       }
       return;
     }

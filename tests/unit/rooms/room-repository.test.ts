@@ -99,7 +99,11 @@ describe('SqliteRoomRepository', () => {
     });
     repo.addMember(room.id, 'persona-1', 'Lead Analyst', 1, 'grok-4');
 
-    const run = repo.acquireRoomLease(room.id, 'scheduler-a', new Date(Date.now() + 30_000).toISOString());
+    const run = repo.acquireRoomLease(
+      room.id,
+      'scheduler-a',
+      new Date(Date.now() + 30_000).toISOString(),
+    );
     expect(run.roomId).toBe(room.id);
     expect(run.leaseOwner).toBe('scheduler-a');
     expect(run.runState).toBe('running');

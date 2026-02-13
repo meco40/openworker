@@ -38,7 +38,8 @@ describe('privileged route auth enforcement', () => {
     const accountsRes = await accountsRoute.GET();
     expect(accountsRes.status).toBe(401);
 
-    const accountTestRoute = await import('../../../app/api/model-hub/accounts/[accountId]/test/route');
+    const accountTestRoute =
+      await import('../../../app/api/model-hub/accounts/[accountId]/test/route');
     const accountTestRes = await accountTestRoute.POST(
       new Request('http://localhost/api/model-hub/accounts/a1/test', { method: 'POST' }),
       { params: Promise.resolve({ accountId: 'a1' }) },

@@ -67,7 +67,9 @@ export async function dispatchGatewayRequest(
   if (adapter?.dispatchGateway) {
     result = await adapter.dispatchGateway(context, request, { signal: options?.signal });
   } else if (provider.apiBaseUrl) {
-    result = await dispatchOpenAICompatibleChat(provider.apiBaseUrl, secret, provider.id, request, { signal: options?.signal });
+    result = await dispatchOpenAICompatibleChat(provider.apiBaseUrl, secret, provider.id, request, {
+      signal: options?.signal,
+    });
   } else {
     result = {
       ok: false,

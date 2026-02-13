@@ -33,4 +33,10 @@ export async function runHealthCommand(options: HealthCommandOptions = {}): Prom
   };
 }
 
-export type { HealthCheck, HealthCheckStatus, HealthCommandOptions, HealthReport, HealthReportStatus };
+export type {
+  HealthCheck,
+  HealthCheckStatus,
+  HealthCommandOptions,
+  HealthReport,
+  HealthReportStatus,
+};

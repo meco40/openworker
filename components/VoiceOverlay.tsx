@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { Modality, LiveServerMessage } from '@google/genai';
 import { ai, LIVE_MODE_SUPPORTED, SYSTEM_INSTRUCTION } from '../services/gateway';
@@ -9,7 +8,8 @@ interface VoiceOverlayProps {
 }
 
 type LiveSession = Awaited<ReturnType<typeof ai.live.connect>>;
-type WindowWithWebkitAudioContext = Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
+type WindowWithWebkitAudioContext = Window &
+  typeof globalThis & { webkitAudioContext?: typeof AudioContext };
 
 const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
   const [isActive, setIsActive] = useState(false);
@@ -54,11 +54,15 @@ const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
                 const inputData = e.inputBuffer.getChannelData(0);
                 const pcmData = createPcmBlob(inputData);
                 // Rely solely on sessionPromise to send data to the model.
-                void sessionPromise.then((session) => {
-                  session.sendRealtimeInput({ media: { data: pcmData, mimeType: 'audio/pcm;rate=16000' } });
-                }).catch((error: unknown) => {
-                  console.error('Voice session unavailable during audio processing:', error);
-                });
+                void sessionPromise
+                  .then((session) => {
+                    session.sendRealtimeInput({
+                      media: { data: pcmData, mimeType: 'audio/pcm;rate=16000' },
+                    });
+                  })
+                  .catch((error: unknown) => {
+                    console.error('Voice session unavailable during audio processing:', error);
+                  });
               };
               source.connect(scriptProcessor);
               scriptProcessor.connect(audioContextIn.current!.destination);
@@ -66,8 +70,16 @@ const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
             onmessage: async (message: LiveServerMessage) => {
               const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
               if (base64Audio && audioContextOut.current) {
-                nextStartTime.current = Math.max(nextStartTime.current, audioContextOut.current.currentTime);
-                const audioBuffer = await decodeAudioData(decodeBase64(base64Audio), audioContextOut.current, 24000, 1);
+                nextStartTime.current = Math.max(
+                  nextStartTime.current,
+                  audioContextOut.current.currentTime,
+                );
+                const audioBuffer = await decodeAudioData(
+                  decodeBase64(base64Audio),
+                  audioContextOut.current,
+                  24000,
+                  1,
+                );
                 const source = audioContextOut.current.createBufferSource();
                 source.buffer = audioBuffer;
                 source.connect(outputNode);
@@ -99,11 +111,13 @@ const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
           },
         });
 
-        void sessionPromise.then((session) => {
-          sessionRef.current = session;
-        }).catch((error: unknown) => {
-          console.error('Failed to establish live voice session:', error);
-        });
+        void sessionPromise
+          .then((session) => {
+            sessionRef.current = session;
+          })
+          .catch((error: unknown) => {
+            console.error('Failed to establish live voice session:', error);
+          });
       } catch (err) {
         console.error('Failed to init voice:', err);
         setStatus('Microphone access denied.');
@@ -121,27 +135,39 @@ const VoiceOverlay: React.FC<VoiceOverlayProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 max-w-sm w-full text-center space-y-6 shadow-2xl">
+      <div className="w-full max-w-sm space-y-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center shadow-2xl">
         <div className="relative inline-block">
-          <div className={`w-24 h-24 rounded-full flex items-center justify-center bg-indigo-600 transition-transform duration-500 ${isActive ? 'scale-110' : 'scale-100'}`}>
-            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+          <div
+            className={`flex h-24 w-24 items-center justify-center rounded-full bg-indigo-600 transition-transform duration-500 ${isActive ? 'scale-110' : 'scale-100'}`}
+          >
+            <svg
+              className="h-10 w-10 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+              />
             </svg>
           </div>
           {isActive && (
-            <div className="absolute inset-0 rounded-full border-4 border-indigo-500 animate-ping opacity-25" />
+            <div className="absolute inset-0 animate-ping rounded-full border-4 border-indigo-500 opacity-25" />
           )}
         </div>
-        
+
         <div className="space-y-2">
-          <h2 className="text-xl font-bold text-white tracking-tight">OpenClaw Voice Mode</h2>
-          <p className="text-sm text-zinc-500 font-mono uppercase tracking-widest">{status}</p>
+          <h2 className="text-xl font-bold tracking-tight text-white">OpenClaw Voice Mode</h2>
+          <p className="font-mono text-sm tracking-widest text-zinc-500 uppercase">{status}</p>
         </div>
 
         <div className="pt-4">
-          <button 
+          <button
             onClick={onClose}
-            className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-sm font-bold uppercase tracking-widest transition-all"
+            className="w-full rounded-lg bg-zinc-800 py-3 text-sm font-bold tracking-widest text-zinc-300 uppercase transition-all hover:bg-zinc-700"
           >
             End Conversation
           </button>

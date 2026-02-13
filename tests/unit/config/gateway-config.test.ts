@@ -79,12 +79,15 @@ describe('gatewayConfig service', () => {
   });
 
   it('rejects schema-invalid gateway.port', async () => {
-    const { loadGatewayConfig, saveGatewayConfig } = await import('../../../src/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } =
+      await import('../../../src/server/config/gatewayConfig');
     const broken = validConfig();
     (broken.gateway as { port: unknown }).port = '8080';
 
     const loaded = await loadGatewayConfig();
-    await expect(saveGatewayConfig(broken, { expectedRevision: loaded.revision })).rejects.toThrow('gateway.port');
+    await expect(saveGatewayConfig(broken, { expectedRevision: loaded.revision })).rejects.toThrow(
+      'gateway.port',
+    );
   });
 
   it('normalizes legacy bind-only config on load and emits warnings', async () => {
@@ -106,11 +109,14 @@ describe('gatewayConfig service', () => {
 
     expect(gateway.host).toBe('127.0.0.1');
     expect(gateway.bind).toBe('loopback');
-    expect(loaded.warnings.some((warning) => warning.code === 'gateway.host.derived_from_bind')).toBe(true);
+    expect(
+      loaded.warnings.some((warning) => warning.code === 'gateway.host.derived_from_bind'),
+    ).toBe(true);
   });
 
   it('normalizes legacy bind-only config on save and emits warnings', async () => {
-    const { loadGatewayConfig, saveGatewayConfig } = await import('../../../src/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } =
+      await import('../../../src/server/config/gatewayConfig');
     const loaded = await loadGatewayConfig();
 
     const saved = await saveGatewayConfig(
@@ -129,7 +135,9 @@ describe('gatewayConfig service', () => {
 
     expect(gateway.host).toBe('127.0.0.1');
     expect(gateway.bind).toBe('loopback');
-    expect(saved.warnings.some((warning) => warning.code === 'gateway.host.derived_from_bind')).toBe(true);
+    expect(
+      saved.warnings.some((warning) => warning.code === 'gateway.host.derived_from_bind'),
+    ).toBe(true);
   });
 
   it('recovers invalid optional ui values on load', async () => {
@@ -146,11 +154,14 @@ describe('gatewayConfig service', () => {
 
     expect(ui.density).toBe('comfortable');
     expect(ui.timeFormat).toBe('24h');
-    expect(loaded.warnings.some((warning) => warning.code === 'ui.timeFormat.defaulted_from_invalid')).toBe(true);
+    expect(
+      loaded.warnings.some((warning) => warning.code === 'ui.timeFormat.defaulted_from_invalid'),
+    ).toBe(true);
   });
 
   it('accepts valid ui settings', async () => {
-    const { loadGatewayConfig, saveGatewayConfig } = await import('../../../src/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } =
+      await import('../../../src/server/config/gatewayConfig');
     const loaded = await loadGatewayConfig();
 
     const saved = await saveGatewayConfig(
@@ -173,7 +184,8 @@ describe('gatewayConfig service', () => {
   });
 
   it('rejects invalid ui.timeFormat on save', async () => {
-    const { loadGatewayConfig, saveGatewayConfig } = await import('../../../src/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } =
+      await import('../../../src/server/config/gatewayConfig');
     const loaded = await loadGatewayConfig();
 
     await expect(
@@ -190,7 +202,8 @@ describe('gatewayConfig service', () => {
   });
 
   it('writes atomically via temporary file and rename', async () => {
-    const { loadGatewayConfig, saveGatewayConfig } = await import('../../../src/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } =
+      await import('../../../src/server/config/gatewayConfig');
     const loaded = await loadGatewayConfig();
 
     await saveGatewayConfig(validConfig(), { expectedRevision: loaded.revision });
@@ -198,7 +211,9 @@ describe('gatewayConfig service', () => {
     expect(fsMock.rename).toHaveBeenCalledTimes(1);
     expect(fsMock.writeFile).toHaveBeenCalled();
 
-    const latestWriteArgs = fsMock.writeFile.mock.calls.find((args) => String(args[0]).includes('.tmp'));
+    const latestWriteArgs = fsMock.writeFile.mock.calls.find((args) =>
+      String(args[0]).includes('.tmp'),
+    );
     const writtenPath = latestWriteArgs?.[0];
     expect(typeof writtenPath).toBe('string');
     expect(String(writtenPath)).toContain('.tmp');
@@ -222,12 +237,15 @@ describe('gatewayConfig service', () => {
       return 'existing-raw-json';
     });
 
-    const { loadGatewayConfig, saveGatewayConfig } = await import('../../../src/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } =
+      await import('../../../src/server/config/gatewayConfig');
     const loaded = await loadGatewayConfig();
 
     await saveGatewayConfig(validConfig(), { expectedRevision: loaded.revision });
 
-    const backupWrite = fsMock.writeFile.mock.calls.find((args) => String(args[0]).endsWith('.bak'));
+    const backupWrite = fsMock.writeFile.mock.calls.find((args) =>
+      String(args[0]).endsWith('.bak'),
+    );
     expect(backupWrite).toBeDefined();
     expect(String(backupWrite?.[0])).toBe(`${configPath}.bak`);
   });
@@ -244,7 +262,8 @@ describe('gatewayConfig service', () => {
       return currentConfigRaw;
     });
 
-    const { loadGatewayConfig, saveGatewayConfig } = await import('../../../src/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } =
+      await import('../../../src/server/config/gatewayConfig');
     const loaded = await loadGatewayConfig();
     const saved = await saveGatewayConfig(
       {

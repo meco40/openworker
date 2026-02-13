@@ -16,14 +16,14 @@ Dreiphasige Integration des Mission-Control-Workflows in das bestehende Worker-S
 
 ## Architektur-Entscheidungen
 
-| Entscheidung | Gewählt | Verworfen | Grund |
-|---|---|---|---|
-| Agent-Entity | Bestehende Personas nutzen (`assigned_persona_id`) | Neues `worker_agents` Entity | Kein Parallel-System; Personas haben bereits SOUL.md, Emoji, Name |
-| Drag-and-Drop | HTML5 native API | `@dnd-kit` | Keine neue Dependency; Mission Control nutzt dasselbe |
-| Planning-LLM | Direkter Model-Hub Call (`dispatchWithFallback`) | Chat-Session + Polling | In-process, kein Polling-Overhead, kein Orchestrator-Agent nötig |
-| State Machine | Explizite Transitions + Guard-Funktion | Freies Drag & Drop | Verhindert Race Conditions mit laufendem Agent |
-| Testing | Node.js-basiert (HTML-Parse, css-tree) | Playwright Browser-Tests | ~200MB weniger Dependencies; Playwright optional später |
-| Phasen-Aufteilung | 3 Phasen, je eigenständig lauffähig | Alles in einem Plan | YAGNI: Phase 1 liefert sofort Mehrwert |
+| Entscheidung      | Gewählt                                            | Verworfen                    | Grund                                                             |
+| ----------------- | -------------------------------------------------- | ---------------------------- | ----------------------------------------------------------------- |
+| Agent-Entity      | Bestehende Personas nutzen (`assigned_persona_id`) | Neues `worker_agents` Entity | Kein Parallel-System; Personas haben bereits SOUL.md, Emoji, Name |
+| Drag-and-Drop     | HTML5 native API                                   | `@dnd-kit`                   | Keine neue Dependency; Mission Control nutzt dasselbe             |
+| Planning-LLM      | Direkter Model-Hub Call (`dispatchWithFallback`)   | Chat-Session + Polling       | In-process, kein Polling-Overhead, kein Orchestrator-Agent nötig  |
+| State Machine     | Explizite Transitions + Guard-Funktion             | Freies Drag & Drop           | Verhindert Race Conditions mit laufendem Agent                    |
+| Testing           | Node.js-basiert (HTML-Parse, css-tree)             | Playwright Browser-Tests     | ~200MB weniger Dependencies; Playwright optional später           |
+| Phasen-Aufteilung | 3 Phasen, je eigenständig lauffähig                | Alles in einem Plan          | YAGNI: Phase 1 liefert sofort Mehrwert                            |
 
 ---
 
@@ -60,31 +60,31 @@ Nur erlaubt wenn Task **nicht aktiv** vom Agent bearbeitet wird.
 Aktive Statuses (blockiert): `planning`, `executing`, `clarifying`, `waiting_approval`.
 Ausnahme: `→ cancelled` ist immer erlaubt.
 
-| Von | Erlaubte manuelle Ziele |
-|---|---|
-| `inbox` | `queued`, `assigned`, `cancelled` |
-| `assigned` | `queued`, `inbox`, `cancelled` |
-| `queued` | `inbox`, `cancelled` |
-| `testing` | `review`, `assigned`, `cancelled` |
-| `review` | `completed`, `assigned`, `cancelled` |
-| `completed` | `review` (Reopen) |
-| `failed` | `queued` (Retry), `cancelled` |
-| `interrupted` | `queued` (Resume), `cancelled` |
-| `planning`/`executing`/`clarifying`/`waiting_approval` | nur `cancelled` |
+| Von                                                    | Erlaubte manuelle Ziele              |
+| ------------------------------------------------------ | ------------------------------------ |
+| `inbox`                                                | `queued`, `assigned`, `cancelled`    |
+| `assigned`                                             | `queued`, `inbox`, `cancelled`       |
+| `queued`                                               | `inbox`, `cancelled`                 |
+| `testing`                                              | `review`, `assigned`, `cancelled`    |
+| `review`                                               | `completed`, `assigned`, `cancelled` |
+| `completed`                                            | `review` (Reopen)                    |
+| `failed`                                               | `queued` (Retry), `cancelled`        |
+| `interrupted`                                          | `queued` (Resume), `cancelled`       |
+| `planning`/`executing`/`clarifying`/`waiting_approval` | nur `cancelled`                      |
 
 ---
 
 ## Risiko-Mitigationen
 
-| Risiko | Mitigation |
-|---|---|
-| Race Condition: Agent überschreibt Kanban-Status | State Machine blockiert manuelle Transitions für aktive Tasks. Agent-Loop prüft `!== 'executing'` statt nur `=== 'cancelled'` |
-| `processQueue()` wird nicht getriggert bei Kanban-Drag | Expliziter `processQueue()` Aufruf in PATCH-Route bei Status-Änderung zu `queued` |
-| 10+ Stellen für neue Statuses | Vollständige Änderungsliste in Phase-1-Plan dokumentiert |
-| Persona-System Duplikation | Kein neues Entity — direkte FK `assigned_persona_id → personas.id` |
-| Planning-Phase Architektur-Mismatch | Direkter LLM-Call statt MC's Polling-Muster |
-| Playwright Dependency-Footprint | Node.js-basierte Tests als Default, Playwright optional |
-| Tests brechen durch Schema-Änderung | Alle neuen Spalten nullable, bestehende Tests unverändert lauffähig |
+| Risiko                                                 | Mitigation                                                                                                                    |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| Race Condition: Agent überschreibt Kanban-Status       | State Machine blockiert manuelle Transitions für aktive Tasks. Agent-Loop prüft `!== 'executing'` statt nur `=== 'cancelled'` |
+| `processQueue()` wird nicht getriggert bei Kanban-Drag | Expliziter `processQueue()` Aufruf in PATCH-Route bei Status-Änderung zu `queued`                                             |
+| 10+ Stellen für neue Statuses                          | Vollständige Änderungsliste in Phase-1-Plan dokumentiert                                                                      |
+| Persona-System Duplikation                             | Kein neues Entity — direkte FK `assigned_persona_id → personas.id`                                                            |
+| Planning-Phase Architektur-Mismatch                    | Direkter LLM-Call statt MC's Polling-Muster                                                                                   |
+| Playwright Dependency-Footprint                        | Node.js-basierte Tests als Default, Playwright optional                                                                       |
+| Tests brechen durch Schema-Änderung                    | Alle neuen Spalten nullable, bestehende Tests unverändert lauffähig                                                           |
 
 ---
 
@@ -104,23 +104,23 @@ Ausnahme: `→ cancelled` ist immer erlaubt.
 
 ### Dateien die geändert werden (vollständig)
 
-| Datei | Art |
-|---|---|
-| `src/server/worker/workerStateMachine.ts` | NEU |
-| `src/server/worker/workerTypes.ts` | ÄNDERN — 3 neue Status-Werte |
-| `types.ts` | ÄNDERN — 3 neue Enum-Werte |
-| `src/server/worker/workerRepository.ts` | ÄNDERN — `updateStatus()` Timestamps, `getActiveTask()` SQL |
-| `src/server/worker/workerAgent.ts` | ÄNDERN — Cancellation-Check erweitern |
-| `components/worker/WorkerTaskList.tsx` | ÄNDERN — `STATUS_CONFIG` Map |
-| `components/WorkerFlow.tsx` | ÄNDERN — Flow-Nodes für neue Statuses |
-| `components/worker/WorkerTaskDetail.tsx` | ÄNDERN — Action-Buttons |
-| `src/server/channels/messages/service.ts` | ÄNDERN — Status-Guards |
-| `src/server/gateway/methods/worker.ts` | ÄNDERN — Neue Methode, reichere Events |
-| `components/worker/WorkerKanbanBoard.tsx` | NEU |
-| `WorkerView.tsx` | ÄNDERN — Layout-Umbau |
-| `tests/workerRepository.test.ts` | ÄNDERN — State-Machine-Tests |
-| `tests/unit/worker/worker-state-machine.test.ts` | NEU |
-| `app/api/worker/[id]/route.ts` | ÄNDERN — processQueue Trigger |
+| Datei                                            | Art                                                         |
+| ------------------------------------------------ | ----------------------------------------------------------- |
+| `src/server/worker/workerStateMachine.ts`        | NEU                                                         |
+| `src/server/worker/workerTypes.ts`               | ÄNDERN — 3 neue Status-Werte                                |
+| `types.ts`                                       | ÄNDERN — 3 neue Enum-Werte                                  |
+| `src/server/worker/workerRepository.ts`          | ÄNDERN — `updateStatus()` Timestamps, `getActiveTask()` SQL |
+| `src/server/worker/workerAgent.ts`               | ÄNDERN — Cancellation-Check erweitern                       |
+| `components/worker/WorkerTaskList.tsx`           | ÄNDERN — `STATUS_CONFIG` Map                                |
+| `components/WorkerFlow.tsx`                      | ÄNDERN — Flow-Nodes für neue Statuses                       |
+| `components/worker/WorkerTaskDetail.tsx`         | ÄNDERN — Action-Buttons                                     |
+| `src/server/channels/messages/service.ts`        | ÄNDERN — Status-Guards                                      |
+| `src/server/gateway/methods/worker.ts`           | ÄNDERN — Neue Methode, reichere Events                      |
+| `components/worker/WorkerKanbanBoard.tsx`        | NEU                                                         |
+| `WorkerView.tsx`                                 | ÄNDERN — Layout-Umbau                                       |
+| `tests/workerRepository.test.ts`                 | ÄNDERN — State-Machine-Tests                                |
+| `tests/unit/worker/worker-state-machine.test.ts` | NEU                                                         |
+| `app/api/worker/[id]/route.ts`                   | ÄNDERN — processQueue Trigger                               |
 
 ### Verifikation
 
@@ -145,22 +145,22 @@ Ausnahme: `→ cancelled` ist immer erlaubt.
 
 ### Dateien
 
-| Datei | Art |
-|---|---|
-| `src/server/worker/workerRepository.ts` | ÄNDERN — Migration, CRUD für Activities |
-| `src/server/worker/workerTypes.ts` | ÄNDERN — `assignedPersonaId`, `TaskActivity` Type |
-| `src/server/worker/workerRowMappers.ts` | ÄNDERN — neues Feld |
-| `types.ts` | ÄNDERN — Frontend-Types |
-| `app/api/worker/route.ts` | ÄNDERN — JOIN auf personas |
-| `app/api/worker/[id]/route.ts` | ÄNDERN — Persona-Zuweisung |
-| `app/api/worker/[id]/activities/route.ts` | NEU |
-| `components/worker/WorkerPersonaSidebar.tsx` | NEU |
-| `components/worker/WorkerTaskDetail.tsx` | ÄNDERN — Tab-System |
-| `components/worker/WorkerActivityTab.tsx` | NEU |
-| `WorkerView.tsx` | ÄNDERN — Sidebar-Layout |
-| `src/server/worker/workerAgent.ts` | ÄNDERN — Activity-Logging |
-| `src/server/channels/messages/service.ts` | ÄNDERN — neue Commands |
-| `src/server/gateway/methods/worker.ts` | ÄNDERN — `worker.activity` Event |
+| Datei                                        | Art                                               |
+| -------------------------------------------- | ------------------------------------------------- |
+| `src/server/worker/workerRepository.ts`      | ÄNDERN — Migration, CRUD für Activities           |
+| `src/server/worker/workerTypes.ts`           | ÄNDERN — `assignedPersonaId`, `TaskActivity` Type |
+| `src/server/worker/workerRowMappers.ts`      | ÄNDERN — neues Feld                               |
+| `types.ts`                                   | ÄNDERN — Frontend-Types                           |
+| `app/api/worker/route.ts`                    | ÄNDERN — JOIN auf personas                        |
+| `app/api/worker/[id]/route.ts`               | ÄNDERN — Persona-Zuweisung                        |
+| `app/api/worker/[id]/activities/route.ts`    | NEU                                               |
+| `components/worker/WorkerPersonaSidebar.tsx` | NEU                                               |
+| `components/worker/WorkerTaskDetail.tsx`     | ÄNDERN — Tab-System                               |
+| `components/worker/WorkerActivityTab.tsx`    | NEU                                               |
+| `WorkerView.tsx`                             | ÄNDERN — Sidebar-Layout                           |
+| `src/server/worker/workerAgent.ts`           | ÄNDERN — Activity-Logging                         |
+| `src/server/channels/messages/service.ts`    | ÄNDERN — neue Commands                            |
+| `src/server/gateway/methods/worker.ts`       | ÄNDERN — `worker.activity` Event                  |
 
 ### Verifikation
 
@@ -183,16 +183,16 @@ Ausnahme: `→ cancelled` ist immer erlaubt.
 
 ### Dateien
 
-| Datei | Art |
-|---|---|
-| `app/api/worker/[id]/planning/route.ts` | NEU — Start + State-Abfrage |
-| `app/api/worker/[id]/planning/answer/route.ts` | NEU — Antwort-Verarbeitung |
-| `app/api/worker/[id]/test/route.ts` | NEU — Automated Testing |
-| `src/server/worker/workerRepository.ts` | ÄNDERN — Migration (planning_messages, planning_complete) |
-| `src/server/worker/workerTypes.ts` | ÄNDERN — Planning-Types |
-| `components/worker/WorkerPlanningTab.tsx` | NEU |
-| `components/worker/WorkerTaskCreation.tsx` | ÄNDERN — Planning-Modus Toggle |
-| `src/server/worker/workerAgent.ts` | ÄNDERN — Testing-Phase nach Self-Verify |
+| Datei                                          | Art                                                       |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| `app/api/worker/[id]/planning/route.ts`        | NEU — Start + State-Abfrage                               |
+| `app/api/worker/[id]/planning/answer/route.ts` | NEU — Antwort-Verarbeitung                                |
+| `app/api/worker/[id]/test/route.ts`            | NEU — Automated Testing                                   |
+| `src/server/worker/workerRepository.ts`        | ÄNDERN — Migration (planning_messages, planning_complete) |
+| `src/server/worker/workerTypes.ts`             | ÄNDERN — Planning-Types                                   |
+| `components/worker/WorkerPlanningTab.tsx`      | NEU                                                       |
+| `components/worker/WorkerTaskCreation.tsx`     | ÄNDERN — Planning-Modus Toggle                            |
+| `src/server/worker/workerAgent.ts`             | ÄNDERN — Testing-Phase nach Self-Verify                   |
 
 ### Verifikation
 

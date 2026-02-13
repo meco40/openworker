@@ -41,7 +41,11 @@ describe('config revision concurrency', () => {
         config: { gateway: { port: 8080, host: '127.0.0.1', logLevel: 'info' } },
       }),
     );
-    const putPayload = (await putResponse.json()) as { ok: boolean; code?: string; currentRevision?: string };
+    const putPayload = (await putResponse.json()) as {
+      ok: boolean;
+      code?: string;
+      currentRevision?: string;
+    };
 
     expect(putResponse.status).toBe(409);
     expect(putPayload.ok).toBe(false);

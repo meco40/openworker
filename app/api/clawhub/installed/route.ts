@@ -16,7 +16,8 @@ export async function GET() {
     const skills = await service.syncInstalledFromLockfile();
     return NextResponse.json({ ok: true, skills });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to list installed ClawHub skills';
+    const message =
+      error instanceof Error ? error.message : 'Failed to list installed ClawHub skills';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

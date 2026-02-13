@@ -37,6 +37,7 @@ Historische Detailstaende liegen unter `docs/archive/rooms/` und `docs/archive/p
 ## Persistenz
 
 Rooms speichern in `messages.db` (SQLite, `better-sqlite3`) u. a.:
+
 - `rooms`
 - `room_members`
 - `room_runs`
@@ -59,11 +60,13 @@ Rooms speichern in `messages.db` (SQLite, `better-sqlite3`) u. a.:
 ## Model-Routing und Ausfuehrung
 
 Routing-Reihenfolge pro Mitglied:
+
 1. Member `model_override` (wenn im aktiven Profil verfuegbar)
 2. Room-Profil
 3. Fallback-Profil `p1`
 
 Pro Turn:
+
 - Prompt-/Kontextaufbau
 - optional Tool Calls (permission-checked)
 - Antwortpersistenz + Broadcast
@@ -72,6 +75,7 @@ Pro Turn:
 ## Realtime Events
 
 Der Server emittiert:
+
 - `room.message`
 - `room.member.status`
 - `room.run.status`
@@ -79,6 +83,7 @@ Der Server emittiert:
 - `room.metrics`
 
 Client-seitiger Sync:
+
 - `src/modules/rooms/useRoomSync.ts`
 
 ## API Surface (wichtig)
@@ -96,11 +101,13 @@ Client-seitiger Sync:
 ## Verifikation
 
 Relevante Testbereiche:
+
 - `tests/unit/rooms/*`
 - `tests/integration/rooms/*`
 - `tests/integration/security/privileged-routes-auth.test.ts`
 
 Empfohlener Check:
+
 - `npm run test -- tests/unit/rooms tests/integration/rooms`
 - `npm run lint`
 - `npm run typecheck`
@@ -114,6 +121,7 @@ Empfohlener Check:
 ## Historie
 
 Historische Rooms-Dokumente:
+
 - `docs/archive/rooms/2026-02-12-rooms-stability-performance-analysis.md`
 - `docs/archive/rooms/2026-02-12-rooms-system-maengel-analyse.md`
 - `docs/archive/rooms/ROOMS_IMPLEMENTATION_NOTES.md`

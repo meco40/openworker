@@ -59,7 +59,10 @@ async function readJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function searchClawHubSkills(query: string, limit = 25): Promise<ClawHubSearchResponse> {
+export async function searchClawHubSkills(
+  query: string,
+  limit = 25,
+): Promise<ClawHubSearchResponse> {
   const qs = new URLSearchParams({
     q: query,
     limit: String(limit),

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 function read(relativePath: string): string {
   const absolutePath = path.join(process.cwd(), relativePath);
-   
+
   return fs.readFileSync(absolutePath, 'utf-8');
 }
 
@@ -51,7 +51,9 @@ describe('react/next best-practices refactor', () => {
 
   it('parallelizes independent room refresh actions in PersonasView', () => {
     const personasView = read('components/PersonasView.tsx');
-    expect(personasView).toContain('await Promise.all([loadRoomDetail(selectedRoomId), refreshRooms()]);');
+    expect(personasView).toContain(
+      'await Promise.all([loadRoomDetail(selectedRoomId), refreshRooms()]);',
+    );
   });
 
   it('parallelizes independent async work in skill and metrics routes', () => {
@@ -59,7 +61,9 @@ describe('react/next best-practices refactor', () => {
     const metricsRoute = read('app/api/control-plane/metrics/route.ts');
 
     expect(skillRoute).toContain('const [resolvedParams, body, repo] = await Promise.all([');
-    expect(metricsRoute).toContain('const [automationImport, roomImport] = await Promise.allSettled([');
+    expect(metricsRoute).toContain(
+      'const [automationImport, roomImport] = await Promise.allSettled([',
+    );
   });
 
   it('avoids re-sorting the full room message list on every websocket event', () => {

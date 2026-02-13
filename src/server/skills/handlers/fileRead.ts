@@ -16,7 +16,7 @@ export async function fileReadHandler(args: Record<string, unknown>) {
   const inputPath = String(args.path || '').trim();
   if (!inputPath) throw new Error('file_read requires a non-empty path.');
   const resolvedPath = ensureWorkspacePath(inputPath);
-   
+
   const content = await readFile(resolvedPath, 'utf-8');
   const truncated = content.length > MAX_FILE_BYTES;
   return {
@@ -26,4 +26,3 @@ export async function fileReadHandler(args: Record<string, unknown>) {
     content: truncated ? content.slice(0, MAX_FILE_BYTES) : content,
   };
 }
-

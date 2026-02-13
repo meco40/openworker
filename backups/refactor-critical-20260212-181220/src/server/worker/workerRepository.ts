@@ -444,4 +444,3 @@ export function getWorkerRepository(): SqliteWorkerRepository {
   }
   return instance;
 }
-

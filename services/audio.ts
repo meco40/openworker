@@ -1,4 +1,3 @@
-
 export function decodeBase64(base64: string): Uint8Array {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -42,9 +41,7 @@ export function createPcmBlob(data: Float32Array): string {
   const int16 = new Int16Array(l);
   for (let i = 0; i < l; i++) {
     const clamped = Math.max(-1, Math.min(1, data[i]));
-    int16[i] = clamped < 0
-      ? Math.round(clamped * 32768)
-      : Math.round(clamped * 32767);
+    int16[i] = clamped < 0 ? Math.round(clamped * 32768) : Math.round(clamped * 32767);
   }
   return encodeBase64(new Uint8Array(int16.buffer));
 }

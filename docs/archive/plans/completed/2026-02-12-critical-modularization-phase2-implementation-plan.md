@@ -13,6 +13,7 @@
 ### Task 1: Extract Health Checks Helpers
 
 **Files:**
+
 - Create: `src/commands/health/checkHelpers.ts`
 - Modify: `src/commands/healthChecks.ts`
 - Test: `tests/unit/commands/health-check-helpers.test.ts`
@@ -25,6 +26,7 @@
 ### Task 2: Extract Orchestrator Turn Utilities
 
 **Files:**
+
 - Create: `src/server/rooms/orchestratorUtils.ts`
 - Modify: `src/server/rooms/orchestrator.ts`
 - Test: `tests/unit/rooms/orchestrator-utils.test.ts`
@@ -37,6 +39,7 @@
 ### Task 3: Extract LogsView Modules
 
 **Files:**
+
 - Create: `components/logs/diagnostics.ts`
 - Create: `components/logs/DiagnosticsSummaryPanel.tsx`
 - Modify: `components/LogsView.tsx`
@@ -50,6 +53,7 @@
 ### Task 4: Extract PersonasView Modules
 
 **Files:**
+
 - Create: `components/personas/personaLabels.ts`
 - Create: `components/personas/PersonasSidebar.tsx`
 - Create: `components/personas/PersonaEditorPane.tsx`
@@ -63,6 +67,7 @@
 ### Task 5: Full Verification
 
 **Files:**
+
 - Verify: repository-wide
 
 1. Run targeted test suites for touched domains.

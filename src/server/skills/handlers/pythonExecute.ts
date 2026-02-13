@@ -8,11 +8,11 @@ export async function pythonExecuteHandler(args: Record<string, unknown>) {
   if (!code) throw new Error('python_execute requires code.');
 
   try {
-    const { stdout, stderr } = await execFile(
-      'python',
-      ['-c', code],
-      { cwd: process.cwd(), timeout: 20_000, maxBuffer: 1_000_000 },
-    );
+    const { stdout, stderr } = await execFile('python', ['-c', code], {
+      cwd: process.cwd(),
+      timeout: 20_000,
+      maxBuffer: 1_000_000,
+    });
     return { stdout, stderr, exitCode: 0 };
   } catch (error) {
     const typed = error as {

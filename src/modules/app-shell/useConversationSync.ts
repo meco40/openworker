@@ -90,7 +90,10 @@ export function useConversationSync() {
     });
 
     const unsubReset = client.on('conversation.reset', (payload) => {
-      const { newConversationId } = payload as { oldConversationId: string | null; newConversationId: string };
+      const { newConversationId } = payload as {
+        oldConversationId: string | null;
+        newConversationId: string;
+      };
       // Refresh conversation list — the new conversation will appear
       fetch('/api/channels/conversations')
         .then((r) => r.json())
@@ -100,14 +103,21 @@ export function useConversationSync() {
             setActiveConversationId(newConversationId);
           }
         })
-        .catch(() => { /* ignore */ });
+        .catch(() => {
+          /* ignore */
+        });
     });
 
     const unsubAborted = client.on('chat.aborted', () => {
       // No special UI action needed — the aborted message arrives via chat.message
     });
 
-    return () => { unsub(); unsubDeleted(); unsubReset(); unsubAborted(); };
+    return () => {
+      unsub();
+      unsubDeleted();
+      unsubReset();
+      unsubAborted();
+    };
   }, []);
 
   useEffect(() => {

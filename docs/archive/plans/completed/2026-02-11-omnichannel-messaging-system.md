@@ -13,6 +13,7 @@
 I'm using the writing-plans skill to create the implementation plan.
 
 **Assumptions**
+
 - Existing channels (Telegram, WhatsApp, Discord, iMessage, WebChat) stay supported.
 - Slack is added as first new adapter to validate extensibility.
 - Existing APIs remain backward-compatible while new omnichannel endpoints are introduced.
@@ -20,6 +21,7 @@ I'm using the writing-plans skill to create the implementation plan.
 ### Task 1: Define Omnichannel Domain Contracts
 
 **Files:**
+
 - Create: `src/server/channels/adapters/types.ts`
 - Create: `src/server/channels/adapters/capabilities.ts`
 - Modify: `types.ts`
@@ -29,7 +31,10 @@ I'm using the writing-plans skill to create the implementation plan.
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { CHANNEL_CAPABILITIES, normalizeChannelKey } from '../../../src/server/channels/adapters/capabilities';
+import {
+  CHANNEL_CAPABILITIES,
+  normalizeChannelKey,
+} from '../../../src/server/channels/adapters/capabilities';
 
 describe('channel adapter contracts', () => {
   it('normalizes known channel keys and exposes capabilities', () => {
@@ -63,17 +68,47 @@ export interface ChannelCapabilities {
 import type { ChannelCapabilities, ChannelKey } from './types';
 
 export const CHANNEL_CAPABILITIES: Record<ChannelKey, ChannelCapabilities> = {
-  webchat: { supportsInbound: true, supportsOutbound: false, supportsPairing: false, supportsStreaming: true },
-  telegram: { supportsInbound: true, supportsOutbound: true, supportsPairing: true, supportsStreaming: false },
-  whatsapp: { supportsInbound: true, supportsOutbound: true, supportsPairing: true, supportsStreaming: false },
-  discord: { supportsInbound: true, supportsOutbound: true, supportsPairing: true, supportsStreaming: false },
-  imessage: { supportsInbound: true, supportsOutbound: true, supportsPairing: true, supportsStreaming: false },
-  slack: { supportsInbound: true, supportsOutbound: true, supportsPairing: true, supportsStreaming: false },
+  webchat: {
+    supportsInbound: true,
+    supportsOutbound: false,
+    supportsPairing: false,
+    supportsStreaming: true,
+  },
+  telegram: {
+    supportsInbound: true,
+    supportsOutbound: true,
+    supportsPairing: true,
+    supportsStreaming: false,
+  },
+  whatsapp: {
+    supportsInbound: true,
+    supportsOutbound: true,
+    supportsPairing: true,
+    supportsStreaming: false,
+  },
+  discord: {
+    supportsInbound: true,
+    supportsOutbound: true,
+    supportsPairing: true,
+    supportsStreaming: false,
+  },
+  imessage: {
+    supportsInbound: true,
+    supportsOutbound: true,
+    supportsPairing: true,
+    supportsStreaming: false,
+  },
+  slack: {
+    supportsInbound: true,
+    supportsOutbound: true,
+    supportsPairing: true,
+    supportsStreaming: false,
+  },
 };
 
 export function normalizeChannelKey(value: string): ChannelKey | null {
   const normalized = value.trim().toLowerCase();
-  return (normalized in CHANNEL_CAPABILITIES ? (normalized as ChannelKey) : null);
+  return normalized in CHANNEL_CAPABILITIES ? (normalized as ChannelKey) : null;
 }
 ```
 
@@ -92,6 +127,7 @@ git commit -m "feat: add omnichannel adapter contracts and capabilities map"
 ### Task 2: Introduce Unified Inbound Message Envelope
 
 **Files:**
+
 - Create: `src/server/channels/inbound/envelope.ts`
 - Create: `src/server/channels/inbound/normalizers.ts`
 - Modify: `app/api/channels/telegram/webhook/route.ts`
@@ -108,7 +144,9 @@ import { normalizeTelegramInbound } from '../../../src/server/channels/inbound/n
 
 describe('inbound normalizers', () => {
   it('maps telegram webhook payload to unified envelope', () => {
-    const env = normalizeTelegramInbound({ message: { chat: { id: 7 }, text: 'hi', from: { username: 'max' }, message_id: 11 } });
+    const env = normalizeTelegramInbound({
+      message: { chat: { id: 7 }, text: 'hi', from: { username: 'max' }, message_id: 11 },
+    });
     expect(env.channel).toBe('telegram');
     expect(env.externalChatId).toBe('7');
     expect(env.content).toBe('hi');
@@ -154,6 +192,7 @@ git commit -m "feat: normalize inbound webhooks into unified envelope"
 ### Task 3: Add Adapter Registry and Shared Channel Router
 
 **Files:**
+
 - Create: `src/server/channels/routing/adapterRegistry.ts`
 - Create: `src/server/channels/routing/inboundRouter.ts`
 - Create: `src/server/channels/routing/outboundRouter.ts`
@@ -181,6 +220,7 @@ Expected: FAIL with undefined registry/router functions.
 **Step 3: Write minimal implementation**
 
 Implement a typed registry:
+
 - `registerAdapter(adapter)`
 - `getAdapter(channel)`
 - `routeInbound(envelope, ctx)`
@@ -203,6 +243,7 @@ git commit -m "refactor: route channel traffic through adapter registry"
 ### Task 4: Persist Channel Bindings and External Participants
 
 **Files:**
+
 - Modify: `src/server/channels/messages/repository.ts`
 - Modify: `src/server/channels/messages/sqliteMessageRepository.ts`
 - Create: `src/server/channels/messages/channelBindings.ts`
@@ -214,7 +255,12 @@ git commit -m "refactor: route channel traffic through adapter registry"
 ```ts
 it('creates channel_bindings table and stores per-user channel config', () => {
   const repo = new SqliteMessageRepository(':memory:');
-  repo.upsertChannelBinding({ userId: 'u1', channel: 'telegram', status: 'connected', externalPeerId: 'chat-1' });
+  repo.upsertChannelBinding({
+    userId: 'u1',
+    channel: 'telegram',
+    status: 'connected',
+    externalPeerId: 'chat-1',
+  });
   const rows = repo.listChannelBindings('u1');
   expect(rows[0].channel).toBe('telegram');
 });
@@ -228,10 +274,12 @@ Expected: FAIL with missing repository methods/table.
 **Step 3: Write minimal implementation**
 
 Add DB tables:
+
 - `channel_bindings`
 - `channel_participants`
 
 Expose repository methods:
+
 - `upsertChannelBinding`
 - `listChannelBindings`
 - `touchChannelLastSeen`
@@ -251,6 +299,7 @@ git commit -m "feat: persist omnichannel bindings and participant state"
 ### Task 5: Add Omnichannel REST APIs for Inbox and Channel State
 
 **Files:**
+
 - Create: `app/api/channels/state/route.ts`
 - Create: `app/api/channels/inbox/route.ts`
 - Modify: `app/api/channels/conversations/route.ts`
@@ -278,6 +327,7 @@ Expected: FAIL with route modules not found.
 **Step 3: Write minimal implementation**
 
 Add:
+
 - `GET /api/channels/state` for per-channel status/capabilities
 - `GET /api/channels/inbox` with filters `channel`, `q`, `limit`, `cursor`
 
@@ -298,6 +348,7 @@ git commit -m "feat: add omnichannel state and unified inbox routes"
 ### Task 6: Extend Gateway RPC for Omnichannel Operations
 
 **Files:**
+
 - Create: `src/server/gateway/methods/channels.ts`
 - Modify: `src/server/gateway/index.ts`
 - Modify: `src/server/gateway/events.ts`
@@ -310,10 +361,8 @@ git commit -m "feat: add omnichannel state and unified inbox routes"
 ```ts
 it('responds to channels.list with omnichannel state', async () => {
   const out: unknown[] = [];
-  await dispatchFrame(
-    { type: 'req', id: '1', method: 'channels.list' },
-    mockClient('u1'),
-    (f) => out.push(f),
+  await dispatchFrame({ type: 'req', id: '1', method: 'channels.list' }, mockClient('u1'), (f) =>
+    out.push(f),
   );
   expect((out[0] as any).ok).toBe(true);
 });
@@ -327,12 +376,14 @@ Expected: FAIL with unknown method `channels.list`.
 **Step 3: Write minimal implementation**
 
 Register new RPC methods:
+
 - `channels.list`
 - `channels.pair`
 - `channels.unpair`
 - `inbox.list`
 
 Emit events:
+
 - `channels.status`
 - `inbox.updated`
 
@@ -351,6 +402,7 @@ git commit -m "feat: expose omnichannel operations via gateway rpc"
 ### Task 7: Implement Slack Adapter End-to-End
 
 **Files:**
+
 - Create: `src/server/channels/pairing/slack.ts`
 - Create: `src/server/channels/outbound/slack.ts`
 - Create: `app/api/channels/slack/webhook/route.ts`
@@ -376,6 +428,7 @@ Expected: FAIL because Slack is not supported by pairing/router.
 **Step 3: Write minimal implementation**
 
 Add Slack support through same adapter contracts:
+
 - token validation via Slack auth endpoint
 - webhook ingestion to unified envelope
 - outbound reply via Slack `chat.postMessage`
@@ -395,6 +448,7 @@ git commit -m "feat: add slack adapter to omnichannel stack"
 ### Task 8: Build Unified Inbox UX (Filter, Search, Channel Switch)
 
 **Files:**
+
 - Modify: `src/modules/app-shell/useConversationSync.ts`
 - Modify: `components/ChatInterface.tsx`
 - Modify: `src/modules/chat/components/ChatConversationList.tsx`
@@ -420,6 +474,7 @@ Expected: FAIL with missing `InboxFilters`.
 **Step 3: Write minimal implementation**
 
 Add:
+
 - channel chips (`All`, per platform)
 - search input
 - unread/updated sorting toggle
@@ -441,6 +496,7 @@ git commit -m "feat: add unified inbox filters and search"
 ### Task 9: Wire Pairing UI to Server-Backed Channel State
 
 **Files:**
+
 - Modify: `messenger/ChannelPairing.tsx`
 - Modify: `src/modules/app-shell/useAppShellState.ts`
 - Create: `src/modules/app-shell/useChannelStateSync.ts`
@@ -464,6 +520,7 @@ Expected: FAIL with missing hook/helper.
 **Step 3: Write minimal implementation**
 
 Implement `useChannelStateSync`:
+
 - load initial state from API
 - subscribe to `channels.status` Gateway events
 - keep `ChannelPairing` UI in sync with server truth
@@ -483,6 +540,7 @@ git commit -m "feat: sync pairing ui with persisted channel state"
 ### Task 10: Add Omnichannel Observability, Security, and Verification
 
 **Files:**
+
 - Modify: `src/server/channels/webhookAuth.ts`
 - Modify: `src/server/telemetry/logService.ts`
 - Modify: `app/api/security/status/route.ts`
@@ -510,6 +568,7 @@ Expected: FAIL with missing fields/events.
 **Step 3: Write minimal implementation**
 
 Add:
+
 - per-channel security diagnostics (signature mode, secret configured, last verify result)
 - structured channel telemetry (`channel.inbound.accepted`, `channel.outbound.failed`, latency)
 - runbook for pairing/webhook troubleshooting and replay steps

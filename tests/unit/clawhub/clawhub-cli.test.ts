@@ -106,7 +106,10 @@ describe('ClawHubCli', () => {
         const base = path.basename(file).toLowerCase();
         const isAbsolute = file.includes('\\') || file.includes('/');
 
-        if (!isAbsolute && (file === 'clawhub' || file === 'npx' || file === 'npm' || file === 'pnpm')) {
+        if (
+          !isAbsolute &&
+          (file === 'clawhub' || file === 'npx' || file === 'npm' || file === 'pnpm')
+        ) {
           const error = new Error(`spawn ${file} ENOENT`) as Error & { code?: string };
           error.code = 'ENOENT';
           throw error;

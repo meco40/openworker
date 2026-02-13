@@ -21,22 +21,33 @@ function mockClawHubService(overrides?: {
     getClawHubService: () => ({
       search:
         overrides?.search ??
-        (async () => ({ items: [{ slug: 'calendar', version: '1.0.0', title: 'Calendar', score: 0.5 }], parseWarnings: [] })),
+        (async () => ({
+          items: [{ slug: 'calendar', version: '1.0.0', title: 'Calendar', score: 0.5 }],
+          parseWarnings: [],
+        })),
       syncInstalledFromLockfile:
         overrides?.syncInstalledFromLockfile ??
-        (async () => [{ slug: 'calendar', version: '1.0.0', status: 'installed', title: 'Calendar', localPath: 'skills/calendar' }]),
+        (async () => [
+          {
+            slug: 'calendar',
+            version: '1.0.0',
+            status: 'installed',
+            title: 'Calendar',
+            localPath: 'skills/calendar',
+          },
+        ]),
       install:
         overrides?.install ??
         (async () => ({ skills: [{ slug: 'calendar', version: '1.0.0' }], warnings: [] })),
       update:
         overrides?.update ??
         (async () => ({ skills: [{ slug: 'calendar', version: '1.0.1' }], warnings: [] })),
-      uninstall:
-        overrides?.uninstall ??
-        (async () => ({ skills: [], warnings: [] })),
+      uninstall: overrides?.uninstall ?? (async () => ({ skills: [], warnings: [] })),
       explore:
         overrides?.explore ??
-        (async () => ({ items: [{ slug: 'calendar', latestVersion: '1.0.0', title: 'Calendar' }] })),
+        (async () => ({
+          items: [{ slug: 'calendar', latestVersion: '1.0.0', title: 'Calendar' }],
+        })),
       setEnabled:
         overrides?.setEnabled ??
         (async (slug: string, enabled: boolean) => ({

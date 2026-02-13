@@ -137,20 +137,32 @@ export class ModelHubService {
       const target = activeModels.find((m) => m.modelName === options.modelOverride);
       if (!target) {
         return {
-          ok: false, text: '', model: options.modelOverride, provider: '',
+          ok: false,
+          text: '',
+          model: options.modelOverride,
+          provider: '',
           error: `Override model "${options.modelOverride}" not found in active pipeline.`,
         };
       }
       const account = this.repository.getAccountRecordById(target.accountId);
       if (!account) {
         return {
-          ok: false, text: '', model: options.modelOverride, provider: '',
+          ok: false,
+          text: '',
+          model: options.modelOverride,
+          provider: '',
           error: `Account for override model not found.`,
         };
       }
-      return dispatchGatewayRequest(account, encryptionKey, {
-        ...request, model: target.modelName,
-      }, { signal: options?.signal });
+      return dispatchGatewayRequest(
+        account,
+        encryptionKey,
+        {
+          ...request,
+          model: target.modelName,
+        },
+        { signal: options?.signal },
+      );
     }
 
     const errors: string[] = [];
@@ -163,10 +175,15 @@ export class ModelHubService {
       const account = this.repository.getAccountRecordById(entry.accountId);
       if (!account) continue;
 
-      const result = await dispatchGatewayRequest(account, encryptionKey, {
-        ...request,
-        model: entry.modelName,
-      }, { signal: options?.signal });
+      const result = await dispatchGatewayRequest(
+        account,
+        encryptionKey,
+        {
+          ...request,
+          model: entry.modelName,
+        },
+        { signal: options?.signal },
+      );
 
       if (result.ok) {
         return result;

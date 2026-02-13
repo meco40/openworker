@@ -61,16 +61,28 @@ export function parseFrame(raw: string): GatewayFrame | null {
 
     switch (data.type) {
       case 'req':
-        if ((typeof data.id !== 'string' && typeof data.id !== 'number') || typeof data.method !== 'string') return null;
+        if (
+          (typeof data.id !== 'string' && typeof data.id !== 'number') ||
+          typeof data.method !== 'string'
+        )
+          return null;
         return data as RequestFrame;
       case 'res':
-        if ((typeof data.id !== 'string' && typeof data.id !== 'number') || typeof data.ok !== 'boolean') return null;
+        if (
+          (typeof data.id !== 'string' && typeof data.id !== 'number') ||
+          typeof data.ok !== 'boolean'
+        )
+          return null;
         return data as ResponseFrame;
       case 'event':
         if (typeof data.event !== 'string') return null;
         return data as EventFrame;
       case 'stream':
-        if ((typeof data.id !== 'string' && typeof data.id !== 'number') || typeof data.delta !== 'string') return null;
+        if (
+          (typeof data.id !== 'string' && typeof data.id !== 'number') ||
+          typeof data.delta !== 'string'
+        )
+          return null;
         return data as StreamFrame;
       default:
         return null;

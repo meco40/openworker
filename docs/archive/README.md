@@ -3,6 +3,7 @@
 Stand: 2026-02-13
 
 Dieses Verzeichnis enthaelt historische Dokumente:
+
 - fruehere Analysen
 - abgeschlossene Reports
 - alte Architektur-Entscheidungen

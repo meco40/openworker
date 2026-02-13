@@ -11,7 +11,9 @@ describe('default view config', () => {
 
   it('falls back to dashboard for invalid values', () => {
     expect(resolveViewFromConfig('invalid-view')).toBe(View.DASHBOARD);
-    expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'invalid-view' } })).toBe(View.DASHBOARD);
+    expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'invalid-view' } })).toBe(
+      View.DASHBOARD,
+    );
     expect(resolveDefaultViewFromConfig({})).toBe(View.DASHBOARD);
   });
 });
