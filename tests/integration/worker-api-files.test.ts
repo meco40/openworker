@@ -150,7 +150,7 @@ describe('worker files API integration', () => {
 
     it('detects absolute paths via isAbsolute check', () => {
       expect(path.isAbsolute('/etc/passwd')).toBe(true);
-      expect(path.isAbsolute('C:\\Windows\\System32')).toBe(true);
+      expect(path.win32.isAbsolute('C:\\Windows\\System32')).toBe(true);
     });
   });
 

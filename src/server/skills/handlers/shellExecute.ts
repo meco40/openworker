@@ -3,6 +3,15 @@ import { promisify } from 'node:util';
 
 const execFile = promisify(execFileCallback);
 
+function resolveShell(command: string): { file: string; args: string[] } {
+  if (process.platform === 'win32') {
+    return { file: 'powershell', args: ['-NoProfile', '-Command', command] };
+  }
+
+  // Use a POSIX shell in CI/Linux environments.
+  return { file: '/bin/bash', args: ['-lc', command] };
+}
+
 export async function shellExecuteHandler(args: Record<string, unknown>) {
   const command = String(args.command || '').trim();
   if (!command) throw new Error('shell_execute requires command.');
@@ -14,7 +23,8 @@ export async function shellExecuteHandler(args: Record<string, unknown>) {
   }
 
   try {
-    const { stdout, stderr } = await execFile('powershell', ['-NoProfile', '-Command', command], {
+    const shell = resolveShell(command);
+    const { stdout, stderr } = await execFile(shell.file, shell.args, {
       cwd: process.cwd(),
       timeout: 15_000,
       maxBuffer: 1_000_000,
@@ -24,12 +34,12 @@ export async function shellExecuteHandler(args: Record<string, unknown>) {
     const typed = error as {
       stdout?: string;
       stderr?: string;
-      code?: number;
+      code?: number | string;
     };
     return {
       stdout: typed.stdout || '',
       stderr: typed.stderr || String(error),
-      exitCode: typed.code ?? 1,
+      exitCode: typeof typed.code === 'number' ? typed.code : 1,
     };
   }
 }

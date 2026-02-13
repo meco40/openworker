@@ -38,7 +38,7 @@ describe('skills execute route requests', () => {
 
   it('handles shell_execute request', async () => {
     const response = await executeSkillPost(
-      makeRequest({ name: 'shell_execute', args: { command: 'Get-Location' } }),
+      makeRequest({ name: 'shell_execute', args: { command: 'pwd' } }),
     );
     const json = await response.json();
     expect(response.status).toBe(200);
