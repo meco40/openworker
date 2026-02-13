@@ -19,8 +19,14 @@ import type {
   SaveActivityInput,
   TaskActivityRecord,
 } from './workerTypes';
-import type { WorkerFlowDraftRecord, WorkerFlowPublishedRecord, WorkerRunRecord } from './orchestraTypes';
-import type { WorkerSubagentSessionRecord, WorkerTaskDeliverableRecord } from './orchestraTypes';
+import type {
+  WorkerFlowDraftRecord,
+  WorkerFlowPublishedRecord,
+  WorkerRunNodeRecord,
+  WorkerRunRecord,
+  WorkerSubagentSessionRecord,
+  WorkerTaskDeliverableRecord,
+} from './orchestraTypes';
 import { toApprovalRule, toArtifact, toStep, toTask, toActivity } from './workerRowMappers';
 
 // ─── SQLite Implementation ───────────────────────────────────
@@ -356,6 +362,21 @@ export class SqliteWorkerRepository implements WorkerRepository {
       mimeType: (row.mime_type as string) || null,
       metadata: (row.metadata as string) || null,
       createdAt: row.created_at as string,
+    };
+  }
+
+  private toRunNode(row: Record<string, unknown>): WorkerRunNodeRecord {
+    return {
+      id: row.id as string,
+      runId: row.run_id as string,
+      nodeId: row.node_id as string,
+      personaId: (row.persona_id as string) || null,
+      status: row.status as WorkerRunNodeRecord['status'],
+      outputSummary: (row.output_summary as string) || null,
+      errorMessage: (row.error_message as string) || null,
+      metadata: (row.metadata as string) || null,
+      startedAt: (row.started_at as string) || null,
+      completedAt: (row.completed_at as string) || null,
     };
   }
 
@@ -1007,6 +1028,79 @@ export class SqliteWorkerRepository implements WorkerRepository {
       unknown
     >;
     return this.toRun(row);
+  }
+
+  upsertRunNodeStatus(
+    runId: string,
+    nodeId: string,
+    updates: {
+      personaId?: string | null;
+      status: WorkerRunNodeRecord['status'];
+      errorMessage?: string | null;
+      outputSummary?: string | null;
+    },
+  ): WorkerRunNodeRecord {
+    const existing = this.db
+      .prepare('SELECT * FROM worker_run_nodes WHERE run_id = ? AND node_id = ?')
+      .get(runId, nodeId) as Record<string, unknown> | undefined;
+
+    const now = new Date().toISOString();
+    if (!existing) {
+      const id = `run-node-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+      this.db
+        .prepare(
+          `INSERT INTO worker_run_nodes
+           (id, run_id, node_id, persona_id, status, output_summary, error_message, started_at, completed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          id,
+          runId,
+          nodeId,
+          updates.personaId || null,
+          updates.status,
+          updates.outputSummary || null,
+          updates.errorMessage || null,
+          updates.status === 'running' ? now : null,
+          updates.status === 'completed' || updates.status === 'failed' || updates.status === 'skipped' ? now : null,
+        );
+    } else {
+      this.db
+        .prepare(
+          `UPDATE worker_run_nodes
+           SET persona_id = COALESCE(?, persona_id),
+               status = ?,
+               output_summary = COALESCE(?, output_summary),
+               error_message = COALESCE(?, error_message),
+               started_at = CASE WHEN ? = 'running' THEN COALESCE(started_at, ?) ELSE started_at END,
+               completed_at = CASE WHEN ? IN ('completed', 'failed', 'skipped') THEN ? ELSE completed_at END
+           WHERE run_id = ? AND node_id = ?`,
+        )
+        .run(
+          updates.personaId || null,
+          updates.status,
+          updates.outputSummary || null,
+          updates.errorMessage || null,
+          updates.status,
+          now,
+          updates.status,
+          now,
+          runId,
+          nodeId,
+        );
+    }
+
+    const row = this.db
+      .prepare('SELECT * FROM worker_run_nodes WHERE run_id = ? AND node_id = ?')
+      .get(runId, nodeId) as Record<string, unknown>;
+    return this.toRunNode(row);
+  }
+
+  listRunNodes(runId: string): WorkerRunNodeRecord[] {
+    const rows = this.db
+      .prepare('SELECT * FROM worker_run_nodes WHERE run_id = ? ORDER BY started_at ASC, node_id ASC')
+      .all(runId) as Array<Record<string, unknown>>;
+    return rows.map((row) => this.toRunNode(row));
   }
 
   // ─── Approval Rules ────────────────────────────────────────

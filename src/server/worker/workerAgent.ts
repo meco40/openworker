@@ -11,6 +11,7 @@ import { runWebappTests } from './workerTester';
 import type { WorkerTaskRecord } from './workerTypes';
 import type { OrchestraFlowGraph } from './orchestraGraph';
 import { runOrchestraFlow } from './orchestraRunner';
+import { buildNodeStatusMap, buildWorkerWorkflowPayload } from './orchestraWorkflow';
 import { broadcast } from '../gateway/broadcast';
 import { GatewayEvents } from '../gateway/events';
 import { LEGACY_LOCAL_USER_ID } from '../auth/constants';
@@ -118,12 +119,29 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
     });
     repo.setTaskRunContext(task.id, { flowPublishedId: publishedFlow.id, currentRunId: run.id });
 
+    const broadcastWorkflow = () => {
+      const nodeStatuses = buildNodeStatusMap(repo.listRunNodes(run.id));
+      const payload = buildWorkerWorkflowPayload({
+        taskId: task.id,
+        runId: run.id,
+        flowPublishedId: publishedFlow.id,
+        graph,
+        nodeStatuses,
+      });
+      broadcast(GatewayEvents.WORKER_WORKFLOW, payload);
+    };
+
     const runResult = await runOrchestraFlow({
       taskId: task.id,
       flowPublishedId: publishedFlow.id,
       graph,
       executeNode: async (nodeId: string) => {
         const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+        repo.upsertRunNodeStatus(run.id, nodeId, {
+          personaId: node?.personaId || null,
+          status: 'running',
+        });
+        broadcastWorkflow();
         repo.addActivity({
           taskId: task.id,
           type: 'note',
@@ -131,21 +149,49 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
           metadata: { nodeId, runId: run.id },
         });
 
-        const stepResult = await executeOrchestraNode(task, {
-          id: nodeId,
-          description: node ? `Node ${nodeId} (${node.personaId})` : `Node ${nodeId}`,
-        });
+        try {
+          const stepResult = await executeOrchestraNode(task, {
+            id: nodeId,
+            description: node ? `Node ${nodeId} (${node.personaId})` : `Node ${nodeId}`,
+          });
 
-        repo.addActivity({
-          taskId: task.id,
-          type: 'step_completed',
-          message: `Orchestra-Node abgeschlossen: ${nodeId}`,
-          metadata: { nodeId, runId: run.id },
-        });
+          repo.upsertRunNodeStatus(run.id, nodeId, {
+            personaId: node?.personaId || null,
+            status: 'completed',
+            outputSummary: stepResult.output,
+          });
+          broadcastWorkflow();
 
-        return { summary: stepResult.output };
+          repo.addActivity({
+            taskId: task.id,
+            type: 'step_completed',
+            message: `Orchestra-Node abgeschlossen: ${nodeId}`,
+            metadata: { nodeId, runId: run.id },
+          });
+
+          return { summary: stepResult.output };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          repo.upsertRunNodeStatus(run.id, nodeId, {
+            personaId: node?.personaId || null,
+            status: 'failed',
+            errorMessage: message,
+          });
+          broadcastWorkflow();
+          throw error;
+        }
       },
     });
+
+    for (const [nodeId, nodeState] of Object.entries(runResult.nodes)) {
+      if (nodeState.status === 'running') continue;
+      repo.upsertRunNodeStatus(run.id, nodeId, {
+        status: nodeState.status,
+        errorMessage: nodeState.error,
+        outputSummary: nodeState.summary,
+      });
+    }
+    broadcastWorkflow();
 
     if (runResult.status === 'failed') {
       const failedNode = Object.entries(runResult.nodes).find(([, state]) => state.status === 'failed');

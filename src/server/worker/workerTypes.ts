@@ -6,6 +6,7 @@ import type {
   WorkerTaskDeliverableRecord,
   WorkerFlowDraftRecord,
   WorkerFlowPublishedRecord,
+  WorkerRunNodeRecord,
   WorkerRunRecord,
 } from './orchestraTypes';
 
@@ -265,4 +266,10 @@ export interface WorkerRepository {
     flowPublishedId: string;
     status?: WorkerRunRecord['status'];
   }): WorkerRunRecord;
+  upsertRunNodeStatus(
+    runId: string,
+    nodeId: string,
+    updates: { personaId?: string | null; status: WorkerRunNodeRecord['status']; errorMessage?: string | null; outputSummary?: string | null },
+  ): WorkerRunNodeRecord;
+  listRunNodes(runId: string): WorkerRunNodeRecord[];
 }
