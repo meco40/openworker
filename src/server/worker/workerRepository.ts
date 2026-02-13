@@ -20,6 +20,7 @@ import type {
   TaskActivityRecord,
 } from './workerTypes';
 import type { WorkerFlowDraftRecord, WorkerFlowPublishedRecord, WorkerRunRecord } from './orchestraTypes';
+import type { WorkerSubagentSessionRecord, WorkerTaskDeliverableRecord } from './orchestraTypes';
 import { toApprovalRule, toArtifact, toStep, toTask, toActivity } from './workerRowMappers';
 
 // ─── SQLite Implementation ───────────────────────────────────
@@ -324,6 +325,37 @@ export class SqliteWorkerRepository implements WorkerRepository {
       createdAt: row.created_at as string,
       startedAt: (row.started_at as string) || null,
       completedAt: (row.completed_at as string) || null,
+    };
+  }
+
+  private toSubagentSession(row: Record<string, unknown>): WorkerSubagentSessionRecord {
+    return {
+      id: row.id as string,
+      taskId: row.task_id as string,
+      runId: (row.run_id as string) || null,
+      nodeId: (row.node_id as string) || null,
+      userId: row.user_id as string,
+      personaId: (row.persona_id as string) || null,
+      status: row.status as WorkerSubagentSessionRecord['status'],
+      sessionRef: (row.session_ref as string) || null,
+      metadata: (row.metadata as string) || null,
+      startedAt: row.started_at as string,
+      completedAt: (row.completed_at as string) || null,
+    };
+  }
+
+  private toDeliverable(row: Record<string, unknown>): WorkerTaskDeliverableRecord {
+    return {
+      id: row.id as string,
+      taskId: row.task_id as string,
+      runId: (row.run_id as string) || null,
+      nodeId: (row.node_id as string) || null,
+      type: row.type as WorkerTaskDeliverableRecord['type'],
+      name: row.name as string,
+      content: row.content as string,
+      mimeType: (row.mime_type as string) || null,
+      metadata: (row.metadata as string) || null,
+      createdAt: row.created_at as string,
     };
   }
 
@@ -674,6 +706,150 @@ export class SqliteWorkerRepository implements WorkerRepository {
       )
       .all(taskId, limit) as Array<Record<string, unknown>>;
     return rows.map(toActivity);
+  }
+
+  // ─── Subagent Sessions ─────────────────────────────────────
+
+  createSubagentSession(input: {
+    taskId: string;
+    userId: string;
+    runId?: string | null;
+    nodeId?: string | null;
+    personaId?: string | null;
+    sessionRef?: string | null;
+    metadata?: Record<string, unknown>;
+  }): WorkerSubagentSessionRecord {
+    const id = `subagent-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    const metadata = input.metadata ? JSON.stringify(input.metadata) : null;
+    const runId =
+      input.runId && this.db.prepare('SELECT 1 FROM worker_runs WHERE id = ?').get(input.runId)
+        ? input.runId
+        : null;
+
+    this.db
+      .prepare(
+        `INSERT INTO worker_subagent_sessions
+         (id, task_id, run_id, node_id, user_id, persona_id, status, session_ref, metadata, started_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'started', ?, ?, ?)`,
+      )
+      .run(
+        id,
+        input.taskId,
+        runId,
+        input.nodeId || null,
+        input.userId,
+        input.personaId || null,
+        input.sessionRef || null,
+        metadata,
+        now,
+      );
+
+    const row = this.db
+      .prepare('SELECT * FROM worker_subagent_sessions WHERE id = ?')
+      .get(id) as Record<string, unknown>;
+    return this.toSubagentSession(row);
+  }
+
+  updateSubagentSession(
+    taskId: string,
+    sessionId: string,
+    updates: { status?: WorkerSubagentSessionRecord['status']; metadata?: Record<string, unknown> },
+  ): WorkerSubagentSessionRecord | null {
+    const existing = this.db
+      .prepare('SELECT * FROM worker_subagent_sessions WHERE id = ? AND task_id = ?')
+      .get(sessionId, taskId) as Record<string, unknown> | undefined;
+    if (!existing) return null;
+
+    const clauses: string[] = [];
+    const values: SQLParam[] = [];
+    if (updates.status) {
+      clauses.push('status = ?');
+      values.push(updates.status);
+      if (updates.status === 'completed' || updates.status === 'failed' || updates.status === 'cancelled') {
+        clauses.push('completed_at = ?');
+        values.push(new Date().toISOString());
+      }
+    }
+    if (updates.metadata) {
+      clauses.push('metadata = ?');
+      values.push(JSON.stringify(updates.metadata));
+    }
+    if (clauses.length > 0) {
+      values.push(sessionId, taskId);
+      this.db
+        .prepare(`UPDATE worker_subagent_sessions SET ${clauses.join(', ')} WHERE id = ? AND task_id = ?`)
+        .run(...values);
+    }
+
+    const row = this.db
+      .prepare('SELECT * FROM worker_subagent_sessions WHERE id = ? AND task_id = ?')
+      .get(sessionId, taskId) as Record<string, unknown> | undefined;
+    return row ? this.toSubagentSession(row) : null;
+  }
+
+  listSubagentSessions(taskId: string, limit = 100): WorkerSubagentSessionRecord[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM worker_subagent_sessions
+         WHERE task_id = ?
+         ORDER BY started_at DESC
+         LIMIT ?`,
+      )
+      .all(taskId, limit) as Array<Record<string, unknown>>;
+    return rows.map((row) => this.toSubagentSession(row));
+  }
+
+  // ─── Deliverables ──────────────────────────────────────────
+
+  addDeliverable(input: {
+    taskId: string;
+    runId?: string | null;
+    nodeId?: string | null;
+    type: WorkerTaskDeliverableRecord['type'];
+    name: string;
+    content: string;
+    mimeType?: string | null;
+    metadata?: Record<string, unknown>;
+  }): WorkerTaskDeliverableRecord {
+    const id = `del-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    const metadata = input.metadata ? JSON.stringify(input.metadata) : null;
+
+    this.db
+      .prepare(
+        `INSERT INTO worker_task_deliverables
+         (id, task_id, run_id, node_id, type, name, content, mime_type, metadata, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        input.taskId,
+        input.runId || null,
+        input.nodeId || null,
+        input.type,
+        input.name,
+        input.content,
+        input.mimeType || null,
+        metadata,
+        now,
+      );
+
+    const row = this.db
+      .prepare('SELECT * FROM worker_task_deliverables WHERE id = ?')
+      .get(id) as Record<string, unknown>;
+    return this.toDeliverable(row);
+  }
+
+  listDeliverables(taskId: string): WorkerTaskDeliverableRecord[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM worker_task_deliverables
+         WHERE task_id = ?
+         ORDER BY created_at ASC`,
+      )
+      .all(taskId) as Array<Record<string, unknown>>;
+    return rows.map((row) => this.toDeliverable(row));
   }
 
   // ─── Orchestra Flows ───────────────────────────────────────

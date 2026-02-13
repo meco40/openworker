@@ -29,10 +29,12 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit') || '50', 10);
+    const order = (url.searchParams.get('order') || 'desc').toLowerCase();
 
     const activities = repo.getActivities(id, limit);
+    const orderedActivities = order === 'asc' ? [...activities].reverse() : activities;
 
-    return NextResponse.json({ ok: true, activities });
+    return NextResponse.json({ ok: true, activities: orderedActivities });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to get activities';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

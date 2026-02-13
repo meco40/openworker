@@ -2,6 +2,8 @@
 import type { ChannelType } from '../../../types';
 import type { WorkspaceType } from './workspaceManager';
 import type {
+  WorkerSubagentSessionRecord,
+  WorkerTaskDeliverableRecord,
   WorkerFlowDraftRecord,
   WorkerFlowPublishedRecord,
   WorkerRunRecord,
@@ -202,6 +204,36 @@ export interface WorkerRepository {
   // Activities
   addActivity(input: SaveActivityInput): TaskActivityRecord;
   getActivities(taskId: string, limit?: number): TaskActivityRecord[];
+
+  // Subagent Sessions
+  createSubagentSession(input: {
+    taskId: string;
+    userId: string;
+    runId?: string | null;
+    nodeId?: string | null;
+    personaId?: string | null;
+    sessionRef?: string | null;
+    metadata?: Record<string, unknown>;
+  }): WorkerSubagentSessionRecord;
+  updateSubagentSession(
+    taskId: string,
+    sessionId: string,
+    updates: { status?: WorkerSubagentSessionRecord['status']; metadata?: Record<string, unknown> },
+  ): WorkerSubagentSessionRecord | null;
+  listSubagentSessions(taskId: string, limit?: number): WorkerSubagentSessionRecord[];
+
+  // Deliverables
+  addDeliverable(input: {
+    taskId: string;
+    runId?: string | null;
+    nodeId?: string | null;
+    type: WorkerTaskDeliverableRecord['type'];
+    name: string;
+    content: string;
+    mimeType?: string | null;
+    metadata?: Record<string, unknown>;
+  }): WorkerTaskDeliverableRecord;
+  listDeliverables(taskId: string): WorkerTaskDeliverableRecord[];
 
   // Approval Rules
   addApprovalRule(commandPattern: string): void;

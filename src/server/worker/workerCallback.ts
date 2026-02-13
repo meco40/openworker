@@ -50,16 +50,29 @@ export async function notifyApprovalRequest(
 // ─── Internal ────────────────────────────────────────────────
 
 async function sendNotification(task: WorkerTaskRecord, message: string): Promise<void> {
-  try {
-    // 1. Save in conversation + WS broadcast
-    const msgService = getMessageService();
-    msgService.saveDirectMessage(task.originConversation, 'agent', message, task.originPlatform);
+  const msgService = getMessageService();
 
-    // 2. Deliver to external channel (Telegram, WhatsApp, etc.)
-    if (task.originExternalChat) {
-      await deliverOutbound(task.originPlatform, task.originExternalChat, message);
-    }
+  // 1) Best effort: persist message for conversation + WS broadcast.
+  try {
+    msgService.saveDirectMessage(
+      task.originConversation,
+      'agent',
+      message,
+      task.originPlatform,
+      task.userId || undefined,
+    );
   } catch (error) {
-    console.error(`[Worker Callback] Failed to notify user for task ${task.id}:`, error);
+    console.error(`[Worker Callback] Failed to persist notification for task ${task.id}:`, error);
+  }
+
+  // 2) Outbound delivery should still happen even if conversation persistence fails.
+  if (!task.originExternalChat) {
+    return;
+  }
+
+  try {
+    await deliverOutbound(task.originPlatform, task.originExternalChat, message);
+  } catch (error) {
+    console.error(`[Worker Callback] Failed outbound delivery for task ${task.id}:`, error);
   }
 }
