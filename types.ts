@@ -162,11 +162,14 @@ export interface ModelProfile {
 export type WorkspaceType = 'research' | 'webapp' | 'creative' | 'data' | 'general';
 
 export enum WorkerTaskStatus {
+  INBOX = 'inbox',
   QUEUED = 'queued',
+  ASSIGNED = 'assigned',
   PLANNING = 'planning',
   CLARIFYING = 'clarifying',
   EXECUTING = 'executing',
   WAITING_APPROVAL = 'waiting_approval',
+  TESTING = 'testing',
   REVIEW = 'review',
   COMPLETED = 'completed',
   FAILED = 'failed',
@@ -229,11 +232,23 @@ export interface WorkerTask {
   errorMessage: string | null;
   workspacePath: string | null;
   resumable: boolean;
+  assignedPersonaId: string | null;
+  planningMessages: string | null;
+  planningComplete: boolean;
   steps?: WorkerStep[];
   artifacts?: WorkerArtifact[];
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
+}
+
+export interface WorkerActivity {
+  id: string;
+  taskId: string;
+  type: 'status_change' | 'persona_assigned' | 'step_completed' | 'step_failed' | 'error' | 'note' | 'agent_message';
+  message: string;
+  metadata: string | null;
+  createdAt: string;
 }
 
 // Skill interface — supports built-in and externally installed skills

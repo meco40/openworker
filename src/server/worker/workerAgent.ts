@@ -7,6 +7,7 @@ import { planTask } from './workerPlanner';
 import { executeStep } from './workerExecutor';
 import { notifyTaskCompleted, notifyTaskFailed } from './workerCallback';
 import { getWorkspaceManager } from './workspaceManager';
+import { runWebappTests } from './workerTester';
 import type { WorkerTaskRecord } from './workerTypes';
 import { broadcast } from '../gateway/broadcast';
 import { GatewayEvents } from '../gateway/events';
@@ -77,6 +78,12 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
 
   // ─── Phase 1: PLANNING ──────────────────────────────────
   repo.updateStatus(task.id, 'planning');
+  repo.addActivity({
+    taskId: task.id,
+    type: 'status_change',
+    message: 'Planung gestartet',
+    metadata: { from: 'queued', to: 'planning' },
+  });
 
   const plan = await planTask(task);
 
@@ -100,12 +107,26 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
   // ─── Phase 2: EXECUTION ─────────────────────────────────
   repo.updateStatus(task.id, 'executing');
   const steps = repo.getSteps(task.id);
+  repo.addActivity({
+    taskId: task.id,
+    type: 'status_change',
+    message: `Ausführung gestartet — ${steps.length} Schritte geplant`,
+    metadata: { from: 'planning', to: 'executing', totalSteps: steps.length },
+  });
 
   for (let i = startStepIndex; i < steps.length; i++) {
     // Check cancellation before each step
     const freshTask = repo.getTask(task.id);
-    if (!freshTask || freshTask.status === 'cancelled') {
-      console.log(`[Worker] Task ${task.id} was cancelled.`);
+    if (!freshTask || freshTask.status !== 'executing') {
+      // Task was cancelled, moved, or externally modified — stop processing
+      console.log(
+        `[Worker] Task ${task.id} status changed to '${freshTask?.status ?? 'deleted'}' — stopping.`,
+      );
+      if (freshTask && freshTask.status !== 'cancelled' && freshTask.status !== 'failed') {
+        repo.updateStatus(task.id, 'interrupted', {
+          error: 'Task status changed externally during execution',
+        });
+      }
       return;
     }
 
@@ -123,6 +144,13 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
         result.output,
         result.toolCalls ? JSON.stringify(result.toolCalls) : undefined,
       );
+
+      repo.addActivity({
+        taskId: task.id,
+        type: 'step_completed',
+        message: `Schritt ${i + 1}/${steps.length} abgeschlossen: ${step.description}`,
+        metadata: { stepIndex: i, stepId: step.id },
+      });
 
       // Save checkpoint after each step
       repo.saveCheckpoint(task.id, { phase: 'executing', stepIndex: i + 1 });
@@ -151,6 +179,12 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       repo.updateStepStatus(step.id, 'failed', errorMsg);
+      repo.addActivity({
+        taskId: task.id,
+        type: 'step_failed',
+        message: `Schritt ${i + 1} fehlgeschlagen: ${errorMsg}`,
+        metadata: { stepIndex: i, stepId: step.id },
+      });
       repo.updateStatus(task.id, 'failed', {
         error: `Schritt ${i + 1} fehlgeschlagen: ${errorMsg}`,
       });
@@ -168,6 +202,12 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
   if (failedSteps.length > 0) {
     const errorMsg = `${failedSteps.length} Schritt(e) fehlgeschlagen: ${failedSteps.map((s) => s.description).join(', ')}`;
     repo.updateStatus(task.id, 'failed', { error: errorMsg });
+    repo.addActivity({
+      taskId: task.id,
+      type: 'error',
+      message: `Selbstüberprüfung fehlgeschlagen: ${errorMsg}`,
+      metadata: { failedStepCount: failedSteps.length },
+    });
     broadcastStatus(task.id, 'failed', errorMsg);
     await notifyTaskFailed(task, errorMsg);
     return;
@@ -176,6 +216,53 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
   // Save plan.md to workspace
   const planMd = allSteps.map((s, i) => `- [x] ${i + 1}. ${s.description}`).join('\n');
   wsMgr.writeFile(task.id, 'plan.md', `# Plan: ${task.title}\n\n${planMd}\n`);
+
+  // ─── Phase 3b: AUTOMATED TESTING (webapp only) ──────────
+  if (wsType === 'webapp') {
+    repo.updateStatus(task.id, 'testing');
+    repo.addActivity({
+      taskId: task.id,
+      type: 'status_change',
+      message: 'Automatische Tests gestartet',
+      metadata: { from: 'executing', to: 'testing' },
+    });
+    broadcastStatus(task.id, 'testing', 'Automatische Tests werden ausgeführt...');
+
+    const testResult = runWebappTests(wsPath);
+
+    // Save test results to workspace
+    const testReport = testResult.results
+      .map((r) => `${r.passed ? '✅' : '❌'} ${r.name}: ${r.message}`)
+      .join('\n');
+    wsMgr.writeFile(task.id, 'test-results.md', `# Testergebnisse\n\n${testReport}\n`);
+
+    repo.addActivity({
+      taskId: task.id,
+      type: 'note',
+      message: testResult.passed
+        ? `Alle ${testResult.total} Tests bestanden`
+        : `${testResult.failed}/${testResult.total} Tests fehlgeschlagen`,
+      metadata: { total: testResult.total, failed: testResult.failed },
+    });
+
+    if (!testResult.passed) {
+      broadcastStatus(task.id, 'testing', `${testResult.failed} Tests fehlgeschlagen`);
+      // Move to review for human inspection
+      repo.updateStatus(task.id, 'review', {
+        summary: `⚠️ ${testResult.failed}/${testResult.total} Tests fehlgeschlagen.\n\n${testReport}`,
+      });
+      repo.addActivity({
+        taskId: task.id,
+        type: 'status_change',
+        message: 'Zur manuellen Überprüfung verschoben',
+        metadata: { from: 'testing', to: 'review', reason: 'tests_failed' },
+      });
+      broadcastStatus(task.id, 'review', 'Tests fehlgeschlagen — manuelle Überprüfung erforderlich');
+      return;
+    }
+
+    broadcastStatus(task.id, 'testing', 'Alle Tests bestanden');
+  }
 
   // ─── Phase 4: REVIEW & COMPLETE ─────────────────────────
   const summaryParts = allSteps
@@ -191,6 +278,12 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
     `**Workspace:** ${wsFiles.length} Dateien (${Math.round(wsMgr.getWorkspaceSize(task.id) / 1024)} KB)`;
 
   repo.updateStatus(task.id, 'completed', { summary });
+  repo.addActivity({
+    taskId: task.id,
+    type: 'status_change',
+    message: `Task abgeschlossen — ${allSteps.length} Schritte, ${artifacts.length} Artefakte`,
+    metadata: { from: 'executing', to: 'completed', artifactCount: artifacts.length },
+  });
   broadcastStatus(task.id, 'completed', 'Task abgeschlossen');
   await notifyTaskCompleted(task, summary);
 }

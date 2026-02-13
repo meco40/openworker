@@ -15,8 +15,10 @@ import type {
   CreateTaskInput,
   SaveStepInput,
   SaveArtifactInput,
+  SaveActivityInput,
+  TaskActivityRecord,
 } from './workerTypes';
-import { toApprovalRule, toArtifact, toStep, toTask } from './workerRowMappers';
+import { toApprovalRule, toArtifact, toStep, toTask, toActivity } from './workerRowMappers';
 
 // ─── SQLite Implementation ───────────────────────────────────
 
@@ -107,6 +109,38 @@ export class SqliteWorkerRepository implements WorkerRepository {
         created_at      TEXT NOT NULL
       );
     `);
+
+    // Phase 2: assigned_persona_id on tasks
+    try {
+      this.db.exec(`ALTER TABLE worker_tasks ADD COLUMN assigned_persona_id TEXT`);
+    } catch {
+      /* column already exists */
+    }
+
+    // Phase 3: planning message storage
+    try {
+      this.db.exec(`ALTER TABLE worker_tasks ADD COLUMN planning_messages TEXT`);
+    } catch {
+      /* column already exists */
+    }
+    try {
+      this.db.exec(`ALTER TABLE worker_tasks ADD COLUMN planning_complete INTEGER DEFAULT 0`);
+    } catch {
+      /* column already exists */
+    }
+
+    // Phase 2: activity log table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS worker_task_activities (
+        id         TEXT PRIMARY KEY,
+        task_id    TEXT NOT NULL REFERENCES worker_tasks(id),
+        type       TEXT NOT NULL,
+        message    TEXT NOT NULL,
+        metadata   TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_activities_task ON worker_task_activities(task_id, created_at);
+    `);
   }
 
   // ─── Tasks ──────────────────────────────────────────────────
@@ -115,19 +149,22 @@ export class SqliteWorkerRepository implements WorkerRepository {
     const id = `task-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
     const now = new Date().toISOString();
 
+    const initialStatus = input.usePlanning ? 'inbox' : 'queued';
+
     this.db
       .prepare(
         `
       INSERT INTO worker_tasks (id, title, objective, status, priority,
         origin_platform, origin_conversation, origin_external_chat,
         workspace_type, created_at)
-      VALUES (?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       )
       .run(
         id,
         input.title,
         input.objective,
+        initialStatus,
         input.priority || 'normal',
         input.originPlatform,
         input.originConversation,
@@ -199,6 +236,7 @@ export class SqliteWorkerRepository implements WorkerRepository {
   }
 
   deleteTask(id: string): void {
+    this.db.prepare(`DELETE FROM worker_task_activities WHERE task_id = ?`).run(id);
     this.db.prepare(`DELETE FROM worker_artifacts WHERE task_id = ?`).run(id);
     this.db.prepare(`DELETE FROM worker_steps WHERE task_id = ?`).run(id);
     this.db.prepare(`DELETE FROM worker_tasks WHERE id = ?`).run(id);
@@ -242,6 +280,10 @@ export class SqliteWorkerRepository implements WorkerRepository {
 
   setWorkspacePath(id: string, wsPath: string): void {
     this.db.prepare(`UPDATE worker_tasks SET workspace_path = ? WHERE id = ?`).run(wsPath, id);
+  }
+
+  updateObjective(id: string, objective: string): void {
+    this.db.prepare(`UPDATE worker_tasks SET objective = ? WHERE id = ?`).run(objective, id);
   }
 
   // ─── Steps ──────────────────────────────────────────────────
@@ -325,6 +367,69 @@ export class SqliteWorkerRepository implements WorkerRepository {
       .prepare('SELECT * FROM worker_artifacts WHERE task_id = ? ORDER BY created_at ASC')
       .all(taskId) as Array<Record<string, unknown>>;
     return rows.map(toArtifact);
+  }
+
+  // ─── Persona Assignment ─────────────────────────────────────
+
+  assignPersona(taskId: string, personaId: string | null): void {
+    this.db
+      .prepare(`UPDATE worker_tasks SET assigned_persona_id = ? WHERE id = ?`)
+      .run(personaId, taskId);
+  }
+
+  // ─── Planning ───────────────────────────────────────────────
+
+  getPlanningMessages(taskId: string): import('./workerTypes').PlanningMessage[] {
+    const row = this.db
+      .prepare('SELECT planning_messages FROM worker_tasks WHERE id = ?')
+      .get(taskId) as Record<string, unknown> | undefined;
+    if (!row || !row.planning_messages) return [];
+    try {
+      return JSON.parse(row.planning_messages as string);
+    } catch {
+      return [];
+    }
+  }
+
+  savePlanningMessages(taskId: string, messages: import('./workerTypes').PlanningMessage[]): void {
+    this.db
+      .prepare('UPDATE worker_tasks SET planning_messages = ? WHERE id = ?')
+      .run(JSON.stringify(messages), taskId);
+  }
+
+  completePlanning(taskId: string): void {
+    this.db
+      .prepare('UPDATE worker_tasks SET planning_complete = 1 WHERE id = ?')
+      .run(taskId);
+  }
+
+  // ─── Activities ─────────────────────────────────────────────
+
+  addActivity(input: SaveActivityInput): TaskActivityRecord {
+    const id = `act-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    const metadata = input.metadata ? JSON.stringify(input.metadata) : null;
+
+    this.db
+      .prepare(
+        `INSERT INTO worker_task_activities (id, task_id, type, message, metadata, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(id, input.taskId, input.type, input.message, metadata, now);
+
+    const row = this.db
+      .prepare('SELECT * FROM worker_task_activities WHERE id = ?')
+      .get(id) as Record<string, unknown>;
+    return toActivity(row);
+  }
+
+  getActivities(taskId: string, limit = 50): TaskActivityRecord[] {
+    const rows = this.db
+      .prepare(
+        'SELECT * FROM worker_task_activities WHERE task_id = ? ORDER BY created_at DESC LIMIT ?',
+      )
+      .all(taskId, limit) as Array<Record<string, unknown>>;
+    return rows.map(toActivity);
   }
 
   // ─── Approval Rules ────────────────────────────────────────

@@ -5,6 +5,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { WorkerTask, WorkerStep, WorkspaceFile } from '../../types';
 import { useWorkspaceFiles } from '../../src/modules/worker/hooks/useWorkspaceFiles';
 import { getGatewayClient } from '../../src/modules/gateway/ws-client';
+import WorkerActivityTab from './WorkerActivityTab';
+import WorkerPlanningTab from './WorkerPlanningTab';
 
 interface WorkerTaskDetailProps {
   task: WorkerTask;
@@ -18,10 +20,13 @@ interface WorkerTaskDetailProps {
 
 // ─── Status Config ──────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
+  inbox: { label: 'Eingang', color: '#a855f7', icon: '📥' },
   queued: { label: 'In Warteschlange', color: '#6b7280', icon: '⏳' },
+  assigned: { label: 'Zugewiesen', color: '#6366f1', icon: '👤' },
   planning: { label: 'Planung', color: '#3b82f6', icon: '🧠' },
   clarifying: { label: 'Rückfragen', color: '#8b5cf6', icon: '❓' },
   executing: { label: 'In Arbeit', color: '#f59e0b', icon: '⚙️' },
+  testing: { label: 'Tests', color: '#14b8a6', icon: '🧪' },
   waiting_approval: { label: 'Genehmigung benötigt', color: '#ec4899', icon: '🔒' },
   review: { label: 'Review', color: '#06b6d4', icon: '👀' },
   completed: { label: 'Abgeschlossen', color: '#10b981', icon: '✅' },
@@ -174,7 +179,7 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
   onApprove,
   onDelete,
 }) => {
-  const [activeTab, setActiveTab] = useState<'steps' | 'files' | 'output' | 'terminal'>('steps');
+  const [activeTab, setActiveTab] = useState<'steps' | 'files' | 'output' | 'activities' | 'terminal' | 'planning'>('steps');
   const [steps, setSteps] = useState<WorkerStep[]>(task.steps || []);
   const {
     files,
@@ -255,7 +260,7 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
     if (activeTab === 'files') refreshFiles();
   }, [activeTab, refreshFiles]);
 
-  const isActive = ['queued', 'planning', 'clarifying', 'executing', 'waiting_approval'].includes(
+  const isActive = ['queued', 'planning', 'clarifying', 'executing', 'waiting_approval', 'testing'].includes(
     task.status,
   );
 
@@ -277,6 +282,11 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
           </span>
         </div>
         <p className="worker-detail__objective">{task.objective}</p>
+        {task.assignedPersonaId && (
+          <span className="worker-detail__persona-badge">
+            👤 Persona zugewiesen
+          </span>
+        )}
       </div>
 
       {/* Progress Bar */}
@@ -374,11 +384,25 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
           📄 Output
         </button>
         <button
+          className={`worker-tab ${activeTab === 'activities' ? 'worker-tab--active' : ''}`}
+          onClick={() => setActiveTab('activities')}
+        >
+          📊 Aktivitäten
+        </button>
+        <button
           className={`worker-tab ${activeTab === 'terminal' ? 'worker-tab--active' : ''}`}
           onClick={() => setActiveTab('terminal')}
         >
           💻 Terminal
         </button>
+        {(task.status === 'inbox' || task.status === 'clarifying' || task.planningComplete) && (
+          <button
+            className={`worker-tab ${activeTab === 'planning' ? 'worker-tab--active' : ''}`}
+            onClick={() => setActiveTab('planning')}
+          >
+            🧠 Planung
+          </button>
+        )}
       </div>
 
       {/* Tab Content */}
@@ -465,6 +489,11 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
           </div>
         )}
 
+        {/* Activities Tab */}
+        {activeTab === 'activities' && (
+          <WorkerActivityTab taskId={task.id} />
+        )}
+
         {/* Terminal Tab */}
         {activeTab === 'terminal' && (
           <div className="worker-terminal">
@@ -492,6 +521,11 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
               )}
             </div>
           </div>
+        )}
+
+        {/* Planning Tab */}
+        {activeTab === 'planning' && (
+          <WorkerPlanningTab taskId={task.id} taskStatus={task.status} />
         )}
       </div>
     </div>

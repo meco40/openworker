@@ -5,10 +5,13 @@ import type { WorkspaceType } from './workspaceManager';
 export type { WorkspaceType } from './workspaceManager';
 
 export type WorkerTaskStatus =
+  | 'inbox'
   | 'queued'
+  | 'assigned'
   | 'planning'
   | 'clarifying'
   | 'executing'
+  | 'testing'
   | 'review'
   | 'completed'
   | 'failed'
@@ -37,6 +40,9 @@ export interface WorkerTaskRecord {
   lastCheckpoint: string | null;
   workspacePath: string | null;
   workspaceType: WorkspaceType;
+  assignedPersonaId: string | null;
+  planningMessages: string | null;
+  planningComplete: boolean;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
@@ -70,6 +76,37 @@ export interface ApprovalRule {
   createdAt: string;
 }
 
+// ─── Planning Types ──────────────────────────────────────────
+
+export interface PlanningMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface PlanningQuestion {
+  question: string;
+  options: string[];
+  context?: string;
+}
+
+export type TaskActivityType =
+  | 'status_change'
+  | 'persona_assigned'
+  | 'step_completed'
+  | 'step_failed'
+  | 'error'
+  | 'note'
+  | 'agent_message';
+
+export interface TaskActivityRecord {
+  id: string;
+  taskId: string;
+  type: TaskActivityType;
+  message: string;
+  metadata: string | null;
+  createdAt: string;
+}
+
 // ─── Input Types ─────────────────────────────────────────────
 
 export interface CreateTaskInput {
@@ -80,6 +117,7 @@ export interface CreateTaskInput {
   originConversation: string;
   originExternalChat?: string | null;
   workspaceType?: WorkspaceType;
+  usePlanning?: boolean;
 }
 
 export interface SaveStepInput {
@@ -94,6 +132,13 @@ export interface SaveArtifactInput {
   type: WorkerArtifactRecord['type'];
   content: string;
   mimeType?: string;
+}
+
+export interface SaveActivityInput {
+  taskId: string;
+  type: TaskActivityType;
+  message: string;
+  metadata?: Record<string, unknown>;
 }
 
 // ─── Repository Interface ────────────────────────────────────
@@ -127,6 +172,18 @@ export interface WorkerRepository {
   // Artifacts
   saveArtifact(input: SaveArtifactInput): WorkerArtifactRecord;
   getArtifacts(taskId: string): WorkerArtifactRecord[];
+
+  // Persona Assignment
+  assignPersona(taskId: string, personaId: string | null): void;
+
+  // Planning
+  getPlanningMessages(taskId: string): PlanningMessage[];
+  savePlanningMessages(taskId: string, messages: PlanningMessage[]): void;
+  completePlanning(taskId: string): void;
+
+  // Activities
+  addActivity(input: SaveActivityInput): TaskActivityRecord;
+  getActivities(taskId: string, limit?: number): TaskActivityRecord[];
 
   // Approval Rules
   addApprovalRule(commandPattern: string): void;

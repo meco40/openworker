@@ -55,6 +55,7 @@ interface CreateTaskRequest {
   conversationId: string;
   workspaceType?: string;
   priority?: string;
+  usePlanning?: boolean;
 }
 
 export async function POST(request: Request) {
@@ -78,10 +79,13 @@ export async function POST(request: Request) {
         undefined,
       originPlatform: 'WebChat' as never,
       originConversation: body.conversationId,
+      usePlanning: body.usePlanning,
     });
 
-    // Start queue processor (non-blocking)
-    processQueue().catch((err: unknown) => console.error('[API Worker] Queue error:', err));
+    // Start queue processor (non-blocking) — skip for planning mode (task starts in inbox)
+    if (!body.usePlanning) {
+      processQueue().catch((err: unknown) => console.error('[API Worker] Queue error:', err));
+    }
 
     return NextResponse.json({ ok: true, task });
   } catch (error) {

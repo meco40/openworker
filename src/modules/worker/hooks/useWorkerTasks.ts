@@ -31,7 +31,7 @@ export function useWorkerTasks() {
   const createTask = useCallback(
     async (
       objective: string,
-      options?: { title?: string; priority?: string; workspaceType?: WorkspaceType },
+      options?: { title?: string; priority?: string; workspaceType?: WorkspaceType; usePlanning?: boolean },
     ) => {
       try {
         setError(null);
@@ -43,6 +43,7 @@ export function useWorkerTasks() {
             title: options?.title,
             priority: options?.priority || 'normal',
             workspaceType: options?.workspaceType,
+            usePlanning: options?.usePlanning,
             conversationId: `web-${Date.now()}`,
           }),
         });

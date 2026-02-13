@@ -15,11 +15,14 @@ interface WorkerTaskListProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
+  inbox: { label: 'Eingang', color: '#8b5cf6', icon: '📥' },
   queued: { label: 'In Warteschlange', color: '#6b7280', icon: '⏳' },
+  assigned: { label: 'Zugewiesen', color: '#0ea5e9', icon: '👤' },
   planning: { label: 'Planung', color: '#3b82f6', icon: '🧠' },
   clarifying: { label: 'Rückfragen', color: '#8b5cf6', icon: '❓' },
   executing: { label: 'In Arbeit', color: '#f59e0b', icon: '⚙️' },
   waiting_approval: { label: 'Genehmigung', color: '#ec4899', icon: '🔒' },
+  testing: { label: 'Testing', color: '#14b8a6', icon: '🧪' },
   review: { label: 'Review', color: '#06b6d4', icon: '👀' },
   completed: { label: 'Abgeschlossen', color: '#10b981', icon: '✅' },
   failed: { label: 'Fehlgeschlagen', color: '#ef4444', icon: '❌' },

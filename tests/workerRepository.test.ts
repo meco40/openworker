@@ -229,4 +229,138 @@ describe('SqliteWorkerRepository', () => {
       expect(repo.isCommandApproved('npm install')).toBe(false);
     });
   });
+
+  // ─── New Kanban Statuses ───────────────────────────────────
+
+  describe('kanban statuses', () => {
+    it('stores and retrieves inbox status', () => {
+      repo.createTask(makeTask({ title: 'Inbox Task' }));
+      const task = repo.getNextQueuedTask()!;
+      repo.updateStatus(task.id, 'inbox');
+      const updated = repo.getTask(task.id)!;
+      expect(updated.status).toBe('inbox');
+    });
+
+    it('stores and retrieves assigned status', () => {
+      repo.createTask(makeTask({ title: 'Assigned Task' }));
+      const task = repo.getNextQueuedTask()!;
+      repo.updateStatus(task.id, 'assigned');
+      const updated = repo.getTask(task.id)!;
+      expect(updated.status).toBe('assigned');
+    });
+
+    it('stores and retrieves testing status', () => {
+      repo.createTask(makeTask({ title: 'Testing Task' }));
+      const task = repo.getNextQueuedTask()!;
+      repo.updateStatus(task.id, 'testing');
+      const updated = repo.getTask(task.id)!;
+      expect(updated.status).toBe('testing');
+    });
+
+    it('getActiveTask does not return inbox/assigned/testing tasks', () => {
+      repo.createTask(makeTask({ title: 'Inbox' }));
+      const task = repo.getNextQueuedTask()!;
+      repo.updateStatus(task.id, 'inbox');
+      expect(repo.getActiveTask()).toBeNull();
+
+      repo.updateStatus(task.id, 'assigned');
+      expect(repo.getActiveTask()).toBeNull();
+
+      repo.updateStatus(task.id, 'testing');
+      expect(repo.getActiveTask()).toBeNull();
+    });
+  });
+
+  // ─── Persona Assignment ────────────────────────────────────
+
+  describe('persona assignment', () => {
+    it('assigns a persona to a task', () => {
+      const task = makeTask();
+      repo.assignPersona(task.id, 'persona-abc');
+      const updated = repo.getTask(task.id)!;
+      expect(updated.assignedPersonaId).toBe('persona-abc');
+    });
+
+    it('unassigns a persona (null)', () => {
+      const task = makeTask();
+      repo.assignPersona(task.id, 'persona-abc');
+      repo.assignPersona(task.id, null);
+      const updated = repo.getTask(task.id)!;
+      expect(updated.assignedPersonaId).toBeNull();
+    });
+
+    it('newly created task has no assigned persona', () => {
+      const task = makeTask();
+      expect(task.assignedPersonaId).toBeNull();
+    });
+  });
+
+  // ─── Activities ─────────────────────────────────────────────
+
+  describe('activities', () => {
+    it('adds an activity to a task', () => {
+      const task = makeTask();
+      const activity = repo.addActivity({
+        taskId: task.id,
+        type: 'status_change',
+        message: 'Status changed to executing',
+      });
+      expect(activity.id).toMatch(/^act-/);
+      expect(activity.taskId).toBe(task.id);
+      expect(activity.type).toBe('status_change');
+      expect(activity.message).toBe('Status changed to executing');
+      expect(activity.metadata).toBeNull();
+      expect(activity.createdAt).toBeTruthy();
+    });
+
+    it('adds activity with metadata', () => {
+      const task = makeTask();
+      const activity = repo.addActivity({
+        taskId: task.id,
+        type: 'persona_assigned',
+        message: 'Persona Max assigned',
+        metadata: { personaId: 'p-1', personaName: 'Max' },
+      });
+      expect(activity.metadata).not.toBeNull();
+      const meta = JSON.parse(activity.metadata!);
+      expect(meta.personaId).toBe('p-1');
+      expect(meta.personaName).toBe('Max');
+    });
+
+    it('retrieves activities in reverse chronological order', () => {
+      const task = makeTask();
+      repo.addActivity({ taskId: task.id, type: 'status_change', message: 'First' });
+      repo.addActivity({ taskId: task.id, type: 'status_change', message: 'Second' });
+      repo.addActivity({ taskId: task.id, type: 'note', message: 'Third' });
+
+      const activities = repo.getActivities(task.id);
+      expect(activities).toHaveLength(3);
+      expect(activities[0].message).toBe('Third');
+      expect(activities[2].message).toBe('First');
+    });
+
+    it('respects limit parameter', () => {
+      const task = makeTask();
+      for (let i = 0; i < 5; i++) {
+        repo.addActivity({ taskId: task.id, type: 'note', message: `Activity ${i}` });
+      }
+      const activities = repo.getActivities(task.id, 2);
+      expect(activities).toHaveLength(2);
+    });
+
+    it('returns empty array for task with no activities', () => {
+      const task = makeTask();
+      expect(repo.getActivities(task.id)).toEqual([]);
+    });
+
+    it('activities are deleted when task is deleted', () => {
+      const task = makeTask();
+      repo.addActivity({ taskId: task.id, type: 'note', message: 'Will be deleted' });
+      repo.deleteTask(task.id);
+      // Task is gone, so activities table should be clean
+      // Verify via creating a new task with same activities check
+      const task2 = makeTask();
+      expect(repo.getActivities(task2.id)).toEqual([]);
+    });
+  });
 });

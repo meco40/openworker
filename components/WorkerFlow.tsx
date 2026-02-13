@@ -57,6 +57,17 @@ export const WorkerFlow: React.FC<WorkerFlowProps> = ({ task }) => {
       });
     }
 
+    // Testing phase node
+    if (task.status === WorkerTaskStatus.TESTING) {
+      list.push({
+        id: 'testing',
+        label: 'TEST',
+        detail: 'Quality Verification',
+        status: 'active' as const,
+        icon: '🧪',
+      });
+    }
+
     list.push({
       id: 'end',
       label: 'SYNC',

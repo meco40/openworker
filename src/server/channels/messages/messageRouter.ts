@@ -16,6 +16,7 @@ const WORKER_COMMANDS = [
   '/worker-list',
   '/worker-retry',
   '/worker-resume',
+  '/worker-assign',
   '/approve',
   '/deny',
   '/approve-always',

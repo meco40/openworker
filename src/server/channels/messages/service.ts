@@ -244,9 +244,16 @@ export class MessageService {
             externalChatId,
           );
         }
-        const lines = tasks.map(
-          (t) => `• ${statusIconForWorker(t.status)} **${t.title}** (\`${t.id}\`) — ${t.status}`,
-        );
+        const personaRepo = getPersonaRepository();
+        const lines = tasks.map((t) => {
+          const personaTag = t.assignedPersonaId
+            ? (() => {
+                const p = personaRepo.getPersona(t.assignedPersonaId);
+                return p ? ` → ${p.emoji} ${p.name}` : '';
+              })()
+            : '';
+          return `• ${statusIconForWorker(t.status)} **${t.title}** (\`${t.id}\`) — ${t.status}${personaTag}`;
+        });
         return this.sendResponse(conversation, `📋 **Tasks:**\n${lines.join('\n')}`, platform, externalChatId);
       }
 
@@ -279,9 +286,14 @@ export class MessageService {
             platform,
             externalChatId,
           );
+        const personaInfo = (() => {
+          if (!task.assignedPersonaId) return '';
+          const p = getPersonaRepository().getPersona(task.assignedPersonaId);
+          return p ? `\nPersona: ${p.emoji} ${p.name}` : '';
+        })();
         return this.sendResponse(
           conversation,
-          `${statusIconForWorker(task.status)} **${task.title}**\nStatus: ${task.status}\nSchritt: ${task.currentStep}/${task.totalSteps}${task.resultSummary ? `\n\n${task.resultSummary}` : ''}${task.errorMessage ? `\n\n⚠️ ${task.errorMessage}` : ''}`,
+          `${statusIconForWorker(task.status)} **${task.title}**\nStatus: ${task.status}\nSchritt: ${task.currentStep}/${task.totalSteps}${personaInfo}${task.resultSummary ? `\n\n${task.resultSummary}` : ''}${task.errorMessage ? `\n\n⚠️ ${task.errorMessage}` : ''}`,
           platform,
           externalChatId,
         );
@@ -435,6 +447,65 @@ export class MessageService {
         return this.sendResponse(
           conversation,
           '✅ Befehl genehmigt. Worker fährt fort.',
+          platform,
+          externalChatId,
+        );
+      }
+
+      case '/worker-assign': {
+        if (!payload) {
+          return this.sendResponse(
+            conversation,
+            '⚠️ Bitte Task-ID und Persona-Name angeben: `/worker-assign <task-id> <persona-name>`',
+            platform,
+            externalChatId,
+          );
+        }
+        const parts = payload.split(/\s+/);
+        const taskId = parts[0];
+        const personaQuery = parts.slice(1).join(' ');
+        if (!personaQuery) {
+          return this.sendResponse(
+            conversation,
+            '⚠️ Bitte Persona-Name angeben: `/worker-assign <task-id> <persona-name>`',
+            platform,
+            externalChatId,
+          );
+        }
+        const task = workerRepo.getTask(taskId);
+        if (!task) {
+          return this.sendResponse(
+            conversation,
+            `❌ Task \`${taskId}\` nicht gefunden.`,
+            platform,
+            externalChatId,
+          );
+        }
+        // Find persona by name (case-insensitive prefix match)
+        const personaRepo = getPersonaRepository();
+        const allPersonas = personaRepo.listPersonas('default');
+        const match = allPersonas.find(
+          (p) => p.name.toLowerCase() === personaQuery.toLowerCase()
+            || p.name.toLowerCase().startsWith(personaQuery.toLowerCase()),
+        );
+        if (!match) {
+          return this.sendResponse(
+            conversation,
+            `❌ Persona "${personaQuery}" nicht gefunden. Verfügbar: ${allPersonas.map((p) => `${p.emoji} ${p.name}`).join(', ') || '(keine)'}`,
+            platform,
+            externalChatId,
+          );
+        }
+        workerRepo.assignPersona(taskId, match.id);
+        workerRepo.addActivity({
+          taskId,
+          type: 'persona_assigned',
+          message: `Persona ${match.emoji} ${match.name} per Chat-Befehl zugewiesen`,
+          metadata: { personaId: match.id, personaName: match.name },
+        });
+        return this.sendResponse(
+          conversation,
+          `✅ Persona ${match.emoji} **${match.name}** wurde Task "${task.title}" zugewiesen.`,
           platform,
           externalChatId,
         );

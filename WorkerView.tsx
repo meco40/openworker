@@ -5,8 +5,11 @@ import React, { useState, useCallback } from 'react';
 import WorkerTaskList from './components/worker/WorkerTaskList';
 import WorkerTaskCreation from './components/worker/WorkerTaskCreation';
 import WorkerTaskDetail from './components/worker/WorkerTaskDetail';
+import WorkerKanbanBoard from './components/worker/WorkerKanbanBoard';
+import WorkerPersonaSidebar from './components/worker/WorkerPersonaSidebar';
 import { useWorkerTasks } from './src/modules/worker/hooks/useWorkerTasks';
 import type { WorkerTask } from './types';
+import type { WorkerTaskStatus } from './src/server/worker/workerStateMachine';
 
 const WorkerView: React.FC = () => {
   const {
@@ -23,7 +26,7 @@ const WorkerView: React.FC = () => {
     refreshTasks,
   } = useWorkerTasks();
 
-  const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
+  const [view, setView] = useState<'kanban' | 'list' | 'create' | 'detail'>('kanban');
   const [selectedTask, setSelectedTask] = useState<WorkerTask | null>(null);
 
   const handleSelectTask = useCallback(async (task: WorkerTask) => {
@@ -61,7 +64,7 @@ const WorkerView: React.FC = () => {
   );
 
   const handleBack = useCallback(() => {
-    setView('list');
+    setView('kanban');
     setSelectedTask(null);
     refreshTasks();
   }, [refreshTasks]);
@@ -74,31 +77,106 @@ const WorkerView: React.FC = () => {
     [deleteTask, handleBack],
   );
 
+  const handleMoveTask = useCallback(
+    async (taskId: string, targetStatus: WorkerTaskStatus) => {
+      try {
+        const res = await fetch(`/api/worker/${taskId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'move', status: targetStatus }),
+        });
+        if (res.ok) {
+          refreshTasks();
+        }
+      } catch (err) {
+        console.error('[WorkerView] Move failed:', err);
+      }
+    },
+    [refreshTasks],
+  );
+
+  const handleAssignPersona = useCallback(
+    async (taskId: string, personaId: string | null) => {
+      try {
+        const res = await fetch(`/api/worker/${taskId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'assign', personaId }),
+        });
+        if (res.ok) {
+          refreshTasks();
+        }
+      } catch (err) {
+        console.error('[WorkerView] Assign failed:', err);
+      }
+    },
+    [refreshTasks],
+  );
+
+  // Get selected task's persona for sidebar
+  const selectedTaskForSidebar = selectedTask || (tasks.length > 0 ? tasks[0] : null);
+
   return (
     <div className="worker-view">
-      {view === 'list' && (
-        <WorkerTaskList
-          tasks={tasks}
-          loading={loading}
-          error={error}
-          onSelectTask={handleSelectTask}
-          onCreateNew={() => setView('create')}
-          onDeleteTask={deleteTask}
-          onDeleteAllTasks={deleteAllTasks}
-        />
-      )}
+      <div className="worker-view__main">
+        {(view === 'kanban' || view === 'list') && (
+          <div className="worker-view__toggle">
+            <button
+              className={`worker-btn ${view === 'kanban' ? 'worker-btn--primary' : 'worker-btn--ghost'}`}
+              onClick={() => setView('kanban')}
+            >
+              ▦ Kanban
+            </button>
+            <button
+              className={`worker-btn ${view === 'list' ? 'worker-btn--primary' : 'worker-btn--ghost'}`}
+              onClick={() => setView('list')}
+            >
+              ☰ Liste
+            </button>
+          </div>
+        )}
 
-      {view === 'create' && <WorkerTaskCreation onSubmit={handleCreate} onCancel={handleBack} />}
+        {view === 'kanban' && (
+          <WorkerKanbanBoard
+            tasks={tasks}
+            onMoveTask={handleMoveTask}
+            onSelectTask={handleSelectTask}
+            onCreateTask={() => setView('create')}
+          />
+        )}
 
-      {view === 'detail' && selectedTask && (
-        <WorkerTaskDetail
-          task={selectedTask}
-          onBack={handleBack}
-          onCancel={cancelTask}
-          onRetry={retryTask}
-          onResume={resumeTask}
-          onApprove={approveTask}
-          onDelete={handleDelete}
+        {view === 'list' && (
+          <WorkerTaskList
+            tasks={tasks}
+            loading={loading}
+            error={error}
+            onSelectTask={handleSelectTask}
+            onCreateNew={() => setView('create')}
+            onDeleteTask={deleteTask}
+            onDeleteAllTasks={deleteAllTasks}
+          />
+        )}
+
+        {view === 'create' && <WorkerTaskCreation onSubmit={handleCreate} onCancel={handleBack} />}
+
+        {view === 'detail' && selectedTask && (
+          <WorkerTaskDetail
+            task={selectedTask}
+            onBack={handleBack}
+            onCancel={cancelTask}
+            onRetry={retryTask}
+            onResume={resumeTask}
+            onApprove={approveTask}
+            onDelete={handleDelete}
+          />
+        )}
+      </div>
+
+      {(view === 'kanban' || view === 'list') && (
+        <WorkerPersonaSidebar
+          selectedTaskId={selectedTaskForSidebar?.id || null}
+          assignedPersonaId={selectedTaskForSidebar?.assignedPersonaId || null}
+          onAssign={handleAssignPersona}
         />
       )}
     </div>

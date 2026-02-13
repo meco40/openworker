@@ -99,3 +99,91 @@ registerMethod(
     respond({ taskId, approved });
   },
 );
+
+// ─── worker.task.updateStatus ────────────────────────────────
+// Move a task to a new status via Kanban drag.
+
+registerMethod(
+  'worker.task.updateStatus',
+  async (params: Record<string, unknown>, _client: GatewayClient, respond: RespondFn, _ctx) => {
+    const taskId = params.taskId as string;
+    const status = params.status as string;
+    if (!taskId || !status) throw new Error('taskId and status are required');
+
+    const { getWorkerRepository } = await import('../../worker/workerRepository');
+    const repo = getWorkerRepository();
+    const task = repo.getTask(taskId);
+    if (!task) throw new Error('Task not found');
+
+    const { canTransition } = await import('../../worker/workerStateMachine');
+    if (
+      !canTransition(
+        task.status as Parameters<typeof canTransition>[0],
+        status as Parameters<typeof canTransition>[1],
+        'manual',
+      )
+    ) {
+      throw new Error(`Transition ${task.status} → ${status} nicht erlaubt`);
+    }
+
+    repo.updateStatus(taskId, status as Parameters<typeof repo.updateStatus>[1]);
+
+    if (status === 'queued') {
+      const { processQueue } = await import('../../worker/workerAgent');
+      processQueue().catch((err: unknown) =>
+        console.error('[Gateway Worker] Queue error:', err),
+      );
+    }
+
+    respond({ ok: true, task: repo.getTask(taskId) });
+  },
+);
+
+// ─── worker.task.assign ──────────────────────────────────────
+// Assign a persona to a task.
+
+registerMethod(
+  'worker.task.assign',
+  async (params: Record<string, unknown>, _client: GatewayClient, respond: RespondFn, _ctx) => {
+    const taskId = params.taskId as string;
+    const personaId = (params.personaId as string) || null;
+    if (!taskId) throw new Error('taskId is required');
+
+    const { getWorkerRepository } = await import('../../worker/workerRepository');
+    const repo = getWorkerRepository();
+    const task = repo.getTask(taskId);
+    if (!task) throw new Error('Task not found');
+
+    repo.assignPersona(taskId, personaId);
+    if (personaId) {
+      repo.addActivity({
+        taskId,
+        type: 'persona_assigned',
+        message: `Persona ${personaId} zugewiesen`,
+        metadata: { personaId },
+      });
+    }
+
+    respond({ ok: true, task: repo.getTask(taskId) });
+  },
+);
+
+// ─── worker.task.activities ──────────────────────────────────
+// Get activity log for a task.
+
+registerMethod(
+  'worker.task.activities',
+  async (params: Record<string, unknown>, _client: GatewayClient, respond: RespondFn, _ctx) => {
+    const taskId = params.taskId as string;
+    if (!taskId) throw new Error('taskId is required');
+
+    const { getWorkerRepository } = await import('../../worker/workerRepository');
+    const repo = getWorkerRepository();
+    const task = repo.getTask(taskId);
+    if (!task) throw new Error('Task not found');
+
+    const limit = params.limit ? Number(params.limit) : 50;
+    const activities = repo.getActivities(taskId, limit);
+    respond(activities);
+  },
+);

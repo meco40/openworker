@@ -7,7 +7,7 @@ import type { WorkspaceType } from '../../types';
 interface WorkerTaskCreationProps {
   onSubmit: (
     objective: string,
-    options?: { title?: string; priority?: string; workspaceType?: WorkspaceType },
+    options?: { title?: string; priority?: string; workspaceType?: WorkspaceType; usePlanning?: boolean },
   ) => Promise<unknown>;
   onCancel: () => void;
 }
@@ -62,6 +62,7 @@ const WorkerTaskCreation: React.FC<WorkerTaskCreationProps> = ({ onSubmit, onCan
   const [title, setTitle] = useState('');
   const [workspaceType, setWorkspaceType] = useState<WorkspaceType>('general');
   const [priority, setPriority] = useState('normal');
+  const [usePlanning, setUsePlanning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,6 +75,7 @@ const WorkerTaskCreation: React.FC<WorkerTaskCreationProps> = ({ onSubmit, onCan
         title: title.trim() || undefined,
         priority,
         workspaceType,
+        usePlanning,
       });
     } finally {
       setSubmitting(false);
@@ -158,6 +160,26 @@ const WorkerTaskCreation: React.FC<WorkerTaskCreationProps> = ({ onSubmit, onCan
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Planning Mode Toggle */}
+        <div className="worker-creation__field">
+          <label className="worker-planning-toggle">
+            <input
+              type="checkbox"
+              checked={usePlanning}
+              onChange={(e) => setUsePlanning(e.target.checked)}
+            />
+            <span className="worker-planning-toggle__label">
+              🧠 Planungsmodus — KI stellt Rückfragen vor der Ausführung
+            </span>
+          </label>
+          {usePlanning && (
+            <p className="worker-planning-toggle__hint">
+              Die KI wird gezielte Fragen stellen, um die Aufgabe optimal zu verstehen,
+              bevor sie mit der Ausführung beginnt.
+            </p>
+          )}
         </div>
 
         {/* Actions */}
