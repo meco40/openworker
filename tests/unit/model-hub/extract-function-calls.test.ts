@@ -89,7 +89,7 @@ describe('extractGeminiFunctionCalls', () => {
 
   it('handles null/undefined result gracefully', () => {
     expect(extract(null)).toHaveLength(0);
-    expect(extract()).toHaveLength(0);
+    expect(extract(void 0)).toHaveLength(0);
     expect(extract({})).toHaveLength(0);
   });
 });

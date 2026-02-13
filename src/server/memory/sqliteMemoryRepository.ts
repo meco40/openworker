@@ -31,7 +31,7 @@ function toNode(row: MemoryRow): MemoryNode {
 }
 
 export class SqliteMemoryRepository implements MemoryRepository {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(
     dbPath =

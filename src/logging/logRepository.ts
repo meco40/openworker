@@ -52,7 +52,7 @@ function buildWhere(
 }
 
 export class LogRepository {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.LOGS_DB_PATH || '.local/logs.db') {
     if (dbPath === ':memory:') {

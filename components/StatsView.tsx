@@ -373,7 +373,13 @@ const StatsView: React.FC = () => {
                         String(name ?? ''),
                       ]}
                     />
-                    <Bar dataKey="prompt" stackId="tokens" name="Prompt" radius={[0, 0, 0, 0]}>
+                    <Bar
+                      dataKey="prompt"
+                      stackId="tokens"
+                      name="Prompt"
+                      radius={[0, 0, 0, 0]}
+                      isAnimationActive={false}
+                    >
                       {data.tokenUsage.byModel.map((_entry, index) => (
                         <Cell
                           key={`prompt-${index}`}
@@ -387,6 +393,7 @@ const StatsView: React.FC = () => {
                       stackId="tokens"
                       name="Completion"
                       radius={[4, 4, 0, 0]}
+                      isAnimationActive={false}
                     >
                       {data.tokenUsage.byModel.map((_entry, index) => (
                         <Cell

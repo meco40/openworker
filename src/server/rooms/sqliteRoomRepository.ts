@@ -30,7 +30,7 @@ import {
 } from './roomRowMappers';
 
 export class SqliteRoomRepository implements RoomRepository {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.ROOMS_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db') {
     if (dbPath === ':memory:') {

@@ -41,7 +41,7 @@ function toSummary(row: Record<string, unknown>): PersonaSummary {
 // ─── Repository ──────────────────────────────────────────────
 
 export class PersonaRepository {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.PERSONAS_DB_PATH || '.local/personas.db') {
     if (dbPath === ':memory:') {

@@ -71,7 +71,7 @@ function toPipelineEntry(row: PipelineRow): PipelineModelEntry {
 }
 
 export class SqliteModelHubRepository implements ModelHubRepository {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.MODEL_HUB_DB_PATH || '.local/model-hub.db') {
     const fullPath = path.resolve(dbPath);

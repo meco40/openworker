@@ -5,6 +5,7 @@ import { ai, getSystemInstruction } from '../../../services/gateway';
 import type { GatewayChat, GatewayStreamChunk } from '../../../services/gateway';
 import { mapSkillsToTools } from '../../../skills/definitions';
 import { executeSkillFunctionCall } from '../../../skills/execute';
+import { subscribeClawHubChanged } from '../../../skills/clawhub-events';
 import { CORE_MEMORY_TOOLS, handleCoreMemoryCall } from '../../../core/memory';
 import { createAgentPlaceholder } from '../chat/services/handleAgentResponse';
 import { parseTaskScheduleArgs } from './taskScheduling';
@@ -52,8 +53,15 @@ export function useAgentRuntime({
     };
 
     void loadClawHubPrompt();
+    const unsubscribe = subscribeClawHubChanged(
+      typeof window !== 'undefined' ? window : null,
+      () => {
+        void loadClawHubPrompt();
+      },
+    );
     return () => {
       disposed = true;
+      unsubscribe();
     };
   }, []);
 

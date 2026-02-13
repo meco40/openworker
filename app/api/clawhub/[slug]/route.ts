@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
 import { getClawHubService } from '../../../../src/server/clawhub/clawhubService';
+import { isValidClawHubSlug, toClawHubHttpStatus } from '../../../../src/server/clawhub/errors';
 
 export const runtime = 'nodejs';
 
@@ -23,6 +24,12 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!normalizedSlug) {
       return NextResponse.json({ ok: false, error: 'Skill slug is required.' }, { status: 400 });
     }
+    if (!isValidClawHubSlug(normalizedSlug)) {
+      return NextResponse.json(
+        { ok: false, error: `Invalid ClawHub skill slug: ${normalizedSlug}` },
+        { status: 400 },
+      );
+    }
 
     const body = (await request.json()) as PatchBody;
     if (typeof body.enabled !== 'boolean') {
@@ -37,7 +44,36 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ ok: true, skill });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update ClawHub skill state';
-    const status = typeof message === 'string' && message.toLowerCase().includes('not found') ? 404 : 500;
+    const status = toClawHubHttpStatus(error, 500);
+    return NextResponse.json({ ok: false, error: message }, { status });
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { slug } = await context.params;
+    const normalizedSlug = slug.trim();
+    if (!normalizedSlug) {
+      return NextResponse.json({ ok: false, error: 'Skill slug is required.' }, { status: 400 });
+    }
+    if (!isValidClawHubSlug(normalizedSlug)) {
+      return NextResponse.json(
+        { ok: false, error: `Invalid ClawHub skill slug: ${normalizedSlug}` },
+        { status: 400 },
+      );
+    }
+
+    const service = getClawHubService();
+    const result = await service.uninstall(normalizedSlug);
+    return NextResponse.json({ ok: true, ...result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to uninstall ClawHub skill';
+    const status = toClawHubHttpStatus(error, 500);
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

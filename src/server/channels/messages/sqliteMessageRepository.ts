@@ -23,7 +23,7 @@ import { toChannelBinding, toConversation, toMessage } from './messageRowMappers
 // ─── SQLite Implementation ───────────────────────────────────
 
 export class SqliteMessageRepository implements MessageRepository {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.MESSAGES_DB_PATH || '.local/messages.db') {
     if (dbPath === ':memory:') {

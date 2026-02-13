@@ -152,6 +152,13 @@ export class ClawHubRepository {
     return row ? toRow(row) : null;
   }
 
+  deleteSkill(slug: string): boolean {
+    const result = this.db.prepare('DELETE FROM clawhub_skills WHERE slug = ?').run(slug) as {
+      changes: number;
+    };
+    return result.changes > 0;
+  }
+
   setEnabled(slug: string, enabled: boolean): boolean {
     const now = new Date().toISOString();
     const result = this.db

@@ -64,7 +64,7 @@ function toRow(raw: Record<string, unknown>): SkillRow {
 }
 
 export class SkillRepository {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.SKILLS_DB_PATH || '.local/skills.db') {
     const fullPath = path.resolve(dbPath);

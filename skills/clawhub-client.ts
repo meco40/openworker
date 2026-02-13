@@ -42,6 +42,13 @@ export interface ClawHubUpdateResponse {
   error?: string;
 }
 
+export interface ClawHubUninstallResponse {
+  ok: boolean;
+  skills: ClawHubInstalledSkill[];
+  warnings?: string[];
+  error?: string;
+}
+
 export interface ClawHubToggleResponse {
   ok: boolean;
   skill?: ClawHubInstalledSkill;
@@ -103,4 +110,11 @@ export async function setClawHubSkillEnabled(
     body: JSON.stringify({ enabled }),
   });
   return readJson<ClawHubToggleResponse>(response);
+}
+
+export async function uninstallClawHubSkill(slug: string): Promise<ClawHubUninstallResponse> {
+  const response = await fetch(`/api/clawhub/${encodeURIComponent(slug)}`, {
+    method: 'DELETE',
+  });
+  return readJson<ClawHubUninstallResponse>(response);
 }

@@ -1,5 +1,6 @@
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
+import { getRuntimeConfigValue } from '../runtimeConfig';
 
 const MAX_RESULT_ROWS = 200;
 
@@ -19,9 +20,11 @@ export async function dbQueryHandler(args: Record<string, unknown>) {
     throw new Error('Only read-only SQL statements are allowed.');
   }
 
-  const dbPath = process.env.SQLITE_DB_PATH;
+  const dbPath = getRuntimeConfigValue('sql-bridge.sqlite_db_path');
   if (!dbPath) {
-    throw new Error('SQLITE_DB_PATH is not configured.');
+    throw new Error(
+      'SQLite DB path missing. Configure "SQLite Database Path" in Skill Registry > Tool Configuration or set SQLITE_DB_PATH.',
+    );
   }
 
   const resolved = ensureWorkspacePath(dbPath);

@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Skill } from '../types';
+import { emitClawHubChanged as dispatchClawHubChanged } from './clawhub-events';
 import {
   type ClawHubInstalledSkill,
   type ClawHubSearchItem,
@@ -7,8 +8,17 @@ import {
   listInstalledClawHubSkills,
   searchClawHubSkills,
   setClawHubSkillEnabled,
+  uninstallClawHubSkill,
   updateClawHubSkill,
 } from './clawhub-client';
+import {
+  type SkillRuntimeConfigStatus,
+  clearSkillRuntimeConfig,
+  listSkillRuntimeConfigs,
+  setSkillRuntimeConfig,
+} from './runtime-config-client';
+import { buildSkillConfigHints } from './runtime-config-hints';
+import { getToolGuide } from './tool-guides';
 
 interface SkillsRegistryProps {
   skills: Skill[];
@@ -43,6 +53,60 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
   const [clawHubInstalled, setClawHubInstalled] = useState<ClawHubInstalledSkill[]>([]);
   const [clawHubLoading, setClawHubLoading] = useState(false);
   const [clawHubError, setClawHubError] = useState('');
+  const [runtimeConfigs, setRuntimeConfigs] = useState<SkillRuntimeConfigStatus[]>([]);
+  const [runtimeConfigDrafts, setRuntimeConfigDrafts] = useState<Record<string, string>>({});
+  const [runtimeConfigLoading, setRuntimeConfigLoading] = useState(false);
+  const [runtimeConfigSavingId, setRuntimeConfigSavingId] = useState<string | null>(null);
+  const [runtimeConfigError, setRuntimeConfigError] = useState('');
+  const [skillActionError, setSkillActionError] = useState('');
+  const [toolInfoSkillId, setToolInfoSkillId] = useState<string | null>(null);
+  const clawHubBusyRef = useRef(false);
+
+  const notifyClawHubChanged = useCallback(() => {
+    dispatchClawHubChanged();
+  }, []);
+
+  const beginClawHubAction = useCallback((): boolean => {
+    if (clawHubBusyRef.current) {
+      return false;
+    }
+    clawHubBusyRef.current = true;
+    setClawHubLoading(true);
+    setClawHubError('');
+    return true;
+  }, []);
+
+  const endClawHubAction = useCallback(() => {
+    clawHubBusyRef.current = false;
+    setClawHubLoading(false);
+  }, []);
+
+  const loadRuntimeConfigs = useCallback(async () => {
+    setRuntimeConfigLoading(true);
+    setRuntimeConfigError('');
+    try {
+      const response = await listSkillRuntimeConfigs();
+      if (!response.ok || !response.configs) {
+        setRuntimeConfigError(response.error || 'Failed to load tool configuration.');
+        setRuntimeConfigs([]);
+        return;
+      }
+      setRuntimeConfigs(response.configs);
+    } catch (error) {
+      setRuntimeConfigError(
+        error instanceof Error ? error.message : 'Failed to load tool configuration.',
+      );
+      setRuntimeConfigs([]);
+    } finally {
+      setRuntimeConfigLoading(false);
+    }
+  }, []);
+
+  const getMissingRequiredConfigs = useCallback(
+    (skillId: string): SkillRuntimeConfigStatus[] =>
+      runtimeConfigs.filter((config) => config.skillId === skillId && config.required && !config.configured),
+    [runtimeConfigs],
+  );
 
   const handleToggleInstall = useCallback(
     async (id: string) => {
@@ -50,6 +114,19 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
       if (!skill) return;
 
       const newInstalled = !skill.installed;
+      if (newInstalled) {
+        const missingConfigs = getMissingRequiredConfigs(id);
+        if (missingConfigs.length > 0) {
+          setSkillActionError(
+            `Cannot activate "${skill.name}" yet. Missing: ${missingConfigs
+              .map((item) => item.label)
+              .join(', ')}.`,
+          );
+          return;
+        }
+      }
+
+      setSkillActionError('');
       // Optimistic update
       setSkills((prev) =>
         prev.map((s) => (s.id === id ? { ...s, installed: newInstalled } : s)),
@@ -75,7 +152,7 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
         );
       }
     },
-    [skills, setSkills],
+    [getMissingRequiredConfigs, setSkills, skills],
   );
 
   const handleInstall = useCallback(async () => {
@@ -84,16 +161,24 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
 
     try {
       if (installTab === 'clawhub') {
-        const response = await installClawHubSkill({ slug: installValue.trim() });
-        if (!response.ok) {
-          setInstallError(response.error || 'ClawHub install failed.');
+        if (!beginClawHubAction()) {
           return;
         }
-        setShowInstallModal(false);
-        setInstallValue('');
-        const refreshed = await listInstalledClawHubSkills();
-        if (refreshed.ok) {
-          setClawHubInstalled(normalizeInstalledSkills(refreshed.skills));
+        try {
+          const response = await installClawHubSkill({ slug: installValue.trim() });
+          if (!response.ok) {
+            setInstallError(response.error || 'ClawHub install failed.');
+            return;
+          }
+          setShowInstallModal(false);
+          setInstallValue('');
+          const refreshed = await listInstalledClawHubSkills();
+          if (refreshed.ok) {
+            setClawHubInstalled(normalizeInstalledSkills(refreshed.skills));
+            notifyClawHubChanged();
+          }
+        } finally {
+          endClawHubAction();
         }
         return;
       }
@@ -143,7 +228,7 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
     } finally {
       setInstallLoading(false);
     }
-  }, [installTab, installValue, setSkills]);
+  }, [beginClawHubAction, notifyClawHubChanged, endClawHubAction, installTab, installValue, setSkills]);
 
   const handleRemoveSkill = useCallback(
     async (id: string) => {
@@ -161,6 +246,9 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
   );
 
   const handleSyncRefresh = useCallback(async () => {
+    if (!beginClawHubAction()) {
+      return;
+    }
     try {
       const res = await fetch('/api/skills');
       const data = await res.json();
@@ -183,15 +271,86 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
       const installed = await listInstalledClawHubSkills();
       if (installed.ok) {
         setClawHubInstalled(normalizeInstalledSkills(installed.skills));
+        notifyClawHubChanged();
       }
+
+      await loadRuntimeConfigs();
     } catch {
       // silently fail
+    } finally {
+      endClawHubAction();
     }
-  }, [setSkills]);
+  }, [beginClawHubAction, loadRuntimeConfigs, notifyClawHubChanged, endClawHubAction, setSkills]);
+
+  const handleRuntimeConfigDraft = useCallback((id: string, value: string) => {
+    setRuntimeConfigDrafts((previous) => ({
+      ...previous,
+      [id]: value,
+    }));
+  }, []);
+
+  const handleRuntimeConfigSave = useCallback(
+    async (id: string) => {
+      const value = String(runtimeConfigDrafts[id] || '').trim();
+      if (!value) {
+        setRuntimeConfigError('Please enter a value before saving.');
+        return;
+      }
+
+      setRuntimeConfigSavingId(id);
+      setRuntimeConfigError('');
+      try {
+        const response = await setSkillRuntimeConfig(id, value);
+        if (!response.ok) {
+          setRuntimeConfigError(response.error || 'Failed to save tool configuration.');
+          return;
+        }
+        setRuntimeConfigDrafts((previous) => ({
+          ...previous,
+          [id]: '',
+        }));
+        await loadRuntimeConfigs();
+      } catch (error) {
+        setRuntimeConfigError(
+          error instanceof Error ? error.message : 'Failed to save tool configuration.',
+        );
+      } finally {
+        setRuntimeConfigSavingId(null);
+      }
+    },
+    [loadRuntimeConfigs, runtimeConfigDrafts],
+  );
+
+  const handleRuntimeConfigClear = useCallback(
+    async (id: string) => {
+      setRuntimeConfigSavingId(id);
+      setRuntimeConfigError('');
+      try {
+        const response = await clearSkillRuntimeConfig(id);
+        if (!response.ok) {
+          setRuntimeConfigError(response.error || 'Failed to clear tool configuration.');
+          return;
+        }
+        setRuntimeConfigDrafts((previous) => ({
+          ...previous,
+          [id]: '',
+        }));
+        await loadRuntimeConfigs();
+      } catch (error) {
+        setRuntimeConfigError(
+          error instanceof Error ? error.message : 'Failed to clear tool configuration.',
+        );
+      } finally {
+        setRuntimeConfigSavingId(null);
+      }
+    },
+    [loadRuntimeConfigs],
+  );
 
   const refreshClawHubInstalled = useCallback(async () => {
-    setClawHubLoading(true);
-    setClawHubError('');
+    if (!beginClawHubAction()) {
+      return;
+    }
     try {
       const data = await listInstalledClawHubSkills();
       if (!data.ok) {
@@ -199,23 +358,26 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
         return;
       }
       setClawHubInstalled(normalizeInstalledSkills(data.skills));
+      notifyClawHubChanged();
     } catch (error) {
       setClawHubError(error instanceof Error ? error.message : 'Failed to load ClawHub skills.');
     } finally {
-      setClawHubLoading(false);
+      endClawHubAction();
     }
-  }, []);
+  }, [beginClawHubAction, notifyClawHubChanged, endClawHubAction]);
 
   const handleClawHubSearch = useCallback(async () => {
     const query = clawHubQuery.trim();
     if (!query) {
+      setClawHubError('');
       setClawHubSearchResults([]);
       setClawHubSearchWarnings([]);
       return;
     }
 
-    setClawHubLoading(true);
-    setClawHubError('');
+    if (!beginClawHubAction()) {
+      return;
+    }
     try {
       const data = await searchClawHubSkills(query, 25);
       if (!data.ok) {
@@ -231,14 +393,22 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
       setClawHubSearchResults([]);
       setClawHubSearchWarnings([]);
     } finally {
-      setClawHubLoading(false);
+      endClawHubAction();
     }
-  }, [clawHubQuery]);
+  }, [beginClawHubAction, clawHubQuery, endClawHubAction]);
+
+  const handleClawHubSearchReset = useCallback(() => {
+    setClawHubQuery('');
+    setClawHubSearchResults([]);
+    setClawHubSearchWarnings([]);
+    setClawHubError('');
+  }, []);
 
   const handleClawHubInstall = useCallback(
     async (slug: string) => {
-      setClawHubLoading(true);
-      setClawHubError('');
+      if (!beginClawHubAction()) {
+        return;
+      }
       try {
         const response = await installClawHubSkill({ slug });
         if (!response.ok) {
@@ -248,20 +418,22 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
         const refreshed = await listInstalledClawHubSkills();
         if (refreshed.ok) {
           setClawHubInstalled(normalizeInstalledSkills(refreshed.skills));
+          notifyClawHubChanged();
         }
       } catch (error) {
         setClawHubError(error instanceof Error ? error.message : 'ClawHub install failed.');
       } finally {
-        setClawHubLoading(false);
+        endClawHubAction();
       }
     },
-    [],
+    [beginClawHubAction, notifyClawHubChanged, endClawHubAction],
   );
 
   const handleClawHubUpdate = useCallback(
     async (slug?: string) => {
-      setClawHubLoading(true);
-      setClawHubError('');
+      if (!beginClawHubAction()) {
+        return;
+      }
       try {
         const response = await updateClawHubSkill(slug ? { slug } : { all: true });
         if (!response.ok) {
@@ -271,19 +443,40 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
         const refreshed = await listInstalledClawHubSkills();
         if (refreshed.ok) {
           setClawHubInstalled(normalizeInstalledSkills(refreshed.skills));
+          notifyClawHubChanged();
         }
       } catch (error) {
         setClawHubError(error instanceof Error ? error.message : 'ClawHub update failed.');
       } finally {
-        setClawHubLoading(false);
+        endClawHubAction();
       }
     },
-    [],
+    [beginClawHubAction, notifyClawHubChanged, endClawHubAction],
   );
 
+  const handleClawHubUninstall = useCallback(async (slug: string) => {
+    if (!beginClawHubAction()) {
+      return;
+    }
+    try {
+      const response = await uninstallClawHubSkill(slug);
+      if (!response.ok) {
+        setClawHubError(response.error || 'ClawHub uninstall failed.');
+        return;
+      }
+      setClawHubInstalled(normalizeInstalledSkills(response.skills));
+      notifyClawHubChanged();
+    } catch (error) {
+      setClawHubError(error instanceof Error ? error.message : 'ClawHub uninstall failed.');
+    } finally {
+      endClawHubAction();
+    }
+  }, [beginClawHubAction, notifyClawHubChanged, endClawHubAction]);
+
   const handleClawHubToggleEnabled = useCallback(async (slug: string, enabled: boolean) => {
-    setClawHubLoading(true);
-    setClawHubError('');
+    if (!beginClawHubAction()) {
+      return;
+    }
     try {
       const response = await setClawHubSkillEnabled(slug, enabled);
       if (!response.ok || !response.skill) {
@@ -295,16 +488,26 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
           item.slug === slug ? { ...item, enabled: response.skill!.enabled } : item,
         ),
       );
+      notifyClawHubChanged();
     } catch (error) {
       setClawHubError(error instanceof Error ? error.message : 'Failed to update ClawHub skill state.');
     } finally {
-      setClawHubLoading(false);
+      endClawHubAction();
     }
-  }, []);
+  }, [beginClawHubAction, notifyClawHubChanged, endClawHubAction]);
 
   useEffect(() => {
     void refreshClawHubInstalled();
   }, [refreshClawHubInstalled]);
+
+  useEffect(() => {
+    void loadRuntimeConfigs();
+  }, [loadRuntimeConfigs]);
+
+  const toolInfoSkill = toolInfoSkillId
+    ? skills.find((skill) => skill.id === toolInfoSkillId) || null
+    : null;
+  const toolGuide = toolInfoSkill ? getToolGuide(toolInfoSkill, runtimeConfigs) : null;
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-20 max-w-6xl mx-auto">
@@ -320,7 +523,8 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
         <div className="relative z-10 flex gap-3">
           <button
             onClick={handleSyncRefresh}
-            className="px-6 py-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-zinc-700"
+            disabled={clawHubLoading || installLoading}
+            className="px-6 py-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             ↻ Sync
           </button>
@@ -347,12 +551,23 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
               Search
             </button>
           </div>
-          <input
-            value={clawHubQuery}
-            onChange={(event) => setClawHubQuery(event.target.value)}
-            placeholder="Search ClawHub skills..."
-            className="w-full p-3 bg-zinc-800 text-zinc-300 rounded-xl font-mono text-xs border border-zinc-700 focus:border-indigo-500 focus:outline-none mb-4"
-          />
+          <div className="relative mb-4">
+            <input
+              value={clawHubQuery}
+              onChange={(event) => setClawHubQuery(event.target.value)}
+              placeholder="Search ClawHub skills..."
+              className="w-full p-3 pr-10 bg-zinc-800 text-zinc-300 rounded-xl font-mono text-xs border border-zinc-700 focus:border-indigo-500 focus:outline-none"
+            />
+            <button
+              type="button"
+              aria-label="Clear ClawHub search"
+              onClick={handleClawHubSearchReset}
+              disabled={!clawHubQuery.trim()}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-400 text-xs font-black uppercase hover:text-white hover:border-zinc-500 disabled:opacity-40 disabled:hover:text-zinc-400 disabled:hover:border-zinc-700"
+            >
+              x
+            </button>
+          </div>
 
           <div className="space-y-2 max-h-60 overflow-auto pr-1">
             {clawHubSearchResults.map((item) => (
@@ -368,7 +583,8 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
                 </div>
                 <button
                   onClick={() => void handleClawHubInstall(item.slug)}
-                  className="text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300"
+                  disabled={clawHubLoading}
+                  className="text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Install
                 </button>
@@ -390,13 +606,15 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => void refreshClawHubInstalled()}
-                className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"
+                disabled={clawHubLoading}
+                className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Refresh
               </button>
               <button
                 onClick={() => void handleClawHubUpdate()}
-                className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-600/80 hover:bg-emerald-500"
+                disabled={clawHubLoading}
+                className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-600/80 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Update All
               </button>
@@ -427,19 +645,28 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => void handleClawHubToggleEnabled(item.slug, !item.enabled)}
+                    disabled={clawHubLoading}
                     className={`text-[10px] font-black uppercase tracking-widest ${
                       item.enabled
                         ? 'text-amber-400 hover:text-amber-300'
                         : 'text-indigo-400 hover:text-indigo-300'
-                    }`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {item.enabled ? 'Disable' : 'Enable'}
                   </button>
                   <button
                     onClick={() => void handleClawHubUpdate(item.slug)}
-                    className="text-[10px] font-black uppercase tracking-widest text-emerald-400 hover:text-emerald-300"
+                    disabled={clawHubLoading}
+                    className="text-[10px] font-black uppercase tracking-widest text-emerald-400 hover:text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Update
+                  </button>
+                  <button
+                    onClick={() => void handleClawHubUninstall(item.slug)}
+                    disabled={clawHubLoading}
+                    className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Uninstall
                   </button>
                 </div>
               </div>
@@ -453,9 +680,116 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
         </div>
       </section>
 
+      <section className="bg-zinc-900/60 border border-zinc-800 rounded-[2rem] p-6 shadow-lg">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h3 className="text-sm font-black uppercase tracking-widest text-white">
+            Tool Configuration
+          </h3>
+          <button
+            onClick={() => void loadRuntimeConfigs()}
+            disabled={runtimeConfigLoading}
+            className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Refresh
+          </button>
+        </div>
+        <p className="text-xs text-zinc-500 mb-4">
+          Configure required credentials once. Skills can only be activated when required fields are configured.
+        </p>
+
+        <div className="space-y-3">
+          {runtimeConfigs.map((config) => (
+            <div
+              key={config.id}
+              className="bg-zinc-800/60 border border-zinc-700 rounded-2xl p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
+            >
+              <div className="min-w-0">
+                <p className="text-xs text-white font-semibold">
+                  {config.label}
+                  {config.required ? (
+                    <span className="text-rose-400 ml-1" title="Required">
+                      *
+                    </span>
+                  ) : null}
+                </p>
+                <p className="text-[10px] text-zinc-500 mt-1">{config.description}</p>
+                <p className="text-[10px] text-zinc-600 mt-1 font-mono">
+                  Env fallback: {config.envVars.join(' / ')}
+                </p>
+              </div>
+
+              <div className="flex-1 lg:max-w-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <span
+                    className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${
+                      config.configured
+                        ? config.source === 'store'
+                          ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+                          : 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+                        : 'text-zinc-400 bg-zinc-700/30 border-zinc-600'
+                    }`}
+                  >
+                    {config.configured
+                      ? config.source === 'store'
+                        ? 'Saved'
+                        : 'Env Fallback'
+                      : 'Missing'}
+                  </span>
+                  {config.maskedValue && (
+                    <span className="text-[10px] text-zinc-500 font-mono truncate">
+                      {config.maskedValue}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type={config.kind === 'secret' ? 'password' : 'text'}
+                    value={runtimeConfigDrafts[config.id] || ''}
+                    onChange={(event) => handleRuntimeConfigDraft(config.id, event.target.value)}
+                    placeholder={
+                      config.kind === 'secret'
+                        ? `Enter ${config.label}`
+                        : 'Enter value (workspace-relative path)'
+                    }
+                    className="w-full p-2.5 bg-zinc-900 text-zinc-300 rounded-xl font-mono text-xs border border-zinc-700 focus:border-indigo-500 focus:outline-none"
+                  />
+                  <button
+                    onClick={() => void handleRuntimeConfigSave(config.id)}
+                    disabled={runtimeConfigSavingId === config.id || !String(runtimeConfigDrafts[config.id] || '').trim()}
+                    className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => void handleRuntimeConfigClear(config.id)}
+                    disabled={runtimeConfigSavingId === config.id || !config.configured}
+                    className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {clawHubError && (
         <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
           {clawHubError}
+        </p>
+      )}
+
+      {runtimeConfigError && (
+        <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+          {runtimeConfigError}
+        </p>
+      )}
+
+      {skillActionError && (
+        <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+          {skillActionError}
         </p>
       )}
 
@@ -463,6 +797,12 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {skills.map((skill) => {
           const sourceMeta = SOURCE_LABELS[skill.source] ?? SOURCE_LABELS['built-in'];
+          const requiredConfigs = runtimeConfigs.filter(
+            (config) => config.skillId === skill.id && config.required,
+          );
+          const missingRequiredConfigs = requiredConfigs.filter((config) => !config.configured);
+          const setupRequired = missingRequiredConfigs.length > 0;
+          const hints = buildSkillConfigHints(skill.id, runtimeConfigs);
           return (
             <div
               key={skill.id}
@@ -473,10 +813,16 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
                   className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border ${
                     skill.installed
                       ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                      : setupRequired
+                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
                       : 'bg-zinc-800 text-zinc-500 border-zinc-700'
                   }`}
                 >
-                  {skill.installed ? 'Runtime: Active' : 'Available'}
+                  {skill.installed
+                    ? 'Runtime: Active'
+                    : setupRequired
+                      ? 'Setup Required'
+                      : 'Available'}
                 </span>
                 <div className="flex items-center gap-2">
                   <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border ${sourceMeta.color}`}>
@@ -486,13 +832,36 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
                 </div>
               </div>
 
-              <h3 className="font-bold text-white mb-2 text-lg group-hover:text-indigo-400 transition-colors">
-                {skill.name}
-              </h3>
+              <div className="flex items-start gap-2 mb-2">
+                <h3 className="font-bold text-white text-lg group-hover:text-indigo-400 transition-colors leading-tight">
+                  {skill.name}
+                </h3>
+                <button
+                  type="button"
+                  aria-label={`Open info for ${skill.name}`}
+                  onClick={() => setToolInfoSkillId(skill.id)}
+                  className="w-5 h-5 rounded-full border border-zinc-700 text-zinc-300 text-[10px] font-black hover:text-white hover:border-zinc-500 transition-colors shrink-0 mt-0.5"
+                  title={`Info: ${skill.name}`}
+                >
+                  i
+                </button>
+              </div>
               <p className="text-xs text-zinc-500 line-clamp-3 mb-4 flex-1">{skill.description}</p>
+              {hints.requiredHint && (
+                <p className="text-[10px] text-amber-300 mb-1 line-clamp-2">{hints.requiredHint}</p>
+              )}
+              {hints.optionalHint && (
+                <p className="text-[10px] text-zinc-400 mb-2 line-clamp-2">{hints.optionalHint}</p>
+              )}
 
               {skill.sourceUrl && (
                 <p className="text-[9px] text-zinc-600 font-mono truncate mb-3">{skill.sourceUrl}</p>
+              )}
+
+              {setupRequired && (
+                <p className="text-[10px] text-amber-400 mb-3 line-clamp-2">
+                  Missing: {missingRequiredConfigs.map((config) => config.label).join(', ')}
+                </p>
               )}
 
               <div className="mt-auto pt-4 border-t border-zinc-800/50 flex items-center justify-between">
@@ -510,11 +879,12 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
                   )}
                   <button
                     onClick={() => handleToggleInstall(skill.id)}
+                    disabled={!skill.installed && setupRequired}
                     className={`text-[10px] font-black uppercase tracking-widest transition-all ${
                       skill.installed
                         ? 'text-rose-500 hover:text-rose-400'
                         : 'text-indigo-500 hover:text-indigo-400'
-                    }`}
+                    } disabled:text-zinc-500 disabled:cursor-not-allowed`}
                   >
                     {skill.installed ? 'Deactivate' : 'Activate'}
                   </button>
@@ -524,6 +894,79 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
           );
         })}
       </div>
+
+      {/* Tool Info Modal */}
+      {toolGuide && toolInfoSkill && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setToolInfoSkillId(null)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[85vh] overflow-auto"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-black text-white uppercase tracking-tight">
+                  {toolGuide.title}
+                </h3>
+                <p className="text-[11px] text-zinc-500 font-mono mt-1">
+                  Function: {toolInfoSkill.functionName}
+                </p>
+              </div>
+              <button
+                onClick={() => setToolInfoSkillId(null)}
+                className="text-zinc-500 hover:text-white text-xl"
+                aria-label="Close tool info"
+              >
+                ✕
+              </button>
+            </div>
+
+            <section className="mb-5">
+              <h4 className="text-[11px] font-black uppercase tracking-widest text-zinc-300 mb-2">
+                What It Is
+              </h4>
+              <p className="text-sm text-zinc-400 leading-relaxed">{toolGuide.whatItIs}</p>
+            </section>
+
+            <section className="mb-5">
+              <h4 className="text-[11px] font-black uppercase tracking-widest text-zinc-300 mb-2">
+                What It Can Do
+              </h4>
+              <ul className="list-disc pl-5 space-y-1">
+                {toolGuide.whatItCanDo.map((item) => (
+                  <li key={item} className="text-sm text-zinc-400">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <section>
+              <h4 className="text-[11px] font-black uppercase tracking-widest text-zinc-300 mb-2">
+                How To Use
+              </h4>
+              <ul className="list-disc pl-5 space-y-1">
+                {toolGuide.howToUse.map((item) => (
+                  <li key={item} className="text-sm text-zinc-400">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <div className="flex justify-end mt-8">
+              <button
+                onClick={() => setToolInfoSkillId(null)}
+                className="px-5 py-2.5 bg-zinc-800 text-zinc-300 rounded-xl text-xs font-bold uppercase hover:bg-zinc-700 transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Install Modal */}
       {showInstallModal && (

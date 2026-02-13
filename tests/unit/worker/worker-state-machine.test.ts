@@ -3,7 +3,7 @@ import {
   canTransition,
   isActiveStatus,
   KANBAN_COLUMNS,
-} from '@/src/server/worker/workerStateMachine';
+} from '../../../src/server/worker/workerStateMachine';
 
 describe('WorkerStateMachine', () => {
   describe('isActiveStatus', () => {

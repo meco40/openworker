@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
 import { getClawHubService } from '../../../../src/server/clawhub/clawhubService';
+import { isValidClawHubSlug, toClawHubHttpStatus } from '../../../../src/server/clawhub/errors';
 
 export const runtime = 'nodejs';
 
@@ -23,6 +24,9 @@ export async function POST(request: Request) {
     if (!slug) {
       return NextResponse.json({ ok: false, error: 'Install requires non-empty "slug".' }, { status: 400 });
     }
+    if (!isValidClawHubSlug(slug)) {
+      return NextResponse.json({ ok: false, error: `Invalid ClawHub skill slug: ${slug}` }, { status: 400 });
+    }
 
     const service = getClawHubService();
     const result = await service.install({
@@ -33,6 +37,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'ClawHub install failed';
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    const status = toClawHubHttpStatus(error, 500);
+    return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

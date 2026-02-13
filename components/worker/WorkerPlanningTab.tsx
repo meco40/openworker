@@ -26,7 +26,7 @@ interface WorkerPlanningTabProps {
   taskStatus: string;
 }
 
-const WorkerPlanningTab: React.FC<WorkerPlanningTabProps> = ({ taskId, taskStatus }) => {
+const WorkerPlanningTab: React.FC<WorkerPlanningTabProps> = ({ taskId, taskStatus: _taskStatus }) => {
   const [messages, setMessages] = useState<PlanningMessage[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<PlanningQuestion | null>(null);
   const [specification, setSpecification] = useState<PlanningSpecification | null>(null);

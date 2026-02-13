@@ -53,7 +53,7 @@ function toEntry(row: Record<string, unknown>): TokenUsageEntry {
 // ── Repository ───────────────────────────────────────────────────
 
 export class TokenUsageRepository {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.STATS_DB_PATH || '.local/stats.db') {
     if (dbPath === ':memory:') {

@@ -1,9 +1,18 @@
 import { ChannelType, View } from '../../../types';
+import { isAllowedUiDefaultView } from '../../shared/config/uiSchema';
 import type { AppShellState } from './types';
 
-export function buildInitialShellState(): AppShellState {
+export function resolveViewFromConfig(value: unknown): View {
+  const candidate = typeof value === 'string' ? value.trim() : '';
+  if (candidate && isAllowedUiDefaultView(candidate)) {
+    return candidate as View;
+  }
+  return View.DASHBOARD;
+}
+
+export function buildInitialShellState(initialView: View = View.DASHBOARD): AppShellState {
   return {
-    currentView: View.DASHBOARD,
+    currentView: initialView,
     coupledChannels: {
       whatsapp: { type: ChannelType.WHATSAPP, status: 'idle' },
       telegram: { type: ChannelType.TELEGRAM, status: 'idle' },

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
 import { getClawHubService } from '../../../../src/server/clawhub/clawhubService';
+import { isValidClawHubSlug, toClawHubHttpStatus } from '../../../../src/server/clawhub/errors';
 
 export const runtime = 'nodejs';
 
@@ -29,6 +30,9 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    if (!all && !isValidClawHubSlug(slug)) {
+      return NextResponse.json({ ok: false, error: `Invalid ClawHub skill slug: ${slug}` }, { status: 400 });
+    }
     if (all && typeof body.version === 'string' && body.version.trim()) {
       return NextResponse.json(
         { ok: false, error: 'Update with "all=true" cannot specify "version".' },
@@ -46,6 +50,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'ClawHub update failed';
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    const status = toClawHubHttpStatus(error, 500);
+    return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

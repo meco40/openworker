@@ -13,7 +13,7 @@ export interface ChannelCredential {
 }
 
 export class CredentialStore {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.MESSAGES_DB_PATH || '.local/messages.db') {
     if (dbPath === ':memory:') {

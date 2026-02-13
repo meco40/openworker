@@ -1,8 +1,13 @@
 import { GoogleGenAI } from '@google/genai';
+import { getRuntimeConfigValue } from '../runtimeConfig';
 
 function getServerGeminiKey(): string {
-  const key = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
-  if (!key) throw new Error('Missing GEMINI_API_KEY on server.');
+  const key = getRuntimeConfigValue('vision.gemini_api_key') || '';
+  if (!key) {
+    throw new Error(
+      'Vision API key missing. Configure "Vision (Gemini) API Key" in Skill Registry > Tool Configuration or set GEMINI_API_KEY.',
+    );
+  }
   return key;
 }
 
@@ -29,7 +34,9 @@ export async function visionAnalyzeHandler(args: Record<string, unknown>) {
     throw new Error('vision_analyze requires imageBase64 or imageUrl.');
   }
 
-  const ai = new GoogleGenAI({ apiKey: getServerGeminiKey() });
+  const apiKey = getServerGeminiKey();
+
+  const ai = new GoogleGenAI({ apiKey });
   const result = await ai.models.generateContent({
     model: 'gemini-2.5-flash-latest',
     contents: [

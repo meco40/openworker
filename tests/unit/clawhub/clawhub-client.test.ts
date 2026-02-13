@@ -5,6 +5,7 @@ import {
   listInstalledClawHubSkills,
   searchClawHubSkills,
   setClawHubSkillEnabled,
+  uninstallClawHubSkill,
 } from '../../../skills/clawhub-client';
 
 describe('clawhub-client', () => {
@@ -87,6 +88,25 @@ describe('clawhub-client', () => {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled: true }),
+    });
+  });
+
+  it('calls uninstall endpoint', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          skills: [],
+          warnings: [],
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+
+    await uninstallClawHubSkill('calendar');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/clawhub/calendar', {
+      method: 'DELETE',
     });
   });
 });

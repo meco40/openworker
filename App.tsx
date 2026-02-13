@@ -36,6 +36,7 @@ import { toMessage } from './src/modules/chat/services/routeMessage';
 import AppShellHeader from './src/modules/app-shell/components/AppShellHeader';
 import AppShellViewContent from './src/modules/app-shell/components/AppShellViewContent';
 import { usePersona } from './src/modules/personas/PersonaContext';
+import { resolveDefaultViewFromConfig } from './src/server/config/uiRuntimeConfig';
 
 const TerminalWizard = dynamic(() => import('./components/TerminalWizard'));
 const LiveCanvas = dynamic(() => import('./components/LiveCanvas').then((mod) => mod.LiveCanvas), {
@@ -83,6 +84,29 @@ const App: React.FC = () => {
     const fallbackChannels = buildInitialShellState().coupledChannels;
     return loadCoupledChannelsFromStorage(getClientStorage(), fallbackChannels);
   });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadConfiguredDefaultView = async () => {
+      try {
+        const response = await fetch('/api/config', { cache: 'no-store' });
+        const payload = (await response.json()) as { ok?: boolean; config?: unknown };
+        if (!payload.ok || cancelled) {
+          return;
+        }
+        const configuredView = resolveDefaultViewFromConfig(payload.config);
+        setCurrentView((previous) => (previous === View.DASHBOARD ? configuredView : previous));
+      } catch {
+        // keep dashboard fallback when config cannot be loaded in client
+      }
+    };
+
+    void loadConfiguredDefaultView();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const {
     conversations,

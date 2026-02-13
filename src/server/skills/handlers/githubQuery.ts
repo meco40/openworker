@@ -1,3 +1,5 @@
+import { getRuntimeConfigValue } from '../runtimeConfig';
+
 interface GithubResponseItem {
   id?: number;
   number?: number;
@@ -29,8 +31,9 @@ function getGithubHeaders(): Record<string, string> {
     Accept: 'application/vnd.github+json',
     'User-Agent': 'openclaw-gateway',
   };
-  if (process.env.GITHUB_TOKEN) {
-    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  const token = getRuntimeConfigValue('github-manager.github_token');
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
   return headers;
 }

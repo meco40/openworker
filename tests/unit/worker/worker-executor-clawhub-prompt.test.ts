@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ChannelType } from '../../../types';
 
 const dispatchWithFallbackMock = vi.fn().mockResolvedValue({
   ok: true,
@@ -33,7 +34,7 @@ describe('worker executor ClawHub prompt hydration', () => {
       objective: 'Implement feature',
       status: 'executing',
       priority: 'normal',
-      originPlatform: 'chat',
+      originPlatform: ChannelType.WEBCHAT,
       originConversation: 'conv-1',
       originExternalChat: null,
       currentStep: 1,
@@ -44,6 +45,9 @@ describe('worker executor ClawHub prompt hydration', () => {
       lastCheckpoint: null,
       workspacePath: null,
       workspaceType: 'general',
+      assignedPersonaId: null,
+      planningMessages: null,
+      planningComplete: false,
       createdAt: new Date().toISOString(),
       startedAt: null,
       completedAt: null,

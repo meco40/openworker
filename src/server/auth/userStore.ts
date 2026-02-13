@@ -49,7 +49,7 @@ function verifyPasswordHash(password: string, storedHash: string): { ok: boolean
 }
 
 export class AuthUserStore {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.AUTH_DB_PATH || '.local/auth.db') {
     const fullPath = path.resolve(dbPath);

@@ -20,7 +20,7 @@ const LEASE_KEY = 'scheduler-singleton';
 type SqlParam = string | number | null;
 
 export class SqliteAutomationRepository implements AutomationRepository {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.AUTOMATION_DB_PATH || '.local/automation.db') {
     if (dbPath === ':memory:') {

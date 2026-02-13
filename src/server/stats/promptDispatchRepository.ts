@@ -168,7 +168,7 @@ function buildWhere(filter: PromptDispatchFilter): {
 }
 
 export class PromptDispatchRepository {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
   private lastPruneAt = 0;
 
   constructor(dbPath = process.env.STATS_DB_PATH || '.local/stats.db') {

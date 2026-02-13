@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { parseClawHubSearchOutput } from './searchParser';
+import { ClawHubInputError, ClawHubNotFoundError, isValidClawHubSlug } from './errors';
 import type {
   ClawHubCliLike,
   ClawHubSearchParseResult,
@@ -59,6 +60,41 @@ function readJsonFile(filePath: string): Record<string, unknown> | null {
   }
 }
 
+function writeJsonFile(filePath: string, value: unknown): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2), 'utf8');
+}
+
+function isSafeSkillSlug(value: string): boolean {
+  return /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(value);
+}
+
+function normalizeSkillSlugOrThrow(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new ClawHubInputError('Skill slug is required.');
+  }
+  if (!isValidClawHubSlug(normalized)) {
+    throw new ClawHubInputError(`Invalid ClawHub skill slug: ${normalized}`);
+  }
+  return normalized;
+}
+
+function resolveSkillPath(workspaceDir: string, slug: string): string {
+  const skillsRoot = path.resolve(workspaceDir, 'skills');
+  const skillPath = path.resolve(skillsRoot, slug);
+  const relativePath = path.relative(skillsRoot, skillPath);
+  if (
+    relativePath.startsWith('..') ||
+    path.isAbsolute(relativePath) ||
+    relativePath.includes(`..${path.sep}`) ||
+    relativePath === '..'
+  ) {
+    throw new ClawHubInputError(`Invalid ClawHub skill slug: ${slug}`);
+  }
+  return skillPath;
+}
+
 function parseJsonObject<T>(raw: string): T | null {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -97,6 +133,7 @@ export class ClawHubService {
   }
 
   async install(input: ClawHubInstallInput): Promise<{ skills: ClawHubSkillRow[]; warnings: string[] }> {
+    const normalizedSlug = normalizeSkillSlugOrThrow(input.slug);
     const args = ['--force'];
     if (!input.force) {
       args.pop();
@@ -104,7 +141,7 @@ export class ClawHubService {
     if (input.version?.trim()) {
       args.push('--version', input.version.trim());
     }
-    args.push(input.slug.trim());
+    args.push(normalizedSlug);
     await this.cli.run('install', args);
     const skills = await this.syncInstalledFromLockfile();
     return { skills, warnings: [] };
@@ -114,8 +151,8 @@ export class ClawHubService {
     const args: string[] = [];
     if (input.all) {
       args.push('--all');
-    } else if (input.slug?.trim()) {
-      args.push(input.slug.trim());
+    } else {
+      args.push(normalizeSkillSlugOrThrow(input.slug || ''));
     }
     if (input.version?.trim()) {
       args.push('--version', input.version.trim());
@@ -129,15 +166,66 @@ export class ClawHubService {
     return { skills, warnings: [] };
   }
 
-  async syncInstalledFromLockfile(): Promise<ClawHubSkillRow[]> {
+  async uninstall(slug: string): Promise<{ skills: ClawHubSkillRow[]; warnings: string[] }> {
+    const normalizedSlug = normalizeSkillSlugOrThrow(slug);
+
     const lockPath = path.join(this.workspaceDir, '.clawhub', 'lock.json');
     const rawLock = readJsonFile(lockPath) as ClawHubLockFile | null;
     const lockSkills = rawLock?.skills || {};
+    const hadLockEntry = Boolean(lockSkills[normalizedSlug]);
+    const skillPath = resolveSkillPath(this.workspaceDir, normalizedSlug);
+    const hadSkillDirectory = fs.existsSync(skillPath);
+    const hadRepositoryRow = Boolean(this.repository.getSkill(normalizedSlug));
 
+    if (!hadLockEntry && !hadSkillDirectory && !hadRepositoryRow) {
+      throw new ClawHubNotFoundError(`ClawHub skill not found: ${normalizedSlug}`);
+    }
+
+    if (hadLockEntry) {
+      delete lockSkills[normalizedSlug];
+      writeJsonFile(lockPath, {
+        version: 1,
+        skills: lockSkills,
+      });
+    }
+
+    if (hadSkillDirectory) {
+      fs.rmSync(skillPath, { recursive: true, force: true });
+    }
+    this.repository.deleteSkill(normalizedSlug);
+
+    const skills = await this.syncInstalledFromLockfile();
+    return { skills, warnings: [] };
+  }
+
+  async syncInstalledFromLockfile(): Promise<ClawHubSkillRow[]> {
+    const lockPath = path.join(this.workspaceDir, '.clawhub', 'lock.json');
+    if (!fs.existsSync(lockPath)) {
+      return this.repository.listSkills();
+    }
+
+    const rawLock = readJsonFile(lockPath) as ClawHubLockFile | null;
+    if (!rawLock || typeof rawLock !== 'object') {
+      return this.repository.listSkills();
+    }
+
+    const skillsValue = rawLock.skills;
+    if (
+      skillsValue === undefined ||
+      !skillsValue ||
+      typeof skillsValue !== 'object' ||
+      Array.isArray(skillsValue)
+    ) {
+      return this.repository.listSkills();
+    }
+    const lockSkills: NonNullable<ClawHubLockFile['skills']> = skillsValue;
+
+    let invalidSlugCount = 0;
     const keptSlugs: string[] = [];
     for (const [slug, entry] of Object.entries(lockSkills)) {
       const safeSlug = slug.trim();
-      if (!safeSlug) {
+      if (!safeSlug || !isSafeSkillSlug(safeSlug)) {
+        invalidSlugCount += 1;
         continue;
       }
       keptSlugs.push(safeSlug);
@@ -157,19 +245,20 @@ export class ClawHubService {
       this.repository.upsertSkill(input);
     }
 
+    if (invalidSlugCount > 0 && keptSlugs.length === 0) {
+      return this.repository.listSkills();
+    }
+
     this.repository.deleteNotIn(keptSlugs);
     return this.repository.listSkills();
   }
 
   async setEnabled(slug: string, enabled: boolean): Promise<ClawHubSkillRow> {
-    const normalized = slug.trim();
-    if (!normalized) {
-      throw new Error('Skill slug is required.');
-    }
+    const normalized = normalizeSkillSlugOrThrow(slug);
 
     const updated = this.repository.setEnabled(normalized, enabled);
     if (!updated) {
-      throw new Error(`ClawHub skill not found: ${normalized}`);
+      throw new ClawHubNotFoundError(`ClawHub skill not found: ${normalized}`);
     }
     return this.repository.getSkill(normalized)!;
   }

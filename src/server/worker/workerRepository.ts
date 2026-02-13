@@ -23,7 +23,7 @@ import { toApprovalRule, toArtifact, toStep, toTask, toActivity } from './worker
 // ─── SQLite Implementation ───────────────────────────────────
 
 export class SqliteWorkerRepository implements WorkerRepository {
-  private readonly db: ReturnType<typeof Database>;
+  private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.WORKER_DB_PATH || '.local/worker.db') {
     if (dbPath === ':memory:') {

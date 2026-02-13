@@ -146,7 +146,14 @@ const Dashboard: React.FC<DashboardProps> = ({ state, metricsState }) => {
               <RadarChart cx="50%" cy="50%" outerRadius="70%" data={personalityStats}>
                 <PolarGrid stroke="#27272a" />
                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 9, fontWeight: 'bold' }} />
-                <Radar name="Evolution" dataKey="A" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.4} />
+                <Radar
+                  name="Evolution"
+                  dataKey="A"
+                  stroke="#8b5cf6"
+                  fill="#8b5cf6"
+                  fillOpacity={0.4}
+                  isAnimationActive={false}
+                />
               </RadarChart>
             </ResponsiveContainer>
           </div>
