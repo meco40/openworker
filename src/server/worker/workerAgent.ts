@@ -197,6 +197,7 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
       const failedNode = Object.entries(runResult.nodes).find(([, state]) => state.status === 'failed');
       const failReason =
         failedNode?.[1].error || `Orchestra run ${run.id} failed (flow ${publishedFlow.id})`;
+      repo.updateRunStatus(run.id, { status: 'failed', errorMessage: failReason });
       repo.updateStatus(task.id, 'failed', { error: failReason });
       repo.addActivity({
         taskId: task.id,
@@ -208,6 +209,7 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
       return;
     }
 
+    repo.updateRunStatus(run.id, { status: 'completed' });
     const summary = `✅ Orchestra-Task "${task.title}" abgeschlossen (${publishedFlow.name} v${publishedFlow.version}).`;
     repo.updateStatus(task.id, 'completed', { summary });
     repo.addActivity({

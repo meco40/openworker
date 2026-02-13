@@ -31,6 +31,7 @@ export async function GET() {
     const pendingWorkerTasks = workerRepository
       .listTasks()
       .filter((task) => OPEN_STATUSES.has(task.status)).length;
+    const orchestraMetrics = workerRepository.getOrchestraMetrics();
 
     const activeWsSessions = getClientRegistry().connectionCount;
 
@@ -74,6 +75,7 @@ export async function GET() {
         activeWsSessions,
         tokensToday,
         vectorNodeCount,
+        orchestra: orchestraMetrics,
         automation: automationMetrics,
         rooms: roomMetrics,
         generatedAt: new Date().toISOString(),

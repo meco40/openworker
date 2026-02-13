@@ -266,10 +266,19 @@ export interface WorkerRepository {
     flowPublishedId: string;
     status?: WorkerRunRecord['status'];
   }): WorkerRunRecord;
+  updateRunStatus(
+    runId: string,
+    updates: { status: WorkerRunRecord['status']; errorMessage?: string | null },
+  ): WorkerRunRecord | null;
   upsertRunNodeStatus(
     runId: string,
     nodeId: string,
     updates: { personaId?: string | null; status: WorkerRunNodeRecord['status']; errorMessage?: string | null; outputSummary?: string | null },
   ): WorkerRunNodeRecord;
   listRunNodes(runId: string): WorkerRunNodeRecord[];
+  getOrchestraMetrics(): {
+    runCount: number;
+    failFastAbortCount: number;
+    activeSubagentSessions: number;
+  };
 }

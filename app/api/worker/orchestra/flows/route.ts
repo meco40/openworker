@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
 import { getWorkerRepository } from '../../../../../src/server/worker/workerRepository';
+import {
+  isWorkerOrchestraBuilderWriteEnabled,
+  isWorkerOrchestraEnabled,
+} from '../../../../../src/server/worker/orchestraFlags';
 import { getOrchestraService } from '../../../../../src/server/worker/orchestraService';
+import { canEditOrchestra, enforceOrchestraGraphLimits, normalizeWorkerRole } from '../../../../../src/server/worker/orchestraPolicy';
 import type { WorkspaceType } from '../../../../../src/server/worker/workspaceManager';
 
 export const runtime = 'nodejs';
@@ -25,6 +30,10 @@ function normalizeGraph(graph: unknown): Record<string, unknown> {
 
 export async function GET(request: Request) {
   try {
+    if (!isWorkerOrchestraEnabled()) {
+      return NextResponse.json({ ok: false, error: 'Orchestra disabled' }, { status: 404 });
+    }
+
     const userContext = await resolveRequestUserContext();
     if (!userContext) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
@@ -45,9 +54,21 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    if (!isWorkerOrchestraEnabled()) {
+      return NextResponse.json({ ok: false, error: 'Orchestra disabled' }, { status: 404 });
+    }
+    if (!isWorkerOrchestraBuilderWriteEnabled()) {
+      return NextResponse.json({ ok: false, error: 'Orchestra builder write disabled' }, { status: 403 });
+    }
+
     const userContext = await resolveRequestUserContext();
     if (!userContext) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const workerRole = normalizeWorkerRole(request.headers.get('x-worker-role'));
+    if (!canEditOrchestra(workerRole)) {
+      return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
     }
 
     const body = (await request.json()) as {
@@ -73,6 +94,10 @@ export async function POST(request: Request) {
     const validation = orchestraService.validateGraphForUser(userContext.userId, graph);
     if (!validation.ok) {
       return NextResponse.json({ ok: false, error: validation.error }, { status: 400 });
+    }
+    const limitCheck = enforceOrchestraGraphLimits(validation.graph);
+    if (!limitCheck.ok) {
+      return NextResponse.json({ ok: false, error: limitCheck.error }, { status: 400 });
     }
 
     const flow = orchestraService.createDraft({

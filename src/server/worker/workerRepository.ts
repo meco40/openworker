@@ -1030,6 +1030,29 @@ export class SqliteWorkerRepository implements WorkerRepository {
     return this.toRun(row);
   }
 
+  updateRunStatus(
+    runId: string,
+    updates: { status: WorkerRunRecord['status']; errorMessage?: string | null },
+  ): WorkerRunRecord | null {
+    const now = new Date().toISOString();
+    const result = this.db
+      .prepare(
+        `UPDATE worker_runs
+         SET status = ?,
+             error_message = COALESCE(?, error_message),
+             completed_at = CASE WHEN ? IN ('completed', 'failed', 'cancelled') THEN ? ELSE completed_at END
+         WHERE id = ?`,
+      )
+      .run(updates.status, updates.errorMessage || null, updates.status, now, runId);
+    if (result.changes === 0) return null;
+
+    const row = this.db.prepare('SELECT * FROM worker_runs WHERE id = ?').get(runId) as Record<
+      string,
+      unknown
+    > | null;
+    return row ? this.toRun(row) : null;
+  }
+
   upsertRunNodeStatus(
     runId: string,
     nodeId: string,
@@ -1101,6 +1124,30 @@ export class SqliteWorkerRepository implements WorkerRepository {
       .prepare('SELECT * FROM worker_run_nodes WHERE run_id = ? ORDER BY started_at ASC, node_id ASC')
       .all(runId) as Array<Record<string, unknown>>;
     return rows.map((row) => this.toRunNode(row));
+  }
+
+  getOrchestraMetrics(): {
+    runCount: number;
+    failFastAbortCount: number;
+    activeSubagentSessions: number;
+  } {
+    const runCountRow = this.db
+      .prepare('SELECT COUNT(*) AS count FROM worker_runs')
+      .get() as { count: number };
+    const failedRunsRow = this.db
+      .prepare("SELECT COUNT(*) AS count FROM worker_runs WHERE status = 'failed'")
+      .get() as { count: number };
+    const activeSubagentsRow = this.db
+      .prepare(
+        "SELECT COUNT(*) AS count FROM worker_subagent_sessions WHERE status IN ('started', 'running')",
+      )
+      .get() as { count: number };
+
+    return {
+      runCount: Number(runCountRow.count || 0),
+      failFastAbortCount: Number(failedRunsRow.count || 0),
+      activeSubagentSessions: Number(activeSubagentsRow.count || 0),
+    };
   }
 
   // ─── Approval Rules ────────────────────────────────────────

@@ -3,6 +3,10 @@ import { resolveRequestUserContext } from '../../../../../src/server/auth/userCo
 import { getWorkerRepository } from '../../../../../src/server/worker/workerRepository';
 import type { OrchestraFlowGraph } from '../../../../../src/server/worker/orchestraGraph';
 import {
+  isWorkerOrchestraEnabled,
+  isWorkerWorkflowTabEnabled,
+} from '../../../../../src/server/worker/orchestraFlags';
+import {
   buildNodeStatusMap,
   buildWorkerWorkflowPayload,
 } from '../../../../../src/server/worker/orchestraWorkflow';
@@ -11,6 +15,10 @@ export const runtime = 'nodejs';
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    if (!isWorkerOrchestraEnabled() || !isWorkerWorkflowTabEnabled()) {
+      return NextResponse.json({ ok: false, error: 'Workflow disabled' }, { status: 404 });
+    }
+
     const userContext = await resolveRequestUserContext();
     if (!userContext) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
