@@ -5,6 +5,7 @@
 import { getModelHubService, getModelHubEncryptionKey } from '../model-hub/runtime';
 import { getWorkerRepository } from './workerRepository';
 import { getWorkspaceManager } from './workspaceManager';
+import { getClawHubService } from '../clawhub/clawhubService';
 import { shellExecuteHandler } from '../skills/handlers/shellExecute.ts';
 import { fileReadHandler } from '../skills/handlers/fileRead.ts';
 import { browserSnapshotHandler } from '../skills/handlers/browserSnapshot.ts';
@@ -178,11 +179,20 @@ export async function executeStep(
   const service = getModelHubService();
   const encryptionKey = getModelHubEncryptionKey();
   const dispatcher = createToolDispatcher(task.id);
+  let clawHubPromptBlock = '';
+  try {
+    clawHubPromptBlock = await getClawHubService().getPromptBlock();
+  } catch {
+    clawHubPromptBlock = '';
+  }
 
-  const systemPrompt = EXECUTOR_SYSTEM.replace('{title}', task.title)
+  const baseSystemPrompt = EXECUTOR_SYSTEM.replace('{title}', task.title)
     .replace('{objective}', task.objective)
     .replace('{workspaceType}', task.workspaceType || 'general')
     .replace('{step}', step.description);
+  const systemPrompt = clawHubPromptBlock.trim()
+    ? `${baseSystemPrompt}\n\n---\n\n${clawHubPromptBlock.trim()}`
+    : baseSystemPrompt;
 
   // Messages use GatewayMessage-compatible shape (role: system|user|assistant)
   const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [

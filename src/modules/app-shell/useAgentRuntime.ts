@@ -9,6 +9,7 @@ import { CORE_MEMORY_TOOLS, handleCoreMemoryCall } from '../../../core/memory';
 import { createAgentPlaceholder } from '../chat/services/handleAgentResponse';
 import { parseTaskScheduleArgs } from './taskScheduling';
 import { usePersona } from '../personas/PersonaContext';
+import { buildSystemInstruction } from './systemInstruction';
 
 interface UseAgentRuntimeArgs {
   skills: Skill[];
@@ -26,28 +27,46 @@ export function useAgentRuntime({
   updateMemoryDisplay,
 }: UseAgentRuntimeArgs) {
   const [isAgentTyping, setIsAgentTyping] = useState(false);
+  const [clawHubPromptBlock, setClawHubPromptBlock] = useState('');
   const chatRef = useRef<GatewayChat | null>(null);
   const { activePersona } = usePersona();
+
+  useEffect(() => {
+    let disposed = false;
+
+    const loadClawHubPrompt = async () => {
+      try {
+        const response = await fetch('/api/clawhub/prompt');
+        const data = (await response.json()) as { ok?: boolean; prompt?: string };
+        if (disposed) return;
+        if (data.ok && typeof data.prompt === 'string') {
+          setClawHubPromptBlock(data.prompt);
+          return;
+        }
+      } catch {
+        // ignore prompt loading errors; ClawHub prompt is optional context
+      }
+      if (!disposed) {
+        setClawHubPromptBlock('');
+      }
+    };
+
+    void loadClawHubPrompt();
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   useEffect(() => {
     const optionalTools = mapSkillsToTools(skills, 'gemini');
     const allTools = [...CORE_MEMORY_TOOLS, ...optionalTools];
 
     // Build system instruction from active persona or fall back to default
-    let instruction = getSystemInstruction();
-    if (activePersona) {
-      const personaFiles = activePersona.files || {};
-      const instructionParts: string[] = [];
-      for (const fname of ['SOUL.md', 'AGENTS.md', 'USER.md'] as const) {
-        const content = personaFiles[fname];
-        if (content?.trim()) {
-          instructionParts.push(content.trim());
-        }
-      }
-      if (instructionParts.length > 0) {
-        instruction = instructionParts.join('\n\n---\n\n').slice(0, 4000);
-      }
-    }
+    const instruction = buildSystemInstruction({
+      baseInstruction: getSystemInstruction(),
+      personaFiles: activePersona?.files || null,
+      clawHubPromptBlock,
+    });
 
     chatRef.current = ai.chats.create({
       config: {
@@ -55,7 +74,7 @@ export function useAgentRuntime({
         tools: allTools,
       },
     });
-  }, [skills, activePersona]);
+  }, [skills, activePersona, clawHubPromptBlock]);
 
   const handleAgentResponse = useCallback(
     async (userContent: string, platform: ChannelType) => {

@@ -187,12 +187,22 @@ export class RoomOrchestrator {
         const personaRepo = getPersonaRepository();
         const systemInstruction = personaRepo.getPersonaSystemInstruction(selected.personaId);
         const persona = personaRepo.getPersona(selected.personaId);
+        let clawHubPromptBlock = '';
+        try {
+          const { getClawHubService } = await import('../clawhub/clawhubService');
+          clawHubPromptBlock = await getClawHubService().getPromptBlock();
+        } catch {
+          clawHubPromptBlock = '';
+        }
 
         const systemParts = buildSystemPromptParts({
           systemInstruction,
           persona: persona ? { name: persona.name, vibe: persona.vibe } : null,
           roomDescription: room.description ?? null,
         });
+        if (clawHubPromptBlock.trim()) {
+          systemParts.push(clawHubPromptBlock.trim());
+        }
 
         // 2. Context summary (if available)
         const previousContext = this.repository.getPersonaContext(room.id, selected.personaId);
