@@ -40,6 +40,8 @@ export interface WorkerTaskRecord {
   lastCheckpoint: string | null;
   workspacePath: string | null;
   workspaceType: WorkspaceType;
+  flowPublishedId?: string | null;
+  currentRunId?: string | null;
   assignedPersonaId: string | null;
   planningMessages: string | null;
   planningComplete: boolean;

@@ -73,6 +73,16 @@ export class SqliteWorkerRepository implements WorkerRepository {
     } catch {
       /* column already exists */
     }
+    try {
+      this.db.exec(`ALTER TABLE worker_tasks ADD COLUMN flow_published_id TEXT`);
+    } catch {
+      /* column already exists */
+    }
+    try {
+      this.db.exec(`ALTER TABLE worker_tasks ADD COLUMN current_run_id TEXT`);
+    } catch {
+      /* column already exists */
+    }
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS worker_steps (
@@ -140,6 +150,126 @@ export class SqliteWorkerRepository implements WorkerRepository {
         created_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_activities_task ON worker_task_activities(task_id, created_at);
+    `);
+
+    // Orchestra V1: flow templates, drafts, published snapshots, runs, run nodes.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS worker_flow_templates (
+        id             TEXT PRIMARY KEY,
+        user_id        TEXT NOT NULL,
+        workspace_type TEXT NOT NULL,
+        name           TEXT NOT NULL,
+        description    TEXT,
+        template_json  TEXT NOT NULL,
+        created_at     TEXT NOT NULL,
+        updated_at     TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_flow_templates_user_workspace
+        ON worker_flow_templates(user_id, workspace_type);
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS worker_flow_drafts (
+        id             TEXT PRIMARY KEY,
+        template_id    TEXT,
+        user_id        TEXT NOT NULL,
+        workspace_type TEXT NOT NULL,
+        name           TEXT NOT NULL,
+        graph_json     TEXT NOT NULL,
+        status         TEXT NOT NULL DEFAULT 'draft',
+        created_at     TEXT NOT NULL,
+        updated_at     TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_flow_drafts_user_workspace
+        ON worker_flow_drafts(user_id, workspace_type);
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS worker_flow_published (
+        id             TEXT PRIMARY KEY,
+        draft_id       TEXT,
+        template_id    TEXT,
+        user_id        TEXT NOT NULL,
+        workspace_type TEXT NOT NULL,
+        name           TEXT NOT NULL,
+        graph_json     TEXT NOT NULL,
+        version        INTEGER NOT NULL DEFAULT 1,
+        created_at     TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_flow_published_user_workspace
+        ON worker_flow_published(user_id, workspace_type, created_at DESC);
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS worker_runs (
+        id                TEXT PRIMARY KEY,
+        task_id           TEXT NOT NULL REFERENCES worker_tasks(id),
+        user_id           TEXT NOT NULL,
+        flow_published_id TEXT NOT NULL REFERENCES worker_flow_published(id),
+        status            TEXT NOT NULL DEFAULT 'pending',
+        error_message     TEXT,
+        created_at        TEXT NOT NULL,
+        started_at        TEXT,
+        completed_at      TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_worker_runs_task_created
+        ON worker_runs(task_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_worker_runs_user_status
+        ON worker_runs(user_id, status);
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS worker_run_nodes (
+        id             TEXT PRIMARY KEY,
+        run_id         TEXT NOT NULL REFERENCES worker_runs(id),
+        node_id        TEXT NOT NULL,
+        persona_id     TEXT,
+        status         TEXT NOT NULL DEFAULT 'pending',
+        output_summary TEXT,
+        error_message  TEXT,
+        metadata       TEXT,
+        started_at     TEXT,
+        completed_at   TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_worker_run_nodes_run
+        ON worker_run_nodes(run_id, node_id);
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS worker_subagent_sessions (
+        id           TEXT PRIMARY KEY,
+        task_id      TEXT NOT NULL REFERENCES worker_tasks(id),
+        run_id       TEXT REFERENCES worker_runs(id),
+        node_id      TEXT,
+        user_id      TEXT NOT NULL,
+        persona_id   TEXT,
+        status       TEXT NOT NULL DEFAULT 'started',
+        session_ref  TEXT,
+        metadata     TEXT,
+        started_at   TEXT NOT NULL,
+        completed_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_subagent_sessions_task_started
+        ON worker_subagent_sessions(task_id, started_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_subagent_sessions_user_status
+        ON worker_subagent_sessions(user_id, status);
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS worker_task_deliverables (
+        id         TEXT PRIMARY KEY,
+        task_id    TEXT NOT NULL REFERENCES worker_tasks(id),
+        run_id     TEXT REFERENCES worker_runs(id),
+        node_id    TEXT,
+        type       TEXT NOT NULL,
+        name       TEXT NOT NULL,
+        content    TEXT NOT NULL,
+        mime_type  TEXT,
+        metadata   TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_deliverables_task_created
+        ON worker_task_deliverables(task_id, created_at DESC);
     `);
   }
 
@@ -236,6 +366,10 @@ export class SqliteWorkerRepository implements WorkerRepository {
   }
 
   deleteTask(id: string): void {
+    this.db.prepare(`DELETE FROM worker_task_deliverables WHERE task_id = ?`).run(id);
+    this.db.prepare(`DELETE FROM worker_subagent_sessions WHERE task_id = ?`).run(id);
+    this.db.prepare(`DELETE FROM worker_run_nodes WHERE run_id IN (SELECT id FROM worker_runs WHERE task_id = ?)`).run(id);
+    this.db.prepare(`DELETE FROM worker_runs WHERE task_id = ?`).run(id);
     this.db.prepare(`DELETE FROM worker_task_activities WHERE task_id = ?`).run(id);
     this.db.prepare(`DELETE FROM worker_artifacts WHERE task_id = ?`).run(id);
     this.db.prepare(`DELETE FROM worker_steps WHERE task_id = ?`).run(id);

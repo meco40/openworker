@@ -27,6 +27,8 @@ export function toTask(row: Record<string, unknown>): WorkerTaskRecord {
     lastCheckpoint: (row.last_checkpoint as string) || null,
     workspacePath: (row.workspace_path as string) || null,
     workspaceType: (row.workspace_type as WorkerTaskRecord['workspaceType']) || 'general',
+    flowPublishedId: (row.flow_published_id as string) || null,
+    currentRunId: (row.current_run_id as string) || null,
     assignedPersonaId: (row.assigned_persona_id as string) || null,
     planningMessages: (row.planning_messages as string) || null,
     planningComplete: row.planning_complete === 1,
