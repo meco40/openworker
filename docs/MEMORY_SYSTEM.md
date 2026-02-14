@@ -10,14 +10,14 @@ Das Memory-System speichert konzeptuelles Wissen für KI-Interaktionen:
 - **Automatische Deduplizierung** durch Cosine-Similarity
 - **Confidence-Scoring** für Erinnerungsqualität
 - **Persistenz** in SQLite
+- **Optionaler Mem0-Provider** für Long-Term Persona Recall (fail-open auf SQLite)
 
 ## Architektur
 
 ```
 src/server/memory/
-├── types.ts              # Memory-Typ-Definitionen
 ├── embeddings.ts         # Embedding-Generierung
-├── vectorStore.ts       # Vektor-Speicher
+├── mem0Client.ts         # Mem0 REST Adapter (optional)
 ├── repository.ts        # Repository-Interface
 ├── sqliteMemoryRepository.ts  # SQLite-Implementierung
 ├── runtime.ts          # Runtime-Initialisierung
@@ -142,10 +142,23 @@ Erinnerungen abrufen.
 
 ## Konfiguration
 
-| Variable         | Beschreibung              | Standard             |
-| ---------------- | ------------------------- | -------------------- |
-| `MEMORY_DB_PATH` | Pfad zur Memory-Datenbank | `.local/messages.db` |
-| `GEMINI_API_KEY` | API Key für Embeddings    | -                    |
+| Variable            | Beschreibung                                                             | Standard             |
+| ------------------- | ------------------------------------------------------------------------ | -------------------- |
+| `MEMORY_PROVIDER`   | Memory Backend (`sqlite` oder `mem0`)                                    | `sqlite`             |
+| `MEMORY_DB_PATH`    | Pfad zur lokalen Memory-Datenbank (SQLite Mirror + Fallback)             | `.local/messages.db` |
+| `MEM0_BASE_URL`     | Mem0 Base URL (z. B. `http://localhost:8000`)                            | -                    |
+| `MEM0_API_PATH`     | Mem0 API Prefix                                                          | `/v1`                |
+| `MEM0_API_KEY`      | Optionaler Bearer Token für Mem0                                         | -                    |
+| `MEM0_TIMEOUT_MS`   | Timeout pro Mem0 Request in ms                                           | `5000`               |
+| `MEMORY_EMBEDDING_MODEL` | Embedding-Modell für lokalen Recall/Fallback                        | `gemini-embedding-001` |
+| `GEMINI_API_KEY`    | API Key für Embeddings (oder anderer aktiver Embedding Provider via Hub) | -                    |
+
+### Rollout-Regeln (Production)
+
+1. Start mit `MEMORY_PROVIDER=sqlite` als Baseline.
+2. Aktiviere Mem0 mit `MEMORY_PROVIDER=mem0` nur mit gesetztem `MEM0_BASE_URL`.
+3. Bei Störungen: sofortige Rückkehr auf `MEMORY_PROVIDER=sqlite` (kein API-Bruch).
+4. Scope-Isolation immer über `user_id` + `agent_id` (Persona) erzwingen.
 
 ## Verifikation
 

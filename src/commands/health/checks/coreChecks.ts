@@ -1,5 +1,5 @@
 import { getClientRegistry } from '../../../server/gateway/client-registry';
-import { getMemoryRepository } from '../../../server/memory/runtime';
+import { getMemoryProviderKind, getMemoryRepository } from '../../../server/memory/runtime';
 import { getTokenUsageRepository } from '../../../server/stats/tokenUsageRepository';
 import { getWorkerRepository } from '../../../server/worker/workerRepository';
 import { getLogRepository } from '../../../logging/logRepository';
@@ -64,8 +64,10 @@ export function runMemoryRepositoryCheck(): HealthCheck {
   const start = Date.now();
   try {
     const nodeCount = getMemoryRepository().getStorageSnapshot(1).summary.totalNodes;
+    const provider = getMemoryProviderKind();
     return okCheck('core.memory_repository', 'core', start, 'Memory repository reachable.', {
       nodeCount,
+      provider,
     });
   } catch (error) {
     return failCheck(

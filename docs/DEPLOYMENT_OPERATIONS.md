@@ -124,15 +124,20 @@ WantedBy=multi-user.target
 
 ### Optional
 
-| Variable                | Standard             | Beschreibung               |
-| ----------------------- | -------------------- | -------------------------- |
-| `NODE_ENV`              | `development`        | `production` für Prod      |
-| `HOSTNAME`              | `0.0.0.0`            | Server-Hostname            |
-| `PORT`                  | `3000`               | Server-Port                |
-| `MESSAGES_DB_PATH`      | `.local/messages.db` | SQLite-Datenbank           |
-| `MEMORY_DB_PATH`        | -                    | Memory-Datenbank           |
-| `ROOMS_RUNNER`          | `both`               | `web`, `scheduler`, `both` |
-| `SCHEDULER_INSTANCE_ID` | -                    | Scheduler-Instanz-ID       |
+| Variable                | Standard             | Beschreibung                               |
+| ----------------------- | -------------------- | ------------------------------------------ |
+| `NODE_ENV`              | `development`        | `production` für Prod                      |
+| `HOSTNAME`              | `0.0.0.0`            | Server-Hostname                            |
+| `PORT`                  | `3000`               | Server-Port                                |
+| `MESSAGES_DB_PATH`      | `.local/messages.db` | SQLite-Datenbank                           |
+| `MEMORY_PROVIDER`       | `sqlite`             | Memory Backend (`sqlite` oder `mem0`)      |
+| `MEMORY_DB_PATH`        | -                    | Lokale Memory-DB (SQLite + Mem0-Mirror)    |
+| `MEM0_BASE_URL`         | -                    | Mem0 Base URL                              |
+| `MEM0_API_PATH`         | `/v1`                | Mem0 API Prefix                            |
+| `MEM0_API_KEY`          | -                    | Optionaler Mem0 Bearer Token               |
+| `MEM0_TIMEOUT_MS`       | `5000`               | Timeout pro Mem0 Request in ms             |
+| `ROOMS_RUNNER`          | `both`               | `web`, `scheduler`, `both`                 |
+| `SCHEDULER_INSTANCE_ID` | -                    | Scheduler-Instanz-ID                       |
 
 ### KI-Provider Keys
 
@@ -255,6 +260,12 @@ tar -czf backups/openclaw-$(date +%Y%m%d).tar.gz .local/
 1. API-Keys konfiguriert?
 2. Health-Check des Providers?
 3. Rate-Limits?
+
+### Memory-Probleme (Mem0)
+
+1. `MEM0_BASE_URL` erreichbar?
+2. `MEMORY_PROVIDER=mem0` gesetzt?
+3. Für Sofort-Rollback auf lokale Memory: `MEMORY_PROVIDER=sqlite`
 
 ## Verifikation
 
