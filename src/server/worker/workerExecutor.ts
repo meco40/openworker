@@ -296,6 +296,24 @@ export async function executeStep(
   };
 }
 
+export async function executeOrchestraNode(
+  task: WorkerTaskRecord,
+  node: { id: string; description?: string },
+): Promise<StepResult> {
+  const syntheticStep: WorkerStepRecord = {
+    id: `orch-${task.id}-${node.id}`,
+    taskId: task.id,
+    stepIndex: 0,
+    description: node.description || `Orchestra node ${node.id}`,
+    status: 'pending',
+    output: null,
+    toolCalls: null,
+    startedAt: null,
+    completedAt: null,
+  };
+  return executeStep(task, syntheticStep);
+}
+
 // ─── Command Approval ───────────────────────────────────────
 
 /**

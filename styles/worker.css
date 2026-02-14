@@ -807,6 +807,34 @@
   text-align: center;
 }
 
+.worker-output__deliverables {
+  margin-top: 1rem;
+  border: 1px solid var(--border-primary, #333);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.worker-output__deliverables h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+
+.worker-output__deliverables ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.worker-output__deliverables li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+}
+
 /* ─── Terminal Tab ────────────────────────────────────────── */
 .worker-terminal {
   border-radius: 12px;
@@ -1290,6 +1318,113 @@
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1rem;
+}
+
+/* ─── Orchestra Tab ─────────────────────────────────────── */
+
+.worker-orchestra {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.worker-orchestra__header h2 {
+  margin: 0;
+}
+
+.worker-orchestra__header p {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary, #999);
+}
+
+.worker-orchestra__create {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.worker-orchestra__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.worker-orchestra__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.worker-orchestra__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border-primary, #333);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: var(--bg-secondary, #1a1a1a);
+}
+
+.worker-orchestra__item div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.worker-orchestra__item span {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #999);
+}
+
+/* ─── Workflow Tab ──────────────────────────────────────── */
+
+.worker-workflow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.worker-workflow__meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #999);
+  flex-wrap: wrap;
+}
+
+.worker-workflow__nodes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.worker-workflow__node {
+  display: grid;
+  grid-template-columns: 24px 1fr 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  border: 1px solid var(--border-primary, #333);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+}
+
+.worker-workflow__node--running {
+  border-color: #f59e0b66;
+}
+
+.worker-workflow__node--completed {
+  border-color: #10b98166;
+}
+
+.worker-workflow__node--failed {
+  border-color: #ef444466;
 }
 
 /* ─── Planning Tab ───────────────────────────────────────── */

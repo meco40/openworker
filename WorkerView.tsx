@@ -7,6 +7,7 @@ import WorkerTaskCreation from './components/worker/WorkerTaskCreation';
 import WorkerTaskDetail from './components/worker/WorkerTaskDetail';
 import WorkerKanbanBoard from './components/worker/WorkerKanbanBoard';
 import WorkerPersonaSidebar from './components/worker/WorkerPersonaSidebar';
+import WorkerOrchestraTab from './components/worker/WorkerOrchestraTab';
 import { useWorkerTasks } from './src/modules/worker/hooks/useWorkerTasks';
 import type { WorkerTask } from './types';
 import type { WorkerTaskStatus } from './src/server/worker/workerStateMachine';
@@ -26,7 +27,7 @@ const WorkerView: React.FC = () => {
     refreshTasks,
   } = useWorkerTasks();
 
-  const [view, setView] = useState<'kanban' | 'list' | 'create' | 'detail'>('kanban');
+  const [view, setView] = useState<'kanban' | 'list' | 'create' | 'detail' | 'orchestra'>('kanban');
   const [selectedTask, setSelectedTask] = useState<WorkerTask | null>(null);
 
   const handleSelectTask = useCallback(async (task: WorkerTask) => {
@@ -119,7 +120,7 @@ const WorkerView: React.FC = () => {
   return (
     <div className="worker-view">
       <div className="worker-view__main">
-        {(view === 'kanban' || view === 'list') && (
+        {(view === 'kanban' || view === 'list' || view === 'orchestra') && (
           <div className="worker-view__toggle">
             <button
               className={`worker-btn ${view === 'kanban' ? 'worker-btn--primary' : 'worker-btn--ghost'}`}
@@ -132,6 +133,12 @@ const WorkerView: React.FC = () => {
               onClick={() => setView('list')}
             >
               ☰ Liste
+            </button>
+            <button
+              className={`worker-btn ${view === 'orchestra' ? 'worker-btn--primary' : 'worker-btn--ghost'}`}
+              onClick={() => setView('orchestra')}
+            >
+              🎼 Orchestra
             </button>
           </div>
         )}
@@ -158,6 +165,8 @@ const WorkerView: React.FC = () => {
         )}
 
         {view === 'create' && <WorkerTaskCreation onSubmit={handleCreate} onCancel={handleBack} />}
+
+        {view === 'orchestra' && <WorkerOrchestraTab />}
 
         {view === 'detail' && selectedTask && (
           <WorkerTaskDetail

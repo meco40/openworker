@@ -5,8 +5,13 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { WorkerTask, WorkerStep, WorkspaceFile } from '../../types';
 import { useWorkspaceFiles } from '../../src/modules/worker/hooks/useWorkspaceFiles';
 import { getGatewayClient } from '../../src/modules/gateway/ws-client';
+import {
+  normalizeTaskDeliverables,
+  type WorkerTaskDeliverableView,
+} from '../../src/modules/worker/services/workerTaskDeliverables';
 import WorkerActivityTab from './WorkerActivityTab';
 import WorkerPlanningTab from './WorkerPlanningTab';
+import WorkerWorkflowTab from './WorkerWorkflowTab';
 
 interface WorkerTaskDetailProps {
   task: WorkerTask;
@@ -180,7 +185,7 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
   onDelete,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'steps' | 'files' | 'output' | 'activities' | 'terminal' | 'planning'
+    'steps' | 'workflow' | 'files' | 'output' | 'activities' | 'terminal' | 'planning'
   >('steps');
   const [steps, setSteps] = useState<WorkerStep[]>(task.steps || []);
   const {
@@ -193,6 +198,7 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
   } = useWorkspaceFiles(task.id);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const [deliverables, setDeliverables] = useState<WorkerTaskDeliverableView[]>([]);
   const terminalRef = useRef<HTMLDivElement>(null);
 
   // WebSocket Live Terminal subscription
@@ -263,6 +269,22 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
   useEffect(() => {
     if (activeTab === 'files') refreshFiles();
   }, [activeTab, refreshFiles]);
+
+  useEffect(() => {
+    if (activeTab !== 'output') return;
+    (async () => {
+      try {
+        const response = await fetch(`/api/worker/${task.id}/deliverables`);
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          deliverables?: WorkerTaskDeliverableView[];
+        };
+        setDeliverables(normalizeTaskDeliverables(payload.deliverables || []));
+      } catch {
+        // ignore optional deliverables loading failure
+      }
+    })();
+  }, [activeTab, task.id]);
 
   const isActive = [
     'queued',
@@ -379,6 +401,12 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
           📋 Schritte ({steps.length})
         </button>
         <button
+          className={`worker-tab ${activeTab === 'workflow' ? 'worker-tab--active' : ''}`}
+          onClick={() => setActiveTab('workflow')}
+        >
+          🧭 Workflow
+        </button>
+        <button
           className={`worker-tab ${activeTab === 'files' ? 'worker-tab--active' : ''}`}
           onClick={() => setActiveTab('files')}
         >
@@ -442,6 +470,9 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
         )}
 
         {/* Files Tab */}
+        {activeTab === 'workflow' && <WorkerWorkflowTab taskId={task.id} />}
+
+        {/* Files Tab */}
         {activeTab === 'files' && (
           <div className="worker-files">
             {selectedFile ? (
@@ -492,6 +523,19 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
               <p className="worker-output__empty">
                 {isActive ? 'Output wird generiert…' : 'Kein Output verfügbar.'}
               </p>
+            )}
+            {deliverables.length > 0 && (
+              <div className="worker-output__deliverables">
+                <h4>Deliverables</h4>
+                <ul>
+                  {deliverables.map((item) => (
+                    <li key={item.id}>
+                      <span>{item.name}</span>
+                      <small>{item.source === 'deliverable' ? 'Deliverable' : 'Legacy Artifact'}</small>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         )}

@@ -22,6 +22,7 @@ describe('GET /api/control-plane/metrics', () => {
 
   beforeEach(async () => {
     vi.resetModules();
+    const metricsUserId = 'metrics-user';
 
     const workerDbPath = uniqueDbPath('worker.metrics.route');
     const statsDbPath = uniqueDbPath('stats.metrics.route');
@@ -46,30 +47,75 @@ describe('GET /api/control-plane/metrics', () => {
       objective: 'Queued objective',
       originPlatform: 'WebChat' as never,
       originConversation: 'conv-open-1',
+      userId: metricsUserId,
     });
     const executing = workerRepo.createTask({
       title: 'Executing task',
       objective: 'Executing objective',
       originPlatform: 'WebChat' as never,
       originConversation: 'conv-open-2',
+      userId: metricsUserId,
     });
     const completed = workerRepo.createTask({
       title: 'Completed task',
       objective: 'Completed objective',
       originPlatform: 'WebChat' as never,
       originConversation: 'conv-closed-1',
+      userId: metricsUserId,
     });
     const failed = workerRepo.createTask({
       title: 'Failed task',
       objective: 'Failed objective',
       originPlatform: 'WebChat' as never,
       originConversation: 'conv-closed-2',
+      userId: metricsUserId,
     });
 
     workerRepo.updateStatus(executing.id, 'executing');
     workerRepo.updateStatus(completed.id, 'completed');
     workerRepo.updateStatus(failed.id, 'failed', { error: 'boom' });
     expect(queued.status).toBe('queued');
+
+    const flowDraft = workerRepo.createFlowDraft({
+      userId: metricsUserId,
+      workspaceType: 'research',
+      name: 'Metrics Flow',
+      graphJson: JSON.stringify({
+        startNodeId: 'n1',
+        nodes: [{ id: 'n1', personaId: 'persona-a' }],
+        edges: [],
+      }),
+    });
+    const flowPublished = workerRepo.publishFlowDraft(flowDraft.id, metricsUserId);
+    if (!flowPublished) {
+      throw new Error('Expected published flow for metrics test setup');
+    }
+
+    workerRepo.createRun({
+      taskId: queued.id,
+      userId: metricsUserId,
+      flowPublishedId: flowPublished.id,
+      status: 'running',
+    });
+    workerRepo.createRun({
+      taskId: failed.id,
+      userId: metricsUserId,
+      flowPublishedId: flowPublished.id,
+      status: 'failed',
+    });
+
+    const activeSubagentSession = workerRepo.createSubagentSession({
+      taskId: queued.id,
+      userId: metricsUserId,
+      runId: null,
+      nodeId: 'n1',
+      personaId: 'persona-a',
+      sessionRef: 'subagent-live',
+      metadata: { source: 'metrics-test' },
+    });
+    workerRepo.updateSubagentSession(queued.id, activeSubagentSession.id, {
+      status: 'running',
+    });
 
     const { TokenUsageRepository } = await import('../../src/server/stats/tokenUsageRepository');
     const tokenRepo = new TokenUsageRepository(process.env.STATS_DB_PATH);
@@ -139,6 +185,11 @@ describe('GET /api/control-plane/metrics', () => {
         activeWsSessions: number;
         tokensToday: number;
         vectorNodeCount: number;
+        orchestra: {
+          runCount: number;
+          failFastAbortCount: number;
+          activeSubagentSessions: number;
+        };
         generatedAt: string;
       };
       error?: string;
@@ -152,6 +203,9 @@ describe('GET /api/control-plane/metrics', () => {
     expect(payload.metrics?.activeWsSessions).toBe(7);
     expect(payload.metrics?.tokensToday).toBe(100);
     expect(payload.metrics?.vectorNodeCount).toBe(2);
+    expect(payload.metrics?.orchestra.runCount).toBe(2);
+    expect(payload.metrics?.orchestra.failFastAbortCount).toBe(1);
+    expect(payload.metrics?.orchestra.activeSubagentSessions).toBe(1);
     expect(typeof payload.metrics?.generatedAt).toBe('string');
   });
 });

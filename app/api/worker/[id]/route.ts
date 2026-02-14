@@ -4,6 +4,7 @@
  * DELETE /api/worker/:id  → Delete task + workspace\r\n */
 
 import { NextResponse } from 'next/server';
+import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
 import { getWorkerRepository } from '../../../../src/server/worker/workerRepository';
 import { processQueue } from '../../../../src/server/worker/workerAgent';
 import { getWorkspaceManager } from '../../../../src/server/worker/workspaceManager';
@@ -17,10 +18,15 @@ interface RouteParams {
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
     const repo = getWorkerRepository();
 
-    const task = repo.getTask(id);
+    const task = repo.getTaskForUser(id, userContext.userId);
     if (!task) {
       return NextResponse.json({ ok: false, error: 'Task not found' }, { status: 404 });
     }
@@ -43,11 +49,16 @@ interface PatchRequest {
 
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = (await request.json()) as PatchRequest;
     const repo = getWorkerRepository();
 
-    const task = repo.getTask(id);
+    const task = repo.getTaskForUser(id, userContext.userId);
     if (!task) {
       return NextResponse.json({ ok: false, error: 'Task not found' }, { status: 404 });
     }
@@ -171,9 +182,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
     const repo = getWorkerRepository();
-    const task = repo.getTask(id);
+    const task = repo.getTaskForUser(id, userContext.userId);
 
     if (!task) {
       return NextResponse.json({ ok: false, error: 'Task not found' }, { status: 404 });

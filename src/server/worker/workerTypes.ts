@@ -1,6 +1,14 @@
 // ─── Worker Domain Types ─────────────────────────────────────
 import type { ChannelType } from '../../../types';
 import type { WorkspaceType } from './workspaceManager';
+import type {
+  WorkerSubagentSessionRecord,
+  WorkerTaskDeliverableRecord,
+  WorkerFlowDraftRecord,
+  WorkerFlowPublishedRecord,
+  WorkerRunNodeRecord,
+  WorkerRunRecord,
+} from './orchestraTypes';
 
 export type { WorkspaceType } from './workspaceManager';
 
@@ -40,6 +48,9 @@ export interface WorkerTaskRecord {
   lastCheckpoint: string | null;
   workspacePath: string | null;
   workspaceType: WorkspaceType;
+  userId?: string | null;
+  flowPublishedId?: string | null;
+  currentRunId?: string | null;
   assignedPersonaId: string | null;
   planningMessages: string | null;
   planningComplete: boolean;
@@ -118,6 +129,7 @@ export interface CreateTaskInput {
   originExternalChat?: string | null;
   workspaceType?: WorkspaceType;
   usePlanning?: boolean;
+  userId?: string | null;
 }
 
 export interface SaveStepInput {
@@ -147,17 +159,26 @@ export interface WorkerRepository {
   // Tasks
   createTask(input: CreateTaskInput): WorkerTaskRecord;
   getTask(id: string): WorkerTaskRecord | null;
+  getTaskForUser(id: string, userId: string): WorkerTaskRecord | null;
   updateStatus(
     id: string,
     status: WorkerTaskStatus,
     extra?: { summary?: string; error?: string },
   ): void;
   listTasks(filter?: { status?: WorkerTaskStatus; limit?: number }): WorkerTaskRecord[];
+  listTasksForUser(
+    userId: string,
+    filter?: { status?: WorkerTaskStatus; limit?: number },
+  ): WorkerTaskRecord[];
   cancelTask(id: string): void;
   getNextQueuedTask(): WorkerTaskRecord | null;
   getActiveTask(): WorkerTaskRecord | null;
   markInterrupted(id: string): void;
   saveCheckpoint(id: string, checkpoint: Record<string, unknown>): void;
+  setTaskRunContext(
+    id: string,
+    updates: { flowPublishedId?: string | null; currentRunId?: string | null },
+  ): void;
 
   // Steps
   saveSteps(taskId: string, steps: SaveStepInput[]): void;
@@ -185,9 +206,79 @@ export interface WorkerRepository {
   addActivity(input: SaveActivityInput): TaskActivityRecord;
   getActivities(taskId: string, limit?: number): TaskActivityRecord[];
 
+  // Subagent Sessions
+  createSubagentSession(input: {
+    taskId: string;
+    userId: string;
+    runId?: string | null;
+    nodeId?: string | null;
+    personaId?: string | null;
+    sessionRef?: string | null;
+    metadata?: Record<string, unknown>;
+  }): WorkerSubagentSessionRecord;
+  updateSubagentSession(
+    taskId: string,
+    sessionId: string,
+    updates: { status?: WorkerSubagentSessionRecord['status']; metadata?: Record<string, unknown> },
+  ): WorkerSubagentSessionRecord | null;
+  listSubagentSessions(taskId: string, limit?: number): WorkerSubagentSessionRecord[];
+
+  // Deliverables
+  addDeliverable(input: {
+    taskId: string;
+    runId?: string | null;
+    nodeId?: string | null;
+    type: WorkerTaskDeliverableRecord['type'];
+    name: string;
+    content: string;
+    mimeType?: string | null;
+    metadata?: Record<string, unknown>;
+  }): WorkerTaskDeliverableRecord;
+  listDeliverables(taskId: string): WorkerTaskDeliverableRecord[];
+
   // Approval Rules
   addApprovalRule(commandPattern: string): void;
   removeApprovalRule(id: string): void;
   isCommandApproved(command: string): boolean;
   listApprovalRules(): ApprovalRule[];
+
+  // Orchestra Flows
+  listFlowDrafts(userId: string, workspaceType?: WorkspaceType): WorkerFlowDraftRecord[];
+  getFlowDraft(id: string, userId: string): WorkerFlowDraftRecord | null;
+  createFlowDraft(input: {
+    userId: string;
+    workspaceType: WorkspaceType;
+    name: string;
+    graphJson: string;
+    templateId?: string | null;
+  }): WorkerFlowDraftRecord;
+  updateFlowDraft(
+    id: string,
+    userId: string,
+    updates: { name?: string; graphJson?: string; workspaceType?: WorkspaceType },
+  ): WorkerFlowDraftRecord | null;
+  publishFlowDraft(id: string, userId: string): WorkerFlowPublishedRecord | null;
+  getFlowPublished(id: string, userId: string): WorkerFlowPublishedRecord | null;
+  listPublishedFlows(userId: string, workspaceType?: WorkspaceType): WorkerFlowPublishedRecord[];
+  createRun(input: {
+    taskId: string;
+    userId: string;
+    flowPublishedId: string;
+    status?: WorkerRunRecord['status'];
+  }): WorkerRunRecord;
+  updateRunStatus(
+    runId: string,
+    updates: { status: WorkerRunRecord['status']; errorMessage?: string | null },
+  ): WorkerRunRecord | null;
+  upsertRunNodeStatus(
+    runId: string,
+    nodeId: string,
+    updates: { personaId?: string | null; status: WorkerRunNodeRecord['status']; errorMessage?: string | null; outputSummary?: string | null },
+  ): WorkerRunNodeRecord;
+  listRunNodes(runId: string): WorkerRunNodeRecord[];
+  getOrchestraMetrics(): {
+    runCount: number;
+    failFastAbortCount: number;
+    activeSubagentSessions: number;
+  };
 }

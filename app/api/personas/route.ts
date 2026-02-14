@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
 import { getPersonaRepository } from '../../../src/server/personas/personaRepository';
+import { getModelHubService } from '../../../src/server/model-hub/runtime';
 import {
   PERSONA_FILE_NAMES,
   type CreatePersonaInput,
@@ -8,6 +9,14 @@ import {
 } from '../../../src/server/personas/personaTypes';
 
 export const runtime = 'nodejs';
+
+function isPreferredModelAvailable(preferredModelId: string): boolean {
+  const modelHub = getModelHubService();
+  const activePipeline = modelHub.listPipeline('p1');
+  return activePipeline.some(
+    (entry) => entry.status === 'active' && entry.modelName === preferredModelId,
+  );
+}
 
 // ─── GET /api/personas ─── List all personas for the current user
 export async function GET() {
@@ -39,11 +48,23 @@ export async function POST(request: Request) {
       name?: string;
       emoji?: string;
       vibe?: string;
+      preferredModelId?: string | null;
       files?: Record<string, string>;
     };
 
     if (!body.name || body.name.trim().length === 0) {
       return NextResponse.json({ ok: false, error: 'name is required' }, { status: 400 });
+    }
+
+    let preferredModelId: string | null = null;
+    if (typeof body.preferredModelId === 'string' && body.preferredModelId.trim().length > 0) {
+      preferredModelId = body.preferredModelId.trim();
+      if (!isPreferredModelAvailable(preferredModelId)) {
+        return NextResponse.json(
+          { ok: false, error: `preferredModelId "${preferredModelId}" is not available.` },
+          { status: 400 },
+        );
+      }
     }
 
     const repo = getPersonaRepository();
@@ -66,6 +87,7 @@ export async function POST(request: Request) {
       name: body.name.trim(),
       emoji: body.emoji?.trim() || '🤖',
       vibe: body.vibe?.trim() || '',
+      preferredModelId,
       files:
         Object.keys(validatedFiles).length > 0
           ? (validatedFiles as Partial<Record<PersonaFileName, string>>)

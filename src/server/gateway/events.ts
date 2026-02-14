@@ -49,6 +49,17 @@ export interface WorkerApprovalRequestPayload {
   timeout: number;
 }
 
+export interface WorkerWorkflowPayload {
+  taskId: string;
+  runId: string | null;
+  flowPublishedId: string | null;
+  nodes: Array<{ id: string; personaId: string | null; status: string }>;
+  edges: Array<{ from: string; to: string }>;
+  activePath: string[];
+  currentNodeId: string | null;
+  timestamp: string;
+}
+
 // ─── Log Events ──────────────────────────────────────────────
 
 export interface LogEntryPayload {
@@ -144,6 +155,7 @@ export const GatewayEvents = {
   CONVERSATION_RESET: 'conversation.reset',
   PERSONA_CHANGED: 'persona.changed',
   WORKER_STATUS: 'worker.status',
+  WORKER_WORKFLOW: 'worker.workflow',
   WORKER_APPROVAL_REQUESTED: 'worker.approval.requested',
   LOG_ENTRY: 'log.entry',
   PRESENCE_UPDATE: 'presence.update',

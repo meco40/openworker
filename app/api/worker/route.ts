@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
 import { getWorkerRepository } from '../../../src/server/worker/workerRepository';
 import { processQueue } from '../../../src/server/worker/workerAgent';
 import { getWorkspaceManager } from '../../../src/server/worker/workspaceManager';
@@ -13,12 +14,17 @@ export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const url = new URL(request.url);
     const status = url.searchParams.get('status') as WorkerTaskStatus | null;
     const limit = parseInt(url.searchParams.get('limit') || '50', 10);
 
     const repo = getWorkerRepository();
-    const tasks = repo.listTasks({ status: status || undefined, limit });
+    const tasks = repo.listTasksForUser(userContext.userId, { status: status || undefined, limit });
 
     return NextResponse.json({ ok: true, tasks });
   } catch (error) {
@@ -29,9 +35,14 @@ export async function GET(request: Request) {
 
 export async function DELETE() {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const repo = getWorkerRepository();
     const wsMgr = getWorkspaceManager();
-    const tasks = repo.listTasks();
+    const tasks = repo.listTasksForUser(userContext.userId);
 
     let deleted = 0;
     for (const task of tasks) {
@@ -62,6 +73,11 @@ interface CreateTaskRequest {
 
 export async function POST(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = (await request.json()) as CreateTaskRequest;
 
     if (!body.objective || !body.conversationId) {
@@ -82,6 +98,7 @@ export async function POST(request: Request) {
       originPlatform: 'WebChat' as never,
       originConversation: body.conversationId,
       usePlanning: body.usePlanning,
+      userId: userContext.userId,
     });
 
     // Start queue processor (non-blocking) — skip for planning mode (task starts in inbox)
