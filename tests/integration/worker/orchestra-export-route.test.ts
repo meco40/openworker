@@ -96,10 +96,9 @@ describe('orchestra export route', () => {
     });
 
     const route = await loadExportRoute();
-    const response = await route.GET(
-      new Request(`http://localhost/api/worker/${task.id}/export`),
-      { params: Promise.resolve({ id: task.id }) },
-    );
+    const response = await route.GET(new Request(`http://localhost/api/worker/${task.id}/export`), {
+      params: Promise.resolve({ id: task.id }),
+    });
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('application/zip');

@@ -28,16 +28,19 @@ Referenz-Quellmodule:
 ### 2.1 Schichten
 
 1. UI-Schicht
+
 - `WorkerView.tsx` als Einstieg
 - Kanban/Liste/Detail/Create-Views (`components/worker/*`)
 - Frontend-Hooks fuer Tasks/Dateien (`src/modules/worker/hooks/*`)
 
 2. API-Schicht (Next.js Route Handler)
+
 - Task CRUD und Aktionen (`app/api/worker/route.ts`, `app/api/worker/[id]/route.ts`)
 - Planning-Flow (`app/api/worker/[id]/planning/*`)
 - Dateien/Export/Activities/Tests (`app/api/worker/[id]/*`)
 
 3. Domain-Schicht (Worker Backend)
+
 - Orchestrierung: `src/server/worker/workerAgent.ts`
 - Planung: `src/server/worker/workerPlanner.ts`
 - Step-Ausfuehrung: `src/server/worker/workerExecutor.ts`
@@ -47,6 +50,7 @@ Referenz-Quellmodule:
 - Statusregeln: `src/server/worker/workerStateMachine.ts`
 
 4. Transport-/Realtime-Schicht
+
 - Gateway WS Client: `src/modules/gateway/ws-client.ts`
 - Gateway Worker-Methoden: `src/server/gateway/methods/worker.ts`
 - Broadcast: `src/server/gateway/broadcast.ts`
@@ -145,16 +149,19 @@ Workspace-Typen:
 ### 6.2 runWorkerAgent: Phasen
 
 1. Workspace Setup
+
 - bestehenden Workspace nutzen oder neu erzeugen
 - DB `workspace_path` setzen
 
 2. Planning
+
 - Status auf `planning`
 - `planTask(task)` via Model Hub
 - Plan ist JSON-Array (max 10 Schritte), Fallback auf einen generischen Schritt
 - Steps in DB speichern
 
 3. Execution
+
 - Status `executing`
 - pro Schritt:
 - `executeStep(task, step)` aufrufen
@@ -164,16 +171,19 @@ Workspace-Typen:
 - artifacts in DB + `output/` schreiben
 
 4. Self-Verify
+
 - wenn irgendein Schritt `failed` ist: Task `failed`
 - sonst `plan.md` im Workspace schreiben
 
 5. Optional Testing (nur `webapp`)
+
 - Status `testing`
 - `runWebappTests(wsPath)`
 - `test-results.md` schreiben
 - bei Test-Fehlern: Status `review`
 
 6. Complete
+
 - Summary aus Schritt-Outputs + Artefakten + Workspace-Statistik
 - Status `completed`
 - `notifyTaskCompleted(...)`
@@ -299,22 +309,27 @@ Dateien u. a.:
 ## 11. Beobachtete technische Luecken / Risiken
 
 1. Task-Detaildatenfluss (Steps)
+
 - `GET /api/worker/[id]` liefert `steps` top-level, aber `WorkerTaskDetail` liest `data.task.steps`.
 - Ergebnis: Step-Anzeige kann leer/stale sein.
 
 2. WS Subscription-Granularitaet
+
 - `worker.task.subscribe` speichert `worker:<taskId>` Subscription.
 - `broadcastStatus` nutzt aber global `broadcast(...)` statt `broadcastToSubscribed(...)`.
 - Ergebnis: Task-spezifische Subscription wird aktuell nicht ausgenutzt.
 
 3. Approval-Benachrichtigung nicht aktiv verdrahtet
+
 - `notifyApprovalRequest(...)` existiert, wird aber im Approval-Pfad nicht aufgerufen.
 - Es gibt damit keine explizite command-spezifische Push-Nachricht aus dem Executor-Pfad.
 
 4. Doku-Drift
+
 - `docs/WORKER_SYSTEM.md` listet alte Endpunkte (`/start`, `/stop`), die im aktuellen Route-Set nicht existieren.
 
 5. Resume-Semantik
+
 - `runWorkerAgent` plant bei Resume erneut und schreibt erneut Steps.
 - Ohne explizites Reset/Versionierung kann dies zu inkonsistenter Step-Historie fuehren.
 

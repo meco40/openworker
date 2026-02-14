@@ -44,7 +44,9 @@ describe('mergeWorkerTaskDetailPayload', () => {
           completedAt: null,
         },
       ],
-      artifacts: [{ id: 'art-1', name: 'out.md', type: 'doc', content: 'x', mimeType: 'text/plain' }],
+      artifacts: [
+        { id: 'art-1', name: 'out.md', type: 'doc', content: 'x', mimeType: 'text/plain' },
+      ],
     });
 
     expect(merged.title).toBe('Hydrated');

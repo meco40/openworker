@@ -6,7 +6,11 @@ import {
   isWorkerOrchestraEnabled,
 } from '../../../../../../src/server/worker/orchestraFlags';
 import { getOrchestraService } from '../../../../../../src/server/worker/orchestraService';
-import { canEditOrchestra, enforceOrchestraGraphLimits, normalizeWorkerRole } from '../../../../../../src/server/worker/orchestraPolicy';
+import {
+  canEditOrchestra,
+  enforceOrchestraGraphLimits,
+  normalizeWorkerRole,
+} from '../../../../../../src/server/worker/orchestraPolicy';
 import type { OrchestraFlowGraph } from '../../../../../../src/server/worker/orchestraGraph';
 import type { WorkspaceType } from '../../../../../../src/server/worker/workspaceManager';
 
@@ -53,16 +57,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     if (!isWorkerOrchestraEnabled()) {
       return NextResponse.json({ ok: false, error: 'Orchestra disabled' }, { status: 404 });
     }
     if (!isWorkerOrchestraBuilderWriteEnabled()) {
-      return NextResponse.json({ ok: false, error: 'Orchestra builder write disabled' }, { status: 403 });
+      return NextResponse.json(
+        { ok: false, error: 'Orchestra builder write disabled' },
+        { status: 403 },
+      );
     }
 
     const userContext = await resolveRequestUserContext();
@@ -82,7 +86,8 @@ export async function PATCH(
       workspaceType?: string;
     };
 
-    const updates: { name?: string; graph?: OrchestraFlowGraph; workspaceType?: WorkspaceType } = {};
+    const updates: { name?: string; graph?: OrchestraFlowGraph; workspaceType?: WorkspaceType } =
+      {};
     if (typeof body.name === 'string') {
       const trimmed = body.name.trim();
       if (trimmed.length === 0) {

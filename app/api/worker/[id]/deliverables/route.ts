@@ -18,7 +18,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ ok: false, error: 'Task not found' }, { status: 404 });
     }
 
-    const deliverables = repo.listDeliverables(id).map((item) => ({ ...item, source: 'deliverable' as const }));
+    const deliverables = repo
+      .listDeliverables(id)
+      .map((item) => ({ ...item, source: 'deliverable' as const }));
     const legacyArtifacts = repo.getArtifacts(id).map((artifact) => ({
       id: `legacy-${artifact.id}`,
       taskId: artifact.taskId,

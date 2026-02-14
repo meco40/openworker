@@ -6,7 +6,11 @@ import {
   isWorkerOrchestraEnabled,
 } from '../../../../../src/server/worker/orchestraFlags';
 import { getOrchestraService } from '../../../../../src/server/worker/orchestraService';
-import { canEditOrchestra, enforceOrchestraGraphLimits, normalizeWorkerRole } from '../../../../../src/server/worker/orchestraPolicy';
+import {
+  canEditOrchestra,
+  enforceOrchestraGraphLimits,
+  normalizeWorkerRole,
+} from '../../../../../src/server/worker/orchestraPolicy';
 import type { WorkspaceType } from '../../../../../src/server/worker/workspaceManager';
 
 export const runtime = 'nodejs';
@@ -65,7 +69,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Orchestra disabled' }, { status: 404 });
     }
     if (!isWorkerOrchestraBuilderWriteEnabled()) {
-      return NextResponse.json({ ok: false, error: 'Orchestra builder write disabled' }, { status: 403 });
+      return NextResponse.json(
+        { ok: false, error: 'Orchestra builder write disabled' },
+        { status: 403 },
+      );
     }
 
     const userContext = await resolveRequestUserContext();

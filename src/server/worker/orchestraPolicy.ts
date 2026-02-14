@@ -4,7 +4,9 @@ const EDITOR_ROLES = new Set(['admin', 'dev']);
 const PUBLISHER_ROLES = new Set(['admin', 'dev']);
 
 export function normalizeWorkerRole(role: string | null | undefined): string {
-  return String(role || 'dev').trim().toLowerCase();
+  return String(role || 'dev')
+    .trim()
+    .toLowerCase();
 }
 
 export function canEditOrchestra(role: string | null | undefined): boolean {

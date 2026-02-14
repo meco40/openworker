@@ -69,6 +69,10 @@ describe('worker callback', () => {
       task.userId,
     );
     expect(deliverOutboundMock).toHaveBeenCalledTimes(1);
-    expect(deliverOutboundMock).toHaveBeenCalledWith(task.originPlatform, task.originExternalChat, 'done');
+    expect(deliverOutboundMock).toHaveBeenCalledWith(
+      task.originPlatform,
+      task.originExternalChat,
+      'done',
+    );
   });
 });

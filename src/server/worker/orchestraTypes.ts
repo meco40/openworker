@@ -3,12 +3,7 @@ import type { WorkspaceType } from './workerTypes';
 export type OrchestraFlowStatus = 'draft' | 'published' | 'archived';
 export type OrchestraRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type OrchestraNodeStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
-export type SubagentSessionStatus =
-  | 'started'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'cancelled';
+export type SubagentSessionStatus = 'started' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface WorkerFlowTemplateRecord {
   id: string;

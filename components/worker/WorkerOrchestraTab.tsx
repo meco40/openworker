@@ -38,7 +38,10 @@ function parseDraftGraph(graphJson?: string): DraftGraph {
       }))
       .filter((node) => node.id.length > 0);
     const edges = parsed.edges
-      .filter((edge): edge is GraphEdge => !!edge && typeof edge.from === 'string' && typeof edge.to === 'string')
+      .filter(
+        (edge): edge is GraphEdge =>
+          !!edge && typeof edge.from === 'string' && typeof edge.to === 'string',
+      )
       .map((edge) => ({ from: edge.from.trim(), to: edge.to.trim() }))
       .filter((edge) => edge.from.length > 0 && edge.to.length > 0);
 
@@ -56,7 +59,10 @@ function parseDraftGraph(graphJson?: string): DraftGraph {
   }
 }
 
-function graphForDraft(drafts: Array<{ id: string; graphJson?: string }>, draftId: string | null): DraftGraph {
+function graphForDraft(
+  drafts: Array<{ id: string; graphJson?: string }>,
+  draftId: string | null,
+): DraftGraph {
   const draft = drafts.find((item) => item.id === draftId);
   return parseDraftGraph(draft?.graphJson);
 }
@@ -238,7 +244,8 @@ const WorkerOrchestraTab: React.FC = () => {
   };
 
   const resolvedSelectedDraftId = selectedDraftId ?? drafts[0]?.id ?? null;
-  const resolvedSelectedDraft = drafts.find((draft) => draft.id === resolvedSelectedDraftId) || null;
+  const resolvedSelectedDraft =
+    drafts.find((draft) => draft.id === resolvedSelectedDraftId) || null;
   const renderedGraph =
     selectedDraftId === null ? graphForDraft(drafts, resolvedSelectedDraftId) : draftGraph;
 
@@ -264,8 +271,8 @@ const WorkerOrchestraTab: React.FC = () => {
       <div className="worker-orchestra__explain">
         <h3>Was ist Orchestra?</h3>
         <p>
-          Orchestra legt fest, wie Aufgaben durch Personas laufen. Ein <strong>Draft</strong> ist ein
-          Entwurf. Erst <strong>Published</strong> wird live genutzt.
+          Orchestra legt fest, wie Aufgaben durch Personas laufen. Ein <strong>Draft</strong> ist
+          ein Entwurf. Erst <strong>Published</strong> wird live genutzt.
         </p>
       </div>
 
@@ -456,7 +463,11 @@ const WorkerOrchestraTab: React.FC = () => {
                 </option>
               ))}
             </select>
-            <select className="worker-input" value={edgeTo} onChange={(event) => setEdgeTo(event.target.value)}>
+            <select
+              className="worker-input"
+              value={edgeTo}
+              onChange={(event) => setEdgeTo(event.target.value)}
+            >
               <option value="">Nach…</option>
               {renderedGraph.nodes.map((node) => (
                 <option key={`to-${node.id}`} value={node.id}>

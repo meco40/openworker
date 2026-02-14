@@ -194,7 +194,9 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
     broadcastWorkflow();
 
     if (runResult.status === 'failed') {
-      const failedNode = Object.entries(runResult.nodes).find(([, state]) => state.status === 'failed');
+      const failedNode = Object.entries(runResult.nodes).find(
+        ([, state]) => state.status === 'failed',
+      );
       const failReason =
         failedNode?.[1].error || `Orchestra run ${run.id} failed (flow ${publishedFlow.id})`;
       repo.updateRunStatus(run.id, { status: 'failed', errorMessage: failReason });

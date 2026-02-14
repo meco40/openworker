@@ -93,23 +93,29 @@ Empfehlung: Option A. Sie trifft am besten "optimal und benutzerfreundlich".
 Fuer eine erste starke Version reichen 6 Node-Typen:
 
 1. Trigger Node
+
 - Quellen: Telegram, WhatsApp, Discord, WebChat, Manual Test
 
 2. Classify Intent Node
+
 - Ausgabe: label + confidence
 - Start mit 3-6 festen Labels
 
 3. Condition / Router Node
+
 - Regeln: label == x, confidence >= y, contains keyword
 
 4. Model Call Node
+
 - Waehlt Modell (oder Modellgruppe)
 - Optional: temperature, max tokens
 
 5. Memory Enrichment Node
+
 - Holt relevante Facts/Context
 
 6. Reply/Action Node
+
 - Antwort ueber Channel/SSE ausgeben
 
 Wichtiger MVP-Constraint:
@@ -246,16 +252,19 @@ Phase 3 (2 Wochen):
 ## 11) Offene Entscheidungen fuer das weitere Brainstorming
 
 1. Zielgruppe zuerst:
+
 - A: Einsteiger/Admins
 - B: Power-User/Prompt Engineers
 - C: Gemischt (mit Guided Mode + Pro Mode)
 
 2. Publish-Strategie:
+
 - A: Sofort aktiv
 - B: Manuell aktivieren
 - C: Staged rollout (recommended)
 
 3. Routing-Logik im MVP:
+
 - A: Nur Regelbasiert
 - B: Regelbasiert + Intent-Klassifikation (recommended)
 - C: Voll dynamisch mit Script-Nodes
@@ -364,4 +373,3 @@ Als naechstes Entscheidung ueber die konkreten 5 Default-Intent-Labels, weil sie
 - Routing-Qualitaet im Tagesbetrieb
 - Auswahl der Default-Modelle pro Label
 - Hoehe der Low-Confidence-Quote
-

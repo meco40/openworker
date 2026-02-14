@@ -899,15 +899,7 @@ export class SqliteRoomRepository implements RoomRepository {
           updated_at = excluded.updated_at
       `,
       )
-      .run(
-        roomId,
-        personaId,
-        input.providerId,
-        input.model,
-        input.sessionId,
-        lastSeenRoomSeq,
-        now,
-      );
+      .run(roomId, personaId, input.providerId, input.model, input.sessionId, lastSeenRoomSeq, now);
     return this.getPersonaSession(roomId, personaId)!;
   }
 

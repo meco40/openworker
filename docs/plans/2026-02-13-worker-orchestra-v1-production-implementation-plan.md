@@ -40,28 +40,28 @@ All decisions below are fixed for V1 execution:
 These are real conflicts identified against current code and are mandatory to address:
 
 1. Worker APIs are currently not user-scoped/auth-scoped by default (`app/api/worker/route.ts` and `app/api/worker/[id]/route.ts`).
-Resolution: add user context resolution and owner scoping for all new Orchestra and Workflow APIs; prevent cross-user flow/task access.
+   Resolution: add user context resolution and owner scoping for all new Orchestra and Workflow APIs; prevent cross-user flow/task access.
 
 2. No explicit flow binding currently exists from task -> published flow.
-Resolution: add `flow_published_id` and `current_run_id` tracking in worker task records (or equivalent binding table) before scheduler integration.
+   Resolution: add `flow_published_id` and `current_run_id` tracking in worker task records (or equivalent binding table) before scheduler integration.
 
 3. Existing `worker_artifacts` and new deliverables can diverge.
-Resolution: define canonical export source (`worker_task_deliverables`) and compatibility mapping from legacy artifacts.
+   Resolution: define canonical export source (`worker_task_deliverables`) and compatibility mapping from legacy artifacts.
 
 4. Existing activity type model differs from mission-control naming.
-Resolution: introduce normalized activity taxonomy and migration-safe compatibility mapping in API/UI.
+   Resolution: introduce normalized activity taxonomy and migration-safe compatibility mapping in API/UI.
 
 5. Persona model binding requires model ownership/availability checks.
-Resolution: validate `preferred_model_id` against the user's ModelHub view; fallback chain must be deterministic and logged.
+   Resolution: validate `preferred_model_id` against the user's ModelHub view; fallback chain must be deterministic and logged.
 
 6. Draft edits must never mutate published runs.
-Resolution: immutable published snapshots + run references to exact published version id.
+   Resolution: immutable published snapshots + run references to exact published version id.
 
 7. Workspace taxonomy in code still allows `creative`, while product decision is `Auto + 4 Presets` without `Kreativ`.
-Resolution: V1 orchestra templates and flow assignment must use the active preset taxonomy only (`research`, `webapp`, `data`, `general`, plus auto mapping rules).
+   Resolution: V1 orchestra templates and flow assignment must use the active preset taxonomy only (`research`, `webapp`, `data`, `general`, plus auto mapping rules).
 
 8. Model precedence conflict: existing systems can apply model override at runtime.
-Resolution: enforce and document one precedence chain. In V1 (no node override): `persona.preferred_model_id -> workspace default model`. Later extensions must prepend node override explicitly.
+   Resolution: enforce and document one precedence chain. In V1 (no node override): `persona.preferred_model_id -> workspace default model`. Later extensions must prepend node override explicitly.
 
 ## 3) Git Worktree Strategy (Requested "git three" usage)
 
@@ -70,20 +70,24 @@ Use isolated worktree execution for this feature to avoid cross-feature contamin
 ### Task 0: Worktree Setup And Baseline Verification
 
 **Files:**
+
 - Verify: `.gitignore`
 - Use existing: `.worktrees/`
 
 **Step 1: Verify worktree directory and ignore safety**
 
 Run:
+
 ```bash
 git check-ignore -v .worktrees
 ```
+
 Expected: `.gitignore` contains `.worktrees/` and check-ignore confirms ignore.
 
 **Step 2: Create dedicated worktree and feature branch**
 
 Run:
+
 ```bash
 git worktree add .worktrees/worker-orchestra-v1 -b feat/worker-orchestra-v1
 ```
@@ -91,6 +95,7 @@ git worktree add .worktrees/worker-orchestra-v1 -b feat/worker-orchestra-v1
 **Step 3: Install deps and verify clean baseline in worktree**
 
 Run:
+
 ```bash
 npm install
 npm run typecheck
@@ -101,6 +106,7 @@ npm run test -- tests/integration/rooms/rooms-runtime.test.ts
 **Step 4: Commit baseline marker**
 
 Run:
+
 ```bash
 git add docs/plans/2026-02-13-worker-orchestra-v1-production-implementation-plan.md
 git commit -m "docs: add worker orchestra v1 production implementation plan"
@@ -116,6 +122,7 @@ Do not merge if any of these regress:
 4. Existing auth/ownership checks on persona and room APIs remain intact.
 
 Mandatory baseline commands:
+
 ```bash
 npm run test -- tests/unit/worker/worker-planning.test.ts
 npm run test -- tests/unit/worker/worker-state-machine.test.ts
@@ -130,6 +137,7 @@ npm run test -- tests/unit/worker/worker-callback.test.ts
 ### Task 1: Add Orchestra Domain Types And Schema
 
 **Files:**
+
 - Create: `src/server/worker/orchestraTypes.ts`
 - Modify: `src/server/worker/workerTypes.ts`
 - Modify: `src/server/worker/workerRepository.ts`
@@ -139,6 +147,7 @@ npm run test -- tests/unit/worker/worker-callback.test.ts
 **Step 1: Write failing schema/type tests**
 
 Add tests for tables/columns:
+
 1. `worker_flow_templates`
 2. `worker_flow_drafts`
 3. `worker_flow_published`
@@ -151,9 +160,11 @@ Add tests for tables/columns:
 10. owner scope columns (for flows/runs) where applicable
 
 Run:
+
 ```bash
 npm run test -- tests/unit/worker/orchestra-schema.test.ts
 ```
+
 Expected: FAIL (missing schema and mappers).
 
 **Step 2: Implement minimal schema and row mapping**
@@ -163,9 +174,11 @@ Add migration-safe table creation to `workerRepository.ts` and mapping helpers.
 **Step 3: Re-run targeted tests**
 
 Run:
+
 ```bash
 npm run test -- tests/unit/worker/orchestra-schema.test.ts
 ```
+
 Expected: PASS.
 
 **Step 4: Commit**
@@ -178,6 +191,7 @@ git commit -m "feat(worker): add orchestra schema and domain types"
 ### Task 2A: User Scope And Auth Hardening For Worker/Orchestra APIs
 
 **Files:**
+
 - Modify: `app/api/worker/route.ts`
 - Modify: `app/api/worker/[id]/route.ts`
 - Modify: `app/api/worker/[id]/activities/route.ts`
@@ -191,6 +205,7 @@ git commit -m "feat(worker): add orchestra schema and domain types"
 **Step 1: Write failing auth/scope tests**
 
 Cover:
+
 1. unauthenticated access blocked where required.
 2. authenticated user cannot read/update another user's flow.
 3. task-level workflow endpoints reject cross-user task id access.
@@ -204,6 +219,7 @@ Add user context resolution and owner checks for all orchestra read/write endpoi
 ### Task 2B: Persona -> Model Binding Through Persona Repository
 
 **Files:**
+
 - Modify: `src/server/personas/personaTypes.ts`
 - Modify: `src/server/personas/personaRepository.ts`
 - Modify: `app/api/personas/route.ts`
@@ -215,6 +231,7 @@ Add user context resolution and owner checks for all orchestra read/write endpoi
 **Step 1: Write failing unit and integration tests**
 
 Validate:
+
 1. `preferred_model_id` persists and is returned.
 2. Updates are user-scoped and cannot cross user boundaries.
 3. Invalid or unavailable model ids are rejected.
@@ -236,6 +253,7 @@ npm run test -- tests/integration/personas/personas-model-binding-route.test.ts
 ### Task 3: Orchestra Graph Validation Core
 
 **Files:**
+
 - Create: `src/server/worker/orchestraGraph.ts`
 - Create: `src/server/worker/orchestraValidator.ts`
 - Test: `tests/unit/worker/orchestra-graph-validation.test.ts`
@@ -243,6 +261,7 @@ npm run test -- tests/integration/personas/personas-model-binding-route.test.ts
 **Step 1: Write failing validator tests**
 
 Cover:
+
 1. valid DAG passes.
 2. cycle rejected.
 3. orphan node rejected.
@@ -260,6 +279,7 @@ Minimal deterministic validation for template-bounded graphs.
 ### Task 4: Draft/Publish Flow APIs (Global Orchestra Tab Backend)
 
 **Files:**
+
 - Create: `app/api/worker/orchestra/flows/route.ts`
 - Create: `app/api/worker/orchestra/flows/[id]/route.ts`
 - Create: `app/api/worker/orchestra/flows/[id]/publish/route.ts`
@@ -270,6 +290,7 @@ Minimal deterministic validation for template-bounded graphs.
 **Step 1: Write failing integration tests**
 
 Cover:
+
 1. create draft flow.
 2. update draft flow.
 3. publish draft -> active published version.
@@ -286,6 +307,7 @@ Enforce `Draft + Publish` contract strictly with immutable published snapshots a
 ### Task 5: Runtime Scheduler For Orchestra Graph Runs
 
 **Files:**
+
 - Create: `src/server/worker/orchestraScheduler.ts`
 - Create: `src/server/worker/orchestraRunner.ts`
 - Modify: `src/server/worker/workerAgent.ts`
@@ -296,6 +318,7 @@ Enforce `Draft + Publish` contract strictly with immutable published snapshots a
 **Step 1: Write failing tests**
 
 Cover:
+
 1. master selects runnable nodes by dependency completion.
 2. independent nodes can be scheduled in parallel.
 3. first node failure sets run failed immediately (fail-fast).
@@ -311,6 +334,7 @@ Cover:
 ### Task 6: Mission-Control Transparency Layer (Subagent Sessions + Activities + Deliverables)
 
 **Files:**
+
 - Modify: `src/server/worker/workerRepository.ts`
 - Create: `app/api/worker/[id]/subagents/route.ts`
 - Create: `app/api/worker/[id]/deliverables/route.ts`
@@ -323,6 +347,7 @@ Cover:
 **Step 1: Write failing integration tests**
 
 Validate:
+
 1. subagent session create/list/update.
 2. activity events are persisted and ordered.
 3. deliverables are persisted and exportable.
@@ -337,6 +362,7 @@ Keep payload shape stable and strict typed. Define canonical export source as `w
 ### Task 7: Workflow Live API And Event Stream Contract
 
 **Files:**
+
 - Create: `app/api/worker/[id]/workflow/route.ts`
 - Modify: `src/server/gateway/events.ts`
 - Modify: `src/server/worker/workerAgent.ts`
@@ -346,6 +372,7 @@ Keep payload shape stable and strict typed. Define canonical export source as `w
 **Step 1: Write failing contract tests**
 
 Contract includes:
+
 1. nodes with status (`pending|running|completed|failed|skipped`).
 2. edges and active path.
 3. current node and timestamp.
@@ -359,6 +386,7 @@ Ensure backward compatibility for existing `worker.status` listeners.
 ### Task 8: UI - Add Global `Orchestra` Builder Tab
 
 **Files:**
+
 - Modify: `WorkerView.tsx`
 - Create: `components/worker/WorkerOrchestraTab.tsx`
 - Create: `src/modules/worker/hooks/useWorkerOrchestraFlows.ts`
@@ -368,6 +396,7 @@ Ensure backward compatibility for existing `worker.status` listeners.
 **Step 1: Write failing component tests**
 
 Cover:
+
 1. tab visible and selectable from worker view.
 2. flow list loads.
 3. create/edit draft with template-bounded controls.
@@ -382,6 +411,7 @@ No free-form topology in V1. Only template-bounded edits.
 ### Task 9: UI - Add Task-Level `Workflow` Live Graph Tab
 
 **Files:**
+
 - Modify: `components/worker/WorkerTaskDetail.tsx`
 - Create: `components/worker/WorkerWorkflowTab.tsx`
 - Create: `src/modules/worker/hooks/useWorkerWorkflow.ts`
@@ -391,6 +421,7 @@ No free-form topology in V1. Only template-bounded edits.
 **Step 1: Write failing tests**
 
 Cover:
+
 1. new `Workflow` tab appears for task detail.
 2. graph renders current run node states.
 3. only current run is shown (no history list in V1).
@@ -404,6 +435,7 @@ Prefer existing gateway event client; add route fallback polling.
 ### Task 10: Security, Quotas, And Safety Guards
 
 **Files:**
+
 - Create: `src/server/worker/orchestraPolicy.ts`
 - Modify: `src/server/worker/orchestraScheduler.ts`
 - Modify: `src/server/worker/workerExecutor.ts`
@@ -413,6 +445,7 @@ Prefer existing gateway event client; add route fallback polling.
 **Step 1: Write failing tests**
 
 Cover:
+
 1. role-based write operations for orchestra builder.
 2. per-run node limit and edge limit.
 3. command approvals still enforced under orchestra path.
@@ -427,6 +460,7 @@ Fail closed with explicit errors.
 ### Task 11: Export UX And Deliverable-First Downloads
 
 **Files:**
+
 - Modify: `app/api/worker/[id]/export/route.ts`
 - Modify: `components/worker/WorkerTaskDetail.tsx`
 - Test: `tests/integration/worker/orchestra-export-route.test.ts`
@@ -445,6 +479,7 @@ Add `deliverables.json` + improved naming.
 ### Task 12: Ops Readiness (Metrics, Runbook, Rollout Flags)
 
 **Files:**
+
 - Create: `docs/runbooks/worker-orchestra-v1-rollout.md`
 - Modify: `src/server/gateway/events.ts`
 - Modify: `app/api/control-plane/metrics/route.ts`

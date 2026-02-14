@@ -9,15 +9,16 @@ type DispatchRequest = {
 
 const dispatchWithFallbackMock = vi.fn(
   async (_profileId: string, _key: string, request: DispatchRequest) => {
-  const turn = dispatchWithFallbackMock.mock.calls.length;
-  return {
-    ok: true,
-    text: `resp-${turn}`,
-    model: request.modelOverride || 'grok-4',
-    provider: 'xai',
-    usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
-  };
-});
+    const turn = dispatchWithFallbackMock.mock.calls.length;
+    return {
+      ok: true,
+      text: `resp-${turn}`,
+      model: request.modelOverride || 'grok-4',
+      provider: 'xai',
+      usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+    };
+  },
+);
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
   getModelHubService: () => ({

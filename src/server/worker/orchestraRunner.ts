@@ -37,7 +37,9 @@ function createInitialNodeStates(graph: OrchestraFlowGraph): Record<string, Orch
   return states;
 }
 
-export async function runOrchestraFlow(input: RunOrchestraFlowInput): Promise<RunOrchestraFlowResult> {
+export async function runOrchestraFlow(
+  input: RunOrchestraFlowInput,
+): Promise<RunOrchestraFlowResult> {
   const nodeStates = createInitialNodeStates(input.graph);
 
   while (true) {

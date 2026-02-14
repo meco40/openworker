@@ -16,10 +16,12 @@ Ab 2026-02-13 gilt für die Worker-Funktion:
 
 1. Standardmodus ist `Auto (Empfohlen)`.
 2. Presets bleiben optional als Profile erhalten:
+
 - `Research`
 - `WebApp`
 - `Daten`
 - `Allgemein`
+
 3. `Kreativ` wird aus der UI und der Preset-Liste entfernt.
 4. Presets begrenzen nicht die Kernfähigkeit der KI, sondern liefern bessere Defaults und Governance.
 
@@ -27,10 +29,12 @@ Ab 2026-02-13 gilt für die Worker-Funktion:
 
 1. `Auto` deckt die meisten Aufgaben ohne zusätzliche Nutzereingaben ab.
 2. Presets sind weiterhin nützlich für:
+
 - Vorhersagbarkeit (Kosten/Laufzeit)
 - Reproduzierbarkeit
 - Domain-spezifische Qualitätsregeln
 - Output-Vorgaben (z. B. bevorzugte Dateiformate)
+
 3. `Kreativ` ist aktuell technisch nicht stabil genug als eigenes Preset, weil Bild-/Video-Erzeugung in der bestehenden Toolchain nicht konsistent abgesichert ist.
 
 ## 3. Produktprinzipien für den Worker
@@ -54,9 +58,11 @@ Ab 2026-02-13 gilt für die Worker-Funktion:
 1. Deliverable-Contract einführen (vom Planner ableitbar): gewünschte Ausgabeformate und Ziel-Dateien.
 2. Mindeststandard: Jede abgeschlossene Task erzeugt `output/final.md`.
 3. Bei explizitem Nutzerwunsch automatische Generierung zusätzlicher Dateien, z. B.:
+
 - `final.pdf`
 - `final.docx`
 - `final.xlsx` (bei tabellarischen Daten)
+
 4. Output-Tab um "Ergebnisdateien" erweitern (direkter Download pro Datei).
 5. ZIP als "Workspace/Debug Export" klar getrennt kennzeichnen.
 
@@ -65,6 +71,7 @@ Ab 2026-02-13 gilt für die Worker-Funktion:
 1. Task nur dann `completed`, wenn alle required Deliverables existieren.
 2. Falls Deliverables fehlen: Status `review` mit klarer Begründung.
 3. Verifikation je Deliverable:
+
 - Dateiexistenz
 - sinnvolle Größe
 - MIME/Extension Konsistenz
@@ -79,10 +86,12 @@ Ab 2026-02-13 gilt für die Worker-Funktion:
 
 1. Tool-/CLI-Nutzung weiterhin über bestehende Approval-/Policy-Pfade.
 2. Für Auto-Install/Tooling klare Guardrails:
+
 - Timeout
 - erlaubte Pfade
 - Ressourcengrenzen
 - Audit-Logging
+
 3. Kein ungeprüftes Persistieren sensibler Inhalte in nutzerseitigen Outputdateien.
 
 ## 5. Konkrete nächste Umsetzungssequenz

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { canEditOrchestra, canPublishOrchestra, enforceOrchestraGraphLimits } from '../../../src/server/worker/orchestraPolicy';
+import {
+  canEditOrchestra,
+  canPublishOrchestra,
+  enforceOrchestraGraphLimits,
+} from '../../../src/server/worker/orchestraPolicy';
 import type { OrchestraFlowGraph } from '../../../src/server/worker/orchestraGraph';
 
 function makeGraph(nodeCount: number, edgeCount: number): OrchestraFlowGraph {

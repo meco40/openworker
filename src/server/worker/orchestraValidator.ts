@@ -60,7 +60,11 @@ export function validateOrchestraGraph(
 
     const personaId = String(node.personaId || '').trim();
     if (!personaId) {
-      errors.push({ code: 'missing_persona', message: `Node ${nodeId} is missing personaId`, nodeId });
+      errors.push({
+        code: 'missing_persona',
+        message: `Node ${nodeId} is missing personaId`,
+        nodeId,
+      });
     } else if (options?.allowedPersonaIds && !options.allowedPersonaIds.has(personaId)) {
       errors.push({
         code: 'unauthorized_persona',
@@ -72,7 +76,8 @@ export function validateOrchestraGraph(
     nodeMap.set(nodeId, { ...node, id: nodeId, personaId });
   }
 
-  const startNodeId = graph.startNodeId && nodeMap.has(graph.startNodeId) ? graph.startNodeId : graph.nodes[0]?.id;
+  const startNodeId =
+    graph.startNodeId && nodeMap.has(graph.startNodeId) ? graph.startNodeId : graph.nodes[0]?.id;
   if (!startNodeId || !nodeMap.has(startNodeId)) {
     errors.push({ code: 'missing_start_node', message: 'Graph start node is missing' });
   }

@@ -160,12 +160,15 @@ export class PersonaRepository {
     return this.getPersona(id)!;
   }
 
-  updatePersona(id: string, updates: {
-    name?: string;
-    emoji?: string;
-    vibe?: string;
-    preferredModelId?: string | null;
-  }): void {
+  updatePersona(
+    id: string,
+    updates: {
+      name?: string;
+      emoji?: string;
+      vibe?: string;
+      preferredModelId?: string | null;
+    },
+  ): void {
     const now = new Date().toISOString();
     const setClauses: string[] = ['updated_at = ?'];
     const values: unknown[] = [now];

@@ -82,10 +82,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as CreateTaskRequest;
 
     if (!body.objective) {
-      return NextResponse.json(
-        { ok: false, error: 'objective is required' },
-        { status: 400 },
-      );
+      return NextResponse.json({ ok: false, error: 'objective is required' }, { status: 400 });
     }
 
     const messageRepo = getMessageRepository();

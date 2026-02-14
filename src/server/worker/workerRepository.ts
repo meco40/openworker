@@ -423,13 +423,13 @@ export class SqliteWorkerRepository implements WorkerRepository {
 
   getTaskForUser(id: string, userId: string): WorkerTaskRecord | null {
     const includeLegacy = this.shouldIncludeLegacyRows(userId);
-    const row = (includeLegacy
-      ? this.db
-          .prepare('SELECT * FROM worker_tasks WHERE id = ? AND (user_id = ? OR user_id IS NULL)')
-          .get(id, userId)
-      : this.db.prepare('SELECT * FROM worker_tasks WHERE id = ? AND user_id = ?').get(id, userId)) as
-      | Record<string, unknown>
-      | undefined;
+    const row = (
+      includeLegacy
+        ? this.db
+            .prepare('SELECT * FROM worker_tasks WHERE id = ? AND (user_id = ? OR user_id IS NULL)')
+            .get(id, userId)
+        : this.db.prepare('SELECT * FROM worker_tasks WHERE id = ? AND user_id = ?').get(id, userId)
+    ) as Record<string, unknown> | undefined;
     return row ? toTask(row) : null;
   }
 
@@ -514,7 +514,11 @@ export class SqliteWorkerRepository implements WorkerRepository {
   deleteTask(id: string): void {
     this.db.prepare(`DELETE FROM worker_task_deliverables WHERE task_id = ?`).run(id);
     this.db.prepare(`DELETE FROM worker_subagent_sessions WHERE task_id = ?`).run(id);
-    this.db.prepare(`DELETE FROM worker_run_nodes WHERE run_id IN (SELECT id FROM worker_runs WHERE task_id = ?)`).run(id);
+    this.db
+      .prepare(
+        `DELETE FROM worker_run_nodes WHERE run_id IN (SELECT id FROM worker_runs WHERE task_id = ?)`,
+      )
+      .run(id);
     this.db.prepare(`DELETE FROM worker_runs WHERE task_id = ?`).run(id);
     this.db.prepare(`DELETE FROM worker_task_activities WHERE task_id = ?`).run(id);
     this.db.prepare(`DELETE FROM worker_artifacts WHERE task_id = ?`).run(id);
@@ -787,7 +791,11 @@ export class SqliteWorkerRepository implements WorkerRepository {
     if (updates.status) {
       clauses.push('status = ?');
       values.push(updates.status);
-      if (updates.status === 'completed' || updates.status === 'failed' || updates.status === 'cancelled') {
+      if (
+        updates.status === 'completed' ||
+        updates.status === 'failed' ||
+        updates.status === 'cancelled'
+      ) {
         clauses.push('completed_at = ?');
         values.push(new Date().toISOString());
       }
@@ -799,7 +807,9 @@ export class SqliteWorkerRepository implements WorkerRepository {
     if (clauses.length > 0) {
       values.push(sessionId, taskId);
       this.db
-        .prepare(`UPDATE worker_subagent_sessions SET ${clauses.join(', ')} WHERE id = ? AND task_id = ?`)
+        .prepare(
+          `UPDATE worker_subagent_sessions SET ${clauses.join(', ')} WHERE id = ? AND task_id = ?`,
+        )
         .run(...values);
     }
 
@@ -927,7 +937,11 @@ export class SqliteWorkerRepository implements WorkerRepository {
   updateFlowDraft(
     id: string,
     userId: string,
-    updates: { name?: string; graphJson?: string; workspaceType?: WorkerFlowDraftRecord['workspaceType'] },
+    updates: {
+      name?: string;
+      graphJson?: string;
+      workspaceType?: WorkerFlowDraftRecord['workspaceType'];
+    },
   ): WorkerFlowDraftRecord | null {
     const existing = this.getFlowDraft(id, userId);
     if (!existing) return null;
@@ -1085,7 +1099,11 @@ export class SqliteWorkerRepository implements WorkerRepository {
           updates.outputSummary || null,
           updates.errorMessage || null,
           updates.status === 'running' ? now : null,
-          updates.status === 'completed' || updates.status === 'failed' || updates.status === 'skipped' ? now : null,
+          updates.status === 'completed' ||
+            updates.status === 'failed' ||
+            updates.status === 'skipped'
+            ? now
+            : null,
         );
     } else {
       this.db
@@ -1121,7 +1139,9 @@ export class SqliteWorkerRepository implements WorkerRepository {
 
   listRunNodes(runId: string): WorkerRunNodeRecord[] {
     const rows = this.db
-      .prepare('SELECT * FROM worker_run_nodes WHERE run_id = ? ORDER BY started_at ASC, node_id ASC')
+      .prepare(
+        'SELECT * FROM worker_run_nodes WHERE run_id = ? ORDER BY started_at ASC, node_id ASC',
+      )
       .all(runId) as Array<Record<string, unknown>>;
     return rows.map((row) => this.toRunNode(row));
   }
@@ -1131,9 +1151,9 @@ export class SqliteWorkerRepository implements WorkerRepository {
     failFastAbortCount: number;
     activeSubagentSessions: number;
   } {
-    const runCountRow = this.db
-      .prepare('SELECT COUNT(*) AS count FROM worker_runs')
-      .get() as { count: number };
+    const runCountRow = this.db.prepare('SELECT COUNT(*) AS count FROM worker_runs').get() as {
+      count: number;
+    };
     const failedRunsRow = this.db
       .prepare("SELECT COUNT(*) AS count FROM worker_runs WHERE status = 'failed'")
       .get() as { count: number };

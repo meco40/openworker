@@ -273,7 +273,12 @@ export interface WorkerRepository {
   upsertRunNodeStatus(
     runId: string,
     nodeId: string,
-    updates: { personaId?: string | null; status: WorkerRunNodeRecord['status']; errorMessage?: string | null; outputSummary?: string | null },
+    updates: {
+      personaId?: string | null;
+      status: WorkerRunNodeRecord['status'];
+      errorMessage?: string | null;
+      outputSummary?: string | null;
+    },
   ): WorkerRunNodeRecord;
   listRunNodes(runId: string): WorkerRunNodeRecord[];
   getOrchestraMetrics(): {

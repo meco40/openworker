@@ -20,8 +20,10 @@ V1-Architektur fuer den Worker-Orchestra-Modus festhalten, inklusive Persona-Mod
 9. Graph-Bearbeitung in V1: Template-basiert mit begrenzten Edits.
 10. Retry-Strategie in V1: Kein Retry, sofort Fail-fast.
 11. UI-Informationsarchitektur:
+
 - `Workflow` als Task-Detail-Tab (Run-Ansicht, live, read-only in V1).
 - `Orchestra` als globaler Workspace-Tab (Flow-/Routing-Builder, editierbar in V1).
+
 12. Workflow-Scope in V1: Nur aktueller Run (keine Run-Historie in V1).
 13. Workflow-Darstellung in V1: Live-Graph mit Knotenstatus (statt nur linearer Ablaufansicht).
 
@@ -35,8 +37,10 @@ V1-Architektur fuer den Worker-Orchestra-Modus festhalten, inklusive Persona-Mod
 6. Bei Node-Fehler wird der Run direkt beendet (keine Wiederholung in V1).
 7. User editiert nur erlaubte Felder innerhalb von Templates.
 8. Runtime-Ansicht und Konfigurations-Ansicht werden getrennt:
+
 - Task-Ebene: `Workflow`
 - Workspace-Ebene: `Orchestra`
+
 9. `Workflow` zeigt in V1 nur den laufenden/letzten aktuellen Run und keine historische Run-Liste.
 10. `Workflow` visualisiert den aktiven Run als Live-Graph (Knoten + Kanten + Status pro Knoten).
 11. `Orchestra` ist in V1 editierbar, aber nur innerhalb von Template-Grenzen (keine komplett freie Topologie).
@@ -57,14 +61,17 @@ V1-Architektur fuer den Worker-Orchestra-Modus festhalten, inklusive Persona-Mod
 Ziel: Die bestehende Worker-Engine beibehalten, aber Transparenz und Nachvollziehbarkeit auf Mission-Control-Niveau ergaenzen.
 
 1. Subagent-Sessions sichtbar machen:
+
 - Start/Status/Ende je Subagent pro Task-Run protokollieren.
 - Parallel laufende Subagents sauber zaehlen und im UI anzeigen.
 
 2. Aktivitaets-Protokoll standardisieren:
+
 - Jede relevante Aktion als strukturierte Aktivitaet speichern (spawned, updated, completed, status_changed, error).
 - Aktivitaeten chronologisch im Task-Detail anzeigen.
 
 3. Deliverable-Protokoll standardisieren:
+
 - Outputs als echte Deliverables registrieren (file/url/artifact) statt nur als freie Textzusammenfassung.
 - Download-/Export-UX auf Deliverables fokussieren, nicht nur auf Plan-/Logdateien.
 

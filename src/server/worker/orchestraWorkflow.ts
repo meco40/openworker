@@ -50,7 +50,9 @@ export function buildWorkerWorkflowPayload(input: {
   };
 }
 
-export function buildNodeStatusMap(runNodes: WorkerRunNodeRecord[]): Record<string, WorkerWorkflowNodeStatus> {
+export function buildNodeStatusMap(
+  runNodes: WorkerRunNodeRecord[],
+): Record<string, WorkerWorkflowNodeStatus> {
   const map: Record<string, WorkerWorkflowNodeStatus> = {};
   for (const runNode of runNodes) {
     map[runNode.nodeId] = runNode.status;

@@ -4,7 +4,13 @@ import { getWorkerRepository } from '../../../../../src/server/worker/workerRepo
 
 export const runtime = 'nodejs';
 
-const ALLOWED_SUBAGENT_STATUSES = new Set(['started', 'running', 'completed', 'failed', 'cancelled']);
+const ALLOWED_SUBAGENT_STATUSES = new Set([
+  'started',
+  'running',
+  'completed',
+  'failed',
+  'cancelled',
+]);
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {

@@ -524,7 +524,9 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
                   {deliverables.map((item) => (
                     <li key={item.id}>
                       <span>{item.name}</span>
-                      <small>{item.source === 'deliverable' ? 'Deliverable' : 'Legacy Artifact'}</small>
+                      <small>
+                        {item.source === 'deliverable' ? 'Deliverable' : 'Legacy Artifact'}
+                      </small>
                     </li>
                   ))}
                 </ul>

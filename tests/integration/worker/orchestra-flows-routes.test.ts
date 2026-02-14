@@ -164,8 +164,12 @@ describe('orchestra flows routes', () => {
     expect(publishV2Payload.ok).toBe(true);
     expect(publishV2Payload.published.version).toBe(2);
 
-    const v1Graph = JSON.parse(publishV1Payload.published.graphJson) as { edges: Array<{ to: string }> };
-    const v2Graph = JSON.parse(publishV2Payload.published.graphJson) as { edges: Array<{ to: string }> };
+    const v1Graph = JSON.parse(publishV1Payload.published.graphJson) as {
+      edges: Array<{ to: string }>;
+    };
+    const v2Graph = JSON.parse(publishV2Payload.published.graphJson) as {
+      edges: Array<{ to: string }>;
+    };
     expect(v1Graph.edges[0].to).toBe('n2');
     expect(v2Graph.edges[0].to).toBe('n3');
 

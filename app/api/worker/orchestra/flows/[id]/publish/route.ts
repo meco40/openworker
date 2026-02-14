@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../../../../../src/server/auth/userContext';
-import { canPublishOrchestra, normalizeWorkerRole } from '../../../../../../../src/server/worker/orchestraPolicy';
+import {
+  canPublishOrchestra,
+  normalizeWorkerRole,
+} from '../../../../../../../src/server/worker/orchestraPolicy';
 import {
   isWorkerOrchestraBuilderWriteEnabled,
   isWorkerOrchestraEnabled,
@@ -15,7 +18,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ ok: false, error: 'Orchestra disabled' }, { status: 404 });
     }
     if (!isWorkerOrchestraBuilderWriteEnabled()) {
-      return NextResponse.json({ ok: false, error: 'Orchestra builder write disabled' }, { status: 403 });
+      return NextResponse.json(
+        { ok: false, error: 'Orchestra builder write disabled' },
+        { status: 403 },
+      );
     }
 
     const userContext = await resolveRequestUserContext();
