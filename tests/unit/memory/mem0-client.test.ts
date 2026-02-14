@@ -15,12 +15,20 @@ describe('mem0Client', () => {
 
     const disabled = createMem0ClientFromEnv(
       {
-        MEMORY_PROVIDER: 'sqlite',
+        MEMORY_PROVIDER: 'disabled',
         MEM0_BASE_URL: 'http://mem0.local',
       },
       fetchMock as unknown as typeof fetch,
     );
     expect(disabled).toBeNull();
+
+    const implicit = createMem0ClientFromEnv(
+      {
+        MEM0_BASE_URL: 'http://mem0.local',
+      },
+      fetchMock as unknown as typeof fetch,
+    );
+    expect(implicit).not.toBeNull();
 
     const enabled = createMem0ClientFromEnv(
       {

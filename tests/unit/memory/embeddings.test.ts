@@ -15,25 +15,12 @@ vi.mock('../../../src/server/model-hub/runtime', () => ({
 
 import { getServerEmbedding } from '../../../src/server/memory/embeddings';
 
-describe('memory embeddings fallback', () => {
+describe('memory embeddings', () => {
   beforeEach(() => {
     dispatchEmbeddingMock.mockClear();
   });
 
-  it('returns deterministic non-zero fallback vectors when provider embedding fails', async () => {
-    const a1 = await getServerEmbedding('Ich trinke Kaffee schwarz');
-    const a2 = await getServerEmbedding('Ich trinke Kaffee schwarz');
-    const b = await getServerEmbedding('Ich esse Lasagne');
-
-    expect(a1).toHaveLength(768);
-    expect(a2).toHaveLength(768);
-    expect(b).toHaveLength(768);
-
-    expect(a1.some((value) => value !== 0)).toBe(true);
-    expect(b.some((value) => value !== 0)).toBe(true);
-
-    expect(a1).toEqual(a2);
-    expect(a1).not.toEqual(b);
+  it('throws when provider embedding is unavailable', async () => {
+    await expect(getServerEmbedding('Ich trinke Kaffee schwarz')).rejects.toThrow(/embedding/i);
   });
 });
-

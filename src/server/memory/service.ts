@@ -124,50 +124,46 @@ export class MemoryService {
       return updated;
     }
 
+    const nodeId = `mem-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    let mem0Id: string | null = null;
+    if (this.mem0Client) {
+      const result = await this.mem0Client.addMemory({
+        userId: scopedUserId,
+        personaId,
+        content,
+        metadata: {
+          type,
+          importance,
+          confidence: 0.3,
+          localNodeId: nodeId,
+        },
+      });
+      if (!result.id) {
+        throw new Error('Mem0 store failed: response did not include memory id.');
+      }
+      mem0Id = result.id;
+    }
+
     const node: MemoryNode = {
-      id: `mem-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
+      id: nodeId,
       type,
       content,
       embedding: queryVector,
       importance,
       confidence: 0.3,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      metadata: { lastVerified: new Date().toISOString(), memoryProvider: 'sqlite' },
+      metadata: {
+        lastVerified: new Date().toISOString(),
+        memoryProvider: mem0Id ? 'mem0' : 'sqlite',
+        ...(mem0Id
+          ? {
+              mem0Id,
+              source: 'mem0',
+            }
+          : {}),
+      },
     };
     this.repository.insertNode(personaId, node, scopedUserId);
-
-    if (this.mem0Client) {
-      try {
-        const result = await this.mem0Client.addMemory({
-          userId: scopedUserId,
-          personaId,
-          content,
-          metadata: {
-            type,
-            importance,
-            confidence: node.confidence,
-            localNodeId: node.id,
-          },
-        });
-
-        if (result.id) {
-          const synced: MemoryNode = {
-            ...node,
-            metadata: {
-              ...(node.metadata || {}),
-              mem0Id: result.id,
-              memoryProvider: 'mem0',
-              source: 'mem0',
-              lastVerified: new Date().toISOString(),
-            },
-          };
-          this.repository.updateNode(personaId, synced, scopedUserId);
-          return synced;
-        }
-      } catch (error) {
-        console.warn('Mem0 store sync failed:', error instanceof Error ? error.message : String(error));
-      }
-    }
 
     return node;
   }
@@ -181,14 +177,14 @@ export class MemoryService {
     const scopedUserId = resolveUserId(userId);
 
     if (this.mem0Client) {
-      try {
-        const fromMem0 = await this.recallFromMem0(personaId, query, limit, scopedUserId);
-        if (fromMem0 && fromMem0.matches.length > 0) {
-          return fromMem0;
-        }
-      } catch (error) {
-        console.warn('Mem0 recall failed, using local fallback:', error instanceof Error ? error.message : String(error));
+      const fromMem0 = await this.recallFromMem0(personaId, query, limit, scopedUserId);
+      if (fromMem0 && fromMem0.matches.length > 0) {
+        return fromMem0;
       }
+      return {
+        context: 'No relevant memories found.',
+        matches: [],
+      };
     }
 
     const queryVector = await this.getEmbedding(query);

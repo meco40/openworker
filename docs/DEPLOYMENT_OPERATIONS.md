@@ -130,7 +130,7 @@ WantedBy=multi-user.target
 | `HOSTNAME`              | `0.0.0.0`            | Server-Hostname                            |
 | `PORT`                  | `3000`               | Server-Port                                |
 | `MESSAGES_DB_PATH`      | `.local/messages.db` | SQLite-Datenbank                           |
-| `MEMORY_PROVIDER`       | `sqlite`             | Memory Backend (`sqlite` oder `mem0`)      |
+| `MEMORY_PROVIDER`       | `mem0`               | Memory Backend (`mem0` empfohlen)           |
 | `MEMORY_DB_PATH`        | -                    | Lokale Memory-DB (SQLite + Mem0-Mirror)    |
 | `MEM0_BASE_URL`         | -                    | Mem0 Base URL                              |
 | `MEM0_API_PATH`         | `/v1`                | Mem0 API Prefix                            |
@@ -265,7 +265,7 @@ tar -czf backups/openclaw-$(date +%Y%m%d).tar.gz .local/
 
 1. `MEM0_BASE_URL` erreichbar?
 2. `MEMORY_PROVIDER=mem0` gesetzt?
-3. Für Sofort-Rollback auf lokale Memory: `MEMORY_PROVIDER=sqlite`
+3. Bei Fehlern Provider/Embeddings prüfen und Incident beheben (kein lokaler Recall-Fallback)
 
 ## Verifikation
 

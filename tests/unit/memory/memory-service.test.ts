@@ -286,6 +286,22 @@ describe('MemoryService', () => {
     expect(stored.metadata?.mem0Id).toBe('mem0-1');
   });
 
+  it('fails store when mem0 add fails instead of writing local fallback memory', async () => {
+    const repo = createRepository();
+    const mem0: Mem0Client = {
+      addMemory: async () => {
+        throw new Error('mem0 add failed');
+      },
+      searchMemories: async () => [],
+      updateMemory: async () => {},
+      deleteMemory: async () => {},
+    };
+    const service = new MemoryService(repo, async () => [1, 0], mem0);
+
+    await expect(service.store('persona-test', 'fact', 'alpha', 4, 'user-1')).rejects.toThrow(/mem0 add failed/i);
+    expect(service.snapshot('persona-test', 'user-1')).toHaveLength(0);
+  });
+
   it('uses mem0 search first for recall and mirrors external ids locally', async () => {
     const repo = createRepository();
     const mem0: Mem0Client = {
@@ -310,7 +326,7 @@ describe('MemoryService', () => {
     expect(snapshot.some((node) => node.metadata?.mem0Id === 'mem0-77')).toBe(true);
   });
 
-  it('falls back to local similarity recall when mem0 search fails', async () => {
+  it('throws when mem0 search fails and fallback recall is disabled', async () => {
     const repo = createRepository([
       createNode({
         id: 'local-1',
@@ -329,8 +345,27 @@ describe('MemoryService', () => {
     };
     const service = new MemoryService(repo, async (text) => (text === 'query' ? [1, 0] : [0, 0]), mem0);
 
-    const context = await service.recall('persona-test', 'query', 3);
+    await expect(service.recall('persona-test', 'query', 3)).rejects.toThrow(/mem0 offline/i);
+  });
 
-    expect(context).toContain('local fallback');
+  it('does not use local similarity fallback when mem0 returns no hits', async () => {
+    const repo = createRepository([
+      createNode({
+        id: 'local-1',
+        type: 'fact',
+        content: 'local fallback',
+        embedding: [1, 0],
+      }),
+    ]);
+    const mem0: Mem0Client = {
+      addMemory: async () => ({ id: 'mem0-1' }),
+      searchMemories: async () => [],
+      updateMemory: async () => {},
+      deleteMemory: async () => {},
+    };
+    const service = new MemoryService(repo, async (text) => (text === 'query' ? [1, 0] : [0, 0]), mem0);
+
+    const context = await service.recall('persona-test', 'query', 3);
+    expect(context).toBe('No relevant memories found.');
   });
 });

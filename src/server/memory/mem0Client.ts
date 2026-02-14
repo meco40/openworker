@@ -229,8 +229,8 @@ export function createMem0ClientFromEnv(
   env: EnvLike = process.env as EnvLike,
   fetchImpl: typeof fetch = fetch,
 ): Mem0Client | null {
-  const provider = String(env.MEMORY_PROVIDER || 'sqlite').trim().toLowerCase();
-  if (provider !== 'mem0') return null;
+  const provider = String(env.MEMORY_PROVIDER || '').trim().toLowerCase();
+  if (provider && provider !== 'mem0') return null;
 
   const baseUrl = String(env.MEM0_BASE_URL || '').trim();
   if (!baseUrl) return null;
