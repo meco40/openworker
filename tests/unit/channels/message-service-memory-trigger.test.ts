@@ -131,7 +131,13 @@ describe('MessageService memory trigger', () => {
     );
 
     expect(memoryStoreMock).toHaveBeenCalledTimes(1);
-    expect(memoryStoreMock).toHaveBeenCalledWith('persona-1', 'fact', 'Ich mag Lasagne', 4);
+    expect(memoryStoreMock).toHaveBeenCalledWith(
+      'persona-1',
+      'fact',
+      'Ich mag Lasagne',
+      4,
+      'user-1',
+    );
     expect(dispatchWithFallbackMock).not.toHaveBeenCalled();
     expect(result.agentMsg.content.toLowerCase()).toContain('gespeichert');
   });
@@ -153,4 +159,3 @@ describe('MessageService memory trigger', () => {
     expect(result.agentMsg.content.toLowerCase()).toContain('persona');
   });
 });
-

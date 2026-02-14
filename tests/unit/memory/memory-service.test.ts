@@ -3,46 +3,61 @@ import type { MemoryNode } from '../../../core/memory/types';
 import type { MemoryRepository } from '../../../src/server/memory/repository';
 import { MemoryService } from '../../../src/server/memory/service';
 
-function createRepository(initialNodes: MemoryNode[] = []): MemoryRepository {
-  const byPersona = new Map<string, MemoryNode[]>();
-  byPersona.set('persona-test', [...initialNodes]);
+function scopeKey(personaId: string, userId?: string): string {
+  return `${userId || 'legacy-local-user'}::${personaId}`;
+}
 
-  const read = (personaId: string): MemoryNode[] => byPersona.get(personaId) || [];
+function createRepository(initialNodes: MemoryNode[] = []): MemoryRepository {
+  const byScope = new Map<string, MemoryNode[]>();
+  byScope.set(scopeKey('persona-test'), [...initialNodes]);
+
+  const read = (personaId: string, userId?: string): MemoryNode[] => byScope.get(scopeKey(personaId, userId)) || [];
+  const write = (personaId: string, nodes: MemoryNode[], userId?: string): void => {
+    byScope.set(scopeKey(personaId, userId), nodes);
+  };
+  const readAll = (userId?: string): MemoryNode[] => {
+    if (!userId) return Array.from(byScope.values()).flat();
+    const prefix = `${userId}::`;
+    return Array.from(byScope.entries())
+      .filter(([key]) => key.startsWith(prefix))
+      .flatMap(([, value]) => value);
+  };
 
   return {
-    listNodes: (personaId) => [...read(personaId)],
-    listNodesPage: (personaId, input) => {
+    listNodes: (personaId, userId) => [...read(personaId, userId)],
+    listNodesPage: (personaId, input, userId) => {
       const page = Math.max(1, Math.floor(input.page));
       const pageSize = Math.max(1, Math.floor(input.pageSize));
-      const all = read(personaId);
+      const all = read(personaId, userId);
       const start = (page - 1) * pageSize;
       return {
         nodes: all.slice(start, start + pageSize),
         total: all.length,
       };
     },
-    listAllNodes: () => Array.from(byPersona.values()).flat(),
-    insertNode: (personaId, node) => {
-      byPersona.set(personaId, [...read(personaId), node]);
+    listAllNodes: (userId) => readAll(userId),
+    insertNode: (personaId, node, userId) => {
+      write(personaId, [...read(personaId, userId), node], userId);
     },
-    updateNode: (personaId, node) => {
-      byPersona.set(
+    updateNode: (personaId, node, userId) => {
+      write(
         personaId,
-        read(personaId).map((existing) => (existing.id === node.id ? node : existing)),
+        read(personaId, userId).map((existing) => (existing.id === node.id ? node : existing)),
+        userId,
       );
     },
-    deleteNode: (personaId, nodeId) => {
-      const before = read(personaId);
+    deleteNode: (personaId, nodeId, userId) => {
+      const before = read(personaId, userId);
       const after = before.filter((node) => node.id !== nodeId);
-      byPersona.set(personaId, after);
+      write(personaId, after, userId);
       return before.length - after.length;
     },
-    updateMany: (personaId, nodeIds, updates) => {
+    updateMany: (personaId, nodeIds, updates, userId) => {
       const ids = new Set(nodeIds);
       let changes = 0;
-      byPersona.set(
+      write(
         personaId,
-        read(personaId).map((node) => {
+        read(personaId, userId).map((node) => {
           if (!ids.has(node.id)) return node;
           changes += 1;
           return {
@@ -51,19 +66,20 @@ function createRepository(initialNodes: MemoryNode[] = []): MemoryRepository {
             importance: updates.importance ?? node.importance,
           };
         }),
+        userId,
       );
       return changes;
     },
-    deleteMany: (personaId, nodeIds) => {
+    deleteMany: (personaId, nodeIds, userId) => {
       const ids = new Set(nodeIds);
-      const before = read(personaId);
+      const before = read(personaId, userId);
       const after = before.filter((node) => !ids.has(node.id));
-      byPersona.set(personaId, after);
+      write(personaId, after, userId);
       return before.length - after.length;
     },
-    deleteByPersona: (personaId) => {
-      const size = read(personaId).length;
-      byPersona.delete(personaId);
+    deleteByPersona: (personaId, userId) => {
+      const size = read(personaId, userId).length;
+      byScope.delete(scopeKey(personaId, userId));
       return size;
     },
   };
@@ -162,5 +178,95 @@ describe('MemoryService', () => {
 
     const context = await service.recall('persona-test', 'query', 3);
     expect(context).toBe('No relevant memories found.');
+  });
+
+  it('returns recall metadata with node ids and scores', async () => {
+    const repo = createRepository([
+      createNode({
+        id: 'a',
+        type: 'fact',
+        content: 'alpha',
+        embedding: [1, 0],
+        confidence: 0.8,
+      }),
+      createNode({
+        id: 'b',
+        type: 'lesson',
+        content: 'beta',
+        embedding: [0, 1],
+        confidence: 0.9,
+      }),
+    ]);
+    const service = new MemoryService(repo, async () => [1, 0]);
+
+    const result = await service.recallDetailed('persona-test', 'query', 3);
+
+    expect(result.context).toContain('alpha');
+    expect(result.matches[0]?.node.id).toBe('a');
+    expect(result.matches[0]?.score).toBeGreaterThan(0.7);
+  });
+
+  it('updates confidence and importance based on feedback signals', () => {
+    const repo = createRepository([
+      createNode({
+        id: 'a',
+        type: 'fact',
+        content: 'alpha',
+        embedding: [1, 0],
+        importance: 3,
+        confidence: 0.5,
+      }),
+    ]);
+    const service = new MemoryService(repo, async () => [1, 0]);
+
+    const positiveChanges = service.registerFeedback('persona-test', ['a'], 'positive');
+    expect(positiveChanges).toBe(1);
+
+    const afterPositive = repo.listNodes('persona-test').find((node) => node.id === 'a');
+    expect(afterPositive?.importance).toBe(4);
+    expect(afterPositive?.confidence).toBeGreaterThan(0.5);
+    expect(afterPositive?.metadata?.lastFeedback).toBe('positive');
+
+    const negativeChanges = service.registerFeedback('persona-test', ['a'], 'negative');
+    expect(negativeChanges).toBe(1);
+    const afterNegative = repo.listNodes('persona-test').find((node) => node.id === 'a');
+    expect(afterNegative?.importance).toBe(3);
+    expect(afterNegative?.metadata?.feedbackCount).toBe(2);
+  });
+
+  it('keeps memories isolated by user scope even for the same persona id', async () => {
+    const repo = createRepository();
+    const vectors: Record<string, number[]> = {
+      alpha: [1, 0],
+    };
+    const service = new MemoryService(repo, async (text) => vectors[text] || [0, 0]);
+
+    await service.store('persona-shared', 'fact', 'alpha', 3, 'user-a');
+    await service.store('persona-shared', 'fact', 'alpha', 3, 'user-b');
+
+    const userA = service.snapshot('persona-shared', 'user-a');
+    const userB = service.snapshot('persona-shared', 'user-b');
+    expect(userA).toHaveLength(1);
+    expect(userB).toHaveLength(1);
+    expect(userA[0].id).not.toBe(userB[0].id);
+  });
+
+  it('forgets repeatedly rejected memory nodes after sustained negative feedback', () => {
+    const repo = createRepository([
+      createNode({
+        id: 'forget-me',
+        type: 'fact',
+        content: 'old incorrect memory',
+        embedding: [1, 0],
+        importance: 2,
+        confidence: 0.25,
+        metadata: { feedbackCount: 2, lastFeedback: 'negative' },
+      }),
+    ]);
+    const service = new MemoryService(repo, async () => [1, 0]);
+
+    const changed = service.registerFeedback('persona-test', ['forget-me'], 'negative');
+    expect(changed).toBe(1);
+    expect(service.snapshot('persona-test')).toHaveLength(0);
   });
 });

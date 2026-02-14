@@ -15,7 +15,19 @@ const dispatchWithFallbackMock = vi.hoisted(() =>
 const deliverOutboundMock = vi.hoisted(() => vi.fn(async () => {}));
 const broadcastToUserMock = vi.hoisted(() => vi.fn());
 const memoryStoreMock = vi.hoisted(() => vi.fn(async () => ({ id: 'mem-1' })));
-const memoryRecallMock = vi.hoisted(() => vi.fn(async () => 'Herr Meco trinkt den Kaffee immer schwarz.'));
+const memoryRecallDetailedMock = vi.hoisted(() =>
+  vi.fn(async () => ({
+    context: 'Herr Meco trinkt den Kaffee immer schwarz.',
+    matches: [
+      {
+        node: { id: 'mem-old', type: 'fact', content: 'Kaffee schwarz' },
+        similarity: 0.91,
+        score: 1.1,
+      },
+    ],
+  })),
+);
+const memoryRegisterFeedbackMock = vi.hoisted(() => vi.fn(() => 1));
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
   getModelHubService: () => ({
@@ -35,7 +47,8 @@ vi.mock('../../../src/server/gateway/broadcast', () => ({
 vi.mock('../../../src/server/memory/runtime', () => ({
   getMemoryService: () => ({
     store: memoryStoreMock,
-    recall: memoryRecallMock,
+    recallDetailed: memoryRecallDetailedMock,
+    registerFeedback: memoryRegisterFeedbackMock,
   }),
 }));
 
@@ -119,8 +132,18 @@ describe('MessageService memory recall gating', () => {
     deliverOutboundMock.mockClear();
     broadcastToUserMock.mockClear();
     memoryStoreMock.mockClear();
-    memoryRecallMock.mockClear();
-    memoryRecallMock.mockResolvedValue('Herr Meco trinkt den Kaffee immer schwarz.');
+    memoryRecallDetailedMock.mockClear();
+    memoryRegisterFeedbackMock.mockClear();
+    memoryRecallDetailedMock.mockResolvedValue({
+      context: 'Herr Meco trinkt den Kaffee immer schwarz.',
+      matches: [
+        {
+          node: { id: 'mem-old', type: 'fact', content: 'Kaffee schwarz' },
+          similarity: 0.91,
+          score: 1.1,
+        },
+      ],
+    });
   });
 
   it('injects recalled memory context for memory-like user questions', async () => {
@@ -135,11 +158,12 @@ describe('MessageService memory recall gating', () => {
       'user-1',
     );
 
-    expect(memoryRecallMock).toHaveBeenCalledTimes(1);
-    expect(memoryRecallMock).toHaveBeenCalledWith(
+    expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(1);
+    expect(memoryRecallDetailedMock).toHaveBeenCalledWith(
       'persona-1',
       'Wie trinke ich meinen Kaffee?',
       3,
+      'user-1',
     );
 
     const firstDispatchCall = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
@@ -165,6 +189,57 @@ describe('MessageService memory recall gating', () => {
       'user-1',
     );
 
-    expect(memoryRecallMock).not.toHaveBeenCalled();
+    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+  });
+
+  it('triggers recall for retrospective prompts like "letzte Woche besprochen"', async () => {
+    const service = new MessageService(buildRepository('persona-1'));
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Was haben wir letzte Woche besprochen',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('learns from negative feedback and stores correction', async () => {
+    const service = new MessageService(buildRepository('persona-1'));
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Wie trinke ich meinen Kaffee?',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Das ist falsch, ich trinke Kaffee mit Hafermilch.',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(memoryRegisterFeedbackMock).toHaveBeenCalledWith(
+      'persona-1',
+      ['mem-old'],
+      'negative',
+      'user-1',
+    );
+    expect(memoryStoreMock).toHaveBeenCalledWith(
+      'persona-1',
+      'fact',
+      'ich trinke Kaffee mit Hafermilch.',
+      5,
+      'user-1',
+    );
   });
 });

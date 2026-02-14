@@ -89,6 +89,17 @@ describe('SqliteMemoryRepository', () => {
     expect(repo.listNodes(personaB)).toHaveLength(1);
   });
 
+  it('isolates memory by user for the same persona id', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+    repo.insertNode(personaA, createNode({ id: 'mem-user-a' }), 'user-a');
+    repo.insertNode(personaA, createNode({ id: 'mem-user-b' }), 'user-b');
+
+    expect(repo.listNodes(personaA, 'user-a')).toHaveLength(1);
+    expect(repo.listNodes(personaA, 'user-b')).toHaveLength(1);
+    expect(repo.listNodes(personaA, 'user-a')[0].id).toBe('mem-user-a');
+    expect(repo.listNodes(personaA, 'user-b')[0].id).toBe('mem-user-b');
+  });
+
   it('returns storage breakdown by type and largest nodes', () => {
     const repo = new SqliteMemoryRepository(dbPath);
     repo.insertNode(

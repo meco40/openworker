@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { MemoryType } from '../../../core/memory/types';
 import { getMemoryService } from '../../../src/server/memory/runtime';
+import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
 
@@ -174,6 +175,10 @@ function parseBulkBody(raw: Record<string, unknown>): {
 
 export async function GET(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
     const url = new URL(request.url);
     const personaId = parsePersonaId(url.searchParams.get('personaId'));
     const pageParam = url.searchParams.get('page');
@@ -190,11 +195,11 @@ export async function GET(request: Request) {
         pageSize,
         query: query || undefined,
         type,
-      });
+      }, userContext.userId);
       return NextResponse.json({ ok: true, nodes: result.nodes, pagination: result.pagination });
     }
 
-    return NextResponse.json({ ok: true, nodes: service.snapshot(personaId) });
+    return NextResponse.json({ ok: true, nodes: service.snapshot(personaId, userContext.userId) });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to load memory snapshot.';
     const status = error instanceof ValidationError ? 400 : 500;
@@ -204,6 +209,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
     const body = (await request.json()) as MemoryPostBody;
     const fcName = String(body.fcName || '').trim();
     const args = body.args || {};
@@ -216,13 +225,19 @@ export async function POST(request: Request) {
         parsed.type,
         parsed.content,
         parsed.importance,
+        userContext.userId,
       );
       return NextResponse.json({ ok: true, result: { action: 'store', data: node } });
     }
 
     if (fcName === 'core_memory_recall') {
       const parsed = parseRecallArgs(args);
-      const context = await service.recall(parsed.personaId, parsed.query, parsed.limit);
+      const context = await service.recall(
+        parsed.personaId,
+        parsed.query,
+        parsed.limit,
+        userContext.userId,
+      );
       return NextResponse.json({ ok: true, result: { action: 'recall', data: context } });
     }
 
@@ -239,6 +254,10 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
     const body = (await request.json()) as Record<string, unknown>;
     const parsed = parseUpdateBody(body);
     const service = getMemoryService();
@@ -246,7 +265,7 @@ export async function PUT(request: Request) {
       type: parsed.type,
       content: parsed.content,
       importance: parsed.importance,
-    });
+    }, userContext.userId);
     if (!node) {
       return NextResponse.json({ ok: false, error: 'Memory node not found.' }, { status: 404 });
     }
@@ -260,17 +279,21 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
     const url = new URL(request.url);
     const personaId = parsePersonaId(url.searchParams.get('personaId'));
     const nodeId = String(url.searchParams.get('id') || '').trim();
     const service = getMemoryService();
 
     if (nodeId) {
-      const deleted = service.delete(personaId, nodeId) ? 1 : 0;
+      const deleted = service.delete(personaId, nodeId, userContext.userId) ? 1 : 0;
       return NextResponse.json({ ok: true, deleted });
     }
 
-    const deleted = service.deleteByPersona(personaId);
+    const deleted = service.deleteByPersona(personaId, userContext.userId);
     return NextResponse.json({ ok: true, deleted });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid request.';
@@ -281,16 +304,25 @@ export async function DELETE(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
     const body = (await request.json()) as Record<string, unknown>;
     const parsed = parseBulkBody(body);
     const service = getMemoryService();
 
     if (parsed.action === 'delete') {
-      const affected = service.bulkDelete(parsed.personaId, parsed.ids);
+      const affected = service.bulkDelete(parsed.personaId, parsed.ids, userContext.userId);
       return NextResponse.json({ ok: true, action: 'delete', affected });
     }
 
-    const affected = service.bulkUpdate(parsed.personaId, parsed.ids, parsed.updates);
+    const affected = service.bulkUpdate(
+      parsed.personaId,
+      parsed.ids,
+      parsed.updates,
+      userContext.userId,
+    );
     return NextResponse.json({ ok: true, action: 'update', affected });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid request.';

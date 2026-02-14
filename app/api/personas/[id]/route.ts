@@ -121,7 +121,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
     }
 
-    getMemoryService().deleteByPersona(id);
+    getMemoryService().deleteByPersona(id, userContext.userId);
     repo.deletePersona(id);
     return NextResponse.json({ ok: true });
   } catch (error) {

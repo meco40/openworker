@@ -294,4 +294,23 @@ describe('/api/memory route', () => {
     expect(listResponse.status).toBe(400);
     expect(listJson.ok).toBe(false);
   });
+
+  it('returns 401 when auth is required and request user context is unavailable', async () => {
+    const previousRequireAuth = process.env.REQUIRE_AUTH;
+    process.env.REQUIRE_AUTH = 'true';
+    try {
+      const response = await GET(
+        new Request(`http://localhost/api/memory?personaId=${encodeURIComponent(personaId)}`),
+      );
+      const json = await response.json();
+      expect(response.status).toBe(401);
+      expect(json.ok).toBe(false);
+    } finally {
+      if (previousRequireAuth === undefined) {
+        delete process.env.REQUIRE_AUTH;
+      } else {
+        process.env.REQUIRE_AUTH = previousRequireAuth;
+      }
+    }
+  });
 });

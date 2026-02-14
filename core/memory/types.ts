@@ -18,6 +18,8 @@ export interface MemoryNode {
     context?: string;
     source?: string;
     lastVerified?: string;
+    lastFeedback?: 'positive' | 'negative';
+    feedbackCount?: number;
   };
 }
 

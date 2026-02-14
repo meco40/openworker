@@ -20,6 +20,8 @@ import {
 } from './channelBindingPersona';
 import { getMemoryService } from '../../memory/runtime';
 import { buildAutoMemoryCandidates, isAutoSessionMemoryEnabled } from './autoMemory';
+import type { MemoryFeedbackSignal } from '../../memory/service';
+import { getProactiveGateService } from '../../proactive/runtime';
 
 function extractMemorySaveContent(content: string): string | null {
   const match = /^speichere\s+ab\s*:\s*(.*)$/i.exec(content.trim());
@@ -29,6 +31,13 @@ function extractMemorySaveContent(content: string): string | null {
 
 const MEMORY_CONTEXT_CHAR_LIMIT = 1200;
 const MEMORY_RECALL_LIMIT = 3;
+const MEMORY_FEEDBACK_WINDOW_MS = 10 * 60 * 1000;
+
+type LastRecallState = {
+  personaId: string;
+  nodeIds: string[];
+  queriedAt: number;
+};
 
 function shouldRecallMemoryForInput(content: string): boolean {
   const normalized = content.trim().toLowerCase();
@@ -40,7 +49,10 @@ function shouldRecallMemoryForInput(content: string): boolean {
     /\b(lieblings|favorit|vorliebe|preference)\b/i,
     /\b(ich hatte|habe ich|was war|wann war)\b/i,
     /\b(vor (einer|einem|\d+) (tag|tagen|woche|wochen|monat|monaten|jahr|jahren))\b/i,
+    /\b(letzte[nrsm]?\s+(woche|monat|jahr)|last\s+(week|month|year))\b/i,
+    /\b(was haben wir (besprochen|gesagt)|what did we discuss)\b/i,
     /\b(wie trinke ich|was trinke ich|was esse ich|was mag ich)\b/i,
+    /\b(wie mache ich (das|es)|wie war mein workflow|mein workflow)\b/i,
     /\b(remember|favorite|preference|what did i|when did i)\b/i,
   ];
 
@@ -48,10 +60,19 @@ function shouldRecallMemoryForInput(content: string): boolean {
     return true;
   }
 
+  if (
+    /\b(ich|mein|meine|meinen|my|i)\b/i.test(normalized) &&
+    /\b(gesagt|besprochen|termin|vorhaben|routine|präferenz|vorliebe|workflow|history|previous)\b/i.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+
   if (!normalized.includes('?')) return false;
   const personalRef = /\b(ich|mein|meine|meinen|my|i)\b/i.test(normalized);
   const memoryTopic =
-    /\b(kaffee|essen|trinken|lieblings|favorit|termin|geplant|gesagt|präferenz|vorliebe|drink|eat|appointment|said)\b/i.test(
+    /\b(kaffee|essen|trinken|lieblings|favorit|termin|geplant|gesagt|präferenz|vorliebe|workflow|besprochen|history|drink|eat|appointment|said)\b/i.test(
       normalized,
     );
   return personalRef && memoryTopic;
@@ -62,6 +83,47 @@ function normalizeMemoryContext(context: string): string | null {
   if (!trimmed) return null;
   if (trimmed.toLowerCase() === 'no relevant memories found.') return null;
   return trimmed.slice(0, MEMORY_CONTEXT_CHAR_LIMIT);
+}
+
+function detectMemoryFeedbackSignal(content: string): MemoryFeedbackSignal | null {
+  const normalized = content.trim().toLowerCase();
+  if (!normalized) return null;
+
+  if (
+    /\b(falsch|stimmt nicht|nicht korrekt|inkorrekt|wrong|incorrect|not true|das ist nicht richtig)\b/i.test(
+      normalized,
+    )
+  ) {
+    return 'negative';
+  }
+
+  if (/\b(genau|stimmt|korrekt|richtig|exactly|correct|that's right)\b/i.test(normalized)) {
+    return 'positive';
+  }
+
+  return null;
+}
+
+function extractCorrectionContent(content: string): string | null {
+  const normalized = content.replace(/\s+/g, ' ').trim();
+  if (!normalized) return null;
+
+  const patterns = [
+    /\bsondern\s+(.+)$/i,
+    /\b(richtig ist|korrekt ist|eigentlich)\s+(.+)$/i,
+    /\bfalsch\b\s*[,.:;-]\s*(.+)$/i,
+    /^\s*(falsch|nein)\s*[,.:;-]?\s*(.+)$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = pattern.exec(normalized);
+    if (!match) continue;
+    const candidate = (match[2] || match[1] || '').trim();
+    if (candidate.length < 8) continue;
+    return candidate;
+  }
+
+  return null;
 }
 
 // ─── MessageService ──────────────────────────────────────────
@@ -75,6 +137,8 @@ export class MessageService {
   private readonly activeRequests = new Map<string, AbortController>();
   /** In-memory deduplication guard for active clientMessageIds */
   private readonly processingMessages = new Set<string>();
+  /** Tracks last recalled memory nodes per conversation for error-learning feedback */
+  private readonly lastRecallByConversation = new Map<string, LastRecallState>();
 
   constructor(private readonly repo: MessageRepository) {
     this.historyManager = new HistoryManager(repo);
@@ -229,6 +293,7 @@ export class MessageService {
 
       // For external channels, auto-apply persona from channel binding
       const effectiveConversation = applyChannelBindingPersona(this.repo, conversation, platform);
+      await this.maybeLearnFromFeedback(effectiveConversation, content);
       const memoryContent = extractMemorySaveContent(content);
 
       if (memoryContent !== null) {
@@ -257,7 +322,13 @@ export class MessageService {
         }
 
         try {
-          await getMemoryService().store(effectiveConversation.personaId, 'fact', memoryContent, 4);
+          await getMemoryService().store(
+            effectiveConversation.personaId,
+            'fact',
+            memoryContent,
+            4,
+            effectiveConversation.userId,
+          );
           return {
             userMsg,
             agentMsg: await this.sendResponse(
@@ -1100,19 +1171,71 @@ export class MessageService {
     conversation: Conversation,
     userInput: string,
   ): Promise<string | null> {
-    if (!conversation.personaId) return null;
+    if (!conversation.personaId) {
+      this.lastRecallByConversation.delete(conversation.id);
+      return null;
+    }
     if (!shouldRecallMemoryForInput(userInput)) return null;
 
     try {
-      const recalled = await getMemoryService().recall(
+      const recalled = await getMemoryService().recallDetailed(
         conversation.personaId,
         userInput,
         MEMORY_RECALL_LIMIT,
+        conversation.userId,
       );
-      return normalizeMemoryContext(recalled);
+      if (recalled.matches.length > 0) {
+        this.lastRecallByConversation.set(conversation.id, {
+          personaId: conversation.personaId,
+          nodeIds: recalled.matches.map((entry) => entry.node.id),
+          queriedAt: Date.now(),
+        });
+      }
+      return normalizeMemoryContext(recalled.context);
     } catch (error) {
       console.error('Memory recall failed:', error);
       return null;
+    }
+  }
+
+  private async maybeLearnFromFeedback(conversation: Conversation, userInput: string): Promise<void> {
+    if (!conversation.personaId) return;
+
+    const feedback = detectMemoryFeedbackSignal(userInput);
+    if (!feedback) return;
+
+    const state = this.lastRecallByConversation.get(conversation.id);
+    if (!state) return;
+    if (state.personaId !== conversation.personaId) return;
+    if (Date.now() - state.queriedAt > MEMORY_FEEDBACK_WINDOW_MS) {
+      this.lastRecallByConversation.delete(conversation.id);
+      return;
+    }
+
+    try {
+      getMemoryService().registerFeedback(
+        conversation.personaId,
+        state.nodeIds,
+        feedback,
+        conversation.userId,
+      );
+
+      if (feedback === 'negative') {
+        const correction = extractCorrectionContent(userInput);
+        if (correction) {
+          await getMemoryService().store(
+            conversation.personaId,
+            'fact',
+            correction,
+            5,
+            conversation.userId,
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Memory feedback learning failed:', error);
+    } finally {
+      this.lastRecallByConversation.delete(conversation.id);
     }
   }
 
@@ -1169,6 +1292,7 @@ export class MessageService {
       );
 
       await this.maybeStoreAutoSessionMemory(conversation, unsummarized);
+      await this.maybeEvaluateProactiveGate(conversation, unsummarized);
     } finally {
       this.summaryRefreshInFlight.delete(conversation.id);
     }
@@ -1191,10 +1315,35 @@ export class MessageService {
           candidate.type,
           candidate.content,
           candidate.importance,
+          conversation.userId,
         );
       } catch (error) {
         console.error('Auto session memory store failed:', error);
       }
+    }
+  }
+
+  private async maybeEvaluateProactiveGate(
+    conversation: Conversation,
+    messages: StoredMessage[],
+  ): Promise<void> {
+    if (!conversation.personaId) return;
+    if (messages.length === 0) return;
+
+    try {
+      const service = getProactiveGateService();
+      service.ingestMessages(
+        conversation.userId,
+        conversation.personaId,
+        messages.map((message) => ({
+          role: message.role,
+          content: message.content,
+          createdAt: message.createdAt,
+        })),
+      );
+      service.evaluate(conversation.userId, conversation.personaId);
+    } catch (error) {
+      console.error('Proactive gate evaluation failed:', error);
     }
   }
 

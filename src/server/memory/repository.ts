@@ -13,17 +13,18 @@ export interface MemoryListPageResult {
 }
 
 export interface MemoryRepository {
-  listNodes(personaId: string): MemoryNode[];
-  listNodesPage(personaId: string, input: MemoryListPageInput): MemoryListPageResult;
-  listAllNodes(): MemoryNode[];
-  insertNode(personaId: string, node: MemoryNode): void;
-  updateNode(personaId: string, node: MemoryNode): void;
-  deleteNode(personaId: string, nodeId: string): number;
+  listNodes(personaId: string, userId?: string): MemoryNode[];
+  listNodesPage(personaId: string, input: MemoryListPageInput, userId?: string): MemoryListPageResult;
+  listAllNodes(userId?: string): MemoryNode[];
+  insertNode(personaId: string, node: MemoryNode, userId?: string): void;
+  updateNode(personaId: string, node: MemoryNode, userId?: string): void;
+  deleteNode(personaId: string, nodeId: string, userId?: string): number;
   updateMany(
     personaId: string,
     nodeIds: string[],
     updates: { type?: MemoryType; importance?: number },
+    userId?: string,
   ): number;
-  deleteMany(personaId: string, nodeIds: string[]): number;
-  deleteByPersona(personaId: string): number;
+  deleteMany(personaId: string, nodeIds: string[], userId?: string): number;
+  deleteByPersona(personaId: string, userId?: string): number;
 }
