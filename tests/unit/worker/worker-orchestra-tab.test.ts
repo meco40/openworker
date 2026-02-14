@@ -13,10 +13,10 @@ vi.mock('../../../src/modules/worker/hooks/useWorkerOrchestraFlows', () => ({
         graphJson: JSON.stringify({
           startNodeId: 'n1',
           nodes: [
-            { id: 'n1', personaId: 'persona-research' },
-            { id: 'n2', personaId: 'persona-review' },
+            { id: 'n1', personaId: 'persona-research', position: { x: 0, y: 0 } },
+            { id: 'n2', personaId: 'persona-review', position: { x: 0, y: 100 } },
           ],
-          edges: [{ from: 'n1', to: 'n2' }],
+          edges: [{ id: 'e1', from: 'n1', to: 'n2' }],
         }),
         updatedAt: new Date().toISOString(),
       },
@@ -28,18 +28,22 @@ vi.mock('../../../src/modules/worker/hooks/useWorkerOrchestraFlows', () => ({
     createDraft: vi.fn(),
     publishDraft: vi.fn(),
     updateDraft: vi.fn(),
+    deleteDraft: vi.fn(),
+  }),
+}));
+
+vi.mock('../../../src/modules/personas/PersonaContext', () => ({
+  usePersona: () => ({
+    personas: [],
+    loading: false,
   }),
 }));
 
 describe('worker orchestra tab', () => {
   it('renders orchestra tab shell', () => {
     const html = renderToStaticMarkup(createElement(WorkerOrchestraTab));
-    expect(html).toContain('🎼 Orchestra');
+    expect(html).toContain('Orchestra');
     expect(html).toContain('Draft erstellen');
-    expect(html).toContain('Published');
-    expect(html).toContain('Bearbeiten');
-    expect(html).toContain('Was ist Orchestra?');
-    expect(html).toContain('Flow-Canvas');
-    expect(html).toContain('Aktiver Draft im Canvas:');
+    expect(html).toContain('Mock Draft');
   });
 });

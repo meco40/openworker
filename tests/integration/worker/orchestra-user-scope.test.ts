@@ -83,7 +83,7 @@ describe('worker orchestra user scope', () => {
           name: 'User A Flow',
           workspaceType: 'research',
           graph: {
-            nodes: [{ id: 'n1', type: 'task', personaId: 'persona-a' }],
+            nodes: [{ id: 'n1', type: 'task', personaId: 'persona-a', position: { x: 0, y: 0 } }],
             edges: [],
           },
         }),

@@ -70,6 +70,7 @@ interface CreateTaskRequest {
   workspaceType?: string;
   priority?: string;
   usePlanning?: boolean;
+  flowPublishedId?: string;
 }
 
 export async function POST(request: Request) {
@@ -109,6 +110,7 @@ export async function POST(request: Request) {
       originConversation,
       usePlanning: body.usePlanning,
       userId: userContext.userId,
+      flowPublishedId: body.flowPublishedId || null,
     });
 
     // Start queue processor (non-blocking) — skip for planning mode (task starts in inbox)

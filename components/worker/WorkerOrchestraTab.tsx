@@ -1,519 +1,451 @@
-import React, { useEffect, useRef, useState } from 'react';
+'use client';
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ReactFlowProvider } from '@xyflow/react';
+import type { Node, Edge } from '@xyflow/react';
 import { useWorkerOrchestraFlows } from '../../src/modules/worker/hooks/useWorkerOrchestraFlows';
+import { usePersona } from '../../src/modules/personas/PersonaContext';
+import {
+  orchestraGraphToReactFlow,
+  reactFlowToOrchestraGraph,
+  autoLayoutGraph,
+  type PersonaNodeData,
+  type PersonaInfo,
+} from '../../src/shared/lib/orchestra-graph-converter';
+import type { OrchestraFlowGraph } from '../../src/server/worker/orchestraGraph';
+import { OrchestraCanvas } from './orchestra/OrchestraCanvas';
+import { OrchestraToolbar } from './orchestra/OrchestraToolbar';
+import { NodeLibrary } from './orchestra/NodeLibrary';
+import { NodePropertiesPanel, type SkillOption } from './orchestra/NodePropertiesPanel';
 
-const DEFAULT_GRAPH = {
-  startNodeId: 'n1',
-  nodes: [{ id: 'n1', personaId: 'persona-default' }],
-  edges: [],
-};
+// ─── View mode ───────────────────────────────────────────────
 
-type GraphNode = {
-  id: string;
-  personaId: string;
-};
+type ViewMode = 'list' | 'canvas';
 
-type GraphEdge = {
-  from: string;
-  to: string;
-};
+// ─── Helpers ─────────────────────────────────────────────────
 
-type DraftGraph = {
-  startNodeId: string;
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-};
-
-function parseDraftGraph(graphJson?: string): DraftGraph {
-  if (!graphJson) return { ...DEFAULT_GRAPH };
+function parseGraphJson(graphJson?: string): OrchestraFlowGraph | null {
+  if (!graphJson) return null;
   try {
-    const parsed = JSON.parse(graphJson) as Partial<DraftGraph>;
-    if (!parsed || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
-      return { ...DEFAULT_GRAPH };
-    }
-    const nodes = parsed.nodes
-      .filter((node): node is GraphNode => !!node && typeof node.id === 'string')
-      .map((node) => ({
-        id: node.id.trim(),
-        personaId: typeof node.personaId === 'string' ? node.personaId : 'persona-default',
-      }))
-      .filter((node) => node.id.length > 0);
-    const edges = parsed.edges
-      .filter(
-        (edge): edge is GraphEdge =>
-          !!edge && typeof edge.from === 'string' && typeof edge.to === 'string',
-      )
-      .map((edge) => ({ from: edge.from.trim(), to: edge.to.trim() }))
-      .filter((edge) => edge.from.length > 0 && edge.to.length > 0);
-
-    if (nodes.length === 0) return { ...DEFAULT_GRAPH };
-    return {
-      startNodeId:
-        typeof parsed.startNodeId === 'string' && parsed.startNodeId.trim().length > 0
-          ? parsed.startNodeId.trim()
-          : nodes[0]!.id,
-      nodes,
-      edges,
-    };
+    const parsed = JSON.parse(graphJson) as Partial<OrchestraFlowGraph>;
+    if (!parsed || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) return null;
+    return parsed as OrchestraFlowGraph;
   } catch {
-    return { ...DEFAULT_GRAPH };
+    return null;
   }
 }
 
-function graphForDraft(
-  drafts: Array<{ id: string; graphJson?: string }>,
-  draftId: string | null,
-): DraftGraph {
-  const draft = drafts.find((item) => item.id === draftId);
-  return parseDraftGraph(draft?.graphJson);
-}
+// ─── Component ───────────────────────────────────────────────
 
 const WorkerOrchestraTab: React.FC = () => {
-  const { drafts, published, loading, error, createDraft, publishDraft, updateDraft } =
-    useWorkerOrchestraFlows();
-  const [name, setName] = useState('');
-  const [workspaceType, setWorkspaceType] = useState('research');
+  const {
+    drafts,
+    published,
+    loading,
+    error,
+    createDraft,
+    publishDraft,
+    updateDraft,
+    deleteDraft,
+  } = useWorkerOrchestraFlows();
+  const { personas: personaSummaries } = usePersona();
+
+  // ─── State ──────────────────────────────────────────────
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [canvasNodes, setCanvasNodes] = useState<Node<PersonaNodeData>[]>([]);
+  const [canvasEdges, setCanvasEdges] = useState<Edge[]>([]);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
-  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
-  const [draftGraph, setDraftGraph] = useState<DraftGraph>({ ...DEFAULT_GRAPH });
-  const [newNodeId, setNewNodeId] = useState('');
-  const [newNodePersona, setNewNodePersona] = useState('persona-default');
-  const [edgeFrom, setEdgeFrom] = useState('');
-  const [edgeTo, setEdgeTo] = useState('');
-  const [graphMessage, setGraphMessage] = useState<string | null>(null);
-  const builderRef = useRef<HTMLElement | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [newFlowName, setNewFlowName] = useState('');
+  const [newFlowType, setNewFlowType] = useState('research');
+  const [skills, setSkills] = useState<SkillOption[]>([]);
+  const canvasRef = useRef<HTMLDivElement>(null);
 
+  // ─── Derived ────────────────────────────────────────────
+  const personaInfos: PersonaInfo[] = useMemo(
+    () => personaSummaries.map((p) => ({ id: p.id, name: p.name, emoji: p.emoji })),
+    [personaSummaries],
+  );
+
+  const activeDraft = useMemo(
+    () => drafts.find((d) => d.id === activeDraftId) ?? null,
+    [drafts, activeDraftId],
+  );
+
+  const selectedNode = useMemo(
+    () => canvasNodes.find((n) => n.id === selectedNodeId) ?? null,
+    [canvasNodes, selectedNodeId],
+  );
+
+  const allNodeIds = useMemo(() => canvasNodes.map((n) => n.id), [canvasNodes]);
+
+  // ─── Load skills on mount ──────────────────────────────
   useEffect(() => {
-    if (drafts.length === 0) {
-      setSelectedDraftId(null);
-      setDraftGraph({ ...DEFAULT_GRAPH });
-      return;
-    }
-    const nextSelected =
-      selectedDraftId && drafts.some((draft) => draft.id === selectedDraftId)
-        ? selectedDraftId
-        : drafts[0]!.id;
-    if (nextSelected !== selectedDraftId) {
-      setSelectedDraftId(nextSelected);
-      setDraftGraph(graphForDraft(drafts, nextSelected));
-      setEdgeFrom('');
-      setEdgeTo('');
-      setGraphMessage(null);
-    }
-  }, [drafts, selectedDraftId]);
-
-  const submitDraft = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!name.trim()) return;
-    setBusy(true);
-    try {
-      const ok = editingDraftId
-        ? await updateDraft(editingDraftId, {
-            name: name.trim(),
-            workspaceType,
-          })
-        : await createDraft({
-            name: name.trim(),
-            workspaceType,
-            graph: DEFAULT_GRAPH,
-          });
-      if (ok) {
-        setName('');
-        setWorkspaceType('research');
-        setEditingDraftId(null);
+    (async () => {
+      try {
+        const res = await fetch('/api/skills');
+        if (res.ok) {
+          const data = (await res.json()) as { skills?: Array<{ id: string; name: string; installed: boolean }> };
+          setSkills(
+            (data.skills ?? [])
+              .filter((s) => s.installed)
+              .map((s) => ({ id: s.id, name: s.name })),
+          );
+        }
+      } catch {
+        // non-critical
       }
-    } catch {
-      // createDraft handles error state in hook
-    } finally {
-      setBusy(false);
-    }
-  };
+    })();
+  }, []);
 
-  const handlePublish = async (flowId: string) => {
-    try {
+  // ─── Open draft in canvas ──────────────────────────────
+  const openDraftCanvas = useCallback(
+    (draftId: string) => {
+      const draft = drafts.find((d) => d.id === draftId);
+      if (!draft) return;
+      const graph = parseGraphJson(draft.graphJson);
+      if (graph) {
+        const { nodes, edges } = orchestraGraphToReactFlow(graph, personaInfos);
+        setCanvasNodes(nodes);
+        setCanvasEdges(edges);
+      } else {
+        setCanvasNodes([]);
+        setCanvasEdges([]);
+      }
+      setActiveDraftId(draftId);
+      setSelectedNodeId(null);
+      setIsDirty(false);
+      setViewMode('canvas');
+    },
+    [drafts, personaInfos],
+  );
+
+  // ─── Create new draft ──────────────────────────────────
+  const handleCreateDraft = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!newFlowName.trim()) return;
       setBusy(true);
-      await publishDraft(flowId);
-    } catch {
-      // publishDraft handles error state in hook
-    } finally {
+      const emptyGraph: OrchestraFlowGraph = { startNodeId: undefined, nodes: [], edges: [] };
+      const ok = await createDraft({
+        name: newFlowName.trim(),
+        workspaceType: newFlowType,
+        graph: emptyGraph as unknown as Record<string, unknown>,
+      });
+      if (ok) {
+        setNewFlowName('');
+        setNewFlowType('research');
+      }
       setBusy(false);
-    }
-  };
+    },
+    [newFlowName, newFlowType, createDraft],
+  );
 
-  const startEditing = (draftId: string, draftName: string, draftWorkspaceType: string) => {
-    setEditingDraftId(draftId);
-    setSelectedDraftId(draftId);
-    setDraftGraph(graphForDraft(drafts, draftId));
-    setName(draftName);
-    setWorkspaceType(draftWorkspaceType);
-    setGraphMessage(null);
-  };
+  // ─── Canvas graph change handler ───────────────────────
+  const handleGraphChange = useCallback(
+    (nodes: Node<PersonaNodeData>[], edges: Edge[]) => {
+      setCanvasNodes(nodes);
+      setCanvasEdges(edges);
+      setIsDirty(true);
+    },
+    [],
+  );
 
-  const stopEditing = () => {
-    setEditingDraftId(null);
-    setName('');
-    setWorkspaceType('research');
-    setGraphMessage(null);
-  };
+  // ─── Node property updates ─────────────────────────────
+  const handleNodeUpdate = useCallback(
+    (nodeId: string, updates: Partial<PersonaNodeData>) => {
+      setCanvasNodes((prev) =>
+        prev.map((n) =>
+          n.id === nodeId
+            ? { ...n, data: { ...n.data, ...updates } }
+            : n,
+        ) as Node<PersonaNodeData>[],
+      );
+      setIsDirty(true);
+    },
+    [],
+  );
 
-  const selectDraft = (draftId: string) => {
-    setSelectedDraftId(draftId);
-    setDraftGraph(graphForDraft(drafts, draftId));
-    const selected = drafts.find((draft) => draft.id === draftId);
-    setGraphMessage(selected ? `Canvas geöffnet: ${selected.name}` : null);
-    requestAnimationFrame(() => {
-      builderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
+  const handleSetStartNode = useCallback(
+    (nodeId: string) => {
+      setCanvasNodes((prev) =>
+        prev.map((n) => ({
+          ...n,
+          data: { ...n.data, isStartNode: n.id === nodeId },
+        })) as Node<PersonaNodeData>[],
+      );
+      setIsDirty(true);
+    },
+    [],
+  );
 
-  const addNode = () => {
-    const id = newNodeId.trim();
-    if (!id) return;
-    if (draftGraph.nodes.some((node) => node.id === id)) {
-      setGraphMessage(`Knoten "${id}" existiert bereits.`);
-      return;
-    }
-    const nextNodes = [
-      ...draftGraph.nodes,
-      {
-        id,
-        personaId: newNodePersona.trim() || 'persona-default',
-      },
-    ];
-    const nextGraph = {
-      ...draftGraph,
-      nodes: nextNodes,
-      startNodeId: draftGraph.startNodeId || nextNodes[0]!.id,
-    };
-    setDraftGraph(nextGraph);
-    setNewNodeId('');
-    setGraphMessage(null);
-  };
+  const handleDeleteNode = useCallback(
+    (nodeId: string) => {
+      setCanvasNodes((prev) => {
+        const remaining = prev.filter((n) => n.id !== nodeId);
+        // Reassign start if needed
+        if (remaining.length > 0 && !remaining.some((n) => n.data.isStartNode)) {
+          remaining[0] = {
+            ...remaining[0]!,
+            data: { ...remaining[0]!.data, isStartNode: true },
+          };
+        }
+        return remaining as Node<PersonaNodeData>[];
+      });
+      setCanvasEdges((prev) =>
+        prev.filter((e) => e.source !== nodeId && e.target !== nodeId),
+      );
+      setSelectedNodeId(null);
+      setIsDirty(true);
+    },
+    [],
+  );
 
-  const removeNode = (nodeId: string) => {
-    const nodes = draftGraph.nodes.filter((node) => node.id !== nodeId);
-    if (nodes.length === 0) {
-      setGraphMessage('Ein Flow braucht mindestens einen Knoten.');
-      return;
-    }
-    const edges = draftGraph.edges.filter((edge) => edge.from !== nodeId && edge.to !== nodeId);
-    setDraftGraph({
-      startNodeId: draftGraph.startNodeId === nodeId ? nodes[0]!.id : draftGraph.startNodeId,
-      nodes,
-      edges,
-    });
-    setGraphMessage(null);
-  };
+  // ─── Toolbar actions ───────────────────────────────────
 
-  const addEdge = () => {
-    if (!edgeFrom || !edgeTo) return;
-    if (edgeFrom === edgeTo) {
-      setGraphMessage('Kante von einem Knoten auf sich selbst ist nicht erlaubt.');
-      return;
-    }
-    if (draftGraph.edges.some((edge) => edge.from === edgeFrom && edge.to === edgeTo)) {
-      setGraphMessage('Diese Kante existiert bereits.');
-      return;
-    }
-    setDraftGraph({
-      ...draftGraph,
-      edges: [...draftGraph.edges, { from: edgeFrom, to: edgeTo }],
-    });
-    setEdgeFrom('');
-    setEdgeTo('');
-    setGraphMessage(null);
-  };
+  const handleAutoLayout = useCallback(() => {
+    const laid = autoLayoutGraph(canvasNodes, canvasEdges);
+    setCanvasNodes(laid);
+    setIsDirty(true);
+  }, [canvasNodes, canvasEdges]);
 
-  const removeEdge = (edge: GraphEdge) => {
-    setDraftGraph({
-      ...draftGraph,
-      edges: draftGraph.edges.filter((item) => !(item.from === edge.from && item.to === edge.to)),
-    });
-    setGraphMessage(null);
-  };
-
-  const saveGraph = async () => {
-    const draftId = selectedDraftId ?? drafts[0]?.id ?? null;
-    if (!draftId) return;
+  const handleSave = useCallback(async () => {
+    if (!activeDraftId) return;
     setBusy(true);
-    const ok = await updateDraft(draftId, { graph: draftGraph });
+    const graph = reactFlowToOrchestraGraph(canvasNodes, canvasEdges);
+    const ok = await updateDraft(activeDraftId, {
+      graph: graph as unknown as Record<string, unknown>,
+    });
     if (ok) {
-      setGraphMessage('Flow-Canvas gespeichert.');
+      setIsDirty(false);
     }
     setBusy(false);
-  };
+  }, [activeDraftId, canvasNodes, canvasEdges, updateDraft]);
 
-  const resolvedSelectedDraftId = selectedDraftId ?? drafts[0]?.id ?? null;
-  const resolvedSelectedDraft =
-    drafts.find((draft) => draft.id === resolvedSelectedDraftId) || null;
-  const renderedGraph =
-    selectedDraftId === null ? graphForDraft(drafts, resolvedSelectedDraftId) : draftGraph;
+  const handlePublish = useCallback(async () => {
+    if (!activeDraftId) return;
+    // Save first if dirty
+    if (isDirty) {
+      setBusy(true);
+      const graph = reactFlowToOrchestraGraph(canvasNodes, canvasEdges);
+      const ok = await updateDraft(activeDraftId, {
+        graph: graph as unknown as Record<string, unknown>,
+      });
+      if (!ok) {
+        setBusy(false);
+        return;
+      }
+      setIsDirty(false);
+      setBusy(false);
+    }
+    setPublishing(true);
+    await publishDraft(activeDraftId);
+    setPublishing(false);
+  }, [activeDraftId, isDirty, canvasNodes, canvasEdges, updateDraft, publishDraft]);
 
-  const NODE_WIDTH = 180;
-  const NODE_HEIGHT = 88;
-  const GAP_X = 48;
-  const canvasWidth = Math.max(320, renderedGraph.nodes.length * (NODE_WIDTH + GAP_X) + 32);
-  const canvasHeight = 210;
-  const nodePosition = (index: number) => ({
-    x: 16 + index * (NODE_WIDTH + GAP_X),
-    y: 44,
-  });
+  const handleDeleteFlow = useCallback(async () => {
+    if (!activeDraftId) return;
+    if (!window.confirm('Diesen Flow-Draft wirklich löschen?')) return;
+    setBusy(true);
+    const ok = await deleteDraft(activeDraftId);
+    if (ok) {
+      setActiveDraftId(null);
+      setViewMode('list');
+      setCanvasNodes([]);
+      setCanvasEdges([]);
+      setIsDirty(false);
+    }
+    setBusy(false);
+  }, [activeDraftId, deleteDraft]);
 
-  const nodeIndexById = new Map(renderedGraph.nodes.map((node, index) => [node.id, index]));
+  const canvasApi = useMemo(() => {
+    const el = canvasRef.current as (HTMLDivElement & { canvasApi?: Record<string, unknown> }) | null;
+    return el?.canvasApi ?? null;
+  }, [canvasRef.current]);
 
-  return (
-    <section className="worker-orchestra">
-      <header className="worker-orchestra__header">
-        <h2>🎼 Orchestra</h2>
-        <p>Globale Flow-Definitionen für den Worker-Orchestrator.</p>
-      </header>
+  const handleUndo = useCallback(() => {
+    if (canvasApi && typeof (canvasApi as Record<string, unknown>).undo === 'function') {
+      (canvasApi as { undo: () => void }).undo();
+    }
+  }, [canvasApi]);
 
-      <div className="worker-orchestra__explain">
-        <h3>Was ist Orchestra?</h3>
-        <p>
-          Orchestra legt fest, wie Aufgaben durch Personas laufen. Ein <strong>Draft</strong> ist
-          ein Entwurf. Erst <strong>Published</strong> wird live genutzt.
-        </p>
-      </div>
+  const handleRedo = useCallback(() => {
+    if (canvasApi && typeof (canvasApi as Record<string, unknown>).redo === 'function') {
+      (canvasApi as { redo: () => void }).redo();
+    }
+  }, [canvasApi]);
 
-      <form className="worker-orchestra__create" onSubmit={submitDraft}>
-        <input
-          className="worker-input"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="Flow Name"
-        />
-        <select
-          className="worker-input"
-          value={workspaceType}
-          onChange={(event) => setWorkspaceType(event.target.value)}
-        >
-          <option value="research">Research</option>
-          <option value="webapp">WebApp</option>
-          <option value="data">Daten</option>
-          <option value="general">Allgemein</option>
-        </select>
-        <button className="worker-btn worker-btn--primary" type="submit" disabled={busy}>
-          {busy ? 'Speichere…' : editingDraftId ? 'Draft aktualisieren' : 'Draft erstellen'}
-        </button>
-        {editingDraftId && (
-          <button className="worker-btn worker-btn--ghost" type="button" onClick={stopEditing}>
-            Bearbeitung abbrechen
+  // ─── Render: List View ─────────────────────────────────
+
+  if (viewMode === 'list') {
+    return (
+      <section className="worker-orchestra">
+        <header className="worker-orchestra__header">
+          <h2>🎼 Orchestra</h2>
+          <p>Visueller Workflow-Builder für Persona-Orchestrierung.</p>
+        </header>
+
+        {/* Create form */}
+        <form className="worker-orchestra__create" onSubmit={handleCreateDraft}>
+          <input
+            className="worker-input"
+            value={newFlowName}
+            onChange={(e) => setNewFlowName(e.target.value)}
+            placeholder="Neuer Flow Name"
+          />
+          <select
+            className="worker-input"
+            value={newFlowType}
+            onChange={(e) => setNewFlowType(e.target.value)}
+          >
+            <option value="research">Research</option>
+            <option value="webapp">WebApp</option>
+            <option value="data">Daten</option>
+            <option value="general">Allgemein</option>
+          </select>
+          <button className="worker-btn worker-btn--primary" type="submit" disabled={busy}>
+            {busy ? 'Erstelle…' : 'Draft erstellen'}
           </button>
-        )}
-      </form>
+        </form>
 
-      {loading && <p>Orchestra-Flows werden geladen…</p>}
-      {error && <p className="worker-alert worker-alert--error">{error}</p>}
+        {loading && <p>Orchestra-Flows werden geladen…</p>}
+        {error && <p className="worker-alert worker-alert--error">{error}</p>}
 
-      <div className="worker-orchestra__grid">
-        <div>
-          <h3>Drafts</h3>
-          {drafts.length === 0 ? (
-            <p>Keine Drafts vorhanden.</p>
-          ) : (
-            <ul className="worker-orchestra__list">
-              {drafts.map((draft) => (
-                <li
-                  key={draft.id}
-                  className={`worker-orchestra__item ${resolvedSelectedDraftId === draft.id ? 'worker-orchestra__item--active' : ''}`}
-                >
-                  <div>
-                    <strong>{draft.name}</strong>
-                    <span>{draft.workspaceType}</span>
-                  </div>
-                  <div className="worker-orchestra__item-actions">
-                    {resolvedSelectedDraftId === draft.id ? (
-                      <span className="worker-orchestra__pill worker-orchestra__pill--active">
-                        Canvas aktiv
-                      </span>
-                    ) : null}
-                    <button
-                      className="worker-btn worker-btn--ghost"
-                      onClick={() => selectDraft(draft.id)}
-                      type="button"
-                    >
-                      {resolvedSelectedDraftId === draft.id ? 'Canvas öffnen' : 'Canvas'}
-                    </button>
-                    <button
-                      className="worker-btn worker-btn--ghost"
-                      onClick={() => handlePublish(draft.id)}
-                      type="button"
-                      disabled={busy}
-                    >
-                      Publish
-                    </button>
-                    <button
-                      className="worker-btn worker-btn--ghost"
-                      onClick={() => startEditing(draft.id, draft.name, draft.workspaceType)}
-                      type="button"
-                      disabled={busy}
-                    >
-                      Bearbeiten
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div>
-          <h3>Published</h3>
-          {published.length === 0 ? (
-            <p>Keine veröffentlichten Flows.</p>
-          ) : (
-            <ul className="worker-orchestra__list">
-              {published.map((flow) => (
-                <li key={flow.id} className="worker-orchestra__item">
-                  <div>
-                    <strong>{flow.name}</strong>
-                    <span>
-                      v{flow.version} · {flow.workspaceType}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      <section className="worker-orchestra__builder" ref={builderRef}>
-        <div className="worker-orchestra__builder-header">
-          <h3>Flow-Canvas</h3>
-          <p>
-            {resolvedSelectedDraftId
-              ? 'Visualisierung und Bearbeitung des ausgewählten Drafts.'
-              : 'Wähle zuerst einen Draft aus.'}
-          </p>
-          <p className="worker-orchestra__active-draft">
-            Aktiver Draft im Canvas: <strong>{resolvedSelectedDraft?.name || '—'}</strong>
-          </p>
-        </div>
-
-        <div className="worker-orchestra__canvas-wrap">
-          <div className="worker-orchestra__canvas" role="img" aria-label="Flow-Canvas">
-            <svg width={canvasWidth} height={canvasHeight}>
-              {renderedGraph.edges.map((edge) => {
-                const fromIndex = nodeIndexById.get(edge.from);
-                const toIndex = nodeIndexById.get(edge.to);
-                if (fromIndex === undefined || toIndex === undefined) return null;
-                const from = nodePosition(fromIndex);
-                const to = nodePosition(toIndex);
-                return (
-                  <line
-                    key={`${edge.from}->${edge.to}`}
-                    x1={from.x + NODE_WIDTH}
-                    y1={from.y + NODE_HEIGHT / 2}
-                    x2={to.x}
-                    y2={to.y + NODE_HEIGHT / 2}
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    opacity="0.65"
-                  />
-                );
-              })}
-            </svg>
-            {renderedGraph.nodes.map((node, index) => {
-              const pos = nodePosition(index);
-              return (
-                <article
-                  key={node.id}
-                  className={`worker-orchestra__canvas-node ${renderedGraph.startNodeId === node.id ? 'worker-orchestra__canvas-node--start' : ''}`}
-                  style={{ left: pos.x, top: pos.y, width: NODE_WIDTH, height: NODE_HEIGHT }}
-                >
-                  <strong>{node.id}</strong>
-                  <span>{node.personaId}</span>
-                  {renderedGraph.startNodeId === node.id && <small>Start</small>}
-                </article>
-              );
-            })}
+        <div className="worker-orchestra__grid">
+          <div>
+            <h3>Drafts</h3>
+            {drafts.length === 0 ? (
+              <p>Keine Drafts vorhanden.</p>
+            ) : (
+              <ul className="worker-orchestra__list">
+                {drafts.map((draft) => (
+                  <li key={draft.id} className="worker-orchestra__item">
+                    <div>
+                      <strong>{draft.name}</strong>
+                      <span>{draft.workspaceType}</span>
+                    </div>
+                    <div className="worker-orchestra__item-actions">
+                      <button
+                        className="worker-btn worker-btn--primary"
+                        onClick={() => openDraftCanvas(draft.id)}
+                        type="button"
+                      >
+                        Canvas öffnen
+                      </button>
+                      <button
+                        className="worker-btn worker-btn--ghost"
+                        onClick={async () => {
+                          setBusy(true);
+                          await publishDraft(draft.id);
+                          setBusy(false);
+                        }}
+                        type="button"
+                        disabled={busy}
+                      >
+                        Veröffentlichen
+                      </button>
+                      <button
+                        className="worker-btn worker-btn--ghost"
+                        onClick={async () => {
+                          if (!window.confirm(`Draft "${draft.name}" wirklich löschen?`)) return;
+                          setBusy(true);
+                          await deleteDraft(draft.id);
+                          setBusy(false);
+                        }}
+                        type="button"
+                        disabled={busy}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        </div>
-
-        <div className="worker-orchestra__builder-controls">
-          <div className="worker-orchestra__row">
-            <input
-              className="worker-input"
-              placeholder="Neuer Knoten (z. B. research)"
-              value={newNodeId}
-              onChange={(event) => setNewNodeId(event.target.value)}
-            />
-            <input
-              className="worker-input"
-              placeholder="Persona ID"
-              value={newNodePersona}
-              onChange={(event) => setNewNodePersona(event.target.value)}
-            />
-            <button className="worker-btn worker-btn--ghost" type="button" onClick={addNode}>
-              Knoten hinzufügen
-            </button>
-          </div>
-          <div className="worker-orchestra__row">
-            <select
-              className="worker-input"
-              value={edgeFrom}
-              onChange={(event) => setEdgeFrom(event.target.value)}
-            >
-              <option value="">Von…</option>
-              {renderedGraph.nodes.map((node) => (
-                <option key={`from-${node.id}`} value={node.id}>
-                  {node.id}
-                </option>
-              ))}
-            </select>
-            <select
-              className="worker-input"
-              value={edgeTo}
-              onChange={(event) => setEdgeTo(event.target.value)}
-            >
-              <option value="">Nach…</option>
-              {renderedGraph.nodes.map((node) => (
-                <option key={`to-${node.id}`} value={node.id}>
-                  {node.id}
-                </option>
-              ))}
-            </select>
-            <button className="worker-btn worker-btn--ghost" type="button" onClick={addEdge}>
-              Kante hinzufügen
-            </button>
-          </div>
-          <div className="worker-orchestra__row worker-orchestra__row--wrap">
-            {renderedGraph.nodes.map((node) => (
-              <button
-                key={`remove-node-${node.id}`}
-                type="button"
-                className="worker-btn worker-btn--ghost"
-                onClick={() => removeNode(node.id)}
-              >
-                Node löschen: {node.id}
-              </button>
-            ))}
-            {renderedGraph.edges.map((edge) => (
-              <button
-                key={`remove-edge-${edge.from}-${edge.to}`}
-                type="button"
-                className="worker-btn worker-btn--ghost"
-                onClick={() => removeEdge(edge)}
-              >
-                Kante löschen: {edge.from} → {edge.to}
-              </button>
-            ))}
-          </div>
-          <div className="worker-orchestra__row">
-            <button
-              className="worker-btn worker-btn--primary"
-              type="button"
-              disabled={!resolvedSelectedDraftId || busy}
-              onClick={saveGraph}
-            >
-              Canvas speichern
-            </button>
-            {graphMessage && <span className="worker-orchestra__message">{graphMessage}</span>}
+          <div>
+            <h3>Veröffentlicht</h3>
+            {published.length === 0 ? (
+              <p>Keine veröffentlichten Flows.</p>
+            ) : (
+              <ul className="worker-orchestra__list">
+                {published.map((flow) => (
+                  <li key={flow.id} className="worker-orchestra__item">
+                    <div>
+                      <strong>{flow.name}</strong>
+                      <span>v{flow.version} · {flow.workspaceType}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </section>
+    );
+  }
+
+  // ─── Render: Canvas View ───────────────────────────────
+
+  return (
+    <section className="worker-orchestra worker-orchestra--canvas-mode">
+      <OrchestraToolbar
+        flowName={activeDraft?.name ?? 'Unbenannt'}
+        isDirty={isDirty}
+        canUndo={false}
+        canRedo={false}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onAutoLayout={handleAutoLayout}
+        onSave={handleSave}
+        onPublish={handlePublish}
+        onDelete={handleDeleteFlow}
+        saving={busy}
+        publishing={publishing}
+      />
+      <button
+        className="worker-btn worker-btn--ghost orchestra-back-btn"
+        onClick={() => {
+          if (isDirty && !window.confirm('Ungespeicherte Änderungen verwerfen?')) return;
+          setViewMode('list');
+          setActiveDraftId(null);
+          setIsDirty(false);
+        }}
+        type="button"
+      >
+        ← Zurück zur Übersicht
+      </button>
+
+      {error && <p className="worker-alert worker-alert--error">{error}</p>}
+
+      <div className="worker-orchestra__workspace">
+        <NodeLibrary personas={personaInfos} />
+
+        <div className="worker-orchestra__canvas-container" ref={canvasRef}>
+          <ReactFlowProvider>
+            <OrchestraCanvas
+              initialNodes={canvasNodes}
+              initialEdges={canvasEdges}
+              personas={personaInfos}
+              onGraphChange={handleGraphChange}
+              onNodeSelect={setSelectedNodeId}
+            />
+          </ReactFlowProvider>
+        </div>
+
+        <NodePropertiesPanel
+          node={selectedNode}
+          personas={personaInfos}
+          skills={skills}
+          allNodeIds={allNodeIds}
+          onUpdate={handleNodeUpdate}
+          onSetStartNode={handleSetStartNode}
+          onDeleteNode={handleDeleteNode}
+        />
+      </div>
     </section>
   );
 };

@@ -1,4 +1,4 @@
-import type { OrchestraFlowGraph } from './orchestraGraph';
+import type { OrchestraFlowGraph, OrchestraGraphNode } from './orchestraGraph';
 import { getRunnableNodeIds, type OrchestraNodeRuntimeStatus } from './orchestraScheduler';
 
 export interface OrchestraNodeRunState {
@@ -7,13 +7,26 @@ export interface OrchestraNodeRunState {
   completedAt: string | null;
   summary: string | null;
   error: string | null;
+  routingDecision?: { chosenNodeIds: string[]; reason: string };
 }
+
+export interface ExecuteNodeResult {
+  summary?: string;
+}
+
+export type RoutingDecisionFn = (
+  node: OrchestraGraphNode,
+  outgoingTargetNodeIds: string[],
+  nodeSummary: string,
+) => Promise<{ chosenNodeIds: string[]; reason: string }>;
 
 export interface RunOrchestraFlowInput {
   taskId: string;
   flowPublishedId: string;
   graph: OrchestraFlowGraph;
-  executeNode: (nodeId: string) => Promise<{ summary?: string }>;
+  executeNode: (nodeId: string) => Promise<ExecuteNodeResult>;
+  /** Optional LLM routing decision function. If omitted, LLM-routing nodes fall back to static. */
+  decideLlmRouting?: RoutingDecisionFn;
 }
 
 export interface RunOrchestraFlowResult {
@@ -119,6 +132,52 @@ export async function runOrchestraFlow(
       nodeStates[failedNodeId].status = 'failed';
       nodeStates[failedNodeId].completedAt = completedAt;
       nodeStates[failedNodeId].error = settledResult.error;
+    }
+
+    // ─── Post-completion routing decisions (pre-skip pattern) ────
+    for (const settledResult of settledResults) {
+      if (!settledResult.ok) continue;
+      const { nodeId, result } = settledResult;
+      const graphNode = input.graph.nodes.find((n) => n.id === nodeId);
+      if (!graphNode?.routing) continue;
+
+      const outgoingEdges = input.graph.edges.filter((e) => e.from === nodeId);
+      const outgoingTargetIds = outgoingEdges.map((e) => e.to);
+      if (outgoingTargetIds.length <= 1) continue; // No branching to decide
+
+      if (graphNode.routing.mode === 'static') {
+        // Static routing: only follow edges to allowedNextNodeIds, skip rest
+        const allowed = new Set(graphNode.routing.allowedNextNodeIds ?? outgoingTargetIds);
+        for (const targetId of outgoingTargetIds) {
+          if (!allowed.has(targetId) && nodeStates[targetId]?.status === 'pending') {
+            nodeStates[targetId].status = 'skipped';
+          }
+        }
+      } else if (graphNode.routing.mode === 'llm' && input.decideLlmRouting) {
+        // LLM routing: ask LLM which branches to follow
+        try {
+          const candidateIds = graphNode.routing.allowedNextNodeIds?.length
+            ? outgoingTargetIds.filter((id) => graphNode.routing!.allowedNextNodeIds!.includes(id))
+            : outgoingTargetIds;
+
+          const decision = await input.decideLlmRouting(
+            graphNode,
+            candidateIds,
+            result.summary ?? '',
+          );
+          nodeStates[nodeId].routingDecision = decision;
+
+          const chosenSet = new Set(decision.chosenNodeIds);
+          for (const targetId of outgoingTargetIds) {
+            if (!chosenSet.has(targetId) && nodeStates[targetId]?.status === 'pending') {
+              nodeStates[targetId].status = 'skipped';
+            }
+          }
+        } catch (routingError) {
+          // On routing failure, fall back to static (follow all allowed edges)
+          console.error(`[Orchestra] LLM routing failed for node ${nodeId}:`, routingError);
+        }
+      }
     }
   }
 }

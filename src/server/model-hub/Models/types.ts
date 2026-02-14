@@ -26,6 +26,7 @@ export type GatewayAuditKind =
   | 'worker_planner'
   | 'worker_executor'
   | 'api_gateway'
+  | 'orchestra_routing'
   | 'room';
 
 export interface GatewayAuditContext {
@@ -33,6 +34,7 @@ export interface GatewayAuditContext {
   conversationId?: string;
   taskId?: string;
   stepId?: string;
+  nodeId?: string;
 }
 
 export interface GatewayRequest {

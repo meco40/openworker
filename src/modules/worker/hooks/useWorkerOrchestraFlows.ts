@@ -124,6 +124,30 @@ export function useWorkerOrchestraFlows() {
     [refresh],
   );
 
+  const deleteDraft = useCallback(
+    async (flowId: string) => {
+      const response = await fetch(`/api/worker/orchestra/flows/${flowId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        let message = `HTTP ${response.status}`;
+        try {
+          const payload = (await response.json()) as { error?: string };
+          if (payload?.error) {
+            message = payload.error;
+          }
+        } catch {
+          // ignore parse failure and keep status-based message
+        }
+        setError(message);
+        return false;
+      }
+      await refresh();
+      return true;
+    },
+    [refresh],
+  );
+
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -137,5 +161,6 @@ export function useWorkerOrchestraFlows() {
     createDraft,
     publishDraft,
     updateDraft,
+    deleteDraft,
   };
 }

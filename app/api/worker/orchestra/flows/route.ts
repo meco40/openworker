@@ -12,6 +12,7 @@ import {
   normalizeWorkerRole,
 } from '../../../../../src/server/worker/orchestraPolicy';
 import type { WorkspaceType } from '../../../../../src/server/worker/workspaceManager';
+import type { OrchestraFlowGraph } from '../../../../../src/server/worker/orchestraGraph';
 
 export const runtime = 'nodejs';
 
@@ -105,20 +106,28 @@ export async function POST(request: Request) {
     }
 
     const orchestraService = getOrchestraService();
-    const validation = orchestraService.validateGraphForUser(userContext.userId, graph);
-    if (!validation.ok) {
-      return NextResponse.json({ ok: false, error: validation.error }, { status: 400 });
-    }
-    const limitCheck = enforceOrchestraGraphLimits(validation.graph);
-    if (!limitCheck.ok) {
-      return NextResponse.json({ ok: false, error: limitCheck.error }, { status: 400 });
+    const typedGraph = graph as unknown as OrchestraFlowGraph;
+    const graphNodes = Array.isArray(typedGraph.nodes) ? typedGraph.nodes : [];
+
+    // Drafts allow empty graphs — full validation only enforced at publish time
+    let finalGraph = typedGraph;
+    if (graphNodes.length > 0) {
+      const validation = orchestraService.validateGraphForUser(userContext.userId, graph);
+      if (!validation.ok) {
+        return NextResponse.json({ ok: false, error: validation.error }, { status: 400 });
+      }
+      const limitCheck = enforceOrchestraGraphLimits(validation.graph);
+      if (!limitCheck.ok) {
+        return NextResponse.json({ ok: false, error: limitCheck.error }, { status: 400 });
+      }
+      finalGraph = validation.graph;
     }
 
     const flow = orchestraService.createDraft({
       userId: userContext.userId,
       workspaceType: normalizeWorkspaceType(body.workspaceType),
       name: body.name.trim(),
-      graph: validation.graph,
+      graph: finalGraph,
       templateId: body.templateId ?? null,
     });
 

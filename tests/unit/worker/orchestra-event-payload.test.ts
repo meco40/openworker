@@ -7,10 +7,10 @@ describe('orchestra workflow event payload', () => {
     const graph: OrchestraFlowGraph = {
       startNodeId: 'n1',
       nodes: [
-        { id: 'n1', personaId: 'persona-a' },
-        { id: 'n2', personaId: 'persona-b' },
+        { id: 'n1', personaId: 'persona-a', position: { x: 0, y: 0 } },
+        { id: 'n2', personaId: 'persona-b', position: { x: 100, y: 0 } },
       ],
-      edges: [{ from: 'n1', to: 'n2' }],
+      edges: [{ id: 'e1', from: 'n1', to: 'n2' }],
     };
 
     const payload = buildWorkerWorkflowPayload({

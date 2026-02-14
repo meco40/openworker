@@ -10,12 +10,13 @@ function makeGraph(nodeCount: number, edgeCount: number): OrchestraFlowGraph {
   const nodes = Array.from({ length: nodeCount }, (_, index) => ({
     id: `n${index + 1}`,
     personaId: `persona-${index + 1}`,
+    position: { x: index * 100, y: 0 },
   }));
 
   const edges = Array.from({ length: edgeCount }, (_, index) => {
     const from = `n${Math.max(1, (index % nodeCount) + 1)}`;
     const to = `n${Math.max(1, ((index + 1) % nodeCount) + 1)}`;
-    return { from, to };
+    return { id: `e${index + 1}`, from, to };
   });
 
   return {

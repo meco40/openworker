@@ -84,6 +84,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       name?: string;
       graph?: unknown;
       workspaceType?: string;
+      expectedUpdatedAt?: string;
     };
 
     const updates: { name?: string; graph?: OrchestraFlowGraph; workspaceType?: WorkspaceType } =
@@ -117,25 +118,86 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const orchestraService = getOrchestraService();
     if (updates.graph) {
-      const validation = orchestraService.validateGraphForUser(userContext.userId, updates.graph);
-      if (!validation.ok) {
-        return NextResponse.json({ ok: false, error: validation.error }, { status: 400 });
+      const graphNodes = Array.isArray(updates.graph.nodes) ? updates.graph.nodes : [];
+      // Drafts allow incomplete graphs — full validation only enforced at publish time
+      if (graphNodes.length > 0) {
+        const validation = orchestraService.validateGraphForUser(userContext.userId, updates.graph);
+        if (!validation.ok) {
+          return NextResponse.json({ ok: false, error: validation.error }, { status: 400 });
+        }
+        const limitCheck = enforceOrchestraGraphLimits(validation.graph);
+        if (!limitCheck.ok) {
+          return NextResponse.json({ ok: false, error: limitCheck.error }, { status: 400 });
+        }
+        updates.graph = validation.graph;
       }
-      const limitCheck = enforceOrchestraGraphLimits(validation.graph);
-      if (!limitCheck.ok) {
-        return NextResponse.json({ ok: false, error: limitCheck.error }, { status: 400 });
-      }
-      updates.graph = validation.graph;
     }
 
-    const flow = orchestraService.updateDraft(id, userContext.userId, updates);
+    const flow = orchestraService.updateDraft(id, userContext.userId, updates, body.expectedUpdatedAt);
     if (!flow) {
+      // Could be not found OR optimistic locking conflict
+      const existing = getWorkerRepository().getFlowDraft(id, userContext.userId);
+      if (existing && body.expectedUpdatedAt && existing.updatedAt !== body.expectedUpdatedAt) {
+        return NextResponse.json(
+          { ok: false, error: 'Draft wurde in einem anderen Tab geändert. Bitte neu laden.' },
+          { status: 409 },
+        );
+      }
       return NextResponse.json({ ok: false, error: 'Flow not found' }, { status: 404 });
     }
 
     return NextResponse.json({ ok: true, flow });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to update flow';
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    if (!isWorkerOrchestraEnabled()) {
+      return NextResponse.json({ ok: false, error: 'Orchestra disabled' }, { status: 404 });
+    }
+    if (!isWorkerOrchestraBuilderWriteEnabled()) {
+      return NextResponse.json(
+        { ok: false, error: 'Orchestra builder write disabled' },
+        { status: 403 },
+      );
+    }
+
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const repo = getWorkerRepository();
+
+    // Try draft first, then published
+    const draft = repo.getFlowDraft(id, userContext.userId);
+    if (draft) {
+      const deleted = repo.deleteFlowDraft(id, userContext.userId);
+      if (!deleted) {
+        return NextResponse.json({ ok: false, error: 'Konnte Draft nicht löschen' }, { status: 400 });
+      }
+      return NextResponse.json({ ok: true, deleted: 'draft' });
+    }
+
+    const pub = repo.getFlowPublished(id, userContext.userId);
+    if (pub) {
+      const deleted = repo.deletePublishedFlow(id, userContext.userId);
+      if (!deleted) {
+        return NextResponse.json(
+          { ok: false, error: 'Flow wird von einem Task referenziert und kann nicht gelöscht werden.' },
+          { status: 409 },
+        );
+      }
+      return NextResponse.json({ ok: true, deleted: 'published' });
+    }
+
+    return NextResponse.json({ ok: false, error: 'Flow not found' }, { status: 404 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to delete flow';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

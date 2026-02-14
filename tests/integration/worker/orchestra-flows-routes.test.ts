@@ -24,10 +24,10 @@ function makeGraph(nextNodeId = 'n2') {
   return {
     startNodeId: 'n1',
     nodes: [
-      { id: 'n1', personaId: 'persona-research' },
-      { id: nextNodeId, personaId: 'persona-review' },
+      { id: 'n1', personaId: 'persona-research', position: { x: 0, y: 0 } },
+      { id: nextNodeId, personaId: 'persona-review', position: { x: 0, y: 100 } },
     ],
-    edges: [{ from: 'n1', to: nextNodeId }],
+    edges: [{ id: 'e1', from: 'n1', to: nextNodeId }],
   };
 }
 
@@ -138,23 +138,29 @@ describe('orchestra flows routes', () => {
     expect(publishV1Payload.ok).toBe(true);
     expect(publishV1Payload.published.version).toBe(1);
 
-    const patchGraphResponse = await byIdRoute.PATCH(
-      new Request(`http://localhost/api/worker/orchestra/flows/${createPayload.flow.id}`, {
-        method: 'PATCH',
+    // Published drafts are immutable — create a new draft for v2
+    const createV2Response = await flowsRoute.POST(
+      new Request('http://localhost/api/worker/orchestra/flows', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          name: 'Research Pipeline V1',
+          workspaceType: 'research',
           graph: makeGraph('n3'),
         }),
       }),
-      { params: Promise.resolve({ id: createPayload.flow.id }) },
     );
-    expect(patchGraphResponse.status).toBe(200);
+    const createV2Payload = (await createV2Response.json()) as {
+      ok: boolean;
+      flow: { id: string };
+    };
+    expect(createV2Response.status).toBe(201);
 
     const publishV2Response = await publishRoute.POST(
-      new Request(`http://localhost/api/worker/orchestra/flows/${createPayload.flow.id}/publish`, {
+      new Request(`http://localhost/api/worker/orchestra/flows/${createV2Payload.flow.id}/publish`, {
         method: 'POST',
       }),
-      { params: Promise.resolve({ id: createPayload.flow.id }) },
+      { params: Promise.resolve({ id: createV2Payload.flow.id }) },
     );
     const publishV2Payload = (await publishV2Response.json()) as {
       ok: boolean;
@@ -183,7 +189,7 @@ describe('orchestra flows routes', () => {
     };
     expect(listResponse.status).toBe(200);
     expect(listPayload.ok).toBe(true);
-    expect(listPayload.drafts.length).toBe(1);
+    expect(listPayload.drafts.length).toBe(2);
     expect(listPayload.published.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -206,8 +212,8 @@ describe('orchestra flows routes', () => {
           workspaceType: 'research',
           graph: {
             startNodeId: 'n1',
-            nodes: [{ id: 'n1', personaId: 'persona-a' }],
-            edges: [{ from: 'n1', to: 'n2' }],
+            nodes: [{ id: 'n1', personaId: 'persona-a', position: { x: 0, y: 0 } }],
+            edges: [{ id: 'e-bad', from: 'n1', to: 'n2' }],
           },
         }),
       }),
@@ -247,7 +253,7 @@ describe('orchestra flows routes', () => {
           workspaceType: 'research',
           graph: {
             startNodeId: 'n1',
-            nodes: [{ id: 'n1', personaId: 'persona-default' }],
+            nodes: [{ id: 'n1', personaId: 'persona-default', position: { x: 0, y: 0 } }],
             edges: [],
           },
         }),

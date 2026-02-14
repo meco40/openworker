@@ -54,11 +54,17 @@ export class OrchestraService {
     const personas = getPersonaRepository().listPersonas(userId);
     const normalizedGraph = normalizeDefaultPersonaPlaceholder(graphLike, personas[0]?.id || null);
     const allowedPersonaIds = new Set(personas.map((persona) => persona.id));
+
+    // Skill validation is deferred — getSkillRepository is async, but validation is sync.
+    // We skip live skill checking here; the canvas UI loads skills separately.
+    const allowedSkillIds: Set<string> | undefined = undefined;
+
     const result = validateOrchestraGraph(
       normalizedGraph,
-      allowedPersonaIds.size > 0
+      allowedPersonaIds.size > 0 || allowedSkillIds
         ? {
-            allowedPersonaIds,
+            allowedPersonaIds: allowedPersonaIds.size > 0 ? allowedPersonaIds : undefined,
+            allowedSkillIds,
           }
         : undefined,
     );
@@ -90,12 +96,13 @@ export class OrchestraService {
     id: string,
     userId: string,
     updates: { name?: string; graph?: OrchestraFlowGraph; workspaceType?: WorkspaceType },
+    expectedUpdatedAt?: string,
   ) {
     return getWorkerRepository().updateFlowDraft(id, userId, {
       name: updates.name,
       graphJson: updates.graph ? JSON.stringify(updates.graph) : undefined,
       workspaceType: updates.workspaceType,
-    });
+    }, expectedUpdatedAt);
   }
 
   publishDraft(id: string, userId: string) {

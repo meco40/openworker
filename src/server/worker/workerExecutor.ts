@@ -11,6 +11,7 @@ import { fileReadHandler } from '../skills/handlers/fileRead.ts';
 import { browserSnapshotHandler } from '../skills/handlers/browserSnapshot.ts';
 import { pythonExecuteHandler } from '../skills/handlers/pythonExecute.ts';
 import type { WorkerTaskRecord, WorkerStepRecord, WorkerArtifactRecord } from './workerTypes';
+import type { OrchestraGraphNode } from './orchestraGraph';
 
 // ─── Tool Definitions ───────────────────────────────────────
 
@@ -175,7 +176,9 @@ const MAX_TOOL_LOOPS = 10;
 export async function executeStep(
   task: WorkerTaskRecord,
   step: WorkerStepRecord,
+  toolsOverride?: typeof TOOL_DEFINITIONS,
 ): Promise<StepResult> {
+  const tools = toolsOverride ?? TOOL_DEFINITIONS;
   const service = getModelHubService();
   const encryptionKey = getModelHubEncryptionKey();
   const dispatcher = createToolDispatcher(task.id);
@@ -206,7 +209,7 @@ export async function executeStep(
   for (let loop = 0; loop < MAX_TOOL_LOOPS; loop++) {
     const result = await service.dispatchWithFallback('p1', encryptionKey, {
       messages,
-      tools: TOOL_DEFINITIONS,
+      tools,
       auditContext: {
         kind: 'worker_executor',
         taskId: task.id,
@@ -298,7 +301,7 @@ export async function executeStep(
 
 export async function executeOrchestraNode(
   task: WorkerTaskRecord,
-  node: { id: string; description?: string },
+  node: { id: string; description?: string; skillIds?: string[] },
 ): Promise<StepResult> {
   const syntheticStep: WorkerStepRecord = {
     id: `orch-${task.id}-${node.id}`,
@@ -311,7 +314,93 @@ export async function executeOrchestraNode(
     startedAt: null,
     completedAt: null,
   };
+
+  // If skillIds are specified, filter TOOL_DEFINITIONS to only matching function names
+  if (node.skillIds && node.skillIds.length > 0) {
+    const allowedSet = new Set(node.skillIds);
+    const filteredTools = TOOL_DEFINITIONS.filter((tool) => allowedSet.has(tool.function.name));
+    // Use filtered tools for this node (pass via step metadata)
+    return executeStepWithTools(task, syntheticStep, filteredTools.length > 0 ? filteredTools : TOOL_DEFINITIONS);
+  }
+
   return executeStep(task, syntheticStep);
+}
+
+/** executeStep with explicit tool definitions override. */
+function executeStepWithTools(
+  task: WorkerTaskRecord,
+  step: WorkerStepRecord,
+  tools: typeof TOOL_DEFINITIONS,
+): Promise<StepResult> {
+  return executeStep(task, step, tools);
+}
+
+// ─── LLM Routing Decision ───────────────────────────────────
+
+const LLM_ROUTING_SYSTEM = `Du bist ein Routing-Agent in einem Workflow-Orchestrator.
+Nach Abschluss eines Knotens musst du entscheiden, an welche(n) nächsten Knoten die Aufgabe weitergeleitet wird.
+
+Du erhältst:
+- Die Zusammenfassung des abgeschlossenen Knotens
+- Die verfügbaren Zielknoten (IDs)
+
+Antworte NUR mit gültigem JSON im Format:
+{ "chosenNodeIds": ["id1"], "reason": "Kurze Begründung" }
+
+Wähle nur Knoten, die sinnvoll zum nächsten Verarbeitungsschritt passen.`;
+
+/**
+ * LLM-gestützte Routing-Entscheidung nach Node-Abschluss.
+ * Fragt das LLM, welche der ausgehenden Knotenziele aktiviert werden sollen.
+ */
+export async function executeLlmRouting(
+  node: OrchestraGraphNode,
+  candidateNodeIds: string[],
+  nodeSummary: string,
+): Promise<{ chosenNodeIds: string[]; reason: string }> {
+  const service = getModelHubService();
+  const encryptionKey = getModelHubEncryptionKey();
+
+  const userPrompt = [
+    `Knoten "${node.id}" (Persona: ${node.personaId}) ist abgeschlossen.`,
+    `Zusammenfassung: ${nodeSummary || '(keine Zusammenfassung)'}`,
+    '',
+    `Verfügbare Zielknoten: ${candidateNodeIds.join(', ')}`,
+    '',
+    'Welche Zielknoten sollen als nächstes aktiviert werden?',
+  ].join('\n');
+
+  const result = await service.dispatchWithFallback('p2', encryptionKey, {
+    messages: [
+      { role: 'system', content: LLM_ROUTING_SYSTEM },
+      { role: 'user', content: userPrompt },
+    ],
+    auditContext: {
+      kind: 'orchestra_routing',
+      nodeId: node.id,
+    },
+  });
+
+  if (!result.ok || !result.text) {
+    // Fallback: activate all candidates
+    return { chosenNodeIds: candidateNodeIds, reason: 'LLM-Routing fehlgeschlagen, alle Knoten aktiviert.' };
+  }
+
+  try {
+    // Extract JSON from response (may be wrapped in markdown)
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return { chosenNodeIds: candidateNodeIds, reason: 'Kein JSON in LLM-Antwort.' };
+    }
+    const parsed = JSON.parse(jsonMatch[0]) as { chosenNodeIds?: string[]; reason?: string };
+    const chosen = (parsed.chosenNodeIds ?? []).filter((id) => candidateNodeIds.includes(id));
+    if (chosen.length === 0) {
+      return { chosenNodeIds: candidateNodeIds, reason: parsed.reason ?? 'Keine gültige Auswahl, alle aktiviert.' };
+    }
+    return { chosenNodeIds: chosen, reason: parsed.reason ?? '' };
+  } catch {
+    return { chosenNodeIds: candidateNodeIds, reason: 'JSON-Parse fehlgeschlagen.' };
+  }
 }
 
 // ─── Command Approval ───────────────────────────────────────

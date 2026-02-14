@@ -130,6 +130,7 @@ export interface CreateTaskInput {
   workspaceType?: WorkspaceType;
   usePlanning?: boolean;
   userId?: string | null;
+  flowPublishedId?: string | null;
 }
 
 export interface SaveStepInput {

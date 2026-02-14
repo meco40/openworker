@@ -6,6 +6,10 @@ export type OrchestraValidationErrorCode =
   | 'duplicate_node_id'
   | 'missing_persona'
   | 'unauthorized_persona'
+  | 'missing_position'
+  | 'missing_edge_id'
+  | 'duplicate_edge_id'
+  | 'invalid_skill_id'
   | 'unknown_edge_node'
   | 'cycle_detected'
   | 'orphan_node'
@@ -25,6 +29,7 @@ export interface OrchestraValidationResult {
 
 export interface OrchestraValidationOptions {
   allowedPersonaIds?: Set<string>;
+  allowedSkillIds?: Set<string>;
 }
 
 function isGraphObject(value: unknown): value is OrchestraFlowGraph {
@@ -73,6 +78,29 @@ export function validateOrchestraGraph(
       });
     }
 
+    // Position validation
+    const pos = node.position;
+    if (!pos || typeof pos !== 'object' || typeof pos.x !== 'number' || typeof pos.y !== 'number') {
+      errors.push({
+        code: 'missing_position',
+        message: `Node ${nodeId} is missing a valid position {x, y}`,
+        nodeId,
+      });
+    }
+
+    // Skill validation
+    if (Array.isArray(node.skillIds) && options?.allowedSkillIds) {
+      for (const skillId of node.skillIds) {
+        if (!options.allowedSkillIds.has(String(skillId))) {
+          errors.push({
+            code: 'invalid_skill_id',
+            message: `Node ${nodeId} references unknown skill ${skillId}`,
+            nodeId,
+          });
+        }
+      }
+    }
+
     nodeMap.set(nodeId, { ...node, id: nodeId, personaId });
   }
 
@@ -87,7 +115,26 @@ export function validateOrchestraGraph(
     adjacency.set(nodeId, []);
   }
 
+  const edgeIdSet = new Set<string>();
   for (const edge of graph.edges) {
+    // Edge ID validation
+    const edgeId = String(edge.id || '').trim();
+    if (!edgeId) {
+      errors.push({
+        code: 'missing_edge_id',
+        message: `Edge ${edge.from} -> ${edge.to} is missing an id`,
+        edge: { from: edge.from, to: edge.to },
+      });
+    } else if (edgeIdSet.has(edgeId)) {
+      errors.push({
+        code: 'duplicate_edge_id',
+        message: `Duplicate edge id: ${edgeId}`,
+        edge: { from: edge.from, to: edge.to },
+      });
+    } else {
+      edgeIdSet.add(edgeId);
+    }
+
     const from = String(edge.from || '').trim();
     const to = String(edge.to || '').trim();
     if (!nodeMap.has(from) || !nodeMap.has(to)) {

@@ -6,13 +6,13 @@ function makeValidGraph(): OrchestraFlowGraph {
   return {
     startNodeId: 'n1',
     nodes: [
-      { id: 'n1', personaId: 'persona-a' },
-      { id: 'n2', personaId: 'persona-b' },
-      { id: 'n3', personaId: 'persona-c' },
+      { id: 'n1', personaId: 'persona-a', position: { x: 0, y: 0 } },
+      { id: 'n2', personaId: 'persona-b', position: { x: 0, y: 100 } },
+      { id: 'n3', personaId: 'persona-c', position: { x: 0, y: 200 } },
     ],
     edges: [
-      { from: 'n1', to: 'n2' },
-      { from: 'n2', to: 'n3' },
+      { id: 'e1', from: 'n1', to: 'n2' },
+      { id: 'e2', from: 'n2', to: 'n3' },
     ],
   };
 }
@@ -29,7 +29,7 @@ describe('orchestra graph validator', () => {
 
   it('rejects cycles', () => {
     const graph = makeValidGraph();
-    graph.edges.push({ from: 'n3', to: 'n1' });
+    graph.edges.push({ id: 'e-cycle', from: 'n3', to: 'n1' });
     const result = validateOrchestraGraph(graph);
 
     expect(result.ok).toBe(false);
@@ -38,7 +38,7 @@ describe('orchestra graph validator', () => {
 
   it('rejects orphan nodes', () => {
     const graph = makeValidGraph();
-    graph.nodes.push({ id: 'n4', personaId: 'persona-d' });
+    graph.nodes.push({ id: 'n4', personaId: 'persona-d', position: { x: 0, y: 300 } });
     const result = validateOrchestraGraph(graph);
 
     expect(result.ok).toBe(false);
@@ -47,7 +47,7 @@ describe('orchestra graph validator', () => {
 
   it('rejects edges to unknown nodes', () => {
     const graph = makeValidGraph();
-    graph.edges.push({ from: 'n2', to: 'n-unknown' });
+    graph.edges.push({ id: 'e-bad', from: 'n2', to: 'n-unknown' });
     const result = validateOrchestraGraph(graph);
 
     expect(result.ok).toBe(false);
@@ -56,7 +56,7 @@ describe('orchestra graph validator', () => {
 
   it('rejects nodes without persona', () => {
     const graph = makeValidGraph();
-    graph.nodes[1] = { id: 'n2', personaId: '' };
+    graph.nodes[1] = { id: 'n2', personaId: '', position: { x: 0, y: 100 } };
     const result = validateOrchestraGraph(graph);
 
     expect(result.ok).toBe(false);
@@ -68,6 +68,7 @@ describe('orchestra graph validator', () => {
     graph.nodes[0] = {
       id: 'n1',
       personaId: 'persona-a',
+      position: { x: 0, y: 0 },
       routing: {
         mode: 'llm',
         allowedNextNodeIds: ['n3'],

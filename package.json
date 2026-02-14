@@ -22,7 +22,9 @@
     "start": "npm run start:web"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^2.0.4",
     "@google/genai": "^1.40.0",
+    "@xyflow/react": "^12.10.0",
     "archiver": "^7.0.1",
     "better-sqlite3": "^12.6.2",
     "cron-parser": "^5.5.0",

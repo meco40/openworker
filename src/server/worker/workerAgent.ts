@@ -4,7 +4,7 @@
 
 import { getWorkerRepository } from './workerRepository';
 import { planTask } from './workerPlanner';
-import { executeOrchestraNode, executeStep } from './workerExecutor';
+import { executeOrchestraNode, executeStep, executeLlmRouting } from './workerExecutor';
 import { notifyTaskCompleted, notifyTaskFailed } from './workerCallback';
 import { getWorkspaceManager } from './workspaceManager';
 import { runWebappTests } from './workerTester';
@@ -135,6 +135,7 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
       taskId: task.id,
       flowPublishedId: publishedFlow.id,
       graph,
+      decideLlmRouting: executeLlmRouting,
       executeNode: async (nodeId: string) => {
         const node = graph.nodes.find((candidate) => candidate.id === nodeId);
         repo.upsertRunNodeStatus(run.id, nodeId, {
@@ -153,6 +154,7 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
           const stepResult = await executeOrchestraNode(task, {
             id: nodeId,
             description: node ? `Node ${nodeId} (${node.personaId})` : `Node ${nodeId}`,
+            skillIds: node?.skillIds,
           });
 
           repo.upsertRunNodeStatus(run.id, nodeId, {

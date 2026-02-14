@@ -393,8 +393,8 @@ export class SqliteWorkerRepository implements WorkerRepository {
         `
       INSERT INTO worker_tasks (id, title, objective, status, priority,
         origin_platform, origin_conversation, origin_external_chat,
-        workspace_type, user_id, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        workspace_type, user_id, flow_published_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       )
       .run(
@@ -408,6 +408,7 @@ export class SqliteWorkerRepository implements WorkerRepository {
         input.originExternalChat || null,
         input.workspaceType || 'general',
         input.userId || null,
+        input.flowPublishedId || null,
         now,
       );
 
@@ -942,9 +943,20 @@ export class SqliteWorkerRepository implements WorkerRepository {
       graphJson?: string;
       workspaceType?: WorkerFlowDraftRecord['workspaceType'];
     },
+    expectedUpdatedAt?: string,
   ): WorkerFlowDraftRecord | null {
     const existing = this.getFlowDraft(id, userId);
     if (!existing) return null;
+
+    // Optimistic locking: reject stale writes
+    if (expectedUpdatedAt && existing.updatedAt !== expectedUpdatedAt) {
+      return null;
+    }
+
+    // Prevent editing published drafts
+    if (existing.status === 'published') {
+      return null;
+    }
 
     const now = new Date().toISOString();
     const nextName = updates.name ?? existing.name;
@@ -994,7 +1006,33 @@ export class SqliteWorkerRepository implements WorkerRepository {
         now,
       );
 
+    // Mark draft as published
+    this.db
+      .prepare(`UPDATE worker_flow_drafts SET status = 'published' WHERE id = ? AND user_id = ?`)
+      .run(draft.id, userId);
+
     return this.getFlowPublished(publishedId, userId);
+  }
+
+  deleteFlowDraft(id: string, userId: string): boolean {
+    // Prevent deletion if active runs reference this draft via published snapshots
+    const result = this.db
+      .prepare('DELETE FROM worker_flow_drafts WHERE id = ? AND user_id = ?')
+      .run(id, userId);
+    return (result.changes ?? 0) > 0;
+  }
+
+  deletePublishedFlow(id: string, userId: string): boolean {
+    // Prevent deletion if any task references this published flow
+    const taskRef = this.db
+      .prepare('SELECT id FROM worker_tasks WHERE flow_published_id = ? LIMIT 1')
+      .get(id) as Record<string, unknown> | undefined;
+    if (taskRef) return false;
+
+    const result = this.db
+      .prepare('DELETE FROM worker_flow_published WHERE id = ? AND user_id = ?')
+      .run(id, userId);
+    return (result.changes ?? 0) > 0;
   }
 
   getFlowPublished(id: string, userId: string): WorkerFlowPublishedRecord | null {

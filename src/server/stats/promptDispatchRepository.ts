@@ -16,6 +16,7 @@ export type PromptDispatchKind =
   | 'worker_planner'
   | 'worker_executor'
   | 'api_gateway'
+  | 'orchestra_routing'
   | 'room';
 
 export type PromptTokensSource = 'exact' | 'estimated';
