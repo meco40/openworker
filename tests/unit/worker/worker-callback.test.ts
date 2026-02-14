@@ -54,7 +54,7 @@ describe('worker callback', () => {
     saveDirectMessageMock.mockImplementationOnce(() => {
       throw new Error('Conversation not found for current user.');
     });
-    deliverOutboundMock.mockResolvedValueOnce(undefined);
+    deliverOutboundMock.mockImplementationOnce(async () => {});
 
     const { notifyTaskCompleted } = await import('../../../src/server/worker/workerCallback');
     const task = makeTask();

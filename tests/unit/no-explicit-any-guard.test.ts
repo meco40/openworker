@@ -13,6 +13,7 @@ const EXCLUDED_DIRS = new Set([
   'workspaces',
   '.worktrees',
   'coverage',
+  '.tmp',
 ]);
 
 const EXPLICIT_ANY_PATTERNS = [
@@ -31,7 +32,7 @@ function collectTsFiles(dir: string): string[] {
   const files: string[] = [];
 
   for (const entry of entries) {
-    if (EXCLUDED_DIRS.has(entry.name)) continue;
+    if (EXCLUDED_DIRS.has(entry.name) || entry.name.startsWith('.tmp')) continue;
     const fullPath = path.join(dir, entry.name);
 
     if (entry.isDirectory()) {
