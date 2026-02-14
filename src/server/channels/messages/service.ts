@@ -18,6 +18,51 @@ import {
   getChannelBindingPersonaId,
   setChannelBindingPersona,
 } from './channelBindingPersona';
+import { getMemoryService } from '../../memory/runtime';
+import { buildAutoMemoryCandidates, isAutoSessionMemoryEnabled } from './autoMemory';
+
+function extractMemorySaveContent(content: string): string | null {
+  const match = /^speichere\s+ab\s*:\s*(.*)$/i.exec(content.trim());
+  if (!match) return null;
+  return match[1]?.trim() ?? '';
+}
+
+const MEMORY_CONTEXT_CHAR_LIMIT = 1200;
+const MEMORY_RECALL_LIMIT = 3;
+
+function shouldRecallMemoryForInput(content: string): boolean {
+  const normalized = content.trim().toLowerCase();
+  if (!normalized) return false;
+  if (extractMemorySaveContent(normalized) !== null) return false;
+
+  const directPatterns: RegExp[] = [
+    /\berinner(n|e|st|t|ung)?\b/i,
+    /\b(lieblings|favorit|vorliebe|preference)\b/i,
+    /\b(ich hatte|habe ich|was war|wann war)\b/i,
+    /\b(vor (einer|einem|\d+) (tag|tagen|woche|wochen|monat|monaten|jahr|jahren))\b/i,
+    /\b(wie trinke ich|was trinke ich|was esse ich|was mag ich)\b/i,
+    /\b(remember|favorite|preference|what did i|when did i)\b/i,
+  ];
+
+  if (directPatterns.some((pattern) => pattern.test(normalized))) {
+    return true;
+  }
+
+  if (!normalized.includes('?')) return false;
+  const personalRef = /\b(ich|mein|meine|meinen|my|i)\b/i.test(normalized);
+  const memoryTopic =
+    /\b(kaffee|essen|trinken|lieblings|favorit|termin|geplant|gesagt|präferenz|vorliebe|drink|eat|appointment|said)\b/i.test(
+      normalized,
+    );
+  return personalRef && memoryTopic;
+}
+
+function normalizeMemoryContext(context: string): string | null {
+  const trimmed = context.trim();
+  if (!trimmed) return null;
+  if (trimmed.toLowerCase() === 'no relevant memories found.') return null;
+  return trimmed.slice(0, MEMORY_CONTEXT_CHAR_LIMIT);
+}
 
 // ─── MessageService ──────────────────────────────────────────
 
@@ -184,10 +229,61 @@ export class MessageService {
 
       // For external channels, auto-apply persona from channel binding
       const effectiveConversation = applyChannelBindingPersona(this.repo, conversation, platform);
+      const memoryContent = extractMemorySaveContent(content);
+
+      if (memoryContent !== null) {
+        if (!memoryContent) {
+          return {
+            userMsg,
+            agentMsg: await this.sendResponse(
+              effectiveConversation,
+              '⚠️ Bitte schreibe nach `Speichere ab:` auch den Inhalt.',
+              platform,
+              externalChatId,
+            ),
+          };
+        }
+
+        if (!effectiveConversation.personaId) {
+          return {
+            userMsg,
+            agentMsg: await this.sendResponse(
+              effectiveConversation,
+              '⚠️ Keine Persona aktiv. Bitte zuerst eine Persona wählen, dann `Speichere ab: ...` nutzen.',
+              platform,
+              externalChatId,
+            ),
+          };
+        }
+
+        try {
+          await getMemoryService().store(effectiveConversation.personaId, 'fact', memoryContent, 4);
+          return {
+            userMsg,
+            agentMsg: await this.sendResponse(
+              effectiveConversation,
+              `💾 Gespeichert: ${memoryContent}`,
+              platform,
+              externalChatId,
+            ),
+          };
+        } catch (error) {
+          console.error('Memory store failed:', error);
+          return {
+            userMsg,
+            agentMsg: await this.sendResponse(
+              effectiveConversation,
+              '⚠️ Memory konnte nicht gespeichert werden.',
+              platform,
+              externalChatId,
+            ),
+          };
+        }
+      }
 
       return {
         userMsg,
-        agentMsg: await this.dispatchToAI(effectiveConversation, platform, externalChatId),
+        agentMsg: await this.dispatchToAI(effectiveConversation, platform, externalChatId, content),
       };
     } finally {
       if (clientMessageId) this.processingMessages.delete(clientMessageId);
@@ -684,6 +780,7 @@ export class MessageService {
     conversation: Conversation,
     platform: ChannelType,
     externalChatId: string,
+    userInput: string,
   ): Promise<StoredMessage> {
     const messages = this.contextBuilder.buildGatewayMessages(
       conversation.id,
@@ -691,6 +788,14 @@ export class MessageService {
       50,
       conversation.personaId,
     );
+
+    const memoryContext = await this.buildRecallContext(conversation, userInput);
+    if (memoryContext) {
+      messages.unshift({
+        role: 'system',
+        content: `Relevant memory context:\n${memoryContext}`,
+      });
+    }
 
     // ─── Abort tracking ──────────────────────────────────
     const abortController = new AbortController();
@@ -991,6 +1096,26 @@ export class MessageService {
     return msg;
   }
 
+  private async buildRecallContext(
+    conversation: Conversation,
+    userInput: string,
+  ): Promise<string | null> {
+    if (!conversation.personaId) return null;
+    if (!shouldRecallMemoryForInput(userInput)) return null;
+
+    try {
+      const recalled = await getMemoryService().recall(
+        conversation.personaId,
+        userInput,
+        MEMORY_RECALL_LIMIT,
+      );
+      return normalizeMemoryContext(recalled);
+    } catch (error) {
+      console.error('Memory recall failed:', error);
+      return null;
+    }
+  }
+
   private async maybeRefreshConversationSummary(conversation: Conversation): Promise<void> {
     if (this.summaryRefreshInFlight.has(conversation.id)) {
       return;
@@ -1042,8 +1167,34 @@ export class MessageService {
         uptoSeq,
         conversation.userId,
       );
+
+      await this.maybeStoreAutoSessionMemory(conversation, unsummarized);
     } finally {
       this.summaryRefreshInFlight.delete(conversation.id);
+    }
+  }
+
+  private async maybeStoreAutoSessionMemory(
+    conversation: Conversation,
+    messages: StoredMessage[],
+  ): Promise<void> {
+    if (!conversation.personaId) return;
+    if (!isAutoSessionMemoryEnabled()) return;
+
+    const candidates = buildAutoMemoryCandidates(messages);
+    if (candidates.length === 0) return;
+
+    for (const candidate of candidates) {
+      try {
+        await getMemoryService().store(
+          conversation.personaId,
+          candidate.type,
+          candidate.content,
+          candidate.importance,
+        );
+      } catch (error) {
+        console.error('Auto session memory store failed:', error);
+      }
     }
   }
 

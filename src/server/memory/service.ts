@@ -29,10 +29,15 @@ export class MemoryService {
     private readonly getEmbedding: MemoryEmbeddingFn = getServerEmbedding,
   ) {}
 
-  async store(type: MemoryType, content: string, importance: number): Promise<MemoryNode> {
+  async store(
+    personaId: string,
+    type: MemoryType,
+    content: string,
+    importance: number,
+  ): Promise<MemoryNode> {
     const queryVector = await this.getEmbedding(content);
     const existing = this.repository
-      .listNodes()
+      .listNodes(personaId)
       .find((node) => cosineSimilarity(queryVector, node.embedding) > 0.95);
 
     if (existing) {
@@ -45,7 +50,7 @@ export class MemoryService {
           lastVerified: new Date().toISOString(),
         },
       };
-      this.repository.updateNode(updated);
+      this.repository.updateNode(personaId, updated);
       return updated;
     }
 
@@ -59,14 +64,14 @@ export class MemoryService {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       metadata: { lastVerified: new Date().toISOString() },
     };
-    this.repository.insertNode(node);
+    this.repository.insertNode(personaId, node);
     return node;
   }
 
-  async recall(query: string, limit = 3): Promise<string> {
+  async recall(personaId: string, query: string, limit = 3): Promise<string> {
     const queryVector = await this.getEmbedding(query);
     const results = this.repository
-      .listNodes()
+      .listNodes(personaId)
       .map((node) => ({
         node,
         similarity: cosineSimilarity(queryVector, node.embedding),
@@ -86,7 +91,97 @@ export class MemoryService {
     return context || 'No relevant memories found.';
   }
 
-  snapshot(): MemoryNode[] {
-    return this.repository.listNodes();
+  snapshot(personaId?: string): MemoryNode[] {
+    if (!personaId) {
+      return this.repository.listAllNodes();
+    }
+    return this.repository.listNodes(personaId);
+  }
+
+  listPage(
+    personaId: string,
+    input: {
+      page: number;
+      pageSize: number;
+      query?: string;
+      type?: MemoryType;
+    },
+  ): {
+    nodes: MemoryNode[];
+    pagination: { page: number; pageSize: number; total: number; totalPages: number };
+  } {
+    const page = Math.max(1, Math.floor(input.page));
+    const pageSize = Math.max(1, Math.min(200, Math.floor(input.pageSize)));
+    const { nodes, total } = this.repository.listNodesPage(personaId, {
+      page,
+      pageSize,
+      query: input.query?.trim() || undefined,
+      type: input.type,
+    });
+    return {
+      nodes,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    };
+  }
+
+  async update(
+    personaId: string,
+    nodeId: string,
+    input: {
+      type?: MemoryType;
+      content?: string;
+      importance?: number;
+    },
+  ): Promise<MemoryNode | null> {
+    const existing = this.repository.listNodes(personaId).find((node) => node.id === nodeId);
+    if (!existing) {
+      return null;
+    }
+
+    const nextContent = input.content ?? existing.content;
+    const nextEmbedding =
+      input.content !== undefined && input.content !== existing.content
+        ? await this.getEmbedding(nextContent)
+        : existing.embedding;
+
+    const updated: MemoryNode = {
+      ...existing,
+      type: input.type ?? existing.type,
+      content: nextContent,
+      embedding: nextEmbedding,
+      importance: input.importance ?? existing.importance,
+      metadata: {
+        ...(existing.metadata || {}),
+        lastVerified: new Date().toISOString(),
+      },
+    };
+
+    this.repository.updateNode(personaId, updated);
+    return updated;
+  }
+
+  delete(personaId: string, nodeId: string): boolean {
+    return this.repository.deleteNode(personaId, nodeId) > 0;
+  }
+
+  bulkUpdate(
+    personaId: string,
+    nodeIds: string[],
+    updates: { type?: MemoryType; importance?: number },
+  ): number {
+    return this.repository.updateMany(personaId, nodeIds, updates);
+  }
+
+  bulkDelete(personaId: string, nodeIds: string[]): number {
+    return this.repository.deleteMany(personaId, nodeIds);
+  }
+
+  deleteByPersona(personaId: string): number {
+    return this.repository.deleteByPersona(personaId);
   }
 }

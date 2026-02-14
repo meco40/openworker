@@ -130,8 +130,8 @@ describe('GET /api/control-plane/metrics', () => {
     const memoryService = new MemoryService(memoryRepo, async (text) =>
       text.includes('vector') ? [1, 0] : [0, 1],
     );
-    await memoryService.store('fact', 'vector fact', 3);
-    await memoryService.store('preference', 'another memory', 4);
+    await memoryService.store('persona-metrics', 'fact', 'vector fact', 3);
+    await memoryService.store('persona-metrics', 'preference', 'another memory', 4);
     (globalThis as GlobalSingletons).__memoryRepository = memoryRepo;
     (globalThis as GlobalSingletons).__memoryService = memoryService;
 

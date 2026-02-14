@@ -20,6 +20,8 @@ function createNode(overrides: Partial<MemoryNode> = {}): MemoryNode {
 
 describe('SqliteMemoryRepository', () => {
   let dbPath = '';
+  const personaA = 'persona-a';
+  const personaB = 'persona-b';
 
   beforeEach(() => {
     dbPath = path.join(
@@ -32,14 +34,14 @@ describe('SqliteMemoryRepository', () => {
 
   it('creates table and returns empty list initially', () => {
     const repo = new SqliteMemoryRepository(dbPath);
-    expect(repo.listNodes()).toEqual([]);
+    expect(repo.listNodes(personaA)).toEqual([]);
   });
 
   it('inserts and lists memory nodes with JSON fields restored', () => {
     const repo = new SqliteMemoryRepository(dbPath);
-    repo.insertNode(createNode());
+    repo.insertNode(personaA, createNode());
 
-    const nodes = repo.listNodes();
+    const nodes = repo.listNodes(personaA);
     expect(nodes).toHaveLength(1);
     expect(nodes[0].embedding).toEqual([0.1, 0.2, 0.3]);
     expect(nodes[0].metadata?.source).toBe('test');
@@ -47,8 +49,9 @@ describe('SqliteMemoryRepository', () => {
 
   it('updates an existing memory node', () => {
     const repo = new SqliteMemoryRepository(dbPath);
-    repo.insertNode(createNode());
+    repo.insertNode(personaA, createNode());
     repo.updateNode(
+      personaA,
       createNode({
         confidence: 0.8,
         importance: 5,
@@ -56,7 +59,7 @@ describe('SqliteMemoryRepository', () => {
       }),
     );
 
-    const updated = repo.listNodes()[0];
+    const updated = repo.listNodes(personaA)[0];
     expect(updated.confidence).toBe(0.8);
     expect(updated.importance).toBe(5);
     expect(updated.metadata?.lastVerified).toBe('2026-02-10T12:00:00.000Z');
@@ -64,17 +67,32 @@ describe('SqliteMemoryRepository', () => {
 
   it('persists records across repository instances', () => {
     const first = new SqliteMemoryRepository(dbPath);
-    first.insertNode(createNode({ id: 'mem-persist' }));
+    first.insertNode(personaA, createNode({ id: 'mem-persist' }));
 
     const second = new SqliteMemoryRepository(dbPath);
-    const nodes = second.listNodes();
+    const nodes = second.listNodes(personaA);
     expect(nodes).toHaveLength(1);
     expect(nodes[0].id).toBe('mem-persist');
+  });
+
+  it('isolates memory by persona and supports cascade delete by persona', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+    repo.insertNode(personaA, createNode({ id: 'mem-a' }));
+    repo.insertNode(personaB, createNode({ id: 'mem-b' }));
+
+    expect(repo.listNodes(personaA)).toHaveLength(1);
+    expect(repo.listNodes(personaB)).toHaveLength(1);
+
+    const deleted = repo.deleteByPersona(personaA);
+    expect(deleted).toBe(1);
+    expect(repo.listNodes(personaA)).toHaveLength(0);
+    expect(repo.listNodes(personaB)).toHaveLength(1);
   });
 
   it('returns storage breakdown by type and largest nodes', () => {
     const repo = new SqliteMemoryRepository(dbPath);
     repo.insertNode(
+      personaA,
       createNode({
         id: 'fact-large',
         type: 'fact',
@@ -83,6 +101,7 @@ describe('SqliteMemoryRepository', () => {
       }),
     );
     repo.insertNode(
+      personaA,
       createNode({
         id: 'pref-medium',
         type: 'preference',
@@ -99,5 +118,28 @@ describe('SqliteMemoryRepository', () => {
     expect(snapshot.byType.some((row) => row.type === 'preference')).toBe(true);
     expect(snapshot.largestNodes).toHaveLength(1);
     expect(snapshot.largestNodes[0].id).toBe('fact-large');
+  });
+
+  it('supports paginated listing, bulk update, and bulk delete', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+    repo.insertNode(personaA, createNode({ id: 'p1', content: 'alpha', type: 'fact' }));
+    repo.insertNode(personaA, createNode({ id: 'p2', content: 'beta', type: 'preference' }));
+    repo.insertNode(personaA, createNode({ id: 'p3', content: 'gamma', type: 'lesson' }));
+
+    const page1 = repo.listNodesPage(personaA, { page: 1, pageSize: 2 });
+    expect(page1.nodes).toHaveLength(2);
+    expect(page1.total).toBe(3);
+
+    const updated = repo.updateMany(personaA, ['p1', 'p2'], { type: 'avoidance', importance: 5 });
+    expect(updated).toBe(2);
+
+    const afterUpdate = repo.listNodes(personaA).filter((n) => n.id === 'p1' || n.id === 'p2');
+    expect(afterUpdate.every((n) => n.type === 'avoidance')).toBe(true);
+    expect(afterUpdate.every((n) => n.importance === 5)).toBe(true);
+
+    const deleted = repo.deleteMany(personaA, ['p1', 'p2']);
+    expect(deleted).toBe(2);
+    expect(repo.listNodes(personaA)).toHaveLength(1);
+    expect(repo.listNodes(personaA)[0].id).toBe('p3');
   });
 });

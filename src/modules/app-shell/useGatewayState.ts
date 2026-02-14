@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { GatewayState, SystemLog } from '../../../types';
 import { getMemorySnapshot } from '../../../core/memory';
+import { usePersona } from '../personas/PersonaContext';
 
 function createInitialGatewayState(): GatewayState {
   return {
@@ -20,6 +21,7 @@ function createInitialGatewayState(): GatewayState {
 
 export function useGatewayState() {
   const [gatewayState, setGatewayState] = useState<GatewayState>(() => createInitialGatewayState());
+  const { activePersonaId } = usePersona();
 
   const addEventLog = useCallback((type: SystemLog['type'], message: string) => {
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -39,7 +41,7 @@ export function useGatewayState() {
   }, []);
 
   const updateMemoryDisplay = useCallback(async () => {
-    const nodes = await getMemorySnapshot();
+    const nodes = await getMemorySnapshot(activePersonaId);
     setGatewayState((previous) => ({
       ...previous,
       memoryEntries: nodes.map((node) => ({
@@ -50,7 +52,7 @@ export function useGatewayState() {
         importance: node.importance,
       })),
     }));
-  }, []);
+  }, [activePersonaId]);
 
   useEffect(() => {
     setGatewayState((previous) => ({

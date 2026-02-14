@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import { getMemoryService } from '../../../../src/server/memory/runtime';
 import { getModelHubService } from '../../../../src/server/model-hub/runtime';
 import { getPersonaRepository } from '../../../../src/server/personas/personaRepository';
 
@@ -120,6 +121,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
     }
 
+    getMemoryService().deleteByPersona(id);
     repo.deletePersona(id);
     return NextResponse.json({ ok: true });
   } catch (error) {

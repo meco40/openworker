@@ -7,6 +7,7 @@ describe('default view config', () => {
   it('uses configured default view when valid', () => {
     expect(resolveViewFromConfig('wizard')).toBe(View.WIZARD);
     expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'personas' } })).toBe(View.PERSONAS);
+    expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'memory' } })).toBe(View.MEMORY);
   });
 
   it('falls back to dashboard for invalid values', () => {

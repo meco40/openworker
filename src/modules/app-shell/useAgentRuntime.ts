@@ -143,6 +143,7 @@ export function useAgentRuntime({
                 const memoryResult = await handleCoreMemoryCall(
                   functionCall.name,
                   functionCall.args,
+                  activePersona?.id,
                 );
                 if (memoryResult) {
                   if (memoryResult.action === 'store') {
@@ -243,7 +244,7 @@ export function useAgentRuntime({
         setIsAgentTyping(false);
       }
     },
-    [addEventLog, setMessages, setScheduledTasks, skills, updateMemoryDisplay],
+    [activePersona?.id, addEventLog, setMessages, setScheduledTasks, skills, updateMemoryDisplay],
   );
 
   return {

@@ -1,6 +1,7 @@
 import { getModelHubEncryptionKey, getModelHubService } from '../model-hub/runtime';
 
 const ZERO_VECTOR_SIZE = 768;
+const DEFAULT_EMBEDDING_MODEL = 'gemini-embedding-001';
 
 function isNumberArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'number');
@@ -21,13 +22,14 @@ function extractEmbeddingValues(payload: unknown): number[] | null {
 export async function getServerEmbedding(text: string): Promise<number[]> {
   const service = getModelHubService();
   const encryptionKey = getModelHubEncryptionKey();
+  const model = process.env.MEMORY_EMBEDDING_MODEL?.trim() || DEFAULT_EMBEDDING_MODEL;
 
   try {
     const single = await service.dispatchEmbedding(encryptionKey, {
       operation: 'embedContent',
       payload: {
-        model: 'text-embedding-004',
-        content: { parts: [{ text }] },
+        model,
+        contents: [text],
       },
     });
     const values = extractEmbeddingValues(single);
@@ -43,8 +45,8 @@ export async function getServerEmbedding(text: string): Promise<number[]> {
         payload: {
           requests: [
             {
-              model: 'text-embedding-004',
-              content: { parts: [{ text }] },
+              model,
+              contents: [text],
             },
           ],
         },

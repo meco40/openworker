@@ -114,6 +114,7 @@ export enum View {
   WORKER = 'worker',
   TEAMS = 'teams',
   PERSONAS = 'personas',
+  MEMORY = 'memory',
 }
 
 export interface CoupledChannel {

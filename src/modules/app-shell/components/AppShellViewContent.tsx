@@ -31,6 +31,7 @@ const ProfileView = dynamic(() => import('../../../../components/ProfileView'));
 const ExposureManager = dynamic(() => import('../../exposure/components/ExposureManager'));
 const StatsView = dynamic(() => import('../../../../components/StatsView'));
 const PersonasView = dynamic(() => import('../../../../components/PersonasView'));
+const MemoryView = dynamic(() => import('../../../../components/MemoryView'));
 
 interface AppShellViewContentProps {
   currentView: View;
@@ -168,6 +169,11 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
       {currentView === View.PERSONAS && (
         <ViewErrorBoundary label="Agent Personas">
           <PersonasView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.MEMORY && (
+        <ViewErrorBoundary label="Memory">
+          <MemoryView />
         </ViewErrorBoundary>
       )}
     </div>
