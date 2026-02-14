@@ -22,7 +22,7 @@ export async function runHealthChecks(options: HealthCommandOptions = {}): Promi
   checks.push(runLoggingRepositoryCheck());
   checks.push(runWorkerRepositoryCheck());
   checks.push(runStatsRepositoryCheck());
-  checks.push(runMemoryRepositoryCheck());
+  checks.push(await runMemoryRepositoryCheck());
   checks.push(runSecuritySnapshotCheck());
   checks.push(runGatewayRegistryCheck());
   checks.push(runErrorBudgetCheck());

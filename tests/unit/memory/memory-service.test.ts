@@ -1,371 +1,256 @@
 import { describe, expect, it } from 'vitest';
-import type { MemoryNode } from '../../../core/memory/types';
-import type { MemoryRepository } from '../../../src/server/memory/repository';
+import type { MemoryType } from '../../../core/memory/types';
+import type {
+  Mem0Client,
+  Mem0ListInput,
+  Mem0ListMemoryResult,
+  Mem0MemoryInput,
+  Mem0MemoryRecord,
+  Mem0SearchHit,
+  Mem0SearchInput,
+} from '../../../src/server/memory/mem0Client';
 import { MemoryService } from '../../../src/server/memory/service';
-import type { Mem0Client } from '../../../src/server/memory/mem0Client';
 
-function scopeKey(personaId: string, userId?: string): string {
-  return `${userId || 'legacy-local-user'}::${personaId}`;
+function scopeKey(userId: string, personaId: string): string {
+  return `${userId}::${personaId}`;
 }
 
-function createRepository(initialNodes: MemoryNode[] = []): MemoryRepository {
-  const byScope = new Map<string, MemoryNode[]>();
-  byScope.set(scopeKey('persona-test'), [...initialNodes]);
-
-  const read = (personaId: string, userId?: string): MemoryNode[] => byScope.get(scopeKey(personaId, userId)) || [];
-  const write = (personaId: string, nodes: MemoryNode[], userId?: string): void => {
-    byScope.set(scopeKey(personaId, userId), nodes);
+function defaultRecord(id: string, input: Mem0MemoryInput): Mem0MemoryRecord {
+  return {
+    id,
+    content: input.content,
+    score: null,
+    metadata: {
+      ...input.metadata,
+      type: String(input.metadata.type || 'fact'),
+      importance: Number(input.metadata.importance || 3),
+      confidence: Number(input.metadata.confidence || 0.3),
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
-  const readAll = (userId?: string): MemoryNode[] => {
-    if (!userId) return Array.from(byScope.values()).flat();
-    const prefix = `${userId}::`;
-    return Array.from(byScope.entries())
-      .filter(([key]) => key.startsWith(prefix))
-      .flatMap(([, value]) => value);
+}
+
+function createInMemoryMem0Client(): Mem0Client {
+  const byScope = new Map<string, Mem0MemoryRecord[]>();
+
+  const readScope = (userId: string, personaId: string): Mem0MemoryRecord[] =>
+    byScope.get(scopeKey(userId, personaId)) || [];
+
+  const writeScope = (userId: string, personaId: string, rows: Mem0MemoryRecord[]) => {
+    byScope.set(scopeKey(userId, personaId), rows);
+  };
+
+  const findById = (id: string): { key: string; index: number; record: Mem0MemoryRecord } | null => {
+    for (const [key, records] of byScope.entries()) {
+      const index = records.findIndex((record) => record.id === id);
+      if (index >= 0) {
+        return { key, index, record: records[index] };
+      }
+    }
+    return null;
   };
 
   return {
-    listNodes: (personaId, userId) => [...read(personaId, userId)],
-    listNodesPage: (personaId, input, userId) => {
+    addMemory: async (input: Mem0MemoryInput) => {
+      const id = `mem0-${Math.random().toString(36).slice(2, 10)}`;
+      const next = [...readScope(input.userId, input.personaId), defaultRecord(id, input)];
+      writeScope(input.userId, input.personaId, next);
+      return { id };
+    },
+
+    searchMemories: async (input: Mem0SearchInput): Promise<Mem0SearchHit[]> => {
+      const rows = readScope(input.userId, input.personaId)
+        .filter((row) => row.content.toLowerCase().includes(input.query.toLowerCase()))
+        .slice(0, Math.max(1, input.limit));
+
+      return rows.map((row) => ({
+        id: row.id,
+        content: row.content,
+        score: 0.91,
+        metadata: row.metadata,
+      }));
+    },
+
+    listMemories: async (input: Mem0ListInput): Promise<Mem0ListMemoryResult> => {
       const page = Math.max(1, Math.floor(input.page));
       const pageSize = Math.max(1, Math.floor(input.pageSize));
-      const all = read(personaId, userId);
-      const start = (page - 1) * pageSize;
+      const personaId = input.personaId || '';
+      const source = personaId
+        ? readScope(input.userId, personaId)
+        : Array.from(byScope.entries())
+            .filter(([key]) => key.startsWith(`${input.userId}::`))
+            .flatMap(([, value]) => value);
+      const filtered = source.filter((row) => {
+        const queryOk = input.query
+          ? row.content.toLowerCase().includes(input.query.toLowerCase())
+          : true;
+        const typeOk = input.type ? String(row.metadata.type) === input.type : true;
+        return queryOk && typeOk;
+      });
+      const offset = (page - 1) * pageSize;
       return {
-        nodes: all.slice(start, start + pageSize),
-        total: all.length,
+        memories: filtered.slice(offset, offset + pageSize),
+        total: filtered.length,
+        page,
+        pageSize,
       };
     },
-    listAllNodes: (userId) => readAll(userId),
-    insertNode: (personaId, node, userId) => {
-      write(personaId, [...read(personaId, userId), node], userId);
+
+    getMemory: async (id: string) => {
+      const found = findById(id);
+      return found ? found.record : null;
     },
-    updateNode: (personaId, node, userId) => {
-      write(
-        personaId,
-        read(personaId, userId).map((existing) => (existing.id === node.id ? node : existing)),
-        userId,
-      );
+
+    updateMemory: async (id: string, input: Mem0MemoryInput) => {
+      const found = findById(id);
+      if (!found) {
+        throw new Error('Mem0 request failed with HTTP 404.');
+      }
+      const nextRow: Mem0MemoryRecord = {
+        ...found.record,
+        content: input.content,
+        metadata: { ...input.metadata },
+        updatedAt: new Date().toISOString(),
+      };
+      const rows = [...(byScope.get(found.key) || [])];
+      rows[found.index] = nextRow;
+      byScope.set(found.key, rows);
     },
-    deleteNode: (personaId, nodeId, userId) => {
-      const before = read(personaId, userId);
-      const after = before.filter((node) => node.id !== nodeId);
-      write(personaId, after, userId);
-      return before.length - after.length;
+
+    deleteMemory: async (id: string) => {
+      const found = findById(id);
+      if (!found) {
+        throw new Error('Mem0 request failed with HTTP 404.');
+      }
+      const rows = [...(byScope.get(found.key) || [])];
+      rows.splice(found.index, 1);
+      byScope.set(found.key, rows);
     },
-    updateMany: (personaId, nodeIds, updates, userId) => {
-      const ids = new Set(nodeIds);
-      let changes = 0;
-      write(
-        personaId,
-        read(personaId, userId).map((node) => {
-          if (!ids.has(node.id)) return node;
-          changes += 1;
-          return {
-            ...node,
-            type: updates.type ?? node.type,
-            importance: updates.importance ?? node.importance,
-          };
-        }),
-        userId,
-      );
-      return changes;
-    },
-    deleteMany: (personaId, nodeIds, userId) => {
-      const ids = new Set(nodeIds);
-      const before = read(personaId, userId);
-      const after = before.filter((node) => !ids.has(node.id));
-      write(personaId, after, userId);
-      return before.length - after.length;
-    },
-    deleteByPersona: (personaId, userId) => {
-      const size = read(personaId, userId).length;
-      byScope.delete(scopeKey(personaId, userId));
-      return size;
+
+    deleteMemoriesByFilter: async (input: { userId: string; personaId: string }) => {
+      const key = scopeKey(input.userId, input.personaId);
+      const existing = byScope.get(key) || [];
+      byScope.delete(key);
+      return existing.length;
     },
   };
 }
 
-function createNode(overrides: Partial<MemoryNode> = {}): MemoryNode {
-  return {
-    id: 'mem-node',
-    type: 'fact',
-    content: 'default',
-    embedding: [0, 0],
-    importance: 3,
-    confidence: 0.3,
-    timestamp: '10:00',
-    metadata: {},
-    ...overrides,
-  };
-}
+describe('MemoryService (mem0-only)', () => {
+  it('stores a memory and returns mem0-backed node metadata', async () => {
+    const service = new MemoryService(createInMemoryMem0Client());
 
-describe('MemoryService', () => {
-  it('reinforces duplicate memory instead of creating a second node', async () => {
-    const repo = createRepository();
-    const vectors: Record<string, number[]> = {
-      alpha: [1, 0],
-    };
-    const service = new MemoryService(repo, async (text) => vectors[text] || [0, 0]);
+    const node = await service.store('persona-a', 'fact', 'likes coffee', 4, 'user-a');
 
-    const first = await service.store('persona-test', 'fact', 'alpha', 2);
-    const second = await service.store('persona-test', 'fact', 'alpha', 5);
-
-    expect(second.id).toBe(first.id);
-    expect(second.importance).toBe(5);
-    expect(second.confidence).toBeGreaterThan(first.confidence);
-    expect(repo.listNodes('persona-test')).toHaveLength(1);
+    expect(node.id.startsWith('mem0-')).toBe(true);
+    expect(node.metadata?.memoryProvider).toBe('mem0');
+    expect(node.content).toBe('likes coffee');
   });
 
-  it('keeps memories isolated per persona', async () => {
-    const repo = createRepository();
-    const vectors: Record<string, number[]> = {
-      alpha: [1, 0],
-    };
-    const service = new MemoryService(repo, async (text) => vectors[text] || [0, 0]);
+  it('recalls relevant context via mem0 search results', async () => {
+    const service = new MemoryService(createInMemoryMem0Client());
+    await service.store('persona-a', 'preference', 'prefers oat milk', 4, 'user-a');
 
-    const first = await service.store('persona-a', 'fact', 'alpha', 2);
-    const second = await service.store('persona-b', 'fact', 'alpha', 5);
+    const context = await service.recall('persona-a', 'oat', 3, 'user-a');
 
-    expect(second.id).not.toBe(first.id);
-    expect(repo.listNodes('persona-a')).toHaveLength(1);
-    expect(repo.listNodes('persona-b')).toHaveLength(1);
+    expect(context).toContain('[Type: preference] prefers oat milk');
   });
 
-  it('returns ranked recall context with threshold filtering', async () => {
-    const repo = createRepository([
-      createNode({
-        id: 'a',
-        type: 'fact',
-        content: 'alpha',
-        embedding: [1, 0],
-        confidence: 0.3,
-      }),
-      createNode({
-        id: 'b',
-        type: 'preference',
-        content: 'beta',
-        embedding: [0.8, 0.6],
-        confidence: 1.0,
-      }),
-      createNode({
-        id: 'c',
-        type: 'lesson',
-        content: 'gamma',
-        embedding: [0, 1],
-        confidence: 1.0,
-      }),
-    ]);
-    const service = new MemoryService(repo, async (text) => (text === 'query' ? [1, 0] : [0, 0]));
+  it('returns paginated, filtered nodes for listPage', async () => {
+    const service = new MemoryService(createInMemoryMem0Client());
+    await service.store('persona-a', 'fact', 'alpha', 4, 'user-a');
+    await service.store('persona-a', 'lesson', 'beta', 3, 'user-a');
+    await service.store('persona-a', 'fact', 'gamma', 2, 'user-a');
 
-    const context = await service.recall('persona-test', 'query', 3);
+    const firstPage = await service.listPage('persona-a', { page: 1, pageSize: 2 }, 'user-a');
+    expect(firstPage.nodes).toHaveLength(2);
+    expect(firstPage.pagination.total).toBe(3);
 
-    expect(context).toContain('[Type: preference] beta');
-    expect(context).toContain('[Type: fact] alpha');
-    expect(context).not.toContain('gamma');
-    expect(context.indexOf('beta')).toBeLessThan(context.indexOf('alpha'));
+    const filtered = await service.listPage(
+      'persona-a',
+      { page: 1, pageSize: 10, type: 'fact', query: 'ga' },
+      'user-a',
+    );
+    expect(filtered.nodes).toHaveLength(1);
+    expect(filtered.nodes[0].content).toBe('gamma');
   });
 
-  it('returns fallback text when no memory passes similarity threshold', async () => {
-    const repo = createRepository([
-      createNode({
-        id: 'x',
-        type: 'fact',
-        content: 'low-similarity',
-        embedding: [0, 1],
-      }),
-    ]);
-    const service = new MemoryService(repo, async () => [1, 0]);
+  it('updates memory content/type/importance', async () => {
+    const service = new MemoryService(createInMemoryMem0Client());
+    const stored = await service.store('persona-a', 'fact', 'alpha', 2, 'user-a');
 
-    const context = await service.recall('persona-test', 'query', 3);
-    expect(context).toBe('No relevant memories found.');
+    const updated = await service.update(
+      'persona-a',
+      stored.id,
+      { content: 'alpha-updated', type: 'lesson', importance: 5 },
+      'user-a',
+    );
+
+    expect(updated).not.toBeNull();
+    expect(updated?.content).toBe('alpha-updated');
+    expect(updated?.type).toBe('lesson');
+    expect(updated?.importance).toBe(5);
   });
 
-  it('returns recall metadata with node ids and scores', async () => {
-    const repo = createRepository([
-      createNode({
-        id: 'a',
-        type: 'fact',
-        content: 'alpha',
-        embedding: [1, 0],
-        confidence: 0.8,
-      }),
-      createNode({
-        id: 'b',
-        type: 'lesson',
-        content: 'beta',
-        embedding: [0, 1],
-        confidence: 0.9,
-      }),
-    ]);
-    const service = new MemoryService(repo, async () => [1, 0]);
+  it('deletes a single memory node', async () => {
+    const service = new MemoryService(createInMemoryMem0Client());
+    const stored = await service.store('persona-a', 'fact', 'alpha', 2, 'user-a');
 
-    const result = await service.recallDetailed('persona-test', 'query', 3);
+    const deleted = await service.delete('persona-a', stored.id, 'user-a');
+    const snapshot = await service.snapshot('persona-a', 'user-a');
 
-    expect(result.context).toContain('alpha');
-    expect(result.matches[0]?.node.id).toBe('a');
-    expect(result.matches[0]?.score).toBeGreaterThan(0.7);
+    expect(deleted).toBe(true);
+    expect(snapshot).toHaveLength(0);
   });
 
-  it('updates confidence and importance based on feedback signals', () => {
-    const repo = createRepository([
-      createNode({
-        id: 'a',
-        type: 'fact',
-        content: 'alpha',
-        embedding: [1, 0],
-        importance: 3,
-        confidence: 0.5,
-      }),
-    ]);
-    const service = new MemoryService(repo, async () => [1, 0]);
+  it('supports bulk update and bulk delete', async () => {
+    const service = new MemoryService(createInMemoryMem0Client());
+    const a = await service.store('persona-a', 'fact', 'a', 2, 'user-a');
+    const b = await service.store('persona-a', 'preference', 'b', 3, 'user-a');
 
-    const positiveChanges = service.registerFeedback('persona-test', ['a'], 'positive');
-    expect(positiveChanges).toBe(1);
+    const updated = await service.bulkUpdate(
+      'persona-a',
+      [a.id, b.id],
+      { type: 'lesson' as MemoryType, importance: 5 },
+      'user-a',
+    );
+    expect(updated).toBe(2);
 
-    const afterPositive = repo.listNodes('persona-test').find((node) => node.id === 'a');
-    expect(afterPositive?.importance).toBe(4);
-    expect(afterPositive?.confidence).toBeGreaterThan(0.5);
-    expect(afterPositive?.metadata?.lastFeedback).toBe('positive');
+    const afterUpdate = await service.snapshot('persona-a', 'user-a');
+    expect(afterUpdate.every((node) => node.type === 'lesson')).toBe(true);
+    expect(afterUpdate.every((node) => node.importance === 5)).toBe(true);
 
-    const negativeChanges = service.registerFeedback('persona-test', ['a'], 'negative');
-    expect(negativeChanges).toBe(1);
-    const afterNegative = repo.listNodes('persona-test').find((node) => node.id === 'a');
-    expect(afterNegative?.importance).toBe(3);
-    expect(afterNegative?.metadata?.feedbackCount).toBe(2);
+    const deleted = await service.bulkDelete('persona-a', [a.id, b.id], 'user-a');
+    expect(deleted).toBe(2);
+    const afterDelete = await service.snapshot('persona-a', 'user-a');
+    expect(afterDelete).toHaveLength(0);
   });
 
-  it('keeps memories isolated by user scope even for the same persona id', async () => {
-    const repo = createRepository();
-    const vectors: Record<string, number[]> = {
-      alpha: [1, 0],
-    };
-    const service = new MemoryService(repo, async (text) => vectors[text] || [0, 0]);
+  it('updates metadata feedback fields on positive feedback', async () => {
+    const service = new MemoryService(createInMemoryMem0Client());
+    const stored = await service.store('persona-a', 'fact', 'alpha', 2, 'user-a');
 
-    await service.store('persona-shared', 'fact', 'alpha', 3, 'user-a');
-    await service.store('persona-shared', 'fact', 'alpha', 3, 'user-b');
-
-    const userA = service.snapshot('persona-shared', 'user-a');
-    const userB = service.snapshot('persona-shared', 'user-b');
-    expect(userA).toHaveLength(1);
-    expect(userB).toHaveLength(1);
-    expect(userA[0].id).not.toBe(userB[0].id);
-  });
-
-  it('forgets repeatedly rejected memory nodes after sustained negative feedback', () => {
-    const repo = createRepository([
-      createNode({
-        id: 'forget-me',
-        type: 'fact',
-        content: 'old incorrect memory',
-        embedding: [1, 0],
-        importance: 2,
-        confidence: 0.25,
-        metadata: { feedbackCount: 2, lastFeedback: 'negative' },
-      }),
-    ]);
-    const service = new MemoryService(repo, async () => [1, 0]);
-
-    const changed = service.registerFeedback('persona-test', ['forget-me'], 'negative');
+    const changed = await service.registerFeedback('persona-a', [stored.id], 'positive', 'user-a');
     expect(changed).toBe(1);
-    expect(service.snapshot('persona-test')).toHaveLength(0);
+
+    const after = await service.snapshot('persona-a', 'user-a');
+    expect(after).toHaveLength(1);
+    expect(after[0].metadata?.lastFeedback).toBe('positive');
+    expect(after[0].metadata?.feedbackCount).toBe(1);
   });
 
-  it('attaches mem0 id metadata when mem0 add succeeds', async () => {
-    const repo = createRepository();
-    const mem0: Mem0Client = {
-      addMemory: async () => ({ id: 'mem0-1' }),
-      searchMemories: async () => [],
-      updateMemory: async () => {},
-      deleteMemory: async () => {},
-    };
-    const service = new MemoryService(repo, async () => [1, 0], mem0);
+  it('deletes all memories of one persona only', async () => {
+    const service = new MemoryService(createInMemoryMem0Client());
+    await service.store('persona-a', 'fact', 'alpha', 2, 'user-a');
+    await service.store('persona-b', 'fact', 'beta', 2, 'user-a');
 
-    const stored = await service.store('persona-test', 'fact', 'alpha', 4, 'user-1');
+    const deleted = await service.deleteByPersona('persona-a', 'user-a');
+    expect(deleted).toBe(1);
 
-    expect(stored.metadata?.mem0Id).toBe('mem0-1');
-  });
-
-  it('fails store when mem0 add fails instead of writing local fallback memory', async () => {
-    const repo = createRepository();
-    const mem0: Mem0Client = {
-      addMemory: async () => {
-        throw new Error('mem0 add failed');
-      },
-      searchMemories: async () => [],
-      updateMemory: async () => {},
-      deleteMemory: async () => {},
-    };
-    const service = new MemoryService(repo, async () => [1, 0], mem0);
-
-    await expect(service.store('persona-test', 'fact', 'alpha', 4, 'user-1')).rejects.toThrow(/mem0 add failed/i);
-    expect(service.snapshot('persona-test', 'user-1')).toHaveLength(0);
-  });
-
-  it('uses mem0 search first for recall and mirrors external ids locally', async () => {
-    const repo = createRepository();
-    const mem0: Mem0Client = {
-      addMemory: async () => ({ id: 'mem0-1' }),
-      searchMemories: async () => [
-        {
-          id: 'mem0-77',
-          content: 'User likes oat milk.',
-          score: 0.93,
-          metadata: { type: 'preference', importance: 5 },
-        },
-      ],
-      updateMemory: async () => {},
-      deleteMemory: async () => {},
-    };
-    const service = new MemoryService(repo, async () => [1, 0], mem0);
-
-    const recalled = await service.recallDetailed('persona-test', 'What milk do I prefer?', 3, 'user-1');
-    const snapshot = service.snapshot('persona-test', 'user-1');
-
-    expect(recalled.context).toContain('oat milk');
-    expect(snapshot.some((node) => node.metadata?.mem0Id === 'mem0-77')).toBe(true);
-  });
-
-  it('throws when mem0 search fails and fallback recall is disabled', async () => {
-    const repo = createRepository([
-      createNode({
-        id: 'local-1',
-        type: 'fact',
-        content: 'local fallback',
-        embedding: [1, 0],
-      }),
-    ]);
-    const mem0: Mem0Client = {
-      addMemory: async () => ({ id: 'mem0-1' }),
-      searchMemories: async () => {
-        throw new Error('mem0 offline');
-      },
-      updateMemory: async () => {},
-      deleteMemory: async () => {},
-    };
-    const service = new MemoryService(repo, async (text) => (text === 'query' ? [1, 0] : [0, 0]), mem0);
-
-    await expect(service.recall('persona-test', 'query', 3)).rejects.toThrow(/mem0 offline/i);
-  });
-
-  it('does not use local similarity fallback when mem0 returns no hits', async () => {
-    const repo = createRepository([
-      createNode({
-        id: 'local-1',
-        type: 'fact',
-        content: 'local fallback',
-        embedding: [1, 0],
-      }),
-    ]);
-    const mem0: Mem0Client = {
-      addMemory: async () => ({ id: 'mem0-1' }),
-      searchMemories: async () => [],
-      updateMemory: async () => {},
-      deleteMemory: async () => {},
-    };
-    const service = new MemoryService(repo, async (text) => (text === 'query' ? [1, 0] : [0, 0]), mem0);
-
-    const context = await service.recall('persona-test', 'query', 3);
-    expect(context).toBe('No relevant memories found.');
+    const personaA = await service.snapshot('persona-a', 'user-a');
+    const personaB = await service.snapshot('persona-b', 'user-a');
+    expect(personaA).toHaveLength(0);
+    expect(personaB).toHaveLength(1);
   });
 });

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createMem0Client,
   createMem0ClientFromEnv,
+  type Mem0ListMemoryResult,
   type Mem0ClientConfig,
 } from '../../../src/server/memory/mem0Client';
 
@@ -69,7 +70,7 @@ describe('mem0Client', () => {
 
   it('posts add memory with scoped payload', async () => {
     const fetchMock = vi.fn(async () =>
-      new Response(JSON.stringify({ id: 'mem0-1' }), {
+      new Response(JSON.stringify([{ id: 'mem0-1', memory: 'Ich trinke Kaffee schwarz' }]), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }),
@@ -103,11 +104,71 @@ describe('mem0Client', () => {
     });
     const body = JSON.parse(String(call[1].body));
     expect(body).toMatchObject({
-      memory: 'Ich trinke Kaffee schwarz',
+      messages: [{ role: 'user', content: 'Ich trinke Kaffee schwarz' }],
       user_id: 'user-1',
       agent_id: 'persona-1',
     });
     expect(body.metadata).toMatchObject({ type: 'fact', importance: 4 });
+  });
+
+  it('lists memories with filters and pagination for WebUI CRUD', async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          memories: [
+            {
+              id: 'mem0-1',
+              memory: 'Alpha',
+              score: 0.9,
+              metadata: { type: 'fact', importance: 5 },
+            },
+          ],
+          total: 17,
+          page: 2,
+          page_size: 10,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    const client = createMem0Client(
+      {
+        baseUrl: 'http://mem0.local',
+        apiPath: '/v1',
+        timeoutMs: 4000,
+      },
+      fetchMock as unknown as typeof fetch,
+    );
+
+    const result: Mem0ListMemoryResult = await client.listMemories({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      page: 2,
+      pageSize: 10,
+      query: 'alp',
+      type: 'fact',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(call[0]).toBe('http://mem0.local/v2/memories');
+    expect(call[1].method).toBe('POST');
+    const body = JSON.parse(String(call[1].body));
+    expect(body.filters).toMatchObject({
+      user_id: 'user-1',
+      agent_id: 'persona-1',
+      type: 'fact',
+    });
+    expect(body.query).toBe('alp');
+    expect(body.page).toBe(2);
+    expect(body.page_size).toBe(10);
+
+    expect(result.memories).toHaveLength(1);
+    expect(result.total).toBe(17);
+    expect(result.page).toBe(2);
+    expect(result.pageSize).toBe(10);
   });
 
   it('parses search response variants defensively', async () => {
@@ -161,6 +222,10 @@ describe('mem0Client', () => {
     });
     expect(first).toHaveLength(1);
     expect(first[0]).toMatchObject({ id: 'a', content: 'Alpha', score: 0.9 });
+    const firstCall = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(firstCall[0]).toBe('http://mem0.local/v2/memories/search');
+    const firstBody = JSON.parse(String(firstCall[1].body));
+    expect(firstBody.filters).toMatchObject({ user_id: 'user-1', agent_id: 'persona-1' });
 
     const second = await client.searchMemories({
       userId: 'user-1',
@@ -170,6 +235,35 @@ describe('mem0Client', () => {
     });
     expect(second).toHaveLength(1);
     expect(second[0]).toMatchObject({ id: 'b', content: 'Beta', score: 0.8 });
+  });
+
+  it('deletes all persona memories via filter endpoint', async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ deleted: 3 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const client = createMem0Client(
+      {
+        baseUrl: 'http://mem0.local',
+        apiPath: '/v1',
+        timeoutMs: 4000,
+      },
+      fetchMock as unknown as typeof fetch,
+    );
+
+    const deleted = await client.deleteMemoriesByFilter({ userId: 'user-1', personaId: 'persona-1' });
+    expect(deleted).toBe(3);
+    const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(call[0]).toBe('http://mem0.local/v1/memories');
+    expect(call[1].method).toBe('DELETE');
+    const body = JSON.parse(String(call[1].body));
+    expect(body).toMatchObject({
+      user_id: 'user-1',
+      agent_id: 'persona-1',
+    });
   });
 
   it('aborts request after timeout', async () => {

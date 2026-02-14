@@ -190,7 +190,7 @@ export async function GET(request: Request) {
       const pageSize = parsePositiveInt(pageSizeParam, 25, 1, 200);
       const query = String(url.searchParams.get('query') || '').trim();
       const type = parseOptionalType(url.searchParams.get('type'));
-      const result = service.listPage(personaId, {
+      const result = await service.listPage(personaId, {
         page,
         pageSize,
         query: query || undefined,
@@ -199,7 +199,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: true, nodes: result.nodes, pagination: result.pagination });
     }
 
-    return NextResponse.json({ ok: true, nodes: service.snapshot(personaId, userContext.userId) });
+    return NextResponse.json({ ok: true, nodes: await service.snapshot(personaId, userContext.userId) });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to load memory snapshot.';
     const status = error instanceof ValidationError ? 400 : 500;
@@ -289,11 +289,11 @@ export async function DELETE(request: Request) {
     const service = getMemoryService();
 
     if (nodeId) {
-      const deleted = service.delete(personaId, nodeId, userContext.userId) ? 1 : 0;
+      const deleted = (await service.delete(personaId, nodeId, userContext.userId)) ? 1 : 0;
       return NextResponse.json({ ok: true, deleted });
     }
 
-    const deleted = service.deleteByPersona(personaId, userContext.userId);
+    const deleted = await service.deleteByPersona(personaId, userContext.userId);
     return NextResponse.json({ ok: true, deleted });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid request.';
@@ -313,11 +313,11 @@ export async function PATCH(request: Request) {
     const service = getMemoryService();
 
     if (parsed.action === 'delete') {
-      const affected = service.bulkDelete(parsed.personaId, parsed.ids, userContext.userId);
+      const affected = await service.bulkDelete(parsed.personaId, parsed.ids, userContext.userId);
       return NextResponse.json({ ok: true, action: 'delete', affected });
     }
 
-    const affected = service.bulkUpdate(
+    const affected = await service.bulkUpdate(
       parsed.personaId,
       parsed.ids,
       parsed.updates,

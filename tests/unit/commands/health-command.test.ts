@@ -14,8 +14,14 @@ afterEach(() => {
   delete process.env.WORKER_DB_PATH;
   delete process.env.LOGS_DB_PATH;
   delete process.env.ALERT_WEBHOOK_URL;
+  delete process.env.MEMORY_PROVIDER;
+  delete process.env.MEM0_BASE_URL;
+  delete process.env.MEM0_API_PATH;
+  vi.unstubAllGlobals();
   globalThis.__credentialStore = undefined;
   globalThis.__logRepository = undefined;
+  globalThis.__memoryService = undefined;
+  globalThis.__mem0Client = undefined;
 });
 
 describe('runHealthCommand', () => {
@@ -37,7 +43,30 @@ describe('runHealthCommand', () => {
     process.env.MESSAGES_DB_PATH = ':memory:';
     process.env.WORKER_DB_PATH = ':memory:';
     process.env.LOGS_DB_PATH = ':memory:';
+    process.env.MEMORY_PROVIDER = 'mem0';
+    process.env.MEM0_BASE_URL = 'http://mem0.local';
+    process.env.MEM0_API_PATH = '/v1';
     process.env.WHATSAPP_BRIDGE_URL = 'http://bridge.local';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+        const url = typeof input === 'string' ? input : input.toString();
+        const pathname = new URL(url).pathname;
+        if (
+          String(init?.method || 'GET').toUpperCase() === 'POST' &&
+          pathname.endsWith('/v2/memories')
+        ) {
+          return new Response(JSON.stringify({ memories: [], total: 0, page: 1, page_size: 25 }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }) as unknown as typeof fetch,
+    );
     vi.doMock('../../../src/server/security/status', () => ({
       buildSecurityStatusSnapshot: (): SecuritySnapshot => ({
         checks: [],

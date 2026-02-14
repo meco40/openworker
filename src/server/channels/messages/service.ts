@@ -1213,7 +1213,7 @@ export class MessageService {
     }
 
     try {
-      getMemoryService().registerFeedback(
+      await getMemoryService().registerFeedback(
         conversation.personaId,
         state.nodeIds,
         feedback,

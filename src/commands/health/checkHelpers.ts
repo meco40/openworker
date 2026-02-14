@@ -2,10 +2,10 @@ import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { getCredentialStore } from '../../server/channels/credentials';
-import { getMemoryRepository } from '../../server/memory/runtime';
-import type { MemoryStorageSnapshot } from '../../server/memory/sqliteMemoryRepository';
+import { getMemoryService } from '../../server/memory/runtime';
 import { getLogRepository } from '../../logging/logRepository';
 import type { HealthCheck, HealthCheckStatus, HealthCommandOptions } from '../healthTypes';
+import type { MemoryNode } from '../../../core/memory/types';
 
 export const DEFAULT_TIMEOUT_MS = 3000;
 export const ERROR_BUDGET_WINDOW_MS = 15 * 60 * 1000;
@@ -27,9 +27,29 @@ export interface NodeProcessDiagnostics {
 }
 
 export interface MemoryNodeDiagnostics {
-  summary: MemoryStorageSnapshot['summary'];
-  byType: MemoryStorageSnapshot['byType'];
-  largestNodes: MemoryStorageSnapshot['largestNodes'];
+  summary: {
+    totalNodes: number;
+    totalBytes: number;
+    contentBytes: number;
+    embeddingBytes: number;
+    metadataBytes: number;
+  };
+  byType: Array<{
+    type: string;
+    count: number;
+    totalBytes: number;
+    contentBytes: number;
+    embeddingBytes: number;
+    metadataBytes: number;
+  }>;
+  largestNodes: Array<{
+    id: string;
+    type: string;
+    totalBytes: number;
+    contentBytes: number;
+    embeddingBytes: number;
+    metadataBytes: number;
+  }>;
   collectionError?: string;
 }
 
@@ -122,13 +142,96 @@ function emptyMemoryNodeDiagnostics(error?: string): MemoryNodeDiagnostics {
   };
 }
 
-export function resolveMemoryNodeDiagnostics(limit = 8): MemoryNodeDiagnostics {
+function estimateNodeSize(node: MemoryNode): {
+  contentBytes: number;
+  embeddingBytes: number;
+  metadataBytes: number;
+  totalBytes: number;
+} {
+  const contentBytes = Buffer.byteLength(node.content || '', 'utf8');
+  const embeddingBytes = Buffer.byteLength(JSON.stringify(node.embedding || []), 'utf8');
+  const metadataBytes = Buffer.byteLength(JSON.stringify(node.metadata || {}), 'utf8');
+  return {
+    contentBytes,
+    embeddingBytes,
+    metadataBytes,
+    totalBytes: contentBytes + embeddingBytes + metadataBytes,
+  };
+}
+
+export async function resolveMemoryNodeDiagnostics(limit = 8): Promise<MemoryNodeDiagnostics> {
   try {
-    const snapshot = getMemoryRepository().getStorageSnapshot(limit);
+    const nodes = await getMemoryService().snapshot();
+    const byTypeMap = new Map<
+      string,
+      {
+        type: string;
+        count: number;
+        contentBytes: number;
+        embeddingBytes: number;
+        metadataBytes: number;
+      }
+    >();
+    const withSizes = nodes.map((node) => {
+      const size = estimateNodeSize(node);
+      const bucket = byTypeMap.get(node.type) || {
+        type: node.type,
+        count: 0,
+        contentBytes: 0,
+        embeddingBytes: 0,
+        metadataBytes: 0,
+      };
+      bucket.count += 1;
+      bucket.contentBytes += size.contentBytes;
+      bucket.embeddingBytes += size.embeddingBytes;
+      bucket.metadataBytes += size.metadataBytes;
+      byTypeMap.set(node.type, bucket);
+      return {
+        node,
+        ...size,
+      };
+    });
+
+    const summary = withSizes.reduce(
+      (acc, row) => ({
+        totalNodes: acc.totalNodes + 1,
+        totalBytes: acc.totalBytes + row.totalBytes,
+        contentBytes: acc.contentBytes + row.contentBytes,
+        embeddingBytes: acc.embeddingBytes + row.embeddingBytes,
+        metadataBytes: acc.metadataBytes + row.metadataBytes,
+      }),
+      {
+        totalNodes: 0,
+        totalBytes: 0,
+        contentBytes: 0,
+        embeddingBytes: 0,
+        metadataBytes: 0,
+      },
+    );
+
+    const byType = Array.from(byTypeMap.values())
+      .map((entry) => ({
+        ...entry,
+        totalBytes: entry.contentBytes + entry.embeddingBytes + entry.metadataBytes,
+      }))
+      .sort((a, b) => b.totalBytes - a.totalBytes || b.count - a.count);
+
+    const largestNodes = withSizes
+      .sort((a, b) => b.totalBytes - a.totalBytes)
+      .slice(0, Math.max(1, limit))
+      .map((entry) => ({
+        id: entry.node.id,
+        type: entry.node.type,
+        totalBytes: entry.totalBytes,
+        contentBytes: entry.contentBytes,
+        embeddingBytes: entry.embeddingBytes,
+        metadataBytes: entry.metadataBytes,
+      }));
+
     return {
-      summary: snapshot.summary,
-      byType: snapshot.byType,
-      largestNodes: snapshot.largestNodes,
+      summary,
+      byType,
+      largestNodes,
     };
   } catch (error) {
     return emptyMemoryNodeDiagnostics(

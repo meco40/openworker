@@ -1,5 +1,5 @@
 import { getClientRegistry } from '../../../server/gateway/client-registry';
-import { getMemoryProviderKind, getMemoryRepository } from '../../../server/memory/runtime';
+import { getMemoryProviderKind, getMemoryService } from '../../../server/memory/runtime';
 import { getTokenUsageRepository } from '../../../server/stats/tokenUsageRepository';
 import { getWorkerRepository } from '../../../server/worker/workerRepository';
 import { getLogRepository } from '../../../logging/logRepository';
@@ -60,10 +60,10 @@ export function runStatsRepositoryCheck(): HealthCheck {
   }
 }
 
-export function runMemoryRepositoryCheck(): HealthCheck {
+export async function runMemoryRepositoryCheck(): Promise<HealthCheck> {
   const start = Date.now();
   try {
-    const nodeCount = getMemoryRepository().getStorageSnapshot(1).summary.totalNodes;
+    const nodeCount = (await getMemoryService().snapshot()).length;
     const provider = getMemoryProviderKind();
     return okCheck('core.memory_repository', 'core', start, 'Memory repository reachable.', {
       nodeCount,

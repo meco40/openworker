@@ -38,7 +38,7 @@ export async function GET() {
     const { from, to } = resolveTodayRange();
     const tokensToday = getTokenUsageRepository().getTotalTokens(from, to).totalTokens;
 
-    const vectorNodeCount = getMemoryService().snapshot().length;
+    const vectorNodeCount = (await getMemoryService().snapshot()).length;
 
     let automationMetrics: {
       activeRules: number;

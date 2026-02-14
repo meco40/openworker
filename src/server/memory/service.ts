@@ -1,11 +1,7 @@
-import crypto from 'node:crypto';
 import type { MemoryNode, MemoryType } from '../../../core/memory/types';
-import { getServerEmbedding } from './embeddings';
-import type { Mem0Client, Mem0SearchHit } from './mem0Client';
-import type { MemoryRepository } from './repository';
+import type { Mem0Client, Mem0MemoryRecord, Mem0SearchHit } from './mem0Client';
 import { LEGACY_LOCAL_USER_ID } from '../auth/constants';
 
-export type MemoryEmbeddingFn = (text: string) => Promise<number[]>;
 export type MemoryFeedbackSignal = 'positive' | 'negative';
 
 export interface MemoryRecallMatch {
@@ -19,12 +15,10 @@ export interface MemoryRecallResult {
   matches: MemoryRecallMatch[];
 }
 
-const RECALL_SIMILARITY_THRESHOLD = 0.7;
 const MIN_CONFIDENCE = 0.1;
 const MAX_CONFIDENCE = 1.0;
 const MIN_IMPORTANCE = 1;
 const MAX_IMPORTANCE = 5;
-const STALE_DECAY_LIMIT = 0.35;
 const FORGET_NEGATIVE_FEEDBACK_THRESHOLD = 3;
 const FORGET_CONFIDENCE_THRESHOLD = 0.15;
 const MEM0_SCORE_THRESHOLD = 0.45;
@@ -32,34 +26,6 @@ const MEM0_SCORE_THRESHOLD = 0.45;
 function resolveUserId(userId?: string): string {
   const normalized = String(userId || '').trim();
   return normalized || LEGACY_LOCAL_USER_ID;
-}
-
-function getNodeFreshnessFactor(node: MemoryNode): number {
-  const reference = node.metadata?.lastVerified || node.timestamp || '';
-  const time = Date.parse(reference);
-  if (!Number.isFinite(time)) return 1;
-  const ageMs = Math.max(0, Date.now() - time);
-  const ageDays = ageMs / (24 * 60 * 60 * 1000);
-  const penalty = Math.min(STALE_DECAY_LIMIT, (ageDays / 365) * STALE_DECAY_LIMIT);
-  return 1 - penalty;
-}
-
-function cosineSimilarity(vecA: number[], vecB: number[]): number {
-  if (vecA.length !== vecB.length || vecA.length === 0) return 0;
-  let dotProduct = 0;
-  let magnitudeA = 0;
-  let magnitudeB = 0;
-
-  for (let i = 0; i < vecA.length; i++) {
-    dotProduct += vecA[i] * vecB[i];
-    magnitudeA += vecA[i] * vecA[i];
-    magnitudeB += vecB[i] * vecB[i];
-  }
-
-  magnitudeA = Math.sqrt(magnitudeA);
-  magnitudeB = Math.sqrt(magnitudeB);
-  if (magnitudeA === 0 || magnitudeB === 0) return 0;
-  return dotProduct / (magnitudeA * magnitudeB);
 }
 
 function asMemoryType(value: unknown): MemoryType {
@@ -81,6 +47,18 @@ function asImportance(value: unknown, fallback = 3): number {
   return Math.min(MAX_IMPORTANCE, Math.max(MIN_IMPORTANCE, Math.round(parsed)));
 }
 
+function asConfidence(value: unknown, fallback = 0.5): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(MAX_CONFIDENCE, Math.max(MIN_CONFIDENCE, parsed));
+}
+
+function asFeedbackCount(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return Math.floor(parsed);
+}
+
 function normalizeMem0Score(score: number | null): number {
   if (typeof score !== 'number' || !Number.isFinite(score)) return 0.75;
   if (score >= 0 && score <= 1) return score;
@@ -89,12 +67,66 @@ function normalizeMem0Score(score: number | null): number {
   return 0.75;
 }
 
+function formatTimestamp(input?: string): string {
+  if (!input) {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  const parsed = Date.parse(input);
+  if (!Number.isFinite(parsed)) return input;
+  return new Date(parsed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function toMemoryNode(record: Mem0MemoryRecord): MemoryNode {
+  const metadata = record.metadata || {};
+  return {
+    id: record.id,
+    type: asMemoryType(metadata.type),
+    content: record.content,
+    embedding: [],
+    importance: asImportance(metadata.importance, 3),
+    confidence: asConfidence(metadata.confidence, 0.5),
+    timestamp: formatTimestamp(record.updatedAt || record.createdAt),
+    metadata: {
+      ...metadata,
+      mem0Id: record.id,
+      source: 'mem0',
+      memoryProvider: 'mem0',
+      lastVerified:
+        (typeof metadata.lastVerified === 'string' && metadata.lastVerified) ||
+        record.updatedAt ||
+        record.createdAt ||
+        new Date().toISOString(),
+    },
+  };
+}
+
+function toMemoryNodeFromHit(hit: Mem0SearchHit): MemoryNode {
+  return toMemoryNode({
+    id: hit.id,
+    content: hit.content,
+    score: hit.score,
+    metadata: hit.metadata,
+  });
+}
+
+function isNotFoundError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /http\s*404/i.test(message);
+}
+
+function matchesQuery(node: MemoryNode, query?: string): boolean {
+  const needle = String(query || '').trim().toLowerCase();
+  if (!needle) return true;
+  return node.content.toLowerCase().includes(needle) || node.type.toLowerCase().includes(needle);
+}
+
+function matchesType(node: MemoryNode, type?: MemoryType): boolean {
+  if (!type) return true;
+  return node.type === type;
+}
+
 export class MemoryService {
-  constructor(
-    private readonly repository: MemoryRepository,
-    private readonly getEmbedding: MemoryEmbeddingFn = getServerEmbedding,
-    private readonly mem0Client?: Mem0Client,
-  ) {}
+  constructor(private readonly mem0Client: Mem0Client) {}
 
   async store(
     personaId: string,
@@ -104,68 +136,37 @@ export class MemoryService {
     userId?: string,
   ): Promise<MemoryNode> {
     const scopedUserId = resolveUserId(userId);
-    const queryVector = await this.getEmbedding(content);
-    const existing = this.repository
-      .listNodes(personaId, scopedUserId)
-      .find((node) => cosineSimilarity(queryVector, node.embedding) > 0.95);
 
-    if (existing) {
-      const updated: MemoryNode = {
-        ...existing,
-        importance: Math.max(existing.importance, importance),
-        confidence: Math.min(1.0, existing.confidence + 0.1),
-        metadata: {
-          ...(existing.metadata || {}),
-          lastVerified: new Date().toISOString(),
-        },
-      };
-      this.repository.updateNode(personaId, updated, scopedUserId);
-      this.syncMem0Update(personaId, scopedUserId, updated);
-      return updated;
+    const result = await this.mem0Client.addMemory({
+      userId: scopedUserId,
+      personaId,
+      content,
+      metadata: {
+        type,
+        importance: asImportance(importance, 3),
+        confidence: 0.3,
+        lastVerified: new Date().toISOString(),
+      },
+    });
+    if (!result.id) {
+      throw new Error('Mem0 store failed: response did not include memory id.');
     }
 
-    const nodeId = `mem-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-    let mem0Id: string | null = null;
-    if (this.mem0Client) {
-      const result = await this.mem0Client.addMemory({
-        userId: scopedUserId,
-        personaId,
-        content,
-        metadata: {
-          type,
-          importance,
-          confidence: 0.3,
-          localNodeId: nodeId,
-        },
-      });
-      if (!result.id) {
-        throw new Error('Mem0 store failed: response did not include memory id.');
-      }
-      mem0Id = result.id;
-    }
-
-    const node: MemoryNode = {
-      id: nodeId,
+    return {
+      id: result.id,
       type,
       content,
-      embedding: queryVector,
-      importance,
+      embedding: [],
+      importance: asImportance(importance, 3),
       confidence: 0.3,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: formatTimestamp(),
       metadata: {
+        mem0Id: result.id,
+        source: 'mem0',
+        memoryProvider: 'mem0',
         lastVerified: new Date().toISOString(),
-        memoryProvider: mem0Id ? 'mem0' : 'sqlite',
-        ...(mem0Id
-          ? {
-              mem0Id,
-              source: 'mem0',
-            }
-          : {}),
       },
     };
-    this.repository.insertNode(personaId, node, scopedUserId);
-
-    return node;
   }
 
   async recallDetailed(
@@ -175,37 +176,26 @@ export class MemoryService {
     userId?: string,
   ): Promise<MemoryRecallResult> {
     const scopedUserId = resolveUserId(userId);
+    const hits = await this.mem0Client.searchMemories({
+      userId: scopedUserId,
+      personaId,
+      query,
+      limit,
+    });
 
-    if (this.mem0Client) {
-      const fromMem0 = await this.recallFromMem0(personaId, query, limit, scopedUserId);
-      if (fromMem0 && fromMem0.matches.length > 0) {
-        return fromMem0;
-      }
-      return {
-        context: 'No relevant memories found.',
-        matches: [],
-      };
-    }
-
-    const queryVector = await this.getEmbedding(query);
-    const ranked = this.repository
-      .listNodes(personaId, scopedUserId)
-      .map((node) => ({
-        node,
-        similarity: cosineSimilarity(queryVector, node.embedding),
-        score: 0,
-      }))
-      .map((entry) => ({
-        ...entry,
-        score:
-          entry.similarity *
-          (1 + entry.node.confidence * 0.5) *
-          getNodeFreshnessFactor(entry.node),
-      }))
+    const matches = hits
+      .map((hit) => {
+        const similarity = normalizeMem0Score(hit.score);
+        return {
+          node: toMemoryNodeFromHit(hit),
+          similarity,
+          score: similarity,
+        };
+      })
+      .filter((entry) => entry.similarity >= MEM0_SCORE_THRESHOLD)
       .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+      .slice(0, Math.max(1, limit));
 
-    const matches = ranked.filter((result) => result.similarity > RECALL_SIMILARITY_THRESHOLD);
     const context = matches.map((result) => `[Type: ${result.node.type}] ${result.node.content}`).join('\n');
 
     return {
@@ -219,66 +209,100 @@ export class MemoryService {
     return result.context;
   }
 
-  registerFeedback(
+  async registerFeedback(
     personaId: string,
     nodeIds: string[],
     signal: MemoryFeedbackSignal,
     userId?: string,
-  ): number {
+  ): Promise<number> {
     const scopedUserId = resolveUserId(userId);
     const ids = Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)));
     if (ids.length === 0) return 0;
 
-    const byId = new Map(this.repository.listNodes(personaId, scopedUserId).map((node) => [node.id, node]));
     let changed = 0;
-
     for (const nodeId of ids) {
-      const existing = byId.get(nodeId);
-      if (!existing) continue;
+      let record: Mem0MemoryRecord | null = null;
+      try {
+        record = await this.mem0Client.getMemory(nodeId);
+      } catch (error) {
+        if (isNotFoundError(error)) continue;
+        throw error;
+      }
+      if (!record) continue;
 
+      const existingNode = toMemoryNode(record);
       const confidenceDelta = signal === 'positive' ? 0.15 : -0.2;
       const importanceDelta = signal === 'positive' ? 1 : -1;
-      const nextFeedbackCount = (existing.metadata?.feedbackCount || 0) + 1;
-      const updated: MemoryNode = {
-        ...existing,
-        confidence: Math.min(MAX_CONFIDENCE, Math.max(MIN_CONFIDENCE, existing.confidence + confidenceDelta)),
-        importance: Math.min(MAX_IMPORTANCE, Math.max(MIN_IMPORTANCE, existing.importance + importanceDelta)),
-        metadata: {
-          ...(existing.metadata || {}),
-          lastVerified: new Date().toISOString(),
-          lastFeedback: signal,
-          feedbackCount: nextFeedbackCount,
-        },
-      };
+      const nextFeedbackCount = asFeedbackCount(existingNode.metadata?.feedbackCount) + 1;
+      const nextConfidence = Math.min(
+        MAX_CONFIDENCE,
+        Math.max(MIN_CONFIDENCE, existingNode.confidence + confidenceDelta),
+      );
+      const nextImportance = Math.min(
+        MAX_IMPORTANCE,
+        Math.max(MIN_IMPORTANCE, existingNode.importance + importanceDelta),
+      );
 
       if (
         signal === 'negative' &&
         nextFeedbackCount >= FORGET_NEGATIVE_FEEDBACK_THRESHOLD &&
-        updated.confidence <= FORGET_CONFIDENCE_THRESHOLD
+        nextConfidence <= FORGET_CONFIDENCE_THRESHOLD
       ) {
-        this.repository.deleteNode(personaId, nodeId, scopedUserId);
-        this.syncMem0Delete(existing);
+        await this.mem0Client.deleteMemory(nodeId);
         changed += 1;
         continue;
       }
 
-      this.repository.updateNode(personaId, updated, scopedUserId);
-      this.syncMem0Update(personaId, scopedUserId, updated);
+      await this.mem0Client.updateMemory(nodeId, {
+        userId: scopedUserId,
+        personaId,
+        content: existingNode.content,
+        metadata: {
+          ...(existingNode.metadata || {}),
+          type: existingNode.type,
+          importance: nextImportance,
+          confidence: nextConfidence,
+          lastVerified: new Date().toISOString(),
+          lastFeedback: signal,
+          feedbackCount: nextFeedbackCount,
+          mem0Id: nodeId,
+          source: 'mem0',
+          memoryProvider: 'mem0',
+        },
+      });
       changed += 1;
     }
 
     return changed;
   }
 
-  snapshot(personaId?: string, userId?: string): MemoryNode[] {
+  async snapshot(personaId?: string, userId?: string): Promise<MemoryNode[]> {
     const scopedUserId = resolveUserId(userId);
-    if (!personaId) {
-      return this.repository.listAllNodes(userId ? scopedUserId : undefined);
+    const pageSize = 200;
+    const maxPages = 200;
+    let page = 1;
+    let total = Number.POSITIVE_INFINITY;
+    const nodes: MemoryNode[] = [];
+
+    while (page <= maxPages && nodes.length < total) {
+      const listed = await this.mem0Client.listMemories({
+        userId: scopedUserId,
+        personaId,
+        page,
+        pageSize,
+      });
+      const mapped = listed.memories.map((record) => toMemoryNode(record));
+      nodes.push(...mapped);
+      total = Math.max(0, listed.total);
+      if (mapped.length === 0) break;
+      if (nodes.length >= total) break;
+      page += 1;
     }
-    return this.repository.listNodes(personaId, scopedUserId);
+
+    return nodes;
   }
 
-  listPage(
+  async listPage(
     personaId: string,
     input: {
       page: number;
@@ -287,30 +311,37 @@ export class MemoryService {
       type?: MemoryType;
     },
     userId?: string,
-  ): {
+  ): Promise<{
     nodes: MemoryNode[];
     pagination: { page: number; pageSize: number; total: number; totalPages: number };
-  } {
+  }> {
     const scopedUserId = resolveUserId(userId);
     const page = Math.max(1, Math.floor(input.page));
     const pageSize = Math.max(1, Math.min(200, Math.floor(input.pageSize)));
-    const { nodes, total } = this.repository.listNodesPage(
+
+    const listed = await this.mem0Client.listMemories({
+      userId: scopedUserId,
       personaId,
-      {
-        page,
-        pageSize,
-        query: input.query?.trim() || undefined,
-        type: input.type,
-      },
-      scopedUserId,
-    );
+      page,
+      pageSize,
+      query: input.query?.trim() || undefined,
+      type: input.type,
+    });
+
+    const filteredNodes = listed.memories
+      .map((record) => toMemoryNode(record))
+      .filter((node) => matchesQuery(node, input.query))
+      .filter((node) => matchesType(node, input.type));
+
+    const total = Math.max(filteredNodes.length, listed.total);
+
     return {
-      nodes,
+      nodes: filteredNodes,
       pagination: {
-        page,
-        pageSize,
+        page: listed.page,
+        pageSize: listed.pageSize,
         total,
-        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+        totalPages: Math.max(1, Math.ceil(total / listed.pageSize)),
       },
     };
   }
@@ -326,217 +357,100 @@ export class MemoryService {
     userId?: string,
   ): Promise<MemoryNode | null> {
     const scopedUserId = resolveUserId(userId);
-    const existing = this.repository.listNodes(personaId, scopedUserId).find((node) => node.id === nodeId);
-    if (!existing) {
-      return null;
+
+    let current: Mem0MemoryRecord | null = null;
+    try {
+      current = await this.mem0Client.getMemory(nodeId);
+    } catch (error) {
+      if (isNotFoundError(error)) return null;
+      throw error;
     }
+    if (!current) return null;
 
-    const nextContent = input.content ?? existing.content;
-    const nextEmbedding =
-      input.content !== undefined && input.content !== existing.content
-        ? await this.getEmbedding(nextContent)
-        : existing.embedding;
+    const currentNode = toMemoryNode(current);
+    const nextType = input.type ?? currentNode.type;
+    const nextContent = input.content ?? currentNode.content;
+    const nextImportance = input.importance ?? currentNode.importance;
+    const nextConfidence = currentNode.confidence;
 
-    const updated: MemoryNode = {
-      ...existing,
-      type: input.type ?? existing.type,
+    await this.mem0Client.updateMemory(nodeId, {
+      userId: scopedUserId,
+      personaId,
       content: nextContent,
-      embedding: nextEmbedding,
-      importance: input.importance ?? existing.importance,
       metadata: {
-        ...(existing.metadata || {}),
+        ...(currentNode.metadata || {}),
+        type: nextType,
+        importance: asImportance(nextImportance, currentNode.importance),
+        confidence: nextConfidence,
         lastVerified: new Date().toISOString(),
+        mem0Id: nodeId,
+        source: 'mem0',
+        memoryProvider: 'mem0',
+      },
+    });
+
+    return {
+      ...currentNode,
+      id: nodeId,
+      type: nextType,
+      content: nextContent,
+      importance: asImportance(nextImportance, currentNode.importance),
+      timestamp: formatTimestamp(),
+      metadata: {
+        ...(currentNode.metadata || {}),
+        lastVerified: new Date().toISOString(),
+        mem0Id: nodeId,
+        source: 'mem0',
+        memoryProvider: 'mem0',
       },
     };
-
-    this.repository.updateNode(personaId, updated, scopedUserId);
-    await this.syncMem0Update(personaId, scopedUserId, updated);
-    return updated;
   }
 
-  delete(personaId: string, nodeId: string, userId?: string): boolean {
-    const scopedUserId = resolveUserId(userId);
-    const existing = this.repository.listNodes(personaId, scopedUserId).find((node) => node.id === nodeId);
-    const deleted = this.repository.deleteNode(personaId, nodeId, scopedUserId) > 0;
-    if (deleted && existing) {
-      this.syncMem0Delete(existing);
+  async delete(personaId: string, nodeId: string, userId?: string): Promise<boolean> {
+    const _scopedUserId = resolveUserId(userId);
+    const _personaId = personaId;
+    try {
+      await this.mem0Client.deleteMemory(nodeId);
+      return true;
+    } catch (error) {
+      if (isNotFoundError(error)) return false;
+      throw error;
     }
-    return deleted;
   }
 
-  bulkUpdate(
+  async bulkUpdate(
     personaId: string,
     nodeIds: string[],
     updates: { type?: MemoryType; importance?: number },
     userId?: string,
-  ): number {
-    const scopedUserId = resolveUserId(userId);
-    const before = new Map(this.repository.listNodes(personaId, scopedUserId).map((node) => [node.id, node]));
-    const changed = this.repository.updateMany(personaId, nodeIds, updates, scopedUserId);
-    if (changed > 0) {
-      for (const nodeId of nodeIds) {
-        const updated = this.repository.listNodes(personaId, scopedUserId).find((node) => node.id === nodeId);
-        if (!updated || !before.has(nodeId)) continue;
-        this.syncMem0Update(personaId, scopedUserId, updated);
-      }
-    }
-    return changed;
-  }
-
-  bulkDelete(personaId: string, nodeIds: string[], userId?: string): number {
-    const scopedUserId = resolveUserId(userId);
-    const byId = new Map(this.repository.listNodes(personaId, scopedUserId).map((node) => [node.id, node]));
-    const changed = this.repository.deleteMany(personaId, nodeIds, scopedUserId);
-    if (changed > 0) {
-      for (const nodeId of nodeIds) {
-        const existing = byId.get(nodeId);
-        if (existing) this.syncMem0Delete(existing);
-      }
-    }
-    return changed;
-  }
-
-  deleteByPersona(personaId: string, userId?: string): number {
-    const scopedUserId = resolveUserId(userId);
-    const nodes = this.repository.listNodes(personaId, scopedUserId);
-    const changed = this.repository.deleteByPersona(personaId, scopedUserId);
-    if (changed > 0) {
-      for (const node of nodes) {
-        this.syncMem0Delete(node);
-      }
-    }
-    return changed;
-  }
-
-  private async recallFromMem0(
-    personaId: string,
-    query: string,
-    limit: number,
-    userId: string,
-  ): Promise<MemoryRecallResult | null> {
-    if (!this.mem0Client) return null;
-
-    const hits = await this.mem0Client.searchMemories({
-      userId,
-      personaId,
-      query,
-      limit,
-    });
-    if (hits.length === 0) return null;
-
-    const queryVector = await this.getEmbedding(query);
-    const localNodes = this.repository.listNodes(personaId, userId);
-    const byMem0Id = new Map<string, MemoryNode>();
-    for (const node of localNodes) {
-      const mem0Id = node.metadata?.mem0Id;
-      if (!mem0Id) continue;
-      byMem0Id.set(mem0Id, node);
-    }
-
-    const matches: MemoryRecallMatch[] = [];
-    for (const hit of hits) {
-      const mirrorNode = this.resolveOrCreateMem0MirrorNode({
+  ): Promise<number> {
+    let changed = 0;
+    for (const nodeId of Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)))) {
+      const updated = await this.update(
         personaId,
-        userId,
-        hit,
-        queryVector,
-        byMem0Id,
-      });
-      const similarity = normalizeMem0Score(hit.score);
-      if (similarity < MEM0_SCORE_THRESHOLD) continue;
-
-      matches.push({
-        node: mirrorNode,
-        similarity,
-        score: similarity * (1 + mirrorNode.confidence * 0.5) * getNodeFreshnessFactor(mirrorNode),
-      });
-    }
-
-    const ranked = matches.sort((a, b) => b.score - a.score).slice(0, limit);
-    if (ranked.length === 0) return null;
-
-    return {
-      context: ranked.map((result) => `[Type: ${result.node.type}] ${result.node.content}`).join('\n'),
-      matches: ranked,
-    };
-  }
-
-  private resolveOrCreateMem0MirrorNode(input: {
-    personaId: string;
-    userId: string;
-    hit: Mem0SearchHit;
-    queryVector: number[];
-    byMem0Id: Map<string, MemoryNode>;
-  }): MemoryNode {
-    const existing = input.byMem0Id.get(input.hit.id);
-    if (existing) {
-      const refreshed: MemoryNode = {
-        ...existing,
-        content: input.hit.content,
-        type: asMemoryType(input.hit.metadata.type ?? existing.type),
-        importance: asImportance(input.hit.metadata.importance, existing.importance),
-        metadata: {
-          ...(existing.metadata || {}),
-          mem0Id: input.hit.id,
-          memoryProvider: 'mem0',
-          source: 'mem0',
-          lastVerified: new Date().toISOString(),
+        nodeId,
+        {
+          type: updates.type,
+          importance: updates.importance,
         },
-      };
-      this.repository.updateNode(input.personaId, refreshed, input.userId);
-      input.byMem0Id.set(input.hit.id, refreshed);
-      return refreshed;
-    }
-
-    const node: MemoryNode = {
-      id: `mem-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
-      type: asMemoryType(input.hit.metadata.type),
-      content: input.hit.content,
-      embedding: input.queryVector,
-      importance: asImportance(input.hit.metadata.importance, 3),
-      confidence: 0.5,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      metadata: {
-        source: 'mem0',
-        mem0Id: input.hit.id,
-        memoryProvider: 'mem0',
-        lastVerified: new Date().toISOString(),
-      },
-    };
-    this.repository.insertNode(input.personaId, node, input.userId);
-    input.byMem0Id.set(input.hit.id, node);
-    return node;
-  }
-
-  private syncMem0Update(personaId: string, userId: string, node: MemoryNode): Promise<void> {
-    if (!this.mem0Client) return Promise.resolve();
-    const mem0Id = node.metadata?.mem0Id;
-    if (!mem0Id) return Promise.resolve();
-
-    return this.mem0Client
-      .updateMemory(mem0Id, {
         userId,
-        personaId,
-        content: node.content,
-        metadata: {
-          type: node.type,
-          importance: node.importance,
-          confidence: node.confidence,
-          localNodeId: node.id,
-        },
-      })
-      .catch((error) => {
-        console.warn('Mem0 update sync failed:', error instanceof Error ? error.message : String(error));
-      });
+      );
+      if (updated) changed += 1;
+    }
+    return changed;
   }
 
-  private syncMem0Delete(node: MemoryNode): void {
-    if (!this.mem0Client) return;
-    const mem0Id = node.metadata?.mem0Id;
-    if (!mem0Id) return;
+  async bulkDelete(personaId: string, nodeIds: string[], userId?: string): Promise<number> {
+    let changed = 0;
+    for (const nodeId of Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)))) {
+      const deleted = await this.delete(personaId, nodeId, userId);
+      if (deleted) changed += 1;
+    }
+    return changed;
+  }
 
-    void this.mem0Client.deleteMemory(mem0Id).catch((error) => {
-      console.warn('Mem0 delete sync failed:', error instanceof Error ? error.message : String(error));
-    });
+  async deleteByPersona(personaId: string, userId?: string): Promise<number> {
+    const scopedUserId = resolveUserId(userId);
+    return this.mem0Client.deleteMemoriesByFilter({ userId: scopedUserId, personaId });
   }
 }

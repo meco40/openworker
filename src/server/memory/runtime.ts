@@ -1,10 +1,8 @@
 import { MemoryService } from './service';
 import type { Mem0Client } from './mem0Client';
 import { createMem0ClientFromEnv } from './mem0Client';
-import { SqliteMemoryRepository } from './sqliteMemoryRepository';
 
 declare global {
-  var __memoryRepository: SqliteMemoryRepository | undefined;
   var __memoryService: MemoryService | undefined;
   var __mem0Client: Mem0Client | null | undefined;
 }
@@ -34,25 +32,24 @@ function resolveMem0Client(): Mem0Client | null {
   return globalThis.__mem0Client ?? null;
 }
 
-export function getMemoryRepository(): SqliteMemoryRepository {
-  if (!globalThis.__memoryRepository) {
-    globalThis.__memoryRepository = new SqliteMemoryRepository();
+function getRequiredMem0Client(): Mem0Client {
+  const client = resolveMem0Client();
+  if (!client) {
+    throw new Error(
+      'Invalid memory configuration: Mem0 client unavailable. Set MEMORY_PROVIDER=mem0 and MEM0_BASE_URL.',
+    );
   }
-  return globalThis.__memoryRepository;
+  return client;
 }
 
 export function getMemoryService(): MemoryService {
-  const mem0Client = resolveMem0Client();
   if (!globalThis.__memoryService) {
-    globalThis.__memoryService = new MemoryService(
-      getMemoryRepository(),
-      undefined,
-      mem0Client || undefined,
-    );
+    globalThis.__memoryService = new MemoryService(getRequiredMem0Client());
   }
   return globalThis.__memoryService;
 }
 
-export function getMemoryProviderKind(): 'sqlite' | 'mem0' {
-  return resolveMem0Client() ? 'mem0' : 'sqlite';
+export function getMemoryProviderKind(): 'mem0' {
+  getRequiredMem0Client();
+  return 'mem0';
 }

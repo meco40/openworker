@@ -139,7 +139,7 @@ export async function runMemoryPressureCheck(
     };
     if (detailedMemoryDiagnostics) {
       const nodeProcesses = await resolveNodeProcessDiagnostics(10);
-      const memoryNodes = resolveMemoryNodeDiagnostics(10);
+      const memoryNodes = await resolveMemoryNodeDiagnostics(10);
       Object.assign(memoryDetails, {
         rss: usage.rss,
         external: usage.external,
