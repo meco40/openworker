@@ -1,4 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
+/* eslint-disable import-x/no-named-as-default-member */
 import dagre from '@dagrejs/dagre';
 import type {
   OrchestraFlowGraph,

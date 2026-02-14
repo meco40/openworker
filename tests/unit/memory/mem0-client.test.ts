@@ -40,6 +40,33 @@ describe('mem0Client', () => {
     expect(enabled).not.toBeNull();
   });
 
+  it('throws for explicit mem0 provider without base url', () => {
+    const fetchMock = vi.fn();
+    expect(() =>
+      createMem0ClientFromEnv(
+        {
+          MEMORY_PROVIDER: 'mem0',
+          MEM0_BASE_URL: '',
+        },
+        fetchMock as unknown as typeof fetch,
+      ),
+    ).toThrow(/MEM0_BASE_URL/i);
+  });
+
+  it('throws in production when MEMORY_PROVIDER is not mem0', () => {
+    const fetchMock = vi.fn();
+    expect(() =>
+      createMem0ClientFromEnv(
+        {
+          NODE_ENV: 'production',
+          MEMORY_PROVIDER: '',
+          MEM0_BASE_URL: 'http://mem0.local',
+        },
+        fetchMock as unknown as typeof fetch,
+      ),
+    ).toThrow(/MEMORY_PROVIDER=mem0/i);
+  });
+
   it('posts add memory with scoped payload', async () => {
     const fetchMock = vi.fn(async () =>
       new Response(JSON.stringify({ id: 'mem0-1' }), {

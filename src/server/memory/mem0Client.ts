@@ -229,10 +229,18 @@ export function createMem0ClientFromEnv(
   env: EnvLike = process.env as EnvLike,
   fetchImpl: typeof fetch = fetch,
 ): Mem0Client | null {
+  const nodeEnv = String(env.NODE_ENV || '').trim().toLowerCase();
+  const isProduction = nodeEnv === 'production';
   const provider = String(env.MEMORY_PROVIDER || '').trim().toLowerCase();
+  if (isProduction && provider !== 'mem0') {
+    throw new Error('Invalid memory configuration: production requires MEMORY_PROVIDER=mem0.');
+  }
   if (provider && provider !== 'mem0') return null;
 
   const baseUrl = String(env.MEM0_BASE_URL || '').trim();
+  if (provider === 'mem0' && !baseUrl) {
+    throw new Error('Invalid memory configuration: MEM0_BASE_URL is required when MEMORY_PROVIDER=mem0.');
+  }
   if (!baseUrl) return null;
 
   const timeoutRaw = Number(env.MEM0_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);

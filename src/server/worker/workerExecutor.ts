@@ -6,10 +6,10 @@ import { getModelHubService, getModelHubEncryptionKey } from '../model-hub/runti
 import { getWorkerRepository } from './workerRepository';
 import { getWorkspaceManager } from './workspaceManager';
 import { getClawHubService } from '../clawhub/clawhubService';
-import { shellExecuteHandler } from '../skills/handlers/shellExecute.ts';
-import { fileReadHandler } from '../skills/handlers/fileRead.ts';
-import { browserSnapshotHandler } from '../skills/handlers/browserSnapshot.ts';
-import { pythonExecuteHandler } from '../skills/handlers/pythonExecute.ts';
+import { shellExecuteHandler } from '../skills/handlers/shellExecute';
+import { fileReadHandler } from '../skills/handlers/fileRead';
+import { browserSnapshotHandler } from '../skills/handlers/browserSnapshot';
+import { pythonExecuteHandler } from '../skills/handlers/pythonExecute';
 import type { WorkerTaskRecord, WorkerStepRecord, WorkerArtifactRecord } from './workerTypes';
 import type { OrchestraGraphNode } from './orchestraGraph';
 

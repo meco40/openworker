@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   ALLOWED_UI_DEFAULT_VIEWS,
   isAllowedUiDefaultView,
@@ -40,6 +41,7 @@ type JsonObject = Record<string, unknown>;
 type NormalizeMode = 'load' | 'save';
 
 export const REDACTED_SECRET_VALUE = '__REDACTED__';
+const WORKSPACE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../');
 
 const SECRET_PATHS = [
   ['channels', 'telegram', 'token'],
@@ -390,9 +392,18 @@ export function toGatewayConfigDisplayPath(configPath: string): string {
 export function resolveGatewayConfigPath(): string {
   const configuredPath = process.env.OPENCLAW_CONFIG_PATH;
   if (typeof configuredPath === 'string' && configuredPath.trim().length > 0) {
-    return path.isAbsolute(configuredPath)
-      ? configuredPath
-      : path.resolve(process.cwd(), configuredPath);
+    const trimmedPath = configuredPath.trim();
+    const normalized = trimmedPath.replace(/\\/g, '/');
+
+    if (path.isAbsolute(trimmedPath)) {
+      return trimmedPath;
+    }
+
+    if (normalized.startsWith('.local/') || normalized.startsWith('.openclaw/')) {
+      return path.resolve(WORKSPACE_ROOT, normalized);
+    }
+
+    return path.resolve(WORKSPACE_ROOT, '.local', normalized);
   }
 
   return path.join(os.homedir(), '.openclaw', 'openclaw.json');

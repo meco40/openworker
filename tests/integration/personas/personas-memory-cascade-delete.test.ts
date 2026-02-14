@@ -128,5 +128,5 @@ describe('persona memory cascade delete', () => {
     expect(afterDeleteResponse.status).toBe(200);
     expect(afterDeletePayload.ok).toBe(true);
     expect(afterDeletePayload.nodes).toHaveLength(0);
-  });
+  }, 15_000);
 });

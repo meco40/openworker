@@ -132,7 +132,7 @@ WantedBy=multi-user.target
 | `MESSAGES_DB_PATH`      | `.local/messages.db` | SQLite-Datenbank                           |
 | `MEMORY_PROVIDER`       | `mem0`               | Memory Backend (`mem0` empfohlen)           |
 | `MEMORY_DB_PATH`        | -                    | Lokale Memory-DB (SQLite + Mem0-Mirror)    |
-| `MEM0_BASE_URL`         | -                    | Mem0 Base URL                              |
+| `MEM0_BASE_URL`         | -                    | Mem0 Base URL (in Production erforderlich) |
 | `MEM0_API_PATH`         | `/v1`                | Mem0 API Prefix                            |
 | `MEM0_API_KEY`          | -                    | Optionaler Mem0 Bearer Token               |
 | `MEM0_TIMEOUT_MS`       | `5000`               | Timeout pro Mem0 Request in ms             |
@@ -266,6 +266,7 @@ tar -czf backups/openclaw-$(date +%Y%m%d).tar.gz .local/
 1. `MEM0_BASE_URL` erreichbar?
 2. `MEMORY_PROVIDER=mem0` gesetzt?
 3. Bei Fehlern Provider/Embeddings prüfen und Incident beheben (kein lokaler Recall-Fallback)
+4. Startet der Prozess nicht: Production blockiert absichtlich bei fehlender Mem0-Konfiguration.
 
 ## Verifikation
 

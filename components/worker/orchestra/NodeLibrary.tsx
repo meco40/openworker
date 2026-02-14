@@ -7,16 +7,16 @@ export interface NodeLibraryProps {
   personas: PersonaInfo[];
 }
 
+function handleDragStart(event: DragEvent, personaId: string): void {
+  event.dataTransfer.setData('application/orchestra-persona-id', personaId);
+  event.dataTransfer.effectAllowed = 'move';
+}
+
 /**
  * Left sidebar — draggable persona list.
  * Drag a persona onto the canvas to create a new node.
  */
 export function NodeLibrary({ personas }: NodeLibraryProps) {
-  const handleDragStart = (event: DragEvent, personaId: string) => {
-    event.dataTransfer.setData('application/orchestra-persona-id', personaId);
-    event.dataTransfer.effectAllowed = 'move';
-  };
-
   return (
     <aside className="orchestra-node-library">
       <h3 className="orchestra-node-library__title">Personas</h3>

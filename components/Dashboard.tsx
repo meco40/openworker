@@ -1,5 +1,6 @@
 import React from 'react';
 import { ControlPlaneMetricsState, GatewayState, ScheduledTask } from '../types';
+import { buildPersonalityMatrix } from '../lib/personalityMatrix';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts';
 
 interface DashboardProps {
@@ -26,25 +27,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state, metricsState }) => {
     (a, b) => new Date(a.targetTime).getTime() - new Date(b.targetTime).getTime(),
   );
 
-  const personalityStats = [
-    {
-      subject: 'Communication',
-      A: state.memoryEntries.filter((m) => m.type === 'preference').length * 20,
-      fullMark: 100,
-    },
-    {
-      subject: 'Workflows',
-      A: state.memoryEntries.filter((m) => m.type === 'fact').length * 15,
-      fullMark: 100,
-    },
-    {
-      subject: 'Avoidance',
-      A: state.memoryEntries.filter((m) => m.type === 'avoidance').length * 25,
-      fullMark: 100,
-    },
-    { subject: 'Time Awareness', A: Math.min(100, (scheduled.length || 0) * 20), fullMark: 100 },
-    { subject: 'Proactivity', A: Math.min(100, state.memoryEntries.length * 10), fullMark: 100 },
-  ];
+  const personalityMatrix = buildPersonalityMatrix({
+    memoryEntries: state.memoryEntries,
+    scheduledTasks: scheduled,
+  });
+  const personalityStats = personalityMatrix.stats;
 
   const metrics = metricsState.metrics;
 
@@ -196,7 +183,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, metricsState }) => {
               Current Focus
             </div>
             <div className="text-[11px] text-zinc-300 italic">
-              Learning relative time-patterns and pro-active reminders.
+              {personalityMatrix.focus}
             </div>
           </div>
         </div>

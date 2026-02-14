@@ -9,6 +9,7 @@ import { handleConnection, getClientRegistry, broadcast } from './src/server/gat
 import { TICK_INTERVAL_MS, MAX_PAYLOAD_BYTES } from './src/server/gateway/constants.js';
 import { getRoomOrchestrator } from './src/server/rooms/runtime.js';
 import { shouldRunRooms } from './src/server/rooms/runtimeRole.js';
+import { assertMemoryRuntimeConfiguration } from './src/server/memory/runtime.js';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
@@ -21,6 +22,8 @@ const SECRET =
   process.env.NEXTAUTH_SECRET?.trim() ||
   process.env.AUTH_SECRET?.trim() ||
   'openclaw-local-nextauth-secret';
+
+assertMemoryRuntimeConfiguration();
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();

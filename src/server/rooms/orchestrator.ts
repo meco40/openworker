@@ -113,77 +113,96 @@ export class RoomOrchestrator {
           }
 
           this.repository.heartbeatRoomLease(room.id, lease.id, this.instanceId, leaseExpiry);
-
-          const members = this.repository.listMembers(room.id);
-          const activeModelsByProfile = await this.resolveActiveModelsByProfile(
-            room.routingProfileId,
-          );
-
-          // ── Round-robin speaker selection ────────────────────────────
-          // Find valid members (those with a resolvable model), then pick
-          // the next one after the last persona who spoke.
-          const { routableMembers, validMembers } = resolveRoutableMembers(
-            this.repository,
-            members,
-            room.id,
-            room.routingProfileId,
-            activeModelsByProfile,
-          );
-
-          if (routableMembers.length === 0) {
-            if (this.canMarkRoomDegraded(room.id)) {
-              this.repository.closeActiveRoomRun(
+          let dispatchAbortController: AbortController | null = null;
+          let lostLease = false;
+          const keepaliveIntervalMs = Math.max(25, Math.floor(this.leaseTtlMs / 3));
+          const keepaliveTimer = setInterval(() => {
+            if (lostLease) return;
+            try {
+              this.repository.heartbeatRoomLease(
                 room.id,
-                'degraded',
-                'No active model for room members.',
+                lease.id,
+                this.instanceId,
+                this.resolveLeaseExpiryIso(),
               );
-              broadcastToUser(room.userId, GatewayEvents.ROOM_RUN_STATUS, {
-                roomId: room.id,
-                runState: 'degraded',
-                updatedAt: this.now().toISOString(),
-              });
+            } catch {
+              lostLease = true;
+              dispatchAbortController?.abort();
             }
-            continue;
-          }
+          }, keepaliveIntervalMs);
+          keepaliveTimer.unref?.();
 
-          if (validMembers.length === 0) {
-            continue;
-          }
+          try {
+            const members = this.repository.listMembers(room.id);
+            const activeModelsByProfile = await this.resolveActiveModelsByProfile(
+              room.routingProfileId,
+            );
 
-          // Determine who spoke last and pick the next persona in rotation
-          const recentMessagesForRotation = this.repository.listMessages(room.id, 5);
-          const lastPersonaMessage = [...recentMessagesForRotation]
-            .reverse()
-            .find((m) => m.speakerType === 'persona' && m.speakerPersonaId);
-          const lastSpeakerId = lastPersonaMessage?.speakerPersonaId;
+            // ── Round-robin speaker selection ────────────────────────────
+            // Find valid members (those with a resolvable model), then pick
+            // the next one after the last persona who spoke.
+            const { routableMembers, validMembers } = resolveRoutableMembers(
+              this.repository,
+              members,
+              room.id,
+              room.routingProfileId,
+              activeModelsByProfile,
+            );
 
-          const selected = selectNextSpeaker(validMembers, lastSpeakerId || null);
-          if (!selected) {
-            continue;
-          }
+            if (routableMembers.length === 0) {
+              if (this.canMarkRoomDegraded(room.id)) {
+                this.repository.closeActiveRoomRun(
+                  room.id,
+                  'degraded',
+                  'No active model for room members.',
+                );
+                broadcastToUser(room.userId, GatewayEvents.ROOM_RUN_STATUS, {
+                  roomId: room.id,
+                  runState: 'degraded',
+                  updatedAt: this.now().toISOString(),
+                });
+              }
+              continue;
+            }
 
-          const selectedRuntime = this.repository.getMemberRuntime(room.id, selected.personaId);
-          if (selectedRuntime?.status === 'paused') {
-            continue;
-          }
+            if (validMembers.length === 0) {
+              continue;
+            }
 
-          processedRooms += 1;
-          const busyState = this.repository.upsertMemberRuntime({
-            roomId: room.id,
-            personaId: selected.personaId,
-            status: 'busy',
-            busyReason: `Thinking with ${selected.model}…`,
-            currentTask: 'room_cycle',
-            lastModel: selected.model,
-            lastProfileId: selected.profileId,
-          });
-          broadcastToUser(room.userId, GatewayEvents.ROOM_MEMBER_STATUS, {
-            roomId: room.id,
-            personaId: selected.personaId,
-            status: 'busy',
-            reason: busyState.busyReason,
-            updatedAt: busyState.updatedAt,
-          });
+            // Determine who spoke last and pick the next persona in rotation
+            const recentMessagesForRotation = this.repository.listMessages(room.id, 5);
+            const lastPersonaMessage = [...recentMessagesForRotation]
+              .reverse()
+              .find((m) => m.speakerType === 'persona' && m.speakerPersonaId);
+            const lastSpeakerId = lastPersonaMessage?.speakerPersonaId;
+
+            const selected = selectNextSpeaker(validMembers, lastSpeakerId || null);
+            if (!selected) {
+              continue;
+            }
+
+            const selectedRuntime = this.repository.getMemberRuntime(room.id, selected.personaId);
+            if (selectedRuntime?.status === 'paused') {
+              continue;
+            }
+
+            processedRooms += 1;
+            const busyState = this.repository.upsertMemberRuntime({
+              roomId: room.id,
+              personaId: selected.personaId,
+              status: 'busy',
+              busyReason: `Thinking with ${selected.model}…`,
+              currentTask: 'room_cycle',
+              lastModel: selected.model,
+              lastProfileId: selected.profileId,
+            });
+            broadcastToUser(room.userId, GatewayEvents.ROOM_MEMBER_STATUS, {
+              roomId: room.id,
+              personaId: selected.personaId,
+              status: 'busy',
+              reason: busyState.busyReason,
+              updatedAt: busyState.updatedAt,
+            });
 
           const existingSession = this.repository.getPersonaSession(room.id, selected.personaId);
           let session = this.repository.upsertPersonaSession(room.id, selected.personaId, {
@@ -323,31 +342,13 @@ export class RoomOrchestrator {
           const hubService = getModelHubService();
           const encryptionKey = getModelHubEncryptionKey();
 
-          let responseText = '';
-          let lastToolUsed: string | null = null;
-          let sessionProviderId = session.providerId;
-          let sessionModel = session.model;
-          const MAX_TOOL_ROUNDS = 3;
-          const dispatchAbortController = new AbortController();
-          let lostLease = false;
-          const keepaliveIntervalMs = Math.max(25, Math.floor(this.leaseTtlMs / 3));
-          const keepaliveTimer = setInterval(() => {
-            if (lostLease) return;
-            try {
-              this.repository.heartbeatRoomLease(
-                room.id,
-                lease.id,
-                this.instanceId,
-                this.resolveLeaseExpiryIso(),
-              );
-            } catch {
-              lostLease = true;
-              dispatchAbortController.abort();
-            }
-          }, keepaliveIntervalMs);
-          keepaliveTimer.unref?.();
+            let responseText = '';
+            let lastToolUsed: string | null = null;
+            let sessionProviderId = session.providerId;
+            let sessionModel = session.model;
+            const MAX_TOOL_ROUNDS = 3;
+            dispatchAbortController = new AbortController();
 
-          try {
             for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
               if (lostLease) {
                 break;
@@ -482,9 +483,6 @@ export class RoomOrchestrator {
               responseText = aiResponse.text;
               break;
             }
-          } finally {
-            clearInterval(keepaliveTimer);
-          }
 
           // ── Persist response & reset state ──────────────────────────
 
@@ -591,12 +589,15 @@ export class RoomOrchestrator {
             generatedAt: this.now().toISOString(),
           });
 
-          this.repository.heartbeatRoomLease(
-            room.id,
-            lease.id,
-            this.instanceId,
-            this.resolveLeaseExpiryIso(),
-          );
+            this.repository.heartbeatRoomLease(
+              room.id,
+              lease.id,
+              this.instanceId,
+              this.resolveLeaseExpiryIso(),
+            );
+          } finally {
+            clearInterval(keepaliveTimer);
+          }
         } catch (error) {
           const reason = error instanceof Error ? error.message : 'Room cycle failed.';
           if (!this.canMarkRoomDegraded(room.id)) {

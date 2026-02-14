@@ -12,6 +12,12 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
       ROOMS_RUNNER: scheduler
+      MEMORY_PROVIDER: mem0
+      MEM0_BASE_URL: ${MEM0_BASE_URL}
+      MEM0_API_KEY: ${MEM0_API_KEY}
+      MEM0_API_PATH: ${MEM0_API_PATH:-/v1}
+      MEM0_TIMEOUT_MS: ${MEM0_TIMEOUT_MS:-5000}
+      MODEL_HUB_ENCRYPTION_KEY: ${MODEL_HUB_ENCRYPTION_KEY}
     volumes:
       - ./.local:/app/.local
     healthcheck:
@@ -32,6 +38,12 @@ services:
       NODE_ENV: production
       SCHEDULER_INSTANCE_ID: scheduler-1
       ROOMS_RUNNER: scheduler
+      MEMORY_PROVIDER: mem0
+      MEM0_BASE_URL: ${MEM0_BASE_URL}
+      MEM0_API_KEY: ${MEM0_API_KEY}
+      MEM0_API_PATH: ${MEM0_API_PATH:-/v1}
+      MEM0_TIMEOUT_MS: ${MEM0_TIMEOUT_MS:-5000}
+      MODEL_HUB_ENCRYPTION_KEY: ${MODEL_HUB_ENCRYPTION_KEY}
       AUTOMATION_TICK_INTERVAL_MS: 15000
       AUTOMATION_LEASE_TTL_MS: 30000
       AUTOMATION_MAX_ATTEMPTS: 3

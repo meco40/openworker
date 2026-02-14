@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { startAutomationRuntime, stopAutomationRuntime } from './src/server/automation/runtime';
+import { assertMemoryRuntimeConfiguration } from './src/server/memory/runtime';
 import { getRoomOrchestrator } from './src/server/rooms/runtime';
 import { shouldRunRooms } from './src/server/rooms/runtimeRole';
 
@@ -13,6 +14,8 @@ const heartbeatIntervalMs = Number(process.env.AUTOMATION_HEARTBEAT_INTERVAL_MS 
 
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let roomTimer: ReturnType<typeof setInterval> | null = null;
+
+assertMemoryRuntimeConfiguration();
 
 function writeHeartbeat(): void {
   try {

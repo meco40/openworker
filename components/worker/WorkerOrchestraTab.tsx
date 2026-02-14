@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import type { Node, Edge } from '@xyflow/react';
 import { useWorkerOrchestraFlows } from '../../src/modules/worker/hooks/useWorkerOrchestraFlows';
@@ -13,7 +13,7 @@ import {
   type PersonaInfo,
 } from '../../src/shared/lib/orchestra-graph-converter';
 import type { OrchestraFlowGraph } from '../../src/server/worker/orchestraGraph';
-import { OrchestraCanvas } from './orchestra/OrchestraCanvas';
+import { OrchestraCanvas, type OrchestraCanvasApi } from './orchestra/OrchestraCanvas';
 import { OrchestraToolbar } from './orchestra/OrchestraToolbar';
 import { NodeLibrary } from './orchestra/NodeLibrary';
 import { NodePropertiesPanel, type SkillOption } from './orchestra/NodePropertiesPanel';
@@ -62,7 +62,7 @@ const WorkerOrchestraTab: React.FC = () => {
   const [newFlowName, setNewFlowName] = useState('');
   const [newFlowType, setNewFlowType] = useState('research');
   const [skills, setSkills] = useState<SkillOption[]>([]);
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const [canvasApi, setCanvasApi] = useState<OrchestraCanvasApi | null>(null);
 
   // ─── Derived ────────────────────────────────────────────
   const personaInfos: PersonaInfo[] = useMemo(
@@ -261,21 +261,12 @@ const WorkerOrchestraTab: React.FC = () => {
     setBusy(false);
   }, [activeDraftId, deleteDraft]);
 
-  const canvasApi = useMemo(() => {
-    const el = canvasRef.current as (HTMLDivElement & { canvasApi?: Record<string, unknown> }) | null;
-    return el?.canvasApi ?? null;
-  }, [canvasRef.current]);
-
   const handleUndo = useCallback(() => {
-    if (canvasApi && typeof (canvasApi as Record<string, unknown>).undo === 'function') {
-      (canvasApi as { undo: () => void }).undo();
-    }
+    canvasApi?.undo();
   }, [canvasApi]);
 
   const handleRedo = useCallback(() => {
-    if (canvasApi && typeof (canvasApi as Record<string, unknown>).redo === 'function') {
-      (canvasApi as { redo: () => void }).redo();
-    }
+    canvasApi?.redo();
   }, [canvasApi]);
 
   // ─── Render: List View ─────────────────────────────────
@@ -395,8 +386,8 @@ const WorkerOrchestraTab: React.FC = () => {
       <OrchestraToolbar
         flowName={activeDraft?.name ?? 'Unbenannt'}
         isDirty={isDirty}
-        canUndo={false}
-        canRedo={false}
+        canUndo={canvasApi?.canUndo() ?? false}
+        canRedo={canvasApi?.canRedo() ?? false}
         onUndo={handleUndo}
         onRedo={handleRedo}
         onAutoLayout={handleAutoLayout}
@@ -424,7 +415,7 @@ const WorkerOrchestraTab: React.FC = () => {
       <div className="worker-orchestra__workspace">
         <NodeLibrary personas={personaInfos} />
 
-        <div className="worker-orchestra__canvas-container" ref={canvasRef}>
+        <div className="worker-orchestra__canvas-container">
           <ReactFlowProvider>
             <OrchestraCanvas
               initialNodes={canvasNodes}
@@ -432,6 +423,7 @@ const WorkerOrchestraTab: React.FC = () => {
               personas={personaInfos}
               onGraphChange={handleGraphChange}
               onNodeSelect={setSelectedNodeId}
+              onApiChange={setCanvasApi}
             />
           </ReactFlowProvider>
         </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useRef, useMemo, type DragEvent } from 'react';
+import React, { useCallback, useEffect, useRef, useMemo, type DragEvent } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -53,6 +53,7 @@ export interface OrchestraCanvasProps {
   readOnly?: boolean;
   onGraphChange?: (nodes: Node<PersonaNodeData>[], edges: Edge[]) => void;
   onNodeSelect?: (nodeId: string | null) => void;
+  onApiChange?: (api: OrchestraCanvasApi) => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -106,11 +107,11 @@ export function OrchestraCanvas({
   readOnly = false,
   onGraphChange,
   onNodeSelect,
+  onApiChange,
 }: OrchestraCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const reactFlowInstance = useRef<ReturnType<typeof import('@xyflow/react').useReactFlow> | null>(null);
 
   // ─── History ────────────────────────────────────────────
   const applySnapshot = useCallback(
@@ -327,22 +328,15 @@ export function OrchestraCanvas({
     [applyAutoLayout, deleteSelectedNodes, undo, redo, canUndo, canRedo, nodes, edges],
   );
 
-  // Attach to ref on wrapper div for parent access
-  const wrapperRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      (reactFlowWrapper as React.MutableRefObject<HTMLDivElement | null>).current = el;
-      if (el) {
-        (el as HTMLDivElement & { canvasApi: typeof canvasApi }).canvasApi = canvasApi;
-      }
-    },
-    [canvasApi],
-  );
+  useEffect(() => {
+    onApiChange?.(canvasApi);
+  }, [canvasApi, onApiChange]);
 
   // ─── Render ────────────────────────────────────────────
 
   return (
     <div
-      ref={wrapperRef}
+      ref={reactFlowWrapper}
       className="orchestra-canvas"
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -382,7 +376,7 @@ export function OrchestraCanvas({
   );
 }
 
-export type OrchestraCanvasApi = ReturnType<typeof Object.assign<object, {
+export type OrchestraCanvasApi = {
   applyAutoLayout: (layoutFn: (nodes: Node<PersonaNodeData>[], edges: Edge[]) => Node<PersonaNodeData>[]) => void;
   deleteSelectedNodes: () => void;
   undo: () => void;
@@ -391,4 +385,4 @@ export type OrchestraCanvasApi = ReturnType<typeof Object.assign<object, {
   canRedo: () => boolean;
   getNodes: () => Node<PersonaNodeData>[];
   getEdges: () => Edge[];
-}>>;
+};

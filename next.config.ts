@@ -4,7 +4,15 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   outputFileTracingExcludes: {
-    '/*': ['src/server/skills/handlers./**'],
+    '/*': [
+      '.local/**/*.db-journal',
+      '.local/**/*.db-shm',
+      '.local/**/*.db-wal',
+      'demo/**',
+      'backups/**',
+      'workspaces/**',
+      'src/server/skills/handlers./**',
+    ],
   },
 };
 

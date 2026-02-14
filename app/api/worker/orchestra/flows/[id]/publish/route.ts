@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../../../../../src/server/auth/userContext';
 import {
   canPublishOrchestra,
+  enforceOrchestraGraphLimits,
   normalizeWorkerRole,
 } from '../../../../../../../src/server/worker/orchestraPolicy';
 import {
@@ -10,9 +11,6 @@ import {
 } from '../../../../../../../src/server/worker/orchestraFlags';
 import { getOrchestraService } from '../../../../../../../src/server/worker/orchestraService';
 import { getWorkerRepository } from '../../../../../../../src/server/worker/workerRepository';
-import {
-  enforceOrchestraGraphLimits,
-} from '../../../../../../../src/server/worker/orchestraPolicy';
 import type { OrchestraFlowGraph } from '../../../../../../../src/server/worker/orchestraGraph';
 
 export const runtime = 'nodejs';

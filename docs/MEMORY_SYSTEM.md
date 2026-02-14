@@ -158,6 +158,7 @@ Erinnerungen abrufen.
 1. Produktion mit `MEMORY_PROVIDER=mem0` und gesetztem `MEM0_BASE_URL` betreiben.
 2. Recall-/Embedding-Fehler als Incident behandeln, nicht lokal maskieren.
 3. Scope-Isolation immer über `user_id` + `agent_id` (Persona) erzwingen.
+4. Production Fail-Fast: Start wird abgebrochen, wenn `MEMORY_PROVIDER!=mem0` oder `MEM0_BASE_URL` fehlt.
 
 ## Verifikation
 

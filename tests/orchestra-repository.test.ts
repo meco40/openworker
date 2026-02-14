@@ -1,6 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SqliteWorkerRepository } from '../src/server/worker/workerRepository';
 
+function makeMinimalGraph(): string {
+  return JSON.stringify({
+    startNodeId: 'n1',
+    nodes: [
+      { id: 'n1', personaId: 'p1', position: { x: 0, y: 0 } },
+      { id: 'n2', personaId: 'p2', position: { x: 100, y: 100 } },
+    ],
+    edges: [{ id: 'e1', from: 'n1', to: 'n2' }],
+  });
+}
+
 describe('SqliteWorkerRepository — Orchestra Flows', () => {
   let repo: SqliteWorkerRepository;
   const userId = 'user-test';
@@ -8,16 +19,6 @@ describe('SqliteWorkerRepository — Orchestra Flows', () => {
   beforeEach(() => {
     repo = new SqliteWorkerRepository(':memory:');
   });
-
-  const makeMinimalGraph = () =>
-    JSON.stringify({
-      startNodeId: 'n1',
-      nodes: [
-        { id: 'n1', personaId: 'p1', position: { x: 0, y: 0 } },
-        { id: 'n2', personaId: 'p2', position: { x: 100, y: 100 } },
-      ],
-      edges: [{ id: 'e1', from: 'n1', to: 'n2' }],
-    });
 
   // ─── Flow Draft CRUD ──────────────────────────────────────
 

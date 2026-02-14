@@ -1,11 +1,11 @@
 import { normalizeArgs } from '../../shared/normalizeArgs';
-import { browserSnapshotHandler } from './handlers/browserSnapshot.ts';
-import { dbQueryHandler } from './handlers/dbQuery.ts';
-import { fileReadHandler } from './handlers/fileRead.ts';
-import { githubQueryHandler } from './handlers/githubQuery.ts';
-import { pythonExecuteHandler } from './handlers/pythonExecute.ts';
-import { shellExecuteHandler } from './handlers/shellExecute.ts';
-import { visionAnalyzeHandler } from './handlers/visionAnalyze.ts';
+import { browserSnapshotHandler } from './handlers/browserSnapshot';
+import { dbQueryHandler } from './handlers/dbQuery';
+import { fileReadHandler } from './handlers/fileRead';
+import { githubQueryHandler } from './handlers/githubQuery';
+import { pythonExecuteHandler } from './handlers/pythonExecute';
+import { shellExecuteHandler } from './handlers/shellExecute';
+import { visionAnalyzeHandler } from './handlers/visionAnalyze';
 
 export { normalizeArgs as normalizeSkillArgs };
 
