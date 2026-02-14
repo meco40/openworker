@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MemoryNode } from '../../../core/memory/types';
 import type { MemoryRepository } from '../../../src/server/memory/repository';
 import { MemoryService } from '../../../src/server/memory/service';
+import type { Mem0Client } from '../../../src/server/memory/mem0Client';
 
 function scopeKey(personaId: string, userId?: string): string {
   return `${userId || 'legacy-local-user'}::${personaId}`;
@@ -268,5 +269,68 @@ describe('MemoryService', () => {
     const changed = service.registerFeedback('persona-test', ['forget-me'], 'negative');
     expect(changed).toBe(1);
     expect(service.snapshot('persona-test')).toHaveLength(0);
+  });
+
+  it('attaches mem0 id metadata when mem0 add succeeds', async () => {
+    const repo = createRepository();
+    const mem0: Mem0Client = {
+      addMemory: async () => ({ id: 'mem0-1' }),
+      searchMemories: async () => [],
+      updateMemory: async () => {},
+      deleteMemory: async () => {},
+    };
+    const service = new MemoryService(repo, async () => [1, 0], mem0);
+
+    const stored = await service.store('persona-test', 'fact', 'alpha', 4, 'user-1');
+
+    expect(stored.metadata?.mem0Id).toBe('mem0-1');
+  });
+
+  it('uses mem0 search first for recall and mirrors external ids locally', async () => {
+    const repo = createRepository();
+    const mem0: Mem0Client = {
+      addMemory: async () => ({ id: 'mem0-1' }),
+      searchMemories: async () => [
+        {
+          id: 'mem0-77',
+          content: 'User likes oat milk.',
+          score: 0.93,
+          metadata: { type: 'preference', importance: 5 },
+        },
+      ],
+      updateMemory: async () => {},
+      deleteMemory: async () => {},
+    };
+    const service = new MemoryService(repo, async () => [1, 0], mem0);
+
+    const recalled = await service.recallDetailed('persona-test', 'What milk do I prefer?', 3, 'user-1');
+    const snapshot = service.snapshot('persona-test', 'user-1');
+
+    expect(recalled.context).toContain('oat milk');
+    expect(snapshot.some((node) => node.metadata?.mem0Id === 'mem0-77')).toBe(true);
+  });
+
+  it('falls back to local similarity recall when mem0 search fails', async () => {
+    const repo = createRepository([
+      createNode({
+        id: 'local-1',
+        type: 'fact',
+        content: 'local fallback',
+        embedding: [1, 0],
+      }),
+    ]);
+    const mem0: Mem0Client = {
+      addMemory: async () => ({ id: 'mem0-1' }),
+      searchMemories: async () => {
+        throw new Error('mem0 offline');
+      },
+      updateMemory: async () => {},
+      deleteMemory: async () => {},
+    };
+    const service = new MemoryService(repo, async (text) => (text === 'query' ? [1, 0] : [0, 0]), mem0);
+
+    const context = await service.recall('persona-test', 'query', 3);
+
+    expect(context).toContain('local fallback');
   });
 });
