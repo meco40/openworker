@@ -21,6 +21,13 @@ function normalizeWorkspaceType(value: unknown): WorkspaceType {
     : 'general';
 }
 
+function parseWorkspaceTypeFilter(value: unknown): WorkspaceType | undefined {
+  if (typeof value !== 'string' || value.trim().length === 0) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!ALLOWED_WORKSPACE_TYPES.has(normalized as WorkspaceType)) return undefined;
+  return normalized as WorkspaceType;
+}
+
 function normalizeGraph(graph: unknown): Record<string, unknown> {
   if (!graph || typeof graph !== 'object') {
     throw new Error('graph is required');
@@ -40,7 +47,7 @@ export async function GET(request: Request) {
     }
 
     const url = new URL(request.url);
-    const workspaceType = normalizeWorkspaceType(url.searchParams.get('workspaceType'));
+    const workspaceType = parseWorkspaceTypeFilter(url.searchParams.get('workspaceType'));
     const repo = getWorkerRepository();
     const drafts = repo.listFlowDrafts(userContext.userId, workspaceType);
     const published = repo.listPublishedFlows(userContext.userId, workspaceType);

@@ -343,13 +343,6 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
         </div>
       )}
 
-      {/* Result Summary */}
-      {task.resultSummary && (
-        <div className="worker-alert worker-alert--success">
-          <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{task.resultSummary}</pre>
-        </div>
-      )}
-
       {/* Action Buttons */}
       <div className="worker-detail__actions">
         {isActive && (

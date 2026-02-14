@@ -16,6 +16,35 @@ export interface OrchestraValidationSuccess {
 
 export type OrchestraValidationResult = OrchestraValidationFailure | OrchestraValidationSuccess;
 
+function normalizeDefaultPersonaPlaceholder(
+  graphLike: unknown,
+  fallbackPersonaId: string | null,
+): unknown {
+  if (!fallbackPersonaId || !graphLike || typeof graphLike !== 'object') {
+    return graphLike;
+  }
+
+  const graph = graphLike as { nodes?: unknown };
+  if (!Array.isArray(graph.nodes)) {
+    return graphLike;
+  }
+
+  const normalizedNodes = graph.nodes.map((node) => {
+    if (!node || typeof node !== 'object') return node;
+    const nodeObj = node as Record<string, unknown>;
+    const personaId = typeof nodeObj.personaId === 'string' ? nodeObj.personaId.trim() : '';
+    if (personaId !== 'persona-default') {
+      return nodeObj;
+    }
+    return { ...nodeObj, personaId: fallbackPersonaId };
+  });
+
+  return {
+    ...(graphLike as Record<string, unknown>),
+    nodes: normalizedNodes,
+  };
+}
+
 export class OrchestraService {
   validateGraphForUser(userId: string, graphLike: unknown): OrchestraValidationResult {
     if (!graphLike || typeof graphLike !== 'object') {
@@ -23,9 +52,10 @@ export class OrchestraService {
     }
 
     const personas = getPersonaRepository().listPersonas(userId);
+    const normalizedGraph = normalizeDefaultPersonaPlaceholder(graphLike, personas[0]?.id || null);
     const allowedPersonaIds = new Set(personas.map((persona) => persona.id));
     const result = validateOrchestraGraph(
-      graphLike,
+      normalizedGraph,
       allowedPersonaIds.size > 0
         ? {
             allowedPersonaIds,
@@ -37,7 +67,7 @@ export class OrchestraService {
       return { ok: false, error: result.errors[0]?.message || 'Invalid graph.' };
     }
 
-    return { ok: true, graph: graphLike as OrchestraFlowGraph };
+    return { ok: true, graph: normalizedGraph as OrchestraFlowGraph };
   }
 
   createDraft(input: {

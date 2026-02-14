@@ -6,6 +6,8 @@ import type {
   RoomMemberRuntime,
   RoomPersonaContext,
   RoomPersonaSession,
+  RoomPersonaThreadMessage,
+  RoomPersonaThreadRole,
   RoomIntervention,
   RoomRun,
   RoomMember,
@@ -34,6 +36,7 @@ export interface RoomRepository {
 
   appendMessage(input: AppendRoomMessageInput): RoomMessage;
   listMessages(roomId: string, limit?: number, beforeSeq?: number): RoomMessage[];
+  listMessagesAfterSeq(roomId: string, afterSeq: number, limit?: number): RoomMessage[];
   countMessages(roomId: string): number;
 
   addIntervention(roomId: string, userId: string, note: string): RoomIntervention;
@@ -63,9 +66,20 @@ export interface RoomRepository {
   upsertPersonaSession(
     roomId: string,
     personaId: string,
-    input: { providerId: string; model: string; sessionId: string },
+    input: { providerId: string; model: string; sessionId: string; lastSeenRoomSeq?: number },
   ): RoomPersonaSession;
   getPersonaSession(roomId: string, personaId: string): RoomPersonaSession | null;
+  appendPersonaThreadMessage(input: {
+    roomId: string;
+    personaId: string;
+    role: RoomPersonaThreadRole;
+    content: string;
+  }): RoomPersonaThreadMessage;
+  listPersonaThreadMessages(
+    roomId: string,
+    personaId: string,
+    limit?: number,
+  ): RoomPersonaThreadMessage[];
 
   upsertPersonaContext(
     roomId: string,

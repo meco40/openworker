@@ -20,6 +20,7 @@ const config = [
     ignores: [
       '.next/**',
       '.worktrees/**',
+      '.tmp/**',
       '.tmp_merge/**',
       'backups/**',
       'demo/**',

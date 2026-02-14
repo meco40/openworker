@@ -15,6 +15,8 @@ import type {
   RoomRun,
   RoomMember,
   RoomMessage,
+  RoomPersonaThreadMessage,
+  RoomPersonaThreadRole,
   RoomRunState,
   UpsertMemberRuntimeInput,
 } from './types';
@@ -24,6 +26,7 @@ import {
   toMemberRuntime,
   toPersonaContext,
   toPersonaSession,
+  toPersonaThreadMessage,
   toRoom,
   toRoomMessage as toMessage,
   toRun,
@@ -47,6 +50,13 @@ export class SqliteRoomRepository implements RoomRepository {
     this.db.pragma('busy_timeout = 5000');
     this.db.pragma('foreign_keys = ON');
     this.migrate();
+  }
+
+  private hasColumn(tableName: string, columnName: string): boolean {
+    const rows = this.db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{
+      name: string;
+    }>;
+    return rows.some((row) => row.name === columnName);
   }
 
   /**
@@ -367,9 +377,32 @@ export class SqliteRoomRepository implements RoomRepository {
         provider_id TEXT NOT NULL,
         model TEXT NOT NULL,
         session_id TEXT NOT NULL,
+        last_seen_room_seq INTEGER NOT NULL DEFAULT 0,
         updated_at TEXT NOT NULL,
         PRIMARY KEY (room_id, persona_id)
       );
+    `);
+
+    if (!this.hasColumn('room_persona_sessions', 'last_seen_room_seq')) {
+      this.db.exec(
+        'ALTER TABLE room_persona_sessions ADD COLUMN last_seen_room_seq INTEGER NOT NULL DEFAULT 0',
+      );
+    }
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS room_persona_thread_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        persona_id TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('system', 'user', 'assistant')),
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_room_persona_thread_messages_lookup
+        ON room_persona_thread_messages (room_id, persona_id, id ASC);
     `);
 
     this.db.exec(`
@@ -603,6 +636,21 @@ export class SqliteRoomRepository implements RoomRepository {
     return rows.map(toMessage);
   }
 
+  listMessagesAfterSeq(roomId: string, afterSeq: number, limit = 200): RoomMessage[] {
+    const cappedLimit = Math.max(1, Math.min(limit, 1000));
+    const rows = this.db
+      .prepare(
+        `
+        SELECT * FROM room_messages
+        WHERE room_id = ? AND seq > ?
+        ORDER BY seq ASC
+        LIMIT ?
+      `,
+      )
+      .all(roomId, afterSeq, cappedLimit) as Array<Record<string, unknown>>;
+    return rows.map(toMessage);
+  }
+
   countMessages(roomId: string): number {
     const row = this.db
       .prepare('SELECT COUNT(*) AS count FROM room_messages WHERE room_id = ?')
@@ -832,22 +880,34 @@ export class SqliteRoomRepository implements RoomRepository {
   upsertPersonaSession(
     roomId: string,
     personaId: string,
-    input: { providerId: string; model: string; sessionId: string },
+    input: { providerId: string; model: string; sessionId: string; lastSeenRoomSeq?: number },
   ): RoomPersonaSession {
     const now = new Date().toISOString();
+    const lastSeenRoomSeq = input.lastSeenRoomSeq ?? 0;
     this.db
       .prepare(
         `
-        INSERT INTO room_persona_sessions (room_id, persona_id, provider_id, model, session_id, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO room_persona_sessions (
+          room_id, persona_id, provider_id, model, session_id, last_seen_room_seq, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(room_id, persona_id) DO UPDATE SET
           provider_id = excluded.provider_id,
           model = excluded.model,
           session_id = excluded.session_id,
+          last_seen_room_seq = excluded.last_seen_room_seq,
           updated_at = excluded.updated_at
       `,
       )
-      .run(roomId, personaId, input.providerId, input.model, input.sessionId, now);
+      .run(
+        roomId,
+        personaId,
+        input.providerId,
+        input.model,
+        input.sessionId,
+        lastSeenRoomSeq,
+        now,
+      );
     return this.getPersonaSession(roomId, personaId)!;
   }
 
@@ -856,6 +916,52 @@ export class SqliteRoomRepository implements RoomRepository {
       .prepare('SELECT * FROM room_persona_sessions WHERE room_id = ? AND persona_id = ?')
       .get(roomId, personaId) as Record<string, unknown> | undefined;
     return row ? toPersonaSession(row) : null;
+  }
+
+  appendPersonaThreadMessage(input: {
+    roomId: string;
+    personaId: string;
+    role: RoomPersonaThreadRole;
+    content: string;
+  }): RoomPersonaThreadMessage {
+    const now = new Date().toISOString();
+    const result = this.db
+      .prepare(
+        `
+        INSERT INTO room_persona_thread_messages (room_id, persona_id, role, content, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `,
+      )
+      .run(input.roomId, input.personaId, input.role, input.content, now);
+
+    const row = this.db
+      .prepare('SELECT * FROM room_persona_thread_messages WHERE id = ?')
+      .get(result.lastInsertRowid) as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error('Failed to load inserted room persona thread message');
+    }
+    return toPersonaThreadMessage(row);
+  }
+
+  listPersonaThreadMessages(
+    roomId: string,
+    personaId: string,
+    limit = 300,
+  ): RoomPersonaThreadMessage[] {
+    const cappedLimit = Math.max(1, Math.min(limit, 2000));
+    const rows = this.db
+      .prepare(
+        `
+        SELECT * FROM (
+          SELECT * FROM room_persona_thread_messages
+          WHERE room_id = ? AND persona_id = ?
+          ORDER BY id DESC
+          LIMIT ?
+        ) sub ORDER BY id ASC
+      `,
+      )
+      .all(roomId, personaId, cappedLimit) as Array<Record<string, unknown>>;
+    return rows.map(toPersonaThreadMessage);
   }
 
   upsertPersonaContext(

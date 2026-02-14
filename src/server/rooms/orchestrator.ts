@@ -186,10 +186,11 @@ export class RoomOrchestrator {
           });
 
           const existingSession = this.repository.getPersonaSession(room.id, selected.personaId);
-          const session = this.repository.upsertPersonaSession(room.id, selected.personaId, {
+          let session = this.repository.upsertPersonaSession(room.id, selected.personaId, {
             providerId: selected.profileId,
             model: selected.model,
             sessionId: existingSession?.sessionId || `room-${room.id}-${selected.personaId}`,
+            lastSeenRoomSeq: existingSession?.lastSeenRoomSeq ?? 0,
           });
 
           // ── Build messages for AI dispatch ──────────────────────────
@@ -218,40 +219,79 @@ export class RoomOrchestrator {
           // 2. Context summary (if available)
           const previousContext = this.repository.getPersonaContext(room.id, selected.personaId);
 
-          // 3. Build gateway messages — system message FIRST, then conversation history
-          const recentMessages = this.repository.listMessages(room.id, 20);
-
-          // Build a persona ID → name map for message attribution (no emoji)
+          // 3. Build persona-local thread (isolated per persona session)
           const personaNameMap = buildPersonaNameMap(members, (personaId) =>
             personaRepo.getPersona(personaId),
           );
+          const systemPrompt = systemParts.join('\n\n');
 
-          const gatewayMessages: GatewayMessage[] = [];
-
-          // Prepend system message (same pattern as normal WebUI chat)
-          gatewayMessages.push({ role: 'system', content: systemParts.join('\n\n') });
-
-          gatewayMessages.push(
-            ...buildGatewayHistoryMessages(recentMessages, selected.personaId, personaNameMap),
+          const existingThreadHead = this.repository.listPersonaThreadMessages(
+            room.id,
+            selected.personaId,
+            1,
           );
+          if (existingThreadHead.length === 0) {
+            this.repository.appendPersonaThreadMessage({
+              roomId: room.id,
+              personaId: selected.personaId,
+              role: 'system',
+              content: systemPrompt,
+            });
+          }
 
-          // If no messages yet, seed with context summary or task-aware prompt
-          if (gatewayMessages.length === 0) {
-            if (previousContext?.summary) {
-              gatewayMessages.push({
+          const unseenRoomMessages = this.repository.listMessagesAfterSeq(
+            room.id,
+            session.lastSeenRoomSeq,
+            500,
+          );
+          if (unseenRoomMessages.length > 0) {
+            const mapped = buildGatewayHistoryMessages(
+              unseenRoomMessages,
+              selected.personaId,
+              personaNameMap,
+            );
+            for (const message of mapped) {
+              // Own persona outputs are already persisted into the persona thread as assistant.
+              if (message.role === 'assistant') continue;
+              this.repository.appendPersonaThreadMessage({
+                roomId: room.id,
+                personaId: selected.personaId,
                 role: 'user',
-                content: `Context summary:\n${previousContext.summary}`,
+                content: message.content,
               });
-            } else {
-              // Seed prompt: only the topic/task, no participant list
-              const seedParts: string[] = [];
-              if (room.description) {
-                seedParts.push(room.description);
-              } else {
-                seedParts.push('Beginne die Diskussion.');
-              }
-              gatewayMessages.push({ role: 'user', content: seedParts.join('\n') });
             }
+
+            const lastSeenRoomSeq = unseenRoomMessages.at(-1)?.seq ?? session.lastSeenRoomSeq;
+            session = this.repository.upsertPersonaSession(room.id, selected.personaId, {
+              providerId: session.providerId,
+              model: session.model,
+              sessionId: session.sessionId,
+              lastSeenRoomSeq,
+            });
+          }
+
+          const personaThreadMessages = this.repository.listPersonaThreadMessages(
+            room.id,
+            selected.personaId,
+            600,
+          );
+          const gatewayMessages: GatewayMessage[] = personaThreadMessages.map((message) => ({
+            role: message.role,
+            content: message.content,
+          }));
+
+          // If the thread only has a system message, seed with context summary or room topic.
+          if (gatewayMessages.length === 1 && gatewayMessages[0]?.role === 'system') {
+            const seededContent = previousContext?.summary
+              ? `Context summary:\n${previousContext.summary}`
+              : room.description || 'Beginne die Diskussion.';
+            this.repository.appendPersonaThreadMessage({
+              roomId: room.id,
+              personaId: selected.personaId,
+              role: 'user',
+              content: seededContent,
+            });
+            gatewayMessages.push({ role: 'user', content: seededContent });
           }
 
           // 4. Resolve installed skills for tool definitions
@@ -285,6 +325,8 @@ export class RoomOrchestrator {
 
           let responseText = '';
           let lastToolUsed: string | null = null;
+          let sessionProviderId = session.providerId;
+          let sessionModel = session.model;
           const MAX_TOOL_ROUNDS = 3;
           const dispatchAbortController = new AbortController();
           let lostLease = false;
@@ -374,6 +416,9 @@ export class RoomOrchestrator {
                 break;
               }
 
+              sessionProviderId = aiResponse.provider || sessionProviderId;
+              sessionModel = aiResponse.model || sessionModel;
+
               // Handle function calls
               if (
                 aiResponse.functionCalls &&
@@ -409,13 +454,26 @@ export class RoomOrchestrator {
                 });
 
                 // Append tool result to conversation for next round
-                gatewayMessages.push({ role: 'assistant', content: `[Tool call: ${fc.name}]` });
-                gatewayMessages.push({
-                  role: 'user',
-                  content: toolResult.ok
-                    ? `Tool "${fc.name}" result:\n${toolResult.output}`
-                    : `Tool "${fc.name}" failed: ${toolResult.output}`,
+                const toolCallContent = `[Tool call: ${fc.name}]`;
+                const toolResultContent = toolResult.ok
+                  ? `Tool "${fc.name}" result:\n${toolResult.output}`
+                  : `Tool "${fc.name}" failed: ${toolResult.output}`;
+
+                this.repository.appendPersonaThreadMessage({
+                  roomId: room.id,
+                  personaId: selected.personaId,
+                  role: 'assistant',
+                  content: toolCallContent,
                 });
+                this.repository.appendPersonaThreadMessage({
+                  roomId: room.id,
+                  personaId: selected.personaId,
+                  role: 'user',
+                  content: toolResultContent,
+                });
+
+                gatewayMessages.push({ role: 'assistant', content: toolCallContent });
+                gatewayMessages.push({ role: 'user', content: toolResultContent });
 
                 continue; // Go to next round
               }
@@ -456,6 +514,13 @@ export class RoomOrchestrator {
             // is already stored via speakerPersonaId, not inline text.
             responseText = stripSpeakerPrefix(responseText);
 
+            this.repository.appendPersonaThreadMessage({
+              roomId: room.id,
+              personaId: selected.personaId,
+              role: 'assistant',
+              content: responseText,
+            });
+
             const message = this.repository.appendMessage({
               roomId: room.id,
               speakerType: 'persona',
@@ -467,6 +532,13 @@ export class RoomOrchestrator {
                 model: selected.model,
                 sessionId: session.sessionId,
               },
+            });
+
+            session = this.repository.upsertPersonaSession(room.id, selected.personaId, {
+              providerId: sessionProviderId,
+              model: sessionModel,
+              sessionId: session.sessionId,
+              lastSeenRoomSeq: message.seq,
             });
 
             this.repository.upsertPersonaContext(room.id, selected.personaId, {

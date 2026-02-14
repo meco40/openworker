@@ -4,6 +4,7 @@ export interface WorkerOrchestraFlowDraft {
   id: string;
   name: string;
   workspaceType: string;
+  graphJson?: string;
   updatedAt: string;
 }
 
@@ -12,6 +13,7 @@ export interface WorkerOrchestraFlowPublished {
   name: string;
   workspaceType: string;
   version: number;
+  graphJson?: string;
   createdAt: string;
 }
 
@@ -51,9 +53,20 @@ export function useWorkerOrchestraFlows() {
         body: JSON.stringify(input),
       });
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        let message = `HTTP ${response.status}`;
+        try {
+          const payload = (await response.json()) as { error?: string };
+          if (payload?.error) {
+            message = payload.error;
+          }
+        } catch {
+          // ignore parse failure and keep status-based message
+        }
+        setError(message);
+        return false;
       }
       await refresh();
+      return true;
     },
     [refresh],
   );
@@ -64,9 +77,49 @@ export function useWorkerOrchestraFlows() {
         method: 'POST',
       });
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        let message = `HTTP ${response.status}`;
+        try {
+          const payload = (await response.json()) as { error?: string };
+          if (payload?.error) {
+            message = payload.error;
+          }
+        } catch {
+          // ignore parse failure and keep status-based message
+        }
+        setError(message);
+        return false;
       }
       await refresh();
+      return true;
+    },
+    [refresh],
+  );
+
+  const updateDraft = useCallback(
+    async (
+      flowId: string,
+      updates: { name?: string; workspaceType?: string; graph?: Record<string, unknown> },
+    ) => {
+      const response = await fetch(`/api/worker/orchestra/flows/${flowId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (!response.ok) {
+        let message = `HTTP ${response.status}`;
+        try {
+          const payload = (await response.json()) as { error?: string };
+          if (payload?.error) {
+            message = payload.error;
+          }
+        } catch {
+          // ignore parse failure and keep status-based message
+        }
+        setError(message);
+        return false;
+      }
+      await refresh();
+      return true;
     },
     [refresh],
   );
@@ -83,5 +136,6 @@ export function useWorkerOrchestraFlows() {
     refresh,
     createDraft,
     publishDraft,
+    updateDraft,
   };
 }

@@ -6,6 +6,7 @@ import type {
   RoomMessage,
   RoomPersonaContext,
   RoomPersonaSession,
+  RoomPersonaThreadMessage,
   RoomRun,
   RoomRunState,
 } from './types';
@@ -99,7 +100,19 @@ export function toPersonaSession(row: Record<string, unknown>): RoomPersonaSessi
     providerId: row.provider_id as string,
     model: row.model as string,
     sessionId: row.session_id as string,
+    lastSeenRoomSeq: Number(row.last_seen_room_seq || 0),
     updatedAt: row.updated_at as string,
+  };
+}
+
+export function toPersonaThreadMessage(row: Record<string, unknown>): RoomPersonaThreadMessage {
+  return {
+    id: Number(row.id),
+    roomId: row.room_id as string,
+    personaId: row.persona_id as string,
+    role: row.role as RoomPersonaThreadMessage['role'],
+    content: row.content as string,
+    createdAt: row.created_at as string,
   };
 }
 

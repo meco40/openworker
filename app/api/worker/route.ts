@@ -8,6 +8,7 @@ import { resolveRequestUserContext } from '../../../src/server/auth/userContext'
 import { getWorkerRepository } from '../../../src/server/worker/workerRepository';
 import { processQueue } from '../../../src/server/worker/workerAgent';
 import { getWorkspaceManager } from '../../../src/server/worker/workspaceManager';
+import { getMessageRepository } from '../../../src/server/channels/messages/runtime';
 import type { WorkerTaskStatus } from '../../../src/server/worker/workerTypes';
 
 export const runtime = 'nodejs';
@@ -65,7 +66,7 @@ export async function DELETE() {
 interface CreateTaskRequest {
   objective: string;
   title?: string;
-  conversationId: string;
+  conversationId?: string;
   workspaceType?: string;
   priority?: string;
   usePlanning?: boolean;
@@ -80,11 +81,23 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as CreateTaskRequest;
 
-    if (!body.objective || !body.conversationId) {
+    if (!body.objective) {
       return NextResponse.json(
-        { ok: false, error: 'objective and conversationId are required' },
+        { ok: false, error: 'objective is required' },
         { status: 400 },
       );
+    }
+
+    const messageRepo = getMessageRepository();
+    let originConversation = body.conversationId?.trim() || '';
+    if (originConversation.length > 0) {
+      const conversation = messageRepo.getConversation(originConversation, userContext.userId);
+      if (!conversation) {
+        originConversation = '';
+      }
+    }
+    if (originConversation.length === 0) {
+      originConversation = messageRepo.getDefaultWebChatConversation(userContext.userId).id;
     }
 
     const repo = getWorkerRepository();
@@ -96,7 +109,7 @@ export async function POST(request: Request) {
         (body.workspaceType as 'research' | 'webapp' | 'creative' | 'data' | 'general') ||
         undefined,
       originPlatform: 'WebChat' as never,
-      originConversation: body.conversationId,
+      originConversation,
       usePlanning: body.usePlanning,
       userId: userContext.userId,
     });

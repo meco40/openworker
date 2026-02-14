@@ -90,7 +90,19 @@ export interface RoomPersonaSession {
   providerId: string;
   model: string;
   sessionId: string;
+  lastSeenRoomSeq: number;
   updatedAt: string;
+}
+
+export type RoomPersonaThreadRole = 'system' | 'user' | 'assistant';
+
+export interface RoomPersonaThreadMessage {
+  id: number;
+  roomId: string;
+  personaId: string;
+  role: RoomPersonaThreadRole;
+  content: string;
+  createdAt: string;
 }
 
 export interface RoomPersonaContext {

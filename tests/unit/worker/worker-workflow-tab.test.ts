@@ -1,9 +1,30 @@
-import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import WorkerWorkflowTab from '../../../components/worker/WorkerWorkflowTab';
 import WorkerTaskDetail from '../../../components/worker/WorkerTaskDetail';
 import type { WorkerTask } from '../../../types';
+
+vi.mock('../../../src/modules/worker/hooks/useWorkerWorkflow', () => ({
+  useWorkerWorkflow: () => ({
+    workflow: {
+      taskId: 'task-1',
+      runId: 'run-1',
+      flowPublishedId: 'flow-1',
+      currentNodeId: 'n2',
+      timestamp: new Date().toISOString(),
+      activePath: ['n1', 'n2'],
+      edges: [{ from: 'n1', to: 'n2' }],
+      nodes: [
+        { id: 'n1', personaId: 'persona-research', status: 'completed' },
+        { id: 'n2', personaId: 'persona-review', status: 'running' },
+      ],
+    },
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
+}));
 
 function makeTask(): WorkerTask {
   return {
@@ -29,14 +50,17 @@ function makeTask(): WorkerTask {
 }
 
 describe('worker workflow tab', () => {
-  it('renders loading placeholder in standalone workflow tab', () => {
-    const html = renderToStaticMarkup(React.createElement(WorkerWorkflowTab, { taskId: 'task-1' }));
-    expect(html).toContain('Workflow wird geladen');
+  it('renders live graph panel in standalone workflow tab', () => {
+    const html = renderToStaticMarkup(createElement(WorkerWorkflowTab, { taskId: 'task-1' }));
+    expect(html).toContain('Live-Graph (aktueller Run)');
+    expect(html).toContain('Master steuert den Ablauf');
+    expect(html).toContain('n1');
+    expect(html).toContain('n2');
   });
 
   it('renders workflow tab button in task detail', () => {
     const html = renderToStaticMarkup(
-      React.createElement(WorkerTaskDetail, {
+      createElement(WorkerTaskDetail, {
         task: makeTask(),
         onBack: () => {},
         onCancel: () => {},

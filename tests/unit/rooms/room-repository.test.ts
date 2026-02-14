@@ -132,9 +132,11 @@ describe('SqliteRoomRepository', () => {
       providerId: 'xai',
       model: 'grok-4',
       sessionId: 'sess-1',
+      lastSeenRoomSeq: 5,
     });
     const session = repo.getPersonaSession(room.id, 'persona-1');
     expect(session?.sessionId).toBe('sess-1');
+    expect(session?.lastSeenRoomSeq).toBe(5);
 
     repo.upsertPersonaContext(room.id, 'persona-1', {
       summary: 'Nadine war in der Schule',
@@ -162,5 +164,56 @@ describe('SqliteRoomRepository', () => {
     });
     expect(runtime.status).toBe('paused');
     expect(runtime.busyReason).toContain('Paused');
+  });
+
+  it('stores per-persona thread messages and supports room message sync cursors', () => {
+    const room = repo.createRoom({
+      userId: 'user-a',
+      name: 'Office',
+      goalMode: 'planning',
+      routingProfileId: 'p1',
+    });
+
+    const m1 = repo.appendMessage({
+      roomId: room.id,
+      speakerType: 'user',
+      content: 'Hello',
+      metadata: {},
+    });
+    repo.appendMessage({
+      roomId: room.id,
+      speakerType: 'persona',
+      speakerPersonaId: 'persona-2',
+      content: 'Hi there',
+      metadata: {},
+    });
+    repo.appendMessage({
+      roomId: room.id,
+      speakerType: 'system',
+      content: 'Reminder',
+      metadata: {},
+    });
+
+    const afterFirst = repo.listMessagesAfterSeq(room.id, m1.seq, 10);
+    expect(afterFirst).toHaveLength(2);
+    expect(afterFirst[0]?.content).toBe('Hi there');
+
+    repo.appendPersonaThreadMessage({
+      roomId: room.id,
+      personaId: 'persona-1',
+      role: 'system',
+      content: 'You are Persona 1',
+    });
+    repo.appendPersonaThreadMessage({
+      roomId: room.id,
+      personaId: 'persona-1',
+      role: 'assistant',
+      content: 'resp-1',
+    });
+
+    const thread = repo.listPersonaThreadMessages(room.id, 'persona-1', 10);
+    expect(thread).toHaveLength(2);
+    expect(thread[0]?.role).toBe('system');
+    expect(thread[1]?.content).toBe('resp-1');
   });
 });

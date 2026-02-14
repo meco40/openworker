@@ -31,15 +31,37 @@ function makeGraph(nextNodeId = 'n2') {
   };
 }
 
+function uniqueDbPath(prefix: string): string {
+  return path.join(
+    process.cwd(),
+    '.local',
+    `${prefix}.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
+  );
+}
+
 describe('orchestra flows routes', () => {
   const cleanupPaths: string[] = [];
+  const personaCleanupPaths: string[] = [];
 
   afterEach(() => {
     vi.restoreAllMocks();
     vi.resetModules();
     delete process.env.WORKER_DB_PATH;
+    delete process.env.PERSONAS_DB_PATH;
 
     for (const filePath of cleanupPaths.splice(0, cleanupPaths.length)) {
+      for (const candidate of [filePath, `${filePath}-wal`, `${filePath}-shm`]) {
+        try {
+          if (fs.existsSync(candidate)) {
+            fs.unlinkSync(candidate);
+          }
+        } catch {
+          // ignore file lock in tests
+        }
+      }
+    }
+
+    for (const filePath of personaCleanupPaths.splice(0, personaCleanupPaths.length)) {
       for (const candidate of [filePath, `${filePath}-wal`, `${filePath}-shm`]) {
         try {
           if (fs.existsSync(candidate)) {
@@ -53,13 +75,12 @@ describe('orchestra flows routes', () => {
   });
 
   it('supports create, update, publish and immutable published snapshots', async () => {
-    const dbPath = path.join(
-      process.cwd(),
-      '.local',
-      `worker.orchestra.flows.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
-    );
+    const dbPath = uniqueDbPath('worker.orchestra.flows');
+    const personasDbPath = uniqueDbPath('personas.orchestra.flows');
     cleanupPaths.push(dbPath);
+    personaCleanupPaths.push(personasDbPath);
     process.env.WORKER_DB_PATH = dbPath;
+    process.env.PERSONAS_DB_PATH = personasDbPath;
     mockUserContext({ userId: 'user-a', authenticated: true });
 
     const flowsRoute = await loadFlowsRoute();
@@ -163,13 +184,12 @@ describe('orchestra flows routes', () => {
   });
 
   it('returns 400 when graph validation fails', async () => {
-    const dbPath = path.join(
-      process.cwd(),
-      '.local',
-      `worker.orchestra.flows.invalid.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
-    );
+    const dbPath = uniqueDbPath('worker.orchestra.flows.invalid');
+    const personasDbPath = uniqueDbPath('personas.orchestra.flows.invalid');
     cleanupPaths.push(dbPath);
+    personaCleanupPaths.push(personasDbPath);
     process.env.WORKER_DB_PATH = dbPath;
+    process.env.PERSONAS_DB_PATH = personasDbPath;
     mockUserContext({ userId: 'user-a', authenticated: true });
 
     const flowsRoute = await loadFlowsRoute();
@@ -193,5 +213,54 @@ describe('orchestra flows routes', () => {
     expect(invalidResponse.status).toBe(400);
     expect(invalidPayload.ok).toBe(false);
     expect(invalidPayload.error.toLowerCase()).toContain('unknown');
+  });
+
+  it('accepts persona-default placeholder when user has personas', async () => {
+    const workerDbPath = uniqueDbPath('worker.orchestra.flows.placeholder');
+    const personasDbPath = uniqueDbPath('personas.orchestra.flows.placeholder');
+    cleanupPaths.push(workerDbPath);
+    personaCleanupPaths.push(personasDbPath);
+    process.env.WORKER_DB_PATH = workerDbPath;
+    process.env.PERSONAS_DB_PATH = personasDbPath;
+    mockUserContext({ userId: 'user-a', authenticated: true });
+
+    const { getPersonaRepository } = await import('../../../src/server/personas/personaRepository');
+    const personaRepo = getPersonaRepository();
+    const persona = personaRepo.createPersona({
+      userId: 'user-a',
+      name: 'Research Persona',
+      emoji: '🔎',
+      vibe: '',
+    });
+
+    const flowsRoute = await loadFlowsRoute();
+    const createResponse = await flowsRoute.POST(
+      new Request('http://localhost/api/worker/orchestra/flows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Research Pipeline',
+          workspaceType: 'research',
+          graph: {
+            startNodeId: 'n1',
+            nodes: [{ id: 'n1', personaId: 'persona-default' }],
+            edges: [],
+          },
+        }),
+      }),
+    );
+
+    const createPayload = (await createResponse.json()) as {
+      ok: boolean;
+      flow?: { graphJson?: string };
+      error?: string;
+    };
+    expect(createResponse.status).toBe(201);
+    expect(createPayload.ok).toBe(true);
+
+    const flowGraph = JSON.parse(createPayload.flow?.graphJson || '{}') as {
+      nodes: Array<{ id: string; personaId: string }>;
+    };
+    expect(flowGraph.nodes[0]?.personaId).toBe(persona.id);
   });
 });
