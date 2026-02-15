@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { loadEnvConfig } from '@next/env';
+import nextEnv from '@next/env';
 
 import BetterSqlite3 from 'better-sqlite3';
 
@@ -9,6 +9,7 @@ import { createMem0ClientFromEnv, type Mem0Client } from '../src/server/memory/m
 const DEFAULT_MESSAGES_DB_PATH = '.local/messages.db';
 const DEFAULT_PERSONAS_DB_PATH = '.local/personas.db';
 
+const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
 
 type ScopeSummary = {
