@@ -2,8 +2,8 @@
 // Wraps Next.js with an HTTP server that handles WebSocket upgrades on /ws.
 
 import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
 import next from 'next';
-import nextEnv from '@next/env';
 import { WebSocketServer } from 'ws';
 import { getToken } from 'next-auth/jwt';
 import { handleConnection, getClientRegistry, broadcast } from './src/server/gateway/index.js';
@@ -16,7 +16,10 @@ import {
   assertMemoryRuntimeReady,
 } from './src/server/memory/runtime.js';
 
-const { loadEnvConfig } = nextEnv;
+const require = createRequire(import.meta.url);
+const { loadEnvConfig } = require('@next/env') as {
+  loadEnvConfig: (dir: string, dev?: boolean) => unknown;
+};
 loadEnvConfig(process.cwd());
 
 const dev = process.env.NODE_ENV !== 'production';

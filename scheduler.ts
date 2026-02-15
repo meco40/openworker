@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import nextEnv from '@next/env';
+import { createRequire } from 'node:module';
 
 import { startAutomationRuntime, stopAutomationRuntime } from './src/server/automation/runtime';
 import {
@@ -11,7 +11,10 @@ import { getRoomOrchestrator } from './src/server/rooms/runtime';
 import { shouldRunRooms } from './src/server/rooms/runtimeRole';
 import { startKnowledgeRuntimeLoop, stopKnowledgeRuntimeLoop } from './src/server/knowledge/runtime';
 
-const { loadEnvConfig } = nextEnv;
+const require = createRequire(import.meta.url);
+const { loadEnvConfig } = require('@next/env') as {
+  loadEnvConfig: (dir: string, dev?: boolean) => unknown;
+};
 loadEnvConfig(process.cwd());
 
 const instanceId = process.env.SCHEDULER_INSTANCE_ID || `scheduler-${process.pid}`;

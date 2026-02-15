@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   GET as listAccounts,
   POST as createAccount,
@@ -6,7 +6,6 @@ import {
 import { POST as testAccount } from '../../../app/api/model-hub/accounts/[accountId]/test/route';
 import fs from 'node:fs';
 import path from 'node:path';
-import { vi } from 'vitest';
 
 function buildCreateRequest(body: Record<string, unknown>) {
   return new Request('http://localhost/api/model-hub/accounts', {

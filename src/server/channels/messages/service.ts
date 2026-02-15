@@ -18,6 +18,8 @@ import {
   setChannelBindingPersona,
 } from './channelBindingPersona';
 import { getMemoryService } from '../../memory/runtime';
+import { resolveKnowledgeConfig } from '../../knowledge/config';
+import { getKnowledgeIngestionService, getKnowledgeRetrievalService } from '../../knowledge/runtime';
 import { buildAutoMemoryCandidates, isAutoSessionMemoryEnabled } from './autoMemory';
 import type { MemoryFeedbackSignal } from '../../memory/service';
 import { getProactiveGateService } from '../../proactive/runtime';
@@ -89,12 +91,13 @@ function shouldRecallMemoryForInput(content: string): boolean {
   if (extractMemorySaveContent(normalized) !== null) return false;
 
   const directPatterns: RegExp[] = [
-    /\berinner(n|e|st|t|ung)?\b/i,
+    /\berinner(n|e|st|t|ung|ungen)?\b/i,
     /\b(lieblings|favorit|vorliebe|preference)\b/i,
     /\b(ich hatte|habe ich|was war|wann war)\b/i,
     /\b(vor (einer|einem|\d+) (tag|tagen|woche|wochen|monat|monaten|jahr|jahren))\b/i,
     /\b(letzte[nrsm]?\s+(woche|monat|jahr)|last\s+(week|month|year))\b/i,
     /\b(was haben wir (besprochen|gesagt)|what did we discuss)\b/i,
+    /\b(was haben wir .* (?:über|ueber) .* gesprochen)\b/i,
     /\b(wie trinke ich|was trinke ich|was esse ich|was mag ich)\b/i,
     /\b(wie mache ich (das|es)|wie war mein workflow|mein workflow)\b/i,
     /\b(remember|favorite|preference|what did i|when did i)\b/i,
@@ -1260,12 +1263,32 @@ export class MessageService {
     }
     if (!shouldRecallMemoryForInput(userInput)) return null;
 
+    const memoryUserId = resolveMemoryScopedUserId(conversation, platform, externalChatId);
+    const knowledgeConfig = resolveKnowledgeConfig();
+    if (knowledgeConfig.layerEnabled && knowledgeConfig.retrievalEnabled) {
+      try {
+        const knowledgeResult = await getKnowledgeRetrievalService().retrieve({
+          userId: memoryUserId,
+          personaId: conversation.personaId,
+          conversationId: conversation.id,
+          query: userInput,
+        });
+        const normalizedKnowledgeContext = normalizeMemoryContext(knowledgeResult.context || '');
+        if (normalizedKnowledgeContext) {
+          this.lastRecallByConversation.delete(conversation.id);
+          return normalizedKnowledgeContext;
+        }
+      } catch (error) {
+        console.error('Knowledge recall failed:', error);
+      }
+    }
+
     try {
       const recalled = await getMemoryService().recallDetailed(
         conversation.personaId,
         userInput,
         MEMORY_RECALL_LIMIT,
-        resolveMemoryScopedUserId(conversation, platform, externalChatId),
+        memoryUserId,
       );
       if (recalled.matches.length > 0) {
         this.lastRecallByConversation.set(conversation.id, {
@@ -1354,10 +1377,11 @@ export class MessageService {
       if (unsummarized.length === 0) {
         return;
       }
+      const summarizationChunk = unsummarized.slice(0, 40);
 
       const mergedSummary = await this.buildConversationSummary(
         existing?.summaryText || '',
-        unsummarized.slice(0, 40).map((message) => ({
+        summarizationChunk.map((message) => ({
           role: message.role,
           content: message.content,
         })),
@@ -1368,7 +1392,7 @@ export class MessageService {
         return;
       }
 
-      const uptoSeq = unsummarized[unsummarized.length - 1]?.seq;
+      const uptoSeq = summarizationChunk[summarizationChunk.length - 1]?.seq;
       if (typeof uptoSeq !== 'number') {
         return;
       }
@@ -1380,8 +1404,9 @@ export class MessageService {
         conversation.userId,
       );
 
-      await this.maybeStoreAutoSessionMemory(conversation, unsummarized);
-      await this.maybeEvaluateProactiveGate(conversation, unsummarized);
+      await this.maybeStoreAutoSessionMemory(conversation, summarizationChunk);
+      await this.maybeStoreKnowledgeArtifacts(conversation, summarizationChunk, mergedSummary);
+      await this.maybeEvaluateProactiveGate(conversation, summarizationChunk);
     } finally {
       this.summaryRefreshInFlight.delete(conversation.id);
     }
@@ -1414,6 +1439,35 @@ export class MessageService {
       } catch (error) {
         console.error('Auto session memory store failed:', error);
       }
+    }
+  }
+
+  private async maybeStoreKnowledgeArtifacts(
+    conversation: Conversation,
+    messages: StoredMessage[],
+    mergedSummary: string,
+  ): Promise<void> {
+    if (!conversation.personaId) return;
+    if (messages.length === 0) return;
+
+    const knowledgeConfig = resolveKnowledgeConfig();
+    if (!knowledgeConfig.layerEnabled) return;
+    if (!knowledgeConfig.episodeEnabled && !knowledgeConfig.ledgerEnabled) return;
+
+    try {
+      await getKnowledgeIngestionService().ingestConversationWindow({
+        conversationId: conversation.id,
+        userId: resolveMemoryScopedUserId(
+          conversation,
+          conversation.channelType,
+          conversation.externalChatId || 'default',
+        ),
+        personaId: conversation.personaId,
+        messages,
+        summaryText: mergedSummary,
+      });
+    } catch (error) {
+      console.error('Knowledge ingestion failed:', error);
     }
   }
 

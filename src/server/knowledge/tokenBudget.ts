@@ -18,7 +18,12 @@ export function trimToTokenBudget(text: string, maxTokens: number): string {
     output.push(word);
   }
 
-  return output.join(' ');
+  let trimmed = output.join(' ');
+  while (trimmed && estimateTokenCount(trimmed) > maxTokens) {
+    trimmed = trimmed.slice(0, -1).trimEnd();
+  }
+
+  return trimmed;
 }
 
 export function enforceSectionBudgets<T extends Record<string, string>>(

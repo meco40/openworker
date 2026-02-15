@@ -13,12 +13,16 @@ interface KnowledgeExtractorLike {
 }
 
 interface KnowledgeRepositoryLike {
+  getIngestionCheckpoint?: KnowledgeRepository['getIngestionCheckpoint'];
+  upsertIngestionCheckpoint?: KnowledgeRepository['upsertIngestionCheckpoint'];
   upsertEpisode: KnowledgeRepository['upsertEpisode'];
   upsertMeetingLedger: KnowledgeRepository['upsertMeetingLedger'];
 }
 
 interface MemoryServiceLike {
-  store: MemoryService['store'];
+  store: (
+    ...args: Parameters<MemoryService['store']>
+  ) => Promise<unknown>;
 }
 
 export interface KnowledgeIngestionServiceDependencies {
@@ -38,6 +42,14 @@ export interface KnowledgeIngestionRunResult {
   processedConversations: number;
   processedMessages: number;
   errors: KnowledgeIngestionError[];
+}
+
+export interface IngestConversationWindowInput {
+  conversationId: string;
+  userId: string;
+  personaId: string;
+  messages: IngestionWindow['messages'];
+  summaryText?: string;
 }
 
 function dedupeFacts(facts: string[]): string[] {
@@ -69,6 +81,47 @@ function inferSourceEnd(window: IngestionWindow): number {
 export class KnowledgeIngestionService {
   constructor(private readonly deps: KnowledgeIngestionServiceDependencies) {}
 
+  async ingestConversationWindow(input: IngestConversationWindowInput): Promise<void> {
+    const personaId = String(input.personaId || '').trim();
+    if (!personaId) return;
+
+    const sortedMessages = [...(input.messages || [])]
+      .filter((message) => Number.isFinite(Number(message.seq)))
+      .sort((a, b) => Number(a.seq || 0) - Number(b.seq || 0));
+    if (sortedMessages.length === 0) return;
+
+    const checkpoint = this.deps.knowledgeRepository.getIngestionCheckpoint?.(
+      input.conversationId,
+      personaId,
+    );
+    const fromSeqExclusive = Math.max(0, Math.floor(Number(checkpoint?.lastSeq || 0)));
+    const deltaMessages = sortedMessages.filter(
+      (message) => Math.floor(Number(message.seq || 0)) > fromSeqExclusive,
+    );
+    if (deltaMessages.length === 0) return;
+
+    const toSeqInclusive = Math.max(
+      fromSeqExclusive,
+      Math.floor(Number(deltaMessages[deltaMessages.length - 1].seq || fromSeqExclusive)),
+    );
+
+    const window: IngestionWindow = {
+      conversationId: input.conversationId,
+      userId: input.userId,
+      personaId,
+      fromSeqExclusive,
+      toSeqInclusive,
+      messages: deltaMessages,
+    };
+
+    await this.processWindow(window);
+    this.deps.knowledgeRepository.upsertIngestionCheckpoint?.({
+      conversationId: window.conversationId,
+      personaId: window.personaId,
+      lastSeq: window.toSeqInclusive,
+    });
+  }
+
   async runOnce(): Promise<KnowledgeIngestionRunResult> {
     const windows = this.deps.cursor.getPendingWindows();
     let processedConversations = 0;
@@ -77,95 +130,7 @@ export class KnowledgeIngestionService {
 
     for (const window of windows) {
       try {
-        const extraction = await this.deps.extractor.extract({
-          conversationId: window.conversationId,
-          userId: window.userId,
-          personaId: window.personaId,
-          messages: window.messages,
-        });
-
-        const sourceSeqStart = inferSourceStart(window);
-        const sourceSeqEnd = inferSourceEnd(window);
-
-        const facts = dedupeFacts(extraction.facts);
-        const topicKey = String(extraction.meetingLedger.topicKey || '').trim() || 'general-meeting';
-
-        this.deps.knowledgeRepository.upsertEpisode({
-          userId: window.userId,
-          personaId: window.personaId,
-          conversationId: window.conversationId,
-          topicKey,
-          counterpart: extraction.meetingLedger.counterpart,
-          teaser: extraction.teaser,
-          episode: extraction.episode,
-          facts,
-          sourceSeqStart,
-          sourceSeqEnd,
-          sourceRefs: extraction.meetingLedger.sourceRefs,
-          eventAt: window.messages[window.messages.length - 1]?.createdAt || null,
-        });
-
-        this.deps.knowledgeRepository.upsertMeetingLedger({
-          userId: window.userId,
-          personaId: window.personaId,
-          conversationId: window.conversationId,
-          topicKey,
-          counterpart: extraction.meetingLedger.counterpart,
-          eventAt: window.messages[window.messages.length - 1]?.createdAt || null,
-          participants: extraction.meetingLedger.participants,
-          decisions: extraction.meetingLedger.decisions,
-          negotiatedTerms: extraction.meetingLedger.negotiatedTerms,
-          openPoints: extraction.meetingLedger.openPoints,
-          actionItems: extraction.meetingLedger.actionItems,
-          sourceRefs: extraction.meetingLedger.sourceRefs,
-          confidence: extraction.meetingLedger.confidence,
-        });
-
-        const baseMetadata = {
-          topicKey,
-          conversationId: window.conversationId,
-          sourceSeqStart,
-          sourceSeqEnd,
-        };
-
-        const storePromises: Array<Promise<unknown>> = [];
-        for (const fact of facts) {
-          storePromises.push(
-            this.deps.memoryService.store(
-              window.personaId,
-              'fact',
-              fact,
-              4,
-              window.userId,
-              { ...baseMetadata, artifactType: 'fact' },
-            ),
-          );
-        }
-
-        storePromises.push(
-          this.deps.memoryService.store(
-            window.personaId,
-            'fact',
-            extraction.teaser,
-            3,
-            window.userId,
-            { ...baseMetadata, artifactType: 'teaser' },
-          ),
-        );
-
-        storePromises.push(
-          this.deps.memoryService.store(
-            window.personaId,
-            'fact',
-            extraction.episode,
-            4,
-            window.userId,
-            { ...baseMetadata, artifactType: 'episode' },
-          ),
-        );
-
-        await Promise.all(storePromises);
-
+        await this.processWindow(window);
         this.deps.cursor.markWindowProcessed(window);
         processedConversations += 1;
         processedMessages += window.messages.length;
@@ -183,6 +148,85 @@ export class KnowledgeIngestionService {
       processedMessages,
       errors,
     };
+  }
+
+  private async processWindow(window: IngestionWindow): Promise<void> {
+    const extraction = await this.deps.extractor.extract({
+      conversationId: window.conversationId,
+      userId: window.userId,
+      personaId: window.personaId,
+      messages: window.messages,
+    });
+
+    const sourceSeqStart = inferSourceStart(window);
+    const sourceSeqEnd = inferSourceEnd(window);
+
+    const facts = dedupeFacts(extraction.facts);
+    const topicKey = String(extraction.meetingLedger.topicKey || '').trim() || 'general-meeting';
+
+    this.deps.knowledgeRepository.upsertEpisode({
+      userId: window.userId,
+      personaId: window.personaId,
+      conversationId: window.conversationId,
+      topicKey,
+      counterpart: extraction.meetingLedger.counterpart,
+      teaser: extraction.teaser,
+      episode: extraction.episode,
+      facts,
+      sourceSeqStart,
+      sourceSeqEnd,
+      sourceRefs: extraction.meetingLedger.sourceRefs,
+      eventAt: window.messages[window.messages.length - 1]?.createdAt || null,
+    });
+
+    this.deps.knowledgeRepository.upsertMeetingLedger({
+      userId: window.userId,
+      personaId: window.personaId,
+      conversationId: window.conversationId,
+      topicKey,
+      counterpart: extraction.meetingLedger.counterpart,
+      eventAt: window.messages[window.messages.length - 1]?.createdAt || null,
+      participants: extraction.meetingLedger.participants,
+      decisions: extraction.meetingLedger.decisions,
+      negotiatedTerms: extraction.meetingLedger.negotiatedTerms,
+      openPoints: extraction.meetingLedger.openPoints,
+      actionItems: extraction.meetingLedger.actionItems,
+      sourceRefs: extraction.meetingLedger.sourceRefs,
+      confidence: extraction.meetingLedger.confidence,
+    });
+
+    const baseMetadata = {
+      topicKey,
+      conversationId: window.conversationId,
+      sourceSeqStart,
+      sourceSeqEnd,
+    };
+
+    const storePromises: Array<Promise<unknown>> = [];
+    for (const fact of facts) {
+      storePromises.push(
+        this.deps.memoryService.store(window.personaId, 'fact', fact, 4, window.userId, {
+          ...baseMetadata,
+          artifactType: 'fact',
+        }),
+      );
+    }
+
+    storePromises.push(
+      this.deps.memoryService.store(window.personaId, 'fact', extraction.teaser, 3, window.userId, {
+        ...baseMetadata,
+        artifactType: 'teaser',
+      }),
+    );
+
+    storePromises.push(
+      this.deps.memoryService.store(window.personaId, 'fact', extraction.episode, 4, window.userId, {
+        ...baseMetadata,
+        artifactType: 'episode',
+      }),
+    );
+
+    await Promise.all(storePromises);
   }
 }
 

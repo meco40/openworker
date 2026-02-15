@@ -15,6 +15,7 @@ export interface MemoryNode {
   confidence: number; // 0.1 - 1.0 (steigt bei Bestätigung)
   timestamp: string;
   metadata?: {
+    [key: string]: unknown;
     context?: string;
     source?: string;
     lastVerified?: string;

@@ -1,6 +1,5 @@
 import type { Session } from 'next-auth';
 import { auth } from '../../auth';
-import { LEGACY_LOCAL_USER_ID } from './constants';
 import { getPrincipalUserId } from './principal';
 
 export { LEGACY_LOCAL_USER_ID } from './constants';

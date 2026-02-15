@@ -3,7 +3,6 @@
 // to worker task execution.
 
 import { getPersonaRepository } from '../personas/personaRepository';
-import type { PersonaFileName } from '../personas/personaTypes';
 
 // ─── Types ───────────────────────────────────────────────────
 

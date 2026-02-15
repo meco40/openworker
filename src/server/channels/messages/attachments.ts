@@ -226,10 +226,7 @@ export function persistIncomingAttachment(input: {
   const conversationSegment = toBase64Url(input.conversationId);
   const safeFileName = sanitizeFileName(input.attachment.name, mimeType);
   const uniquePrefix = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-  const relativePath = path
-    .join(userSegment, conversationSegment, `${uniquePrefix}-${safeFileName}`)
-    .split(path.sep)
-    .join('/');
+  const relativePath = `${userSegment}/${conversationSegment}/${uniquePrefix}-${safeFileName}`;
   const absolutePath = ensureWithinRoot(path.resolve(root, relativePath));
 
   fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
