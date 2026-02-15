@@ -73,6 +73,33 @@ describe('app-shell runtime logic', () => {
     expect(mapped.timestamp.length).toBeGreaterThan(0);
   });
 
+  it('maps persisted attachment metadata to ui message attachment', () => {
+    const mapped = mapConversationApiMessage({
+      id: 'msg-attachment',
+      role: 'user',
+      content: 'siehe anhang',
+      createdAt: '2026-02-10T08:31:00.000Z',
+      platform: 'WebChat' as never,
+      metadata: JSON.stringify({
+        attachments: [
+          {
+            name: 'screenshot.png',
+            mimeType: 'image/png',
+            size: 1234,
+            storagePath: 'u1/c1/file.png',
+          },
+        ],
+      }),
+    });
+
+    expect(mapped.attachment).toEqual({
+      name: 'screenshot.png',
+      type: 'image/png',
+      size: 1234,
+      url: '/api/channels/messages/attachments?messageId=msg-attachment&index=0',
+    });
+  });
+
   it('appends message only once by id', () => {
     const base: Message[] = [
       {

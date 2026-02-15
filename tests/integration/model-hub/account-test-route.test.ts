@@ -24,6 +24,17 @@ function buildTestRequest() {
   });
 }
 
+function buildCodexAccessToken(accountId = 'acct_test'): string {
+  const payload = Buffer.from(
+    JSON.stringify({
+      'https://api.openai.com/auth': {
+        chatgpt_account_id: accountId,
+      },
+    }),
+  ).toString('base64url');
+  return `header.${payload}.signature`;
+}
+
 describe('model-hub account test route', () => {
   it('tests a created account and persists connectivity failure message', async () => {
     process.env.MODEL_HUB_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
@@ -38,7 +49,7 @@ describe('model-hub account test route', () => {
         providerId: 'openai-codex',
         label: 'Probe Codex',
         authMethod: 'oauth',
-        secret: 'codex-access-token',
+        secret: buildCodexAccessToken('acct_integration'),
       }),
     );
     const created = await createResponse.json();

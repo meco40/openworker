@@ -7,6 +7,7 @@ interface ChatInputAreaProps {
   input: string;
   pendingFile: MessageAttachment | null;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  textInputRef?: React.RefObject<HTMLInputElement | null>;
   isGenerating?: boolean;
   onInputChange: (value: string) => void;
   onSend: () => void;
@@ -20,6 +21,7 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
   input,
   pendingFile,
   fileInputRef,
+  textInputRef,
   isGenerating = false,
   onInputChange,
   onSend,
@@ -95,6 +97,7 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
           />
 
           <input
+            ref={textInputRef}
             type="text"
             value={input}
             onChange={(event) => onInputChange(event.target.value)}

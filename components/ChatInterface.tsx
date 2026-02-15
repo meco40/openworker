@@ -43,6 +43,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     visibleConversations,
     scrollRef,
     fileInputRef,
+    textInputRef,
     handleSend,
     handleAbort,
     handleFileSelect,
@@ -93,6 +94,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           input={input}
           pendingFile={pendingFile}
           fileInputRef={fileInputRef}
+          textInputRef={textInputRef}
           isGenerating={isGenerating}
           onInputChange={setInput}
           onSend={handleSend}

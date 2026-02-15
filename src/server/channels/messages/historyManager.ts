@@ -8,7 +8,12 @@ export class HistoryManager {
     conversationId: string,
     platform: ChannelType,
     content: string,
-    options: { externalMsgId?: string; senderName?: string; clientMessageId?: string } = {},
+    options: {
+      externalMsgId?: string;
+      senderName?: string;
+      clientMessageId?: string;
+      metadata?: Record<string, unknown>;
+    } = {},
   ): StoredMessage {
     return this.repo.saveMessage({
       conversationId,
@@ -18,6 +23,7 @@ export class HistoryManager {
       externalMsgId: options.externalMsgId,
       senderName: options.senderName,
       clientMessageId: options.clientMessageId,
+      metadata: options.metadata,
     });
   }
 

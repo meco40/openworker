@@ -124,12 +124,6 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
           </select>
         )}
 
-        {availableAuthMethods.length === 1 && (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-2 font-mono text-[10px] text-zinc-500">
-            Verfahren: {availableAuthMethods[0] === 'api_key' ? '🔑 API Key' : '🔒 OAuth'}
-          </div>
-        )}
-
         <input
           value={connectLabel}
           onChange={(event) => onConnectLabelChange(event.target.value)}

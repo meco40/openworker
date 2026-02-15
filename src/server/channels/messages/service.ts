@@ -22,6 +22,10 @@ import { buildAutoMemoryCandidates, isAutoSessionMemoryEnabled } from './autoMem
 import type { MemoryFeedbackSignal } from '../../memory/service';
 import { getProactiveGateService } from '../../proactive/runtime';
 import { LEGACY_LOCAL_USER_ID } from '../../auth/constants';
+import {
+  buildMessageAttachmentMetadata,
+  type StoredMessageAttachment,
+} from './attachments';
 
 function extractMemorySaveContent(content: string): string | null {
   const trimmed = content.trim();
@@ -227,6 +231,14 @@ export class MessageService {
     return this.repo.listMessages(conversationId, limit, before, resolvedUserId);
   }
 
+  getMessage(messageId: string, userId?: string): StoredMessage | null {
+    const resolvedUserId = this.sessionManager.resolveUserId(userId);
+    if (this.repo.getMessage) {
+      return this.repo.getMessage(messageId, resolvedUserId);
+    }
+    return null;
+  }
+
   // ─── Core: Handle Inbound Message ──────────────────────────
 
   /**
@@ -244,6 +256,7 @@ export class MessageService {
     externalMsgId?: string,
     userId?: string,
     clientMessageId?: string,
+    attachments?: StoredMessageAttachment[],
   ): Promise<{ userMsg: StoredMessage; agentMsg: StoredMessage; newConversationId?: string }> {
     const conversation = this.sessionManager.getOrCreateConversation(
       this.repo,
@@ -264,6 +277,7 @@ export class MessageService {
         externalMsgId,
         senderName,
         clientMessageId,
+        metadata: buildMessageAttachmentMetadata(attachments),
       });
 
       broadcastToUser(conversation.userId, GatewayEvents.CHAT_MESSAGE, userMsg);
@@ -1191,6 +1205,7 @@ export class MessageService {
     content: string,
     userId?: string,
     clientMessageId?: string,
+    attachments?: StoredMessageAttachment[],
   ): Promise<{ userMsg: StoredMessage; agentMsg: StoredMessage; newConversationId?: string }> {
     const conversation = this.sessionManager.resolveConversationForWebChat(
       this.repo,
@@ -1206,6 +1221,7 @@ export class MessageService {
       undefined,
       conversation.userId,
       clientMessageId,
+      attachments,
     );
   }
 
