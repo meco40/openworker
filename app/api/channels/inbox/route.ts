@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 
 import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
 import { getMessageService } from '../../../../src/server/channels/messages/runtime';
-import { isPersistentSessionV2Enabled } from '../../../../src/server/channels/messages/featureFlag';
 
 export const runtime = 'nodejs';
 
@@ -25,14 +24,11 @@ function normalizeText(value: string): string {
 }
 
 export async function GET(request: Request) {
-  let userId: string | undefined;
-  if (isPersistentSessionV2Enabled()) {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-    userId = userContext.userId;
+  const userContext = await resolveRequestUserContext();
+  if (!userContext) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
+  const userId = userContext.userId;
 
   const { searchParams } = new URL(request.url);
   const filterChannel = normalizeText(searchParams.get('channel') || '');

@@ -1,12 +1,16 @@
 import { resolveRequestUserContext } from '../auth/userContext';
-import { LEGACY_LOCAL_USER_ID } from '../auth/constants';
-import { isPersistentSessionV2Enabled } from '../channels/messages/featureFlag';
+import { getPrincipalUserId } from '../auth/principal';
 
 export async function resolveAutomationUserId(): Promise<string | null> {
-  if (!isPersistentSessionV2Enabled()) {
-    return LEGACY_LOCAL_USER_ID;
+  const context = await resolveRequestUserContext();
+  if (context?.userId) {
+    return context.userId;
   }
 
-  const context = await resolveRequestUserContext();
-  return context?.userId || null;
+  const requireAuth = String(process.env.REQUIRE_AUTH || 'false').toLowerCase() === 'true';
+  if (requireAuth) {
+    return null;
+  }
+
+  return getPrincipalUserId();
 }

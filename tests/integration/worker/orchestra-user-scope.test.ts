@@ -113,4 +113,12 @@ describe('worker orchestra user scope', () => {
     expect(crossTaskResponse.status).toBe(404);
     expect(crossFlowResponse.status).toBe(404);
   });
+
+  it('returns 401 when request user context is missing', async () => {
+    mockUserContext(null);
+    const workerRoute = await loadWorkerRootRoute();
+    const response = await workerRoute.GET(new Request('http://localhost/api/worker'));
+
+    expect(response.status).toBe(401);
+  });
 });

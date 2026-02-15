@@ -1,6 +1,7 @@
 import type { Session } from 'next-auth';
 import { auth } from '../../auth';
 import { LEGACY_LOCAL_USER_ID } from './constants';
+import { getPrincipalUserId } from './principal';
 
 export { LEGACY_LOCAL_USER_ID } from './constants';
 
@@ -21,7 +22,7 @@ export function resolveUserIdFromSession(
     return null;
   }
 
-  return LEGACY_LOCAL_USER_ID;
+  return getPrincipalUserId();
 }
 
 function isMissingRequestScopeAuthError(error: unknown): boolean {
@@ -57,7 +58,7 @@ export async function resolveRequestUserContext(): Promise<{
     }
 
     return {
-      userId: LEGACY_LOCAL_USER_ID,
+      userId: getPrincipalUserId(),
       authenticated: false,
     };
   }

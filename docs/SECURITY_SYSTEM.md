@@ -187,3 +187,10 @@ npm run typecheck
 
 - [docs/CORE_HANDBOOK.md](CORE_HANDBOOK.md)
 - [docs/OMNICHANNEL_GATEWAY_OPERATIONS.md](OMNICHANNEL_GATEWAY_OPERATIONS.md)
+
+## Single-Principal Security Note
+
+- Aktiver Zielzustand: Single-Principal (kein Multi-User-Modell).
+- `user_id`-Scope bleibt Sicherheitsgrenze in allen Datenzugriffen.
+- Login-Haertung ist geplant, aber wird separat aktiviert (siehe Deferred Plan).
+- Referenz: `docs/plans/2026-02-15-single-principal-login-activation-deferred.md`.

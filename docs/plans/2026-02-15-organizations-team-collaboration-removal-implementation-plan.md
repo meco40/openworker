@@ -1,6 +1,9 @@
 # Organizations / Team Collaboration Removal Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+>
+> **Status-Hinweis (2026-02-15):** Dieser UI-spezifische Plan ist in den breiteren Single-Principal Security-First Plan ueberfuehrt:
+> `docs/plans/2026-02-15-single-user-consolidation-implementation-plan.md`.
 
 **Goal:** Den Bereich `Organizations` / `Team Collaboration` vollstaendig aus der WebUI entfernen, inklusive Navigation, View-Routing, State, Typen und toten Komponenten-Referenzen.
 

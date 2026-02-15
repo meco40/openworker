@@ -5,6 +5,8 @@
 > **Version:** v1.2.6  
 > **Plattform:** Next.js 16 (App Router) · React 19 · TypeScript 5.8 (strict)  
 > **Paketname:** `openclaw-gateway-control-plane`
+>
+> **Archiv-Hinweis (2026-02-15):** Diese Analyse beschreibt einen historischen Stand. Aktive Zielarchitektur ist Single-Principal-Sicherheit ohne Team-Collaboration-UI.
 
 ---
 
@@ -44,7 +46,7 @@
 - **Skill-System** mit 8 integrierten Tool-Handlern + SQLite-basierter Skill-Registry
 - **Voice Mode** mit Gemini Native Audio
 - **Live Vision Canvas** mit Kamera-Streaming
-- **Team-Management** mit Multi-Tenant-Unterstützung
+- Historisch: Team-Management mit Multi-Tenant-Unterstützung (in aktiver UI entfernt)
 - **Authentifizierung** via NextAuth v4 (JWT + Credentials Provider) ✅
 - **Memory-System** mit Embedding-basierter semantischer Suche
 - **Usage Statistics** mit Token-Tracking pro Provider/Modell
@@ -342,7 +344,7 @@ d:\web\clawtest\
 │   ├── ConnectionStatus.tsx          # WS-Verbindungsstatus (28 Zeilen)
 │   ├── StatsView.tsx                 # Usage Statistics (482 Zeilen)
 │   ├── LogsView.tsx                  # System Logs (446 Zeilen)
-│   ├── TeamManager.tsx               # Team Collaboration (271 Zeilen)
+│   ├── TeamManager.tsx               # Historisch, in aktiver UI entfernt
 │   ├── SecurityView.tsx              # Security Panel (207 Zeilen)
 │   ├── VoiceOverlay.tsx              # Voice Mode (130 Zeilen)
 │   ├── LiveCanvas.tsx                # Kamera-Stream + Vision (120 Zeilen)
@@ -520,7 +522,7 @@ d:\web\clawtest\
 | ----------- | ------------------- | ----------------------------- |
 | `dashboard` | Control Plane       | System-Übersicht & Metriken   |
 | `worker`    | Autonomous Worker   | KI-Task-Ausführung            |
-| `teams`     | Team Collaboration  | Multi-Team-Management         |
+| `teams`     | Historisch          | Team-Collaboration (entfernt) |
 | `models`    | AI Model Hub        | Provider & Pipeline           |
 | `channels`  | Messenger Coupling  | Channel-Pairing               |
 | `chat`      | Multi-Channel Inbox | Nachrichten-Interface         |

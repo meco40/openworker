@@ -431,3 +431,13 @@ Der Override umgeht bewusst die Fallback-Kette, damit der Nutzer deterministisch
 **Abgeschlossen:** 2026-02-12  
 **Verifiziert:** 45/45 Checkpoints, 349/349 Tests, Build erfolgreich  
 **Nächste Schritte:** Agent-zu-Agent Sessions (Phase 2 lt. docs/archive/analysis/OPENCLAW_FUNKTIONEN_ANALYSE_WEBAPP.md)
+
+---
+
+## Single-Principal Session Policy (Current)
+
+- Session-Management bleibt `user_id`-scoped.
+- Aktuell keine Login-Aktivierung im Rahmen der Single-Principal-Konsolidierung.
+- Bei optionaler Auth wird ein Principal-Fallback genutzt; bei verpflichtender Auth bleibt 401-Verhalten erhalten.
+- Geplante Login-Aktivierung ist ausgelagert in:
+  `docs/plans/2026-02-15-single-principal-login-activation-deferred.md`.

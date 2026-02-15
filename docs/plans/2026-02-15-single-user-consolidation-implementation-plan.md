@@ -260,7 +260,7 @@ git commit -m "refactor: align channels and ws identity handling under single-pr
 
 **Files:**
 - Modify: `components/ProfileView.tsx`
-- Create: `tests/unit/components/profile-view-copy.test.tsx`
+- Create: `tests/unit/components/profile-view-copy.test.ts`
 - Modify: `docs/plans/2026-02-15-organizations-team-collaboration-removal-implementation-plan.md`
 - Modify: `docs/archive/legacy-core/USER_MANUAL.md`
 - Modify: `docs/archive/reviews/SYSTEM_REVIEW.md`
@@ -276,7 +276,7 @@ it('does not mention multi-tenant organization wording in profile view', () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `npm test -- tests/unit/components/profile-view-copy.test.tsx`
+Run: `npm test -- tests/unit/components/profile-view-copy.test.ts`
 Expected: FAIL.
 
 **Step 3: Write minimal implementation**
@@ -287,13 +287,13 @@ Expected: FAIL.
 
 **Step 4: Run test to verify it passes**
 
-Run: `npm test -- tests/unit/components/profile-view-copy.test.tsx tests/unit/components/sidebar-memory-item.test.ts`
+Run: `npm test -- tests/unit/components/profile-view-copy.test.ts tests/unit/components/sidebar-memory-item.test.ts`
 Expected: PASS.
 
 **Step 5: Commit**
 
 ```bash
-git add components/ProfileView.tsx tests/unit/components/profile-view-copy.test.tsx docs/plans/2026-02-15-organizations-team-collaboration-removal-implementation-plan.md docs/archive/legacy-core/USER_MANUAL.md docs/archive/reviews/SYSTEM_REVIEW.md
+git add components/ProfileView.tsx tests/unit/components/profile-view-copy.test.ts docs/plans/2026-02-15-organizations-team-collaboration-removal-implementation-plan.md docs/archive/legacy-core/USER_MANUAL.md docs/archive/reviews/SYSTEM_REVIEW.md
 git commit -m "docs: remove remaining team terminology from active and reference docs"
 ```
 
@@ -347,7 +347,7 @@ Run in this order:
 3. `npm test -- tests/integration/channels/state-route.test.ts tests/integration/channels/inbox-route.test.ts tests/integration/channels/stream-route.contract.test.ts`
 4. `npm test -- tests/unit/gateway/gateway-contract.test.ts`
 5. `npm test -- tests/integration/worker/orchestra-user-scope.test.ts tests/integration/rooms/rooms-routes.test.ts tests/integration/rooms/rooms-runtime.test.ts`
-6. `npm test -- tests/unit/components/profile-view-copy.test.tsx tests/unit/components/sidebar-memory-item.test.ts`
+6. `npm test -- tests/unit/components/profile-view-copy.test.ts tests/unit/components/sidebar-memory-item.test.ts`
 7. `npm run typecheck`
 
 Expected:
@@ -365,4 +365,3 @@ Expected:
 - Kleine PRs: genau 1 Task pro PR.
 - Nach jedem Task Guard-Tests + Typecheck ausfuehren.
 - Login-Aktivierung bleibt explizit auf den Deferred-Plan begrenzt.
-

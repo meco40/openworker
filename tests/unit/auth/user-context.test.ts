@@ -33,6 +33,12 @@ describe('resolveUserIdFromSession', () => {
     expect(resolved).toBe(LEGACY_LOCAL_USER_ID);
   });
 
+  it('falls back to configured principal user when auth is not required', () => {
+    process.env = { ...ORIGINAL_ENV, PRINCIPAL_USER_ID: 'single-principal' };
+    const resolved = resolveUserIdFromSession(null, false);
+    expect(resolved).toBe('single-principal');
+  });
+
   it('returns null when auth is required and no session exists', () => {
     const resolved = resolveUserIdFromSession(null, true);
     expect(resolved).toBeNull();
@@ -57,6 +63,31 @@ describe('resolveRequestUserContext', () => {
 
     expect(context).toEqual({
       userId: LEGACY_LOCAL_USER_ID,
+      authenticated: false,
+    });
+  });
+
+  it('falls back to configured principal user when auth context is unavailable and auth is optional', async () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      REQUIRE_AUTH: 'false',
+      PRINCIPAL_USER_ID: 'single-principal',
+    };
+    vi.doMock('../../../src/auth', () => ({
+      auth: vi
+        .fn()
+        .mockRejectedValue(
+          new Error(
+            '`headers` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context',
+          ),
+        ),
+    }));
+
+    const { resolveRequestUserContext } = await import('../../../src/server/auth/userContext');
+    const context = await resolveRequestUserContext();
+
+    expect(context).toEqual({
+      userId: 'single-principal',
       authenticated: false,
     });
   });

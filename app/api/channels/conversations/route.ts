@@ -2,18 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getMessageService } from '../../../../src/server/channels/messages/runtime';
 import type { ChannelType } from '../../../../types';
 import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
-import { isPersistentSessionV2Enabled } from '../../../../src/server/channels/messages/featureFlag';
 
 export const runtime = 'nodejs';
 
 export async function GET() {
-  if (!isPersistentSessionV2Enabled()) {
-    const service = getMessageService();
-    service.getDefaultWebChatConversation();
-    const conversations = service.listConversations();
-    return NextResponse.json({ ok: true, conversations });
-  }
-
   const userContext = await resolveRequestUserContext();
   if (!userContext) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
@@ -38,16 +30,6 @@ export async function POST(request: Request) {
 
     if (!body.channelType) {
       return NextResponse.json({ ok: false, error: 'channelType is required' }, { status: 400 });
-    }
-
-    if (!isPersistentSessionV2Enabled()) {
-      const service = getMessageService();
-      const conversation = service.getOrCreateConversation(
-        body.channelType,
-        `manual-${Date.now()}`,
-        body.title,
-      );
-      return NextResponse.json({ ok: true, conversation });
     }
 
     const userContext = await resolveRequestUserContext();

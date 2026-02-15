@@ -1,8 +1,8 @@
 <!--
 Sync Impact Report
-- Version change: N/A -> 1.0.0
-- Modified principles: Template placeholders replaced with project-specific principles
-- Added sections: Technical Constraints; Delivery Workflow & Quality Gates
+- Version change: 1.0.0 -> 1.1.0
+- Modified principles: I. Spec-First Delivery (added Solo Lite path)
+- Added sections: Solo Lite Path (within Delivery Workflow & Quality Gates)
 - Removed sections: None
 - Templates requiring updates:
   - ✅ .specify/templates/plan-template.md
@@ -16,7 +16,8 @@ Sync Impact Report
 
 ### I. Spec-First Delivery
 Every non-trivial change MUST start with a feature specification in `specs/[###-feature-name]/spec.md`.
-Before implementation, the team MUST produce `plan.md` and `tasks.md` for the same feature.
+Before implementation, the engineer MUST produce `plan.md` and `tasks.md` for the same feature,
+unless the change qualifies for Solo Lite Path.
 Hotfixes MAY bypass this only for production incidents, but MUST be backfilled with a retroactive spec.
 
 ### II. Test-First Behavioral Changes
@@ -52,6 +53,13 @@ YAGNI applies by default: no speculative abstractions without an active requirem
 4. Implement in small, reviewable increments with verification evidence.
 5. Before merge, run the applicable verification commands and ensure documentation alignment.
 
+Solo Lite Path (allowed for solo development):
+- Allowed only when scope is small, non-breaking, and non-security-critical.
+- Required artifacts: `spec.md` with one main story, 3-5 functional requirements, 2-3 success criteria, key edge cases.
+- Required plan: concise `plan.md` with summary, technical context, constitution check, and 3-7 implementation steps.
+- `tasks.md` MAY be replaced by a short checklist in `plan.md` for Solo Lite changes.
+- If scope grows during implementation, workflow MUST switch back to full flow.
+
 Minimum gate before merge:
 - Relevant tests pass (`npm test` or scoped subset for changed behavior)
 - Static checks pass for changed scope (`npm run typecheck`, lint/format as applicable)
@@ -75,4 +83,4 @@ Compliance expectations:
 - Each feature plan SHOULD include an explicit constitution check.
 - Non-compliant exceptions MUST be documented with scope and expiry.
 
-**Version**: 1.0.0 | **Ratified**: 2026-02-15 | **Last Amended**: 2026-02-15
+**Version**: 1.1.0 | **Ratified**: 2026-02-15 | **Last Amended**: 2026-02-15

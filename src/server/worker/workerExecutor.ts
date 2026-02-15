@@ -1,6 +1,7 @@
 // ─── Worker Executor ─────────────────────────────────────────
 // Executes a single step with real tool-calling loop via AI.
 // Tools are dispatched to actual skill handlers.
+// Now with Persona integration for customized behavior and tool access.
 
 import { getModelHubService, getModelHubEncryptionKey } from '../model-hub/runtime';
 import { getWorkerRepository } from './workerRepository';
@@ -10,6 +11,13 @@ import { shellExecuteHandler } from '../skills/handlers/shellExecute';
 import { fileReadHandler } from '../skills/handlers/fileRead';
 import { browserSnapshotHandler } from '../skills/handlers/browserSnapshot';
 import { pythonExecuteHandler } from '../skills/handlers/pythonExecute';
+import {
+  loadPersonaContext,
+  buildPersonaSystemPrompt,
+  filterToolsByPersona,
+  isToolAllowed,
+  type PersonaContext,
+} from './personaIntegration';
 import type { WorkerTaskRecord, WorkerStepRecord, WorkerArtifactRecord } from './workerTypes';
 import type { OrchestraGraphNode } from './orchestraGraph';
 
@@ -108,28 +116,60 @@ const TOOL_DEFINITIONS = [
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
 
-function createToolDispatcher(taskId: string): Record<string, ToolHandler> {
+function createToolDispatcher(
+  taskId: string,
+  personaContext: PersonaContext,
+): Record<string, ToolHandler> {
   const wsMgr = getWorkspaceManager();
+  const allowedTools = personaContext.allowedTools;
 
-  return {
-    shell_execute: async (args) => shellExecuteHandler(args),
-    file_read: async (args) => fileReadHandler(args),
+  const dispatcher: Record<string, ToolHandler> = {
+    shell_execute: async (args) => {
+      if (!isToolAllowed('shell_execute', allowedTools)) {
+        throw new Error('Tool "shell_execute" is not allowed for this persona');
+      }
+      return shellExecuteHandler(args);
+    },
+    file_read: async (args) => {
+      if (!isToolAllowed('file_read', allowedTools)) {
+        throw new Error('Tool "file_read" is not allowed for this persona');
+      }
+      return fileReadHandler(args);
+    },
     write_file: async (args) => {
+      if (!isToolAllowed('write_file', allowedTools)) {
+        throw new Error('Tool "write_file" is not allowed for this persona');
+      }
       const filePath = String(args.path || '').trim();
       const content = String(args.content || '');
       if (!filePath) throw new Error('write_file requires path');
       wsMgr.writeFile(taskId, filePath, content);
       return { ok: true, path: filePath, bytesWritten: content.length };
     },
-    browser_fetch: async (args) => browserSnapshotHandler(args),
-    python_execute: async (args) => pythonExecuteHandler(args),
+    browser_fetch: async (args) => {
+      if (!isToolAllowed('browser_fetch', allowedTools)) {
+        throw new Error('Tool "browser_fetch" is not allowed for this persona');
+      }
+      return browserSnapshotHandler(args);
+    },
+    python_execute: async (args) => {
+      if (!isToolAllowed('python_execute', allowedTools)) {
+        throw new Error('Tool "python_execute" is not allowed for this persona');
+      }
+      return pythonExecuteHandler(args);
+    },
     search_web: async (args) => {
+      if (!isToolAllowed('search_web', allowedTools)) {
+        throw new Error('Tool "search_web" is not allowed for this persona');
+      }
       const query = String(args.query || '').trim();
       if (!query) throw new Error('search_web requires query');
       const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
       return browserSnapshotHandler({ url: searchUrl });
     },
   };
+
+  return dispatcher;
 }
 
 // ─── System Prompt ──────────────────────────────────────────
@@ -172,16 +212,25 @@ const MAX_TOOL_LOOPS = 10;
  * The AI can request function calls, the executor dispatches them to
  * real skill handlers, feeds results back, and loops until the AI
  * provides a final text response without function calls.
+ * 
+ * Now supports Persona context for customized behavior and tool filtering.
  */
 export async function executeStep(
   task: WorkerTaskRecord,
   step: WorkerStepRecord,
   toolsOverride?: typeof TOOL_DEFINITIONS,
 ): Promise<StepResult> {
-  const tools = toolsOverride ?? TOOL_DEFINITIONS;
+  // Load persona context if assigned
+  const personaContext = await loadPersonaContext(task.assignedPersonaId);
+
+  // Filter tools based on persona's TOOLS.md
+  const baseTools = toolsOverride ?? TOOL_DEFINITIONS;
+  const tools = filterToolsByPersona(baseTools, personaContext.allowedTools);
+
   const service = getModelHubService();
   const encryptionKey = getModelHubEncryptionKey();
-  const dispatcher = createToolDispatcher(task.id);
+  const dispatcher = createToolDispatcher(task.id, personaContext);
+  
   let clawHubPromptBlock = '';
   try {
     clawHubPromptBlock = await getClawHubService().getPromptBlock();
@@ -189,10 +238,18 @@ export async function executeStep(
     clawHubPromptBlock = '';
   }
 
-  const baseSystemPrompt = EXECUTOR_SYSTEM.replace('{title}', task.title)
-    .replace('{objective}', task.objective)
-    .replace('{workspaceType}', task.workspaceType || 'general')
-    .replace('{step}', step.description);
+  // Build system prompt with persona context
+  const baseSystemPrompt = buildPersonaSystemPrompt(
+    EXECUTOR_SYSTEM,
+    personaContext,
+    {
+      title: task.title,
+      objective: task.objective,
+      workspaceType: task.workspaceType || 'general',
+      step: step.description,
+    },
+  );
+  
   const systemPrompt = clawHubPromptBlock.trim()
     ? `${baseSystemPrompt}\n\n---\n\n${clawHubPromptBlock.trim()}`
     : baseSystemPrompt;
@@ -303,6 +360,9 @@ export async function executeOrchestraNode(
   task: WorkerTaskRecord,
   node: { id: string; description?: string; skillIds?: string[] },
 ): Promise<StepResult> {
+  // Load persona context for Orchestra nodes too
+  const personaContext = await loadPersonaContext(task.assignedPersonaId);
+
   const syntheticStep: WorkerStepRecord = {
     id: `orch-${task.id}-${node.id}`,
     taskId: task.id,
@@ -316,18 +376,26 @@ export async function executeOrchestraNode(
   };
 
   // If skillIds are specified, filter TOOL_DEFINITIONS to only matching function names
+  // Also apply persona tool restrictions
   if (node.skillIds && node.skillIds.length > 0) {
-    const allowedSet = new Set(node.skillIds);
-    const filteredTools = TOOL_DEFINITIONS.filter((tool) => allowedSet.has(tool.function.name));
-    // Use filtered tools for this node (pass via step metadata)
-    return executeStepWithTools(
-      task,
-      syntheticStep,
-      filteredTools.length > 0 ? filteredTools : TOOL_DEFINITIONS,
+    const nodeAllowedSet = new Set(node.skillIds);
+    const nodeFilteredTools = TOOL_DEFINITIONS.filter((tool) =>
+      nodeAllowedSet.has(tool.function.name),
     );
+    // Further filter by persona restrictions
+    const finalTools = filterToolsByPersona(
+      nodeFilteredTools.length > 0 ? nodeFilteredTools : TOOL_DEFINITIONS,
+      personaContext.allowedTools,
+    );
+    return executeStepWithTools(task, syntheticStep, finalTools);
   }
 
-  return executeStep(task, syntheticStep);
+  // Just apply persona restrictions
+  const personaFilteredTools = filterToolsByPersona(
+    TOOL_DEFINITIONS,
+    personaContext.allowedTools,
+  );
+  return executeStep(task, syntheticStep, personaFilteredTools);
 }
 
 /** executeStep with explicit tool definitions override. */

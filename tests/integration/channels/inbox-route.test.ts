@@ -6,10 +6,13 @@ import { SqliteMessageRepository } from '../../../src/server/channels/messages/s
 describe('GET /api/channels/inbox', () => {
   let repo: SqliteMessageRepository;
   let previousFlag: string | undefined;
+  let previousRequireAuth: string | undefined;
 
   beforeEach(() => {
     previousFlag = process.env.CHAT_PERSISTENT_SESSION_V2;
+    previousRequireAuth = process.env.REQUIRE_AUTH;
     process.env.CHAT_PERSISTENT_SESSION_V2 = 'false';
+    delete process.env.REQUIRE_AUTH;
 
     repo = new SqliteMessageRepository(':memory:');
     const telegramConversation = repo.getOrCreateConversation(
@@ -45,6 +48,11 @@ describe('GET /api/channels/inbox', () => {
     globalThis.__messageRepository = undefined;
     globalThis.__messageService = undefined;
     process.env.CHAT_PERSISTENT_SESSION_V2 = previousFlag;
+    if (previousRequireAuth === undefined) {
+      delete process.env.REQUIRE_AUTH;
+    } else {
+      process.env.REQUIRE_AUTH = previousRequireAuth;
+    }
   });
 
   it('returns unified inbox entries and supports channel filtering', async () => {
@@ -64,5 +72,26 @@ describe('GET /api/channels/inbox', () => {
     expect(json.items).toHaveLength(1);
     expect(json.items[0].channelType).toBe(ChannelType.TELEGRAM);
     expect(json.items[0].lastMessage?.content).toBe('hello telegram');
+  });
+
+  it('returns 401 when REQUIRE_AUTH is true and no session exists', async () => {
+    process.env.REQUIRE_AUTH = 'true';
+    const { GET } = await import('../../../app/api/channels/inbox/route');
+    const response = await GET(new Request('http://localhost/api/channels/inbox'));
+
+    expect(response.status).toBe(401);
+  });
+
+  it('returns same auth behavior regardless of chat session flag', async () => {
+    process.env.REQUIRE_AUTH = 'true';
+    process.env.CHAT_PERSISTENT_SESSION_V2 = 'false';
+    const { GET } = await import('../../../app/api/channels/inbox/route');
+    const responseWhenFlagOff = await GET(new Request('http://localhost/api/channels/inbox'));
+
+    process.env.CHAT_PERSISTENT_SESSION_V2 = 'true';
+    const responseWhenFlagOn = await GET(new Request('http://localhost/api/channels/inbox'));
+
+    expect(responseWhenFlagOff.status).toBe(401);
+    expect(responseWhenFlagOn.status).toBe(401);
   });
 });

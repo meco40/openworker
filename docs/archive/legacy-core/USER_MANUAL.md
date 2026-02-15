@@ -7,7 +7,9 @@
 
 ## Organisationen verwalten
 
-Wechseln Sie zum Bereich **Team Collaboration**, um neue Organisationen zu gründen. Hier können Sie:
+Historischer Hinweis: Der Bereich **Team Collaboration** wurde aus der aktiven WebUI entfernt.
+Der aktuelle Betriebsmodus ist Single-Principal (ein Nutzerkontext).
+Frueher konnten Sie hier:
 
 - Verschiedene "Node Tiers" (Starter, Pro, Enterprise) zuweisen.
 - Mitglieder einladen.
@@ -18,9 +20,9 @@ Wechseln Sie zum Bereich **Team Collaboration**, um neue Organisationen zu grün
 Im Bereich **Autonomous Worker** können Sie neue Workspaces erstellen:
 
 1. Geben Sie ein Ziel ein (z.B. "Erstelle eine Marktanalyse für KI-Tools").
-2. Wählen Sie die verantwortliche Organisation.
+2. Wählen Sie den verantwortlichen Arbeitskontext.
 3. Überwachen Sie den **Visual Flow**, während der Agent plant, Fragen stellt und Ergebnisse (Artifacts) generiert.
 
 ## Messenger Kopplung
 
-Nutzen Sie den Bereich **Messenger Coupling**, um WhatsApp oder Discord mit dem Gateway zu verbinden. Einmal verbunden, kann der Agent Nachrichten auf diesen Kanälen im Namen Ihrer Organisation empfangen und beantworten.
+Nutzen Sie den Bereich **Messenger Coupling**, um WhatsApp oder Discord mit dem Gateway zu verbinden. Einmal verbunden, kann der Agent Nachrichten auf diesen Kanälen im Namen Ihres Principal-Kontexts empfangen und beantworten.

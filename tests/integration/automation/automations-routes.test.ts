@@ -19,10 +19,13 @@ function uniqueDbPath(name: string): string {
 
 describe('automation routes', () => {
   const createdDbFiles: string[] = [];
+  let previousRequireAuth: string | undefined;
 
   beforeEach(async () => {
     vi.resetModules();
     process.env.CHAT_PERSISTENT_SESSION_V2 = 'false';
+    previousRequireAuth = process.env.REQUIRE_AUTH;
+    delete process.env.REQUIRE_AUTH;
     const dbPath = uniqueDbPath('automation.routes');
     process.env.AUTOMATION_DB_PATH = dbPath;
     createdDbFiles.push(dbPath);
@@ -45,6 +48,11 @@ describe('automation routes', () => {
           // ignore transient lock
         }
       }
+    }
+    if (previousRequireAuth === undefined) {
+      delete process.env.REQUIRE_AUTH;
+    } else {
+      process.env.REQUIRE_AUTH = previousRequireAuth;
     }
   });
 
@@ -113,4 +121,25 @@ describe('automation routes', () => {
     const deleted = (await deleteResponse.json()) as { ok: boolean };
     expect(deleted.ok).toBe(true);
   }, 15_000);
+
+  it('returns 401 when REQUIRE_AUTH is true and no session exists', async () => {
+    process.env.REQUIRE_AUTH = 'true';
+    const automationsRoute = await import('../../../app/api/automations/route');
+    const response = await automationsRoute.GET();
+
+    expect(response.status).toBe(401);
+  });
+
+  it('keeps automation auth behavior independent of chat session flag', async () => {
+    process.env.REQUIRE_AUTH = 'true';
+    process.env.CHAT_PERSISTENT_SESSION_V2 = 'false';
+    const automationsRoute = await import('../../../app/api/automations/route');
+    const responseWhenFlagOff = await automationsRoute.GET();
+
+    process.env.CHAT_PERSISTENT_SESSION_V2 = 'true';
+    const responseWhenFlagOn = await automationsRoute.GET();
+
+    expect(responseWhenFlagOff.status).toBe(401);
+    expect(responseWhenFlagOn.status).toBe(401);
+  });
 });

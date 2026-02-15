@@ -8,7 +8,7 @@ const ProfileView: React.FC = () => {
           SaaS Identity & Billing
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Manage your multi-tenant organization, subscription plan, and operator profile.
+          Manage your operator profile, subscription plan, and runtime settings.
         </p>
       </header>
 

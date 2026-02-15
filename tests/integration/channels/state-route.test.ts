@@ -6,10 +6,13 @@ import { SqliteMessageRepository } from '../../../src/server/channels/messages/s
 describe('GET /api/channels/state', () => {
   let repo: SqliteMessageRepository;
   let previousFlag: string | undefined;
+  let previousRequireAuth: string | undefined;
 
   beforeEach(() => {
     previousFlag = process.env.CHAT_PERSISTENT_SESSION_V2;
+    previousRequireAuth = process.env.REQUIRE_AUTH;
     process.env.CHAT_PERSISTENT_SESSION_V2 = 'false';
+    delete process.env.REQUIRE_AUTH;
 
     repo = new SqliteMessageRepository(':memory:');
     repo.upsertChannelBinding({
@@ -29,6 +32,11 @@ describe('GET /api/channels/state', () => {
     globalThis.__messageRepository = undefined;
     globalThis.__messageService = undefined;
     process.env.CHAT_PERSISTENT_SESSION_V2 = previousFlag;
+    if (previousRequireAuth === undefined) {
+      delete process.env.REQUIRE_AUTH;
+    } else {
+      process.env.REQUIRE_AUTH = previousRequireAuth;
+    }
   });
 
   it('returns channel state merged with capability metadata', async () => {
@@ -45,5 +53,26 @@ describe('GET /api/channels/state', () => {
     const telegram = json.channels.find((entry) => entry.channel === 'telegram');
     expect(telegram?.status).toBe('connected');
     expect(telegram?.supportsInbound).toBe(true);
+  });
+
+  it('returns 401 when REQUIRE_AUTH is true and no session exists', async () => {
+    process.env.REQUIRE_AUTH = 'true';
+    const { GET } = await import('../../../app/api/channels/state/route');
+    const response = await GET();
+
+    expect(response.status).toBe(401);
+  });
+
+  it('returns same auth behavior regardless of chat session flag', async () => {
+    process.env.REQUIRE_AUTH = 'true';
+    process.env.CHAT_PERSISTENT_SESSION_V2 = 'false';
+    const { GET } = await import('../../../app/api/channels/state/route');
+    const responseWhenFlagOff = await GET();
+
+    process.env.CHAT_PERSISTENT_SESSION_V2 = 'true';
+    const responseWhenFlagOn = await GET();
+
+    expect(responseWhenFlagOff.status).toBe(401);
+    expect(responseWhenFlagOn.status).toBe(401);
   });
 });

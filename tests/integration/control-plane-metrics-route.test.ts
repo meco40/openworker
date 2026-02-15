@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ChannelType } from '../../types';
 
 type GlobalSingletons = typeof globalThis & {
   __tokenUsageRepository?: unknown;
@@ -366,7 +367,7 @@ describe('GET /api/control-plane/metrics', () => {
       listConversations: () => [
         {
           id: 'conv-telegram-1',
-          channelType: 'Telegram',
+          channelType: ChannelType.TELEGRAM,
           externalChatId: '1527785051',
           userId: 'legacy-local-user',
           title: 'Telegram',
@@ -376,7 +377,7 @@ describe('GET /api/control-plane/metrics', () => {
           updatedAt: new Date().toISOString(),
         },
       ],
-    };
+    } as unknown as import('../../src/server/channels/messages/sqliteMessageRepository').SqliteMessageRepository;
 
     vi.doMock('../../src/server/auth/userContext', async () => {
       const actual = await vi.importActual<typeof import('../../src/server/auth/userContext')>(

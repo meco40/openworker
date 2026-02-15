@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * Integration-level tests verifying the gateway API route request body
@@ -7,6 +9,14 @@ import { describe, expect, it } from 'vitest';
  */
 
 describe('Gateway API contract', () => {
+  it('documents ws auth behavior in custom server contract', () => {
+    const serverPath = path.join(process.cwd(), 'server.ts');
+    const source = fs.readFileSync(serverPath, 'utf8');
+
+    expect(source).toContain('REQUIRE_AUTH');
+    expect(source).toContain('HTTP/1.1 401 Unauthorized');
+  });
+
   describe('Chat request body', () => {
     it('has required fields for pipeline dispatch', () => {
       const body = {

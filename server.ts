@@ -8,6 +8,7 @@ import { WebSocketServer } from 'ws';
 import { getToken } from 'next-auth/jwt';
 import { handleConnection, getClientRegistry, broadcast } from './src/server/gateway/index.js';
 import { TICK_INTERVAL_MS, MAX_PAYLOAD_BYTES } from './src/server/gateway/constants.js';
+import { getPrincipalUserId } from './src/server/auth/principal.js';
 import { getRoomOrchestrator } from './src/server/rooms/runtime.js';
 import { shouldRunRooms } from './src/server/rooms/runtimeRole.js';
 import {
@@ -23,7 +24,6 @@ const hostname = process.env.HOSTNAME || '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
 
 const REQUIRE_AUTH = String(process.env.REQUIRE_AUTH || 'false').toLowerCase() === 'true';
-const LEGACY_LOCAL_USER_ID = 'legacy-local-user';
 
 const SECRET =
   process.env.NEXTAUTH_SECRET?.trim() ||
@@ -71,8 +71,8 @@ Promise.resolve()
         if (token && typeof token.id === 'string') {
           userId = token.id;
         } else if (!REQUIRE_AUTH) {
-          // No login required — fall back to legacy local user (mirrors resolveUserIdFromSession)
-          userId = LEGACY_LOCAL_USER_ID;
+          // No login required — fall back to configured single principal.
+          userId = getPrincipalUserId();
         } else {
           console.warn(
             '[gateway] WS auth failed — no valid token (cookie present:',

@@ -9,6 +9,14 @@
 
 [Extract from feature spec: primary requirement + technical approach from research]
 
+## Execution Mode
+
+- [ ] Full Flow (default)
+- [ ] Solo Lite (small, non-breaking, non-security-critical only)
+
+If Solo Lite is selected, this plan may use a concise 3-7 step checklist in place
+of a full `tasks.md`, per constitution.
+
 ## Technical Context
 
 <!--
@@ -36,6 +44,7 @@
 - [ ] Security: Risks, abuse cases, and secret handling are explicitly addressed.
 - [ ] Operability: Logging/runbook impact and rollback expectations are documented.
 - [ ] Simplicity: Design avoids speculative abstractions and preserves module boundaries.
+- [ ] Solo Lite eligibility confirmed (only if Solo Lite mode selected).
 
 ## Project Structure
 
