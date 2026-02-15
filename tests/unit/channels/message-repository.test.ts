@@ -233,5 +233,70 @@ describe('SqliteMessageRepository', () => {
 
       expect(msg.externalMsgId).toBe('tg-msg-42');
     });
+
+    it('lists messages after seq in ascending order with limit', () => {
+      repo.saveMessage({
+        conversationId: conv.id,
+        role: 'user',
+        content: 'A',
+        platform: ChannelType.TELEGRAM,
+      });
+      repo.saveMessage({
+        conversationId: conv.id,
+        role: 'user',
+        content: 'B',
+        platform: ChannelType.TELEGRAM,
+      });
+      repo.saveMessage({
+        conversationId: conv.id,
+        role: 'user',
+        content: 'C',
+        platform: ChannelType.TELEGRAM,
+      });
+      repo.saveMessage({
+        conversationId: conv.id,
+        role: 'user',
+        content: 'D',
+        platform: ChannelType.TELEGRAM,
+      });
+
+      const messages = repo.listMessagesAfterSeq(conv.id, 1, 2);
+
+      expect(messages.map((message) => message.content)).toEqual(['B', 'C']);
+      expect(messages.map((message) => message.seq)).toEqual([2, 3]);
+    });
+
+    it('applies user scope when listing messages after seq', () => {
+      const userAConversation = repo.createConversation({
+        channelType: ChannelType.WEBCHAT,
+        externalChatId: 'after-seq-user-a',
+        userId: 'user-a',
+      });
+      const userBConversation = repo.createConversation({
+        channelType: ChannelType.WEBCHAT,
+        externalChatId: 'after-seq-user-b',
+        userId: 'user-b',
+      });
+
+      repo.saveMessage({
+        conversationId: userAConversation.id,
+        role: 'user',
+        content: 'Only A',
+        platform: ChannelType.WEBCHAT,
+      });
+      repo.saveMessage({
+        conversationId: userBConversation.id,
+        role: 'user',
+        content: 'Only B',
+        platform: ChannelType.WEBCHAT,
+      });
+
+      const ownerMessages = repo.listMessagesAfterSeq(userAConversation.id, 0, 50, 'user-a');
+      const strangerMessages = repo.listMessagesAfterSeq(userAConversation.id, 0, 50, 'user-b');
+
+      expect(ownerMessages).toHaveLength(1);
+      expect(ownerMessages[0].content).toBe('Only A');
+      expect(strangerMessages).toEqual([]);
+    });
   });
 });
