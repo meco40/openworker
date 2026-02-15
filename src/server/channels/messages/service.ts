@@ -405,6 +405,11 @@ export class MessageService {
             memoryContent,
             4,
             memoryUserId,
+            {
+              subject: 'user',
+              sourceRole: 'user',
+              sourceType: 'manual_save',
+            },
           );
           return {
             userMsg,
@@ -946,7 +951,14 @@ export class MessageService {
     if (memoryContext) {
       messages.unshift({
         role: 'system',
-        content: `Relevant memory context:\n${memoryContext}`,
+        content: [
+          'Relevant memory context:',
+          memoryContext,
+          '',
+          'Interpretation rules:',
+          '- Memories tagged "[Subject: user]" describe the user, not the assistant/persona.',
+          '- Never claim user preferences, habits, or facts as your own.',
+        ].join('\n'),
       });
     }
 
@@ -1390,6 +1402,11 @@ export class MessageService {
             correction,
             5,
             memoryUserId,
+            {
+              subject: 'user',
+              sourceRole: 'user',
+              sourceType: 'feedback_correction',
+            },
           );
         }
       }
@@ -1484,6 +1501,11 @@ export class MessageService {
           candidate.content,
           candidate.importance,
           memoryUserId,
+          {
+            subject: 'user',
+            sourceRole: 'user',
+            sourceType: 'auto_session',
+          },
         );
       } catch (error) {
         console.error('Auto session memory store failed:', error);

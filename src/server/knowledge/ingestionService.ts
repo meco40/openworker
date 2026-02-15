@@ -200,6 +200,9 @@ export class KnowledgeIngestionService {
       conversationId: window.conversationId,
       sourceSeqStart,
       sourceSeqEnd,
+      subject: 'conversation',
+      sourceRole: 'mixed',
+      sourceType: 'knowledge_ingestion',
     };
 
     const storePromises: Array<Promise<unknown>> = [];

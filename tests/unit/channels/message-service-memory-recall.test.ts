@@ -180,6 +180,8 @@ describe('MessageService memory recall gating', () => {
     expect(dispatchedMessages[0]?.role).toBe('system');
     expect(dispatchedMessages[0]?.content).toContain('Relevant memory context');
     expect(dispatchedMessages[0]?.content).toContain('Kaffee immer schwarz');
+    expect(dispatchedMessages[0]?.content).toContain('Interpretation rules');
+    expect(dispatchedMessages[0]?.content).toContain('[Subject: user]');
   });
 
   it('skips recall for non-memory-like prompts to avoid extra cost', async () => {
@@ -245,6 +247,11 @@ describe('MessageService memory recall gating', () => {
       'ich trinke Kaffee mit Hafermilch.',
       5,
       'user-1',
+      expect.objectContaining({
+        subject: 'user',
+        sourceRole: 'user',
+        sourceType: 'feedback_correction',
+      }),
     );
   });
 });

@@ -192,6 +192,40 @@ function toHistoryRecord(entry: Mem0HistoryEntry, index: number): MemoryHistoryR
   };
 }
 
+type MemorySubject = 'user' | 'assistant' | 'conversation' | null;
+
+function detectMemorySubject(node: MemoryNode): MemorySubject {
+  const explicitSubject = String(node.metadata?.subject || '')
+    .trim()
+    .toLowerCase();
+  if (explicitSubject === 'user') return 'user';
+  if (explicitSubject === 'assistant' || explicitSubject === 'persona') return 'assistant';
+  if (explicitSubject === 'conversation') return 'conversation';
+
+  const sourceRole = String(node.metadata?.sourceRole || '')
+    .trim()
+    .toLowerCase();
+  if (sourceRole === 'user') return 'user';
+  if (sourceRole === 'assistant' || sourceRole === 'agent' || sourceRole === 'persona') {
+    return 'assistant';
+  }
+
+  const lowered = String(node.content || '').trim().toLowerCase();
+  if (/^(ich|i)\b/.test(lowered)) return 'user';
+  if (/^(mein|meine|my)\b/.test(lowered)) return 'user';
+
+  return null;
+}
+
+function formatRecallContextLine(node: MemoryNode): string {
+  const subject = detectMemorySubject(node);
+  const base = `[Type: ${node.type}] ${node.content}`;
+  if (subject === 'user') return `${base} [Subject: user]`;
+  if (subject === 'assistant') return `${base} [Subject: assistant]`;
+  if (subject === 'conversation') return `${base} [Subject: conversation]`;
+  return base;
+}
+
 export class MemoryService {
   constructor(private readonly mem0Client: Mem0Client) {}
 
@@ -310,9 +344,7 @@ export class MemoryService {
         }));
     }
 
-    const context = matches
-      .map((result) => `[Type: ${result.node.type}] ${result.node.content}`)
-      .join('\n');
+    const context = matches.map((result) => formatRecallContextLine(result.node)).join('\n');
 
     return {
       context: context || 'No relevant memories found.',

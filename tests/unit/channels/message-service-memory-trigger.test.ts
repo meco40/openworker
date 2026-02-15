@@ -144,6 +144,11 @@ describe('MessageService memory trigger', () => {
       'Ich mag Lasagne',
       4,
       'user-1',
+      expect.objectContaining({
+        subject: 'user',
+        sourceRole: 'user',
+        sourceType: 'manual_save',
+      }),
     );
     expect(dispatchWithFallbackMock).not.toHaveBeenCalled();
     expect(result.agentMsg.content.toLowerCase()).toContain('gespeichert');
@@ -162,7 +167,18 @@ describe('MessageService memory trigger', () => {
     );
 
     expect(memoryStoreMock).toHaveBeenCalledTimes(1);
-    expect(memoryStoreMock).toHaveBeenCalledWith('persona-1', 'fact', 'Ich mag Pasta', 4, 'user-1');
+    expect(memoryStoreMock).toHaveBeenCalledWith(
+      'persona-1',
+      'fact',
+      'Ich mag Pasta',
+      4,
+      'user-1',
+      expect.objectContaining({
+        subject: 'user',
+        sourceRole: 'user',
+        sourceType: 'manual_save',
+      }),
+    );
     expect(dispatchWithFallbackMock).not.toHaveBeenCalled();
     expect(result.agentMsg.content.toLowerCase()).toContain('gespeichert');
   });
@@ -208,6 +224,11 @@ describe('MessageService memory trigger', () => {
       'Ich mag Tee',
       4,
       'channel:telegram:1527785051',
+      expect.objectContaining({
+        subject: 'user',
+        sourceRole: 'user',
+        sourceType: 'manual_save',
+      }),
     );
   });
 });
