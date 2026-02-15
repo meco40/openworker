@@ -3,6 +3,8 @@ import type { MemoryType } from '../../../core/memory/types';
 import { getMemoryService } from '../../../src/server/memory/runtime';
 import { MemoryVersionConflictError } from '../../../src/server/memory/service';
 import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
+import { LEGACY_LOCAL_USER_ID } from '../../../src/server/auth/constants';
+import { getMessageRepository } from '../../../src/server/channels/messages/runtime';
 
 export const runtime = 'nodejs';
 
@@ -213,6 +215,46 @@ function parseBulkBody(raw: Record<string, unknown>): {
   return { personaId, ids, action, updates };
 }
 
+function resolveMemoryReadUserScopes(baseUserId: string, personaId: string): string[] {
+  const normalizedUserId = String(baseUserId || '').trim();
+  if (!normalizedUserId) return [];
+  if (normalizedUserId !== LEGACY_LOCAL_USER_ID) return [normalizedUserId];
+
+  const scopes = new Set<string>([normalizedUserId]);
+  try {
+    const conversations = getMessageRepository().listConversations(500, normalizedUserId);
+    for (const conversation of conversations) {
+      const channel = String(conversation.channelType || '')
+        .trim()
+        .toLowerCase();
+      const externalChatId = String(conversation.externalChatId || '').trim();
+      const conversationPersonaId = String(conversation.personaId || '').trim();
+      if (!channel || !externalChatId || channel === 'webchat') continue;
+      if (conversationPersonaId && conversationPersonaId !== personaId) continue;
+      scopes.add(`channel:${channel}:${externalChatId}`);
+    }
+  } catch (error) {
+    console.warn('Memory scope discovery failed:', error);
+  }
+
+  return Array.from(scopes);
+}
+
+function dedupeById<T extends { id: string }>(rows: T[]): T[] {
+  const deduped = new Map<string, T>();
+  for (const row of rows) {
+    if (!row?.id) continue;
+    deduped.set(row.id, row);
+  }
+  return Array.from(deduped.values());
+}
+
+function rankNodeTimestamp(node: { metadata?: Record<string, unknown> }): number {
+  const iso = String(node.metadata?.lastVerified || '').trim();
+  const parsed = Date.parse(iso);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export async function GET(request: Request) {
   try {
     const userContext = await resolveRequestUserContext();
@@ -226,12 +268,14 @@ export async function GET(request: Request) {
     const pageParam = url.searchParams.get('page');
     const pageSizeParam = url.searchParams.get('pageSize');
     const service = getMemoryService();
+    const userScopes = resolveMemoryReadUserScopes(userContext.userId, personaId);
+    const primaryUserScope = userScopes[0] || userContext.userId;
 
     if (includeHistory) {
       if (!nodeId) {
         throw new ValidationError('id is required when history is requested.');
       }
-      const result = await service.history(personaId, nodeId, userContext.userId);
+      const result = await service.history(personaId, nodeId, primaryUserScope);
       if (!result) {
         return NextResponse.json({ ok: false, error: 'Memory node not found.' }, { status: 404 });
       }
@@ -243,6 +287,36 @@ export async function GET(request: Request) {
       const pageSize = parsePositiveInt(pageSizeParam, 25, 1, 200);
       const query = String(url.searchParams.get('query') || '').trim();
       const type = parseOptionalType(url.searchParams.get('type'));
+      if (userScopes.length > 1) {
+        const merged = dedupeById(
+          (
+            await Promise.all(userScopes.map((scopeUserId) => service.snapshot(personaId, scopeUserId)))
+          ).flat(),
+        );
+        const needle = query.toLowerCase();
+        const filtered = merged
+          .filter((node) => {
+            if (!needle) return true;
+            return (
+              node.content.toLowerCase().includes(needle) || node.type.toLowerCase().includes(needle)
+            );
+          })
+          .filter((node) => (type ? node.type === type : true))
+          .sort((a, b) => rankNodeTimestamp(b) - rankNodeTimestamp(a));
+        const total = filtered.length;
+        const offset = (page - 1) * pageSize;
+        const nodes = filtered.slice(offset, offset + pageSize);
+        return NextResponse.json({
+          ok: true,
+          nodes,
+          pagination: {
+            page,
+            pageSize,
+            total,
+            totalPages: Math.max(1, Math.ceil(total / pageSize)),
+          },
+        });
+      }
       const result = await service.listPage(
         personaId,
         {
@@ -251,14 +325,24 @@ export async function GET(request: Request) {
           query: query || undefined,
           type,
         },
-        userContext.userId,
+        primaryUserScope,
       );
       return NextResponse.json({ ok: true, nodes: result.nodes, pagination: result.pagination });
     }
 
+    if (userScopes.length > 1) {
+      const merged = dedupeById(
+        (await Promise.all(userScopes.map((scopeUserId) => service.snapshot(personaId, scopeUserId)))).flat(),
+      ).sort((a, b) => rankNodeTimestamp(b) - rankNodeTimestamp(a));
+      return NextResponse.json({
+        ok: true,
+        nodes: merged,
+      });
+    }
+
     return NextResponse.json({
       ok: true,
-      nodes: await service.snapshot(personaId, userContext.userId),
+      nodes: await service.snapshot(personaId, primaryUserScope),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to load memory snapshot.';

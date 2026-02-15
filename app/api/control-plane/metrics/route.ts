@@ -3,6 +3,9 @@ import { getWorkerRepository } from '../../../../src/server/worker/workerReposit
 import { getTokenUsageRepository } from '../../../../src/server/stats/tokenUsageRepository';
 import { getMemoryService } from '../../../../src/server/memory/runtime';
 import { getClientRegistry } from '../../../../src/server/gateway/client-registry';
+import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import { LEGACY_LOCAL_USER_ID } from '../../../../src/server/auth/constants';
+import { getMessageRepository } from '../../../../src/server/channels/messages/runtime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,8 +26,46 @@ function resolveTodayRange(): { from: string; to: string } {
   return { from: from.toISOString(), to: now.toISOString() };
 }
 
+function resolveVectorCountScopes(userId?: string): string[] {
+  const normalizedUserId = String(userId || '').trim();
+  if (!normalizedUserId) return [];
+  if (normalizedUserId !== LEGACY_LOCAL_USER_ID) return [normalizedUserId];
+
+  const scopes = new Set<string>([normalizedUserId]);
+  try {
+    const conversations = getMessageRepository().listConversations(500, normalizedUserId);
+    for (const conversation of conversations) {
+      const channel = String(conversation.channelType || '')
+        .trim()
+        .toLowerCase();
+      const externalChatId = String(conversation.externalChatId || '').trim();
+      if (!channel || !externalChatId || channel === 'webchat') continue;
+      scopes.add(`channel:${channel}:${externalChatId}`);
+    }
+  } catch (error) {
+    console.warn('Vector scope discovery failed:', error);
+  }
+
+  return Array.from(scopes);
+}
+
+async function resolveVectorNodeCount(userId?: string): Promise<number> {
+  const memoryService = getMemoryService();
+  const scopes = resolveVectorCountScopes(userId);
+  if (scopes.length === 0) {
+    return (await memoryService.snapshot()).length;
+  }
+  if (scopes.length === 1) {
+    return (await memoryService.snapshot(undefined, scopes[0])).length;
+  }
+
+  const nodes = (await Promise.all(scopes.map((scopeUserId) => memoryService.snapshot(undefined, scopeUserId)))).flat();
+  return new Set(nodes.map((node) => node.id)).size;
+}
+
 export async function GET() {
   try {
+    const userContext = await resolveRequestUserContext();
     const uptimeSeconds = Math.floor(process.uptime());
 
     const workerRepository = getWorkerRepository();
@@ -38,7 +79,7 @@ export async function GET() {
     const { from, to } = resolveTodayRange();
     const tokensToday = getTokenUsageRepository().getTotalTokens(from, to).totalTokens;
 
-    const vectorNodeCount = (await getMemoryService().snapshot()).length;
+    const vectorNodeCount = await resolveVectorNodeCount(userContext?.userId);
 
     let automationMetrics: {
       activeRules: number;

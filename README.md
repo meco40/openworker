@@ -143,6 +143,7 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | [docs/OMNICHANNEL_GATEWAY_OPERATIONS.md](docs/OMNICHANNEL_GATEWAY_OPERATIONS.md)       | Omnichannel-Betrieb & WebSocket Gateway              |
 | [docs/SESSION_MANAGEMENT_IMPLEMENTATION.md](docs/SESSION_MANAGEMENT_IMPLEMENTATION.md) | Session-Management Implementierung                   |
 | [docs/SKILLS_SYSTEM.md](docs/SKILLS_SYSTEM.md)                                         | Skill-Architektur & Handler                          |
+| [docs/SPEC_KIT.md](docs/SPEC_KIT.md)                                                   | Spec-driven Workflow mit spec-kit                    |
 | [docs/WORKER_SYSTEM.md](docs/WORKER_SYSTEM.md)                                         | Worker-Agenten System                                |
 | [docs/MEMORY_SYSTEM.md](docs/MEMORY_SYSTEM.md)                                         | Memory-Architektur                                   |
 | [docs/SECURITY_SYSTEM.md](docs/SECURITY_SYSTEM.md)                                     | Security-Architektur                                 |

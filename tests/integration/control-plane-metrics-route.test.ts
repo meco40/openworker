@@ -7,6 +7,7 @@ type GlobalSingletons = typeof globalThis & {
   __memoryService?: unknown;
   __mem0Client?: unknown;
   __gatewayClientRegistry?: unknown;
+  __messageRepository?: unknown;
 };
 
 function uniqueDbPath(name: string): string {
@@ -44,6 +45,7 @@ describe('GET /api/control-plane/metrics', () => {
     (globalThis as GlobalSingletons).__memoryService = undefined;
     (globalThis as GlobalSingletons).__mem0Client = undefined;
     (globalThis as GlobalSingletons).__gatewayClientRegistry = undefined;
+    (globalThis as GlobalSingletons).__messageRepository = undefined;
 
     const { getWorkerRepository } = await import('../../src/server/worker/workerRepository');
     const workerRepo = getWorkerRepository();
@@ -269,6 +271,7 @@ describe('GET /api/control-plane/metrics', () => {
     (globalThis as GlobalSingletons).__memoryService = undefined;
     (globalThis as GlobalSingletons).__mem0Client = undefined;
     (globalThis as GlobalSingletons).__gatewayClientRegistry = undefined;
+    (globalThis as GlobalSingletons).__messageRepository = undefined;
 
     for (const dbFile of createdDbFiles.splice(0, createdDbFiles.length)) {
       if (fs.existsSync(dbFile)) {
@@ -314,5 +317,92 @@ describe('GET /api/control-plane/metrics', () => {
     expect(payload.metrics?.orchestra.failFastAbortCount).toBe(1);
     expect(payload.metrics?.orchestra.activeSubagentSessions).toBe(1);
     expect(typeof payload.metrics?.generatedAt).toBe('string');
+  });
+
+  it('counts vector nodes for the resolved request user context', async () => {
+    const scopedUserId = 'metrics-user-scoped';
+    const { getMemoryService } = await import('../../src/server/memory/runtime');
+    const memoryService = getMemoryService();
+    await memoryService.store('persona-metrics', 'fact', 'scoped memory one', 3, scopedUserId);
+    await memoryService.store('persona-metrics', 'fact', 'scoped memory two', 3, scopedUserId);
+    await memoryService.store('persona-metrics', 'fact', 'scoped memory three', 3, scopedUserId);
+
+    vi.doMock('../../src/server/auth/userContext', async () => {
+      const actual = await vi.importActual<typeof import('../../src/server/auth/userContext')>(
+        '../../src/server/auth/userContext',
+      );
+      return {
+        ...actual,
+        resolveRequestUserContext: vi.fn(async () => ({
+          userId: scopedUserId,
+          authenticated: true,
+        })),
+      };
+    });
+
+    const { GET } = await import('../../app/api/control-plane/metrics/route');
+    const response = await GET();
+    const payload = (await response.json()) as {
+      ok: boolean;
+      metrics?: {
+        vectorNodeCount: number;
+      };
+      error?: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.metrics?.vectorNodeCount).toBe(3);
+  });
+
+  it('includes channel-scoped vectors for legacy local user', async () => {
+    const channelScopedUserId = 'channel:telegram:1527785051';
+    const { getMemoryService } = await import('../../src/server/memory/runtime');
+    const memoryService = getMemoryService();
+    await memoryService.store('persona-metrics', 'fact', 'channel memory one', 3, channelScopedUserId);
+    await memoryService.store('persona-metrics', 'fact', 'channel memory two', 3, channelScopedUserId);
+
+    (globalThis as GlobalSingletons).__messageRepository = {
+      listConversations: () => [
+        {
+          id: 'conv-telegram-1',
+          channelType: 'Telegram',
+          externalChatId: '1527785051',
+          userId: 'legacy-local-user',
+          title: 'Telegram',
+          modelOverride: null,
+          personaId: 'persona-metrics',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+    };
+
+    vi.doMock('../../src/server/auth/userContext', async () => {
+      const actual = await vi.importActual<typeof import('../../src/server/auth/userContext')>(
+        '../../src/server/auth/userContext',
+      );
+      return {
+        ...actual,
+        resolveRequestUserContext: vi.fn(async () => ({
+          userId: 'legacy-local-user',
+          authenticated: false,
+        })),
+      };
+    });
+
+    const { GET } = await import('../../app/api/control-plane/metrics/route');
+    const response = await GET();
+    const payload = (await response.json()) as {
+      ok: boolean;
+      metrics?: {
+        vectorNodeCount: number;
+      };
+      error?: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.metrics?.vectorNodeCount).toBe(4);
   });
 });

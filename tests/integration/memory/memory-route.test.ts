@@ -12,6 +12,7 @@ function makePostRequest(body: Record<string, unknown>): Request {
 function resetMemorySingletons(): void {
   (globalThis as { __memoryService?: unknown }).__memoryService = undefined;
   (globalThis as { __mem0Client?: unknown }).__mem0Client = undefined;
+  (globalThis as { __messageRepository?: unknown }).__messageRepository = undefined;
 }
 
 type MemRecord = {
@@ -267,6 +268,39 @@ describe('/api/memory route', () => {
     expect(listJson.ok).toBe(true);
     expect(listJson.nodes).toHaveLength(1);
     expect(listJson.nodes[0].content).toBe('persist-me');
+  });
+
+  it('includes channel-scoped memory for legacy web user when channel conversation exists', async () => {
+    const telegramExternalChatId = '1527785051';
+    const channelScopedUserId = `channel:telegram:${telegramExternalChatId}`;
+    const memoryServiceModule = await import('../../../src/server/memory/runtime');
+    const memoryService = memoryServiceModule.getMemoryService();
+    await memoryService.store(personaId, 'fact', 'persisted-in-telegram-scope', 4, channelScopedUserId);
+
+    (globalThis as { __messageRepository?: unknown }).__messageRepository = {
+      listConversations: () => [
+        {
+          id: 'conv-telegram-1',
+          channelType: 'Telegram',
+          externalChatId: telegramExternalChatId,
+          userId: 'legacy-local-user',
+          title: 'Telegram',
+          modelOverride: null,
+          personaId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+    };
+
+    const listResponse = await GET(
+      new Request(`http://localhost/api/memory?personaId=${encodeURIComponent(personaId)}`),
+    );
+    const listJson = await listResponse.json();
+
+    expect(listResponse.status).toBe(200);
+    expect(listJson.ok).toBe(true);
+    expect(listJson.nodes.some((node: { content: string }) => node.content === 'persisted-in-telegram-scope')).toBe(true);
   });
 
   it('recalls relevant memory context via POST', async () => {
