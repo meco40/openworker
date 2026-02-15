@@ -379,6 +379,21 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
     return row ? toEpisode(row) : null;
   }
 
+  listEpisodes(userId: string, personaId: string, limit = 100): KnowledgeEpisode[] {
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 100;
+    const rows = this.db
+      .prepare(
+        `
+        SELECT * FROM knowledge_episodes
+        WHERE user_id = ? AND persona_id = ?
+        ORDER BY date DESC, updated_at DESC
+        LIMIT ?
+      `,
+      )
+      .all(userId, personaId, safeLimit) as EpisodeRow[];
+    return rows.map(toEpisode);
+  }
+
   updateEpisode(input: KnowledgeEpisodeUpdateInput): number {
     const updatedAt = input.updatedAt || new Date().toISOString();
     const sourceRefs = normalizeArray(input.sourceRefs);
@@ -471,6 +486,25 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
       )
       .get(userId, personaId, id) as MeetingLedgerRow | undefined;
     return row ? toMeetingLedgerEntry(row) : null;
+  }
+
+  listMeetingLedgerEntries(
+    userId: string,
+    personaId: string,
+    limit = 100,
+  ): KnowledgeMeetingLedgerEntry[] {
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 100;
+    const rows = this.db
+      .prepare(
+        `
+        SELECT * FROM knowledge_meeting_ledger
+        WHERE user_id = ? AND persona_id = ?
+        ORDER BY date DESC, updated_at DESC
+        LIMIT ?
+      `,
+      )
+      .all(userId, personaId, safeLimit) as MeetingLedgerRow[];
+    return rows.map(toMeetingLedgerEntry);
   }
 
   updateMeetingLedgerEntry(input: KnowledgeMeetingLedgerEntryUpdateInput): number {

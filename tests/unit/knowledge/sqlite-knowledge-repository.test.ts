@@ -149,6 +149,9 @@ describe('SqliteKnowledgeRepository', () => {
     const inserted = repo.getEpisode(scope.userId, scope.personaId, 'episode-1');
     expect(inserted).not.toBeNull();
     expect(inserted?.sourceRefs).toEqual(['msg:100', 'msg:105']);
+    expect(repo.listEpisodes(scope.userId, scope.personaId, 10).map((entry) => entry.id)).toContain(
+      'episode-1',
+    );
 
     const updatedRows = repo.updateEpisode({
       id: 'episode-1',
@@ -197,6 +200,9 @@ describe('SqliteKnowledgeRepository', () => {
     const inserted = repo.getMeetingLedgerEntry(scope.userId, scope.personaId, 'meeting-1');
     expect(inserted).not.toBeNull();
     expect(inserted?.decisions).toEqual(['Ship phase one']);
+    expect(
+      repo.listMeetingLedgerEntries(scope.userId, scope.personaId, 10).map((entry) => entry.id),
+    ).toContain('meeting-1');
 
     const updatedRows = repo.updateMeetingLedgerEntry({
       id: 'meeting-1',

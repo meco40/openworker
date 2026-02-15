@@ -119,6 +119,7 @@ export interface KnowledgeRepository {
 
   insertEpisode(input: KnowledgeEpisodeInput): KnowledgeEpisode;
   getEpisode(userId: string, personaId: string, id: string): KnowledgeEpisode | null;
+  listEpisodes(userId: string, personaId: string, limit?: number): KnowledgeEpisode[];
   updateEpisode(input: KnowledgeEpisodeUpdateInput): number;
   deleteEpisode(userId: string, personaId: string, id: string): number;
 
@@ -128,6 +129,11 @@ export interface KnowledgeRepository {
     personaId: string,
     id: string,
   ): KnowledgeMeetingLedgerEntry | null;
+  listMeetingLedgerEntries(
+    userId: string,
+    personaId: string,
+    limit?: number,
+  ): KnowledgeMeetingLedgerEntry[];
   updateMeetingLedgerEntry(input: KnowledgeMeetingLedgerEntryUpdateInput): number;
   deleteMeetingLedgerEntry(userId: string, personaId: string, id: string): number;
 
