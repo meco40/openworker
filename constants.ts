@@ -1,23 +1,4 @@
-import { Team, CommandPermission, AIProvider } from './types';
-
-export const INITIAL_TEAMS: Team[] = [
-  {
-    id: 'team-personal',
-    name: 'Personal Workspaces',
-    role: 'Admin',
-    memberCount: 1,
-    workspaces: [],
-    tier: 'Starter',
-  },
-  {
-    id: 'team-internal',
-    name: 'OpenClaw Internal',
-    role: 'Admin',
-    memberCount: 4,
-    workspaces: [],
-    tier: 'Enterprise',
-  },
-];
+import { CommandPermission, AIProvider } from './types';
 
 // INITIAL_SKILLS removed — skills are now loaded from SQLite via GET /api/skills
 

@@ -3,6 +3,15 @@ import { View } from '../../../types';
 import { resolveDefaultViewFromConfig } from '../../../src/server/config/uiRuntimeConfig';
 import { resolveViewFromConfig } from '../../../src/modules/app-shell/useAppShellState';
 
+const invalidViewValues = ['invalid-view', 'teams'] as const;
+const fallbackResolvers = [
+  ['resolveViewFromConfig', (value: string) => resolveViewFromConfig(value)],
+  [
+    'resolveDefaultViewFromConfig',
+    (value: string) => resolveDefaultViewFromConfig({ ui: { defaultView: value } }),
+  ],
+] as const;
+
 describe('default view config', () => {
   it('uses configured default view when valid', () => {
     expect(resolveViewFromConfig('wizard')).toBe(View.WIZARD);
@@ -10,11 +19,13 @@ describe('default view config', () => {
     expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'memory' } })).toBe(View.MEMORY);
   });
 
-  it('falls back to dashboard for invalid values', () => {
-    expect(resolveViewFromConfig('invalid-view')).toBe(View.DASHBOARD);
-    expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'invalid-view' } })).toBe(
-      View.DASHBOARD,
-    );
+  describe.each(fallbackResolvers)('%s', (_resolverName, resolve) => {
+    it.each(invalidViewValues)('falls back to dashboard for "%s"', (value) => {
+      expect(resolve(value)).toBe(View.DASHBOARD);
+    });
+  });
+
+  it('falls back to dashboard when ui config is missing', () => {
     expect(resolveDefaultViewFromConfig({})).toBe(View.DASHBOARD);
   });
 });

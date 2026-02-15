@@ -5,7 +5,7 @@ import Sidebar from '../../../components/Sidebar';
 import { View } from '../../../types';
 
 describe('Sidebar memory navigation', () => {
-  it('renders the Memory navigation entry', () => {
+  it('renders Memory and excludes Team Collaboration navigation entries', () => {
     const html = renderToStaticMarkup(
       createElement(Sidebar, {
         activeView: View.DASHBOARD,
@@ -13,7 +13,12 @@ describe('Sidebar memory navigation', () => {
         onToggleCanvas: () => {},
       }),
     );
+    const navLabels = Array.from(
+      html.matchAll(/<span class="font-medium">([^<]+)<\/span>/g),
+      ([, label]) => label,
+    );
 
-    expect(html).toContain('Memory');
+    expect(navLabels).toContain('Memory');
+    expect(navLabels).not.toContain('Team Collaboration');
   });
 });

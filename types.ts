@@ -112,7 +112,6 @@ export enum View {
   TASKS = 'tasks',
   MODELS = 'models',
   WORKER = 'worker',
-  TEAMS = 'teams',
   PERSONAS = 'personas',
   MEMORY = 'memory',
 }
@@ -209,15 +208,6 @@ export interface WorkspaceFile {
   size: number;
   modifiedAt: string;
   isDirectory: boolean;
-}
-
-export interface Team {
-  id: string;
-  name: string;
-  role: 'Admin' | 'Member' | 'Viewer';
-  memberCount: number;
-  workspaces: string[];
-  tier: 'Starter' | 'Pro' | 'Enterprise';
 }
 
 export interface WorkerTask {

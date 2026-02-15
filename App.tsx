@@ -7,12 +7,9 @@ import {
   ChannelType,
   CoupledChannel,
   MessageAttachment,
-  Team,
-  WorkerTask,
   Skill,
 } from './types';
 import Sidebar from './components/Sidebar';
-import { INITIAL_TEAMS } from './constants';
 import { buildInitialShellState } from './src/modules/app-shell/useAppShellState';
 import {
   loadCoupledChannelsFromStorage,
@@ -51,8 +48,6 @@ const App: React.FC = () => {
   const [onboarded, setOnboarded] = useState<boolean>(true);
   const [isCanvasOpen, setIsCanvasOpen] = useState(false);
   const [isServerResponding, setIsServerResponding] = useState(false);
-  const [teams, setTeams] = useState<Team[]>(INITIAL_TEAMS);
-  const [tasks] = useState<WorkerTask[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const { activePersonaId } = usePersona();
 
@@ -332,9 +327,6 @@ const App: React.FC = () => {
           gatewayState={gatewayState}
           controlPlaneMetricsState={controlPlaneMetricsState}
           scheduledTasks={scheduledTasks}
-          teams={teams}
-          setTeams={setTeams}
-          tasks={tasks}
           skills={skills}
           setSkills={setSkills}
           messages={messages}

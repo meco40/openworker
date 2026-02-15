@@ -10,9 +10,7 @@ import {
   type MessageAttachment,
   type ScheduledTask,
   type Skill,
-  type Team,
   View,
-  type WorkerTask,
 } from '../../../../types';
 import Dashboard from '../../../../components/Dashboard';
 import ChatInterface from '../../../../components/ChatInterface';
@@ -20,7 +18,6 @@ import ChannelPairing from '../../../../messenger/ChannelPairing';
 import ViewErrorBoundary from '../../../../components/ViewErrorBoundary';
 
 const WorkerView = dynamic(() => import('../../../../WorkerView'));
-const TeamManager = dynamic(() => import('../../../../components/TeamManager'));
 const ModelHub = dynamic(() => import('../../../../components/ModelHub'));
 const SkillsRegistry = dynamic(() => import('../../../../skills/SkillsRegistry'));
 const TaskManagerView = dynamic(() => import('../../tasks/components/TaskManagerView'));
@@ -38,9 +35,6 @@ interface AppShellViewContentProps {
   gatewayState: GatewayState;
   controlPlaneMetricsState: ControlPlaneMetricsState;
   scheduledTasks: ScheduledTask[];
-  teams: Team[];
-  setTeams: React.Dispatch<React.SetStateAction<Team[]>>;
-  tasks: WorkerTask[];
   skills: Skill[];
   setSkills: React.Dispatch<React.SetStateAction<Skill[]>>;
   messages: Message[];
@@ -61,9 +55,6 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
   gatewayState,
   controlPlaneMetricsState,
   scheduledTasks,
-  teams,
-  setTeams,
-  tasks,
   skills,
   setSkills,
   messages,
@@ -91,11 +82,6 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
       {currentView === View.WORKER && (
         <ViewErrorBoundary label="Autonomous Worker">
           <WorkerView />
-        </ViewErrorBoundary>
-      )}
-      {currentView === View.TEAMS && (
-        <ViewErrorBoundary label="Team Collaboration">
-          <TeamManager teams={teams} setTeams={setTeams} tasks={tasks} />
         </ViewErrorBoundary>
       )}
       {currentView === View.MODELS && (
