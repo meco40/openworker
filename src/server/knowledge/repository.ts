@@ -42,7 +42,7 @@ export interface KnowledgeEpisodeInput {
   updatedAt?: string;
 }
 
-export interface KnowledgeEpisodeUpdateInput extends KnowledgeEpisodeInput {}
+export type KnowledgeEpisodeUpdateInput = KnowledgeEpisodeInput;
 
 export interface KnowledgeMeetingLedgerEntry {
   id: string;
@@ -75,7 +75,7 @@ export interface KnowledgeMeetingLedgerEntryInput {
   updatedAt?: string;
 }
 
-export interface KnowledgeMeetingLedgerEntryUpdateInput extends KnowledgeMeetingLedgerEntryInput {}
+export type KnowledgeMeetingLedgerEntryUpdateInput = KnowledgeMeetingLedgerEntryInput;
 
 export interface KnowledgeRetrievalAudit {
   id: string;
@@ -102,7 +102,7 @@ export interface KnowledgeRetrievalAuditInput {
   updatedAt?: string;
 }
 
-export interface KnowledgeRetrievalAuditUpdateInput extends KnowledgeRetrievalAuditInput {}
+export type KnowledgeRetrievalAuditUpdateInput = KnowledgeRetrievalAuditInput;
 
 export interface KnowledgeRepository {
   close(): void;

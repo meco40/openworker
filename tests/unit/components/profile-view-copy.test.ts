@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'react-dom/server';
-import React from 'react';
+import { createElement } from 'react';
 
 import ProfileView from '../../../components/ProfileView';
 
 describe('ProfileView copy', () => {
   it('uses single-user wording and removes saas billing language', () => {
-    const html = renderToString(React.createElement(ProfileView));
+    const html = renderToString(createElement(ProfileView));
     expect(html).toContain('Operator Identity &amp; Runtime');
     expect(html).toContain('Local Usage &amp; Capacity');
     expect(html).not.toContain('SaaS Identity &amp; Billing');
