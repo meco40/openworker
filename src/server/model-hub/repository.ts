@@ -20,6 +20,7 @@ export interface ProviderAccountView {
   updatedAt: string;
   lastCheckAt: string | null;
   lastCheckOk: boolean | null;
+  lastCheckMessage?: string | null;
 }
 
 export interface ProviderAccountRecord extends ProviderAccountView {
@@ -33,17 +34,21 @@ export interface PipelineModelEntry {
   accountId: string;
   providerId: string;
   modelName: string;
+  reasoningEffort?: PipelineReasoningEffort;
   priority: number;
   status: 'active' | 'rate-limited' | 'offline';
   createdAt: string;
   updatedAt: string;
 }
 
+export type PipelineReasoningEffort = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+
 export interface CreatePipelineModelInput {
   profileId: string;
   accountId: string;
   providerId: string;
   modelName: string;
+  reasoningEffort?: PipelineReasoningEffort;
   priority: number;
 }
 
@@ -51,7 +56,13 @@ export interface ModelHubRepository {
   createAccount(input: CreateProviderAccountInput): ProviderAccountView;
   listAccounts(): ProviderAccountView[];
   getAccountRecordById(id: string): ProviderAccountRecord | null;
-  setHealthStatus(id: string, ok: boolean): void;
+  updateAccountCredentials(input: {
+    id: string;
+    encryptedSecret: EncryptedSecretPayload;
+    encryptedRefreshToken: EncryptedSecretPayload | null;
+    secretMasked: string;
+  }): void;
+  setHealthStatus(id: string, ok: boolean, message?: string | null): void;
   deleteAccount(id: string): boolean;
 
   // Pipeline persistence

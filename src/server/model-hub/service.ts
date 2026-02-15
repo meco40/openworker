@@ -1,12 +1,15 @@
-import { encryptSecret, maskSecret } from './crypto';
+import { decryptSecret, encryptSecret, maskSecret } from './crypto';
 import type {
   CreatePipelineModelInput,
   ModelHubRepository,
+  PipelineReasoningEffort,
   PipelineModelEntry,
+  ProviderAccountRecord,
   ProviderAccountView,
 } from './repository';
 import { fetchModelsForAccount, type FetchedModel } from './modelFetcher';
 import { dispatchGatewayRequest, type GatewayRequest, type GatewayResponse } from './gateway';
+import { isJwtExpiringSoon, refreshOpenAICodexToken } from './codexAuth';
 
 interface ConnectProviderAccountInput {
   providerId: string;
@@ -70,8 +73,73 @@ function tryExtractBatchPayloadAsEmbedContent(
   return { model: firstModel.trim(), contents };
 }
 
+function mapPipelineReasoningEffort(
+  reasoningEffort?: PipelineReasoningEffort,
+): GatewayRequest['reasoning_effort'] | undefined {
+  if (!reasoningEffort || reasoningEffort === 'off') {
+    return undefined;
+  }
+  if (reasoningEffort === 'minimal') {
+    return 'low';
+  }
+  if (reasoningEffort === 'xhigh') {
+    return 'high';
+  }
+  if (reasoningEffort === 'low' || reasoningEffort === 'medium' || reasoningEffort === 'high') {
+    return reasoningEffort;
+  }
+  return undefined;
+}
+
 export class ModelHubService {
   constructor(private readonly repository: ModelHubRepository) {}
+
+  private async maybeRefreshOpenAICodexAccount(
+    account: ProviderAccountRecord,
+    encryptionKey: string,
+  ): Promise<ProviderAccountRecord> {
+    if (account.providerId !== 'openai-codex' || account.authMethod !== 'oauth') {
+      return account;
+    }
+    if (!account.encryptedRefreshToken) {
+      return account;
+    }
+
+    const currentAccessToken = decryptSecret(account.encryptedSecret, encryptionKey);
+    if (!currentAccessToken?.trim()) {
+      return account;
+    }
+    if (!isJwtExpiringSoon(currentAccessToken)) {
+      return account;
+    }
+
+    const currentRefreshToken = decryptSecret(account.encryptedRefreshToken, encryptionKey);
+    if (!currentRefreshToken?.trim()) {
+      return account;
+    }
+
+    try {
+      const refreshed = await refreshOpenAICodexToken(currentRefreshToken);
+      this.repository.updateAccountCredentials({
+        id: account.id,
+        encryptedSecret: encryptSecret(refreshed.accessToken, encryptionKey),
+        encryptedRefreshToken: encryptSecret(refreshed.refreshToken, encryptionKey),
+        secretMasked: maskSecret(refreshed.accessToken),
+      });
+      return this.repository.getAccountRecordById(account.id) ?? account;
+    } catch {
+      return account;
+    }
+  }
+
+  async getUsableAccountById(
+    accountId: string,
+    encryptionKey: string,
+  ): Promise<ProviderAccountRecord | null> {
+    const account = this.repository.getAccountRecordById(accountId);
+    if (!account) return null;
+    return this.maybeRefreshOpenAICodexAccount(account, encryptionKey);
+  }
 
   // ─── Account management ────────────────────────────────────────
 
@@ -99,8 +167,8 @@ export class ModelHubService {
     return this.repository.getAccountRecordById(accountId);
   }
 
-  updateHealth(accountId: string, ok: boolean): void {
-    this.repository.setHealthStatus(accountId, ok);
+  updateHealth(accountId: string, ok: boolean, message?: string | null): void {
+    this.repository.setHealthStatus(accountId, ok, message);
   }
 
   deleteAccount(accountId: string): boolean {
@@ -110,7 +178,7 @@ export class ModelHubService {
   // ─── Model fetching ────────────────────────────────────────────
 
   async fetchModelsForAccount(accountId: string, encryptionKey: string): Promise<FetchedModel[]> {
-    const account = this.repository.getAccountRecordById(accountId);
+    const account = await this.getUsableAccountById(accountId, encryptionKey);
     if (!account) return [];
     return fetchModelsForAccount(account, encryptionKey);
   }
@@ -161,7 +229,7 @@ export class ModelHubService {
     encryptionKey: string,
     request: GatewayRequest,
   ): Promise<GatewayResponse> {
-    const account = this.repository.getAccountRecordById(accountId);
+    const account = await this.getUsableAccountById(accountId, encryptionKey);
     if (!account) {
       return {
         ok: false,
@@ -177,6 +245,9 @@ export class ModelHubService {
   /**
    * Dispatches a chat request using the pipeline's priority fallback.
    * Tries each active model in priority order until one succeeds.
+   * 
+   * If modelOverride is specified, tries the preferred model first,
+   * then falls back to other active models in the pipeline.
    */
   async dispatchWithFallback(
     profileId: string,
@@ -197,10 +268,13 @@ export class ModelHubService {
       };
     }
 
-    // Model override: skip pipeline iteration — dispatch only the specified model
+    const errors: string[] = [];
+    const attemptedModels = new Set<string>();
+
+    // If modelOverride is specified, try preferred model first
     if (options?.modelOverride) {
-      const target = activeModels.find((m) => m.modelName === options.modelOverride);
-      if (!target) {
+      const preferredTarget = activeModels.find((m) => m.modelName === options.modelOverride);
+      if (!preferredTarget) {
         return {
           ok: false,
           text: '',
@@ -209,29 +283,49 @@ export class ModelHubService {
           error: `Override model "${options.modelOverride}" not found in active pipeline.`,
         };
       }
-      const account = this.repository.getAccountRecordById(target.accountId);
-      if (!account) {
-        return {
-          ok: false,
-          text: '',
-          model: options.modelOverride,
-          provider: '',
-          error: `Account for override model not found.`,
-        };
+
+      const preferredAccount = this.repository.getAccountRecordById(preferredTarget.accountId);
+      if (preferredAccount) {
+        const usablePreferredAccount = await this.maybeRefreshOpenAICodexAccount(
+          preferredAccount,
+          encryptionKey,
+        );
+        const preferredReasoningEffort = mapPipelineReasoningEffort(preferredTarget.reasoningEffort);
+        const preferredResult = await dispatchGatewayRequest(
+          usablePreferredAccount,
+          encryptionKey,
+          {
+            ...request,
+            model: preferredTarget.modelName,
+            reasoning_effort: preferredReasoningEffort ?? request.reasoning_effort,
+          },
+          { signal: options?.signal },
+        );
+
+        if (preferredResult.ok) {
+          return preferredResult;
+        }
+
+        // Preferred model failed - record error and mark as rate-limited if needed
+        errors.push(`${preferredTarget.modelName}@${preferredTarget.providerId}: ${preferredResult.error}`);
+        attemptedModels.add(preferredTarget.modelName);
+
+        if (
+          preferredResult.error?.includes('429') ||
+          preferredResult.error?.toLowerCase().includes('rate')
+        ) {
+          this.repository.updatePipelineModelStatus(preferredTarget.id, 'rate-limited');
+        }
+      } else {
+        errors.push(`${preferredTarget.modelName}@${preferredTarget.providerId}: Account not found`);
       }
-      return dispatchGatewayRequest(
-        account,
-        encryptionKey,
-        {
-          ...request,
-          model: target.modelName,
-        },
-        { signal: options?.signal },
-      );
     }
 
-    const errors: string[] = [];
+    // Try remaining active models in priority order (fallback)
     for (const entry of activeModels) {
+      // Skip if already attempted (preferred model)
+      if (attemptedModels.has(entry.modelName)) continue;
+
       // Check abort before each model attempt
       if (options?.signal?.aborted) {
         return { ok: false, text: '', model: '', provider: '', error: 'Aborted' };
@@ -239,13 +333,16 @@ export class ModelHubService {
 
       const account = this.repository.getAccountRecordById(entry.accountId);
       if (!account) continue;
+      const usableAccount = await this.maybeRefreshOpenAICodexAccount(account, encryptionKey);
+      const pipelineReasoningEffort = mapPipelineReasoningEffort(entry.reasoningEffort);
 
       const result = await dispatchGatewayRequest(
-        account,
+        usableAccount,
         encryptionKey,
         {
           ...request,
           model: entry.modelName,
+          reasoning_effort: pipelineReasoningEffort ?? request.reasoning_effort,
         },
         { signal: options?.signal },
       );

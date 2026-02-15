@@ -212,6 +212,11 @@ export class MessageService {
     return this.repo.getDefaultWebChatConversation(resolvedUserId);
   }
 
+  getConversation(conversationId: string, userId?: string): Conversation | null {
+    const resolvedUserId = this.sessionManager.resolveUserId(userId);
+    return this.repo.getConversation(conversationId, resolvedUserId);
+  }
+
   listMessages(
     conversationId: string,
     userId?: string,
@@ -927,6 +932,16 @@ export class MessageService {
     try {
       const service = getModelHubService();
       const encryptionKey = getModelHubEncryptionKey();
+      
+      // Resolve model override: explicit override takes precedence, then persona's preferred model
+      let modelOverride = conversation.modelOverride ?? undefined;
+      if (!modelOverride && conversation.personaId) {
+        const persona = getPersonaRepository().getPersona(conversation.personaId);
+        if (persona?.preferredModelId) {
+          modelOverride = persona.preferredModelId;
+        }
+      }
+      
       const result = await service.dispatchWithFallback(
         'p1',
         encryptionKey,
@@ -939,7 +954,7 @@ export class MessageService {
         },
         {
           signal: abortController.signal,
-          modelOverride: conversation.modelOverride ?? undefined,
+          modelOverride,
         },
       );
 

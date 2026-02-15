@@ -97,6 +97,54 @@ describe('dispatchGatewayRequest prompt logging', () => {
     expect(entries[0].totalCostUsd).toBeCloseTo(0.000056, 10);
   });
 
+  it('stores exact prompt tokens and xai prompt/completion cost when provider usage is present', async () => {
+    vi.doMock('../../../src/server/model-hub/providerCatalog', () => ({
+      PROVIDER_CATALOG: [{ id: 'xai', name: 'xAI', apiBaseUrl: 'https://api.x.ai/v1' }],
+    }));
+
+    vi.doMock('../../../src/server/model-hub/Models', () => ({
+      getProviderAdapter: () => ({
+        dispatchGateway: async () => ({
+          ok: true,
+          text: 'ok',
+          model: 'grok-4-1-fast-reasoning',
+          provider: 'xai',
+          usage: { prompt_tokens: 100, completion_tokens: 25, total_tokens: 125 },
+        }),
+      }),
+    }));
+
+    vi.doMock('../../../src/server/model-hub/crypto', () => ({
+      decryptSecret: () => 'xai-test',
+    }));
+    vi.doMock('../../../src/server/stats/xaiPricing', () => ({
+      getXaiModelPricing: vi.fn().mockResolvedValue({
+        promptPricePerTokenUsd: 0.0000002,
+        completionPricePerTokenUsd: 0.0000005,
+        requestPriceUsd: 0,
+      }),
+    }));
+
+    const { dispatchGatewayRequest } = await import('../../../src/server/model-hub/gateway');
+    const result = await dispatchGatewayRequest(buildAccount('xai'), 'key', {
+      model: 'grok-4-1-fast-reasoning',
+      messages: [{ role: 'user', content: 'Hello world' }],
+      auditContext: { kind: 'chat', conversationId: 'conv-1' },
+    });
+
+    expect(result.ok).toBe(true);
+
+    const entries =
+      (globalThis as GlobalSingletons).__promptDispatchRepository?.listDispatches({}) || [];
+    expect(entries).toHaveLength(1);
+    expect(entries[0].promptTokens).toBe(100);
+    expect(entries[0].promptTokensSource).toBe('exact');
+    expect(entries[0].dispatchKind).toBe('chat');
+    expect(entries[0].promptCostUsd).toBeCloseTo(0.00002, 10);
+    expect(entries[0].completionCostUsd).toBeCloseTo(0.0000125, 10);
+    expect(entries[0].totalCostUsd).toBeCloseTo(0.0000325, 10);
+  });
+
   it('stores estimated prompt tokens when provider usage is missing and dispatch fails', async () => {
     vi.doMock('../../../src/server/model-hub/providerCatalog', () => ({
       PROVIDER_CATALOG: [{ id: 'openai', name: 'OpenAI', apiBaseUrl: null }],

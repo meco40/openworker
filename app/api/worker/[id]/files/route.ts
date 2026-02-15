@@ -20,7 +20,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 
   const mgr = getWorkspaceManager();
-  if (!mgr.exists(id)) {
+  const workspaceOptions = task.workspacePath ? { workspacePath: task.workspacePath } : undefined;
+  if (!mgr.exists(id, workspaceOptions)) {
     return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
   }
 
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
     }
 
-    const content = mgr.readFile(id, normalized);
+    const content = mgr.readFile(id, normalized, workspaceOptions);
     if (!content) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
@@ -92,12 +93,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 
   // No path → list all files
-  const files = mgr.listFiles(id);
+  const files = mgr.listFiles(id, '', workspaceOptions);
   return NextResponse.json({
     taskId: id,
     workspaceType: task.workspaceType,
     files,
-    totalSize: mgr.getWorkspaceSize(id),
+    totalSize: mgr.getWorkspaceSize(id, workspaceOptions),
   });
 }
 
@@ -111,7 +112,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   const mgr = getWorkspaceManager();
-  if (!mgr.exists(id)) {
+  const workspaceOptions = task.workspacePath ? { workspacePath: task.workspacePath } : undefined;
+  if (!mgr.exists(id, workspaceOptions)) {
     return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
   }
 
@@ -137,9 +139,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   if (encoding === 'base64') {
-    mgr.writeFile(id, normalized, Buffer.from(content, 'base64'));
+    mgr.writeFile(id, normalized, Buffer.from(content, 'base64'), workspaceOptions);
   } else {
-    mgr.writeFile(id, normalized, content);
+    mgr.writeFile(id, normalized, content, workspaceOptions);
   }
 
   return NextResponse.json({ ok: true, path: normalized });

@@ -13,6 +13,13 @@ import WorkerActivityTab from './WorkerActivityTab';
 import WorkerPlanningTab from './WorkerPlanningTab';
 import WorkerWorkflowTab from './WorkerWorkflowTab';
 
+interface PersonaSummary {
+  id: string;
+  name: string;
+  emoji: string;
+  vibe: string;
+}
+
 interface WorkerTaskDetailProps {
   task: WorkerTask;
   onBack: () => void;
@@ -188,6 +195,7 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
     'steps' | 'workflow' | 'files' | 'output' | 'activities' | 'terminal' | 'planning'
   >('steps');
   const [steps, setSteps] = useState<WorkerStep[]>(task.steps || []);
+  const [assignedPersona, setAssignedPersona] = useState<PersonaSummary | null>(null);
   const {
     files,
     selectedFile,
@@ -250,7 +258,7 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
   const config = STATUS_CONFIG[task.status] || STATUS_CONFIG.queued;
   const typeIcon = TYPE_ICONS[task.workspaceType] || TYPE_ICONS.general;
 
-  // Fetch task details with steps
+  // Fetch task details with steps and persona
   useEffect(() => {
     (async () => {
       try {
@@ -258,6 +266,7 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
         if (res.ok) {
           const data = await res.json();
           if (data.task?.steps) setSteps(data.task.steps);
+          if (data.assignedPersona) setAssignedPersona(data.assignedPersona);
         }
       } catch {
         /* ignore */
@@ -313,9 +322,13 @@ const WorkerTaskDetail: React.FC<WorkerTaskDetailProps> = ({
           </span>
         </div>
         <p className="worker-detail__objective">{task.objective}</p>
-        {task.assignedPersonaId && (
+        {assignedPersona ? (
+          <span className="worker-detail__persona-badge" title={assignedPersona.vibe}>
+            {assignedPersona.emoji} {assignedPersona.name}
+          </span>
+        ) : task.assignedPersonaId ? (
           <span className="worker-detail__persona-badge">👤 Persona zugewiesen</span>
-        )}
+        ) : null}
       </div>
 
       {/* Progress Bar */}

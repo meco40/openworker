@@ -445,7 +445,7 @@
 }
 
 .worker-type-card__label {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-primary, #f0f0f0);
 }
@@ -502,6 +502,91 @@
 
 .worker-priority-btn:hover {
   border-color: var(--accent-primary, #3b82f6);
+}
+
+/* ─── Persona Selection in Creation Form ─────────────────── */
+.worker-persona-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.625rem;
+}
+
+@media (max-width: 1100px) {
+  .worker-persona-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 800px) {
+  .worker-persona-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .worker-persona-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.worker-persona-card {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  background: var(--bg-tertiary, #0f0f0f);
+  border: 2px solid var(--border-primary, #2a2a2a);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.worker-persona-card:hover {
+  border-color: var(--accent-primary, #3b82f6);
+  background: var(--bg-secondary, #1a1a1a);
+}
+
+.worker-persona-card--selected {
+  border-color: var(--accent-primary, #3b82f6);
+  background: var(--accent-primary, #3b82f6);
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.worker-persona-card__emoji {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.worker-persona-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.worker-persona-card__name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary, #f0f0f0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.worker-persona-card__vibe {
+  font-size: 0.65rem;
+  color: var(--text-secondary, #999);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.worker-persona-loading,
+.worker-persona-empty {
+  padding: 1rem;
+  color: var(--text-secondary, #999);
+  font-size: 0.875rem;
 }
 
 .worker-creation__actions {
@@ -1318,6 +1403,70 @@
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1rem;
+}
+
+/* ─── Worker Settings Tab ───────────────────────────────── */
+
+.worker-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.worker-settings__header h2 {
+  margin: 0;
+}
+
+.worker-settings__header p {
+  margin: 0.35rem 0 0;
+  color: var(--text-secondary, #999);
+}
+
+.worker-settings__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 1px solid var(--border-primary, #333);
+  border-radius: 10px;
+  background: var(--bg-secondary, #1a1a1a);
+  padding: 1rem;
+  max-width: 760px;
+}
+
+.worker-settings__panel label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary, #f0f0f0);
+}
+
+.worker-settings__hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #999);
+}
+
+.worker-settings__current {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-primary, #f0f0f0);
+}
+
+.worker-settings__source {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #999);
+}
+
+.worker-settings__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.worker-settings__meta {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-secondary, #999);
 }
 
 /* ─── Orchestra Tab ─────────────────────────────────────── */

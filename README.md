@@ -118,6 +118,7 @@ npm run build
 | Provider           | Auth            | API-Endpunkt                       |
 | ------------------ | --------------- | ---------------------------------- |
 | OpenAI             | API Key         | `api.openai.com/v1`                |
+| OpenAI Codex       | OAuth           | `api.openai.com/v1`                |
 | Anthropic          | API Key         | `api.anthropic.com/v1/messages`    |
 | Google Gemini      | API Key         | Google GenAI SDK                   |
 | xAI                | API Key         | `api.x.ai/v1`                      |
@@ -157,6 +158,8 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | --------------------- | ---------------------------------------------------------- |
 | `GEMINI_API_KEY`      | Google Gemini API Key (erforderlich für Memory-Embeddings) |
 | `OPENAI_API_KEY`      | OpenAI API Key                                             |
+| `OPENAI_OAUTH_CLIENT_ID` | Optional: eigene OpenAI Codex OAuth Client ID (Standard nutzt öffentliche Codex-App-ID) |
+| `OPENAI_OAUTH_REDIRECT_URI` | Optional: Redirect URI für Codex OAuth (Default: `http://localhost:1455/auth/callback`) |
 | `ANTHROPIC_API_KEY`   | Anthropic API Key                                          |
 | `XAI_API_KEY`         | xAI API Key                                                |
 | `MISTRAL_API_KEY`     | Mistral API Key                                            |

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
 import { getRoomService } from '../../../../../src/server/rooms/runtime';
+import { getPersonaRepository } from '../../../../../src/server/personas/personaRepository';
 
 export const runtime = 'nodejs';
 
@@ -31,12 +32,22 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const roleLabel = body.roleLabel?.trim() || 'Member';
+    
+    // Use persona's preferredModelId if no explicit modelOverride provided
+    let modelOverride = body.modelOverride ?? null;
+    if (modelOverride === null) {
+      const persona = getPersonaRepository().getPersona(body.personaId.trim());
+      if (persona?.preferredModelId) {
+        modelOverride = persona.preferredModelId;
+      }
+    }
+    
     const service = getRoomService();
     const member = service.addMember(userContext.userId, roomId, {
       personaId: body.personaId.trim(),
       roleLabel,
       turnPriority: body.turnPriority,
-      modelOverride: body.modelOverride ?? null,
+      modelOverride,
     });
 
     return NextResponse.json({ ok: true, member }, { status: 201 });

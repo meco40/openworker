@@ -117,11 +117,12 @@ const TOOL_DEFINITIONS = [
 type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
 
 function createToolDispatcher(
-  taskId: string,
+  task: WorkerTaskRecord,
   personaContext: PersonaContext,
 ): Record<string, ToolHandler> {
   const wsMgr = getWorkspaceManager();
   const allowedTools = personaContext.allowedTools;
+  const workspaceOptions = task.workspacePath ? { workspacePath: task.workspacePath } : undefined;
 
   const dispatcher: Record<string, ToolHandler> = {
     shell_execute: async (args) => {
@@ -143,7 +144,7 @@ function createToolDispatcher(
       const filePath = String(args.path || '').trim();
       const content = String(args.content || '');
       if (!filePath) throw new Error('write_file requires path');
-      wsMgr.writeFile(taskId, filePath, content);
+      wsMgr.writeFile(task.id, filePath, content, workspaceOptions);
       return { ok: true, path: filePath, bytesWritten: content.length };
     },
     browser_fetch: async (args) => {
@@ -229,7 +230,7 @@ export async function executeStep(
 
   const service = getModelHubService();
   const encryptionKey = getModelHubEncryptionKey();
-  const dispatcher = createToolDispatcher(task.id, personaContext);
+  const dispatcher = createToolDispatcher(task, personaContext);
   
   let clawHubPromptBlock = '';
   try {

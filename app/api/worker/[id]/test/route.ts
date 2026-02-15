@@ -27,11 +27,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     }
 
     const wsMgr = getWorkspaceManager();
-    if (!wsMgr.exists(id)) {
+    const workspaceOptions = task.workspacePath ? { workspacePath: task.workspacePath } : undefined;
+    if (!wsMgr.exists(id, workspaceOptions)) {
       return NextResponse.json({ ok: false, error: 'Workspace not found' }, { status: 404 });
     }
 
-    const workspacePath = wsMgr.getWorkspacePath(id);
+    const workspacePath = wsMgr.getWorkspacePath(id, workspaceOptions);
     const testResult = runWebappTests(workspacePath);
 
     // Log test results as activity

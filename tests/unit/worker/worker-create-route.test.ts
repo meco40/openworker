@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createTaskMock, processQueueMock, getConversationMock, getDefaultWebChatConversationMock } =
+const { createTaskMock, processQueueMock, getConversationMock, getDefaultWebChatConversationMock, assignPersonaMock, addActivityMock, getPersonaMock, getTaskMock } =
   vi.hoisted(() => ({
     createTaskMock: vi.fn(),
     processQueueMock: vi.fn().mockImplementation(async () => {}),
     getConversationMock: vi.fn(),
     getDefaultWebChatConversationMock: vi.fn(),
+    assignPersonaMock: vi.fn(),
+    addActivityMock: vi.fn(),
+    getPersonaMock: vi.fn(),
+    getTaskMock: vi.fn(),
   }));
 
 vi.mock('../../../src/server/worker/workerRepository', () => ({
@@ -13,6 +17,15 @@ vi.mock('../../../src/server/worker/workerRepository', () => ({
     createTask: createTaskMock,
     listTasks: vi.fn(),
     deleteTask: vi.fn(),
+    assignPersona: assignPersonaMock,
+    addActivity: addActivityMock,
+    getTask: getTaskMock,
+  }),
+}));
+
+vi.mock('../../../src/server/personas/personaRepository', () => ({
+  getPersonaRepository: () => ({
+    getPersona: getPersonaMock,
   }),
 }));
 
@@ -35,6 +48,10 @@ describe('POST /api/worker conversation fallback', () => {
     processQueueMock.mockClear();
     getConversationMock.mockReset();
     getDefaultWebChatConversationMock.mockReset();
+    assignPersonaMock.mockReset();
+    addActivityMock.mockReset();
+    getPersonaMock.mockReset();
+    getTaskMock.mockReset();
 
     createTaskMock.mockReturnValue({
       id: 'task-1',
@@ -44,6 +61,12 @@ describe('POST /api/worker conversation fallback', () => {
     });
     getDefaultWebChatConversationMock.mockReturnValue({ id: 'conv-default' });
     getConversationMock.mockReturnValue(null);
+    getTaskMock.mockReturnValue({
+      id: 'task-1',
+      title: 'Test task',
+      objective: 'Test objective',
+      status: 'queued',
+    });
   });
 
   it('uses default WebChat conversation when conversationId is missing', async () => {

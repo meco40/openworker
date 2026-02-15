@@ -8,6 +8,7 @@ const TEST_ROOT = path.join(process.cwd(), 'workspaces');
 describe('WorkspaceManager', () => {
   let mgr: WorkspaceManagerImpl;
   const testTaskId = 'test-task-' + Date.now();
+  const customRoot = path.join(process.cwd(), '.tmp', `workspace-root-${Date.now()}`);
 
   beforeEach(() => {
     mgr = new WorkspaceManagerImpl();
@@ -18,6 +19,9 @@ describe('WorkspaceManager', () => {
     const wsPath = mgr.getWorkspacePath(testTaskId);
     if (fs.existsSync(wsPath)) {
       fs.rmSync(wsPath, { recursive: true, force: true });
+    }
+    if (fs.existsSync(customRoot)) {
+      fs.rmSync(customRoot, { recursive: true, force: true });
     }
   });
 
@@ -182,6 +186,13 @@ describe('WorkspaceManager', () => {
       if (process.platform === 'win32') {
         expect(wsPath).not.toContain('/');
       }
+    });
+
+    it('supports a custom workspace root path', () => {
+      const wsPath = mgr.createWorkspace(testTaskId, 'general', { rootDir: customRoot });
+
+      expect(wsPath).toBe(path.join(customRoot, testTaskId));
+      expect(fs.existsSync(path.join(customRoot, testTaskId, '.workspace.json'))).toBe(true);
     });
   });
 });

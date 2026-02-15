@@ -8,6 +8,7 @@ import WorkerTaskDetail from './components/worker/WorkerTaskDetail';
 import WorkerKanbanBoard from './components/worker/WorkerKanbanBoard';
 import WorkerPersonaSidebar from './components/worker/WorkerPersonaSidebar';
 import WorkerOrchestraTab from './components/worker/WorkerOrchestraTab';
+import WorkerSettingsTab from './components/worker/WorkerSettingsTab';
 import { useWorkerTasks } from './src/modules/worker/hooks/useWorkerTasks';
 import type { WorkerTask } from './types';
 import type { WorkerTaskStatus } from './src/server/worker/workerStateMachine';
@@ -27,7 +28,9 @@ const WorkerView: React.FC = () => {
     refreshTasks,
   } = useWorkerTasks();
 
-  const [view, setView] = useState<'kanban' | 'list' | 'create' | 'detail' | 'orchestra'>('kanban');
+  const [view, setView] = useState<
+    'kanban' | 'list' | 'create' | 'detail' | 'orchestra' | 'settings'
+  >('kanban');
   const [selectedTask, setSelectedTask] = useState<WorkerTask | null>(null);
 
   const handleSelectTask = useCallback(async (task: WorkerTask) => {
@@ -53,6 +56,7 @@ const WorkerView: React.FC = () => {
         title?: string;
         priority?: string;
         workspaceType?: import('./types').WorkspaceType;
+        personaId?: string | null;
       },
     ) => {
       const task = await createTask(objective, options);
@@ -120,7 +124,7 @@ const WorkerView: React.FC = () => {
   return (
     <div className="worker-view">
       <div className="worker-view__main">
-        {(view === 'kanban' || view === 'list' || view === 'orchestra') && (
+        {(view === 'kanban' || view === 'list' || view === 'orchestra' || view === 'settings') && (
           <div className="worker-view__toggle">
             <button
               className={`worker-btn ${view === 'kanban' ? 'worker-btn--primary' : 'worker-btn--ghost'}`}
@@ -139,6 +143,12 @@ const WorkerView: React.FC = () => {
               onClick={() => setView('orchestra')}
             >
               🎼 Orchestra
+            </button>
+            <button
+              className={`worker-btn ${view === 'settings' ? 'worker-btn--primary' : 'worker-btn--ghost'}`}
+              onClick={() => setView('settings')}
+            >
+              ⚙ Settings
             </button>
           </div>
         )}
@@ -167,6 +177,8 @@ const WorkerView: React.FC = () => {
         {view === 'create' && <WorkerTaskCreation onSubmit={handleCreate} onCancel={handleBack} />}
 
         {view === 'orchestra' && <WorkerOrchestraTab />}
+
+        {view === 'settings' && <WorkerSettingsTab />}
 
         {view === 'detail' && selectedTask && (
           <WorkerTaskDetail

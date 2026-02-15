@@ -28,7 +28,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
     }
 
     const mgr = getWorkspaceManager();
-    if (!mgr.exists(id)) {
+    const workspaceOptions = task.workspacePath ? { workspacePath: task.workspacePath } : undefined;
+    if (!mgr.exists(id, workspaceOptions)) {
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
     }
 
@@ -69,7 +70,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       })),
     };
 
-    const wsPath = mgr.getWorkspacePath(id);
+    const wsPath = mgr.getWorkspacePath(id, workspaceOptions);
     const zipName = `workspace-${task.title.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40)}-${id.slice(0, 8)}.zip`;
 
     // Create archive stream

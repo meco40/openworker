@@ -17,6 +17,7 @@ interface GatewayRequestBody {
   messages: GatewayMessage[];
   max_tokens?: number;
   temperature?: number;
+  reasoning_effort?: 'low' | 'medium' | 'high';
   /** Tool/function calling support */
   systemInstruction?: string;
   tools?: unknown[];
@@ -70,6 +71,7 @@ export async function POST(request: Request) {
         messages: body.messages,
         max_tokens: body.max_tokens,
         temperature: body.temperature,
+        reasoning_effort: body.reasoning_effort,
         auditContext: { kind: 'api_gateway' },
         ...extraFields,
       });
@@ -82,6 +84,7 @@ export async function POST(request: Request) {
       messages: body.messages,
       max_tokens: body.max_tokens,
       temperature: body.temperature,
+      reasoning_effort: body.reasoning_effort,
       auditContext: { kind: 'api_gateway' },
       ...extraFields,
     });

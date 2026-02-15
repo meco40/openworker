@@ -16,6 +16,7 @@ describe('PromptLogsTab', () => {
     expect(html).toContain('Provider');
     expect(html).toContain('Model');
     expect(html).toContain('Costs');
+    expect(html).toContain('$0.000000');
     expect(html).toContain('Risk');
   });
 });

@@ -154,11 +154,23 @@ registerMethod(
 
     repo.assignPersona(taskId, personaId);
     if (personaId) {
+      // Get persona name for better activity log
+      let personaName = personaId;
+      try {
+        const { getPersonaRepository } = await import('../../personas/personaRepository');
+        const personaRepo = getPersonaRepository();
+        const persona = personaRepo.getPersona(personaId);
+        if (persona) {
+          personaName = `${persona.emoji} ${persona.name}`;
+        }
+      } catch {
+        // Persona not found, use ID as fallback
+      }
       repo.addActivity({
         taskId,
         type: 'persona_assigned',
-        message: `Persona ${personaId} zugewiesen`,
-        metadata: { personaId },
+        message: `Persona ${personaName} zugewiesen`,
+        metadata: { personaId, personaName },
       });
     }
 

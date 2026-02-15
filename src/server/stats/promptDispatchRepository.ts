@@ -63,6 +63,7 @@ export interface PromptDispatchSummary {
   promptTokensTotal: number;
   promptTokensExactCount: number;
   promptTokensEstimatedCount: number;
+  totalCostUsd: number;
 }
 
 export interface RecordPromptDispatchInput {
@@ -333,7 +334,8 @@ export class PromptDispatchRepository {
           COALESCE(SUM(CASE WHEN risk_level != 'low' THEN 1 ELSE 0 END), 0) as flagged_entries,
           COALESCE(SUM(prompt_tokens), 0) as prompt_tokens_total,
           COALESCE(SUM(CASE WHEN prompt_tokens_source = 'exact' THEN 1 ELSE 0 END), 0) as exact_count,
-          COALESCE(SUM(CASE WHEN prompt_tokens_source = 'estimated' THEN 1 ELSE 0 END), 0) as estimated_count
+          COALESCE(SUM(CASE WHEN prompt_tokens_source = 'estimated' THEN 1 ELSE 0 END), 0) as estimated_count,
+          COALESCE(SUM(total_cost_usd), 0) as total_cost_usd
         FROM prompt_dispatch_logs ${where}`,
       )
       .get(...params) as Record<string, unknown>;
@@ -344,6 +346,7 @@ export class PromptDispatchRepository {
       promptTokensTotal: Number(row.prompt_tokens_total),
       promptTokensExactCount: Number(row.exact_count),
       promptTokensEstimatedCount: Number(row.estimated_count),
+      totalCostUsd: Number(row.total_cost_usd),
     };
   }
 

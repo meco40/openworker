@@ -34,6 +34,7 @@ export async function POST(request: Request) {
       conversationId?: string;
       content?: string;
       clientMessageId?: string;
+      personaId?: string;
     };
 
     if (!body.content?.trim()) {
@@ -48,6 +49,15 @@ export async function POST(request: Request) {
     const service = getMessageService();
     const conversationId =
       body.conversationId || service.getDefaultWebChatConversation(userContext.userId).id;
+    
+    // If personaId provided and conversation doesn't have one, bind it
+    if (body.personaId) {
+      const conversation = service.getConversation(conversationId, userContext.userId);
+      if (conversation && !conversation.personaId) {
+        service.setPersonaId(conversationId, body.personaId, userContext.userId);
+      }
+    }
+    
     const result = await service.handleWebUIMessage(
       conversationId,
       body.content,

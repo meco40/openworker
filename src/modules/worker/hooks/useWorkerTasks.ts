@@ -36,6 +36,7 @@ export function useWorkerTasks() {
         priority?: string;
         workspaceType?: WorkspaceType;
         usePlanning?: boolean;
+        personaId?: string | null;
       },
     ) => {
       try {
@@ -49,6 +50,7 @@ export function useWorkerTasks() {
             priority: options?.priority || 'normal',
             workspaceType: options?.workspaceType,
             usePlanning: options?.usePlanning,
+            personaId: options?.personaId,
             conversationId: `web-${Date.now()}`,
           }),
         });

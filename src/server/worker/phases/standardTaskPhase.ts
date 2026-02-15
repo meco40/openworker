@@ -11,6 +11,10 @@ import { broadcastStatus } from '../utils/broadcast';
 import type { WorkerTaskRecord, WorkerStepRecord } from '../workerTypes';
 import type { WorkspaceType } from '../workspaceManager';
 
+function workspaceOptionsForTask(task: WorkerTaskRecord) {
+  return task.workspacePath ? { workspacePath: task.workspacePath } : undefined;
+}
+
 /**
  * Executes a standard task through all phases: planning, execution,
  * verification, testing (if webapp), and completion.
@@ -144,6 +148,7 @@ async function executeSingleStep(
 ): Promise<boolean> {
   const repo = getWorkerRepository();
   const wsMgr = getWorkspaceManager();
+  const workspaceOptions = workspaceOptionsForTask(task);
 
   repo.setCurrentStep(task.id, index);
   repo.updateStepStatus(step.id, 'running');
@@ -171,7 +176,12 @@ async function executeSingleStep(
 
     // Save step log to workspace
     const stepLog = `# Step ${index + 1}: ${step.description}\n\n${result.output || '(no output)'}\n`;
-    wsMgr.writeFile(task.id, `logs/step-${String(index + 1).padStart(3, '0')}.log`, stepLog);
+    wsMgr.writeFile(
+      task.id,
+      `logs/step-${String(index + 1).padStart(3, '0')}.log`,
+      stepLog,
+      workspaceOptions,
+    );
 
     // Save any artifacts to DB + workspace files
     if (result.artifacts) {
@@ -183,7 +193,7 @@ async function executeSingleStep(
           content: art.content,
           mimeType: art.mimeType,
         });
-        wsMgr.writeFile(task.id, `output/${art.name}`, art.content);
+        wsMgr.writeFile(task.id, `output/${art.name}`, art.content, workspaceOptions);
       }
     }
 
@@ -246,7 +256,12 @@ async function executeVerificationPhase(task: WorkerTaskRecord): Promise<Verific
   // Save plan.md to workspace
   const planMd = allSteps.map((s, i) => `- [x] ${i + 1}. ${s.description}`).join('\n');
   const wsMgr = getWorkspaceManager();
-  wsMgr.writeFile(task.id, 'plan.md', `# Plan: ${task.title}\n\n${planMd}\n`);
+  wsMgr.writeFile(
+    task.id,
+    'plan.md',
+    `# Plan: ${task.title}\n\n${planMd}\n`,
+    workspaceOptionsForTask(task),
+  );
 
   return { success: true };
 }
@@ -258,7 +273,8 @@ interface TestingResult {
 async function executeTestingPhase(task: WorkerTaskRecord): Promise<TestingResult> {
   const repo = getWorkerRepository();
   const wsMgr = getWorkspaceManager();
-  const wsPath = wsMgr.getWorkspacePath(task.id);
+  const workspaceOptions = workspaceOptionsForTask(task);
+  const wsPath = wsMgr.getWorkspacePath(task.id, workspaceOptions);
 
   repo.updateStatus(task.id, 'testing');
   repo.addActivity({
@@ -275,7 +291,12 @@ async function executeTestingPhase(task: WorkerTaskRecord): Promise<TestingResul
   const testReport = testResult.results
     .map((r) => `${r.passed ? '✅' : '❌'} ${r.name}: ${r.message}`)
     .join('\n');
-  wsMgr.writeFile(task.id, 'test-results.md', `# Testergebnisse\n\n${testReport}\n`);
+  wsMgr.writeFile(
+    task.id,
+    'test-results.md',
+    `# Testergebnisse\n\n${testReport}\n`,
+    workspaceOptions,
+  );
 
   repo.addActivity({
     taskId: task.id,
@@ -311,18 +332,19 @@ async function executeCompletionPhase(
 ): Promise<void> {
   const repo = getWorkerRepository();
   const wsMgr = getWorkspaceManager();
+  const workspaceOptions = workspaceOptionsForTask(task);
 
   const summaryParts = steps
     .filter((s) => s.output)
     .map((s, i) => `${i + 1}. ${s.description}: ${s.output}`);
 
   const artifacts = repo.getArtifacts(task.id);
-  const wsFiles = wsMgr.listFiles(task.id).filter((f) => !f.isDirectory);
+  const wsFiles = wsMgr.listFiles(task.id, '', workspaceOptions).filter((f) => !f.isDirectory);
   const summary =
     `✅ Task "${task.title}" abgeschlossen.\n\n` +
     `**Schritte:**\n${summaryParts.join('\n')}\n\n` +
     (artifacts.length > 0 ? `**Artefakte:** ${artifacts.map((a) => a.name).join(', ')}\n` : '') +
-    `**Workspace:** ${wsFiles.length} Dateien (${Math.round(wsMgr.getWorkspaceSize(task.id) / 1024)} KB)`;
+    `**Workspace:** ${wsFiles.length} Dateien (${Math.round(wsMgr.getWorkspaceSize(task.id, workspaceOptions) / 1024)} KB)`;
 
   repo.updateStatus(task.id, 'completed', { summary });
   repo.addActivity({

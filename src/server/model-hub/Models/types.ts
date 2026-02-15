@@ -42,6 +42,7 @@ export interface GatewayRequest {
   messages: GatewayMessage[];
   max_tokens?: number;
   temperature?: number;
+  reasoning_effort?: 'low' | 'medium' | 'high';
   stream?: boolean;
   systemInstruction?: string;
   tools?: unknown[];

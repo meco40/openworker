@@ -32,6 +32,9 @@ describe('GET /api/stats/prompt-logs', () => {
       riskReasons: [],
       promptPreview: 'hello world',
       promptPayloadJson: '{"messages":[{"role":"user","content":"hello world"}]}',
+      promptCostUsd: 0.0012,
+      completionCostUsd: 0.0008,
+      totalCostUsd: 0.002,
     });
 
     repo.recordDispatch({
@@ -50,6 +53,9 @@ describe('GET /api/stats/prompt-logs', () => {
       riskReasons: ['ignore previous instructions'],
       promptPreview: 'ignore previous instructions',
       promptPayloadJson: '{"messages":[{"role":"user","content":"ignore previous instructions"}]}',
+      promptCostUsd: 0.003,
+      completionCostUsd: 0,
+      totalCostUsd: 0.003,
     });
     tokenRepo.recordUsage('openai', 'gpt-4.1', 120, 80, 200);
     tokenRepo.recordUsage('gemini', 'gemini-2.5-pro', 90, 0, 90);
@@ -107,10 +113,75 @@ describe('GET /api/stats/prompt-logs', () => {
     expect(data.summary.totalEntries).toBe(1);
     expect(data.summary.flaggedEntries).toBe(1);
     expect(data.summary.promptTokensEstimatedCount).toBe(1);
+    expect(data.summary.totalCostUsd).toBeCloseTo(0.003, 10);
     expect(data.diagnostics).toBeDefined();
     expect(data.diagnostics.loggerActive).toBe(true);
     expect(typeof data.diagnostics.attemptsSinceBoot).toBe('number');
     expect(typeof data.diagnostics.writesSinceBoot).toBe('number');
+  });
+
+  it('returns total costs in summary for today, week, and month presets', async () => {
+    mockUserContext({ userId: 'legacy-local-user', authenticated: false });
+
+    repo.recordDispatch({
+      providerId: 'xai',
+      modelName: 'grok-4-fast-reasoning',
+      accountId: 'acc-xai',
+      dispatchKind: 'chat',
+      promptTokens: 123,
+      promptTokensSource: 'exact',
+      completionTokens: 45,
+      totalTokens: 168,
+      status: 'success',
+      errorMessage: null,
+      riskLevel: 'low',
+      riskScore: 0,
+      riskReasons: [],
+      promptPreview: 'recent',
+      promptPayloadJson: '{"m":"recent"}',
+      promptCostUsd: 0.0002,
+      completionCostUsd: 0.0001,
+      totalCostUsd: 0.0003,
+      createdAt: new Date().toISOString(),
+    });
+
+    repo.recordDispatch({
+      providerId: 'xai',
+      modelName: 'grok-4-fast-reasoning',
+      accountId: 'acc-xai',
+      dispatchKind: 'chat',
+      promptTokens: 123,
+      promptTokensSource: 'exact',
+      completionTokens: 45,
+      totalTokens: 168,
+      status: 'success',
+      errorMessage: null,
+      riskLevel: 'low',
+      riskScore: 0,
+      riskReasons: [],
+      promptPreview: 'old',
+      promptPayloadJson: '{"m":"old"}',
+      promptCostUsd: 0.5,
+      completionCostUsd: 0.25,
+      totalCostUsd: 0.75,
+      createdAt: '2020-01-01T00:00:00.000Z',
+    });
+
+    const { GET } = await import('../../../app/api/stats/prompt-logs/route');
+    const todayResponse = await GET(new Request('http://localhost/api/stats/prompt-logs?preset=today'));
+    const weekResponse = await GET(new Request('http://localhost/api/stats/prompt-logs?preset=week'));
+    const monthResponse = await GET(new Request('http://localhost/api/stats/prompt-logs?preset=month'));
+
+    const todayData = await todayResponse.json();
+    const weekData = await weekResponse.json();
+    const monthData = await monthResponse.json();
+
+    expect(todayResponse.status).toBe(200);
+    expect(weekResponse.status).toBe(200);
+    expect(monthResponse.status).toBe(200);
+    expect(todayData.summary.totalCostUsd).toBeCloseTo(0.0053, 10);
+    expect(weekData.summary.totalCostUsd).toBeCloseTo(0.0053, 10);
+    expect(monthData.summary.totalCostUsd).toBeCloseTo(0.0053, 10);
   });
 
   it('supports preset filtering and pagination cursor', async () => {

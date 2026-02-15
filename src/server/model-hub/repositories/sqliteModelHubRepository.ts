@@ -6,10 +6,12 @@ import type {
   CreatePipelineModelInput,
   CreateProviderAccountInput,
   ModelHubRepository,
+  PipelineReasoningEffort,
   PipelineModelEntry,
   ProviderAccountRecord,
   ProviderAccountView,
 } from '../repository';
+import type { EncryptedSecretPayload } from '../crypto';
 
 interface ProviderAccountRow {
   id: string;
@@ -23,6 +25,7 @@ interface ProviderAccountRow {
   updated_at: string;
   last_check_at: string | null;
   last_check_ok: number | null;
+  last_check_message: string | null;
 }
 
 interface PipelineRow {
@@ -31,6 +34,7 @@ interface PipelineRow {
   account_id: string;
   provider_id: string;
   model_name: string;
+  reasoning_effort: PipelineReasoningEffort | null;
   priority: number;
   status: 'active' | 'rate-limited' | 'offline';
   created_at: string;
@@ -53,6 +57,7 @@ function toView(row: ProviderAccountRow): ProviderAccountView {
     updatedAt: row.updated_at,
     lastCheckAt: row.last_check_at,
     lastCheckOk: row.last_check_ok === null ? null : Boolean(row.last_check_ok),
+    lastCheckMessage: row.last_check_message,
   };
 }
 
@@ -63,6 +68,7 @@ function toPipelineEntry(row: PipelineRow): PipelineModelEntry {
     accountId: row.account_id,
     providerId: row.provider_id,
     modelName: row.model_name,
+    reasoningEffort: row.reasoning_effort ?? undefined,
     priority: row.priority,
     status: row.status,
     createdAt: row.created_at,
@@ -89,7 +95,8 @@ export class SqliteModelHubRepository implements ModelHubRepository {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         last_check_at TEXT,
-        last_check_ok INTEGER
+        last_check_ok INTEGER,
+        last_check_message TEXT
       );
     `);
     this.db.exec(`
@@ -99,6 +106,7 @@ export class SqliteModelHubRepository implements ModelHubRepository {
         account_id TEXT NOT NULL,
         provider_id TEXT NOT NULL,
         model_name TEXT NOT NULL,
+        reasoning_effort TEXT,
         priority INTEGER NOT NULL DEFAULT 1,
         status TEXT NOT NULL DEFAULT 'active',
         created_at TEXT NOT NULL,
@@ -109,6 +117,28 @@ export class SqliteModelHubRepository implements ModelHubRepository {
       CREATE INDEX IF NOT EXISTS idx_pipeline_profile
         ON model_hub_pipeline (profile_id, priority);
     `);
+    this.ensureAccountHealthMessageColumn();
+    this.ensurePipelineReasoningEffortColumn();
+  }
+
+  private ensureAccountHealthMessageColumn(): void {
+    const columns = this.db
+      .prepare('PRAGMA table_info(model_hub_accounts)')
+      .all() as Array<{ name?: string }>;
+    const hasLastCheckMessage = columns.some((column) => column.name === 'last_check_message');
+    if (!hasLastCheckMessage) {
+      this.db.exec('ALTER TABLE model_hub_accounts ADD COLUMN last_check_message TEXT');
+    }
+  }
+
+  private ensurePipelineReasoningEffortColumn(): void {
+    const columns = this.db
+      .prepare('PRAGMA table_info(model_hub_pipeline)')
+      .all() as Array<{ name?: string }>;
+    const hasReasoningEffort = columns.some((column) => column.name === 'reasoning_effort');
+    if (!hasReasoningEffort) {
+      this.db.exec('ALTER TABLE model_hub_pipeline ADD COLUMN reasoning_effort TEXT');
+    }
   }
 
   createAccount(input: CreateProviderAccountInput): ProviderAccountView {
@@ -121,8 +151,8 @@ export class SqliteModelHubRepository implements ModelHubRepository {
         INSERT INTO model_hub_accounts (
           id, provider_id, label, auth_method,
           encrypted_secret, encrypted_refresh_token, secret_masked,
-          created_at, updated_at, last_check_at, last_check_ok
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
+          created_at, updated_at, last_check_at, last_check_ok, last_check_message
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)
       `,
       )
       .run(
@@ -168,13 +198,37 @@ export class SqliteModelHubRepository implements ModelHubRepository {
     };
   }
 
-  setHealthStatus(id: string, ok: boolean): void {
+  updateAccountCredentials(input: {
+    id: string;
+    encryptedSecret: EncryptedSecretPayload;
+    encryptedRefreshToken: EncryptedSecretPayload | null;
+    secretMasked: string;
+  }): void {
     const now = new Date().toISOString();
     this.db
       .prepare(
-        'UPDATE model_hub_accounts SET last_check_at = ?, last_check_ok = ?, updated_at = ? WHERE id = ?',
+        `
+        UPDATE model_hub_accounts
+        SET encrypted_secret = ?, encrypted_refresh_token = ?, secret_masked = ?, updated_at = ?
+        WHERE id = ?
+      `,
       )
-      .run(now, ok ? 1 : 0, now, id);
+      .run(
+        JSON.stringify(input.encryptedSecret),
+        input.encryptedRefreshToken ? JSON.stringify(input.encryptedRefreshToken) : null,
+        input.secretMasked,
+        now,
+        input.id,
+      );
+  }
+
+  setHealthStatus(id: string, ok: boolean, message?: string | null): void {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        'UPDATE model_hub_accounts SET last_check_at = ?, last_check_ok = ?, last_check_message = ?, updated_at = ? WHERE id = ?',
+      )
+      .run(now, ok ? 1 : 0, message ?? null, now, id);
   }
 
   deleteAccount(id: string): boolean {
@@ -205,8 +259,8 @@ export class SqliteModelHubRepository implements ModelHubRepository {
         `
         INSERT INTO model_hub_pipeline (
           id, profile_id, account_id, provider_id,
-          model_name, priority, status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)
+          model_name, reasoning_effort, priority, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
       `,
       )
       .run(
@@ -215,6 +269,7 @@ export class SqliteModelHubRepository implements ModelHubRepository {
         input.accountId,
         input.providerId,
         input.modelName,
+        input.reasoningEffort ?? null,
         input.priority,
         now,
         now,

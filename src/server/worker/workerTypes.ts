@@ -118,6 +118,12 @@ export interface TaskActivityRecord {
   createdAt: string;
 }
 
+export interface WorkerUserSettingsRecord {
+  userId: string;
+  defaultWorkspaceRoot: string | null;
+  updatedAt: string;
+}
+
 // ─── Input Types ─────────────────────────────────────────────
 
 export interface CreateTaskInput {
@@ -171,6 +177,11 @@ export interface WorkerRepository {
     userId: string,
     filter?: { status?: WorkerTaskStatus; limit?: number },
   ): WorkerTaskRecord[];
+  getUserSettings(userId: string): WorkerUserSettingsRecord | null;
+  saveUserSettings(
+    userId: string,
+    updates: { defaultWorkspaceRoot: string | null },
+  ): WorkerUserSettingsRecord;
   cancelTask(id: string): void;
   getNextQueuedTask(): WorkerTaskRecord | null;
   getActiveTask(): WorkerTaskRecord | null;

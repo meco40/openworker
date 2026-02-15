@@ -10,8 +10,8 @@ export const runtime = 'nodejs';
  */
 function getOAuthReadiness(): Record<string, boolean> {
   return {
-    // OpenAI uses Auth0 PKCE — only client_id needed (no secret, no URL env vars)
-    openai: Boolean(process.env.OPENAI_OAUTH_CLIENT_ID?.trim()),
+    // OpenAI Codex OAuth is available via public Codex app id (or optional custom id).
+    'openai-codex': true,
     'github-copilot': Boolean(process.env.GITHUB_OAUTH_CLIENT_ID?.trim()),
     // OpenRouter uses PKCE — no server-side secrets needed
     openrouter: true,
@@ -27,22 +27,36 @@ export async function GET() {
   const oauthReady = getOAuthReadiness();
 
   const providers = PROVIDER_CATALOG.map((provider) => {
-    // Filter authMethods: only expose oauth if it's actually configured
+    // OpenAI Codex/OpenRouter should always show OAuth as an available method in UI.
+    // `oauthConfigured` indicates whether the flow is ready server-side.
     const configuredAuthMethods = provider.authMethods.filter((method) => {
       if (method === 'api_key') return true;
-      if (method === 'oauth') return oauthReady[provider.id] === true;
-      return false;
+      if (method !== 'oauth') return false;
+
+      if (provider.id === 'openai-codex' || provider.id === 'openrouter') {
+        return true;
+      }
+
+      return oauthReady[provider.id] === true;
     });
 
-    // Ensure at least api_key is available (should always be the case)
-    if (configuredAuthMethods.length === 0) {
-      configuredAuthMethods.push('api_key');
+    const oauthConfigured =
+      provider.id === 'openrouter' ? true : (oauthReady[provider.id] ?? false);
+
+    const sortedAuthMethods = [...configuredAuthMethods].sort((left, right) => {
+      if (left === right) return 0;
+      if (left === 'api_key') return -1;
+      return 1;
+    });
+
+    if (sortedAuthMethods.length === 0) {
+      sortedAuthMethods.push('api_key');
     }
 
     return {
       ...provider,
-      authMethods: configuredAuthMethods,
-      oauthConfigured: oauthReady[provider.id] ?? false,
+      authMethods: sortedAuthMethods,
+      oauthConfigured,
     };
   });
 

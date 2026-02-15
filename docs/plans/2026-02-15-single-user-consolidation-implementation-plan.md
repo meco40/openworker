@@ -256,11 +256,15 @@ git commit -m "refactor: align channels and ws identity handling under single-pr
 
 ---
 
-### Task 5: Low-Risk Team Terminology Cleanup
+### Task 5: Low-Risk Single-User Terminology Cleanup
 
 **Files:**
 - Modify: `components/ProfileView.tsx`
+- Modify: `components/Sidebar.tsx`
+- Modify: `src/modules/app-shell/components/AppShellViewContent.tsx`
 - Create: `tests/unit/components/profile-view-copy.test.ts`
+- Create: `tests/unit/app-shell/profile-view-label.test.ts`
+- Modify: `tests/unit/components/sidebar-memory-item.test.ts`
 - Modify: `docs/plans/2026-02-15-organizations-team-collaboration-removal-implementation-plan.md`
 - Modify: `docs/archive/legacy-core/USER_MANUAL.md`
 - Modify: `docs/archive/reviews/SYSTEM_REVIEW.md`
@@ -268,9 +272,11 @@ git commit -m "refactor: align channels and ws identity handling under single-pr
 **Step 1: Write the failing test**
 
 ```tsx
-it('does not mention multi-tenant organization wording in profile view', () => {
+it('uses single-user wording and removes saas billing language', () => {
   const html = renderToString(<ProfileView />);
-  expect(html).not.toContain('multi-tenant organization');
+  expect(html).toContain('Operator Identity & Runtime');
+  expect(html).not.toContain('SaaS Identity & Billing');
+  expect(html).not.toContain('Upgrade to Enterprise Node');
 });
 ```
 
@@ -282,18 +288,18 @@ Expected: FAIL.
 **Step 3: Write minimal implementation**
 
 ```tsx
-<p>Manage your operator profile, subscription plan, and runtime settings.</p>
+<p>Manage your local operator profile and runtime settings.</p>
 ```
 
 **Step 4: Run test to verify it passes**
 
-Run: `npm test -- tests/unit/components/profile-view-copy.test.ts tests/unit/components/sidebar-memory-item.test.ts`
+Run: `npm test -- tests/unit/components/profile-view-copy.test.ts tests/unit/components/sidebar-memory-item.test.ts tests/unit/app-shell/profile-view-label.test.ts`
 Expected: PASS.
 
 **Step 5: Commit**
 
 ```bash
-git add components/ProfileView.tsx tests/unit/components/profile-view-copy.test.ts docs/plans/2026-02-15-organizations-team-collaboration-removal-implementation-plan.md docs/archive/legacy-core/USER_MANUAL.md docs/archive/reviews/SYSTEM_REVIEW.md
+git add components/ProfileView.tsx components/Sidebar.tsx src/modules/app-shell/components/AppShellViewContent.tsx tests/unit/components/profile-view-copy.test.ts tests/unit/components/sidebar-memory-item.test.ts tests/unit/app-shell/profile-view-label.test.ts docs/plans/2026-02-15-organizations-team-collaboration-removal-implementation-plan.md docs/archive/legacy-core/USER_MANUAL.md docs/archive/reviews/SYSTEM_REVIEW.md
 git commit -m "docs: remove remaining team terminology from active and reference docs"
 ```
 

@@ -10,7 +10,8 @@ Dieses Dokument fixiert die offiziell verifizierten Auth-/API-Baselines fuer den
 
 | Provider                | Prim. Auth       | OAuth                                                        | API Base (Healthcheck)                                           | Notes                                    |
 | ----------------------- | ---------------- | ------------------------------------------------------------ | ---------------------------------------------------------------- | ---------------------------------------- |
-| OpenAI                  | API Key          | Optional (nur wenn eigene OAuth-Endpunkte konfiguriert sind) | `https://api.openai.com/v1/models`                               | Standard fuer Inference bleibt API Key   |
+| OpenAI                  | API Key          | Nein                                                         | `https://api.openai.com/v1/models`                               | Standard OpenAI Platform API              |
+| OpenAI Codex            | OAuth            | Ja (PKCE)                                                     | `https://api.openai.com/v1/models`                               | OAuth via öffentlicher Codex-App-ID, default Redirect `http://localhost:1455/auth/callback` |
 | Google Gemini           | API Key          | Nein                                                         | Gemini SDK / GenerateContent                                     | Native Google GenAI SDK                  |
 | Anthropic               | API Key          | Nein                                                         | `POST https://api.anthropic.com/v1/messages`                     | Header `x-api-key` + `anthropic-version` |
 | OpenRouter              | API Key          | Ja (PKCE)                                                    | `GET https://openrouter.ai/api/v1/key`                           | OAuth ueber `/auth` + Token-Exchange     |

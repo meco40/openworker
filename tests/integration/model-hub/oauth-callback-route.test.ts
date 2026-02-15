@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GET as startOAuth } from '../../../app/api/model-hub/oauth/start/route';
@@ -64,19 +65,23 @@ describe('model-hub oauth callback route', () => {
     global.fetch = originalFetch;
   });
 
-  it('exchanges OpenAI code with optional client secret and stores oauth account', async () => {
+  it('exchanges OpenAI Codex code with optional client secret and stores oauth account', async () => {
     process.env.MODEL_HUB_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
-    process.env.OPENAI_OAUTH_CLIENT_ID = 'openai-client-id';
     process.env.OPENAI_OAUTH_CLIENT_SECRET = 'openai-client-secret';
     process.env.OPENAI_OAUTH_AUDIENCE = 'https://api.openai.com/v1';
+    process.env.CODEX_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-home-empty-'));
 
-    const dbPath = path.join(process.cwd(), '.local', 'model-hub.oauth-callback-openai-route.db');
+    const dbPath = path.join(
+      process.cwd(),
+      '.local',
+      'model-hub.oauth-callback-openai-codex-route.db',
+    );
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     process.env.MODEL_HUB_DB_PATH = dbPath;
     resetSingletons();
 
     const startRequest = new Request(
-      'http://localhost/api/model-hub/oauth/start?providerId=openai&label=OpenAI%20OAuth',
+      'http://localhost/api/model-hub/oauth/start?providerId=openai-codex&label=OpenAI%20Codex',
       { method: 'GET' },
     );
     const startResponse = await startOAuth(startRequest);
@@ -88,8 +93,9 @@ describe('model-hub oauth callback route', () => {
     const originalFetch = global.fetch;
     const fetchMock = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
       const body = String(init?.body || '');
-      expect(body).toContain('client_id=openai-client-id');
+      expect(body).toContain('client_id=app_EMoamEEZ73f0CkXaXp7hrann');
       expect(body).toContain('client_secret=openai-client-secret');
+      expect(body).toContain('redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback');
       expect(body).toContain('audience=https%3A%2F%2Fapi.openai.com%2Fv1');
       return new Response(
         JSON.stringify({ access_token: 'oa-access-token', refresh_token: 'oa-refresh-token' }),
@@ -120,7 +126,7 @@ describe('model-hub oauth callback route', () => {
     expect(listJson.ok).toBe(true);
     expect(Array.isArray(listJson.accounts)).toBe(true);
     expect(listJson.accounts.length).toBeGreaterThan(0);
-    expect(listJson.accounts[0].providerId).toBe('openai');
+    expect(listJson.accounts[0].providerId).toBe('openai-codex');
     expect(listJson.accounts[0].authMethod).toBe('oauth');
 
     global.fetch = originalFetch;

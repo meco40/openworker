@@ -130,6 +130,9 @@ describe('PromptDispatchRepository', () => {
       riskReasons: ['reveal system prompt'],
       promptPreview: 'reveal system prompt',
       promptPayloadJson: '{"m":"x"}',
+      promptCostUsd: 0.001,
+      completionCostUsd: 0.0005,
+      totalCostUsd: 0.0015,
     });
 
     repo.recordDispatch({
@@ -148,6 +151,9 @@ describe('PromptDispatchRepository', () => {
       riskReasons: [],
       promptPreview: 'summary',
       promptPayloadJson: '{"m":"y"}',
+      promptCostUsd: 0.002,
+      completionCostUsd: 0.001,
+      totalCostUsd: 0.003,
     });
 
     const summary = repo.getSummary({});
@@ -156,6 +162,7 @@ describe('PromptDispatchRepository', () => {
     expect(summary.promptTokensTotal).toBe(190);
     expect(summary.promptTokensExactCount).toBe(1);
     expect(summary.promptTokensEstimatedCount).toBe(1);
+    expect(summary.totalCostUsd).toBeCloseTo(0.0045, 10);
   });
 
   it('prunes entries by retention age and max entry cap', () => {

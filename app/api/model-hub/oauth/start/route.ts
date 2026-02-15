@@ -6,19 +6,20 @@ import {
 } from '../../../../../src/server/model-hub/oauth';
 import { getModelHubEncryptionKey } from '../../../../../src/server/model-hub/runtime';
 import { PROVIDER_CATALOG } from '../../../../../src/server/model-hub/providerCatalog';
+import {
+  getOpenAICodexClientId,
+  OPENAI_CODEX_AUTHORIZE_URL,
+  OPENAI_CODEX_LOCAL_REDIRECT_URI,
+  OPENAI_CODEX_SCOPE,
+} from '../../../../../src/server/model-hub/codexAuth';
+import { ensureCodexLocalCallbackBridge } from '../../../../../src/server/model-hub/codexLocalCallbackBridge';
+import { buildModelHubCallbackUrl, normalizeBrowserOrigin } from '../../../../../src/server/model-hub/urlOrigin';
 import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
-const OPENAI_DEFAULT_AUTHORIZE_URL = 'https://auth0.openai.com/authorize';
-const OPENAI_DEFAULT_AUDIENCE = 'https://api.openai.com/v1';
 
 function findProvider(providerId: string) {
   return PROVIDER_CATALOG.find((provider) => provider.id === providerId) ?? null;
-}
-
-function buildCallbackUrl(requestUrl: string): string {
-  const url = new URL(requestUrl);
-  return `${url.origin}/api/model-hub/oauth/callback`;
 }
 
 function popupResult(ok: boolean, message: string, status = 200) {
@@ -35,7 +36,7 @@ function popupResult(ok: boolean, message: string, status = 200) {
       (function () {
         const payload = ${payload};
         if (window.opener) {
-          window.opener.postMessage(payload, window.location.origin);
+          window.opener.postMessage(payload, '*');
         }
         document.body.innerText = payload.message;
         setTimeout(function () { window.close(); }, 250);
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const providerId = String(url.searchParams.get('providerId') || '').trim();
     const label = String(url.searchParams.get('label') || '').trim();
-    const callbackUrl = buildCallbackUrl(request.url);
+    const callbackUrl = buildModelHubCallbackUrl(request.url);
 
     if (!providerId) {
       return popupResult(false, 'providerId is required.', 400);
@@ -122,28 +123,41 @@ export async function GET(request: Request) {
       return NextResponse.redirect(authUrl.toString(), { status: 302 });
     }
 
-    if (providerId === 'openai') {
-      const clientId = process.env.OPENAI_OAUTH_CLIENT_ID?.trim();
+    if (providerId === 'openai-codex') {
+      const customClientId = process.env.OPENAI_OAUTH_CLIENT_ID?.trim();
+      const clientId = getOpenAICodexClientId();
+      const configuredRedirectUri = process.env.OPENAI_OAUTH_REDIRECT_URI?.trim();
+      const usePublicClient = !customClientId;
+      const redirectUri =
+        configuredRedirectUri || (usePublicClient ? OPENAI_CODEX_LOCAL_REDIRECT_URI : callbackUrl);
+
+      if (usePublicClient && !configuredRedirectUri) {
+        await ensureCodexLocalCallbackBridge(normalizeBrowserOrigin(url.origin));
+      }
+
       if (!clientId) {
         return popupResult(
           false,
-          'OpenAI OAuth ist nicht konfiguriert. Bitte OPENAI_OAUTH_CLIENT_ID in .env.local setzen (OAuth App auf platform.openai.com registrieren). Verwende alternativ einen API Key.',
+          'OpenAI Codex OAuth konnte nicht gestartet werden (fehlende Client-ID).',
           500,
         );
       }
 
-      // OpenAI uses Auth0 — endpoints are stable and publicly discoverable via OIDC.
-      // We use PKCE (S256) so no client_secret is needed.
+      // OpenAI Codex uses OAuth with PKCE (S256). Client-ID defaults to Codex public app.
       const { codeVerifier, codeChallenge } = createPkcePair();
-      const pkceState = createOAuthState({ ...oauthStateBase, codeVerifier }, signingKey);
-      const scope = process.env.OPENAI_OAUTH_SCOPE?.trim() || 'openid profile email offline_access';
-      const audience = process.env.OPENAI_OAUTH_AUDIENCE?.trim() || OPENAI_DEFAULT_AUDIENCE;
+      const pkceState = createOAuthState(
+        { ...oauthStateBase, codeVerifier, oauthRedirectUri: redirectUri },
+        signingKey,
+      );
+      const scope = process.env.OPENAI_OAUTH_SCOPE?.trim() || OPENAI_CODEX_SCOPE;
+      const audience = process.env.OPENAI_OAUTH_AUDIENCE?.trim();
       const authorizeUrl =
-        process.env.OPENAI_OAUTH_AUTHORIZE_URL?.trim() || OPENAI_DEFAULT_AUTHORIZE_URL;
+        process.env.OPENAI_OAUTH_AUTHORIZE_URL?.trim() || OPENAI_CODEX_AUTHORIZE_URL;
+      const originator = process.env.OPENAI_OAUTH_ORIGINATOR?.trim() || 'pi';
       const authUrl = new URL(authorizeUrl);
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('client_id', clientId);
-      authUrl.searchParams.set('redirect_uri', callbackUrl);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
       authUrl.searchParams.set('scope', scope);
       if (audience) {
         authUrl.searchParams.set('audience', audience);
@@ -151,6 +165,9 @@ export async function GET(request: Request) {
       authUrl.searchParams.set('state', pkceState);
       authUrl.searchParams.set('code_challenge', codeChallenge);
       authUrl.searchParams.set('code_challenge_method', 'S256');
+      authUrl.searchParams.set('id_token_add_organizations', 'true');
+      authUrl.searchParams.set('codex_cli_simplified_flow', 'true');
+      authUrl.searchParams.set('originator', originator);
       return NextResponse.redirect(authUrl.toString(), { status: 302 });
     }
 

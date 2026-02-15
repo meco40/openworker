@@ -47,14 +47,15 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
   const { startStepIndex } = recoverFromCheckpoint(task);
 
   // Phase 0b: Workspace Setup
-  const { workspaceType } = setupWorkspace(task.id, task.workspaceType);
+  const { workspaceType, workspacePath } = setupWorkspace(task.id, task.workspaceType);
+  const taskWithWorkspace: WorkerTaskRecord = { ...task, workspacePath };
 
   // Phase 1: Try Orchestra Flow execution first (if flowPublishedId is set)
-  const orchestraHandled = await executeOrchestraPhase(task);
+  const orchestraHandled = await executeOrchestraPhase(taskWithWorkspace);
   if (orchestraHandled) return;
 
   // Phase 2: Standard Task Execution (Planning → Execution → Testing → Completion)
-  await executeStandardTaskPhase(task, startStepIndex, workspaceType);
+  await executeStandardTaskPhase(taskWithWorkspace, startStepIndex, workspaceType);
 }
 
 // ─── Error Handling ──────────────────────────────────────────

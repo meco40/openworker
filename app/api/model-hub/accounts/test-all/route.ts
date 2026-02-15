@@ -31,23 +31,24 @@ export async function POST(request: Request) {
     const modelByAccountId = body.modelByAccountId || {};
 
     const service = getModelHubService();
+    const encryptionKey = getModelHubEncryptionKey();
     const accounts = service.listAccounts();
     const results: ConnectivityResultItem[] = [];
 
     for (const accountView of accounts) {
-      const account = service.getAccountById(accountView.id);
+      const account = await service.getUsableAccountById(accountView.id, encryptionKey);
       if (!account) continue;
 
       const modelCandidate = modelByAccountId[account.id];
       const model = typeof modelCandidate === 'string' ? modelCandidate.trim() : undefined;
       const connectivity = await testProviderAccountConnectivity(
         account,
-        getModelHubEncryptionKey(),
+        encryptionKey,
         {
           model,
         },
       );
-      service.updateHealth(account.id, connectivity.ok);
+      service.updateHealth(account.id, connectivity.ok, connectivity.message);
 
       results.push({
         accountId: account.id,

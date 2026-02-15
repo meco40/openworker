@@ -2,14 +2,17 @@ import { NextResponse } from 'next/server';
 import { parseOAuthState } from '../../../../../src/server/model-hub/oauth';
 import { PROVIDER_CATALOG } from '../../../../../src/server/model-hub/providerCatalog';
 import {
+  getOpenAICodexClientId,
+  OPENAI_CODEX_TOKEN_URL,
+} from '../../../../../src/server/model-hub/codexAuth';
+import {
   getModelHubEncryptionKey,
   getModelHubService,
 } from '../../../../../src/server/model-hub/runtime';
+import { buildModelHubCallbackUrl } from '../../../../../src/server/model-hub/urlOrigin';
 import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
-const OPENAI_DEFAULT_TOKEN_URL = 'https://auth0.openai.com/oauth/token';
-const OPENAI_DEFAULT_AUDIENCE = 'https://api.openai.com/v1';
 
 interface OauthExchangeResult {
   accessToken: string;
@@ -34,7 +37,7 @@ function htmlResult(ok: boolean, message: string, status = 200): NextResponse {
       (function () {
         const payload = ${payload};
         if (window.opener) {
-          window.opener.postMessage(payload, window.location.origin);
+          window.opener.postMessage(payload, '*');
         }
         document.body.innerText = payload.message;
         setTimeout(function () { window.close(); }, 250);
@@ -50,11 +53,6 @@ function htmlResult(ok: boolean, message: string, status = 200): NextResponse {
 
 function ensureString(value: unknown): string {
   return typeof value === 'string' ? value : '';
-}
-
-function buildCallbackUrl(request: Request): string {
-  const url = new URL(request.url);
-  return `${url.origin}/api/model-hub/oauth/callback`;
 }
 
 async function exchangeOpenRouterCode(code: string, codeVerifier: string, callbackUrl: string) {
@@ -123,13 +121,10 @@ async function exchangeOpenAICode(
   codeVerifier: string,
   callbackUrl: string,
 ): Promise<OauthExchangeResult> {
-  const clientId = process.env.OPENAI_OAUTH_CLIENT_ID?.trim();
-  if (!clientId) {
-    throw new Error('Missing OPENAI_OAUTH_CLIENT_ID.');
-  }
+  const clientId = getOpenAICodexClientId();
   const clientSecret = process.env.OPENAI_OAUTH_CLIENT_SECRET?.trim() || '';
-  const tokenUrl = process.env.OPENAI_OAUTH_TOKEN_URL?.trim() || OPENAI_DEFAULT_TOKEN_URL;
-  const audience = process.env.OPENAI_OAUTH_AUDIENCE?.trim() || OPENAI_DEFAULT_AUDIENCE;
+  const tokenUrl = process.env.OPENAI_OAUTH_TOKEN_URL?.trim() || OPENAI_CODEX_TOKEN_URL;
+  const audience = process.env.OPENAI_OAUTH_AUDIENCE?.trim();
 
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
@@ -137,8 +132,10 @@ async function exchangeOpenAICode(
     code,
     code_verifier: codeVerifier,
     redirect_uri: callbackUrl,
-    audience,
   });
+  if (audience) {
+    body.set('audience', audience);
+  }
   if (clientSecret) {
     body.set('client_secret', clientSecret);
   }
@@ -192,7 +189,7 @@ export async function GET(request: Request) {
       return htmlResult(false, `Unknown provider: ${state.providerId}`);
     }
 
-    const callbackUrl = buildCallbackUrl(request);
+    const callbackUrl = buildModelHubCallbackUrl(request.url);
     let exchanged: OauthExchangeResult;
     if (state.providerId === 'openrouter') {
       if (!state.codeVerifier) {
@@ -201,11 +198,12 @@ export async function GET(request: Request) {
       exchanged = await exchangeOpenRouterCode(code, state.codeVerifier, callbackUrl);
     } else if (state.providerId === 'github-copilot') {
       exchanged = await exchangeGitHubCode(code, callbackUrl);
-    } else if (state.providerId === 'openai') {
+    } else if (state.providerId === 'openai-codex') {
       if (!state.codeVerifier) {
-        return htmlResult(false, 'OpenAI callback missing PKCE verifier.');
+        return htmlResult(false, 'OpenAI Codex callback missing PKCE verifier.');
       }
-      exchanged = await exchangeOpenAICode(code, state.codeVerifier, callbackUrl);
+      const exchangeRedirectUri = state.oauthRedirectUri?.trim() || callbackUrl;
+      exchanged = await exchangeOpenAICode(code, state.codeVerifier, exchangeRedirectUri);
     } else {
       return htmlResult(false, `OAuth callback for ${provider.name} is not implemented.`);
     }

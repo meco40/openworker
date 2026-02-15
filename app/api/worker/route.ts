@@ -48,7 +48,10 @@ export async function DELETE() {
     let deleted = 0;
     for (const task of tasks) {
       try {
-        wsMgr.deleteWorkspace(task.id);
+        wsMgr.deleteWorkspace(
+          task.id,
+          task.workspacePath ? { workspacePath: task.workspacePath } : undefined,
+        );
       } catch {
         /* workspace may not exist */
       }
@@ -71,6 +74,7 @@ interface CreateTaskRequest {
   priority?: string;
   usePlanning?: boolean;
   flowPublishedId?: string;
+  personaId?: string | null;
 }
 
 export async function POST(request: Request) {
@@ -113,12 +117,39 @@ export async function POST(request: Request) {
       flowPublishedId: body.flowPublishedId || null,
     });
 
+    // Assign persona if selected
+    if (body.personaId) {
+      repo.assignPersona(task.id, body.personaId);
+      
+      // Get persona name for activity log
+      let personaName = body.personaId;
+      try {
+        const { getPersonaRepository } = await import('../../../src/server/personas/personaRepository');
+        const personaRepo = getPersonaRepository();
+        const persona = personaRepo.getPersona(body.personaId);
+        if (persona) {
+          personaName = `${persona.emoji} ${persona.name}`;
+        }
+      } catch {
+        // Persona not found, use ID as fallback
+      }
+      
+      repo.addActivity({
+        taskId: task.id,
+        type: 'persona_assigned',
+        message: `Persona ${personaName} zugewiesen`,
+        metadata: { personaId: body.personaId, personaName },
+      });
+    }
+
     // Start queue processor (non-blocking) — skip for planning mode (task starts in inbox)
     if (!body.usePlanning) {
       processQueue().catch((err: unknown) => console.error('[API Worker] Queue error:', err));
     }
 
-    return NextResponse.json({ ok: true, task });
+    // Return updated task with persona
+    const updatedTask = repo.getTask(task.id);
+    return NextResponse.json({ ok: true, task: updatedTask || task });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create task';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

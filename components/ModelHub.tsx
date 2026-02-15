@@ -6,6 +6,7 @@ import PipelineSection from './model-hub/sections/PipelineSection';
 import SidebarSection from './model-hub/sections/SidebarSection';
 import type {
   ApiResponse,
+  CodexThinkingLevel,
   ConnectMessage,
   FetchedModel,
   PipelineModel,
@@ -14,6 +15,24 @@ import type {
   SessionStats,
 } from './model-hub/types';
 import { filterLiveModels, getDefaultActiveModel } from './model-hub/utils';
+
+function normalizeLoopbackOrigin(origin: string): string {
+  try {
+    const parsed = new URL(origin);
+    if (
+      parsed.hostname === '0.0.0.0' ||
+      parsed.hostname === '::' ||
+      parsed.hostname === '[::]' ||
+      parsed.hostname === '127.0.0.1'
+    ) {
+      parsed.hostname = 'localhost';
+      return parsed.origin;
+    }
+    return parsed.origin;
+  } catch {
+    return origin;
+  }
+}
 
 const ModelHub: React.FC = () => {
   const [providerCatalog, setProviderCatalog] = useState<ProviderCatalogEntry[]>([]);
@@ -40,6 +59,7 @@ const ModelHub: React.FC = () => {
   const [isAddModelOpen, setIsAddModelOpen] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [selectedModelId, setSelectedModelId] = useState('');
+  const [selectedReasoningEffort, setSelectedReasoningEffort] = useState<CodexThinkingLevel>('high');
   const [selectedPriority, setSelectedPriority] = useState(1);
   const [liveModels, setLiveModels] = useState<FetchedModel[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -150,6 +170,16 @@ const ModelHub: React.FC = () => {
         setConnectMessage({ text: 'Bitte ein Account-Label angeben.', ok: false });
         return;
       }
+      if (selectedConnectProvider.oauthConfigured === false) {
+        setConnectMessage({
+          text:
+            selectedConnectProvider.id === 'openai-codex'
+              ? 'OpenAI Codex OAuth ist aktuell nicht verfügbar. Bitte zuerst lokal mit `codex login` authentifizieren oder OAuth-Konfiguration prüfen.'
+              : `OAuth für ${selectedConnectProvider.name} ist nicht konfiguriert. Bitte OAuth-ENV konfigurieren und Seite neu laden.`,
+          ok: false,
+        });
+        return;
+      }
       const startUrl = new URL('/api/model-hub/oauth/start', window.location.origin);
       startUrl.searchParams.set('providerId', selectedConnectProvider.id);
       startUrl.searchParams.set('label', connectLabel.trim());
@@ -208,7 +238,9 @@ const ModelHub: React.FC = () => {
 
   useEffect(() => {
     function onOAuthMessage(event: MessageEvent) {
-      if (event.origin !== window.location.origin) return;
+      const currentOrigin = normalizeLoopbackOrigin(window.location.origin);
+      const incomingOrigin = normalizeLoopbackOrigin(event.origin);
+      if (incomingOrigin !== currentOrigin) return;
       const payload = event.data as { type?: string; ok?: boolean; message?: string } | undefined;
       if (!payload || payload.type !== 'MODEL_HUB_OAUTH_RESULT') return;
       setConnectMessage({
@@ -339,6 +371,7 @@ const ModelHub: React.FC = () => {
     const initial = providerAccounts[0];
     setSelectedAccountId(initial.id);
     setSelectedModelId('');
+    setSelectedReasoningEffort('high');
     setSelectedPriority(pipeline.length + 1);
     setIsAddModelOpen(true);
     void fetchLiveModelsForAccount(initial.id);
@@ -356,6 +389,8 @@ const ModelHub: React.FC = () => {
           accountId: selectedAccount.id,
           providerId: selectedAccount.providerId,
           modelName: selectedModelId,
+          reasoningEffort:
+            selectedAccount.providerId === 'openai-codex' ? selectedReasoningEffort : undefined,
           priority: selectedPriority,
         }),
       });
@@ -423,6 +458,7 @@ const ModelHub: React.FC = () => {
         isProbing={isProbing}
         isTestingAll={isTestingAll}
         probeResult={probeResult}
+        lastProbeOk={sessionStats.lastProbeOk}
         bulkProbeSummary={bulkProbeSummary}
         onRunConnectionProbe={runConnectionProbe}
         onRunAllConnectionProbes={runAllConnectionProbes}
@@ -476,7 +512,13 @@ const ModelHub: React.FC = () => {
         providerAccounts={providerAccounts}
         providerLookup={providerLookup}
         selectedAccountId={selectedAccountId}
-        onSelectedAccountIdChange={setSelectedAccountId}
+        onSelectedAccountIdChange={(accountId) => {
+          setSelectedAccountId(accountId);
+          const nextAccount = providerAccounts.find((account) => account.id === accountId);
+          if (nextAccount?.providerId === 'openai-codex') {
+            setSelectedReasoningEffort('high');
+          }
+        }}
         selectedAccount={selectedAccount}
         onFetchLiveModelsForAccount={(accountId) => {
           void fetchLiveModelsForAccount(accountId);
@@ -489,6 +531,8 @@ const ModelHub: React.FC = () => {
         onModelSearchQueryChange={setModelSearchQuery}
         selectedModelId={selectedModelId}
         onSelectedModelIdChange={setSelectedModelId}
+        selectedReasoningEffort={selectedReasoningEffort}
+        onSelectedReasoningEffortChange={setSelectedReasoningEffort}
         selectedPriority={selectedPriority}
         onSelectedPriorityChange={setSelectedPriority}
         pipelineLength={pipeline.length}

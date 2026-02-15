@@ -1,5 +1,10 @@
 import React from 'react';
-import type { FetchedModel, ProviderAccount, ProviderCatalogEntry } from '../types';
+import type {
+  CodexThinkingLevel,
+  FetchedModel,
+  ProviderAccount,
+  ProviderCatalogEntry,
+} from '../types';
 
 interface AddModelModalProps {
   isOpen: boolean;
@@ -17,6 +22,8 @@ interface AddModelModalProps {
   onModelSearchQueryChange: (query: string) => void;
   selectedModelId: string;
   onSelectedModelIdChange: (modelId: string) => void;
+  selectedReasoningEffort: CodexThinkingLevel;
+  onSelectedReasoningEffortChange: (reasoningEffort: CodexThinkingLevel) => void;
   selectedPriority: number;
   onSelectedPriorityChange: (priority: number) => void;
   pipelineLength: number;
@@ -39,12 +46,15 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
   onModelSearchQueryChange,
   selectedModelId,
   onSelectedModelIdChange,
+  selectedReasoningEffort,
+  onSelectedReasoningEffortChange,
   selectedPriority,
   onSelectedPriorityChange,
   pipelineLength,
   onSave,
 }) => {
   if (!isOpen) return null;
+  const isCodexAccount = selectedAccount?.providerId === 'openai-codex';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
@@ -176,8 +186,33 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
           </div>
 
           <div>
+            {isCodexAccount && (
+              <div className="mb-6">
+                <div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+                  Step 3: Denkstufe
+                </div>
+                <select
+                  value={selectedReasoningEffort}
+                  onChange={(event) =>
+                    onSelectedReasoningEffortChange(event.target.value as CodexThinkingLevel)
+                  }
+                  className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-200 focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="off">off</option>
+                  <option value="minimal">minimal</option>
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                  <option value="xhigh">xhigh</option>
+                </select>
+                <p className="mt-2 text-[10px] text-zinc-500">
+                  Für API-Requests wird `xhigh` kompatibel als `high` übergeben.
+                </p>
+              </div>
+            )}
+
             <div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
-              Step 3: Priorität
+              Step {isCodexAccount ? '4' : '3'}: Priorität
             </div>
             <select
               value={selectedPriority}

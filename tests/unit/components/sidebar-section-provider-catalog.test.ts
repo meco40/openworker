@@ -44,4 +44,46 @@ describe('sidebar section provider catalog panel', () => {
 
     expect(html).not.toContain('Provider Katalog');
   });
+
+  it('shows oauth setup hint when oauth is selected but not configured', () => {
+    const providerCatalog: ProviderCatalogEntry[] = [
+      {
+        id: 'openai-codex',
+        name: 'OpenAI Codex',
+        icon: 'OC',
+        authMethods: ['oauth'],
+        oauthConfigured: false,
+        capabilities: ['chat'],
+        defaultModels: ['gpt-5.3-codex'],
+        endpointType: 'openai_compatible',
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      createElement(SidebarSection, {
+        providerCatalog,
+        connectProviderId: 'openai-codex',
+        onConnectProviderIdChange: () => {},
+        selectedConnectProvider: providerCatalog[0],
+        availableAuthMethods: ['api_key', 'oauth'],
+        connectAuthMethod: 'oauth',
+        onConnectAuthMethodChange: () => {},
+        connectLabel: 'OpenAI Account',
+        onConnectLabelChange: () => {},
+        connectSecret: '',
+        onConnectSecretChange: () => {},
+        isConnecting: false,
+        connectMessage: null,
+        accountsError: null,
+        onConnectProviderAccount: () => {},
+        pipeline: [],
+        providerAccounts: [],
+        isLoadingAccounts: false,
+        sessionStats: { requests: 0, lastProbeOk: null },
+      }),
+    );
+
+    expect(html).toContain('OpenAI Codex OAuth ist aktuell nicht verfügbar');
+    expect(html).toContain('disabled');
+  });
 });

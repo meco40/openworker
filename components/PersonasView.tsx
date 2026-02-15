@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePersona } from '../src/modules/personas/PersonaContext';
-import type { PersonaWithFiles, PersonaFileName } from '../src/server/personas/personaTypes';
+import type { PersonaWithFiles, PersonaTabName } from '../src/server/personas/personaTypes';
 import type { PersonaTemplate } from '../lib/persona-templates';
 import { RoomDetailPanel } from '../src/modules/rooms/components/RoomDetailPanel';
 import { CreateRoomModal } from '../src/modules/rooms/components/CreateRoomModal';
@@ -31,12 +31,21 @@ import type {
   RoomMemberStatus,
 } from '../src/modules/rooms/types';
 
+interface PipelineModel {
+  id: string;
+  accountId: string;
+  providerId: string;
+  modelName: string;
+  status: 'active' | 'rate-limited' | 'offline';
+  priority: number;
+}
+
 const PersonasView: React.FC = () => {
   const { personas, activePersonaId, setActivePersonaId, refreshPersonas, loading } = usePersona();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPersona, setSelectedPersona] = useState<PersonaWithFiles | null>(null);
-  const [activeFile, setActiveFile] = useState<PersonaFileName>('SOUL.md');
+  const [activeTab, setActiveTab] = useState<PersonaTabName>('SOUL.md');
   const [editorContent, setEditorContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -61,6 +70,11 @@ const PersonasView: React.FC = () => {
     Record<string, number>
   >({});
 
+  // Gateway state
+  const [pipelineModels, setPipelineModels] = useState<PipelineModel[]>([]);
+  const [preferredModelId, setPreferredModelId] = useState<string | null>(null);
+  const [savingPreferredModel, setSavingPreferredModel] = useState(false);
+
   const selectedRoom = selectedRoomId
     ? rooms.find((room) => room.id === selectedRoomId) || null
     : null;
@@ -75,6 +89,19 @@ const PersonasView: React.FC = () => {
 
   const mergedMemberStatus = { ...initialRoomMemberStatus, ...liveMemberStatus };
 
+  // ─── Load pipeline models ─────────────────────────────────
+  const loadPipelineModels = useCallback(async () => {
+    try {
+      const res = await fetch('/api/model-hub/pipeline');
+      if (res.ok) {
+        const data = await res.json();
+        setPipelineModels(data.models ?? []);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   // ─── Load persona detail ──────────────────────────────────
   const loadPersona = useCallback(
     async (id: string) => {
@@ -84,15 +111,18 @@ const PersonasView: React.FC = () => {
           const data = await res.json();
           const p = data.persona as PersonaWithFiles;
           setSelectedPersona(p);
-          // Load current file content
-          setEditorContent(p.files[activeFile] ?? '');
+          setPreferredModelId(p.preferredModelId ?? null);
+          // Load current file content if not on gateway tab
+          if (activeTab !== 'GATEWAY') {
+            setEditorContent(p.files[activeTab] ?? '');
+          }
           setDirty(false);
         }
       } catch {
         /* ignore */
       }
     },
-    [activeFile],
+    [activeTab],
   );
 
   const refreshRooms = useCallback(async () => {
@@ -274,7 +304,7 @@ const PersonasView: React.FC = () => {
     [dirty],
   );
 
-  // ─── On selectedId or activeFile change, re-load ──────────
+  // ─── On selectedId or activeTab change, re-load ──────────
   useEffect(() => {
     if (selectedId) {
       loadPersona(selectedId);
@@ -286,7 +316,8 @@ const PersonasView: React.FC = () => {
 
   useEffect(() => {
     refreshRooms();
-  }, [refreshRooms]);
+    loadPipelineModels();
+  }, [refreshRooms, loadPipelineModels]);
 
   useEffect(() => {
     if (!selectedRoomId) {
@@ -301,18 +332,18 @@ const PersonasView: React.FC = () => {
 
   // ─── When switching file tabs ─────────────────────────────
   useEffect(() => {
-    if (selectedPersona) {
-      setEditorContent(selectedPersona.files[activeFile] ?? '');
+    if (selectedPersona && activeTab !== 'GATEWAY') {
+      setEditorContent(selectedPersona.files[activeTab] ?? '');
       setDirty(false);
     }
-  }, [activeFile, selectedPersona]);
+  }, [activeTab, selectedPersona]);
 
   // ─── Save file ────────────────────────────────────────────
   const saveFile = useCallback(async () => {
-    if (!selectedId) return;
+    if (!selectedId || activeTab === 'GATEWAY') return;
     setSaving(true);
     try {
-      await fetch(`/api/personas/${selectedId}/files/${activeFile}`, {
+      await fetch(`/api/personas/${selectedId}/files/${activeTab}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: editorContent }),
@@ -320,7 +351,7 @@ const PersonasView: React.FC = () => {
       setDirty(false);
       // Update local cache
       if (selectedPersona) {
-        const updatedFiles = { ...selectedPersona.files, [activeFile]: editorContent };
+        const updatedFiles = { ...selectedPersona.files, [activeTab]: editorContent };
         setSelectedPersona({ ...selectedPersona, files: updatedFiles });
       }
     } catch {
@@ -328,7 +359,31 @@ const PersonasView: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  }, [selectedId, activeFile, editorContent, selectedPersona]);
+  }, [selectedId, activeTab, editorContent, selectedPersona]);
+
+  // ─── Save preferred model ─────────────────────────────────
+  const savePreferredModel = useCallback(
+    async (modelId: string | null) => {
+      if (!selectedId) return;
+      setSavingPreferredModel(true);
+      try {
+        const res = await fetch(`/api/personas/${selectedId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ preferredModelId: modelId }),
+        });
+        if (res.ok) {
+          await refreshPersonas();
+          await loadPersona(selectedId);
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        setSavingPreferredModel(false);
+      }
+    },
+    [selectedId, refreshPersonas, loadPersona],
+  );
 
   // ─── Save metadata ───────────────────────────────────────
   const saveMeta = useCallback(async () => {
@@ -447,14 +502,14 @@ const PersonasView: React.FC = () => {
   // ─── Keyboard shortcuts ───────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's' && dirty && selectedId) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's' && dirty && selectedId && activeTab !== 'GATEWAY') {
         e.preventDefault();
         saveFile();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [dirty, selectedId, saveFile]);
+  }, [dirty, selectedId, saveFile, activeTab]);
 
   return (
     <div className="animate-in fade-in flex h-full duration-500">
@@ -533,13 +588,17 @@ const PersonasView: React.FC = () => {
             duplicatePersona={duplicatePersona}
             creating={creating}
             deletePersona={deletePersona}
-            activeFile={activeFile}
-            setActiveFile={setActiveFile}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
             dirty={dirty}
             setDirty={setDirty}
             editorContent={editorContent}
             setEditorContent={setEditorContent}
             saveFile={saveFile}
+            pipelineModels={pipelineModels}
+            preferredModelId={preferredModelId}
+            onPreferredModelChange={savePreferredModel}
+            savingPreferredModel={savingPreferredModel}
           />
         )}
       </div>

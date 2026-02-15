@@ -81,6 +81,24 @@ export interface ControlPlaneMetrics {
   activeWsSessions: number;
   tokensToday: number;
   vectorNodeCount: number;
+  orchestra?: {
+    runCount: number;
+    failFastAbortCount: number;
+    activeSubagentSessions: number;
+  };
+  rooms?: {
+    totalRooms: number;
+    runningRooms: number;
+    totalMembers: number;
+    totalMessages: number;
+  } | null;
+  automation?: {
+    activeRules: number;
+    queuedRuns: number;
+    runningRuns: number;
+    deadLetterRuns: number;
+    leaseAgeSeconds: number | null;
+  } | null;
   generatedAt: string;
 }
 

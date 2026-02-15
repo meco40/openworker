@@ -138,8 +138,8 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
         </ViewErrorBoundary>
       )}
       {currentView === View.PROFILE && (
-        <ViewErrorBoundary label="SaaS Identity">
-          <ProfileView />
+        <ViewErrorBoundary label="Operator Profile">
+          <ProfileView metricsState={controlPlaneMetricsState} />
         </ViewErrorBoundary>
       )}
       {currentView === View.EXPOSURE && (

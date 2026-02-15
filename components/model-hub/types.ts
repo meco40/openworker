@@ -21,6 +21,7 @@ export interface ProviderAccount {
   updatedAt: string;
   lastCheckAt: string | null;
   lastCheckOk: boolean | null;
+  lastCheckMessage?: string | null;
 }
 
 export interface PipelineModel {
@@ -29,11 +30,14 @@ export interface PipelineModel {
   accountId: string;
   providerId: string;
   modelName: string;
+  reasoningEffort?: CodexThinkingLevel;
   priority: number;
   status: 'active' | 'rate-limited' | 'offline';
   createdAt: string;
   updatedAt: string;
 }
+
+export type CodexThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
 
 export interface FetchedModel {
   id: string;

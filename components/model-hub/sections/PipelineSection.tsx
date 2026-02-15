@@ -209,13 +209,13 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
                     {account.lastCheckOk === true && (
                       <span
                         className="h-2 w-2 rounded-full bg-emerald-500"
-                        title="Letzte Prüfung OK"
+                        title={account.lastCheckMessage || 'Letzte Prüfung OK'}
                       />
                     )}
                     {account.lastCheckOk === false && (
                       <span
                         className="h-2 w-2 rounded-full bg-rose-500"
-                        title="Letzte Prüfung fehlgeschlagen"
+                        title={account.lastCheckMessage || 'Letzte Prüfung fehlgeschlagen'}
                       />
                     )}
                   </div>
@@ -235,6 +235,14 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
                       {modelsInPipeline} Modell{modelsInPipeline !== 1 ? 'e' : ''}
                     </span>
                   </div>
+                  {account.lastCheckOk === false && account.lastCheckMessage && (
+                    <div
+                      className="mt-1 whitespace-pre-wrap break-words font-mono text-[10px] text-rose-400"
+                      title={account.lastCheckMessage}
+                    >
+                      {account.lastCheckMessage}
+                    </div>
+                  )}
                 </div>
                 <div className="ml-4 flex shrink-0 items-center gap-2">
                   {deletingAccountId === account.id ? (

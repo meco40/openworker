@@ -51,6 +51,13 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
   isLoadingAccounts,
   sessionStats,
 }) => {
+  const oauthNeedsSetup =
+    connectAuthMethod === 'oauth' && selectedConnectProvider?.oauthConfigured === false;
+  const oauthSetupHint =
+    selectedConnectProvider?.id === 'openai-codex'
+      ? 'OpenAI Codex OAuth ist aktuell nicht verfügbar. Bitte lokal mit `codex login` anmelden oder OAuth-Konfiguration prüfen.'
+      : 'OAuth ist noch nicht serverseitig konfiguriert. Setze die erforderlichen OAuth-ENV Variablen und lade die Seite neu.';
+
   return (
     <div className="space-y-8">
       <div className="space-y-4 rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
@@ -140,12 +147,20 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
           />
         )}
 
+        {oauthNeedsSetup && (
+          <div className="rounded-xl border border-amber-500/30 bg-zinc-950 p-2 font-mono text-[10px] text-amber-300">
+            {oauthSetupHint}
+          </div>
+        )}
+
         <button
           onClick={onConnectProviderAccount}
-          disabled={isConnecting}
+          disabled={isConnecting || oauthNeedsSetup}
           className="w-full rounded-xl bg-indigo-600 py-3 text-[10px] font-black tracking-widest text-white uppercase transition-all hover:bg-indigo-500 disabled:opacity-50"
         >
-          {connectAuthMethod === 'oauth'
+          {oauthNeedsSetup
+            ? 'OAuth Setup fehlt'
+            : connectAuthMethod === 'oauth'
             ? '🔒 OAuth starten'
             : isConnecting
               ? 'Verbinde...'

@@ -34,7 +34,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const service = getModelHubService();
-    const account = service.getAccountById(accountId);
+    const account = await service.getUsableAccountById(accountId, getModelHubEncryptionKey());
     if (!account) {
       return NextResponse.json({ ok: false, error: 'Account not found.' }, { status: 404 });
     }
@@ -49,7 +49,7 @@ export async function POST(request: Request, context: RouteContext) {
         model,
       },
     );
-    service.updateHealth(accountId, connectivity.ok);
+    service.updateHealth(accountId, connectivity.ok, connectivity.message);
 
     return NextResponse.json({ ok: true, connectivity });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getModelHubService } from '../../../../src/server/model-hub/runtime';
+import type { PipelineReasoningEffort } from '../../../../src/server/model-hub/repository';
 import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
@@ -8,6 +9,7 @@ interface PipelineModelPayload {
   accountId: string;
   providerId: string;
   modelName: string;
+  reasoningEffort?: PipelineReasoningEffort;
   priority: number;
 }
 
@@ -21,6 +23,7 @@ interface AddModelBody {
   accountId?: string;
   providerId?: string;
   modelName?: string;
+  reasoningEffort?: PipelineReasoningEffort;
   priority?: number;
 }
 
@@ -40,6 +43,30 @@ interface ReorderModelBody {
 }
 
 const DEFAULT_PROFILE = 'p1';
+const PIPELINE_REASONING_EFFORTS = new Set<PipelineReasoningEffort>([
+  'off',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+]);
+
+function parseReasoningEffort(
+  value: unknown,
+): { ok: true; value: PipelineReasoningEffort | undefined } | { ok: false } {
+  if (value === undefined || value === null || value === '') {
+    return { ok: true, value: undefined };
+  }
+  if (typeof value !== 'string') {
+    return { ok: false };
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!PIPELINE_REASONING_EFFORTS.has(normalized as PipelineReasoningEffort)) {
+    return { ok: false };
+  }
+  return { ok: true, value: normalized as PipelineReasoningEffort };
+}
 
 export async function GET(request: Request) {
   try {
@@ -76,6 +103,14 @@ export async function PUT(request: Request) {
       return NextResponse.json({ ok: false, error: 'models array is required.' }, { status: 400 });
     }
 
+    const normalizedModels: Array<{
+      accountId: string;
+      providerId: string;
+      modelName: string;
+      reasoningEffort?: PipelineReasoningEffort;
+      priority?: number;
+    }> = [];
+
     for (const m of models) {
       if (!m.accountId || !m.providerId || !m.modelName) {
         return NextResponse.json(
@@ -83,16 +118,35 @@ export async function PUT(request: Request) {
           { status: 400 },
         );
       }
+      const reasoningEffort = parseReasoningEffort(m.reasoningEffort);
+      if (!reasoningEffort.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              'reasoningEffort must be one of: off, minimal, low, medium, high, xhigh.',
+          },
+          { status: 400 },
+        );
+      }
+      normalizedModels.push({
+        accountId: m.accountId,
+        providerId: m.providerId,
+        modelName: m.modelName,
+        reasoningEffort: reasoningEffort.value,
+        priority: m.priority,
+      });
     }
 
     const service = getModelHubService();
     const saved = service.replacePipeline(
       profileId,
-      models.map((m, idx) => ({
+      normalizedModels.map((m, idx) => ({
         profileId,
         accountId: m.accountId,
         providerId: m.providerId,
         modelName: m.modelName,
+        reasoningEffort: m.reasoningEffort,
         priority: m.priority ?? idx + 1,
       })),
     );
@@ -124,10 +178,20 @@ export async function POST(request: Request) {
       const providerId = body.providerId?.trim();
       const modelName = body.modelName?.trim();
       const priority = body.priority ?? 1;
+      const reasoningEffort = parseReasoningEffort(body.reasoningEffort);
 
       if (!accountId || !providerId || !modelName) {
         return NextResponse.json(
           { ok: false, error: 'accountId, providerId, modelName are required.' },
+          { status: 400 },
+        );
+      }
+      if (!reasoningEffort.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: 'reasoningEffort must be one of: off, minimal, low, medium, high, xhigh.',
+          },
           { status: 400 },
         );
       }
@@ -137,6 +201,7 @@ export async function POST(request: Request) {
         accountId,
         providerId,
         modelName,
+        reasoningEffort: reasoningEffort.value,
         priority,
       });
       return NextResponse.json({ ok: true, model: entry });

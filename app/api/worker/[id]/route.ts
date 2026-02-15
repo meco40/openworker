@@ -9,6 +9,7 @@ import { getWorkerRepository } from '../../../../src/server/worker/workerReposit
 import { processQueue } from '../../../../src/server/worker/workerAgent';
 import { getWorkspaceManager } from '../../../../src/server/worker/workspaceManager';
 import { canTransition } from '../../../../src/server/worker/workerStateMachine';
+import { getPersonaRepository } from '../../../../src/server/personas/personaRepository';
 
 export const runtime = 'nodejs';
 
@@ -34,7 +35,18 @@ export async function GET(_request: Request, { params }: RouteParams) {
     const steps = repo.getSteps(id);
     const artifacts = repo.getArtifacts(id);
 
-    return NextResponse.json({ ok: true, task, steps, artifacts });
+    // Load persona details if assigned
+    let assignedPersona = null;
+    if (task.assignedPersonaId) {
+      try {
+        const personaRepo = getPersonaRepository();
+        assignedPersona = personaRepo.getPersona(task.assignedPersonaId);
+      } catch {
+        // Persona not found, ignore
+      }
+    }
+
+    return NextResponse.json({ ok: true, task, steps, artifacts, assignedPersona });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to get task';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
@@ -161,11 +173,22 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         const personaId = body.personaId ?? null;
         repo.assignPersona(id, personaId);
         if (personaId) {
+          // Get persona name for better activity log
+          let personaName = personaId;
+          try {
+            const personaRepo = getPersonaRepository();
+            const persona = personaRepo.getPersona(personaId);
+            if (persona) {
+              personaName = `${persona.emoji} ${persona.name}`;
+            }
+          } catch {
+            // Persona not found, use ID as fallback
+          }
           repo.addActivity({
             taskId: id,
             type: 'persona_assigned',
-            message: `Persona ${personaId} zugewiesen`,
-            metadata: { personaId },
+            message: `Persona ${personaName} zugewiesen`,
+            metadata: { personaId, personaName },
           });
         }
         return NextResponse.json({ ok: true, task: repo.getTask(id) });
@@ -197,7 +220,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
     // Delete workspace folder if it exists
     const wsMgr = getWorkspaceManager();
-    wsMgr.deleteWorkspace(id);
+    wsMgr.deleteWorkspace(id, task.workspacePath ? { workspacePath: task.workspacePath } : undefined);
 
     // Delete from database
     repo.deleteTask(id);

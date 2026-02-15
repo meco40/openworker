@@ -65,7 +65,7 @@ export async function dispatchOpenAICompatibleChat(
   options: { extraHeaders?: Record<string, string>; signal?: AbortSignal } = {},
 ): Promise<GatewayResponse> {
   const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
-  const body = {
+  const body: Record<string, unknown> = {
     model: request.model,
     messages: request.messages.map((message) => ({
       role: message.role,
@@ -75,6 +75,12 @@ export async function dispatchOpenAICompatibleChat(
     temperature: request.temperature ?? 0.7,
     stream: false,
   };
+  if (
+    request.reasoning_effort &&
+    (providerId === 'openai' || providerId === 'openai-codex')
+  ) {
+    body.reasoning_effort = request.reasoning_effort;
+  }
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${secret}`,

@@ -100,4 +100,56 @@ describe('model-hub pipeline route reorder', () => {
     expect(afterJson.models?.map((model) => model.modelName)).toEqual(['beta', 'alpha']);
     expect(afterJson.models?.[0]?.status).toBe('offline');
   });
+
+  it('stores reasoningEffort for codex pipeline entries', async () => {
+    process.env.MODEL_HUB_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
+    const dbPath = path.join(process.cwd(), '.local', 'model-hub.pipeline-route.reasoning.db');
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    process.env.MODEL_HUB_DB_PATH = dbPath;
+    (globalThis as { __modelHubRepository?: unknown }).__modelHubRepository = undefined;
+    (globalThis as { __modelHubService?: unknown }).__modelHubService = undefined;
+
+    const accountResponse = await createAccount(
+      new Request('http://localhost/api/model-hub/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          providerId: 'openai-codex',
+          label: 'Codex OAuth',
+          authMethod: 'oauth',
+          secret: 'codex-access-token',
+        }),
+      }),
+    );
+    const accountJson = (await accountResponse.json()) as { account?: { id?: string } };
+    const accountId = accountJson.account?.id;
+    expect(accountId).toBeTruthy();
+
+    const addResponse = await mutatePipeline(
+      buildJsonRequest({
+        action: 'add',
+        profileId: 'p1',
+        accountId,
+        providerId: 'openai-codex',
+        modelName: 'gpt-5.3-codex',
+        priority: 1,
+        reasoningEffort: 'xhigh',
+      }),
+    );
+    const addJson = (await addResponse.json()) as {
+      model?: { reasoningEffort?: string };
+    };
+    expect(addResponse.status).toBe(200);
+    expect(addJson.model?.reasoningEffort).toBe('xhigh');
+
+    const getResponse = await getPipeline(
+      new Request('http://localhost/api/model-hub/pipeline?profileId=p1'),
+    );
+    const getJson = (await getResponse.json()) as {
+      models?: Array<{ modelName: string; reasoningEffort?: string }>;
+    };
+    expect(getResponse.status).toBe(200);
+    expect(getJson.models?.[0]?.modelName).toBe('gpt-5.3-codex');
+    expect(getJson.models?.[0]?.reasoningEffort).toBe('xhigh');
+  });
 });

@@ -15,6 +15,39 @@ export interface PersonaContext {
   allowedTools: string[] | null; // null = all tools allowed
 }
 
+// ─── Available Tools ─────────────────────────────────────────
+
+/** List of all valid tool names in the system */
+export const AVAILABLE_TOOLS = [
+  'shell_execute',
+  'file_read',
+  'write_file',
+  'browser_fetch',
+  'python_execute',
+  'search_web',
+] as const;
+
+export type ToolName = (typeof AVAILABLE_TOOLS)[number];
+
+/**
+ * Validates tools from TOOLS.md against available tools.
+ * Returns unknown tool names that don't exist in the system.
+ */
+export function validateToolsMd(content: string): {
+  allowedTools: string[] | null;
+  unknownTools: string[];
+} {
+  const allowedTools = parseToolsMd(content);
+  if (!allowedTools) {
+    return { allowedTools: null, unknownTools: [] };
+  }
+
+  const availableSet = new Set<string>(AVAILABLE_TOOLS);
+  const unknownTools = allowedTools.filter((tool) => !availableSet.has(tool));
+
+  return { allowedTools, unknownTools };
+}
+
 // ─── TOOLS.md Parser ─────────────────────────────────────────
 
 /**
@@ -114,7 +147,14 @@ export async function loadPersonaContext(
 
   // Parse TOOLS.md for allowed tools
   const toolsContent = persona.files['TOOLS.md'] || '';
-  const allowedTools = parseToolsMd(toolsContent);
+  const { allowedTools, unknownTools } = validateToolsMd(toolsContent);
+
+  // Warn about unknown tools
+  if (unknownTools.length > 0) {
+    console.warn(
+      `[Worker] Persona "${persona.name}" has unknown tools in TOOLS.md: ${unknownTools.join(', ')}`
+    );
+  }
 
   return {
     systemInstruction,

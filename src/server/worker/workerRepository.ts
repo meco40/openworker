@@ -18,6 +18,7 @@ import type {
   SaveArtifactInput,
   SaveActivityInput,
   TaskActivityRecord,
+  WorkerUserSettingsRecord,
 } from './workerTypes';
 import type {
   WorkerFlowDraftRecord,
@@ -286,6 +287,14 @@ export class SqliteWorkerRepository implements WorkerRepository {
       CREATE INDEX IF NOT EXISTS idx_deliverables_task_created
         ON worker_task_deliverables(task_id, created_at DESC);
     `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS worker_user_settings (
+        user_id                TEXT PRIMARY KEY,
+        default_workspace_root TEXT,
+        updated_at             TEXT NOT NULL
+      );
+    `);
   }
 
   private shouldIncludeLegacyRows(userId: string): boolean {
@@ -377,6 +386,14 @@ export class SqliteWorkerRepository implements WorkerRepository {
       metadata: (row.metadata as string) || null,
       startedAt: (row.started_at as string) || null,
       completedAt: (row.completed_at as string) || null,
+    };
+  }
+
+  private toUserSettings(row: Record<string, unknown>): WorkerUserSettingsRecord {
+    return {
+      userId: row.user_id as string,
+      defaultWorkspaceRoot: (row.default_workspace_root as string) || null,
+      updatedAt: row.updated_at as string,
     };
   }
 
@@ -506,6 +523,34 @@ export class SqliteWorkerRepository implements WorkerRepository {
 
     const rows = this.db.prepare(sql).all(...params) as Array<Record<string, unknown>>;
     return rows.map(toTask);
+  }
+
+  getUserSettings(userId: string): WorkerUserSettingsRecord | null {
+    const row = this.db
+      .prepare('SELECT * FROM worker_user_settings WHERE user_id = ?')
+      .get(userId) as Record<string, unknown> | undefined;
+    return row ? this.toUserSettings(row) : null;
+  }
+
+  saveUserSettings(
+    userId: string,
+    updates: { defaultWorkspaceRoot: string | null },
+  ): WorkerUserSettingsRecord {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO worker_user_settings (user_id, default_workspace_root, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+           default_workspace_root = excluded.default_workspace_root,
+           updated_at = excluded.updated_at`,
+      )
+      .run(userId, updates.defaultWorkspaceRoot, now);
+
+    const row = this.db
+      .prepare('SELECT * FROM worker_user_settings WHERE user_id = ?')
+      .get(userId) as Record<string, unknown>;
+    return this.toUserSettings(row);
   }
 
   cancelTask(id: string): void {

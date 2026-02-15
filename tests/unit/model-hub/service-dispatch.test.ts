@@ -17,6 +17,7 @@ function createMockRepository(overrides: Partial<ModelHubRepository> = {}): Mode
     listAccounts: vi.fn().mockReturnValue([]),
     createAccount: vi.fn(),
     deleteAccount: vi.fn(),
+    updateAccountCredentials: vi.fn(),
     setHealthStatus: vi.fn(),
     addPipelineModel: vi.fn(),
     removePipelineModel: vi.fn(),

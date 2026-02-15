@@ -144,6 +144,7 @@ const App: React.FC = () => {
             conversationId: activeConversationId,
             content: fullContent,
             clientMessageId,
+            personaId: activePersonaId || undefined,
           }),
         });
 
@@ -185,7 +186,7 @@ const App: React.FC = () => {
         setIsServerResponding(false);
       }
     },
-    [activeConversationId, addEventLog, setMessages],
+    [activeConversationId, activePersonaId, addEventLog, setMessages],
   );
 
   const routeMessage = useCallback(

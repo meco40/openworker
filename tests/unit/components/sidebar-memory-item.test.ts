@@ -5,7 +5,7 @@ import Sidebar from '../../../components/Sidebar';
 import { View } from '../../../types';
 
 describe('Sidebar memory navigation', () => {
-  it('renders Memory and excludes Team Collaboration navigation entries', () => {
+  it('uses single-user profile label in navigation', () => {
     const html = renderToStaticMarkup(
       createElement(Sidebar, {
         activeView: View.DASHBOARD,
@@ -19,6 +19,8 @@ describe('Sidebar memory navigation', () => {
     );
 
     expect(navLabels).toContain('Memory');
+    expect(navLabels).toContain('Operator Profile');
+    expect(navLabels).not.toContain('SaaS Identity');
     expect(navLabels).not.toContain('Team Collaboration');
   });
 });

@@ -6,6 +6,7 @@ interface OauthStatePayload {
   createdAt: number;
   nonce: string;
   codeVerifier?: string;
+  oauthRedirectUri?: string;
 }
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;

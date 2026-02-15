@@ -6,6 +6,7 @@ interface HeaderSectionProps {
   isProbing: boolean;
   isTestingAll: boolean;
   probeResult: string | null;
+  lastProbeOk: boolean | null;
   bulkProbeSummary: string | null;
   onRunConnectionProbe: () => void;
   onRunAllConnectionProbes: () => void;
@@ -17,6 +18,7 @@ const HeaderSection: React.FC<HeaderSectionProps> = ({
   isProbing,
   isTestingAll,
   probeResult,
+  lastProbeOk,
   bulkProbeSummary,
   onRunConnectionProbe,
   onRunAllConnectionProbes,
@@ -61,7 +63,11 @@ const HeaderSection: React.FC<HeaderSectionProps> = ({
           </button>
         </div>
         {probeResult && (
-          <div className="animate-in fade-in zoom-in-95 mt-4 max-w-sm truncate rounded border border-zinc-800 bg-zinc-950 px-3 py-1.5 font-mono text-[9px] text-emerald-500">
+          <div
+            className={`animate-in fade-in zoom-in-95 mt-4 max-w-sm whitespace-pre-wrap break-words rounded border border-zinc-800 bg-zinc-950 px-3 py-1.5 font-mono text-[9px] ${
+              lastProbeOk === false ? 'text-rose-400' : 'text-emerald-500'
+            }`}
+          >
             {probeResult}
           </div>
         )}

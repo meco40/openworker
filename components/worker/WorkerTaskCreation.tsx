@@ -1,8 +1,15 @@
 // ─── Worker Task Creation ───────────────────────────────────
 // Form component to create new worker workspaces.
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { WorkspaceType } from '../../types';
+
+interface PersonaSummary {
+  id: string;
+  name: string;
+  emoji: string;
+  vibe: string;
+}
 
 interface WorkerTaskCreationProps {
   onSubmit: (
@@ -12,6 +19,7 @@ interface WorkerTaskCreationProps {
       priority?: string;
       workspaceType?: WorkspaceType;
       usePlanning?: boolean;
+      personaId?: string | null;
     },
   ) => Promise<unknown>;
   onCancel: () => void;
@@ -69,6 +77,26 @@ const WorkerTaskCreation: React.FC<WorkerTaskCreationProps> = ({ onSubmit, onCan
   const [priority, setPriority] = useState('normal');
   const [usePlanning, setUsePlanning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [personas, setPersonas] = useState<PersonaSummary[]>([]);
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
+  const [loadingPersonas, setLoadingPersonas] = useState(true);
+
+  // Load available personas
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/personas');
+        if (res.ok) {
+          const data = await res.json();
+          setPersonas(data.personas || []);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoadingPersonas(false);
+      }
+    })();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +109,7 @@ const WorkerTaskCreation: React.FC<WorkerTaskCreationProps> = ({ onSubmit, onCan
         priority,
         workspaceType,
         usePlanning,
+        personaId: selectedPersonaId,
       });
     } finally {
       setSubmitting(false);
@@ -165,6 +194,46 @@ const WorkerTaskCreation: React.FC<WorkerTaskCreationProps> = ({ onSubmit, onCan
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Persona Selection */}
+        <div className="worker-creation__field">
+          <label>Persona (optional)</label>
+          {loadingPersonas ? (
+            <p className="worker-persona-loading">Personas laden…</p>
+          ) : personas.length === 0 ? (
+            <p className="worker-persona-empty">Keine Personas verfügbar.</p>
+          ) : (
+            <div className="worker-persona-grid">
+              <button
+                type="button"
+                className={`worker-persona-card ${selectedPersonaId === null ? 'worker-persona-card--selected' : ''}`}
+                onClick={() => setSelectedPersonaId(null)}
+                title="Standard-Verhalten ohne spezifische Persona"
+              >
+                <span className="worker-persona-card__emoji">🤖</span>
+                <div className="worker-persona-card__info">
+                  <span className="worker-persona-card__name">Standard</span>
+                  <span className="worker-persona-card__vibe">Allgemeiner Assistent</span>
+                </div>
+              </button>
+              {personas.map((persona) => (
+                <button
+                  key={persona.id}
+                  type="button"
+                  className={`worker-persona-card ${selectedPersonaId === persona.id ? 'worker-persona-card--selected' : ''}`}
+                  onClick={() => setSelectedPersonaId(persona.id)}
+                  title={persona.vibe}
+                >
+                  <span className="worker-persona-card__emoji">{persona.emoji}</span>
+                  <div className="worker-persona-card__info">
+                    <span className="worker-persona-card__name">{persona.name}</span>
+                    <span className="worker-persona-card__vibe">{persona.vibe}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Planning Mode Toggle */}

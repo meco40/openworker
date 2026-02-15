@@ -21,6 +21,19 @@ export const PERSONA_FILE_NAMES: PersonaFileName[] = [
   'HEARTBEAT.md',
 ];
 
+/** Tab names for persona editor (includes file tabs and special tabs) */
+export type PersonaTabName = PersonaFileName | 'GATEWAY';
+
+export const PERSONA_TAB_NAMES: PersonaTabName[] = [
+  'SOUL.md',
+  'IDENTITY.md',
+  'AGENTS.md',
+  'USER.md',
+  'TOOLS.md',
+  'HEARTBEAT.md',
+  'GATEWAY',
+];
+
 /** Files that compose the system instruction sent to the AI */
 export const PERSONA_INSTRUCTION_FILES: PersonaFileName[] = ['SOUL.md', 'AGENTS.md', 'USER.md'];
 

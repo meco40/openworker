@@ -86,7 +86,7 @@ const WorkerActivityTab: React.FC<WorkerActivityTabProps> = ({ taskId }) => {
             <div className="worker-activity__content">
               <p className="worker-activity__message">{activity.message}</p>
               {meta && activity.type === 'persona_assigned' && meta.personaName && (
-                <span className="worker-activity__meta">Persona: {meta.personaName}</span>
+                <span className="worker-activity__meta">{meta.personaName}</span>
               )}
             </div>
             <span className="worker-activity__time" title={activity.createdAt}>

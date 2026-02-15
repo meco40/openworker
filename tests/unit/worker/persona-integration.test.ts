@@ -7,10 +7,59 @@ import {
   filterToolsByPersona,
   isToolAllowed,
   buildPersonaSystemPrompt,
+  validateToolsMd,
+  AVAILABLE_TOOLS,
   type PersonaContext,
 } from '../../../src/server/worker/personaIntegration';
 
 describe('Persona Integration', () => {
+  describe('AVAILABLE_TOOLS', () => {
+    it('should contain all valid tool names', () => {
+      expect(AVAILABLE_TOOLS).toContain('shell_execute');
+      expect(AVAILABLE_TOOLS).toContain('file_read');
+      expect(AVAILABLE_TOOLS).toContain('write_file');
+      expect(AVAILABLE_TOOLS).toContain('browser_fetch');
+      expect(AVAILABLE_TOOLS).toContain('python_execute');
+      expect(AVAILABLE_TOOLS).toContain('search_web');
+    });
+  });
+
+  describe('validateToolsMd', () => {
+    it('should return null allowedTools for empty content', () => {
+      const result = validateToolsMd('');
+      expect(result.allowedTools).toBeNull();
+      expect(result.unknownTools).toEqual([]);
+    });
+
+    it('should return null allowedTools for #all directive', () => {
+      const result = validateToolsMd('# all');
+      expect(result.allowedTools).toBeNull();
+      expect(result.unknownTools).toEqual([]);
+    });
+
+    it('should identify unknown tools', () => {
+      const content = `
+- file_read
+- unknown_tool
+- write_file
+- another_invalid_tool
+      `;
+      const result = validateToolsMd(content);
+      expect(result.allowedTools).toEqual(['file_read', 'unknown_tool', 'write_file', 'another_invalid_tool']);
+      expect(result.unknownTools).toEqual(['unknown_tool', 'another_invalid_tool']);
+    });
+
+    it('should return empty unknownTools for valid tools only', () => {
+      const content = `
+- file_read
+- write_file
+- browser_fetch
+      `;
+      const result = validateToolsMd(content);
+      expect(result.unknownTools).toEqual([]);
+    });
+  });
+
   describe('parseToolsMd', () => {
     it('should return null for empty content', () => {
       expect(parseToolsMd('')).toBeNull();

@@ -22,6 +22,7 @@ import {
   markPromptDispatchInsert,
 } from '../stats/promptDispatchDiagnostics';
 import { getOpenRouterModelPricing } from '../stats/openRouterPricing';
+import { getXaiModelPricing } from '../stats/xaiPricing';
 
 function findProvider(providerId: string): ProviderCatalogEntry | null {
   return PROVIDER_CATALOG.find((provider) => provider.id === providerId) ?? null;
@@ -112,6 +113,16 @@ export async function dispatchGatewayRequest(
 
     if (account.providerId === 'openrouter') {
       const pricing = await getOpenRouterModelPricing(request.model, promptTokens, secret);
+      if (pricing) {
+        const requestCostUsd = Number.isFinite(pricing.requestPriceUsd)
+          ? Math.max(0, pricing.requestPriceUsd)
+          : 0;
+        promptCostUsd = Math.max(0, promptTokens * pricing.promptPricePerTokenUsd);
+        completionCostUsd = Math.max(0, completionTokens * pricing.completionPricePerTokenUsd);
+        totalCostUsd = promptCostUsd + completionCostUsd + requestCostUsd;
+      }
+    } else if (account.providerId === 'xai') {
+      const pricing = await getXaiModelPricing(request.model);
       if (pricing) {
         const requestCostUsd = Number.isFinite(pricing.requestPriceUsd)
           ? Math.max(0, pricing.requestPriceUsd)
