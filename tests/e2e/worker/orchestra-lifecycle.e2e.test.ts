@@ -24,8 +24,36 @@ vi.mock('../../../src/server/gateway/broadcast', () => ({
 }));
 
 // Import mocked modules after vi.mock declarations
-import { executeOrchestraNode, executeLlmRouting } from '../../../src/server/worker/workerExecutor';
-import { notifyTaskCompleted, notifyTaskFailed } from '../../../src/server/worker/workerCallback';
+function createLinearGraph(): OrchestraFlowGraph {
+  return {
+    nodes: [
+      { id: 'node1', personaId: 'developer', position: { x: 0, y: 0 } },
+      { id: 'node2', personaId: 'reviewer', position: { x: 200, y: 0 } },
+      { id: 'node3', personaId: 'deployer', position: { x: 400, y: 0 } },
+    ],
+    edges: [
+      { id: 'edge-node1-node2', from: 'node1', to: 'node2' },
+      { id: 'edge-node2-node3', from: 'node2', to: 'node3' },
+    ],
+  };
+}
+
+function createBranchingGraph(): OrchestraFlowGraph {
+  return {
+    nodes: [
+      { id: 'start', personaId: 'analyzer', position: { x: 0, y: 0 } },
+      { id: 'pathA', personaId: 'developer', position: { x: 200, y: -100 } },
+      { id: 'pathB', personaId: 'tester', position: { x: 200, y: 100 } },
+      { id: 'merge', personaId: 'reviewer', position: { x: 400, y: 0 } },
+    ],
+    edges: [
+      { id: 'edge-start-pathA', from: 'start', to: 'pathA' },
+      { id: 'edge-start-pathB', from: 'start', to: 'pathB' },
+      { id: 'edge-pathA-merge', from: 'pathA', to: 'merge' },
+      { id: 'edge-pathB-merge', from: 'pathB', to: 'merge' },
+    ],
+  };
+}
 
 // ─── Test Setup ──────────────────────────────────────────────
 
@@ -58,37 +86,6 @@ describe('Worker E2E: Orchestra Flow Lifecycles', () => {
       workspaceType: 'general',
       ...overrides,
     });
-  }
-
-  function createLinearGraph(): OrchestraFlowGraph {
-    return {
-      nodes: [
-        { id: 'node1', personaId: 'developer', position: { x: 0, y: 0 } },
-        { id: 'node2', personaId: 'reviewer', position: { x: 200, y: 0 } },
-        { id: 'node3', personaId: 'deployer', position: { x: 400, y: 0 } },
-      ],
-      edges: [
-        { from: 'node1', to: 'node2' },
-        { from: 'node2', to: 'node3' },
-      ],
-    };
-  }
-
-  function createBranchingGraph(): OrchestraFlowGraph {
-    return {
-      nodes: [
-        { id: 'start', personaId: 'analyzer', position: { x: 0, y: 0 } },
-        { id: 'pathA', personaId: 'developer', position: { x: 200, y: -100 } },
-        { id: 'pathB', personaId: 'tester', position: { x: 200, y: 100 } },
-        { id: 'merge', personaId: 'reviewer', position: { x: 400, y: 0 } },
-      ],
-      edges: [
-        { from: 'start', to: 'pathA' },
-        { from: 'start', to: 'pathB' },
-        { from: 'pathA', to: 'merge' },
-        { from: 'pathB', to: 'merge' },
-      ],
-    };
   }
 
   function createPublishedFlow(name: string, graph: OrchestraFlowGraph) {
@@ -150,7 +147,7 @@ describe('Worker E2E: Orchestra Flow Lifecycles', () => {
 
       // Act
       const published1 = repo.publishFlowDraft(draft.id, 'user-1')!;
-      
+
       // Create new draft with same name and publish again
       const draft2 = repo.createFlowDraft({
         userId: 'user-1',
@@ -352,9 +349,9 @@ describe('Worker E2E: Orchestra Flow Lifecycles', () => {
       // Arrange
       const graph: OrchestraFlowGraph = {
         nodes: [
-          { 
-            id: 'decision', 
-            personaId: 'analyzer', 
+          {
+            id: 'decision',
+            personaId: 'analyzer',
             position: { x: 0, y: 0 },
             routing: {
               mode: 'llm',
@@ -365,8 +362,8 @@ describe('Worker E2E: Orchestra Flow Lifecycles', () => {
           { id: 'pathB', personaId: 'tester', position: { x: 200, y: 100 } },
         ],
         edges: [
-          { from: 'decision', to: 'pathA' },
-          { from: 'decision', to: 'pathB' },
+          { id: 'edge-decision-pathA', from: 'decision', to: 'pathA' },
+          { id: 'edge-decision-pathB', from: 'decision', to: 'pathB' },
         ],
       };
 

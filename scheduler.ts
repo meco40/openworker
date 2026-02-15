@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import nextEnv from '@next/env';
+import { loadEnvConfig } from '@next/env';
 
 import { startAutomationRuntime, stopAutomationRuntime } from './src/server/automation/runtime';
 import {
@@ -10,7 +10,6 @@ import {
 import { getRoomOrchestrator } from './src/server/rooms/runtime';
 import { shouldRunRooms } from './src/server/rooms/runtimeRole';
 
-const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
 
 const instanceId = process.env.SCHEDULER_INSTANCE_ID || `scheduler-${process.pid}`;

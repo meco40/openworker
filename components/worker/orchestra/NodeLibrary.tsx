@@ -20,9 +20,7 @@ export function NodeLibrary({ personas }: NodeLibraryProps) {
   return (
     <aside className="orchestra-node-library">
       <h3 className="orchestra-node-library__title">Personas</h3>
-      <p className="orchestra-node-library__hint">
-        Drag &amp; Drop auf das Canvas
-      </p>
+      <p className="orchestra-node-library__hint">Drag &amp; Drop auf das Canvas</p>
       <ul className="orchestra-node-library__list">
         {personas.map((persona) => (
           <li
@@ -36,9 +34,7 @@ export function NodeLibrary({ personas }: NodeLibraryProps) {
           </li>
         ))}
         {personas.length === 0 && (
-          <li className="orchestra-node-library__empty">
-            Keine Personas vorhanden
-          </li>
+          <li className="orchestra-node-library__empty">Keine Personas vorhanden</li>
         )}
       </ul>
     </aside>

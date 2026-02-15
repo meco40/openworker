@@ -84,11 +84,12 @@ describe('mem0Client', () => {
   });
 
   it('posts add memory with scoped payload', async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response(JSON.stringify([{ id: 'mem0-1', memory: 'Ich trinke Kaffee schwarz' }]), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify([{ id: 'mem0-1', memory: 'Ich trinke Kaffee schwarz' }]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
     );
 
     const client = createMem0Client(
@@ -127,26 +128,27 @@ describe('mem0Client', () => {
   });
 
   it('lists memories with filters and pagination for WebUI CRUD', async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response(
-        JSON.stringify({
-          memories: [
-            {
-              id: 'mem0-1',
-              memory: 'Alpha',
-              score: 0.9,
-              metadata: { type: 'fact', importance: 5 },
-            },
-          ],
-          total: 17,
-          page: 2,
-          page_size: 10,
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      ),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            memories: [
+              {
+                id: 'mem0-1',
+                memory: 'Alpha',
+                score: 0.9,
+                metadata: { type: 'fact', importance: 5 },
+              },
+            ],
+            total: 17,
+            page: 2,
+            page_size: 10,
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
     );
     const client = createMem0Client(
       {
@@ -253,16 +255,17 @@ describe('mem0Client', () => {
   });
 
   it('extracts memory id from results envelope on add memory', async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response(
-        JSON.stringify({
-          results: [{ id: 'mem0-results-1', memory: 'Ich trinke Tee' }],
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      ),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            results: [{ id: 'mem0-results-1', memory: 'Ich trinke Tee' }],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
     );
 
     const client = createMem0Client(
@@ -386,11 +389,12 @@ describe('mem0Client', () => {
   });
 
   it('deletes all persona memories via filter endpoint', async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response(JSON.stringify({ deleted: 3 }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ deleted: 3 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
     );
 
     const client = createMem0Client(
@@ -402,7 +406,10 @@ describe('mem0Client', () => {
       fetchMock as unknown as typeof fetch,
     );
 
-    const deleted = await client.deleteMemoriesByFilter({ userId: 'user-1', personaId: 'persona-1' });
+    const deleted = await client.deleteMemoriesByFilter({
+      userId: 'user-1',
+      personaId: 'persona-1',
+    });
     expect(deleted).toBe(3);
     const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(call[0]).toBe('http://mem0.local/v1/memories');
@@ -415,21 +422,22 @@ describe('mem0Client', () => {
   });
 
   it('loads memory history via history endpoint', async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response(
-        JSON.stringify([
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify([
+            {
+              action: 'update',
+              timestamp: '2026-02-15T10:00:00.000Z',
+              content: 'updated memory content',
+              metadata: { version: 2, type: 'fact' },
+            },
+          ]),
           {
-            action: 'update',
-            timestamp: '2026-02-15T10:00:00.000Z',
-            content: 'updated memory content',
-            metadata: { version: 2, type: 'fact' },
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
           },
-        ]),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      ),
+        ),
     );
 
     const client = createMem0Client(
@@ -479,7 +487,10 @@ describe('mem0Client', () => {
       fetchMock as unknown as typeof fetch,
     );
 
-    const deleted = await client.deleteMemoriesByFilter({ userId: 'user-1', personaId: 'persona-1' });
+    const deleted = await client.deleteMemoriesByFilter({
+      userId: 'user-1',
+      personaId: 'persona-1',
+    });
     expect(deleted).toBe(0);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);

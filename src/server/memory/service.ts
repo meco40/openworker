@@ -1,10 +1,5 @@
 import type { MemoryNode, MemoryType } from '../../../core/memory/types';
-import type {
-  Mem0Client,
-  Mem0HistoryEntry,
-  Mem0MemoryRecord,
-  Mem0SearchHit,
-} from './mem0Client';
+import type { Mem0Client, Mem0HistoryEntry, Mem0MemoryRecord, Mem0SearchHit } from './mem0Client';
 import { LEGACY_LOCAL_USER_ID } from '../auth/constants';
 
 export type MemoryFeedbackSignal = 'positive' | 'negative';
@@ -120,8 +115,7 @@ function toMemoryNode(record: Mem0MemoryRecord): MemoryNode {
     timestamp: formatTimestamp(record.updatedAt || record.createdAt),
     metadata: {
       ...metadata,
-      mem0Id:
-        (typeof metadata.mem0Id === 'string' && metadata.mem0Id.trim()) || record.id,
+      mem0Id: (typeof metadata.mem0Id === 'string' && metadata.mem0Id.trim()) || record.id,
       source: 'mem0',
       memoryProvider: 'mem0',
       lastVerified:
@@ -158,7 +152,9 @@ function isLegacyDeleteNotFoundError(error: unknown): boolean {
 }
 
 function matchesQuery(node: MemoryNode, query?: string): boolean {
-  const needle = String(query || '').trim().toLowerCase();
+  const needle = String(query || '')
+    .trim()
+    .toLowerCase();
   if (!needle) return true;
   return node.content.toLowerCase().includes(needle) || node.type.toLowerCase().includes(needle);
 }
@@ -191,8 +187,7 @@ function toHistoryRecord(entry: Mem0HistoryEntry, index: number): MemoryHistoryR
     type: asOptionalMemoryType(metadata.type),
     importance:
       metadata.importance === undefined ? undefined : asImportance(metadata.importance, 3),
-    version:
-      metadata.version === undefined ? index + 1 : asVersion(metadata.version, index + 1),
+    version: metadata.version === undefined ? index + 1 : asVersion(metadata.version, index + 1),
     metadata,
   };
 }
@@ -309,7 +304,9 @@ export class MemoryService {
         }));
     }
 
-    const context = matches.map((result) => `[Type: ${result.node.type}] ${result.node.content}`).join('\n');
+    const context = matches
+      .map((result) => `[Type: ${result.node.type}] ${result.node.content}`)
+      .join('\n');
 
     return {
       context: context || 'No relevant memories found.',
@@ -450,7 +447,9 @@ export class MemoryService {
       .filter((node) => matchesType(node, input.type));
 
     const localFilteredOut = listed.memories.length !== filteredNodes.length;
-    const total = localFilteredOut ? filteredNodes.length : Math.max(filteredNodes.length, listed.total);
+    const total = localFilteredOut
+      ? filteredNodes.length
+      : Math.max(filteredNodes.length, listed.total);
     const safePageSize = Math.max(1, listed.pageSize);
 
     return {

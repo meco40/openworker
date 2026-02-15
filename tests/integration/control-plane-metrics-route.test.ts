@@ -17,6 +17,10 @@ function uniqueDbPath(name: string): string {
   );
 }
 
+function keyFor(userId: string, personaId: string): string {
+  return `${userId}::${personaId}`;
+}
+
 describe('GET /api/control-plane/metrics', () => {
   const createdDbFiles: string[] = [];
 
@@ -127,91 +131,103 @@ describe('GET /api/control-plane/metrics', () => {
 
     const { createMem0Client } = await import('../../src/server/memory/mem0Client');
     const { MemoryService } = await import('../../src/server/memory/service');
-    const mem0Store = new Map<string, Array<{ id: string; content: string; metadata: Record<string, unknown> }>>();
-    const keyFor = (userId: string, personaId: string) => `${userId}::${personaId}`;
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-      const url = typeof input === 'string' ? input : input.toString();
-      const parsed = new URL(url);
-      const method = String(init?.method || 'GET').toUpperCase();
-      const body = (() => {
-        if (!init?.body || typeof init.body !== 'string') return {} as Record<string, unknown>;
-        try {
-          return JSON.parse(init.body) as Record<string, unknown>;
-        } catch {
-          return {} as Record<string, unknown>;
-        }
-      })();
-
-      if (method === 'POST' && parsed.pathname.endsWith('/v1/memories')) {
-        const userId = String(body.user_id || 'legacy-local-user');
-        const personaId = String(body.agent_id || 'persona-default');
-        const messages = Array.isArray(body.messages) ? body.messages : [];
-        const content = String((messages[0] as { content?: string } | undefined)?.content || '');
-        const id = `mem0-${Math.random().toString(36).slice(2, 10)}`;
-        const key = keyFor(userId, personaId);
-        mem0Store.set(key, [...(mem0Store.get(key) || []), { id, content, metadata: (body.metadata as Record<string, unknown>) || {} }]);
-        return new Response(JSON.stringify([{ id, memory: content }]), { status: 200 });
-      }
-
-      if (method === 'POST' && parsed.pathname.endsWith('/v2/memories')) {
-        const filters = (body.filters as Record<string, unknown>) || {};
-        const userId = String(filters.user_id || 'legacy-local-user');
-        const personaId = String(filters.agent_id || '');
-        const page = Math.max(1, Math.floor(Number(body.page || 1)));
-        const pageSize = Math.max(1, Math.floor(Number(body.page_size || 25)));
-        const query = String(body.query || '').toLowerCase();
-        const typeFilter = String(filters.type || '');
-        const source = personaId
-          ? mem0Store.get(keyFor(userId, personaId)) || []
-          : Array.from(mem0Store.entries())
-              .filter(([key]) => key.startsWith(`${userId}::`))
-              .flatMap(([, rows]) => rows);
-        const filtered = source.filter((row) => {
-          const queryOk = query ? row.content.toLowerCase().includes(query) : true;
-          const typeOk = typeFilter ? String(row.metadata.type || '') === typeFilter : true;
-          return queryOk && typeOk;
-        });
-        const offset = (page - 1) * pageSize;
-        const memories = filtered.slice(offset, offset + pageSize).map((row) => ({
-          id: row.id,
-          memory: row.content,
-          metadata: row.metadata,
-        }));
-        return new Response(
-          JSON.stringify({ memories, total: filtered.length, page, page_size: pageSize }),
-          { status: 200 },
-        );
-      }
-
-      if (method === 'POST' && parsed.pathname.endsWith('/v2/memories/search')) {
-        return new Response(JSON.stringify([]), { status: 200 });
-      }
-
-      if (method === 'GET' && parsed.pathname.includes('/v1/memories/')) {
-        const id = decodeURIComponent(parsed.pathname.split('/').pop() || '');
-        for (const rows of mem0Store.values()) {
-          const found = rows.find((row) => row.id === id);
-          if (found) {
-            return new Response(JSON.stringify({ id: found.id, memory: found.content, metadata: found.metadata }), { status: 200 });
+    const mem0Store = new Map<
+      string,
+      Array<{ id: string; content: string; metadata: Record<string, unknown> }>
+    >();
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+        const url = typeof input === 'string' ? input : input.toString();
+        const parsed = new URL(url);
+        const method = String(init?.method || 'GET').toUpperCase();
+        const body = (() => {
+          if (!init?.body || typeof init.body !== 'string') return {} as Record<string, unknown>;
+          try {
+            return JSON.parse(init.body) as Record<string, unknown>;
+          } catch {
+            return {} as Record<string, unknown>;
           }
+        })();
+
+        if (method === 'POST' && parsed.pathname.endsWith('/v1/memories')) {
+          const userId = String(body.user_id || 'legacy-local-user');
+          const personaId = String(body.agent_id || 'persona-default');
+          const messages = Array.isArray(body.messages) ? body.messages : [];
+          const content = String((messages[0] as { content?: string } | undefined)?.content || '');
+          const id = `mem0-${Math.random().toString(36).slice(2, 10)}`;
+          const key = keyFor(userId, personaId);
+          mem0Store.set(key, [
+            ...(mem0Store.get(key) || []),
+            { id, content, metadata: (body.metadata as Record<string, unknown>) || {} },
+          ]);
+          return new Response(JSON.stringify([{ id, memory: content }]), { status: 200 });
         }
-        return new Response(JSON.stringify({ error: 'not found' }), { status: 404 });
-      }
 
-      if (method === 'PUT' && parsed.pathname.includes('/v1/memories/')) {
-        return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      }
+        if (method === 'POST' && parsed.pathname.endsWith('/v2/memories')) {
+          const filters = (body.filters as Record<string, unknown>) || {};
+          const userId = String(filters.user_id || 'legacy-local-user');
+          const personaId = String(filters.agent_id || '');
+          const page = Math.max(1, Math.floor(Number(body.page || 1)));
+          const pageSize = Math.max(1, Math.floor(Number(body.page_size || 25)));
+          const query = String(body.query || '').toLowerCase();
+          const typeFilter = String(filters.type || '');
+          const source = personaId
+            ? mem0Store.get(keyFor(userId, personaId)) || []
+            : Array.from(mem0Store.entries())
+                .filter(([key]) => key.startsWith(`${userId}::`))
+                .flatMap(([, rows]) => rows);
+          const filtered = source.filter((row) => {
+            const queryOk = query ? row.content.toLowerCase().includes(query) : true;
+            const typeOk = typeFilter ? String(row.metadata.type || '') === typeFilter : true;
+            return queryOk && typeOk;
+          });
+          const offset = (page - 1) * pageSize;
+          const memories = filtered.slice(offset, offset + pageSize).map((row) => ({
+            id: row.id,
+            memory: row.content,
+            metadata: row.metadata,
+          }));
+          return new Response(
+            JSON.stringify({ memories, total: filtered.length, page, page_size: pageSize }),
+            { status: 200 },
+          );
+        }
 
-      if (method === 'DELETE' && parsed.pathname.includes('/v1/memories/')) {
-        return new Response(JSON.stringify({ deleted: 1 }), { status: 200 });
-      }
+        if (method === 'POST' && parsed.pathname.endsWith('/v2/memories/search')) {
+          return new Response(JSON.stringify([]), { status: 200 });
+        }
 
-      if (method === 'DELETE' && parsed.pathname.endsWith('/v1/memories')) {
-        return new Response(JSON.stringify({ deleted: 0 }), { status: 200 });
-      }
+        if (method === 'GET' && parsed.pathname.includes('/v1/memories/')) {
+          const id = decodeURIComponent(parsed.pathname.split('/').pop() || '');
+          for (const rows of mem0Store.values()) {
+            const found = rows.find((row) => row.id === id);
+            if (found) {
+              return new Response(
+                JSON.stringify({ id: found.id, memory: found.content, metadata: found.metadata }),
+                { status: 200 },
+              );
+            }
+          }
+          return new Response(JSON.stringify({ error: 'not found' }), { status: 404 });
+        }
 
-      return new Response(JSON.stringify({ error: `Unhandled ${method} ${parsed.pathname}` }), { status: 500 });
-    });
+        if (method === 'PUT' && parsed.pathname.includes('/v1/memories/')) {
+          return new Response(JSON.stringify({ ok: true }), { status: 200 });
+        }
+
+        if (method === 'DELETE' && parsed.pathname.includes('/v1/memories/')) {
+          return new Response(JSON.stringify({ deleted: 1 }), { status: 200 });
+        }
+
+        if (method === 'DELETE' && parsed.pathname.endsWith('/v1/memories')) {
+          return new Response(JSON.stringify({ deleted: 0 }), { status: 200 });
+        }
+
+        return new Response(JSON.stringify({ error: `Unhandled ${method} ${parsed.pathname}` }), {
+          status: 500,
+        });
+      },
+    );
     const mem0Client = createMem0Client(
       {
         baseUrl: 'http://mem0.local',

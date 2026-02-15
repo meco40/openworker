@@ -135,7 +135,9 @@ const MemoryView: React.FC = () => {
             previous.filter((id) => payload.nodes?.some((node) => node.id === id)),
           );
         } else {
-          setErrorMessage(String((payload as { error?: string }).error || 'Memory konnte nicht geladen werden.'));
+          setErrorMessage(
+            String((payload as { error?: string }).error || 'Memory konnte nicht geladen werden.'),
+          );
           setNodes([]);
           setPagination((previous) => ({ ...previous, total: 0, totalPages: 1 }));
           setSelectedIds([]);
@@ -177,7 +179,12 @@ const MemoryView: React.FC = () => {
 
   const reloadCurrent = useCallback(async () => {
     if (!selectedPersonaId) return;
-    await loadMemory(selectedPersonaId, { page, pageSize, query: debouncedQuery, type: typeFilter });
+    await loadMemory(selectedPersonaId, {
+      page,
+      pageSize,
+      query: debouncedQuery,
+      type: typeFilter,
+    });
   }, [debouncedQuery, loadMemory, page, pageSize, selectedPersonaId, typeFilter]);
 
   const loadHistory = useCallback(
@@ -191,7 +198,11 @@ const MemoryView: React.FC = () => {
         );
         const payload = (await response.json()) as MemoryHistoryResponse;
         if (!response.ok || !payload.ok || !Array.isArray(payload.history)) {
-          setErrorMessage(String(payload.error || `History konnte nicht geladen werden (HTTP ${response.status}).`));
+          setErrorMessage(
+            String(
+              payload.error || `History konnte nicht geladen werden (HTTP ${response.status}).`,
+            ),
+          );
           return [];
         }
         setErrorMessage(null);
@@ -239,12 +250,16 @@ const MemoryView: React.FC = () => {
         const payload = (await response.json()) as { ok?: boolean; error?: string };
         if (!response.ok || !payload.ok) {
           if (response.status === 409) {
-            setErrorMessage('Memory wurde parallel geändert. Bitte neu laden und erneut wiederherstellen.');
+            setErrorMessage(
+              'Memory wurde parallel geändert. Bitte neu laden und erneut wiederherstellen.',
+            );
             await reloadCurrent();
             await loadHistory(node.id);
             return;
           }
-          setErrorMessage(String(payload.error || `Restore fehlgeschlagen (HTTP ${response.status}).`));
+          setErrorMessage(
+            String(payload.error || `Restore fehlgeschlagen (HTTP ${response.status}).`),
+          );
           return;
         }
         setErrorMessage(null);
@@ -401,10 +416,14 @@ const MemoryView: React.FC = () => {
         await reloadCurrent();
         cancelEdit();
       } else if (response.status === 409) {
-        setErrorMessage('Memory wurde parallel geändert. Bitte neu laden und Änderung erneut speichern.');
+        setErrorMessage(
+          'Memory wurde parallel geändert. Bitte neu laden und Änderung erneut speichern.',
+        );
         await reloadCurrent();
       } else {
-        setErrorMessage(String(payload.error || `Speichern fehlgeschlagen (HTTP ${response.status}).`));
+        setErrorMessage(
+          String(payload.error || `Speichern fehlgeschlagen (HTTP ${response.status}).`),
+        );
       }
     } finally {
       setSaving(false);
@@ -503,7 +522,9 @@ const MemoryView: React.FC = () => {
             <div>
               <h3 className="text-sm font-black tracking-widest text-white uppercase">Memory</h3>
               <div className="text-xs text-zinc-500">
-                {selectedPersona ? `${selectedPersona.emoji} ${selectedPersona.name}` : 'Keine Persona gewählt'}
+                {selectedPersona
+                  ? `${selectedPersona.emoji} ${selectedPersona.name}`
+                  : 'Keine Persona gewählt'}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -639,7 +660,10 @@ const MemoryView: React.FC = () => {
           {nodes.map((node) => {
             const isEditing = editingId === node.id && draft !== null;
             return (
-              <article key={node.id} className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+              <article
+                key={node.id}
+                className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4"
+              >
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <input
@@ -651,8 +675,12 @@ const MemoryView: React.FC = () => {
                     <span className="rounded border border-indigo-600/40 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-indigo-300 uppercase">
                       {TYPE_LABEL[node.type]}
                     </span>
-                    <span className="text-[11px] text-zinc-500">Importance: {node.importance}/5</span>
-                    <span className="text-[11px] text-zinc-500">Version: {Number(node.metadata?.version || 1)}</span>
+                    <span className="text-[11px] text-zinc-500">
+                      Importance: {node.importance}/5
+                    </span>
+                    <span className="text-[11px] text-zinc-500">
+                      Version: {Number(node.metadata?.version || 1)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -765,7 +793,9 @@ const MemoryView: React.FC = () => {
                     )}
                     {historyLoadingId !== node.id &&
                       (!historyById[node.id] || historyById[node.id].length === 0) && (
-                        <div className="text-xs text-zinc-500">Keine History-Einträge vorhanden.</div>
+                        <div className="text-xs text-zinc-500">
+                          Keine History-Einträge vorhanden.
+                        </div>
                       )}
                     {historyLoadingId !== node.id &&
                       (historyById[node.id] || []).map((entry) => (
@@ -779,7 +809,9 @@ const MemoryView: React.FC = () => {
                             </div>
                             <button
                               onClick={() => void restoreFromHistory(node, entry)}
-                              disabled={restoringId === node.id || !String(entry.content || '').trim()}
+                              disabled={
+                                restoringId === node.id || !String(entry.content || '').trim()
+                              }
                               className="rounded border border-amber-800/70 px-2 py-1 text-[11px] text-amber-300 hover:bg-amber-950/30 disabled:opacity-40"
                             >
                               Wiederherstellen

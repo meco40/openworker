@@ -19,4 +19,3 @@ export function getProactiveGateService(): ProactiveGateService {
   }
   return globalThis.__proactiveGateService;
 }
-

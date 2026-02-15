@@ -1,9 +1,5 @@
 import type { ProactiveRepository } from './repository';
-import type {
-  ProactiveDecision,
-  ProactiveMessageInput,
-  ProactiveSignalInput,
-} from './types';
+import type { ProactiveDecision, ProactiveMessageInput, ProactiveSignalInput } from './types';
 
 const LOOKBACK_DAYS = 30;
 const SUGGEST_THRESHOLD = 0.72;
@@ -204,12 +200,18 @@ function scoreTopic(
   summaryByKey: Map<string, { totalWeight: number; occurrences: number }>,
   topic: string,
 ): number {
-  const invest = Math.max(0, Math.min(1, (summaryByKey.get(`${topic}.invest`)?.totalWeight ?? 0) / 0.7));
+  const invest = Math.max(
+    0,
+    Math.min(1, (summaryByKey.get(`${topic}.invest`)?.totalWeight ?? 0) / 0.7),
+  );
   const monitor = Math.max(
     0,
     Math.min(1, (summaryByKey.get(`${topic}.monitor`)?.totalWeight ?? 0) / 0.65),
   );
-  const news = Math.max(0, Math.min(1, (summaryByKey.get(`${topic}.news`)?.totalWeight ?? 0) / 0.55));
+  const news = Math.max(
+    0,
+    Math.min(1, (summaryByKey.get(`${topic}.news`)?.totalWeight ?? 0) / 0.55),
+  );
   const recurring = Math.max(
     0,
     Math.min(1, (summaryByKey.get(`${topic}.recurring`)?.totalWeight ?? 0) / 0.45),
@@ -218,12 +220,7 @@ function scoreTopic(
     0,
     Math.min(1, (summaryByKey.get(`${topic}.mention`)?.totalWeight ?? 0) / 0.6),
   );
-  const score =
-    invest * 0.35 +
-    monitor * 0.27 +
-    news * 0.2 +
-    recurring * 0.12 +
-    mention * 0.06;
+  const score = invest * 0.35 + monitor * 0.27 + news * 0.2 + recurring * 0.12 + mention * 0.06;
   return Math.max(0, Math.min(1, score));
 }
 
@@ -231,7 +228,9 @@ function topicSignalOccurrences(
   summaryByKey: Map<string, { totalWeight: number; occurrences: number }>,
   topic: string,
 ): number {
-  const keys = ['invest', 'monitor', 'news', 'recurring', 'mention'].map((suffix) => `${topic}.${suffix}`);
+  const keys = ['invest', 'monitor', 'news', 'recurring', 'mention'].map(
+    (suffix) => `${topic}.${suffix}`,
+  );
   return keys.reduce((sum, key) => sum + (summaryByKey.get(key)?.occurrences ?? 0), 0);
 }
 

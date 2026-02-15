@@ -138,7 +138,8 @@ export async function GET(request: Request) {
       const pkceState = createOAuthState({ ...oauthStateBase, codeVerifier }, signingKey);
       const scope = process.env.OPENAI_OAUTH_SCOPE?.trim() || 'openid profile email offline_access';
       const audience = process.env.OPENAI_OAUTH_AUDIENCE?.trim() || OPENAI_DEFAULT_AUDIENCE;
-      const authorizeUrl = process.env.OPENAI_OAUTH_AUTHORIZE_URL?.trim() || OPENAI_DEFAULT_AUTHORIZE_URL;
+      const authorizeUrl =
+        process.env.OPENAI_OAUTH_AUTHORIZE_URL?.trim() || OPENAI_DEFAULT_AUTHORIZE_URL;
       const authUrl = new URL(authorizeUrl);
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('client_id', clientId);

@@ -182,7 +182,10 @@ describe('Worker E2E: Edge Cases', () => {
     it('should handle checkpoint with non-numeric step index', async () => {
       // Arrange
       const task = createTestTask();
-      repo.saveCheckpoint(task.id, { phase: 'executing', stepIndex: 'invalid' as unknown as number });
+      repo.saveCheckpoint(task.id, {
+        phase: 'executing',
+        stepIndex: 'invalid' as unknown as number,
+      });
 
       // Act
       const updatedTask = repo.getTask(task.id)!;
@@ -507,9 +510,7 @@ describe('Worker E2E: Edge Cases', () => {
       const longDescription = 'A'.repeat(5000);
 
       // Act
-      repo.saveSteps(task.id, [
-        { taskId: task.id, stepIndex: 0, description: longDescription },
-      ]);
+      repo.saveSteps(task.id, [{ taskId: task.id, stepIndex: 0, description: longDescription }]);
 
       // Assert
       const steps = repo.getSteps(task.id);
@@ -540,9 +541,7 @@ describe('Worker E2E: Edge Cases', () => {
   describe('Concurrent Task Handling', () => {
     it('should handle multiple tasks independently', async () => {
       // Arrange
-      const tasks = Array.from({ length: 10 }, (_, i) =>
-        createTestTask({ title: `Task ${i}` }),
-      );
+      const tasks = Array.from({ length: 10 }, (_, i) => createTestTask({ title: `Task ${i}` }));
 
       // Act & Assert
       for (const task of tasks) {

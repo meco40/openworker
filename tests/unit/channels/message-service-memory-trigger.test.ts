@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '../../../types';
-import type { MessageRepository, StoredMessage } from '../../../src/server/channels/messages/repository';
+import type {
+  MessageRepository,
+  StoredMessage,
+} from '../../../src/server/channels/messages/repository';
 import type { Conversation } from '../../../types';
 import { LEGACY_LOCAL_USER_ID } from '../../../src/server/auth/constants';
 
@@ -159,13 +162,7 @@ describe('MessageService memory trigger', () => {
     );
 
     expect(memoryStoreMock).toHaveBeenCalledTimes(1);
-    expect(memoryStoreMock).toHaveBeenCalledWith(
-      'persona-1',
-      'fact',
-      'Ich mag Pasta',
-      4,
-      'user-1',
-    );
+    expect(memoryStoreMock).toHaveBeenCalledWith('persona-1', 'fact', 'Ich mag Pasta', 4, 'user-1');
     expect(dispatchWithFallbackMock).not.toHaveBeenCalled();
     expect(result.agentMsg.content.toLowerCase()).toContain('gespeichert');
   });

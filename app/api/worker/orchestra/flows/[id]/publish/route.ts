@@ -49,12 +49,18 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     try {
       graph = JSON.parse(draft.graphJson || '{}') as OrchestraFlowGraph;
     } catch {
-      return NextResponse.json({ ok: false, error: 'Ungültiges Graph-JSON im Draft' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: 'Ungültiges Graph-JSON im Draft' },
+        { status: 400 },
+      );
     }
     const graphNodes = Array.isArray(graph.nodes) ? graph.nodes : [];
     if (graphNodes.length === 0) {
       return NextResponse.json(
-        { ok: false, error: 'Flow kann nicht veröffentlicht werden — mindestens ein Knoten erforderlich.' },
+        {
+          ok: false,
+          error: 'Flow kann nicht veröffentlicht werden — mindestens ein Knoten erforderlich.',
+        },
         { status: 400 },
       );
     }

@@ -15,9 +15,7 @@ const MAX_HISTORY = 50;
  * Call `pushSnapshot` on discrete events (drag-stop, connect, delete, drop).
  * Ctrl+Z / Ctrl+Shift+Z are handled by the keyboard listener in OrchestraCanvas.
  */
-export function useCanvasHistory(
-  applySnapshot: (snapshot: CanvasSnapshot) => void,
-) {
+export function useCanvasHistory(applySnapshot: (snapshot: CanvasSnapshot) => void) {
   const pastRef = useRef<CanvasSnapshot[]>([]);
   const futureRef = useRef<CanvasSnapshot[]>([]);
 
@@ -36,7 +34,10 @@ export function useCanvasHistory(
       pastRef.current = pastRef.current.slice(0, -1);
       futureRef.current = [
         ...futureRef.current,
-        { nodes: structuredClone(currentSnapshot.nodes), edges: structuredClone(currentSnapshot.edges) },
+        {
+          nodes: structuredClone(currentSnapshot.nodes),
+          edges: structuredClone(currentSnapshot.edges),
+        },
       ];
       applySnapshot(previous);
     },
@@ -50,7 +51,10 @@ export function useCanvasHistory(
       futureRef.current = futureRef.current.slice(0, -1);
       pastRef.current = [
         ...pastRef.current,
-        { nodes: structuredClone(currentSnapshot.nodes), edges: structuredClone(currentSnapshot.edges) },
+        {
+          nodes: structuredClone(currentSnapshot.nodes),
+          edges: structuredClone(currentSnapshot.edges),
+        },
       ];
       applySnapshot(next);
     },

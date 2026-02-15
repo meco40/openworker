@@ -32,8 +32,7 @@ describe('pipeline section account row layout', () => {
             providerId: 'openrouter',
             label: 'OpenRouter Account',
             authMethod: 'api_key',
-            secretMasked:
-              '************************************************************0704d',
+            secretMasked: '************************************************************0704d',
             hasRefreshToken: false,
             createdAt: '2026-02-15T00:00:00.000Z',
             updatedAt: '2026-02-15T00:00:00.000Z',
@@ -52,7 +51,9 @@ describe('pipeline section account row layout', () => {
       }),
     );
 
-    expect(html).toContain('title="************************************************************0704d"');
+    expect(html).toContain(
+      'title="************************************************************0704d"',
+    );
     expect(html).toContain('truncate font-mono text-[10px] text-zinc-600');
   });
 });

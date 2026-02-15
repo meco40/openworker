@@ -6,7 +6,6 @@ import { deliverOutbound } from '../outbound/router';
 import { getModelHubService, getModelHubEncryptionKey } from '../../model-hub/runtime';
 import { routeMessage } from './messageRouter';
 import { getWorkerRepository } from '../../worker/workerRepository';
-import { processQueue } from '../../worker/workerAgent';
 import { SessionManager } from './sessionManager';
 import { HistoryManager } from './historyManager';
 import { ContextBuilder } from './contextBuilder';
@@ -52,6 +51,14 @@ type LastRecallState = {
   queriedAt: number;
 };
 
+const WORKER_AGENT_MODULE_PATH = ['..', '..', 'worker', 'workerAgent'].join('/');
+
+function triggerWorkerQueue(logContext: string): void {
+  void import(WORKER_AGENT_MODULE_PATH)
+    .then(({ processQueue }) => processQueue())
+    .catch((error: unknown) => console.error(`[Worker] Queue ${logContext}:`, error));
+}
+
 function resolveMemoryScopedUserId(
   conversation: Conversation,
   platform: ChannelType,
@@ -63,7 +70,9 @@ function resolveMemoryScopedUserId(
   const normalizedPlatform = String(platform || conversation.channelType || '')
     .trim()
     .toLowerCase();
-  const normalizedExternalChatId = String(externalChatId || conversation.externalChatId || '').trim();
+  const normalizedExternalChatId = String(
+    externalChatId || conversation.externalChatId || '',
+  ).trim();
   if (!normalizedPlatform || !normalizedExternalChatId) return baseUserId;
   if (normalizedPlatform === String(ChannelType.WEBCHAT).toLowerCase()) return baseUserId;
 
@@ -423,7 +432,7 @@ export class MessageService {
       originExternalChat: externalChatId,
     });
 
-    processQueue().catch((err: Error) => console.error('[Worker] Queue processing error:', err));
+    triggerWorkerQueue('processing error');
 
     return this.sendResponse(
       conversation,
@@ -565,7 +574,7 @@ export class MessageService {
           );
         }
         workerRepo.updateStatus(payload, 'queued');
-        processQueue().catch((err: unknown) => console.error('[Worker] Queue error:', err));
+        triggerWorkerQueue('error');
         return this.sendResponse(
           conversation,
           `🔄 Task "${task.title}" wird fortgesetzt.`,
@@ -599,7 +608,7 @@ export class MessageService {
           );
         }
         workerRepo.updateStatus(payload, 'queued');
-        processQueue().catch((err: unknown) => console.error('[Worker] Queue error:', err));
+        triggerWorkerQueue('error');
         return this.sendResponse(
           conversation,
           `🔄 Task "${task.title}" wird wiederholt.`,

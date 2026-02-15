@@ -157,9 +157,12 @@ describe('orchestra flows routes', () => {
     expect(createV2Response.status).toBe(201);
 
     const publishV2Response = await publishRoute.POST(
-      new Request(`http://localhost/api/worker/orchestra/flows/${createV2Payload.flow.id}/publish`, {
-        method: 'POST',
-      }),
+      new Request(
+        `http://localhost/api/worker/orchestra/flows/${createV2Payload.flow.id}/publish`,
+        {
+          method: 'POST',
+        },
+      ),
       { params: Promise.resolve({ id: createV2Payload.flow.id }) },
     );
     const publishV2Payload = (await publishV2Response.json()) as {

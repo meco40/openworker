@@ -5,10 +5,9 @@ import type { WorkerTaskRecord } from '../workerTypes';
 import type { OrchestraFlowGraph } from '../orchestraGraph';
 import { getWorkerRepository } from '../workerRepository';
 import { executeOrchestraNode, executeLlmRouting } from '../workerExecutor';
-import { notifyTaskCompleted, notifyTaskFailed } from '../workerCallback';
 import { runOrchestraFlow } from '../orchestraRunner';
 import { buildNodeStatusMap, buildWorkerWorkflowPayload } from '../orchestraWorkflow';
-import { broadcastStatus, broadcastWorkflowUpdate } from '../utils/broadcast';
+import { broadcastWorkflowUpdate } from '../utils/broadcast';
 import { LEGACY_LOCAL_USER_ID } from '../../auth/constants';
 
 /**
@@ -75,7 +74,8 @@ export async function executeOrchestraPhase(task: WorkerTaskRecord): Promise<boo
     flowPublishedId: publishedFlow.id,
     graph,
     decideLlmRouting: executeLlmRouting,
-    executeNode: async (nodeId: string) => executeNode(nodeId, graph, run.id, task, broadcastWorkflow),
+    executeNode: async (nodeId: string) =>
+      executeNode(nodeId, graph, run.id, task, broadcastWorkflow),
   });
 
   // Update final node statuses
@@ -165,14 +165,14 @@ async function handleFlowNotFound(task: WorkerTaskRecord): Promise<void> {
   const repo = getWorkerRepository();
   const error = `Published flow ${task.flowPublishedId} not found`;
   repo.updateStatus(task.id, 'failed', { error });
-  await notifyTaskFailed(task, `Flow ${task.flowPublishedId} nicht gefunden.`);
+  await notifyFailed(task, `Flow ${task.flowPublishedId} nicht gefunden.`);
 }
 
 async function handleInvalidGraph(task: WorkerTaskRecord, flowId: string): Promise<void> {
   const repo = getWorkerRepository();
   const error = `Published flow ${flowId} has invalid graph JSON`;
   repo.updateStatus(task.id, 'failed', { error });
-  await notifyTaskFailed(task, `Flow ${flowId} enthält ungültiges Graph-JSON.`);
+  await notifyFailed(task, `Flow ${flowId} enthält ungültiges Graph-JSON.`);
 }
 
 async function handleOrchestraFailure(
@@ -183,7 +183,8 @@ async function handleOrchestraFailure(
 ): Promise<void> {
   const repo = getWorkerRepository();
   const failedNode = Object.entries(nodes).find(([, state]) => state.status === 'failed');
-  const failReason = failedNode?.[1].error || `Orchestra run ${runId} failed (flow ${flowPublishedId})`;
+  const failReason =
+    failedNode?.[1].error || `Orchestra run ${runId} failed (flow ${flowPublishedId})`;
 
   repo.updateRunStatus(runId, { status: 'failed', errorMessage: failReason });
   repo.updateStatus(task.id, 'failed', { error: failReason });
@@ -193,7 +194,7 @@ async function handleOrchestraFailure(
     message: `Orchestra fehlgeschlagen: ${failReason}`,
     metadata: { runId, flowPublishedId },
   });
-  await notifyTaskFailed(task, failReason);
+  await notifyFailed(task, failReason);
 }
 
 async function handleOrchestraSuccess(
@@ -212,5 +213,15 @@ async function handleOrchestraSuccess(
     message: `Task abgeschlossen via Orchestra — ${Object.keys(nodes).length} Nodes`,
     metadata: { from: 'executing', to: 'completed', runId },
   });
+  await notifyCompleted(task, summary);
+}
+
+async function notifyCompleted(task: WorkerTaskRecord, summary: string): Promise<void> {
+  const { notifyTaskCompleted } = await import('../workerCallback');
   await notifyTaskCompleted(task, summary);
+}
+
+async function notifyFailed(task: WorkerTaskRecord, message: string): Promise<void> {
+  const { notifyTaskFailed } = await import('../workerCallback');
+  await notifyTaskFailed(task, message);
 }

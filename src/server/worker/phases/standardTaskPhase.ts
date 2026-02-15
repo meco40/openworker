@@ -5,7 +5,6 @@
 import { getWorkerRepository } from '../workerRepository';
 import { planTask } from '../workerPlanner';
 import { executeStep } from '../workerExecutor';
-import { notifyTaskCompleted, notifyTaskFailed } from '../workerCallback';
 import { getWorkspaceManager } from '../workspaceManager';
 import { runWebappTests } from '../workerTester';
 import { broadcastStatus } from '../utils/broadcast';
@@ -70,7 +69,7 @@ async function executePlanningPhase(task: WorkerTaskRecord): Promise<PlanningRes
 
   if (!plan.steps || plan.steps.length === 0) {
     repo.updateStatus(task.id, 'failed', { error: 'Planner returned no steps' });
-    await notifyTaskFailed(task, 'Konnte keinen Plan erstellen.');
+    await notifyFailed(task, 'Konnte keinen Plan erstellen.');
     return null;
   }
 
@@ -97,7 +96,6 @@ async function executeExecutionPhase(
   startStepIndex: number,
 ): Promise<ExecutionResult> {
   const repo = getWorkerRepository();
-  const wsMgr = getWorkspaceManager();
 
   repo.updateStatus(task.id, 'executing');
   repo.addActivity({
@@ -216,7 +214,7 @@ async function handleStepError(
   repo.updateStatus(task.id, 'failed', {
     error: `Schritt ${index + 1} fehlgeschlagen: ${errorMsg}`,
   });
-  await notifyTaskFailed(task, `Schritt ${index + 1} fehlgeschlagen: ${errorMsg}`);
+  await notifyFailed(task, `Schritt ${index + 1} fehlgeschlagen: ${errorMsg}`);
 }
 
 interface VerificationResult {
@@ -241,7 +239,7 @@ async function executeVerificationPhase(task: WorkerTaskRecord): Promise<Verific
       metadata: { failedStepCount: failedSteps.length },
     });
     broadcastStatus(task.id, 'failed', errorMsg);
-    await notifyTaskFailed(task, errorMsg);
+    await notifyFailed(task, errorMsg);
     return { success: false };
   }
 
@@ -299,11 +297,7 @@ async function executeTestingPhase(task: WorkerTaskRecord): Promise<TestingResul
       message: 'Zur manuellen Überprüfung verschoben',
       metadata: { from: 'testing', to: 'review', reason: 'tests_failed' },
     });
-    broadcastStatus(
-      task.id,
-      'review',
-      'Tests fehlgeschlagen — manuelle Überprüfung erforderlich',
-    );
+    broadcastStatus(task.id, 'review', 'Tests fehlgeschlagen — manuelle Überprüfung erforderlich');
     return { success: false }; // Moved to review, not completed
   }
 
@@ -338,5 +332,15 @@ async function executeCompletionPhase(
     metadata: { from: 'executing', to: 'completed', artifactCount: artifacts.length },
   });
   broadcastStatus(task.id, 'completed', 'Task abgeschlossen');
+  await notifyCompleted(task, summary);
+}
+
+async function notifyCompleted(task: WorkerTaskRecord, summary: string): Promise<void> {
+  const { notifyTaskCompleted } = await import('../workerCallback');
   await notifyTaskCompleted(task, summary);
+}
+
+async function notifyFailed(task: WorkerTaskRecord, message: string): Promise<void> {
+  const { notifyTaskFailed } = await import('../workerCallback');
+  await notifyTaskFailed(task, message);
 }

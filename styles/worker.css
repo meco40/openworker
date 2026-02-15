@@ -1438,7 +1438,9 @@
   min-width: 160px;
   max-width: 220px;
   cursor: grab;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .orchestra-persona-node:hover {
@@ -1592,7 +1594,9 @@
   background: #131f2e;
   cursor: grab;
   user-select: none;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .orchestra-node-library__item:hover {
@@ -1721,7 +1725,9 @@
   color: #cbd5e1;
   font-size: 0.78rem;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .orchestra-properties-panel__btn:hover {
@@ -1794,7 +1800,9 @@
   font-size: 0.76rem;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .orchestra-toolbar__btn:hover:not(:disabled) {

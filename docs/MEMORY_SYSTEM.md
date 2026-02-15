@@ -142,16 +142,16 @@ Erinnerungen abrufen.
 
 ## Konfiguration
 
-| Variable            | Beschreibung                                                             | Standard             |
-| ------------------- | ------------------------------------------------------------------------ | -------------------- |
-| `MEMORY_PROVIDER`   | Memory Backend (`mem0` empfohlen; andere Werte deaktivieren Mem0)         | `mem0`               |
-| `MEMORY_DB_PATH`    | Pfad zur lokalen Memory-Datenbank (SQLite Mirror + Verwaltungsdaten)      | `.local/messages.db` |
-| `MEM0_BASE_URL`     | Mem0 Base URL (z. B. `http://localhost:8000`)                            | -                    |
-| `MEM0_API_PATH`     | Mem0 API Prefix (`/v1` oder `/` bei Legacy-REST ohne Versionspfad)      | `/v1`                |
-| `MEM0_API_KEY`      | Optionaler Bearer Token für Mem0                                         | -                    |
-| `MEM0_TIMEOUT_MS`   | Timeout pro Mem0 Request in ms                                           | `5000`               |
-| `MEMORY_EMBEDDING_MODEL` | Embedding-Modell für Memory-Vektorisierung (Gemini)                 | `gemini-embedding-001` |
-| `GEMINI_API_KEY`    | API Key für Memory-Embeddings (Gemini)                                  | -                    |
+| Variable                 | Beschreibung                                                         | Standard               |
+| ------------------------ | -------------------------------------------------------------------- | ---------------------- |
+| `MEMORY_PROVIDER`        | Memory Backend (`mem0` empfohlen; andere Werte deaktivieren Mem0)    | `mem0`                 |
+| `MEMORY_DB_PATH`         | Pfad zur lokalen Memory-Datenbank (SQLite Mirror + Verwaltungsdaten) | `.local/messages.db`   |
+| `MEM0_BASE_URL`          | Mem0 Base URL (z. B. `http://localhost:8000`)                        | -                      |
+| `MEM0_API_PATH`          | Mem0 API Prefix (`/v1` oder `/` bei Legacy-REST ohne Versionspfad)   | `/v1`                  |
+| `MEM0_API_KEY`           | Optionaler Bearer Token für Mem0                                     | -                      |
+| `MEM0_TIMEOUT_MS`        | Timeout pro Mem0 Request in ms                                       | `5000`                 |
+| `MEMORY_EMBEDDING_MODEL` | Embedding-Modell für Memory-Vektorisierung (Gemini)                  | `gemini-embedding-001` |
+| `GEMINI_API_KEY`         | API Key für Memory-Embeddings (Gemini)                               | -                      |
 
 ### Rollout-Regeln (Production)
 

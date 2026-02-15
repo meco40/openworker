@@ -133,7 +133,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
     }
 
-    const flow = orchestraService.updateDraft(id, userContext.userId, updates, body.expectedUpdatedAt);
+    const flow = orchestraService.updateDraft(
+      id,
+      userContext.userId,
+      updates,
+      body.expectedUpdatedAt,
+    );
     if (!flow) {
       // Could be not found OR optimistic locking conflict
       const existing = getWorkerRepository().getFlowDraft(id, userContext.userId);
@@ -178,7 +183,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (draft) {
       const deleted = repo.deleteFlowDraft(id, userContext.userId);
       if (!deleted) {
-        return NextResponse.json({ ok: false, error: 'Konnte Draft nicht löschen' }, { status: 400 });
+        return NextResponse.json(
+          { ok: false, error: 'Konnte Draft nicht löschen' },
+          { status: 400 },
+        );
       }
       return NextResponse.json({ ok: true, deleted: 'draft' });
     }
@@ -188,7 +196,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       const deleted = repo.deletePublishedFlow(id, userContext.userId);
       if (!deleted) {
         return NextResponse.json(
-          { ok: false, error: 'Flow wird von einem Task referenziert und kann nicht gelöscht werden.' },
+          {
+            ok: false,
+            error: 'Flow wird von einem Task referenziert und kann nicht gelöscht werden.',
+          },
           { status: 409 },
         );
       }

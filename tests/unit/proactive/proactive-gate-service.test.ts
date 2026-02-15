@@ -73,7 +73,11 @@ describe('ProactiveGateService', () => {
       'user-1',
       'persona-1',
       [
-        { role: 'user', content: 'Ich investiere in Gold und verfolge den Goldpreis täglich.', createdAt: now },
+        {
+          role: 'user',
+          content: 'Ich investiere in Gold und verfolge den Goldpreis täglich.',
+          createdAt: now,
+        },
         { role: 'user', content: 'Gibt es Nachrichten zu Gold heute?', createdAt: now },
       ],
       now,
@@ -114,19 +118,27 @@ describe('ProactiveGateService', () => {
       'user-1',
       'persona-1',
       [
-        { role: 'user', content: 'Ich investiere in Gold und schaue den Preis stündlich.', createdAt: first },
+        {
+          role: 'user',
+          content: 'Ich investiere in Gold und schaue den Preis stündlich.',
+          createdAt: first,
+        },
         { role: 'user', content: 'Bitte melde starke Goldbewegungen.', createdAt: first },
       ],
       first,
     );
     const firstRun = service.evaluate('user-1', 'persona-1', first);
-    expect(firstRun.some((item) => item.candidateKey === 'topic_watcher:gold' && item.decision === 'suggest')).toBe(
-      true,
-    );
+    expect(
+      firstRun.some(
+        (item) => item.candidateKey === 'topic_watcher:gold' && item.decision === 'suggest',
+      ),
+    ).toBe(true);
 
     const secondRun = service.evaluate('user-1', 'persona-1', second);
-    expect(secondRun.some((item) => item.candidateKey === 'topic_watcher:gold' && item.decision === 'suggest')).toBe(
-      false,
-    );
+    expect(
+      secondRun.some(
+        (item) => item.candidateKey === 'topic_watcher:gold' && item.decision === 'suggest',
+      ),
+    ).toBe(false);
   });
 });

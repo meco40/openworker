@@ -14,7 +14,11 @@ export interface MemoryListPageResult {
 
 export interface MemoryRepository {
   listNodes(personaId: string, userId?: string): MemoryNode[];
-  listNodesPage(personaId: string, input: MemoryListPageInput, userId?: string): MemoryListPageResult;
+  listNodesPage(
+    personaId: string,
+    input: MemoryListPageInput,
+    userId?: string,
+  ): MemoryListPageResult;
   listAllNodes(userId?: string): MemoryNode[];
   insertNode(personaId: string, node: MemoryNode, userId?: string): void;
   updateNode(personaId: string, node: MemoryNode, userId?: string): void;

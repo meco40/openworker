@@ -34,59 +34,55 @@ describe.runIf(canRun)('mem0 live e2e', () => {
     await service?.deleteByPersona(personaId, userId).catch(() => {});
   });
 
-  it(
-    'covers store, recall, optimistic update, history restore and delete',
-    async () => {
-      const stored = await service!.store(personaId, 'fact', seedContent, 4, userId);
-      expect(stored.id.length).toBeGreaterThan(0);
-      expect(stored.metadata?.version).toBe(1);
+  it('covers store, recall, optimistic update, history restore and delete', async () => {
+    const stored = await service!.store(personaId, 'fact', seedContent, 4, userId);
+    expect(stored.id.length).toBeGreaterThan(0);
+    expect(stored.metadata?.version).toBe(1);
 
-      const recalled = await service!.recallDetailed(personaId, seedContent, 3, userId);
-      expect(recalled.matches.length).toBeGreaterThan(0);
-      expect(recalled.context).toContain(seedContent);
+    const recalled = await service!.recallDetailed(personaId, seedContent, 3, userId);
+    expect(recalled.matches.length).toBeGreaterThan(0);
+    expect(recalled.context).toContain(seedContent);
 
-      const updated = await service!.update(
+    const updated = await service!.update(
+      personaId,
+      stored.id,
+      { content: updatedContent, expectedVersion: 1 },
+      userId,
+    );
+    expect(updated).not.toBeNull();
+    expect(updated?.content).toBe(updatedContent);
+    expect(updated?.metadata?.version).toBe(2);
+
+    await expect(
+      service!.update(
         personaId,
         stored.id,
-        { content: updatedContent, expectedVersion: 1 },
+        { content: `${updatedContent}-stale`, expectedVersion: 1 },
         userId,
-      );
-      expect(updated).not.toBeNull();
-      expect(updated?.content).toBe(updatedContent);
-      expect(updated?.metadata?.version).toBe(2);
+      ),
+    ).rejects.toThrow(/version|conflict/i);
 
-      await expect(
-        service!.update(
-          personaId,
-          stored.id,
-          { content: `${updatedContent}-stale`, expectedVersion: 1 },
-          userId,
-        ),
-      ).rejects.toThrow(/version|conflict/i);
+    const history = await service!.history(personaId, stored.id, userId);
+    expect(history).not.toBeNull();
+    expect((history?.entries.length || 0) >= 2).toBe(true);
+    const createEntry =
+      history?.entries.find((entry) => String(entry.content || '') === seedContent) || null;
+    expect(createEntry).not.toBeNull();
 
-      const history = await service!.history(personaId, stored.id, userId);
-      expect(history).not.toBeNull();
-      expect((history?.entries.length || 0) >= 2).toBe(true);
-      const createEntry =
-        history?.entries.find((entry) => String(entry.content || '') === seedContent) || null;
-      expect(createEntry).not.toBeNull();
+    const restored = await service!.restoreFromHistory(
+      personaId,
+      stored.id,
+      {
+        restoreIndex: Number(createEntry?.index || 0),
+        expectedVersion: 2,
+      },
+      userId,
+    );
+    expect(restored).not.toBeNull();
+    expect(restored?.content).toBe(seedContent);
+    expect(restored?.metadata?.version).toBe(3);
 
-      const restored = await service!.restoreFromHistory(
-        personaId,
-        stored.id,
-        {
-          restoreIndex: Number(createEntry?.index || 0),
-          expectedVersion: 2,
-        },
-        userId,
-      );
-      expect(restored).not.toBeNull();
-      expect(restored?.content).toBe(seedContent);
-      expect(restored?.metadata?.version).toBe(3);
-
-      const deleted = await service!.delete(personaId, stored.id, userId);
-      expect(deleted).toBe(true);
-    },
-    45000,
-  );
+    const deleted = await service!.delete(personaId, stored.id, userId);
+    expect(deleted).toBe(true);
+  }, 45000);
 });

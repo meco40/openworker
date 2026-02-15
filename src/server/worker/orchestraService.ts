@@ -98,11 +98,16 @@ export class OrchestraService {
     updates: { name?: string; graph?: OrchestraFlowGraph; workspaceType?: WorkspaceType },
     expectedUpdatedAt?: string,
   ) {
-    return getWorkerRepository().updateFlowDraft(id, userId, {
-      name: updates.name,
-      graphJson: updates.graph ? JSON.stringify(updates.graph) : undefined,
-      workspaceType: updates.workspaceType,
-    }, expectedUpdatedAt);
+    return getWorkerRepository().updateFlowDraft(
+      id,
+      userId,
+      {
+        name: updates.name,
+        graphJson: updates.graph ? JSON.stringify(updates.graph) : undefined,
+        workspaceType: updates.workspaceType,
+      },
+      expectedUpdatedAt,
+    );
   }
 
   publishDraft(id: string, userId: string) {

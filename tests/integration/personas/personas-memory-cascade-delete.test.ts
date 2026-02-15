@@ -74,7 +74,10 @@ describe('persona memory cascade delete', () => {
     process.env.MEM0_API_PATH = '/v1';
     process.env.MEM0_API_KEY = 'mem0_test_key';
 
-    const memoryStore = new Map<string, Array<{ id: string; content: string; metadata: Record<string, unknown> }>>();
+    const memoryStore = new Map<
+      string,
+      Array<{ id: string; content: string; metadata: Record<string, unknown> }>
+    >();
     const defaultUser = 'user-a';
 
     vi.stubGlobal(
@@ -99,7 +102,10 @@ describe('persona memory cascade delete', () => {
           const content = String((messages[0] as { content?: string } | undefined)?.content || '');
           const id = `mem0-${Math.random().toString(36).slice(2, 10)}`;
           const key = memoryScopeKey(userId, personaId);
-          const next = [...(memoryStore.get(key) || []), { id, content, metadata: (body.metadata as Record<string, unknown>) || {} }];
+          const next = [
+            ...(memoryStore.get(key) || []),
+            { id, content, metadata: (body.metadata as Record<string, unknown>) || {} },
+          ];
           memoryStore.set(key, next);
           return new Response(JSON.stringify([{ id, memory: content }]), { status: 200 });
         }
@@ -134,7 +140,9 @@ describe('persona memory cascade delete', () => {
           return new Response(JSON.stringify({ deleted }), { status: 200 });
         }
 
-        return new Response(JSON.stringify({ error: `Unhandled ${method} ${parsed.pathname}` }), { status: 500 });
+        return new Response(JSON.stringify({ error: `Unhandled ${method} ${parsed.pathname}` }), {
+          status: 500,
+        });
       }) as unknown as typeof fetch,
     );
 

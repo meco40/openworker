@@ -12,22 +12,30 @@ const MEM0_RUNTIME_PROBE_USER_ID = 'mem0-runtime-probe';
 const MEM0_RUNTIME_PROBE_PERSONA_ID = 'mem0-runtime-probe';
 
 export function assertMemoryRuntimeConfiguration(env: EnvLike = process.env as EnvLike): void {
-  const nodeEnv = String(env.NODE_ENV || '').trim().toLowerCase();
+  const nodeEnv = String(env.NODE_ENV || '')
+    .trim()
+    .toLowerCase();
   if (nodeEnv !== 'production') return;
 
-  const provider = String(env.MEMORY_PROVIDER || '').trim().toLowerCase();
+  const provider = String(env.MEMORY_PROVIDER || '')
+    .trim()
+    .toLowerCase();
   if (provider !== 'mem0') {
     throw new Error('Invalid memory configuration: production requires MEMORY_PROVIDER=mem0.');
   }
 
   const baseUrl = String(env.MEM0_BASE_URL || '').trim();
   if (!baseUrl) {
-    throw new Error('Invalid memory configuration: MEM0_BASE_URL is required when MEMORY_PROVIDER=mem0.');
+    throw new Error(
+      'Invalid memory configuration: MEM0_BASE_URL is required when MEMORY_PROVIDER=mem0.',
+    );
   }
 
   const apiKey = String(env.MEM0_API_KEY || '').trim();
   if (!apiKey) {
-    throw new Error('Invalid memory configuration: MEM0_API_KEY is required when MEMORY_PROVIDER=mem0.');
+    throw new Error(
+      'Invalid memory configuration: MEM0_API_KEY is required when MEMORY_PROVIDER=mem0.',
+    );
   }
 }
 

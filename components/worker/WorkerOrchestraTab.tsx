@@ -38,16 +38,8 @@ function parseGraphJson(graphJson?: string): OrchestraFlowGraph | null {
 // ─── Component ───────────────────────────────────────────────
 
 const WorkerOrchestraTab: React.FC = () => {
-  const {
-    drafts,
-    published,
-    loading,
-    error,
-    createDraft,
-    publishDraft,
-    updateDraft,
-    deleteDraft,
-  } = useWorkerOrchestraFlows();
+  const { drafts, published, loading, error, createDraft, publishDraft, updateDraft, deleteDraft } =
+    useWorkerOrchestraFlows();
   const { personas: personaSummaries } = usePersona();
 
   // ─── State ──────────────────────────────────────────────
@@ -88,11 +80,11 @@ const WorkerOrchestraTab: React.FC = () => {
       try {
         const res = await fetch('/api/skills');
         if (res.ok) {
-          const data = (await res.json()) as { skills?: Array<{ id: string; name: string; installed: boolean }> };
+          const data = (await res.json()) as {
+            skills?: Array<{ id: string; name: string; installed: boolean }>;
+          };
           setSkills(
-            (data.skills ?? [])
-              .filter((s) => s.installed)
-              .map((s) => ({ id: s.id, name: s.name })),
+            (data.skills ?? []).filter((s) => s.installed).map((s) => ({ id: s.id, name: s.name })),
           );
         }
       } catch {
@@ -145,64 +137,50 @@ const WorkerOrchestraTab: React.FC = () => {
   );
 
   // ─── Canvas graph change handler ───────────────────────
-  const handleGraphChange = useCallback(
-    (nodes: Node<PersonaNodeData>[], edges: Edge[]) => {
-      setCanvasNodes(nodes);
-      setCanvasEdges(edges);
-      setIsDirty(true);
-    },
-    [],
-  );
+  const handleGraphChange = useCallback((nodes: Node<PersonaNodeData>[], edges: Edge[]) => {
+    setCanvasNodes(nodes);
+    setCanvasEdges(edges);
+    setIsDirty(true);
+  }, []);
 
   // ─── Node property updates ─────────────────────────────
-  const handleNodeUpdate = useCallback(
-    (nodeId: string, updates: Partial<PersonaNodeData>) => {
-      setCanvasNodes((prev) =>
+  const handleNodeUpdate = useCallback((nodeId: string, updates: Partial<PersonaNodeData>) => {
+    setCanvasNodes(
+      (prev) =>
         prev.map((n) =>
-          n.id === nodeId
-            ? { ...n, data: { ...n.data, ...updates } }
-            : n,
+          n.id === nodeId ? { ...n, data: { ...n.data, ...updates } } : n,
         ) as Node<PersonaNodeData>[],
-      );
-      setIsDirty(true);
-    },
-    [],
-  );
+    );
+    setIsDirty(true);
+  }, []);
 
-  const handleSetStartNode = useCallback(
-    (nodeId: string) => {
-      setCanvasNodes((prev) =>
+  const handleSetStartNode = useCallback((nodeId: string) => {
+    setCanvasNodes(
+      (prev) =>
         prev.map((n) => ({
           ...n,
           data: { ...n.data, isStartNode: n.id === nodeId },
         })) as Node<PersonaNodeData>[],
-      );
-      setIsDirty(true);
-    },
-    [],
-  );
+    );
+    setIsDirty(true);
+  }, []);
 
-  const handleDeleteNode = useCallback(
-    (nodeId: string) => {
-      setCanvasNodes((prev) => {
-        const remaining = prev.filter((n) => n.id !== nodeId);
-        // Reassign start if needed
-        if (remaining.length > 0 && !remaining.some((n) => n.data.isStartNode)) {
-          remaining[0] = {
-            ...remaining[0]!,
-            data: { ...remaining[0]!.data, isStartNode: true },
-          };
-        }
-        return remaining as Node<PersonaNodeData>[];
-      });
-      setCanvasEdges((prev) =>
-        prev.filter((e) => e.source !== nodeId && e.target !== nodeId),
-      );
-      setSelectedNodeId(null);
-      setIsDirty(true);
-    },
-    [],
-  );
+  const handleDeleteNode = useCallback((nodeId: string) => {
+    setCanvasNodes((prev) => {
+      const remaining = prev.filter((n) => n.id !== nodeId);
+      // Reassign start if needed
+      if (remaining.length > 0 && !remaining.some((n) => n.data.isStartNode)) {
+        remaining[0] = {
+          ...remaining[0]!,
+          data: { ...remaining[0]!.data, isStartNode: true },
+        };
+      }
+      return remaining as Node<PersonaNodeData>[];
+    });
+    setCanvasEdges((prev) => prev.filter((e) => e.source !== nodeId && e.target !== nodeId));
+    setSelectedNodeId(null);
+    setIsDirty(true);
+  }, []);
 
   // ─── Toolbar actions ───────────────────────────────────
 
@@ -367,7 +345,9 @@ const WorkerOrchestraTab: React.FC = () => {
                   <li key={flow.id} className="worker-orchestra__item">
                     <div>
                       <strong>{flow.name}</strong>
-                      <span>v{flow.version} · {flow.workspaceType}</span>
+                      <span>
+                        v{flow.version} · {flow.workspaceType}
+                      </span>
                     </div>
                   </li>
                 ))}

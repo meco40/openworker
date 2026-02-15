@@ -225,7 +225,6 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
           </div>
         </div>
       </div>
-
     </div>
   );
 };

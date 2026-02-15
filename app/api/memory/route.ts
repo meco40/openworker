@@ -135,11 +135,7 @@ function parseUpdateBody(raw: Record<string, unknown>): {
   }
 
   if (next.restoreIndex !== undefined) {
-    if (
-      next.type !== undefined ||
-      next.content !== undefined ||
-      next.importance !== undefined
-    ) {
+    if (next.type !== undefined || next.content !== undefined || next.importance !== undefined) {
       throw new ValidationError(
         'restoreIndex cannot be combined with type/content/importance updates.',
       );
@@ -147,11 +143,7 @@ function parseUpdateBody(raw: Record<string, unknown>): {
     return next;
   }
 
-  if (
-    next.type === undefined &&
-    next.content === undefined &&
-    next.importance === undefined
-  ) {
+  if (next.type === undefined && next.content === undefined && next.importance === undefined) {
     throw new ValidationError('No fields to update.');
   }
 
@@ -165,7 +157,9 @@ function parsePositiveInt(raw: unknown, fallback: number, min: number, max: numb
 }
 
 function parseFlag(raw: unknown): boolean {
-  const value = String(raw || '').trim().toLowerCase();
+  const value = String(raw || '')
+    .trim()
+    .toLowerCase();
   return value === '1' || value === 'true' || value === 'yes' || value === 'on';
 }
 
@@ -195,7 +189,9 @@ function parseBulkBody(raw: Record<string, unknown>): {
     throw new ValidationError('ids must be a non-empty array.');
   }
 
-  const actionRaw = String(raw.action || '').trim().toLowerCase();
+  const actionRaw = String(raw.action || '')
+    .trim()
+    .toLowerCase();
   if (actionRaw !== 'update' && actionRaw !== 'delete') {
     throw new ValidationError('action must be either "update" or "delete".');
   }
@@ -247,16 +243,23 @@ export async function GET(request: Request) {
       const pageSize = parsePositiveInt(pageSizeParam, 25, 1, 200);
       const query = String(url.searchParams.get('query') || '').trim();
       const type = parseOptionalType(url.searchParams.get('type'));
-      const result = await service.listPage(personaId, {
-        page,
-        pageSize,
-        query: query || undefined,
-        type,
-      }, userContext.userId);
+      const result = await service.listPage(
+        personaId,
+        {
+          page,
+          pageSize,
+          query: query || undefined,
+          type,
+        },
+        userContext.userId,
+      );
       return NextResponse.json({ ok: true, nodes: result.nodes, pagination: result.pagination });
     }
 
-    return NextResponse.json({ ok: true, nodes: await service.snapshot(personaId, userContext.userId) });
+    return NextResponse.json({
+      ok: true,
+      nodes: await service.snapshot(personaId, userContext.userId),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to load memory snapshot.';
     const status = error instanceof ValidationError ? 400 : 500;

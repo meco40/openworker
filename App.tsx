@@ -2,13 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import {
-  View,
-  ChannelType,
-  CoupledChannel,
-  MessageAttachment,
-  Skill,
-} from './types';
+import { View, ChannelType, CoupledChannel, MessageAttachment, Skill } from './types';
 import Sidebar from './components/Sidebar';
 import { buildInitialShellState } from './src/modules/app-shell/useAppShellState';
 import {

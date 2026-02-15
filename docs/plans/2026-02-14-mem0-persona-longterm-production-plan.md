@@ -35,10 +35,12 @@
 ### Task 1: Mem0 REST Client (TDD)
 
 **Files:**
+
 - Create: `src/server/memory/mem0Client.ts`
 - Create: `tests/unit/memory/mem0-client.test.ts`
 
 **Step 1: Write failing tests**
+
 - Add tests for:
   - building Mem0 client from env only when enabled,
   - add/search request payload with `user_id` and `agent_id`,
@@ -46,27 +48,32 @@
   - tolerant parsing of response variants.
 
 **Step 2: Run tests to verify RED**
+
 - Run: `npm test -- tests/unit/memory/mem0-client.test.ts`
 - Expected: FAIL (module/functions missing).
 
 **Step 3: Minimal implementation**
+
 - Implement configurable Mem0 client:
   - envs: `MEMORY_PROVIDER`, `MEM0_BASE_URL`, `MEM0_API_KEY`, `MEM0_TIMEOUT_MS`, `MEM0_API_PATH`
   - methods: `addMemory`, `searchMemories`, `updateMemory`, `deleteMemory`
   - helpers: request timeout + defensive JSON parsing.
 
 **Step 4: Run tests to verify GREEN**
+
 - Run: `npm test -- tests/unit/memory/mem0-client.test.ts`
 - Expected: PASS.
 
 ### Task 2: MemoryService Mem0 Integration (TDD)
 
 **Files:**
+
 - Modify: `src/server/memory/service.ts`
 - Modify: `core/memory/types.ts`
 - Modify: `tests/unit/memory/memory-service.test.ts`
 
 **Step 1: Write failing tests**
+
 - Add tests proving:
   - store writes local node and attaches Mem0 external id metadata when Mem0 succeeds,
   - recall uses Mem0 result first and returns Mem0-derived context,
@@ -74,57 +81,70 @@
   - Mem0 recall entries are mirrored to local nodes for feedback compatibility.
 
 **Step 2: Run tests to verify RED**
+
 - Run: `npm test -- tests/unit/memory/memory-service.test.ts`
 - Expected: FAIL for new Mem0 behavior assertions.
 
 **Step 3: Minimal implementation**
+
 - Extend `MemoryService` constructor with optional Mem0 client dependency.
 - Implement Mem0-first recall path with local fallback.
 - On store/update/delete, sync Mem0 best-effort and preserve local path.
 - Add metadata fields (`mem0Id`, provider marker) for mirror mapping.
 
 **Step 4: Run tests to verify GREEN**
+
 - Run: `npm test -- tests/unit/memory/memory-service.test.ts`
 - Expected: PASS.
 
 ### Task 3: Runtime Wiring + Operational Docs (TDD where applicable)
 
 **Files:**
+
 - Modify: `src/server/memory/runtime.ts`
 - Modify: `docs/MEMORY_SYSTEM.md`
 - Modify: `docs/DEPLOYMENT_OPERATIONS.md`
 
 **Step 1: Add failing/guard tests (if needed) or verify existing behavior constraints**
+
 - Ensure runtime still constructs working memory service in default mode.
 
 **Step 2: Implement wiring**
+
 - Runtime creates Mem0 client from env and injects into `MemoryService`.
 - Default remains SQLite-only if Mem0 not configured.
 
 **Step 3: Update docs with rollout rules**
+
 - Add env table and rollout strategy:
   - `MEMORY_PROVIDER=sqlite|mem0`
   - Mem0 URL/key/timeout/path
   - rollback by setting `MEMORY_PROVIDER=sqlite`
 
 **Step 4: Verify docs and runtime compile**
+
 - Run: `npm run typecheck`
 - Expected: PASS.
 
 ### Task 4: End-to-End Verification
 
 **Files:**
+
 - Verify only (no mandatory file changes)
 
 **Step 1: Run focused memory test suite**
+
 - Run: `npm test -- tests/unit/memory/memory-service.test.ts tests/unit/memory/sqlite-memory-repository.test.ts tests/unit/memory/mem0-client.test.ts tests/integration/memory/memory-route.test.ts`
 
 **Step 2: Run related channel memory behavior tests**
+
 - Run: `npm test -- tests/unit/channels/message-service-memory-recall.test.ts tests/unit/channels/message-service-memory-trigger.test.ts tests/unit/channels/message-service-auto-session-memory.test.ts tests/unit/channels/auto-memory.test.ts`
 
 **Step 3: Run type safety gate**
+
 - Run: `npm run typecheck`
 
 **Step 4: Final status check**
+
 - Run: `git status --short`
 - Confirm only intended files changed.

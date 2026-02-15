@@ -24,7 +24,10 @@ import {
 import { PersonaNode } from './PersonaNode';
 import { ConditionEdge } from './ConditionEdge';
 import { useCanvasHistory, type CanvasSnapshot } from './useCanvasHistory';
-import type { PersonaNodeData, PersonaInfo } from '../../../src/shared/lib/orchestra-graph-converter';
+import type {
+  PersonaNodeData,
+  PersonaInfo,
+} from '../../../src/shared/lib/orchestra-graph-converter';
 
 // ─── Node & Edge type registrations ─────────────────────────
 
@@ -335,12 +338,7 @@ export function OrchestraCanvas({
   // ─── Render ────────────────────────────────────────────
 
   return (
-    <div
-      ref={reactFlowWrapper}
-      className="orchestra-canvas"
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-    >
+    <div ref={reactFlowWrapper} className="orchestra-canvas" onKeyDown={handleKeyDown} tabIndex={0}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -365,11 +363,7 @@ export function OrchestraCanvas({
         maxZoom={2}
       >
         <Controls showInteractive={!readOnly} />
-        <MiniMap
-          nodeStrokeWidth={3}
-          pannable
-          zoomable
-        />
+        <MiniMap nodeStrokeWidth={3} pannable zoomable />
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
       </ReactFlow>
     </div>
@@ -377,7 +371,9 @@ export function OrchestraCanvas({
 }
 
 export type OrchestraCanvasApi = {
-  applyAutoLayout: (layoutFn: (nodes: Node<PersonaNodeData>[], edges: Edge[]) => Node<PersonaNodeData>[]) => void;
+  applyAutoLayout: (
+    layoutFn: (nodes: Node<PersonaNodeData>[], edges: Edge[]) => Node<PersonaNodeData>[],
+  ) => void;
   deleteSelectedNodes: () => void;
   undo: () => void;
   redo: () => void;

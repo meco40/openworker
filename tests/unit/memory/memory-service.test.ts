@@ -42,7 +42,9 @@ function createInMemoryMem0Client(): Mem0Client {
     byScope.set(scopeKey(userId, personaId), rows);
   };
 
-  const findById = (id: string): { key: string; index: number; record: Mem0MemoryRecord } | null => {
+  const findById = (
+    id: string,
+  ): { key: string; index: number; record: Mem0MemoryRecord } | null => {
     for (const [key, records] of byScope.entries()) {
       const index = records.findIndex((record) => record.id === id);
       if (index >= 0) {
@@ -317,21 +319,16 @@ describe('MemoryService (mem0-only)', () => {
     const service = new MemoryService(createInMemoryMem0Client());
     const stored = await service.store('persona-a', 'fact', 'alpha', 2, 'user-a');
 
-    await service.update(
-      'persona-a',
-      stored.id,
-      { content: 'alpha-v2' },
-      'user-a',
-    );
+    await service.update('persona-a', stored.id, { content: 'alpha-v2' }, 'user-a');
 
     await expect(
       service.update(
         'persona-a',
         stored.id,
-        ({
+        {
           content: 'alpha-stale',
           expectedVersion: 1,
-        } as unknown) as { type?: MemoryType; content?: string; importance?: number },
+        } as unknown as { type?: MemoryType; content?: string; importance?: number },
         'user-a',
       ),
     ).rejects.toThrow(/version|conflict/i);
@@ -347,19 +344,16 @@ describe('MemoryService (mem0-only)', () => {
       'user-a',
     );
 
-    const restored = await (service as unknown as {
-      restoreFromHistory: (
-        personaId: string,
-        nodeId: string,
-        input: { restoreIndex: number; expectedVersion?: number },
-        userId?: string,
-      ) => Promise<MemoryNode | null>;
-    }).restoreFromHistory(
-      'persona-a',
-      stored.id,
-      { restoreIndex: 0, expectedVersion: 2 },
-      'user-a',
-    );
+    const restored = await (
+      service as unknown as {
+        restoreFromHistory: (
+          personaId: string,
+          nodeId: string,
+          input: { restoreIndex: number; expectedVersion?: number },
+          userId?: string,
+        ) => Promise<MemoryNode | null>;
+      }
+    ).restoreFromHistory('persona-a', stored.id, { restoreIndex: 0, expectedVersion: 2 }, 'user-a');
 
     expect(restored).not.toBeNull();
     expect(restored?.content).toBe('alpha');

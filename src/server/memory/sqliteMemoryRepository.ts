@@ -3,11 +3,7 @@ import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import type { MemoryNode, MemoryType } from '../../../core/memory/types';
 import { LEGACY_LOCAL_USER_ID } from '../auth/constants';
-import type {
-  MemoryListPageInput,
-  MemoryListPageResult,
-  MemoryRepository,
-} from './repository';
+import type { MemoryListPageInput, MemoryListPageResult, MemoryRepository } from './repository';
 
 interface MemoryRow {
   id: string;
@@ -70,10 +66,14 @@ export class SqliteMemoryRepository implements MemoryRepository {
       );
     `);
     if (!this.hasColumn('memory_nodes', 'persona_id')) {
-      this.db.exec("ALTER TABLE memory_nodes ADD COLUMN persona_id TEXT NOT NULL DEFAULT 'persona-default';");
+      this.db.exec(
+        "ALTER TABLE memory_nodes ADD COLUMN persona_id TEXT NOT NULL DEFAULT 'persona-default';",
+      );
     }
     if (!this.hasColumn('memory_nodes', 'user_id')) {
-      this.db.exec(`ALTER TABLE memory_nodes ADD COLUMN user_id TEXT NOT NULL DEFAULT '${LEGACY_LOCAL_USER_ID}';`);
+      this.db.exec(
+        `ALTER TABLE memory_nodes ADD COLUMN user_id TEXT NOT NULL DEFAULT '${LEGACY_LOCAL_USER_ID}';`,
+      );
     }
     this.db.exec(`
       UPDATE memory_nodes
@@ -101,7 +101,9 @@ export class SqliteMemoryRepository implements MemoryRepository {
   }
 
   private hasColumn(tableName: string, columnName: string): boolean {
-    const rows = this.db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+    const rows = this.db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{
+      name: string;
+    }>;
     return rows.some((row) => row.name === columnName);
   }
 
@@ -115,7 +117,11 @@ export class SqliteMemoryRepository implements MemoryRepository {
     return rows.map((row) => toNode(row as unknown as MemoryRow));
   }
 
-  listNodesPage(personaId: string, input: MemoryListPageInput, userId?: string): MemoryListPageResult {
+  listNodesPage(
+    personaId: string,
+    input: MemoryListPageInput,
+    userId?: string,
+  ): MemoryListPageResult {
     const scopedUserId = this.resolveUserId(userId);
     const page = Math.max(1, Math.floor(input.page));
     const pageSize = Math.max(1, Math.min(200, Math.floor(input.pageSize)));
@@ -147,9 +153,9 @@ export class SqliteMemoryRepository implements MemoryRepository {
       ORDER BY importance DESC, updated_at DESC
       LIMIT ? OFFSET ?
     `;
-    const rows = this.db
-      .prepare(listSql)
-      .all(...params, pageSize, offset) as Array<Record<string, unknown>>;
+    const rows = this.db.prepare(listSql).all(...params, pageSize, offset) as Array<
+      Record<string, unknown>
+    >;
     return {
       nodes: rows.map((row) => toNode(row as unknown as MemoryRow)),
       total,
@@ -165,7 +171,9 @@ export class SqliteMemoryRepository implements MemoryRepository {
       return rows.map((row) => toNode(row as unknown as MemoryRow));
     }
     const rows = this.db
-      .prepare('SELECT * FROM memory_nodes WHERE user_id = ? ORDER BY importance DESC, updated_at DESC')
+      .prepare(
+        'SELECT * FROM memory_nodes WHERE user_id = ? ORDER BY importance DESC, updated_at DESC',
+      )
       .all(scopedUserId) as Array<Record<string, unknown>>;
     return rows.map((row) => toNode(row as unknown as MemoryRow));
   }
@@ -276,7 +284,9 @@ export class SqliteMemoryRepository implements MemoryRepository {
     const scopedUserId = this.resolveUserId(userId);
     const ids = Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)));
     if (ids.length === 0) return 0;
-    const stmt = this.db.prepare('DELETE FROM memory_nodes WHERE user_id = ? AND persona_id = ? AND id = ?');
+    const stmt = this.db.prepare(
+      'DELETE FROM memory_nodes WHERE user_id = ? AND persona_id = ? AND id = ?',
+    );
     const runTx = this.db.transaction((candidateIds: string[]) => {
       let changes = 0;
       for (const id of candidateIds) {

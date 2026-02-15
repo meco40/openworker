@@ -3,7 +3,7 @@
 
 import { createServer } from 'node:http';
 import next from 'next';
-import nextEnv from '@next/env';
+import { loadEnvConfig } from '@next/env';
 import { WebSocketServer } from 'ws';
 import { getToken } from 'next-auth/jwt';
 import { handleConnection, getClientRegistry, broadcast } from './src/server/gateway/index.js';
@@ -15,7 +15,6 @@ import {
   assertMemoryRuntimeReady,
 } from './src/server/memory/runtime.js';
 
-const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
 
 const dev = process.env.NODE_ENV !== 'production';

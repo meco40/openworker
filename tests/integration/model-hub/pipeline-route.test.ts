@@ -2,7 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { POST as createAccount } from '../../../app/api/model-hub/accounts/route';
-import { GET as getPipeline, POST as mutatePipeline } from '../../../app/api/model-hub/pipeline/route';
+import {
+  GET as getPipeline,
+  POST as mutatePipeline,
+} from '../../../app/api/model-hub/pipeline/route';
 
 function buildJsonRequest(body: Record<string, unknown>) {
   return new Request('http://localhost/api/model-hub/pipeline', {

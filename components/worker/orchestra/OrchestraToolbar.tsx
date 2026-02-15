@@ -39,7 +39,11 @@ export function OrchestraToolbar({
       <div className="orchestra-toolbar__left">
         <span className="orchestra-toolbar__flow-name">
           {flowName}
-          {isDirty && <span className="orchestra-toolbar__dirty-dot" title="Ungespeicherte Änderungen">●</span>}
+          {isDirty && (
+            <span className="orchestra-toolbar__dirty-dot" title="Ungespeicherte Änderungen">
+              ●
+            </span>
+          )}
         </span>
       </div>
 

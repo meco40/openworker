@@ -119,10 +119,7 @@ function toMemoryRecord(entry: unknown): Mem0MemoryRecord | null {
   const record = pickRecord(entry);
   const nestedMemory = pickRecord(record.memory);
   const id =
-    pickString(record.id) ||
-    pickString(record.memory_id) ||
-    pickString(nestedMemory.id) ||
-    '';
+    pickString(record.id) || pickString(record.memory_id) || pickString(nestedMemory.id) || '';
   const content =
     pickString(record.memory) ||
     pickString(record.text) ||
@@ -136,7 +133,10 @@ function toMemoryRecord(entry: unknown): Mem0MemoryRecord | null {
     id,
     content,
     score:
-      pickNumber(record.score) ?? pickNumber(record.similarity) ?? pickNumber(record.distance) ?? null,
+      pickNumber(record.score) ??
+      pickNumber(record.similarity) ??
+      pickNumber(record.distance) ??
+      null,
     metadata: pickRecord(record.metadata),
     createdAt: pickString(record.created_at) || pickString(record.createdAt) || undefined,
     updatedAt: pickString(record.updated_at) || pickString(record.updatedAt) || undefined,
@@ -234,7 +234,11 @@ function extractId(payload: unknown): string | null {
   );
 }
 
-function extractListMeta(payload: unknown, fallbackPage: number, fallbackPageSize: number): {
+function extractListMeta(
+  payload: unknown,
+  fallbackPage: number,
+  fallbackPageSize: number,
+): {
   total: number;
   page: number;
   pageSize: number;
@@ -248,10 +252,7 @@ function extractListMeta(payload: unknown, fallbackPage: number, fallbackPageSiz
     Number(pagination.total) ||
     0;
   const page =
-    Number(root.page) ||
-    Number(pagination.page) ||
-    Number(root.current_page) ||
-    fallbackPage;
+    Number(root.page) || Number(pagination.page) || Number(root.current_page) || fallbackPage;
   const pageSize =
     Number(root.page_size) ||
     Number(root.pageSize) ||
@@ -262,8 +263,7 @@ function extractListMeta(payload: unknown, fallbackPage: number, fallbackPageSiz
   return {
     total: Number.isFinite(total) && total >= 0 ? Math.floor(total) : 0,
     page: Number.isFinite(page) && page >= 1 ? Math.floor(page) : fallbackPage,
-    pageSize:
-      Number.isFinite(pageSize) && pageSize >= 1 ? Math.floor(pageSize) : fallbackPageSize,
+    pageSize: Number.isFinite(pageSize) && pageSize >= 1 ? Math.floor(pageSize) : fallbackPageSize,
   };
 }
 
@@ -573,7 +573,10 @@ class HttpMem0Client implements Mem0Client {
   }
 }
 
-export function createMem0Client(config: Mem0ClientConfig, fetchImpl: typeof fetch = fetch): Mem0Client {
+export function createMem0Client(
+  config: Mem0ClientConfig,
+  fetchImpl: typeof fetch = fetch,
+): Mem0Client {
   if (!config.baseUrl || !config.baseUrl.trim()) {
     throw new Error('Mem0 baseUrl is required.');
   }
@@ -584,9 +587,13 @@ export function createMem0ClientFromEnv(
   env: EnvLike = process.env as EnvLike,
   fetchImpl: typeof fetch = fetch,
 ): Mem0Client | null {
-  const nodeEnv = String(env.NODE_ENV || '').trim().toLowerCase();
+  const nodeEnv = String(env.NODE_ENV || '')
+    .trim()
+    .toLowerCase();
   const isProduction = nodeEnv === 'production';
-  const provider = String(env.MEMORY_PROVIDER || '').trim().toLowerCase();
+  const provider = String(env.MEMORY_PROVIDER || '')
+    .trim()
+    .toLowerCase();
   if (isProduction && provider !== 'mem0') {
     throw new Error('Invalid memory configuration: production requires MEMORY_PROVIDER=mem0.');
   }
@@ -595,15 +602,21 @@ export function createMem0ClientFromEnv(
   const baseUrl = String(env.MEM0_BASE_URL || '').trim();
   const apiKey = String(env.MEM0_API_KEY || '').trim();
   if (provider === 'mem0' && !baseUrl) {
-    throw new Error('Invalid memory configuration: MEM0_BASE_URL is required when MEMORY_PROVIDER=mem0.');
+    throw new Error(
+      'Invalid memory configuration: MEM0_BASE_URL is required when MEMORY_PROVIDER=mem0.',
+    );
   }
   if (provider === 'mem0' && !apiKey) {
-    throw new Error('Invalid memory configuration: MEM0_API_KEY is required when MEMORY_PROVIDER=mem0.');
+    throw new Error(
+      'Invalid memory configuration: MEM0_API_KEY is required when MEMORY_PROVIDER=mem0.',
+    );
   }
   if (!baseUrl) return null;
 
   const timeoutRaw = Number(env.MEM0_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
-  const timeoutMs = Number.isFinite(timeoutRaw) ? Math.max(100, Math.floor(timeoutRaw)) : DEFAULT_TIMEOUT_MS;
+  const timeoutMs = Number.isFinite(timeoutRaw)
+    ? Math.max(100, Math.floor(timeoutRaw))
+    : DEFAULT_TIMEOUT_MS;
 
   return createMem0Client(
     {

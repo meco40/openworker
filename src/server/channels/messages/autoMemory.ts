@@ -100,7 +100,9 @@ function buildRecapCandidate(userMessages: StoredMessage[]): AutoMemoryCandidate
 
   if (snippets.length < 2) return null;
 
-  const date = userMessages[userMessages.length - 1]?.createdAt?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+  const date =
+    userMessages[userMessages.length - 1]?.createdAt?.slice(0, 10) ||
+    new Date().toISOString().slice(0, 10);
   const recap = `Besprochen am ${date}: ${snippets.join(' | ')}`;
   return { type: 'lesson', content: clipText(recap), importance: 2 };
 }

@@ -2,7 +2,10 @@
 
 import React, { useCallback, useState, useEffect } from 'react';
 import type { Node } from '@xyflow/react';
-import type { PersonaNodeData, PersonaInfo } from '../../../src/shared/lib/orchestra-graph-converter';
+import type {
+  PersonaNodeData,
+  PersonaInfo,
+} from '../../../src/shared/lib/orchestra-graph-converter';
 import type { OrchestraRoutingMode } from '../../../src/server/worker/orchestraGraph';
 
 export interface SkillOption {
@@ -190,9 +193,7 @@ export function NodePropertiesPanel({
         <select
           className="orchestra-properties-panel__select"
           value={routingMode}
-          onChange={(e) =>
-            handleRoutingModeChange(e.target.value as OrchestraRoutingMode | 'none')
-          }
+          onChange={(e) => handleRoutingModeChange(e.target.value as OrchestraRoutingMode | 'none')}
         >
           <option value="none">Kein Routing</option>
           <option value="static">Statisch (feste Reihenfolge)</option>

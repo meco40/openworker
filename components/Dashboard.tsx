@@ -182,9 +182,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, metricsState }) => {
             <div className="mb-1 text-[9px] font-black tracking-widest text-zinc-500 uppercase">
               Current Focus
             </div>
-            <div className="text-[11px] text-zinc-300 italic">
-              {personalityMatrix.focus}
-            </div>
+            <div className="text-[11px] text-zinc-300 italic">{personalityMatrix.focus}</div>
           </div>
         </div>
       </div>

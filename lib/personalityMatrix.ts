@@ -80,8 +80,10 @@ function computeTimeAwareness(tasks: ScheduledTask[], nowMs: number): number {
     return ageDays >= 0 && ageDays <= 14;
   }).length;
 
-  const futureRatio = pendingWithValidTime.length > 0 ? pendingFuture / pendingWithValidTime.length : 0;
-  const overduePenalty = pendingWithValidTime.length > 0 ? pendingOverdue / pendingWithValidTime.length : 0;
+  const futureRatio =
+    pendingWithValidTime.length > 0 ? pendingFuture / pendingWithValidTime.length : 0;
+  const overduePenalty =
+    pendingWithValidTime.length > 0 ? pendingOverdue / pendingWithValidTime.length : 0;
   const triggeredRecentRatio = triggered.length > 0 ? triggeredRecent / triggered.length : 0;
   const planningCoverage = Math.min(1, pendingFuture / 5);
 

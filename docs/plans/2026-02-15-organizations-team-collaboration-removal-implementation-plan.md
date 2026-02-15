@@ -30,6 +30,7 @@ Nicht-Ziel: `ChannelType.TEAMS` (Microsoft Teams Channel) bleibt unveraendert, d
 ### Task 1: Regressionstests fuer Entfernung und Legacy-Fallback
 
 **Files:**
+
 - Modify: `tests/unit/components/sidebar-memory-item.test.ts`
 - Modify: `tests/unit/app-shell/default-view-config.test.ts`
 
@@ -82,6 +83,7 @@ git commit -m "test: add regression coverage for team collaboration removal"
 ### Task 2: Navigation und View-Identifier entfernen
 
 **Files:**
+
 - Modify: `components/Sidebar.tsx`
 - Modify: `types.ts`
 
@@ -142,6 +144,7 @@ git commit -m "refactor: remove Team Collaboration navigation view"
 ### Task 3: AppShell-Rendering und Props entkoppeln
 
 **Files:**
+
 - Modify: `src/modules/app-shell/components/AppShellViewContent.tsx`
 
 **Step 1: Write the failing test**
@@ -165,6 +168,7 @@ Expected: PASS.
 **Step 3: Write minimal implementation**
 
 In `src/modules/app-shell/components/AppShellViewContent.tsx`:
+
 - `Team`-Typimport entfernen.
 - `TeamManager` Dynamic Import entfernen.
 - Props `teams` und `setTeams` entfernen.
@@ -210,6 +214,7 @@ git commit -m "refactor: remove TeamManager view branch from app shell"
 ### Task 4: Root-State, Konstanten und Team-Domain entfernen
 
 **Files:**
+
 - Modify: `App.tsx`
 - Modify: `constants.ts`
 - Modify: `types.ts`
@@ -230,16 +235,19 @@ Expected: FAIL wegen nicht mehr existierender Props/Typen.
 **Step 3: Write minimal implementation**
 
 In `App.tsx`:
+
 - `Team`, `WorkerTask` (nur falls danach ungenutzt) und `INITIAL_TEAMS` Import entfernen.
 - `teams`/`setTeams` State entfernen.
 - `tasks` State entfernen, falls nur fuer TeamManager genutzt.
 - Props `teams`, `setTeams`, `tasks` beim `AppShellViewContent`-Call entfernen.
 
 In `constants.ts`:
+
 - `Team` Import entfernen.
 - `INITIAL_TEAMS` Block komplett entfernen.
 
 In `types.ts`:
+
 - `interface Team { ... }` komplett entfernen (wenn keine Referenz mehr vorhanden).
 
 Datei loeschen:
@@ -267,6 +275,7 @@ git commit -m "refactor: remove organizations domain state and component"
 ### Task 5: Verifikation "alle Verweise entfernt" + Qualitaets-Gate
 
 **Files:**
+
 - Modify: `docs/plans/2026-02-15-organizations-team-collaboration-removal-implementation-plan.md` (optional: Haken/Status)
 
 **Step 1: Write the failing test**
@@ -310,5 +319,3 @@ git commit -m "chore: verify and finalize organizations/team collaboration remov
 - `INITIAL_TEAMS` und `Team`-Domain-Typ sind entfernt.
 - Legacy config value `ui.defaultView = "teams"` faellt auf `dashboard` zurueck.
 - `npm run check` und `npm run test` laufen gruen.
-
-

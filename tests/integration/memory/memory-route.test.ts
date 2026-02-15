@@ -225,7 +225,9 @@ function setupMem0FetchMock() {
       return new Response(JSON.stringify({ deleted }), { status: 200 });
     }
 
-    return new Response(JSON.stringify({ error: `Unhandled ${method} ${pathname}` }), { status: 500 });
+    return new Response(JSON.stringify({ error: `Unhandled ${method} ${pathname}` }), {
+      status: 500,
+    });
   });
 
   vi.stubGlobal('fetch', mock as unknown as typeof fetch);
@@ -534,9 +536,9 @@ describe('/api/memory route', () => {
       new Request(`http://localhost/api/memory?personaId=${encodeURIComponent(personaId)}`),
     );
     const listAfterUpdateJson = await listAfterUpdate.json();
-    expect(listAfterUpdateJson.nodes.every((node: { type: string }) => node.type === 'lesson')).toBe(
-      true,
-    );
+    expect(
+      listAfterUpdateJson.nodes.every((node: { type: string }) => node.type === 'lesson'),
+    ).toBe(true);
     expect(
       listAfterUpdateJson.nodes.every((node: { importance: number }) => node.importance === 5),
     ).toBe(true);

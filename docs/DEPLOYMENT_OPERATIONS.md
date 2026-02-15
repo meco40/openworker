@@ -130,7 +130,7 @@ WantedBy=multi-user.target
 | `HOSTNAME`              | `0.0.0.0`            | Server-Hostname                            |
 | `PORT`                  | `3000`               | Server-Port                                |
 | `MESSAGES_DB_PATH`      | `.local/messages.db` | SQLite-Datenbank                           |
-| `MEMORY_PROVIDER`       | `mem0`               | Memory Backend (`mem0` empfohlen)           |
+| `MEMORY_PROVIDER`       | `mem0`               | Memory Backend (`mem0` empfohlen)          |
 | `MEMORY_DB_PATH`        | -                    | Lokale Memory-DB (SQLite + Mem0-Mirror)    |
 | `MEM0_BASE_URL`         | -                    | Mem0 Base URL (in Production erforderlich) |
 | `MEM0_API_PATH`         | `/v1`                | Mem0 API Prefix                            |
@@ -141,9 +141,9 @@ WantedBy=multi-user.target
 
 ### KI-Provider Keys
 
-| Variable             | Provider           |
-| -------------------- | ------------------ |
-| `GEMINI_API_KEY`     | Google Gemini      |
+| Variable         | Provider      |
+| ---------------- | ------------- |
+| `GEMINI_API_KEY` | Google Gemini |
 
 ### Channel-Config
 

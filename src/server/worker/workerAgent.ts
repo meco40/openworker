@@ -8,7 +8,6 @@ import { recoverFromCheckpoint } from './phases/checkpointPhase';
 import { setupWorkspace } from './phases/workspacePhase';
 import { executeOrchestraPhase } from './phases/orchestraPhase';
 import { executeStandardTaskPhase } from './phases/standardTaskPhase';
-import { broadcastStatus } from './utils/broadcast';
 import type { WorkerTaskRecord } from './workerTypes';
 
 // ─── Queue Processor ─────────────────────────────────────────
@@ -44,8 +43,6 @@ export async function processQueue(): Promise<void> {
 // ─── Worker Agent Main Loop ──────────────────────────────────
 
 async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
-  const repo = getWorkerRepository();
-
   // Phase 0a: Checkpoint Recovery
   const { startStepIndex } = recoverFromCheckpoint(task);
 

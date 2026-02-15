@@ -204,143 +204,143 @@ export class RoomOrchestrator {
               updatedAt: busyState.updatedAt,
             });
 
-          const existingSession = this.repository.getPersonaSession(room.id, selected.personaId);
-          let session = this.repository.upsertPersonaSession(room.id, selected.personaId, {
-            providerId: selected.profileId,
-            model: selected.model,
-            sessionId: existingSession?.sessionId || `room-${room.id}-${selected.personaId}`,
-            lastSeenRoomSeq: existingSession?.lastSeenRoomSeq ?? 0,
-          });
-
-          // ── Build messages for AI dispatch ──────────────────────────
-
-          // 1. System instruction from persona files + persona identity
-          const personaRepo = getPersonaRepository();
-          const systemInstruction = personaRepo.getPersonaSystemInstruction(selected.personaId);
-          const persona = personaRepo.getPersona(selected.personaId);
-          let clawHubPromptBlock = '';
-          try {
-            const { getClawHubService } = await import('../clawhub/clawhubService');
-            clawHubPromptBlock = await getClawHubService().getPromptBlock();
-          } catch {
-            clawHubPromptBlock = '';
-          }
-
-          const systemParts = buildSystemPromptParts({
-            systemInstruction,
-            persona: persona ? { name: persona.name, vibe: persona.vibe } : null,
-            roomDescription: room.description ?? null,
-          });
-          if (clawHubPromptBlock.trim()) {
-            systemParts.push(clawHubPromptBlock.trim());
-          }
-
-          // 2. Context summary (if available)
-          const previousContext = this.repository.getPersonaContext(room.id, selected.personaId);
-
-          // 3. Build persona-local thread (isolated per persona session)
-          const personaNameMap = buildPersonaNameMap(members, (personaId) =>
-            personaRepo.getPersona(personaId),
-          );
-          const systemPrompt = systemParts.join('\n\n');
-
-          const existingThreadHead = this.repository.listPersonaThreadMessages(
-            room.id,
-            selected.personaId,
-            1,
-          );
-          if (existingThreadHead.length === 0) {
-            this.repository.appendPersonaThreadMessage({
-              roomId: room.id,
-              personaId: selected.personaId,
-              role: 'system',
-              content: systemPrompt,
+            const existingSession = this.repository.getPersonaSession(room.id, selected.personaId);
+            let session = this.repository.upsertPersonaSession(room.id, selected.personaId, {
+              providerId: selected.profileId,
+              model: selected.model,
+              sessionId: existingSession?.sessionId || `room-${room.id}-${selected.personaId}`,
+              lastSeenRoomSeq: existingSession?.lastSeenRoomSeq ?? 0,
             });
-          }
 
-          const unseenRoomMessages = this.repository.listMessagesAfterSeq(
-            room.id,
-            session.lastSeenRoomSeq,
-            500,
-          );
-          if (unseenRoomMessages.length > 0) {
-            const mapped = buildGatewayHistoryMessages(
-              unseenRoomMessages,
-              selected.personaId,
-              personaNameMap,
+            // ── Build messages for AI dispatch ──────────────────────────
+
+            // 1. System instruction from persona files + persona identity
+            const personaRepo = getPersonaRepository();
+            const systemInstruction = personaRepo.getPersonaSystemInstruction(selected.personaId);
+            const persona = personaRepo.getPersona(selected.personaId);
+            let clawHubPromptBlock = '';
+            try {
+              const { getClawHubService } = await import('../clawhub/clawhubService');
+              clawHubPromptBlock = await getClawHubService().getPromptBlock();
+            } catch {
+              clawHubPromptBlock = '';
+            }
+
+            const systemParts = buildSystemPromptParts({
+              systemInstruction,
+              persona: persona ? { name: persona.name, vibe: persona.vibe } : null,
+              roomDescription: room.description ?? null,
+            });
+            if (clawHubPromptBlock.trim()) {
+              systemParts.push(clawHubPromptBlock.trim());
+            }
+
+            // 2. Context summary (if available)
+            const previousContext = this.repository.getPersonaContext(room.id, selected.personaId);
+
+            // 3. Build persona-local thread (isolated per persona session)
+            const personaNameMap = buildPersonaNameMap(members, (personaId) =>
+              personaRepo.getPersona(personaId),
             );
-            for (const message of mapped) {
-              // Own persona outputs are already persisted into the persona thread as assistant.
-              if (message.role === 'assistant') continue;
+            const systemPrompt = systemParts.join('\n\n');
+
+            const existingThreadHead = this.repository.listPersonaThreadMessages(
+              room.id,
+              selected.personaId,
+              1,
+            );
+            if (existingThreadHead.length === 0) {
+              this.repository.appendPersonaThreadMessage({
+                roomId: room.id,
+                personaId: selected.personaId,
+                role: 'system',
+                content: systemPrompt,
+              });
+            }
+
+            const unseenRoomMessages = this.repository.listMessagesAfterSeq(
+              room.id,
+              session.lastSeenRoomSeq,
+              500,
+            );
+            if (unseenRoomMessages.length > 0) {
+              const mapped = buildGatewayHistoryMessages(
+                unseenRoomMessages,
+                selected.personaId,
+                personaNameMap,
+              );
+              for (const message of mapped) {
+                // Own persona outputs are already persisted into the persona thread as assistant.
+                if (message.role === 'assistant') continue;
+                this.repository.appendPersonaThreadMessage({
+                  roomId: room.id,
+                  personaId: selected.personaId,
+                  role: 'user',
+                  content: message.content,
+                });
+              }
+
+              const lastSeenRoomSeq = unseenRoomMessages.at(-1)?.seq ?? session.lastSeenRoomSeq;
+              session = this.repository.upsertPersonaSession(room.id, selected.personaId, {
+                providerId: session.providerId,
+                model: session.model,
+                sessionId: session.sessionId,
+                lastSeenRoomSeq,
+              });
+            }
+
+            const personaThreadMessages = this.repository.listPersonaThreadMessages(
+              room.id,
+              selected.personaId,
+              600,
+            );
+            const gatewayMessages: GatewayMessage[] = personaThreadMessages.map((message) => ({
+              role: message.role,
+              content: message.content,
+            }));
+
+            // If the thread only has a system message, seed with context summary or room topic.
+            if (gatewayMessages.length === 1 && gatewayMessages[0]?.role === 'system') {
+              const seededContent = previousContext?.summary
+                ? `Context summary:\n${previousContext.summary}`
+                : room.description || 'Beginne die Diskussion.';
               this.repository.appendPersonaThreadMessage({
                 roomId: room.id,
                 personaId: selected.personaId,
                 role: 'user',
-                content: message.content,
+                content: seededContent,
               });
+              gatewayMessages.push({ role: 'user', content: seededContent });
             }
 
-            const lastSeenRoomSeq = unseenRoomMessages.at(-1)?.seq ?? session.lastSeenRoomSeq;
-            session = this.repository.upsertPersonaSession(room.id, selected.personaId, {
-              providerId: session.providerId,
-              model: session.model,
-              sessionId: session.sessionId,
-              lastSeenRoomSeq,
-            });
-          }
+            // 4. Resolve installed skills for tool definitions
+            let tools: unknown[] | undefined;
+            try {
+              const skillRepo = await getSkillRepository();
+              const skillRows = skillRepo.listSkills();
+              const skills: Skill[] = skillRows.map((row) => ({
+                id: row.id,
+                name: row.name,
+                description: row.description,
+                category: row.category,
+                installed: row.installed,
+                version: row.version,
+                functionName: row.functionName,
+                source: row.source,
+                sourceUrl: row.sourceUrl ?? undefined,
+              }));
+              const mapped = mapSkillsToTools(skills, 'openai');
+              if (mapped.length > 0) tools = mapped;
+            } catch {
+              // Skills unavailable — proceed without tools
+            }
 
-          const personaThreadMessages = this.repository.listPersonaThreadMessages(
-            room.id,
-            selected.personaId,
-            600,
-          );
-          const gatewayMessages: GatewayMessage[] = personaThreadMessages.map((message) => ({
-            role: message.role,
-            content: message.content,
-          }));
+            // ── Dispatch to AI model via ModelHub ───────────────────────
 
-          // If the thread only has a system message, seed with context summary or room topic.
-          if (gatewayMessages.length === 1 && gatewayMessages[0]?.role === 'system') {
-            const seededContent = previousContext?.summary
-              ? `Context summary:\n${previousContext.summary}`
-              : room.description || 'Beginne die Diskussion.';
-            this.repository.appendPersonaThreadMessage({
-              roomId: room.id,
-              personaId: selected.personaId,
-              role: 'user',
-              content: seededContent,
-            });
-            gatewayMessages.push({ role: 'user', content: seededContent });
-          }
-
-          // 4. Resolve installed skills for tool definitions
-          let tools: unknown[] | undefined;
-          try {
-            const skillRepo = await getSkillRepository();
-            const skillRows = skillRepo.listSkills();
-            const skills: Skill[] = skillRows.map((row) => ({
-              id: row.id,
-              name: row.name,
-              description: row.description,
-              category: row.category,
-              installed: row.installed,
-              version: row.version,
-              functionName: row.functionName,
-              source: row.source,
-              sourceUrl: row.sourceUrl ?? undefined,
-            }));
-            const mapped = mapSkillsToTools(skills, 'openai');
-            if (mapped.length > 0) tools = mapped;
-          } catch {
-            // Skills unavailable — proceed without tools
-          }
-
-          // ── Dispatch to AI model via ModelHub ───────────────────────
-
-          const { getModelHubService, getModelHubEncryptionKey } =
-            await import('../model-hub/runtime');
-          const hubService = getModelHubService();
-          const encryptionKey = getModelHubEncryptionKey();
+            const { getModelHubService, getModelHubEncryptionKey } =
+              await import('../model-hub/runtime');
+            const hubService = getModelHubService();
+            const encryptionKey = getModelHubEncryptionKey();
 
             let responseText = '';
             let lastToolUsed: string | null = null;
@@ -484,110 +484,110 @@ export class RoomOrchestrator {
               break;
             }
 
-          // ── Persist response & reset state ──────────────────────────
+            // ── Persist response & reset state ──────────────────────────
 
-          if (lostLease) {
-            continue;
-          }
+            if (lostLease) {
+              continue;
+            }
 
-          // Only persist if we got a response (not interrupted / errored out with break)
-          const currentStatus = this.repository.getMemberRuntime(room.id, selected.personaId);
-          if (
-            currentStatus?.status === 'interrupted' ||
-            currentStatus?.status === 'error' ||
-            currentStatus?.status === 'paused'
-          ) {
-            // Already handled above — skip message persist
-            this.repository.heartbeatRoomLease(
-              room.id,
-              lease.id,
-              this.instanceId,
-              this.resolveLeaseExpiryIso(),
-            );
-            continue;
-          }
+            // Only persist if we got a response (not interrupted / errored out with break)
+            const currentStatus = this.repository.getMemberRuntime(room.id, selected.personaId);
+            if (
+              currentStatus?.status === 'interrupted' ||
+              currentStatus?.status === 'error' ||
+              currentStatus?.status === 'paused'
+            ) {
+              // Already handled above — skip message persist
+              this.repository.heartbeatRoomLease(
+                room.id,
+                lease.id,
+                this.instanceId,
+                this.resolveLeaseExpiryIso(),
+              );
+              continue;
+            }
 
-          if (responseText) {
-            // Strip any [Name]: prefix the model may have echoed — speaker attribution
-            // is already stored via speakerPersonaId, not inline text.
-            responseText = stripSpeakerPrefix(responseText);
+            if (responseText) {
+              // Strip any [Name]: prefix the model may have echoed — speaker attribution
+              // is already stored via speakerPersonaId, not inline text.
+              responseText = stripSpeakerPrefix(responseText);
 
-            this.repository.appendPersonaThreadMessage({
+              this.repository.appendPersonaThreadMessage({
+                roomId: room.id,
+                personaId: selected.personaId,
+                role: 'assistant',
+                content: responseText,
+              });
+
+              const message = this.repository.appendMessage({
+                roomId: room.id,
+                speakerType: 'persona',
+                speakerPersonaId: selected.personaId,
+                content: responseText,
+                metadata: {
+                  source: 'room-orchestrator',
+                  profileId: selected.profileId,
+                  model: selected.model,
+                  sessionId: session.sessionId,
+                },
+              });
+
+              session = this.repository.upsertPersonaSession(room.id, selected.personaId, {
+                providerId: sessionProviderId,
+                model: sessionModel,
+                sessionId: session.sessionId,
+                lastSeenRoomSeq: message.seq,
+              });
+
+              this.repository.upsertPersonaContext(room.id, selected.personaId, {
+                summary: previousContext
+                  ? `${previousContext.summary}\n${message.content}`.slice(-1000)
+                  : message.content,
+                lastMessageSeq: message.seq,
+              });
+
+              broadcastToUser(room.userId, GatewayEvents.ROOM_MESSAGE, {
+                id: message.id,
+                roomId: room.id,
+                seq: message.seq,
+                speakerType: message.speakerType,
+                speakerPersonaId: message.speakerPersonaId,
+                content: message.content,
+                createdAt: message.createdAt,
+              });
+
+              createdMessages += 1;
+            }
+
+            const idleState = this.repository.upsertMemberRuntime({
               roomId: room.id,
               personaId: selected.personaId,
-              role: 'assistant',
-              content: responseText,
+              status: 'idle',
+              busyReason: null,
+              currentTask: null,
+              lastModel: selected.model,
+              lastProfileId: selected.profileId,
+              lastTool: lastToolUsed,
             });
-
-            const message = this.repository.appendMessage({
+            broadcastToUser(room.userId, GatewayEvents.ROOM_MEMBER_STATUS, {
               roomId: room.id,
-              speakerType: 'persona',
-              speakerPersonaId: selected.personaId,
-              content: responseText,
-              metadata: {
-                source: 'room-orchestrator',
-                profileId: selected.profileId,
-                model: selected.model,
-                sessionId: session.sessionId,
-              },
+              personaId: selected.personaId,
+              status: 'idle',
+              reason: null,
+              updatedAt: idleState.updatedAt,
             });
 
-            session = this.repository.upsertPersonaSession(room.id, selected.personaId, {
-              providerId: sessionProviderId,
-              model: sessionModel,
-              sessionId: session.sessionId,
-              lastSeenRoomSeq: message.seq,
-            });
-
-            this.repository.upsertPersonaContext(room.id, selected.personaId, {
-              summary: previousContext
-                ? `${previousContext.summary}\n${message.content}`.slice(-1000)
-                : message.content,
-              lastMessageSeq: message.seq,
-            });
-
-            broadcastToUser(room.userId, GatewayEvents.ROOM_MESSAGE, {
-              id: message.id,
+            broadcastToUser(room.userId, GatewayEvents.ROOM_RUN_STATUS, {
               roomId: room.id,
-              seq: message.seq,
-              speakerType: message.speakerType,
-              speakerPersonaId: message.speakerPersonaId,
-              content: message.content,
-              createdAt: message.createdAt,
+              runState: 'running',
+              updatedAt: this.now().toISOString(),
             });
-
-            createdMessages += 1;
-          }
-
-          const idleState = this.repository.upsertMemberRuntime({
-            roomId: room.id,
-            personaId: selected.personaId,
-            status: 'idle',
-            busyReason: null,
-            currentTask: null,
-            lastModel: selected.model,
-            lastProfileId: selected.profileId,
-            lastTool: lastToolUsed,
-          });
-          broadcastToUser(room.userId, GatewayEvents.ROOM_MEMBER_STATUS, {
-            roomId: room.id,
-            personaId: selected.personaId,
-            status: 'idle',
-            reason: null,
-            updatedAt: idleState.updatedAt,
-          });
-
-          broadcastToUser(room.userId, GatewayEvents.ROOM_RUN_STATUS, {
-            roomId: room.id,
-            runState: 'running',
-            updatedAt: this.now().toISOString(),
-          });
-          broadcastToUser(room.userId, GatewayEvents.ROOM_METRICS, {
-            roomId: room.id,
-            messageCount: this.repository.countMessages(room.id),
-            memberCount: members.length,
-            generatedAt: this.now().toISOString(),
-          });
+            broadcastToUser(room.userId, GatewayEvents.ROOM_METRICS, {
+              roomId: room.id,
+              messageCount: this.repository.countMessages(room.id),
+              memberCount: members.length,
+              generatedAt: this.now().toISOString(),
+            });
 
             this.repository.heartbeatRoomLease(
               room.id,

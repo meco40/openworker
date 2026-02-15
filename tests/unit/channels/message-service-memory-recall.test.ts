@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '../../../types';
 import type { Conversation } from '../../../types';
-import type { MessageRepository, StoredMessage } from '../../../src/server/channels/messages/repository';
+import type {
+  MessageRepository,
+  StoredMessage,
+} from '../../../src/server/channels/messages/repository';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
   vi.fn(async () => ({
@@ -167,10 +170,12 @@ describe('MessageService memory recall gating', () => {
     );
 
     const firstDispatchCall = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
-    const dispatchInput = (firstDispatchCall?.[2] ?? {}) as { messages?: Array<{
-      role: string;
-      content: string;
-    }> };
+    const dispatchInput = (firstDispatchCall?.[2] ?? {}) as {
+      messages?: Array<{
+        role: string;
+        content: string;
+      }>;
+    };
     const dispatchedMessages = dispatchInput.messages ?? [];
     expect(dispatchedMessages[0]?.role).toBe('system');
     expect(dispatchedMessages[0]?.content).toContain('Relevant memory context');

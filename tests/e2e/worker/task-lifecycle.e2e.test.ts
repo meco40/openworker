@@ -3,7 +3,7 @@
 // Uses in-memory SQLite database and mocked LLM calls.
 
 import { describe, it, expect, beforeEach, vi, beforeAll, afterAll } from 'vitest';
-import { SqliteWorkerRepository, getWorkerRepository } from '../../../src/server/worker/workerRepository';
+import { SqliteWorkerRepository } from '../../../src/server/worker/workerRepository';
 import * as checkpointPhase from '../../../src/server/worker/phases/checkpointPhase';
 import * as workspacePhase from '../../../src/server/worker/phases/workspacePhase';
 import type { WorkerTaskRecord, WorkerTaskStatus } from '../../../src/server/worker/workerTypes';
@@ -36,8 +36,18 @@ vi.mock('../../../src/server/gateway/broadcast', () => ({
 // Import mocked modules after vi.mock declarations
 import { planTask } from '../../../src/server/worker/workerPlanner';
 import { executeStep } from '../../../src/server/worker/workerExecutor';
-import { notifyTaskCompleted, notifyTaskFailed } from '../../../src/server/worker/workerCallback';
 import { runWebappTests } from '../../../src/server/worker/workerTester';
+
+function mockPlanning(steps: string[]) {
+  vi.mocked(planTask).mockResolvedValue({ steps });
+}
+
+function mockExecution(outputs: string[]) {
+  vi.mocked(executeStep).mockImplementation(async () => ({
+    output: outputs.shift() || 'Done',
+    toolCalls: [{ name: 'test_tool', args: {}, result: 'ok' }],
+  }));
+}
 
 // ─── Test Setup ──────────────────────────────────────────────
 
@@ -71,17 +81,6 @@ describe('Worker E2E: Task Lifecycles', () => {
       workspaceType: 'general',
       ...overrides,
     });
-  }
-
-  function mockPlanning(steps: string[]) {
-    vi.mocked(planTask).mockResolvedValue({ steps });
-  }
-
-  function mockExecution(outputs: string[]) {
-    vi.mocked(executeStep).mockImplementation(async () => ({
-      output: outputs.shift() || 'Done',
-      toolCalls: [{ name: 'test_tool', args: {}, result: 'ok' }],
-    }));
   }
 
   // ─── Standard Task Lifecycle Tests ─────────────────────────
@@ -157,17 +156,19 @@ describe('Worker E2E: Task Lifecycles', () => {
       vi.mocked(executeStep).mockRejectedValue(new Error('Execution failed'));
 
       // Act & Assert
-      await expect(executeStep(task, { 
-        id: 'step-1', 
-        taskId: task.id, 
-        stepIndex: 0, 
-        description: 'Test',
-        status: 'pending',
-        output: null,
-        toolCalls: null,
-        startedAt: null,
-        completedAt: null
-      })).rejects.toThrow('Execution failed');
+      await expect(
+        executeStep(task, {
+          id: 'step-1',
+          taskId: task.id,
+          stepIndex: 0,
+          description: 'Test',
+          status: 'pending',
+          output: null,
+          toolCalls: null,
+          startedAt: null,
+          completedAt: null,
+        }),
+      ).rejects.toThrow('Execution failed');
     });
 
     it('should save artifacts correctly', async () => {
@@ -491,7 +492,7 @@ describe('Worker E2E: Task Lifecycles', () => {
     it('should filter tasks by status', async () => {
       // Arrange
       const task1 = createTestTask({ title: 'Task 1' });
-      const task2 = createTestTask({ title: 'Task 2' });
+      const _task2 = createTestTask({ title: 'Task 2' });
       repo.updateStatus(task1.id, 'executing');
 
       // Act

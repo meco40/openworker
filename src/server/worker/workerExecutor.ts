@@ -320,7 +320,11 @@ export async function executeOrchestraNode(
     const allowedSet = new Set(node.skillIds);
     const filteredTools = TOOL_DEFINITIONS.filter((tool) => allowedSet.has(tool.function.name));
     // Use filtered tools for this node (pass via step metadata)
-    return executeStepWithTools(task, syntheticStep, filteredTools.length > 0 ? filteredTools : TOOL_DEFINITIONS);
+    return executeStepWithTools(
+      task,
+      syntheticStep,
+      filteredTools.length > 0 ? filteredTools : TOOL_DEFINITIONS,
+    );
   }
 
   return executeStep(task, syntheticStep);
@@ -383,7 +387,10 @@ export async function executeLlmRouting(
 
   if (!result.ok || !result.text) {
     // Fallback: activate all candidates
-    return { chosenNodeIds: candidateNodeIds, reason: 'LLM-Routing fehlgeschlagen, alle Knoten aktiviert.' };
+    return {
+      chosenNodeIds: candidateNodeIds,
+      reason: 'LLM-Routing fehlgeschlagen, alle Knoten aktiviert.',
+    };
   }
 
   try {
@@ -395,7 +402,10 @@ export async function executeLlmRouting(
     const parsed = JSON.parse(jsonMatch[0]) as { chosenNodeIds?: string[]; reason?: string };
     const chosen = (parsed.chosenNodeIds ?? []).filter((id) => candidateNodeIds.includes(id));
     if (chosen.length === 0) {
-      return { chosenNodeIds: candidateNodeIds, reason: parsed.reason ?? 'Keine gültige Auswahl, alle aktiviert.' };
+      return {
+        chosenNodeIds: candidateNodeIds,
+        reason: parsed.reason ?? 'Keine gültige Auswahl, alle aktiviert.',
+      };
     }
     return { chosenNodeIds: chosen, reason: parsed.reason ?? '' };
   } catch {

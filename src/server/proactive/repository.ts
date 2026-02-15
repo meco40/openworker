@@ -8,4 +8,3 @@ export interface ProactiveRepository {
     input: Omit<ProactiveDecision, 'id' | 'createdAt'> & { createdAt?: string },
   ): ProactiveDecision;
 }
-

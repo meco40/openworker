@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import nextEnv from '@next/env';
+import { loadEnvConfig } from '@next/env';
 
 import BetterSqlite3 from 'better-sqlite3';
 
@@ -9,7 +9,6 @@ import { createMem0ClientFromEnv, type Mem0Client } from '../src/server/memory/m
 const DEFAULT_MESSAGES_DB_PATH = '.local/messages.db';
 const DEFAULT_PERSONAS_DB_PATH = '.local/personas.db';
 
-const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
 
 type ScopeSummary = {
@@ -44,9 +43,10 @@ function collectScopes(messagesDbPath: string, personasDbPath: string): ScopeSum
     const db = new BetterSqlite3(personasDbPath, { readonly: true });
     try {
       if (hasTable(db, 'personas')) {
-        const rows = db
-          .prepare('SELECT id, user_id as userId FROM personas')
-          .all() as Array<{ id: string; userId: string }>;
+        const rows = db.prepare('SELECT id, user_id as userId FROM personas').all() as Array<{
+          id: string;
+          userId: string;
+        }>;
         for (const row of rows) {
           if (row.id) personas.add(String(row.id));
           if (row.userId) users.add(String(row.userId));
@@ -103,7 +103,8 @@ function resetLocalMemory(messagesDbPath: string): LocalResetSummary {
 
     const before = (db.prepare('SELECT COUNT(*) as c FROM memory_nodes').get() as { c: number }).c;
     const deleted = db.prepare('DELETE FROM memory_nodes').run().changes;
-    const remaining = (db.prepare('SELECT COUNT(*) as c FROM memory_nodes').get() as { c: number }).c;
+    const remaining = (db.prepare('SELECT COUNT(*) as c FROM memory_nodes').get() as { c: number })
+      .c;
     return { before, deleted, remaining };
   } finally {
     db.close();
