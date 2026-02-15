@@ -24,10 +24,13 @@ type MemRecord = {
   updatedAt: string;
 };
 
+function scopeKey(userId: string, personaId: string): string {
+  return `${userId}::${personaId}`;
+}
+
 function setupMem0FetchMock() {
   const byScope = new Map<string, MemRecord[]>();
-
-  const scopeKey = (userId: string, personaId: string) => `${userId}::${personaId}`;
+  const historyById = new Map<string, Array<Record<string, unknown>>>();
 
   const readScope = (userId: string, personaId: string): MemRecord[] =>
     byScope.get(scopeKey(userId, personaId)) || [];
@@ -75,6 +78,14 @@ function setupMem0FetchMock() {
         updatedAt: now,
       };
       writeScope(userId, personaId, [...readScope(userId, personaId), row]);
+      historyById.set(id, [
+        {
+          action: 'create',
+          timestamp: row.createdAt,
+          content,
+          metadata: row.metadata,
+        },
+      ]);
       return new Response(JSON.stringify([{ id, memory: content }]), { status: 200 });
     }
 
@@ -140,6 +151,12 @@ function setupMem0FetchMock() {
       );
     }
 
+    if (method === 'GET' && pathname.endsWith('/history') && pathname.includes('/v1/memories/')) {
+      const parts = pathname.split('/');
+      const id = decodeURIComponent(parts[parts.length - 2] || '');
+      return new Response(JSON.stringify(historyById.get(id) || []), { status: 200 });
+    }
+
     if (method === 'GET' && pathname.includes('/v1/memories/')) {
       const id = decodeURIComponent(pathname.split('/').pop() || '');
       const found = findById(id);
@@ -172,6 +189,15 @@ function setupMem0FetchMock() {
         updatedAt: new Date().toISOString(),
       };
       byScope.set(found.key, rows);
+      historyById.set(id, [
+        ...(historyById.get(id) || []),
+        {
+          action: 'update',
+          timestamp: rows[found.index].updatedAt,
+          content: rows[found.index].content,
+          metadata: rows[found.index].metadata,
+        },
+      ]);
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }
 
@@ -213,6 +239,7 @@ describe('/api/memory route', () => {
     process.env.MEMORY_PROVIDER = 'mem0';
     process.env.MEM0_BASE_URL = 'http://mem0.local';
     process.env.MEM0_API_PATH = '/v1';
+    process.env.MEM0_API_KEY = 'mem0_test_key';
     setupMem0FetchMock();
     resetMemorySingletons();
   });
@@ -333,6 +360,112 @@ describe('/api/memory route', () => {
     expect(updateJson.ok).toBe(true);
     expect(updateJson.node.content).toBe('persist-me-updated');
     expect(updateJson.node.importance).toBe(5);
+    expect(updateJson.node.id).toBe(nodeId);
+    expect(updateJson.node.metadata.version).toBe(2);
+  });
+
+  it('returns 409 on stale expectedVersion via PUT', async () => {
+    const storeResponse = await POST(
+      makePostRequest({
+        fcName: 'core_memory_store',
+        args: { personaId, type: 'fact', content: 'persist-me', importance: 4 },
+      }),
+    );
+    const storeJson = await storeResponse.json();
+    const nodeId = String(storeJson?.result?.data?.id || '');
+    expect(nodeId.length).toBeGreaterThan(0);
+
+    const firstUpdate = await PUT(
+      makePostRequest({
+        personaId,
+        id: nodeId,
+        content: 'persist-me-v2',
+        expectedVersion: 1,
+      }),
+    );
+    expect(firstUpdate.status).toBe(200);
+
+    const staleUpdate = await PUT(
+      makePostRequest({
+        personaId,
+        id: nodeId,
+        content: 'persist-me-stale',
+        expectedVersion: 1,
+      }),
+    );
+    const staleJson = await staleUpdate.json();
+    expect(staleUpdate.status).toBe(409);
+    expect(staleJson.ok).toBe(false);
+    expect(String(staleJson.error || '')).toMatch(/version|conflict/i);
+  });
+
+  it('returns memory history via GET with history flag', async () => {
+    const storeResponse = await POST(
+      makePostRequest({
+        fcName: 'core_memory_store',
+        args: { personaId, type: 'fact', content: 'persist-me', importance: 4 },
+      }),
+    );
+    const storeJson = await storeResponse.json();
+    const nodeId = String(storeJson?.result?.data?.id || '');
+    expect(nodeId.length).toBeGreaterThan(0);
+
+    await PUT(
+      makePostRequest({
+        personaId,
+        id: nodeId,
+        content: 'persist-me-updated',
+        importance: 5,
+      }),
+    );
+
+    const historyResponse = await GET(
+      new Request(
+        `http://localhost/api/memory?personaId=${encodeURIComponent(personaId)}&id=${encodeURIComponent(nodeId)}&history=1`,
+      ),
+    );
+    const historyJson = await historyResponse.json();
+    expect(historyResponse.status).toBe(200);
+    expect(historyJson.ok).toBe(true);
+    expect(historyJson.node.id).toBe(nodeId);
+    expect(Array.isArray(historyJson.history)).toBe(true);
+    expect(historyJson.history.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('restores memory from history index via PUT', async () => {
+    const storeResponse = await POST(
+      makePostRequest({
+        fcName: 'core_memory_store',
+        args: { personaId, type: 'fact', content: 'persist-me', importance: 4 },
+      }),
+    );
+    const storeJson = await storeResponse.json();
+    const nodeId = String(storeJson?.result?.data?.id || '');
+    expect(nodeId.length).toBeGreaterThan(0);
+
+    await PUT(
+      makePostRequest({
+        personaId,
+        id: nodeId,
+        content: 'persist-me-updated',
+        importance: 5,
+        expectedVersion: 1,
+      }),
+    );
+
+    const restoreResponse = await PUT(
+      makePostRequest({
+        personaId,
+        id: nodeId,
+        restoreIndex: 0,
+        expectedVersion: 2,
+      }),
+    );
+    const restoreJson = await restoreResponse.json();
+    expect(restoreResponse.status).toBe(200);
+    expect(restoreJson.ok).toBe(true);
+    expect(restoreJson.node.id).toBe(nodeId);
+    expect(restoreJson.node.content).toBe('persist-me');
   });
 
   it('deletes one memory node via DELETE', async () => {
@@ -436,6 +569,31 @@ describe('/api/memory route', () => {
     const listJson = await listResponse.json();
     expect(listResponse.status).toBe(400);
     expect(listJson.ok).toBe(false);
+  });
+
+  it('returns 400 for unsupported bulk action values', async () => {
+    const first = await POST(
+      makePostRequest({
+        fcName: 'core_memory_store',
+        args: { personaId, type: 'fact', content: 'bulk-invalid-action', importance: 2 },
+      }),
+    );
+    const firstJson = await first.json();
+    const id = String(firstJson?.result?.data?.id || '');
+    expect(id.length).toBeGreaterThan(0);
+
+    const response = await PATCH(
+      makePostRequest({
+        personaId,
+        ids: [id],
+        action: 'noop',
+        type: 'lesson',
+      }),
+    );
+    const json = await response.json();
+    expect(response.status).toBe(400);
+    expect(json.ok).toBe(false);
+    expect(String(json.error || '')).toMatch(/action/i);
   });
 
   it('returns 401 when auth is required and request user context is unavailable', async () => {

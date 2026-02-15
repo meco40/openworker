@@ -8,6 +8,8 @@ declare global {
 }
 
 type EnvLike = Record<string, string | undefined>;
+const MEM0_RUNTIME_PROBE_USER_ID = 'mem0-runtime-probe';
+const MEM0_RUNTIME_PROBE_PERSONA_ID = 'mem0-runtime-probe';
 
 export function assertMemoryRuntimeConfiguration(env: EnvLike = process.env as EnvLike): void {
   const nodeEnv = String(env.NODE_ENV || '').trim().toLowerCase();
@@ -21,6 +23,11 @@ export function assertMemoryRuntimeConfiguration(env: EnvLike = process.env as E
   const baseUrl = String(env.MEM0_BASE_URL || '').trim();
   if (!baseUrl) {
     throw new Error('Invalid memory configuration: MEM0_BASE_URL is required when MEMORY_PROVIDER=mem0.');
+  }
+
+  const apiKey = String(env.MEM0_API_KEY || '').trim();
+  if (!apiKey) {
+    throw new Error('Invalid memory configuration: MEM0_API_KEY is required when MEMORY_PROVIDER=mem0.');
   }
 }
 
@@ -52,4 +59,19 @@ export function getMemoryService(): MemoryService {
 export function getMemoryProviderKind(): 'mem0' {
   getRequiredMem0Client();
   return 'mem0';
+}
+
+export async function assertMemoryRuntimeReady(): Promise<void> {
+  const client = getRequiredMem0Client();
+  try {
+    await client.listMemories({
+      userId: MEM0_RUNTIME_PROBE_USER_ID,
+      personaId: MEM0_RUNTIME_PROBE_PERSONA_ID,
+      page: 1,
+      pageSize: 1,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Mem0 connectivity check failed: ${message}`);
+  }
 }

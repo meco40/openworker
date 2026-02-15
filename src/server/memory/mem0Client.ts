@@ -51,11 +51,20 @@ export interface Mem0ListMemoryResult {
   pageSize: number;
 }
 
+export interface Mem0HistoryEntry {
+  action: string;
+  timestamp?: string;
+  content?: string;
+  metadata: Record<string, unknown>;
+  raw: Record<string, unknown>;
+}
+
 export interface Mem0Client {
   addMemory(input: Mem0MemoryInput): Promise<{ id: string | null }>;
   searchMemories(input: Mem0SearchInput): Promise<Mem0SearchHit[]>;
   listMemories(input: Mem0ListInput): Promise<Mem0ListMemoryResult>;
   getMemory(id: string): Promise<Mem0MemoryRecord | null>;
+  getMemoryHistory(id: string): Promise<Mem0HistoryEntry[]>;
   updateMemory(id: string, input: Mem0MemoryInput): Promise<void>;
   deleteMemory(id: string): Promise<void>;
   deleteMemoriesByFilter(input: { userId: string; personaId: string }): Promise<number>;
@@ -70,7 +79,7 @@ function normalizeBaseUrl(url: string): string {
 }
 
 function normalizeApiPath(path: string): string {
-  if (!path.trim()) return '/v1';
+  if (!path.trim()) return '';
   const withLeading = path.startsWith('/') ? path : `/${path}`;
   return withLeading.replace(/\/+$/, '');
 }
@@ -146,6 +155,65 @@ function extractHits(payload: unknown): Mem0SearchHit[] {
     }));
 }
 
+function toHistoryEntry(entry: unknown): Mem0HistoryEntry | null {
+  const record = pickRecord(entry);
+  if (Object.keys(record).length === 0) return null;
+
+  const metadata = pickRecord(record.metadata);
+  const nestedMemory = pickRecord(record.memory);
+  const nestedOld = pickRecord(record.old_memory);
+  const nestedNew = pickRecord(record.new_memory);
+  const action =
+    pickString(record.action) ||
+    pickString(record.event) ||
+    pickString(record.operation) ||
+    'unknown';
+  const timestamp =
+    pickString(record.timestamp) ||
+    pickString(record.created_at) ||
+    pickString(record.updated_at) ||
+    pickString(record.time) ||
+    undefined;
+  const content =
+    pickString(record.new_memory) ||
+    pickString(record.old_memory) ||
+    pickString(record.content) ||
+    pickString(record.text) ||
+    pickString(record.memory) ||
+    pickString(nestedMemory.content) ||
+    pickString(nestedMemory.text) ||
+    pickString(nestedNew.content) ||
+    pickString(nestedNew.text) ||
+    pickString(nestedOld.content) ||
+    pickString(nestedOld.text) ||
+    undefined;
+
+  return {
+    action,
+    timestamp,
+    content,
+    metadata,
+    raw: record,
+  };
+}
+
+function extractHistory(payload: unknown): Mem0HistoryEntry[] {
+  const root = pickRecord(payload);
+  const rows: unknown[] = Array.isArray(payload)
+    ? payload
+    : Array.isArray(root.history)
+      ? root.history
+      : Array.isArray(root.results)
+        ? root.results
+        : Array.isArray(root.data)
+          ? root.data
+          : [];
+
+  return rows
+    .map((entry) => toHistoryEntry(entry))
+    .filter((entry): entry is Mem0HistoryEntry => entry !== null);
+}
+
 function extractId(payload: unknown): string | null {
   if (Array.isArray(payload) && payload.length > 0) {
     const first = toMemoryRecord(payload[0]);
@@ -153,6 +221,11 @@ function extractId(payload: unknown): string | null {
   }
 
   const root = pickRecord(payload);
+  if (Array.isArray(root.results) && root.results.length > 0) {
+    const firstResult = toMemoryRecord(root.results[0]);
+    if (firstResult) return firstResult.id;
+  }
+
   return (
     pickString(root.id) ||
     pickString(root.memory_id) ||
@@ -214,6 +287,34 @@ function extractDeletedCount(payload: unknown): number {
   return 0;
 }
 
+function extractErrorDetail(payload: unknown): string {
+  const root = pickRecord(payload);
+  const detail = pickString(root.detail);
+  if (detail) return detail;
+
+  const error = pickString(root.error);
+  if (error) return error;
+
+  const message = pickString(root.message);
+  if (message) return message;
+
+  return '';
+}
+
+function isV2UnavailableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /HTTP\s*(404|405)/i.test(message);
+}
+
+function isLegacyDeleteFilterError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /HTTP\s*(400|404|405)/i.test(message);
+}
+
+function normalizeText(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 class HttpMem0Client implements Mem0Client {
   private readonly baseUrl: string;
   private readonly apiPath: string;
@@ -246,14 +347,30 @@ class HttpMem0Client implements Mem0Client {
   }
 
   async searchMemories(input: Mem0SearchInput): Promise<Mem0SearchHit[]> {
-    const payload = await this.requestV2('/memories/search', {
+    try {
+      const payload = await this.requestV2('/memories/search', {
+        method: 'POST',
+        body: {
+          query: input.query,
+          filters: {
+            user_id: input.userId,
+            agent_id: input.personaId,
+          },
+          top_k: input.limit,
+          limit: input.limit,
+        },
+      });
+      return extractHits(payload);
+    } catch (error) {
+      if (!isV2UnavailableError(error)) throw error;
+    }
+
+    const payload = await this.request('/search', {
       method: 'POST',
       body: {
         query: input.query,
-        filters: {
-          user_id: input.userId,
-          agent_id: input.personaId,
-        },
+        user_id: input.userId,
+        agent_id: input.personaId,
         top_k: input.limit,
         limit: input.limit,
       },
@@ -274,27 +391,65 @@ class HttpMem0Client implements Mem0Client {
       filters.type = input.type;
     }
 
-    const payload = await this.requestV2('/memories', {
-      method: 'POST',
-      body: {
-        filters,
-        page,
-        page_size: pageSize,
-        ...(input.query?.trim() ? { query: input.query.trim() } : {}),
-      },
+    try {
+      const payload = await this.requestV2('/memories', {
+        method: 'POST',
+        body: {
+          filters,
+          page,
+          page_size: pageSize,
+          ...(input.query?.trim() ? { query: input.query.trim() } : {}),
+        },
+      });
+
+      const memories = extractMemories(payload)
+        .map((entry) => toMemoryRecord(entry))
+        .filter((entry): entry is Mem0MemoryRecord => entry !== null);
+      const meta = extractListMeta(payload, page, pageSize);
+      const total = meta.total > 0 ? meta.total : memories.length;
+
+      return {
+        memories,
+        total,
+        page: meta.page,
+        pageSize: meta.pageSize,
+      };
+    } catch (error) {
+      if (!isV2UnavailableError(error)) throw error;
+    }
+
+    const params = new URLSearchParams({
+      user_id: input.userId,
+    });
+    if (input.personaId) {
+      params.set('agent_id', input.personaId);
+    }
+    const fallbackPayload = await this.request(`/memories?${params.toString()}`, {
+      method: 'GET',
     });
 
-    const memories = extractMemories(payload)
+    const trimmedQuery = input.query ? normalizeText(input.query) : '';
+    const memories = extractMemories(fallbackPayload)
       .map((entry) => toMemoryRecord(entry))
-      .filter((entry): entry is Mem0MemoryRecord => entry !== null);
-    const meta = extractListMeta(payload, page, pageSize);
-    const total = meta.total > 0 ? meta.total : memories.length;
+      .filter((entry): entry is Mem0MemoryRecord => entry !== null)
+      .filter((entry) => {
+        if (!input.type) return true;
+        return String(entry.metadata.type || '').trim() === input.type;
+      })
+      .filter((entry) => {
+        if (!trimmedQuery) return true;
+        return normalizeText(entry.content).includes(trimmedQuery);
+      });
+
+    const total = memories.length;
+    const start = (page - 1) * pageSize;
+    const paged = memories.slice(start, start + pageSize);
 
     return {
-      memories,
+      memories: paged,
       total,
-      page: meta.page,
-      pageSize: meta.pageSize,
+      page,
+      pageSize,
     };
   }
 
@@ -305,6 +460,13 @@ class HttpMem0Client implements Mem0Client {
     const direct = toMemoryRecord(payload);
     if (direct) return direct;
     return toMemoryRecord(pickRecord(payload).memory);
+  }
+
+  async getMemoryHistory(id: string): Promise<Mem0HistoryEntry[]> {
+    const payload = await this.request(`/memories/${encodeURIComponent(id)}/history`, {
+      method: 'GET',
+    });
+    return extractHistory(payload);
   }
 
   async updateMemory(id: string, input: Mem0MemoryInput): Promise<void> {
@@ -324,14 +486,27 @@ class HttpMem0Client implements Mem0Client {
   }
 
   async deleteMemoriesByFilter(input: { userId: string; personaId: string }): Promise<number> {
-    const payload = await this.request('/memories', {
-      method: 'DELETE',
-      body: {
-        user_id: input.userId,
-        agent_id: input.personaId,
-      },
+    try {
+      const payload = await this.request('/memories', {
+        method: 'DELETE',
+        body: {
+          user_id: input.userId,
+          agent_id: input.personaId,
+        },
+      });
+      return extractDeletedCount(payload);
+    } catch (error) {
+      if (!isLegacyDeleteFilterError(error)) throw error;
+    }
+
+    const params = new URLSearchParams({
+      user_id: input.userId,
+      agent_id: input.personaId,
     });
-    return extractDeletedCount(payload);
+    const fallbackPayload = await this.request(`/memories?${params.toString()}`, {
+      method: 'DELETE',
+    });
+    return extractDeletedCount(fallbackPayload);
   }
 
   private async requestV2(
@@ -382,7 +557,9 @@ class HttpMem0Client implements Mem0Client {
 
       const payload = (await response.json().catch(() => ({}))) as unknown;
       if (!response.ok) {
-        throw new Error(`Mem0 request failed with HTTP ${response.status}.`);
+        const detail = extractErrorDetail(payload);
+        const suffix = detail ? `: ${detail}` : '';
+        throw new Error(`Mem0 request failed with HTTP ${response.status}${suffix}.`);
       }
       return payload;
     } catch (error) {
@@ -416,8 +593,12 @@ export function createMem0ClientFromEnv(
   if (provider && provider !== 'mem0') return null;
 
   const baseUrl = String(env.MEM0_BASE_URL || '').trim();
+  const apiKey = String(env.MEM0_API_KEY || '').trim();
   if (provider === 'mem0' && !baseUrl) {
     throw new Error('Invalid memory configuration: MEM0_BASE_URL is required when MEMORY_PROVIDER=mem0.');
+  }
+  if (provider === 'mem0' && !apiKey) {
+    throw new Error('Invalid memory configuration: MEM0_API_KEY is required when MEMORY_PROVIDER=mem0.');
   }
   if (!baseUrl) return null;
 
@@ -427,7 +608,7 @@ export function createMem0ClientFromEnv(
   return createMem0Client(
     {
       baseUrl,
-      apiKey: String(env.MEM0_API_KEY || '').trim() || undefined,
+      apiKey: apiKey || undefined,
       apiPath: String(env.MEM0_API_PATH || '/v1').trim() || '/v1',
       timeoutMs,
     },

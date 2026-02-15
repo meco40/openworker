@@ -42,6 +42,20 @@ function gatewayState(overrides: Partial<GatewayState>): GatewayState {
 }
 
 describe('buildPersonalityMatrix', () => {
+  it('returns zeroed stats when no memory entries and no scheduled tasks exist', () => {
+    const now = new Date('2026-02-14T12:00:00.000Z');
+    const state = gatewayState({
+      memoryEntries: [],
+      scheduledTasks: [],
+    });
+
+    const result = buildPersonalityMatrix(state, now);
+
+    expect(result.stats).toHaveLength(5);
+    expect(result.stats.every((entry) => entry.A === 0)).toBe(true);
+    expect(result.focus.toLowerCase()).toContain('no personality data');
+  });
+
   it('keeps every score inside 0..100 even with extreme input volume', () => {
     const now = new Date('2026-02-14T12:00:00.000Z');
     const state = gatewayState({

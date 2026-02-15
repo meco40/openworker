@@ -123,3 +123,46 @@ describe('GatewayResponse type extensions', () => {
     expect(response.functionCalls[0].name).toBe('core_memory_store');
   });
 });
+
+describe('ModelHubService.movePipelineModel', () => {
+  it('moves a model up and swaps priorities with the previous model', async () => {
+    const { ModelHubService } = await import('../../../src/server/model-hub/service');
+
+    const updatePriority = vi.fn();
+    const repo = createMockRepository({
+      listPipelineModels: vi.fn().mockReturnValue([
+        { id: 'm1', priority: 1, modelName: 'alpha', status: 'active' },
+        { id: 'm2', priority: 2, modelName: 'beta', status: 'active' },
+        { id: 'm3', priority: 3, modelName: 'gamma', status: 'active' },
+      ]),
+      updatePipelineModelPriority: updatePriority,
+    });
+
+    const service = new ModelHubService(repo);
+    const moved = service.movePipelineModel('p1', 'm2', 'up');
+
+    expect(moved).toBe(true);
+    expect(updatePriority).toHaveBeenCalledTimes(2);
+    expect(updatePriority).toHaveBeenNthCalledWith(1, 'm2', 1);
+    expect(updatePriority).toHaveBeenNthCalledWith(2, 'm1', 2);
+  });
+
+  it('returns false when moving the first model up', async () => {
+    const { ModelHubService } = await import('../../../src/server/model-hub/service');
+
+    const updatePriority = vi.fn();
+    const repo = createMockRepository({
+      listPipelineModels: vi.fn().mockReturnValue([
+        { id: 'm1', priority: 1, modelName: 'alpha', status: 'active' },
+        { id: 'm2', priority: 2, modelName: 'beta', status: 'active' },
+      ]),
+      updatePipelineModelPriority: updatePriority,
+    });
+
+    const service = new ModelHubService(repo);
+    const moved = service.movePipelineModel('p1', 'm1', 'up');
+
+    expect(moved).toBe(false);
+    expect(updatePriority).not.toHaveBeenCalled();
+  });
+});

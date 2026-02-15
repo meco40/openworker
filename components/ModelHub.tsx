@@ -400,6 +400,21 @@ const ModelHub: React.FC = () => {
     }
   }
 
+  async function moveModelInPipeline(modelId: string, direction: 'up' | 'down') {
+    try {
+      const response = await fetch('/api/model-hub/pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reorder', profileId: PROFILE_ID, modelId, direction }),
+      });
+      const data = (await response.json()) as ApiResponse;
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      await loadPipeline();
+    } catch (error) {
+      setProbeResult(error instanceof Error ? error.message : 'Reorder fehlgeschlagen');
+    }
+  }
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 mx-auto max-w-6xl space-y-10 pb-20 duration-700">
       <HeaderSection
@@ -421,6 +436,7 @@ const ModelHub: React.FC = () => {
           providerAccounts={providerAccounts}
           onOpenAddModelModal={openAddModelModal}
           onToggleModelStatus={toggleModelStatus}
+          onMoveModel={moveModelInPipeline}
           onRemoveModelFromPipeline={removeModelFromPipeline}
           isLoadingAccounts={isLoadingAccounts}
           deletingAccountId={deletingAccountId}

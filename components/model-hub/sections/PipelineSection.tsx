@@ -9,6 +9,7 @@ interface PipelineSectionProps {
   providerAccounts: ProviderAccount[];
   onOpenAddModelModal: () => void;
   onToggleModelStatus: (modelId: string, currentStatus: string) => void;
+  onMoveModel: (modelId: string, direction: 'up' | 'down') => void;
   onRemoveModelFromPipeline: (modelId: string) => void;
   isLoadingAccounts: boolean;
   deletingAccountId: string | null;
@@ -23,6 +24,7 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
   providerAccounts,
   onOpenAddModelModal,
   onToggleModelStatus,
+  onMoveModel,
   onRemoveModelFromPipeline,
   isLoadingAccounts,
   deletingAccountId,
@@ -68,6 +70,8 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
           pipeline.map((model, idx) => {
             const provider = providerLookup.get(model.providerId);
             const account = providerAccounts.find((entry) => entry.id === model.accountId);
+            const isFirst = idx === 0;
+            const isLast = idx === pipeline.length - 1;
             return (
               <div
                 key={model.id}
@@ -138,6 +142,22 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <button
+                    onClick={() => onMoveModel(model.id, 'up')}
+                    disabled={isFirst}
+                    aria-label={`Move ${model.modelName} up`}
+                    className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-zinc-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    onClick={() => onMoveModel(model.id, 'down')}
+                    disabled={isLast}
+                    aria-label={`Move ${model.modelName} down`}
+                    className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-zinc-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    ↓
+                  </button>
+                  <button
                     onClick={() => onToggleModelStatus(model.id, model.status)}
                     className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-zinc-700 hover:text-white"
                   >
@@ -199,21 +219,24 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
                       />
                     )}
                   </div>
-                  <div className="mt-0.5 flex items-center space-x-3">
-                    <span className="font-mono text-[10px] text-zinc-600">
+                  <div className="mt-0.5 flex min-w-0 items-center gap-3">
+                    <span className="shrink-0 font-mono text-[10px] text-zinc-600">
                       {provider?.name || account.providerId}
                     </span>
-                    <span className="text-zinc-800">·</span>
-                    <span className="font-mono text-[10px] text-zinc-600">
+                    <span className="shrink-0 text-zinc-800">·</span>
+                    <span
+                      className="min-w-0 flex-1 truncate font-mono text-[10px] text-zinc-600"
+                      title={account.secretMasked}
+                    >
                       {account.secretMasked}
                     </span>
-                    <span className="text-zinc-800">·</span>
-                    <span className="font-mono text-[10px] text-zinc-600">
+                    <span className="shrink-0 text-zinc-800">·</span>
+                    <span className="shrink-0 font-mono text-[10px] text-zinc-600">
                       {modelsInPipeline} Modell{modelsInPipeline !== 1 ? 'e' : ''}
                     </span>
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="ml-4 flex shrink-0 items-center gap-2">
                   {deletingAccountId === account.id ? (
                     <>
                       <button

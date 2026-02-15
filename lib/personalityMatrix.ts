@@ -165,6 +165,20 @@ export function buildPersonalityMatrix(
   const memoryEntries = source.memoryEntries ?? [];
   const tasks = source.scheduledTasks ?? [];
 
+  if (memoryEntries.length === 0 && tasks.length === 0) {
+    const stats: PersonalityStat[] = [
+      { subject: 'Communication', A: 0, fullMark: 100 },
+      { subject: 'Workflows', A: 0, fullMark: 100 },
+      { subject: 'Boundaries', A: 0, fullMark: 100 },
+      { subject: 'Time Awareness', A: 0, fullMark: 100 },
+      { subject: 'Proactivity', A: 0, fullMark: 100 },
+    ];
+    return {
+      stats,
+      focus: 'No personality data yet. Save memory or schedule tasks to generate a matrix.',
+    };
+  }
+
   const communicationEntries = memoryEntries.filter(
     (entry) => entry.type === 'preference' || entry.type === 'personality_trait',
   );

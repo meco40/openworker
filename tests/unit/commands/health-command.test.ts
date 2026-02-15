@@ -17,6 +17,7 @@ afterEach(() => {
   delete process.env.MEMORY_PROVIDER;
   delete process.env.MEM0_BASE_URL;
   delete process.env.MEM0_API_PATH;
+  delete process.env.MEM0_API_KEY;
   vi.unstubAllGlobals();
   globalThis.__credentialStore = undefined;
   globalThis.__logRepository = undefined;
@@ -46,6 +47,7 @@ describe('runHealthCommand', () => {
     process.env.MEMORY_PROVIDER = 'mem0';
     process.env.MEM0_BASE_URL = 'http://mem0.local';
     process.env.MEM0_API_PATH = '/v1';
+    process.env.MEM0_API_KEY = 'mem0_test_key';
     process.env.WHATSAPP_BRIDGE_URL = 'http://bridge.local';
     vi.stubGlobal(
       'fetch',

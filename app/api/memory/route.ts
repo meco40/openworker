@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { MemoryType } from '../../../core/memory/types';
 import { getMemoryService } from '../../../src/server/memory/runtime';
+import { MemoryVersionConflictError } from '../../../src/server/memory/service';
 import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
@@ -72,6 +73,8 @@ function parseUpdateBody(raw: Record<string, unknown>): {
   type?: MemoryType;
   content?: string;
   importance?: number;
+  expectedVersion?: number;
+  restoreIndex?: number;
 } {
   const personaId = parsePersonaId(raw.personaId);
   const id = parseMemoryNodeId(raw.id);
@@ -82,6 +85,8 @@ function parseUpdateBody(raw: Record<string, unknown>): {
     type?: MemoryType;
     content?: string;
     importance?: number;
+    expectedVersion?: number;
+    restoreIndex?: number;
   } = { personaId, id };
 
   if (raw.type !== undefined) {
@@ -111,6 +116,37 @@ function parseUpdateBody(raw: Record<string, unknown>): {
     next.importance = importance;
   }
 
+  if (raw.expectedVersion !== undefined) {
+    const expectedRaw = Number(raw.expectedVersion);
+    const expectedVersion = Number.isFinite(expectedRaw) ? Math.floor(expectedRaw) : NaN;
+    if (!Number.isFinite(expectedVersion) || expectedVersion < 1) {
+      throw new ValidationError('expectedVersion must be a positive integer.');
+    }
+    next.expectedVersion = expectedVersion;
+  }
+
+  if (raw.restoreIndex !== undefined) {
+    const restoreRaw = Number(raw.restoreIndex);
+    const restoreIndex = Number.isFinite(restoreRaw) ? Math.floor(restoreRaw) : NaN;
+    if (!Number.isFinite(restoreIndex) || restoreIndex < 0) {
+      throw new ValidationError('restoreIndex must be a non-negative integer.');
+    }
+    next.restoreIndex = restoreIndex;
+  }
+
+  if (next.restoreIndex !== undefined) {
+    if (
+      next.type !== undefined ||
+      next.content !== undefined ||
+      next.importance !== undefined
+    ) {
+      throw new ValidationError(
+        'restoreIndex cannot be combined with type/content/importance updates.',
+      );
+    }
+    return next;
+  }
+
   if (
     next.type === undefined &&
     next.content === undefined &&
@@ -126,6 +162,11 @@ function parsePositiveInt(raw: unknown, fallback: number, min: number, max: numb
   const value = Number(raw ?? fallback);
   if (!Number.isFinite(value)) return fallback;
   return Math.min(max, Math.max(min, Math.floor(value)));
+}
+
+function parseFlag(raw: unknown): boolean {
+  const value = String(raw || '').trim().toLowerCase();
+  return value === '1' || value === 'true' || value === 'yes' || value === 'on';
 }
 
 function parseOptionalType(raw: unknown): MemoryType | undefined {
@@ -155,7 +196,10 @@ function parseBulkBody(raw: Record<string, unknown>): {
   }
 
   const actionRaw = String(raw.action || '').trim().toLowerCase();
-  const action: 'update' | 'delete' = actionRaw === 'delete' ? 'delete' : 'update';
+  if (actionRaw !== 'update' && actionRaw !== 'delete') {
+    throw new ValidationError('action must be either "update" or "delete".');
+  }
+  const action: 'update' | 'delete' = actionRaw;
 
   const updates: { type?: MemoryType; importance?: number } = {};
   if (raw.type !== undefined) {
@@ -181,9 +225,22 @@ export async function GET(request: Request) {
     }
     const url = new URL(request.url);
     const personaId = parsePersonaId(url.searchParams.get('personaId'));
+    const nodeId = String(url.searchParams.get('id') || '').trim();
+    const includeHistory = parseFlag(url.searchParams.get('history'));
     const pageParam = url.searchParams.get('page');
     const pageSizeParam = url.searchParams.get('pageSize');
     const service = getMemoryService();
+
+    if (includeHistory) {
+      if (!nodeId) {
+        throw new ValidationError('id is required when history is requested.');
+      }
+      const result = await service.history(personaId, nodeId, userContext.userId);
+      if (!result) {
+        return NextResponse.json({ ok: false, error: 'Memory node not found.' }, { status: 404 });
+      }
+      return NextResponse.json({ ok: true, node: result.node, history: result.entries });
+    }
 
     if (pageParam !== null || pageSizeParam !== null) {
       const page = parsePositiveInt(pageParam, 1, 1, 1_000_000);
@@ -261,18 +318,40 @@ export async function PUT(request: Request) {
     const body = (await request.json()) as Record<string, unknown>;
     const parsed = parseUpdateBody(body);
     const service = getMemoryService();
-    const node = await service.update(parsed.personaId, parsed.id, {
-      type: parsed.type,
-      content: parsed.content,
-      importance: parsed.importance,
-    }, userContext.userId);
+    const node =
+      parsed.restoreIndex !== undefined
+        ? await service.restoreFromHistory(
+            parsed.personaId,
+            parsed.id,
+            {
+              restoreIndex: parsed.restoreIndex,
+              expectedVersion: parsed.expectedVersion,
+            },
+            userContext.userId,
+          )
+        : await service.update(
+            parsed.personaId,
+            parsed.id,
+            {
+              type: parsed.type,
+              content: parsed.content,
+              importance: parsed.importance,
+              expectedVersion: parsed.expectedVersion,
+            },
+            userContext.userId,
+          );
     if (!node) {
       return NextResponse.json({ ok: false, error: 'Memory node not found.' }, { status: 404 });
     }
     return NextResponse.json({ ok: true, node });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid request.';
-    const status = error instanceof ValidationError || error instanceof SyntaxError ? 400 : 500;
+    const status =
+      error instanceof ValidationError || error instanceof SyntaxError
+        ? 400
+        : error instanceof MemoryVersionConflictError
+          ? 409
+          : 500;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

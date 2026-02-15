@@ -38,6 +38,25 @@ describe('privileged route auth enforcement', () => {
     const accountsRes = await accountsRoute.GET();
     expect(accountsRes.status).toBe(401);
 
+    const providersRoute = await import('../../../app/api/model-hub/providers/route');
+    const providersRes = await providersRoute.GET();
+    expect(providersRes.status).toBe(401);
+
+    const accountByIdRoute = await import('../../../app/api/model-hub/accounts/[accountId]/route');
+    const accountByIdRes = await accountByIdRoute.DELETE(
+      new Request('http://localhost/api/model-hub/accounts/a1', { method: 'DELETE' }),
+      { params: Promise.resolve({ accountId: 'a1' }) },
+    );
+    expect(accountByIdRes.status).toBe(401);
+
+    const accountModelsRoute =
+      await import('../../../app/api/model-hub/accounts/[accountId]/models/route');
+    const accountModelsRes = await accountModelsRoute.GET(
+      new Request('http://localhost/api/model-hub/accounts/a1/models'),
+      { params: Promise.resolve({ accountId: 'a1' }) },
+    );
+    expect(accountModelsRes.status).toBe(401);
+
     const accountTestRoute =
       await import('../../../app/api/model-hub/accounts/[accountId]/test/route');
     const accountTestRes = await accountTestRoute.POST(
@@ -57,6 +76,20 @@ describe('privileged route auth enforcement', () => {
       new Request('http://localhost/api/model-hub/pipeline?profileId=p1'),
     );
     expect(pipelineRes.status).toBe(401);
+
+    const oauthStartRoute = await import('../../../app/api/model-hub/oauth/start/route');
+    const oauthStartRes = await oauthStartRoute.GET(
+      new Request(
+        'http://localhost/api/model-hub/oauth/start?providerId=openrouter&label=OpenRouter',
+      ),
+    );
+    expect(oauthStartRes.status).toBe(401);
+
+    const oauthCallbackRoute = await import('../../../app/api/model-hub/oauth/callback/route');
+    const oauthCallbackRes = await oauthCallbackRoute.GET(
+      new Request('http://localhost/api/model-hub/oauth/callback?code=abc&state=invalid'),
+    );
+    expect(oauthCallbackRes.status).toBe(401);
 
     const skillsRoute = await import('../../../app/api/skills/route');
     const skillsRes = await skillsRoute.GET();

@@ -19,7 +19,8 @@
     "build": "next build",
     "start:web": "node --import tsx server.ts",
     "start:scheduler": "node --import tsx scheduler.ts",
-    "start": "npm run start:web"
+    "start": "npm run start:web",
+    "memory:reset": "node --import tsx scripts/memory-reset.ts"
   },
   "dependencies": {
     "@dagrejs/dagre": "^2.0.4",

@@ -28,6 +28,10 @@ function makeMemoryPostRequest(body: Record<string, unknown>): Request {
   });
 }
 
+function memoryScopeKey(userId: string, personaId: string): string {
+  return `${userId}::${personaId}`;
+}
+
 describe('persona memory cascade delete', () => {
   const cleanupPaths: string[] = [];
 
@@ -38,6 +42,7 @@ describe('persona memory cascade delete', () => {
     delete process.env.MEMORY_PROVIDER;
     delete process.env.MEM0_BASE_URL;
     delete process.env.MEM0_API_PATH;
+    delete process.env.MEM0_API_KEY;
     (globalThis as { __memoryService?: unknown }).__memoryService = undefined;
     (globalThis as { __mem0Client?: unknown }).__mem0Client = undefined;
     (globalThis as { __modelHubService?: unknown }).__modelHubService = undefined;
@@ -67,9 +72,9 @@ describe('persona memory cascade delete', () => {
     process.env.MEMORY_PROVIDER = 'mem0';
     process.env.MEM0_BASE_URL = 'http://mem0.local';
     process.env.MEM0_API_PATH = '/v1';
+    process.env.MEM0_API_KEY = 'mem0_test_key';
 
     const memoryStore = new Map<string, Array<{ id: string; content: string; metadata: Record<string, unknown> }>>();
-    const keyFor = (userId: string, personaId: string) => `${userId}::${personaId}`;
     const defaultUser = 'user-a';
 
     vi.stubGlobal(
@@ -93,7 +98,7 @@ describe('persona memory cascade delete', () => {
           const messages = Array.isArray(body.messages) ? body.messages : [];
           const content = String((messages[0] as { content?: string } | undefined)?.content || '');
           const id = `mem0-${Math.random().toString(36).slice(2, 10)}`;
-          const key = keyFor(userId, personaId);
+          const key = memoryScopeKey(userId, personaId);
           const next = [...(memoryStore.get(key) || []), { id, content, metadata: (body.metadata as Record<string, unknown>) || {} }];
           memoryStore.set(key, next);
           return new Response(JSON.stringify([{ id, memory: content }]), { status: 200 });
@@ -103,7 +108,7 @@ describe('persona memory cascade delete', () => {
           const filters = (body.filters as Record<string, unknown>) || {};
           const userId = String(filters.user_id || defaultUser);
           const personaId = String(filters.agent_id || '');
-          const key = keyFor(userId, personaId);
+          const key = memoryScopeKey(userId, personaId);
           const rows = personaId ? memoryStore.get(key) || [] : [];
           return new Response(
             JSON.stringify({
@@ -123,7 +128,7 @@ describe('persona memory cascade delete', () => {
         if (method === 'DELETE' && parsed.pathname.endsWith('/v1/memories')) {
           const userId = String(body.user_id || defaultUser);
           const personaId = String(body.agent_id || '');
-          const key = keyFor(userId, personaId);
+          const key = memoryScopeKey(userId, personaId);
           const deleted = (memoryStore.get(key) || []).length;
           memoryStore.delete(key);
           return new Response(JSON.stringify({ deleted }), { status: 200 });

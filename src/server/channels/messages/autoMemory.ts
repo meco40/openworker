@@ -7,7 +7,7 @@ export interface AutoMemoryCandidate {
   importance: number;
 }
 
-const EXPLICIT_SAVE_PATTERN = /^speichere\s+ab\s*:/i;
+const EXPLICIT_SAVE_PATTERN = /^speichere\s+ab(?:\s*[:\-–—]\s*|\s+|$)/i;
 const MAX_CANDIDATES = 4;
 const MIN_MESSAGES_FOR_RECAP = 4;
 const MAX_CONTENT_LENGTH = 220;

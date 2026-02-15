@@ -1,10 +1,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import nextEnv from '@next/env';
 
 import { startAutomationRuntime, stopAutomationRuntime } from './src/server/automation/runtime';
-import { assertMemoryRuntimeConfiguration } from './src/server/memory/runtime';
+import {
+  assertMemoryRuntimeConfiguration,
+  assertMemoryRuntimeReady,
+} from './src/server/memory/runtime';
 import { getRoomOrchestrator } from './src/server/rooms/runtime';
 import { shouldRunRooms } from './src/server/rooms/runtimeRole';
+
+const { loadEnvConfig } = nextEnv;
+loadEnvConfig(process.cwd());
 
 const instanceId = process.env.SCHEDULER_INSTANCE_ID || `scheduler-${process.pid}`;
 const heartbeatFile =
@@ -14,8 +21,6 @@ const heartbeatIntervalMs = Number(process.env.AUTOMATION_HEARTBEAT_INTERVAL_MS 
 
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let roomTimer: ReturnType<typeof setInterval> | null = null;
-
-assertMemoryRuntimeConfiguration();
 
 function writeHeartbeat(): void {
   try {
@@ -74,13 +79,24 @@ function shutdown(): void {
 }
 
 console.log(`[automation-scheduler] starting with instance ${instanceId}`);
-startAutomationRuntime(instanceId);
-startHeartbeat();
-if (shouldRunRooms('scheduler')) {
-  startRoomScheduler();
-} else {
-  console.log('[rooms-scheduler] room cycle disabled in scheduler process by ROOMS_RUNNER');
+
+async function bootstrap(): Promise<void> {
+  assertMemoryRuntimeConfiguration();
+  await assertMemoryRuntimeReady();
+
+  startAutomationRuntime(instanceId);
+  startHeartbeat();
+  if (shouldRunRooms('scheduler')) {
+    startRoomScheduler();
+  } else {
+    console.log('[rooms-scheduler] room cycle disabled in scheduler process by ROOMS_RUNNER');
+  }
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+void bootstrap().catch((error) => {
+  console.error('[automation-scheduler] startup failed:', error);
+  process.exit(1);
+});

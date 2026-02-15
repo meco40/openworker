@@ -144,15 +144,6 @@ WantedBy=multi-user.target
 | Variable             | Provider           |
 | -------------------- | ------------------ |
 | `GEMINI_API_KEY`     | Google Gemini      |
-| `OPENAI_API_KEY`     | OpenAI             |
-| `ANTHROPIC_API_KEY`  | Anthropic          |
-| `XAI_API_KEY`        | xAI                |
-| `MISTRAL_API_KEY`    | Mistral            |
-| `COHERE_API_KEY`     | Cohere             |
-| `OPENROUTER_API_KEY` | OpenRouter         |
-| `Z_AI_API_KEY`       | Z.AI               |
-| `KIMI_API_KEY`       | Kimi/Moonshot      |
-| `BYTEDANCE_API_KEY`  | ByteDance ModelArk |
 
 ### Channel-Config
 
@@ -265,7 +256,7 @@ tar -czf backups/openclaw-$(date +%Y%m%d).tar.gz .local/
 
 1. `MEM0_BASE_URL` erreichbar?
 2. `MEMORY_PROVIDER=mem0` gesetzt?
-3. Bei Fehlern Provider/Embeddings prüfen und Incident beheben (kein lokaler Recall-Fallback)
+3. Bei Embedding-Fehlern im Memory-Pfad nur Gemini-Konfiguration prüfen (`GEMINI_API_KEY`, `MEMORY_EMBEDDING_MODEL`)
 4. Startet der Prozess nicht: Production blockiert absichtlich bei fehlender Mem0-Konfiguration.
 
 ## Verifikation

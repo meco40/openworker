@@ -133,6 +133,23 @@ export class ModelHubService {
     this.repository.updatePipelineModelStatus(modelId, status);
   }
 
+  movePipelineModel(profileId: string, modelId: string, direction: 'up' | 'down'): boolean {
+    const pipeline = [...this.repository.listPipelineModels(profileId)].sort(
+      (a, b) => a.priority - b.priority,
+    );
+    const sourceIndex = pipeline.findIndex((model) => model.id === modelId);
+    if (sourceIndex < 0) return false;
+
+    const targetIndex = direction === 'up' ? sourceIndex - 1 : sourceIndex + 1;
+    if (targetIndex < 0 || targetIndex >= pipeline.length) return false;
+
+    const source = pipeline[sourceIndex];
+    const target = pipeline[targetIndex];
+    this.repository.updatePipelineModelPriority(source.id, target.priority);
+    this.repository.updatePipelineModelPriority(target.id, source.priority);
+    return true;
+  }
+
   replacePipeline(profileId: string, models: CreatePipelineModelInput[]): PipelineModelEntry[] {
     return this.repository.replacePipeline(profileId, models);
   }

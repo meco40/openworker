@@ -35,6 +35,23 @@ interface PaginationState {
   totalPages: number;
 }
 
+interface MemoryHistoryEntry {
+  index: number;
+  action: string;
+  timestamp: string;
+  content?: string;
+  type?: MemoryType;
+  importance?: number;
+  version?: number;
+}
+
+interface MemoryHistoryResponse {
+  ok?: boolean;
+  node?: MemoryNode;
+  history?: MemoryHistoryEntry[];
+  error?: string;
+}
+
 const MemoryView: React.FC = () => {
   const { personas, activePersonaId, refreshPersonas } = usePersona();
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
@@ -60,6 +77,11 @@ const MemoryView: React.FC = () => {
   const [bulkType, setBulkType] = useState<'keep' | MemoryType>('keep');
   const [bulkImportance, setBulkImportance] = useState<string>('');
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [historyById, setHistoryById] = useState<Record<string, MemoryHistoryEntry[]>>({});
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+  const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadMemory = useCallback(
     async (
@@ -99,6 +121,7 @@ const MemoryView: React.FC = () => {
           pagination?: PaginationState;
         };
         if (response.ok && payload.ok && Array.isArray(payload.nodes)) {
+          setErrorMessage(null);
           setNodes(payload.nodes);
           setPagination(
             payload.pagination ?? {
@@ -112,11 +135,13 @@ const MemoryView: React.FC = () => {
             previous.filter((id) => payload.nodes?.some((node) => node.id === id)),
           );
         } else {
+          setErrorMessage(String((payload as { error?: string }).error || 'Memory konnte nicht geladen werden.'));
           setNodes([]);
           setPagination((previous) => ({ ...previous, total: 0, totalPages: 1 }));
           setSelectedIds([]);
         }
       } catch {
+        setErrorMessage('Memory konnte nicht geladen werden.');
         setNodes([]);
         setPagination((previous) => ({ ...previous, total: 0, totalPages: 1 }));
         setSelectedIds([]);
@@ -140,6 +165,12 @@ const MemoryView: React.FC = () => {
   }, [typeFilter, pageSize, selectedPersonaId]);
 
   useEffect(() => {
+    setHistoryById({});
+    setExpandedHistoryId(null);
+    setErrorMessage(null);
+  }, [selectedPersonaId]);
+
+  useEffect(() => {
     if (!selectedPersonaId) return;
     void loadMemory(selectedPersonaId, { page, pageSize, query: debouncedQuery, type: typeFilter });
   }, [debouncedQuery, loadMemory, page, pageSize, selectedPersonaId, typeFilter]);
@@ -148,6 +179,83 @@ const MemoryView: React.FC = () => {
     if (!selectedPersonaId) return;
     await loadMemory(selectedPersonaId, { page, pageSize, query: debouncedQuery, type: typeFilter });
   }, [debouncedQuery, loadMemory, page, pageSize, selectedPersonaId, typeFilter]);
+
+  const loadHistory = useCallback(
+    async (nodeId: string): Promise<MemoryHistoryEntry[]> => {
+      if (!selectedPersonaId) return [];
+      setHistoryLoadingId(nodeId);
+      try {
+        const response = await fetch(
+          `/api/memory?personaId=${encodeURIComponent(selectedPersonaId)}&id=${encodeURIComponent(nodeId)}&history=1`,
+          { cache: 'no-store' },
+        );
+        const payload = (await response.json()) as MemoryHistoryResponse;
+        if (!response.ok || !payload.ok || !Array.isArray(payload.history)) {
+          setErrorMessage(String(payload.error || `History konnte nicht geladen werden (HTTP ${response.status}).`));
+          return [];
+        }
+        setErrorMessage(null);
+        setHistoryById((previous) => ({ ...previous, [nodeId]: payload.history || [] }));
+        return payload.history || [];
+      } catch {
+        setErrorMessage('History konnte nicht geladen werden.');
+        return [];
+      } finally {
+        setHistoryLoadingId(null);
+      }
+    },
+    [selectedPersonaId],
+  );
+
+  const toggleHistory = useCallback(
+    async (nodeId: string) => {
+      if (expandedHistoryId === nodeId) {
+        setExpandedHistoryId(null);
+        return;
+      }
+      setExpandedHistoryId(nodeId);
+      if (!historyById[nodeId]) {
+        await loadHistory(nodeId);
+      }
+    },
+    [expandedHistoryId, historyById, loadHistory],
+  );
+
+  const restoreFromHistory = useCallback(
+    async (node: MemoryNode, entry: MemoryHistoryEntry) => {
+      if (!selectedPersonaId) return;
+      setRestoringId(node.id);
+      try {
+        const response = await fetch('/api/memory', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            personaId: selectedPersonaId,
+            id: node.id,
+            restoreIndex: entry.index,
+            expectedVersion: Number(node.metadata?.version || 1),
+          }),
+        });
+        const payload = (await response.json()) as { ok?: boolean; error?: string };
+        if (!response.ok || !payload.ok) {
+          if (response.status === 409) {
+            setErrorMessage('Memory wurde parallel geändert. Bitte neu laden und erneut wiederherstellen.');
+            await reloadCurrent();
+            await loadHistory(node.id);
+            return;
+          }
+          setErrorMessage(String(payload.error || `Restore fehlgeschlagen (HTTP ${response.status}).`));
+          return;
+        }
+        setErrorMessage(null);
+        await reloadCurrent();
+        await loadHistory(node.id);
+      } finally {
+        setRestoringId(null);
+      }
+    },
+    [loadHistory, reloadCurrent, selectedPersonaId],
+  );
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allPageSelected = useMemo(
@@ -271,6 +379,8 @@ const MemoryView: React.FC = () => {
 
   const saveEdit = useCallback(async () => {
     if (!selectedPersonaId || !editingId || !draft) return;
+    const current = nodes.find((node) => node.id === editingId) || null;
+    if (!current) return;
     setSaving(true);
     try {
       const response = await fetch('/api/memory', {
@@ -282,16 +392,24 @@ const MemoryView: React.FC = () => {
           content: draft.content,
           type: draft.type,
           importance: draft.importance,
+          expectedVersion: Number(current.metadata?.version || 1),
         }),
       });
-      if (response.ok) {
+      const payload = (await response.json()) as { ok?: boolean; error?: string };
+      if (response.ok && payload.ok) {
+        setErrorMessage(null);
         await reloadCurrent();
         cancelEdit();
+      } else if (response.status === 409) {
+        setErrorMessage('Memory wurde parallel geändert. Bitte neu laden und Änderung erneut speichern.');
+        await reloadCurrent();
+      } else {
+        setErrorMessage(String(payload.error || `Speichern fehlgeschlagen (HTTP ${response.status}).`));
       }
     } finally {
       setSaving(false);
     }
-  }, [cancelEdit, draft, editingId, reloadCurrent, selectedPersonaId]);
+  }, [cancelEdit, draft, editingId, nodes, reloadCurrent, selectedPersonaId]);
 
   const deleteNode = useCallback(
     async (nodeId: string) => {
@@ -304,13 +422,21 @@ const MemoryView: React.FC = () => {
           { method: 'DELETE' },
         );
         if (response.ok) {
+          setHistoryById((previous) => {
+            const next = { ...previous };
+            delete next[nodeId];
+            return next;
+          });
+          if (expandedHistoryId === nodeId) {
+            setExpandedHistoryId(null);
+          }
           await reloadCurrent();
         }
       } finally {
         setDeletingId(null);
       }
     },
-    [reloadCurrent, selectedPersonaId],
+    [expandedHistoryId, reloadCurrent, selectedPersonaId],
   );
 
   const clearPersonaMemory = useCallback(async () => {
@@ -323,6 +449,8 @@ const MemoryView: React.FC = () => {
         { method: 'DELETE' },
       );
       if (response.ok) {
+        setHistoryById({});
+        setExpandedHistoryId(null);
         await reloadCurrent();
         cancelEdit();
       }
@@ -395,6 +523,12 @@ const MemoryView: React.FC = () => {
               </button>
             </div>
           </div>
+
+          {errorMessage && (
+            <div className="mb-3 rounded-md border border-red-900/60 bg-red-950/30 px-3 py-2 text-xs text-red-200">
+              {errorMessage}
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-2">
             <input
@@ -518,8 +652,16 @@ const MemoryView: React.FC = () => {
                       {TYPE_LABEL[node.type]}
                     </span>
                     <span className="text-[11px] text-zinc-500">Importance: {node.importance}/5</span>
+                    <span className="text-[11px] text-zinc-500">Version: {Number(node.metadata?.version || 1)}</span>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => void toggleHistory(node.id)}
+                      disabled={historyLoadingId === node.id}
+                      className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800 disabled:opacity-40"
+                    >
+                      {expandedHistoryId === node.id ? 'Verlauf ausblenden' : 'Verlauf'}
+                    </button>
                     {!isEditing ? (
                       <>
                         <button
@@ -560,7 +702,9 @@ const MemoryView: React.FC = () => {
                 {!isEditing ? (
                   <div className="space-y-2">
                     <p className="text-sm leading-relaxed text-zinc-200">{node.content}</p>
-                    <div className="text-[11px] text-zinc-500">{node.timestamp}</div>
+                    <div className="text-[11px] text-zinc-500">
+                      {node.timestamp} · v{Number(node.metadata?.version || 1)}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -608,6 +752,44 @@ const MemoryView: React.FC = () => {
                         className="w-24 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-sm text-zinc-200 outline-none focus:border-indigo-500"
                       />
                     </div>
+                  </div>
+                )}
+
+                {expandedHistoryId === node.id && (
+                  <div className="mt-3 rounded-md border border-zinc-800 bg-zinc-950/40 p-3">
+                    <div className="mb-2 text-[11px] font-semibold tracking-wide text-zinc-400 uppercase">
+                      Verlauf
+                    </div>
+                    {historyLoadingId === node.id && (
+                      <div className="text-xs text-zinc-500">History wird geladen...</div>
+                    )}
+                    {historyLoadingId !== node.id &&
+                      (!historyById[node.id] || historyById[node.id].length === 0) && (
+                        <div className="text-xs text-zinc-500">Keine History-Einträge vorhanden.</div>
+                      )}
+                    {historyLoadingId !== node.id &&
+                      (historyById[node.id] || []).map((entry) => (
+                        <div
+                          key={`${node.id}:${entry.index}:${entry.timestamp}`}
+                          className="mb-2 rounded border border-zinc-800 bg-zinc-900/40 p-2 last:mb-0"
+                        >
+                          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-[11px] text-zinc-400">
+                              {entry.action} · {entry.timestamp} · v{Number(entry.version || 1)}
+                            </div>
+                            <button
+                              onClick={() => void restoreFromHistory(node, entry)}
+                              disabled={restoringId === node.id || !String(entry.content || '').trim()}
+                              className="rounded border border-amber-800/70 px-2 py-1 text-[11px] text-amber-300 hover:bg-amber-950/30 disabled:opacity-40"
+                            >
+                              Wiederherstellen
+                            </button>
+                          </div>
+                          <div className="text-xs leading-relaxed text-zinc-300">
+                            {String(entry.content || '').trim() || '(Kein Inhalt)'}
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 )}
               </article>

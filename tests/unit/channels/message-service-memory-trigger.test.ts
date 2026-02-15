@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '../../../types';
 import type { MessageRepository, StoredMessage } from '../../../src/server/channels/messages/repository';
 import type { Conversation } from '../../../types';
+import { LEGACY_LOCAL_USER_ID } from '../../../src/server/auth/constants';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
   vi.fn(async () => ({
@@ -43,13 +44,16 @@ vi.mock('../../../src/server/memory/runtime', () => ({
 
 import { MessageService } from '../../../src/server/channels/messages/service';
 
-function buildRepository(personaId: string | null): MessageRepository {
+function buildRepository(
+  personaId: string | null,
+  overrides?: Partial<Pick<Conversation, 'channelType' | 'externalChatId' | 'userId'>>,
+): MessageRepository {
   let seq = 0;
   const conversation: Conversation = {
     id: 'conv-1',
-    channelType: ChannelType.WEBCHAT,
-    externalChatId: 'default',
-    userId: 'user-1',
+    channelType: overrides?.channelType ?? ChannelType.WEBCHAT,
+    externalChatId: overrides?.externalChatId ?? 'default',
+    userId: overrides?.userId ?? 'user-1',
     title: 'Test Chat',
     modelOverride: null,
     personaId,
@@ -142,6 +146,30 @@ describe('MessageService memory trigger', () => {
     expect(result.agentMsg.content.toLowerCase()).toContain('gespeichert');
   });
 
+  it('stores memory when message starts with "Speichere ab" without colon and persona is active', async () => {
+    const service = new MessageService(buildRepository('persona-1'));
+
+    const result = await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Speichere ab Ich mag Pasta',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(memoryStoreMock).toHaveBeenCalledTimes(1);
+    expect(memoryStoreMock).toHaveBeenCalledWith(
+      'persona-1',
+      'fact',
+      'Ich mag Pasta',
+      4,
+      'user-1',
+    );
+    expect(dispatchWithFallbackMock).not.toHaveBeenCalled();
+    expect(result.agentMsg.content.toLowerCase()).toContain('gespeichert');
+  });
+
   it('does not store memory when no persona is active', async () => {
     const service = new MessageService(buildRepository(null));
 
@@ -157,5 +185,32 @@ describe('MessageService memory trigger', () => {
     expect(memoryStoreMock).not.toHaveBeenCalled();
     expect(dispatchWithFallbackMock).not.toHaveBeenCalled();
     expect(result.agentMsg.content.toLowerCase()).toContain('persona');
+  });
+
+  it('uses channel-scoped memory user id for telegram when conversation user is legacy fallback', async () => {
+    const service = new MessageService(
+      buildRepository('persona-1', {
+        channelType: ChannelType.TELEGRAM,
+        externalChatId: '1527785051',
+        userId: LEGACY_LOCAL_USER_ID,
+      }),
+    );
+
+    await service.handleInbound(
+      ChannelType.TELEGRAM,
+      '1527785051',
+      'Speichere ab: Ich mag Tee',
+      'telegram-user',
+      'ext-1',
+    );
+
+    expect(memoryStoreMock).toHaveBeenCalledTimes(1);
+    expect(memoryStoreMock).toHaveBeenCalledWith(
+      'persona-1',
+      'fact',
+      'Ich mag Tee',
+      4,
+      'channel:telegram:1527785051',
+    );
   });
 });
