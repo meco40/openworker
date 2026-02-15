@@ -1,10 +1,7 @@
 import type { MessageRepository } from './repository';
 import { getPersonaRepository } from '../../personas/personaRepository';
-
-interface GatewayMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
+import type { GatewayMessage } from '../../model-hub/Models/types';
+import { extractStoredAttachmentsFromMetadata } from './attachments';
 
 export class ContextBuilder {
   constructor(private readonly repo: MessageRepository) {}
@@ -23,10 +20,14 @@ export class ContextBuilder {
         )
       : history;
 
-    const mapped: GatewayMessage[] = unsummarizedHistory.map((message) => ({
-      role: message.role === 'agent' ? 'assistant' : message.role === 'system' ? 'system' : 'user',
-      content: message.content,
-    }));
+    const mapped: GatewayMessage[] = unsummarizedHistory.map((message) => {
+      const attachments = extractStoredAttachmentsFromMetadata(message.metadata);
+      return {
+        role: message.role === 'agent' ? 'assistant' : message.role === 'system' ? 'system' : 'user',
+        content: message.content,
+        attachments: attachments.length > 0 ? attachments : undefined,
+      };
+    });
 
     const prefix: GatewayMessage[] = [];
 

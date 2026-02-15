@@ -94,4 +94,51 @@ describe('ContextBuilder', () => {
       content: 'Second',
     });
   });
+
+  it('maps persisted user attachments into gateway message attachments', () => {
+    const repo: MessageRepository = {
+      ...createRepo(),
+      listMessages: () => [
+        {
+          id: 'm-attach',
+          conversationId: 'c1',
+          seq: 1,
+          role: 'user',
+          content: 'Bitte analysiere das Bild',
+          platform: ChannelType.WEBCHAT,
+          externalMsgId: null,
+          senderName: null,
+          metadata: JSON.stringify({
+            attachments: [
+              {
+                name: 'screen.png',
+                mimeType: 'image/png',
+                size: 2048,
+                storagePath: 'u1/c1/screen.png',
+              },
+            ],
+          }),
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      getConversationContext: () => null,
+    };
+
+    const builder = new ContextBuilder(repo);
+    const messages = builder.buildGatewayMessages('c1', 'u1', 20);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      role: 'user',
+      content: 'Bitte analysiere das Bild',
+    });
+    expect(messages[0]?.attachments).toEqual([
+      {
+        name: 'screen.png',
+        mimeType: 'image/png',
+        size: 2048,
+        storagePath: 'u1/c1/screen.png',
+      },
+    ]);
+  });
 });

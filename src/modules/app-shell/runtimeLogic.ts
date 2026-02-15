@@ -1,9 +1,11 @@
-import type { ChannelType, Conversation, Message } from '../../../types';
+import type { ChannelType, Conversation, Message, MessageAttachment } from '../../../types';
 
 interface ConversationApiMessage {
   id: string;
+  conversationId?: string;
   role: 'user' | 'agent' | 'system';
   content: string;
+  metadata?: string | null;
   createdAt: string;
   platform: ChannelType;
 }
@@ -17,12 +19,14 @@ function toUiTime(value: string): string {
 }
 
 export function mapConversationApiMessage(message: ConversationApiMessage): Message {
+  const attachment = parseMessageAttachment(message);
   return {
     id: message.id,
     role: message.role,
     content: message.content,
     timestamp: toUiTime(message.createdAt),
     platform: message.platform,
+    attachment,
   };
 }
 
@@ -85,4 +89,45 @@ export function buildConversationTitle(now: Date = new Date()): string {
     minute: '2-digit',
   });
   return `Chat ${stamp}`;
+}
+
+function parseMessageAttachment(message: ConversationApiMessage): MessageAttachment | undefined {
+  if (!message.metadata?.trim()) return undefined;
+
+  try {
+    const parsed = JSON.parse(message.metadata) as {
+      attachments?: Array<{
+        name?: unknown;
+        mimeType?: unknown;
+        size?: unknown;
+      }>;
+    };
+    const first = Array.isArray(parsed.attachments) ? parsed.attachments[0] : undefined;
+    if (
+      !first ||
+      typeof first.name !== 'string' ||
+      typeof first.mimeType !== 'string' ||
+      typeof first.size !== 'number' ||
+      !Number.isFinite(first.size)
+    ) {
+      return undefined;
+    }
+
+    const query = new URLSearchParams({
+      messageId: message.id,
+      index: '0',
+    });
+    if (message.conversationId) {
+      query.set('conversationId', message.conversationId);
+    }
+
+    return {
+      name: first.name,
+      type: first.mimeType,
+      size: Math.max(0, Math.floor(first.size)),
+      url: `/api/channels/messages/attachments?${query.toString()}`,
+    };
+  } catch {
+    return undefined;
+  }
 }

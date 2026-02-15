@@ -338,6 +338,26 @@ export class SqliteMessageRepository implements MessageRepository {
     return toMessage(row);
   }
 
+  getMessage(id: string, userId?: string): StoredMessage | null {
+    const normalizedUserId = userId ? this.normalizeUserId(userId) : null;
+    const row = normalizedUserId
+      ? (this.db
+          .prepare(
+            `
+            SELECT m.*
+            FROM messages m
+            JOIN conversations c ON c.id = m.conversation_id
+            WHERE m.id = ? AND c.user_id = ?
+            LIMIT 1
+            `,
+          )
+          .get(id, normalizedUserId) as Record<string, unknown> | undefined)
+      : (this.db.prepare('SELECT * FROM messages WHERE id = ? LIMIT 1').get(id) as
+          | Record<string, unknown>
+          | undefined);
+    return row ? toMessage(row) : null;
+  }
+
   listMessages(
     conversationId: string,
     limit = 100,

@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getMessageService } from '../../../../src/server/channels/messages/runtime';
 import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import {
+  persistIncomingAttachment,
+  type IncomingMessageAttachmentPayload,
+  type StoredMessageAttachment,
+} from '../../../../src/server/channels/messages/attachments';
 
 export const runtime = 'nodejs';
 
@@ -35,11 +40,13 @@ export async function POST(request: Request) {
       content?: string;
       clientMessageId?: string;
       personaId?: string;
+      attachment?: {
+        name?: string;
+        type?: string;
+        size?: number;
+        url?: string;
+      };
     };
-
-    if (!body.content?.trim()) {
-      return NextResponse.json({ ok: false, error: 'content is required' }, { status: 400 });
-    }
 
     const userContext = await resolveRequestUserContext();
     if (!userContext) {
@@ -49,6 +56,42 @@ export async function POST(request: Request) {
     const service = getMessageService();
     const conversationId =
       body.conversationId || service.getDefaultWebChatConversation(userContext.userId).id;
+
+    const content = String(body.content || '');
+    const trimmedContent = content.trim();
+    const hasAttachment = Boolean(body.attachment?.url?.trim());
+    if (!trimmedContent && !hasAttachment) {
+      return NextResponse.json(
+        { ok: false, error: 'content or attachment is required' },
+        { status: 400 },
+      );
+    }
+
+    const attachments: StoredMessageAttachment[] = [];
+    if (hasAttachment) {
+      try {
+        const attachmentPayload: IncomingMessageAttachmentPayload = {
+          name: String(body.attachment?.name || 'attachment'),
+          type: String(body.attachment?.type || ''),
+          size:
+            typeof body.attachment?.size === 'number' && Number.isFinite(body.attachment.size)
+              ? Math.max(0, Math.floor(body.attachment.size))
+              : 0,
+          dataUrl: String(body.attachment?.url || ''),
+        };
+        attachments.push(
+          persistIncomingAttachment({
+            userId: userContext.userId,
+            conversationId,
+            attachment: attachmentPayload,
+          }),
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Attachment could not be processed.';
+        return NextResponse.json({ ok: false, error: message }, { status: 400 });
+      }
+    }
     
     // If personaId provided and conversation doesn't have one, bind it
     if (body.personaId) {
@@ -60,9 +103,10 @@ export async function POST(request: Request) {
     
     const result = await service.handleWebUIMessage(
       conversationId,
-      body.content,
+      trimmedContent,
       userContext.userId,
       body.clientMessageId,
+      attachments.length > 0 ? attachments : undefined,
     );
 
     return NextResponse.json({

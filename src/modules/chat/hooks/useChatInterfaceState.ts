@@ -51,6 +51,7 @@ export function useChatInterfaceState({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   const activeConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === activeConversationId),
@@ -87,6 +88,10 @@ export function useChatInterfaceState({
     onSendMessage(input, activeConversation.channelType, pendingFile || undefined);
     setInput('');
     setPendingFile(null);
+    // Fokus zurück auf das Eingabefeld setzen
+    setTimeout(() => {
+      textInputRef.current?.focus();
+    }, 0);
   }, [activeConversation, input, onSendMessage, pendingFile, isGenerating]);
 
   // Reset isGenerating when a new agent message arrives
@@ -184,6 +189,7 @@ export function useChatInterfaceState({
     visibleConversations,
     scrollRef,
     fileInputRef,
+    textInputRef,
     handleSend,
     handleAbort,
     handleFileSelect,

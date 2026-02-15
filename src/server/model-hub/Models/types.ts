@@ -18,6 +18,15 @@ export interface ConnectivityResult {
 export interface GatewayMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+  attachments?: GatewayMessageAttachment[];
+}
+
+export interface GatewayMessageAttachment {
+  name: string;
+  mimeType: string;
+  size: number;
+  storagePath: string;
+  sha256?: string;
 }
 
 export type GatewayAuditKind =

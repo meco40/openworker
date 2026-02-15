@@ -15,8 +15,10 @@ interface ConversationListResponse {
 
 interface PersistedConversationMessage {
   id: string;
+  conversationId?: string;
   role: 'user' | 'agent' | 'system';
   content: string;
+  metadata?: string | null;
   createdAt: string;
   platform: Message['platform'];
 }

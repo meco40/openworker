@@ -72,6 +72,7 @@ export interface MessageRepository {
   updateConversationTitle(id: string, title: string): void;
 
   saveMessage(input: SaveMessageInput): StoredMessage;
+  getMessage?(id: string, userId?: string): StoredMessage | null;
   listMessages(
     conversationId: string,
     limit?: number,

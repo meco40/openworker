@@ -10,6 +10,7 @@ export interface ChatMessagePayload {
   conversationId: string;
   role: 'user' | 'agent' | 'system';
   content: string;
+  metadata?: string | null;
   platform: ChannelType;
   createdAt: string;
   seq?: number;

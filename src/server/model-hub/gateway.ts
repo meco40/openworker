@@ -134,7 +134,13 @@ export async function dispatchGatewayRequest(
     }
 
     const promptPreview = redactedRequest.messages
-      .map((message) => message.content.replace(/\s+/g, ' ').trim())
+      .map((message) => {
+        const text = message.content.replace(/\s+/g, ' ').trim();
+        const attachmentHint = (message.attachments || [])
+          .map((attachment) => `[attachment:${attachment.name}:${attachment.mimeType}]`)
+          .join(' ');
+        return [text, attachmentHint].filter(Boolean).join(' ');
+      })
       .join(' ')
       .slice(0, 600);
 

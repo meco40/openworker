@@ -1,17 +1,144 @@
 import type { ConnectivityResult, FetchedModel, GatewayRequest, GatewayResponse } from '../types';
 import { fetchWithTimeout } from './http';
+import {
+  readStoredAttachmentAsDataUrl,
+  readStoredAttachmentBuffer,
+} from '../../../channels/messages/attachments';
 
 const GATEWAY_TIMEOUT_MS = 60_000;
+
+function normalizeBearerSecret(secret: string): string {
+  let normalized = secret.trim();
+  normalized = normalized.replace(/^[\r\n\t ]+|[\r\n\t ]+$/g, '');
+  normalized = normalized.replace(/^['"`](.*)['"`]$/s, '$1').trim();
+  normalized = normalized.replace(/^Bearer\s+/i, '').trim();
+  normalized = normalized.replace(/\\[nrt]/g, '');
+  normalized = normalized.replace(/[\r\n\t]/g, '');
+  return normalized;
+}
+
+function isImageAttachment(mimeType: string): boolean {
+  return mimeType.trim().toLowerCase().startsWith('image/');
+}
+
+function isTextAttachment(mimeType: string): boolean {
+  const normalized = mimeType.trim().toLowerCase();
+  return normalized.startsWith('text/') || normalized === 'application/json';
+}
+
+function readTextAttachmentSnippet(
+  attachment: NonNullable<GatewayRequest['messages'][number]['attachments']>[number],
+): string | null {
+  try {
+    const bytes = readStoredAttachmentBuffer(attachment);
+    if (!bytes.length) return null;
+    const text = bytes
+      .toString('utf8')
+      .replace(/\u0000/g, '')
+      .trim();
+    if (!text) return null;
+    return text.slice(0, 12_000);
+  } catch {
+    return null;
+  }
+}
+
+function attachmentFallbackText(
+  attachment: NonNullable<GatewayRequest['messages'][number]['attachments']>[number],
+): string {
+  return `[Attachment: ${attachment.name} (${attachment.mimeType}, ${attachment.size} bytes)]`;
+}
+
+function buildOpenAICompatibleMessages(
+  messages: GatewayRequest['messages'],
+): Array<Record<string, unknown>> {
+  const latestUserAttachmentIndex = (() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.role !== 'user') continue;
+      if ((message.attachments?.length || 0) > 0) return index;
+    }
+    return -1;
+  })();
+
+  return messages.map((message, index) => {
+    const attachments = message.attachments || [];
+    if (message.role !== 'user' || attachments.length === 0) {
+      return {
+        role: message.role,
+        content: message.content,
+      };
+    }
+
+    const contentParts: Array<Record<string, unknown>> = [];
+    const textParts: string[] = [];
+    const trimmedContent = message.content.trim();
+    if (trimmedContent) {
+      textParts.push(trimmedContent);
+    }
+
+    for (const attachment of attachments) {
+      const includeBinaryAttachment = index === latestUserAttachmentIndex;
+      if (includeBinaryAttachment && isImageAttachment(attachment.mimeType)) {
+        const dataUrl = readStoredAttachmentAsDataUrl(attachment);
+        if (dataUrl) {
+          if (textParts.length > 0) {
+            contentParts.push({
+              type: 'text',
+              text: textParts.join('\n\n'),
+            });
+            textParts.length = 0;
+          }
+          contentParts.push({
+            type: 'image_url',
+            image_url: { url: dataUrl },
+          });
+          continue;
+        }
+      }
+
+      if (includeBinaryAttachment && isTextAttachment(attachment.mimeType)) {
+        const snippet = readTextAttachmentSnippet(attachment);
+        if (snippet) {
+          textParts.push(`Attachment ${attachment.name} (${attachment.mimeType}):\n${snippet}`);
+          continue;
+        }
+      }
+
+      textParts.push(attachmentFallbackText(attachment));
+    }
+
+    if (textParts.length > 0) {
+      contentParts.push({
+        type: 'text',
+        text: textParts.join('\n\n'),
+      });
+    }
+
+    if (contentParts.length === 0) {
+      return {
+        role: message.role,
+        content: message.content,
+      };
+    }
+
+    return {
+      role: message.role,
+      content: contentParts,
+    };
+  });
+}
 
 export async function fetchOpenAICompatibleModels(
   baseUrl: string,
   secret: string,
   providerId: string,
 ): Promise<FetchedModel[]> {
+  const normalizedSecret = normalizeBearerSecret(secret);
   const url = `${baseUrl.replace(/\/$/, '')}/models`;
   const response = await fetchWithTimeout(url, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${secret}` },
+    headers: { Authorization: `Bearer ${normalizedSecret}` },
   });
 
   if (!response.ok) return [];
@@ -36,10 +163,11 @@ export async function testOpenAICompatibleModelsEndpoint(
   failurePrefix: string,
 ): Promise<ConnectivityResult> {
   try {
+    const normalizedSecret = normalizeBearerSecret(secret);
     const url = `${baseUrl.replace(/\/$/, '')}/models`;
     const response = await fetchWithTimeout(url, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${secret}` },
+      headers: { Authorization: `Bearer ${normalizedSecret}` },
     });
 
     if (!response.ok) {
@@ -64,13 +192,11 @@ export async function dispatchOpenAICompatibleChat(
   request: GatewayRequest,
   options: { extraHeaders?: Record<string, string>; signal?: AbortSignal } = {},
 ): Promise<GatewayResponse> {
+  const normalizedSecret = normalizeBearerSecret(secret);
   const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
   const body: Record<string, unknown> = {
     model: request.model,
-    messages: request.messages.map((message) => ({
-      role: message.role,
-      content: message.content,
-    })),
+    messages: buildOpenAICompatibleMessages(request.messages),
     max_tokens: request.max_tokens ?? 4096,
     temperature: request.temperature ?? 0.7,
     stream: false,
@@ -83,7 +209,7 @@ export async function dispatchOpenAICompatibleChat(
   }
 
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${secret}`,
+    Authorization: `Bearer ${normalizedSecret}`,
     'Content-Type': 'application/json',
     ...(options.extraHeaders ?? {}),
   };

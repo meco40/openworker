@@ -127,10 +127,6 @@ const App: React.FC = () => {
         return;
       }
 
-      const fullContent = attachment
-        ? `${content}\n\n[Attached file: ${attachment.name} (${attachment.type})]`
-        : content;
-
       const clientMessageId = crypto.randomUUID();
 
       setIsServerResponding(true);
@@ -142,9 +138,17 @@ const App: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             conversationId: activeConversationId,
-            content: fullContent,
+            content,
             clientMessageId,
             personaId: activePersonaId || undefined,
+            attachment: attachment
+              ? {
+                  name: attachment.name,
+                  type: attachment.type,
+                  size: attachment.size,
+                  url: attachment.url,
+                }
+              : undefined,
           }),
         });
 
@@ -153,15 +157,19 @@ const App: React.FC = () => {
           error?: string;
           userMessage?: {
             id: string;
+            conversationId?: string;
             role: 'user' | 'agent' | 'system';
             content: string;
+            metadata?: string | null;
             createdAt: string;
             platform: ChannelType;
           };
           agentMessage?: {
             id: string;
+            conversationId?: string;
             role: 'user' | 'agent' | 'system';
             content: string;
+            metadata?: string | null;
             createdAt: string;
             platform: ChannelType;
           };

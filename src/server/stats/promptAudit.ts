@@ -94,6 +94,13 @@ export function estimatePromptTokens(request: GatewayRequest): number {
   }
   for (const message of request.messages) {
     contentParts.push(message.content);
+    if (message.attachments?.length) {
+      contentParts.push(
+        message.attachments
+          .map((attachment) => `[attachment:${attachment.name}:${attachment.mimeType}]`)
+          .join('\n'),
+      );
+    }
   }
   if (request.tools) {
     contentParts.push(JSON.stringify(request.tools));
