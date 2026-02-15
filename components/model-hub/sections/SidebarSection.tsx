@@ -226,41 +226,6 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
         </div>
       </div>
 
-      <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
-        <h4 className="mb-4 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
-          Provider Katalog
-        </h4>
-        <div className="max-h-80 space-y-2 overflow-y-auto">
-          {providerCatalog.map((provider) => {
-            const connected = providerAccounts.filter(
-              (account) => account.providerId === provider.id,
-            ).length;
-            return (
-              <div
-                key={provider.id}
-                className="flex items-center justify-between border-b border-zinc-800/50 py-1.5 text-[10px] last:border-0"
-              >
-                <div className="flex items-center space-x-2">
-                  <span className="text-base">{provider.icon}</span>
-                  <span className="font-medium text-zinc-300">{provider.name}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="font-mono text-zinc-600">
-                    {provider.authMethods
-                      .map((method) => (method === 'api_key' ? 'Key' : 'OAuth'))
-                      .join('+')}
-                  </span>
-                  {connected > 0 && (
-                    <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-black text-emerald-500">
-                      {connected}×
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 };

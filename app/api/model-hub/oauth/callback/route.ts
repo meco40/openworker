@@ -5,8 +5,11 @@ import {
   getModelHubEncryptionKey,
   getModelHubService,
 } from '../../../../../src/server/model-hub/runtime';
+import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
+const OPENAI_DEFAULT_TOKEN_URL = 'https://auth0.openai.com/oauth/token';
+const OPENAI_DEFAULT_AUDIENCE = 'https://api.openai.com/v1';
 
 interface OauthExchangeResult {
   accessToken: string;
@@ -17,7 +20,7 @@ function findProvider(providerId: string) {
   return PROVIDER_CATALOG.find((provider) => provider.id === providerId) ?? null;
 }
 
-function htmlResult(ok: boolean, message: string): NextResponse {
+function htmlResult(ok: boolean, message: string, status = 200): NextResponse {
   const payload = JSON.stringify({
     type: 'MODEL_HUB_OAUTH_RESULT',
     ok,
@@ -40,7 +43,7 @@ function htmlResult(ok: boolean, message: string): NextResponse {
   </body>
 </html>`;
   return new NextResponse(html, {
-    status: 200,
+    status,
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
 }
@@ -124,18 +127,23 @@ async function exchangeOpenAICode(
   if (!clientId) {
     throw new Error('Missing OPENAI_OAUTH_CLIENT_ID.');
   }
+  const clientSecret = process.env.OPENAI_OAUTH_CLIENT_SECRET?.trim() || '';
+  const tokenUrl = process.env.OPENAI_OAUTH_TOKEN_URL?.trim() || OPENAI_DEFAULT_TOKEN_URL;
+  const audience = process.env.OPENAI_OAUTH_AUDIENCE?.trim() || OPENAI_DEFAULT_AUDIENCE;
 
-  // OpenAI Auth0 token endpoint — stable, discoverable via OIDC.
-  // Uses PKCE (code_verifier) so no client_secret is needed.
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     client_id: clientId,
     code,
     code_verifier: codeVerifier,
     redirect_uri: callbackUrl,
+    audience,
   });
+  if (clientSecret) {
+    body.set('client_secret', clientSecret);
+  }
 
-  const response = await fetch('https://auth0.openai.com/oauth/token', {
+  const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
@@ -161,6 +169,11 @@ async function exchangeOpenAICode(
 
 export async function GET(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return htmlResult(false, 'Unauthorized', 401);
+    }
+
     const url = new URL(request.url);
     const error = String(url.searchParams.get('error') || '').trim();
     const code = String(url.searchParams.get('code') || '').trim();

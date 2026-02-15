@@ -33,6 +33,12 @@ interface UpdateStatusBody {
   status?: 'active' | 'rate-limited' | 'offline';
 }
 
+interface ReorderModelBody {
+  profileId?: string;
+  modelId?: string;
+  direction?: 'up' | 'down';
+}
+
 const DEFAULT_PROFILE = 'p1';
 
 export async function GET(request: Request) {
@@ -156,6 +162,27 @@ export async function POST(request: Request) {
       }
       service.updateModelStatus(modelId, status);
       return NextResponse.json({ ok: true });
+    }
+
+    if (action === 'reorder') {
+      const reorderBody = body as ReorderModelBody;
+      const profileId = reorderBody.profileId?.trim() || DEFAULT_PROFILE;
+      const modelId = reorderBody.modelId?.trim();
+      const direction = reorderBody.direction;
+      if (!modelId || !direction) {
+        return NextResponse.json(
+          { ok: false, error: 'modelId and direction are required.' },
+          { status: 400 },
+        );
+      }
+      if (direction !== 'up' && direction !== 'down') {
+        return NextResponse.json(
+          { ok: false, error: 'direction must be "up" or "down".' },
+          { status: 400 },
+        );
+      }
+      const moved = service.movePipelineModel(profileId, modelId, direction);
+      return NextResponse.json({ ok: true, moved });
     }
 
     return NextResponse.json({ ok: false, error: `Unknown action: ${action}` }, { status: 400 });

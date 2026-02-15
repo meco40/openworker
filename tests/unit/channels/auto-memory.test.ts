@@ -43,6 +43,13 @@ describe('autoMemory candidate builder', () => {
     expect(candidates).toHaveLength(0);
   });
 
+  it('skips explicit save trigger without colon to avoid duplicate auto-store', () => {
+    const candidates = buildAutoMemoryCandidates([
+      msg('user', 'Speichere ab Ich trinke Kaffee immer schwarz.'),
+    ]);
+    expect(candidates).toHaveLength(0);
+  });
+
   it('adds a dated session recap lesson when enough user messages exist', () => {
     const candidates = buildAutoMemoryCandidates([
       msg('user', 'Ich trinke Kaffee schwarz.', '2026-02-10T09:00:00.000Z'),

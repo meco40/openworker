@@ -3,6 +3,7 @@ import {
   getModelHubEncryptionKey,
   getModelHubService,
 } from '../../../../../../src/server/model-hub/runtime';
+import { resolveRequestUserContext } from '../../../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
 
@@ -17,6 +18,11 @@ async function resolveAccountId(context: RouteContext): Promise<string> {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const accountId = await resolveAccountId(context);
     if (!accountId) {
       return NextResponse.json({ ok: false, error: 'Missing accountId.' }, { status: 400 });

@@ -1,5 +1,10 @@
 import type { MemoryNode, MemoryType } from '../../../core/memory/types';
-import type { Mem0Client, Mem0MemoryRecord, Mem0SearchHit } from './mem0Client';
+import type {
+  Mem0Client,
+  Mem0HistoryEntry,
+  Mem0MemoryRecord,
+  Mem0SearchHit,
+} from './mem0Client';
 import { LEGACY_LOCAL_USER_ID } from '../auth/constants';
 
 export type MemoryFeedbackSignal = 'positive' | 'negative';
@@ -13,6 +18,27 @@ export interface MemoryRecallMatch {
 export interface MemoryRecallResult {
   context: string;
   matches: MemoryRecallMatch[];
+}
+
+export interface MemoryHistoryRecord {
+  index: number;
+  action: string;
+  timestamp: string;
+  content?: string;
+  type?: MemoryType;
+  importance?: number;
+  version?: number;
+  metadata: Record<string, unknown>;
+}
+
+export class MemoryVersionConflictError extends Error {
+  readonly currentVersion: number;
+
+  constructor(currentVersion: number, message = 'Memory version conflict. Reload and retry.') {
+    super(message);
+    this.name = 'MemoryVersionConflictError';
+    this.currentVersion = currentVersion;
+  }
 }
 
 const MIN_CONFIDENCE = 0.1;
@@ -59,6 +85,12 @@ function asFeedbackCount(value: unknown): number {
   return Math.floor(parsed);
 }
 
+function asVersion(value: unknown, fallback = 1): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.floor(parsed);
+}
+
 function normalizeMem0Score(score: number | null): number {
   if (typeof score !== 'number' || !Number.isFinite(score)) return 0.75;
   if (score >= 0 && score <= 1) return score;
@@ -88,7 +120,8 @@ function toMemoryNode(record: Mem0MemoryRecord): MemoryNode {
     timestamp: formatTimestamp(record.updatedAt || record.createdAt),
     metadata: {
       ...metadata,
-      mem0Id: record.id,
+      mem0Id:
+        (typeof metadata.mem0Id === 'string' && metadata.mem0Id.trim()) || record.id,
       source: 'mem0',
       memoryProvider: 'mem0',
       lastVerified:
@@ -114,6 +147,16 @@ function isNotFoundError(error: unknown): boolean {
   return /http\s*404/i.test(message);
 }
 
+function isLegacyDeleteNotFoundError(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  if (!/http\s*500/i.test(message)) return false;
+  return (
+    (message.includes('nonetype') && message.includes('payload')) ||
+    message.includes('memory not found') ||
+    message.includes('not found')
+  );
+}
+
 function matchesQuery(node: MemoryNode, query?: string): boolean {
   const needle = String(query || '').trim().toLowerCase();
   if (!needle) return true;
@@ -125,8 +168,51 @@ function matchesType(node: MemoryNode, type?: MemoryType): boolean {
   return node.type === type;
 }
 
+function asOptionalMemoryType(value: unknown): MemoryType | undefined {
+  const text = String(value || '').trim() as MemoryType;
+  const allowed: MemoryType[] = [
+    'fact',
+    'preference',
+    'avoidance',
+    'lesson',
+    'personality_trait',
+    'workflow_pattern',
+  ];
+  return allowed.includes(text) ? text : undefined;
+}
+
+function toHistoryRecord(entry: Mem0HistoryEntry, index: number): MemoryHistoryRecord {
+  const metadata = entry.metadata || {};
+  return {
+    index,
+    action: String(entry.action || 'unknown').toLowerCase(),
+    timestamp: String(entry.timestamp || new Date().toISOString()),
+    content: entry.content,
+    type: asOptionalMemoryType(metadata.type),
+    importance:
+      metadata.importance === undefined ? undefined : asImportance(metadata.importance, 3),
+    version:
+      metadata.version === undefined ? index + 1 : asVersion(metadata.version, index + 1),
+    metadata,
+  };
+}
+
 export class MemoryService {
   constructor(private readonly mem0Client: Mem0Client) {}
+
+  private async resolveNodeVersion(nodeId: string, node: MemoryNode): Promise<number> {
+    const metaVersion = Number(node.metadata?.version);
+    if (Number.isFinite(metaVersion) && metaVersion >= 1) {
+      return Math.floor(metaVersion);
+    }
+    try {
+      const history = await this.mem0Client.getMemoryHistory(nodeId);
+      if (history.length > 0) return history.length;
+    } catch (error) {
+      if (!isNotFoundError(error)) throw error;
+    }
+    return 1;
+  }
 
   async store(
     personaId: string,
@@ -145,6 +231,7 @@ export class MemoryService {
         type,
         importance: asImportance(importance, 3),
         confidence: 0.3,
+        version: 1,
         lastVerified: new Date().toISOString(),
       },
     });
@@ -164,6 +251,7 @@ export class MemoryService {
         mem0Id: result.id,
         source: 'mem0',
         memoryProvider: 'mem0',
+        version: 1,
         lastVerified: new Date().toISOString(),
       },
     };
@@ -176,14 +264,15 @@ export class MemoryService {
     userId?: string,
   ): Promise<MemoryRecallResult> {
     const scopedUserId = resolveUserId(userId);
+    const safeLimit = Math.max(1, limit);
     const hits = await this.mem0Client.searchMemories({
       userId: scopedUserId,
       personaId,
       query,
-      limit,
+      limit: safeLimit,
     });
 
-    const matches = hits
+    let matches = hits
       .map((hit) => {
         const similarity = normalizeMem0Score(hit.score);
         return {
@@ -194,7 +283,31 @@ export class MemoryService {
       })
       .filter((entry) => entry.similarity >= MEM0_SCORE_THRESHOLD)
       .sort((a, b) => b.score - a.score)
-      .slice(0, Math.max(1, limit));
+      .slice(0, safeLimit);
+
+    if (matches.length === 0) {
+      const listed = await this.mem0Client.listMemories({
+        userId: scopedUserId,
+        personaId,
+        page: 1,
+        pageSize: Math.max(10, safeLimit),
+        query: query.trim() || undefined,
+      });
+
+      const lowered = query.trim().toLowerCase();
+      matches = listed.memories
+        .map((record) => toMemoryNode(record))
+        .filter((node) => {
+          if (!lowered) return true;
+          return node.content.toLowerCase().includes(lowered);
+        })
+        .slice(0, safeLimit)
+        .map((node) => ({
+          node,
+          similarity: MEM0_SCORE_THRESHOLD,
+          score: MEM0_SCORE_THRESHOLD,
+        }));
+    }
 
     const context = matches.map((result) => `[Type: ${result.node.type}] ${result.node.content}`).join('\n');
 
@@ -234,6 +347,8 @@ export class MemoryService {
       const confidenceDelta = signal === 'positive' ? 0.15 : -0.2;
       const importanceDelta = signal === 'positive' ? 1 : -1;
       const nextFeedbackCount = asFeedbackCount(existingNode.metadata?.feedbackCount) + 1;
+      const currentVersion = await this.resolveNodeVersion(nodeId, existingNode);
+      const nextVersion = currentVersion + 1;
       const nextConfidence = Math.min(
         MAX_CONFIDENCE,
         Math.max(MIN_CONFIDENCE, existingNode.confidence + confidenceDelta),
@@ -265,6 +380,7 @@ export class MemoryService {
           lastVerified: new Date().toISOString(),
           lastFeedback: signal,
           feedbackCount: nextFeedbackCount,
+          version: nextVersion,
           mem0Id: nodeId,
           source: 'mem0',
           memoryProvider: 'mem0',
@@ -333,15 +449,17 @@ export class MemoryService {
       .filter((node) => matchesQuery(node, input.query))
       .filter((node) => matchesType(node, input.type));
 
-    const total = Math.max(filteredNodes.length, listed.total);
+    const localFilteredOut = listed.memories.length !== filteredNodes.length;
+    const total = localFilteredOut ? filteredNodes.length : Math.max(filteredNodes.length, listed.total);
+    const safePageSize = Math.max(1, listed.pageSize);
 
     return {
       nodes: filteredNodes,
       pagination: {
         page: listed.page,
-        pageSize: listed.pageSize,
+        pageSize: safePageSize,
         total,
-        totalPages: Math.max(1, Math.ceil(total / listed.pageSize)),
+        totalPages: Math.max(1, Math.ceil(total / safePageSize)),
       },
     };
   }
@@ -353,6 +471,7 @@ export class MemoryService {
       type?: MemoryType;
       content?: string;
       importance?: number;
+      expectedVersion?: number;
     },
     userId?: string,
   ): Promise<MemoryNode | null> {
@@ -372,24 +491,33 @@ export class MemoryService {
     const nextContent = input.content ?? currentNode.content;
     const nextImportance = input.importance ?? currentNode.importance;
     const nextConfidence = currentNode.confidence;
+    const currentVersion = await this.resolveNodeVersion(nodeId, currentNode);
+    const expectedVersion =
+      input.expectedVersion === undefined ? undefined : asVersion(input.expectedVersion, NaN);
+    if (expectedVersion !== undefined && expectedVersion !== currentVersion) {
+      throw new MemoryVersionConflictError(currentVersion);
+    }
+    const nextVersion = currentVersion + 1;
+    const nextMetadata: Record<string, unknown> = {
+      ...(currentNode.metadata || {}),
+      type: nextType,
+      importance: asImportance(nextImportance, currentNode.importance),
+      confidence: nextConfidence,
+      lastVerified: new Date().toISOString(),
+      version: nextVersion,
+      mem0Id: nodeId,
+      source: 'mem0',
+      memoryProvider: 'mem0',
+    };
 
     await this.mem0Client.updateMemory(nodeId, {
       userId: scopedUserId,
       personaId,
       content: nextContent,
-      metadata: {
-        ...(currentNode.metadata || {}),
-        type: nextType,
-        importance: asImportance(nextImportance, currentNode.importance),
-        confidence: nextConfidence,
-        lastVerified: new Date().toISOString(),
-        mem0Id: nodeId,
-        source: 'mem0',
-        memoryProvider: 'mem0',
-      },
+      metadata: nextMetadata,
     });
 
-    return {
+    const updated: MemoryNode = {
       ...currentNode,
       id: nodeId,
       type: nextType,
@@ -397,24 +525,123 @@ export class MemoryService {
       importance: asImportance(nextImportance, currentNode.importance),
       timestamp: formatTimestamp(),
       metadata: {
-        ...(currentNode.metadata || {}),
-        lastVerified: new Date().toISOString(),
+        ...nextMetadata,
         mem0Id: nodeId,
-        source: 'mem0',
-        memoryProvider: 'mem0',
       },
+    };
+
+    if (expectedVersion !== undefined) {
+      let latest: Mem0MemoryRecord | null = null;
+      try {
+        latest = await this.mem0Client.getMemory(nodeId);
+      } catch (error) {
+        if (!isNotFoundError(error)) throw error;
+      }
+      if (latest) {
+        const latestNode = toMemoryNode(latest);
+        const latestVersion = await this.resolveNodeVersion(nodeId, latestNode);
+        if (latestVersion !== nextVersion) {
+          throw new MemoryVersionConflictError(latestVersion);
+        }
+        return {
+          ...latestNode,
+          metadata: {
+            ...(latestNode.metadata || {}),
+            version: latestVersion,
+            mem0Id: nodeId,
+          },
+        };
+      }
+    }
+
+    return updated;
+  }
+
+  async restoreFromHistory(
+    personaId: string,
+    nodeId: string,
+    input: { restoreIndex: number; expectedVersion?: number },
+    userId?: string,
+  ): Promise<MemoryNode | null> {
+    const snapshot = await this.history(personaId, nodeId, userId);
+    if (!snapshot) return null;
+
+    const index = Math.floor(input.restoreIndex);
+    if (!Number.isFinite(index) || index < 0 || index >= snapshot.entries.length) {
+      throw new Error('Invalid restore index.');
+    }
+    const target = snapshot.entries[index];
+    const restoredContent = String(target.content || '').trim();
+    if (!restoredContent) {
+      throw new Error('Selected history entry has no restorable content.');
+    }
+
+    return this.update(
+      personaId,
+      nodeId,
+      {
+        content: restoredContent,
+        type: target.type,
+        importance: target.importance,
+        expectedVersion: input.expectedVersion,
+      },
+      userId,
+    );
+  }
+
+  async history(
+    personaId: string,
+    nodeId: string,
+    userId?: string,
+  ): Promise<{ node: MemoryNode; entries: MemoryHistoryRecord[] } | null> {
+    let current: Mem0MemoryRecord | null = null;
+    try {
+      current = await this.mem0Client.getMemory(nodeId);
+    } catch (error) {
+      if (isNotFoundError(error)) return null;
+      throw error;
+    }
+    if (!current) return null;
+
+    const node = toMemoryNode(current);
+    let entries: Mem0HistoryEntry[] = [];
+    try {
+      entries = await this.mem0Client.getMemoryHistory(nodeId);
+    } catch (error) {
+      if (!isNotFoundError(error)) throw error;
+    }
+    // Keep signature aligned with user-scoped service calls.
+    void personaId;
+    void userId;
+
+    return {
+      node,
+      entries: entries.map((entry, index) => toHistoryRecord(entry, index)),
     };
   }
 
   async delete(personaId: string, nodeId: string, userId?: string): Promise<boolean> {
-    const _scopedUserId = resolveUserId(userId);
-    const _personaId = personaId;
+    const scopedUserId = resolveUserId(userId);
     try {
       await this.mem0Client.deleteMemory(nodeId);
       return true;
     } catch (error) {
-      if (isNotFoundError(error)) return false;
-      throw error;
+      if (!isNotFoundError(error) && !isLegacyDeleteNotFoundError(error)) throw error;
+
+      const nodes = await this.snapshot(personaId, scopedUserId);
+      const rewritten = nodes.find((node) => {
+        const sourceId = String(node.metadata?.mem0Id || '').trim();
+        return sourceId === nodeId;
+      });
+      if (!rewritten) return false;
+
+      try {
+        await this.mem0Client.deleteMemory(rewritten.id);
+        return true;
+      } catch (secondError) {
+        if (isNotFoundError(secondError)) return false;
+        throw secondError;
+      }
     }
   }
 

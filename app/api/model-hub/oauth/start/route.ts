@@ -6,8 +6,11 @@ import {
 } from '../../../../../src/server/model-hub/oauth';
 import { getModelHubEncryptionKey } from '../../../../../src/server/model-hub/runtime';
 import { PROVIDER_CATALOG } from '../../../../../src/server/model-hub/providerCatalog';
+import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';
+const OPENAI_DEFAULT_AUTHORIZE_URL = 'https://auth0.openai.com/authorize';
+const OPENAI_DEFAULT_AUDIENCE = 'https://api.openai.com/v1';
 
 function findProvider(providerId: string) {
   return PROVIDER_CATALOG.find((provider) => provider.id === providerId) ?? null;
@@ -61,6 +64,11 @@ function buildOpenRouterAuthorizeUrl(
 
 export async function GET(request: Request) {
   try {
+    const userContext = await resolveRequestUserContext();
+    if (!userContext) {
+      return popupResult(false, 'Unauthorized', 401);
+    }
+
     const url = new URL(request.url);
     const providerId = String(url.searchParams.get('providerId') || '').trim();
     const label = String(url.searchParams.get('label') || '').trim();
@@ -129,11 +137,16 @@ export async function GET(request: Request) {
       const { codeVerifier, codeChallenge } = createPkcePair();
       const pkceState = createOAuthState({ ...oauthStateBase, codeVerifier }, signingKey);
       const scope = process.env.OPENAI_OAUTH_SCOPE?.trim() || 'openid profile email offline_access';
-      const authUrl = new URL('https://auth0.openai.com/authorize');
+      const audience = process.env.OPENAI_OAUTH_AUDIENCE?.trim() || OPENAI_DEFAULT_AUDIENCE;
+      const authorizeUrl = process.env.OPENAI_OAUTH_AUTHORIZE_URL?.trim() || OPENAI_DEFAULT_AUTHORIZE_URL;
+      const authUrl = new URL(authorizeUrl);
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('client_id', clientId);
       authUrl.searchParams.set('redirect_uri', callbackUrl);
       authUrl.searchParams.set('scope', scope);
+      if (audience) {
+        authUrl.searchParams.set('audience', audience);
+      }
       authUrl.searchParams.set('state', pkceState);
       authUrl.searchParams.set('code_challenge', codeChallenge);
       authUrl.searchParams.set('code_challenge_method', 'S256');

@@ -20,6 +20,7 @@ export interface MemoryNode {
     lastVerified?: string;
     lastFeedback?: 'positive' | 'negative';
     feedbackCount?: number;
+    version?: number;
     mem0Id?: string;
     memoryProvider?: 'sqlite' | 'mem0';
   };

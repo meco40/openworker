@@ -3,13 +3,20 @@
 
 import { createServer } from 'node:http';
 import next from 'next';
+import nextEnv from '@next/env';
 import { WebSocketServer } from 'ws';
 import { getToken } from 'next-auth/jwt';
 import { handleConnection, getClientRegistry, broadcast } from './src/server/gateway/index.js';
 import { TICK_INTERVAL_MS, MAX_PAYLOAD_BYTES } from './src/server/gateway/constants.js';
 import { getRoomOrchestrator } from './src/server/rooms/runtime.js';
 import { shouldRunRooms } from './src/server/rooms/runtimeRole.js';
-import { assertMemoryRuntimeConfiguration } from './src/server/memory/runtime.js';
+import {
+  assertMemoryRuntimeConfiguration,
+  assertMemoryRuntimeReady,
+} from './src/server/memory/runtime.js';
+
+const { loadEnvConfig } = nextEnv;
+loadEnvConfig(process.cwd());
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
@@ -23,8 +30,6 @@ const SECRET =
   process.env.AUTH_SECRET?.trim() ||
   'openclaw-local-nextauth-secret';
 
-assertMemoryRuntimeConfiguration();
-
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
@@ -33,8 +38,12 @@ function getRequestUrl(req: { url?: string; headers: { host?: string | undefined
   return new URL(req.url || '/', `http://${host}`);
 }
 
-app
-  .prepare()
+Promise.resolve()
+  .then(async () => {
+    assertMemoryRuntimeConfiguration();
+    await assertMemoryRuntimeReady();
+    await app.prepare();
+  })
   .then(() => {
     const server = createServer((req, res) => {
       handle(req, res);

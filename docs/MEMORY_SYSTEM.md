@@ -147,11 +147,11 @@ Erinnerungen abrufen.
 | `MEMORY_PROVIDER`   | Memory Backend (`mem0` empfohlen; andere Werte deaktivieren Mem0)         | `mem0`               |
 | `MEMORY_DB_PATH`    | Pfad zur lokalen Memory-Datenbank (SQLite Mirror + Verwaltungsdaten)      | `.local/messages.db` |
 | `MEM0_BASE_URL`     | Mem0 Base URL (z. B. `http://localhost:8000`)                            | -                    |
-| `MEM0_API_PATH`     | Mem0 API Prefix                                                          | `/v1`                |
+| `MEM0_API_PATH`     | Mem0 API Prefix (`/v1` oder `/` bei Legacy-REST ohne Versionspfad)      | `/v1`                |
 | `MEM0_API_KEY`      | Optionaler Bearer Token für Mem0                                         | -                    |
 | `MEM0_TIMEOUT_MS`   | Timeout pro Mem0 Request in ms                                           | `5000`               |
-| `MEMORY_EMBEDDING_MODEL` | Embedding-Modell für Memory-Vektorisierung                          | `gemini-embedding-001` |
-| `GEMINI_API_KEY`    | API Key für Embeddings (oder anderer aktiver Embedding Provider via Hub) | -                    |
+| `MEMORY_EMBEDDING_MODEL` | Embedding-Modell für Memory-Vektorisierung (Gemini)                 | `gemini-embedding-001` |
+| `GEMINI_API_KEY`    | API Key für Memory-Embeddings (Gemini)                                  | -                    |
 
 ### Rollout-Regeln (Production)
 
@@ -159,6 +159,21 @@ Erinnerungen abrufen.
 2. Recall-/Embedding-Fehler als Incident behandeln, nicht lokal maskieren.
 3. Scope-Isolation immer über `user_id` + `agent_id` (Persona) erzwingen.
 4. Production Fail-Fast: Start wird abgebrochen, wenn `MEMORY_PROVIDER!=mem0` oder `MEM0_BASE_URL` fehlt.
+5. Runtime-Fail-Fast: Web- und Scheduler-Start brechen ab, wenn Mem0 nicht erreichbar ist (Connectivity-Probe via `listMemories`).
+6. Memory-Pfad bleibt provider-konsistent: für Embeddings ist im Memory-Kontext ausschließlich Gemini vorgesehen.
+
+## Operativer Reset (Fresh Start)
+
+```bash
+npm run memory:reset
+```
+
+Der Befehl:
+
+1. leert lokale Legacy-Memory-Einträge in `.local/messages.db` (`memory_nodes`)
+2. ermittelt Scope-Kombinationen (`user_id` + `persona_id`) aus lokalen Datenbanken
+3. löscht Mem0-Memorys pro Scope
+4. verifiziert, dass pro Scope keine Einträge mehr vorhanden sind
 
 ## Verifikation
 

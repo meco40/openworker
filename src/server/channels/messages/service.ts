@@ -22,11 +22,24 @@ import { getMemoryService } from '../../memory/runtime';
 import { buildAutoMemoryCandidates, isAutoSessionMemoryEnabled } from './autoMemory';
 import type { MemoryFeedbackSignal } from '../../memory/service';
 import { getProactiveGateService } from '../../proactive/runtime';
+import { LEGACY_LOCAL_USER_ID } from '../../auth/constants';
 
 function extractMemorySaveContent(content: string): string | null {
-  const match = /^speichere\s+ab\s*:\s*(.*)$/i.exec(content.trim());
-  if (!match) return null;
-  return match[1]?.trim() ?? '';
+  const trimmed = content.trim();
+  const prefixMatch = /^speichere\s+ab\b/i.exec(trimmed);
+  if (!prefixMatch) return null;
+
+  let remainder = trimmed.slice(prefixMatch[0].length).trimStart();
+  if (
+    remainder.startsWith(':') ||
+    remainder.startsWith('-') ||
+    remainder.startsWith('–') ||
+    remainder.startsWith('—')
+  ) {
+    remainder = remainder.slice(1).trimStart();
+  }
+
+  return remainder.trim();
 }
 
 const MEMORY_CONTEXT_CHAR_LIMIT = 1200;
@@ -38,6 +51,24 @@ type LastRecallState = {
   nodeIds: string[];
   queriedAt: number;
 };
+
+function resolveMemoryScopedUserId(
+  conversation: Conversation,
+  platform: ChannelType,
+  externalChatId: string,
+): string {
+  const baseUserId = String(conversation.userId || '').trim() || LEGACY_LOCAL_USER_ID;
+  if (baseUserId !== LEGACY_LOCAL_USER_ID) return baseUserId;
+
+  const normalizedPlatform = String(platform || conversation.channelType || '')
+    .trim()
+    .toLowerCase();
+  const normalizedExternalChatId = String(externalChatId || conversation.externalChatId || '').trim();
+  if (!normalizedPlatform || !normalizedExternalChatId) return baseUserId;
+  if (normalizedPlatform === String(ChannelType.WEBCHAT).toLowerCase()) return baseUserId;
+
+  return `channel:${normalizedPlatform}:${normalizedExternalChatId}`;
+}
 
 function shouldRecallMemoryForInput(content: string): boolean {
   const normalized = content.trim().toLowerCase();
@@ -293,7 +324,7 @@ export class MessageService {
 
       // For external channels, auto-apply persona from channel binding
       const effectiveConversation = applyChannelBindingPersona(this.repo, conversation, platform);
-      await this.maybeLearnFromFeedback(effectiveConversation, content);
+      await this.maybeLearnFromFeedback(effectiveConversation, content, platform, externalChatId);
       const memoryContent = extractMemorySaveContent(content);
 
       if (memoryContent !== null) {
@@ -322,12 +353,17 @@ export class MessageService {
         }
 
         try {
+          const memoryUserId = resolveMemoryScopedUserId(
+            effectiveConversation,
+            platform,
+            externalChatId,
+          );
           await getMemoryService().store(
             effectiveConversation.personaId,
             'fact',
             memoryContent,
             4,
-            effectiveConversation.userId,
+            memoryUserId,
           );
           return {
             userMsg,
@@ -860,7 +896,12 @@ export class MessageService {
       conversation.personaId,
     );
 
-    const memoryContext = await this.buildRecallContext(conversation, userInput);
+    const memoryContext = await this.buildRecallContext(
+      conversation,
+      userInput,
+      platform,
+      externalChatId,
+    );
     if (memoryContext) {
       messages.unshift({
         role: 'system',
@@ -1170,6 +1211,8 @@ export class MessageService {
   private async buildRecallContext(
     conversation: Conversation,
     userInput: string,
+    platform: ChannelType,
+    externalChatId: string,
   ): Promise<string | null> {
     if (!conversation.personaId) {
       this.lastRecallByConversation.delete(conversation.id);
@@ -1182,7 +1225,7 @@ export class MessageService {
         conversation.personaId,
         userInput,
         MEMORY_RECALL_LIMIT,
-        conversation.userId,
+        resolveMemoryScopedUserId(conversation, platform, externalChatId),
       );
       if (recalled.matches.length > 0) {
         this.lastRecallByConversation.set(conversation.id, {
@@ -1198,7 +1241,12 @@ export class MessageService {
     }
   }
 
-  private async maybeLearnFromFeedback(conversation: Conversation, userInput: string): Promise<void> {
+  private async maybeLearnFromFeedback(
+    conversation: Conversation,
+    userInput: string,
+    platform: ChannelType,
+    externalChatId: string,
+  ): Promise<void> {
     if (!conversation.personaId) return;
 
     const feedback = detectMemoryFeedbackSignal(userInput);
@@ -1213,11 +1261,12 @@ export class MessageService {
     }
 
     try {
+      const memoryUserId = resolveMemoryScopedUserId(conversation, platform, externalChatId);
       await getMemoryService().registerFeedback(
         conversation.personaId,
         state.nodeIds,
         feedback,
-        conversation.userId,
+        memoryUserId,
       );
 
       if (feedback === 'negative') {
@@ -1228,7 +1277,7 @@ export class MessageService {
             'fact',
             correction,
             5,
-            conversation.userId,
+            memoryUserId,
           );
         }
       }
@@ -1307,6 +1356,11 @@ export class MessageService {
 
     const candidates = buildAutoMemoryCandidates(messages);
     if (candidates.length === 0) return;
+    const memoryUserId = resolveMemoryScopedUserId(
+      conversation,
+      conversation.channelType,
+      conversation.externalChatId || 'default',
+    );
 
     for (const candidate of candidates) {
       try {
@@ -1315,7 +1369,7 @@ export class MessageService {
           candidate.type,
           candidate.content,
           candidate.importance,
-          conversation.userId,
+          memoryUserId,
         );
       } catch (error) {
         console.error('Auto session memory store failed:', error);
