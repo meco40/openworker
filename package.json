@@ -21,6 +21,7 @@
     "start:scheduler": "node --import tsx scheduler.ts",
     "start": "npm run start:web",
     "memory:reset": "node --import tsx scripts/memory-reset.ts",
+    "memory:backfill-channel-scope": "node --import tsx scripts/memory-backfill-channel-scope.ts",
     "speckit:help": "pwsh -File .specify/scripts/powershell/check-prerequisites.ps1 -Help",
     "speckit:new": "pwsh -File .specify/scripts/powershell/create-new-feature.ps1",
     "speckit:plan:init": "pwsh -File .specify/scripts/powershell/setup-plan.ps1 -Json",

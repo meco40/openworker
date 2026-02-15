@@ -141,4 +141,85 @@ describe('KnowledgeIngestionCursor', () => {
     const checkpoint = knowledgeRepo.getIngestionCheckpoint('conv-1', 'persona-1');
     expect(checkpoint?.lastSeq).toBe(4);
   });
+
+  it('uses channel-scoped user id for external telegram conversations on legacy user', () => {
+    const conversation: Conversation = {
+      id: 'conv-telegram-1',
+      channelType: 'Telegram' as never,
+      externalChatId: '1527785051',
+      userId: 'legacy-local-user',
+      title: 'Telegram Chat',
+      modelOverride: null,
+      personaId: 'persona-1',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const messages: StoredMessage[] = [
+      createMessage(1, 'conv-telegram-1', 'Gestern Sauna'),
+      createMessage(2, 'conv-telegram-1', 'Aufguss und Temperatur'),
+    ];
+
+    const messageRepo: MessageRepository = {
+      createConversation: () => conversation,
+      getConversation: () => conversation,
+      getConversationByExternalChat: () => conversation,
+      getOrCreateConversation: () => conversation,
+      listConversations: () => [conversation],
+      updateConversationTitle: () => {},
+      saveMessage: () => messages[0],
+      getMessage: () => null,
+      listMessages: () => messages,
+      getDefaultWebChatConversation: () => conversation,
+      deleteConversation: () => true,
+      updateModelOverride: () => {},
+      updatePersonaId: () => {},
+      findMessageByClientId: () => null,
+      getConversationContext: () => null,
+      upsertConversationContext: () => ({
+        conversationId: conversation.id,
+        summaryText: '',
+        summaryUptoSeq: 0,
+        updatedAt: new Date().toISOString(),
+      }),
+      listMessagesAfterSeq: () => messages,
+    };
+
+    const knowledgeRepo: KnowledgeRepository = {
+      getIngestionCheckpoint: () => null,
+      upsertIngestionCheckpoint: ({ conversationId, personaId, lastSeq }) => ({
+        conversationId,
+        personaId,
+        lastSeq,
+        updatedAt: new Date().toISOString(),
+      }),
+      upsertEpisode: () => {
+        throw new Error('not used');
+      },
+      listEpisodes: () => [],
+      upsertMeetingLedger: () => {
+        throw new Error('not used');
+      },
+      listMeetingLedger: () => [],
+      insertRetrievalAudit: () => {
+        throw new Error('not used');
+      },
+      listRetrievalAudit: () => [],
+      getKnowledgeStats: () => ({
+        episodeCount: 0,
+        ledgerCount: 0,
+        retrievalErrorCount: 0,
+        latestIngestionAt: null,
+        ingestionLagMs: 0,
+      }),
+      deleteKnowledgeByScope: () => 0,
+      pruneKnowledgeBefore: () => ({ episodes: 0, ledger: 0, audits: 0 }),
+    };
+
+    const cursor = new KnowledgeIngestionCursor(messageRepo, knowledgeRepo);
+    const windows = cursor.getPendingWindows();
+
+    expect(windows).toHaveLength(1);
+    expect(windows[0].userId).toBe('channel:telegram:1527785051');
+  });
 });

@@ -1,5 +1,6 @@
 import type { Conversation } from '../../../types';
 import type { MessageRepository, StoredMessage } from '../channels/messages/repository';
+import { resolveMemoryScopedUserIdForConversation } from '../memory/userScope';
 import type { KnowledgeRepository } from './repository';
 
 export interface IngestionWindow {
@@ -62,7 +63,7 @@ export class KnowledgeIngestionCursor {
 
       windows.push({
         conversationId: conversation.id,
-        userId: conversation.userId,
+        userId: resolveMemoryScopedUserIdForConversation(conversation),
         personaId,
         fromSeqExclusive,
         toSeqInclusive,

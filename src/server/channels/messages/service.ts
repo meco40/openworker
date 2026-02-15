@@ -18,12 +18,15 @@ import {
   setChannelBindingPersona,
 } from './channelBindingPersona';
 import { getMemoryService } from '../../memory/runtime';
+import {
+  resolveMemoryScopedUserId,
+  resolveMemoryUserIdCandidates,
+} from '../../memory/userScope';
 import { resolveKnowledgeConfig } from '../../knowledge/config';
 import { getKnowledgeIngestionService, getKnowledgeRetrievalService } from '../../knowledge/runtime';
 import { buildAutoMemoryCandidates, isAutoSessionMemoryEnabled } from './autoMemory';
 import type { MemoryFeedbackSignal } from '../../memory/service';
 import { getProactiveGateService } from '../../proactive/runtime';
-import { LEGACY_LOCAL_USER_ID } from '../../auth/constants';
 import {
   buildMessageAttachmentMetadata,
   type StoredMessageAttachment,
@@ -53,8 +56,23 @@ const MEMORY_FEEDBACK_WINDOW_MS = 10 * 60 * 1000;
 
 type LastRecallState = {
   personaId: string;
+  userId: string;
   nodeIds: string[];
   queriedAt: number;
+};
+
+type KnowledgeRetrievalServiceLike = {
+  retrieve: (input: {
+    userId: string;
+    personaId: string;
+    conversationId?: string;
+    query: string;
+  }) => Promise<{ context: string }>;
+  shouldTriggerRecall?: (input: {
+    userId: string;
+    personaId: string;
+    query: string;
+  }) => Promise<boolean> | boolean;
 };
 
 const WORKER_AGENT_MODULE_PATH = ['..', '..', 'worker', 'workerAgent'].join('/');
@@ -63,26 +81,6 @@ function triggerWorkerQueue(logContext: string): void {
   void import(WORKER_AGENT_MODULE_PATH)
     .then(({ processQueue }) => processQueue())
     .catch((error: unknown) => console.error(`[Worker] Queue ${logContext}:`, error));
-}
-
-function resolveMemoryScopedUserId(
-  conversation: Conversation,
-  platform: ChannelType,
-  externalChatId: string,
-): string {
-  const baseUserId = String(conversation.userId || '').trim() || LEGACY_LOCAL_USER_ID;
-  if (baseUserId !== LEGACY_LOCAL_USER_ID) return baseUserId;
-
-  const normalizedPlatform = String(platform || conversation.channelType || '')
-    .trim()
-    .toLowerCase();
-  const normalizedExternalChatId = String(
-    externalChatId || conversation.externalChatId || '',
-  ).trim();
-  if (!normalizedPlatform || !normalizedExternalChatId) return baseUserId;
-  if (normalizedPlatform === String(ChannelType.WEBCHAT).toLowerCase()) return baseUserId;
-
-  return `channel:${normalizedPlatform}:${normalizedExternalChatId}`;
 }
 
 function shouldRecallMemoryForInput(content: string): boolean {
@@ -396,11 +394,11 @@ export class MessageService {
         }
 
         try {
-          const memoryUserId = resolveMemoryScopedUserId(
-            effectiveConversation,
-            platform,
-            externalChatId,
-          );
+          const memoryUserId = resolveMemoryScopedUserId({
+            userId: effectiveConversation.userId,
+            channelType: platform || effectiveConversation.channelType,
+            externalChatId: externalChatId || effectiveConversation.externalChatId || 'default',
+          });
           await getMemoryService().store(
             effectiveConversation.personaId,
             'fact',
@@ -1273,47 +1271,80 @@ export class MessageService {
       this.lastRecallByConversation.delete(conversation.id);
       return null;
     }
-    if (!shouldRecallMemoryForInput(userInput)) return null;
-
-    const memoryUserId = resolveMemoryScopedUserId(conversation, platform, externalChatId);
+    const memoryUserIds = resolveMemoryUserIdCandidates({
+      userId: conversation.userId,
+      channelType: platform || conversation.channelType,
+      externalChatId: externalChatId || conversation.externalChatId || 'default',
+    });
     const knowledgeConfig = resolveKnowledgeConfig();
-    if (knowledgeConfig.layerEnabled && knowledgeConfig.retrievalEnabled) {
-      try {
-        const knowledgeResult = await getKnowledgeRetrievalService().retrieve({
-          userId: memoryUserId,
-          personaId: conversation.personaId,
-          conversationId: conversation.id,
-          query: userInput,
-        });
-        const normalizedKnowledgeContext = normalizeMemoryContext(knowledgeResult.context || '');
-        if (normalizedKnowledgeContext) {
-          this.lastRecallByConversation.delete(conversation.id);
-          return normalizedKnowledgeContext;
+    const knowledgeRetrievalService =
+      knowledgeConfig.layerEnabled && knowledgeConfig.retrievalEnabled
+        ? (getKnowledgeRetrievalService() as unknown as KnowledgeRetrievalServiceLike)
+        : null;
+
+    let shouldRecall = shouldRecallMemoryForInput(userInput);
+    if (!shouldRecall && knowledgeRetrievalService?.shouldTriggerRecall) {
+      for (const userIdCandidate of memoryUserIds) {
+        try {
+          shouldRecall = Boolean(
+            await knowledgeRetrievalService.shouldTriggerRecall({
+              userId: userIdCandidate,
+              personaId: conversation.personaId,
+              query: userInput,
+            }),
+          );
+          if (shouldRecall) break;
+        } catch (error) {
+          console.error('Knowledge recall probe failed:', error);
         }
-      } catch (error) {
-        console.error('Knowledge recall failed:', error);
+      }
+    }
+    if (!shouldRecall) return null;
+
+    if (knowledgeRetrievalService) {
+      for (const userIdCandidate of memoryUserIds) {
+        try {
+          const knowledgeResult = await knowledgeRetrievalService.retrieve({
+            userId: userIdCandidate,
+            personaId: conversation.personaId,
+            conversationId: conversation.id,
+            query: userInput,
+          });
+          const normalizedKnowledgeContext = normalizeMemoryContext(knowledgeResult.context || '');
+          if (normalizedKnowledgeContext) {
+            this.lastRecallByConversation.delete(conversation.id);
+            return normalizedKnowledgeContext;
+          }
+        } catch (error) {
+          console.error('Knowledge recall failed:', error);
+        }
       }
     }
 
-    try {
-      const recalled = await getMemoryService().recallDetailed(
-        conversation.personaId,
-        userInput,
-        MEMORY_RECALL_LIMIT,
-        memoryUserId,
-      );
-      if (recalled.matches.length > 0) {
-        this.lastRecallByConversation.set(conversation.id, {
-          personaId: conversation.personaId,
-          nodeIds: recalled.matches.map((entry) => entry.node.id),
-          queriedAt: Date.now(),
-        });
+    for (const userIdCandidate of memoryUserIds) {
+      try {
+        const recalled = await getMemoryService().recallDetailed(
+          conversation.personaId,
+          userInput,
+          MEMORY_RECALL_LIMIT,
+          userIdCandidate,
+        );
+        if (recalled.matches.length > 0) {
+          this.lastRecallByConversation.set(conversation.id, {
+            personaId: conversation.personaId,
+            userId: userIdCandidate,
+            nodeIds: recalled.matches.map((entry) => entry.node.id),
+            queriedAt: Date.now(),
+          });
+        }
+        const normalized = normalizeMemoryContext(recalled.context);
+        if (normalized) return normalized;
+      } catch (error) {
+        console.error('Memory recall failed:', error);
       }
-      return normalizeMemoryContext(recalled.context);
-    } catch (error) {
-      console.error('Memory recall failed:', error);
-      return null;
     }
+
+    return null;
   }
 
   private async maybeLearnFromFeedback(
@@ -1336,7 +1367,13 @@ export class MessageService {
     }
 
     try {
-      const memoryUserId = resolveMemoryScopedUserId(conversation, platform, externalChatId);
+      const memoryUserId =
+        state.userId ||
+        resolveMemoryScopedUserId({
+          userId: conversation.userId,
+          channelType: platform || conversation.channelType,
+          externalChatId: externalChatId || conversation.externalChatId || 'default',
+        });
       await getMemoryService().registerFeedback(
         conversation.personaId,
         state.nodeIds,
@@ -1433,11 +1470,11 @@ export class MessageService {
 
     const candidates = buildAutoMemoryCandidates(messages);
     if (candidates.length === 0) return;
-    const memoryUserId = resolveMemoryScopedUserId(
-      conversation,
-      conversation.channelType,
-      conversation.externalChatId || 'default',
-    );
+    const memoryUserId = resolveMemoryScopedUserId({
+      userId: conversation.userId,
+      channelType: conversation.channelType,
+      externalChatId: conversation.externalChatId || 'default',
+    });
 
     for (const candidate of candidates) {
       try {
@@ -1469,11 +1506,11 @@ export class MessageService {
     try {
       await getKnowledgeIngestionService().ingestConversationWindow({
         conversationId: conversation.id,
-        userId: resolveMemoryScopedUserId(
-          conversation,
-          conversation.channelType,
-          conversation.externalChatId || 'default',
-        ),
+        userId: resolveMemoryScopedUserId({
+          userId: conversation.userId,
+          channelType: conversation.channelType,
+          externalChatId: conversation.externalChatId || 'default',
+        }),
         personaId: conversation.personaId,
         messages,
         summaryText: mergedSummary,

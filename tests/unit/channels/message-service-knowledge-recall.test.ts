@@ -30,6 +30,7 @@ const knowledgeRetrieveMock = vi.hoisted(() =>
     tokenCount: 42,
   })),
 );
+const knowledgeShouldTriggerRecallMock = vi.hoisted(() => vi.fn(async () => false));
 const memoryRecallDetailedMock = vi.hoisted(() =>
   vi.fn(async () => ({
     context: 'Mem0 fallback context',
@@ -73,20 +74,24 @@ vi.mock('../../../src/server/knowledge/config', () => ({
 
 vi.mock('../../../src/server/knowledge/runtime', () => ({
   getKnowledgeRetrievalService: () => ({
+    shouldTriggerRecall: knowledgeShouldTriggerRecallMock,
     retrieve: knowledgeRetrieveMock,
   }),
 }));
 
 import { MessageService } from '../../../src/server/channels/messages/service';
 
-function buildRepository(personaId: string | null): MessageRepository {
+function buildRepository(
+  personaId: string | null,
+  userId = 'user-1',
+): MessageRepository {
   let seq = 0;
   const messages: StoredMessage[] = [];
   const conversation: Conversation = {
     id: 'conv-1',
     channelType: ChannelType.WEBCHAT,
     externalChatId: 'default',
-    userId: 'user-1',
+    userId,
     title: 'Test Chat',
     modelOverride: null,
     personaId,
@@ -145,6 +150,8 @@ describe('MessageService knowledge recall integration', () => {
   beforeEach(() => {
     dispatchWithFallbackMock.mockClear();
     knowledgeRetrieveMock.mockClear();
+    knowledgeShouldTriggerRecallMock.mockClear();
+    knowledgeShouldTriggerRecallMock.mockResolvedValue(false);
     memoryRecallDetailedMock.mockClear();
   });
 
@@ -190,5 +197,78 @@ describe('MessageService knowledge recall integration', () => {
     const dispatchedMessages = dispatchInput.messages ?? [];
     expect(dispatchedMessages[0]?.role).toBe('system');
     expect(dispatchedMessages[0]?.content).toContain('Knowledge: Mittags Sauna');
+  });
+
+  it('uses dynamic recall probe for known counterpart mentions without static trigger phrases', async () => {
+    const service = new MessageService(buildRepository('persona-1'));
+    knowledgeShouldTriggerRecallMock.mockResolvedValueOnce(true);
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Was hat Andreas dazu gesagt?',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(knowledgeShouldTriggerRecallMock).toHaveBeenCalledTimes(1);
+    expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
+    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to legacy memory scope for telegram when channel scope has no results', async () => {
+    const service = new MessageService(buildRepository('persona-1', 'legacy-local-user'));
+    knowledgeRetrieveMock.mockImplementation(async (...args: unknown[]) => {
+      const input = (args[0] ?? {}) as { userId?: string };
+      if (input.userId === 'channel:telegram:1527785051') {
+        return {
+          context: '',
+          sections: { answerDraft: '', keyDecisions: '', openPoints: '', evidence: '' },
+          references: [],
+          tokenCount: 0,
+        };
+      }
+      if (input.userId === 'legacy-local-user') {
+        return {
+          context: 'Legacy knowledge context for sauna details.',
+          sections: { answerDraft: '', keyDecisions: '', openPoints: '', evidence: '' },
+          references: [],
+          tokenCount: 12,
+        };
+      }
+      return {
+        context: '',
+        sections: { answerDraft: '', keyDecisions: '', openPoints: '', evidence: '' },
+        references: [],
+        tokenCount: 0,
+      };
+    });
+
+    await service.handleInbound(
+      ChannelType.TELEGRAM,
+      '1527785051',
+      'Erinnerst du dich an gestern Sauna?',
+      undefined,
+      undefined,
+      'legacy-local-user',
+    );
+
+    expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(2);
+    const calls = knowledgeRetrieveMock.mock.calls as unknown[][];
+    const firstCall = (calls[0]?.[0] ?? {}) as Record<string, unknown>;
+    const secondCall = (calls[1]?.[0] ?? {}) as Record<string, unknown>;
+    expect(firstCall).toMatchObject({
+      userId: 'channel:telegram:1527785051',
+    });
+    expect(secondCall).toMatchObject({
+      userId: 'legacy-local-user',
+    });
+    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+
+    const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
+    const dispatchInput = (call?.[2] ?? {}) as { messages?: Array<{ role: string; content: string }> };
+    const dispatchedMessages = dispatchInput.messages ?? [];
+    expect(dispatchedMessages[0]?.content).toContain('Legacy knowledge context');
   });
 });

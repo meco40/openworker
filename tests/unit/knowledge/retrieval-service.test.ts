@@ -166,4 +166,156 @@ describe('KnowledgeRetrievalService', () => {
     expect(result.tokenCount).toBeLessThanOrEqual(80);
     expect(result.context.length).toBeGreaterThan(0);
   });
+
+  it('triggers recall probe when query mentions known counterpart name', async () => {
+    const service = new KnowledgeRetrievalService({
+      maxContextTokens: 1200,
+      knowledgeRepository: {
+        listMeetingLedger: vi.fn(() => [
+          {
+            id: 'led-andreas',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-1',
+            topicKey: 'meeting-andreas',
+            counterpart: 'Andreas',
+            eventAt: '2025-08-11T09:00:00.000Z',
+            participants: [],
+            decisions: [],
+            negotiatedTerms: [],
+            openPoints: [],
+            actionItems: [],
+            sourceRefs: [],
+            confidence: 0.8,
+            updatedAt: '2025-08-11T10:00:00.000Z',
+          },
+        ]),
+        listEpisodes: vi.fn(() => []),
+        insertRetrievalAudit: vi.fn(() => {
+          throw new Error('should not be called');
+        }),
+      },
+      memoryService: {
+        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+      },
+      messageRepository: {
+        listMessages: vi.fn(() => []),
+      },
+    });
+
+    const shouldRecall = await service.shouldTriggerRecall({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      query: 'Was hat Andreas dazu gesagt?',
+    });
+
+    expect(shouldRecall).toBe(true);
+  });
+
+  it('focuses retrieval on mentioned counterpart even without "mit <name>" phrase', async () => {
+    const service = new KnowledgeRetrievalService({
+      maxContextTokens: 1200,
+      knowledgeRepository: {
+        listMeetingLedger: vi.fn(() => [
+          {
+            id: 'led-andreas',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-1',
+            topicKey: 'meeting-andreas',
+            counterpart: 'Andreas',
+            eventAt: '2025-08-11T09:00:00.000Z',
+            participants: ['Ich', 'Andreas'],
+            decisions: ['Andreas: Rabatt auf 8% bestätigt'],
+            negotiatedTerms: [],
+            openPoints: [],
+            actionItems: [],
+            sourceRefs: [{ seq: 2, quote: '8 Prozent Rabatt' }],
+            confidence: 0.9,
+            updatedAt: '2025-08-11T10:00:00.000Z',
+          },
+          {
+            id: 'led-bernd',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-1',
+            topicKey: 'meeting-bernd',
+            counterpart: 'Bernd',
+            eventAt: '2025-08-12T09:00:00.000Z',
+            participants: ['Ich', 'Bernd'],
+            decisions: ['Bernd: Liefertermin verschoben'],
+            negotiatedTerms: [],
+            openPoints: [],
+            actionItems: [],
+            sourceRefs: [{ seq: 4, quote: 'Liefertermin spaeter' }],
+            confidence: 0.8,
+            updatedAt: '2025-08-12T10:00:00.000Z',
+          },
+        ]),
+        listEpisodes: vi.fn(() => [
+          {
+            id: 'ep-andreas',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-1',
+            topicKey: 'meeting-andreas',
+            counterpart: 'Andreas',
+            teaser: 'Andreas-Teaser',
+            episode: 'Andreas-Episode',
+            facts: ['8% Rabatt'],
+            sourceSeqStart: 1,
+            sourceSeqEnd: 3,
+            sourceRefs: [{ seq: 2, quote: '8 Prozent Rabatt' }],
+            eventAt: '2025-08-11T09:00:00.000Z',
+            updatedAt: '2025-08-11T10:00:00.000Z',
+          },
+          {
+            id: 'ep-bernd',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-1',
+            topicKey: 'meeting-bernd',
+            counterpart: 'Bernd',
+            teaser: 'Bernd-Teaser',
+            episode: 'Bernd-Episode',
+            facts: ['Liefertermin spaeter'],
+            sourceSeqStart: 4,
+            sourceSeqEnd: 6,
+            sourceRefs: [{ seq: 4, quote: 'Liefertermin spaeter' }],
+            eventAt: '2025-08-12T09:00:00.000Z',
+            updatedAt: '2025-08-12T10:00:00.000Z',
+          },
+        ]),
+        insertRetrievalAudit: vi.fn(() => ({
+          id: 'audit-1',
+          userId: 'user-1',
+          personaId: 'persona-1',
+          conversationId: 'conv-1',
+          query: 'q',
+          stageStats: {},
+          tokenCount: 0,
+          hadError: false,
+          errorMessage: null,
+          createdAt: new Date().toISOString(),
+        })),
+      },
+      memoryService: {
+        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+      },
+      messageRepository: {
+        listMessages: vi.fn(() => [makeMessage(2, 'Wir vereinbaren 8% Rabatt')]),
+      },
+    });
+
+    const result = await service.retrieve({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-1',
+      query: 'Was hat Andreas dazu gesagt?',
+    });
+
+    expect(result.sections.answerDraft).toContain('Meeting mit Andreas');
+    expect(result.sections.keyDecisions).toContain('Andreas: Rabatt auf 8% bestätigt');
+    expect(result.sections.keyDecisions).not.toContain('Bernd: Liefertermin verschoben');
+  });
 });
