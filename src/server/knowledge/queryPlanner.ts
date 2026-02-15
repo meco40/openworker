@@ -25,9 +25,33 @@ function toIsoUtc(
   return new Date(Date.UTC(year, month, day, hours, minutes, seconds)).toISOString();
 }
 
+function startOfUtcDay(base: Date): string {
+  return toIsoUtc(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), 0, 0, 0);
+}
+
+function endOfUtcDay(base: Date): string {
+  return new Date(
+    Date.UTC(
+      base.getUTCFullYear(),
+      base.getUTCMonth(),
+      base.getUTCDate(),
+      23,
+      59,
+      59,
+      999,
+    ),
+  ).toISOString();
+}
+
 function subtractMonthsUtc(base: Date, months: number): Date {
   const output = new Date(base.getTime());
   output.setUTCMonth(output.getUTCMonth() - months);
+  return output;
+}
+
+function shiftDaysUtc(base: Date, days: number): Date {
+  const output = new Date(base.getTime());
+  output.setUTCDate(output.getUTCDate() + days);
   return output;
 }
 
@@ -39,6 +63,22 @@ function parseTimeRange(query: string, now: Date): KnowledgeTimeRange | null {
     return {
       from,
       to: now.toISOString(),
+    };
+  }
+
+  if (/\bvorgestern\b/i.test(query)) {
+    const day = shiftDaysUtc(now, -2);
+    return {
+      from: startOfUtcDay(day),
+      to: endOfUtcDay(day),
+    };
+  }
+
+  if (/\bgestern\b/i.test(query)) {
+    const day = shiftDaysUtc(now, -1);
+    return {
+      from: startOfUtcDay(day),
+      to: endOfUtcDay(day),
     };
   }
 

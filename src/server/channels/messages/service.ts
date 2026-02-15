@@ -94,6 +94,7 @@ function shouldRecallMemoryForInput(content: string): boolean {
     /\berinner(n|e|st|t|ung|ungen)?\b/i,
     /\b(lieblings|favorit|vorliebe|preference)\b/i,
     /\b(ich hatte|habe ich|was war|wann war)\b/i,
+    /\b(wie war\b.*\b(gestern|vorgestern|letzte[nrsm]?|vor\s+\d+\s+(tag|tagen|woche|wochen|monat|monaten|jahr|jahren)))\b/i,
     /\b(vor (einer|einem|\d+) (tag|tagen|woche|wochen|monat|monaten|jahr|jahren))\b/i,
     /\b(letzte[nrsm]?\s+(woche|monat|jahr)|last\s+(week|month|year))\b/i,
     /\b(was haben wir (besprochen|gesagt)|what did we discuss)\b/i,
@@ -119,9 +120,20 @@ function shouldRecallMemoryForInput(content: string): boolean {
   if (!normalized.includes('?')) return false;
   const personalRef = /\b(ich|mein|meine|meinen|my|i)\b/i.test(normalized);
   const memoryTopic =
-    /\b(kaffee|essen|trinken|lieblings|favorit|termin|geplant|gesagt|präferenz|vorliebe|workflow|besprochen|history|drink|eat|appointment|said)\b/i.test(
+    /\b(kaffee|essen|trinken|lieblings|favorit|termin|meeting|sauna|vertrag|rabatt|sla|geplant|gesagt|präferenz|vorliebe|workflow|besprochen|history|drink|eat|appointment|said)\b/i.test(
       normalized,
     );
+  const retrospectiveHint =
+    /\b(gestern|vorgestern|letzte[nrsm]?|vor\s+\d+\s+(tag|tagen|woche|wochen|monat|monaten|jahr|jahren)|damals|zuvor|früher|frueher|neulich|letztens)\b/i.test(
+      normalized,
+    );
+  const recallVerb =
+    /\b(war|gesprochen|besprochen|vereinbart|ausgehandelt|diskutiert|gemacht|gelaufen)\b/i.test(
+      normalized,
+    );
+  if (retrospectiveHint && (memoryTopic || recallVerb)) {
+    return true;
+  }
   return personalRef && memoryTopic;
 }
 

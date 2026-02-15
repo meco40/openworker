@@ -169,4 +169,26 @@ describe('MessageService knowledge recall integration', () => {
     expect(dispatchedMessages[0]?.role).toBe('system');
     expect(dispatchedMessages[0]?.content).toContain('Knowledge: Mittags Sauna');
   });
+
+  it('injects knowledge context for compact retrospective wording ("wie war gestern sauna?")', async () => {
+    const service = new MessageService(buildRepository('persona-1'));
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'wie war gestern sauna?',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
+    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+
+    const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
+    const dispatchInput = (call?.[2] ?? {}) as { messages?: Array<{ role: string; content: string }> };
+    const dispatchedMessages = dispatchInput.messages ?? [];
+    expect(dispatchedMessages[0]?.role).toBe('system');
+    expect(dispatchedMessages[0]?.content).toContain('Knowledge: Mittags Sauna');
+  });
 });
