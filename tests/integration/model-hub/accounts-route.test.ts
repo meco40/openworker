@@ -37,4 +37,24 @@ describe('model-hub accounts route', () => {
     expect(Array.isArray(listJson.accounts)).toBe(true);
     expect(listJson.accounts.length).toBeGreaterThan(0);
   });
+
+  it('creates local provider account without secret when authMethod is none', async () => {
+    process.env.MODEL_HUB_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
+    const dbPath = path.join(process.cwd(), '.local', 'model-hub.accounts-route.local.db');
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    process.env.MODEL_HUB_DB_PATH = dbPath;
+
+    const createResponse = await POST(
+      buildRequest({
+        providerId: 'ollama',
+        label: 'Local Ollama',
+        authMethod: 'none',
+      }),
+    );
+    const createJson = await createResponse.json();
+    expect(createResponse.status).toBe(200);
+    expect(createJson.ok).toBe(true);
+    expect(createJson.account.providerId).toBe('ollama');
+    expect(createJson.account.authMethod).toBe('none');
+  });
 });

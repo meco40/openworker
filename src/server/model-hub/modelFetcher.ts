@@ -28,7 +28,7 @@ export async function fetchModelsForAccount(
   if (!provider) return [];
 
   const secret = decryptSecret(account.encryptedSecret, encryptionKey);
-  if (!secret?.trim()) return [];
+  if (account.authMethod !== 'none' && !secret?.trim()) return [];
 
   const adapter = getProviderAdapter(provider.id);
   const context = { provider, account, secret };

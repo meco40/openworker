@@ -215,19 +215,24 @@ export class MemoryService {
     content: string,
     importance: number,
     userId?: string,
+    metadata?: Record<string, unknown>,
   ): Promise<MemoryNode> {
     const scopedUserId = resolveUserId(userId);
+    const extraMetadata =
+      metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+    const nowIso = new Date().toISOString();
 
     const result = await this.mem0Client.addMemory({
       userId: scopedUserId,
       personaId,
       content,
       metadata: {
+        ...extraMetadata,
         type,
         importance: asImportance(importance, 3),
         confidence: 0.3,
         version: 1,
-        lastVerified: new Date().toISOString(),
+        lastVerified: nowIso,
       },
     });
     if (!result.id) {
@@ -243,11 +248,12 @@ export class MemoryService {
       confidence: 0.3,
       timestamp: formatTimestamp(),
       metadata: {
+        ...extraMetadata,
         mem0Id: result.id,
         source: 'mem0',
         memoryProvider: 'mem0',
         version: 1,
-        lastVerified: new Date().toISOString(),
+        lastVerified: nowIso,
       },
     };
   }

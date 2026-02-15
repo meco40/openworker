@@ -3,7 +3,7 @@ import type { EncryptedSecretPayload } from './crypto';
 export interface CreateProviderAccountInput {
   providerId: string;
   label: string;
-  authMethod: 'api_key' | 'oauth';
+  authMethod: 'none' | 'api_key' | 'oauth';
   encryptedSecret: EncryptedSecretPayload;
   encryptedRefreshToken: EncryptedSecretPayload | null;
   secretMasked: string;
@@ -13,7 +13,7 @@ export interface ProviderAccountView {
   id: string;
   providerId: string;
   label: string;
-  authMethod: 'api_key' | 'oauth';
+  authMethod: 'none' | 'api_key' | 'oauth';
   secretMasked: string;
   hasRefreshToken: boolean;
   createdAt: string;

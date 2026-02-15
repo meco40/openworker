@@ -7,6 +7,8 @@ describe('provider catalog coverage', () => {
     const required = [
       'openai',
       'openai-codex',
+      'ollama',
+      'lmstudio',
       'gemini',
       'openrouter',
       'zai',

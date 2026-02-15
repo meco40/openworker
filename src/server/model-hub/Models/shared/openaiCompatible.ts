@@ -17,6 +17,12 @@ function normalizeBearerSecret(secret: string): string {
   return normalized;
 }
 
+function buildOptionalAuthHeaders(secret: string): Record<string, string> {
+  const normalizedSecret = normalizeBearerSecret(secret);
+  if (!normalizedSecret) return {};
+  return { Authorization: `Bearer ${normalizedSecret}` };
+}
+
 function isImageAttachment(mimeType: string): boolean {
   return mimeType.trim().toLowerCase().startsWith('image/');
 }
@@ -134,11 +140,10 @@ export async function fetchOpenAICompatibleModels(
   secret: string,
   providerId: string,
 ): Promise<FetchedModel[]> {
-  const normalizedSecret = normalizeBearerSecret(secret);
   const url = `${baseUrl.replace(/\/$/, '')}/models`;
   const response = await fetchWithTimeout(url, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${normalizedSecret}` },
+    headers: buildOptionalAuthHeaders(secret),
   });
 
   if (!response.ok) return [];
@@ -163,11 +168,10 @@ export async function testOpenAICompatibleModelsEndpoint(
   failurePrefix: string,
 ): Promise<ConnectivityResult> {
   try {
-    const normalizedSecret = normalizeBearerSecret(secret);
     const url = `${baseUrl.replace(/\/$/, '')}/models`;
     const response = await fetchWithTimeout(url, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${normalizedSecret}` },
+      headers: buildOptionalAuthHeaders(secret),
     });
 
     if (!response.ok) {
@@ -192,7 +196,6 @@ export async function dispatchOpenAICompatibleChat(
   request: GatewayRequest,
   options: { extraHeaders?: Record<string, string>; signal?: AbortSignal } = {},
 ): Promise<GatewayResponse> {
-  const normalizedSecret = normalizeBearerSecret(secret);
   const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
   const body: Record<string, unknown> = {
     model: request.model,
@@ -209,8 +212,8 @@ export async function dispatchOpenAICompatibleChat(
   }
 
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${normalizedSecret}`,
     'Content-Type': 'application/json',
+    ...buildOptionalAuthHeaders(secret),
     ...(options.extraHeaders ?? {}),
   };
 

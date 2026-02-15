@@ -5,9 +5,11 @@ import cohereProviderAdapter from './cohere';
 import geminiProviderAdapter from './gemini';
 import githubProviderAdapter from './github-copilot';
 import kimiProviderAdapter from './kimi';
+import lmStudioProviderAdapter from './lmstudio';
 import mistralProviderAdapter from './mistral';
 import openAIProviderAdapter from './openai';
 import openAICodexProviderAdapter from './openai-codex';
+import ollamaProviderAdapter from './ollama';
 import openRouterProviderAdapter from './openrouter';
 import xAIProviderAdapter from './xai';
 import zaiProviderAdapter from './zai';
@@ -18,6 +20,8 @@ const providerAdapters: Record<string, ProviderAdapter> = {
   [openAICodexProviderAdapter.id]: openAICodexProviderAdapter,
   [anthropicProviderAdapter.id]: anthropicProviderAdapter,
   [openRouterProviderAdapter.id]: openRouterProviderAdapter,
+  [ollamaProviderAdapter.id]: ollamaProviderAdapter,
+  [lmStudioProviderAdapter.id]: lmStudioProviderAdapter,
   [xAIProviderAdapter.id]: xAIProviderAdapter,
   [mistralProviderAdapter.id]: mistralProviderAdapter,
   [cohereProviderAdapter.id]: cohereProviderAdapter,

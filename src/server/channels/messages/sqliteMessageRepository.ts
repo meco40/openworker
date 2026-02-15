@@ -432,6 +432,46 @@ export class SqliteMessageRepository implements MessageRepository {
     return rows.map(toMessage).reverse();
   }
 
+  listMessagesAfterSeq(
+    conversationId: string,
+    afterSeq: number,
+    limit = 500,
+    userId?: string,
+  ): StoredMessage[] {
+    const normalizedUserId = userId ? this.normalizeUserId(userId) : null;
+    const safeAfterSeq = Math.max(0, Math.floor(Number(afterSeq || 0)));
+    const safeLimit = Math.max(1, Math.min(5000, Math.floor(Number(limit || 500))));
+
+    const rows = normalizedUserId
+      ? (this.db
+          .prepare(
+            `
+            SELECT m.*
+            FROM messages m
+            JOIN conversations c ON c.id = m.conversation_id
+            WHERE m.conversation_id = ? AND m.seq > ? AND c.user_id = ?
+            ORDER BY m.seq ASC
+            LIMIT ?
+            `,
+          )
+          .all(conversationId, safeAfterSeq, normalizedUserId, safeLimit) as Array<
+          Record<string, unknown>
+        >)
+      : (this.db
+          .prepare(
+            `
+            SELECT *
+            FROM messages
+            WHERE conversation_id = ? AND seq > ?
+            ORDER BY seq ASC
+            LIMIT ?
+            `,
+          )
+          .all(conversationId, safeAfterSeq, safeLimit) as Array<Record<string, unknown>>);
+
+    return rows.map(toMessage);
+  }
+
   getConversationContext(conversationId: string, userId?: string): ConversationContextState | null {
     const conversation = this.getConversation(conversationId, userId);
     if (!conversation) {

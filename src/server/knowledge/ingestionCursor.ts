@@ -1,0 +1,89 @@
+import type { Conversation } from '../../../types';
+import type { MessageRepository, StoredMessage } from '../channels/messages/repository';
+import type { KnowledgeRepository } from './repository';
+
+export interface IngestionWindow {
+  conversationId: string;
+  userId: string;
+  personaId: string;
+  fromSeqExclusive: number;
+  toSeqInclusive: number;
+  messages: StoredMessage[];
+}
+
+function resolveNextMessages(
+  repo: MessageRepository,
+  conversation: Conversation,
+  fromSeqExclusive: number,
+): StoredMessage[] {
+  const direct = repo.listMessagesAfterSeq?.(
+    conversation.id,
+    fromSeqExclusive,
+    2000,
+    conversation.userId,
+  );
+  if (Array.isArray(direct)) {
+    return direct
+      .filter((message) => Number.isFinite(Number(message.seq)))
+      .sort((a, b) => Number(a.seq || 0) - Number(b.seq || 0));
+  }
+
+  return repo
+    .listMessages(conversation.id, 2000, undefined, conversation.userId)
+    .filter((message) => Number(message.seq || 0) > fromSeqExclusive)
+    .sort((a, b) => Number(a.seq || 0) - Number(b.seq || 0));
+}
+
+export class KnowledgeIngestionCursor {
+  constructor(
+    private readonly messageRepository: MessageRepository,
+    private readonly knowledgeRepository: KnowledgeRepository,
+  ) {}
+
+  getPendingWindows(limitConversations = 200): IngestionWindow[] {
+    const conversations = this.messageRepository
+      .listConversations(limitConversations)
+      .filter((conversation) => String(conversation.personaId || '').trim().length > 0)
+      .sort((a, b) => Date.parse(a.updatedAt) - Date.parse(b.updatedAt));
+
+    const windows: IngestionWindow[] = [];
+
+    for (const conversation of conversations) {
+      const personaId = String(conversation.personaId || '').trim();
+      if (!personaId) continue;
+
+      const checkpoint = this.knowledgeRepository.getIngestionCheckpoint(conversation.id, personaId);
+      const fromSeqExclusive = Math.max(0, Number(checkpoint?.lastSeq || 0));
+      const messages = resolveNextMessages(this.messageRepository, conversation, fromSeqExclusive);
+      if (messages.length === 0) continue;
+
+      const toSeqInclusive = Number(messages[messages.length - 1].seq || fromSeqExclusive);
+      if (toSeqInclusive <= fromSeqExclusive) continue;
+
+      windows.push({
+        conversationId: conversation.id,
+        userId: conversation.userId,
+        personaId,
+        fromSeqExclusive,
+        toSeqInclusive,
+        messages,
+      });
+    }
+
+    return windows;
+  }
+
+  markWindowProcessed(window: IngestionWindow): void {
+    const current = this.knowledgeRepository.getIngestionCheckpoint(
+      window.conversationId,
+      window.personaId,
+    );
+    const currentSeq = Math.max(0, Number(current?.lastSeq || 0));
+    const nextSeq = Math.max(currentSeq, Math.floor(Number(window.toSeqInclusive || 0)));
+    this.knowledgeRepository.upsertIngestionCheckpoint({
+      conversationId: window.conversationId,
+      personaId: window.personaId,
+      lastSeq: nextSeq,
+    });
+  }
+}

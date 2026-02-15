@@ -14,7 +14,7 @@ import { isJwtExpiringSoon, refreshOpenAICodexToken } from './codexAuth';
 interface ConnectProviderAccountInput {
   providerId: string;
   label: string;
-  authMethod: 'api_key' | 'oauth';
+  authMethod: 'none' | 'api_key' | 'oauth';
   secret: string;
   refreshToken?: string;
   encryptionKey: string;

@@ -79,6 +79,12 @@ export interface MessageRepository {
     before?: string,
     userId?: string,
   ): StoredMessage[];
+  listMessagesAfterSeq?(
+    conversationId: string,
+    afterSeq: number,
+    limit?: number,
+    userId?: string,
+  ): StoredMessage[];
   getDefaultWebChatConversation(userId?: string): Conversation;
 
   deleteConversation(id: string, userId: string): boolean;

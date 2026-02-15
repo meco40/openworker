@@ -127,6 +127,50 @@ describe('mem0Client', () => {
     expect(body.metadata).toMatchObject({ type: 'fact', importance: 4 });
   });
 
+  it('forwards extended evidence metadata in add memory payload', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify([{ id: 'mem0-extended-1', memory: 'Episode summary' }]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+
+    const client = createMem0Client(
+      {
+        baseUrl: 'http://mem0.local',
+        apiPath: '/v1',
+        timeoutMs: 4000,
+      },
+      fetchMock as unknown as typeof fetch,
+    );
+
+    await client.addMemory({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      content: 'Episode summary',
+      metadata: {
+        type: 'fact',
+        importance: 4,
+        topicKey: 'meeting-andreas',
+        conversationId: 'conv-42',
+        sourceSeqStart: 100,
+        sourceSeqEnd: 124,
+        artifactType: 'episode',
+      },
+    });
+
+    const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(String(call[1].body));
+    expect(body.metadata).toMatchObject({
+      topicKey: 'meeting-andreas',
+      conversationId: 'conv-42',
+      sourceSeqStart: 100,
+      sourceSeqEnd: 124,
+      artifactType: 'episode',
+    });
+  });
+
   it('lists memories with filters and pagination for WebUI CRUD', async () => {
     const fetchMock = vi.fn(
       async () =>

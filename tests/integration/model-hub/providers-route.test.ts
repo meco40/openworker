@@ -61,4 +61,24 @@ describe('model-hub providers route', () => {
     expect(github?.authMethods).toContain('api_key');
     expect(github?.authMethods).not.toContain('oauth');
   });
+
+  it('exposes local providers with no-auth option first', async () => {
+    const response = await GET();
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+
+    const ollama = (json.providers as Array<{ id: string; authMethods: string[] }>).find(
+      (provider) => provider.id === 'ollama',
+    );
+    const lmstudio = (json.providers as Array<{ id: string; authMethods: string[] }>).find(
+      (provider) => provider.id === 'lmstudio',
+    );
+
+    expect(ollama).toBeTruthy();
+    expect(ollama?.authMethods[0]).toBe('none');
+
+    expect(lmstudio).toBeTruthy();
+    expect(lmstudio?.authMethods[0]).toBe('none');
+  });
 });

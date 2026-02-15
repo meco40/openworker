@@ -9,6 +9,7 @@ import {
 } from './src/server/memory/runtime';
 import { getRoomOrchestrator } from './src/server/rooms/runtime';
 import { shouldRunRooms } from './src/server/rooms/runtimeRole';
+import { startKnowledgeRuntimeLoop, stopKnowledgeRuntimeLoop } from './src/server/knowledge/runtime';
 
 const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
@@ -74,6 +75,7 @@ function shutdown(): void {
   console.log('[automation-scheduler] shutting down...');
   stopHeartbeat();
   stopRoomScheduler();
+  stopKnowledgeRuntimeLoop();
   stopAutomationRuntime();
   process.exit(0);
 }
@@ -91,6 +93,7 @@ async function bootstrap(): Promise<void> {
   } else {
     console.log('[rooms-scheduler] room cycle disabled in scheduler process by ROOMS_RUNNER');
   }
+  startKnowledgeRuntimeLoop();
 
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);

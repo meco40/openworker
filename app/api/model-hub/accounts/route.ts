@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 interface CreateAccountRequest {
   providerId?: string;
   label?: string;
-  authMethod?: 'api_key' | 'oauth';
+  authMethod?: 'none' | 'api_key' | 'oauth';
   secret?: string;
   refreshToken?: string;
 }
@@ -25,10 +25,10 @@ function validateCreateInput(body: CreateAccountRequest) {
 
   if (!providerId) throw new Error('providerId is required.');
   if (!label) throw new Error('label is required.');
-  if (authMethod !== 'api_key' && authMethod !== 'oauth') {
-    throw new Error('authMethod must be api_key or oauth.');
+  if (authMethod !== 'none' && authMethod !== 'api_key' && authMethod !== 'oauth') {
+    throw new Error('authMethod must be none, api_key or oauth.');
   }
-  if (!secret) throw new Error('secret is required.');
+  if (authMethod !== 'none' && !secret) throw new Error('secret is required.');
 
   const provider = PROVIDER_CATALOG.find((item) => item.id === providerId);
   if (!provider) throw new Error(`Unsupported providerId: ${providerId}`);
@@ -36,7 +36,7 @@ function validateCreateInput(body: CreateAccountRequest) {
     throw new Error(`${provider.name} does not support auth method ${authMethod}.`);
   }
 
-  return { providerId, label, authMethod, secret, refreshToken };
+  return { providerId, label, authMethod, secret: authMethod === 'none' ? '' : secret, refreshToken };
 }
 
 export async function GET() {

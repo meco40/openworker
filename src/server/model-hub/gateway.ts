@@ -50,7 +50,7 @@ export async function dispatchGatewayRequest(
   }
 
   const secret = decryptSecret(account.encryptedSecret, encryptionKey);
-  if (!secret?.trim()) {
+  if (account.authMethod !== 'none' && !secret?.trim()) {
     return {
       ok: false,
       text: '',

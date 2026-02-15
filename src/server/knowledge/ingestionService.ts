@@ -1,0 +1,189 @@
+import type { MemoryService } from '../memory/service';
+import type { KnowledgeExtractionInput, KnowledgeExtractionResult, KnowledgeExtractor } from './extractor';
+import type { IngestionWindow, KnowledgeIngestionCursor } from './ingestionCursor';
+import type { KnowledgeRepository } from './repository';
+
+interface IngestionCursorLike {
+  getPendingWindows(limitConversations?: number): IngestionWindow[];
+  markWindowProcessed(window: IngestionWindow): void;
+}
+
+interface KnowledgeExtractorLike {
+  extract(input: KnowledgeExtractionInput): Promise<KnowledgeExtractionResult>;
+}
+
+interface KnowledgeRepositoryLike {
+  upsertEpisode: KnowledgeRepository['upsertEpisode'];
+  upsertMeetingLedger: KnowledgeRepository['upsertMeetingLedger'];
+}
+
+interface MemoryServiceLike {
+  store: MemoryService['store'];
+}
+
+export interface KnowledgeIngestionServiceDependencies {
+  cursor: IngestionCursorLike;
+  extractor: KnowledgeExtractorLike;
+  knowledgeRepository: KnowledgeRepositoryLike;
+  memoryService: MemoryServiceLike;
+}
+
+export interface KnowledgeIngestionError {
+  conversationId: string;
+  personaId: string;
+  reason: string;
+}
+
+export interface KnowledgeIngestionRunResult {
+  processedConversations: number;
+  processedMessages: number;
+  errors: KnowledgeIngestionError[];
+}
+
+function dedupeFacts(facts: string[]): string[] {
+  const seen = new Set<string>();
+  const output: string[] = [];
+  for (const fact of facts) {
+    const normalized = String(fact || '').trim();
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    output.push(normalized);
+  }
+  return output;
+}
+
+function inferSourceStart(window: IngestionWindow): number {
+  const firstSeq = Number(window.messages[0]?.seq || window.fromSeqExclusive || 0);
+  return Math.max(0, Math.floor(firstSeq));
+}
+
+function inferSourceEnd(window: IngestionWindow): number {
+  const lastSeq = Number(
+    window.messages[window.messages.length - 1]?.seq || window.toSeqInclusive || window.fromSeqExclusive,
+  );
+  return Math.max(0, Math.floor(lastSeq));
+}
+
+export class KnowledgeIngestionService {
+  constructor(private readonly deps: KnowledgeIngestionServiceDependencies) {}
+
+  async runOnce(): Promise<KnowledgeIngestionRunResult> {
+    const windows = this.deps.cursor.getPendingWindows();
+    let processedConversations = 0;
+    let processedMessages = 0;
+    const errors: KnowledgeIngestionError[] = [];
+
+    for (const window of windows) {
+      try {
+        const extraction = await this.deps.extractor.extract({
+          conversationId: window.conversationId,
+          userId: window.userId,
+          personaId: window.personaId,
+          messages: window.messages,
+        });
+
+        const sourceSeqStart = inferSourceStart(window);
+        const sourceSeqEnd = inferSourceEnd(window);
+
+        const facts = dedupeFacts(extraction.facts);
+        const topicKey = String(extraction.meetingLedger.topicKey || '').trim() || 'general-meeting';
+
+        this.deps.knowledgeRepository.upsertEpisode({
+          userId: window.userId,
+          personaId: window.personaId,
+          conversationId: window.conversationId,
+          topicKey,
+          counterpart: extraction.meetingLedger.counterpart,
+          teaser: extraction.teaser,
+          episode: extraction.episode,
+          facts,
+          sourceSeqStart,
+          sourceSeqEnd,
+          sourceRefs: extraction.meetingLedger.sourceRefs,
+          eventAt: window.messages[window.messages.length - 1]?.createdAt || null,
+        });
+
+        this.deps.knowledgeRepository.upsertMeetingLedger({
+          userId: window.userId,
+          personaId: window.personaId,
+          conversationId: window.conversationId,
+          topicKey,
+          counterpart: extraction.meetingLedger.counterpart,
+          eventAt: window.messages[window.messages.length - 1]?.createdAt || null,
+          participants: extraction.meetingLedger.participants,
+          decisions: extraction.meetingLedger.decisions,
+          negotiatedTerms: extraction.meetingLedger.negotiatedTerms,
+          openPoints: extraction.meetingLedger.openPoints,
+          actionItems: extraction.meetingLedger.actionItems,
+          sourceRefs: extraction.meetingLedger.sourceRefs,
+          confidence: extraction.meetingLedger.confidence,
+        });
+
+        const baseMetadata = {
+          topicKey,
+          conversationId: window.conversationId,
+          sourceSeqStart,
+          sourceSeqEnd,
+        };
+
+        const storePromises: Array<Promise<unknown>> = [];
+        for (const fact of facts) {
+          storePromises.push(
+            this.deps.memoryService.store(
+              window.personaId,
+              'fact',
+              fact,
+              4,
+              window.userId,
+              { ...baseMetadata, artifactType: 'fact' },
+            ),
+          );
+        }
+
+        storePromises.push(
+          this.deps.memoryService.store(
+            window.personaId,
+            'fact',
+            extraction.teaser,
+            3,
+            window.userId,
+            { ...baseMetadata, artifactType: 'teaser' },
+          ),
+        );
+
+        storePromises.push(
+          this.deps.memoryService.store(
+            window.personaId,
+            'fact',
+            extraction.episode,
+            4,
+            window.userId,
+            { ...baseMetadata, artifactType: 'episode' },
+          ),
+        );
+
+        await Promise.all(storePromises);
+
+        this.deps.cursor.markWindowProcessed(window);
+        processedConversations += 1;
+        processedMessages += window.messages.length;
+      } catch (error) {
+        errors.push({
+          conversationId: window.conversationId,
+          personaId: window.personaId,
+          reason: error instanceof Error ? error.message : 'Unknown ingestion error',
+        });
+      }
+    }
+
+    return {
+      processedConversations,
+      processedMessages,
+      errors,
+    };
+  }
+}
+
+export type { KnowledgeIngestionCursor, KnowledgeExtractor };

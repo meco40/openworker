@@ -45,7 +45,9 @@ const ModelHub: React.FC = () => {
   const [isLoadingPipeline, setIsLoadingPipeline] = useState(true);
 
   const [connectProviderId, setConnectProviderId] = useState('');
-  const [connectAuthMethod, setConnectAuthMethod] = useState<'api_key' | 'oauth'>('api_key');
+  const [connectAuthMethod, setConnectAuthMethod] = useState<'none' | 'api_key' | 'oauth'>(
+    'api_key',
+  );
   const [connectLabel, setConnectLabel] = useState('');
   const [connectSecret, setConnectSecret] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
@@ -86,7 +88,9 @@ const ModelHub: React.FC = () => {
   );
 
   const availableAuthMethods = useMemo(
-    () => selectedConnectProvider?.authMethods ?? (['api_key'] as Array<'api_key' | 'oauth'>),
+    () =>
+      selectedConnectProvider?.authMethods ??
+      (['api_key'] as Array<'none' | 'api_key' | 'oauth'>),
     [selectedConnectProvider],
   );
 
@@ -155,7 +159,9 @@ const ModelHub: React.FC = () => {
   useEffect(() => {
     if (!selectedConnectProvider) return;
     if (!availableAuthMethods.includes(connectAuthMethod)) {
-      setConnectAuthMethod((availableAuthMethods[0] ?? 'api_key') as 'api_key' | 'oauth');
+      setConnectAuthMethod(
+        (availableAuthMethods[0] ?? 'api_key') as 'none' | 'api_key' | 'oauth',
+      );
     }
     if (!connectLabel.trim()) {
       setConnectLabel(`${selectedConnectProvider.name} Account`);
@@ -202,7 +208,11 @@ const ModelHub: React.FC = () => {
       return;
     }
 
-    if (!connectLabel.trim() || !connectSecret.trim()) {
+    if (!connectLabel.trim()) {
+      setConnectMessage({ text: 'Bitte mindestens ein Account-Label ausfüllen.', ok: false });
+      return;
+    }
+    if (connectAuthMethod === 'api_key' && !connectSecret.trim()) {
       setConnectMessage({ text: 'Bitte Label und API Key ausfüllen.', ok: false });
       return;
     }
@@ -217,7 +227,7 @@ const ModelHub: React.FC = () => {
           providerId: selectedConnectProvider.id,
           label: connectLabel.trim(),
           authMethod: connectAuthMethod,
-          secret: connectSecret.trim(),
+          secret: connectAuthMethod === 'none' ? '' : connectSecret.trim(),
         }),
       });
       const data = (await response.json()) as ApiResponse;

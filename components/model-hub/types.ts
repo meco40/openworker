@@ -2,7 +2,7 @@ export interface ProviderCatalogEntry {
   id: string;
   name: string;
   icon: string;
-  authMethods: Array<'api_key' | 'oauth'>;
+  authMethods: Array<'none' | 'api_key' | 'oauth'>;
   oauthConfigured?: boolean;
   capabilities: string[];
   defaultModels: string[];
@@ -14,7 +14,7 @@ export interface ProviderAccount {
   id: string;
   providerId: string;
   label: string;
-  authMethod: 'api_key' | 'oauth';
+  authMethod: 'none' | 'api_key' | 'oauth';
   secretMasked: string;
   hasRefreshToken: boolean;
   createdAt: string;

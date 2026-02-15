@@ -204,7 +204,11 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
                   <div className="flex items-center space-x-2">
                     <span className="truncate text-sm font-bold text-white">{account.label}</span>
                     <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[8px] text-zinc-400 uppercase">
-                      {account.authMethod === 'oauth' ? 'OAuth' : 'API Key'}
+                      {account.authMethod === 'oauth'
+                        ? 'OAuth'
+                        : account.authMethod === 'none'
+                          ? 'Local'
+                          : 'API Key'}
                     </span>
                     {account.lastCheckOk === true && (
                       <span

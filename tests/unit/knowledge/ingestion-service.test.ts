@@ -1,0 +1,154 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { StoredMessage } from '../../../src/server/channels/messages/repository';
+import type { KnowledgeExtractionResult } from '../../../src/server/knowledge/extractor';
+import type { IngestionWindow } from '../../../src/server/knowledge/ingestionCursor';
+import { KnowledgeIngestionService } from '../../../src/server/knowledge/ingestionService';
+
+function createMessage(seq: number, conversationId: string, content: string): StoredMessage {
+  return {
+    id: `msg-${conversationId}-${seq}`,
+    conversationId,
+    seq,
+    role: seq % 2 === 0 ? 'agent' : 'user',
+    content,
+    platform: 'WebChat' as never,
+    externalMsgId: null,
+    senderName: null,
+    metadata: null,
+    createdAt: new Date(2025, 1, 1, 9, seq).toISOString(),
+  };
+}
+
+function buildExtraction(topicKey = 'meeting-andreas'): KnowledgeExtractionResult {
+  return {
+    facts: ['8% Rabatt vereinbart', 'SLA bleibt offen'],
+    teaser: Array.from({ length: 90 }, (_, idx) => `teaser${idx + 1}`).join(' '),
+    episode: Array.from({ length: 450 }, (_, idx) => `episode${idx + 1}`).join(' '),
+    meetingLedger: {
+      topicKey,
+      counterpart: 'Andreas',
+      participants: ['Ich', 'Andreas'],
+      decisions: ['8% Rabatt beschlossen'],
+      negotiatedTerms: ['8% Rabatt fuer 12 Monate'],
+      openPoints: ['SLA Abnahme'],
+      actionItems: ['Andreas sendet Vertragsentwurf'],
+      sourceRefs: [{ seq: 2, quote: 'wir einigen uns auf 8 Prozent Rabatt' }],
+      confidence: 0.88,
+    },
+  };
+}
+
+describe('KnowledgeIngestionService', () => {
+  it('processes windows, writes artifacts, stores semantic memories and updates checkpoint', async () => {
+    const window: IngestionWindow = {
+      conversationId: 'conv-1',
+      userId: 'user-1',
+      personaId: 'persona-1',
+      fromSeqExclusive: 0,
+      toSeqInclusive: 3,
+      messages: [
+        createMessage(1, 'conv-1', 'Meeting mit Andreas'),
+        createMessage(2, 'conv-1', '8% Rabatt ausgehandelt'),
+        createMessage(3, 'conv-1', 'SLA bleibt offen'),
+      ],
+    };
+
+    const getPendingWindows = vi.fn(() => [window]);
+    const markWindowProcessed = vi.fn();
+    const extract = vi.fn(async () => buildExtraction());
+    const upsertEpisode = vi.fn();
+    const upsertMeetingLedger = vi.fn();
+    const store = vi.fn(async () => ({ id: 'mem-1' }));
+
+    const service = new KnowledgeIngestionService({
+      cursor: { getPendingWindows, markWindowProcessed },
+      extractor: { extract },
+      knowledgeRepository: {
+        upsertEpisode,
+        upsertMeetingLedger,
+      },
+      memoryService: { store },
+    });
+
+    const result = await service.runOnce();
+
+    expect(result.processedConversations).toBe(1);
+    expect(result.processedMessages).toBe(3);
+    expect(result.errors).toHaveLength(0);
+
+    expect(extract).toHaveBeenCalledTimes(1);
+    expect(upsertEpisode).toHaveBeenCalledTimes(1);
+    expect(upsertMeetingLedger).toHaveBeenCalledTimes(1);
+    expect(store).toHaveBeenCalled();
+    expect(markWindowProcessed).toHaveBeenCalledWith(window);
+
+    const episodeCall = upsertEpisode.mock.calls[0][0] as Record<string, unknown>;
+    expect(episodeCall.topicKey).toBe('meeting-andreas');
+    expect(episodeCall.sourceSeqStart).toBe(1);
+    expect(episodeCall.sourceSeqEnd).toBe(3);
+  });
+
+  it('continues with other conversations when one extraction fails and is retry-safe', async () => {
+    const windows: IngestionWindow[] = [
+      {
+        conversationId: 'conv-error',
+        userId: 'user-1',
+        personaId: 'persona-1',
+        fromSeqExclusive: 0,
+        toSeqInclusive: 2,
+        messages: [createMessage(1, 'conv-error', 'bad'), createMessage(2, 'conv-error', 'bad2')],
+      },
+      {
+        conversationId: 'conv-ok',
+        userId: 'user-1',
+        personaId: 'persona-1',
+        fromSeqExclusive: 0,
+        toSeqInclusive: 2,
+        messages: [createMessage(1, 'conv-ok', 'good'), createMessage(2, 'conv-ok', 'good2')],
+      },
+    ];
+
+    let emitted = false;
+    const processedConversationIds = new Set<string>();
+
+    const cursor = {
+      getPendingWindows: vi.fn(() => {
+        if (emitted) return [];
+        emitted = true;
+        return windows.filter((window) => !processedConversationIds.has(window.conversationId));
+      }),
+      markWindowProcessed: vi.fn((window: IngestionWindow) => {
+        processedConversationIds.add(window.conversationId);
+      }),
+    };
+
+    const extract = vi.fn(async (input: { conversationId: string }) => {
+      if (input.conversationId === 'conv-error') {
+        throw new Error('extract failed');
+      }
+      return buildExtraction('meeting-ok');
+    });
+
+    const service = new KnowledgeIngestionService({
+      cursor,
+      extractor: { extract },
+      knowledgeRepository: {
+        upsertEpisode: vi.fn(),
+        upsertMeetingLedger: vi.fn(),
+      },
+      memoryService: {
+        store: vi.fn(async () => ({ id: 'mem-x' })),
+      },
+    });
+
+    const result = await service.runOnce();
+
+    expect(result.processedConversations).toBe(1);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].conversationId).toBe('conv-error');
+    expect(cursor.markWindowProcessed).toHaveBeenCalledTimes(1);
+
+    const second = await service.runOnce();
+    expect(second.processedConversations).toBe(0);
+  });
+});

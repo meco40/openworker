@@ -13,9 +13,9 @@ interface SidebarSectionProps {
   connectProviderId: string;
   onConnectProviderIdChange: (providerId: string) => void;
   selectedConnectProvider: ProviderCatalogEntry | null;
-  availableAuthMethods: Array<'api_key' | 'oauth'>;
-  connectAuthMethod: 'api_key' | 'oauth';
-  onConnectAuthMethodChange: (method: 'api_key' | 'oauth') => void;
+  availableAuthMethods: Array<'none' | 'api_key' | 'oauth'>;
+  connectAuthMethod: 'none' | 'api_key' | 'oauth';
+  onConnectAuthMethodChange: (method: 'none' | 'api_key' | 'oauth') => void;
   connectLabel: string;
   onConnectLabelChange: (label: string) => void;
   connectSecret: string;
@@ -92,7 +92,9 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
             <div className="font-mono text-[9px] text-zinc-600">
               Auth:{' '}
               {selectedConnectProvider.authMethods
-                .map((method) => (method === 'api_key' ? 'API Key' : 'OAuth'))
+                .map((method) =>
+                  method === 'none' ? 'Local/No Auth' : method === 'api_key' ? 'API Key' : 'OAuth',
+                )
                 .join(' / ')}
             </div>
             {selectedConnectProvider.docsUrl && (
@@ -110,15 +112,19 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
 
         {availableAuthMethods.length > 1 && (
           <select
-            value={connectAuthMethod}
-            onChange={(event) =>
-              onConnectAuthMethodChange(event.target.value as 'api_key' | 'oauth')
-            }
+              value={connectAuthMethod}
+              onChange={(event) =>
+                onConnectAuthMethodChange(event.target.value as 'none' | 'api_key' | 'oauth')
+              }
             className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-200 focus:border-indigo-500 focus:outline-none"
           >
             {availableAuthMethods.map((method) => (
               <option key={method} value={method}>
-                {method === 'api_key' ? '🔑 API Key' : '🔒 OAuth (Browser Login)'}
+                {method === 'none'
+                  ? '🖥️ Lokal (kein Key)'
+                  : method === 'api_key'
+                    ? '🔑 API Key'
+                    : '🔒 OAuth (Browser Login)'}
               </option>
             ))}
           </select>
@@ -155,10 +161,12 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
           {oauthNeedsSetup
             ? 'OAuth Setup fehlt'
             : connectAuthMethod === 'oauth'
-            ? '🔒 OAuth starten'
-            : isConnecting
-              ? 'Verbinde...'
-              : '🔑 Provider verbinden'}
+              ? '🔒 OAuth starten'
+              : isConnecting
+                ? 'Verbinde...'
+                : connectAuthMethod === 'none'
+                  ? '🖥️ Lokalen Provider verbinden'
+                  : '🔑 Provider verbinden'}
         </button>
 
         {connectMessage && (
@@ -208,7 +216,7 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
           </div>
           <div className="flex justify-between">
             <span>AUTH_METHODS</span>
-            <span className="text-indigo-400">API Key + OAuth</span>
+            <span className="text-indigo-400">Local + API Key + OAuth</span>
           </div>
           <div className="flex justify-between">
             <span>LAST_PROBE</span>

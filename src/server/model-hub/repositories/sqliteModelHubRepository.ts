@@ -17,7 +17,7 @@ interface ProviderAccountRow {
   id: string;
   provider_id: string;
   label: string;
-  auth_method: 'api_key' | 'oauth';
+  auth_method: 'none' | 'api_key' | 'oauth';
   encrypted_secret: string;
   encrypted_refresh_token: string | null;
   secret_masked: string;

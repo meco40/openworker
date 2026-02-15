@@ -19,7 +19,7 @@ export async function testProviderAccountConnectivity(
   }
 
   const secret = decryptSecret(account.encryptedSecret, encryptionKey);
-  if (!secret || secret.trim().length === 0) {
+  if (account.authMethod !== 'none' && (!secret || secret.trim().length === 0)) {
     return { ok: false, message: 'Missing secret token.' };
   }
 

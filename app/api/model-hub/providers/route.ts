@@ -30,6 +30,7 @@ export async function GET() {
     // OpenAI Codex/OpenRouter should always show OAuth as an available method in UI.
     // `oauthConfigured` indicates whether the flow is ready server-side.
     const configuredAuthMethods = provider.authMethods.filter((method) => {
+      if (method === 'none') return true;
       if (method === 'api_key') return true;
       if (method !== 'oauth') return false;
 
@@ -45,6 +46,8 @@ export async function GET() {
 
     const sortedAuthMethods = [...configuredAuthMethods].sort((left, right) => {
       if (left === right) return 0;
+      if (left === 'none') return -1;
+      if (right === 'none') return 1;
       if (left === 'api_key') return -1;
       return 1;
     });

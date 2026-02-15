@@ -1,4 +1,4 @@
-export type ProviderAuthMethod = 'api_key' | 'oauth';
+export type ProviderAuthMethod = 'none' | 'api_key' | 'oauth';
 
 export type ProviderEndpointType =
   | 'gemini-native'

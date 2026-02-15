@@ -144,8 +144,8 @@ export interface CoupledChannel {
 export interface AIProvider {
   id: string;
   name: string;
-  authType: 'api_key' | 'oauth';
-  authMethods?: Array<'api_key' | 'oauth'>;
+  authType: 'none' | 'api_key' | 'oauth';
+  authMethods?: Array<'none' | 'api_key' | 'oauth'>;
   endpointType?:
     | 'gemini-native'
     | 'openai-compatible'

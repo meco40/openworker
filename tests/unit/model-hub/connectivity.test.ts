@@ -23,6 +23,24 @@ function buildAccount(providerId: string, secret: string): ProviderAccountRecord
   };
 }
 
+function buildNoAuthAccount(providerId: string): ProviderAccountRecord {
+  const now = new Date().toISOString();
+  return {
+    id: `${providerId}-acc`,
+    providerId,
+    label: providerId,
+    authMethod: 'none',
+    secretMasked: '********',
+    hasRefreshToken: false,
+    createdAt: now,
+    updatedAt: now,
+    lastCheckAt: null,
+    lastCheckOk: null,
+    encryptedSecret: encryptSecret('', KEY),
+    encryptedRefreshToken: null,
+  };
+}
+
 function buildCodexAccessToken(accountId = 'acct_test'): string {
   const payload = Buffer.from(
     JSON.stringify({
@@ -260,6 +278,50 @@ describe('model-hub connectivity adapters', () => {
       (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0],
     );
     expect(firstCallUrl).toContain('models.inference.ai.azure.com/info');
+
+    global.fetch = originalFetch;
+  });
+
+  it('supports ollama connectivity without auth token', async () => {
+    const originalFetch = global.fetch;
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ models: [{ name: 'llama3.2' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await testProviderAccountConnectivity(buildNoAuthAccount('ollama'), KEY);
+    expect(result.ok).toBe(true);
+    const firstCallUrl = String(
+      (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0],
+    );
+    expect(firstCallUrl).toContain('localhost:11434/api/tags');
+    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1] as {
+      headers?: Record<string, string>;
+    };
+    expect(firstCallInit?.headers?.Authorization).toBeUndefined();
+
+    global.fetch = originalFetch;
+  });
+
+  it('supports lmstudio connectivity without auth token', async () => {
+    const originalFetch = global.fetch;
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ data: [{ id: 'qwen2.5-coder' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await testProviderAccountConnectivity(buildNoAuthAccount('lmstudio'), KEY);
+    expect(result.ok).toBe(true);
+    const firstCallUrl = String(
+      (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0],
+    );
+    expect(firstCallUrl).toContain('localhost:1234/v1/models');
 
     global.fetch = originalFetch;
   });

@@ -183,6 +183,24 @@ describe('MemoryService (mem0-only)', () => {
     expect(node.content).toBe('likes coffee');
   });
 
+  it('persists optional evidence metadata during store', async () => {
+    const service = new MemoryService(createInMemoryMem0Client());
+
+    const node = await service.store('persona-a', 'fact', 'meeting summary', 4, 'user-a', {
+      topicKey: 'meeting-andreas',
+      conversationId: 'conv-42',
+      sourceSeqStart: 101,
+      sourceSeqEnd: 128,
+      artifactType: 'episode',
+    });
+
+    expect(node.metadata?.topicKey).toBe('meeting-andreas');
+    expect(node.metadata?.conversationId).toBe('conv-42');
+    expect(node.metadata?.sourceSeqStart).toBe(101);
+    expect(node.metadata?.sourceSeqEnd).toBe(128);
+    expect(node.metadata?.artifactType).toBe('episode');
+  });
+
   it('recalls relevant context via mem0 search results', async () => {
     const service = new MemoryService(createInMemoryMem0Client());
     await service.store('persona-a', 'preference', 'prefers oat milk', 4, 'user-a');
