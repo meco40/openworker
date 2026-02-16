@@ -95,9 +95,12 @@ export async function GET() {
       totalMessages: number;
     } | null = null;
 
-    const [automationImport, roomImport] = await Promise.allSettled([
+    const [automationImport, roomImport, knowledgeImport] = await Promise.allSettled([
       import('../../../../src/server/automation/runtime'),
       import('../../../../src/server/rooms/runtime'),
+      import('../../../../src/server/knowledge/runtime').then((mod) => ({
+        getKnowledgeRepository: mod.getKnowledgeRepository,
+      })),
     ]);
 
     if (automationImport.status === 'fulfilled') {
@@ -106,6 +109,23 @@ export async function GET() {
 
     if (roomImport.status === 'fulfilled') {
       roomMetrics = roomImport.value.getRoomRepository().getMetrics();
+    }
+
+    let knowledgeMetrics: {
+      episodeCount: number;
+      ledgerCount: number;
+      retrievalErrorCount: number;
+      latestIngestionAt: string | null;
+      ingestionLagMs: number;
+    } | null = null;
+
+    if (knowledgeImport.status === 'fulfilled') {
+      try {
+        const userId = userContext?.userId || LEGACY_LOCAL_USER_ID;
+        knowledgeMetrics = knowledgeImport.value.getKnowledgeRepository().getKnowledgeStats(userId, '');
+      } catch {
+        // Knowledge layer may not be initialized — skip metrics
+      }
     }
 
     return Response.json({
@@ -119,6 +139,7 @@ export async function GET() {
         orchestra: orchestraMetrics,
         automation: automationMetrics,
         rooms: roomMetrics,
+        knowledge: knowledgeMetrics,
         generatedAt: new Date().toISOString(),
       },
     });

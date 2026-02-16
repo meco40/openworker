@@ -17,7 +17,8 @@ export type PromptDispatchKind =
   | 'worker_executor'
   | 'api_gateway'
   | 'orchestra_routing'
-  | 'room';
+  | 'room'
+  | 'knowledge-extraction';
 
 export type PromptTokensSource = 'exact' | 'estimated';
 export type PromptDispatchStatus = 'success' | 'error';

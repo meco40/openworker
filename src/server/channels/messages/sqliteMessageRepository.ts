@@ -20,6 +20,15 @@ import type {
 import type { ChannelKey } from '../adapters/types';
 import { toChannelBinding, toConversation, toMessage } from './messageRowMappers';
 
+// ─── FTS5 search options ─────────────────────────────────────
+
+export interface SearchMessagesOptions {
+  userId?: string;
+  conversationId?: string;
+  role?: 'user' | 'agent' | 'system';
+  limit?: number;
+}
+
 // ─── SQLite Implementation ───────────────────────────────────
 
 export class SqliteMessageRepository implements MessageRepository {
@@ -183,6 +192,42 @@ export class SqliteMessageRepository implements MessageRepository {
       CREATE INDEX IF NOT EXISTS idx_channel_bindings_user_updated
         ON channel_bindings (user_id, updated_at DESC);
     `);
+
+    // ─── FTS5 full-text search on messages ───────────────────
+
+    this.db.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+        content,
+        content='messages',
+        content_rowid='rowid',
+        tokenize='unicode61 remove_diacritics 2'
+      );
+    `);
+
+    // Triggers to keep FTS5 in sync with messages table.
+    // These are no-ops if triggers already exist (CREATE TRIGGER IF NOT EXISTS).
+    this.db.exec(`
+      CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
+        INSERT INTO messages_fts(rowid, content) VALUES (NEW.rowid, NEW.content);
+      END;
+    `);
+
+    this.db.exec(`
+      CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
+        INSERT INTO messages_fts(messages_fts, rowid, content) VALUES ('delete', OLD.rowid, OLD.content);
+      END;
+    `);
+
+    this.db.exec(`
+      CREATE TRIGGER IF NOT EXISTS messages_au AFTER UPDATE OF content ON messages BEGIN
+        INSERT INTO messages_fts(messages_fts, rowid, content) VALUES ('delete', OLD.rowid, OLD.content);
+        INSERT INTO messages_fts(rowid, content) VALUES (NEW.rowid, NEW.content);
+      END;
+    `);
+
+    // Rebuild FTS index for any existing rows inserted before triggers existed.
+    // 'rebuild' is idempotent — it truncates and re-indexes from the content table.
+    this.migrateFtsRebuild();
   }
 
   // ─── Conversations ──────────────────────────────────────────
@@ -689,6 +734,84 @@ export class SqliteMessageRepository implements MessageRepository {
       `,
       )
       .run(normalizedUserId, channel, status, atIso, now, now);
+  }
+
+  private migrateFtsRebuild(): void {
+    // Only rebuild once when there are existing messages not yet indexed.
+    // After triggers are in place all new inserts are automatically indexed.
+    const msgCount = (
+      this.db.prepare('SELECT COUNT(*) as cnt FROM messages').get() as { cnt: number }
+    ).cnt;
+    if (msgCount === 0) return;
+
+    const ftsCount = (
+      this.db.prepare('SELECT COUNT(*) as cnt FROM messages_fts').get() as { cnt: number }
+    ).cnt;
+    if (ftsCount >= msgCount) return;
+
+    this.db.exec(`INSERT INTO messages_fts(messages_fts) VALUES('rebuild')`);
+  }
+
+  // ─── Full-Text Search ───────────────────────────────────────
+
+  searchMessages(query: string, opts: SearchMessagesOptions = {}): StoredMessage[] {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    const limit = Math.max(1, Math.min(200, opts.limit ?? 50));
+    const params: (string | number)[] = [];
+    const conditions: string[] = [];
+
+    // Build FTS5 match expression — AND all tokens
+    const ftsQuery = this.buildFtsQuery(trimmed);
+    params.push(ftsQuery);
+
+    if (opts.userId) {
+      conditions.push('c.user_id = ?');
+      params.push(opts.userId);
+    }
+    if (opts.conversationId) {
+      conditions.push('m.conversation_id = ?');
+      params.push(opts.conversationId);
+    }
+    if (opts.role) {
+      conditions.push('m.role = ?');
+      params.push(opts.role);
+    }
+
+    const whereClause = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
+
+    const sql = `
+      SELECT m.*
+      FROM messages_fts fts
+      JOIN messages m ON m.rowid = fts.rowid
+      JOIN conversations c ON c.id = m.conversation_id
+      WHERE messages_fts MATCH ?
+      ${whereClause}
+      ORDER BY bm25(messages_fts) ASC
+      LIMIT ?
+    `;
+    params.push(limit);
+
+    const rows = this.db.prepare(sql).all(...params) as Array<Record<string, unknown>>;
+    return rows.map(toMessage);
+  }
+
+  /**
+   * Converts a user query string into an FTS5 MATCH expression.
+   * - If the query already contains FTS5 operators (* " OR AND NOT), pass through as-is.
+   * - Otherwise, AND all tokens together for intersection semantics.
+   */
+  private buildFtsQuery(raw: string): string {
+    // If user already used FTS5 syntax (wildcards, quotes, boolean), pass through
+    if (/[*"()]/.test(raw) || /\b(OR|AND|NOT)\b/.test(raw)) {
+      return raw;
+    }
+    // Split into tokens, AND them
+    const tokens = raw.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return raw;
+    if (tokens.length === 1) return tokens[0];
+    return tokens.join(' AND ');
   }
 
   close(): void {

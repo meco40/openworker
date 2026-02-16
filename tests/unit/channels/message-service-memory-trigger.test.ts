@@ -200,7 +200,7 @@ describe('MessageService memory trigger', () => {
     expect(result.agentMsg.content.toLowerCase()).toContain('persona');
   });
 
-  it('uses channel-scoped memory user id for telegram when conversation user is legacy fallback', async () => {
+  it('uses unified memory user id for telegram in single-user mode', async () => {
     const service = new MessageService(
       buildRepository('persona-1', {
         channelType: ChannelType.TELEGRAM,
@@ -223,7 +223,7 @@ describe('MessageService memory trigger', () => {
       'fact',
       'Ich mag Tee',
       4,
-      'channel:telegram:1527785051',
+      LEGACY_LOCAL_USER_ID,
       expect.objectContaining({
         subject: 'user',
         sourceRole: 'user',

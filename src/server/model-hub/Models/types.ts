@@ -36,7 +36,8 @@ export type GatewayAuditKind =
   | 'worker_executor'
   | 'api_gateway'
   | 'orchestra_routing'
-  | 'room';
+  | 'room'
+  | 'knowledge-extraction';
 
 export interface GatewayAuditContext {
   kind: GatewayAuditKind;

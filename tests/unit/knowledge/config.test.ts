@@ -13,7 +13,7 @@ describe('knowledge config', () => {
     expect(config.ledgerEnabled).toBe(false);
     expect(config.episodeEnabled).toBe(false);
     expect(config.retrievalEnabled).toBe(false);
-    expect(config.maxContextTokens).toBe(1200);
+    expect(config.maxContextTokens).toBe(4000);
     expect(config.ingestIntervalMs).toBe(600000);
   });
 

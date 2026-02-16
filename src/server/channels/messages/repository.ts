@@ -5,6 +5,7 @@ import type {
   ChannelBindingStatus,
   UpsertChannelBindingInput,
 } from './channelBindings';
+import type { SearchMessagesOptions } from './sqliteMessageRepository';
 
 // ─── Data shapes ─────────────────────────────────────────────
 
@@ -91,6 +92,7 @@ export interface MessageRepository {
   updateModelOverride(id: string, modelOverride: string | null, userId: string): void;
   updatePersonaId(id: string, personaId: string | null, userId: string): void;
   findMessageByClientId(conversationId: string, clientMessageId: string): StoredMessage | null;
+  searchMessages?(query: string, opts?: SearchMessagesOptions): StoredMessage[];
 
   getConversationContext(conversationId: string, userId?: string): ConversationContextState | null;
   upsertConversationContext(

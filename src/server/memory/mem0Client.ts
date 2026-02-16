@@ -3,6 +3,10 @@ export interface Mem0ClientConfig {
   apiPath?: string;
   apiKey?: string;
   timeoutMs?: number;
+  /** Maximum number of retries for transient HTTP errors (500, 502, 503, 429). Defaults to 0. */
+  maxRetries?: number;
+  /** Base delay in ms before the first retry (doubles on each subsequent retry). Defaults to 500. */
+  retryBaseDelayMs?: number;
 }
 
 export interface Mem0MemoryInput {
@@ -17,6 +21,8 @@ export interface Mem0SearchInput {
   personaId: string;
   query: string;
   limit: number;
+  /** Optional metadata filters passed through to the Mem0 search endpoint. */
+  filters?: Record<string, unknown>;
 }
 
 export interface Mem0ListInput {
@@ -315,11 +321,28 @@ function normalizeText(value: string): string {
   return value.trim().toLowerCase();
 }
 
+const TRANSIENT_HTTP_CODES = new Set([429, 500, 502, 503]);
+const DEFAULT_MAX_RETRIES = 0;
+const DEFAULT_RETRY_BASE_DELAY_MS = 500;
+
+function isTransientHttpError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return Array.from(TRANSIENT_HTTP_CODES).some((code) =>
+    new RegExp(`HTTP\\s*${code}`, 'i').test(message),
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 class HttpMem0Client implements Mem0Client {
   private readonly baseUrl: string;
   private readonly apiPath: string;
   private readonly apiKey?: string;
   private readonly timeoutMs: number;
+  private readonly maxRetries: number;
+  private readonly retryBaseDelayMs: number;
   private readonly fetchImpl: typeof fetch;
 
   constructor(config: Mem0ClientConfig, fetchImpl: typeof fetch) {
@@ -329,6 +352,12 @@ class HttpMem0Client implements Mem0Client {
     this.timeoutMs = Number.isFinite(config.timeoutMs)
       ? Math.max(100, Math.floor(config.timeoutMs as number))
       : DEFAULT_TIMEOUT_MS;
+    this.maxRetries = Number.isFinite(config.maxRetries)
+      ? Math.max(0, Math.floor(config.maxRetries as number))
+      : DEFAULT_MAX_RETRIES;
+    this.retryBaseDelayMs = Number.isFinite(config.retryBaseDelayMs)
+      ? Math.max(0, Math.floor(config.retryBaseDelayMs as number))
+      : DEFAULT_RETRY_BASE_DELAY_MS;
     this.fetchImpl = fetchImpl;
   }
 
@@ -347,15 +376,18 @@ class HttpMem0Client implements Mem0Client {
   }
 
   async searchMemories(input: Mem0SearchInput): Promise<Mem0SearchHit[]> {
+    const baseFilters: Record<string, unknown> = {
+      user_id: input.userId,
+      agent_id: input.personaId,
+      ...input.filters,
+    };
+
     try {
       const payload = await this.requestV2('/memories/search', {
         method: 'POST',
         body: {
           query: input.query,
-          filters: {
-            user_id: input.userId,
-            agent_id: input.personaId,
-          },
+          filters: baseFilters,
           top_k: input.limit,
           limit: input.limit,
         },
@@ -537,6 +569,34 @@ class HttpMem0Client implements Mem0Client {
       body?: Record<string, unknown>;
     },
   ): Promise<unknown> {
+    let lastError: unknown;
+    const maxAttempts = 1 + this.maxRetries;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        return await this.requestOnce(apiPath, path, init);
+      } catch (error) {
+        lastError = error;
+        const retriesLeft = maxAttempts - attempt - 1;
+        if (retriesLeft <= 0 || !isTransientHttpError(error)) {
+          throw error;
+        }
+        const delayMs = this.retryBaseDelayMs * Math.pow(2, attempt);
+        await sleep(delayMs);
+      }
+    }
+
+    throw lastError;
+  }
+
+  private async requestOnce(
+    apiPath: string,
+    path: string,
+    init: {
+      method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+      body?: Record<string, unknown>;
+    },
+  ): Promise<unknown> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
 
@@ -618,12 +678,24 @@ export function createMem0ClientFromEnv(
     ? Math.max(100, Math.floor(timeoutRaw))
     : DEFAULT_TIMEOUT_MS;
 
+  const maxRetriesRaw = Number(env.MEM0_MAX_RETRIES ?? 3);
+  const maxRetries = Number.isFinite(maxRetriesRaw)
+    ? Math.max(0, Math.floor(maxRetriesRaw))
+    : 3;
+
+  const retryDelayRaw = Number(env.MEM0_RETRY_BASE_DELAY_MS ?? DEFAULT_RETRY_BASE_DELAY_MS);
+  const retryBaseDelayMs = Number.isFinite(retryDelayRaw)
+    ? Math.max(0, Math.floor(retryDelayRaw))
+    : DEFAULT_RETRY_BASE_DELAY_MS;
+
   return createMem0Client(
     {
       baseUrl,
       apiKey: apiKey || undefined,
       apiPath: String(env.MEM0_API_PATH || '/v1').trim() || '/v1',
       timeoutMs,
+      maxRetries,
+      retryBaseDelayMs,
     },
     fetchImpl,
   );

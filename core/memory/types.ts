@@ -10,7 +10,7 @@ export interface MemoryNode {
   id: string;
   type: MemoryType;
   content: string;
-  embedding: number[];
+  embedding?: number[];
   importance: number; // 1-5
   confidence: number; // 0.1 - 1.0 (steigt bei Bestätigung)
   timestamp: string;

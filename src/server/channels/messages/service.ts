@@ -51,7 +51,7 @@ function extractMemorySaveContent(content: string): string | null {
 }
 
 const MEMORY_CONTEXT_CHAR_LIMIT = 1200;
-const MEMORY_RECALL_LIMIT = 3;
+const MEMORY_RECALL_LIMIT = 10;
 const MEMORY_FEEDBACK_WINDOW_MS = 10 * 60 * 1000;
 
 type LastRecallState = {

@@ -220,6 +220,6 @@ describe('KnowledgeIngestionCursor', () => {
     const windows = cursor.getPendingWindows();
 
     expect(windows).toHaveLength(1);
-    expect(windows[0].userId).toBe('channel:telegram:1527785051');
+    expect(windows[0].userId).toBe('legacy-local-user');
   });
 });

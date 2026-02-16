@@ -62,7 +62,7 @@ describe('react/next best-practices refactor', () => {
 
     expect(skillRoute).toContain('const [resolvedParams, body, repo] = await Promise.all([');
     expect(metricsRoute).toContain(
-      'const [automationImport, roomImport] = await Promise.allSettled([',
+      'const [automationImport, roomImport, knowledgeImport] = await Promise.allSettled([',
     );
   });
 

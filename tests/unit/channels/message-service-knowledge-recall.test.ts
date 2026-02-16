@@ -249,31 +249,16 @@ describe('MessageService knowledge recall integration', () => {
     expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
   });
 
-  it('falls back to legacy memory scope for telegram when channel scope has no results', async () => {
+  it('uses unified legacy scope for telegram in single-user mode (no channel-scoped fallback)', async () => {
+    // After Phase 1 cross-channel fix, Telegram in single-user mode resolves
+    // directly to legacy-local-user — no fallback to channel:telegram:* needed.
     const service = new MessageService(buildRepository('persona-1', 'legacy-local-user'));
-    knowledgeRetrieveMock.mockImplementation(async (...args: unknown[]) => {
-      const input = (args[0] ?? {}) as { userId?: string };
-      if (input.userId === 'channel:telegram:1527785051') {
-        return {
-          context: '',
-          sections: { answerDraft: '', keyDecisions: '', openPoints: '', evidence: '' },
-          references: [],
-          tokenCount: 0,
-        };
-      }
-      if (input.userId === 'legacy-local-user') {
-        return {
-          context: 'Legacy knowledge context for sauna details.',
-          sections: { answerDraft: '', keyDecisions: '', openPoints: '', evidence: '' },
-          references: [],
-          tokenCount: 12,
-        };
-      }
+    knowledgeRetrieveMock.mockImplementation(async () => {
       return {
-        context: '',
+        context: 'Knowledge context about sauna details.',
         sections: { answerDraft: '', keyDecisions: '', openPoints: '', evidence: '' },
         references: [],
-        tokenCount: 0,
+        tokenCount: 12,
       };
     });
 
@@ -286,14 +271,11 @@ describe('MessageService knowledge recall integration', () => {
       'legacy-local-user',
     );
 
-    expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(2);
+    // Only one call — directly to legacy-local-user, no channel-scoped attempt
+    expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
     const calls = knowledgeRetrieveMock.mock.calls as unknown[][];
     const firstCall = (calls[0]?.[0] ?? {}) as Record<string, unknown>;
-    const secondCall = (calls[1]?.[0] ?? {}) as Record<string, unknown>;
     expect(firstCall).toMatchObject({
-      userId: 'channel:telegram:1527785051',
-    });
-    expect(secondCall).toMatchObject({
       userId: 'legacy-local-user',
     });
     expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
@@ -301,6 +283,6 @@ describe('MessageService knowledge recall integration', () => {
     const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
     const dispatchInput = (call?.[2] ?? {}) as { messages?: Array<{ role: string; content: string }> };
     const dispatchedMessages = dispatchInput.messages ?? [];
-    expect(dispatchedMessages[0]?.content).toContain('Legacy knowledge context');
+    expect(dispatchedMessages[0]?.content).toContain('Knowledge context');
   });
 });

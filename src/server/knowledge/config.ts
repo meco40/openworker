@@ -19,7 +19,7 @@ export const KNOWLEDGE_DEFAULT_CONFIG: KnowledgeConfig = {
   ledgerEnabled: false,
   episodeEnabled: false,
   retrievalEnabled: false,
-  maxContextTokens: 1200,
+  maxContextTokens: 4000,
   ingestIntervalMs: 600_000,
 };
 

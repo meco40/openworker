@@ -1,5 +1,6 @@
 import type { MessageRepository } from '../channels/messages/repository';
 import { SqliteMessageRepository } from '../channels/messages/sqliteMessageRepository';
+import { getModelHubService, getModelHubEncryptionKey } from '../model-hub/runtime';
 import { getMemoryService } from '../memory/runtime';
 import { getKnowledgeConfig } from './config';
 import { KnowledgeExtractor } from './extractor';
@@ -37,9 +38,33 @@ export function getKnowledgeRepository(): KnowledgeRepository {
   return globalThis.__knowledgeRepository;
 }
 
+/**
+ * Sends a prompt to the model hub for knowledge extraction.
+ * Uses the default pipeline with the first active model (profile 'p1').
+ */
+async function runExtractionModelViaHub(prompt: string): Promise<string> {
+  const service = getModelHubService();
+  const encryptionKey = getModelHubEncryptionKey();
+  const result = await service.dispatchWithFallback('p1', encryptionKey, {
+    messages: [
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ],
+    auditContext: { kind: 'knowledge-extraction' },
+  });
+  if (!result.ok) {
+    throw new Error(`Knowledge extraction model call failed: ${result.error || 'unknown'}`);
+  }
+  return result.text;
+}
+
 export function getKnowledgeExtractor(): KnowledgeExtractor {
   if (!globalThis.__knowledgeExtractor) {
-    globalThis.__knowledgeExtractor = new KnowledgeExtractor();
+    globalThis.__knowledgeExtractor = new KnowledgeExtractor({
+      runExtractionModel: runExtractionModelViaHub,
+    });
   }
   return globalThis.__knowledgeExtractor;
 }

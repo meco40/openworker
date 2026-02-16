@@ -42,7 +42,7 @@ const MIN_IMPORTANCE = 1;
 const MAX_IMPORTANCE = 5;
 const FORGET_NEGATIVE_FEEDBACK_THRESHOLD = 3;
 const FORGET_CONFIDENCE_THRESHOLD = 0.15;
-const MEM0_SCORE_THRESHOLD = 0.45;
+const MEM0_SCORE_THRESHOLD = 0.30;
 
 function resolveUserId(userId?: string): string {
   const normalized = String(userId || '').trim();

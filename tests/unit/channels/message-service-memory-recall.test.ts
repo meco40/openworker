@@ -165,7 +165,7 @@ describe('MessageService memory recall gating', () => {
     expect(memoryRecallDetailedMock).toHaveBeenCalledWith(
       'persona-1',
       'Wie trinke ich meinen Kaffee?',
-      3,
+      10,
       'user-1',
     );
 

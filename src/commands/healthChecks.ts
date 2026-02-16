@@ -1,6 +1,7 @@
 import type { HealthCheck, HealthCommandOptions } from './healthTypes';
 import {
   runGatewayRegistryCheck,
+  runKnowledgeLayerCheck,
   runLoggingRepositoryCheck,
   runMemoryRepositoryCheck,
   runStatsRepositoryCheck,
@@ -30,6 +31,7 @@ export async function runHealthChecks(options: HealthCommandOptions = {}): Promi
   checks.push(await runMemoryPressureCheck(detailedMemoryDiagnostics));
   checks.push(runAlertRoutingCheck());
   checks.push(...(await runBridgeIntegrationChecks(options)));
+  checks.push(runKnowledgeLayerCheck());
 
   return checks;
 }

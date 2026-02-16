@@ -192,17 +192,20 @@ export class KnowledgeIngestionService {
       sourceType: 'knowledge_ingestion',
     };
 
-    const storePromises: Array<Promise<unknown>> = [];
     for (const fact of facts) {
-      storePromises.push(
-        this.deps.memoryService.store(window.personaId, 'fact', fact, 4, window.userId, {
+      try {
+        await this.deps.memoryService.store(window.personaId, 'fact', fact, 4, window.userId, {
           ...baseMetadata,
           artifactType: 'fact',
-        }),
-      );
+        });
+      } catch (storeError) {
+        console.warn(
+          '[KnowledgeIngestion] failed to store fact, continuing with remaining',
+          window.personaId,
+          storeError instanceof Error ? storeError.message : String(storeError),
+        );
+      }
     }
-
-    await Promise.all(storePromises);
   }
 }
 
