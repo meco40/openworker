@@ -17,6 +17,10 @@ class RunStartRequest(BaseModel):
     runId: str = Field(..., min_length=1)
     objective: str = Field(..., min_length=1)
     requireApproval: bool = False
+    personaId: str | None = None
+    preferredModelId: str | None = None
+    modelHubProfileId: str | None = None
+    enabledTools: list[str] = Field(default_factory=list)
 
 
 class ApprovalResumeRequest(BaseModel):
@@ -38,6 +42,9 @@ def start_run(request: RunStartRequest) -> dict[str, Any]:
         request.objective,
         require_approval=request.requireApproval,
         run_id=request.runId,
+        preferred_model_id=request.preferredModelId,
+        model_hub_profile_id=request.modelHubProfileId,
+        enabled_tools=request.enabledTools,
     )
     _runs[request.runId] = {
         "run_id": request.runId,
@@ -60,7 +67,7 @@ def cancel_run(run_id: str) -> dict[str, str]:
 
 
 @app.post("/approvals/{token}/resume")
-def resume_approval(token: str, request: ApprovalResumeRequest) -> dict[str, str]:
+def resume_approval(token: str, request: ApprovalResumeRequest) -> dict[str, Any]:
     try:
         approval = _approvals.resume(
             token,
@@ -72,21 +79,22 @@ def resume_approval(token: str, request: ApprovalResumeRequest) -> dict[str, str
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    response: dict[str, Any] = {
+        "token": token,
+        "status": approval.status,
+        "runId": approval.run_id,
+    }
+
     run = _runs.get(approval.run_id)
     if run is not None and run["status"] == "paused":
-        if request.approved:
-            resumed = _runner.run(
-                run["objective"],
-                require_approval=False,
-                run_id=approval.run_id,
-            )
-            run["status"] = resumed["status"]
-            run["result"] = resumed
-        else:
-            run["status"] = "failed"
-            run["result"] = {
-                "status": "failed",
-                "output": "approval rejected",
-            }
+        resumed = _runner.resume(
+            run_id=approval.run_id,
+            approved=request.approved,
+            payload=request.payload,
+            objective=str(run.get("objective") or ""),
+        )
+        run["status"] = resumed["status"]
+        run["result"] = resumed
+        response["run"] = resumed
 
-    return {"token": token, "status": approval.status, "runId": approval.run_id}
+    return response

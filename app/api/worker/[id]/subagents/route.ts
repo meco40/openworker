@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
 import { getWorkerRepository } from '../../../../../src/server/worker/workerRepository';
+import { getPersonaRepository } from '../../../../../src/server/personas/personaRepository';
 
 export const runtime = 'nodejs';
 
@@ -11,6 +12,14 @@ const ALLOWED_SUBAGENT_STATUSES = new Set([
   'failed',
   'cancelled',
 ]);
+
+function normalizeOptionalId(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -52,21 +61,63 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       runId?: string | null;
       nodeId?: string | null;
       personaId?: string | null;
+      allowPersonaOverride?: boolean;
       sessionRef?: string | null;
       source?: 'legacy' | 'openai';
       metadata?: Record<string, unknown>;
     };
+
+    const taskPersonaId = task.assignedPersonaId || null;
+    const explicitPersonaRequested = body.personaId !== undefined;
+    const requestedPersonaId = normalizeOptionalId(body.personaId);
+    if (explicitPersonaRequested && requestedPersonaId === undefined) {
+      return NextResponse.json({ ok: false, error: 'personaId must be a string or null' }, { status: 400 });
+    }
+
+    let resolvedPersonaId = taskPersonaId;
+    let personaResolution: 'inherited_task_persona' | 'task_default_none' | 'explicit_override' =
+      taskPersonaId ? 'inherited_task_persona' : 'task_default_none';
+
+    if (explicitPersonaRequested && requestedPersonaId !== taskPersonaId) {
+      if (!body.allowPersonaOverride) {
+        return NextResponse.json(
+          { ok: false, error: 'persona override requires allowPersonaOverride=true' },
+          { status: 400 },
+        );
+      }
+      resolvedPersonaId = requestedPersonaId ?? null;
+      personaResolution = 'explicit_override';
+    }
+
+    let resolvedPersonaModelHubProfileId: string | null = null;
+    let resolvedPersonaPreferredModelId: string | null = null;
+    if (resolvedPersonaId) {
+      const personaRepo = getPersonaRepository();
+      const persona = personaRepo.getPersona(resolvedPersonaId);
+      if (!persona || persona.userId !== userContext.userId) {
+        return NextResponse.json({ ok: false, error: 'persona not found' }, { status: 400 });
+      }
+      resolvedPersonaModelHubProfileId =
+        (persona as { modelHubProfileId?: string | null }).modelHubProfileId || null;
+      resolvedPersonaPreferredModelId = persona.preferredModelId || null;
+    }
 
     const session = repo.createSubagentSession({
       taskId: id,
       userId: userContext.userId,
       runId: body.runId || null,
       nodeId: body.nodeId || null,
-      personaId: body.personaId || null,
+      personaId: resolvedPersonaId,
       sessionRef: body.sessionRef || null,
       metadata: {
         ...(body.metadata || {}),
         source: body.source || 'legacy',
+        personaResolution,
+        taskPersonaId,
+        requestedPersonaId: explicitPersonaRequested ? requestedPersonaId ?? null : null,
+        resolvedPersonaId,
+        modelHubProfileId: resolvedPersonaModelHubProfileId,
+        preferredModelId: resolvedPersonaPreferredModelId,
       },
     });
 

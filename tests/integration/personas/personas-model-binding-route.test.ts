@@ -54,7 +54,7 @@ describe('personas model binding route', () => {
     }
   });
 
-  it('creates and updates personas with preferredModelId', async () => {
+  it('creates and updates personas with model binding fields', async () => {
     const dbPath = path.join(
       process.cwd(),
       '.local',
@@ -74,17 +74,19 @@ describe('personas model binding route', () => {
         body: JSON.stringify({
           name: 'Developer Persona',
           preferredModelId: 'gpt-4o-mini',
+          modelHubProfileId: 'team-a',
         }),
       }),
     );
     const createPayload = (await createResponse.json()) as {
       ok: boolean;
-      persona: { id: string; preferredModelId: string | null };
+      persona: { id: string; preferredModelId: string | null; modelHubProfileId: string | null };
     };
 
     expect(createResponse.status).toBe(201);
     expect(createPayload.ok).toBe(true);
     expect(createPayload.persona.preferredModelId).toBe('gpt-4o-mini');
+    expect(createPayload.persona.modelHubProfileId).toBe('team-a');
 
     const personaRoute = await loadPersonaByIdRoute();
     const updateResponse = await personaRoute.PUT(
@@ -93,17 +95,19 @@ describe('personas model binding route', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           preferredModelId: 'claude-3.7-sonnet',
+          modelHubProfileId: 'team-b',
         }),
       }),
       { params: Promise.resolve({ id: createPayload.persona.id }) },
     );
     const updatePayload = (await updateResponse.json()) as {
       ok: boolean;
-      persona: { preferredModelId: string | null };
+      persona: { preferredModelId: string | null; modelHubProfileId: string | null };
     };
 
     expect(updateResponse.status).toBe(200);
     expect(updatePayload.ok).toBe(true);
     expect(updatePayload.persona.preferredModelId).toBe('claude-3.7-sonnet');
+    expect(updatePayload.persona.modelHubProfileId).toBe('team-b');
   });
 });

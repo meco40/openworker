@@ -113,4 +113,30 @@ describe('personas model binding validation', () => {
 
     expect(crossUpdate.status).toBe(404);
   });
+
+  it('rejects invalid modelHubProfileId values', async () => {
+    const dbPath = path.join(
+      process.cwd(),
+      '.local',
+      `personas.model.profile.validation.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
+    );
+    cleanupPaths.push(dbPath);
+    process.env.PERSONAS_DB_PATH = dbPath;
+
+    mockUserContext({ userId: 'user-a', authenticated: true });
+    mockPipelineModels(['gpt-4o-mini']);
+    const personasRoute = await loadPersonasRoute();
+
+    const invalidCreate = await personasRoute.POST(
+      new Request('http://localhost/api/personas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Invalid Profile Persona',
+          modelHubProfileId: '   ',
+        }),
+      }),
+    );
+    expect(invalidCreate.status).toBe(400);
+  });
 });

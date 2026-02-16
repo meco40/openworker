@@ -204,6 +204,9 @@ export async function dispatchOpenAICompatibleChat(
     temperature: request.temperature ?? 0.7,
     stream: false,
   };
+  if (Array.isArray(request.tools) && request.tools.length > 0) {
+    body.tools = request.tools;
+  }
   if (
     request.reasoning_effort &&
     (providerId === 'openai' || providerId === 'openai-codex')
@@ -254,7 +257,17 @@ export async function dispatchOpenAICompatibleChat(
   }
 
   const json = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
+    choices?: Array<{
+      message?: {
+        content?: string;
+        reasoning_content?: string;
+        tool_calls?: Array<{
+          type?: string;
+          function?: { name?: string; arguments?: unknown };
+        }>;
+        function_call?: { name?: string; arguments?: unknown };
+      };
+    }>;
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
     model?: string;
   };
@@ -264,12 +277,51 @@ export async function dispatchOpenAICompatibleChat(
   // Strip thinking/reasoning blocks that some models embed in content
   // e.g. DeepSeek R1, Grok 4 via OpenRouter: <think>...</think>
   text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  const message = json.choices?.[0]?.message;
+  const rawToolCalls = message?.tool_calls ?? [];
+  const mappedToolCalls = rawToolCalls
+    .map((toolCall) => {
+      const name = toolCall?.function?.name?.trim();
+      if (!name) return null;
+      const rawArgs = toolCall.function?.arguments;
+      if (typeof rawArgs === 'string') {
+        try {
+          return { name, args: JSON.parse(rawArgs) };
+        } catch {
+          return { name, args: { raw: rawArgs } };
+        }
+      }
+      if (rawArgs && typeof rawArgs === 'object') {
+        return { name, args: rawArgs };
+      }
+      return { name };
+    })
+    .filter((call): call is { name: string; args?: unknown } => Boolean(call));
+
+  if (mappedToolCalls.length === 0 && message?.function_call?.name) {
+    const name = message.function_call.name.trim();
+    const rawArgs = message.function_call.arguments;
+    if (name) {
+      if (typeof rawArgs === 'string') {
+        try {
+          mappedToolCalls.push({ name, args: JSON.parse(rawArgs) });
+        } catch {
+          mappedToolCalls.push({ name, args: { raw: rawArgs } });
+        }
+      } else if (rawArgs && typeof rawArgs === 'object') {
+        mappedToolCalls.push({ name, args: rawArgs });
+      } else {
+        mappedToolCalls.push({ name });
+      }
+    }
+  }
 
   return {
     ok: true,
     text,
     model: json.model ?? request.model,
     provider: providerId,
+    functionCalls: mappedToolCalls.length > 0 ? mappedToolCalls : undefined,
     usage: json.usage
       ? {
           prompt_tokens: json.usage.prompt_tokens ?? 0,

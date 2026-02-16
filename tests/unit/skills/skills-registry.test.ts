@@ -26,7 +26,7 @@ describe('SkillsRegistry', () => {
     expect(html).toContain('aria-label="Clear ClawHub search"');
   });
 
-  it('renders tool configuration section', () => {
+  it('renders registry tabs for Worker Tools, Skills and Tool Configuration', () => {
     const html = renderToStaticMarkup(
       createElement(SkillsRegistry, {
         skills: [],
@@ -34,10 +34,23 @@ describe('SkillsRegistry', () => {
       }),
     );
 
+    expect(html).toContain('Worker Tools');
+    expect(html).toContain('Skills');
     expect(html).toContain('Tool Configuration');
   });
 
-  it('renders an info button for each tool card', () => {
+  it('renders OpenAI worker tools section by default', () => {
+    const html = renderToStaticMarkup(
+      createElement(SkillsRegistry, {
+        skills: [],
+        setSkills: noopSetSkills,
+      }),
+    );
+
+    expect(html).toContain('OpenAI Worker Tools');
+  });
+
+  it('does not render skill cards by default tab', () => {
     const html = renderToStaticMarkup(
       createElement(SkillsRegistry, {
         skills: [
@@ -56,6 +69,6 @@ describe('SkillsRegistry', () => {
       }),
     );
 
-    expect(html).toContain('aria-label="Open info for Live Vision"');
+    expect(html).not.toContain('aria-label="Open info for Live Vision"');
   });
 });

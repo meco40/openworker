@@ -18,6 +18,11 @@ function isPreferredModelAvailable(preferredModelId: string): boolean {
   );
 }
 
+function isValidModelHubProfileId(value: string): boolean {
+  if (!value.trim()) return false;
+  return /^[a-zA-Z0-9._-]{1,64}$/.test(value.trim());
+}
+
 // ─── GET /api/personas ─── List all personas for the current user
 export async function GET() {
   try {
@@ -49,6 +54,7 @@ export async function POST(request: Request) {
       emoji?: string;
       vibe?: string;
       preferredModelId?: string | null;
+      modelHubProfileId?: string | null;
       files?: Record<string, string>;
     };
 
@@ -65,6 +71,24 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+    }
+
+    let modelHubProfileId: string | null = null;
+    if (body.modelHubProfileId !== undefined && body.modelHubProfileId !== null) {
+      if (
+        typeof body.modelHubProfileId !== 'string' ||
+        !isValidModelHubProfileId(body.modelHubProfileId)
+      ) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              'modelHubProfileId must be a non-empty string (letters, numbers, ".", "_" or "-").',
+          },
+          { status: 400 },
+        );
+      }
+      modelHubProfileId = body.modelHubProfileId.trim();
     }
 
     const repo = getPersonaRepository();
@@ -88,6 +112,7 @@ export async function POST(request: Request) {
       emoji: body.emoji?.trim() || '🤖',
       vibe: body.vibe?.trim() || '',
       preferredModelId,
+      modelHubProfileId,
       files:
         Object.keys(validatedFiles).length > 0
           ? (validatedFiles as Partial<Record<PersonaFileName, string>>)

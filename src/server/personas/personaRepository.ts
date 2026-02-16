@@ -23,6 +23,7 @@ function toPersona(row: Record<string, unknown>): PersonaProfile {
     emoji: row.emoji as string,
     vibe: row.vibe as string,
     preferredModelId: (row.preferred_model_id as string) || null,
+    modelHubProfileId: (row.model_hub_profile_id as string) || null,
     userId: row.user_id as string,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -36,6 +37,7 @@ function toSummary(row: Record<string, unknown>): PersonaSummary {
     emoji: row.emoji as string,
     vibe: row.vibe as string,
     preferredModelId: (row.preferred_model_id as string) || null,
+    modelHubProfileId: (row.model_hub_profile_id as string) || null,
     updatedAt: row.updated_at as string,
   };
 }
@@ -65,6 +67,7 @@ export class PersonaRepository {
         emoji TEXT NOT NULL DEFAULT '🤖',
         vibe TEXT NOT NULL DEFAULT '',
         preferred_model_id TEXT,
+        model_hub_profile_id TEXT,
         user_id TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
@@ -73,6 +76,11 @@ export class PersonaRepository {
 
     try {
       this.db.exec('ALTER TABLE personas ADD COLUMN preferred_model_id TEXT');
+    } catch {
+      // column already exists
+    }
+    try {
+      this.db.exec('ALTER TABLE personas ADD COLUMN model_hub_profile_id TEXT');
     } catch {
       // column already exists
     }
@@ -134,8 +142,8 @@ export class PersonaRepository {
 
     this.db
       .prepare(
-        `INSERT INTO personas (id, name, emoji, vibe, preferred_model_id, user_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO personas (id, name, emoji, vibe, preferred_model_id, model_hub_profile_id, user_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -143,6 +151,7 @@ export class PersonaRepository {
         input.emoji,
         input.vibe,
         input.preferredModelId || null,
+        input.modelHubProfileId || null,
         input.userId,
         now,
         now,
@@ -167,6 +176,7 @@ export class PersonaRepository {
       emoji?: string;
       vibe?: string;
       preferredModelId?: string | null;
+      modelHubProfileId?: string | null;
     },
   ): void {
     const now = new Date().toISOString();
@@ -188,6 +198,10 @@ export class PersonaRepository {
     if (updates.preferredModelId !== undefined) {
       setClauses.push('preferred_model_id = ?');
       values.push(updates.preferredModelId);
+    }
+    if (updates.modelHubProfileId !== undefined) {
+      setClauses.push('model_hub_profile_id = ?');
+      values.push(updates.modelHubProfileId);
     }
 
     values.push(id);

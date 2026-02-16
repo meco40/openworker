@@ -87,6 +87,47 @@ describe('openai worker runtime execution', () => {
     expect(updated.resultSummary).toContain('done');
   });
 
+  it('passes enabled OpenAI worker tools to sidecar startRun', async () => {
+    const repo = new SqliteWorkerRepository(':memory:');
+    const task = makeTask(repo);
+    const startRun = vi.fn().mockResolvedValue({
+      runId: 'run-tools',
+      status: 'completed',
+      output: 'done',
+    });
+
+    vi.doMock('../../../src/server/worker/workerRepository', () => ({
+      getWorkerRepository: () => repo,
+    }));
+    vi.doMock('../../../src/server/gateway/broadcast', () => ({
+      broadcast: vi.fn(),
+    }));
+    vi.doMock('../../../src/server/worker/workerCallback', () => ({
+      notifyTaskCompleted: vi.fn().mockResolvedValue(undefined),
+      notifyTaskFailed: vi.fn().mockResolvedValue(undefined),
+      notifyApprovalRequest: vi.fn().mockResolvedValue(undefined),
+    }));
+    vi.doMock('../../../src/server/worker/openai/openaiToolRegistry', () => ({
+      listEnabledOpenAiWorkerToolNames: vi
+        .fn()
+        .mockResolvedValue(['safe_browser', 'safe_files']),
+    }));
+
+    const runtime = await import('../../../src/server/worker/openai/openaiWorkerRuntime');
+    await runtime.executeOpenAiRuntimeTask(task, {
+      startRun,
+      cancelRun: vi.fn(),
+      submitApproval: vi.fn(),
+    });
+
+    expect(startRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: task.id,
+        enabledTools: ['safe_browser', 'safe_files'],
+      }),
+    );
+  });
+
   it('standardTaskPhase delegates to openai runtime when enabled', async () => {
     vi.doMock('../../../src/server/worker/openai/openaiWorkerRuntime', () => ({
       isOpenAiRuntimeEnabled: vi.fn().mockResolvedValue(true),
@@ -129,5 +170,56 @@ describe('openai worker runtime execution', () => {
 
     const runtime = await import('../../../src/server/worker/openai/openaiWorkerRuntime');
     expect(runtime.executeOpenAiRuntimeTask).toHaveBeenCalledWith(task);
+  });
+
+  it('resolves persona model routing from assigned persona', async () => {
+    vi.doUnmock('../../../src/server/worker/openai/openaiWorkerRuntime');
+    const task = {
+      id: 'task-1',
+      title: 'Routing',
+      objective: 'Resolve model routing',
+      status: 'queued',
+      priority: 'normal',
+      originPlatform: 'WebChat',
+      originConversation: 'conv-1',
+      originExternalChat: null,
+      currentStep: 0,
+      totalSteps: 0,
+      resultSummary: null,
+      errorMessage: null,
+      resumable: false,
+      lastCheckpoint: null,
+      workspacePath: null,
+      workspaceType: 'general',
+      userId: 'user-a',
+      flowPublishedId: null,
+      currentRunId: null,
+      assignedPersonaId: 'persona-architect',
+      planningMessages: null,
+      planningComplete: false,
+      createdAt: new Date().toISOString(),
+      startedAt: null,
+      completedAt: null,
+    } as unknown as WorkerTaskRecord;
+
+    vi.doMock('../../../src/server/personas/personaRepository', () => ({
+      getPersonaRepository: () => ({
+        getPersona: () => ({
+          id: 'persona-architect',
+          userId: 'user-a',
+          preferredModelId: 'gpt-4o-mini',
+          modelHubProfileId: 'team-a',
+        }),
+      }),
+    }));
+
+    const runtime = await import('../../../src/server/worker/openai/openaiWorkerRuntime');
+    const routing = await runtime.resolveTaskModelRouting(task);
+
+    expect(routing).toEqual({
+      personaId: 'persona-architect',
+      preferredModelId: 'gpt-4o-mini',
+      modelHubProfileId: 'team-a',
+    });
   });
 });

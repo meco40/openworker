@@ -2,6 +2,8 @@ import type { WorkerTaskRecord } from '../workerTypes';
 import { getWorkerRepository } from '../workerRepository';
 import { broadcastStatus } from '../utils/broadcast';
 import { loadGatewayConfig } from '../../config/gatewayConfig';
+import { getPersonaRepository } from '../../personas/personaRepository';
+import { listEnabledOpenAiWorkerToolNames } from './openaiToolRegistry';
 import {
   getOpenAiWorkerClient,
   type OpenAiWorkerStartRunResult,
@@ -101,6 +103,56 @@ function getNestedObject(root: unknown, key: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function normalizeModelHubProfileId(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+async function resolveDefaultModelHubProfileId(): Promise<string> {
+  const fromEnv = normalizeModelHubProfileId(process.env.OPENAI_WORKER_MODEL_HUB_PROFILE);
+  if (fromEnv) return fromEnv;
+
+  const state = await loadGatewayConfig();
+  const worker = getNestedObject(state.config, 'worker');
+  const openai = getNestedObject(worker, 'openai');
+  const fromConfig = normalizeModelHubProfileId(openai.modelHubProfile);
+  return fromConfig || 'p1';
+}
+
+export interface OpenAiTaskModelRouting {
+  personaId: string | null;
+  preferredModelId: string | null;
+  modelHubProfileId: string;
+}
+
+export async function resolveTaskModelRouting(task: WorkerTaskRecord): Promise<OpenAiTaskModelRouting> {
+  let personaId: string | null = null;
+  let preferredModelId: string | null = null;
+  let modelHubProfileId: string | null = null;
+
+  if (task.assignedPersonaId) {
+    try {
+      const persona = getPersonaRepository().getPersona(task.assignedPersonaId);
+      if (persona && (!task.userId || persona.userId === task.userId)) {
+        personaId = persona.id;
+        preferredModelId = persona.preferredModelId || null;
+        modelHubProfileId = normalizeModelHubProfileId(
+          (persona as { modelHubProfileId?: string | null }).modelHubProfileId ?? null,
+        );
+      }
+    } catch {
+      // Missing persona storage should not block execution.
+    }
+  }
+
+  return {
+    personaId,
+    preferredModelId,
+    modelHubProfileId: modelHubProfileId || (await resolveDefaultModelHubProfileId()),
+  };
+}
+
 export async function isOpenAiRuntimeEnabled(): Promise<boolean> {
   if (process.env.WORKER_RUNTIME) {
     return process.env.WORKER_RUNTIME === 'openai';
@@ -196,12 +248,18 @@ export async function executeOpenAiRuntimeTask(
   }
 
   try {
+    const routing = await resolveTaskModelRouting(task);
+    const enabledTools = await listEnabledOpenAiWorkerToolNames();
     const run = await client.startRun({
       taskId: task.id,
       title: task.title,
       objective: task.objective,
       userId: task.userId || null,
       workspacePath: task.workspacePath || null,
+      personaId: routing.personaId,
+      preferredModelId: routing.preferredModelId,
+      modelHubProfileId: routing.modelHubProfileId,
+      enabledTools,
     });
     await finalizeResult(task, run);
     if (run.status === 'completed') {

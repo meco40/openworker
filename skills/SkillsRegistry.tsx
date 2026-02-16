@@ -17,6 +17,11 @@ import {
   listSkillRuntimeConfigs,
   setSkillRuntimeConfig,
 } from './runtime-config-client';
+import {
+  type OpenAiWorkerTool,
+  listOpenAiWorkerTools,
+  setOpenAiWorkerToolState,
+} from './openai-worker-tools-client';
 import { buildSkillConfigHints } from './runtime-config-hints';
 import { getToolGuide } from './tool-guides';
 
@@ -26,6 +31,7 @@ interface SkillsRegistryProps {
 }
 
 type InstallTab = 'github' | 'npm' | 'manifest' | 'clawhub';
+type RegistryTab = 'worker-tools' | 'skills' | 'tool-configuration';
 
 const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
   'built-in': { label: 'Built-in', color: 'text-zinc-500 bg-zinc-800 border-zinc-700' },
@@ -44,6 +50,7 @@ function normalizeInstalledSkills(skills: ClawHubInstalledSkill[]): ClawHubInsta
 const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) => {
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [installTab, setInstallTab] = useState<InstallTab>('github');
+  const [activeRegistryTab, setActiveRegistryTab] = useState<RegistryTab>('worker-tools');
   const [installValue, setInstallValue] = useState('');
   const [installLoading, setInstallLoading] = useState(false);
   const [installError, setInstallError] = useState('');
@@ -58,6 +65,10 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
   const [runtimeConfigLoading, setRuntimeConfigLoading] = useState(false);
   const [runtimeConfigSavingId, setRuntimeConfigSavingId] = useState<string | null>(null);
   const [runtimeConfigError, setRuntimeConfigError] = useState('');
+  const [openAiWorkerTools, setOpenAiWorkerTools] = useState<OpenAiWorkerTool[]>([]);
+  const [openAiToolsLoading, setOpenAiToolsLoading] = useState(false);
+  const [openAiToolsError, setOpenAiToolsError] = useState('');
+  const [openAiToolSavingId, setOpenAiToolSavingId] = useState<string | null>(null);
   const [skillActionError, setSkillActionError] = useState('');
   const [toolInfoSkillId, setToolInfoSkillId] = useState<string | null>(null);
   const clawHubBusyRef = useRef(false);
@@ -99,6 +110,27 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
       setRuntimeConfigs([]);
     } finally {
       setRuntimeConfigLoading(false);
+    }
+  }, []);
+
+  const loadOpenAiWorkerTools = useCallback(async () => {
+    setOpenAiToolsLoading(true);
+    setOpenAiToolsError('');
+    try {
+      const response = await listOpenAiWorkerTools();
+      if (!response.ok || !response.tools) {
+        setOpenAiToolsError(response.error || 'Failed to load OpenAI worker tools.');
+        setOpenAiWorkerTools([]);
+        return;
+      }
+      setOpenAiWorkerTools(response.tools);
+    } catch (error) {
+      setOpenAiToolsError(
+        error instanceof Error ? error.message : 'Failed to load OpenAI worker tools.',
+      );
+      setOpenAiWorkerTools([]);
+    } finally {
+      setOpenAiToolsLoading(false);
     }
   }, []);
 
@@ -280,12 +312,20 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
       }
 
       await loadRuntimeConfigs();
+      await loadOpenAiWorkerTools();
     } catch {
       // silently fail
     } finally {
       endClawHubAction();
     }
-  }, [beginClawHubAction, loadRuntimeConfigs, notifyClawHubChanged, endClawHubAction, setSkills]);
+  }, [
+    beginClawHubAction,
+    loadOpenAiWorkerTools,
+    loadRuntimeConfigs,
+    notifyClawHubChanged,
+    endClawHubAction,
+    setSkills,
+  ]);
 
   const handleRuntimeConfigDraft = useCallback((id: string, value: string) => {
     setRuntimeConfigDrafts((previous) => ({
@@ -350,6 +390,33 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
       }
     },
     [loadRuntimeConfigs],
+  );
+
+  const handleOpenAiToolToggle = useCallback(
+    async (id: string, enabled: boolean) => {
+      setOpenAiToolSavingId(id);
+      setOpenAiToolsError('');
+      try {
+        const response = await setOpenAiWorkerToolState(id, enabled);
+        if (!response.ok || !response.tool) {
+          setOpenAiToolsError(response.error || 'Failed to update OpenAI worker tool.');
+          return;
+        }
+        const updatedTool = response.tool;
+        setOpenAiWorkerTools((previous) =>
+          previous.map((tool) =>
+            tool.id === updatedTool.id ? { ...tool, enabled: updatedTool.enabled } : tool,
+          ),
+        );
+      } catch (error) {
+        setOpenAiToolsError(
+          error instanceof Error ? error.message : 'Failed to update OpenAI worker tool.',
+        );
+      } finally {
+        setOpenAiToolSavingId(null);
+      }
+    },
+    [],
   );
 
   const refreshClawHubInstalled = useCallback(async () => {
@@ -516,6 +583,10 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
   useEffect(() => {
     void loadRuntimeConfigs();
   }, [loadRuntimeConfigs]);
+
+  useEffect(() => {
+    void loadOpenAiWorkerTools();
+  }, [loadOpenAiWorkerTools]);
 
   const toolInfoSkill = toolInfoSkillId
     ? skills.find((skill) => skill.id === toolInfoSkillId) || null
@@ -695,7 +766,83 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
         </div>
       </section>
 
-      <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-6 shadow-lg">
+      <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-4 shadow-lg">
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ['worker-tools', 'Worker Tools'],
+              ['skills', 'Skills'],
+              ['tool-configuration', 'Tool Configuration'],
+            ] as [RegistryTab, string][]
+          ).map(([tabId, label]) => (
+            <button
+              key={tabId}
+              type="button"
+              onClick={() => setActiveRegistryTab(tabId)}
+              className={`rounded-xl border px-4 py-2 text-[10px] font-black tracking-widest uppercase transition-all ${
+                activeRegistryTab === tabId
+                  ? 'border-indigo-500 bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                  : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-zinc-500 hover:bg-zinc-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {activeRegistryTab === 'worker-tools' && (
+        <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-6 shadow-lg">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-black tracking-widest text-white uppercase">
+            OpenAI Worker Tools
+          </h3>
+          <button
+            onClick={() => void loadOpenAiWorkerTools()}
+            disabled={openAiToolsLoading}
+            className="rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-[10px] font-black tracking-widest uppercase hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Refresh
+          </button>
+        </div>
+        <p className="mb-4 text-xs text-zinc-500">
+          These toggles control which OpenAI worker tool functions are forwarded to the sidecar for
+          each new run.
+        </p>
+
+        <div className="space-y-3">
+          {openAiWorkerTools.map((tool) => (
+            <div
+              key={tool.id}
+              className="flex flex-col gap-3 rounded-2xl border border-zinc-700 bg-zinc-800/60 p-4 lg:flex-row lg:items-center lg:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-white">{tool.name}</p>
+                <p className="mt-1 text-[10px] text-zinc-500">{tool.description}</p>
+                <p className="mt-1 font-mono text-[10px] text-zinc-600">{tool.functionName}</p>
+              </div>
+              <button
+                onClick={() => void handleOpenAiToolToggle(tool.id, !tool.enabled)}
+                disabled={openAiToolSavingId === tool.id}
+                className={`rounded-xl px-3 py-2 text-[10px] font-black tracking-widest uppercase transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                  tool.enabled
+                    ? 'border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                    : 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                }`}
+              >
+                {tool.enabled ? 'Disable' : 'Enable'}
+              </button>
+            </div>
+          ))}
+          {openAiWorkerTools.length === 0 && !openAiToolsLoading && (
+            <p className="text-xs text-zinc-500">No OpenAI worker tools found.</p>
+          )}
+        </div>
+        </section>
+      )}
+
+      {activeRegistryTab === 'tool-configuration' && (
+        <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-6 shadow-lg">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="text-sm font-black tracking-widest text-white uppercase">
             Tool Configuration
@@ -792,7 +939,8 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
             </div>
           ))}
         </div>
-      </section>
+        </section>
+      )}
 
       {clawHubError && (
         <p className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400">
@@ -806,14 +954,20 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
         </p>
       )}
 
+      {openAiToolsError && (
+        <p className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400">
+          {openAiToolsError}
+        </p>
+      )}
+
       {skillActionError && (
         <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-300">
           {skillActionError}
         </p>
       )}
 
-      {/* Skill Cards */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {activeRegistryTab === 'skills' && (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {skills.map((skill) => {
           const sourceMeta = SOURCE_LABELS[skill.source] ?? SOURCE_LABELS['built-in'];
           const requiredConfigs = runtimeConfigs.filter(
@@ -916,7 +1070,8 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {/* Tool Info Modal */}
       {toolGuide && toolInfoSkill && (

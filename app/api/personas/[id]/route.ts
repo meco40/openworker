@@ -14,6 +14,11 @@ function isPreferredModelAvailable(preferredModelId: string): boolean {
   );
 }
 
+function isValidModelHubProfileId(value: string): boolean {
+  if (!value.trim()) return false;
+  return /^[a-zA-Z0-9._-]{1,64}$/.test(value.trim());
+}
+
 // ─── GET /api/personas/[id] ─── Get a persona with all files
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -60,6 +65,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       emoji?: string;
       vibe?: string;
       preferredModelId?: string | null;
+      modelHubProfileId?: string | null;
     };
 
     const updates: {
@@ -67,6 +73,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       emoji?: string;
       vibe?: string;
       preferredModelId?: string | null;
+      modelHubProfileId?: string | null;
     } = {};
     if (body.name !== undefined) updates.name = body.name.trim();
     if (body.emoji !== undefined) updates.emoji = body.emoji.trim();
@@ -86,6 +93,25 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       } else {
         return NextResponse.json(
           { ok: false, error: 'preferredModelId must be a non-empty string or null' },
+          { status: 400 },
+        );
+      }
+    }
+    if (body.modelHubProfileId !== undefined) {
+      if (body.modelHubProfileId === null) {
+        updates.modelHubProfileId = null;
+      } else if (
+        typeof body.modelHubProfileId === 'string' &&
+        isValidModelHubProfileId(body.modelHubProfileId)
+      ) {
+        updates.modelHubProfileId = body.modelHubProfileId.trim();
+      } else {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              'modelHubProfileId must be a non-empty string (letters, numbers, ".", "_" or "-") or null',
+          },
           { status: 400 },
         );
       }

@@ -6,6 +6,10 @@ export interface OpenAiWorkerStartRunInput {
   objective: string;
   userId?: string | null;
   workspacePath?: string | null;
+  personaId?: string | null;
+  preferredModelId?: string | null;
+  modelHubProfileId?: string | null;
+  enabledTools?: string[];
 }
 
 export interface OpenAiWorkerStartRunResult {
@@ -93,6 +97,10 @@ class HttpOpenAiWorkerClient implements OpenAiWorkerClient {
         runId: input.taskId,
         objective: input.objective,
         requireApproval: false,
+        personaId: input.personaId || null,
+        preferredModelId: input.preferredModelId || null,
+        modelHubProfileId: input.modelHubProfileId || null,
+        enabledTools: Array.isArray(input.enabledTools) ? input.enabledTools : [],
       },
       config.callbackToken,
     );

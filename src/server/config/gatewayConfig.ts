@@ -82,6 +82,21 @@ const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
       maxCostUsdPerUserPerDay: 25,
       maxRequestsPerMinutePerUser: 60,
       tools: {
+        shell: {
+          enabled: false,
+        },
+        browser: {
+          enabled: false,
+        },
+        files: {
+          enabled: false,
+        },
+        github: {
+          enabled: false,
+        },
+        mcp: {
+          enabled: false,
+        },
         computerUse: {
           enabled: false,
         },
@@ -421,6 +436,36 @@ function normalizeGatewayConfig(
       }
       if (openai.tools !== undefined) {
         const tools = ensureObject(openai.tools, 'worker.openai.tools');
+        if (tools.shell !== undefined) {
+          const shell = ensureObject(tools.shell, 'worker.openai.tools.shell');
+          if (shell.enabled !== undefined) {
+            ensureBoolean(shell.enabled, 'worker.openai.tools.shell.enabled');
+          }
+        }
+        if (tools.browser !== undefined) {
+          const browser = ensureObject(tools.browser, 'worker.openai.tools.browser');
+          if (browser.enabled !== undefined) {
+            ensureBoolean(browser.enabled, 'worker.openai.tools.browser.enabled');
+          }
+        }
+        if (tools.files !== undefined) {
+          const files = ensureObject(tools.files, 'worker.openai.tools.files');
+          if (files.enabled !== undefined) {
+            ensureBoolean(files.enabled, 'worker.openai.tools.files.enabled');
+          }
+        }
+        if (tools.github !== undefined) {
+          const github = ensureObject(tools.github, 'worker.openai.tools.github');
+          if (github.enabled !== undefined) {
+            ensureBoolean(github.enabled, 'worker.openai.tools.github.enabled');
+          }
+        }
+        if (tools.mcp !== undefined) {
+          const mcp = ensureObject(tools.mcp, 'worker.openai.tools.mcp');
+          if (mcp.enabled !== undefined) {
+            ensureBoolean(mcp.enabled, 'worker.openai.tools.mcp.enabled');
+          }
+        }
         if (tools.computerUse !== undefined) {
           const computerUse = ensureObject(tools.computerUse, 'worker.openai.tools.computerUse');
           if (computerUse.enabled !== undefined) {
