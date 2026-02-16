@@ -8,6 +8,7 @@ import { recoverFromCheckpoint } from './phases/checkpointPhase';
 import { setupWorkspace } from './phases/workspacePhase';
 import { executeOrchestraPhase } from './phases/orchestraPhase';
 import { executeStandardTaskPhase } from './phases/standardTaskPhase';
+import { isOpenAiRuntimeEnabled } from './openai/openaiWorkerRuntime';
 import type { WorkerTaskRecord } from './workerTypes';
 
 // ─── Queue Processor ─────────────────────────────────────────
@@ -55,6 +56,9 @@ async function runWorkerAgent(task: WorkerTaskRecord): Promise<void> {
   if (orchestraHandled) return;
 
   // Phase 2: Standard Task Execution (Planning → Execution → Testing → Completion)
+  if (await isOpenAiRuntimeEnabled()) {
+    console.log(`[Worker] Task ${task.id} uses OpenAI runtime`);
+  }
   await executeStandardTaskPhase(taskWithWorkspace, startStepIndex, workspaceType);
 }
 

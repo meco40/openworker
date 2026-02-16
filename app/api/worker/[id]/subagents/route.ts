@@ -53,6 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       nodeId?: string | null;
       personaId?: string | null;
       sessionRef?: string | null;
+      source?: 'legacy' | 'openai';
       metadata?: Record<string, unknown>;
     };
 
@@ -63,7 +64,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       nodeId: body.nodeId || null,
       personaId: body.personaId || null,
       sessionRef: body.sessionRef || null,
-      metadata: body.metadata,
+      metadata: {
+        ...(body.metadata || {}),
+        source: body.source || 'legacy',
+      },
     });
 
     return NextResponse.json({ ok: true, session }, { status: 201 });
@@ -90,6 +94,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const body = (await request.json()) as {
       sessionId?: string;
       status?: string;
+      source?: 'legacy' | 'openai';
       metadata?: Record<string, unknown>;
     };
 
@@ -102,7 +107,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const session = repo.updateSubagentSession(id, body.sessionId.trim(), {
       status: body.status as Parameters<typeof repo.updateSubagentSession>[2]['status'],
-      metadata: body.metadata,
+      metadata: {
+        ...(body.metadata || {}),
+        ...(body.source ? { source: body.source } : {}),
+      },
     });
     if (!session) {
       return NextResponse.json({ ok: false, error: 'Session not found' }, { status: 404 });

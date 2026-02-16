@@ -186,6 +186,18 @@ In der Praxis kann ein Hybrid sinnvoll sein:
 
 ---
 
+## Integrations-Update (OpenAI Worker Plan)
+
+Der Umsetzungsplan wurde auf produktionsnahe Guardrails erweitert:
+
+- Event-Contract mit `schemaVersion`, Idempotenz und Sequenzkontrolle
+- Sidecar-Runtime mit Approval-Pause/Resume und Subagent-Lifecycle
+- Budget-, Rate-Limit- und Failover-Controls
+- Data-Governance (Redaction, Retention, Delete-Path)
+- CI + Lasttest + Rollout-Kriterien (Shadow/Canary/Rollback)
+
+---
+
 ## Quellen
 
 ### OpenAI (offizielle Doku)

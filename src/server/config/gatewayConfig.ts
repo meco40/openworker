@@ -46,6 +46,7 @@ const WORKSPACE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const SECRET_PATHS = [
   ['channels', 'telegram', 'token'],
   ['gateway', 'auth', 'token'],
+  ['worker', 'openai', 'callbackToken'],
 ] as const;
 
 const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
@@ -68,6 +69,24 @@ const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
   tools: {
     browser: { managed: true, headless: true },
     sandbox: { type: 'docker', enabled: false },
+  },
+  worker: {
+    runtime: 'legacy',
+    openai: {
+      sidecarUrl: 'http://127.0.0.1:8011',
+      callbackToken: 'ENV_OPENAI_WORKER_TOKEN',
+      maxConcurrentRuns: 8,
+      maxQueueDepth: 256,
+      maxTokensPerRun: 120000,
+      maxCostUsdPerRun: 10,
+      maxCostUsdPerUserPerDay: 25,
+      maxRequestsPerMinutePerUser: 60,
+      tools: {
+        computerUse: {
+          enabled: false,
+        },
+      },
+    },
   },
   ui: {
     defaultView: 'dashboard',
@@ -347,6 +366,68 @@ function normalizeGatewayConfig(
       const sandbox = ensureObject(tools.sandbox, 'tools.sandbox');
       ensureString(sandbox.type, 'tools.sandbox.type');
       ensureBoolean(sandbox.enabled, 'tools.sandbox.enabled');
+    }
+  }
+
+  if (root.worker !== undefined) {
+    const worker = ensureObject(root.worker, 'worker');
+    if (worker.runtime !== undefined) {
+      const runtime = ensureString(worker.runtime, 'worker.runtime');
+      if (!new Set(['legacy', 'openai']).has(runtime)) {
+        throw new GatewayConfigValidationError('worker.runtime must be one of: legacy, openai.');
+      }
+    }
+    if (worker.openai !== undefined) {
+      const openai = ensureObject(worker.openai, 'worker.openai');
+      if (openai.sidecarUrl !== undefined) {
+        ensureString(openai.sidecarUrl, 'worker.openai.sidecarUrl');
+      }
+      if (openai.callbackToken !== undefined) {
+        ensureString(openai.callbackToken, 'worker.openai.callbackToken');
+      }
+      if (openai.maxConcurrentRuns !== undefined) {
+        ensureIntInRange(openai.maxConcurrentRuns, 'worker.openai.maxConcurrentRuns', 1, 256);
+      }
+      if (openai.maxQueueDepth !== undefined) {
+        ensureIntInRange(openai.maxQueueDepth, 'worker.openai.maxQueueDepth', 1, 100000);
+      }
+      if (openai.maxTokensPerRun !== undefined) {
+        ensureIntInRange(openai.maxTokensPerRun, 'worker.openai.maxTokensPerRun', 1, 100000000);
+      }
+      if (openai.maxCostUsdPerRun !== undefined) {
+        if (typeof openai.maxCostUsdPerRun !== 'number' || openai.maxCostUsdPerRun < 0) {
+          throw new GatewayConfigValidationError(
+            'worker.openai.maxCostUsdPerRun must be a non-negative number.',
+          );
+        }
+      }
+      if (openai.maxCostUsdPerUserPerDay !== undefined) {
+        if (
+          typeof openai.maxCostUsdPerUserPerDay !== 'number' ||
+          openai.maxCostUsdPerUserPerDay < 0
+        ) {
+          throw new GatewayConfigValidationError(
+            'worker.openai.maxCostUsdPerUserPerDay must be a non-negative number.',
+          );
+        }
+      }
+      if (openai.maxRequestsPerMinutePerUser !== undefined) {
+        ensureIntInRange(
+          openai.maxRequestsPerMinutePerUser,
+          'worker.openai.maxRequestsPerMinutePerUser',
+          1,
+          1000000,
+        );
+      }
+      if (openai.tools !== undefined) {
+        const tools = ensureObject(openai.tools, 'worker.openai.tools');
+        if (tools.computerUse !== undefined) {
+          const computerUse = ensureObject(tools.computerUse, 'worker.openai.tools.computerUse');
+          if (computerUse.enabled !== undefined) {
+            ensureBoolean(computerUse.enabled, 'worker.openai.tools.computerUse.enabled');
+          }
+        }
+      }
     }
   }
 

@@ -877,6 +877,18 @@ export class SqliteWorkerRepository implements WorkerRepository {
     return rows.map((row) => this.toSubagentSession(row));
   }
 
+  listActiveSubagentSessions(taskId: string): WorkerSubagentSessionRecord[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM worker_subagent_sessions
+         WHERE task_id = ?
+           AND status IN ('started', 'running')
+         ORDER BY started_at DESC`,
+      )
+      .all(taskId) as Array<Record<string, unknown>>;
+    return rows.map((row) => this.toSubagentSession(row));
+  }
+
   // ─── Deliverables ──────────────────────────────────────────
 
   addDeliverable(input: {
