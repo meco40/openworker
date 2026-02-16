@@ -8,6 +8,7 @@ import { executeStep } from '../workerExecutor';
 import { getWorkspaceManager } from '../workspaceManager';
 import { runWebappTests } from '../workerTester';
 import { broadcastStatus } from '../utils/broadcast';
+import { executeOpenAiRuntimeTask, isOpenAiRuntimeEnabled } from '../openai/openaiWorkerRuntime';
 import type { WorkerTaskRecord, WorkerStepRecord } from '../workerTypes';
 import type { WorkspaceType } from '../workspaceManager';
 
@@ -24,6 +25,11 @@ export async function executeStandardTaskPhase(
   startStepIndex: number,
   workspaceType: WorkspaceType,
 ): Promise<void> {
+  if (await isOpenAiRuntimeEnabled()) {
+    await executeOpenAiRuntimeTask(task);
+    return;
+  }
+
   const repo = getWorkerRepository();
 
   // ─── Phase 1: PLANNING ───────────────────────────────────

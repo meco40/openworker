@@ -234,6 +234,7 @@ export interface WorkerRepository {
     updates: { status?: WorkerSubagentSessionRecord['status']; metadata?: Record<string, unknown> },
   ): WorkerSubagentSessionRecord | null;
   listSubagentSessions(taskId: string, limit?: number): WorkerSubagentSessionRecord[];
+  listActiveSubagentSessions(taskId: string): WorkerSubagentSessionRecord[];
 
   // Deliverables
   addDeliverable(input: {

@@ -207,6 +207,7 @@ export interface StepResult {
 // ─── Main Executor ──────────────────────────────────────────
 
 const MAX_TOOL_LOOPS = 10;
+export const LEGACY_WORKER_EXECUTOR = true;
 
 /**
  * Executes a single step with a full tool-calling loop.

@@ -23,6 +23,17 @@ export function useWorkerWorkflow(taskId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const normalizeWorkflow = useCallback((input: WorkerWorkflowState | null): WorkerWorkflowState | null => {
+    if (!input) return null;
+    return {
+      ...input,
+      nodes: input.nodes.map((node) => ({
+        ...node,
+        status: node.status || 'pending',
+      })),
+    };
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
       setError(null);
@@ -31,13 +42,13 @@ export function useWorkerWorkflow(taskId: string) {
         throw new Error(`HTTP ${response.status}`);
       }
       const payload = (await response.json()) as { workflow?: WorkerWorkflowState };
-      setWorkflow(payload.workflow || null);
+      setWorkflow(normalizeWorkflow(payload.workflow || null));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load workflow');
     } finally {
       setLoading(false);
     }
-  }, [taskId]);
+  }, [taskId, normalizeWorkflow]);
 
   useEffect(() => {
     setLoading(true);
@@ -57,14 +68,14 @@ export function useWorkerWorkflow(taskId: string) {
     const unsubscribe = client.on('worker.workflow', (payload) => {
       const data = payload as WorkerWorkflowState;
       if (data.taskId === taskId) {
-        setWorkflow(data);
+        setWorkflow(normalizeWorkflow(data));
       }
     });
 
     return () => {
       unsubscribe();
     };
-  }, [taskId]);
+  }, [taskId, normalizeWorkflow]);
 
   return {
     workflow,

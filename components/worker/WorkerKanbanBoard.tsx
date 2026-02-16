@@ -55,10 +55,23 @@ export default function WorkerKanbanBoard({
   const [draggedTask, setDraggedTask] = useState<WorkerTask | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
+  const normalizeStatus = useCallback((status: string): WorkerTaskStatus | null => {
+    const mapped: Record<string, WorkerTaskStatus> = {
+      running: 'executing',
+      awaiting_approval: 'waiting_approval',
+      done: 'completed',
+    };
+    const normalized = mapped[status] ?? status;
+    return (STATUS_LABELS[normalized] ? normalized : null) as WorkerTaskStatus | null;
+  }, []);
+
   const getTasksForColumn = useCallback(
     (column: KanbanColumn): WorkerTask[] =>
-      tasks.filter((t) => column.statuses.includes(t.status as WorkerTaskStatus)),
-    [tasks],
+      tasks.filter((t) => {
+        const status = normalizeStatus(t.status);
+        return status ? column.statuses.includes(status) : false;
+      }),
+    [tasks, normalizeStatus],
   );
 
   const getDropStatus = useCallback(
