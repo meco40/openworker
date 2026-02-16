@@ -20,11 +20,37 @@ import type {
 import type { ChannelKey } from '../adapters/types';
 import { toChannelBinding, toConversation, toMessage } from './messageRowMappers';
 
+// ─── FTS5 stop words (German + English) ──────────────────────
+// Common function words that add no search value and make AND-queries too restrictive.
+const STOP_WORDS = new Set([
+  // German
+  'der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einer', 'einem', 'einen',
+  'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'mich', 'mir', 'dich', 'dir',
+  'sich', 'uns', 'euch', 'ihm', 'ihn', 'ihnen', 'mein', 'dein', 'sein', 'unser',
+  'ist', 'sind', 'war', 'bin', 'hat', 'haben', 'hatte', 'wird', 'werden', 'wurde',
+  'kann', 'soll', 'muss', 'darf', 'will', 'mag', 'könnte', 'sollte', 'müsste',
+  'und', 'oder', 'aber', 'denn', 'weil', 'dass', 'wenn', 'als', 'ob', 'da',
+  'in', 'an', 'auf', 'aus', 'bei', 'mit', 'nach', 'von', 'zu', 'für', 'über',
+  'um', 'durch', 'vor', 'zwischen', 'unter', 'neben', 'hinter',
+  'wie', 'was', 'wer', 'wo', 'wann', 'warum', 'welche', 'welcher', 'welches',
+  'nicht', 'auch', 'noch', 'schon', 'nur', 'sehr', 'mehr', 'so', 'ja', 'nein',
+  'hier', 'dort', 'jetzt', 'dann', 'immer', 'nie', 'mal', 'doch', 'eben',
+  // English
+  'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+  'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
+  'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
+  'my', 'your', 'his', 'its', 'our', 'their',
+  'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'about',
+  'and', 'or', 'but', 'not', 'if', 'so', 'no', 'yes',
+  'this', 'that', 'what', 'which', 'who', 'how', 'when', 'where', 'why',
+]);
+
 // ─── FTS5 search options ─────────────────────────────────────
 
 export interface SearchMessagesOptions {
   userId?: string;
   conversationId?: string;
+  personaId?: string;
   role?: 'user' | 'agent' | 'system';
   limit?: number;
 }
@@ -587,9 +613,33 @@ export class SqliteMessageRepository implements MessageRepository {
     const conv = this.getConversation(id, normalizedUserId);
     if (!conv) return false;
 
-    // Delete in FK-safe order: messages → context → conversation
-    this.db.prepare('DELETE FROM messages WHERE conversation_id = ?').run(id);
+    // If FTS index is corrupted, rebuild it first so DELETE triggers succeed
+    try {
+      this.db.prepare('DELETE FROM messages WHERE conversation_id = ?').run(id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('malformed') || msg.includes('corrupt')) {
+        this.db.exec(`INSERT INTO messages_fts(messages_fts) VALUES('rebuild')`);
+        this.db.prepare('DELETE FROM messages WHERE conversation_id = ?').run(id);
+      } else {
+        throw err;
+      }
+    }
+
+    // Delete context + knowledge artefacts + conversation
     this.db.prepare('DELETE FROM conversation_context WHERE conversation_id = ?').run(id);
+    for (const table of [
+      'knowledge_ingestion_checkpoints',
+      'knowledge_episodes',
+      'knowledge_meeting_ledger',
+      'knowledge_retrieval_audit',
+    ]) {
+      try {
+        this.db.prepare(`DELETE FROM "${table}" WHERE conversation_id = ?`).run(id);
+      } catch {
+        /* table may not exist in test / memory DBs */
+      }
+    }
     this.db
       .prepare('DELETE FROM conversations WHERE id = ? AND user_id = ?')
       .run(id, normalizedUserId);
@@ -774,6 +824,10 @@ export class SqliteMessageRepository implements MessageRepository {
       conditions.push('m.conversation_id = ?');
       params.push(opts.conversationId);
     }
+    if (opts.personaId) {
+      conditions.push('c.persona_id = ?');
+      params.push(opts.personaId);
+    }
     if (opts.role) {
       conditions.push('m.role = ?');
       params.push(opts.role);
@@ -800,18 +854,24 @@ export class SqliteMessageRepository implements MessageRepository {
   /**
    * Converts a user query string into an FTS5 MATCH expression.
    * - If the query already contains FTS5 operators (* " OR AND NOT), pass through as-is.
-   * - Otherwise, AND all tokens together for intersection semantics.
+   * - Otherwise, OR all non-stopword tokens for recall-friendly matching.
+   * - German/English stop words are stripped to avoid overly restrictive queries.
    */
   private buildFtsQuery(raw: string): string {
     // If user already used FTS5 syntax (wildcards, quotes, boolean), pass through
     if (/[*"()]/.test(raw) || /\b(OR|AND|NOT)\b/.test(raw)) {
       return raw;
     }
-    // Split into tokens, AND them
-    const tokens = raw.split(/\s+/).filter(Boolean);
-    if (tokens.length === 0) return raw;
+    // Split into alphanumeric tokens (unicode-aware) so punctuation like "," cannot break MATCH syntax.
+    const allTokens = raw.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    const tokens = allTokens.filter((t) => !STOP_WORDS.has(t.toLowerCase()));
+    if (tokens.length === 0) {
+      // All words were stop words — fall back to original tokens
+      return allTokens.length <= 1 ? (allTokens[0] ?? raw) : allTokens.join(' AND ');
+    }
     if (tokens.length === 1) return tokens[0];
-    return tokens.join(' AND ');
+    // Use OR semantics for recall — BM25 ranking surfaces multi-match hits first
+    return tokens.join(' OR ');
   }
 
   close(): void {

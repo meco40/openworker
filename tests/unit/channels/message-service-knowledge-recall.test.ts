@@ -168,7 +168,8 @@ describe('MessageService knowledge recall integration', () => {
     );
 
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
-    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+    // Parallel recall: Mem0 is now queried alongside Knowledge
+    expect(memoryRecallDetailedMock).toHaveBeenCalled();
 
     const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
     const dispatchInput = (call?.[2] ?? {}) as { messages?: Array<{ role: string; content: string }> };
@@ -190,7 +191,8 @@ describe('MessageService knowledge recall integration', () => {
     );
 
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
-    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+    // Parallel recall: Mem0 is now queried alongside Knowledge
+    expect(memoryRecallDetailedMock).toHaveBeenCalled();
 
     const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
     const dispatchInput = (call?.[2] ?? {}) as { messages?: Array<{ role: string; content: string }> };
@@ -214,7 +216,8 @@ describe('MessageService knowledge recall integration', () => {
 
     expect(knowledgeShouldTriggerRecallMock).not.toHaveBeenCalled();
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
-    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+    // Parallel recall: Mem0 is now queried alongside Knowledge
+    expect(memoryRecallDetailedMock).toHaveBeenCalled();
   });
 
   it('triggers knowledge recall for direct rules question ("Was sind die Regeln?")', async () => {
@@ -230,7 +233,8 @@ describe('MessageService knowledge recall integration', () => {
     );
 
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
-    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+    // Parallel recall: Mem0 is now queried alongside Knowledge
+    expect(memoryRecallDetailedMock).toHaveBeenCalled();
   });
 
   it('triggers knowledge recall for imperative rules request ("Nenne mir die Regeln")', async () => {
@@ -246,7 +250,8 @@ describe('MessageService knowledge recall integration', () => {
     );
 
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
-    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+    // Parallel recall: Mem0 is now queried alongside Knowledge
+    expect(memoryRecallDetailedMock).toHaveBeenCalled();
   });
 
   it('uses unified legacy scope for telegram in single-user mode (no channel-scoped fallback)', async () => {
@@ -278,7 +283,8 @@ describe('MessageService knowledge recall integration', () => {
     expect(firstCall).toMatchObject({
       userId: 'legacy-local-user',
     });
-    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+    // Parallel recall: Mem0 is now queried alongside Knowledge
+    expect(memoryRecallDetailedMock).toHaveBeenCalled();
 
     const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
     const dispatchInput = (call?.[2] ?? {}) as { messages?: Array<{ role: string; content: string }> };

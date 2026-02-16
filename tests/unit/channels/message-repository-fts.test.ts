@@ -44,15 +44,16 @@ describe('SqliteMessageRepository — FTS5 search', () => {
       expect(results[0].content).toContain('Aldi');
     });
 
-    it('finds messages matching multiple words (AND logic)', () => {
+    it('finds messages matching multiple words (OR logic, best match first)', () => {
       const conv = seedConversation();
       seedMessage(conv.id, 'I bought a radio from Andreas at the flea market');
       seedMessage(conv.id, 'Andreas called me yesterday');
       seedMessage(conv.id, 'I need a new radio antenna');
 
-      // Searching "Andreas radio" should match only the first message
+      // OR semantics: all three messages match at least one term, ranked by BM25
       const results = repo.searchMessages('Andreas radio', { userId });
-      expect(results.length).toBe(1);
+      expect(results.length).toBe(3);
+      // The message matching BOTH terms should rank first
       expect(results[0].content).toContain('Andreas');
       expect(results[0].content).toContain('radio');
     });
@@ -159,6 +160,69 @@ describe('SqliteMessageRepository — FTS5 search', () => {
       for (const r of results) {
         expect(r.createdAt).toBeTruthy();
       }
+    });
+
+    it('handles comma-separated query terms without FTS syntax errors', () => {
+      const conv = seedConversation();
+      seedMessage(conv.id, 'I bought a radio from Andreas yesterday');
+      seedMessage(conv.id, 'Completely unrelated content');
+
+      const runSearch = () => repo.searchMessages('Andreas,radio', { userId });
+      expect(runSearch).not.toThrow();
+
+      const results = runSearch();
+      expect(results.length).toBe(1);
+      expect(results[0].content).toContain('Andreas');
+      expect(results[0].content).toContain('radio');
+    });
+
+    it('filters by personaId — only returns messages from matching persona conversations', () => {
+      const convNata = seedConversation(ChannelType.TELEGRAM, 'persona-nata');
+      const convNexus = seedConversation(ChannelType.WEBCHAT, 'persona-nexus');
+
+      seedMessage(convNata.id, 'Die Regeln im Office sind streng');
+      seedMessage(convNexus.id, 'Office Regeln sind hier dokumentiert');
+
+      const nataResults = repo.searchMessages('Regeln Office', { userId, personaId: 'persona-nata' });
+      expect(nataResults.length).toBe(1);
+      expect(nataResults[0].conversationId).toBe(convNata.id);
+
+      const nexusResults = repo.searchMessages('Regeln Office', { userId, personaId: 'persona-nexus' });
+      expect(nexusResults.length).toBe(1);
+      expect(nexusResults[0].conversationId).toBe(convNexus.id);
+    });
+
+    it('returns messages from all personas when personaId is not specified', () => {
+      const convNata = seedConversation(ChannelType.TELEGRAM, 'persona-nata');
+      const convNexus = seedConversation(ChannelType.WEBCHAT, 'persona-nexus');
+
+      seedMessage(convNata.id, 'Die Regeln im Office sind streng');
+      seedMessage(convNexus.id, 'Office Regeln sind hier dokumentiert');
+
+      const allResults = repo.searchMessages('Regeln Office', { userId });
+      expect(allResults.length).toBe(2);
+    });
+
+    it('strips German stop words from query so recall is not overly restrictive', () => {
+      const conv = seedConversation();
+      seedMessage(conv.id, 'Die Regeln bei der Arbeit sind: pünktlich, höflich, proaktiv.');
+      seedMessage(conv.id, 'Heute war ein guter Tag.');
+
+      // "Wie sind die Regeln?" → stop words stripped → just "Regeln"
+      const results = repo.searchMessages('Wie sind die Regeln?', { userId });
+      expect(results.length).toBe(1);
+      expect(results[0].content).toContain('Regeln');
+    });
+
+    it('falls back to full query when all tokens are stop words', () => {
+      const conv = seedConversation();
+      seedMessage(conv.id, 'Wie ist es dir so?');
+      seedMessage(conv.id, 'Das Wetter war schön.');
+
+      // "Wie ist es" → all stop words → fall back to AND-join of all tokens
+      const results = repo.searchMessages('Wie ist es', { userId });
+      expect(results.length).toBe(1);
+      expect(results[0].content).toContain('Wie ist es');
     });
   });
 });

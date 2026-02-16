@@ -9,6 +9,8 @@ import { getWorkerRepository } from '../../worker/workerRepository';
 import { SessionManager } from './sessionManager';
 import { HistoryManager } from './historyManager';
 import { ContextBuilder } from './contextBuilder';
+import { fuseRecallSources, RECALL_FUSION_TOTAL_BUDGET } from './recallFusion';
+import type { SearchMessagesOptions } from './sqliteMessageRepository';
 import { getPersonaRepository } from '../../personas/personaRepository';
 import { statusIconForWorker } from './statusIcons';
 import { buildFallbackSummary, isAiSummaryEnabled } from './summary';
@@ -50,7 +52,7 @@ function extractMemorySaveContent(content: string): string | null {
   return remainder.trim();
 }
 
-const MEMORY_CONTEXT_CHAR_LIMIT = 1200;
+const MEMORY_CONTEXT_CHAR_LIMIT = 5000;
 const MEMORY_RECALL_LIMIT = 10;
 const MEMORY_FEEDBACK_WINDOW_MS = 10 * 60 * 1000;
 
@@ -920,12 +922,14 @@ export class MessageService {
       messages.unshift({
         role: 'system',
         content: [
-          'Relevant memory context:',
+          'Relevant memory context (use this to ground your answers):',
           memoryContext,
           '',
           'Interpretation rules:',
           '- Memories tagged "[Subject: user]" describe the user, not the assistant/persona.',
           '- Never claim user preferences, habits, or facts as your own.',
+          '- When the user asks about something mentioned in [Chat History], reference the specific content rather than paraphrasing from later conversation patterns.',
+          '- User messages in [Chat History] represent explicit instructions or facts — prioritize them over assistant summaries.',
         ].join('\n'),
       });
     }
@@ -1265,37 +1269,71 @@ export class MessageService {
     const shouldRecall = shouldRecallMemoryForInput(userInput);
     if (!shouldRecall) return null;
 
-    if (knowledgeRetrievalService) {
-      for (const userIdCandidate of memoryUserIds) {
-        try {
-          const knowledgeResult = await knowledgeRetrievalService.retrieve({
-            userId: userIdCandidate,
-            personaId: conversation.personaId,
-            conversationId: conversation.id,
-            query: userInput,
-          });
-          const normalizedKnowledgeContext = normalizeMemoryContext(knowledgeResult.context || '');
-          if (normalizedKnowledgeContext) {
-            this.lastRecallByConversation.delete(conversation.id);
-            return normalizedKnowledgeContext;
-          }
-        } catch (error) {
-          console.error('Knowledge recall failed:', error);
-        }
+    // ── Parallel recall from all three sources ────────────────
+    const [knowledgeResult, memoryResult, chatResult] = await Promise.allSettled([
+      this.recallFromKnowledge(knowledgeRetrievalService, memoryUserIds, conversation, userInput),
+      this.recallFromMemory(memoryUserIds, conversation, userInput),
+      this.recallFromChat(conversation, userInput),
+    ]);
+
+    const knowledgeContext =
+      knowledgeResult.status === 'fulfilled' ? knowledgeResult.value : null;
+    const memoryContext =
+      memoryResult.status === 'fulfilled' ? memoryResult.value : null;
+    const chatHits =
+      chatResult.status === 'fulfilled' ? chatResult.value : [];
+
+    const fused = fuseRecallSources({
+      knowledge: knowledgeContext,
+      memory: memoryContext,
+      chatHits,
+    });
+
+    return fused;
+  }
+
+  /** Recall from Knowledge Layer (episodes / meeting ledger). */
+  private async recallFromKnowledge(
+    service: KnowledgeRetrievalServiceLike | null,
+    memoryUserIds: string[],
+    conversation: Conversation,
+    userInput: string,
+  ): Promise<string | null> {
+    if (!service) return null;
+    for (const userIdCandidate of memoryUserIds) {
+      try {
+        const result = await service.retrieve({
+          userId: userIdCandidate,
+          personaId: conversation.personaId!,
+          conversationId: conversation.id,
+          query: userInput,
+        });
+        const normalized = normalizeMemoryContext(result.context || '');
+        if (normalized) return normalized;
+      } catch (error) {
+        console.error('Knowledge recall failed:', error);
       }
     }
+    return null;
+  }
 
+  /** Recall from Mem0 semantic memory. */
+  private async recallFromMemory(
+    memoryUserIds: string[],
+    conversation: Conversation,
+    userInput: string,
+  ): Promise<string | null> {
     for (const userIdCandidate of memoryUserIds) {
       try {
         const recalled = await getMemoryService().recallDetailed(
-          conversation.personaId,
+          conversation.personaId!,
           userInput,
           MEMORY_RECALL_LIMIT,
           userIdCandidate,
         );
         if (recalled.matches.length > 0) {
           this.lastRecallByConversation.set(conversation.id, {
-            personaId: conversation.personaId,
+            personaId: conversation.personaId!,
             userId: userIdCandidate,
             nodeIds: recalled.matches.map((entry) => entry.node.id),
             queriedAt: Date.now(),
@@ -1307,8 +1345,51 @@ export class MessageService {
         console.error('Memory recall failed:', error);
       }
     }
-
     return null;
+  }
+
+  /** Recall from FTS5 full-text search on chat messages (persona-scoped). */
+  private recallFromChat(
+    conversation: Conversation,
+    userInput: string,
+  ): StoredMessage[] {
+    if (!this.repo.searchMessages) return [];
+    try {
+      const inputNorm = userInput.trim().toLowerCase().replace(/[?.!]+$/, '');
+      // Overfetch generously to survive duplicate flooding from repeated queries
+      const raw = this.repo.searchMessages(userInput, {
+        userId: conversation.userId,
+        personaId: conversation.personaId ?? undefined,
+        limit: 50,
+      } as SearchMessagesOptions);
+
+      const filtered = raw
+        .filter((m) => {
+          // Exclude messages that are (near-)exact duplicates of the current query
+          const content = m.content.trim().toLowerCase().replace(/[?.!]+$/, '');
+          return content !== inputNorm;
+        });
+
+      // Deduplicate near-identical agent responses (e.g. repeated "Ja, die Regeln sind...")
+      const seen = new Set<string>();
+      const deduped = filtered.filter((m) => {
+        // For agent messages, use first 80 chars as fingerprint to collapse repetitions
+        if (m.role !== 'user') {
+          const fingerprint = m.content.substring(0, 80).toLowerCase();
+          if (seen.has(fingerprint)) return false;
+          seen.add(fingerprint);
+        }
+        return true;
+      });
+
+      // Prioritize user messages (explicit instructions) over agent paraphrases
+      const userMsgs = deduped.filter((m) => m.role === 'user');
+      const agentMsgs = deduped.filter((m) => m.role !== 'user');
+      return [...userMsgs, ...agentMsgs].slice(0, 10);
+    } catch (error) {
+      console.error('Chat FTS5 recall failed:', error);
+      return [];
+    }
   }
 
   private async maybeLearnFromFeedback(
