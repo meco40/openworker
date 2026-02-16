@@ -25,6 +25,8 @@ export function buildKnowledgeExtractionPrompt(input: KnowledgePromptInput): str
     '- teaser 80-150 woerter',
     '- episode 400-800 woerter',
     '- sourceRefs muessen echte seq referenzen enthalten',
+    '- Ignoriere Begruessungen, Kommandos (z.B. /new, /persona), Systemmeldungen und UI-Metatext.',
+    '- facts muessen konkrete, stabile Inhalte sein (keine Einwort-Antworten, kein Smalltalk).',
     '',
     `conversationId=${input.conversationId}`,
     `userId=${input.userId}`,

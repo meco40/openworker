@@ -238,6 +238,43 @@ describe('MemoryService (mem0-only)', () => {
     expect(context).toContain('[Subject: user]');
   });
 
+  it('keeps rule-related lexical memories when semantic search is noisy', async () => {
+    const client = createInMemoryMem0Client();
+    const service = new MemoryService(client);
+    const ruleNode = await service.store(
+      'persona-a',
+      'fact',
+      'Regeln: Immer puenktlich sein und freundlich bleiben.',
+      4,
+      'user-a',
+    );
+    const noisyNode = await service.store(
+      'persona-a',
+      'fact',
+      'Allgemeine Einfuehrung ohne klaren Bezug.',
+      3,
+      'user-a',
+    );
+
+    client.searchMemories = async () => [
+      {
+        id: noisyNode.id,
+        content: noisyNode.content,
+        score: 0.95,
+        metadata: noisyNode.metadata || {},
+      },
+      {
+        id: ruleNode.id,
+        content: ruleNode.content,
+        score: 0.2,
+        metadata: ruleNode.metadata || {},
+      },
+    ];
+
+    const context = await service.recall('persona-a', 'Regeln', 3, 'user-a');
+    expect(context).toContain('Regeln: Immer puenktlich sein');
+  });
+
   it('returns paginated, filtered nodes for listPage', async () => {
     const service = new MemoryService(createInMemoryMem0Client());
     await service.store('persona-a', 'fact', 'alpha', 4, 'user-a');

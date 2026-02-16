@@ -2,6 +2,7 @@ import type { MemoryService } from '../memory/service';
 import type { KnowledgeExtractionInput, KnowledgeExtractionResult, KnowledgeExtractor } from './extractor';
 import type { IngestionWindow, KnowledgeIngestionCursor } from './ingestionCursor';
 import type { KnowledgeRepository } from './repository';
+import { sanitizeKnowledgeFacts } from './textQuality';
 
 interface IngestionCursorLike {
   getPendingWindows(limitConversations?: number): IngestionWindow[];
@@ -50,20 +51,6 @@ export interface IngestConversationWindowInput {
   personaId: string;
   messages: IngestionWindow['messages'];
   summaryText?: string;
-}
-
-function dedupeFacts(facts: string[]): string[] {
-  const seen = new Set<string>();
-  const output: string[] = [];
-  for (const fact of facts) {
-    const normalized = String(fact || '').trim();
-    if (!normalized) continue;
-    const key = normalized.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    output.push(normalized);
-  }
-  return output;
 }
 
 function inferSourceStart(window: IngestionWindow): number {
@@ -161,7 +148,7 @@ export class KnowledgeIngestionService {
     const sourceSeqStart = inferSourceStart(window);
     const sourceSeqEnd = inferSourceEnd(window);
 
-    const facts = dedupeFacts(extraction.facts);
+    const facts = sanitizeKnowledgeFacts(extraction.facts);
     const topicKey = String(extraction.meetingLedger.topicKey || '').trim() || 'general-meeting';
 
     this.deps.knowledgeRepository.upsertEpisode({
@@ -214,20 +201,6 @@ export class KnowledgeIngestionService {
         }),
       );
     }
-
-    storePromises.push(
-      this.deps.memoryService.store(window.personaId, 'fact', extraction.teaser, 3, window.userId, {
-        ...baseMetadata,
-        artifactType: 'teaser',
-      }),
-    );
-
-    storePromises.push(
-      this.deps.memoryService.store(window.personaId, 'fact', extraction.episode, 4, window.userId, {
-        ...baseMetadata,
-        artifactType: 'episode',
-      }),
-    );
 
     await Promise.all(storePromises);
   }

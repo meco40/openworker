@@ -212,6 +212,60 @@ describe('KnowledgeRetrievalService', () => {
     expect(shouldRecall).toBe(true);
   });
 
+  it('triggers recall probe for rules questions without counterpart mention', async () => {
+    const service = new KnowledgeRetrievalService({
+      maxContextTokens: 1200,
+      knowledgeRepository: {
+        listMeetingLedger: vi.fn(() => []),
+        listEpisodes: vi.fn(() => []),
+        insertRetrievalAudit: vi.fn(() => {
+          throw new Error('not used');
+        }),
+      },
+      memoryService: {
+        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+      },
+      messageRepository: {
+        listMessages: vi.fn(() => []),
+      },
+    });
+
+    const shouldRecall = await service.shouldTriggerRecall({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      query: 'Was sind die Regeln?',
+    });
+
+    expect(shouldRecall).toBe(true);
+  });
+
+  it('triggers recall probe for imperative rules request without question mark', async () => {
+    const service = new KnowledgeRetrievalService({
+      maxContextTokens: 1200,
+      knowledgeRepository: {
+        listMeetingLedger: vi.fn(() => []),
+        listEpisodes: vi.fn(() => []),
+        insertRetrievalAudit: vi.fn(() => {
+          throw new Error('not used');
+        }),
+      },
+      memoryService: {
+        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+      },
+      messageRepository: {
+        listMessages: vi.fn(() => []),
+      },
+    });
+
+    const shouldRecall = await service.shouldTriggerRecall({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      query: 'Nenne mir die Regeln',
+    });
+
+    expect(shouldRecall).toBe(true);
+  });
+
   it('focuses retrieval on mentioned counterpart even without "mit <name>" phrase', async () => {
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 1200,
@@ -317,5 +371,92 @@ describe('KnowledgeRetrievalService', () => {
     expect(result.sections.answerDraft).toContain('Meeting mit Andreas');
     expect(result.sections.keyDecisions).toContain('Andreas: Rabatt auf 8% bestätigt');
     expect(result.sections.keyDecisions).not.toContain('Bernd: Liefertermin verschoben');
+  });
+
+  it('focuses rules queries on rule-like statements and suppresses noisy context', async () => {
+    const service = new KnowledgeRetrievalService({
+      maxContextTokens: 1200,
+      knowledgeRepository: {
+        listMeetingLedger: vi.fn(() => [
+          {
+            id: 'led-rules',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-1',
+            topicKey: 'office-rules',
+            counterpart: null,
+            eventAt: '2025-08-11T09:00:00.000Z',
+            participants: [],
+            decisions: ['1. Niemals zu spät kommen. Arbeitsbeginn 8 Uhr.'],
+            negotiatedTerms: [],
+            openPoints: ['Meeting-Outfit vorher abstimmen.'],
+            actionItems: [],
+            sourceRefs: [{ seq: 2, quote: 'Niemals zu spät kommen' }],
+            confidence: 0.9,
+            updatedAt: '2025-08-11T10:00:00.000Z',
+          },
+        ]),
+        listEpisodes: vi.fn(() => [
+          {
+            id: 'ep-noisy',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-1',
+            topicKey: 'sauna-talk',
+            counterpart: null,
+            teaser: 'Langer Sauna-Kontext ohne klare Regel.',
+            episode: 'Wir reden viel ueber Sauna und Tagesablauf.',
+            facts: ['Sauna war entspannend'],
+            sourceSeqStart: 1,
+            sourceSeqEnd: 5,
+            sourceRefs: [{ seq: 3, quote: 'Sauna' }],
+            eventAt: '2025-08-11T09:00:00.000Z',
+            updatedAt: '2025-08-11T10:00:00.000Z',
+          },
+        ]),
+        insertRetrievalAudit: vi.fn(() => ({
+          id: 'audit-rules',
+          userId: 'user-1',
+          personaId: 'persona-1',
+          conversationId: 'conv-1',
+          query: 'Nenne mir die Regeln',
+          stageStats: {},
+          tokenCount: 0,
+          hadError: false,
+          errorMessage: null,
+          createdAt: new Date().toISOString(),
+        })),
+      },
+      memoryService: {
+        recallDetailed: vi.fn(async () => ({
+          context: '',
+          matches: [
+            { node: { id: 'mem-noise', content: 'Langer Sauna-Absatz ohne verbindliche Vorgaben.' } },
+            {
+              node: {
+                id: 'mem-rule',
+                content:
+                  'Regeln: 1. Niemals zu spaet kommen. 2. Bei Meetings immer in der Naehe bleiben.',
+              },
+            },
+          ],
+        })),
+      },
+      messageRepository: {
+        listMessages: vi.fn(() => [makeMessage(2, 'Niemals zu spät kommen')]),
+      },
+    });
+
+    const result = await service.retrieve({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-1',
+      query: 'Nenne mir die Regeln',
+    });
+
+    expect(result.sections.answerDraft).toContain('Kontext: Regelwissen aus Historie.');
+    expect(result.sections.answerDraft).toContain('Niemals zu spät kommen');
+    expect(result.sections.answerDraft).not.toContain('Sauna-Absatz');
+    expect(result.sections.keyDecisions).toContain('Niemals zu spät kommen');
   });
 });

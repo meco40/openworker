@@ -184,7 +184,7 @@ describe('MessageService memory recall gating', () => {
     expect(dispatchedMessages[0]?.content).toContain('[Subject: user]');
   });
 
-  it('skips recall for non-memory-like prompts to avoid extra cost', async () => {
+  it('attempts recall for regular user requests without explicit memory keywords', async () => {
     const service = new MessageService(buildRepository('persona-1'));
 
     await service.handleInbound(
@@ -196,7 +196,7 @@ describe('MessageService memory recall gating', () => {
       'user-1',
     );
 
-    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+    expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(1);
   });
 
   it('triggers recall for retrospective prompts like "letzte Woche besprochen"', async () => {

@@ -199,7 +199,7 @@ describe('MessageService knowledge recall integration', () => {
     expect(dispatchedMessages[0]?.content).toContain('Knowledge: Mittags Sauna');
   });
 
-  it('uses dynamic recall probe for known counterpart mentions without static trigger phrases', async () => {
+  it('recalls knowledge for known counterpart mentions without requiring explicit probe trigger', async () => {
     const service = new MessageService(buildRepository('persona-1'));
     knowledgeShouldTriggerRecallMock.mockResolvedValueOnce(true);
 
@@ -212,7 +212,39 @@ describe('MessageService knowledge recall integration', () => {
       'user-1',
     );
 
-    expect(knowledgeShouldTriggerRecallMock).toHaveBeenCalledTimes(1);
+    expect(knowledgeShouldTriggerRecallMock).not.toHaveBeenCalled();
+    expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
+    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+  });
+
+  it('triggers knowledge recall for direct rules question ("Was sind die Regeln?")', async () => {
+    const service = new MessageService(buildRepository('persona-1'));
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Was sind die Regeln?',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
+    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+  });
+
+  it('triggers knowledge recall for imperative rules request ("Nenne mir die Regeln")', async () => {
+    const service = new MessageService(buildRepository('persona-1'));
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Nenne mir die Regeln',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
     expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
   });

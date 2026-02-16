@@ -164,6 +164,18 @@ function matchesType(node: MemoryNode, type?: MemoryType): boolean {
   return node.type === type;
 }
 
+function isRulesLikeQuery(query: string): boolean {
+  return /\b(regel|regeln|rule|rules|richtlinie|richtlinien|policy|policies|vorgabe|vorgaben)\b/i.test(
+    String(query || '').trim().toLowerCase(),
+  );
+}
+
+function containsRulesWord(text: string): boolean {
+  return /\b(regel|regeln|rule|rules|richtlinie|richtlinien|policy|policies|vorgabe|vorgaben)\b/i.test(
+    String(text || '').trim().toLowerCase(),
+  );
+}
+
 function asOptionalMemoryType(value: unknown): MemoryType | undefined {
   const text = String(value || '').trim() as MemoryType;
   const allowed: MemoryType[] = [
@@ -320,7 +332,11 @@ export class MemoryService {
       .sort((a, b) => b.score - a.score)
       .slice(0, safeLimit);
 
-    if (matches.length === 0) {
+    const lowered = query.trim().toLowerCase();
+    const rulesLikeQuery = isRulesLikeQuery(lowered);
+    const hasRulesFocusedMatch = matches.some((entry) => containsRulesWord(entry.node.content));
+
+    if (matches.length === 0 || (rulesLikeQuery && !hasRulesFocusedMatch)) {
       const listed = await this.mem0Client.listMemories({
         userId: scopedUserId,
         personaId,
@@ -329,12 +345,13 @@ export class MemoryService {
         query: query.trim() || undefined,
       });
 
-      const lowered = query.trim().toLowerCase();
-      matches = listed.memories
+      const lexicalMatches = listed.memories
         .map((record) => toMemoryNode(record))
         .filter((node) => {
           if (!lowered) return true;
-          return node.content.toLowerCase().includes(lowered);
+          if (node.content.toLowerCase().includes(lowered)) return true;
+          if (rulesLikeQuery && containsRulesWord(node.content)) return true;
+          return false;
         })
         .slice(0, safeLimit)
         .map((node) => ({
@@ -342,6 +359,22 @@ export class MemoryService {
           similarity: MEM0_SCORE_THRESHOLD,
           score: MEM0_SCORE_THRESHOLD,
         }));
+
+      const merged = [...matches, ...lexicalMatches];
+      const seenIds = new Set<string>();
+      matches = [];
+      for (const entry of merged) {
+        if (seenIds.has(entry.node.id)) continue;
+        seenIds.add(entry.node.id);
+        matches.push(entry);
+      }
+      matches = matches
+        .sort((a, b) => {
+          const byScore = b.score - a.score;
+          if (byScore !== 0) return byScore;
+          return a.node.content.length - b.node.content.length;
+        })
+        .slice(0, safeLimit);
     }
 
     const context = matches.map((result) => formatRecallContextLine(result.node)).join('\n');

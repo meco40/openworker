@@ -94,4 +94,76 @@ describe('KnowledgeExtractor', () => {
     expect(wordCount(result.teaser)).toBeGreaterThanOrEqual(80);
     expect(wordCount(result.episode)).toBeGreaterThanOrEqual(400);
   });
+
+  it('filters command and greeting noise from fallback facts', async () => {
+    const extractor = new KnowledgeExtractor({
+      runExtractionModel: async () => {
+        throw new Error('upstream failed');
+      },
+    });
+
+    const noisyMessages: StoredMessage[] = [
+      {
+        id: 'msg-1',
+        conversationId: 'conv-noise',
+        seq: 1,
+        role: 'user',
+        content: '/new',
+        platform: 'WebChat' as never,
+        externalMsgId: null,
+        senderName: null,
+        metadata: null,
+        createdAt: new Date(2026, 1, 15, 10, 0).toISOString(),
+      },
+      {
+        id: 'msg-2',
+        conversationId: 'conv-noise',
+        seq: 2,
+        role: 'system',
+        content: 'Neue Konversation erstellt.',
+        platform: 'WebChat' as never,
+        externalMsgId: null,
+        senderName: null,
+        metadata: null,
+        createdAt: new Date(2026, 1, 15, 10, 1).toISOString(),
+      },
+      {
+        id: 'msg-3',
+        conversationId: 'conv-noise',
+        seq: 3,
+        role: 'user',
+        content: 'Hallo',
+        platform: 'WebChat' as never,
+        externalMsgId: null,
+        senderName: null,
+        metadata: null,
+        createdAt: new Date(2026, 1, 15, 10, 2).toISOString(),
+      },
+      {
+        id: 'msg-4',
+        conversationId: 'conv-noise',
+        seq: 4,
+        role: 'user',
+        content:
+          'Regeln: 1. Niemals zu spät kommen. 2. Bei Meetings bleibst du in meiner Nähe.',
+        platform: 'WebChat' as never,
+        externalMsgId: null,
+        senderName: null,
+        metadata: null,
+        createdAt: new Date(2026, 1, 15, 10, 3).toISOString(),
+      },
+    ];
+
+    const result = await extractor.extract({
+      conversationId: 'conv-noise',
+      userId: 'user-1',
+      personaId: 'persona-1',
+      messages: noisyMessages,
+    });
+
+    expect(result.facts.some((fact) => fact.includes('/new'))).toBe(false);
+    expect(result.facts.some((fact) => /neue konversation erstellt/i.test(fact))).toBe(false);
+    expect(result.facts.some((fact) => /^hallo$/i.test(fact))).toBe(false);
+    expect(result.facts.some((fact) => /niemals zu spät kommen/i.test(fact))).toBe(true);
+  });
 });

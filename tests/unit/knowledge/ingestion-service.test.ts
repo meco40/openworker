@@ -151,4 +151,70 @@ describe('KnowledgeIngestionService', () => {
     const second = await service.runOnce();
     expect(second.processedConversations).toBe(0);
   });
+
+  it('stores only meaningful fact artifacts in memory (no command/greeting noise, no teaser/episode)', async () => {
+    const window: IngestionWindow = {
+      conversationId: 'conv-meaningful',
+      userId: 'user-1',
+      personaId: 'persona-1',
+      fromSeqExclusive: 0,
+      toSeqInclusive: 4,
+      messages: [
+        createMessage(1, 'conv-meaningful', '/new'),
+        createMessage(2, 'conv-meaningful', 'Neue Konversation erstellt.'),
+        createMessage(3, 'conv-meaningful', 'Hallo'),
+        createMessage(
+          4,
+          'conv-meaningful',
+          'Regeln: 1. Niemals zu spät kommen. 2. Bei Meetings bleibst du in meiner Nähe.',
+        ),
+      ],
+    };
+
+    const extract = vi.fn(async (): Promise<KnowledgeExtractionResult> => ({
+      facts: [
+        '/new',
+        'Neue Konversation erstellt.',
+        'Hallo',
+        'Regeln: 1. Niemals zu spät kommen. 2. Bei Meetings bleibst du in meiner Nähe.',
+      ],
+      teaser: 'Kurztext mit Kontext',
+      episode: 'Langer Episodentext mit vielen Details',
+      meetingLedger: {
+        topicKey: 'office-rules',
+        counterpart: null,
+        participants: ['Ich'],
+        decisions: [],
+        negotiatedTerms: [],
+        openPoints: [],
+        actionItems: [],
+        sourceRefs: [{ seq: 4, quote: 'Regeln: 1. Niemals zu spät kommen.' }],
+        confidence: 0.7,
+      },
+    }));
+    const store = vi.fn(async () => ({ id: 'mem-1' }));
+
+    const service = new KnowledgeIngestionService({
+      cursor: {
+        getPendingWindows: vi.fn(() => [window]),
+        markWindowProcessed: vi.fn(),
+      },
+      extractor: { extract },
+      knowledgeRepository: {
+        upsertEpisode: vi.fn(),
+        upsertMeetingLedger: vi.fn(),
+      },
+      memoryService: { store },
+    });
+
+    await service.runOnce();
+
+    const storedPayloads = (store.mock.calls as unknown[][]).map((call) => String(call[2] || ''));
+    expect(storedPayloads.some((value) => value === '/new')).toBe(false);
+    expect(storedPayloads.some((value) => /neue konversation erstellt/i.test(value))).toBe(false);
+    expect(storedPayloads.some((value) => /^hallo$/i.test(value))).toBe(false);
+    expect(storedPayloads.some((value) => /niemals zu spät kommen/i.test(value))).toBe(true);
+    expect(storedPayloads.some((value) => /Kurztext mit Kontext/i.test(value))).toBe(false);
+    expect(storedPayloads.some((value) => /Langer Episodentext/i.test(value))).toBe(false);
+  });
 });

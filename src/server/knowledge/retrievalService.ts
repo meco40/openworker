@@ -9,7 +9,7 @@ interface MemoryRecallLike {
     query: string,
     limit?: number,
     userId?: string,
-  ) => Promise<{ context: string; matches: Array<{ node: { id: string } }> }>;
+  ) => Promise<{ context: string; matches: Array<{ node: { id: string; content?: string } }> }>;
 }
 
 interface MessageLookupRepository {
@@ -74,6 +74,208 @@ function uniqueStrings(values: string[]): string[] {
     output.push(normalized);
   }
   return output;
+}
+
+const RULES_WORD_PATTERN =
+  /\b(regel|regeln|rule|rules|richtlinie|richtlinien|policy|policies|vorgabe|vorgaben)\b/i;
+
+function isRulesIntentQuery(query: string): boolean {
+  return RULES_WORD_PATTERN.test(normalizeLookupText(query));
+}
+
+function containsRulesWord(value: string): boolean {
+  return RULES_WORD_PATTERN.test(normalizeLookupText(value));
+}
+
+function truncateText(value: string, maxChars: number): string {
+  const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxChars) return normalized;
+  return `${normalized.slice(0, Math.max(1, maxChars - 3)).trimEnd()}...`;
+}
+
+function isRuleLikeStatement(value: string): boolean {
+  const normalized = normalizeLookupText(value);
+  if (!normalized) return false;
+  if (
+    /\b(ohne|kein|keine|keinen|nicht)\b.{0,24}\b(regel|regeln|rule|rules|richtlinie|richtlinien|policy|policies|vorgabe|vorgaben)\b/i.test(
+      normalized,
+    )
+  ) {
+    return false;
+  }
+  if (/^\s*\d+\s*[.)-]/.test(value)) return true;
+  if (/^\s*(regeln?|rules?|richtlinien?|vorgaben?)\b.{0,24}[:\-]/i.test(value)) return true;
+  if (
+    containsRulesWord(normalized) &&
+    /\b(regel|regeln|rule|rules|richtlinie|richtlinien|policy|policies|vorgabe|vorgaben)\b.{0,28}(\d+\s*[.)]|gilt|gelten|lauten|sind)\b/i.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function extractRuleFragments(text: string, maxFragments = 6): string[] {
+  const raw = String(text || '').trim();
+  if (!raw) return [];
+  const compact = raw.replace(/\s+/g, ' ').trim();
+
+  const numberedRuleCandidates: string[] = [];
+  const rulesHeaderMatch = /(regeln?|rules?|richtlinien?|vorgaben?)\s*:/i.exec(compact);
+  const numberedScanSource = rulesHeaderMatch
+    ? compact.slice(rulesHeaderMatch.index)
+    : compact;
+  const numberedParts = numberedScanSource.split(/\s(?=\d+\s*[.)-]\s)/);
+  for (const part of numberedParts) {
+    let candidate = part
+      .replace(/^(regeln?|rules?|richtlinien?|vorgaben?)\s*:\s*/i, '')
+      .replace(/^Abschnitt\s+\d+:\s*/i, '')
+      .trim();
+    if (!/^\d+\s*[.)-]\s+/.test(candidate)) continue;
+    candidate = truncateText(candidate, 220);
+    if (candidate.replace(/[0-9.\-\s]/g, '').length < 4) continue;
+    numberedRuleCandidates.push(candidate);
+    if (numberedRuleCandidates.length >= maxFragments) break;
+  }
+  if (numberedRuleCandidates.length > 0) {
+    return uniqueStrings(numberedRuleCandidates);
+  }
+
+  const segments = raw
+    .split(/\r?\n+|(?<=[.!?])\s+/)
+    .map((part) => part.replace(/^Abschnitt\s+\d+:\s*/i, '').trim())
+    .filter((part) => part.length > 0);
+
+  const picks: string[] = [];
+  for (const segment of segments) {
+    if (/^\s*\d+\s*[.)-]?\s*$/.test(segment)) continue;
+    if (segment.replace(/[0-9.\-\s]/g, '').length < 4) continue;
+    if (
+      segment.length > 260 &&
+      !/^\s*(regeln?|rules?|richtlinien?|vorgaben?)\b/i.test(segment) &&
+      !/^\s*\d+\s*[.)-]/.test(segment)
+    ) {
+      continue;
+    }
+    if (!isRuleLikeStatement(segment)) continue;
+    picks.push(truncateText(segment, 220));
+    if (picks.length >= maxFragments) break;
+  }
+  return uniqueStrings(picks);
+}
+
+function tokenizeQueryForRanking(query: string): string[] {
+  const normalized = normalizeLookupText(query);
+  const stopwords = new Set([
+    'die',
+    'der',
+    'das',
+    'ein',
+    'eine',
+    'und',
+    'oder',
+    'mit',
+    'von',
+    'zu',
+    'an',
+    'mir',
+    'du',
+    'ich',
+    'was',
+    'wie',
+    'wann',
+    'warum',
+    'wieso',
+    'nenne',
+    'sage',
+    'sag',
+    'zeige',
+    'bitte',
+  ]);
+  return normalized
+    .split(' ')
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 4 && !stopwords.has(token));
+}
+
+function computeTokenOverlapScore(text: string, tokens: string[]): number {
+  if (tokens.length === 0) return 0;
+  const normalizedText = normalizeLookupText(text);
+  if (!normalizedText) return 0;
+  let score = 0;
+  for (const token of tokens) {
+    if (normalizedText.includes(token)) score += 1;
+  }
+  return score;
+}
+
+function rankEpisodesByQuery(episodes: KnowledgeEpisode[], query: string): KnowledgeEpisode[] {
+  const tokens = tokenizeQueryForRanking(query);
+  if (tokens.length === 0) return episodes;
+  return [...episodes].sort((left, right) => {
+    const leftScore = computeTokenOverlapScore(
+      `${left.topicKey} ${left.teaser} ${left.episode} ${(left.facts || []).join(' ')}`,
+      tokens,
+    );
+    const rightScore = computeTokenOverlapScore(
+      `${right.topicKey} ${right.teaser} ${right.episode} ${(right.facts || []).join(' ')}`,
+      tokens,
+    );
+    if (rightScore !== leftScore) return rightScore - leftScore;
+    return Date.parse(String(right.updatedAt || '')) - Date.parse(String(left.updatedAt || ''));
+  });
+}
+
+function rankLedgerByQuery(ledgerRows: MeetingLedgerEntry[], query: string): MeetingLedgerEntry[] {
+  const tokens = tokenizeQueryForRanking(query);
+  if (tokens.length === 0) return ledgerRows;
+  return [...ledgerRows].sort((left, right) => {
+    const leftScore = computeTokenOverlapScore(
+      `${left.topicKey} ${left.counterpart || ''} ${left.decisions.join(' ')} ${left.negotiatedTerms.join(
+        ' ',
+      )} ${left.openPoints.join(' ')} ${left.actionItems.join(' ')}`,
+      tokens,
+    );
+    const rightScore = computeTokenOverlapScore(
+      `${right.topicKey} ${right.counterpart || ''} ${right.decisions.join(
+        ' ',
+      )} ${right.negotiatedTerms.join(' ')} ${right.openPoints.join(' ')} ${right.actionItems.join(' ')}`,
+      tokens,
+    );
+    if (rightScore !== leftScore) return rightScore - leftScore;
+    return Date.parse(String(right.updatedAt || '')) - Date.parse(String(left.updatedAt || ''));
+  });
+}
+
+function buildSemanticContextForQuery(
+  query: string,
+  semantic: Awaited<ReturnType<MemoryRecallLike['recallDetailed']>>,
+): string {
+  const rulesIntent = isRulesIntentQuery(query);
+  if (rulesIntent) {
+    const rulePicks = uniqueStrings(
+      semantic.matches.flatMap((entry) => extractRuleFragments(String(entry.node.content || ''), 3)),
+    )
+      .slice(0, 6)
+      .map((value) => `[Type: fact] ${value}`);
+    if (rulePicks.length > 0) return rulePicks.join('\n');
+
+    const fallbackRules = extractRuleFragments(semantic.context || '', 4).map(
+      (value) => `[Type: fact] ${value}`,
+    );
+    if (fallbackRules.length > 0) return fallbackRules.join('\n');
+    return '';
+  }
+
+  const picks = semantic.matches
+    .map((entry) => truncateText(String(entry.node.content || ''), 280))
+    .filter((value) => value.length > 0)
+    .slice(0, 4)
+    .map((value) => `[Type: fact] ${value}`);
+
+  if (picks.length > 0) return picks.join('\n');
+  return truncateText(semantic.context || '', 280);
 }
 
 function normalizeLookupText(value: string): string {
@@ -181,12 +383,9 @@ function buildEvidence(
 }
 
 function selectConversationId(
-  inputConversationId: string | undefined,
   episodes: KnowledgeEpisode[],
   ledgerRows: MeetingLedgerEntry[],
 ): string | null {
-  const explicit = String(inputConversationId || '').trim();
-  if (explicit) return explicit;
   const fromLedger = String(ledgerRows[0]?.conversationId || '').trim();
   if (fromLedger) return fromLedger;
   const fromEpisodes = String(episodes[0]?.conversationId || '').trim();
@@ -238,7 +437,13 @@ export class KnowledgeRetrievalService {
     const hasQuestionSignal =
       /[?]/.test(input.query) ||
       /^(was|wie|wann|wo|wer|warum|wieso|which|what|when|where|who)\b/i.test(normalizedQuery);
-    if (!hasQuestionSignal) return false;
+    const directiveRecallIntent =
+      /\b(nenne|sag|sage|liste|list|zeige|zeig|erzaehl|erzahl|remember|recall|tell|summarize)\b/i.test(
+        normalizedQuery,
+      );
+    const rulesIntent = isRulesIntentQuery(normalizedQuery);
+    if (rulesIntent && (hasQuestionSignal || directiveRecallIntent)) return true;
+    if (!hasQuestionSignal && !directiveRecallIntent) return false;
 
     const retrospectiveHint =
       /\b(gestern|vorgestern|letzte[nrsm]?|vor\s+\d+\s+(tag|tagen|woche|wochen|monat|monaten|jahr|jahren)|damals|zuvor|fruher|frueher|letztens|neulich)\b/i.test(
@@ -256,6 +461,7 @@ export class KnowledgeRetrievalService {
 
   async retrieve(input: KnowledgeRetrievalInput): Promise<KnowledgeRetrievalResult> {
     const plan = planKnowledgeQuery(input.query);
+    const rulesIntent = isRulesIntentQuery(input.query);
     const topicFilter =
       plan.topic && plan.topic !== 'ausgehandelt' ? plan.topic : undefined;
 
@@ -298,6 +504,23 @@ export class KnowledgeRetrievalService {
           );
         }
       }
+      ledgerRows = rankLedgerByQuery(ledgerRows, input.query).slice(0, 8);
+      episodes = rankEpisodesByQuery(episodes, input.query).slice(0, 8);
+
+      if (rulesIntent) {
+        const ruleLedger = ledgerRows.filter((row) =>
+          isRuleLikeStatement(
+            `${row.topicKey} ${row.decisions.join(' ')} ${row.negotiatedTerms.join(
+              ' ',
+            )} ${row.openPoints.join(' ')} ${row.actionItems.join(' ')}`,
+          ),
+        );
+        const ruleEpisodes = episodes.filter((row) =>
+          isRuleLikeStatement(`${row.topicKey} ${row.teaser} ${row.episode} ${row.facts.join(' ')}`),
+        );
+        if (ruleLedger.length > 0) ledgerRows = ruleLedger;
+        if (ruleEpisodes.length > 0) episodes = ruleEpisodes;
+      }
       stageStats.ledger = ledgerRows.length;
       stageStats.episodes = episodes.length;
 
@@ -308,33 +531,88 @@ export class KnowledgeRetrievalService {
         input.userId,
       );
       stageStats.semantic = Math.max(0, semantic.matches.length);
+      const semanticContext = buildSemanticContextForQuery(input.query, semantic);
 
-      const conversationId = selectConversationId(input.conversationId, episodes, ledgerRows);
+      const hasSignals = stageStats.ledger > 0 || stageStats.episodes > 0 || stageStats.semantic > 0;
+      if (!hasSignals) {
+        this.options.knowledgeRepository.insertRetrievalAudit({
+          userId: input.userId,
+          personaId: input.personaId,
+          conversationId: input.conversationId || 'unknown-conversation',
+          query: input.query,
+          stageStats,
+          tokenCount: 0,
+          hadError: false,
+        });
+        return {
+          context: '',
+          sections: {
+            answerDraft: '',
+            keyDecisions: '',
+            openPoints: '',
+            evidence: '',
+          },
+          references: [],
+          tokenCount: 0,
+        };
+      }
+
+      const conversationId = selectConversationId(episodes, ledgerRows);
       const messages = conversationId
         ? this.options.messageRepository.listMessages(conversationId, 200, undefined, input.userId)
         : [];
       stageStats.evidence = messages.length;
 
       const latestEpisode = episodes[0];
-      const keyDecisionsList = uniqueStrings([
+      let keyDecisionsList = uniqueStrings([
         ...ledgerRows.flatMap((row) => row.decisions),
         ...ledgerRows.flatMap((row) => row.negotiatedTerms),
         ...(latestEpisode?.facts || []),
       ]);
 
-      const openPointsList = uniqueStrings([
+      let openPointsList = uniqueStrings([
         ...ledgerRows.flatMap((row) => row.openPoints),
         ...ledgerRows.flatMap((row) => row.actionItems),
       ]);
 
+      if (rulesIntent) {
+        keyDecisionsList = keyDecisionsList.filter((entry) => isRuleLikeStatement(entry));
+        openPointsList = openPointsList.filter((entry) => isRuleLikeStatement(entry));
+      }
+
       const counterpart = toDisplayName(
         ledgerRows[0]?.counterpart || latestEpisode?.counterpart || plan.counterpart,
       );
-      const answerDraftParts = [
-        counterpart ? `Kontext: Meeting mit ${counterpart}.` : 'Kontext: Wissensrueckgriff aktiv.',
-        latestEpisode?.teaser || '',
-        semantic.context || '',
-      ].filter(Boolean);
+      const ruleHighlights = rulesIntent
+        ? uniqueStrings([
+            ...keyDecisionsList,
+            ...openPointsList,
+            ...episodes.flatMap((episode) =>
+              extractRuleFragments(
+                `${episode.teaser || ''}\n${episode.episode || ''}\n${(episode.facts || []).join('\n')}`,
+              ),
+            ),
+            ...ledgerRows.flatMap((row) =>
+              extractRuleFragments(
+                `${row.decisions.join('\n')}\n${row.negotiatedTerms.join('\n')}\n${row.openPoints.join(
+                  '\n',
+                )}\n${row.actionItems.join('\n')}`,
+              ),
+            ),
+            ...extractRuleFragments(semanticContext),
+          ]).slice(0, 8)
+        : [];
+
+      const answerDraftParts = rulesIntent
+        ? [
+            'Kontext: Regelwissen aus Historie.',
+            ...ruleHighlights.map((entry) => `- ${entry}`),
+          ]
+        : [
+            counterpart ? `Kontext: Meeting mit ${counterpart}.` : 'Kontext: Wissensrueckgriff aktiv.',
+            latestEpisode?.teaser || '',
+            semanticContext || '',
+          ];
 
       const { evidenceText, references } = buildEvidence(messages, episodes, ledgerRows);
 

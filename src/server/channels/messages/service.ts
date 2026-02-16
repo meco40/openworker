@@ -88,51 +88,19 @@ function shouldRecallMemoryForInput(content: string): boolean {
   if (!normalized) return false;
   if (extractMemorySaveContent(normalized) !== null) return false;
 
-  const directPatterns: RegExp[] = [
-    /\berinner(n|e|st|t|ung|ungen)?\b/i,
-    /\b(lieblings|favorit|vorliebe|preference)\b/i,
-    /\b(ich hatte|habe ich|was war|wann war)\b/i,
-    /\b(wie war\b.*\b(gestern|vorgestern|letzte[nrsm]?|vor\s+\d+\s+(tag|tagen|woche|wochen|monat|monaten|jahr|jahren)))\b/i,
-    /\b(vor (einer|einem|\d+) (tag|tagen|woche|wochen|monat|monaten|jahr|jahren))\b/i,
-    /\b(letzte[nrsm]?\s+(woche|monat|jahr)|last\s+(week|month|year))\b/i,
-    /\b(was haben wir (besprochen|gesagt)|what did we discuss)\b/i,
-    /\b(was haben wir .* (?:über|ueber) .* gesprochen)\b/i,
-    /\b(wie trinke ich|was trinke ich|was esse ich|was mag ich)\b/i,
-    /\b(wie mache ich (das|es)|wie war mein workflow|mein workflow)\b/i,
-    /\b(remember|favorite|preference|what did i|when did i)\b/i,
-  ];
-
-  if (directPatterns.some((pattern) => pattern.test(normalized))) {
-    return true;
-  }
-
+  // Always-on recall for meaningful user turns (non-command, non-trivial)
   if (
-    /\b(ich|mein|meine|meinen|my|i)\b/i.test(normalized) &&
-    /\b(gesagt|besprochen|termin|vorhaben|routine|präferenz|vorliebe|workflow|history|previous)\b/i.test(
+    /^(ok|okay|danke|thx|merci|hi|hallo|hey|moin|ja|nein|passt|super|top|alles klar|gut)\W*$/i.test(
       normalized,
     )
   ) {
-    return true;
+    return false;
   }
 
-  if (!normalized.includes('?')) return false;
-  const personalRef = /\b(ich|mein|meine|meinen|my|i)\b/i.test(normalized);
-  const memoryTopic =
-    /\b(kaffee|essen|trinken|lieblings|favorit|termin|meeting|sauna|vertrag|rabatt|sla|geplant|gesagt|präferenz|vorliebe|workflow|besprochen|history|drink|eat|appointment|said)\b/i.test(
-      normalized,
-    );
-  const retrospectiveHint =
-    /\b(gestern|vorgestern|letzte[nrsm]?|vor\s+\d+\s+(tag|tagen|woche|wochen|monat|monaten|jahr|jahren)|damals|zuvor|früher|frueher|neulich|letztens)\b/i.test(
-      normalized,
-    );
-  const recallVerb =
-    /\b(war|gesprochen|besprochen|vereinbart|ausgehandelt|diskutiert|gemacht|gelaufen)\b/i.test(
-      normalized,
-    );
-  if (retrospectiveHint && (memoryTopic || recallVerb)) {
-    return true;
-  }
-  return personalRef && memoryTopic;
+  const tokenCount = normalized.split(/\s+/).filter(Boolean).length;
+  if (tokenCount <= 2 && !/[?]/.test(normalized)) return false;
+
+  return true;
 }
 
 function normalizeMemoryContext(context: string): string | null {
@@ -1294,23 +1262,7 @@ export class MessageService {
         ? (getKnowledgeRetrievalService() as unknown as KnowledgeRetrievalServiceLike)
         : null;
 
-    let shouldRecall = shouldRecallMemoryForInput(userInput);
-    if (!shouldRecall && knowledgeRetrievalService?.shouldTriggerRecall) {
-      for (const userIdCandidate of memoryUserIds) {
-        try {
-          shouldRecall = Boolean(
-            await knowledgeRetrievalService.shouldTriggerRecall({
-              userId: userIdCandidate,
-              personaId: conversation.personaId,
-              query: userInput,
-            }),
-          );
-          if (shouldRecall) break;
-        } catch (error) {
-          console.error('Knowledge recall probe failed:', error);
-        }
-      }
-    }
+    const shouldRecall = shouldRecallMemoryForInput(userInput);
     if (!shouldRecall) return null;
 
     if (knowledgeRetrievalService) {

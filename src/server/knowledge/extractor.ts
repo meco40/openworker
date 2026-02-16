@@ -1,6 +1,7 @@
 import type { StoredMessage } from '../channels/messages/repository';
 import { buildKnowledgeExtractionPrompt } from './prompts';
 import type { KnowledgeSourceRef } from './repository';
+import { isMeaningfulKnowledgeText, sanitizeKnowledgeFacts } from './textQuality';
 
 export interface KnowledgeMeetingLedger {
   topicKey: string;
@@ -83,7 +84,9 @@ function fitWordRange(text: string, minWords: number, maxWords: number, fillerWo
 
 function pickFallbackRefs(messages: StoredMessage[]): KnowledgeSourceRef[] {
   return messages
+    .filter((message) => message.role !== 'system')
     .filter((message) => Number.isFinite(Number(message.seq)))
+    .filter((message) => isMeaningfulKnowledgeText(String(message.content || '')))
     .slice(0, 6)
     .map((message) => ({
       seq: Math.floor(Number(message.seq || 0)),
@@ -93,7 +96,10 @@ function pickFallbackRefs(messages: StoredMessage[]): KnowledgeSourceRef[] {
 }
 
 function detectCounterpart(messages: StoredMessage[]): string | null {
-  const corpus = messages.map((message) => String(message.content || '')).join(' ');
+  const corpus = messages
+    .filter((message) => message.role !== 'system')
+    .map((message) => String(message.content || ''))
+    .join(' ');
   const match = DEFAULT_COUNTERPART_REGEX.exec(corpus);
   if (!match?.[1]) return null;
   const counterpart = match[1].trim();
@@ -102,20 +108,27 @@ function detectCounterpart(messages: StoredMessage[]): string | null {
 
 function buildFallback(input: KnowledgeExtractionInput): KnowledgeExtractionResult {
   const lines = input.messages
+    .filter((message) => message.role !== 'system')
     .map((message) => String(message.content || '').replace(/\s+/g, ' ').trim())
-    .filter((content) => content.length > 0);
+    .filter((content) => isMeaningfulKnowledgeText(content));
 
-  const facts = lines
-    .filter((line) => /\b(vereinbart|entschieden|offen|action|todo|rabatt|vertrag|deadline)\b/i.test(line))
-    .slice(0, 8);
+  const facts = sanitizeKnowledgeFacts(
+    lines.filter((line) =>
+      /\b(vereinbart|entschieden|offen|action|todo|rabatt|vertrag|deadline|regel|regeln|rule|rules)\b/i.test(
+        line,
+      ),
+    ),
+  ).slice(0, 8);
 
-  const fallbackFacts = facts.length > 0 ? facts : lines.slice(0, 5);
+  const fallbackFacts = facts.length > 0 ? facts : sanitizeKnowledgeFacts(lines).slice(0, 5);
+  const safeFallbackFacts =
+    fallbackFacts.length > 0 ? fallbackFacts : ['Wichtige Details aus dem Verlauf wurden besprochen.'];
   const sourceRefs = pickFallbackRefs(input.messages);
   const counterpart = detectCounterpart(input.messages);
 
   const teaserBase = [
     `Meetingzusammenfassung fuer ${counterpart || 'den Termin'}.`,
-    ...fallbackFacts.slice(0, 4).map((fact) => `Kernpunkt: ${fact}`),
+    ...safeFallbackFacts.slice(0, 4).map((fact) => `Kernpunkt: ${fact}`),
     'Der Verlauf zeigt Verhandlung, Beschluss und offene Punkte.',
   ].join(' ');
 
@@ -125,17 +138,17 @@ function buildFallback(input: KnowledgeExtractionInput): KnowledgeExtractionResu
   }).join(' ');
 
   return {
-    facts: fallbackFacts,
+    facts: safeFallbackFacts,
     teaser: fitWordRange(teaserBase, 80, 150, 'kontext'),
     episode: fitWordRange(repeatedEpisodeBase, 400, 800, 'detail'),
     meetingLedger: {
       topicKey: counterpart ? `meeting-${counterpart.toLowerCase()}` : 'general-meeting',
       counterpart,
       participants: counterpart ? ['Ich', counterpart] : ['Ich'],
-      decisions: fallbackFacts.filter((fact) => /\b(vereinbart|entschieden|beschlossen)\b/i.test(fact)),
-      negotiatedTerms: fallbackFacts.filter((fact) => /\b(rabatt|vertrag|preis|laufzeit)\b/i.test(fact)),
-      openPoints: fallbackFacts.filter((fact) => /\b(offen|ausstehend|todo|sla)\b/i.test(fact)),
-      actionItems: fallbackFacts.filter((fact) => /\b(sendet|bis|deadline|aufgabe|todo)\b/i.test(fact)),
+      decisions: safeFallbackFacts.filter((fact) => /\b(vereinbart|entschieden|beschlossen)\b/i.test(fact)),
+      negotiatedTerms: safeFallbackFacts.filter((fact) => /\b(rabatt|vertrag|preis|laufzeit)\b/i.test(fact)),
+      openPoints: safeFallbackFacts.filter((fact) => /\b(offen|ausstehend|todo|sla)\b/i.test(fact)),
+      actionItems: safeFallbackFacts.filter((fact) => /\b(sendet|bis|deadline|aufgabe|todo)\b/i.test(fact)),
       sourceRefs,
       confidence: 0.35,
     },
@@ -156,7 +169,7 @@ function parseModelPayload(
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
 
   const record = parsed as Record<string, unknown>;
-  const facts = toStringArray(record.facts).slice(0, 20);
+  const facts = sanitizeKnowledgeFacts(toStringArray(record.facts)).slice(0, 20);
   const teaser = fitWordRange(String(record.teaser || ''), 80, 150, 'kontext');
   const episode = fitWordRange(String(record.episode || ''), 400, 800, 'detail');
 
