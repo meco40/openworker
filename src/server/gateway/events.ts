@@ -41,6 +41,8 @@ export interface WorkerStatusPayload {
   status: string;
   message: string;
   timestamp: string;
+  runId?: string | null;
+  source?: 'legacy' | 'openai';
 }
 
 export interface WorkerApprovalRequestPayload {
@@ -48,6 +50,7 @@ export interface WorkerApprovalRequestPayload {
   command: string;
   description: string;
   timeout: number;
+  approvalToken?: string;
 }
 
 export interface WorkerWorkflowPayload {

@@ -96,6 +96,11 @@ registerMethod(
       repo.addApprovalRule(checkpoint.pendingCommand);
     }
 
+    if (typeof checkpoint.openaiApprovalToken === 'string') {
+      const { submitOpenAiApproval } = await import('../../worker/openai/openaiWorkerRuntime');
+      await submitOpenAiApproval(taskId, approved, approveAlways);
+    }
+
     respond({ taskId, approved });
   },
 );

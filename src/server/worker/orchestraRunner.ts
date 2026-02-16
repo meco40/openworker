@@ -36,6 +36,15 @@ export interface RunOrchestraFlowResult {
   nodes: Record<string, OrchestraNodeRunState>;
 }
 
+export function collectOpenAiSubagentNodes(
+  nodes: Record<string, OrchestraNodeRunState>,
+): Array<{ nodeId: string; status: OrchestraNodeRuntimeStatus }> {
+  return Object.entries(nodes).map(([nodeId, state]) => ({
+    nodeId,
+    status: state.status,
+  }));
+}
+
 function createInitialNodeStates(graph: OrchestraFlowGraph): Record<string, OrchestraNodeRunState> {
   const states: Record<string, OrchestraNodeRunState> = {};
   for (const node of graph.nodes) {

@@ -77,6 +77,15 @@ const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
       callbackToken: 'ENV_OPENAI_WORKER_TOKEN',
       maxConcurrentRuns: 8,
       maxQueueDepth: 256,
+      maxTokensPerRun: 120000,
+      maxCostUsdPerRun: 10,
+      maxCostUsdPerUserPerDay: 25,
+      maxRequestsPerMinutePerUser: 60,
+      tools: {
+        computerUse: {
+          enabled: false,
+        },
+      },
     },
   },
   ui: {
@@ -381,6 +390,43 @@ function normalizeGatewayConfig(
       }
       if (openai.maxQueueDepth !== undefined) {
         ensureIntInRange(openai.maxQueueDepth, 'worker.openai.maxQueueDepth', 1, 100000);
+      }
+      if (openai.maxTokensPerRun !== undefined) {
+        ensureIntInRange(openai.maxTokensPerRun, 'worker.openai.maxTokensPerRun', 1, 100000000);
+      }
+      if (openai.maxCostUsdPerRun !== undefined) {
+        if (typeof openai.maxCostUsdPerRun !== 'number' || openai.maxCostUsdPerRun < 0) {
+          throw new GatewayConfigValidationError(
+            'worker.openai.maxCostUsdPerRun must be a non-negative number.',
+          );
+        }
+      }
+      if (openai.maxCostUsdPerUserPerDay !== undefined) {
+        if (
+          typeof openai.maxCostUsdPerUserPerDay !== 'number' ||
+          openai.maxCostUsdPerUserPerDay < 0
+        ) {
+          throw new GatewayConfigValidationError(
+            'worker.openai.maxCostUsdPerUserPerDay must be a non-negative number.',
+          );
+        }
+      }
+      if (openai.maxRequestsPerMinutePerUser !== undefined) {
+        ensureIntInRange(
+          openai.maxRequestsPerMinutePerUser,
+          'worker.openai.maxRequestsPerMinutePerUser',
+          1,
+          1000000,
+        );
+      }
+      if (openai.tools !== undefined) {
+        const tools = ensureObject(openai.tools, 'worker.openai.tools');
+        if (tools.computerUse !== undefined) {
+          const computerUse = ensureObject(tools.computerUse, 'worker.openai.tools.computerUse');
+          if (computerUse.enabled !== undefined) {
+            ensureBoolean(computerUse.enabled, 'worker.openai.tools.computerUse.enabled');
+          }
+        }
       }
     }
   }

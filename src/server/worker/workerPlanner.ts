@@ -21,6 +21,8 @@ export interface TaskPlan {
   steps: string[];
 }
 
+export const LEGACY_WORKER_PLANNER = true;
+
 /**
  * Uses AI to analyze a task objective and generate an execution plan.
  * Now supports Persona context for customized planning behavior.
