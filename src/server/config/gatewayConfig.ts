@@ -46,6 +46,7 @@ const WORKSPACE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const SECRET_PATHS = [
   ['channels', 'telegram', 'token'],
   ['gateway', 'auth', 'token'],
+  ['worker', 'openai', 'callbackToken'],
 ] as const;
 
 const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
@@ -68,6 +69,15 @@ const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
   tools: {
     browser: { managed: true, headless: true },
     sandbox: { type: 'docker', enabled: false },
+  },
+  worker: {
+    runtime: 'legacy',
+    openai: {
+      sidecarUrl: 'http://127.0.0.1:8011',
+      callbackToken: 'ENV_OPENAI_WORKER_TOKEN',
+      maxConcurrentRuns: 8,
+      maxQueueDepth: 256,
+    },
   },
   ui: {
     defaultView: 'dashboard',
@@ -347,6 +357,31 @@ function normalizeGatewayConfig(
       const sandbox = ensureObject(tools.sandbox, 'tools.sandbox');
       ensureString(sandbox.type, 'tools.sandbox.type');
       ensureBoolean(sandbox.enabled, 'tools.sandbox.enabled');
+    }
+  }
+
+  if (root.worker !== undefined) {
+    const worker = ensureObject(root.worker, 'worker');
+    if (worker.runtime !== undefined) {
+      const runtime = ensureString(worker.runtime, 'worker.runtime');
+      if (!new Set(['legacy', 'openai']).has(runtime)) {
+        throw new GatewayConfigValidationError('worker.runtime must be one of: legacy, openai.');
+      }
+    }
+    if (worker.openai !== undefined) {
+      const openai = ensureObject(worker.openai, 'worker.openai');
+      if (openai.sidecarUrl !== undefined) {
+        ensureString(openai.sidecarUrl, 'worker.openai.sidecarUrl');
+      }
+      if (openai.callbackToken !== undefined) {
+        ensureString(openai.callbackToken, 'worker.openai.callbackToken');
+      }
+      if (openai.maxConcurrentRuns !== undefined) {
+        ensureIntInRange(openai.maxConcurrentRuns, 'worker.openai.maxConcurrentRuns', 1, 256);
+      }
+      if (openai.maxQueueDepth !== undefined) {
+        ensureIntInRange(openai.maxQueueDepth, 'worker.openai.maxQueueDepth', 1, 100000);
+      }
     }
   }
 
