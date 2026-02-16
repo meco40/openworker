@@ -7,7 +7,7 @@
  * - Shift existing new messages' seq numbers up to make room
  * - FTS5 triggers will auto-index the restored messages
  */
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 
 const BACKUP_PATH = '.local/messages.db.backup-pre-repair';
 const CURRENT_PATH = '.local/messages.db';
@@ -15,8 +15,8 @@ const OLD_CONV_ID = 'db73d6b8-0edb-4484-86f9-d6a33afd28e7';
 const NEW_CONV_ID = '78f081b5-032c-49aa-883b-8956f78112e0';
 
 // 1. Open both DBs
-const backupDb = new Database(BACKUP_PATH, { readonly: true });
-const currentDb = new Database(CURRENT_PATH);
+const backupDb = new BetterSqlite3(BACKUP_PATH, { readonly: true });
+const currentDb = new BetterSqlite3(CURRENT_PATH);
 
 // 2. Read old messages from backup (ordered by seq)
 const oldMessages = backupDb.prepare(
@@ -123,13 +123,13 @@ if (oldContext) {
 
 // 7. Restore knowledge tables from backup
 const knowledgeTables = [
-  { name: 'knowledge_episodes', idCol: 'id' },
-  { name: 'knowledge_meeting_ledger', idCol: 'id' },
-  { name: 'knowledge_retrieval_audit', idCol: 'id' },
-  { name: 'knowledge_ingestion_checkpoints', idCol: null },
+  'knowledge_episodes',
+  'knowledge_meeting_ledger',
+  'knowledge_retrieval_audit',
+  'knowledge_ingestion_checkpoints',
 ];
 
-for (const { name, idCol } of knowledgeTables) {
+for (const name of knowledgeTables) {
   try {
     const rows = backupDb.prepare(
       `SELECT * FROM ${name} WHERE conversation_id = ?`
@@ -139,7 +139,6 @@ for (const { name, idCol } of knowledgeTables) {
     
     // Get column names from first row
     const cols = Object.keys(rows[0]);
-    const convIdIdx = cols.indexOf('conversation_id');
     
     const placeholders = cols.map(() => '?').join(', ');
     const insert = currentDb.prepare(

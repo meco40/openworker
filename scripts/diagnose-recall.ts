@@ -1,6 +1,6 @@
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 
-const messagesDb = new Database('.local/messages.db', { readonly: true });
+const messagesDb = new BetterSqlite3('.local/messages.db', { readonly: true });
 
 // 1. Check FTS5 for "Regeln" 
 console.log('=== FTS5 Search for "Regeln" ===');

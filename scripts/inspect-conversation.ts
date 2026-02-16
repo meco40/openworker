@@ -1,6 +1,6 @@
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 
-const db = new Database('.local/messages.db', { readonly: true });
+const db = new BetterSqlite3('.local/messages.db', { readonly: true });
 
 const convId = 'db73d6b8-0edb-4484-86f9-d6a33afd28e7';
 

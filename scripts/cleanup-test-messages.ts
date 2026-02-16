@@ -5,8 +5,8 @@
  *
  * Usage: npx tsx scripts/cleanup-test-messages.ts
  */
-import Database from 'better-sqlite3';
-import path from 'path';
+import BetterSqlite3 from 'better-sqlite3';
+import path from 'node:path';
 
 const DB_PATH = path.join(process.cwd(), '.local', 'messages.db');
 const CONVERSATION_ID = 'db73d6b8-0edb-4484-86f9-d6a33afd28e7';
@@ -14,7 +14,7 @@ const CONVERSATION_ID = 'db73d6b8-0edb-4484-86f9-d6a33afd28e7';
 // The original user instruction with the 5-point rules — KEEP this
 const KEEP_PATTERN = 'Merken sie sich: D,ie Regeln sind';
 
-const db = new Database(DB_PATH);
+const db = new BetterSqlite3(DB_PATH);
 
 // 1. Find all messages in this conversation that are test duplicates
 const allMessages = db.prepare(`

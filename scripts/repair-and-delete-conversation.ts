@@ -1,5 +1,5 @@
-import Database from 'better-sqlite3';
-import { copyFileSync, existsSync } from 'fs';
+import BetterSqlite3 from 'better-sqlite3';
+import { copyFileSync, existsSync } from 'node:fs';
 
 const DB_PATH = '.local/messages.db';
 const BACKUP_PATH = '.local/messages.db.backup-pre-repair';
@@ -16,7 +16,7 @@ if (!existsSync(BACKUP_PATH)) {
 
 // Step 2: Check integrity
 console.log('\n=== Step 2: Integrity Check ===');
-const db = new Database(DB_PATH);
+const db = new BetterSqlite3(DB_PATH);
 
 try {
   const integrity = db.pragma('integrity_check') as Array<{ integrity_check: string }>;

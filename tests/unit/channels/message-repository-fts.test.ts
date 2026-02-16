@@ -167,13 +167,33 @@ describe('SqliteMessageRepository — FTS5 search', () => {
       seedMessage(conv.id, 'I bought a radio from Andreas yesterday');
       seedMessage(conv.id, 'Completely unrelated content');
 
-      const runSearch = () => repo.searchMessages('Andreas,radio', { userId });
-      expect(runSearch).not.toThrow();
-
-      const results = runSearch();
+      expect(() => repo.searchMessages('Andreas,radio', { userId })).not.toThrow();
+      const results = repo.searchMessages('Andreas,radio', { userId });
       expect(results.length).toBe(1);
       expect(results[0].content).toContain('Andreas');
       expect(results[0].content).toContain('radio');
+    });
+
+    it('handles natural-language parentheses and colons without FTS syntax errors', () => {
+      const conv = seedConversation();
+      seedMessage(conv.id, 'Max sagt dass er verwundert ist');
+      seedMessage(conv.id, 'Other unrelated message');
+
+      expect(() => repo.searchMessages('Max (verwundert:sagt)', { userId })).not.toThrow();
+      const results = repo.searchMessages('Max (verwundert:sagt)', { userId });
+      expect(results.length).toBe(1);
+      expect(results[0].content).toContain('Max');
+    });
+
+    it('handles asterisk-wrapped words without triggering special FTS queries', () => {
+      const conv = seedConversation();
+      seedMessage(conv.id, 'Max sagt hallo');
+      seedMessage(conv.id, 'Completely unrelated content');
+
+      expect(() => repo.searchMessages('*max* sagt', { userId })).not.toThrow();
+      const results = repo.searchMessages('*max* sagt', { userId });
+      expect(results.length).toBe(1);
+      expect(results[0].content).toContain('Max');
     });
 
     it('filters by personaId — only returns messages from matching persona conversations', () => {

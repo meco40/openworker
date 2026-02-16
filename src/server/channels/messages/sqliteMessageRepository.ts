@@ -853,18 +853,20 @@ export class SqliteMessageRepository implements MessageRepository {
 
   /**
    * Converts a user query string into an FTS5 MATCH expression.
-   * - If the query already contains FTS5 operators (* " OR AND NOT), pass through as-is.
    * - Otherwise, OR all non-stopword tokens for recall-friendly matching.
    * - German/English stop words are stripped to avoid overly restrictive queries.
+   * - Keeps prefix wildcard semantics for trailing '*' (e.g. Type*).
+   * - Never forwards raw punctuation-heavy input to MATCH to avoid syntax errors.
    */
   private buildFtsQuery(raw: string): string {
-    // If user already used FTS5 syntax (wildcards, quotes, boolean), pass through
-    if (/[*"()]/.test(raw) || /\b(OR|AND|NOT)\b/.test(raw)) {
-      return raw;
-    }
-    // Split into alphanumeric tokens (unicode-aware) so punctuation like "," cannot break MATCH syntax.
-    const allTokens = raw.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-    const tokens = allTokens.filter((t) => !STOP_WORDS.has(t.toLowerCase()));
+    // Extract safe token terms with optional trailing wildcard (Type*).
+    // Leading/infix punctuation (e.g. *max*, (a:b), quotes) is stripped by design.
+    const allTokens = (raw.match(/[\p{L}\p{N}]+(?:\*)?/gu) || []).map((token) => {
+      const hasWildcard = token.endsWith('*');
+      const base = hasWildcard ? token.slice(0, -1) : token;
+      return hasWildcard && base ? `${base}*` : base;
+    }).filter(Boolean);
+    const tokens = allTokens.filter((t) => !STOP_WORDS.has(t.replace(/\*$/, '').toLowerCase()));
     if (tokens.length === 0) {
       // All words were stop words — fall back to original tokens
       return allTokens.length <= 1 ? (allTokens[0] ?? raw) : allTokens.join(' AND ');

@@ -9,7 +9,7 @@ import { getWorkerRepository } from '../../worker/workerRepository';
 import { SessionManager } from './sessionManager';
 import { HistoryManager } from './historyManager';
 import { ContextBuilder } from './contextBuilder';
-import { fuseRecallSources, RECALL_FUSION_TOTAL_BUDGET } from './recallFusion';
+import { fuseRecallSources } from './recallFusion';
 import type { SearchMessagesOptions } from './sqliteMessageRepository';
 import { getPersonaRepository } from '../../personas/personaRepository';
 import { statusIconForWorker } from './statusIcons';

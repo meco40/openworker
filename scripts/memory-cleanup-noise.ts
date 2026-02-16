@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import nextEnv from '@next/env';
+import { loadEnvConfig } from '@next/env';
 import BetterSqlite3 from 'better-sqlite3';
 
 import { LEGACY_LOCAL_USER_ID } from '../src/server/auth/constants';
@@ -13,7 +13,6 @@ import {
 const DEFAULT_MESSAGES_DB_PATH = '.local/messages.db';
 const DEFAULT_PERSONAS_DB_PATH = '.local/personas.db';
 const PAGE_SIZE = 200;
-const { loadEnvConfig } = nextEnv;
 
 interface CliOptions {
   apply: boolean;

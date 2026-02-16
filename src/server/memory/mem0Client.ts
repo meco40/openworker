@@ -327,9 +327,9 @@ const DEFAULT_RETRY_BASE_DELAY_MS = 500;
 
 function isTransientHttpError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return Array.from(TRANSIENT_HTTP_CODES).some((code) =>
-    new RegExp(`HTTP\\s*${code}`, 'i').test(message),
-  );
+  const statusMatch = /HTTP\s*(\d{3})/i.exec(message);
+  if (!statusMatch) return false;
+  return TRANSIENT_HTTP_CODES.has(Number(statusMatch[1]));
 }
 
 function sleep(ms: number): Promise<void> {
