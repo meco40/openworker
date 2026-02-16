@@ -39,6 +39,10 @@ export function isMeaningfulKnowledgeText(value: string): boolean {
   return true;
 }
 
+export function isNoiseMemoryFact(value: string): boolean {
+  return !isMeaningfulKnowledgeText(value);
+}
+
 export function sanitizeKnowledgeFacts(values: string[]): string[] {
   const output: string[] = [];
   const seen = new Set<string>();
@@ -56,4 +60,3 @@ export function sanitizeKnowledgeFacts(values: string[]): string[] {
 
   return output;
 }
-
