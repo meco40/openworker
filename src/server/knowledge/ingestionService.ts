@@ -12,6 +12,7 @@ import { sanitizeKnowledgeFacts } from './textQuality';
 import { deduplicateEvent } from './eventDedup';
 import { EntityExtractor, isRelationWord } from './entityExtractor';
 import { createId } from '../../shared/lib/ids';
+import { detectContradictionSignal } from './contradictionDetector';
 
 interface IngestionCursorLike {
   getPendingWindows(limitConversations?: number): IngestionWindow[];
@@ -209,11 +210,12 @@ export class KnowledgeIngestionService {
       confidence: extraction.meetingLedger.confidence,
     });
 
-    for (const fact of facts) {
+    for (let factIdx = 0; factIdx < facts.length; factIdx++) {
+      const fact = facts[factIdx];
       // Detect subject based on self-references in the fact
       const subject = detectFactSubject(fact);
 
-      const metadata = {
+      const metadata: Record<string, unknown> = {
         topicKey,
         conversationId: window.conversationId,
         sourceSeqStart,
@@ -225,6 +227,21 @@ export class KnowledgeIngestionService {
         // Mark self-references for special retrieval handling
         selfReference: subject === 'assistant',
       };
+
+      // ── Within-batch contradiction detection ───────────────
+      // Compare this fact against earlier facts in the same extraction.
+      // When a later fact contradicts an earlier one, annotate metadata so
+      // downstream consumers (retrieval, UI) can surface the correction.
+      for (let prevIdx = 0; prevIdx < factIdx; prevIdx++) {
+        const signal = detectContradictionSignal(fact, facts[prevIdx]);
+        if (signal.hasContradiction) {
+          metadata.contradictionDetected = true;
+          metadata.contradictionType = signal.contradictionType;
+          metadata.contradictionConfidence = signal.confidence;
+          metadata.supersedes = facts[prevIdx];
+          break; // one contradiction annotation is sufficient
+        }
+      }
 
       try {
         await this.deps.memoryService.store(

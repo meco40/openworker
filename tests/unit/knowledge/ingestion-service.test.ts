@@ -219,4 +219,66 @@ describe('KnowledgeIngestionService', () => {
     expect(storedPayloads.some((value) => /Kurztext mit Kontext/i.test(value))).toBe(false);
     expect(storedPayloads.some((value) => /Langer Episodentext/i.test(value))).toBe(false);
   });
+
+  it('annotates contradiction metadata when extracted facts conflict within the same batch', async () => {
+    const window: IngestionWindow = {
+      conversationId: 'conv-contra',
+      userId: 'user-1',
+      personaId: 'persona-1',
+      fromSeqExclusive: 0,
+      toSeqInclusive: 3,
+      messages: [
+        createMessage(1, 'conv-contra', 'Max ist mein Bruder'),
+        createMessage(2, 'conv-contra', 'Nein Quatsch'),
+        createMessage(3, 'conv-contra', 'Max ist mein Cousin'),
+      ],
+    };
+
+    const extract = vi.fn(
+      async (): Promise<KnowledgeExtractionResult> => ({
+        facts: ['Max ist mein Bruder', 'Max ist mein Cousin'],
+        teaser: 'Korrektur zu Max',
+        episode: 'Max wurde als Cousin korrigiert',
+        meetingLedger: {
+          topicKey: 'family',
+          counterpart: null,
+          participants: ['Ich'],
+          decisions: [],
+          negotiatedTerms: [],
+          openPoints: [],
+          actionItems: [],
+          sourceRefs: [],
+          confidence: 0.7,
+        },
+      }),
+    );
+    const store = vi.fn(async () => ({ id: 'mem-store' }));
+
+    const service = new KnowledgeIngestionService({
+      cursor: {
+        getPendingWindows: vi.fn(() => [window]),
+        markWindowProcessed: vi.fn(),
+      },
+      extractor: { extract },
+      knowledgeRepository: {
+        upsertEpisode: vi.fn(),
+        upsertMeetingLedger: vi.fn(),
+      },
+      memoryService: { store },
+    });
+
+    await service.runOnce();
+
+    // The second fact ("Max ist mein Cousin") should have contradiction metadata
+    const metadataCalls = (store.mock.calls as unknown[][]).map(
+      (call) => call[5] as Record<string, unknown>,
+    );
+
+    // We expect the later fact to annotate the contradiction
+    const lastCall = metadataCalls[metadataCalls.length - 1];
+    expect(lastCall).toBeDefined();
+    expect(lastCall!.contradictionDetected).toBe(true);
+    expect(lastCall!.contradictionType).toBe('value_change');
+    expect(lastCall!.supersedes).toBe('Max ist mein Bruder');
+  });
 });
