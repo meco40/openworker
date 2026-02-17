@@ -4,6 +4,13 @@ import type {
   KnowledgeEventFilter,
   UpsertKnowledgeEventInput,
 } from './eventTypes';
+import type {
+  EntityAlias,
+  EntityGraphFilter,
+  EntityLookupResult,
+  EntityRelation,
+  KnowledgeEntity,
+} from './entityGraph';
 
 export interface KnowledgeSourceRef {
   seq: number;
@@ -164,4 +171,26 @@ export interface KnowledgeRepository {
   listEvents(filter: KnowledgeEventFilter, limit?: number): KnowledgeEvent[];
   findOverlappingEvents(filter: KnowledgeEventFilter): KnowledgeEvent[];
   countUniqueDays(filter: KnowledgeEventFilter): EventAggregationResult;
+
+  // Entity Graph methods (Phase 2)
+  upsertEntity(input: Omit<KnowledgeEntity, 'createdAt' | 'updatedAt'>): KnowledgeEntity;
+  addAlias(alias: Omit<EntityAlias, 'id' | 'createdAt'>): void;
+  addRelation(relation: Omit<EntityRelation, 'id' | 'createdAt' | 'updatedAt'>): void;
+  updateEntityProperties(entityId: string, properties: Record<string, string>): void;
+  resolveEntity(text: string, filter: EntityGraphFilter): EntityLookupResult | null;
+  resolveEntityByRelation(
+    relation: string,
+    owner: 'persona' | 'user',
+    filter: EntityGraphFilter,
+  ): EntityLookupResult | null;
+  listEntities(filter: EntityGraphFilter, limit?: number): KnowledgeEntity[];
+  getEntityWithRelations(entityId: string): {
+    entity: KnowledgeEntity;
+    relations: EntityRelation[];
+    aliases: EntityAlias[];
+  };
+  getRelatedEntities(entityId: string, relationType?: string): KnowledgeEntity[];
+  findPath(fromEntityId: string, toEntityId: string, maxDepth?: number): EntityRelation[];
+  deleteEntity(entityId: string): void;
+  deleteEntitiesByName(name: string, filter: EntityGraphFilter): number;
 }
