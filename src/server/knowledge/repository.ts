@@ -138,6 +138,35 @@ export interface ListKnowledgeFilter {
   limit?: number;
 }
 
+export interface ConversationSummaryEntry {
+  id: string;
+  userId: string;
+  personaId: string;
+  conversationId: string;
+  summaryText: string;
+  keyTopics: string[];
+  entitiesMentioned: string[];
+  emotionalTone: string | null;
+  messageCount: number;
+  timeRangeStart: string;
+  timeRangeEnd: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertConversationSummaryInput {
+  userId: string;
+  personaId: string;
+  conversationId: string;
+  summaryText: string;
+  keyTopics: string[];
+  entitiesMentioned: string[];
+  emotionalTone: string | null;
+  messageCount: number;
+  timeRangeStart: string;
+  timeRangeEnd: string;
+}
+
 export interface KnowledgeRepository {
   getIngestionCheckpoint(conversationId: string, personaId: string): KnowledgeCheckpoint | null;
   upsertIngestionCheckpoint(input: UpsertKnowledgeCheckpointInput): KnowledgeCheckpoint;
@@ -193,4 +222,13 @@ export interface KnowledgeRepository {
   findPath(fromEntityId: string, toEntityId: string, maxDepth?: number): EntityRelation[];
   deleteEntity(entityId: string): void;
   deleteEntitiesByName(name: string, filter: EntityGraphFilter): number;
+
+  // Conversation Summary methods (Phase 3)
+  upsertConversationSummary(input: UpsertConversationSummaryInput): ConversationSummaryEntry;
+  listConversationSummaries(filter: {
+    userId: string;
+    personaId: string;
+    conversationId?: string;
+    limit?: number;
+  }): ConversationSummaryEntry[];
 }

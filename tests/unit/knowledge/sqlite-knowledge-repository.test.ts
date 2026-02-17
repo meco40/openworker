@@ -125,4 +125,71 @@ describe('SqliteKnowledgeRepository', () => {
     expect(stats.ledgerCount).toBe(0);
     expect(stats.retrievalErrorCount).toBe(0);
   });
+
+  it('stores and retrieves conversation summaries', () => {
+    const repo = new SqliteKnowledgeRepository(dbPath);
+
+    const summary = repo.upsertConversationSummary({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-1',
+      summaryText: 'Wir haben ueber Projekt Alpha gesprochen und Meilensteine definiert.',
+      keyTopics: ['Projekt Alpha', 'Meilensteine'],
+      entitiesMentioned: ['Max', 'Lisa'],
+      emotionalTone: 'sachlich',
+      messageCount: 12,
+      timeRangeStart: '2026-02-15T09:00:00.000Z',
+      timeRangeEnd: '2026-02-15T10:30:00.000Z',
+    });
+
+    expect(summary.id).toBeTruthy();
+    expect(summary.summaryText).toContain('Projekt Alpha');
+
+    const summaries = repo.listConversationSummaries({
+      userId: 'user-1',
+      personaId: 'persona-1',
+    });
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].keyTopics).toContain('Projekt Alpha');
+    expect(summaries[0].entitiesMentioned).toContain('Max');
+    expect(summaries[0].messageCount).toBe(12);
+  });
+
+  it('upserts conversation summary on same conversationId+personaId', () => {
+    const repo = new SqliteKnowledgeRepository(dbPath);
+
+    repo.upsertConversationSummary({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-1',
+      summaryText: 'Erste Zusammenfassung',
+      keyTopics: ['Thema A'],
+      entitiesMentioned: [],
+      emotionalTone: null,
+      messageCount: 5,
+      timeRangeStart: '2026-02-15T09:00:00.000Z',
+      timeRangeEnd: '2026-02-15T09:30:00.000Z',
+    });
+
+    repo.upsertConversationSummary({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-1',
+      summaryText: 'Aktualisierte Zusammenfassung',
+      keyTopics: ['Thema A', 'Thema B'],
+      entitiesMentioned: ['Max'],
+      emotionalTone: 'freundlich',
+      messageCount: 10,
+      timeRangeStart: '2026-02-15T09:00:00.000Z',
+      timeRangeEnd: '2026-02-15T10:30:00.000Z',
+    });
+
+    const summaries = repo.listConversationSummaries({
+      userId: 'user-1',
+      personaId: 'persona-1',
+    });
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].summaryText).toBe('Aktualisierte Zusammenfassung');
+    expect(summaries[0].messageCount).toBe(10);
+  });
 });
