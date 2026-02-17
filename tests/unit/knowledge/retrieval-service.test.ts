@@ -461,4 +461,96 @@ describe('KnowledgeRetrievalService', () => {
     expect(result.sections.answerDraft).not.toContain('Sauna-Absatz');
     expect(result.sections.keyDecisions).toContain('Niemals zu spät kommen');
   });
+
+  it('ranks fresher episodes higher when token overlap is equal', async () => {
+    const now = new Date();
+    const recentDate = new Date(now.getTime() - 2 * 86400000).toISOString(); // 2 days ago
+    const oldDate = new Date(now.getTime() - 120 * 86400000).toISOString(); // 120 days ago
+
+    const service = new KnowledgeRetrievalService({
+      maxContextTokens: 1200,
+      knowledgeRepository: {
+        listMeetingLedger: vi.fn(() => []),
+        listEpisodes: vi.fn(() => [
+          {
+            id: 'ep-old',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-1',
+            topicKey: 'projekt-alpha',
+            counterpart: 'Max',
+            teaser: 'Altes Projekt Alpha Treffen',
+            episode: 'Wir haben ueber Projekt Alpha gesprochen',
+            facts: ['Projekt Alpha wurde geplant'],
+            sourceSeqStart: 1,
+            sourceSeqEnd: 3,
+            sourceRefs: [{ seq: 1, quote: 'Alpha geplant' }],
+            eventAt: oldDate,
+            updatedAt: oldDate,
+          },
+          {
+            id: 'ep-fresh',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-2',
+            topicKey: 'projekt-alpha',
+            counterpart: 'Max',
+            teaser: 'Frisches Projekt Alpha Update',
+            episode: 'Neues Update zu Projekt Alpha',
+            facts: ['Projekt Alpha laeuft gut'],
+            sourceSeqStart: 1,
+            sourceSeqEnd: 3,
+            sourceRefs: [{ seq: 1, quote: 'Alpha laeuft' }],
+            eventAt: recentDate,
+            updatedAt: recentDate,
+          },
+        ]),
+        insertRetrievalAudit: vi.fn(() => ({
+          id: 'audit-2',
+          userId: 'user-1',
+          personaId: 'persona-1',
+          conversationId: 'conv-1',
+          query: 'Projekt Alpha',
+          stageStats: {},
+          tokenCount: 10,
+          hadError: false,
+          errorMessage: null,
+          createdAt: now.toISOString(),
+        })),
+      },
+      memoryService: {
+        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+      },
+      messageRepository: {
+        listMessages: vi.fn(() => [
+          {
+            id: 'm-1',
+            conversationId: 'conv-2',
+            seq: 1,
+            role: 'user',
+            content: 'Alpha Status',
+            platform: 'WebChat',
+            externalMsgId: null,
+            senderName: null,
+            metadata: null,
+            createdAt: recentDate,
+          },
+        ]),
+      },
+    });
+
+    const result = await service.retrieve({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-1',
+      query: 'Was ist der Stand von Projekt Alpha',
+    });
+
+    // The fresh episode should be the top-ranked one (episodes[0]),
+    // making its teaser appear in the answerDraft
+    const answerDraft = result.sections.answerDraft;
+    expect(answerDraft).toContain('Frisches Projekt Alpha Update');
+    // And its facts should appear in keyDecisions
+    expect(result.sections.keyDecisions).toContain('Projekt Alpha laeuft gut');
+  });
 });
