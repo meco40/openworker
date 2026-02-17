@@ -21,6 +21,7 @@ describe('openaiToolRegistry', () => {
     expect(tools.map((tool) => tool.id)).toEqual([
       'shell',
       'browser',
+      'browserUse',
       'files',
       'github',
       'mcp',
@@ -45,7 +46,7 @@ describe('openaiToolRegistry', () => {
     }));
 
     const registry = await import('../../../src/server/worker/openai/openaiToolRegistry');
-    const ids = ['shell', 'browser', 'files', 'github', 'mcp', 'computerUse'] as const;
+    const ids = ['shell', 'browser', 'browserUse', 'files', 'github', 'mcp', 'computerUse'] as const;
 
     for (const id of ids) {
       const enabled = await registry.setOpenAiWorkerToolEnabled(id, true);
@@ -66,6 +67,7 @@ describe('openaiToolRegistry', () => {
           tools: {
             shell: { enabled: true },
             browser: { enabled: false },
+            browserUse: { enabled: true },
             files: { enabled: true },
             github: { enabled: true },
             mcp: { enabled: false },
@@ -75,6 +77,64 @@ describe('openaiToolRegistry', () => {
       },
     });
 
-    expect(names).toEqual(['safe_shell', 'safe_files', 'safe_github', 'safe_computer_use']);
+    expect(names).toEqual([
+      'safe_shell',
+      'safe_browser_use',
+      'safe_files',
+      'safe_github',
+    ]);
+  });
+
+  it('resolves approval policy with default mode and per-tool overrides', async () => {
+    const registry = await import('../../../src/server/worker/openai/openaiToolRegistry');
+    const policy = registry.resolveOpenAiWorkerToolApprovalPolicyFromConfig(
+      {
+        worker: {
+          openai: {
+            security: {
+              defaultApprovalMode: 'ask_approve',
+              tools: {
+                shell: { approvalMode: 'deny' },
+                browserUse: { approvalMode: 'approve_always' },
+              },
+            },
+          },
+        },
+      },
+      ['safe_shell', 'safe_browser_use', 'safe_files'],
+    );
+
+    expect(policy).toEqual({
+      defaultMode: 'ask_approve',
+      byFunctionName: {
+        safe_shell: 'deny',
+        safe_browser_use: 'approve_always',
+        safe_files: 'ask_approve',
+      },
+    });
+  });
+
+  it('can update default approval mode and tool approval mode', async () => {
+    let currentConfig: Record<string, unknown> = {};
+    const saveGatewayConfig = vi.fn(async (nextConfig: unknown) => {
+      currentConfig = nextConfig as Record<string, unknown>;
+      return { config: currentConfig, revision: 'rev-2' };
+    });
+    const loadGatewayConfig = vi.fn(async () => ({
+      config: currentConfig,
+      revision: 'rev-1',
+    }));
+    vi.doMock('../../../src/server/config/gatewayConfig', () => ({
+      loadGatewayConfig,
+      saveGatewayConfig,
+    }));
+
+    const registry = await import('../../../src/server/worker/openai/openaiToolRegistry');
+    const defaultMode = await registry.setOpenAiWorkerDefaultApprovalMode('approve_always');
+    const browserMode = await registry.setOpenAiWorkerToolApprovalMode('browserUse', 'deny');
+
+    expect(defaultMode).toBe('approve_always');
+    expect(browserMode.approvalMode).toBe('deny');
+    expect(saveGatewayConfig).toHaveBeenCalledTimes(2);
   });
 });

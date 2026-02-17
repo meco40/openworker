@@ -201,6 +201,28 @@ describe('gatewayConfig service', () => {
     ).rejects.toThrow('ui.timeFormat');
   });
 
+  it('rejects invalid worker.openai.security.defaultApprovalMode on save', async () => {
+    const { loadGatewayConfig, saveGatewayConfig } =
+      await import('../../../src/server/config/gatewayConfig');
+    const loaded = await loadGatewayConfig();
+
+    await expect(
+      saveGatewayConfig(
+        {
+          ...validConfig(),
+          worker: {
+            openai: {
+              security: {
+                defaultApprovalMode: 'prompt',
+              },
+            },
+          },
+        },
+        { expectedRevision: loaded.revision },
+      ),
+    ).rejects.toThrow('worker.openai.security.defaultApprovalMode');
+  });
+
   it('writes atomically via temporary file and rename', async () => {
     const { loadGatewayConfig, saveGatewayConfig } =
       await import('../../../src/server/config/gatewayConfig');

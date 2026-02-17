@@ -14,6 +14,8 @@ import {
   PERSONA_INSTRUCTION_FILES,
 } from './personaTypes';
 
+const NEXUS_PERSONA_NAME = 'nexus';
+
 // ─── Row mappers ─────────────────────────────────────────────
 
 function toPersona(row: Record<string, unknown>): PersonaProfile {
@@ -241,6 +243,7 @@ export class PersonaRepository {
 
   /**
    * Composes the system instruction from SOUL.md + AGENTS.md + USER.md,
+   * and for persona "Nexus" additionally includes TOOLS.md.
    * capped at MAX_PERSONA_INSTRUCTION_CHARS.
    * Returns null if persona doesn't exist or all instruction files are empty.
    */
@@ -253,6 +256,13 @@ export class PersonaRepository {
       const content = this.getFile(personaId, filename);
       if (content?.trim()) {
         parts.push(`--- ${filename} ---\n${content.trim()}`);
+      }
+    }
+
+    if (persona.name.trim().toLowerCase() === NEXUS_PERSONA_NAME) {
+      const toolsContent = this.getFile(personaId, 'TOOLS.md');
+      if (toolsContent?.trim()) {
+        parts.push(`--- TOOLS.md ---\n${toolsContent.trim()}`);
       }
     }
 

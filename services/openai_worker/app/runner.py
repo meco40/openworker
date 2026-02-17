@@ -9,6 +9,7 @@ import httpx
 from app.approval import ApprovalManager
 from app.tools import get_enabled_tool_names
 from app.tools.browser_tool import BrowserTool
+from app.tools.browser_use_tool import BrowserUseTool
 from app.tools.computer_use_tool import ComputerUseTool
 from app.tools.files_tool import FilesTool
 from app.tools.github_tool import GitHubTool
@@ -18,10 +19,18 @@ from app.tools.shell_tool import ShellTool
 ModelExecutor = Callable[..., dict[str, Any]]
 
 MAX_TOOL_TURNS = 8
-RISKY_SHELL_PATTERN = re.compile(r"\brm\s+-rf\b|\bdel\s+/f\s+/q\b|powershell\s+-enc", re.IGNORECASE)
+RISKY_SHELL_PATTERN = re.compile(
+    r"\brm\s+-rf\b|\bdel\s+/f\s+/s\s+/q\b|\bformat\b|\bshutdown\b|\breboot\b|\bpowershell\s+-enc\b|\breg\s+delete\b|\bsc\s+stop\b|\bdiskpart\b|\bbcdedit\b|\binvoke-expression\b|\biex\b",
+    re.IGNORECASE,
+)
 RISKY_GITHUB_ACTIONS = {"delete_repo", "delete_branch", "force_push"}
 RISKY_MCP_ACTION_PATTERN = re.compile(r"delete|drop|truncate|shutdown", re.IGNORECASE)
 SAFE_MCP_SERVERS_ENV = "OPENAI_WORKER_ALLOWED_MCP_SERVERS"
+BROWSER_USE_PRIMARY_TOOL = "safe_browser_use"
+LEGACY_BROWSER_TOOL_NAMES = {"safe_browser", "safe_computer_use"}
+DEFAULT_TOOL_APPROVAL_MODE = "ask_approve"
+LEGACY_TOOL_APPROVAL_MODE = "__legacy__"
+TOOL_APPROVAL_MODES = {"deny", "ask_approve", "approve_always"}
 
 TOOL_DEFINITIONS: dict[str, dict[str, Any]] = {
     "safe_shell": {
@@ -51,6 +60,24 @@ TOOL_DEFINITIONS: dict[str, dict[str, Any]] = {
                     "max_links": {"type": "integer", "description": "Optional cap for extracted links."},
                 },
                 "required": ["action"],
+            },
+        },
+    },
+    "safe_browser_use": {
+        "type": "function",
+        "function": {
+            "name": "safe_browser_use",
+            "description": "Run browser-use autonomous browser tasks.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "description": "run_task or run."},
+                    "task": {"type": "string", "description": "Natural-language browser task to execute."},
+                    "max_steps": {"type": "integer", "description": "Maximum browser agent steps (1-200)."},
+                    "headless": {"type": "boolean", "description": "Run browser headless (default: true)."},
+                    "use_cloud": {"type": "boolean", "description": "Enable browser-use cloud browser (default: false)."},
+                },
+                "required": ["action", "task"],
             },
         },
     },
@@ -218,6 +245,8 @@ class PendingRunState:
     function_calls: list[dict[str, Any]]
     call_index: int
     current_model_label: str
+    tool_policy_default_mode: str
+    tool_policy_by_name: dict[str, str]
     approve_always: bool = False
 
 
@@ -237,10 +266,47 @@ class Runner:
             for tool in (enabled_tools or [])
             if isinstance(tool, str) and tool.strip()
         }
-        return get_enabled_tool_names(allowlist=tool_allowlist)
+        resolved = list(get_enabled_tool_names(allowlist=tool_allowlist))
+        if BROWSER_USE_PRIMARY_TOOL in resolved:
+            resolved = [name for name in resolved if name not in LEGACY_BROWSER_TOOL_NAMES]
+        return tuple(resolved)
 
     def _build_tool_definitions(self, resolved_tools: tuple[str, ...]) -> list[dict[str, Any]]:
         return [TOOL_DEFINITIONS[name] for name in resolved_tools if name in TOOL_DEFINITIONS]
+
+    @staticmethod
+    def _normalize_tool_approval_policy(
+        tool_approval_policy: dict[str, Any] | None,
+        resolved_tools: tuple[str, ...],
+    ) -> tuple[str, dict[str, str]]:
+        if not isinstance(tool_approval_policy, dict):
+            return LEGACY_TOOL_APPROVAL_MODE, {
+                tool_name: LEGACY_TOOL_APPROVAL_MODE for tool_name in resolved_tools
+            }
+
+        default_mode = DEFAULT_TOOL_APPROVAL_MODE
+        by_name: dict[str, str] = {}
+        raw_default = tool_approval_policy.get("defaultMode")
+        if isinstance(raw_default, str):
+            cleaned_default = raw_default.strip().lower()
+            if cleaned_default in TOOL_APPROVAL_MODES:
+                default_mode = cleaned_default
+
+        raw_by_name = tool_approval_policy.get("byFunctionName")
+        if isinstance(raw_by_name, dict):
+            for key, value in raw_by_name.items():
+                if not isinstance(key, str) or not isinstance(value, str):
+                    continue
+                cleaned_name = key.strip()
+                cleaned_mode = value.strip().lower()
+                if not cleaned_name or cleaned_mode not in TOOL_APPROVAL_MODES:
+                    continue
+                by_name[cleaned_name] = cleaned_mode
+
+        normalized = {
+            tool_name: by_name.get(tool_name, default_mode) for tool_name in resolved_tools
+        }
+        return default_mode, normalized
 
     @staticmethod
     def _parse_function_call(raw_call: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -269,6 +335,13 @@ class Runner:
             action = str(args.get("action") or "")
             if ComputerUseTool.is_destructive(action):
                 return f"Approve destructive computer-use action?\n\nTool: {name}\nAction: {action}"
+            return None
+
+        if name == "safe_browser_use":
+            task = str(args.get("task") or "").strip()
+            reason = BrowserUseTool.approval_reason(task=task, use_cloud=args.get("use_cloud"))
+            if reason:
+                return f"Approve browser-use action?\n\nTool: {name}\nReason: {reason}\nTask: {task}"
             return None
 
         if name == "safe_github":
@@ -323,6 +396,15 @@ class Runner:
                 url=str(args.get("url") or "").strip() or None,
                 max_links=int(args.get("max_links")) if isinstance(args.get("max_links"), int) else None,
             )
+        if name == "safe_browser_use":
+            return BrowserUseTool(enabled=True).execute(
+                action=str(args.get("action") or ""),
+                task=str(args.get("task") or "").strip() or None,
+                max_steps=args.get("max_steps"),
+                headless=args.get("headless"),
+                use_cloud=args.get("use_cloud"),
+                approved=approved,
+            )
         if name == "safe_files":
             return FilesTool().execute(
                 operation=str(args.get("operation") or ""),
@@ -366,6 +448,8 @@ class Runner:
         function_calls: list[dict[str, Any]],
         start_index: int,
         resolved_tools: tuple[str, ...],
+        tool_policy_default_mode: str,
+        tool_policy_by_name: dict[str, str],
         approve_always: bool,
         approved_index: int | None,
     ) -> tuple[int, str | None]:
@@ -398,11 +482,42 @@ class Runner:
                 )
                 continue
 
-            is_call_approved = approve_always or approved_index == index
-            approval_prompt = self._is_risky_tool_call(name, args)
-            if approval_prompt and not is_call_approved:
-                token = self._approvals.request(run_id=run_id, prompt=approval_prompt)
-                return index, token
+            policy_mode = tool_policy_by_name.get(name, tool_policy_default_mode)
+
+            if policy_mode == LEGACY_TOOL_APPROVAL_MODE:
+                is_call_approved = approve_always or approved_index == index
+                approval_prompt = self._is_risky_tool_call(name, args)
+                if approval_prompt and not is_call_approved:
+                    token = self._approvals.request(run_id=run_id, prompt=approval_prompt)
+                    return index, token
+            elif policy_mode == "deny":
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": self._format_tool_message(
+                            name,
+                            args,
+                            error="tool call blocked by security policy (deny)",
+                        ),
+                    }
+                )
+                continue
+            else:
+                is_call_approved = (
+                    approve_always
+                    or approved_index == index
+                    or policy_mode == "approve_always"
+                )
+                approval_prompt = self._is_risky_tool_call(name, args)
+
+                if policy_mode == "ask_approve" and not is_call_approved:
+                    if not approval_prompt:
+                        approval_prompt = (
+                            f"Approve tool action?\n\nTool: {name}\nArgs: "
+                            f"{json.dumps(args, ensure_ascii=False)}"
+                        )
+                    token = self._approvals.request(run_id=run_id, prompt=approval_prompt)
+                    return index, token
 
             try:
                 result = self._execute_tool_call(
@@ -498,6 +613,8 @@ class Runner:
         selected_model: str,
         selected_profile: str,
         resolved_tools: tuple[str, ...],
+        tool_policy_default_mode: str,
+        tool_policy_by_name: dict[str, str],
         approve_always: bool,
         initial_calls: list[dict[str, Any]] | None = None,
         initial_call_index: int = 0,
@@ -561,6 +678,8 @@ class Runner:
                 function_calls=pending_calls or [],
                 start_index=pending_call_index,
                 resolved_tools=resolved_tools,
+                tool_policy_default_mode=tool_policy_default_mode,
+                tool_policy_by_name=tool_policy_by_name,
                 approve_always=approve_always,
                 approved_index=None,
             )
@@ -575,6 +694,8 @@ class Runner:
                     function_calls=list(pending_calls or []),
                     call_index=next_index,
                     current_model_label=model_label,
+                    tool_policy_default_mode=tool_policy_default_mode,
+                    tool_policy_by_name=dict(tool_policy_by_name),
                     approve_always=approve_always,
                 )
                 return self._paused_result(
@@ -604,6 +725,8 @@ class Runner:
         preferred_model_id: str | None = None,
         model_hub_profile_id: str | None = None,
         enabled_tools: list[str] | None = None,
+        messages: list[dict[str, str]] | None = None,
+        tool_approval_policy: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         cleaned_objective = objective.strip()
         if not cleaned_objective:
@@ -630,14 +753,22 @@ class Runner:
             selected_profile = "p1"
 
         resolved_tools = self._resolve_tools(enabled_tools)
-        messages = [{"role": "user", "content": cleaned_objective}]
+        tool_policy_default_mode, tool_policy_by_name = self._normalize_tool_approval_policy(
+            tool_approval_policy,
+            resolved_tools,
+        )
+        context_messages = _clean_message_list(messages or [])
+        if not context_messages:
+            context_messages = [{"role": "user", "content": cleaned_objective}]
         return self._run_tool_loop(
             run_id=run_id,
             objective=cleaned_objective,
-            messages=messages,
+            messages=context_messages,
             selected_model=selected_model,
             selected_profile=selected_profile,
             resolved_tools=resolved_tools,
+            tool_policy_default_mode=tool_policy_default_mode,
+            tool_policy_by_name=tool_policy_by_name,
             approve_always=False,
             current_model_label=selected_model or "auto",
         )
@@ -675,6 +806,8 @@ class Runner:
             function_calls=state.function_calls,
             start_index=state.call_index,
             resolved_tools=state.resolved_tools,
+            tool_policy_default_mode=state.tool_policy_default_mode,
+            tool_policy_by_name=state.tool_policy_by_name,
             approve_always=approve_always,
             approved_index=state.call_index,
         )
@@ -698,6 +831,8 @@ class Runner:
             selected_model=state.selected_model,
             selected_profile=state.selected_profile,
             resolved_tools=state.resolved_tools,
+            tool_policy_default_mode=state.tool_policy_default_mode,
+            tool_policy_by_name=state.tool_policy_by_name,
             approve_always=approve_always,
             current_model_label=state.current_model_label,
         )

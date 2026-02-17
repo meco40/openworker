@@ -82,11 +82,24 @@ def test_runner_executes_all_tools_when_enabled(monkeypatch) -> None:
         def perform(self, action: str, approved: bool = False, **kwargs: object) -> dict[str, object]:
             return {"status": "ok", "tool": "safe_computer_use", "action": action, "approved": approved}
 
+    class FakeBrowserUse:
+        @staticmethod
+        def approval_reason(*, task: str | None, use_cloud: object = None) -> str | None:
+            _ = (task, use_cloud)
+            return None
+
+        def __init__(self, enabled: bool) -> None:
+            self.enabled = enabled
+
+        def execute(self, **kwargs: object) -> dict[str, object]:
+            return {"status": "ok", "tool": "safe_browser_use", "kwargs": kwargs}
+
     monkeypatch.setattr(runner_module, "ShellTool", FakeShell)
     monkeypatch.setattr(runner_module, "BrowserTool", FakeBrowser)
     monkeypatch.setattr(runner_module, "GitHubTool", FakeGitHub)
     monkeypatch.setattr(runner_module, "MCPTool", FakeMCP)
     monkeypatch.setattr(runner_module, "ComputerUseTool", FakeComputerUse)
+    monkeypatch.setattr(runner_module, "BrowserUseTool", FakeBrowserUse)
 
     call_count = {"value": 0}
 
@@ -111,13 +124,14 @@ def test_runner_executes_all_tools_when_enabled(monkeypatch) -> None:
                     {"name": "safe_github", "args": {"action": "list_issues", "owner": "openclaw", "repo": "clawtest"}},
                     {"name": "safe_mcp", "args": {"server": "s1", "action": "ping", "payload": {}}},
                     {"name": "safe_computer_use", "args": {"action": "snapshot"}},
+                    {"name": "safe_browser_use", "args": {"action": "run_task", "task": "Open example.com"}},
                 ],
             }
         call_count["value"] += 1
         tool_result_messages = [
             message for message in messages if message["role"] == "assistant" and message["content"].startswith("TOOL_RESULT ")
         ]
-        assert len(tool_result_messages) == 6
+        assert len(tool_result_messages) == 7
         return {
             "text": "all tools finished",
             "model": "gpt-4o-mini",
@@ -128,7 +142,7 @@ def test_runner_executes_all_tools_when_enabled(monkeypatch) -> None:
     runner = Runner(objective_executor=fake_executor)
     result = runner.run(
         "run all tools",
-        enabled_tools=["safe_shell", "safe_browser", "safe_files", "safe_github", "safe_mcp", "safe_computer_use"],
+        enabled_tools=["safe_shell", "safe_browser", "safe_files", "safe_github", "safe_mcp", "safe_computer_use", "safe_browser_use"],
     )
 
     assert result["status"] == "completed"

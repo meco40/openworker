@@ -33,6 +33,13 @@ import {
   buildMessageAttachmentMetadata,
   type StoredMessageAttachment,
 } from './attachments';
+import { loadGatewayConfig } from '../../config/gatewayConfig';
+import {
+  resolveEnabledOpenAiWorkerToolNamesFromConfig,
+  resolveOpenAiWorkerToolApprovalPolicyFromConfig,
+  type OpenAiWorkerToolApprovalPolicy,
+} from '../../worker/openai/openaiToolRegistry';
+import { getOpenAiWorkerClient } from '../../worker/openai/openaiWorkerClient';
 
 function extractMemorySaveContent(content: string): string | null {
   const trimmed = content.trim();
@@ -55,6 +62,16 @@ function extractMemorySaveContent(content: string): string | null {
 const MEMORY_CONTEXT_CHAR_LIMIT = 5000;
 const MEMORY_RECALL_LIMIT = 10;
 const MEMORY_FEEDBACK_WINDOW_MS = 10 * 60 * 1000;
+const MODEL_HUB_GATEWAY_PREFIX_RE = /^\[model-hub-gateway[^\]]*\]\s*/i;
+const OPENAI_SIDECAR_COOLDOWN_MS = 30_000;
+const OPENAI_SIDECAR_UNAVAILABLE_CODES = new Set([
+  'ECONNREFUSED',
+  'ENOTFOUND',
+  'EHOSTUNREACH',
+  'ETIMEDOUT',
+  'ECONNRESET',
+  'UND_ERR_CONNECT_TIMEOUT',
+]);
 
 type LastRecallState = {
   personaId: string;
@@ -153,6 +170,35 @@ function extractCorrectionContent(content: string): string | null {
   return null;
 }
 
+function readNodeLikeErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== 'object') return null;
+  const directCode = (error as { code?: unknown }).code;
+  if (typeof directCode === 'string' && directCode.trim().length > 0) {
+    return directCode.trim().toUpperCase();
+  }
+  const cause = (error as { cause?: unknown }).cause;
+  if (!cause || typeof cause !== 'object') return null;
+  const causeCode = (cause as { code?: unknown }).code;
+  if (typeof causeCode === 'string' && causeCode.trim().length > 0) {
+    return causeCode.trim().toUpperCase();
+  }
+  return null;
+}
+
+function isOpenAiSidecarUnavailableError(error: unknown): { unavailable: boolean; code: string | null } {
+  const code = readNodeLikeErrorCode(error);
+  if (code && OPENAI_SIDECAR_UNAVAILABLE_CODES.has(code)) {
+    return { unavailable: true, code };
+  }
+
+  const message = error instanceof Error ? error.message.toUpperCase() : '';
+  if (message.includes('ECONNREFUSED')) {
+    return { unavailable: true, code: 'ECONNREFUSED' };
+  }
+
+  return { unavailable: false, code };
+}
+
 // ─── MessageService ──────────────────────────────────────────
 
 export class MessageService {
@@ -166,6 +212,8 @@ export class MessageService {
   private readonly processingMessages = new Set<string>();
   /** Tracks last recalled memory nodes per conversation for error-learning feedback */
   private readonly lastRecallByConversation = new Map<string, LastRecallState>();
+  /** Cooldown timestamp for skipping sidecar attempts after connection-level failures */
+  private openAiSidecarCooldownUntil = 0;
 
   constructor(private readonly repo: MessageRepository) {
     this.historyManager = new HistoryManager(repo);
@@ -899,6 +947,150 @@ export class MessageService {
   }
   // ─── AI Dispatch (existing logic) ──────────────────────────
 
+  private resolveChatModelRouting(conversation: Conversation): {
+    preferredModelId?: string;
+    modelHubProfileId: string;
+  } {
+    let preferredModelId = conversation.modelOverride ?? undefined;
+    let modelHubProfileId =
+      process.env.OPENAI_WORKER_MODEL_HUB_PROFILE?.trim() ||
+      process.env.MODEL_HUB_PROFILE_ID?.trim() ||
+      'p1';
+
+    if (conversation.personaId) {
+      try {
+        const persona = getPersonaRepository().getPersona(conversation.personaId);
+        if (!preferredModelId && persona?.preferredModelId) {
+          preferredModelId = persona.preferredModelId;
+        }
+        if (persona?.modelHubProfileId?.trim()) {
+          modelHubProfileId = persona.modelHubProfileId.trim();
+        }
+      } catch {
+        // Persona storage should not block model routing.
+      }
+    }
+
+    return {
+      preferredModelId,
+      modelHubProfileId,
+    };
+  }
+
+  private async tryDispatchViaOpenAiSidecar(
+    conversation: Conversation,
+    platform: ChannelType,
+    userInput: string,
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  ): Promise<{ agentContent: string; gatewayMeta: Record<string, unknown> } | null> {
+    if (platform !== ChannelType.WEBCHAT) return null;
+    if (Date.now() < this.openAiSidecarCooldownUntil) return null;
+
+    let enabledTools: string[] = [];
+    let toolApprovalPolicy: OpenAiWorkerToolApprovalPolicy = {
+      defaultMode: 'ask_approve',
+      byFunctionName: {},
+    };
+    try {
+      const configState = await loadGatewayConfig();
+      enabledTools = resolveEnabledOpenAiWorkerToolNamesFromConfig(configState.config);
+      toolApprovalPolicy = resolveOpenAiWorkerToolApprovalPolicyFromConfig(
+        configState.config,
+        enabledTools,
+      );
+    } catch {
+      return null;
+    }
+
+    if (enabledTools.length === 0) return null;
+
+    const routing = this.resolveChatModelRouting(conversation);
+    const sidecarClient = getOpenAiWorkerClient();
+    const toolPolicyMessage = [
+      'Tool runtime is enabled for this chat.',
+      `Available tool functions: ${enabledTools.join(', ')}.`,
+      'Do not claim that tools are unavailable.',
+      'If a tool is needed, call the function directly and continue with real results.',
+    ].join('\n');
+    const messagesWithToolContext: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: 'system', content: toolPolicyMessage },
+      ...messages,
+    ];
+
+    try {
+      const run = await sidecarClient.startRun({
+        taskId: `chat-${conversation.id}-${Date.now()}`,
+        title: conversation.title || `Chat ${conversation.id}`,
+        objective: userInput,
+        userId: conversation.userId,
+        personaId: conversation.personaId ?? null,
+        preferredModelId: routing.preferredModelId ?? null,
+        modelHubProfileId: routing.modelHubProfileId,
+        enabledTools,
+        messages: messagesWithToolContext,
+        toolApprovalPolicy,
+      });
+
+      const cleanedOutput = String(run.output || '')
+        .replace(MODEL_HUB_GATEWAY_PREFIX_RE, '')
+        .trim();
+
+      if (run.status === 'completed') {
+        return {
+          agentContent: cleanedOutput || 'OpenAI sidecar completed without output.',
+          gatewayMeta: {
+            ok: true,
+            runtime: 'openai-sidecar',
+            status: run.status,
+            model: routing.preferredModelId || 'auto',
+            profileId: routing.modelHubProfileId,
+            enabledTools,
+          },
+        };
+      }
+
+      if (run.status === 'approval_required') {
+        return {
+          agentContent:
+            '⏸️ Tool-Ausführung benötigt Genehmigung. Nutze den Worker-Flow für Approval/Resume.',
+          gatewayMeta: {
+            ok: false,
+            runtime: 'openai-sidecar',
+            status: run.status,
+            approvalToken: run.approvalToken || null,
+            model: routing.preferredModelId || 'auto',
+            profileId: routing.modelHubProfileId,
+            enabledTools,
+          },
+        };
+      }
+
+      return {
+        agentContent: cleanedOutput || '⚠️ OpenAI sidecar run failed.',
+        gatewayMeta: {
+          ok: false,
+          runtime: 'openai-sidecar',
+          status: run.status,
+          model: routing.preferredModelId || 'auto',
+          profileId: routing.modelHubProfileId,
+          enabledTools,
+        },
+      };
+    } catch (error) {
+      const sidecarAvailability = isOpenAiSidecarUnavailableError(error);
+      if (sidecarAvailability.unavailable) {
+        this.openAiSidecarCooldownUntil = Date.now() + OPENAI_SIDECAR_COOLDOWN_MS;
+        console.warn(
+          `OpenAI sidecar unavailable (${sidecarAvailability.code || 'connection_error'}). ` +
+            `Skipping sidecar dispatch for ${Math.round(OPENAI_SIDECAR_COOLDOWN_MS / 1000)}s and falling back to model hub.`,
+        );
+        return null;
+      }
+      console.error('OpenAI sidecar chat dispatch failed, falling back to model hub:', error);
+      return null;
+    }
+  }
+
   private async dispatchToAI(
     conversation: Conversation,
     platform: ChannelType,
@@ -941,50 +1133,59 @@ export class MessageService {
     let agentContent: string;
     let gatewayMeta: Record<string, unknown> | undefined;
     try {
-      const service = getModelHubService();
-      const encryptionKey = getModelHubEncryptionKey();
-      
-      // Resolve model override: explicit override takes precedence, then persona's preferred model
-      let modelOverride = conversation.modelOverride ?? undefined;
-      if (!modelOverride && conversation.personaId) {
-        const persona = getPersonaRepository().getPersona(conversation.personaId);
-        if (persona?.preferredModelId) {
-          modelOverride = persona.preferredModelId;
-        }
-      }
-      
-      const result = await service.dispatchWithFallback(
-        'p1',
-        encryptionKey,
-        {
-          messages,
-          auditContext: {
-            kind: 'chat',
-            conversationId: conversation.id,
-          },
-        },
-        {
-          signal: abortController.signal,
-          modelOverride,
-        },
+      const normalizedMessages = messages.map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
+
+      const sidecarResult = await this.tryDispatchViaOpenAiSidecar(
+        conversation,
+        platform,
+        userInput,
+        normalizedMessages,
       );
 
-      if (result.ok) {
-        agentContent = result.text || 'No response from model.';
-        gatewayMeta = {
-          provider: result.provider,
-          model: result.model,
-          usage: result.usage || null,
-          ok: true,
-        };
+      if (sidecarResult) {
+        agentContent = sidecarResult.agentContent;
+        gatewayMeta = sidecarResult.gatewayMeta;
       } else {
-        agentContent = `⚠️ Gateway error: ${result.error || 'Unknown error'}`;
-        gatewayMeta = {
-          provider: result.provider,
-          model: result.model,
-          error: result.error || 'Unknown error',
-          ok: false,
-        };
+        const service = getModelHubService();
+        const encryptionKey = getModelHubEncryptionKey();
+        const routing = this.resolveChatModelRouting(conversation);
+
+        const result = await service.dispatchWithFallback(
+          routing.modelHubProfileId,
+          encryptionKey,
+          {
+            messages,
+            auditContext: {
+              kind: 'chat',
+              conversationId: conversation.id,
+            },
+          },
+          {
+            signal: abortController.signal,
+            modelOverride: routing.preferredModelId,
+          },
+        );
+
+        if (result.ok) {
+          agentContent = result.text || 'No response from model.';
+          gatewayMeta = {
+            provider: result.provider,
+            model: result.model,
+            usage: result.usage || null,
+            ok: true,
+          };
+        } else {
+          agentContent = `⚠️ Gateway error: ${result.error || 'Unknown error'}`;
+          gatewayMeta = {
+            provider: result.provider,
+            model: result.model,
+            error: result.error || 'Unknown error',
+            ok: false,
+          };
+        }
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {

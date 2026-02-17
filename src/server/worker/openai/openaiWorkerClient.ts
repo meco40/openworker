@@ -1,5 +1,10 @@
 import { loadGatewayConfig } from '../../config/gatewayConfig';
 
+export interface OpenAiWorkerToolApprovalPolicyInput {
+  defaultMode: 'deny' | 'ask_approve' | 'approve_always';
+  byFunctionName: Record<string, 'deny' | 'ask_approve' | 'approve_always'>;
+}
+
 export interface OpenAiWorkerStartRunInput {
   taskId: string;
   title: string;
@@ -10,6 +15,8 @@ export interface OpenAiWorkerStartRunInput {
   preferredModelId?: string | null;
   modelHubProfileId?: string | null;
   enabledTools?: string[];
+  messages?: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+  toolApprovalPolicy?: OpenAiWorkerToolApprovalPolicyInput;
 }
 
 export interface OpenAiWorkerStartRunResult {
@@ -101,6 +108,8 @@ class HttpOpenAiWorkerClient implements OpenAiWorkerClient {
         preferredModelId: input.preferredModelId || null,
         modelHubProfileId: input.modelHubProfileId || null,
         enabledTools: Array.isArray(input.enabledTools) ? input.enabledTools : [],
+        messages: Array.isArray(input.messages) ? input.messages : [],
+        toolApprovalPolicy: input.toolApprovalPolicy || null,
       },
       config.callbackToken,
     );

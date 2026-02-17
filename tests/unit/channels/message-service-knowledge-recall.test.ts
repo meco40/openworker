@@ -45,6 +45,18 @@ vi.mock('../../../src/server/model-hub/runtime', () => ({
   getModelHubEncryptionKey: () => 'test-encryption-key',
 }));
 
+vi.mock('../../../src/server/config/gatewayConfig', () => ({
+  loadGatewayConfig: vi.fn(async () => ({ config: {}, revision: 'rev-1' })),
+}));
+
+vi.mock('../../../src/server/worker/openai/openaiToolRegistry', () => ({
+  resolveEnabledOpenAiWorkerToolNamesFromConfig: vi.fn(() => []),
+  resolveOpenAiWorkerToolApprovalPolicyFromConfig: vi.fn(() => ({
+    defaultMode: 'ask_approve',
+    byFunctionName: {},
+  })),
+}));
+
 vi.mock('../../../src/server/channels/outbound/router', () => ({
   deliverOutbound: deliverOutboundMock,
 }));

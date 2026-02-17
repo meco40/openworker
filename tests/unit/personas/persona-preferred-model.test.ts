@@ -35,4 +35,50 @@ describe('persona model binding persistence', () => {
 
     repo.close();
   });
+
+  it('does not include TOOLS.md in system instruction for non-Nexus personas', () => {
+    const repo = new PersonaRepository(':memory:');
+    const created = repo.createPersona({
+      userId: 'user-a',
+      name: 'Tool Persona',
+      emoji: '🛠️',
+      vibe: 'pragmatic',
+      files: {
+        'SOUL.md': 'Core behavior',
+        'AGENTS.md': 'Agent constraints',
+        'USER.md': 'User preferences',
+        'TOOLS.md': 'Use safe_shell for local search',
+      },
+    } as never);
+
+    const instruction = repo.getPersonaSystemInstruction(created.id);
+    expect(instruction).not.toContain('--- TOOLS.md ---');
+    expect(instruction).toContain('--- SOUL.md ---');
+    expect(instruction).toContain('--- AGENTS.md ---');
+    expect(instruction).toContain('--- USER.md ---');
+
+    repo.close();
+  });
+
+  it('includes TOOLS.md in system instruction for Nexus persona', () => {
+    const repo = new PersonaRepository(':memory:');
+    const created = repo.createPersona({
+      userId: 'user-a',
+      name: 'Nexus',
+      emoji: '🧠',
+      vibe: 'operator',
+      files: {
+        'SOUL.md': 'Core behavior',
+        'AGENTS.md': 'Agent constraints',
+        'USER.md': 'User preferences',
+        'TOOLS.md': 'Use safe_shell for local search',
+      },
+    } as never);
+
+    const instruction = repo.getPersonaSystemInstruction(created.id);
+    expect(instruction).toContain('--- TOOLS.md ---');
+    expect(instruction).toContain('Use safe_shell for local search');
+
+    repo.close();
+  });
 });

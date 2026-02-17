@@ -81,11 +81,18 @@ const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
       maxCostUsdPerRun: 10,
       maxCostUsdPerUserPerDay: 25,
       maxRequestsPerMinutePerUser: 60,
+      security: {
+        defaultApprovalMode: 'ask_approve',
+        tools: {},
+      },
       tools: {
         shell: {
           enabled: false,
         },
         browser: {
+          enabled: false,
+        },
+        browserUse: {
           enabled: false,
         },
         files: {
@@ -144,6 +151,22 @@ function ensureBoolean(value: unknown, label: string): boolean {
     throw new GatewayConfigValidationError(`${label} must be a boolean.`);
   }
   return value;
+}
+
+function ensureOpenAiApprovalMode(
+  value: unknown,
+  label: string,
+): 'deny' | 'ask_approve' | 'approve_always' {
+  if (typeof value !== 'string') {
+    throw new GatewayConfigValidationError(`${label} must be a string.`);
+  }
+  const normalized = value.trim();
+  if (!new Set(['deny', 'ask_approve', 'approve_always']).has(normalized)) {
+    throw new GatewayConfigValidationError(
+      `${label} must be one of: deny, ask_approve, approve_always.`,
+    );
+  }
+  return normalized as 'deny' | 'ask_approve' | 'approve_always';
 }
 
 function ensureIntInRange(value: unknown, label: string, min: number, max: number): number {
@@ -448,6 +471,12 @@ function normalizeGatewayConfig(
             ensureBoolean(browser.enabled, 'worker.openai.tools.browser.enabled');
           }
         }
+        if (tools.browserUse !== undefined) {
+          const browserUse = ensureObject(tools.browserUse, 'worker.openai.tools.browserUse');
+          if (browserUse.enabled !== undefined) {
+            ensureBoolean(browserUse.enabled, 'worker.openai.tools.browserUse.enabled');
+          }
+        }
         if (tools.files !== undefined) {
           const files = ensureObject(tools.files, 'worker.openai.tools.files');
           if (files.enabled !== undefined) {
@@ -470,6 +499,30 @@ function normalizeGatewayConfig(
           const computerUse = ensureObject(tools.computerUse, 'worker.openai.tools.computerUse');
           if (computerUse.enabled !== undefined) {
             ensureBoolean(computerUse.enabled, 'worker.openai.tools.computerUse.enabled');
+          }
+        }
+      }
+      if (openai.security !== undefined) {
+        const security = ensureObject(openai.security, 'worker.openai.security');
+        if (security.defaultApprovalMode !== undefined) {
+          ensureOpenAiApprovalMode(
+            security.defaultApprovalMode,
+            'worker.openai.security.defaultApprovalMode',
+          );
+        }
+        if (security.tools !== undefined) {
+          const tools = ensureObject(security.tools, 'worker.openai.security.tools');
+          const toolKeys = ['shell', 'browser', 'browserUse', 'files', 'github', 'mcp', 'computerUse'];
+          for (const key of toolKeys) {
+            const maybeTool = tools[key];
+            if (maybeTool === undefined) continue;
+            const tool = ensureObject(maybeTool, `worker.openai.security.tools.${key}`);
+            if (tool.approvalMode !== undefined) {
+              ensureOpenAiApprovalMode(
+                tool.approvalMode,
+                `worker.openai.security.tools.${key}.approvalMode`,
+              );
+            }
           }
         }
       }

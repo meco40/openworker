@@ -1,5 +1,6 @@
 from app.config import WorkerSettings, is_tool_allowed
 from app.tools.browser_tool import TOOL_NAME as BROWSER_TOOL_NAME
+from app.tools.browser_use_tool import TOOL_NAME as BROWSER_USE_TOOL_NAME
 from app.tools.computer_use_tool import TOOL_NAME as COMPUTER_USE_TOOL_NAME
 from app.tools.files_tool import TOOL_NAME as FILES_TOOL_NAME
 from app.tools.github_tool import TOOL_NAME as GITHUB_TOOL_NAME
@@ -9,6 +10,7 @@ from app.tools.shell_tool import TOOL_NAME as SHELL_TOOL_NAME
 ALL_TOOL_NAMES: tuple[str, ...] = (
     SHELL_TOOL_NAME,
     BROWSER_TOOL_NAME,
+    BROWSER_USE_TOOL_NAME,
     FILES_TOOL_NAME,
     GITHUB_TOOL_NAME,
     MCP_TOOL_NAME,

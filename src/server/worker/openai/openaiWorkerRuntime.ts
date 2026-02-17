@@ -3,7 +3,10 @@ import { getWorkerRepository } from '../workerRepository';
 import { broadcastStatus } from '../utils/broadcast';
 import { loadGatewayConfig } from '../../config/gatewayConfig';
 import { getPersonaRepository } from '../../personas/personaRepository';
-import { listEnabledOpenAiWorkerToolNames } from './openaiToolRegistry';
+import {
+  resolveEnabledOpenAiWorkerToolNamesFromConfig,
+  resolveOpenAiWorkerToolApprovalPolicyFromConfig,
+} from './openaiToolRegistry';
 import {
   getOpenAiWorkerClient,
   type OpenAiWorkerStartRunResult,
@@ -249,7 +252,12 @@ export async function executeOpenAiRuntimeTask(
 
   try {
     const routing = await resolveTaskModelRouting(task);
-    const enabledTools = await listEnabledOpenAiWorkerToolNames();
+    const configState = await loadGatewayConfig();
+    const enabledTools = resolveEnabledOpenAiWorkerToolNamesFromConfig(configState.config);
+    const toolApprovalPolicy = resolveOpenAiWorkerToolApprovalPolicyFromConfig(
+      configState.config,
+      enabledTools,
+    );
     const run = await client.startRun({
       taskId: task.id,
       title: task.title,
@@ -260,6 +268,7 @@ export async function executeOpenAiRuntimeTask(
       preferredModelId: routing.preferredModelId,
       modelHubProfileId: routing.modelHubProfileId,
       enabledTools,
+      toolApprovalPolicy,
     });
     await finalizeResult(task, run);
     if (run.status === 'completed') {

@@ -21,6 +21,8 @@ class RunStartRequest(BaseModel):
     preferredModelId: str | None = None
     modelHubProfileId: str | None = None
     enabledTools: list[str] = Field(default_factory=list)
+    messages: list[dict[str, str]] = Field(default_factory=list)
+    toolApprovalPolicy: dict[str, Any] | None = None
 
 
 class ApprovalResumeRequest(BaseModel):
@@ -45,6 +47,8 @@ def start_run(request: RunStartRequest) -> dict[str, Any]:
         preferred_model_id=request.preferredModelId,
         model_hub_profile_id=request.modelHubProfileId,
         enabled_tools=request.enabledTools,
+        messages=request.messages,
+        tool_approval_policy=request.toolApprovalPolicy,
     )
     _runs[request.runId] = {
         "run_id": request.runId,

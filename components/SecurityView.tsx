@@ -11,6 +11,26 @@ interface SecurityStatusResponse {
   error?: string;
 }
 
+type ApprovalMode = 'deny' | 'ask_approve' | 'approve_always';
+
+interface OpenAiWorkerToolPolicy {
+  id: string;
+  name: string;
+  description: string;
+  functionName: string;
+  enabled: boolean;
+  approvalMode: ApprovalMode;
+}
+
+interface OpenAiWorkerPolicyResponse {
+  ok: boolean;
+  tools?: OpenAiWorkerToolPolicy[];
+  defaultApprovalMode?: ApprovalMode;
+  error?: string;
+}
+
+const APPROVAL_MODE_OPTIONS: ApprovalMode[] = ['deny', 'ask_approve', 'approve_always'];
+
 const STATUS_META: Record<
   SecurityCheckStatus,
   { label: string; className: string; border: string }
@@ -35,12 +55,20 @@ const STATUS_META: Record<
 const CHECK_ORDER: Array<SecurityCheck['id']> = ['firewall', 'encryption', 'audit', 'isolation'];
 
 const SecurityView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'commands'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'commands' | 'worker-policies'>(
+    'overview',
+  );
   const [commands, setCommands] = useState<CommandPermission[]>(SECURITY_RULES);
   const [remoteChecks, setRemoteChecks] = useState<SecurityCheck[]>([]);
   const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(true);
   const [checkError, setCheckError] = useState<string | null>(null);
+  const [workerTools, setWorkerTools] = useState<OpenAiWorkerToolPolicy[]>([]);
+  const [defaultApprovalMode, setDefaultApprovalMode] = useState<ApprovalMode>('ask_approve');
+  const [isWorkerPolicyLoading, setIsWorkerPolicyLoading] = useState(true);
+  const [workerPolicyError, setWorkerPolicyError] = useState<string | null>(null);
+  const [workerPolicySavingId, setWorkerPolicySavingId] = useState<string | null>(null);
+  const [isWorkerDefaultSaving, setIsWorkerDefaultSaving] = useState(false);
 
   const refreshStatus = useCallback(async () => {
     setIsChecking(true);
@@ -61,9 +89,105 @@ const SecurityView: React.FC = () => {
     }
   }, []);
 
+  const loadWorkerPolicies = useCallback(async () => {
+    setIsWorkerPolicyLoading(true);
+    setWorkerPolicyError(null);
+    try {
+      const response = await fetch('/api/worker/openai/tools', { cache: 'no-store' });
+      const payload = (await response.json()) as OpenAiWorkerPolicyResponse;
+      if (!response.ok || !payload.ok || !payload.tools) {
+        throw new Error(payload.error || 'Worker policy load failed.');
+      }
+      setWorkerTools(payload.tools);
+      setDefaultApprovalMode(payload.defaultApprovalMode || 'ask_approve');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Worker policy load failed.';
+      setWorkerPolicyError(message);
+      setWorkerTools([]);
+    } finally {
+      setIsWorkerPolicyLoading(false);
+    }
+  }, []);
+
+  const patchWorkerPolicy = useCallback(async (body: Record<string, unknown>) => {
+    const response = await fetch('/api/worker/openai/tools', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const payload = (await response.json()) as OpenAiWorkerPolicyResponse;
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || 'Worker policy update failed.');
+    }
+    return payload;
+  }, []);
+
+  const handleWorkerToolToggle = useCallback(
+    async (id: string, enabled: boolean) => {
+      setWorkerPolicySavingId(id);
+      setWorkerPolicyError(null);
+      try {
+        const payload = await patchWorkerPolicy({ id, enabled });
+        if (!payload.tools && payload.defaultApprovalMode === undefined) {
+          setWorkerTools((previous) =>
+            previous.map((tool) =>
+              tool.id === id ? { ...tool, enabled } : tool,
+            ),
+          );
+        }
+        await loadWorkerPolicies();
+      } catch (error) {
+        setWorkerPolicyError(error instanceof Error ? error.message : 'Worker policy update failed.');
+      } finally {
+        setWorkerPolicySavingId(null);
+      }
+    },
+    [loadWorkerPolicies, patchWorkerPolicy],
+  );
+
+  const handleWorkerToolModeChange = useCallback(
+    async (id: string, approvalMode: ApprovalMode) => {
+      setWorkerPolicySavingId(id);
+      setWorkerPolicyError(null);
+      try {
+        await patchWorkerPolicy({ id, approvalMode });
+        setWorkerTools((previous) =>
+          previous.map((tool) => (tool.id === id ? { ...tool, approvalMode } : tool)),
+        );
+      } catch (error) {
+        setWorkerPolicyError(error instanceof Error ? error.message : 'Worker policy update failed.');
+      } finally {
+        setWorkerPolicySavingId(null);
+      }
+    },
+    [patchWorkerPolicy],
+  );
+
+  const handleDefaultModeChange = useCallback(
+    async (mode: ApprovalMode) => {
+      const previous = defaultApprovalMode;
+      setDefaultApprovalMode(mode);
+      setIsWorkerDefaultSaving(true);
+      setWorkerPolicyError(null);
+      try {
+        await patchWorkerPolicy({ defaultApprovalMode: mode });
+      } catch (error) {
+        setDefaultApprovalMode(previous);
+        setWorkerPolicyError(error instanceof Error ? error.message : 'Worker policy update failed.');
+      } finally {
+        setIsWorkerDefaultSaving(false);
+      }
+    },
+    [defaultApprovalMode, patchWorkerPolicy],
+  );
+
   useEffect(() => {
     void refreshStatus();
   }, [refreshStatus]);
+
+  useEffect(() => {
+    void loadWorkerPolicies();
+  }, [loadWorkerPolicies]);
 
   const localChecks = useMemo(() => buildCommandSecurityChecks(commands), [commands]);
 
@@ -128,6 +252,14 @@ const SecurityView: React.FC = () => {
               }`}
             >
               Whitelist
+            </button>
+            <button
+              onClick={() => setActiveTab('worker-policies')}
+              className={`rounded-lg px-4 py-2 text-[10px] font-black tracking-widest uppercase ${
+                activeTab === 'worker-policies' ? 'bg-indigo-600 text-white' : 'text-zinc-500'
+              }`}
+            >
+              Worker Policies
             </button>
           </div>
         </div>
@@ -225,6 +357,106 @@ const SecurityView: React.FC = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {activeTab === 'worker-policies' && (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+              Global Default
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                value={defaultApprovalMode}
+                onChange={(event) => void handleDefaultModeChange(event.target.value as ApprovalMode)}
+                disabled={isWorkerDefaultSaving}
+                className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:border-indigo-500 focus:outline-none disabled:opacity-60"
+              >
+                {APPROVAL_MODE_OPTIONS.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {mode}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[11px] text-zinc-500">
+                Gilt für alle Tools ohne spezifisches Override.
+              </span>
+            </div>
+          </div>
+
+          {workerPolicyError && (
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400">
+              Worker-Policy Fehler: {workerPolicyError}
+            </div>
+          )}
+
+          <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900">
+            <table className="w-full text-left text-[11px]">
+              <thead className="bg-zinc-950 font-black tracking-widest text-zinc-600 uppercase">
+                <tr>
+                  <th className="px-6 py-4">Tool</th>
+                  <th className="px-6 py-4">Function</th>
+                  <th className="px-6 py-4">Policy</th>
+                  <th className="px-6 py-4 text-right">Access</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800">
+                {workerTools.map((tool) => (
+                  <tr key={tool.id} className="hover:bg-zinc-800/20">
+                    <td className="px-6 py-4">
+                      <div className="text-xs font-semibold text-white">{tool.name}</div>
+                      <div className="mt-1 text-[10px] text-zinc-500">{tool.description}</div>
+                    </td>
+                    <td className="px-6 py-4 font-mono text-[10px] text-indigo-400">
+                      {tool.functionName}
+                    </td>
+                    <td className="px-6 py-4">
+                      <select
+                        value={tool.approvalMode}
+                        onChange={(event) =>
+                          void handleWorkerToolModeChange(tool.id, event.target.value as ApprovalMode)
+                        }
+                        disabled={workerPolicySavingId === tool.id}
+                        className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[10px] text-zinc-200 focus:border-indigo-500 focus:outline-none disabled:opacity-60"
+                      >
+                        {APPROVAL_MODE_OPTIONS.map((mode) => (
+                          <option key={mode} value={mode}>
+                            {mode}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => void handleWorkerToolToggle(tool.id, !tool.enabled)}
+                        disabled={workerPolicySavingId === tool.id}
+                        className={`rounded px-3 py-1.5 text-[9px] font-black uppercase ${
+                          tool.enabled ? 'text-emerald-500' : 'text-zinc-600'
+                        } disabled:opacity-60`}
+                      >
+                        {tool.enabled ? 'Allowed' : 'Blocked'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {!isWorkerPolicyLoading && workerTools.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-6 text-center text-xs text-zinc-500">
+                      Keine Worker-Tools gefunden.
+                    </td>
+                  </tr>
+                )}
+                {isWorkerPolicyLoading && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-6 text-center text-xs text-zinc-500">
+                      Lade Worker-Policies ...
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

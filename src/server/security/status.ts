@@ -47,7 +47,11 @@ function resolveMessagesDbPath(
 
 function hasDangerousCommandEnabled(commands: CommandPermission[]): boolean {
   return commands.some(
-    (rule) => rule.enabled && /rm\s+-rf|del\s+\/f\s+\/q|powershell\s+-enc/i.test(rule.command),
+    (rule) =>
+      rule.enabled &&
+      /rm\s+-rf|del\s+\/f\s+\/s\s+\/q|powershell\s+-enc|format\b|shutdown\b|restart-computer\b|reg\s+delete|sc\s+stop|diskpart|bcdedit|invoke-expression|iex\b/i.test(
+        rule.command,
+      ),
   );
 }
 

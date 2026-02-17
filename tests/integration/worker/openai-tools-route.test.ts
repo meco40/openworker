@@ -39,6 +39,7 @@ describe('/api/worker/openai/tools', () => {
           functionName: 'safe_computer_use',
         },
       ]),
+      getOpenAiWorkerDefaultApprovalMode: vi.fn().mockResolvedValue('ask_approve'),
     }));
 
     const route = await import('../../../app/api/worker/openai/tools/route');
@@ -53,6 +54,7 @@ describe('/api/worker/openai/tools', () => {
     expect(payload.tools).toEqual([
       expect.objectContaining({ id: 'computerUse', enabled: false }),
     ]);
+    expect((payload as { defaultApprovalMode?: string }).defaultApprovalMode).toBe('ask_approve');
   });
 
   it('updates OpenAI worker tool activation via PATCH', async () => {
@@ -66,6 +68,8 @@ describe('/api/worker/openai/tools', () => {
     });
     vi.doMock('../../../src/server/worker/openai/openaiToolRegistry', () => ({
       setOpenAiWorkerToolEnabled: setToolEnabled,
+      setOpenAiWorkerToolApprovalMode: vi.fn(),
+      setOpenAiWorkerDefaultApprovalMode: vi.fn(),
     }));
 
     const route = await import('../../../app/api/worker/openai/tools/route');
@@ -98,6 +102,8 @@ describe('/api/worker/openai/tools', () => {
     });
     vi.doMock('../../../src/server/worker/openai/openaiToolRegistry', () => ({
       setOpenAiWorkerToolEnabled: setToolEnabled,
+      setOpenAiWorkerToolApprovalMode: vi.fn(),
+      setOpenAiWorkerDefaultApprovalMode: vi.fn(),
     }));
 
     const route = await import('../../../app/api/worker/openai/tools/route');
@@ -117,5 +123,68 @@ describe('/api/worker/openai/tools', () => {
     expect(payload.ok).toBe(true);
     expect(payload.tool).toEqual(expect.objectContaining({ id: 'github', enabled: false }));
     expect(setToolEnabled).toHaveBeenCalledWith('github', false);
+  });
+
+  it('updates OpenAI worker tool approval mode via PATCH', async () => {
+    mockUserContext({ userId: 'legacy-local-user', authenticated: false });
+    const setToolMode = vi.fn().mockResolvedValue({
+      id: 'shell',
+      name: 'Shell',
+      enabled: true,
+      description: 'Run shell commands.',
+      functionName: 'safe_shell',
+      approvalMode: 'deny',
+    });
+    vi.doMock('../../../src/server/worker/openai/openaiToolRegistry', () => ({
+      setOpenAiWorkerToolEnabled: vi.fn(),
+      setOpenAiWorkerToolApprovalMode: setToolMode,
+      setOpenAiWorkerDefaultApprovalMode: vi.fn(),
+    }));
+
+    const route = await import('../../../app/api/worker/openai/tools/route');
+    const response = await route.PATCH(
+      new Request('http://localhost/api/worker/openai/tools', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 'shell', approvalMode: 'deny' }),
+      }),
+    );
+    const payload = (await response.json()) as {
+      ok: boolean;
+      tool: { id: string; approvalMode: string };
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.tool).toEqual(expect.objectContaining({ id: 'shell', approvalMode: 'deny' }));
+    expect(setToolMode).toHaveBeenCalledWith('shell', 'deny');
+  });
+
+  it('updates OpenAI worker default approval mode via PATCH', async () => {
+    mockUserContext({ userId: 'legacy-local-user', authenticated: false });
+    const setDefaultMode = vi.fn().mockResolvedValue('approve_always');
+    vi.doMock('../../../src/server/worker/openai/openaiToolRegistry', () => ({
+      setOpenAiWorkerToolEnabled: vi.fn(),
+      setOpenAiWorkerToolApprovalMode: vi.fn(),
+      setOpenAiWorkerDefaultApprovalMode: setDefaultMode,
+    }));
+
+    const route = await import('../../../app/api/worker/openai/tools/route');
+    const response = await route.PATCH(
+      new Request('http://localhost/api/worker/openai/tools', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ defaultApprovalMode: 'approve_always' }),
+      }),
+    );
+    const payload = (await response.json()) as {
+      ok: boolean;
+      defaultApprovalMode: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.defaultApprovalMode).toBe('approve_always');
+    expect(setDefaultMode).toHaveBeenCalledWith('approve_always');
   });
 });

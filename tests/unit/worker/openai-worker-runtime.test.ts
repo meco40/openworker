@@ -66,6 +66,7 @@ describe('openai worker runtime execution', () => {
       notifyTaskCompleted: vi.fn().mockResolvedValue(undefined),
       notifyTaskFailed: vi.fn().mockResolvedValue(undefined),
       notifyApprovalRequest: vi.fn().mockResolvedValue(undefined),
+      notifyRuntimeFailover: vi.fn().mockResolvedValue(undefined),
     }));
     vi.doMock('../../../src/server/worker/openai/openaiWorkerClient', () => ({
       getOpenAiWorkerClient: () => ({
@@ -106,11 +107,19 @@ describe('openai worker runtime execution', () => {
       notifyTaskCompleted: vi.fn().mockResolvedValue(undefined),
       notifyTaskFailed: vi.fn().mockResolvedValue(undefined),
       notifyApprovalRequest: vi.fn().mockResolvedValue(undefined),
+      notifyRuntimeFailover: vi.fn().mockResolvedValue(undefined),
     }));
     vi.doMock('../../../src/server/worker/openai/openaiToolRegistry', () => ({
-      listEnabledOpenAiWorkerToolNames: vi
+      resolveEnabledOpenAiWorkerToolNamesFromConfig: vi
         .fn()
-        .mockResolvedValue(['safe_browser', 'safe_files']),
+        .mockReturnValue(['safe_browser', 'safe_files']),
+      resolveOpenAiWorkerToolApprovalPolicyFromConfig: vi.fn().mockReturnValue({
+        defaultMode: 'ask_approve',
+        byFunctionName: {
+          safe_browser: 'approve_always',
+          safe_files: 'ask_approve',
+        },
+      }),
     }));
 
     const runtime = await import('../../../src/server/worker/openai/openaiWorkerRuntime');
@@ -124,6 +133,13 @@ describe('openai worker runtime execution', () => {
       expect.objectContaining({
         taskId: task.id,
         enabledTools: ['safe_browser', 'safe_files'],
+        toolApprovalPolicy: {
+          defaultMode: 'ask_approve',
+          byFunctionName: {
+            safe_browser: 'approve_always',
+            safe_files: 'ask_approve',
+          },
+        },
       }),
     );
   });
@@ -223,3 +239,4 @@ describe('openai worker runtime execution', () => {
     });
   });
 });
+
