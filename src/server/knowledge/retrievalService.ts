@@ -2,6 +2,7 @@ import type { StoredMessage } from '../channels/messages/repository';
 import { planKnowledgeQuery } from './queryPlanner';
 import { enforceSectionBudgets, estimateTokenCount, trimToTokenBudget } from './tokenBudget';
 import type { KnowledgeEpisode, KnowledgeRepository, MeetingLedgerEntry } from './repository';
+import { computeEventAnswer } from './eventAnswerComputer';
 
 interface MemoryRecallLike {
   recallDetailed: (
@@ -25,6 +26,7 @@ interface RetrievalKnowledgeRepository {
   listMeetingLedger: KnowledgeRepository['listMeetingLedger'];
   listEpisodes: KnowledgeRepository['listEpisodes'];
   insertRetrievalAudit: KnowledgeRepository['insertRetrievalAudit'];
+  countUniqueDays?: KnowledgeRepository['countUniqueDays'];
 }
 
 export interface KnowledgeRetrievalInput {
@@ -53,6 +55,7 @@ export interface KnowledgeRetrievalResult {
   sections: KnowledgeRetrievalSections;
   references: string[];
   tokenCount: number;
+  computedAnswer?: string | null;
 }
 
 export interface KnowledgeRetrievalServiceOptions {
@@ -466,6 +469,24 @@ export class KnowledgeRetrievalService {
     const rulesIntent = isRulesIntentQuery(input.query);
     const topicFilter = plan.topic && plan.topic !== 'ausgehandelt' ? plan.topic : undefined;
 
+    // ── Fast-path: count_recall with event aggregation ─────────
+    let computedAnswerText: string | null = null;
+    if (
+      plan.intent === 'count_recall' &&
+      plan.eventFilter &&
+      this.options.knowledgeRepository.countUniqueDays
+    ) {
+      computedAnswerText = computeEventAnswer(
+        plan.eventFilter,
+        { userId: input.userId, personaId: input.personaId },
+        {
+          countUniqueDays: this.options.knowledgeRepository.countUniqueDays.bind(
+            this.options.knowledgeRepository,
+          ),
+        },
+      );
+    }
+
     const filter = {
       userId: input.userId,
       personaId: input.personaId,
@@ -610,6 +631,7 @@ export class KnowledgeRetrievalService {
       const answerDraftParts = rulesIntent
         ? ['Kontext: Regelwissen aus Historie.', ...ruleHighlights.map((entry) => `- ${entry}`)]
         : [
+            ...(computedAnswerText ? [computedAnswerText] : []),
             counterpart
               ? `Kontext: Meeting mit ${counterpart}.`
               : 'Kontext: Wissensrueckgriff aktiv.',
@@ -662,6 +684,7 @@ export class KnowledgeRetrievalService {
         sections: budgetedSections,
         references,
         tokenCount,
+        computedAnswer: computedAnswerText,
       };
     } catch (error) {
       hadError = true;

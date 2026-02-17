@@ -26,6 +26,8 @@ export interface RecallSources {
   memory: string | null;
   /** Chat messages matched via FTS5 full-text search. */
   chatHits: StoredMessage[];
+  /** Computed factual answer from event aggregation (e.g., day counts). */
+  computedAnswer?: string | null;
 }
 
 // ── Fusion ───────────────────────────────────────────────────
@@ -41,7 +43,13 @@ export interface RecallSources {
 export function fuseRecallSources(sources: RecallSources): string | null {
   const sections: string[] = [];
 
-  // ── Chat History (FTS5) — first: highest-signal for direct recall ──
+  // ── Computed Answer — highest priority, always first ─────
+  const computedText = sources.computedAnswer?.trim() || '';
+  if (computedText) {
+    sections.push(`[Computed Answer]\n${computedText}`);
+  }
+
+  // ── Chat History (FTS5) — high-signal for direct recall ──
   if (sources.chatHits.length > 0) {
     const chatLines = sources.chatHits.map((msg) => {
       const dateStr = formatDate(msg.createdAt);
