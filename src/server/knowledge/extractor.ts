@@ -2,6 +2,7 @@ import type { StoredMessage } from '../channels/messages/repository';
 import { buildKnowledgeExtractionPrompt, type ExtractionPersonaContext } from './prompts';
 import type { KnowledgeSourceRef } from './repository';
 import { isMeaningfulKnowledgeText, sanitizeKnowledgeFacts } from './textQuality';
+import { EventExtractor, type ExtractedEvent } from './eventExtractor';
 
 export interface KnowledgeMeetingLedger {
   topicKey: string;
@@ -28,6 +29,7 @@ export interface KnowledgeExtractionResult {
   teaser: string;
   episode: string;
   meetingLedger: KnowledgeMeetingLedger;
+  events: ExtractedEvent[];
 }
 
 interface KnowledgeExtractorOptions {
@@ -188,6 +190,7 @@ function buildFallback(input: KnowledgeExtractionInput): KnowledgeExtractionResu
       : ['Wichtige Details aus dem Verlauf wurden besprochen.'];
   const sourceRefs = pickFallbackRefs(input.messages);
   const counterpart = detectCounterpart(input.messages);
+  const events: ExtractedEvent[] = [];
 
   const teaserBase = [
     `Meetingzusammenfassung fuer ${counterpart || 'den Termin'}.`,
@@ -205,6 +208,7 @@ function buildFallback(input: KnowledgeExtractionInput): KnowledgeExtractionResu
     facts: safeFallbackFacts,
     teaser: fitWordRange(teaserBase, 80, 150, 'kontext'),
     episode: fitWordRange(repeatedEpisodeBase, 400, 800, 'detail'),
+    events,
     meetingLedger: {
       topicKey: counterpart ? `meeting-${counterpart.toLowerCase()}` : 'general-meeting',
       counterpart,
@@ -223,6 +227,40 @@ function buildFallback(input: KnowledgeExtractionInput): KnowledgeExtractionResu
       confidence: 0.35,
     },
   };
+}
+
+function parseRawEvents(raw: unknown): ExtractedEvent[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry): ExtractedEvent | null => {
+      if (!entry || typeof entry !== 'object') return null;
+      const record = entry as Record<string, unknown>;
+      const eventType = String(record.eventType || '').trim();
+      if (!eventType) return null;
+
+      const speakerRole = String(record.speakerRole || 'assistant').trim();
+      const validRole = speakerRole === 'user' ? 'user' : 'assistant';
+
+      return {
+        eventType,
+        speakerRole: validRole,
+        subject: String(record.subject || '').trim(),
+        counterpart: String(record.counterpart || '').trim(),
+        relationLabel: record.relationLabel ? String(record.relationLabel).trim() : null,
+        timeExpression: String(record.timeExpression || '').trim(),
+        startDate: String(record.startDate || '').trim(),
+        endDate: String(record.endDate || '').trim(),
+        dayCount: Math.max(0, Math.floor(Number(record.dayCount) || 0)),
+        isConfirmation: Boolean(record.isConfirmation),
+        confirmationSignals: toStringArray(record.confirmationSignals),
+        sourceSeq: Array.isArray(record.sourceSeq)
+          ? record.sourceSeq
+              .map((s: unknown) => Number(s))
+              .filter((n: number) => Number.isFinite(n))
+          : [],
+      };
+    })
+    .filter((e): e is ExtractedEvent => e !== null);
 }
 
 function parseModelPayload(
@@ -253,10 +291,13 @@ function parseModelPayload(
   const counterpartRaw = String(meetingRaw.counterpart || '').trim();
   const confidenceRaw = Number(meetingRaw.confidence);
 
+  const rawEvents = parseRawEvents(record.events);
+
   return {
     facts: facts.length > 0 ? facts : buildFallback(input).facts,
     teaser,
     episode,
+    events: rawEvents,
     meetingLedger: {
       topicKey: String(meetingRaw.topicKey || '').trim() || 'general-meeting',
       counterpart: counterpartRaw || detectCounterpart(input.messages),
@@ -272,6 +313,8 @@ function parseModelPayload(
 }
 
 export class KnowledgeExtractor {
+  private readonly eventExtractor = new EventExtractor();
+
   constructor(private readonly options: KnowledgeExtractorOptions = {}) {}
 
   async extract(input: KnowledgeExtractionInput): Promise<KnowledgeExtractionResult> {
@@ -285,8 +328,21 @@ export class KnowledgeExtractor {
       const response = await this.options.runExtractionModel(prompt);
       const parsed = parseModelPayload(response, input);
       if (!parsed) return baseFallback;
+
+      const minimalMessages = input.messages.map((m) => ({
+        seq: Number(m.seq || 0),
+        role: String(m.role || 'user'),
+        content: String(m.content || ''),
+      }));
+      const normalizedEvents = this.eventExtractor.normalizeEvents(
+        parsed.events,
+        minimalMessages,
+        new Date(),
+      );
+
       return {
         ...parsed,
+        events: normalizedEvents,
         teaser: fitWordRange(parsed.teaser, 80, 150, 'kontext'),
         episode: fitWordRange(parsed.episode, 400, 800, 'detail'),
       };
