@@ -440,4 +440,4 @@ Der Override umgeht bewusst die Fallback-Kette, damit der Nutzer deterministisch
 - Aktuell keine Login-Aktivierung im Rahmen der Single-Principal-Konsolidierung.
 - Bei optionaler Auth wird ein Principal-Fallback genutzt; bei verpflichtender Auth bleibt 401-Verhalten erhalten.
 - Geplante Login-Aktivierung ist ausgelagert in:
-  `docs/plans/2026-02-15-single-principal-login-activation-deferred.md`.
+  `docs/archive/plans/superseded/2026-02-15-single-principal-login-activation-deferred.md`.

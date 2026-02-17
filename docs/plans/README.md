@@ -1,6 +1,7 @@
 # Active Plans
 
 Stand: 2026-02-17
+Zuletzt bereinigt: 2026-02-17
 
 ## In Bearbeitung / offen
 
@@ -12,3 +13,4 @@ Stand: 2026-02-17
 ## Hinweis
 
 Abgeschlossene oder ersetzte Plaene wurden nach `docs/archive/plans/` verschoben.
+Inhaltlich doppelte Plaene wurden in konsolidierten Archivdokumenten zusammengefuehrt.
