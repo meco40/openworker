@@ -54,7 +54,7 @@ describe('Nata reference scenario: 3 days total', () => {
   it('computes the correct answer of 3 unique days', async () => {
     // ── Mock memory service (does nothing) ────────────────────
     const memoryService = {
-      store: vi.fn().mockResolvedValue(),
+      store: vi.fn().mockResolvedValue(null),
     };
 
     // ── Week 1 extraction result (mock LLM returns this) ──────

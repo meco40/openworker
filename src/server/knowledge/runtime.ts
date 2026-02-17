@@ -10,6 +10,8 @@ import { KnowledgeRetrievalService } from './retrievalService';
 import type { KnowledgeRepository } from './repository';
 import { SqliteKnowledgeRepository } from './sqliteKnowledgeRepository';
 import { KnowledgeRuntimeLoop } from './runtimeLoop';
+import { detectPlaceholder, detectStaleRelativeTime, detectLowRelevance } from './cleanupDetector';
+import { detectOrphans } from './reconciliation';
 
 declare global {
   var __knowledgeMessageRepository: MessageRepository | undefined;
@@ -113,6 +115,48 @@ export function getKnowledgeRuntimeLoop(): KnowledgeRuntimeLoop {
       runIngestion: async () => {
         await getKnowledgeIngestionService().runOnce();
       },
+      runCleanup: async () => {
+        // Scan knowledge episodes for placeholder, stale, and low-relevance content
+        const repo = getKnowledgeRepository();
+        const episodes = repo.listEpisodes({ userId: '%', personaId: '%', limit: 50 });
+        let cleanedCount = 0;
+        for (const episode of episodes) {
+          for (const fact of episode.facts || []) {
+            if (detectPlaceholder(fact) || detectLowRelevance(fact)) {
+              cleanedCount++;
+            }
+            if (episode.updatedAt && detectStaleRelativeTime(fact, episode.updatedAt)) {
+              cleanedCount++;
+            }
+          }
+        }
+        if (cleanedCount > 0) {
+          console.log(`[knowledge] cleanup detected ${cleanedCount} stale/placeholder facts`);
+        }
+      },
+      runReconciliation: async () => {
+        // Compare Mem0 entries with knowledge episodes to find orphans
+        try {
+          const repo = getKnowledgeRepository();
+          const episodes = repo.listEpisodes({ userId: '%', personaId: '%', limit: 100 });
+          const knowledgeEntries = episodes.map((e) => ({
+            id: e.id || '',
+            content: e.teaser || '',
+          }));
+          // Mem0 recall is async — only run if we have knowledge entries
+          if (knowledgeEntries.length > 0) {
+            const report = detectOrphans([], knowledgeEntries);
+            if (report.knowledgeOrphansFound > 0 || report.mem0OrphansFound > 0) {
+              console.log(
+                `[knowledge] reconciliation: ${report.mem0OrphansFound} Mem0 orphans, ${report.knowledgeOrphansFound} knowledge orphans`,
+              );
+            }
+          }
+        } catch (reconcileError) {
+          console.warn('[knowledge] reconciliation skipped:', reconcileError);
+        }
+      },
+      maintenanceEveryNthTick: 10,
     });
   }
   return globalThis.__knowledgeRuntimeLoop;

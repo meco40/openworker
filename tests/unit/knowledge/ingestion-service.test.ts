@@ -24,6 +24,8 @@ function buildExtraction(topicKey = 'meeting-andreas'): KnowledgeExtractionResul
     facts: ['8% Rabatt vereinbart', 'SLA bleibt offen'],
     teaser: Array.from({ length: 90 }, (_, idx) => `teaser${idx + 1}`).join(' '),
     episode: Array.from({ length: 450 }, (_, idx) => `episode${idx + 1}`).join(' '),
+    entities: [],
+    events: [],
     meetingLedger: {
       topicKey,
       counterpart: 'Andreas',
@@ -181,6 +183,8 @@ describe('KnowledgeIngestionService', () => {
         ],
         teaser: 'Kurztext mit Kontext',
         episode: 'Langer Episodentext mit vielen Details',
+        entities: [],
+        events: [],
         meetingLedger: {
           topicKey: 'office-rules',
           counterpart: null,
@@ -239,6 +243,8 @@ describe('KnowledgeIngestionService', () => {
         facts: ['Max ist mein Bruder', 'Max ist mein Cousin'],
         teaser: 'Korrektur zu Max',
         episode: 'Max wurde als Cousin korrigiert',
+        entities: [],
+        events: [],
         meetingLedger: {
           topicKey: 'family',
           counterpart: null,

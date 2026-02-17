@@ -55,6 +55,8 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
       ],
       teaser: Array.from({ length: 90 }, (_, idx) => `t${idx + 1}`).join(' '),
       episode: Array.from({ length: 450 }, (_, idx) => `e${idx + 1}`).join(' '),
+      entities: [],
+      events: [],
       meetingLedger: {
         topicKey: 'meeting-sarah',
         counterpart: 'Sarah',
@@ -116,6 +118,8 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
       facts: ['Fakt A vereinbart', 'Fakt B offen', 'Fakt C beschlossen'],
       teaser: Array.from({ length: 90 }, (_, idx) => `t${idx + 1}`).join(' '),
       episode: Array.from({ length: 450 }, (_, idx) => `e${idx + 1}`).join(' '),
+      entities: [],
+      events: [],
       meetingLedger: {
         topicKey: 'general',
         counterpart: null,

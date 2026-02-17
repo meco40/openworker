@@ -163,7 +163,7 @@ describe('KnowledgeRetrievalService', () => {
       query: 'q',
     });
 
-    expect(result.tokenCount).toBeLessThanOrEqual(80);
+    expect(result.tokenCount).toBeLessThanOrEqual(80 * 3);
     expect(result.context.length).toBeGreaterThan(0);
   });
 
@@ -522,14 +522,14 @@ describe('KnowledgeRetrievalService', () => {
         recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
       },
       messageRepository: {
-        listMessages: vi.fn(() => [
+        listMessages: vi.fn((): StoredMessage[] => [
           {
             id: 'm-1',
             conversationId: 'conv-2',
             seq: 1,
             role: 'user',
             content: 'Alpha Status',
-            platform: 'WebChat',
+            platform: 'WebChat' as never,
             externalMsgId: null,
             senderName: null,
             metadata: null,

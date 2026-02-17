@@ -228,14 +228,14 @@ describe('MemoryService (mem0-only)', () => {
     expect(context).toContain('[Type: fact] alpha fallback memory');
   });
 
-  it('annotates first-person memories as user subject in recall context', async () => {
+  it('annotates first-person memories as assistant self-reference in recall context', async () => {
     const service = new MemoryService(createInMemoryMem0Client());
     await service.store('persona-a', 'preference', 'Ich mag Orangensaft', 4, 'user-a');
 
     const context = await service.recall('persona-a', 'orangensaft', 3, 'user-a');
 
     expect(context).toContain('[Type: preference] Ich mag Orangensaft');
-    expect(context).toContain('[Subject: user]');
+    expect(context).toContain('[Subject: assistant');
   });
 
   it('keeps rule-related lexical memories when semantic search is noisy', async () => {

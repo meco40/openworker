@@ -32,7 +32,7 @@ const BASE_AUDIT = {
 
 describe('Entity-Graph integration in retrieval', () => {
   it('resolves alias "Bruder" to entity Max for count queries', async () => {
-    const countUniqueDaysMock = vi.fn(() => ({
+    const countUniqueDaysMock = vi.fn((_filter: unknown) => ({
       uniqueDayCount: 3,
       uniqueDays: ['2026-01-01', '2026-01-15', '2026-02-01'],
       eventCount: 3,
@@ -121,7 +121,10 @@ describe('Entity-Graph integration in retrieval', () => {
 
     // countUniqueDays was called with canonical name "Max", not "bruder"
     expect(countUniqueDaysMock).toHaveBeenCalledTimes(1);
-    const filterArg = countUniqueDaysMock.mock.calls[0][0];
+    const filterArg = countUniqueDaysMock.mock.calls[0]?.[0] as
+      | { counterpartEntity?: string; eventType?: string }
+      | undefined;
+    if (!filterArg) throw new Error('countUniqueDays was not called with a filter');
     expect(filterArg.counterpartEntity).toBe('Max');
     expect(filterArg.eventType).toBe('shared_sleep');
 

@@ -25,6 +25,7 @@
     "memory:reset": "node --import tsx scripts/memory-reset.ts",
     "memory:cleanup-noise": "node --import tsx scripts/memory-cleanup-noise.ts",
     "memory:backfill-channel-scope": "node --import tsx scripts/memory-backfill-channel-scope.ts",
+    "knowledge:ingest": "node --import tsx scripts/trigger-knowledge-ingestion.ts",
     "worker:openai:dev": "cd services/openai_worker && .venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8011 --reload",
     "worker:openai:test": "cd services/openai_worker && .venv\\Scripts\\python.exe -m pytest tests -q",
     "worker:openai:load": "npm run test -- tests/load/worker-openai-load.test.ts",

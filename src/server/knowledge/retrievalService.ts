@@ -5,6 +5,12 @@ import type { KnowledgeEpisode, KnowledgeRepository, MeetingLedgerEntry } from '
 import { computeEventAnswer } from './eventAnswerComputer';
 import type { EntityGraphFilter, EntityLookupResult } from './entityGraph';
 import { adjustRecallScore } from './recallScoring';
+import { assessAnswerSafety, buildSafetyInstruction } from './answerSafetyPolicy';
+import type { EvidenceAssessment } from './answerSafetyPolicy';
+import { detectQueryComplexity, calculateRecallBudget } from './recallBudgetCalculator';
+import { adjustScoreByStrategy } from './personaStrategies';
+import type { PersonaType } from './personaStrategies';
+import { detectPersonaType } from './personaTypeDetector';
 
 interface MemoryRecallLike {
   recallDetailed: (
@@ -225,7 +231,11 @@ function computeEpisodeAge(updatedAt: string | null | undefined): number {
   return Math.max(0, (Date.now() - ts) / 86_400_000);
 }
 
-function rankEpisodesByQuery(episodes: KnowledgeEpisode[], query: string): KnowledgeEpisode[] {
+function rankEpisodesByQuery(
+  episodes: KnowledgeEpisode[],
+  query: string,
+  personaType: PersonaType = 'general',
+): KnowledgeEpisode[] {
   const tokens = tokenizeQueryForRanking(query);
   if (tokens.length === 0) return episodes;
   return [...episodes].sort((left, right) => {
@@ -238,19 +248,37 @@ function rankEpisodesByQuery(episodes: KnowledgeEpisode[], query: string): Knowl
       tokens,
     );
     // Blend overlap with freshness decay via adjustRecallScore
-    const leftScore = adjustRecallScore({
+    let leftScore = adjustRecallScore({
       baseScore: leftOverlap || 0.1,
       confidence: 0.5,
       ageDays: computeEpisodeAge(left.updatedAt),
     });
-    const rightScore = adjustRecallScore({
+    let rightScore = adjustRecallScore({
       baseScore: rightOverlap || 0.1,
       confidence: 0.5,
       ageDays: computeEpisodeAge(right.updatedAt),
     });
+    // Apply persona-type-specific score adjustments
+    leftScore = adjustScoreByStrategy(leftScore, personaType, {
+      emotionalTone: detectEmotionalToneInText((left.facts || []).join(' ')),
+      type: left.topicKey,
+    });
+    rightScore = adjustScoreByStrategy(rightScore, personaType, {
+      emotionalTone: detectEmotionalToneInText((right.facts || []).join(' ')),
+      type: right.topicKey,
+    });
     if (rightScore !== leftScore) return rightScore - leftScore;
     return Date.parse(String(right.updatedAt || '')) - Date.parse(String(left.updatedAt || ''));
   });
+}
+
+/** Quick heuristic: detect emotional tone from fact text for persona strategy scoring. */
+function detectEmotionalToneInText(text: string): string | undefined {
+  const lower = text.toLowerCase();
+  const emotionKeywords =
+    /\b(traurig|wuetend|gluecklich|freude|streit|angst|liebe|verliebt|nervoes|besorgt|aufgeregt|enttaeuscht)\b/;
+  const match = lower.match(emotionKeywords);
+  return match ? match[1] : undefined;
 }
 
 function rankLedgerByQuery(ledgerRows: MeetingLedgerEntry[], query: string): MeetingLedgerEntry[] {
@@ -618,6 +646,14 @@ export class KnowledgeRetrievalService {
       let ledgerRows = this.options.knowledgeRepository.listMeetingLedger(filter);
       let episodes = this.options.knowledgeRepository.listEpisodes(filter);
 
+      // ── Detect persona type for strategy-based ranking ─────
+      // Infer persona type from episode/ledger content heuristics.
+      const contentSample = episodes
+        .slice(0, 5)
+        .map((e) => `${e.teaser} ${e.episode} ${(e.facts || []).join(' ')}`)
+        .join(' ');
+      const inferredPersonaType = detectPersonaType({ content: contentSample });
+
       if (!plan.counterpart) {
         const counterpartCandidates = uniqueStrings([
           ...ledgerRows.map((row) => String(row.counterpart || '').trim()),
@@ -634,7 +670,7 @@ export class KnowledgeRetrievalService {
         }
       }
       ledgerRows = rankLedgerByQuery(ledgerRows, input.query).slice(0, 8);
-      episodes = rankEpisodesByQuery(episodes, input.query).slice(0, 8);
+      episodes = rankEpisodesByQuery(episodes, input.query, inferredPersonaType).slice(0, 8);
 
       if (rulesIntent) {
         const ruleLedger = ledgerRows.filter((row) =>
@@ -761,22 +797,51 @@ export class KnowledgeRetrievalService {
         evidence: evidenceText || 'Keine direkten Evidenzstellen gefunden.',
       };
 
-      const budgetedSections = enforceSectionBudgets(rawSections, this.maxContextTokens, {
+      // ── Dynamic recall budget ──────────────────────────────
+      // Scale context budget based on query complexity instead of using fixed maxContextTokens.
+      const queryComplexity = detectQueryComplexity(input.query);
+      const recallBudget = calculateRecallBudget({
+        queryComplexity,
+        entityCount: plan.counterpartAliases?.length ?? 0,
+        availableSourceCount: stageStats.ledger + stageStats.episodes + stageStats.semantic,
+      });
+      // Dynamic budget can scale up from base, but never exceeds 3x the configured max.
+      // This preserves the configured maxContextTokens as the primary budget control.
+      const dynamicTokens = Math.round(recallBudget.total / 4); // rough chars-to-tokens
+      const effectiveMaxTokens = Math.min(
+        this.maxContextTokens * 3,
+        Math.max(this.maxContextTokens, dynamicTokens),
+      );
+
+      const budgetedSections = enforceSectionBudgets(rawSections, effectiveMaxTokens, {
         answerDraft: 0.4,
         keyDecisions: 0.25,
         openPoints: 0.15,
         evidence: 0.2,
       });
 
+      // ── Answer Safety Policy ───────────────────────────────
+      // Assess evidence strength and inject appropriate hedging instruction.
+      const evidenceAssessment: EvidenceAssessment = {
+        totalSources: stageStats.ledger + stageStats.episodes + stageStats.semantic,
+        avgConfidence:
+          stageStats.ledger + stageStats.episodes > 0 ? 0.7 : stageStats.semantic > 0 ? 0.5 : 0,
+        hasComputedAnswer: !!computedAnswerText,
+        hasContradiction: false,
+      };
+      const safetyLevel = assessAnswerSafety(evidenceAssessment);
+      const safetyInstruction = buildSafetyInstruction(safetyLevel);
+
       let context = [
+        ...(safetyInstruction ? [safetyInstruction] : []),
         `AnswerDraft:\n${budgetedSections.answerDraft}`,
         `KeyDecisions:\n${budgetedSections.keyDecisions}`,
         `OpenPoints:\n${budgetedSections.openPoints}`,
         `Evidence:\n${budgetedSections.evidence}`,
       ].join('\n\n');
 
-      if (estimateTokenCount(context) > this.maxContextTokens) {
-        context = trimToTokenBudget(context, this.maxContextTokens);
+      if (estimateTokenCount(context) > effectiveMaxTokens) {
+        context = trimToTokenBudget(context, effectiveMaxTokens);
       }
 
       const tokenCount = estimateTokenCount(context);

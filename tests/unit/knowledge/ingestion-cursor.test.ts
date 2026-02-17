@@ -73,8 +73,8 @@ describe('KnowledgeIngestionCursor', () => {
           .slice(0, limit),
     };
 
-    const knowledgeRepo: KnowledgeRepository = {
-      getIngestionCheckpoint: (conversationId, personaId) => {
+    const knowledgeRepo = {
+      getIngestionCheckpoint: (conversationId: string, personaId: string) => {
         const key = `${conversationId}::${personaId}`;
         const seq = checkpoints.get(key);
         if (seq === undefined) return null;
@@ -85,7 +85,15 @@ describe('KnowledgeIngestionCursor', () => {
           updatedAt: new Date().toISOString(),
         };
       },
-      upsertIngestionCheckpoint: ({ conversationId, personaId, lastSeq }) => {
+      upsertIngestionCheckpoint: ({
+        conversationId,
+        personaId,
+        lastSeq,
+      }: {
+        conversationId: string;
+        personaId: string;
+        lastSeq: number;
+      }) => {
         checkpoints.set(`${conversationId}::${personaId}`, lastSeq);
         return {
           conversationId,
@@ -115,7 +123,7 @@ describe('KnowledgeIngestionCursor', () => {
       }),
       deleteKnowledgeByScope: () => 0,
       pruneKnowledgeBefore: () => ({ episodes: 0, ledger: 0, audits: 0 }),
-    };
+    } as unknown as KnowledgeRepository;
 
     const cursor = new KnowledgeIngestionCursor(messageRepo, knowledgeRepo);
 
@@ -188,9 +196,17 @@ describe('KnowledgeIngestionCursor', () => {
       listMessagesAfterSeq: () => messages,
     };
 
-    const knowledgeRepo: KnowledgeRepository = {
+    const knowledgeRepo = {
       getIngestionCheckpoint: () => null,
-      upsertIngestionCheckpoint: ({ conversationId, personaId, lastSeq }) => ({
+      upsertIngestionCheckpoint: ({
+        conversationId,
+        personaId,
+        lastSeq,
+      }: {
+        conversationId: string;
+        personaId: string;
+        lastSeq: number;
+      }) => ({
         conversationId,
         personaId,
         lastSeq,
@@ -217,7 +233,7 @@ describe('KnowledgeIngestionCursor', () => {
       }),
       deleteKnowledgeByScope: () => 0,
       pruneKnowledgeBefore: () => ({ episodes: 0, ledger: 0, audits: 0 }),
-    };
+    } as unknown as KnowledgeRepository;
 
     const cursor = new KnowledgeIngestionCursor(messageRepo, knowledgeRepo);
     const windows = cursor.getPendingWindows();

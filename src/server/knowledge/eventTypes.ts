@@ -7,6 +7,15 @@ export const KNOWN_EVENT_TYPES = [
   'meal',
   'appointment',
   'celebration',
+  'conflict',
+  'reconciliation',
+  'emotion',
+  'location_change',
+  'routine',
+  'milestone',
+  'relationship_change',
+  'health',
+  'finance',
 ] as const;
 
 export type KnowledgeEventType = (typeof KNOWN_EVENT_TYPES)[number] | string;

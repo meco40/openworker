@@ -13,6 +13,18 @@ import { deduplicateEvent } from './eventDedup';
 import { EntityExtractor, isRelationWord } from './entityExtractor';
 import { createId } from '../../shared/lib/ids';
 import { detectContradictionSignal } from './contradictionDetector';
+import { checkMemoryPoisoning } from './security/memoryPoisoningGuard';
+import { detectEmotion } from './emotionTracker';
+import { resolvePronouns } from './pronounResolver';
+import type { PronounContext } from './pronounResolver';
+import { detectCorrection } from './correctionDetector';
+import { expandMultilingualAliases } from './multilingualAliases';
+import { detectProjectStatusSignal } from './projectTracker';
+import { detectTaskCompletion } from './taskTracker';
+import type { TrackedTask } from './taskTracker';
+import { transitionLifecycle } from './factLifecycle';
+import type { LifecycleStatus } from './factLifecycle';
+import { resolveRelativeTime } from './timeResolver';
 
 interface IngestionCursorLike {
   getPendingWindows(limitConversations?: number): IngestionWindow[];
@@ -176,7 +188,45 @@ export class KnowledgeIngestionService {
     const sourceSeqStart = inferSourceStart(window);
     const sourceSeqEnd = inferSourceEnd(window);
 
-    const facts = sanitizeKnowledgeFacts(extraction.facts);
+    // ── Emotion detection across all messages ────────────────
+    // Scan messages for emotional signals and track the dominant emotion for metadata.
+    let dominantEmotion: ReturnType<typeof detectEmotion> = null;
+    for (const msg of window.messages) {
+      const content = String(msg.content || '');
+      const detected = detectEmotion(content);
+      if (detected && (!dominantEmotion || detected.intensity > dominantEmotion.intensity)) {
+        dominantEmotion = detected;
+      }
+    }
+
+    // ── Correction detection in user messages ────────────────
+    // Scan user messages for correction signals ("Nein, nicht X sondern Y")
+    const corrections: Array<{ oldValue?: string; newValue?: string; correctionType: string }> = [];
+    for (const msg of window.messages) {
+      if (msg.role !== 'user') continue;
+      const corrResult = detectCorrection(String(msg.content || ''));
+      if (corrResult.isCorrection) {
+        corrections.push({
+          oldValue: corrResult.oldValue,
+          newValue: corrResult.newValue,
+          correctionType: corrResult.correctionType,
+        });
+      }
+    }
+
+    // ── Pronoun resolution context ───────────────────────────
+    // Build context from entities for pronoun resolution in facts.
+    const lastMentionedPerson = extraction.entities?.[0]?.name ?? null;
+    const pronounCtx: PronounContext = {
+      lastMentionedPerson,
+      lastMentionedProject: null,
+      speakerPersonaName: personaContext.name,
+      speakerUserId: window.userId,
+    };
+
+    const rawFacts = sanitizeKnowledgeFacts(extraction.facts);
+    // Apply pronoun resolution to each fact
+    const facts = rawFacts.map((fact) => resolvePronouns(fact, pronounCtx));
     const topicKey = String(extraction.meetingLedger.topicKey || '').trim() || 'general-meeting';
 
     this.deps.knowledgeRepository.upsertEpisode({
@@ -212,6 +262,19 @@ export class KnowledgeIngestionService {
 
     for (let factIdx = 0; factIdx < facts.length; factIdx++) {
       const fact = facts[factIdx];
+
+      // ── Memory Poisoning Guard ─────────────────────────────
+      // Block injection attempts and flag suspicious content before storage.
+      const poisoningCheck = checkMemoryPoisoning(fact);
+      if (poisoningCheck.riskLevel === 'blocked') {
+        console.warn(
+          '[KnowledgeIngestion] poisoning guard blocked fact:',
+          poisoningCheck.reason,
+          fact.slice(0, 80),
+        );
+        continue; // Skip this fact entirely
+      }
+
       // Detect subject based on self-references in the fact
       const subject = detectFactSubject(fact);
 
@@ -228,10 +291,33 @@ export class KnowledgeIngestionService {
         selfReference: subject === 'assistant',
       };
 
+      // ── Poisoning guard: flag suspicious content ───────────
+      if (poisoningCheck.riskLevel === 'suspicious') {
+        metadata.securityFlag = 'suspicious';
+        metadata.securityReason = poisoningCheck.reason;
+      }
+
+      // ── Emotion metadata ───────────────────────────────────
+      if (dominantEmotion) {
+        metadata.emotionalTone = dominantEmotion.emotion;
+        metadata.emotionIntensity = dominantEmotion.intensity;
+        if (dominantEmotion.trigger) {
+          metadata.emotionTrigger = dominantEmotion.trigger;
+        }
+      }
+
+      // ── Correction annotations ─────────────────────────────
+      if (corrections.length > 0) {
+        metadata.hasCorrections = true;
+        metadata.correctionCount = corrections.length;
+      }
+
       // ── Within-batch contradiction detection ───────────────
       // Compare this fact against earlier facts in the same extraction.
       // When a later fact contradicts an earlier one, annotate metadata so
       // downstream consumers (retrieval, UI) can surface the correction.
+      // The factLifecycle state machine determines the new status.
+      let lifecycleStatus: LifecycleStatus = 'new';
       for (let prevIdx = 0; prevIdx < factIdx; prevIdx++) {
         const signal = detectContradictionSignal(fact, facts[prevIdx]);
         if (signal.hasContradiction) {
@@ -239,9 +325,18 @@ export class KnowledgeIngestionService {
           metadata.contradictionType = signal.contradictionType;
           metadata.contradictionConfidence = signal.confidence;
           metadata.supersedes = facts[prevIdx];
+          // Transition the OLD fact's lifecycle to 'superseded'
+          metadata.supersededFactLifecycleStatus = transitionLifecycle('new', 'contradicted');
           break; // one contradiction annotation is sufficient
         }
       }
+
+      // ── Fact lifecycle: apply correction signals ────────────
+      if (corrections.length > 0) {
+        // User corrections transition the old state to 'superseded'
+        lifecycleStatus = transitionLifecycle(lifecycleStatus, 'corrected_by_user');
+      }
+      metadata.lifecycleStatus = lifecycleStatus;
 
       try {
         await this.deps.memoryService.store(
@@ -261,6 +356,57 @@ export class KnowledgeIngestionService {
       }
     }
 
+    // ── Task completion detection ─────────────────────────────
+    // Scan user messages for task completion signals against open action items from extraction.
+    if (extraction.meetingLedger.actionItems && extraction.meetingLedger.actionItems.length > 0) {
+      const openTasks: TrackedTask[] = extraction.meetingLedger.actionItems.map((item, idx) => ({
+        id: `action-${idx}`,
+        userId: window.userId,
+        personaId: window.personaId,
+        title: item,
+        description: null,
+        taskType: 'one_time' as const,
+        status: 'open' as const,
+        deadline: null,
+        recurrence: null,
+        location: null,
+        relatedEntityId: null,
+        createdAt: new Date().toISOString(),
+        completedAt: null,
+        sourceConversationId: window.conversationId,
+      }));
+
+      for (const msg of window.messages) {
+        if (msg.role !== 'user') continue;
+        const completionMatch = detectTaskCompletion(String(msg.content || ''), openTasks);
+        if (completionMatch) {
+          try {
+            await this.deps.memoryService.store(
+              window.personaId,
+              'fact',
+              `Aufgabe erledigt: ${completionMatch.task.title}`,
+              4,
+              window.userId,
+              {
+                topicKey,
+                conversationId: window.conversationId,
+                sourceType: 'task_completion',
+                artifactType: 'task_status',
+                taskTitle: completionMatch.task.title,
+                completionConfidence: completionMatch.matchConfidence,
+                lifecycleStatus: 'confirmed',
+              },
+            );
+          } catch (taskError) {
+            console.warn(
+              '[KnowledgeIngestion] failed to store task completion:',
+              taskError instanceof Error ? taskError.message : String(taskError),
+            );
+          }
+        }
+      }
+    }
+
     // ── Event aggregation storage ────────────────────────────
     if (
       extraction.events &&
@@ -270,15 +416,36 @@ export class KnowledgeIngestionService {
       this.deps.knowledgeRepository.appendEventSources
     ) {
       for (const event of extraction.events) {
+        // ── Time resolution for events ─────────────────────────
+        // Resolve relative time expressions (e.g. "gestern", "letzte Woche") to absolute dates.
+        const lastMessageTimestamp =
+          window.messages[window.messages.length - 1]?.createdAt || new Date().toISOString();
+        const timeCtx = { messageTimestamp: lastMessageTimestamp, userTimezone: 'Europe/Berlin' };
+        let resolvedStartDate = event.startDate;
+        let resolvedEndDate = event.endDate;
+        if (event.startDate) {
+          const resolved = resolveRelativeTime(event.startDate, timeCtx);
+          if (resolved) {
+            resolvedStartDate = resolved.absoluteDate;
+            if (resolved.absoluteDateEnd) {
+              resolvedEndDate = resolved.absoluteDateEnd;
+            }
+          }
+        }
+
         const scope = { userId: window.userId, personaId: window.personaId };
-        const dedupResult = deduplicateEvent(event, scope, {
-          findOverlappingEvents: this.deps.knowledgeRepository.findOverlappingEvents.bind(
-            this.deps.knowledgeRepository,
-          ),
-          appendEventSources: this.deps.knowledgeRepository.appendEventSources.bind(
-            this.deps.knowledgeRepository,
-          ),
-        });
+        const dedupResult = deduplicateEvent(
+          { ...event, startDate: resolvedStartDate, endDate: resolvedEndDate },
+          scope,
+          {
+            findOverlappingEvents: this.deps.knowledgeRepository.findOverlappingEvents.bind(
+              this.deps.knowledgeRepository,
+            ),
+            appendEventSources: this.deps.knowledgeRepository.appendEventSources.bind(
+              this.deps.knowledgeRepository,
+            ),
+          },
+        );
 
         if (dedupResult.action === 'new') {
           this.deps.knowledgeRepository.upsertEvent({
@@ -292,8 +459,8 @@ export class KnowledgeIngestionService {
             subjectEntity: event.subject,
             counterpartEntity: event.counterpart,
             relationLabel: event.relationLabel,
-            startDate: event.startDate,
-            endDate: event.endDate,
+            startDate: resolvedStartDate,
+            endDate: resolvedEndDate,
             dayCount: event.dayCount,
             sourceSeqJson: JSON.stringify(event.sourceSeq),
             sourceSummary: `${event.subject} ${event.eventType} with ${event.counterpart}`,
@@ -308,8 +475,8 @@ export class KnowledgeIngestionService {
             personaId: window.personaId,
             eventType: event.eventType,
             counterpartEntity: event.counterpart,
-            from: event.startDate,
-            to: event.endDate,
+            from: resolvedStartDate,
+            to: resolvedEndDate,
           });
           if (overlapping.length > 0) {
             this.deps.knowledgeRepository.appendEventSources(
@@ -333,13 +500,16 @@ export class KnowledgeIngestionService {
     ) {
       const entityExtractor = new EntityExtractor();
       const repo = this.deps.knowledgeRepository;
+      const upsertEntity = repo.upsertEntity!;
+      const addAlias = repo.addAlias!;
+      const resolveEntity = repo.resolveEntity!;
 
       for (const rawEntity of extraction.entities) {
         const validated = entityExtractor.validateOwner(rawEntity, window.messages);
         if (!validated.name) continue;
 
         const graphFilter = { userId: window.userId, personaId: window.personaId };
-        const existing = repo.resolveEntity(validated.name, graphFilter);
+        const existing = resolveEntity(validated.name, graphFilter);
 
         const verdict = entityExtractor.mergeWithExisting(
           validated,
@@ -350,7 +520,7 @@ export class KnowledgeIngestionService {
         );
 
         if (verdict.action === 'create') {
-          const newEntity = repo.upsertEntity({
+          const newEntity = upsertEntity({
             id: createId('ent'),
             userId: window.userId,
             personaId: window.personaId,
@@ -360,8 +530,16 @@ export class KnowledgeIngestionService {
             properties: validated.properties,
           });
 
+          // Add original aliases + multilingual expansions
+          const allAliases = new Set(validated.aliases);
           for (const alias of validated.aliases) {
-            repo.addAlias({
+            for (const expanded of expandMultilingualAliases(alias)) {
+              allAliases.add(expanded);
+            }
+          }
+
+          for (const alias of allAliases) {
+            addAlias({
               entityId: newEntity.id,
               alias,
               aliasType: isRelationWord(alias) ? 'relation' : 'name',
@@ -370,9 +548,21 @@ export class KnowledgeIngestionService {
             });
           }
 
+          // ── Project status tracking ──────────────────────────
+          if (validated.category === 'project') {
+            const messageText = window.messages.map((m) => String(m.content || '')).join(' ');
+            const projectStatus = detectProjectStatusSignal(messageText);
+            if (projectStatus && repo.updateEntityProperties) {
+              repo.updateEntityProperties(newEntity.id, {
+                ...validated.properties,
+                projectStatus,
+              });
+            }
+          }
+
           if (repo.addRelation) {
             for (const rel of validated.relations) {
-              const target = repo.resolveEntity(rel.targetName, graphFilter);
+              const target = resolveEntity(rel.targetName, graphFilter);
               if (target) {
                 repo.addRelation({
                   sourceEntityId: rel.direction === 'outgoing' ? newEntity.id : target.entity.id,
@@ -387,8 +577,15 @@ export class KnowledgeIngestionService {
         } else {
           // Merge: add new aliases and properties
           if (verdict.newAliases && repo.addAlias) {
+            // Expand aliases multilingually before adding
+            const expandedNewAliases = new Set(verdict.newAliases);
             for (const alias of verdict.newAliases) {
-              repo.addAlias({
+              for (const expanded of expandMultilingualAliases(alias)) {
+                expandedNewAliases.add(expanded);
+              }
+            }
+            for (const alias of expandedNewAliases) {
+              addAlias({
                 entityId: existing!.entity.id,
                 alias,
                 aliasType: isRelationWord(alias) ? 'relation' : 'name',

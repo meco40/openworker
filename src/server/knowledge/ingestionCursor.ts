@@ -2,6 +2,7 @@ import type { Conversation } from '../../../types';
 import type { MessageRepository, StoredMessage } from '../channels/messages/repository';
 import { resolveMemoryScopedUserIdForConversation } from '../memory/userScope';
 import type { KnowledgeRepository } from './repository';
+import { createPersonaIsolationPolicy } from './personaIsolationPolicy';
 
 export interface IngestionWindow {
   conversationId: string;
@@ -61,7 +62,27 @@ export class KnowledgeIngestionCursor {
       const messages = resolveNextMessages(this.messageRepository, conversation, fromSeqExclusive);
       if (messages.length === 0) continue;
 
-      const toSeqInclusive = Number(messages[messages.length - 1].seq || fromSeqExclusive);
+      // ── Persona isolation: filter out messages from other personas ──
+      const isolationPolicy = createPersonaIsolationPolicy();
+      const filteredMessages = isolationPolicy.filterByPersona(
+        messages.map((m) => ({
+          id: m.id,
+          content: String(m.content || ''),
+          personaAtMessage: (m as unknown as Record<string, unknown>).personaId as
+            | string
+            | null
+            | undefined,
+        })),
+        personaId,
+      );
+      // Map back to original StoredMessage objects
+      const filteredIds = new Set(filteredMessages.map((m) => m.id));
+      const isolatedMessages = messages.filter((m) => filteredIds.has(m.id));
+      if (isolatedMessages.length === 0) continue;
+
+      const toSeqInclusive = Number(
+        isolatedMessages[isolatedMessages.length - 1].seq || fromSeqExclusive,
+      );
       if (toSeqInclusive <= fromSeqExclusive) continue;
 
       windows.push({
@@ -70,7 +91,7 @@ export class KnowledgeIngestionCursor {
         personaId,
         fromSeqExclusive,
         toSeqInclusive,
-        messages,
+        messages: isolatedMessages,
       });
     }
 

@@ -149,7 +149,10 @@ export class EntityExtractor {
 
     const seqToRole = new Map<number, string>();
     for (const msg of messages) {
-      seqToRole.set(msg.seq, msg.role);
+      const seq = Number(msg.seq);
+      if (Number.isFinite(seq)) {
+        seqToRole.set(seq, msg.role);
+      }
     }
 
     const roles = new Set(
