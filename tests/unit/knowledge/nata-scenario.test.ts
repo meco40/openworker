@@ -62,6 +62,7 @@ describe('Nata reference scenario: 3 days total', () => {
       facts: ['Ich habe die letzten zwei Tage mit meinem Bruder Max geschlafen'],
       teaser: buildLongText('kontext', 100),
       episode: buildLongText('detail', 500),
+      entities: [],
       events: [
         {
           eventType: 'shared_sleep',
@@ -96,6 +97,7 @@ describe('Nata reference scenario: 3 days total', () => {
       facts: ['User bestaetigt: Nata hat mit Max geschlafen'],
       teaser: buildLongText('kontext', 100),
       episode: buildLongText('detail', 500),
+      entities: [],
       events: [
         {
           eventType: 'shared_sleep',
@@ -130,6 +132,7 @@ describe('Nata reference scenario: 3 days total', () => {
       facts: ['Ich habe gestern nochmal bei Max uebernachtet'],
       teaser: buildLongText('kontext', 100),
       episode: buildLongText('detail', 500),
+      entities: [],
       events: [
         {
           eventType: 'shared_sleep',

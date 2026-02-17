@@ -3,6 +3,7 @@ import { buildKnowledgeExtractionPrompt, type ExtractionPersonaContext } from '.
 import type { KnowledgeSourceRef } from './repository';
 import { isMeaningfulKnowledgeText, sanitizeKnowledgeFacts } from './textQuality';
 import { EventExtractor, type ExtractedEvent } from './eventExtractor';
+import { EntityExtractor, type ExtractedEntity } from './entityExtractor';
 
 export interface KnowledgeMeetingLedger {
   topicKey: string;
@@ -30,6 +31,7 @@ export interface KnowledgeExtractionResult {
   episode: string;
   meetingLedger: KnowledgeMeetingLedger;
   events: ExtractedEvent[];
+  entities: ExtractedEntity[];
 }
 
 interface KnowledgeExtractorOptions {
@@ -209,6 +211,7 @@ function buildFallback(input: KnowledgeExtractionInput): KnowledgeExtractionResu
     teaser: fitWordRange(teaserBase, 80, 150, 'kontext'),
     episode: fitWordRange(repeatedEpisodeBase, 400, 800, 'detail'),
     events,
+    entities: [],
     meetingLedger: {
       topicKey: counterpart ? `meeting-${counterpart.toLowerCase()}` : 'general-meeting',
       counterpart,
@@ -292,12 +295,14 @@ function parseModelPayload(
   const confidenceRaw = Number(meetingRaw.confidence);
 
   const rawEvents = parseRawEvents(record.events);
+  const rawEntities = Array.isArray(record.entities) ? (record.entities as unknown[]) : [];
 
   return {
     facts: facts.length > 0 ? facts : buildFallback(input).facts,
     teaser,
     episode,
     events: rawEvents,
+    entities: rawEntities as ExtractedEntity[],
     meetingLedger: {
       topicKey: String(meetingRaw.topicKey || '').trim() || 'general-meeting',
       counterpart: counterpartRaw || detectCounterpart(input.messages),
@@ -314,6 +319,7 @@ function parseModelPayload(
 
 export class KnowledgeExtractor {
   private readonly eventExtractor = new EventExtractor();
+  private readonly entityExtractor = new EntityExtractor();
 
   constructor(private readonly options: KnowledgeExtractorOptions = {}) {}
 
@@ -340,9 +346,15 @@ export class KnowledgeExtractor {
         new Date(),
       );
 
+      const normalizedEntities = this.entityExtractor.normalizeEntities(
+        parsed.entities,
+        input.messages,
+      );
+
       return {
         ...parsed,
         events: normalizedEvents,
+        entities: normalizedEntities,
         teaser: fitWordRange(parsed.teaser, 80, 150, 'kontext'),
         episode: fitWordRange(parsed.episode, 400, 800, 'detail'),
       };

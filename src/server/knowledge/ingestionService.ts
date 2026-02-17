@@ -10,6 +10,7 @@ import type { IngestionWindow, KnowledgeIngestionCursor } from './ingestionCurso
 import type { KnowledgeRepository } from './repository';
 import { sanitizeKnowledgeFacts } from './textQuality';
 import { deduplicateEvent } from './eventDedup';
+import { EntityExtractor, isRelationWord } from './entityExtractor';
 import { createId } from '../../shared/lib/ids';
 
 interface IngestionCursorLike {
@@ -29,6 +30,13 @@ interface KnowledgeRepositoryLike {
   upsertEvent?: KnowledgeRepository['upsertEvent'];
   findOverlappingEvents?: KnowledgeRepository['findOverlappingEvents'];
   appendEventSources?: KnowledgeRepository['appendEventSources'];
+  // Entity Graph (optional — only used when entityGraphEnabled)
+  upsertEntity?: KnowledgeRepository['upsertEntity'];
+  addAlias?: KnowledgeRepository['addAlias'];
+  addRelation?: KnowledgeRepository['addRelation'];
+  updateEntityProperties?: KnowledgeRepository['updateEntityProperties'];
+  resolveEntity?: KnowledgeRepository['resolveEntity'];
+  getEntityWithRelations?: KnowledgeRepository['getEntityWithRelations'];
 }
 
 interface MemoryServiceLike {
@@ -295,6 +303,87 @@ export class KnowledgeIngestionService {
           }
         }
         // 'merge' action already handled by deduplicateEvent (appendEventSources)
+      }
+    }
+
+    // ── Entity Graph storage ─────────────────────────────────
+    if (
+      extraction.entities &&
+      extraction.entities.length > 0 &&
+      this.deps.knowledgeRepository.upsertEntity &&
+      this.deps.knowledgeRepository.addAlias &&
+      this.deps.knowledgeRepository.resolveEntity
+    ) {
+      const entityExtractor = new EntityExtractor();
+      const repo = this.deps.knowledgeRepository;
+
+      for (const rawEntity of extraction.entities) {
+        const validated = entityExtractor.validateOwner(rawEntity, window.messages);
+        if (!validated.name) continue;
+
+        const graphFilter = { userId: window.userId, personaId: window.personaId };
+        const existing = repo.resolveEntity(validated.name, graphFilter);
+
+        const verdict = entityExtractor.mergeWithExisting(
+          validated,
+          existing?.entity ?? null,
+          existing && repo.getEntityWithRelations
+            ? repo.getEntityWithRelations(existing.entity.id).aliases
+            : [],
+        );
+
+        if (verdict.action === 'create') {
+          const newEntity = repo.upsertEntity({
+            id: createId('ent'),
+            userId: window.userId,
+            personaId: window.personaId,
+            canonicalName: validated.name,
+            category: validated.category,
+            owner: validated.owner,
+            properties: validated.properties,
+          });
+
+          for (const alias of validated.aliases) {
+            repo.addAlias({
+              entityId: newEntity.id,
+              alias,
+              aliasType: isRelationWord(alias) ? 'relation' : 'name',
+              owner: validated.owner,
+              confidence: 0.8,
+            });
+          }
+
+          if (repo.addRelation) {
+            for (const rel of validated.relations) {
+              const target = repo.resolveEntity(rel.targetName, graphFilter);
+              if (target) {
+                repo.addRelation({
+                  sourceEntityId: rel.direction === 'outgoing' ? newEntity.id : target.entity.id,
+                  targetEntityId: rel.direction === 'outgoing' ? target.entity.id : newEntity.id,
+                  relationType: rel.relationType,
+                  properties: {},
+                  confidence: 0.8,
+                });
+              }
+            }
+          }
+        } else {
+          // Merge: add new aliases and properties
+          if (verdict.newAliases && repo.addAlias) {
+            for (const alias of verdict.newAliases) {
+              repo.addAlias({
+                entityId: existing!.entity.id,
+                alias,
+                aliasType: isRelationWord(alias) ? 'relation' : 'name',
+                owner: validated.owner,
+                confidence: 0.8,
+              });
+            }
+          }
+          if (verdict.updates?.properties && repo.updateEntityProperties) {
+            repo.updateEntityProperties(existing!.entity.id, verdict.updates.properties);
+          }
+        }
       }
     }
   }
