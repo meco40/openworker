@@ -167,7 +167,11 @@ function ensureMutableObject(root: Record<string, unknown>, key: string): Record
   return created;
 }
 
-function applyToolToggle(config: GatewayConfig, entry: ToolCatalogEntry, enabled: boolean): GatewayConfig {
+function applyToolToggle(
+  config: GatewayConfig,
+  entry: ToolCatalogEntry,
+  enabled: boolean,
+): GatewayConfig {
   const nextConfig = JSON.parse(JSON.stringify(config)) as GatewayConfig;
   const root = nextConfig as Record<string, unknown>;
   const worker = ensureMutableObject(root, 'worker');
@@ -263,9 +267,9 @@ export async function setOpenAiWorkerDefaultApprovalMode(
 }
 
 export function resolveEnabledOpenAiWorkerToolNamesFromConfig(config: GatewayConfig): string[] {
-  const enabled = OPENAI_WORKER_TOOL_CATALOG.filter((entry) => getEnabledFromConfig(config, entry)).map(
-    (entry) => entry.functionName,
-  );
+  const enabled = OPENAI_WORKER_TOOL_CATALOG.filter((entry) =>
+    getEnabledFromConfig(config, entry),
+  ).map((entry) => entry.functionName);
   if (!enabled.includes(BROWSER_USE_PRIMARY_FUNCTION)) {
     return enabled;
   }

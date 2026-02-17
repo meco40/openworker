@@ -1,5 +1,9 @@
 import type { MemoryService } from '../memory/service';
-import type { KnowledgeExtractionInput, KnowledgeExtractionResult, KnowledgeExtractor } from './extractor';
+import type {
+  KnowledgeExtractionInput,
+  KnowledgeExtractionResult,
+  KnowledgeExtractor,
+} from './extractor';
 import type { IngestionWindow, KnowledgeIngestionCursor } from './ingestionCursor';
 import type { KnowledgeRepository } from './repository';
 import { sanitizeKnowledgeFacts } from './textQuality';
@@ -21,9 +25,7 @@ interface KnowledgeRepositoryLike {
 }
 
 interface MemoryServiceLike {
-  store: (
-    ...args: Parameters<MemoryService['store']>
-  ) => Promise<unknown>;
+  store: (...args: Parameters<MemoryService['store']>) => Promise<unknown>;
 }
 
 export interface KnowledgeIngestionServiceDependencies {
@@ -60,7 +62,9 @@ function inferSourceStart(window: IngestionWindow): number {
 
 function inferSourceEnd(window: IngestionWindow): number {
   const lastSeq = Number(
-    window.messages[window.messages.length - 1]?.seq || window.toSeqInclusive || window.fromSeqExclusive,
+    window.messages[window.messages.length - 1]?.seq ||
+      window.toSeqInclusive ||
+      window.fromSeqExclusive,
   );
   return Math.max(0, Math.floor(lastSeq));
 }

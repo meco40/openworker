@@ -17,13 +17,21 @@ const KEEP_PATTERN = 'Merken sie sich: D,ie Regeln sind';
 const db = new BetterSqlite3(DB_PATH);
 
 // 1. Find all messages in this conversation that are test duplicates
-const allMessages = db.prepare(`
+const allMessages = db
+  .prepare(
+    `
   SELECT id, seq, role, substr(content, 1, 120) as preview, length(content) as len
   FROM messages
   WHERE conversation_id = ?
   ORDER BY seq
-`).all(CONVERSATION_ID) as Array<{
-  id: string; seq: number; role: string; preview: string; len: number;
+`,
+  )
+  .all(CONVERSATION_ID) as Array<{
+  id: string;
+  seq: number;
+  role: string;
+  preview: string;
+  len: number;
 }>;
 
 console.log(`Total messages in conversation: ${allMessages.length}`);
@@ -35,11 +43,15 @@ console.log(`Total messages in conversation: ${allMessages.length}`);
 //    AND keep the agent response immediately after it
 
 // Find the seq of the original rules message
-const originalRulesMsg = db.prepare(`
+const originalRulesMsg = db
+  .prepare(
+    `
   SELECT seq FROM messages
   WHERE conversation_id = ? AND content LIKE ?
   ORDER BY seq LIMIT 1
-`).get(CONVERSATION_ID, `%${KEEP_PATTERN}%`) as { seq: number } | undefined;
+`,
+  )
+  .get(CONVERSATION_ID, `%${KEEP_PATTERN}%`) as { seq: number } | undefined;
 
 if (!originalRulesMsg) {
   console.error('Could not find the original rules message!');
@@ -48,17 +60,21 @@ if (!originalRulesMsg) {
 console.log(`Original rules message at seq: ${originalRulesMsg.seq}`);
 
 // Find test user queries (exact "Wie sind die Regeln?" messages)
-const testQueries = db.prepare(`
+const testQueries = db
+  .prepare(
+    `
   SELECT id, seq, substr(content, 1, 80) as preview
   FROM messages
   WHERE conversation_id = ?
     AND role = 'user'
     AND (content = 'Wie sind die Regeln?' OR content = 'Wie sind die Regeln')
   ORDER BY seq
-`).all(CONVERSATION_ID) as Array<{ id: string; seq: number; preview: string }>;
+`,
+  )
+  .all(CONVERSATION_ID) as Array<{ id: string; seq: number; preview: string }>;
 
 console.log(`\nTest query messages ("Wie sind die Regeln?"): ${testQueries.length}`);
-testQueries.forEach(m => console.log(`  seq=${m.seq} id=${m.id} "${m.preview}"`));
+testQueries.forEach((m) => console.log(`  seq=${m.seq} id=${m.id} "${m.preview}"`));
 
 // Collect IDs to delete: each test query + the agent response immediately after it
 const idsToDelete: string[] = [];
@@ -69,10 +85,14 @@ for (const q of testQueries) {
   seqsToDelete.add(q.seq);
 
   // Find the agent response right after this query
-  const response = db.prepare(`
+  const response = db
+    .prepare(
+      `
     SELECT id, seq FROM messages
     WHERE conversation_id = ? AND seq = ? AND role = 'agent'
-  `).get(CONVERSATION_ID, q.seq + 1) as { id: string; seq: number } | undefined;
+  `,
+    )
+    .get(CONVERSATION_ID, q.seq + 1) as { id: string; seq: number } | undefined;
 
   if (response) {
     idsToDelete.push(response.id);
@@ -104,10 +124,14 @@ const result = deleteAll();
 console.log(`\nDeleted: ${result.msgDeleted} messages (FTS cleaned via triggers)`);
 
 // 4. Verify
-const remaining = db.prepare(`
+const remaining = db
+  .prepare(
+    `
   SELECT count(*) as cnt FROM messages
   WHERE conversation_id = ?
-`).get(CONVERSATION_ID) as { cnt: number };
+`,
+  )
+  .get(CONVERSATION_ID) as { cnt: number };
 
 console.log(`Remaining messages in conversation: ${remaining.cnt}`);
 

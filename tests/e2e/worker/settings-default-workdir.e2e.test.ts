@@ -117,4 +117,3 @@ describe('Worker E2E: settings default workdir', () => {
     expect(persistedB?.workspacePath).toBe(expectedB);
   });
 });
-

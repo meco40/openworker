@@ -6,7 +6,10 @@ export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export function getOrCreateObject(parent: Record<string, unknown>, key: string): Record<string, unknown> {
+export function getOrCreateObject(
+  parent: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> {
   const current = parent[key];
   if (isObject(current)) {
     return current;

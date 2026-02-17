@@ -30,4 +30,3 @@ describe('security rules baseline', () => {
     }
   });
 });
-

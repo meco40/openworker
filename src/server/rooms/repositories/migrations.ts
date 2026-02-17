@@ -38,17 +38,16 @@ function migrateCheckConstraints(db: BetterSqlite3.Database): void {
   `);
 
   const applied = new Set(
-    (db.prepare('SELECT id FROM _room_migrations').all() as { id: string }[]).map(
-      (r) => r.id,
-    ),
+    (db.prepare('SELECT id FROM _room_migrations').all() as { id: string }[]).map((r) => r.id),
   );
 
   // Fix broken FK references from previous migration attempt
   if (!applied.has('fix_broken_fk_refs')) {
     fixBrokenForeignKeys(db);
-    db
-      .prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)')
-      .run('fix_broken_fk_refs', new Date().toISOString());
+    db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+      'fix_broken_fk_refs',
+      new Date().toISOString(),
+    );
   }
 
   // Add free goal mode to rooms
@@ -75,15 +74,17 @@ function migrateCheckConstraints(db: BetterSqlite3.Database): void {
         db.exec('INSERT INTO _rooms_new SELECT * FROM rooms');
         db.exec('DROP TABLE rooms');
         db.exec('ALTER TABLE _rooms_new RENAME TO rooms');
-        db
-          .prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)')
-          .run('rooms_add_free_goal_mode', new Date().toISOString());
+        db.prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+          'rooms_add_free_goal_mode',
+          new Date().toISOString(),
+        );
       })();
       db.exec('PRAGMA foreign_keys = ON');
     } else {
-      db
-        .prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)')
-        .run('rooms_add_free_goal_mode', new Date().toISOString());
+      db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+        'rooms_add_free_goal_mode',
+        new Date().toISOString(),
+      );
     }
   }
 
@@ -114,15 +115,17 @@ function migrateCheckConstraints(db: BetterSqlite3.Database): void {
         db.exec('INSERT INTO _room_member_runtime_new SELECT * FROM room_member_runtime');
         db.exec('DROP TABLE room_member_runtime');
         db.exec('ALTER TABLE _room_member_runtime_new RENAME TO room_member_runtime');
-        db
-          .prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)')
-          .run('runtime_add_extended_statuses', new Date().toISOString());
+        db.prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+          'runtime_add_extended_statuses',
+          new Date().toISOString(),
+        );
       })();
       db.exec('PRAGMA foreign_keys = ON');
     } else {
-      db
-        .prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)')
-        .run('runtime_add_extended_statuses', new Date().toISOString());
+      db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+        'runtime_add_extended_statuses',
+        new Date().toISOString(),
+      );
     }
   }
 
@@ -150,20 +153,20 @@ function migrateCheckConstraints(db: BetterSqlite3.Database): void {
             PRIMARY KEY (room_id, persona_id)
           )
         `);
-        db.exec(
-          'INSERT INTO _room_member_runtime_paused_new SELECT * FROM room_member_runtime',
-        );
+        db.exec('INSERT INTO _room_member_runtime_paused_new SELECT * FROM room_member_runtime');
         db.exec('DROP TABLE room_member_runtime');
         db.exec('ALTER TABLE _room_member_runtime_paused_new RENAME TO room_member_runtime');
-        db
-          .prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)')
-          .run('runtime_add_paused_status', new Date().toISOString());
+        db.prepare('INSERT INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+          'runtime_add_paused_status',
+          new Date().toISOString(),
+        );
       })();
       db.exec('PRAGMA foreign_keys = ON');
     } else {
-      db
-        .prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)')
-        .run('runtime_add_paused_status', new Date().toISOString());
+      db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+        'runtime_add_paused_status',
+        new Date().toISOString(),
+      );
     }
   }
 
@@ -176,9 +179,10 @@ function migrateCheckConstraints(db: BetterSqlite3.Database): void {
     if (roomsInfo && !roomsInfo.sql.includes('description')) {
       db.exec('ALTER TABLE rooms ADD COLUMN description TEXT');
     }
-    db
-      .prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)')
-      .run('rooms_add_description', new Date().toISOString());
+    db.prepare('INSERT OR IGNORE INTO _room_migrations (id, applied_at) VALUES (?, ?)').run(
+      'rooms_add_description',
+      new Date().toISOString(),
+    );
   }
 }
 
@@ -203,9 +207,7 @@ function fixBrokenForeignKeys(db: BetterSqlite3.Database): void {
         .replace(`CREATE TABLE ${table.name}`, `CREATE TABLE "${tempName}"`)
         .replace(`CREATE TABLE "${table.name}"`, `CREATE TABLE "${tempName}"`);
       db.exec(createSql);
-      db.exec(
-        `INSERT INTO "${tempName}" (${colList}) SELECT ${colList} FROM "${table.name}"`,
-      );
+      db.exec(`INSERT INTO "${tempName}" (${colList}) SELECT ${colList} FROM "${table.name}"`);
       db.exec(`DROP TABLE "${table.name}"`);
       db.exec(`ALTER TABLE "${tempName}" RENAME TO "${table.name}"`);
     }

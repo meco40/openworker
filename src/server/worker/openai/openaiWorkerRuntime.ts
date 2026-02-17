@@ -79,7 +79,10 @@ export interface RateLimitCheckResult {
   retryAfterSec?: number;
 }
 
-export function checkRateLimit(userId: string | null | undefined, nowMs = Date.now()): RateLimitCheckResult {
+export function checkRateLimit(
+  userId: string | null | undefined,
+  nowMs = Date.now(),
+): RateLimitCheckResult {
   const limits = getOpenAiRuntimeLimits();
   const key = userId || 'anonymous';
   const minuteMs = 60_000;
@@ -129,7 +132,9 @@ export interface OpenAiTaskModelRouting {
   modelHubProfileId: string;
 }
 
-export async function resolveTaskModelRouting(task: WorkerTaskRecord): Promise<OpenAiTaskModelRouting> {
+export async function resolveTaskModelRouting(
+  task: WorkerTaskRecord,
+): Promise<OpenAiTaskModelRouting> {
   let personaId: string | null = null;
   let preferredModelId: string | null = null;
   let modelHubProfileId: string | null = null;
@@ -196,9 +201,8 @@ async function finalizeResult(
   result: OpenAiWorkerStartRunResult,
 ): Promise<void> {
   const repo = getWorkerRepository();
-  const { notifyTaskCompleted, notifyTaskFailed, notifyApprovalRequest } = await import(
-    '../workerCallback'
-  );
+  const { notifyTaskCompleted, notifyTaskFailed, notifyApprovalRequest } =
+    await import('../workerCallback');
 
   if (result.status === 'approval_required') {
     repo.updateStatus(task.id, 'waiting_approval');

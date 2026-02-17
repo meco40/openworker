@@ -16,5 +16,5 @@ export const TAB_LABELS: Record<PersonaTabName, string> = {
   'USER.md': 'User',
   'TOOLS.md': 'Tools',
   'HEARTBEAT.md': 'Heartbeat',
-  'GATEWAY': 'Gateway',
+  GATEWAY: 'Gateway',
 };

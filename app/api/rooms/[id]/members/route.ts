@@ -32,7 +32,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const roleLabel = body.roleLabel?.trim() || 'Member';
-    
+
     // Use persona's preferredModelId if no explicit modelOverride provided
     let modelOverride = body.modelOverride ?? null;
     if (modelOverride === null) {
@@ -41,7 +41,7 @@ export async function POST(request: Request, context: RouteContext) {
         modelOverride = persona.preferredModelId;
       }
     }
-    
+
     const service = getRoomService();
     const member = service.addMember(userContext.userId, roomId, {
       personaId: body.personaId.trim(),

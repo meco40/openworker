@@ -207,10 +207,7 @@ export async function dispatchOpenAICompatibleChat(
   if (Array.isArray(request.tools) && request.tools.length > 0) {
     body.tools = request.tools;
   }
-  if (
-    request.reasoning_effort &&
-    (providerId === 'openai' || providerId === 'openai-codex')
-  ) {
+  if (request.reasoning_effort && (providerId === 'openai' || providerId === 'openai-codex')) {
     body.reasoning_effort = request.reasoning_effort;
   }
 

@@ -14,7 +14,7 @@ interface UseMemoryOptions {
 
 export function useMemory(options: UseMemoryOptions) {
   const { selectedPersonaId, page, pageSize, debouncedQuery, typeFilter } = options;
-  
+
   const [nodes, setNodes] = useState<MemoryNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState<PaginationState>({

@@ -64,7 +64,7 @@ const HeaderSection: React.FC<HeaderSectionProps> = ({
         </div>
         {probeResult && (
           <div
-            className={`animate-in fade-in zoom-in-95 mt-4 max-w-sm whitespace-pre-wrap break-words rounded border border-zinc-800 bg-zinc-950 px-3 py-1.5 font-mono text-[9px] ${
+            className={`animate-in fade-in zoom-in-95 mt-4 max-w-sm rounded border border-zinc-800 bg-zinc-950 px-3 py-1.5 font-mono text-[9px] break-words whitespace-pre-wrap ${
               lastProbeOk === false ? 'text-rose-400' : 'text-emerald-500'
             }`}
           >

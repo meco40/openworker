@@ -8,20 +8,20 @@ Dieses Dokument fixiert die offiziell verifizierten Auth-/API-Baselines fuer den
 
 ## Provider (11)
 
-| Provider                | Prim. Auth       | OAuth                                                        | API Base (Healthcheck)                                           | Notes                                    |
-| ----------------------- | ---------------- | ------------------------------------------------------------ | ---------------------------------------------------------------- | ---------------------------------------- |
-| OpenAI                  | API Key          | Nein                                                         | `https://api.openai.com/v1/models`                               | Standard OpenAI Platform API              |
-| OpenAI Codex            | OAuth            | Ja (PKCE)                                                     | `https://api.openai.com/v1/models`                               | OAuth via öffentlicher Codex-App-ID, default Redirect `http://localhost:1455/auth/callback` |
-| Google Gemini           | API Key          | Nein                                                         | Gemini SDK / GenerateContent                                     | Native Google GenAI SDK                  |
-| Anthropic               | API Key          | Nein                                                         | `POST https://api.anthropic.com/v1/messages`                     | Header `x-api-key` + `anthropic-version` |
-| OpenRouter              | API Key          | Ja (PKCE)                                                    | `GET https://openrouter.ai/api/v1/key`                           | OAuth ueber `/auth` + Token-Exchange     |
-| xAI                     | API Key          | Nein                                                         | `GET https://api.x.ai/v1/models`                                 | API key auth                             |
-| Mistral                 | API Key          | Nein                                                         | `GET https://api.mistral.ai/v1/models`                           | API key auth                             |
-| Cohere                  | API Key          | Nein                                                         | `GET https://api.cohere.com/v2/models`                           | API key auth                             |
-| Z.AI                    | API Key          | Nein                                                         | `POST https://api.z.ai/api/paas/v4/chat/completions`             | OpenAI-kompatibler Flow                  |
-| Kimi (Moonshot)         | API Key          | Nein                                                         | `GET https://api.moonshot.cn/v1/models`                          | OpenAI-kompatible API                    |
-| ByteDance ModelArk      | API Key          | Nein                                                         | `POST https://ark.cn-beijing.volces.com/api/v3/chat/completions` | Model/Endpoint-ID erforderlich           |
-| GitHub Copilot / Models | OAuth oder Token | Ja (GitHub OAuth App)                                        | `GET https://api.github.com/user`                                | Fuer Account-Pairing + GitHub Identity   |
+| Provider                | Prim. Auth       | OAuth                 | API Base (Healthcheck)                                           | Notes                                                                                       |
+| ----------------------- | ---------------- | --------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| OpenAI                  | API Key          | Nein                  | `https://api.openai.com/v1/models`                               | Standard OpenAI Platform API                                                                |
+| OpenAI Codex            | OAuth            | Ja (PKCE)             | `https://api.openai.com/v1/models`                               | OAuth via öffentlicher Codex-App-ID, default Redirect `http://localhost:1455/auth/callback` |
+| Google Gemini           | API Key          | Nein                  | Gemini SDK / GenerateContent                                     | Native Google GenAI SDK                                                                     |
+| Anthropic               | API Key          | Nein                  | `POST https://api.anthropic.com/v1/messages`                     | Header `x-api-key` + `anthropic-version`                                                    |
+| OpenRouter              | API Key          | Ja (PKCE)             | `GET https://openrouter.ai/api/v1/key`                           | OAuth ueber `/auth` + Token-Exchange                                                        |
+| xAI                     | API Key          | Nein                  | `GET https://api.x.ai/v1/models`                                 | API key auth                                                                                |
+| Mistral                 | API Key          | Nein                  | `GET https://api.mistral.ai/v1/models`                           | API key auth                                                                                |
+| Cohere                  | API Key          | Nein                  | `GET https://api.cohere.com/v2/models`                           | API key auth                                                                                |
+| Z.AI                    | API Key          | Nein                  | `POST https://api.z.ai/api/paas/v4/chat/completions`             | OpenAI-kompatibler Flow                                                                     |
+| Kimi (Moonshot)         | API Key          | Nein                  | `GET https://api.moonshot.cn/v1/models`                          | OpenAI-kompatible API                                                                       |
+| ByteDance ModelArk      | API Key          | Nein                  | `POST https://ark.cn-beijing.volces.com/api/v3/chat/completions` | Model/Endpoint-ID erforderlich                                                              |
+| GitHub Copilot / Models | OAuth oder Token | Ja (GitHub OAuth App) | `GET https://api.github.com/user`                                | Fuer Account-Pairing + GitHub Identity                                                      |
 
 ## Offizielle Quellen
 

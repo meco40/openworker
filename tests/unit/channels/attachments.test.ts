@@ -73,4 +73,3 @@ describe('message attachments storage', () => {
     ).toThrow(/not allowed/i);
   });
 });
-

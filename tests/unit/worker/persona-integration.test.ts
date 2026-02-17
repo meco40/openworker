@@ -45,7 +45,12 @@ describe('Persona Integration', () => {
 - another_invalid_tool
       `;
       const result = validateToolsMd(content);
-      expect(result.allowedTools).toEqual(['file_read', 'unknown_tool', 'write_file', 'another_invalid_tool']);
+      expect(result.allowedTools).toEqual([
+        'file_read',
+        'unknown_tool',
+        'write_file',
+        'another_invalid_tool',
+      ]);
       expect(result.unknownTools).toEqual(['unknown_tool', 'another_invalid_tool']);
     });
 

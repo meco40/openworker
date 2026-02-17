@@ -53,7 +53,10 @@ export class KnowledgeIngestionCursor {
       const personaId = String(conversation.personaId || '').trim();
       if (!personaId) continue;
 
-      const checkpoint = this.knowledgeRepository.getIngestionCheckpoint(conversation.id, personaId);
+      const checkpoint = this.knowledgeRepository.getIngestionCheckpoint(
+        conversation.id,
+        personaId,
+      );
       const fromSeqExclusive = Math.max(0, Number(checkpoint?.lastSeq || 0));
       const messages = resolveNextMessages(this.messageRepository, conversation, fromSeqExclusive);
       if (messages.length === 0) continue;

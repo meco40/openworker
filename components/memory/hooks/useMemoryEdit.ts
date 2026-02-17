@@ -13,7 +13,7 @@ interface UseMemoryEditOptions {
 
 export function useMemoryEdit(options: UseMemoryEditOptions) {
   const { selectedPersonaId, nodes, reloadCurrent, setErrorMessage } = options;
-  
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<EditDraft | null>(null);
   const [saving, setSaving] = useState(false);

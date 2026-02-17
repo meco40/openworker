@@ -1,7 +1,13 @@
 'use client';
 
 import React from 'react';
-import { LEVEL_CONFIG, SOURCE_COLORS, formatTimestamp, relativeTime, type LogEntry } from '../diagnostics';
+import {
+  LEVEL_CONFIG,
+  SOURCE_COLORS,
+  formatTimestamp,
+  relativeTime,
+  type LogEntry,
+} from '../diagnostics';
 
 interface LogRowProps {
   log: LogEntry;

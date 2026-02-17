@@ -35,16 +35,12 @@ export async function planTask(task: WorkerTaskRecord): Promise<TaskPlan> {
   const personaContext = await loadPersonaContext(task.assignedPersonaId);
 
   // Build system prompt with persona context
-  const systemPrompt = buildPersonaSystemPrompt(
-    PLANNER_PROMPT,
-    personaContext,
-    {
-      title: task.title,
-      objective: task.objective,
-      workspaceType: task.workspaceType || 'general',
-      step: 'Planung', // Planning phase
-    },
-  );
+  const systemPrompt = buildPersonaSystemPrompt(PLANNER_PROMPT, personaContext, {
+    title: task.title,
+    objective: task.objective,
+    workspaceType: task.workspaceType || 'general',
+    step: 'Planung', // Planning phase
+  });
 
   const result = await service.dispatchWithFallback('p1', encryptionKey, {
     messages: [

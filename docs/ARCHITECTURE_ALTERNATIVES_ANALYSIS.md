@@ -9,7 +9,7 @@
 ```
 User: "Was war mit Andreas?"
     ↓
-Server: buildRecallContext() 
+Server: buildRecallContext()
     ↓
 System entscheidet: "Brauche Memory?"
     ↓
@@ -21,6 +21,7 @@ KI bekommt: "Hier sind 3 Memories" (ob gewollt oder nicht)
 ```
 
 ### Nachteile:
+
 1. **Overfetching** - KI bekommt evtl. irrelevante Memories
 2. **Token-Verschwendung** - Kontext wird unnötig gefüllt
 3. **Keine präzise Kontrolle** - KI kann nicht selbst entscheiden was sie braucht
@@ -43,11 +44,13 @@ Exakte Ergebnisse werden zurückgegeben
 ```
 
 ### Vorteile:
+
 ✅ KI holt nur was sie braucht  
 ✅ Pull-Modell statt Push  
 ✅ Vergleichbar mit Frontend-Verhalten
 
 ### Nachteile:
+
 ⚠️ Ein zusätzlicher Round-Trip pro Tool-Call  
 ⚠️ Erhöhte Latenz  
 ⚠️ Mehr API-Kosten (mehr Requests)
@@ -59,9 +62,9 @@ Exakte Ergebnisse werden zurückgegeben
 ```
 User: "Was war mit Andreas?"
     ↓
-Server: 
+Server:
   1. Schneller "Vektor-Such"-Hint (low-cost)
-  2. Parallel: 
+  2. Parallel:
      - Primäre Anfrage an KI
      - Background-Recall (leise)
   ↓
@@ -71,9 +74,10 @@ KI bekommt:
 ```
 
 ### Vorteile:
+
 ✅ Niedrige Latenz (sofortige Results)  
 ✅ Token-effizient (nur Top-Hits)  
-✅ Fallback auf Tool-Call wenn nötig  
+✅ Fallback auf Tool-Call wenn nötig
 
 ---
 
@@ -91,11 +95,13 @@ Vor dem AI-Call:
 ```
 
 ### Vorteile:
+
 ✅ Sehr günstig (keine API-Costs für Routing)  
 ✅ Schnell  
 ✅ 80% der Anfragen sparen Recall-Overhead
 
 ### Nachteile:
+
 ⚠️ Regex/Heuristik ist nicht so smart wie KI-Entscheidung
 
 ---
@@ -105,27 +111,29 @@ Vor dem AI-Call:
 **Kurze Antwort: Nein.** Die aktuelle Architektur ist ein **guter Start**, aber nicht optimal.
 
 ### Was gut ist:
+
 ✅ Paralleles Fetching (Knowledge + Memory + Chat)  
 ✅ FTS5-Search bereits integriert  
 ✅ Token-Budget Management  
-✅ Frontend hat bereits Tool-Calling  
+✅ Frontend hat bereits Tool-Calling
 
 ### Was fehlt/optimiert werden kann:
 
-| Problem | Aktuell | Optimal |
-|---------|---------|---------|
-| Memory-Abruf | Push (alle) | Pull (bei Bedarf) |
-| Negation | Nur Keywords | Semantisches Verständnis |
-| Tool-Calling Server | ❌ Fehlt | ✅ Implementieren |
-| Intent-Routing | ❌ Fehlt | ✅ Heuristik oder ML |
+| Problem             | Aktuell      | Optimal                  |
+| ------------------- | ------------ | ------------------------ |
+| Memory-Abruf        | Push (alle)  | Pull (bei Bedarf)        |
+| Negation            | Nur Keywords | Semantisches Verständnis |
+| Tool-Calling Server | ❌ Fehlt     | ✅ Implementieren        |
+| Intent-Routing      | ❌ Fehlt     | ✅ Heuristik oder ML     |
 
 ---
 
 ## Fazit
 
-Die aktuelle Architektur ist **nicht die Best Case**, aber auch nicht schlecht. 
+Die aktuelle Architektur ist **nicht die Best Case**, aber auch nicht schlecht.
 
 **Empfohlene Optimierungsreihenfolge:**
+
 1. **Sofort umsetzbar:** Negations-Erkennung in autoMemory.ts (30 Min)
 2. **Mittelfristig:** Tool-Calling im Server aktivieren (1 Tag)
 3. **Langfristig:** Intent-Routing für bessere Recall-Entscheidungen

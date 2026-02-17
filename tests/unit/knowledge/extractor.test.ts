@@ -3,10 +3,7 @@ import type { StoredMessage } from '../../../src/server/channels/messages/reposi
 import { KnowledgeExtractor } from '../../../src/server/knowledge/extractor';
 
 function wordCount(text: string): number {
-  return text
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean).length;
+  return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
 function buildMeetingTranscript(): StoredMessage[] {
@@ -144,8 +141,7 @@ describe('KnowledgeExtractor', () => {
         conversationId: 'conv-noise',
         seq: 4,
         role: 'user',
-        content:
-          'Regeln: 1. Niemals zu spät kommen. 2. Bei Meetings bleibst du in meiner Nähe.',
+        content: 'Regeln: 1. Niemals zu spät kommen. 2. Bei Meetings bleibst du in meiner Nähe.',
         platform: 'WebChat' as never,
         externalMsgId: null,
         senderName: null,

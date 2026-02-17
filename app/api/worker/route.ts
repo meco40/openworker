@@ -120,11 +120,12 @@ export async function POST(request: Request) {
     // Assign persona if selected
     if (body.personaId) {
       repo.assignPersona(task.id, body.personaId);
-      
+
       // Get persona name for activity log
       let personaName = body.personaId;
       try {
-        const { getPersonaRepository } = await import('../../../src/server/personas/personaRepository');
+        const { getPersonaRepository } =
+          await import('../../../src/server/personas/personaRepository');
         const personaRepo = getPersonaRepository();
         const persona = personaRepo.getPersona(body.personaId);
         if (persona) {
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
       } catch {
         // Persona not found, use ID as fallback
       }
-      
+
       repo.addActivity({
         taskId: task.id,
         type: 'persona_assigned',

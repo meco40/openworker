@@ -21,7 +21,9 @@ export function useConfig() {
   const [configPath, setConfigPath] = useState('~/.openclaw/openclaw.json');
   const [configSource, setConfigSource] = useState<'default' | 'file' | 'unknown'>('unknown');
   const [showDiffPreview, setShowDiffPreview] = useState(false);
-  const [pendingParsedConfig, setPendingParsedConfig] = useState<Record<string, unknown> | null>(null);
+  const [pendingParsedConfig, setPendingParsedConfig] = useState<Record<string, unknown> | null>(
+    null,
+  );
   const [diffItems, setDiffItems] = useState<DiffItem[]>([]);
   const [conflictRevision, setConflictRevision] = useState<string | null>(null);
 
@@ -202,18 +204,21 @@ export function useConfig() {
     setShowDiffPreview(true);
   }, [baselineConfig, parseCurrentConfig]);
 
-  const handleConfirmApply = useCallback(async (revisionOverride?: string) => {
-    if (!pendingParsedConfig) return;
-    const revisionToUse = revisionOverride || baselineRevision;
-    if (!revisionToUse) {
-      setStatusMessage({
-        tone: 'error',
-        text: 'Missing config revision. Reload config before applying changes.',
-      });
-      return;
-    }
-    await executeApply(pendingParsedConfig, revisionToUse);
-  }, [baselineRevision, executeApply, pendingParsedConfig]);
+  const handleConfirmApply = useCallback(
+    async (revisionOverride?: string) => {
+      if (!pendingParsedConfig) return;
+      const revisionToUse = revisionOverride || baselineRevision;
+      if (!revisionToUse) {
+        setStatusMessage({
+          tone: 'error',
+          text: 'Missing config revision. Reload config before applying changes.',
+        });
+        return;
+      }
+      await executeApply(pendingParsedConfig, revisionToUse);
+    },
+    [baselineRevision, executeApply, pendingParsedConfig],
+  );
 
   const updateRawConfig = useCallback((value: string) => {
     setConfig(value);

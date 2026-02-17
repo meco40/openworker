@@ -220,7 +220,10 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
     // Delete workspace folder if it exists
     const wsMgr = getWorkspaceManager();
-    wsMgr.deleteWorkspace(id, task.workspacePath ? { workspacePath: task.workspacePath } : undefined);
+    wsMgr.deleteWorkspace(
+      id,
+      task.workspacePath ? { workspacePath: task.workspacePath } : undefined,
+    );
 
     // Delete from database
     repo.deleteTask(id);

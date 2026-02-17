@@ -5,7 +5,11 @@ import BetterSqlite3 from 'better-sqlite3';
 import nextEnv from '@next/env';
 
 import { LEGACY_LOCAL_USER_ID } from '../src/server/auth/constants';
-import { createMem0ClientFromEnv, type Mem0Client, type Mem0MemoryRecord } from '../src/server/memory/mem0Client';
+import {
+  createMem0ClientFromEnv,
+  type Mem0Client,
+  type Mem0MemoryRecord,
+} from '../src/server/memory/mem0Client';
 
 const DEFAULT_MESSAGES_DB_PATH = '.local/messages.db';
 const MEMORY_PAGE_SIZE = 200;
@@ -355,9 +359,7 @@ async function backfillMem0Scopes(
   if (!client) return stats;
 
   const uniqueScopes = Array.from(
-    new Map(
-      scopes.map((scope) => [`${scope.targetUserId}::${scope.personaId}`, scope]),
-    ).values(),
+    new Map(scopes.map((scope) => [`${scope.targetUserId}::${scope.personaId}`, scope])).values(),
   );
 
   for (const scope of uniqueScopes) {
@@ -371,7 +373,9 @@ async function backfillMem0Scopes(
       stats.sourceMemories += sourceMemories.length;
       stats.targetMemoriesBefore += targetMemories.length;
 
-      const existingKeys = new Set(targetMemories.map((row) => normalizeMemoryContent(row.content)));
+      const existingKeys = new Set(
+        targetMemories.map((row) => normalizeMemoryContent(row.content)),
+      );
       for (const source of sourceMemories) {
         const key = normalizeMemoryContent(source.content);
         if (!key || existingKeys.has(key)) {
@@ -396,9 +400,7 @@ async function backfillMem0Scopes(
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      stats.errors.push(
-        `[${scope.targetUserId}/${scope.personaId}] ${message}`,
-      );
+      stats.errors.push(`[${scope.targetUserId}/${scope.personaId}] ${message}`);
     }
   }
 

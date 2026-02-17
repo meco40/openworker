@@ -9,7 +9,10 @@ import {
 } from './src/server/memory/runtime';
 import { getRoomOrchestrator } from './src/server/rooms/runtime';
 import { shouldRunRooms } from './src/server/rooms/runtimeRole';
-import { startKnowledgeRuntimeLoop, stopKnowledgeRuntimeLoop } from './src/server/knowledge/runtime';
+import {
+  startKnowledgeRuntimeLoop,
+  stopKnowledgeRuntimeLoop,
+} from './src/server/knowledge/runtime';
 
 const require = createRequire(import.meta.url);
 const { loadEnvConfig } = require('@next/env') as {

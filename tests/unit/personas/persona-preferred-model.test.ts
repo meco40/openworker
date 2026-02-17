@@ -18,10 +18,10 @@ describe('persona model binding persistence', () => {
     expect((loaded as { preferredModelId?: string | null }).preferredModelId).toBe('gpt-4o-mini');
     expect((loaded as { modelHubProfileId?: string | null }).modelHubProfileId).toBe('team-a');
 
-    repo.updatePersona(
-      created.id,
-      { preferredModelId: 'claude-3.7-sonnet', modelHubProfileId: 'team-b' } as never,
-    );
+    repo.updatePersona(created.id, {
+      preferredModelId: 'claude-3.7-sonnet',
+      modelHubProfileId: 'team-b',
+    } as never);
     const updated = repo.getPersona(created.id);
     expect((updated as { preferredModelId?: string | null }).preferredModelId).toBe(
       'claude-3.7-sonnet',

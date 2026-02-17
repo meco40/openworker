@@ -48,25 +48,19 @@ export function fuseRecallSources(sources: RecallSources): string | null {
       return `- "${truncate(msg.content, 400)}" — ${dateStr}`;
     });
     const chatBlock = chatLines.join('\n');
-    sections.push(
-      `[Chat History]\n${truncate(chatBlock, SOURCE_BUDGETS.chat)}`,
-    );
+    sections.push(`[Chat History]\n${truncate(chatBlock, SOURCE_BUDGETS.chat)}`);
   }
 
   // ── Knowledge ────────────────────────────────────
   const knowledgeText = sources.knowledge?.trim() || '';
   if (knowledgeText) {
-    sections.push(
-      `[Knowledge]\n${truncate(knowledgeText, SOURCE_BUDGETS.knowledge)}`,
-    );
+    sections.push(`[Knowledge]\n${truncate(knowledgeText, SOURCE_BUDGETS.knowledge)}`);
   }
 
   // ── Memory (Mem0) ────────────────────────────────
   const memoryText = sources.memory?.trim() || '';
   if (memoryText) {
-    sections.push(
-      `[Memory]\n${truncate(memoryText, SOURCE_BUDGETS.memory)}`,
-    );
+    sections.push(`[Memory]\n${truncate(memoryText, SOURCE_BUDGETS.memory)}`);
   }
 
   if (sections.length === 0) return null;

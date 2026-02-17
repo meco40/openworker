@@ -168,9 +168,15 @@ describe('GET /api/stats/prompt-logs', () => {
     });
 
     const { GET } = await import('../../../app/api/stats/prompt-logs/route');
-    const todayResponse = await GET(new Request('http://localhost/api/stats/prompt-logs?preset=today'));
-    const weekResponse = await GET(new Request('http://localhost/api/stats/prompt-logs?preset=week'));
-    const monthResponse = await GET(new Request('http://localhost/api/stats/prompt-logs?preset=month'));
+    const todayResponse = await GET(
+      new Request('http://localhost/api/stats/prompt-logs?preset=today'),
+    );
+    const weekResponse = await GET(
+      new Request('http://localhost/api/stats/prompt-logs?preset=week'),
+    );
+    const monthResponse = await GET(
+      new Request('http://localhost/api/stats/prompt-logs?preset=month'),
+    );
 
     const todayData = await todayResponse.json();
     const weekData = await weekResponse.json();

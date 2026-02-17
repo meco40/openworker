@@ -29,9 +29,7 @@ export const LogsHeader: React.FC<LogsHeaderProps> = ({ isConnected, totalCount 
         <p className="mt-0.5 text-sm text-zinc-500">
           Real-time telemetry and bridge activity stream.
           {totalCount > 0 && (
-            <span className="ml-2 text-zinc-600">
-              {totalCount.toLocaleString()} total entries
-            </span>
+            <span className="ml-2 text-zinc-600">{totalCount.toLocaleString()} total entries</span>
           )}
         </p>
       </div>

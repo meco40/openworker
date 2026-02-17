@@ -1,16 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createTaskMock, processQueueMock, getConversationMock, getDefaultWebChatConversationMock, assignPersonaMock, addActivityMock, getPersonaMock, getTaskMock } =
-  vi.hoisted(() => ({
-    createTaskMock: vi.fn(),
-    processQueueMock: vi.fn().mockImplementation(async () => {}),
-    getConversationMock: vi.fn(),
-    getDefaultWebChatConversationMock: vi.fn(),
-    assignPersonaMock: vi.fn(),
-    addActivityMock: vi.fn(),
-    getPersonaMock: vi.fn(),
-    getTaskMock: vi.fn(),
-  }));
+const {
+  createTaskMock,
+  processQueueMock,
+  getConversationMock,
+  getDefaultWebChatConversationMock,
+  assignPersonaMock,
+  addActivityMock,
+  getPersonaMock,
+  getTaskMock,
+} = vi.hoisted(() => ({
+  createTaskMock: vi.fn(),
+  processQueueMock: vi.fn().mockImplementation(async () => {}),
+  getConversationMock: vi.fn(),
+  getDefaultWebChatConversationMock: vi.fn(),
+  assignPersonaMock: vi.fn(),
+  addActivityMock: vi.fn(),
+  getPersonaMock: vi.fn(),
+  getTaskMock: vi.fn(),
+}));
 
 vi.mock('../../../src/server/worker/workerRepository', () => ({
   getWorkerRepository: () => ({

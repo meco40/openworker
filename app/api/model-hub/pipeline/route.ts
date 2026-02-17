@@ -123,8 +123,7 @@ export async function PUT(request: Request) {
         return NextResponse.json(
           {
             ok: false,
-            error:
-              'reasoningEffort must be one of: off, minimal, low, medium, high, xhigh.',
+            error: 'reasoningEffort must be one of: off, minimal, low, medium, high, xhigh.',
           },
           { status: 400 },
         );

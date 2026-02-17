@@ -154,26 +154,26 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 
 ## Optionale Umgebungsvariablen
 
-| Variable              | Beschreibung                                               |
-| --------------------- | ---------------------------------------------------------- |
-| `GEMINI_API_KEY`      | Google Gemini API Key (erforderlich für Memory-Embeddings) |
-| `OPENAI_API_KEY`      | OpenAI API Key                                             |
-| `OPENAI_OAUTH_CLIENT_ID` | Optional: eigene OpenAI Codex OAuth Client ID (Standard nutzt öffentliche Codex-App-ID) |
+| Variable                    | Beschreibung                                                                            |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| `GEMINI_API_KEY`            | Google Gemini API Key (erforderlich für Memory-Embeddings)                              |
+| `OPENAI_API_KEY`            | OpenAI API Key                                                                          |
+| `OPENAI_OAUTH_CLIENT_ID`    | Optional: eigene OpenAI Codex OAuth Client ID (Standard nutzt öffentliche Codex-App-ID) |
 | `OPENAI_OAUTH_REDIRECT_URI` | Optional: Redirect URI für Codex OAuth (Default: `http://localhost:1455/auth/callback`) |
-| `ANTHROPIC_API_KEY`   | Anthropic API Key                                          |
-| `XAI_API_KEY`         | xAI API Key                                                |
-| `MISTRAL_API_KEY`     | Mistral API Key                                            |
-| `COHERE_API_KEY`      | Cohere API Key                                             |
-| `OPENROUTER_API_KEY`  | OpenRouter API Key                                         |
-| `Z_AI_API_KEY`        | Z.AI API Key                                               |
-| `KIMI_API_KEY`        | Kimi/Moonshot API Key                                      |
-| `BYTEDANCE_API_KEY`   | ByteDance ModelArk API Key                                 |
-| `GITHUB_TOKEN`        | GitHub Token für GitHub-Skills                             |
-| `MESSAGES_DB_PATH`    | Pfad zur SQLite-Datenbank (Standard: `.local/messages.db`) |
-| `MEMORY_DB_PATH`      | Pfad zur Memory-Datenbank                                  |
-| `WHATSAPP_BRIDGE_URL` | WhatsApp Bridge URL                                        |
-| `IMESSAGE_BRIDGE_URL` | iMessage Bridge URL                                        |
-| `APP_URL`             | Öffentliche App-URL (für Security-Checks)                  |
+| `ANTHROPIC_API_KEY`         | Anthropic API Key                                                                       |
+| `XAI_API_KEY`               | xAI API Key                                                                             |
+| `MISTRAL_API_KEY`           | Mistral API Key                                                                         |
+| `COHERE_API_KEY`            | Cohere API Key                                                                          |
+| `OPENROUTER_API_KEY`        | OpenRouter API Key                                                                      |
+| `Z_AI_API_KEY`              | Z.AI API Key                                                                            |
+| `KIMI_API_KEY`              | Kimi/Moonshot API Key                                                                   |
+| `BYTEDANCE_API_KEY`         | ByteDance ModelArk API Key                                                              |
+| `GITHUB_TOKEN`              | GitHub Token für GitHub-Skills                                                          |
+| `MESSAGES_DB_PATH`          | Pfad zur SQLite-Datenbank (Standard: `.local/messages.db`)                              |
+| `MEMORY_DB_PATH`            | Pfad zur Memory-Datenbank                                                               |
+| `WHATSAPP_BRIDGE_URL`       | WhatsApp Bridge URL                                                                     |
+| `IMESSAGE_BRIDGE_URL`       | iMessage Bridge URL                                                                     |
+| `APP_URL`                   | Öffentliche App-URL (für Security-Checks)                                               |
 
 ---
 

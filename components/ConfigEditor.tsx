@@ -1,20 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
-import {
-  getFieldMetadata,
-  mapValidationMessageToFieldPath,
-} from '../src/shared/config/fieldMetadata';
-import {
-  hasHighRiskDiff,
-  summarizeConfigDiff,
-  type DiffItem,
-} from '../src/shared/config/diffSummary';
-import {
-  ALLOWED_UI_DEFAULT_VIEWS,
-  ALLOWED_UI_DENSITIES,
-  ALLOWED_UI_TIME_FORMATS,
-} from '../src/shared/config/uiSchema';
+import React, { useState, useCallback } from 'react';
 import { useConfig } from './config/hooks';
 import {
   ConfigHeader,
@@ -30,13 +16,6 @@ import {
   UITab,
   AdvancedTab,
 } from './config/components';
-import {
-  readString,
-  readNumber,
-  getOrCreateObject,
-  normalizeHostFromBind,
-  normalizeBindFromHost,
-} from './config/utils';
 import type { ConfigTab } from './config/types';
 
 // Re-exports for backward compatibility
@@ -51,7 +30,6 @@ const ConfigEditor: React.FC = () => {
 
   const {
     config,
-    baselineConfig,
     baselineRevision,
     hasChanges,
     isLoading,
@@ -59,7 +37,6 @@ const ConfigEditor: React.FC = () => {
     validationError,
     validationFieldPath,
     statusMessage,
-    setStatusMessage,
     compatibilityWarnings,
     configPath,
     configSource,
@@ -83,18 +60,6 @@ const ConfigEditor: React.FC = () => {
 
   const canApply = hasChanges && !isSaving && !isLoading && !validationError;
   const simpleModeDisabled = activeTab !== 'advanced' && parsedConfig === null;
-
-  // Gateway computed values
-  const gateway = parsedConfig?.gateway && typeof parsedConfig.gateway === 'object'
-    ? parsedConfig.gateway as Record<string, unknown>
-    : {};
-  const bindValue = readString(
-    gateway,
-    'bind',
-    normalizeBindFromHost(readString(gateway, 'host', '0.0.0.0')),
-  );
-  const bindPreset = bindValue === 'loopback' || bindValue === 'all' ? bindValue : 'custom';
-  const hostValue = readString(gateway, 'host', normalizeHostFromBind(bindValue));
 
   return (
     <div className="flex h-full flex-col space-y-4">
@@ -180,11 +145,7 @@ const ConfigEditor: React.FC = () => {
           )}
 
           {activeTab === 'advanced' && (
-            <AdvancedTab
-              config={config}
-              isLoading={isLoading}
-              onChange={updateRawConfig}
-            />
+            <AdvancedTab config={config} isLoading={isLoading} onChange={updateRawConfig} />
           )}
         </div>
       </div>

@@ -23,12 +23,14 @@
 ## Scope Split
 
 ### Now (v3 execution scope)
+
 - Security-Contract-Hardening fuer Single-Principal.
 - Entkopplung fachfremder Flag-Abhaengigkeiten.
 - Konsistente Identity-Pfade in Channels/Automation/WS.
 - Terminologie-Cleanup.
 
 ### Later (explicitly deferred)
+
 - Login verpflichtend aktivieren.
 - Principal-Only Login Enforcement.
 - Datenmigration von `legacy-local-user` auf finale Principal-ID.
@@ -38,6 +40,7 @@
 ### Task 1: Security Contract Freeze (Auth + user_id)
 
 **Files:**
+
 - Modify: `tests/unit/auth/user-context.test.ts`
 - Modify: `tests/integration/channels/state-route.test.ts`
 - Modify: `tests/integration/channels/inbox-route.test.ts`
@@ -89,6 +92,7 @@ git commit -m "test: freeze single-principal auth and user_id security contracts
 ### Task 2: Principal Fallback Helper (no login activation)
 
 **Files:**
+
 - Create: `src/server/auth/principal.ts`
 - Modify: `src/server/auth/userContext.ts`
 - Modify: `src/server/automation/httpAuth.ts`
@@ -158,6 +162,7 @@ git commit -m "refactor: introduce principal fallback helper without changing au
 ### Task 3: Decouple Automation Identity from Chat Session Flag
 
 **Files:**
+
 - Modify: `src/server/automation/httpAuth.ts`
 - Modify: `app/api/automations/route.ts`
 - Modify: `app/api/automations/[id]/route.ts`
@@ -209,6 +214,7 @@ git commit -m "refactor: decouple automation auth path from chat session feature
 ### Task 4: Channels + Gateway Identity Consistency (REST and WS)
 
 **Files:**
+
 - Modify: `app/api/channels/state/route.ts`
 - Modify: `app/api/channels/messages/route.ts`
 - Modify: `app/api/channels/conversations/route.ts`
@@ -259,6 +265,7 @@ git commit -m "refactor: align channels and ws identity handling under single-pr
 ### Task 5: Low-Risk Single-User Terminology Cleanup
 
 **Files:**
+
 - Modify: `components/ProfileView.tsx`
 - Modify: `components/Sidebar.tsx`
 - Modify: `src/modules/app-shell/components/AppShellViewContent.tsx`
@@ -308,6 +315,7 @@ git commit -m "docs: remove remaining team terminology from active and reference
 ### Task 6: Deferred Pack (document only, do not implement now)
 
 **Files:**
+
 - Create: `docs/plans/2026-02-15-single-principal-login-activation-deferred.md`
 - Modify: `docs/SECURITY_SYSTEM.md`
 - Modify: `docs/SESSION_MANAGEMENT_IMPLEMENTATION.md`

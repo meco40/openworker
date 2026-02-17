@@ -28,7 +28,9 @@ describe('mem0Client retry', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(errorResponse(500, 'connection pool exhausted'))
-      .mockResolvedValueOnce(okResponse([{ id: 'mem-1', memory: 'ok', score: null, metadata: {} }]));
+      .mockResolvedValueOnce(
+        okResponse([{ id: 'mem-1', memory: 'ok', score: null, metadata: {} }]),
+      );
 
     const client = createMem0Client(BASE_CONFIG, fetchMock as unknown as typeof fetch);
 
@@ -48,7 +50,9 @@ describe('mem0Client retry', () => {
       .fn()
       .mockResolvedValueOnce(errorResponse(502, 'bad gateway'))
       .mockResolvedValueOnce(errorResponse(503, 'service unavailable'))
-      .mockResolvedValueOnce(okResponse([{ id: 'mem-2', memory: 'ok', score: null, metadata: {} }]));
+      .mockResolvedValueOnce(
+        okResponse([{ id: 'mem-2', memory: 'ok', score: null, metadata: {} }]),
+      );
 
     const client = createMem0Client(BASE_CONFIG, fetchMock as unknown as typeof fetch);
 
@@ -64,9 +68,7 @@ describe('mem0Client retry', () => {
   });
 
   it('does not retry client errors like HTTP 400 or 404', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(errorResponse(400, 'bad request'));
+    const fetchMock = vi.fn().mockResolvedValueOnce(errorResponse(400, 'bad request'));
 
     const client = createMem0Client(BASE_CONFIG, fetchMock as unknown as typeof fetch);
 
@@ -85,9 +87,7 @@ describe('mem0Client retry', () => {
   it('gives up after max retries and throws the last error', async () => {
     const fetchMock = vi
       .fn()
-      .mockImplementation(() =>
-        Promise.resolve(errorResponse(500, 'pool exhausted')),
-      );
+      .mockImplementation(() => Promise.resolve(errorResponse(500, 'pool exhausted')));
 
     const client = createMem0Client(BASE_CONFIG, fetchMock as unknown as typeof fetch);
 
@@ -105,9 +105,7 @@ describe('mem0Client retry', () => {
   });
 
   it('defaults to zero retries when maxRetries is not configured', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(errorResponse(500, 'pool exhausted'));
+    const fetchMock = vi.fn().mockResolvedValueOnce(errorResponse(500, 'pool exhausted'));
 
     const client = createMem0Client(
       { baseUrl: 'http://mem0.local', apiPath: '/v1' },

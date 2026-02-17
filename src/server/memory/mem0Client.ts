@@ -679,9 +679,7 @@ export function createMem0ClientFromEnv(
     : DEFAULT_TIMEOUT_MS;
 
   const maxRetriesRaw = Number(env.MEM0_MAX_RETRIES ?? 3);
-  const maxRetries = Number.isFinite(maxRetriesRaw)
-    ? Math.max(0, Math.floor(maxRetriesRaw))
-    : 3;
+  const maxRetries = Number.isFinite(maxRetriesRaw) ? Math.max(0, Math.floor(maxRetriesRaw)) : 3;
 
   const retryDelayRaw = Number(env.MEM0_RETRY_BASE_DELAY_MS ?? DEFAULT_RETRY_BASE_DELAY_MS);
   const retryBaseDelayMs = Number.isFinite(retryDelayRaw)

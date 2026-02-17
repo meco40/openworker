@@ -1,6 +1,5 @@
 ---
-
-description: "Task list template for feature implementation"
+description: 'Task list template for feature implementation'
 ---
 
 # Tasks: [FEATURE NAME]
@@ -27,21 +26,21 @@ description: "Task list template for feature implementation"
 - Use the existing feature location instead of introducing new top-level stacks
 - Always include exact file paths from this repository in every task
 
-<!-- 
+<!--
   ============================================================================
   IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
-  
+
   The /speckit.tasks command MUST replace these with actual tasks based on:
   - User stories from spec.md (with their priorities P1, P2, P3...)
   - Feature requirements from plan.md
   - Entities from data-model.md
   - Endpoints from contracts/
-  
+
   Tasks MUST be organized by user story so each story can be:
   - Implemented independently
   - Tested independently
   - Delivered as an MVP increment
-  
+
   DO NOT keep these sample tasks in the generated tasks.md file.
   ============================================================================
 -->

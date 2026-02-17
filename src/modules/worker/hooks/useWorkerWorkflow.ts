@@ -23,16 +23,19 @@ export function useWorkerWorkflow(taskId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const normalizeWorkflow = useCallback((input: WorkerWorkflowState | null): WorkerWorkflowState | null => {
-    if (!input) return null;
-    return {
-      ...input,
-      nodes: input.nodes.map((node) => ({
-        ...node,
-        status: node.status || 'pending',
-      })),
-    };
-  }, []);
+  const normalizeWorkflow = useCallback(
+    (input: WorkerWorkflowState | null): WorkerWorkflowState | null => {
+      if (!input) return null;
+      return {
+        ...input,
+        nodes: input.nodes.map((node) => ({
+          ...node,
+          status: node.status || 'pending',
+        })),
+      };
+    },
+    [],
+  );
 
   const refresh = useCallback(async () => {
     try {

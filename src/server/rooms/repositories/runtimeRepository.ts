@@ -1,8 +1,5 @@
 import { toMemberRuntime } from '../roomRowMappers';
-import type {
-  RoomMemberRuntime,
-  UpsertMemberRuntimeInput,
-} from '../types';
+import type { RoomMemberRuntime, UpsertMemberRuntimeInput } from '../types';
 import { BaseRepository } from './baseRepository';
 
 /**

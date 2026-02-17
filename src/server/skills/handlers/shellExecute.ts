@@ -16,9 +16,29 @@ export async function shellExecuteHandler(args: Record<string, unknown>) {
   const command = String(args.command || '').trim();
   if (!command) throw new Error('shell_execute requires command.');
 
-  const blocked =
-    /(rm\s+-rf|del\s+\/f\s+\/s\s+\/q|shutdown|reboot|mkfs|format(\s+[a-z]:)?|powershell\s+-enc|reg\s+delete|sc\s+stop|diskpart|bcdedit|invoke-expression|iex\b|:\(\)\s*\{\s*:\|:&\s*\};:|dd\s+if=|cipher\s+\/w)/i;
-  if (blocked.test(command)) {
+  const loweredCommand = command.toLowerCase();
+  const blockedTokens = [
+    'rm -rf',
+    'shutdown',
+    'reboot',
+    'mkfs',
+    'powershell -enc',
+    'reg delete',
+    'sc stop',
+    'diskpart',
+    'bcdedit',
+    'invoke-expression',
+    ':(){',
+    'dd if=',
+    'cipher /w',
+  ];
+
+  const hasBlockedToken = blockedTokens.some((token) => loweredCommand.includes(token));
+  const isForcedWindowsDelete = /\bdel\s+\/f\s+\/s\s+\/q\b/i.test(command);
+  const isFormatCommand = /\bformat\b/i.test(command);
+  const isIexWord = /\biex\b/i.test(command);
+
+  if (hasBlockedToken || isForcedWindowsDelete || isFormatCommand || isIexWord) {
     throw new Error('Command blocked by security policy.');
   }
 

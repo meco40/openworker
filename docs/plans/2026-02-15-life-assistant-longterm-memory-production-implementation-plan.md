@@ -54,25 +54,31 @@
 ### Task 1: Foundation Config and Feature Flags (TDD)
 
 **Files:**
+
 - Create: `src/server/knowledge/config.ts`
 - Create: `tests/unit/knowledge/config.test.ts`
 
 **Step 1: Write the failing tests**
+
 - Add tests for defaults and env parsing for all `KNOWLEDGE_*` flags.
 - Validate bounds for numeric settings (`max_context_tokens`, `ingest_interval_ms`).
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/unit/knowledge/config.test.ts`
 - Expected: FAIL because module does not exist.
 
 **Step 3: Write minimal implementation**
+
 - Implement typed config resolver with safe defaults and clamping.
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/unit/knowledge/config.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add src/server/knowledge/config.ts tests/unit/knowledge/config.test.ts`
 - `git commit -m "feat: add knowledge config and feature flags"`
 
@@ -81,12 +87,14 @@
 ### Task 2: Structured Knowledge Repository + Migrations (TDD)
 
 **Files:**
+
 - Create: `src/server/knowledge/repository.ts`
 - Create: `src/server/knowledge/sqliteKnowledgeRepository.ts`
 - Create: `src/server/knowledge/runtime.ts`
 - Create: `tests/unit/knowledge/sqlite-knowledge-repository.test.ts`
 
 **Step 1: Write the failing tests**
+
 - Test schema creation and CRUD for:
   1. `knowledge_ingestion_checkpoints`
   2. `knowledge_episodes`
@@ -95,10 +103,12 @@
 - Test idempotent migrations across repeated initializations.
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/unit/knowledge/sqlite-knowledge-repository.test.ts`
 - Expected: FAIL (missing files).
 
 **Step 3: Write minimal implementation**
+
 - Implement repository with `KNOWLEDGE_DB_PATH || MESSAGES_DB_PATH`.
 - Add indexes:
   - by `user_id/persona_id/updated_at`,
@@ -106,10 +116,12 @@
   - by `topic_key/date`.
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/unit/knowledge/sqlite-knowledge-repository.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add src/server/knowledge/repository.ts src/server/knowledge/sqliteKnowledgeRepository.ts src/server/knowledge/runtime.ts tests/unit/knowledge/sqlite-knowledge-repository.test.ts`
 - `git commit -m "feat: add sqlite knowledge repository and runtime"`
 
@@ -118,28 +130,34 @@
 ### Task 3: Transcript Cursor and Idempotent Ingestion Window (TDD)
 
 **Files:**
+
 - Create: `src/server/knowledge/ingestionCursor.ts`
 - Create: `tests/unit/knowledge/ingestion-cursor.test.ts`
 - Modify: `src/server/channels/messages/repository.ts` (if typed helpers are needed)
 
 **Step 1: Write the failing tests**
+
 - Verify "fetch messages after last processed seq" behavior.
 - Verify checkpoint update is atomic and idempotent.
 - Verify no duplicate processing on repeated runs.
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/unit/knowledge/ingestion-cursor.test.ts`
 - Expected: FAIL.
 
 **Step 3: Write minimal implementation**
+
 - Build cursor logic per `(conversation_id, persona_id)`.
 - Ensure deterministic ordering by `seq`.
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/unit/knowledge/ingestion-cursor.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add src/server/knowledge/ingestionCursor.ts src/server/channels/messages/repository.ts tests/unit/knowledge/ingestion-cursor.test.ts`
 - `git commit -m "feat: add idempotent knowledge ingestion cursor"`
 
@@ -148,11 +166,13 @@
 ### Task 4: Multi-Artifact Extractor (Facts, Teaser, Episode, Meeting Ledger) (TDD)
 
 **Files:**
+
 - Create: `src/server/knowledge/extractor.ts`
 - Create: `src/server/knowledge/prompts.ts`
 - Create: `tests/unit/knowledge/extractor.test.ts`
 
 **Step 1: Write the failing tests**
+
 - Input: a synthetic meeting transcript.
 - Assert extractor returns:
   1. facts (short),
@@ -162,18 +182,22 @@
 - Assert fallback extractor still returns deterministic minimal outputs if model call fails.
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/unit/knowledge/extractor.test.ts`
 - Expected: FAIL.
 
 **Step 3: Write minimal implementation**
+
 - Implement model-driven extraction with strict JSON schema parse.
 - Add deterministic fallback parser.
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/unit/knowledge/extractor.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add src/server/knowledge/extractor.ts src/server/knowledge/prompts.ts tests/unit/knowledge/extractor.test.ts`
 - `git commit -m "feat: add knowledge extractor for facts episodes and meeting ledger"`
 
@@ -182,29 +206,35 @@
 ### Task 5: Extend Memory Store Metadata for Evidence Linking (TDD)
 
 **Files:**
+
 - Modify: `src/server/memory/service.ts`
 - Modify: `src/server/memory/mem0Client.ts`
 - Modify: `tests/unit/memory/memory-service.test.ts`
 - Modify: `tests/unit/memory/mem0-client.test.ts`
 
 **Step 1: Write the failing tests**
+
 - Add tests that `store(...)` can persist additional metadata:
   - `topicKey`, `conversationId`, `sourceSeqStart`, `sourceSeqEnd`, `artifactType`.
 - Assert metadata survives through Mem0 client payload.
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/unit/memory/memory-service.test.ts tests/unit/memory/mem0-client.test.ts`
 - Expected: FAIL for missing metadata propagation.
 
 **Step 3: Write minimal implementation**
+
 - Add optional metadata argument to memory store path.
 - Preserve backward compatibility for existing call sites.
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/unit/memory/memory-service.test.ts tests/unit/memory/mem0-client.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add src/server/memory/service.ts src/server/memory/mem0Client.ts tests/unit/memory/memory-service.test.ts tests/unit/memory/mem0-client.test.ts`
 - `git commit -m "feat: support evidence metadata in mem0 memory writes"`
 
@@ -213,11 +243,13 @@
 ### Task 6: Knowledge Ingestion Service (Async Pipeline) (TDD)
 
 **Files:**
+
 - Create: `src/server/knowledge/ingestionService.ts`
 - Create: `tests/unit/knowledge/ingestion-service.test.ts`
 - Modify: `src/server/knowledge/runtime.ts`
 
 **Step 1: Write the failing tests**
+
 - Verify each run:
   1. reads unprocessed message windows,
   2. calls extractor,
@@ -226,18 +258,22 @@
 - Verify dedupe and retry behavior.
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/unit/knowledge/ingestion-service.test.ts`
 - Expected: FAIL.
 
 **Step 3: Write minimal implementation**
+
 - Implement orchestration and error handling with retry-safe writes.
 - Ensure one failed conversation does not stop entire run.
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/unit/knowledge/ingestion-service.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add src/server/knowledge/ingestionService.ts src/server/knowledge/runtime.ts tests/unit/knowledge/ingestion-service.test.ts`
 - `git commit -m "feat: add async knowledge ingestion service"`
 
@@ -246,28 +282,34 @@
 ### Task 7: Scheduler Integration for 10-Minute Ingestion (TDD)
 
 **Files:**
+
 - Modify: `scheduler.ts`
 - Create: `src/server/knowledge/runtimeLoop.ts`
 - Create: `tests/unit/knowledge/runtime-loop.test.ts`
 
 **Step 1: Write the failing tests**
+
 - Verify periodic invocation by interval.
 - Verify graceful shutdown handling.
 - Verify loop respects feature flags.
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/unit/knowledge/runtime-loop.test.ts`
 - Expected: FAIL.
 
 **Step 3: Write minimal implementation**
+
 - Start knowledge runtime loop in scheduler bootstrap.
 - Keep live chat path non-blocking.
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/unit/knowledge/runtime-loop.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add scheduler.ts src/server/knowledge/runtimeLoop.ts tests/unit/knowledge/runtime-loop.test.ts`
 - `git commit -m "feat: run knowledge ingestion loop in scheduler"`
 
@@ -276,10 +318,12 @@
 ### Task 8: Query Planner + Time/Entity Resolution (TDD)
 
 **Files:**
+
 - Create: `src/server/knowledge/queryPlanner.ts`
 - Create: `tests/unit/knowledge/query-planner.test.ts`
 
 **Step 1: Write the failing tests**
+
 - Parse intents like:
   1. "meeting mit andreas vor 6 monaten",
   2. "was haben wir ausgehandelt",
@@ -291,18 +335,22 @@
   - `detailDepth`.
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/unit/knowledge/query-planner.test.ts`
 - Expected: FAIL.
 
 **Step 3: Write minimal implementation**
+
 - Rule-based parser with deterministic output.
 - Keep external NLP dependency out of v1 (YAGNI).
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/unit/knowledge/query-planner.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add src/server/knowledge/queryPlanner.ts tests/unit/knowledge/query-planner.test.ts`
 - `git commit -m "feat: add deterministic knowledge query planner"`
 
@@ -311,12 +359,14 @@
 ### Task 9: Retrieval Service with Token Budget and Evidence Pack (TDD)
 
 **Files:**
+
 - Create: `src/server/knowledge/retrievalService.ts`
 - Create: `src/server/knowledge/tokenBudget.ts`
 - Create: `tests/unit/knowledge/retrieval-service.test.ts`
 - Create: `tests/integration/knowledge/meeting-retrieval.test.ts`
 
 **Step 1: Write the failing tests**
+
 - Assert staged retrieval order:
   1. meeting ledger,
   2. teaser/episode memories,
@@ -325,10 +375,12 @@
 - Assert answer context includes evidence references.
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/unit/knowledge/retrieval-service.test.ts tests/integration/knowledge/meeting-retrieval.test.ts`
 - Expected: FAIL.
 
 **Step 3: Write minimal implementation**
+
 - Implement retrieval stages with budget pruning.
 - Return compact context sections:
   - `AnswerDraft`,
@@ -337,10 +389,12 @@
   - `Evidence`.
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/unit/knowledge/retrieval-service.test.ts tests/integration/knowledge/meeting-retrieval.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add src/server/knowledge/retrievalService.ts src/server/knowledge/tokenBudget.ts tests/unit/knowledge/retrieval-service.test.ts tests/integration/knowledge/meeting-retrieval.test.ts`
 - `git commit -m "feat: add budgeted multi-stage knowledge retrieval service"`
 
@@ -349,11 +403,13 @@
 ### Task 10: Integrate Knowledge Retrieval into Chat Recall Path (TDD)
 
 **Files:**
+
 - Modify: `src/server/channels/messages/service.ts`
 - Modify: `tests/unit/channels/message-service-memory-recall.test.ts`
 - Create: `tests/unit/channels/message-service-knowledge-recall.test.ts`
 
 **Step 1: Write the failing tests**
+
 - Test scenario:
   1. midday sauna conversation stored as episode + facts,
   2. evening query "du warst ja in der sauna" returns details, not only fact.
@@ -361,19 +417,23 @@
 - Test fallback to existing recall if knowledge layer disabled.
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/unit/channels/message-service-memory-recall.test.ts tests/unit/channels/message-service-knowledge-recall.test.ts`
 - Expected: FAIL.
 
 **Step 3: Write minimal implementation**
+
 - Call `KnowledgeRetrievalService` from `buildRecallContext(...)`.
 - Keep legacy memory recall as fallback path.
 - Expand trigger logic for plural/continuation patterns.
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/unit/channels/message-service-memory-recall.test.ts tests/unit/channels/message-service-knowledge-recall.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add src/server/channels/messages/service.ts tests/unit/channels/message-service-memory-recall.test.ts tests/unit/channels/message-service-knowledge-recall.test.ts`
 - `git commit -m "feat: integrate structured knowledge retrieval into chat recall"`
 
@@ -382,28 +442,34 @@
 ### Task 11: Backfill and Export Operations (TDD + Script Validation)
 
 **Files:**
+
 - Create: `scripts/knowledge-backfill.ts`
 - Create: `scripts/transcript-export.ts`
 - Create: `tests/integration/knowledge/knowledge-backfill.test.ts`
 - Modify: `package.json`
 
 **Step 1: Write the failing tests**
+
 - Backfill test for historical messages over large seq ranges.
 - Export test for markdown transcript bundles.
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/integration/knowledge/knowledge-backfill.test.ts`
 - Expected: FAIL.
 
 **Step 3: Write minimal implementation**
+
 - Script 1: backfill from existing messages and populate knowledge layers.
 - Script 2: export immutable transcript windows to Markdown for backup/legal archive.
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/integration/knowledge/knowledge-backfill.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add scripts/knowledge-backfill.ts scripts/transcript-export.ts tests/integration/knowledge/knowledge-backfill.test.ts package.json`
 - `git commit -m "feat: add knowledge backfill and transcript export scripts"`
 
@@ -412,6 +478,7 @@
 ### Task 12: Observability, Health Checks, and Production Gates (TDD)
 
 **Files:**
+
 - Modify: `app/api/control-plane/metrics/route.ts`
 - Modify: `src/commands/health/checks/coreChecks.ts`
 - Modify: `src/commands/health/checkHelpers.ts`
@@ -421,6 +488,7 @@
 - Modify: `docs/DEPLOYMENT_OPERATIONS.md`
 
 **Step 1: Write the failing tests**
+
 - Add tests for new metrics:
   - ingestion lag,
   - episode count,
@@ -429,18 +497,22 @@
 - Add health test to fail when lag exceeds threshold.
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/integration/control-plane-metrics-route.test.ts tests/unit/knowledge/health-checks.test.ts`
 - Expected: FAIL.
 
 **Step 3: Write minimal implementation**
+
 - Add runtime metrics and health checks.
 - Document runbook for rollback and incident response.
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/integration/control-plane-metrics-route.test.ts tests/unit/knowledge/health-checks.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add app/api/control-plane/metrics/route.ts src/commands/health/checks/coreChecks.ts src/commands/health/checkHelpers.ts tests/integration/control-plane-metrics-route.test.ts tests/unit/knowledge/health-checks.test.ts docs/MEMORY_SYSTEM.md docs/DEPLOYMENT_OPERATIONS.md`
 - `git commit -m "feat: add production observability and health gates for knowledge layer"`
 
@@ -449,6 +521,7 @@
 ### Task 13: Security, Privacy, and Data Lifecycle Controls (TDD)
 
 **Files:**
+
 - Create: `src/server/knowledge/securityPolicy.ts`
 - Create: `src/server/knowledge/retentionService.ts`
 - Modify: `app/api/memory/route.ts`
@@ -458,25 +531,30 @@
 - Modify: `docs/DEPLOYMENT_OPERATIONS.md`
 
 **Step 1: Write the failing tests**
+
 - Add tests for:
   1. tenant isolation enforcement by `user_id` + `persona_id` in every read/write path,
   2. right-to-be-forgotten cascade delete across ledger + semantic + transcript-derived artifacts,
   3. retention policy pruning behavior without breaking source-of-truth integrity.
 
 **Step 2: Run test to verify it fails**
+
 - Run: `npm run test -- tests/unit/knowledge/security-policy.test.ts tests/integration/knowledge/data-lifecycle.test.ts`
 - Expected: FAIL.
 
 **Step 3: Write minimal implementation**
+
 - Implement centralized scope guard and deletion orchestrator.
 - Add retention policy hooks with dry-run mode.
 - Document operator procedures for retention and legal deletion requests.
 
 **Step 4: Run test to verify it passes**
+
 - Run: `npm run test -- tests/unit/knowledge/security-policy.test.ts tests/integration/knowledge/data-lifecycle.test.ts`
 - Expected: PASS.
 
 **Step 5: Commit**
+
 - `git add src/server/knowledge/securityPolicy.ts src/server/knowledge/retentionService.ts app/api/memory/route.ts src/server/channels/messages/sqliteMessageRepository.ts tests/unit/knowledge/security-policy.test.ts tests/integration/knowledge/data-lifecycle.test.ts docs/DEPLOYMENT_OPERATIONS.md`
 - `git commit -m "feat: add knowledge security policy and data lifecycle controls"`
 
@@ -485,21 +563,25 @@
 ### Task 14: Load, Soak, and Failure-Injection Validation
 
 **Files:**
+
 - Create: `scripts/knowledge-load-test.ts`
 - Create: `scripts/knowledge-failure-drill.ts`
 - Modify: `docs/DEPLOYMENT_OPERATIONS.md`
 
 **Step 1: Write validation scenarios**
+
 - Define reproducible scenarios:
   1. 6-month retrieval under high message volume,
   2. ingestion with Mem0 timeout spikes,
   3. scheduler restart during backfill.
 
 **Step 2: Implement load/failure scripts**
+
 - `knowledge-load-test.ts`: synthetic traffic + retrieval metrics capture.
 - `knowledge-failure-drill.ts`: toggles/timeouts/partial failures.
 
 **Step 3: Run scripts in staging**
+
 - Run:
   - `node --import tsx scripts/knowledge-load-test.ts`
   - `node --import tsx scripts/knowledge-failure-drill.ts`
@@ -508,6 +590,7 @@
   - fallback behavior works without user-visible outage.
 
 **Step 4: Commit**
+
 - `git add scripts/knowledge-load-test.ts scripts/knowledge-failure-drill.ts docs/DEPLOYMENT_OPERATIONS.md`
 - `git commit -m "chore: add knowledge load and failure validation drills"`
 
@@ -539,6 +622,7 @@ npm run lint
 ```
 
 Expected:
+
 1. All tests PASS.
 2. No type errors.
 3. No lint errors.
@@ -582,6 +666,7 @@ Expected:
 ### Production-Ready Verdict
 
 This plan is production-ready **if and only if** all of the following are true:
+
 1. Verification gate passes.
 2. 24h canary metrics remain within SLO.
 3. Backfill and rollback drills are executed successfully.

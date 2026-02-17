@@ -431,7 +431,9 @@ describe('KnowledgeRetrievalService', () => {
         recallDetailed: vi.fn(async () => ({
           context: '',
           matches: [
-            { node: { id: 'mem-noise', content: 'Langer Sauna-Absatz ohne verbindliche Vorgaben.' } },
+            {
+              node: { id: 'mem-noise', content: 'Langer Sauna-Absatz ohne verbindliche Vorgaben.' },
+            },
             {
               node: {
                 id: 'mem-rule',

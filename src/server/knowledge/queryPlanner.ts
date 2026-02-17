@@ -31,15 +31,7 @@ function startOfUtcDay(base: Date): string {
 
 function endOfUtcDay(base: Date): string {
   return new Date(
-    Date.UTC(
-      base.getUTCFullYear(),
-      base.getUTCMonth(),
-      base.getUTCDate(),
-      23,
-      59,
-      59,
-      999,
-    ),
+    Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), 23, 59, 59, 999),
   ).toISOString();
 }
 

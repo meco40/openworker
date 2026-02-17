@@ -12,7 +12,7 @@ interface ConfigHeaderProps {
 }
 
 export const ConfigHeader: React.FC<ConfigHeaderProps> = ({
-  hasChanges,
+  hasChanges: _hasChanges,
   isSaving,
   isLoading,
   canApply,

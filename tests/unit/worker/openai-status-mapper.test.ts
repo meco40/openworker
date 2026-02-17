@@ -26,4 +26,3 @@ describe('openai status mapper', () => {
     expect(() => parseOpenAiRunState('mystery')).toThrow('Unsupported OpenAI worker run state');
   });
 });
-

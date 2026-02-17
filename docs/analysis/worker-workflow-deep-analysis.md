@@ -74,13 +74,13 @@ worker_task_activities:        -- Audit-Log
 
 ### Detaillierte Phasen (`standardTaskPhase.ts`)
 
-| Phase | Funktion | Beschreibung |
-|-------|----------|--------------|
-| **1. Planning** | `planTask()` | AI generiert Schritt-Plan (max 10 Schritte) |
-| **2. Execution** | `executeExecutionPhase()` | Jeder Schritt wird einzeln ausgeführt |
-| **3. Verification** | `executeVerificationPhase()` | Prüfung auf failed Steps |
-| **4. Testing** | `executeTestingPhase()` | Webapp: `npm test` ausführen |
-| **5. Completion** | `executeCompletionPhase()` | Zusammenfassung + Benachrichtigung |
+| Phase               | Funktion                     | Beschreibung                                |
+| ------------------- | ---------------------------- | ------------------------------------------- |
+| **1. Planning**     | `planTask()`                 | AI generiert Schritt-Plan (max 10 Schritte) |
+| **2. Execution**    | `executeExecutionPhase()`    | Jeder Schritt wird einzeln ausgeführt       |
+| **3. Verification** | `executeVerificationPhase()` | Prüfung auf failed Steps                    |
+| **4. Testing**      | `executeTestingPhase()`      | Webapp: `npm test` ausführen                |
+| **5. Completion**   | `executeCompletionPhase()`   | Zusammenfassung + Benachrichtigung          |
 
 ### Phase: Execution Details
 
@@ -108,7 +108,7 @@ MANUAL (User via Kanban):
 └─────────┘    └─────────┘    └─────────┘
      │                              │
      └──────────────────────────────┘
-     
+
 Active States (nur Cancel erlaubt):
 planning, executing, clarifying, waiting_approval
 
@@ -137,19 +137,19 @@ clarify) │           │  assigned)   │ waiting_app)│           │       
 
 ### Verfügbare Tools (6 Stück)
 
-| Tool | Beschreibung | Security |
-|------|--------------|----------|
-| `shell_execute` | PowerShell/bash | ⚠️ Approval-Required |
-| `file_read` | Datei lesen | ✅ |
-| `write_file` | Datei schreiben | ✅ |
-| `browser_fetch` | URL fetch | ✅ |
-| `python_execute` | Python ausführen | ⚠️ Approval-Required |
-| `search_web` | DuckDuckGo Search | ✅ |
+| Tool             | Beschreibung      | Security             |
+| ---------------- | ----------------- | -------------------- |
+| `shell_execute`  | PowerShell/bash   | ⚠️ Approval-Required |
+| `file_read`      | Datei lesen       | ✅                   |
+| `write_file`     | Datei schreiben   | ✅                   |
+| `browser_fetch`  | URL fetch         | ✅                   |
+| `python_execute` | Python ausführen  | ⚠️ Approval-Required |
+| `search_web`     | DuckDuckGo Search | ✅                   |
 
 ### Tool-Calling Loop
 
 ```typescript
-for (let loop = 0; loop < MAX_TOOL_LOOPS (10); loop++) {
+for (let loop = 0; loop < MAX_TOOL_LOOPS(10); loop++) {
   // 1. AI dispatch mit Tools
   // 2. Function calls extrahieren
   // 3. Tools ausführen (via dispatcher)
@@ -212,24 +212,24 @@ if (task.flowPublishedId) {
 
 ### ✅ Stärken
 
-| Bereich | Bewertung | Begründung |
-|---------|-----------|------------|
-| **Modularität** | ⭐⭐⭐⭐⭐ | Phase-basierte Architektur, klare Trennung |
-| **State Machine** | ⭐⭐⭐⭐⭐ | Explizite Übergänge, manual vs system |
-| **TypeScript** | ⭐⭐⭐⭐⭐ | Durchgängige Typisierung |
-| **Testing** | ⭐⭐⭐⭐⭐ | 970 Tests, E2E + Unit |
-| **Persona-Integration** | ⭐⭐⭐⭐⭐ | Dynamische Tool-Filter, Prompt-Injection |
-| **Checkpointing** | ⭐⭐⭐⭐ | Resume nach Interruption möglich |
-| **Workspace-Isolation** | ⭐⭐⭐⭐ | Jedes Task eigener Ordner |
+| Bereich                 | Bewertung  | Begründung                                 |
+| ----------------------- | ---------- | ------------------------------------------ |
+| **Modularität**         | ⭐⭐⭐⭐⭐ | Phase-basierte Architektur, klare Trennung |
+| **State Machine**       | ⭐⭐⭐⭐⭐ | Explizite Übergänge, manual vs system      |
+| **TypeScript**          | ⭐⭐⭐⭐⭐ | Durchgängige Typisierung                   |
+| **Testing**             | ⭐⭐⭐⭐⭐ | 970 Tests, E2E + Unit                      |
+| **Persona-Integration** | ⭐⭐⭐⭐⭐ | Dynamische Tool-Filter, Prompt-Injection   |
+| **Checkpointing**       | ⭐⭐⭐⭐   | Resume nach Interruption möglich           |
+| **Workspace-Isolation** | ⭐⭐⭐⭐   | Jedes Task eigener Ordner                  |
 
 ### ⚠️ Schwächen
 
-| Bereich | Bewertung | Problem |
-|---------|-----------|---------|
-| **Security** | ⭐⭐⭐ | Shell ohne Sandbox, keine Rate-Limiting |
-| **Error Handling** | ⭐⭐⭐⭐ | Gut, aber könnte mehr Retry-Logik haben |
-| **Concurrency** | ⭐⭐⭐ | Nur 1 Task parallel (FIFO) |
-| **Observability** | ⭐⭐⭐⭐ | Activities gut, aber Metriken könnten besser sein |
+| Bereich            | Bewertung | Problem                                           |
+| ------------------ | --------- | ------------------------------------------------- |
+| **Security**       | ⭐⭐⭐    | Shell ohne Sandbox, keine Rate-Limiting           |
+| **Error Handling** | ⭐⭐⭐⭐  | Gut, aber könnte mehr Retry-Logik haben           |
+| **Concurrency**    | ⭐⭐⭐    | Nur 1 Task parallel (FIFO)                        |
+| **Observability**  | ⭐⭐⭐⭐  | Activities gut, aber Metriken könnten besser sein |
 
 ### 🔧 Architektur-Highlights
 
@@ -252,20 +252,20 @@ workerAgent.ts (82 lines)
 
 ### Funktionsumfang
 
-| Feature | Status |
-|---------|--------|
-| Task erstellen mit Workspace-Type | ✅ |
-| AI-Planung (Schritt-Generierung) | ✅ |
-| Step-by-Step Execution | ✅ |
-| Tool-Calling (6 Tools) | ✅ |
-| Shell-Approval System | ✅ |
-| Checkpoint/Resume | ✅ |
-| Persona-Zuweisung | ✅ |
-| Orchestra Flows | ✅ |
-| Webapp-Testing | ✅ |
-| Activity Logging | ✅ |
-| Kanban-Board | ✅ |
-| Live Terminal | ✅ |
+| Feature                           | Status |
+| --------------------------------- | ------ |
+| Task erstellen mit Workspace-Type | ✅     |
+| AI-Planung (Schritt-Generierung)  | ✅     |
+| Step-by-Step Execution            | ✅     |
+| Tool-Calling (6 Tools)            | ✅     |
+| Shell-Approval System             | ✅     |
+| Checkpoint/Resume                 | ✅     |
+| Persona-Zuweisung                 | ✅     |
+| Orchestra Flows                   | ✅     |
+| Webapp-Testing                    | ✅     |
+| Activity Logging                  | ✅     |
+| Kanban-Board                      | ✅     |
+| Live Terminal                     | ✅     |
 
 ### Gesamtbewertung: **8.5/10**
 
@@ -275,13 +275,13 @@ Der Worker ist ein gut durchdachtes, modulares System mit klarer Trennung der Ve
 
 ## Anhang: Wichtige Dateien
 
-| Datei | Beschreibung | Lines |
-|-------|--------------|-------|
-| `workerAgent.ts` | Haupt-Orchestrator | 82 |
-| `standardTaskPhase.ts` | Standard-Task-Lifecycle | 346 |
-| `workerExecutor.ts` | Tool-Calling & Execution | 533 |
-| `workerPlanner.ts` | AI-Planung | 82 |
-| `workerStateMachine.ts` | Status-Transitions | 124 |
-| `personaIntegration.ts` | Persona-Loading & Filter | 191 |
-| `workspaceManager.ts` | Dateisystem-Operations | 178 |
-| `orchestraPhase.ts` | Flow-Ausführung | 227 |
+| Datei                   | Beschreibung             | Lines |
+| ----------------------- | ------------------------ | ----- |
+| `workerAgent.ts`        | Haupt-Orchestrator       | 82    |
+| `standardTaskPhase.ts`  | Standard-Task-Lifecycle  | 346   |
+| `workerExecutor.ts`     | Tool-Calling & Execution | 533   |
+| `workerPlanner.ts`      | AI-Planung               | 82    |
+| `workerStateMachine.ts` | Status-Transitions       | 124   |
+| `personaIntegration.ts` | Persona-Loading & Filter | 191   |
+| `workspaceManager.ts`   | Dateisystem-Operations   | 178   |
+| `orchestraPhase.ts`     | Flow-Ausführung          | 227   |

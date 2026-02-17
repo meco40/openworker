@@ -92,7 +92,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: false, error: message }, { status: 400 });
       }
     }
-    
+
     // If personaId provided and conversation doesn't have one, bind it
     if (body.personaId) {
       const conversation = service.getConversation(conversationId, userContext.userId);
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
         service.setPersonaId(conversationId, body.personaId, userContext.userId);
       }
     }
-    
+
     const result = await service.handleWebUIMessage(
       conversationId,
       trimmedContent,

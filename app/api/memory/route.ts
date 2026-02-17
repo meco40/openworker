@@ -290,7 +290,9 @@ export async function GET(request: Request) {
       if (userScopes.length > 1) {
         const merged = dedupeById(
           (
-            await Promise.all(userScopes.map((scopeUserId) => service.snapshot(personaId, scopeUserId)))
+            await Promise.all(
+              userScopes.map((scopeUserId) => service.snapshot(personaId, scopeUserId)),
+            )
           ).flat(),
         );
         const needle = query.toLowerCase();
@@ -298,7 +300,8 @@ export async function GET(request: Request) {
           .filter((node) => {
             if (!needle) return true;
             return (
-              node.content.toLowerCase().includes(needle) || node.type.toLowerCase().includes(needle)
+              node.content.toLowerCase().includes(needle) ||
+              node.type.toLowerCase().includes(needle)
             );
           })
           .filter((node) => (type ? node.type === type : true))
@@ -332,7 +335,11 @@ export async function GET(request: Request) {
 
     if (userScopes.length > 1) {
       const merged = dedupeById(
-        (await Promise.all(userScopes.map((scopeUserId) => service.snapshot(personaId, scopeUserId)))).flat(),
+        (
+          await Promise.all(
+            userScopes.map((scopeUserId) => service.snapshot(personaId, scopeUserId)),
+          )
+        ).flat(),
       ).sort((a, b) => rankNodeTimestamp(b) - rankNodeTimestamp(a));
       return NextResponse.json({
         ok: true,

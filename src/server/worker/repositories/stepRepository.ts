@@ -1,17 +1,12 @@
 import crypto from 'node:crypto';
 import { toStep } from '../workerRowMappers';
-import type {
-  WorkerStepRecord,
-  WorkerStepStatus,
-  SaveStepInput,
-} from '../workerTypes';
+import type { WorkerStepRecord, WorkerStepStatus, SaveStepInput } from '../workerTypes';
 import { BaseRepository, SQLParam } from './baseRepository';
 
 /**
  * Repository for step-related operations.
  */
 export class StepRepository extends BaseRepository {
-  
   saveSteps(taskId: string, steps: SaveStepInput[]): void {
     const stmt = this.db.prepare(`
       INSERT INTO worker_steps (id, task_id, step_index, description, status)
@@ -24,7 +19,9 @@ export class StepRepository extends BaseRepository {
     }
 
     // Update total steps count on the task
-    this.db.prepare(`UPDATE worker_tasks SET total_steps = ? WHERE id = ?`).run(steps.length, taskId);
+    this.db
+      .prepare(`UPDATE worker_tasks SET total_steps = ? WHERE id = ?`)
+      .run(steps.length, taskId);
   }
 
   getSteps(taskId: string): WorkerStepRecord[] {

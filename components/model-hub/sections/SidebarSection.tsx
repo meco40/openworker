@@ -112,10 +112,10 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
 
         {availableAuthMethods.length > 1 && (
           <select
-              value={connectAuthMethod}
-              onChange={(event) =>
-                onConnectAuthMethodChange(event.target.value as 'none' | 'api_key' | 'oauth')
-              }
+            value={connectAuthMethod}
+            onChange={(event) =>
+              onConnectAuthMethodChange(event.target.value as 'none' | 'api_key' | 'oauth')
+            }
             className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-200 focus:border-indigo-500 focus:outline-none"
           >
             {availableAuthMethods.map((method) => (

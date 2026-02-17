@@ -4,7 +4,12 @@ import React, { useEffect, useState } from 'react';
 import { usePersona } from '../src/modules/personas/PersonaContext';
 import type { MemoryType } from '../core/memory/types';
 import { useMemory, useHistory, useBulkOperations, useMemoryEdit } from './memory/hooks';
-import { PersonaSidebar, MemoryToolbar, MemoryNodeItem, MemoryPagination } from './memory/components';
+import {
+  PersonaSidebar,
+  MemoryToolbar,
+  MemoryNodeItem,
+  MemoryPagination,
+} from './memory/components';
 import type { PersonaSummary } from '../src/server/personas/personaTypes';
 
 const MemoryView: React.FC = () => {
@@ -52,14 +57,7 @@ const MemoryView: React.FC = () => {
   }, [activePersonaId, personas, selectedPersonaId]);
 
   // Memory data management
-  const {
-    nodes,
-    loading,
-    pagination,
-    errorMessage,
-    setErrorMessage,
-    reloadCurrent,
-  } = useMemory({
+  const { nodes, loading, pagination, errorMessage, setErrorMessage, reloadCurrent } = useMemory({
     selectedPersonaId,
     page,
     pageSize,
@@ -131,10 +129,6 @@ const MemoryView: React.FC = () => {
     clearAllHistory();
     setErrorMessage(null);
   }, [selectedPersonaId, clearAllHistory, setErrorMessage]);
-
-  const selectedPersona = selectedPersonaId
-    ? personas.find((p: PersonaSummary) => p.id === selectedPersonaId) || null
-    : null;
 
   return (
     <div className="animate-in fade-in flex h-full min-h-[70vh] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/40 duration-300">

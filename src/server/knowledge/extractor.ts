@@ -45,9 +45,7 @@ function tokenize(text: string): string[] {
 
 function toStringArray(values: unknown): string[] {
   if (!Array.isArray(values)) return [];
-  return values
-    .map((value) => String(value || '').trim())
-    .filter((value) => value.length > 0);
+  return values.map((value) => String(value || '').trim()).filter((value) => value.length > 0);
 }
 
 function toSourceRefs(values: unknown, fallback: KnowledgeSourceRef[]): KnowledgeSourceRef[] {
@@ -67,7 +65,12 @@ function toSourceRefs(values: unknown, fallback: KnowledgeSourceRef[]): Knowledg
   return refs.length > 0 ? refs : fallback;
 }
 
-function fitWordRange(text: string, minWords: number, maxWords: number, fillerWord: string): string {
+function fitWordRange(
+  text: string,
+  minWords: number,
+  maxWords: number,
+  fillerWord: string,
+): string {
   const tokens = tokenize(text);
   const clamped = [...tokens];
 
@@ -90,7 +93,9 @@ function pickFallbackRefs(messages: StoredMessage[]): KnowledgeSourceRef[] {
     .slice(0, 6)
     .map((message) => ({
       seq: Math.floor(Number(message.seq || 0)),
-      quote: String(message.content || '').trim().slice(0, 220),
+      quote: String(message.content || '')
+        .trim()
+        .slice(0, 220),
     }))
     .filter((ref) => ref.seq > 0 && ref.quote.length > 0);
 }
@@ -109,7 +114,11 @@ function detectCounterpart(messages: StoredMessage[]): string | null {
 function buildFallback(input: KnowledgeExtractionInput): KnowledgeExtractionResult {
   const lines = input.messages
     .filter((message) => message.role !== 'system')
-    .map((message) => String(message.content || '').replace(/\s+/g, ' ').trim())
+    .map((message) =>
+      String(message.content || '')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    )
     .filter((content) => isMeaningfulKnowledgeText(content));
 
   const facts = sanitizeKnowledgeFacts(
@@ -122,7 +131,9 @@ function buildFallback(input: KnowledgeExtractionInput): KnowledgeExtractionResu
 
   const fallbackFacts = facts.length > 0 ? facts : sanitizeKnowledgeFacts(lines).slice(0, 5);
   const safeFallbackFacts =
-    fallbackFacts.length > 0 ? fallbackFacts : ['Wichtige Details aus dem Verlauf wurden besprochen.'];
+    fallbackFacts.length > 0
+      ? fallbackFacts
+      : ['Wichtige Details aus dem Verlauf wurden besprochen.'];
   const sourceRefs = pickFallbackRefs(input.messages);
   const counterpart = detectCounterpart(input.messages);
 
@@ -133,7 +144,8 @@ function buildFallback(input: KnowledgeExtractionInput): KnowledgeExtractionResu
   ].join(' ');
 
   const repeatedEpisodeBase = Array.from({ length: 35 }, (_, index) => {
-    const line = lines[index % Math.max(1, lines.length)] || 'Es wurden Details zum Thema abgestimmt.';
+    const line =
+      lines[index % Math.max(1, lines.length)] || 'Es wurden Details zum Thema abgestimmt.';
     return `Abschnitt ${index + 1}: ${line}`;
   }).join(' ');
 
@@ -145,10 +157,16 @@ function buildFallback(input: KnowledgeExtractionInput): KnowledgeExtractionResu
       topicKey: counterpart ? `meeting-${counterpart.toLowerCase()}` : 'general-meeting',
       counterpart,
       participants: counterpart ? ['Ich', counterpart] : ['Ich'],
-      decisions: safeFallbackFacts.filter((fact) => /\b(vereinbart|entschieden|beschlossen)\b/i.test(fact)),
-      negotiatedTerms: safeFallbackFacts.filter((fact) => /\b(rabatt|vertrag|preis|laufzeit)\b/i.test(fact)),
+      decisions: safeFallbackFacts.filter((fact) =>
+        /\b(vereinbart|entschieden|beschlossen)\b/i.test(fact),
+      ),
+      negotiatedTerms: safeFallbackFacts.filter((fact) =>
+        /\b(rabatt|vertrag|preis|laufzeit)\b/i.test(fact),
+      ),
       openPoints: safeFallbackFacts.filter((fact) => /\b(offen|ausstehend|todo|sla)\b/i.test(fact)),
-      actionItems: safeFallbackFacts.filter((fact) => /\b(sendet|bis|deadline|aufgabe|todo)\b/i.test(fact)),
+      actionItems: safeFallbackFacts.filter((fact) =>
+        /\b(sendet|bis|deadline|aufgabe|todo)\b/i.test(fact),
+      ),
       sourceRefs,
       confidence: 0.35,
     },
@@ -174,7 +192,9 @@ function parseModelPayload(
   const episode = fitWordRange(String(record.episode || ''), 400, 800, 'detail');
 
   const meetingRaw =
-    record.meetingLedger && typeof record.meetingLedger === 'object' && !Array.isArray(record.meetingLedger)
+    record.meetingLedger &&
+    typeof record.meetingLedger === 'object' &&
+    !Array.isArray(record.meetingLedger)
       ? (record.meetingLedger as Record<string, unknown>)
       : {};
 
@@ -194,9 +214,7 @@ function parseModelPayload(
       openPoints: toStringArray(meetingRaw.openPoints),
       actionItems: toStringArray(meetingRaw.actionItems),
       sourceRefs: toSourceRefs(meetingRaw.sourceRefs, refsFallback),
-      confidence: Number.isFinite(confidenceRaw)
-        ? Math.max(0, Math.min(1, confidenceRaw))
-        : 0.6,
+      confidence: Number.isFinite(confidenceRaw) ? Math.max(0, Math.min(1, confidenceRaw)) : 0.6,
     },
   };
 }

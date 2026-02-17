@@ -214,7 +214,7 @@ export const LEGACY_WORKER_EXECUTOR = true;
  * The AI can request function calls, the executor dispatches them to
  * real skill handlers, feeds results back, and loops until the AI
  * provides a final text response without function calls.
- * 
+ *
  * Now supports Persona context for customized behavior and tool filtering.
  */
 export async function executeStep(
@@ -232,7 +232,7 @@ export async function executeStep(
   const service = getModelHubService();
   const encryptionKey = getModelHubEncryptionKey();
   const dispatcher = createToolDispatcher(task, personaContext);
-  
+
   let clawHubPromptBlock = '';
   try {
     clawHubPromptBlock = await getClawHubService().getPromptBlock();
@@ -241,17 +241,13 @@ export async function executeStep(
   }
 
   // Build system prompt with persona context
-  const baseSystemPrompt = buildPersonaSystemPrompt(
-    EXECUTOR_SYSTEM,
-    personaContext,
-    {
-      title: task.title,
-      objective: task.objective,
-      workspaceType: task.workspaceType || 'general',
-      step: step.description,
-    },
-  );
-  
+  const baseSystemPrompt = buildPersonaSystemPrompt(EXECUTOR_SYSTEM, personaContext, {
+    title: task.title,
+    objective: task.objective,
+    workspaceType: task.workspaceType || 'general',
+    step: step.description,
+  });
+
   const systemPrompt = clawHubPromptBlock.trim()
     ? `${baseSystemPrompt}\n\n---\n\n${clawHubPromptBlock.trim()}`
     : baseSystemPrompt;
@@ -393,10 +389,7 @@ export async function executeOrchestraNode(
   }
 
   // Just apply persona restrictions
-  const personaFilteredTools = filterToolsByPersona(
-    TOOL_DEFINITIONS,
-    personaContext.allowedTools,
-  );
+  const personaFilteredTools = filterToolsByPersona(TOOL_DEFINITIONS, personaContext.allowedTools);
   return executeStep(task, syntheticStep, personaFilteredTools);
 }
 

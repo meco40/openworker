@@ -9,11 +9,7 @@ interface UsagePanelProps {
   dailyTokenBudget: number;
 }
 
-export const UsagePanel: React.FC<UsagePanelProps> = ({
-  usage,
-  tokensToday,
-  dailyTokenBudget,
-}) => {
+export const UsagePanel: React.FC<UsagePanelProps> = ({ usage, tokensToday, dailyTokenBudget }) => {
   return (
     <div className="relative space-y-8 overflow-hidden rounded-[2.5rem] border border-zinc-800 bg-zinc-900/40 p-10 shadow-2xl">
       <div className="absolute top-0 right-0 -mt-32 -mr-32 h-64 w-64 rounded-full bg-emerald-500/5 blur-[80px]" />
@@ -40,7 +36,9 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase">
             Compute Budget
           </div>
-          <div className="text-xl font-bold text-indigo-400">{usage.remainingBudgetPercent}% REM</div>
+          <div className="text-xl font-bold text-indigo-400">
+            {usage.remainingBudgetPercent}% REM
+          </div>
           <div className="text-[10px] text-zinc-500">
             {tokensToday.toLocaleString()} used / {dailyTokenBudget.toLocaleString()} daily
           </div>

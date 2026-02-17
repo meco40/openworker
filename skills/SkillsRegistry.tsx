@@ -392,32 +392,29 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
     [loadRuntimeConfigs],
   );
 
-  const handleOpenAiToolToggle = useCallback(
-    async (id: string, enabled: boolean) => {
-      setOpenAiToolSavingId(id);
-      setOpenAiToolsError('');
-      try {
-        const response = await setOpenAiWorkerToolState(id, enabled);
-        if (!response.ok || !response.tool) {
-          setOpenAiToolsError(response.error || 'Failed to update OpenAI worker tool.');
-          return;
-        }
-        const updatedTool = response.tool;
-        setOpenAiWorkerTools((previous) =>
-          previous.map((tool) =>
-            tool.id === updatedTool.id ? { ...tool, enabled: updatedTool.enabled } : tool,
-          ),
-        );
-      } catch (error) {
-        setOpenAiToolsError(
-          error instanceof Error ? error.message : 'Failed to update OpenAI worker tool.',
-        );
-      } finally {
-        setOpenAiToolSavingId(null);
+  const handleOpenAiToolToggle = useCallback(async (id: string, enabled: boolean) => {
+    setOpenAiToolSavingId(id);
+    setOpenAiToolsError('');
+    try {
+      const response = await setOpenAiWorkerToolState(id, enabled);
+      if (!response.ok || !response.tool) {
+        setOpenAiToolsError(response.error || 'Failed to update OpenAI worker tool.');
+        return;
       }
-    },
-    [],
-  );
+      const updatedTool = response.tool;
+      setOpenAiWorkerTools((previous) =>
+        previous.map((tool) =>
+          tool.id === updatedTool.id ? { ...tool, enabled: updatedTool.enabled } : tool,
+        ),
+      );
+    } catch (error) {
+      setOpenAiToolsError(
+        error instanceof Error ? error.message : 'Failed to update OpenAI worker tool.',
+      );
+    } finally {
+      setOpenAiToolSavingId(null);
+    }
+  }, []);
 
   const refreshClawHubInstalled = useCallback(async () => {
     if (!beginClawHubAction()) {
@@ -793,152 +790,152 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
 
       {activeRegistryTab === 'worker-tools' && (
         <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-6 shadow-lg">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h3 className="text-sm font-black tracking-widest text-white uppercase">
-            OpenAI Worker Tools
-          </h3>
-          <button
-            onClick={() => void loadOpenAiWorkerTools()}
-            disabled={openAiToolsLoading}
-            className="rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-[10px] font-black tracking-widest uppercase hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Refresh
-          </button>
-        </div>
-        <p className="mb-4 text-xs text-zinc-500">
-          These toggles control which OpenAI worker tool functions are forwarded to the sidecar for
-          each new run.
-        </p>
-
-        <div className="space-y-3">
-          {openAiWorkerTools.map((tool) => (
-            <div
-              key={tool.id}
-              className="flex flex-col gap-3 rounded-2xl border border-zinc-700 bg-zinc-800/60 p-4 lg:flex-row lg:items-center lg:justify-between"
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-black tracking-widest text-white uppercase">
+              OpenAI Worker Tools
+            </h3>
+            <button
+              onClick={() => void loadOpenAiWorkerTools()}
+              disabled={openAiToolsLoading}
+              className="rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-[10px] font-black tracking-widest uppercase hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-white">{tool.name}</p>
-                <p className="mt-1 text-[10px] text-zinc-500">{tool.description}</p>
-                <p className="mt-1 font-mono text-[10px] text-zinc-600">{tool.functionName}</p>
-              </div>
-              <button
-                onClick={() => void handleOpenAiToolToggle(tool.id, !tool.enabled)}
-                disabled={openAiToolSavingId === tool.id}
-                className={`rounded-xl px-3 py-2 text-[10px] font-black tracking-widest uppercase transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                  tool.enabled
-                    ? 'border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
-                    : 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
-                }`}
+              Refresh
+            </button>
+          </div>
+          <p className="mb-4 text-xs text-zinc-500">
+            These toggles control which OpenAI worker tool functions are forwarded to the sidecar
+            for each new run.
+          </p>
+
+          <div className="space-y-3">
+            {openAiWorkerTools.map((tool) => (
+              <div
+                key={tool.id}
+                className="flex flex-col gap-3 rounded-2xl border border-zinc-700 bg-zinc-800/60 p-4 lg:flex-row lg:items-center lg:justify-between"
               >
-                {tool.enabled ? 'Disable' : 'Enable'}
-              </button>
-            </div>
-          ))}
-          {openAiWorkerTools.length === 0 && !openAiToolsLoading && (
-            <p className="text-xs text-zinc-500">No OpenAI worker tools found.</p>
-          )}
-        </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-white">{tool.name}</p>
+                  <p className="mt-1 text-[10px] text-zinc-500">{tool.description}</p>
+                  <p className="mt-1 font-mono text-[10px] text-zinc-600">{tool.functionName}</p>
+                </div>
+                <button
+                  onClick={() => void handleOpenAiToolToggle(tool.id, !tool.enabled)}
+                  disabled={openAiToolSavingId === tool.id}
+                  className={`rounded-xl px-3 py-2 text-[10px] font-black tracking-widest uppercase transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                    tool.enabled
+                      ? 'border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                      : 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                  }`}
+                >
+                  {tool.enabled ? 'Disable' : 'Enable'}
+                </button>
+              </div>
+            ))}
+            {openAiWorkerTools.length === 0 && !openAiToolsLoading && (
+              <p className="text-xs text-zinc-500">No OpenAI worker tools found.</p>
+            )}
+          </div>
         </section>
       )}
 
       {activeRegistryTab === 'tool-configuration' && (
         <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-6 shadow-lg">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h3 className="text-sm font-black tracking-widest text-white uppercase">
-            Tool Configuration
-          </h3>
-          <button
-            onClick={() => void loadRuntimeConfigs()}
-            disabled={runtimeConfigLoading}
-            className="rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-[10px] font-black tracking-widest uppercase hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Refresh
-          </button>
-        </div>
-        <p className="mb-4 text-xs text-zinc-500">
-          Configure required credentials once. Skills can only be activated when required fields are
-          configured.
-        </p>
-
-        <div className="space-y-3">
-          {runtimeConfigs.map((config) => (
-            <div
-              key={config.id}
-              className="flex flex-col gap-4 rounded-2xl border border-zinc-700 bg-zinc-800/60 p-4 lg:flex-row lg:items-center lg:justify-between"
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-black tracking-widest text-white uppercase">
+              Tool Configuration
+            </h3>
+            <button
+              onClick={() => void loadRuntimeConfigs()}
+              disabled={runtimeConfigLoading}
+              className="rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-[10px] font-black tracking-widest uppercase hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-white">
-                  {config.label}
-                  {config.required ? (
-                    <span className="ml-1 text-rose-400" title="Required">
-                      *
-                    </span>
-                  ) : null}
-                </p>
-                <p className="mt-1 text-[10px] text-zinc-500">{config.description}</p>
-                <p className="mt-1 font-mono text-[10px] text-zinc-600">
-                  Env fallback: {config.envVars.join(' / ')}
-                </p>
-              </div>
+              Refresh
+            </button>
+          </div>
+          <p className="mb-4 text-xs text-zinc-500">
+            Configure required credentials once. Skills can only be activated when required fields
+            are configured.
+          </p>
 
-              <div className="flex-1 lg:max-w-xl">
-                <div className="mb-2 flex items-center gap-2">
-                  <span
-                    className={`rounded border px-2 py-0.5 text-[9px] font-black uppercase ${
-                      config.configured
+          <div className="space-y-3">
+            {runtimeConfigs.map((config) => (
+              <div
+                key={config.id}
+                className="flex flex-col gap-4 rounded-2xl border border-zinc-700 bg-zinc-800/60 p-4 lg:flex-row lg:items-center lg:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-white">
+                    {config.label}
+                    {config.required ? (
+                      <span className="ml-1 text-rose-400" title="Required">
+                        *
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="mt-1 text-[10px] text-zinc-500">{config.description}</p>
+                  <p className="mt-1 font-mono text-[10px] text-zinc-600">
+                    Env fallback: {config.envVars.join(' / ')}
+                  </p>
+                </div>
+
+                <div className="flex-1 lg:max-w-xl">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span
+                      className={`rounded border px-2 py-0.5 text-[9px] font-black uppercase ${
+                        config.configured
+                          ? config.source === 'store'
+                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                            : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+                          : 'border-zinc-600 bg-zinc-700/30 text-zinc-400'
+                      }`}
+                    >
+                      {config.configured
                         ? config.source === 'store'
-                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                          : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
-                        : 'border-zinc-600 bg-zinc-700/30 text-zinc-400'
-                    }`}
-                  >
-                    {config.configured
-                      ? config.source === 'store'
-                        ? 'Saved'
-                        : 'Env Fallback'
-                      : 'Missing'}
-                  </span>
-                  {config.maskedValue && (
-                    <span className="truncate font-mono text-[10px] text-zinc-500">
-                      {config.maskedValue}
+                          ? 'Saved'
+                          : 'Env Fallback'
+                        : 'Missing'}
                     </span>
-                  )}
-                </div>
+                    {config.maskedValue && (
+                      <span className="truncate font-mono text-[10px] text-zinc-500">
+                        {config.maskedValue}
+                      </span>
+                    )}
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type={config.kind === 'secret' ? 'password' : 'text'}
-                    value={runtimeConfigDrafts[config.id] || ''}
-                    onChange={(event) => handleRuntimeConfigDraft(config.id, event.target.value)}
-                    placeholder={
-                      config.kind === 'secret'
-                        ? `Enter ${config.label}`
-                        : 'Enter value (workspace-relative path)'
-                    }
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-2.5 font-mono text-xs text-zinc-300 focus:border-indigo-500 focus:outline-none"
-                  />
-                  <button
-                    onClick={() => void handleRuntimeConfigSave(config.id)}
-                    disabled={
-                      runtimeConfigSavingId === config.id ||
-                      !String(runtimeConfigDrafts[config.id] || '').trim()
-                    }
-                    className="rounded-xl bg-indigo-600 px-3 py-2 text-[10px] font-black tracking-widest uppercase hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => void handleRuntimeConfigClear(config.id)}
-                    disabled={runtimeConfigSavingId === config.id || !config.configured}
-                    className="rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-[10px] font-black tracking-widest uppercase hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Clear
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type={config.kind === 'secret' ? 'password' : 'text'}
+                      value={runtimeConfigDrafts[config.id] || ''}
+                      onChange={(event) => handleRuntimeConfigDraft(config.id, event.target.value)}
+                      placeholder={
+                        config.kind === 'secret'
+                          ? `Enter ${config.label}`
+                          : 'Enter value (workspace-relative path)'
+                      }
+                      className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-2.5 font-mono text-xs text-zinc-300 focus:border-indigo-500 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => void handleRuntimeConfigSave(config.id)}
+                      disabled={
+                        runtimeConfigSavingId === config.id ||
+                        !String(runtimeConfigDrafts[config.id] || '').trim()
+                      }
+                      className="rounded-xl bg-indigo-600 px-3 py-2 text-[10px] font-black tracking-widest uppercase hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => void handleRuntimeConfigClear(config.id)}
+                      disabled={runtimeConfigSavingId === config.id || !config.configured}
+                      className="rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-[10px] font-black tracking-widest uppercase hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
         </section>
       )}
 
@@ -968,108 +965,114 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
 
       {activeRegistryTab === 'skills' && (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {skills.map((skill) => {
-          const sourceMeta = SOURCE_LABELS[skill.source] ?? SOURCE_LABELS['built-in'];
-          const requiredConfigs = runtimeConfigs.filter(
-            (config) => config.skillId === skill.id && config.required,
-          );
-          const missingRequiredConfigs = requiredConfigs.filter((config) => !config.configured);
-          const setupRequired = missingRequiredConfigs.length > 0;
-          const hints = buildSkillConfigHints(skill.id, runtimeConfigs);
-          return (
-            <div
-              key={skill.id}
-              className="group relative flex h-[300px] flex-col overflow-hidden rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-6 shadow-lg transition-all hover:border-indigo-500/50"
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <span
-                  className={`rounded border px-2 py-0.5 text-[8px] font-black uppercase ${
-                    skill.installed
-                      ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500'
-                      : setupRequired
-                        ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
-                        : 'border-zinc-700 bg-zinc-800 text-zinc-500'
-                  }`}
-                >
-                  {skill.installed
-                    ? 'Runtime: Active'
-                    : setupRequired
-                      ? 'Setup Required'
-                      : 'Available'}
-                </span>
-                <div className="flex items-center gap-2">
+          {skills.map((skill) => {
+            const sourceMeta = SOURCE_LABELS[skill.source] ?? SOURCE_LABELS['built-in'];
+            const requiredConfigs = runtimeConfigs.filter(
+              (config) => config.skillId === skill.id && config.required,
+            );
+            const missingRequiredConfigs = requiredConfigs.filter((config) => !config.configured);
+            const setupRequired = missingRequiredConfigs.length > 0;
+            const hints = buildSkillConfigHints(skill.id, runtimeConfigs);
+            return (
+              <div
+                key={skill.id}
+                className="group relative flex h-[300px] flex-col overflow-hidden rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-6 shadow-lg transition-all hover:border-indigo-500/50"
+              >
+                <div className="mb-3 flex items-center justify-between">
                   <span
-                    className={`rounded border px-2 py-0.5 text-[8px] font-black uppercase ${sourceMeta.color}`}
-                  >
-                    {sourceMeta.label}
-                  </span>
-                  <span className="font-mono text-[9px] text-zinc-600">v{skill.version}</span>
-                </div>
-              </div>
-
-              <div className="mb-2 flex items-start gap-2">
-                <h3 className="text-lg leading-tight font-bold text-white transition-colors group-hover:text-indigo-400">
-                  {skill.name}
-                </h3>
-                <button
-                  type="button"
-                  aria-label={`Open info for ${skill.name}`}
-                  onClick={() => setToolInfoSkillId(skill.id)}
-                  className="mt-0.5 h-5 w-5 shrink-0 rounded-full border border-zinc-700 text-[10px] font-black text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
-                  title={`Info: ${skill.name}`}
-                >
-                  i
-                </button>
-              </div>
-              <p className="mb-4 line-clamp-3 flex-1 text-xs text-zinc-500">{skill.description}</p>
-              {hints.requiredHint && (
-                <p className="mb-1 line-clamp-2 text-[10px] text-amber-300">{hints.requiredHint}</p>
-              )}
-              {hints.optionalHint && (
-                <p className="mb-2 line-clamp-2 text-[10px] text-zinc-400">{hints.optionalHint}</p>
-              )}
-
-              {skill.sourceUrl && (
-                <p className="mb-3 truncate font-mono text-[9px] text-zinc-600">
-                  {skill.sourceUrl}
-                </p>
-              )}
-
-              {setupRequired && (
-                <p className="mb-3 line-clamp-2 text-[10px] text-amber-400">
-                  Missing: {missingRequiredConfigs.map((config) => config.label).join(', ')}
-                </p>
-              )}
-
-              <div className="mt-auto flex items-center justify-between border-t border-zinc-800/50 pt-4">
-                <span className="text-[10px] font-black tracking-tighter text-zinc-600 uppercase">
-                  {skill.category}
-                </span>
-                <div className="flex items-center gap-3">
-                  {skill.source !== 'built-in' && (
-                    <button
-                      onClick={() => handleRemoveSkill(skill.id)}
-                      className="text-[10px] font-black tracking-widest text-zinc-600 uppercase transition-colors hover:text-red-400"
-                    >
-                      Remove
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleToggleInstall(skill.id)}
-                    disabled={!skill.installed && setupRequired}
-                    className={`text-[10px] font-black tracking-widest uppercase transition-all ${
+                    className={`rounded border px-2 py-0.5 text-[8px] font-black uppercase ${
                       skill.installed
-                        ? 'text-rose-500 hover:text-rose-400'
-                        : 'text-indigo-500 hover:text-indigo-400'
-                    } disabled:cursor-not-allowed disabled:text-zinc-500`}
+                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500'
+                        : setupRequired
+                          ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+                          : 'border-zinc-700 bg-zinc-800 text-zinc-500'
+                    }`}
                   >
-                    {skill.installed ? 'Deactivate' : 'Activate'}
+                    {skill.installed
+                      ? 'Runtime: Active'
+                      : setupRequired
+                        ? 'Setup Required'
+                        : 'Available'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded border px-2 py-0.5 text-[8px] font-black uppercase ${sourceMeta.color}`}
+                    >
+                      {sourceMeta.label}
+                    </span>
+                    <span className="font-mono text-[9px] text-zinc-600">v{skill.version}</span>
+                  </div>
+                </div>
+
+                <div className="mb-2 flex items-start gap-2">
+                  <h3 className="text-lg leading-tight font-bold text-white transition-colors group-hover:text-indigo-400">
+                    {skill.name}
+                  </h3>
+                  <button
+                    type="button"
+                    aria-label={`Open info for ${skill.name}`}
+                    onClick={() => setToolInfoSkillId(skill.id)}
+                    className="mt-0.5 h-5 w-5 shrink-0 rounded-full border border-zinc-700 text-[10px] font-black text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
+                    title={`Info: ${skill.name}`}
+                  >
+                    i
                   </button>
                 </div>
+                <p className="mb-4 line-clamp-3 flex-1 text-xs text-zinc-500">
+                  {skill.description}
+                </p>
+                {hints.requiredHint && (
+                  <p className="mb-1 line-clamp-2 text-[10px] text-amber-300">
+                    {hints.requiredHint}
+                  </p>
+                )}
+                {hints.optionalHint && (
+                  <p className="mb-2 line-clamp-2 text-[10px] text-zinc-400">
+                    {hints.optionalHint}
+                  </p>
+                )}
+
+                {skill.sourceUrl && (
+                  <p className="mb-3 truncate font-mono text-[9px] text-zinc-600">
+                    {skill.sourceUrl}
+                  </p>
+                )}
+
+                {setupRequired && (
+                  <p className="mb-3 line-clamp-2 text-[10px] text-amber-400">
+                    Missing: {missingRequiredConfigs.map((config) => config.label).join(', ')}
+                  </p>
+                )}
+
+                <div className="mt-auto flex items-center justify-between border-t border-zinc-800/50 pt-4">
+                  <span className="text-[10px] font-black tracking-tighter text-zinc-600 uppercase">
+                    {skill.category}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    {skill.source !== 'built-in' && (
+                      <button
+                        onClick={() => handleRemoveSkill(skill.id)}
+                        className="text-[10px] font-black tracking-widest text-zinc-600 uppercase transition-colors hover:text-red-400"
+                      >
+                        Remove
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleToggleInstall(skill.id)}
+                      disabled={!skill.installed && setupRequired}
+                      className={`text-[10px] font-black tracking-widest uppercase transition-all ${
+                        skill.installed
+                          ? 'text-rose-500 hover:text-rose-400'
+                          : 'text-indigo-500 hover:text-indigo-400'
+                      } disabled:cursor-not-allowed disabled:text-zinc-500`}
+                    >
+                      {skill.installed ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
         </div>
       )}
 

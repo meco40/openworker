@@ -122,9 +122,9 @@ export class SqliteModelHubRepository implements ModelHubRepository {
   }
 
   private ensureAccountHealthMessageColumn(): void {
-    const columns = this.db
-      .prepare('PRAGMA table_info(model_hub_accounts)')
-      .all() as Array<{ name?: string }>;
+    const columns = this.db.prepare('PRAGMA table_info(model_hub_accounts)').all() as Array<{
+      name?: string;
+    }>;
     const hasLastCheckMessage = columns.some((column) => column.name === 'last_check_message');
     if (!hasLastCheckMessage) {
       this.db.exec('ALTER TABLE model_hub_accounts ADD COLUMN last_check_message TEXT');
@@ -132,9 +132,9 @@ export class SqliteModelHubRepository implements ModelHubRepository {
   }
 
   private ensurePipelineReasoningEffortColumn(): void {
-    const columns = this.db
-      .prepare('PRAGMA table_info(model_hub_pipeline)')
-      .all() as Array<{ name?: string }>;
+    const columns = this.db.prepare('PRAGMA table_info(model_hub_pipeline)').all() as Array<{
+      name?: string;
+    }>;
     const hasReasoningEffort = columns.some((column) => column.name === 'reasoning_effort');
     if (!hasReasoningEffort) {
       this.db.exec('ALTER TABLE model_hub_pipeline ADD COLUMN reasoning_effort TEXT');

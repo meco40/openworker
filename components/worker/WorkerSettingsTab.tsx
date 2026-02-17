@@ -45,7 +45,11 @@ const WorkerSettingsTab: React.FC = () => {
       setWorkspaceRootSource(payload.settings?.workspaceRootSource || 'system_default');
       setSavedAt(payload.settings?.updatedAt || null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Einstellungen konnten nicht geladen werden.');
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'Einstellungen konnten nicht geladen werden.',
+      );
     } finally {
       setLoading(false);
     }
@@ -157,7 +161,8 @@ const WorkerSettingsTab: React.FC = () => {
           </div>
 
           <p className="worker-settings__meta">
-            Letzte Änderung: {savedAt ? new Date(savedAt).toLocaleString() : 'noch nicht gespeichert'}
+            Letzte Änderung:{' '}
+            {savedAt ? new Date(savedAt).toLocaleString() : 'noch nicht gespeichert'}
           </p>
         </div>
       )}

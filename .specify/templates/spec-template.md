@@ -5,13 +5,13 @@
 **Status**: Draft  
 **Input**: User description: "$ARGUMENTS"
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 <!--
   IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
   Each user story/journey must be INDEPENDENTLY TESTABLE - meaning if you implement just ONE of them,
   you should still have a viable MVP (Minimum Viable Product) that delivers value.
-  
+
   Assign priorities (P1, P2, P3, etc.) to each story, where P1 is the most critical.
   Think of each story as a standalone slice of functionality that can be:
   - Developed independently
@@ -77,7 +77,7 @@
 - What happens when the API route returns an upstream/provider error?
 - What happens when required config or credentials are missing?
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 <!--
   ACTION REQUIRED: The content in this section represents placeholders.
@@ -87,23 +87,23 @@
 ### Functional Requirements
 
 - **FR-001**: System MUST [specific capability, e.g., "allow creating a room configuration from the web UI"]
-- **FR-002**: System MUST [specific capability, e.g., "validate request payloads for API routes"]  
+- **FR-002**: System MUST [specific capability, e.g., "validate request payloads for API routes"]
 - **FR-003**: Users MUST be able to [key interaction, e.g., "trigger generation from the dashboard"]
 - **FR-004**: System MUST [data requirement, e.g., "persist settings in the configured storage layer"]
 - **FR-005**: System MUST [behavior, e.g., "return actionable error responses and structured logs"]
 
-*Example of marking unclear requirements (limit to critical unknowns):*
+_Example of marking unclear requirements (limit to critical unknowns):_
 
 - **FR-006**: System MUST expose the feature to [NEEDS CLARIFICATION: target user scope not specified - all users, admins, or feature flag only?]
 - **FR-007**: System MUST handle provider failures with [NEEDS CLARIFICATION: expected fallback behavior not specified]
 
-### Key Entities *(include if feature involves data)*
+### Key Entities _(include if feature involves data)_
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 - **[API Contract]**: [Request/response shape and validation expectations]
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 <!--
   ACTION REQUIRED: Define measurable success criteria.

@@ -50,9 +50,12 @@ describe('model-hub account models route', () => {
     expect(createJson.ok).toBe(true);
 
     const accountId = String(createJson.account.id);
-    const response = await listModels(new Request('http://localhost/api/model-hub/accounts/a/models'), {
-      params: { accountId },
-    });
+    const response = await listModels(
+      new Request('http://localhost/api/model-hub/accounts/a/models'),
+      {
+        params: { accountId },
+      },
+    );
     const json = await response.json();
 
     expect(response.status).toBe(200);

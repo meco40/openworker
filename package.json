@@ -31,7 +31,8 @@
     "speckit:help": "pwsh -File .specify/scripts/powershell/check-prerequisites.ps1 -Help",
     "speckit:new": "pwsh -File .specify/scripts/powershell/create-new-feature.ps1",
     "speckit:plan:init": "pwsh -File .specify/scripts/powershell/setup-plan.ps1 -Json",
-    "speckit:agent:update": "pwsh -File .specify/scripts/powershell/update-agent-context.ps1 -AgentType codex"
+    "speckit:agent:update": "pwsh -File .specify/scripts/powershell/update-agent-context.ps1 -AgentType codex",
+    "prepare": "husky"
   },
   "dependencies": {
     "@dagrejs/dagre": "^2.0.4",
@@ -73,6 +74,8 @@
     "eslint-plugin-unused-imports": "^4.4.1",
     "eslint-plugin-vitest": "^0.5.4",
     "globals": "^17.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4.1.18",
@@ -80,5 +83,8 @@
     "typescript": "~5.8.2",
     "typescript-eslint": "^8.55.0",
     "vitest": "^4.0.18"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs,cjs,json,md,css,scss,yml,yaml}": "prettier --write"
   }
 }

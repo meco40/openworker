@@ -8,11 +8,7 @@ interface AdvancedTabProps {
   onChange: (value: string) => void;
 }
 
-export const AdvancedTab: React.FC<AdvancedTabProps> = ({
-  config,
-  isLoading,
-  onChange,
-}) => {
+export const AdvancedTab: React.FC<AdvancedTabProps> = ({ config, isLoading, onChange }) => {
   return (
     <textarea
       aria-label="Advanced JSON editor"

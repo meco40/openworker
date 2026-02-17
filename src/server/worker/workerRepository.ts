@@ -17,10 +17,10 @@ import { UserSettingsRepository } from './repositories/userSettingsRepository';
 
 /**
  * Main SQLite implementation of the WorkerRepository interface.
- * 
+ *
  * This class acts as a facade, delegating all operations to specialized
  * repository classes organized by domain:
- * 
+ *
  * - TaskRepository: Task CRUD and lifecycle operations
  * - StepRepository: Step management within tasks
  * - ArtifactRepository: Artifact storage and retrieval
@@ -125,10 +125,7 @@ export class SqliteWorkerRepository implements WorkerRepository {
     return this.taskRepo.saveCheckpoint(id, checkpoint);
   }
 
-  setTaskRunContext(
-    id: string,
-    updates: Parameters<TaskRepository['setTaskRunContext']>[1],
-  ) {
+  setTaskRunContext(id: string, updates: Parameters<TaskRepository['setTaskRunContext']>[1]) {
     return this.taskRepo.setTaskRunContext(id, updates);
   }
 
@@ -156,7 +153,10 @@ export class SqliteWorkerRepository implements WorkerRepository {
     return this.taskRepo.getPlanningMessages(taskId);
   }
 
-  savePlanningMessages(taskId: string, messages: Parameters<TaskRepository['savePlanningMessages']>[1]) {
+  savePlanningMessages(
+    taskId: string,
+    messages: Parameters<TaskRepository['savePlanningMessages']>[1],
+  ) {
     return this.taskRepo.savePlanningMessages(taskId, messages);
   }
 
@@ -250,7 +250,10 @@ export class SqliteWorkerRepository implements WorkerRepository {
     return this.flowRepo.getFlowPublished(id, userId);
   }
 
-  listPublishedFlows(userId: string, workspaceType?: Parameters<FlowRepository['listPublishedFlows']>[1]) {
+  listPublishedFlows(
+    userId: string,
+    workspaceType?: Parameters<FlowRepository['listPublishedFlows']>[1],
+  ) {
     return this.flowRepo.listPublishedFlows(userId, workspaceType);
   }
 
@@ -258,10 +261,7 @@ export class SqliteWorkerRepository implements WorkerRepository {
     return this.flowRepo.createRun(input);
   }
 
-  updateRunStatus(
-    runId: string,
-    updates: Parameters<FlowRepository['updateRunStatus']>[1],
-  ) {
+  updateRunStatus(runId: string, updates: Parameters<FlowRepository['updateRunStatus']>[1]) {
     return this.flowRepo.updateRunStatus(runId, updates);
   }
 

@@ -241,7 +241,7 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
                   </div>
                   {account.lastCheckOk === false && account.lastCheckMessage && (
                     <div
-                      className="mt-1 whitespace-pre-wrap break-words font-mono text-[10px] text-rose-400"
+                      className="mt-1 font-mono text-[10px] break-words whitespace-pre-wrap text-rose-400"
                       title={account.lastCheckMessage}
                     >
                       {account.lastCheckMessage}

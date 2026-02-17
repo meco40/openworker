@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildModelHubCallbackUrl, normalizeBrowserOrigin } from '../../../src/server/model-hub/urlOrigin';
+import {
+  buildModelHubCallbackUrl,
+  normalizeBrowserOrigin,
+} from '../../../src/server/model-hub/urlOrigin';
 
 describe('model-hub url origin normalization', () => {
   it('normalizes 0.0.0.0 origin to localhost', () => {

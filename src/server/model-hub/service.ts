@@ -245,7 +245,7 @@ export class ModelHubService {
   /**
    * Dispatches a chat request using the pipeline's priority fallback.
    * Tries each active model in priority order until one succeeds.
-   * 
+   *
    * If modelOverride is specified, tries the preferred model first,
    * then falls back to other active models in the pipeline.
    */
@@ -290,7 +290,9 @@ export class ModelHubService {
           preferredAccount,
           encryptionKey,
         );
-        const preferredReasoningEffort = mapPipelineReasoningEffort(preferredTarget.reasoningEffort);
+        const preferredReasoningEffort = mapPipelineReasoningEffort(
+          preferredTarget.reasoningEffort,
+        );
         const preferredResult = await dispatchGatewayRequest(
           usablePreferredAccount,
           encryptionKey,
@@ -307,7 +309,9 @@ export class ModelHubService {
         }
 
         // Preferred model failed - record error and mark as rate-limited if needed
-        errors.push(`${preferredTarget.modelName}@${preferredTarget.providerId}: ${preferredResult.error}`);
+        errors.push(
+          `${preferredTarget.modelName}@${preferredTarget.providerId}: ${preferredResult.error}`,
+        );
         attemptedModels.add(preferredTarget.modelName);
 
         if (
@@ -317,7 +321,9 @@ export class ModelHubService {
           this.repository.updatePipelineModelStatus(preferredTarget.id, 'rate-limited');
         }
       } else {
-        errors.push(`${preferredTarget.modelName}@${preferredTarget.providerId}: Account not found`);
+        errors.push(
+          `${preferredTarget.modelName}@${preferredTarget.providerId}: Account not found`,
+        );
       }
     }
 

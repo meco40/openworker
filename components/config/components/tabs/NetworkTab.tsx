@@ -17,10 +17,11 @@ export const NetworkTab: React.FC<ConfigTabProps> = ({
   fieldErrorFor,
   updateConfigDraft,
 }) => {
-  const gateway = parsedConfig?.gateway && typeof parsedConfig.gateway === 'object' 
-    ? parsedConfig.gateway as Record<string, unknown> 
-    : {};
-  
+  const gateway =
+    parsedConfig?.gateway && typeof parsedConfig.gateway === 'object'
+      ? (parsedConfig.gateway as Record<string, unknown>)
+      : {};
+
   const bindValue = readString(
     gateway,
     'bind',
@@ -50,9 +51,7 @@ export const NetworkTab: React.FC<ConfigTabProps> = ({
           }}
           className={`w-full rounded border bg-zinc-900 px-3 py-2 text-sm text-white ${fieldErrorFor('gateway.port') ? 'border-rose-500' : 'border-zinc-700'}`}
         />
-        <div className="text-[11px] text-zinc-500">
-          {getFieldMetadata('gateway.port')?.helper}
-        </div>
+        <div className="text-[11px] text-zinc-500">{getFieldMetadata('gateway.port')?.helper}</div>
       </label>
       <label className="space-y-2">
         <span className="text-[10px] tracking-widest text-zinc-500 uppercase">Bind Preset</span>
@@ -76,9 +75,7 @@ export const NetworkTab: React.FC<ConfigTabProps> = ({
           <option value="all">All Interfaces (0.0.0.0)</option>
           <option value="custom">Custom</option>
         </select>
-        <div className="text-[11px] text-zinc-500">
-          {getFieldMetadata('gateway.bind')?.helper}
-        </div>
+        <div className="text-[11px] text-zinc-500">{getFieldMetadata('gateway.bind')?.helper}</div>
       </label>
       <label className="space-y-2 md:col-span-2">
         <span className="text-[10px] tracking-widest text-zinc-500 uppercase">Host</span>
@@ -97,9 +94,7 @@ export const NetworkTab: React.FC<ConfigTabProps> = ({
           }}
           className={`w-full rounded border bg-zinc-900 px-3 py-2 text-sm text-white ${fieldErrorFor('gateway.host') ? 'border-rose-500' : 'border-zinc-700'}`}
         />
-        <div className="text-[11px] text-zinc-500">
-          {getFieldMetadata('gateway.host')?.helper}
-        </div>
+        <div className="text-[11px] text-zinc-500">{getFieldMetadata('gateway.host')?.helper}</div>
       </label>
     </div>
   );

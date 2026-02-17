@@ -1,15 +1,12 @@
 import crypto from 'node:crypto';
 import { toSubagentSession } from '../workerRowMappers';
-import type {
-  WorkerSubagentSessionRecord,
-} from '../orchestraTypes';
+import type { WorkerSubagentSessionRecord } from '../orchestraTypes';
 import { BaseRepository, SQLParam } from './baseRepository';
 
 /**
  * Repository for subagent session-related operations.
  */
 export class SubagentRepository extends BaseRepository {
-  
   createSubagentSession(input: {
     taskId: string;
     userId: string;

@@ -46,16 +46,10 @@ export const DiffPreview: React.FC<DiffPreviewProps> = ({ diffItems, onCancel, o
         </div>
       )}
       <div className="mt-3 flex gap-2">
-        <button
-          className="rounded bg-zinc-800 px-3 py-1 text-xs text-zinc-200"
-          onClick={onCancel}
-        >
+        <button className="rounded bg-zinc-800 px-3 py-1 text-xs text-zinc-200" onClick={onCancel}>
           Cancel
         </button>
-        <button
-          className="rounded bg-indigo-700 px-3 py-1 text-xs text-white"
-          onClick={onConfirm}
-        >
+        <button className="rounded bg-indigo-700 px-3 py-1 text-xs text-white" onClick={onConfirm}>
           Confirm Apply
         </button>
       </div>

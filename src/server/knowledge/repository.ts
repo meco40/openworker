@@ -135,7 +135,11 @@ export interface KnowledgeRepository {
   listMeetingLedger(filter: ListKnowledgeFilter): MeetingLedgerEntry[];
 
   insertRetrievalAudit(input: InsertRetrievalAuditInput): RetrievalAuditEntry;
-  listRetrievalAudit(filter: { userId: string; personaId: string; limit?: number }): RetrievalAuditEntry[];
+  listRetrievalAudit(filter: {
+    userId: string;
+    personaId: string;
+    limit?: number;
+  }): RetrievalAuditEntry[];
 
   getKnowledgeStats(userId: string, personaId: string): KnowledgeStats;
 

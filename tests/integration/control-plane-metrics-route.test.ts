@@ -360,8 +360,20 @@ describe('GET /api/control-plane/metrics', () => {
     const channelScopedUserId = 'channel:telegram:1527785051';
     const { getMemoryService } = await import('../../src/server/memory/runtime');
     const memoryService = getMemoryService();
-    await memoryService.store('persona-metrics', 'fact', 'channel memory one', 3, channelScopedUserId);
-    await memoryService.store('persona-metrics', 'fact', 'channel memory two', 3, channelScopedUserId);
+    await memoryService.store(
+      'persona-metrics',
+      'fact',
+      'channel memory one',
+      3,
+      channelScopedUserId,
+    );
+    await memoryService.store(
+      'persona-metrics',
+      'fact',
+      'channel memory two',
+      3,
+      channelScopedUserId,
+    );
 
     (globalThis as GlobalSingletons).__messageRepository = {
       listConversations: () => [

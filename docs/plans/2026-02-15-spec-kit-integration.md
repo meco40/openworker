@@ -13,6 +13,7 @@
 ### Task 1: Offizielles Template importieren
 
 **Files:**
+
 - Create: `.codex/prompts/speckit.specify.md`
 - Create: `.codex/prompts/speckit.plan.md`
 - Create: `.codex/prompts/speckit.tasks.md`
@@ -42,6 +43,7 @@ Expected: Prompt-, Script- und Template-Dateien sichtbar
 ### Task 2: Projektspezifische Governance definieren
 
 **Files:**
+
 - Create: `.specify/memory/constitution.md`
 - Modify: `.specify/templates/plan-template.md`
 - Modify: `.specify/templates/tasks-template.md`
@@ -61,12 +63,14 @@ Inhalt: Pfadkonventionen und Beispieltasks auf `app/`, `services/`, `src/`, `tes
 ### Task 3: Nutzung in den Projektalltag integrieren
 
 **Files:**
+
 - Modify: `package.json`
 - Create: `docs/SPEC_KIT.md`
 
 **Step 1: npm Skripte ergänzen**
 
 Add:
+
 - `speckit:help`
 - `speckit:new`
 - `speckit:plan:init`
@@ -79,6 +83,7 @@ In `docs/SPEC_KIT.md` den End-to-End-Ablauf für neue Features dokumentieren.
 ### Task 4: Verifikation
 
 **Files:**
+
 - Test: `.specify/scripts/powershell/check-prerequisites.ps1`
 - Test: `.specify/scripts/powershell/create-new-feature.ps1`
 

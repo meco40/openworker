@@ -28,4 +28,3 @@ describe('openai event ordering', () => {
     expect(guard.apply(makeEvent(1, 'evt-4'))).toBe('rejected_out_of_order');
   });
 });
-

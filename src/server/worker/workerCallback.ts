@@ -50,10 +50,7 @@ export async function notifyApprovalRequest(
 /**
  * Notify user/operator that runtime switched to failover behavior.
  */
-export async function notifyRuntimeFailover(
-  task: WorkerTaskRecord,
-  reason: string,
-): Promise<void> {
+export async function notifyRuntimeFailover(task: WorkerTaskRecord, reason: string): Promise<void> {
   const message =
     `⚠️ **OpenAI Runtime Fallback**\n\n` +
     `Task: "${task.title}"\n` +

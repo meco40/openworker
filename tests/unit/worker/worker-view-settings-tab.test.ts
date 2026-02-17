@@ -46,4 +46,3 @@ describe('WorkerView settings tab', () => {
     expect(html).toContain('Settings');
   });
 });
-

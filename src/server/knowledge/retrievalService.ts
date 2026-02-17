@@ -88,7 +88,9 @@ function containsRulesWord(value: string): boolean {
 }
 
 function truncateText(value: string, maxChars: number): string {
-  const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+  const normalized = String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (normalized.length <= maxChars) return normalized;
   return `${normalized.slice(0, Math.max(1, maxChars - 3)).trimEnd()}...`;
 }
@@ -123,9 +125,7 @@ function extractRuleFragments(text: string, maxFragments = 6): string[] {
 
   const numberedRuleCandidates: string[] = [];
   const rulesHeaderMatch = /(regeln?|rules?|richtlinien?|vorgaben?)\s*:/i.exec(compact);
-  const numberedScanSource = rulesHeaderMatch
-    ? compact.slice(rulesHeaderMatch.index)
-    : compact;
+  const numberedScanSource = rulesHeaderMatch ? compact.slice(rulesHeaderMatch.index) : compact;
   const numberedParts = numberedScanSource.split(/\s(?=\d+\s*[.)-]\s)/);
   for (const part of numberedParts) {
     let candidate = part
@@ -255,7 +255,9 @@ function buildSemanticContextForQuery(
   const rulesIntent = isRulesIntentQuery(query);
   if (rulesIntent) {
     const rulePicks = uniqueStrings(
-      semantic.matches.flatMap((entry) => extractRuleFragments(String(entry.node.content || ''), 3)),
+      semantic.matches.flatMap((entry) =>
+        extractRuleFragments(String(entry.node.content || ''), 3),
+      ),
     )
       .slice(0, 6)
       .map((value) => `[Type: fact] ${value}`);
@@ -462,8 +464,7 @@ export class KnowledgeRetrievalService {
   async retrieve(input: KnowledgeRetrievalInput): Promise<KnowledgeRetrievalResult> {
     const plan = planKnowledgeQuery(input.query);
     const rulesIntent = isRulesIntentQuery(input.query);
-    const topicFilter =
-      plan.topic && plan.topic !== 'ausgehandelt' ? plan.topic : undefined;
+    const topicFilter = plan.topic && plan.topic !== 'ausgehandelt' ? plan.topic : undefined;
 
     const filter = {
       userId: input.userId,
@@ -516,7 +517,9 @@ export class KnowledgeRetrievalService {
           ),
         );
         const ruleEpisodes = episodes.filter((row) =>
-          isRuleLikeStatement(`${row.topicKey} ${row.teaser} ${row.episode} ${row.facts.join(' ')}`),
+          isRuleLikeStatement(
+            `${row.topicKey} ${row.teaser} ${row.episode} ${row.facts.join(' ')}`,
+          ),
         );
         if (ruleLedger.length > 0) ledgerRows = ruleLedger;
         if (ruleEpisodes.length > 0) episodes = ruleEpisodes;
@@ -533,7 +536,8 @@ export class KnowledgeRetrievalService {
       stageStats.semantic = Math.max(0, semantic.matches.length);
       const semanticContext = buildSemanticContextForQuery(input.query, semantic);
 
-      const hasSignals = stageStats.ledger > 0 || stageStats.episodes > 0 || stageStats.semantic > 0;
+      const hasSignals =
+        stageStats.ledger > 0 || stageStats.episodes > 0 || stageStats.semantic > 0;
       if (!hasSignals) {
         this.options.knowledgeRepository.insertRetrievalAudit({
           userId: input.userId,
@@ -604,12 +608,11 @@ export class KnowledgeRetrievalService {
         : [];
 
       const answerDraftParts = rulesIntent
-        ? [
-            'Kontext: Regelwissen aus Historie.',
-            ...ruleHighlights.map((entry) => `- ${entry}`),
-          ]
+        ? ['Kontext: Regelwissen aus Historie.', ...ruleHighlights.map((entry) => `- ${entry}`)]
         : [
-            counterpart ? `Kontext: Meeting mit ${counterpart}.` : 'Kontext: Wissensrueckgriff aktiv.',
+            counterpart
+              ? `Kontext: Meeting mit ${counterpart}.`
+              : 'Kontext: Wissensrueckgriff aktiv.',
             latestEpisode?.teaser || '',
             semanticContext || '',
           ];
@@ -618,7 +621,8 @@ export class KnowledgeRetrievalService {
 
       const rawSections: KnowledgeRetrievalSections = {
         answerDraft: answerDraftParts.join('\n').trim(),
-        keyDecisions: keyDecisionsList.join('\n').trim() || 'Keine belastbaren Entscheidungen gefunden.',
+        keyDecisions:
+          keyDecisionsList.join('\n').trim() || 'Keine belastbaren Entscheidungen gefunden.',
         openPoints: openPointsList.join('\n').trim() || 'Keine offenen Punkte erkannt.',
         evidence: evidenceText || 'Keine direkten Evidenzstellen gefunden.',
       };

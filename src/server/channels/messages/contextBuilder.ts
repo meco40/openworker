@@ -23,7 +23,8 @@ export class ContextBuilder {
     const mapped: GatewayMessage[] = unsummarizedHistory.map((message) => {
       const attachments = extractStoredAttachmentsFromMetadata(message.metadata);
       return {
-        role: message.role === 'agent' ? 'assistant' : message.role === 'system' ? 'system' : 'user',
+        role:
+          message.role === 'agent' ? 'assistant' : message.role === 'system' ? 'system' : 'user',
         content: message.content,
         attachments: attachments.length > 0 ? attachments : undefined,
       };

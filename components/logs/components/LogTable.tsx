@@ -19,7 +19,7 @@ interface LogTableProps {
 }
 
 export const LogTable: React.FC<LogTableProps> = ({
-  logs,
+  logs: _logs,
   filteredLogs,
   isLoading,
   copiedId,
@@ -31,7 +31,8 @@ export const LogTable: React.FC<LogTableProps> = ({
   sourceFilter,
   categoryFilter,
 }) => {
-  const hasFilters = search || levelFilter !== 'all' || sourceFilter !== 'all' || categoryFilter !== 'all';
+  const hasFilters =
+    search || levelFilter !== 'all' || sourceFilter !== 'all' || categoryFilter !== 'all';
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-zinc-800 bg-black/50 font-mono text-xs shadow-2xl">
@@ -90,12 +91,7 @@ export const LogTable: React.FC<LogTableProps> = ({
         ) : (
           <div className="divide-y divide-zinc-900/50">
             {filteredLogs.map((log) => (
-              <LogRow
-                key={log.id}
-                log={log}
-                isCopied={copiedId === log.id}
-                onCopy={onCopyLog}
-              />
+              <LogRow key={log.id} log={log} isCopied={copiedId === log.id} onCopy={onCopyLog} />
             ))}
           </div>
         )}

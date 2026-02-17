@@ -41,13 +41,9 @@ export async function POST(request: Request) {
 
       const modelCandidate = modelByAccountId[account.id];
       const model = typeof modelCandidate === 'string' ? modelCandidate.trim() : undefined;
-      const connectivity = await testProviderAccountConnectivity(
-        account,
-        encryptionKey,
-        {
-          model,
-        },
-      );
+      const connectivity = await testProviderAccountConnectivity(account, encryptionKey, {
+        model,
+      });
       service.updateHealth(account.id, connectivity.ok, connectivity.message);
 
       results.push({

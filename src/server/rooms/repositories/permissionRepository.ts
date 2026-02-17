@@ -1,6 +1,4 @@
-import type {
-  PersonaPermissions,
-} from '../types';
+import type { PersonaPermissions } from '../types';
 import { BaseRepository } from './baseRepository';
 
 /**

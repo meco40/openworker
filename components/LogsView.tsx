@@ -1,21 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  DIAGNOSTICS_REFRESH_INTERVAL_MS,
-  extractDoctorFindingDetails,
-  extractHealthIssues,
-  toHealthIssueInsight,
-  type LevelFilter,
-} from './logs/diagnostics';
+import { type LevelFilter } from './logs/diagnostics';
 import { useLogs, useDiagnostics, useAutoScroll } from './logs/hooks';
-import {
-  LogsHeader,
-  DiagnosticsPanel,
-  LogsToolbar,
-  LogTable,
-  StatusBar,
-} from './logs/components';
+import { LogsHeader, DiagnosticsPanel, LogsToolbar, LogTable, StatusBar } from './logs/components';
 
 // Re-exports for backward compatibility
 export {

@@ -1,5 +1,7 @@
 function normalize(value: string): string {
-  return String(value || '').replace(/\s+/g, ' ').trim();
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function isGreetingOnly(value: string): boolean {

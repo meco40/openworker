@@ -1,9 +1,6 @@
 import crypto from 'node:crypto';
 import { toRoomMessage as toMessage } from '../roomRowMappers';
-import type {
-  AppendRoomMessageInput,
-  RoomMessage,
-} from '../types';
+import type { AppendRoomMessageInput, RoomMessage } from '../types';
 import { BaseRepository } from './baseRepository';
 
 /**

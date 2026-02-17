@@ -31,9 +31,9 @@ describe('openai budget enforcement', () => {
       broadcast: vi.fn(),
     }));
     vi.doMock('../../../src/server/worker/workerCallback', () => ({
-      notifyTaskCompleted: vi.fn().mockResolvedValue(undefined),
-      notifyTaskFailed: vi.fn().mockResolvedValue(undefined),
-      notifyApprovalRequest: vi.fn().mockResolvedValue(undefined),
+      notifyTaskCompleted: vi.fn().mockImplementation(async () => {}),
+      notifyTaskFailed: vi.fn().mockImplementation(async () => {}),
+      notifyApprovalRequest: vi.fn().mockImplementation(async () => {}),
     }));
 
     const runtime = await import('../../../src/server/worker/openai/openaiWorkerRuntime');

@@ -233,9 +233,9 @@ export function PersonaEditorPane({
               <div className="space-y-2">
                 <h4 className="text-lg font-bold text-white">Gateway Konfiguration</h4>
                 <p className="text-sm text-zinc-400">
-                  Wähle das bevorzugte Modell für diese Persona. Das bevorzugte Modell wird 
-                  zuerst versucht. Bei Rate-Limit oder Fehler wird automatisch auf die anderen 
-                  aktiven Modelle in der Pipeline ausgewichen.
+                  Wähle das bevorzugte Modell für diese Persona. Das bevorzugte Modell wird zuerst
+                  versucht. Bei Rate-Limit oder Fehler wird automatisch auf die anderen aktiven
+                  Modelle in der Pipeline ausgewichen.
                 </p>
               </div>
 
@@ -258,8 +258,8 @@ export function PersonaEditorPane({
                     <div>
                       <p className="font-medium text-amber-400">Keine aktiven Modelle</p>
                       <p className="mt-1 text-sm text-amber-300/70">
-                        Es sind keine aktiven Modelle in der Pipeline konfiguriert.
-                        Bitte füge zuerst Modelle im Model Hub hinzu.
+                        Es sind keine aktiven Modelle in der Pipeline konfiguriert. Bitte füge
+                        zuerst Modelle im Model Hub hinzu.
                       </p>
                     </div>
                   </div>
@@ -268,9 +268,7 @@ export function PersonaEditorPane({
                 <div className="space-y-4">
                   {/* Model Selection */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-zinc-300">
-                      Bevorzugtes Modell
-                    </label>
+                    <label className="text-sm font-medium text-zinc-300">Bevorzugtes Modell</label>
                     <select
                       value={preferredModelId ?? ''}
                       onChange={(e) =>
@@ -292,14 +290,17 @@ export function PersonaEditorPane({
                     </select>
                     {!hasMultipleActiveModels && (
                       <p className="text-xs text-zinc-500">
-                        Es ist nur ein Modell aktiv. Die Auswahl ist auf das Primary-Modell beschränkt.
+                        Es ist nur ein Modell aktiv. Die Auswahl ist auf das Primary-Modell
+                        beschränkt.
                       </p>
                     )}
                   </div>
 
                   {/* Active Models List */}
                   <div className="space-y-2 pt-4">
-                    <h5 className="text-sm font-medium text-zinc-400">Aktive Modelle in Pipeline</h5>
+                    <h5 className="text-sm font-medium text-zinc-400">
+                      Aktive Modelle in Pipeline
+                    </h5>
                     <div className="space-y-2">
                       {activeModels
                         .sort((a, b) => a.priority - b.priority)

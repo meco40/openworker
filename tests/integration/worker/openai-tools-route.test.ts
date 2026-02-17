@@ -51,9 +51,7 @@ describe('/api/worker/openai/tools', () => {
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
-    expect(payload.tools).toEqual([
-      expect.objectContaining({ id: 'computerUse', enabled: false }),
-    ]);
+    expect(payload.tools).toEqual([expect.objectContaining({ id: 'computerUse', enabled: false })]);
     expect((payload as { defaultApprovalMode?: string }).defaultApprovalMode).toBe('ask_approve');
   });
 

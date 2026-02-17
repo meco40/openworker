@@ -8,4 +8,3 @@ export function isCompatibleSchemaVersion(version: number): boolean {
     version <= OPENAI_WORKER_EVENT_SCHEMA_VERSION
   );
 }
-

@@ -12,7 +12,6 @@ import { BaseRepository, SQLParam } from './baseRepository';
  * Repository for task-related operations.
  */
 export class TaskRepository extends BaseRepository {
-  
   createTask(input: CreateTaskInput): WorkerTaskRecord {
     const id = `task-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
     const now = this.now();

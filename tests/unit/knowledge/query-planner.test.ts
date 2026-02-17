@@ -15,7 +15,10 @@ describe('knowledge query planner', () => {
   });
 
   it('detects negotiation detail intent depth', () => {
-    const plan = planKnowledgeQuery('was haben wir ausgehandelt', new Date('2026-02-15T12:00:00.000Z'));
+    const plan = planKnowledgeQuery(
+      'was haben wir ausgehandelt',
+      new Date('2026-02-15T12:00:00.000Z'),
+    );
 
     expect(plan.intent).toBe('negotiation_recall');
     expect(plan.topic).toBe('ausgehandelt');

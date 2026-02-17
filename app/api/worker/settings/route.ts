@@ -18,7 +18,9 @@ function toSettingsPayload(settings: { defaultWorkspaceRoot: string | null } | n
   } as const;
 }
 
-function normalizeWorkspaceRoot(value: unknown): { ok: true; value: string | null } | { ok: false; error: string } {
+function normalizeWorkspaceRoot(
+  value: unknown,
+): { ok: true; value: string | null } | { ok: false; error: string } {
   if (value === null || value === undefined) {
     return { ok: true, value: null };
   }

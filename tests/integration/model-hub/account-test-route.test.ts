@@ -58,10 +58,13 @@ describe('model-hub account test route', () => {
 
     const originalFetch = global.fetch;
     global.fetch = vi.fn(async () => {
-      return new Response(JSON.stringify({ error: { message: 'token invalid for models scope' } }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: { message: 'token invalid for models scope' } }),
+        {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
     }) as unknown as typeof fetch;
 
     const testResponse = await testAccount(buildTestRequest(), { params: { accountId } });
@@ -75,9 +78,9 @@ describe('model-hub account test route', () => {
     const listJson = await listResponse.json();
     expect(listResponse.status).toBe(200);
     expect(listJson.ok).toBe(true);
-    const account = (listJson.accounts as Array<{ id: string; lastCheckMessage?: string | null }>).find(
-      (entry) => entry.id === accountId,
-    );
+    const account = (
+      listJson.accounts as Array<{ id: string; lastCheckMessage?: string | null }>
+    ).find((entry) => entry.id === accountId);
     expect(account).toBeTruthy();
     expect(account?.lastCheckMessage).toContain('token invalid for models scope');
 

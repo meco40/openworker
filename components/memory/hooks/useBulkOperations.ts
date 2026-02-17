@@ -11,14 +11,14 @@ interface UseBulkOperationsOptions {
 
 export function useBulkOperations(options: UseBulkOperationsOptions) {
   const { nodes, selectedPersonaId, reloadCurrent } = options;
-  
+
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkType, setBulkType] = useState<'keep' | MemoryType>('keep');
   const [bulkImportance, setBulkImportance] = useState<string>('');
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  
+
   const allPageSelected = useMemo(
     () => nodes.length > 0 && nodes.every((node) => selectedIdSet.has(node.id)),
     [nodes, selectedIdSet],

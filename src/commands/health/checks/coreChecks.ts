@@ -132,13 +132,7 @@ export function runKnowledgeLayerCheck(): HealthCheck {
       );
     }
 
-    return okCheck(
-      'core.knowledge_layer',
-      'core',
-      start,
-      'Knowledge layer healthy.',
-      details,
-    );
+    return okCheck('core.knowledge_layer', 'core', start, 'Knowledge layer healthy.', details);
   } catch (error) {
     return failCheck(
       'core.knowledge_layer',

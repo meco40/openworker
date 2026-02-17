@@ -65,9 +65,11 @@ export function parseOperatorProfileFromConfig(config: unknown): OperatorProfile
 
   return {
     displayName: readString(profile, 'displayName') || DEFAULT_OPERATOR_PROFILE.displayName,
-    primaryContact: readString(profile, 'primaryContact') || DEFAULT_OPERATOR_PROFILE.primaryContact,
+    primaryContact:
+      readString(profile, 'primaryContact') || DEFAULT_OPERATOR_PROFILE.primaryContact,
     localUuid: readString(profile, 'localUuid') || DEFAULT_OPERATOR_PROFILE.localUuid,
-    workspaceSlots: readPositiveInt(limits, 'workspaceSlots') || DEFAULT_OPERATOR_PROFILE.workspaceSlots,
+    workspaceSlots:
+      readPositiveInt(limits, 'workspaceSlots') || DEFAULT_OPERATOR_PROFILE.workspaceSlots,
     dailyTokenBudget:
       readPositiveInt(limits, 'dailyTokenBudget') || DEFAULT_OPERATOR_PROFILE.dailyTokenBudget,
   };

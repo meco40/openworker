@@ -275,7 +275,13 @@ describe('/api/memory route', () => {
     const channelScopedUserId = `channel:telegram:${telegramExternalChatId}`;
     const memoryServiceModule = await import('../../../src/server/memory/runtime');
     const memoryService = memoryServiceModule.getMemoryService();
-    await memoryService.store(personaId, 'fact', 'persisted-in-telegram-scope', 4, channelScopedUserId);
+    await memoryService.store(
+      personaId,
+      'fact',
+      'persisted-in-telegram-scope',
+      4,
+      channelScopedUserId,
+    );
 
     (globalThis as { __messageRepository?: unknown }).__messageRepository = {
       listConversations: () => [
@@ -300,7 +306,11 @@ describe('/api/memory route', () => {
 
     expect(listResponse.status).toBe(200);
     expect(listJson.ok).toBe(true);
-    expect(listJson.nodes.some((node: { content: string }) => node.content === 'persisted-in-telegram-scope')).toBe(true);
+    expect(
+      listJson.nodes.some(
+        (node: { content: string }) => node.content === 'persisted-in-telegram-scope',
+      ),
+    ).toBe(true);
   });
 
   it('recalls relevant memory context via POST', async () => {

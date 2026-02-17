@@ -9,8 +9,7 @@ const LMSTUDIO_BASE_URL = 'http://localhost:1234/v1';
 
 const lmStudioProviderAdapter: ProviderAdapter = {
   id: 'lmstudio',
-  fetchModels: ({ secret }) =>
-    fetchOpenAICompatibleModels(LMSTUDIO_BASE_URL, secret, 'lmstudio'),
+  fetchModels: ({ secret }) => fetchOpenAICompatibleModels(LMSTUDIO_BASE_URL, secret, 'lmstudio'),
   testConnectivity: ({ secret }) =>
     testOpenAICompatibleModelsEndpoint(
       LMSTUDIO_BASE_URL,
@@ -25,4 +24,3 @@ const lmStudioProviderAdapter: ProviderAdapter = {
 };
 
 export default lmStudioProviderAdapter;
-

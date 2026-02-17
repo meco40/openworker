@@ -13,7 +13,10 @@ import {
   OPENAI_CODEX_SCOPE,
 } from '../../../../../src/server/model-hub/codexAuth';
 import { ensureCodexLocalCallbackBridge } from '../../../../../src/server/model-hub/codexLocalCallbackBridge';
-import { buildModelHubCallbackUrl, normalizeBrowserOrigin } from '../../../../../src/server/model-hub/urlOrigin';
+import {
+  buildModelHubCallbackUrl,
+  normalizeBrowserOrigin,
+} from '../../../../../src/server/model-hub/urlOrigin';
 import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
 
 export const runtime = 'nodejs';

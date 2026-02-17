@@ -13,7 +13,7 @@ interface UseLogsOptions {
 
 export function useLogs(options: UseLogsOptions) {
   const { levelFilter, sourceFilter, categoryFilter, search } = options;
-  
+
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [sources, setSources] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);

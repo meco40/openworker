@@ -63,10 +63,10 @@ describe('openai worker runtime execution', () => {
       broadcast: vi.fn(),
     }));
     vi.doMock('../../../src/server/worker/workerCallback', () => ({
-      notifyTaskCompleted: vi.fn().mockResolvedValue(undefined),
-      notifyTaskFailed: vi.fn().mockResolvedValue(undefined),
-      notifyApprovalRequest: vi.fn().mockResolvedValue(undefined),
-      notifyRuntimeFailover: vi.fn().mockResolvedValue(undefined),
+      notifyTaskCompleted: vi.fn().mockImplementation(async () => {}),
+      notifyTaskFailed: vi.fn().mockImplementation(async () => {}),
+      notifyApprovalRequest: vi.fn().mockImplementation(async () => {}),
+      notifyRuntimeFailover: vi.fn().mockImplementation(async () => {}),
     }));
     vi.doMock('../../../src/server/worker/openai/openaiWorkerClient', () => ({
       getOpenAiWorkerClient: () => ({
@@ -104,10 +104,10 @@ describe('openai worker runtime execution', () => {
       broadcast: vi.fn(),
     }));
     vi.doMock('../../../src/server/worker/workerCallback', () => ({
-      notifyTaskCompleted: vi.fn().mockResolvedValue(undefined),
-      notifyTaskFailed: vi.fn().mockResolvedValue(undefined),
-      notifyApprovalRequest: vi.fn().mockResolvedValue(undefined),
-      notifyRuntimeFailover: vi.fn().mockResolvedValue(undefined),
+      notifyTaskCompleted: vi.fn().mockImplementation(async () => {}),
+      notifyTaskFailed: vi.fn().mockImplementation(async () => {}),
+      notifyApprovalRequest: vi.fn().mockImplementation(async () => {}),
+      notifyRuntimeFailover: vi.fn().mockImplementation(async () => {}),
     }));
     vi.doMock('../../../src/server/worker/openai/openaiToolRegistry', () => ({
       resolveEnabledOpenAiWorkerToolNamesFromConfig: vi
@@ -147,7 +147,7 @@ describe('openai worker runtime execution', () => {
   it('standardTaskPhase delegates to openai runtime when enabled', async () => {
     vi.doMock('../../../src/server/worker/openai/openaiWorkerRuntime', () => ({
       isOpenAiRuntimeEnabled: vi.fn().mockResolvedValue(true),
-      executeOpenAiRuntimeTask: vi.fn().mockResolvedValue(undefined),
+      executeOpenAiRuntimeTask: vi.fn().mockImplementation(async () => {}),
     }));
     vi.doMock('../../../src/server/worker/workerRepository', () => ({
       getWorkerRepository: () => ({
@@ -239,4 +239,3 @@ describe('openai worker runtime execution', () => {
     });
   });
 });
-

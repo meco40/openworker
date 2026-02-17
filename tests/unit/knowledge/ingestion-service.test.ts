@@ -171,27 +171,29 @@ describe('KnowledgeIngestionService', () => {
       ],
     };
 
-    const extract = vi.fn(async (): Promise<KnowledgeExtractionResult> => ({
-      facts: [
-        '/new',
-        'Neue Konversation erstellt.',
-        'Hallo',
-        'Regeln: 1. Niemals zu spät kommen. 2. Bei Meetings bleibst du in meiner Nähe.',
-      ],
-      teaser: 'Kurztext mit Kontext',
-      episode: 'Langer Episodentext mit vielen Details',
-      meetingLedger: {
-        topicKey: 'office-rules',
-        counterpart: null,
-        participants: ['Ich'],
-        decisions: [],
-        negotiatedTerms: [],
-        openPoints: [],
-        actionItems: [],
-        sourceRefs: [{ seq: 4, quote: 'Regeln: 1. Niemals zu spät kommen.' }],
-        confidence: 0.7,
-      },
-    }));
+    const extract = vi.fn(
+      async (): Promise<KnowledgeExtractionResult> => ({
+        facts: [
+          '/new',
+          'Neue Konversation erstellt.',
+          'Hallo',
+          'Regeln: 1. Niemals zu spät kommen. 2. Bei Meetings bleibst du in meiner Nähe.',
+        ],
+        teaser: 'Kurztext mit Kontext',
+        episode: 'Langer Episodentext mit vielen Details',
+        meetingLedger: {
+          topicKey: 'office-rules',
+          counterpart: null,
+          participants: ['Ich'],
+          decisions: [],
+          negotiatedTerms: [],
+          openPoints: [],
+          actionItems: [],
+          sourceRefs: [{ seq: 4, quote: 'Regeln: 1. Niemals zu spät kommen.' }],
+          confidence: 0.7,
+        },
+      }),
+    );
     const store = vi.fn(async () => ({ id: 'mem-1' }));
 
     const service = new KnowledgeIngestionService({

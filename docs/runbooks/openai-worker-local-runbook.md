@@ -9,11 +9,14 @@
 ## Start Stack
 
 1. Start sidecar:
+
 ```powershell
 cd services/openai_worker
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8011
 ```
+
 2. Start gateway/web:
+
 ```powershell
 npm run dev
 ```
@@ -32,16 +35,21 @@ npm run dev
 All OpenAI worker tools are disabled by default and can be toggled immediately via API:
 
 1. List tools:
+
 ```bash
 curl -X GET http://127.0.0.1:3000/api/worker/openai/tools
 ```
+
 2. Enable a tool:
+
 ```bash
 curl -X PATCH http://127.0.0.1:3000/api/worker/openai/tools \
   -H "Content-Type: application/json" \
   -d '{"id":"github","enabled":true}'
 ```
+
 3. Disable a tool:
+
 ```bash
 curl -X PATCH http://127.0.0.1:3000/api/worker/openai/tools \
   -H "Content-Type: application/json" \
@@ -49,6 +57,7 @@ curl -X PATCH http://127.0.0.1:3000/api/worker/openai/tools \
 ```
 
 Available tool ids:
+
 - `shell`
 - `browser`
 - `files`

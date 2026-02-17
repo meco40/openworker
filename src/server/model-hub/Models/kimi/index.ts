@@ -29,10 +29,13 @@ function mergeUniqueModels(primary: FetchedModel[], secondary: FetchedModel[]): 
 const kimiProviderAdapter: ProviderAdapter = {
   id: 'kimi',
   fetchModels: async ({ secret, provider }) => {
-    const remoteModels = await fetchOpenAICompatibleModels(KIMI_CODE_BASE_URL, secret, 'kimi').catch(
-      () => [],
-    );
-    const fallbackDefaults = provider.defaultModels.length > 0 ? provider.defaultModels : ['kimi-for-coding'];
+    const remoteModels = await fetchOpenAICompatibleModels(
+      KIMI_CODE_BASE_URL,
+      secret,
+      'kimi',
+    ).catch(() => []);
+    const fallbackDefaults =
+      provider.defaultModels.length > 0 ? provider.defaultModels : ['kimi-for-coding'];
     const seedModels = mapDefaultModels([...new Set(fallbackDefaults)]);
     return mergeUniqueModels(remoteModels, seedModels);
   },

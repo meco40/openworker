@@ -307,7 +307,9 @@ const PromptLogsTab: React.FC<PromptLogsTabProps> = ({
           </div>
         </div>
         <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
-          <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">Costs</div>
+          <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+            Costs
+          </div>
           <div className="mt-1 font-mono text-xl font-black text-cyan-300">
             {formatUsd(totalCostsUsd)}
           </div>

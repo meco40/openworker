@@ -16,8 +16,12 @@ export abstract class BaseRepository {
     if (typeof dbOrPath === 'object' && dbOrPath !== null) {
       this.db = dbOrPath as BetterSqlite3.Database;
     } else {
-      const dbPath = dbOrPath || process.env.ROOMS_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db';
-      
+      const dbPath =
+        dbOrPath ||
+        process.env.ROOMS_DB_PATH ||
+        process.env.MESSAGES_DB_PATH ||
+        '.local/messages.db';
+
       if (dbPath === ':memory:') {
         this.db = new BetterSqlite3(':memory:');
       } else {

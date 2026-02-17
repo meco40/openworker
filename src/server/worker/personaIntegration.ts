@@ -51,12 +51,12 @@ export function validateToolsMd(content: string): {
 
 /**
  * Parses TOOLS.md content to extract allowed tool names.
- * 
+ *
  * Format:
  * - Lines starting with "-" or "*" are tool names
  * - "# all" or "# default" means all tools are allowed
  * - Empty lines and comments (starting with #) are ignored
- * 
+ *
  * Example:
  * ```
  * # Allowed tools for this persona
@@ -75,10 +75,10 @@ export function parseToolsMd(content: string): string[] | null {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    
+
     // Skip empty lines
     if (!trimmed) continue;
-    
+
     // Skip comments (unless it's a special directive)
     if (trimmed.startsWith('#')) {
       const directive = trimmed.slice(1).trim().toLowerCase();
@@ -151,7 +151,7 @@ export async function loadPersonaContext(
   // Warn about unknown tools
   if (unknownTools.length > 0) {
     console.warn(
-      `[Worker] Persona "${persona.name}" has unknown tools in TOOLS.md: ${unknownTools.join(', ')}`
+      `[Worker] Persona "${persona.name}" has unknown tools in TOOLS.md: ${unknownTools.join(', ')}`,
     );
   }
 

@@ -16,10 +16,10 @@ import {
 
 /**
  * Main SQLite implementation of the RoomRepository interface.
- * 
+ *
  * This class acts as a facade, delegating all operations to specialized
  * repository classes organized by domain:
- * 
+ *
  * - RoomRepo: Room CRUD and lifecycle operations
  * - MemberRepository: Room member management
  * - MessageRepository: Room message operations
@@ -156,7 +156,10 @@ export class SqliteRoomRepository implements RoomRepository {
   // Permissions
   // ═══════════════════════════════════════════════════════════════
 
-  setPersonaPermissions(personaId: string, permissions: Parameters<PermissionRepository['setPersonaPermissions']>[1]) {
+  setPersonaPermissions(
+    personaId: string,
+    permissions: Parameters<PermissionRepository['setPersonaPermissions']>[1],
+  ) {
     return this.permissionRepo.setPersonaPermissions(personaId, permissions);
   }
 
@@ -172,12 +175,7 @@ export class SqliteRoomRepository implements RoomRepository {
     return this.runRepo.acquireRoomLease(roomId, leaseOwner, leaseExpiresAt);
   }
 
-  heartbeatRoomLease(
-    roomId: string,
-    runId: string,
-    leaseOwner: string,
-    leaseExpiresAt: string,
-  ) {
+  heartbeatRoomLease(roomId: string, runId: string, leaseOwner: string, leaseExpiresAt: string) {
     return this.runRepo.heartbeatRoomLease(roomId, runId, leaseOwner, leaseExpiresAt);
   }
 
@@ -225,7 +223,9 @@ export class SqliteRoomRepository implements RoomRepository {
     return this.personaRepo.getPersonaSession(roomId, personaId);
   }
 
-  appendPersonaThreadMessage(input: Parameters<PersonaRepository['appendPersonaThreadMessage']>[0]) {
+  appendPersonaThreadMessage(
+    input: Parameters<PersonaRepository['appendPersonaThreadMessage']>[0],
+  ) {
     return this.personaRepo.appendPersonaThreadMessage(input);
   }
 

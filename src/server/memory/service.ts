@@ -42,7 +42,7 @@ const MIN_IMPORTANCE = 1;
 const MAX_IMPORTANCE = 5;
 const FORGET_NEGATIVE_FEEDBACK_THRESHOLD = 3;
 const FORGET_CONFIDENCE_THRESHOLD = 0.15;
-const MEM0_SCORE_THRESHOLD = 0.30;
+const MEM0_SCORE_THRESHOLD = 0.3;
 
 function resolveUserId(userId?: string): string {
   const normalized = String(userId || '').trim();
@@ -166,13 +166,17 @@ function matchesType(node: MemoryNode, type?: MemoryType): boolean {
 
 function isRulesLikeQuery(query: string): boolean {
   return /\b(regel|regeln|rule|rules|richtlinie|richtlinien|policy|policies|vorgabe|vorgaben)\b/i.test(
-    String(query || '').trim().toLowerCase(),
+    String(query || '')
+      .trim()
+      .toLowerCase(),
   );
 }
 
 function containsRulesWord(text: string): boolean {
   return /\b(regel|regeln|rule|rules|richtlinie|richtlinien|policy|policies|vorgabe|vorgaben)\b/i.test(
-    String(text || '').trim().toLowerCase(),
+    String(text || '')
+      .trim()
+      .toLowerCase(),
   );
 }
 
@@ -222,7 +226,9 @@ function detectMemorySubject(node: MemoryNode): MemorySubject {
     return 'assistant';
   }
 
-  const lowered = String(node.content || '').trim().toLowerCase();
+  const lowered = String(node.content || '')
+    .trim()
+    .toLowerCase();
   if (/^(ich|i)\b/.test(lowered)) return 'user';
   if (/^(mein|meine|my)\b/.test(lowered)) return 'user';
 

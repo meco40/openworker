@@ -13,6 +13,7 @@
 ### Task 0: Production Guardrails (Mandatory Before Runtime Switch)
 
 **Files:**
+
 - Create: `services/openai_worker/app/event_store.py`
 - Create: `services/openai_worker/app/state_store.py`
 - Create: `services/openai_worker/app/queue_policy.py`
@@ -36,6 +37,7 @@
 **Step 1: Write failing guardrail tests**
 
 Add tests for:
+
 - event idempotency (`eventId` + `runId`) and replay safety across retries
 - strict per-run ordering (`seq`) with out-of-order event rejection
 - process restart recovery (paused approval run, in-flight run resume)
@@ -47,6 +49,7 @@ Add tests for:
 **Step 2: Run tests to verify they fail**
 
 Run:
+
 - `python -m pytest services/openai_worker/tests/test_event_idempotency.py services/openai_worker/tests/test_recovery_resume.py services/openai_worker/tests/test_queue_backpressure.py services/openai_worker/tests/test_tool_sandbox.py -q`
 - `python -m pytest services/openai_worker/tests/test_schema_version_compat.py -q`
 - `npm run test -- tests/integration/worker/openai-event-ordering.test.ts`
@@ -59,6 +62,7 @@ Expected: FAIL (guardrails not implemented).
 **Step 3: Write minimal implementation**
 
 Implement:
+
 - event envelope contract: `schemaVersion`, `eventId`, `runId`, `taskId`, `type`, `seq`, `emittedAt`, `attempt`, `signature`, `keyId`
 - TS dedupe + ordering checks before state mutation (`applied`, `duplicate`, `rejected_out_of_order`)
 - sidecar persistent run/checkpoint store (approval checkpoint + resume token durability)
@@ -81,6 +85,7 @@ Implement:
 **Step 4: Run tests to verify they pass**
 
 Run:
+
 - `python -m pytest services/openai_worker/tests/test_event_idempotency.py services/openai_worker/tests/test_recovery_resume.py services/openai_worker/tests/test_queue_backpressure.py services/openai_worker/tests/test_tool_sandbox.py -q`
 - `python -m pytest services/openai_worker/tests/test_schema_version_compat.py -q`
 - `npm run test -- tests/integration/worker/openai-event-ordering.test.ts`
@@ -100,6 +105,7 @@ git commit -m "feat(worker): add production guardrails for openai runtime"
 ### Task 1: Freeze Contract And Feature Flag
 
 **Files:**
+
 - Modify: `src/server/worker/openai/types.ts`
 - Create: `src/server/worker/openai/statusMapper.ts`
 - Modify: `src/server/worker/workerTypes.ts`
@@ -111,6 +117,7 @@ git commit -m "feat(worker): add production guardrails for openai runtime"
 **Step 1: Write the failing contract tests**
 
 Add tests for:
+
 - mapping OpenAI run states to Worker states (`planning`, `executing`, `waiting_approval`, `testing`, `review`, `completed`, `failed`)
 - rejecting unknown external states
 
@@ -122,6 +129,7 @@ Expected: FAIL (mapper not implemented).
 **Step 3: Write minimal implementation**
 
 Implement:
+
 - typed sidecar event schema (`task.started`, `task.progress`, `task.approval_required`, `task.completed`, `task.failed`, `subagent.*`)
 - status mapping function
 - feature flag config key (`worker.runtime = "legacy" | "openai"`)
@@ -129,6 +137,7 @@ Implement:
 **Step 4: Run tests to verify they pass**
 
 Run:
+
 - `npm run test -- tests/unit/worker/openai-status-mapper.test.ts`
 - `npm run test -- tests/unit/worker/worker-state-machine.test.ts`
 
@@ -144,6 +153,7 @@ git commit -m "feat(worker): add openai runtime contract and status mapping"
 ### Task 2: Add Python OpenAI Worker Service Skeleton
 
 **Files:**
+
 - Create: `services/openai_worker/pyproject.toml`
 - Create: `services/openai_worker/app/main.py`
 - Create: `services/openai_worker/app/config.py`
@@ -154,6 +164,7 @@ git commit -m "feat(worker): add openai runtime contract and status mapping"
 **Step 1: Write failing Python tests**
 
 Add tests for:
+
 - `GET /health` returns `{ ok: true }`
 - event payload model validation rejects malformed events
 
@@ -165,6 +176,7 @@ Expected: FAIL (service not implemented).
 **Step 3: Write minimal implementation**
 
 Implement FastAPI app with:
+
 - `/health`
 - strict Pydantic models for run requests and event payloads
 - env config for API key, callback URL, timeout
@@ -184,6 +196,7 @@ git commit -m "feat(openai-worker): scaffold python sidecar with strict contract
 ### Task 3: Implement OpenAI Agent Runner + Tools
 
 **Files:**
+
 - Create: `services/openai_worker/app/runner.py`
 - Create: `services/openai_worker/app/tools/shell_tool.py`
 - Create: `services/openai_worker/app/tools/browser_tool.py`
@@ -200,6 +213,7 @@ git commit -m "feat(openai-worker): scaffold python sidecar with strict contract
 **Step 1: Write failing runner tests**
 
 Add tests for:
+
 - runner can execute one simple objective and produce final output
 - tool registry exposes enabled tools from config
 - MCP tool rejects unknown servers and enforces per-agent allowlist
@@ -213,6 +227,7 @@ Expected: FAIL (runner/tool registry missing).
 **Step 3: Write minimal implementation**
 
 Implement:
+
 - OpenAI Agents run wrapper
 - tool registry with allowlist per task/persona
 - minimal adapters for shell, browser fetch, file read/write, GitHub API
@@ -240,6 +255,7 @@ git commit -m "feat(openai-worker): add agents runner with mcp and computer use 
 ### Task 4: Add Human-in-the-Loop Approval Flow
 
 **Files:**
+
 - Create: `services/openai_worker/app/approval.py`
 - Modify: `services/openai_worker/app/runner.py`
 - Modify: `src/server/gateway/methods/worker.ts`
@@ -251,6 +267,7 @@ git commit -m "feat(openai-worker): add agents runner with mcp and computer use 
 **Step 1: Write failing approval tests**
 
 Add tests for:
+
 - sidecar pauses run when approval is required
 - TS gateway can receive approval response and resume run
 - `worker.approval.requested` event payload shape remains valid
@@ -258,6 +275,7 @@ Add tests for:
 **Step 2: Run test to verify it fails**
 
 Run:
+
 - `python -m pytest services/openai_worker/tests/test_approval_pause_resume.py -q`
 - `npm run test -- tests/unit/gateway/worker-approval-method.test.ts`
 
@@ -266,6 +284,7 @@ Expected: FAIL.
 **Step 3: Write minimal implementation**
 
 Implement:
+
 - sidecar checkpoint + resume token
 - callback event `task.approval_required`
 - TS RPC bridge from `worker.approval.respond` to sidecar resume endpoint
@@ -273,6 +292,7 @@ Implement:
 **Step 4: Run tests to verify they pass**
 
 Run:
+
 - `python -m pytest services/openai_worker/tests/test_approval_pause_resume.py -q`
 - `npm run test -- tests/unit/gateway/worker-approval-method.test.ts`
 
@@ -288,6 +308,7 @@ git commit -m "feat(worker): wire human-in-the-loop approval bridge for openai r
 ### Task 5: Add Subagent And Multi-Agent Orchestration Bridge
 
 **Files:**
+
 - Create: `services/openai_worker/app/subagents.py`
 - Modify: `services/openai_worker/app/runner.py`
 - Modify: `src/server/worker/workerRepository.ts`
@@ -299,12 +320,14 @@ git commit -m "feat(worker): wire human-in-the-loop approval bridge for openai r
 **Step 1: Write failing subagent tests**
 
 Add tests for:
+
 - child subagent session creation/update/finish
 - persisted session metadata in `worker_subagent_sessions`
 
 **Step 2: Run test to verify it fails**
 
 Run:
+
 - `python -m pytest services/openai_worker/tests/test_subagent_lifecycle.py -q`
 - `npm run test -- tests/integration/worker/orchestra-subagent-sessions.test.ts`
 
@@ -313,6 +336,7 @@ Expected: FAIL.
 **Step 3: Write minimal implementation**
 
 Implement:
+
 - sidecar subagent spawn API with depth and child limits
 - TS persistence mapping to existing subagent session table
 - subagent status updates via existing worker API route
@@ -320,6 +344,7 @@ Implement:
 **Step 4: Run tests to verify they pass**
 
 Run:
+
 - `python -m pytest services/openai_worker/tests/test_subagent_lifecycle.py -q`
 - `npm run test -- tests/integration/worker/orchestra-subagent-sessions.test.ts`
 
@@ -335,6 +360,7 @@ git commit -m "feat(worker): integrate subagent orchestration with openai sideca
 ### Task 6: Replace Legacy Standard Task Execution With Bridge Runtime
 
 **Files:**
+
 - Create: `src/server/worker/openai/openaiWorkerClient.ts`
 - Create: `src/server/worker/openai/openaiWorkerRuntime.ts`
 - Modify: `src/server/worker/phases/standardTaskPhase.ts`
@@ -347,12 +373,14 @@ git commit -m "feat(worker): integrate subagent orchestration with openai sideca
 **Step 1: Write failing bridge-runtime tests**
 
 Add tests for:
+
 - `standardTaskPhase` delegates to OpenAI runtime when feature flag is enabled
 - legacy path still works when flag is disabled
 
 **Step 2: Run test to verify it fails**
 
 Run:
+
 - `npm run test -- tests/unit/worker/openai-worker-runtime.test.ts`
 - `npm run test -- tests/e2e/worker/task-lifecycle.e2e.test.ts`
 
@@ -361,6 +389,7 @@ Expected: FAIL.
 **Step 3: Write minimal implementation**
 
 Implement:
+
 - sidecar client (`startRun`, `cancelRun`, `submitApproval`)
 - phase adapter that updates existing status/activity/checkpoints from sidecar events
 - keep legacy planner/executor behind flag for rollback
@@ -368,6 +397,7 @@ Implement:
 **Step 4: Run tests to verify they pass**
 
 Run:
+
 - `npm run test -- tests/unit/worker/openai-worker-runtime.test.ts`
 - `npm run test -- tests/e2e/worker/task-lifecycle.e2e.test.ts`
 
@@ -383,6 +413,7 @@ git commit -m "feat(worker): route task execution through openai sidecar runtime
 ### Task 7: Preserve WebSocket/Kanban UX Contract
 
 **Files:**
+
 - Modify: `src/server/worker/utils/broadcast.ts`
 - Modify: `src/server/gateway/events.ts`
 - Modify: `src/modules/worker/hooks/useWorkerWorkflow.ts`
@@ -393,12 +424,14 @@ git commit -m "feat(worker): route task execution through openai sidecar runtime
 **Step 1: Write failing UI contract tests**
 
 Add tests for:
+
 - no regressions in `worker.status` payload shape
 - new OpenAI progress events map to existing Kanban columns
 
 **Step 2: Run test to verify it fails**
 
 Run:
+
 - `npm run test -- tests/unit/worker/orchestra-event-payload.test.ts`
 - `npm run test -- tests/unit/worker/worker-workflow-tab.test.ts`
 
@@ -407,12 +440,14 @@ Expected: FAIL.
 **Step 3: Write minimal implementation**
 
 Implement:
+
 - event adapter on server side (normalize sidecar events into current gateway event names)
 - frontend receives same status keys and renders unchanged board columns
 
 **Step 4: Run tests to verify they pass**
 
 Run:
+
 - `npm run test -- tests/unit/worker/orchestra-event-payload.test.ts`
 - `npm run test -- tests/unit/worker/worker-workflow-tab.test.ts`
 
@@ -428,6 +463,7 @@ git commit -m "feat(worker): preserve kanban websocket contract on openai runtim
 ### Task 8: Add Operations, Security, Governance, And Failure Controls
 
 **Files:**
+
 - Create: `services/openai_worker/app/security.py`
 - Create: `services/openai_worker/app/retries.py`
 - Create: `services/openai_worker/app/budget.py`
@@ -450,6 +486,7 @@ git commit -m "feat(worker): preserve kanban websocket contract on openai runtim
 **Step 1: Write failing reliability tests**
 
 Add tests for:
+
 - sidecar timeout -> Worker task goes to `interrupted` or `failed` deterministically
 - tool allowlist deny behavior
 - rollback to legacy runtime via feature flag
@@ -461,6 +498,7 @@ Add tests for:
 **Step 2: Run test to verify it fails**
 
 Run:
+
 - `python -m pytest services/openai_worker/tests/test_security_policy.py -q`
 - `python -m pytest services/openai_worker/tests/test_budget_limits.py services/openai_worker/tests/test_rate_limit.py services/openai_worker/tests/test_redaction.py services/openai_worker/tests/test_retention_ttl.py services/openai_worker/tests/test_ha_single_leader.py -q`
 - `npm run test -- tests/integration/worker/openai-runtime-failover.test.ts`
@@ -472,6 +510,7 @@ Expected: FAIL.
 **Step 3: Write minimal implementation**
 
 Implement:
+
 - sidecar auth token validation
 - retry/backoff for callback delivery
 - TS failover path + explicit operator log messages
@@ -494,6 +533,7 @@ Implement:
 **Step 4: Run tests to verify they pass**
 
 Run:
+
 - `python -m pytest services/openai_worker/tests/test_security_policy.py -q`
 - `python -m pytest services/openai_worker/tests/test_budget_limits.py services/openai_worker/tests/test_rate_limit.py services/openai_worker/tests/test_redaction.py services/openai_worker/tests/test_retention_ttl.py services/openai_worker/tests/test_ha_single_leader.py -q`
 - `npm run test -- tests/integration/worker/openai-runtime-failover.test.ts`
@@ -512,6 +552,7 @@ git commit -m "feat(worker): enforce security, budget, governance, and ha contro
 ### Task 9: End-to-End Verification And Runbooks
 
 **Files:**
+
 - Create: `docs/runbooks/openai-worker-local-runbook.md`
 - Create: `docs/runbooks/openai-worker-rollout.md`
 - Create: `docs/runbooks/openai-worker-data-governance.md`
@@ -528,6 +569,7 @@ Add smoke test marker for OpenAI runtime mode in E2E bootstrap.
 **Step 2: Run verification suite before docs finalize**
 
 Run:
+
 - `npm run typecheck`
 - `npm run test -- tests/e2e/worker/task-lifecycle.e2e.test.ts`
 - `npm run test -- tests/e2e/worker/orchestra-lifecycle.e2e.test.ts`
@@ -539,6 +581,7 @@ Expected: all PASS.
 **Step 3: Write minimal operational docs**
 
 Document:
+
 - how to start sidecar + gateway together
 - required env vars (`OPENAI_API_KEY`, sidecar URL/token, runtime flag)
 - rollback switch to legacy runtime
@@ -548,6 +591,7 @@ Document:
 **Step 4: Add scripts**
 
 Add scripts like:
+
 - `worker:openai:dev`
 - `worker:openai:test`
 - `dev:stack` (gateway + sidecar)

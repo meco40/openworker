@@ -6,4 +6,3 @@ describe('openai cancel during approval', () => {
     expect(canTransition('waiting_approval', 'cancelled', 'manual')).toBe(true);
   });
 });
-

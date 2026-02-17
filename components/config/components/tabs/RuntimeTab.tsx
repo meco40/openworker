@@ -11,9 +11,10 @@ export const RuntimeTab: React.FC<ConfigTabProps> = ({
   fieldErrorFor,
   updateConfigDraft,
 }) => {
-  const gateway = parsedConfig?.gateway && typeof parsedConfig.gateway === 'object'
-    ? parsedConfig.gateway as Record<string, unknown>
-    : {};
+  const gateway =
+    parsedConfig?.gateway && typeof parsedConfig.gateway === 'object'
+      ? (parsedConfig.gateway as Record<string, unknown>)
+      : {};
 
   return (
     <label className="space-y-2">

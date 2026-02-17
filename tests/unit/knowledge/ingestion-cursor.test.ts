@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Conversation } from '../../../types';
-import type { MessageRepository, StoredMessage } from '../../../src/server/channels/messages/repository';
+import type {
+  MessageRepository,
+  StoredMessage,
+} from '../../../src/server/channels/messages/repository';
 import type { KnowledgeRepository } from '../../../src/server/knowledge/repository';
 import { KnowledgeIngestionCursor } from '../../../src/server/knowledge/ingestionCursor';
 

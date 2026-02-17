@@ -512,7 +512,15 @@ function normalizeGatewayConfig(
         }
         if (security.tools !== undefined) {
           const tools = ensureObject(security.tools, 'worker.openai.security.tools');
-          const toolKeys = ['shell', 'browser', 'browserUse', 'files', 'github', 'mcp', 'computerUse'];
+          const toolKeys = [
+            'shell',
+            'browser',
+            'browserUse',
+            'files',
+            'github',
+            'mcp',
+            'computerUse',
+          ];
           for (const key of toolKeys) {
             const maybeTool = tools[key];
             if (maybeTool === undefined) continue;

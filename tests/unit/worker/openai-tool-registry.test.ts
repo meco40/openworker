@@ -46,7 +46,15 @@ describe('openaiToolRegistry', () => {
     }));
 
     const registry = await import('../../../src/server/worker/openai/openaiToolRegistry');
-    const ids = ['shell', 'browser', 'browserUse', 'files', 'github', 'mcp', 'computerUse'] as const;
+    const ids = [
+      'shell',
+      'browser',
+      'browserUse',
+      'files',
+      'github',
+      'mcp',
+      'computerUse',
+    ] as const;
 
     for (const id of ids) {
       const enabled = await registry.setOpenAiWorkerToolEnabled(id, true);
@@ -77,12 +85,7 @@ describe('openaiToolRegistry', () => {
       },
     });
 
-    expect(names).toEqual([
-      'safe_shell',
-      'safe_browser_use',
-      'safe_files',
-      'safe_github',
-    ]);
+    expect(names).toEqual(['safe_shell', 'safe_browser_use', 'safe_files', 'safe_github']);
   });
 
   it('resolves approval policy with default mode and per-tool overrides', async () => {

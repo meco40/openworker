@@ -2,10 +2,9 @@
 
 import React from 'react';
 import type { MemoryNode, MemoryType } from '../../../core/memory/types';
-import type { EditDraft } from '../types';
+import type { EditDraft, MemoryHistoryEntry } from '../types';
 import { TYPE_LABEL } from '../types';
 import { MemoryHistory } from './MemoryHistory';
-import type { MemoryHistoryEntry } from '../types';
 
 interface MemoryNodeItemProps {
   node: MemoryNode;
@@ -67,9 +66,7 @@ export const MemoryNodeItem: React.FC<MemoryNodeItemProps> = ({
           <span className="rounded border border-indigo-600/40 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-indigo-300 uppercase">
             {TYPE_LABEL[node.type]}
           </span>
-          <span className="text-[11px] text-zinc-500">
-            Importance: {node.importance}/5
-          </span>
+          <span className="text-[11px] text-zinc-500">Importance: {node.importance}/5</span>
           <span className="text-[11px] text-zinc-500">
             Version: {Number(node.metadata?.version || 1)}
           </span>

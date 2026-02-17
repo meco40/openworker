@@ -1,10 +1,6 @@
 import crypto from 'node:crypto';
 import { toRoom } from '../roomRowMappers';
-import type {
-  CreateRoomInput,
-  Room,
-  RoomRunState,
-} from '../types';
+import type { CreateRoomInput, Room, RoomRunState } from '../types';
 import { BaseRepository } from './baseRepository';
 
 /**

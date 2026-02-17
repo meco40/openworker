@@ -29,4 +29,3 @@ export function parseOpenAiRunState(input: string): OpenAiWorkerRunState {
   }
   throw new Error(`Unsupported OpenAI worker run state: ${input}`);
 }
-

@@ -44,7 +44,10 @@ export async function PATCH(request: Request) {
 
     const body = (await request.json()) as PatchBody;
 
-    if (typeof body.defaultApprovalMode === 'string' && body.defaultApprovalMode.trim().length > 0) {
+    if (
+      typeof body.defaultApprovalMode === 'string' &&
+      body.defaultApprovalMode.trim().length > 0
+    ) {
       const defaultApprovalMode = await setOpenAiWorkerDefaultApprovalMode(
         body.defaultApprovalMode.trim() as 'deny' | 'ask_approve' | 'approve_always',
       );
@@ -69,7 +72,11 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ ok: true, tool });
     }
     return NextResponse.json(
-      { ok: false, error: 'Provide either enabled(boolean), approvalMode(string), or defaultApprovalMode(string).' },
+      {
+        ok: false,
+        error:
+          'Provide either enabled(boolean), approvalMode(string), or defaultApprovalMode(string).',
+      },
       { status: 400 },
     );
   } catch (error) {

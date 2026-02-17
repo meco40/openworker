@@ -8,10 +8,7 @@ interface MemoryPaginationProps {
   onPageChange: (page: number) => void;
 }
 
-export const MemoryPagination: React.FC<MemoryPaginationProps> = ({
-  pagination,
-  onPageChange,
-}) => {
+export const MemoryPagination: React.FC<MemoryPaginationProps> = ({ pagination, onPageChange }) => {
   return (
     <div className="mt-4 flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2">
       <span className="text-xs text-zinc-500">

@@ -62,7 +62,8 @@ function parseAuthPayload(raw: unknown): CodexCliCredentials | null {
   const refreshToken = toStringOrEmpty(tokens.refresh_token);
   if (!accessToken || !refreshToken) return null;
 
-  const accountId = toStringOrEmpty(tokens.account_id) || extractCodexAccountId(accessToken) || undefined;
+  const accountId =
+    toStringOrEmpty(tokens.account_id) || extractCodexAccountId(accessToken) || undefined;
   return {
     accessToken,
     refreshToken,
@@ -147,7 +148,9 @@ export function getOpenAICodexClientId(): string {
   return process.env.OPENAI_OAUTH_CLIENT_ID?.trim() || OPENAI_CODEX_PUBLIC_CLIENT_ID;
 }
 
-export async function refreshOpenAICodexToken(refreshToken: string): Promise<OpenAICodexRefreshResult> {
+export async function refreshOpenAICodexToken(
+  refreshToken: string,
+): Promise<OpenAICodexRefreshResult> {
   const tokenUrl = process.env.OPENAI_OAUTH_TOKEN_URL?.trim() || OPENAI_CODEX_TOKEN_URL;
   const clientId = getOpenAICodexClientId();
   const body = new URLSearchParams({

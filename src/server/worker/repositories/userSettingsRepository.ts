@@ -1,14 +1,11 @@
 import { toUserSettings } from '../workerRowMappers';
-import type {
-  WorkerUserSettingsRecord,
-} from '../workerTypes';
+import type { WorkerUserSettingsRecord } from '../workerTypes';
 import { BaseRepository } from './baseRepository';
 
 /**
  * Repository for user settings-related operations.
  */
 export class UserSettingsRepository extends BaseRepository {
-  
   getUserSettings(userId: string): WorkerUserSettingsRecord | null {
     const row = this.db
       .prepare('SELECT * FROM worker_user_settings WHERE user_id = ?')

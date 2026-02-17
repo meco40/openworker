@@ -97,7 +97,10 @@ function buildCodexSeedModels(defaultModels: string[]): FetchedModel[] {
   return mapDefaultModels(mergedDefaults);
 }
 
-function resolveCodexProbeModel(preferredModel: string | undefined, defaultModels: string[]): string {
+function resolveCodexProbeModel(
+  preferredModel: string | undefined,
+  defaultModels: string[],
+): string {
   const normalizedPreferred = preferredModel?.trim();
   if (normalizedPreferred) return normalizedPreferred;
   const normalizedDefault = defaultModels.find((model) => model.trim().length > 0)?.trim();
@@ -136,7 +139,10 @@ function clampCodexReasoningEffort(
   effort: CodexReasoningEffort,
 ): CodexReasoningEffort {
   const normalizedModelId = modelId.trim().toLowerCase();
-  if ((normalizedModelId.startsWith('gpt-5.2') || normalizedModelId.startsWith('gpt-5.3')) && effort === 'minimal') {
+  if (
+    (normalizedModelId.startsWith('gpt-5.2') || normalizedModelId.startsWith('gpt-5.3')) &&
+    effort === 'minimal'
+  ) {
     return 'low';
   }
   if (normalizedModelId === 'gpt-5.1' && effort === 'xhigh') {
@@ -222,7 +228,9 @@ function buildCodexUserContentParts(
   return parts;
 }
 
-function buildCodexInputMessages(messages: GatewayRequest['messages']): Array<Record<string, unknown>> {
+function buildCodexInputMessages(
+  messages: GatewayRequest['messages'],
+): Array<Record<string, unknown>> {
   const converted: Array<Record<string, unknown>> = [];
   let assistantIndex = 0;
   const latestUserAttachmentIndex = (() => {
@@ -318,7 +326,9 @@ function extractTextFromCodexOutput(output: unknown): string {
   return chunks.join('').trim();
 }
 
-function mapCodexUsage(payload: CodexUsagePayload | undefined): GatewayResponse['usage'] | undefined {
+function mapCodexUsage(
+  payload: CodexUsagePayload | undefined,
+): GatewayResponse['usage'] | undefined {
   if (!payload || typeof payload !== 'object') return undefined;
   const inputTokens = toNumberOrNull(payload.input_tokens);
   const outputTokens = toNumberOrNull(payload.output_tokens);
@@ -512,7 +522,8 @@ async function dispatchCodexResponses(
   try {
     headers = buildCodexHeaders(secret);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to build OpenAI Codex headers.';
+    const message =
+      error instanceof Error ? error.message : 'Failed to build OpenAI Codex headers.';
     return {
       ok: false,
       text: '',

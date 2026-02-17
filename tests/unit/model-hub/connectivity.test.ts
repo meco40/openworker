@@ -118,7 +118,8 @@ describe('model-hub connectivity adapters', () => {
       (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0],
     );
     expect(firstCallUrl).toContain('api.kimi.com/coding/v1/models');
-    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1] as {
+    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls[0]?.[1] as {
       headers?: Record<string, string>;
     };
     expect(firstCallInit?.headers?.Authorization).toBe('Bearer sk-kimi-test');
@@ -166,7 +167,8 @@ describe('model-hub connectivity adapters', () => {
     );
     expect(result.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1] as {
+    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls[0]?.[1] as {
       headers?: Record<string, string>;
     };
     expect(firstCallInit?.headers?.Authorization).toBe('Bearer sk-kimi-test');
@@ -227,7 +229,8 @@ describe('model-hub connectivity adapters', () => {
       (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0],
     );
     expect(firstCallUrl).toContain('chatgpt.com/backend-api/codex/responses');
-    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1] as {
+    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls[0]?.[1] as {
       headers?: Record<string, string>;
       body?: string;
     };
@@ -298,7 +301,8 @@ describe('model-hub connectivity adapters', () => {
       (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0],
     );
     expect(firstCallUrl).toContain('localhost:11434/api/tags');
-    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1] as {
+    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls[0]?.[1] as {
       headers?: Record<string, string>;
     };
     expect(firstCallInit?.headers?.Authorization).toBeUndefined();

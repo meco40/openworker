@@ -75,6 +75,7 @@ Feature-Ordner arbeiten, wenn:
 - kein Security-Risiko entsteht
 
 Dann reicht:
+
 - kurze Notiz im Commit/Change-Text, was geändert wurde und warum
 - passende Verifikation für den geänderten Bereich
 

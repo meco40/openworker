@@ -66,7 +66,9 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {/* Health Diagnostics */}
-        <div className={`rounded-lg border p-3 ${healthConfig.borderClass} ${healthConfig.bgClass}`}>
+        <div
+          className={`rounded-lg border p-3 ${healthConfig.borderClass} ${healthConfig.bgClass}`}
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-black tracking-wide text-zinc-200 uppercase">Health</span>
             <span
@@ -140,7 +142,9 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
         </div>
 
         {/* Doctor Diagnostics */}
-        <div className={`rounded-lg border p-3 ${doctorConfig.borderClass} ${doctorConfig.bgClass}`}>
+        <div
+          className={`rounded-lg border p-3 ${doctorConfig.borderClass} ${doctorConfig.bgClass}`}
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-black tracking-wide text-zinc-200 uppercase">Doctor</span>
             <span

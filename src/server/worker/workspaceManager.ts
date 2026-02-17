@@ -130,7 +130,11 @@ export class WorkspaceManagerImpl {
   /**
    * Read a text file as string. Returns null if not found.
    */
-  readTextFile(taskId: string, relativePath: string, options?: WorkspacePathOptions): string | null {
+  readTextFile(
+    taskId: string,
+    relativePath: string,
+    options?: WorkspacePathOptions,
+  ): string | null {
     const buf = this.readFile(taskId, relativePath, options);
     return buf ? buf.toString('utf-8') : null;
   }

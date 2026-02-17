@@ -61,7 +61,8 @@ const ModelHub: React.FC = () => {
   const [isAddModelOpen, setIsAddModelOpen] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [selectedModelId, setSelectedModelId] = useState('');
-  const [selectedReasoningEffort, setSelectedReasoningEffort] = useState<CodexThinkingLevel>('high');
+  const [selectedReasoningEffort, setSelectedReasoningEffort] =
+    useState<CodexThinkingLevel>('high');
   const [selectedPriority, setSelectedPriority] = useState(1);
   const [liveModels, setLiveModels] = useState<FetchedModel[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -89,8 +90,7 @@ const ModelHub: React.FC = () => {
 
   const availableAuthMethods = useMemo(
     () =>
-      selectedConnectProvider?.authMethods ??
-      (['api_key'] as Array<'none' | 'api_key' | 'oauth'>),
+      selectedConnectProvider?.authMethods ?? (['api_key'] as Array<'none' | 'api_key' | 'oauth'>),
     [selectedConnectProvider],
   );
 
@@ -159,9 +159,7 @@ const ModelHub: React.FC = () => {
   useEffect(() => {
     if (!selectedConnectProvider) return;
     if (!availableAuthMethods.includes(connectAuthMethod)) {
-      setConnectAuthMethod(
-        (availableAuthMethods[0] ?? 'api_key') as 'none' | 'api_key' | 'oauth',
-      );
+      setConnectAuthMethod((availableAuthMethods[0] ?? 'api_key') as 'none' | 'api_key' | 'oauth');
     }
     if (!connectLabel.trim()) {
       setConnectLabel(`${selectedConnectProvider.name} Account`);

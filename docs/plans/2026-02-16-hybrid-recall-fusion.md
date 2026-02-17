@@ -48,22 +48,26 @@ Return combined context → system message to LLM
 ### Task 1: Add `personaId` to `SearchMessagesOptions` + SQL — ✅ DONE
 
 **Files:**
+
 - Modified: `src/server/channels/messages/sqliteMessageRepository.ts`
 - Tests: `tests/unit/channels/message-repository-fts.test.ts` (14 tests, all GREEN)
 
 ### Task 2: Write failing tests for FTS5 persona-scoped search — ✅ DONE
 
 **Files:**
+
 - Tests added to: `tests/unit/channels/message-repository-fts.test.ts`
 
 ### Task 3: Write failing tests for hybrid recall fusion — ✅ DONE
 
 **Files:**
+
 - Created: `tests/unit/channels/recall-fusion.test.ts` (8 tests, all GREEN)
 
 ### Task 4: Implement `fuseRecallSources()` as standalone module — ✅ DONE
 
 **Files:**
+
 - Created: `src/server/channels/messages/recallFusion.ts`
 - Exports: `fuseRecallSources()`, `RECALL_FUSION_TOTAL_BUDGET`, `RecallSources`
 - Budget: Knowledge 1500 + Mem0 1200 + FTS5 Chat 1300 = 4000 total
@@ -71,6 +75,7 @@ Return combined context → system message to LLM
 ### Task 5: Rewrite `buildRecallContext()` for parallel fusion — ✅ DONE
 
 **Files:**
+
 - Modified: `src/server/channels/messages/service.ts`
 - Three new private methods: `recallFromKnowledge()`, `recallFromMemory()`, `recallFromChat()`
 - `Promise.allSettled` parallel execution → `fuseRecallSources()` merger
@@ -78,11 +83,13 @@ Return combined context → system message to LLM
 ### Task 6: Raise `MEMORY_CONTEXT_CHAR_LIMIT` to 4000 — ✅ DONE
 
 **Files:**
+
 - Modified: `src/server/channels/messages/service.ts` (1200 → 4000)
 
 ### Task 7: Update existing tests for parallel behavior — ✅ DONE
 
 **Files:**
+
 - Modified: `tests/unit/channels/message-service-knowledge-recall.test.ts`
   - Changed 6 `memoryRecallDetailedMock.not.toHaveBeenCalled()` → `.toHaveBeenCalled()`
   - Documents new parallel behavior where all sources are queried simultaneously

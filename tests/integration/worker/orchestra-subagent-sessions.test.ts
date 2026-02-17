@@ -49,7 +49,11 @@ describe('orchestra subagent sessions route', () => {
       '.local',
       `worker.orchestra.subagents.${suffix}.db`,
     );
-    const personasDbPath = path.join(process.cwd(), '.local', `personas.orchestra.subagents.${suffix}.db`);
+    const personasDbPath = path.join(
+      process.cwd(),
+      '.local',
+      `personas.orchestra.subagents.${suffix}.db`,
+    );
     cleanupPaths.push(workerDbPath, personasDbPath);
     process.env.WORKER_DB_PATH = workerDbPath;
     process.env.PERSONAS_DB_PATH = personasDbPath;
@@ -180,7 +184,9 @@ describe('orchestra subagent sessions route', () => {
     };
     expect(inheritedResponse.status).toBe(201);
     expect(inheritedPayload.session.personaId).toBe(inheritedPersona.id);
-    expect(inheritedPayload.session.metadata).toContain('"personaResolution":"inherited_task_persona"');
+    expect(inheritedPayload.session.metadata).toContain(
+      '"personaResolution":"inherited_task_persona"',
+    );
     expect(inheritedPayload.session.metadata).toContain('"modelHubProfileId":"team-a"');
 
     const blockedOverrideResponse = await route.POST(
@@ -218,7 +224,9 @@ describe('orchestra subagent sessions route', () => {
     };
     expect(allowedOverrideResponse.status).toBe(201);
     expect(allowedOverridePayload.session.personaId).toBe(overridePersona.id);
-    expect(allowedOverridePayload.session.metadata).toContain('"personaResolution":"explicit_override"');
+    expect(allowedOverridePayload.session.metadata).toContain(
+      '"personaResolution":"explicit_override"',
+    );
     expect(allowedOverridePayload.session.metadata).toContain('"modelHubProfileId":"team-b"');
   });
 });

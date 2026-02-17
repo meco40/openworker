@@ -1,7 +1,5 @@
 import { toMember } from '../roomRowMappers';
-import type {
-  RoomMember,
-} from '../types';
+import type { RoomMember } from '../types';
 import { BaseRepository } from './baseRepository';
 
 /**

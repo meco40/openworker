@@ -1,10 +1,5 @@
 import crypto from 'node:crypto';
-import {
-  toFlowDraft,
-  toFlowPublished,
-  toRun,
-  toRunNode,
-} from '../workerRowMappers';
+import { toFlowDraft, toFlowPublished, toRun, toRunNode } from '../workerRowMappers';
 import type {
   WorkerFlowDraftRecord,
   WorkerFlowPublishedRecord,
@@ -18,7 +13,6 @@ import { BaseRepository, SQLParam } from './baseRepository';
  * Repository for flow-related operations (drafts, published flows, runs, run nodes).
  */
 export class FlowRepository extends BaseRepository {
-  
   // ─── Flow Drafts ────────────────────────────────────────────
 
   listFlowDrafts(userId: string, workspaceType?: WorkspaceType) {
@@ -178,10 +172,7 @@ export class FlowRepository extends BaseRepository {
     return row ? toFlowPublished(row) : null;
   }
 
-  listPublishedFlows(
-    userId: string,
-    workspaceType?: WorkspaceType,
-  ): WorkerFlowPublishedRecord[] {
+  listPublishedFlows(userId: string, workspaceType?: WorkspaceType): WorkerFlowPublishedRecord[] {
     let sql = 'SELECT * FROM worker_flow_published WHERE user_id = ?';
     const params: SQLParam[] = [userId];
     if (workspaceType) {

@@ -20,19 +20,16 @@ import {
   setChannelBindingPersona,
 } from './channelBindingPersona';
 import { getMemoryService } from '../../memory/runtime';
-import {
-  resolveMemoryScopedUserId,
-  resolveMemoryUserIdCandidates,
-} from '../../memory/userScope';
+import { resolveMemoryScopedUserId, resolveMemoryUserIdCandidates } from '../../memory/userScope';
 import { resolveKnowledgeConfig } from '../../knowledge/config';
-import { getKnowledgeIngestionService, getKnowledgeRetrievalService } from '../../knowledge/runtime';
+import {
+  getKnowledgeIngestionService,
+  getKnowledgeRetrievalService,
+} from '../../knowledge/runtime';
 import { buildAutoMemoryCandidates, isAutoSessionMemoryEnabled } from './autoMemory';
 import type { MemoryFeedbackSignal } from '../../memory/service';
 import { getProactiveGateService } from '../../proactive/runtime';
-import {
-  buildMessageAttachmentMetadata,
-  type StoredMessageAttachment,
-} from './attachments';
+import { buildMessageAttachmentMetadata, type StoredMessageAttachment } from './attachments';
 import { loadGatewayConfig } from '../../config/gatewayConfig';
 import {
   resolveEnabledOpenAiWorkerToolNamesFromConfig,
@@ -185,7 +182,10 @@ function readNodeLikeErrorCode(error: unknown): string | null {
   return null;
 }
 
-function isOpenAiSidecarUnavailableError(error: unknown): { unavailable: boolean; code: string | null } {
+function isOpenAiSidecarUnavailableError(error: unknown): {
+  unavailable: boolean;
+  code: string | null;
+} {
   const code = readNodeLikeErrorCode(error);
   if (code && OPENAI_SIDECAR_UNAVAILABLE_CODES.has(code)) {
     return { unavailable: true, code };
@@ -1012,10 +1012,10 @@ export class MessageService {
       'Do not claim that tools are unavailable.',
       'If a tool is needed, call the function directly and continue with real results.',
     ].join('\n');
-    const messagesWithToolContext: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-      { role: 'system', content: toolPolicyMessage },
-      ...messages,
-    ];
+    const messagesWithToolContext: Array<{
+      role: 'system' | 'user' | 'assistant';
+      content: string;
+    }> = [{ role: 'system', content: toolPolicyMessage }, ...messages];
 
     try {
       const run = await sidecarClient.startRun({
@@ -1477,12 +1477,9 @@ export class MessageService {
       this.recallFromChat(conversation, userInput),
     ]);
 
-    const knowledgeContext =
-      knowledgeResult.status === 'fulfilled' ? knowledgeResult.value : null;
-    const memoryContext =
-      memoryResult.status === 'fulfilled' ? memoryResult.value : null;
-    const chatHits =
-      chatResult.status === 'fulfilled' ? chatResult.value : [];
+    const knowledgeContext = knowledgeResult.status === 'fulfilled' ? knowledgeResult.value : null;
+    const memoryContext = memoryResult.status === 'fulfilled' ? memoryResult.value : null;
+    const chatHits = chatResult.status === 'fulfilled' ? chatResult.value : [];
 
     const fused = fuseRecallSources({
       knowledge: knowledgeContext,
@@ -1550,13 +1547,13 @@ export class MessageService {
   }
 
   /** Recall from FTS5 full-text search on chat messages (persona-scoped). */
-  private recallFromChat(
-    conversation: Conversation,
-    userInput: string,
-  ): StoredMessage[] {
+  private recallFromChat(conversation: Conversation, userInput: string): StoredMessage[] {
     if (!this.repo.searchMessages) return [];
     try {
-      const inputNorm = userInput.trim().toLowerCase().replace(/[?.!]+$/, '');
+      const inputNorm = userInput
+        .trim()
+        .toLowerCase()
+        .replace(/[?.!]+$/, '');
       // Overfetch generously to survive duplicate flooding from repeated queries
       const raw = this.repo.searchMessages(userInput, {
         userId: conversation.userId,
@@ -1564,12 +1561,14 @@ export class MessageService {
         limit: 50,
       } as SearchMessagesOptions);
 
-      const filtered = raw
-        .filter((m) => {
-          // Exclude messages that are (near-)exact duplicates of the current query
-          const content = m.content.trim().toLowerCase().replace(/[?.!]+$/, '');
-          return content !== inputNorm;
-        });
+      const filtered = raw.filter((m) => {
+        // Exclude messages that are (near-)exact duplicates of the current query
+        const content = m.content
+          .trim()
+          .toLowerCase()
+          .replace(/[?.!]+$/, '');
+        return content !== inputNorm;
+      });
 
       // Deduplicate near-identical agent responses (e.g. repeated "Ja, die Regeln sind...")
       const seen = new Set<string>();

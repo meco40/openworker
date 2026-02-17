@@ -47,4 +47,3 @@ export class OpenAiWorkerEventGuard {
     return created;
   }
 }
-

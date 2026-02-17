@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { isNoiseMemoryFact, sanitizeKnowledgeFacts } from '../../../src/server/knowledge/textQuality';
+import {
+  isNoiseMemoryFact,
+  sanitizeKnowledgeFacts,
+} from '../../../src/server/knowledge/textQuality';
 
 describe('knowledge text quality', () => {
   it('classifies command and greeting artifacts as noise', () => {
@@ -19,4 +22,3 @@ describe('knowledge text quality', () => {
     ).toEqual(['1. Niemals zu spät kommen.', '2. Bei Meetings bleibst du in meiner Nähe.']);
   });
 });
-

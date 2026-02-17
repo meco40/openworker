@@ -3,9 +3,9 @@ import { shellExecuteHandler } from '../../../src/server/skills/handlers/shellEx
 
 describe('shellExecuteHandler security', () => {
   it('blocks encoded powershell payloads', async () => {
-    await expect(
-      shellExecuteHandler({ command: 'powershell -enc SQBFAFgA' }),
-    ).rejects.toThrow('Command blocked by security policy.');
+    await expect(shellExecuteHandler({ command: 'powershell -enc SQBFAFgA' })).rejects.toThrow(
+      'Command blocked by security policy.',
+    );
   });
 
   it('blocks registry delete commands', async () => {
@@ -15,9 +15,8 @@ describe('shellExecuteHandler security', () => {
   });
 
   it('blocks service stop commands', async () => {
-    await expect(
-      shellExecuteHandler({ command: 'sc stop WinDefend' }),
-    ).rejects.toThrow('Command blocked by security policy.');
+    await expect(shellExecuteHandler({ command: 'sc stop WinDefend' })).rejects.toThrow(
+      'Command blocked by security policy.',
+    );
   });
 });
-

@@ -32,4 +32,3 @@ Deferred. Not part of current implementation.
 1. Disable mandatory auth enforcement.
 2. Restore principal fallback runtime behavior.
 3. Revert id migration using pre-migration snapshot.
-

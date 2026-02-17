@@ -81,7 +81,11 @@ function hasTable(db: BetterSqlite3.Database, table: string): boolean {
   return row?.ok === 1;
 }
 
-function selectPersonaIds(personasDbPath: string, messagesDbPath: string, filter?: string): Set<string> {
+function selectPersonaIds(
+  personasDbPath: string,
+  messagesDbPath: string,
+  filter?: string,
+): Set<string> {
   const personaIds = new Set<string>();
   const trimmedFilter = String(filter || '').trim();
 
@@ -114,9 +118,13 @@ function selectPersonaIds(personasDbPath: string, messagesDbPath: string, filter
       if (hasTable(db, 'conversations')) {
         const rows = trimmedFilter
           ? (db
-              .prepare('SELECT DISTINCT persona_id as personaId FROM conversations WHERE persona_id = ?')
+              .prepare(
+                'SELECT DISTINCT persona_id as personaId FROM conversations WHERE persona_id = ?',
+              )
               .all(trimmedFilter) as Array<{ personaId: string | null }>)
-          : (db.prepare('SELECT DISTINCT persona_id as personaId FROM conversations').all() as Array<{
+          : (db
+              .prepare('SELECT DISTINCT persona_id as personaId FROM conversations')
+              .all() as Array<{
               personaId: string | null;
             }>);
         for (const row of rows) {
@@ -165,13 +173,17 @@ function collectScopePairs(
       }
       if (hasTable(db, 'knowledge_episodes')) {
         const rows = db
-          .prepare('SELECT DISTINCT user_id as userId, persona_id as personaId FROM knowledge_episodes')
+          .prepare(
+            'SELECT DISTINCT user_id as userId, persona_id as personaId FROM knowledge_episodes',
+          )
           .all() as Array<{ userId: string | null; personaId: string | null }>;
         for (const row of rows) maybeAddPair(row.userId, row.personaId);
       }
       if (hasTable(db, 'knowledge_meeting_ledger')) {
         const rows = db
-          .prepare('SELECT DISTINCT user_id as userId, persona_id as personaId FROM knowledge_meeting_ledger')
+          .prepare(
+            'SELECT DISTINCT user_id as userId, persona_id as personaId FROM knowledge_meeting_ledger',
+          )
           .all() as Array<{ userId: string | null; personaId: string | null }>;
         for (const row of rows) maybeAddPair(row.userId, row.personaId);
       }
@@ -199,9 +211,15 @@ function classifyNoiseReason(record: Mem0MemoryRecord): string | null {
     record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
       ? record.metadata
       : {};
-  const type = String(metadata.type || '').trim().toLowerCase();
-  const sourceType = String(metadata.sourceType || '').trim().toLowerCase();
-  const artifactType = String(metadata.artifactType || '').trim().toLowerCase();
+  const type = String(metadata.type || '')
+    .trim()
+    .toLowerCase();
+  const sourceType = String(metadata.sourceType || '')
+    .trim()
+    .toLowerCase();
+  const artifactType = String(metadata.artifactType || '')
+    .trim()
+    .toLowerCase();
   const content = String(record.content || '').trim();
 
   if (artifactType === 'teaser' || artifactType === 'episode') {
@@ -210,12 +228,16 @@ function classifyNoiseReason(record: Mem0MemoryRecord): string | null {
 
   if (type && type !== 'fact') return null;
   if (isNoiseMemoryFact(content)) return 'noise-fact-text';
-  if (sourceType === 'knowledge_ingestion' && content.length > 500) return 'oversized-ingestion-fact';
+  if (sourceType === 'knowledge_ingestion' && content.length > 500)
+    return 'oversized-ingestion-fact';
 
   return null;
 }
 
-async function collectNoiseCandidates(mem0: Mem0Client, pair: ScopePair): Promise<NoiseCandidate[]> {
+async function collectNoiseCandidates(
+  mem0: Mem0Client,
+  pair: ScopePair,
+): Promise<NoiseCandidate[]> {
   const found: NoiseCandidate[] = [];
   let page = 1;
 
@@ -234,7 +256,9 @@ async function collectNoiseCandidates(mem0: Mem0Client, pair: ScopePair): Promis
         userId: pair.userId,
         personaId: pair.personaId,
         id: memory.id,
-        content: String(memory.content || '').replace(/\s+/g, ' ').trim(),
+        content: String(memory.content || '')
+          .replace(/\s+/g, ' ')
+          .trim(),
         reason,
       });
     }

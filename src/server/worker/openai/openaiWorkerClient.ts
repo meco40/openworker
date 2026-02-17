@@ -65,10 +65,7 @@ async function resolveClientConfig(): Promise<OpenAiWorkerClientConfig> {
       : undefined;
 
   return {
-    sidecarUrl:
-      process.env.OPENAI_WORKER_SIDECAR_URL ||
-      cfgSidecarUrl ||
-      'http://127.0.0.1:8011',
+    sidecarUrl: process.env.OPENAI_WORKER_SIDECAR_URL || cfgSidecarUrl || 'http://127.0.0.1:8011',
     callbackToken: process.env.OPENAI_WORKER_TOKEN || cfgToken,
   };
 }

@@ -71,7 +71,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const explicitPersonaRequested = body.personaId !== undefined;
     const requestedPersonaId = normalizeOptionalId(body.personaId);
     if (explicitPersonaRequested && requestedPersonaId === undefined) {
-      return NextResponse.json({ ok: false, error: 'personaId must be a string or null' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: 'personaId must be a string or null' },
+        { status: 400 },
+      );
     }
 
     let resolvedPersonaId = taskPersonaId;
@@ -114,7 +117,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         source: body.source || 'legacy',
         personaResolution,
         taskPersonaId,
-        requestedPersonaId: explicitPersonaRequested ? requestedPersonaId ?? null : null,
+        requestedPersonaId: explicitPersonaRequested ? (requestedPersonaId ?? null) : null,
         resolvedPersonaId,
         modelHubProfileId: resolvedPersonaModelHubProfileId,
         preferredModelId: resolvedPersonaPreferredModelId,

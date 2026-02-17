@@ -93,10 +93,7 @@ vi.mock('../../../src/server/knowledge/runtime', () => ({
 
 import { MessageService } from '../../../src/server/channels/messages/service';
 
-function buildRepository(
-  personaId: string | null,
-  userId = 'user-1',
-): MessageRepository {
+function buildRepository(personaId: string | null, userId = 'user-1'): MessageRepository {
   let seq = 0;
   const messages: StoredMessage[] = [];
   const conversation: Conversation = {
@@ -184,7 +181,9 @@ describe('MessageService knowledge recall integration', () => {
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
 
     const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
-    const dispatchInput = (call?.[2] ?? {}) as { messages?: Array<{ role: string; content: string }> };
+    const dispatchInput = (call?.[2] ?? {}) as {
+      messages?: Array<{ role: string; content: string }>;
+    };
     const dispatchedMessages = dispatchInput.messages ?? [];
     expect(dispatchedMessages[0]?.role).toBe('system');
     expect(dispatchedMessages[0]?.content).toContain('Knowledge: Mittags Sauna');
@@ -207,7 +206,9 @@ describe('MessageService knowledge recall integration', () => {
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
 
     const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
-    const dispatchInput = (call?.[2] ?? {}) as { messages?: Array<{ role: string; content: string }> };
+    const dispatchInput = (call?.[2] ?? {}) as {
+      messages?: Array<{ role: string; content: string }>;
+    };
     const dispatchedMessages = dispatchInput.messages ?? [];
     expect(dispatchedMessages[0]?.role).toBe('system');
     expect(dispatchedMessages[0]?.content).toContain('Knowledge: Mittags Sauna');
@@ -299,7 +300,9 @@ describe('MessageService knowledge recall integration', () => {
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
 
     const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
-    const dispatchInput = (call?.[2] ?? {}) as { messages?: Array<{ role: string; content: string }> };
+    const dispatchInput = (call?.[2] ?? {}) as {
+      messages?: Array<{ role: string; content: string }>;
+    };
     const dispatchedMessages = dispatchInput.messages ?? [];
     expect(dispatchedMessages[0]?.content).toContain('Knowledge context');
   });

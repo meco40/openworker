@@ -79,7 +79,9 @@ function parseDataUrl(dataUrl: string): { mimeType: string; bytes: Buffer } {
     throw new Error('Attachment payload must be a base64 data URL.');
   }
 
-  const mimeType = String(match[1] || '').trim().toLowerCase();
+  const mimeType = String(match[1] || '')
+    .trim()
+    .toLowerCase();
   const base64Payload = String(match[2] || '').replace(/\s+/g, '');
   if (!mimeType || !base64Payload) {
     throw new Error('Attachment data URL is malformed.');
@@ -184,9 +186,7 @@ export function readStoredAttachmentBuffer(attachment: StoredMessageAttachment):
   return fs.readFileSync(resolvedPath);
 }
 
-export function readStoredAttachmentAsDataUrl(
-  attachment: StoredMessageAttachment,
-): string | null {
+export function readStoredAttachmentAsDataUrl(attachment: StoredMessageAttachment): string | null {
   try {
     const bytes = readStoredAttachmentBuffer(attachment);
     if (bytes.length === 0) return null;
@@ -201,7 +201,9 @@ export function persistIncomingAttachment(input: {
   conversationId: string;
   attachment: IncomingMessageAttachmentPayload;
 }): StoredMessageAttachment {
-  const declaredType = String(input.attachment.type || '').trim().toLowerCase();
+  const declaredType = String(input.attachment.type || '')
+    .trim()
+    .toLowerCase();
   const parsed = parseDataUrl(input.attachment.dataUrl || '');
   const mimeType = declaredType || parsed.mimeType;
 

@@ -38,4 +38,3 @@ describe('kimi model fetching', () => {
     global.fetch = originalFetch;
   });
 });
-

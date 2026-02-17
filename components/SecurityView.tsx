@@ -130,14 +130,14 @@ const SecurityView: React.FC = () => {
         const payload = await patchWorkerPolicy({ id, enabled });
         if (!payload.tools && payload.defaultApprovalMode === undefined) {
           setWorkerTools((previous) =>
-            previous.map((tool) =>
-              tool.id === id ? { ...tool, enabled } : tool,
-            ),
+            previous.map((tool) => (tool.id === id ? { ...tool, enabled } : tool)),
           );
         }
         await loadWorkerPolicies();
       } catch (error) {
-        setWorkerPolicyError(error instanceof Error ? error.message : 'Worker policy update failed.');
+        setWorkerPolicyError(
+          error instanceof Error ? error.message : 'Worker policy update failed.',
+        );
       } finally {
         setWorkerPolicySavingId(null);
       }
@@ -155,7 +155,9 @@ const SecurityView: React.FC = () => {
           previous.map((tool) => (tool.id === id ? { ...tool, approvalMode } : tool)),
         );
       } catch (error) {
-        setWorkerPolicyError(error instanceof Error ? error.message : 'Worker policy update failed.');
+        setWorkerPolicyError(
+          error instanceof Error ? error.message : 'Worker policy update failed.',
+        );
       } finally {
         setWorkerPolicySavingId(null);
       }
@@ -173,7 +175,9 @@ const SecurityView: React.FC = () => {
         await patchWorkerPolicy({ defaultApprovalMode: mode });
       } catch (error) {
         setDefaultApprovalMode(previous);
-        setWorkerPolicyError(error instanceof Error ? error.message : 'Worker policy update failed.');
+        setWorkerPolicyError(
+          error instanceof Error ? error.message : 'Worker policy update failed.',
+        );
       } finally {
         setIsWorkerDefaultSaving(false);
       }
@@ -369,7 +373,9 @@ const SecurityView: React.FC = () => {
             <div className="flex flex-wrap items-center gap-3">
               <select
                 value={defaultApprovalMode}
-                onChange={(event) => void handleDefaultModeChange(event.target.value as ApprovalMode)}
+                onChange={(event) =>
+                  void handleDefaultModeChange(event.target.value as ApprovalMode)
+                }
                 disabled={isWorkerDefaultSaving}
                 className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:border-indigo-500 focus:outline-none disabled:opacity-60"
               >
@@ -415,7 +421,10 @@ const SecurityView: React.FC = () => {
                       <select
                         value={tool.approvalMode}
                         onChange={(event) =>
-                          void handleWorkerToolModeChange(tool.id, event.target.value as ApprovalMode)
+                          void handleWorkerToolModeChange(
+                            tool.id,
+                            event.target.value as ApprovalMode,
+                          )
                         }
                         disabled={workerPolicySavingId === tool.id}
                         className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[10px] text-zinc-200 focus:border-indigo-500 focus:outline-none disabled:opacity-60"

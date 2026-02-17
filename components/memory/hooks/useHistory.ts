@@ -12,7 +12,7 @@ interface UseHistoryOptions {
 
 export function useHistory(options: UseHistoryOptions) {
   const { selectedPersonaId, reloadCurrent, setErrorMessage } = options;
-  
+
   const [historyById, setHistoryById] = useState<Record<string, MemoryHistoryEntry[]>>({});
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
   const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null);
@@ -30,7 +30,9 @@ export function useHistory(options: UseHistoryOptions) {
         const payload = (await response.json()) as MemoryHistoryResponse;
         if (!response.ok || !payload.ok || !Array.isArray(payload.history)) {
           setErrorMessage(
-            String(payload.error || `History konnte nicht geladen werden (HTTP ${response.status}).`),
+            String(
+              payload.error || `History konnte nicht geladen werden (HTTP ${response.status}).`,
+            ),
           );
           return [];
         }
@@ -101,16 +103,19 @@ export function useHistory(options: UseHistoryOptions) {
     [loadHistory, reloadCurrent, selectedPersonaId, setErrorMessage],
   );
 
-  const clearHistoryForNode = useCallback((nodeId: string) => {
-    setHistoryById((previous) => {
-      const next = { ...previous };
-      delete next[nodeId];
-      return next;
-    });
-    if (expandedHistoryId === nodeId) {
-      setExpandedHistoryId(null);
-    }
-  }, [expandedHistoryId]);
+  const clearHistoryForNode = useCallback(
+    (nodeId: string) => {
+      setHistoryById((previous) => {
+        const next = { ...previous };
+        delete next[nodeId];
+        return next;
+      });
+      if (expandedHistoryId === nodeId) {
+        setExpandedHistoryId(null);
+      }
+    },
+    [expandedHistoryId],
+  );
 
   const clearAllHistory = useCallback(() => {
     setHistoryById({});

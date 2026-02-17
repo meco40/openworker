@@ -26,7 +26,10 @@ export async function GET(request: Request) {
     }
 
     if (!Number.isInteger(index) || index < 0) {
-      return NextResponse.json({ ok: false, error: 'index must be a non-negative integer' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: 'index must be a non-negative integer' },
+        { status: 400 },
+      );
     }
 
     const service = getMessageService();

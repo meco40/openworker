@@ -36,7 +36,13 @@ function validateCreateInput(body: CreateAccountRequest) {
     throw new Error(`${provider.name} does not support auth method ${authMethod}.`);
   }
 
-  return { providerId, label, authMethod, secret: authMethod === 'none' ? '' : secret, refreshToken };
+  return {
+    providerId,
+    label,
+    authMethod,
+    secret: authMethod === 'none' ? '' : secret,
+    refreshToken,
+  };
 }
 
 export async function GET() {

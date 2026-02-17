@@ -59,7 +59,9 @@ async function resolveVectorNodeCount(userId?: string): Promise<number> {
     return (await memoryService.snapshot(undefined, scopes[0])).length;
   }
 
-  const nodes = (await Promise.all(scopes.map((scopeUserId) => memoryService.snapshot(undefined, scopeUserId)))).flat();
+  const nodes = (
+    await Promise.all(scopes.map((scopeUserId) => memoryService.snapshot(undefined, scopeUserId)))
+  ).flat();
   return new Set(nodes.map((node) => node.id)).size;
 }
 
@@ -122,7 +124,9 @@ export async function GET() {
     if (knowledgeImport.status === 'fulfilled') {
       try {
         const userId = userContext?.userId || LEGACY_LOCAL_USER_ID;
-        knowledgeMetrics = knowledgeImport.value.getKnowledgeRepository().getKnowledgeStats(userId, '');
+        knowledgeMetrics = knowledgeImport.value
+          .getKnowledgeRepository()
+          .getKnowledgeStats(userId, '');
       } catch {
         // Knowledge layer may not be initialized — skip metrics
       }

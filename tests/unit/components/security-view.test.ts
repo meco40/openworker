@@ -13,4 +13,3 @@ describe('SecurityView', () => {
     expect(html).toContain('Worker Policies');
   });
 });
-

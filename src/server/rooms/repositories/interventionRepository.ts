@@ -1,8 +1,6 @@
 import crypto from 'node:crypto';
 import { toIntervention } from '../roomRowMappers';
-import type {
-  RoomIntervention,
-} from '../types';
+import type { RoomIntervention } from '../types';
 import { BaseRepository } from './baseRepository';
 
 /**

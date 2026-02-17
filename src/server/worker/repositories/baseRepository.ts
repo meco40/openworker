@@ -20,7 +20,7 @@ export abstract class BaseRepository {
     } else {
       // Create new database connection
       const dbPath = dbOrPath || process.env.WORKER_DB_PATH || '.local/worker.db';
-      
+
       if (dbPath === ':memory:') {
         this.db = new BetterSqlite3(':memory:');
       } else {

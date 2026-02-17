@@ -20,9 +20,8 @@ describe('openai-codex model fetching', () => {
   });
 
   it('returns known codex model seeds even without remote model lookup', async () => {
-    const { default: adapter } = await import(
-      '../../../src/server/model-hub/Models/openai-codex/index'
-    );
+    const { default: adapter } =
+      await import('../../../src/server/model-hub/Models/openai-codex/index');
 
     const models = await adapter.fetchModels?.({
       secret: 'token',
@@ -48,9 +47,8 @@ describe('openai-codex model fetching', () => {
   });
 
   it('keeps custom provider default models while adding codex seeds', async () => {
-    const { default: adapter } = await import(
-      '../../../src/server/model-hub/Models/openai-codex/index'
-    );
+    const { default: adapter } =
+      await import('../../../src/server/model-hub/Models/openai-codex/index');
 
     const models = await adapter.fetchModels?.({
       secret: 'token',
@@ -88,9 +86,8 @@ describe('openai-codex model fetching', () => {
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { default: adapter } = await import(
-      '../../../src/server/model-hub/Models/openai-codex/index'
-    );
+    const { default: adapter } =
+      await import('../../../src/server/model-hub/Models/openai-codex/index');
 
     const result = await adapter.dispatchGateway?.(
       {
@@ -120,7 +117,8 @@ describe('openai-codex model fetching', () => {
       (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0],
     );
     expect(firstCallUrl).toContain('chatgpt.com/backend-api/codex/responses');
-    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1] as {
+    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls[0]?.[1] as {
       headers?: Record<string, string>;
       body?: string;
     };
@@ -157,9 +155,8 @@ describe('openai-codex model fetching', () => {
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { default: adapter } = await import(
-      '../../../src/server/model-hub/Models/openai-codex/index'
-    );
+    const { default: adapter } =
+      await import('../../../src/server/model-hub/Models/openai-codex/index');
 
     const result = await adapter.dispatchGateway?.(
       {
@@ -211,9 +208,8 @@ describe('openai-codex model fetching', () => {
     );
     fs.writeFileSync(imagePath, pngBytes);
 
-    const { default: adapter } = await import(
-      '../../../src/server/model-hub/Models/openai-codex/index'
-    );
+    const { default: adapter } =
+      await import('../../../src/server/model-hub/Models/openai-codex/index');
 
     await adapter.dispatchGateway?.(
       {
@@ -248,7 +244,8 @@ describe('openai-codex model fetching', () => {
       },
     );
 
-    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1] as {
+    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls[0]?.[1] as {
       body?: string;
     };
     const firstCallBody = JSON.parse(firstCallInit?.body || '{}') as {
@@ -258,7 +255,9 @@ describe('openai-codex model fetching', () => {
     expect(userInput?.role).toBe('user');
     expect(
       userInput?.content?.some(
-        (part) => part.type === 'input_image' && String(part.image_url || '').startsWith('data:image/png;base64,'),
+        (part) =>
+          part.type === 'input_image' &&
+          String(part.image_url || '').startsWith('data:image/png;base64,'),
       ),
     ).toBe(true);
 

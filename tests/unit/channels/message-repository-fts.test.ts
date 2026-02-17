@@ -10,10 +10,7 @@ describe('SqliteMessageRepository — FTS5 search', () => {
     repo = new SqliteMessageRepository(':memory:');
   });
 
-  function seedConversation(
-    channelType: ChannelType = ChannelType.WEBCHAT,
-    personaId?: string,
-  ) {
+  function seedConversation(channelType: ChannelType = ChannelType.WEBCHAT, personaId?: string) {
     return repo.createConversation({
       channelType,
       externalChatId: `ext-${Date.now()}-${Math.random()}`,
@@ -203,11 +200,17 @@ describe('SqliteMessageRepository — FTS5 search', () => {
       seedMessage(convNata.id, 'Die Regeln im Office sind streng');
       seedMessage(convNexus.id, 'Office Regeln sind hier dokumentiert');
 
-      const nataResults = repo.searchMessages('Regeln Office', { userId, personaId: 'persona-nata' });
+      const nataResults = repo.searchMessages('Regeln Office', {
+        userId,
+        personaId: 'persona-nata',
+      });
       expect(nataResults.length).toBe(1);
       expect(nataResults[0].conversationId).toBe(convNata.id);
 
-      const nexusResults = repo.searchMessages('Regeln Office', { userId, personaId: 'persona-nexus' });
+      const nexusResults = repo.searchMessages('Regeln Office', {
+        userId,
+        personaId: 'persona-nexus',
+      });
       expect(nexusResults.length).toBe(1);
       expect(nexusResults[0].conversationId).toBe(convNexus.id);
     });

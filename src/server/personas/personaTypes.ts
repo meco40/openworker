@@ -35,11 +35,7 @@ export const PERSONA_TAB_NAMES: PersonaTabName[] = [
 ];
 
 /** Files that compose the system instruction sent to the AI */
-export const PERSONA_INSTRUCTION_FILES: PersonaFileName[] = [
-  'SOUL.md',
-  'AGENTS.md',
-  'USER.md',
-];
+export const PERSONA_INSTRUCTION_FILES: PersonaFileName[] = ['SOUL.md', 'AGENTS.md', 'USER.md'];
 
 export interface PersonaProfile {
   id: string;

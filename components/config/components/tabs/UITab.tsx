@@ -14,9 +14,10 @@ export const UITab: React.FC<ConfigTabProps> = ({
   simpleModeDisabled,
   updateConfigDraft,
 }) => {
-  const ui = parsedConfig?.ui && typeof parsedConfig.ui === 'object'
-    ? parsedConfig.ui as Record<string, unknown>
-    : {};
+  const ui =
+    parsedConfig?.ui && typeof parsedConfig.ui === 'object'
+      ? (parsedConfig.ui as Record<string, unknown>)
+      : {};
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

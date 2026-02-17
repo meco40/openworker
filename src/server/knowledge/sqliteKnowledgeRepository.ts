@@ -51,9 +51,7 @@ function asLimit(value: number | undefined, fallback = 20): number {
 }
 
 function toStringArray(values: string[]): string[] {
-  return values
-    .map((value) => String(value || '').trim())
-    .filter((value) => value.length > 0);
+  return values.map((value) => String(value || '').trim()).filter((value) => value.length > 0);
 }
 
 function toSourceRefs(rows: KnowledgeSourceRef[]): KnowledgeSourceRef[] {
@@ -231,7 +229,10 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
   upsertEpisode(input: UpsertKnowledgeEpisodeInput): KnowledgeEpisode {
     const now = new Date().toISOString();
     const sourceSeqStart = Math.max(0, Math.floor(Number(input.sourceSeqStart || 0)));
-    const sourceSeqEnd = Math.max(sourceSeqStart, Math.floor(Number(input.sourceSeqEnd || sourceSeqStart)));
+    const sourceSeqEnd = Math.max(
+      sourceSeqStart,
+      Math.floor(Number(input.sourceSeqEnd || sourceSeqStart)),
+    );
 
     const existing = this.db
       .prepare(
@@ -242,12 +243,9 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
         LIMIT 1
       `,
       )
-      .get(
-        input.conversationId,
-        input.personaId,
-        sourceSeqStart,
-        sourceSeqEnd,
-      ) as { id: string } | undefined;
+      .get(input.conversationId, input.personaId, sourceSeqStart, sourceSeqEnd) as
+      | { id: string }
+      | undefined;
 
     const id = existing?.id || crypto.randomUUID();
 
@@ -512,7 +510,11 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
     return this.mapAudit(row);
   }
 
-  listRetrievalAudit(filter: { userId: string; personaId: string; limit?: number }): RetrievalAuditEntry[] {
+  listRetrievalAudit(filter: {
+    userId: string;
+    personaId: string;
+    limit?: number;
+  }): RetrievalAuditEntry[] {
     const limit = asLimit(filter.limit, 25);
     const rows = this.db
       .prepare(
@@ -533,7 +535,9 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
     const episodeCount = Number(
       (
         this.db
-          .prepare('SELECT COUNT(*) as c FROM knowledge_episodes WHERE user_id = ? AND persona_id = ?')
+          .prepare(
+            'SELECT COUNT(*) as c FROM knowledge_episodes WHERE user_id = ? AND persona_id = ?',
+          )
           .get(userId, personaId) as { c: number }
       ).c || 0,
     );
@@ -570,7 +574,9 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
       .get() as { updated_at?: string } | undefined;
 
     const latestIngestionAt = parseIso(latestCheckpoint?.updated_at) || null;
-    const ingestionLagMs = latestIngestionAt ? Math.max(0, Date.now() - Date.parse(latestIngestionAt)) : 0;
+    const ingestionLagMs = latestIngestionAt
+      ? Math.max(0, Date.now() - Date.parse(latestIngestionAt))
+      : 0;
 
     return {
       episodeCount,
@@ -617,11 +623,7 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
 
     const countOnly = (sql: string): number =>
       Number(
-        (
-          this.db
-            .prepare(sql)
-            .get(input.userId, input.personaId, cutoff) as { c: number }
-        ).c || 0,
+        (this.db.prepare(sql).get(input.userId, input.personaId, cutoff) as { c: number }).c || 0,
       );
 
     const episodes = countOnly(

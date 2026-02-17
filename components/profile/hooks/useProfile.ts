@@ -17,7 +17,7 @@ interface UseProfileOptions {
 
 export function useProfile(options: UseProfileOptions = {}) {
   const { metricsState } = options;
-  
+
   const [profile, setProfile] = useState<OperatorProfileState>(() =>
     parseOperatorProfileFromConfig({}),
   );
@@ -54,8 +54,7 @@ export function useProfile(options: UseProfileOptions = {}) {
         });
       }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to load operator profile.';
+      const message = error instanceof Error ? error.message : 'Failed to load operator profile.';
       setStatusMessage({ tone: 'error', text: message });
     } finally {
       setIsLoading(false);

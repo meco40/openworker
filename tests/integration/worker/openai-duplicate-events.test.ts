@@ -27,4 +27,3 @@ describe('openai duplicate events', () => {
     expect(guard.apply(event)).toBe('duplicate');
   });
 });
-

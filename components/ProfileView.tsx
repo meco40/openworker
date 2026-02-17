@@ -18,7 +18,7 @@ interface ProfileViewProps {
 
 const ProfileView: React.FC<ProfileViewProps> = ({ metricsState }) => {
   const [showLimitEditor, setShowLimitEditor] = useState(false);
-  
+
   const {
     profile,
     isLoading,
@@ -62,7 +62,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ metricsState }) => {
           >
             Configure Local Limits
           </button>
-          
+
           {showLimitEditor && (
             <LimitEditor
               workspaceSlots={profile.workspaceSlots}
