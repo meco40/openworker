@@ -1,9 +1,6 @@
 import crypto from 'node:crypto';
 import { toSubagentSession } from '../workerRowMappers';
 import type {
-  WorkerRepository,
-} from '../workerTypes';
-import type {
   WorkerSubagentSessionRecord,
 } from '../orchestraTypes';
 import { BaseRepository, SQLParam } from './baseRepository';
@@ -11,12 +8,7 @@ import { BaseRepository, SQLParam } from './baseRepository';
 /**
  * Repository for subagent session-related operations.
  */
-export class SubagentRepository extends BaseRepository implements Pick<WorkerRepository,
-  | 'createSubagentSession'
-  | 'updateSubagentSession'
-  | 'listSubagentSessions'
-  | 'listActiveSubagentSessions'
-> {
+export class SubagentRepository extends BaseRepository {
   
   createSubagentSession(input: {
     taskId: string;

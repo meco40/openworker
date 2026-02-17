@@ -11,18 +11,26 @@ export type SQLParam = string | number | null | bigint | Uint8Array;
  * All specialized repositories extend this class.
  */
 export abstract class BaseRepository {
-  protected readonly db: BetterSqlite3.Database;
+  protected db: BetterSqlite3.Database;
 
-  constructor(dbPath = process.env.WORKER_DB_PATH || '.local/worker.db') {
-    if (dbPath === ':memory:') {
-      this.db = new BetterSqlite3(':memory:');
+  constructor(dbOrPath?: BetterSqlite3.Database | string) {
+    if (typeof dbOrPath === 'object' && dbOrPath !== null) {
+      // Use provided database instance
+      this.db = dbOrPath as BetterSqlite3.Database;
     } else {
-      const fullPath = path.resolve(dbPath);
-      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new BetterSqlite3(fullPath);
+      // Create new database connection
+      const dbPath = dbOrPath || process.env.WORKER_DB_PATH || '.local/worker.db';
+      
+      if (dbPath === ':memory:') {
+        this.db = new BetterSqlite3(':memory:');
+      } else {
+        const fullPath = path.resolve(dbPath);
+        fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+        this.db = new BetterSqlite3(fullPath);
+      }
+      this.db.exec('PRAGMA journal_mode = WAL');
+      runMigrations(this.db);
     }
-    this.db.exec('PRAGMA journal_mode = WAL');
-    runMigrations(this.db);
   }
 
   /**
@@ -31,13 +39,6 @@ export abstract class BaseRepository {
    */
   protected shouldIncludeLegacyRows(userId: string): boolean {
     return userId === LEGACY_LOCAL_USER_ID;
-  }
-
-  /**
-   * Generate a unique ID with the given prefix.
-   */
-  protected generateId(prefix: string): string {
-    return `${prefix}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
   }
 
   /**

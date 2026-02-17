@@ -6,39 +6,22 @@ import {
   toRunNode,
 } from '../workerRowMappers';
 import type {
-  WorkerRepository,
-} from '../workerTypes';
-import type {
   WorkerFlowDraftRecord,
   WorkerFlowPublishedRecord,
   WorkerRunRecord,
   WorkerRunNodeRecord,
 } from '../orchestraTypes';
+import type { WorkspaceType } from '../workerTypes';
 import { BaseRepository, SQLParam } from './baseRepository';
 
 /**
  * Repository for flow-related operations (drafts, published flows, runs, run nodes).
  */
-export class FlowRepository extends BaseRepository implements Pick<WorkerRepository,
-  | 'listFlowDrafts'
-  | 'getFlowDraft'
-  | 'createFlowDraft'
-  | 'updateFlowDraft'
-  | 'publishFlowDraft'
-  | 'deleteFlowDraft'
-  | 'deletePublishedFlow'
-  | 'getFlowPublished'
-  | 'listPublishedFlows'
-  | 'createRun'
-  | 'updateRunStatus'
-  | 'upsertRunNodeStatus'
-  | 'listRunNodes'
-  | 'getOrchestraMetrics'
-> {
+export class FlowRepository extends BaseRepository {
   
   // ─── Flow Drafts ────────────────────────────────────────────
 
-  listFlowDrafts(userId: string, workspaceType?: WorkerFlowDraftRecord['workspaceType']) {
+  listFlowDrafts(userId: string, workspaceType?: WorkspaceType) {
     let sql = 'SELECT * FROM worker_flow_drafts WHERE user_id = ?';
     const params: SQLParam[] = [userId];
     if (workspaceType) {
@@ -60,7 +43,7 @@ export class FlowRepository extends BaseRepository implements Pick<WorkerReposit
 
   createFlowDraft(input: {
     userId: string;
-    workspaceType: WorkerFlowDraftRecord['workspaceType'];
+    workspaceType: WorkspaceType;
     name: string;
     graphJson: string;
     templateId?: string | null;
@@ -93,7 +76,7 @@ export class FlowRepository extends BaseRepository implements Pick<WorkerReposit
     updates: {
       name?: string;
       graphJson?: string;
-      workspaceType?: WorkerFlowDraftRecord['workspaceType'];
+      workspaceType?: WorkspaceType;
     },
     expectedUpdatedAt?: string,
   ): WorkerFlowDraftRecord | null {
@@ -197,7 +180,7 @@ export class FlowRepository extends BaseRepository implements Pick<WorkerReposit
 
   listPublishedFlows(
     userId: string,
-    workspaceType?: WorkerFlowPublishedRecord['workspaceType'],
+    workspaceType?: WorkspaceType,
   ): WorkerFlowPublishedRecord[] {
     let sql = 'SELECT * FROM worker_flow_published WHERE user_id = ?';
     const params: SQLParam[] = [userId];

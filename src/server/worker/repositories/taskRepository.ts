@@ -1,41 +1,17 @@
 import crypto from 'node:crypto';
-import {
-  toTask,
-} from '../workerRowMappers';
+import { toTask } from '../workerRowMappers';
 import type {
-  WorkerRepository,
   WorkerTaskRecord,
   WorkerTaskStatus,
   CreateTaskInput,
+  PlanningMessage,
 } from '../workerTypes';
 import { BaseRepository, SQLParam } from './baseRepository';
 
 /**
  * Repository for task-related operations.
  */
-export class TaskRepository extends BaseRepository implements Pick<WorkerRepository, 
-  | 'createTask' 
-  | 'getTask' 
-  | 'getTaskForUser'
-  | 'updateStatus'
-  | 'listTasks'
-  | 'listTasksForUser'
-  | 'cancelTask'
-  | 'deleteTask'
-  | 'getNextQueuedTask'
-  | 'getActiveTask'
-  | 'markInterrupted'
-  | 'saveCheckpoint'
-  | 'setTaskRunContext'
-  | 'setCurrentStep'
-  | 'setTotalSteps'
-  | 'setWorkspacePath'
-  | 'updateObjective'
-  | 'assignPersona'
-  | 'getPlanningMessages'
-  | 'savePlanningMessages'
-  | 'completePlanning'
-> {
+export class TaskRepository extends BaseRepository {
   
   createTask(input: CreateTaskInput): WorkerTaskRecord {
     const id = `task-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
@@ -251,7 +227,7 @@ export class TaskRepository extends BaseRepository implements Pick<WorkerReposit
       .run(personaId, taskId);
   }
 
-  getPlanningMessages(taskId: string): import('../workerTypes').PlanningMessage[] {
+  getPlanningMessages(taskId: string): PlanningMessage[] {
     const row = this.db
       .prepare('SELECT planning_messages FROM worker_tasks WHERE id = ?')
       .get(taskId) as Record<string, unknown> | undefined;
@@ -263,7 +239,7 @@ export class TaskRepository extends BaseRepository implements Pick<WorkerReposit
     }
   }
 
-  savePlanningMessages(taskId: string, messages: import('../workerTypes').PlanningMessage[]): void {
+  savePlanningMessages(taskId: string, messages: PlanningMessage[]): void {
     this.db
       .prepare('UPDATE worker_tasks SET planning_messages = ? WHERE id = ?')
       .run(JSON.stringify(messages), taskId);

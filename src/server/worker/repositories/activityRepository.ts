@@ -1,7 +1,6 @@
 import crypto from 'node:crypto';
 import { toActivity } from '../workerRowMappers';
 import type {
-  WorkerRepository,
   TaskActivityRecord,
   SaveActivityInput,
 } from '../workerTypes';
@@ -10,10 +9,7 @@ import { BaseRepository } from './baseRepository';
 /**
  * Repository for activity-related operations.
  */
-export class ActivityRepository extends BaseRepository implements Pick<WorkerRepository,
-  | 'addActivity'
-  | 'getActivities'
-> {
+export class ActivityRepository extends BaseRepository {
   
   addActivity(input: SaveActivityInput): TaskActivityRecord {
     const id = `act-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;

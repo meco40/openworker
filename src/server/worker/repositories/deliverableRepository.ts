@@ -1,9 +1,6 @@
 import crypto from 'node:crypto';
 import { toDeliverable } from '../workerRowMappers';
 import type {
-  WorkerRepository,
-} from '../workerTypes';
-import type {
   WorkerTaskDeliverableRecord,
 } from '../orchestraTypes';
 import { BaseRepository } from './baseRepository';
@@ -11,10 +8,7 @@ import { BaseRepository } from './baseRepository';
 /**
  * Repository for deliverable-related operations.
  */
-export class DeliverableRepository extends BaseRepository implements Pick<WorkerRepository,
-  | 'addDeliverable'
-  | 'listDeliverables'
-> {
+export class DeliverableRepository extends BaseRepository {
   
   addDeliverable(input: {
     taskId: string;

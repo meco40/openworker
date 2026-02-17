@@ -299,4 +299,15 @@ export interface WorkerRepository {
     failFastAbortCount: number;
     activeSubagentSessions: number;
   };
+
+  // Additional Task Operations
+  deleteTask(id: string): void;
+  setCurrentStep(id: string, stepIndex: number): void;
+  setTotalSteps(id: string, total: number): void;
+  setWorkspacePath(id: string, wsPath: string): void;
+  updateObjective(id: string, objective: string): void;
+
+  // Flow Management
+  deleteFlowDraft(id: string, userId: string): boolean;
+  deletePublishedFlow(id: string, userId: string): boolean;
 }

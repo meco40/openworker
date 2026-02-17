@@ -1,7 +1,6 @@
 import crypto from 'node:crypto';
 import { toStep } from '../workerRowMappers';
 import type {
-  WorkerRepository,
   WorkerStepRecord,
   WorkerStepStatus,
   SaveStepInput,
@@ -11,11 +10,7 @@ import { BaseRepository, SQLParam } from './baseRepository';
 /**
  * Repository for step-related operations.
  */
-export class StepRepository extends BaseRepository implements Pick<WorkerRepository,
-  | 'saveSteps'
-  | 'getSteps'
-  | 'updateStepStatus'
-> {
+export class StepRepository extends BaseRepository {
   
   saveSteps(taskId: string, steps: SaveStepInput[]): void {
     const stmt = this.db.prepare(`

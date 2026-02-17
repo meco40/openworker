@@ -1,7 +1,6 @@
 import crypto from 'node:crypto';
 import { toApprovalRule } from '../workerRowMappers';
 import type {
-  WorkerRepository,
   ApprovalRule,
 } from '../workerTypes';
 import { BaseRepository } from './baseRepository';
@@ -9,12 +8,7 @@ import { BaseRepository } from './baseRepository';
 /**
  * Repository for approval rule-related operations.
  */
-export class ApprovalRuleRepository extends BaseRepository implements Pick<WorkerRepository,
-  | 'addApprovalRule'
-  | 'removeApprovalRule'
-  | 'isCommandApproved'
-  | 'listApprovalRules'
-> {
+export class ApprovalRuleRepository extends BaseRepository {
   
   addApprovalRule(commandPattern: string): void {
     const id = crypto.randomUUID();

@@ -1,6 +1,5 @@
 import { toUserSettings } from '../workerRowMappers';
 import type {
-  WorkerRepository,
   WorkerUserSettingsRecord,
 } from '../workerTypes';
 import { BaseRepository } from './baseRepository';
@@ -8,10 +7,7 @@ import { BaseRepository } from './baseRepository';
 /**
  * Repository for user settings-related operations.
  */
-export class UserSettingsRepository extends BaseRepository implements Pick<WorkerRepository,
-  | 'getUserSettings'
-  | 'saveUserSettings'
-> {
+export class UserSettingsRepository extends BaseRepository {
   
   getUserSettings(userId: string): WorkerUserSettingsRecord | null {
     const row = this.db

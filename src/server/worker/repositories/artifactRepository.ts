@@ -1,7 +1,6 @@
 import crypto from 'node:crypto';
 import { toArtifact } from '../workerRowMappers';
 import type {
-  WorkerRepository,
   WorkerArtifactRecord,
   SaveArtifactInput,
 } from '../workerTypes';
@@ -10,10 +9,7 @@ import { BaseRepository } from './baseRepository';
 /**
  * Repository for artifact-related operations.
  */
-export class ArtifactRepository extends BaseRepository implements Pick<WorkerRepository,
-  | 'saveArtifact'
-  | 'getArtifacts'
-> {
+export class ArtifactRepository extends BaseRepository {
   
   saveArtifact(input: SaveArtifactInput): WorkerArtifactRecord {
     const id = `art-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
