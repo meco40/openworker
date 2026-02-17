@@ -1,5 +1,5 @@
 import type { StoredMessage } from '../channels/messages/repository';
-import { buildKnowledgeExtractionPrompt } from './prompts';
+import { buildKnowledgeExtractionPrompt, type ExtractionPersonaContext } from './prompts';
 import type { KnowledgeSourceRef } from './repository';
 import { isMeaningfulKnowledgeText, sanitizeKnowledgeFacts } from './textQuality';
 
@@ -20,6 +20,7 @@ export interface KnowledgeExtractionInput {
   userId: string;
   personaId: string;
   messages: StoredMessage[];
+  personaContext?: ExtractionPersonaContext;
 }
 
 export interface KnowledgeExtractionResult {
@@ -31,6 +32,57 @@ export interface KnowledgeExtractionResult {
 
 interface KnowledgeExtractorOptions {
   runExtractionModel?: (prompt: string) => Promise<string>;
+}
+
+/**
+ * Detects if a fact is about the persona (assistant) based on self-references.
+ * Returns true if the fact contains self-references like "ich", "mein", etc.
+ */
+export function isPersonaSelfReference(fact: string): boolean {
+  const normalized = fact.toLowerCase().trim();
+  // Check for German and English self-references at the start or within the fact
+  const selfPatterns = [
+    /\bich\b/, // ich
+    /\bmein\b/, // mein
+    /\bmeine\b/, // meine
+    /\bmir\b/, // mir
+    /\bmich\b/, // mich
+    /\bi\s+am\b/, // I am
+    /\bi\s+have\b/, // I have
+    /\bmy\b/, // my
+    /\bmine\b/, // mine
+  ];
+  return selfPatterns.some((pattern) => pattern.test(normalized));
+}
+
+/**
+ * Detects if a fact is about the user based on user-references.
+ * Returns true if the fact contains user-references like "du", "user", etc.
+ */
+export function isUserReference(fact: string): boolean {
+  const normalized = fact.toLowerCase().trim();
+  const userPatterns = [
+    /\bdu\b/, // du
+    /\bdein\b/, // dein
+    /\bdeine\b/, // deine
+    /\bdir\b/, // dir
+    /\bdich\b/, // dich
+    /\buser\b/, // user
+    /\bdu\s+hast\b/, // du hast
+    /\bdu\s+bist\b/, // du bist
+    /\byou\b/, // you
+    /\byour\b/, // your
+  ];
+  return userPatterns.some((pattern) => pattern.test(normalized));
+}
+
+/**
+ * Determines the subject of a fact for metadata tagging.
+ */
+export function detectFactSubject(fact: string): 'assistant' | 'user' | 'conversation' {
+  if (isPersonaSelfReference(fact)) return 'assistant';
+  if (isUserReference(fact)) return 'user';
+  return 'conversation';
 }
 
 const DEFAULT_COUNTERPART_REGEX = /\b(andreas|sarah|michael|anna|john|jane)\b/i;
@@ -229,7 +281,7 @@ export class KnowledgeExtractor {
     }
 
     try {
-      const prompt = buildKnowledgeExtractionPrompt(input);
+      const prompt = buildKnowledgeExtractionPrompt(input, input.personaContext);
       const response = await this.options.runExtractionModel(prompt);
       const parsed = parseModelPayload(response, input);
       if (!parsed) return baseFallback;

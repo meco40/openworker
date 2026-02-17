@@ -208,15 +208,69 @@ function toHistoryRecord(entry: Mem0HistoryEntry, index: number): MemoryHistoryR
   };
 }
 
-type MemorySubject = 'user' | 'assistant' | 'conversation' | null;
+export type MemorySubject = 'user' | 'assistant' | 'conversation' | null;
 
-function detectMemorySubject(node: MemoryNode): MemorySubject {
+// Self-reference patterns that indicate the persona is talking about themselves
+const PERSONA_SELF_PATTERNS = [
+  /\bich\s+(habe|bin|war|hatte|kann|will|muss|soll|werde|wurde)\b/i, // ich habe, ich bin, etc.
+  /\bmein\b/i, // mein
+  /\bmeine\b/i, // meine
+  /\bmeinem\b/i, // meinem
+  /\bmeinen\b/i, // meinen
+  /\bmeiner\b/i, // meiner
+  /\bmeines\b/i, // meines
+  /\bmir\b/i, // mir
+  /\bmich\b/i, // mich
+  /\bi\s+(am|have|had|was|will|can|must|should)\b/i, // I am, I have, etc.
+  /\bmy\b/i, // my
+  /\bmine\b/i, // mine
+  /\bmyself\b/i, // myself
+];
+
+// Patterns that indicate the user is being referenced
+const USER_REFERENCE_PATTERNS = [
+  /\bdu\s+(hast|bist|warst|hattest|kannst|willst|musst|sollst|wirst)\b/i, // du hast, du bist, etc.
+  /\bdein\b/i, // dein
+  /\bdeine\b/i, // deine
+  /\bdeinem\b/i, // deinem
+  /\bdeinen\b/i, // deinen
+  /\bdeiner\b/i, // deiner
+  /\bdeines\b/i, // deines
+  /\bdir\b/i, // dir
+  /\bdich\b/i, // dich
+  /\byou\s+(are|have|had|were|will|can|must|should)\b/i, // you are, you have, etc.
+  /\byour\b/i, // your
+  /\byours\b/i, // yours
+];
+
+/**
+ * Detects if content represents a persona self-reference.
+ * This is used both at storage time and retrieval time.
+ */
+export function isPersonaSelfReference(content: string): boolean {
+  const normalized = content.toLowerCase().trim();
+  return PERSONA_SELF_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+/**
+ * Detects if content represents a user reference.
+ */
+export function isUserReference(content: string): boolean {
+  const normalized = content.toLowerCase().trim();
+  return USER_REFERENCE_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+export function detectMemorySubject(node: MemoryNode): MemorySubject {
+  // First check explicit metadata (set during ingestion)
   const explicitSubject = String(node.metadata?.subject || '')
     .trim()
     .toLowerCase();
   if (explicitSubject === 'user') return 'user';
   if (explicitSubject === 'assistant' || explicitSubject === 'persona') return 'assistant';
   if (explicitSubject === 'conversation') return 'conversation';
+
+  // Check for self-reference marker from ingestion
+  if (node.metadata?.selfReference === true) return 'assistant';
 
   const sourceRole = String(node.metadata?.sourceRole || '')
     .trim()
@@ -226,11 +280,19 @@ function detectMemorySubject(node: MemoryNode): MemorySubject {
     return 'assistant';
   }
 
-  const lowered = String(node.content || '')
-    .trim()
-    .toLowerCase();
-  if (/^(ich|i)\b/.test(lowered)) return 'user';
-  if (/^(mein|meine|my)\b/.test(lowered)) return 'user';
+  // Analyze content for self-references
+  const content = String(node.content || '').trim();
+
+  // If content has persona self-reference patterns, it's about the assistant
+  if (isPersonaSelfReference(content)) return 'assistant';
+
+  // If content has user reference patterns, it's about the user
+  if (isUserReference(content)) return 'user';
+
+  // Legacy fallback: check starting patterns (less reliable)
+  const lowered = content.toLowerCase();
+  if (/^(ich|i)\b/.test(lowered)) return 'assistant'; // Changed: 'ich' from persona is about assistant
+  if (/^(mein|meine|my)\b/.test(lowered)) return 'assistant';
 
   return null;
 }
@@ -238,8 +300,17 @@ function detectMemorySubject(node: MemoryNode): MemorySubject {
 function formatRecallContextLine(node: MemoryNode): string {
   const subject = detectMemorySubject(node);
   const base = `[Type: ${node.type}] ${node.content}`;
+
+  // For assistant self-references, add special marker to help AI understand
+  if (subject === 'assistant') {
+    // Check if content already has self-reference markers
+    const hasSelfRef = isPersonaSelfReference(node.content);
+    if (hasSelfRef) {
+      return `${base} [Subject: assistant, Self-Reference]`;
+    }
+    return `${base} [Subject: assistant]`;
+  }
   if (subject === 'user') return `${base} [Subject: user]`;
-  if (subject === 'assistant') return `${base} [Subject: assistant]`;
   if (subject === 'conversation') return `${base} [Subject: conversation]`;
   return base;
 }
@@ -310,6 +381,55 @@ export class MemoryService {
     };
   }
 
+  /**
+   * Expands queries with self-references to improve matching.
+   * When user asks "du...", also search for "ich..." memories and vice versa.
+   */
+  private expandSelfReferenceQuery(query: string): string {
+    const normalized = query.toLowerCase().trim();
+
+    // Check if query contains self-reference terms
+    const hasDu = /\b(du|dein|deine|dir|dich)\b/.test(normalized);
+    const hasIch = /\b(ich|mein|meine|mir|mich)\b/.test(normalized);
+
+    if (!hasDu && !hasIch) return query;
+
+    // Build expanded query with both directions
+    const expansions: string[] = [query];
+
+    if (hasDu) {
+      // Expand du → ich (all cases)
+      const expanded = query
+        .replace(/\bdu\b/gi, 'ich')
+        .replace(/\bdein\b/gi, 'mein')
+        .replace(/\bdeine\b/gi, 'meine')
+        .replace(/\bdeinem\b/gi, 'meinem')
+        .replace(/\bdeinen\b/gi, 'meinen')
+        .replace(/\bdeiner\b/gi, 'meiner')
+        .replace(/\bdeines\b/gi, 'meines')
+        .replace(/\bdir\b/gi, 'mir')
+        .replace(/\bdich\b/gi, 'mich');
+      expansions.push(expanded);
+    }
+
+    if (hasIch) {
+      // Expand ich → du (all cases, for completeness)
+      const expanded = query
+        .replace(/\bich\b/gi, 'du')
+        .replace(/\bmein\b/gi, 'dein')
+        .replace(/\bmeine\b/gi, 'deine')
+        .replace(/\bmeinem\b/gi, 'deinem')
+        .replace(/\bmeinen\b/gi, 'deinen')
+        .replace(/\bmeiner\b/gi, 'deiner')
+        .replace(/\bmeines\b/gi, 'deines')
+        .replace(/\bmir\b/gi, 'dir')
+        .replace(/\bmich\b/gi, 'dich');
+      expansions.push(expanded);
+    }
+
+    return expansions.join(' | ');
+  }
+
   async recallDetailed(
     personaId: string,
     query: string,
@@ -318,10 +438,14 @@ export class MemoryService {
   ): Promise<MemoryRecallResult> {
     const scopedUserId = resolveUserId(userId);
     const safeLimit = Math.max(1, limit);
+
+    // Expand query for self-reference matching
+    const expandedQuery = this.expandSelfReferenceQuery(query);
+
     const hits = await this.mem0Client.searchMemories({
       userId: scopedUserId,
       personaId,
-      query,
+      query: expandedQuery,
       limit: safeLimit,
     });
 

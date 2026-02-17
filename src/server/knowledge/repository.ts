@@ -1,3 +1,10 @@
+import type {
+  EventAggregationResult,
+  KnowledgeEvent,
+  KnowledgeEventFilter,
+  UpsertKnowledgeEventInput,
+} from './eventTypes';
+
 export interface KnowledgeSourceRef {
   seq: number;
   quote: string;
@@ -150,4 +157,11 @@ export interface KnowledgeRepository {
     beforeIso: string;
     dryRun?: boolean;
   }): { episodes: number; ledger: number; audits: number };
+
+  // Event methods (Phase 1)
+  upsertEvent(input: UpsertKnowledgeEventInput): void;
+  appendEventSources(eventId: string, newSeqs: number[], newSummary?: string): void;
+  listEvents(filter: KnowledgeEventFilter, limit?: number): KnowledgeEvent[];
+  findOverlappingEvents(filter: KnowledgeEventFilter): KnowledgeEvent[];
+  countUniqueDays(filter: KnowledgeEventFilter): EventAggregationResult;
 }

@@ -1,9 +1,11 @@
 import type { MemoryService } from '../memory/service';
-import type {
+import {
   KnowledgeExtractionInput,
   KnowledgeExtractionResult,
   KnowledgeExtractor,
+  detectFactSubject,
 } from './extractor';
+import type { ExtractionPersonaContext } from './prompts';
 import type { IngestionWindow, KnowledgeIngestionCursor } from './ingestionCursor';
 import type { KnowledgeRepository } from './repository';
 import { sanitizeKnowledgeFacts } from './textQuality';
@@ -53,6 +55,7 @@ export interface IngestConversationWindowInput {
   personaId: string;
   messages: IngestionWindow['messages'];
   summaryText?: string;
+  personaContext?: ExtractionPersonaContext;
 }
 
 function inferSourceStart(window: IngestionWindow): number {
@@ -142,11 +145,18 @@ export class KnowledgeIngestionService {
   }
 
   private async processWindow(window: IngestionWindow): Promise<void> {
+    // Build persona context from ingestion window (can be extended to load from repository)
+    const personaContext: ExtractionPersonaContext = {
+      name: window.personaId, // Fallback to ID, should be replaced with actual name
+      identityTerms: ['ich', 'mein', 'meine'], // German self-references
+    };
+
     const extraction = await this.deps.extractor.extract({
       conversationId: window.conversationId,
       userId: window.userId,
       personaId: window.personaId,
       messages: window.messages,
+      personaContext,
     });
 
     const sourceSeqStart = inferSourceStart(window);
@@ -186,22 +196,32 @@ export class KnowledgeIngestionService {
       confidence: extraction.meetingLedger.confidence,
     });
 
-    const baseMetadata = {
-      topicKey,
-      conversationId: window.conversationId,
-      sourceSeqStart,
-      sourceSeqEnd,
-      subject: 'conversation',
-      sourceRole: 'mixed',
-      sourceType: 'knowledge_ingestion',
-    };
-
     for (const fact of facts) {
+      // Detect subject based on self-references in the fact
+      const subject = detectFactSubject(fact);
+
+      const metadata = {
+        topicKey,
+        conversationId: window.conversationId,
+        sourceSeqStart,
+        sourceSeqEnd,
+        subject, // 'assistant' for persona self-references, 'user' for user references, 'conversation' for neutral
+        sourceRole: subject === 'assistant' ? 'assistant' : subject === 'user' ? 'user' : 'mixed',
+        sourceType: 'knowledge_ingestion',
+        artifactType: 'fact',
+        // Mark self-references for special retrieval handling
+        selfReference: subject === 'assistant',
+      };
+
       try {
-        await this.deps.memoryService.store(window.personaId, 'fact', fact, 4, window.userId, {
-          ...baseMetadata,
-          artifactType: 'fact',
-        });
+        await this.deps.memoryService.store(
+          window.personaId,
+          'fact',
+          fact,
+          4,
+          window.userId,
+          metadata,
+        );
       } catch (storeError) {
         console.warn(
           '[KnowledgeIngestion] failed to store fact, continuing with remaining',
