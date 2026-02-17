@@ -48,4 +48,34 @@ describe('knowledge config', () => {
     expect(tooHigh.maxContextTokens).toBe(8000);
     expect(tooHigh.ingestIntervalMs).toBe(3600000);
   });
+
+  it('new phase flags default to false', () => {
+    const config = resolveKnowledgeConfig({});
+    expect(config.contradictionDetectionEnabled).toBe(false);
+    expect(config.correctionDetectionEnabled).toBe(false);
+    expect(config.dynamicRecallBudgetEnabled).toBe(false);
+    expect(config.conversationSummaryEnabled).toBe(false);
+    expect(config.memoryConsolidationEnabled).toBe(false);
+    expect(config.personaTypeAwarenessEnabled).toBe(false);
+    expect(config.emotionTrackingEnabled).toBe(false);
+    expect(config.projectTrackingEnabled).toBe(false);
+    expect(config.taskTrackingEnabled).toBe(false);
+  });
+
+  it('activates phase flags from env variables', () => {
+    const config = resolveKnowledgeConfig({
+      KNOWLEDGE_CONVERSATION_SUMMARY: 'true',
+      KNOWLEDGE_DYNAMIC_RECALL_BUDGET: '1',
+      KNOWLEDGE_PERSONA_TYPE_AWARENESS: 'yes',
+      KNOWLEDGE_EMOTION_TRACKING: 'on',
+      KNOWLEDGE_PROJECT_TRACKING: 'true',
+      KNOWLEDGE_TASK_TRACKING: 'true',
+    });
+    expect(config.conversationSummaryEnabled).toBe(true);
+    expect(config.dynamicRecallBudgetEnabled).toBe(true);
+    expect(config.personaTypeAwarenessEnabled).toBe(true);
+    expect(config.emotionTrackingEnabled).toBe(true);
+    expect(config.projectTrackingEnabled).toBe(true);
+    expect(config.taskTrackingEnabled).toBe(true);
+  });
 });

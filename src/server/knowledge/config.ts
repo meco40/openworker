@@ -1,10 +1,28 @@
 export interface KnowledgeConfig {
+  // Phase 1 (existing)
   layerEnabled: boolean;
   ledgerEnabled: boolean;
   episodeEnabled: boolean;
   retrievalEnabled: boolean;
   maxContextTokens: number;
   ingestIntervalMs: number;
+
+  // Phase 3: Memory Reliability
+  contradictionDetectionEnabled: boolean;
+  correctionDetectionEnabled: boolean;
+
+  // Phase 5: Dynamic Recall + Summaries
+  dynamicRecallBudgetEnabled: boolean;
+  conversationSummaryEnabled: boolean;
+  memoryConsolidationEnabled: boolean;
+
+  // Phase 6: Persona Type Awareness
+  personaTypeAwarenessEnabled: boolean;
+
+  // Phase 7: Domain Features
+  emotionTrackingEnabled: boolean; // Only active for roleplay personas
+  projectTrackingEnabled: boolean; // Only active for builder personas
+  taskTrackingEnabled: boolean; // Only active for assistant personas
 }
 
 type EnvLike = Record<string, string | undefined>;
@@ -21,6 +39,15 @@ export const KNOWLEDGE_DEFAULT_CONFIG: KnowledgeConfig = {
   retrievalEnabled: false,
   maxContextTokens: 4000,
   ingestIntervalMs: 600_000,
+  contradictionDetectionEnabled: false,
+  correctionDetectionEnabled: false,
+  dynamicRecallBudgetEnabled: false,
+  conversationSummaryEnabled: false,
+  memoryConsolidationEnabled: false,
+  personaTypeAwarenessEnabled: false,
+  emotionTrackingEnabled: false,
+  projectTrackingEnabled: false,
+  taskTrackingEnabled: false,
 };
 
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
@@ -68,6 +95,42 @@ export function resolveKnowledgeConfig(env: EnvLike = process.env as EnvLike): K
       KNOWLEDGE_DEFAULT_CONFIG.ingestIntervalMs,
       MIN_INGEST_INTERVAL_MS,
       MAX_INGEST_INTERVAL_MS,
+    ),
+    contradictionDetectionEnabled: parseBoolean(
+      env.KNOWLEDGE_CONTRADICTION_DETECTION,
+      KNOWLEDGE_DEFAULT_CONFIG.contradictionDetectionEnabled,
+    ),
+    correctionDetectionEnabled: parseBoolean(
+      env.KNOWLEDGE_CORRECTION_DETECTION,
+      KNOWLEDGE_DEFAULT_CONFIG.correctionDetectionEnabled,
+    ),
+    dynamicRecallBudgetEnabled: parseBoolean(
+      env.KNOWLEDGE_DYNAMIC_RECALL_BUDGET,
+      KNOWLEDGE_DEFAULT_CONFIG.dynamicRecallBudgetEnabled,
+    ),
+    conversationSummaryEnabled: parseBoolean(
+      env.KNOWLEDGE_CONVERSATION_SUMMARY,
+      KNOWLEDGE_DEFAULT_CONFIG.conversationSummaryEnabled,
+    ),
+    memoryConsolidationEnabled: parseBoolean(
+      env.KNOWLEDGE_MEMORY_CONSOLIDATION,
+      KNOWLEDGE_DEFAULT_CONFIG.memoryConsolidationEnabled,
+    ),
+    personaTypeAwarenessEnabled: parseBoolean(
+      env.KNOWLEDGE_PERSONA_TYPE_AWARENESS,
+      KNOWLEDGE_DEFAULT_CONFIG.personaTypeAwarenessEnabled,
+    ),
+    emotionTrackingEnabled: parseBoolean(
+      env.KNOWLEDGE_EMOTION_TRACKING,
+      KNOWLEDGE_DEFAULT_CONFIG.emotionTrackingEnabled,
+    ),
+    projectTrackingEnabled: parseBoolean(
+      env.KNOWLEDGE_PROJECT_TRACKING,
+      KNOWLEDGE_DEFAULT_CONFIG.projectTrackingEnabled,
+    ),
+    taskTrackingEnabled: parseBoolean(
+      env.KNOWLEDGE_TASK_TRACKING,
+      KNOWLEDGE_DEFAULT_CONFIG.taskTrackingEnabled,
     ),
   };
 }
