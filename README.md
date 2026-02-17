@@ -1,6 +1,6 @@
 # OpenClaw Gateway Control Plane
 
-**Stand:** 2026-02-13  
+**Stand:** 2026-02-17  
 **Version:** 1.0.0
 
 ---
@@ -136,19 +136,24 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 
 ## Dokumentation
 
-| Dokument                                                                               | Beschreibung                                         |
-| -------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| [docs/README.md](docs/README.md)                                                       | Einstieg in die Projekt-Dokumentation                |
-| [docs/CORE_HANDBOOK.md](docs/CORE_HANDBOOK.md)                                         | Technischer Gesamtüberblick (Stack, Regeln, Runtime) |
-| [docs/PERSONA_ROOMS_SYSTEM.md](docs/PERSONA_ROOMS_SYSTEM.md)                           | Persona- und Rooms-Architektur                       |
-| [docs/OMNICHANNEL_GATEWAY_OPERATIONS.md](docs/OMNICHANNEL_GATEWAY_OPERATIONS.md)       | Omnichannel-Betrieb & WebSocket Gateway              |
-| [docs/SESSION_MANAGEMENT_IMPLEMENTATION.md](docs/SESSION_MANAGEMENT_IMPLEMENTATION.md) | Session-Management Implementierung                   |
-| [docs/SKILLS_SYSTEM.md](docs/SKILLS_SYSTEM.md)                                         | Skill-Architektur & Handler                          |
-| [docs/SPEC_KIT.md](docs/SPEC_KIT.md)                                                   | Spec-driven Workflow mit spec-kit                    |
-| [docs/WORKER_SYSTEM.md](docs/WORKER_SYSTEM.md)                                         | Worker-Agenten System                                |
-| [docs/MEMORY_SYSTEM.md](docs/MEMORY_SYSTEM.md)                                         | Memory-Architektur                                   |
-| [docs/SECURITY_SYSTEM.md](docs/SECURITY_SYSTEM.md)                                     | Security-Architektur                                 |
-| [docs/DEPLOYMENT_OPERATIONS.md](docs/DEPLOYMENT_OPERATIONS.md)                         | Deployment & Betrieb                                 |
+| Dokument                                                                 | Beschreibung                    |
+| ------------------------------------------------------------------------ | ------------------------------- |
+| [docs/README.md](docs/README.md)                                         | Dokumentations-Index            |
+| [docs/CORE_HANDBOOK.md](docs/CORE_HANDBOOK.md)                           | Technischer Gesamtüberblick     |
+| [docs/SESSION_MANAGEMENT.md](docs/SESSION_MANAGEMENT.md)                 | Session-Management System       |
+| [docs/MEMORY_SYSTEM.md](docs/MEMORY_SYSTEM.md)                           | Memory-System mit Embeddings    |
+| [docs/OMNICHANNEL_GATEWAY_SYSTEM.md](docs/OMNICHANNEL_GATEWAY_SYSTEM.md) | Omnichannel-Messaging & Gateway |
+| [docs/MODEL_HUB_SYSTEM.md](docs/MODEL_HUB_SYSTEM.md)                     | Multi-Provider KI-System        |
+| [docs/PERSONA_ROOMS_SYSTEM.md](docs/PERSONA_ROOMS_SYSTEM.md)             | Persona- & Rooms-System         |
+| [docs/WORKER_SYSTEM.md](docs/WORKER_SYSTEM.md)                           | Worker-Agenten System           |
+| [docs/WORKER_ORCHESTRA_SYSTEM.md](docs/WORKER_ORCHESTRA_SYSTEM.md)       | Visual Workflow Orchestration   |
+| [docs/AUTOMATION_SYSTEM.md](docs/AUTOMATION_SYSTEM.md)                   | Cron-basierte Automationen      |
+| [docs/SKILLS_SYSTEM.md](docs/SKILLS_SYSTEM.md)                           | Skill-System & Tools            |
+| [docs/CLAWHUB_SYSTEM.md](docs/CLAWHUB_SYSTEM.md)                         | ClawHub Skill-Repository        |
+| [docs/KNOWLEDGE_BASE_SYSTEM.md](docs/KNOWLEDGE_BASE_SYSTEM.md)           | Knowledge Base (Beta)           |
+| [docs/SECURITY_SYSTEM.md](docs/SECURITY_SYSTEM.md)                       | Security-Architektur            |
+| [docs/DEPLOYMENT_OPERATIONS.md](docs/DEPLOYMENT_OPERATIONS.md)           | Deployment & Betrieb            |
+| [docs/API_REFERENCE.md](docs/API_REFERENCE.md)                           | Vollständige API-Referenz       |
 
 ---
 

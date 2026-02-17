@@ -1,122 +1,114 @@
 # Worker System
 
-**Stand:** 2026-02-13
+**Stand:** 2026-02-17
 
-## Überblick
+## 1. Funktionserläuterung
 
-Das Worker-System ermöglicht autonome KI-Agenten, die komplexe mehrstufige Aufgaben ausführen:
+Das Worker-System führt mehrstufige Aufgaben asynchron aus (Planung, Ausführung, Review, Artefakte) und unterstützt Subagents, Deliverables sowie Orchestra-Workflows.
 
-- **Task-Management** mit Zustandsautomaten
-- **Tool-Integration** mit Approval-Workflow
-- **Workspace-Management** für Datei-Operationen
-- **Checkpointing** für Unterbrechung und Wiederaufnahme
+### Kernkonzepte
 
-## Architektur
+- **Task**: Persistierte Arbeitseinheit mit Statusmaschine
+- **Planung**: Optionale Rückfragen + Planerstellung
+- **Execution**: Schrittweise Ausführung mit Tool-/Agent-Loop
+- **Approval**: `waiting_approval` mit expliziten Entscheidungen
+- **Workspace**: Dateibasierter Arbeitsbereich pro Task
 
-```
-src/server/worker/
-├── workerTypes.ts          # TypeScript-Interfaces
-├── workerRepository.ts      # Datenbank-Zugriff
-├── workerExecutor.ts        # Einzelschritt-Execution mit Tool-Calling
-├── workerPlanner.ts        # Aufgabenplanung (Task → Steps)
-├── workerAgent.ts          # High-Level Agent-Orchestrierung
-├── workerCallback.ts        # Callback-Handling
-├── workspaceManager.ts      # Workspace-Dateiverwaltung
-└── workerRowMappers.ts     # DB-Mapping
-```
+---
 
-## Task-Zustände
+## 2. Architektur
 
-```
-queued → planning → clarifying → executing → review → completed
-                ↓              ↓           ↓          ↓
-            cancelled      waiting_approval   failed   interrupted
-```
+### 2.1 Komponenten
 
-| Status             | Beschreibung                         |
-| ------------------ | ------------------------------------ |
-| `queued`           | Task wartet auf Verarbeitung         |
-| `planning`         | KI plant die Task-Schritte           |
-| `clarifying`       | Klärungsfragen an Benutzer           |
-| `executing`        | Task wird ausgeführt                 |
-| `review`           | Ergebnisse werden überprüft          |
-| `completed`        | Task erfolgreich abgeschlossen       |
-| `failed`           | Task fehlgeschlagen                  |
-| `cancelled`        | Task abgebrochen                     |
-| `interrupted`      | Task unterbrochen                    |
-| `waiting_approval` | wartet auf Shell-Command-Genehmigung |
+- `src/server/worker/workerRepository.ts`
+- `src/server/worker/workerStateMachine.ts`
+- `src/server/worker/workerPlanner.ts`
+- `src/server/worker/workerExecutor.ts`
+- `src/server/worker/workerAgent.ts`
+- `src/server/worker/workspaceManager.ts`
+- `src/server/worker/openai/*`
+- `app/api/worker/*`
 
-## Task-Prioritäten
+### 2.2 Task-Aktionen über PATCH
 
-| Priorität | Beschreibung       |
-| --------- | ------------------ |
-| `low`     | Niedrige Priorität |
-| `normal`  | Standard-Priorität |
-| `high`    | Hohe Priorität     |
-| `urgent`  | Dringend           |
+`PATCH /api/worker/[id]` verarbeitet u. a.:
 
-## Workspace-Typen
+- `cancel`
+- `resume`
+- `retry`
+- `approve`
+- `deny`
+- `approve-always`
+- `move` (Statuswechsel)
+- `assign` (Persona-Zuweisung)
 
-- **`general`** – Allgemeiner Arbeitsbereich
-- **`code`** – Code-Entwicklung
-- **`data`** – Datenanalyse
-- **`docs`** – Dokumentationserstellung
+---
 
-## Execution-Modell
+## 3. API-Referenz
 
-Der Worker-Executor führt einen einzelnen Schritt mit vollem Tool-Calling-Loop aus:
+### 3.1 Core
 
-```typescript
-export async function executeStep(task: WorkerTaskRecord, step: WorkerStepRecord) {
-  // 1. System-Prompt mit Task-Kontext
-  // 2. AI-Dispatch mit Tool-Definitionen
-  // 3. Tool-Calls ausführen
-  // 4. Ergebnisse zurückgeben
-  // 5. Loop bis AI final response liefert
-}
-```
+| Methode | Pfad                          | Zweck                            |
+| ------- | ----------------------------- | -------------------------------- |
+| GET     | `/api/worker`                 | Tasks auflisten                  |
+| POST    | `/api/worker`                 | Task erstellen                   |
+| DELETE  | `/api/worker`                 | Bulk-Delete                      |
+| GET     | `/api/worker/[id]`            | Task inkl. Steps/Artifacts laden |
+| PATCH   | `/api/worker/[id]`            | Task-Aktion ausführen            |
+| DELETE  | `/api/worker/[id]`            | Task + Workspace löschen         |
+| POST    | `/api/worker/[id]/test`       | Task-Workspace testen            |
+| GET     | `/api/worker/[id]/activities` | Aktivitätsfeed                   |
 
-### Verfügbare Tools
+### 3.2 Planung, Files, Export
 
-| Tool             | Beschreibung             |
-| ---------------- | ------------------------ |
-| `shell_execute`  | Shell-Kommando ausführen |
-| `file_read`      | Datei lesen              |
-| `write_file`     | Datei schreiben          |
-| `browser_fetch`  | URL fetchen              |
-| `python_execute` | Python-Code ausführen    |
-| `search_web`     | Web-Suche                |
+| Methode | Pfad                               | Zweck                      |
+| ------- | ---------------------------------- | -------------------------- |
+| GET     | `/api/worker/[id]/planning`        | Planung-Status laden       |
+| POST    | `/api/worker/[id]/planning`        | Planung starten/fortsetzen |
+| POST    | `/api/worker/[id]/planning/answer` | Antwort auf Planung-Frage  |
+| GET     | `/api/worker/[id]/files`           | Workspace lesen            |
+| POST    | `/api/worker/[id]/files`           | Datei schreiben            |
+| GET     | `/api/worker/[id]/export`          | Workspace exportieren      |
 
-## Command Approval
+### 3.3 Subagents, Deliverables, Workflow
 
-Shell-Kommandos erfordern Genehmigung:
+| Methode | Pfad                            | Zweck                         |
+| ------- | ------------------------------- | ----------------------------- |
+| GET     | `/api/worker/[id]/subagents`    | Subagent-Sessions auflisten   |
+| POST    | `/api/worker/[id]/subagents`    | Subagent-Session erstellen    |
+| PATCH   | `/api/worker/[id]/subagents`    | Subagent-Status aktualisieren |
+| GET     | `/api/worker/[id]/deliverables` | Deliverables laden            |
+| POST    | `/api/worker/[id]/deliverables` | Deliverable erstellen         |
+| GET     | `/api/worker/[id]/workflow`     | Orchestra-Workflow-Ansicht    |
 
-- **`/approve`** – Einmalige Genehmigung
-- **`/deny`** – Ablehnen
-- **`/approve-always`** – Immer genehmigen (whitelist)
+### 3.4 Settings und Orchestra
 
-## API-Oberfläche
+| Methode | Pfad                                       | Zweck                     |
+| ------- | ------------------------------------------ | ------------------------- |
+| GET     | `/api/worker/settings`                     | Worker-Settings laden     |
+| PUT     | `/api/worker/settings`                     | Worker-Settings speichern |
+| GET     | `/api/worker/orchestra/flows`              | Flows auflisten           |
+| POST    | `/api/worker/orchestra/flows`              | Flow erstellen            |
+| GET     | `/api/worker/orchestra/flows/[id]`         | Flow abrufen              |
+| PATCH   | `/api/worker/orchestra/flows/[id]`         | Flow aktualisieren        |
+| DELETE  | `/api/worker/orchestra/flows/[id]`         | Flow löschen              |
+| POST    | `/api/worker/orchestra/flows/[id]/publish` | Flow veröffentlichen      |
 
-| Methode | Pfad                    | Beschreibung          |
-| ------- | ----------------------- | --------------------- |
-| GET     | /api/worker             | Liste aller Tasks     |
-| GET     | /api/worker/[id]        | Task-Details          |
-| POST    | /api/worker             | Neue Task erstellen   |
-| POST    | /api/worker/[id]/start  | Task starten          |
-| POST    | /api/worker/[id]/stop   | Task stoppen          |
-| GET     | /api/worker/[id]/files  | Workspace-Dateien     |
-| POST    | /api/worker/[id]/export | Workspace exportieren |
+---
 
-## Verifikation
+## 4. Verifikation
 
 ```bash
 npm run test -- tests/unit/worker
 npm run test -- tests/integration/worker
-npm run lint
 npm run typecheck
+npm run lint
 ```
 
-## Siehe auch
+---
 
-- [docs/CORE_HANDBOOK.md](CORE_HANDBOOK.md)
-- [docs/SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)
+## 5. Siehe auch
+
+- `docs/WORKER_ORCHESTRA_SYSTEM.md`
+- `docs/SKILLS_SYSTEM.md`
+- `docs/API_REFERENCE.md`

@@ -67,7 +67,9 @@ describe('model-hub account test route', () => {
       );
     }) as unknown as typeof fetch;
 
-    const testResponse = await testAccount(buildTestRequest(), { params: { accountId } });
+    const testResponse = await testAccount(buildTestRequest(), {
+      params: Promise.resolve({ accountId }),
+    });
     const json = await testResponse.json();
     expect(testResponse.status).toBe(200);
     expect(json.ok).toBe(true);

@@ -17,6 +17,8 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "build": "next build",
+    "analyze": "cross-env ANALYZE=true next build --webpack",
+    "knip": "knip",
     "start:web": "node --import tsx server.ts",
     "start:scheduler": "node --import tsx scheduler.ts",
     "start": "npm run start:web",
@@ -88,6 +90,24 @@
     "vitest": "^4.0.18"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,mjs,cjs,json,md,css,scss,yml,yaml}": "prettier --write"
+    "*.{js,jsx,ts,tsx,mjs,cjs}": [
+      "eslint --fix --max-warnings=0",
+      "prettier --write"
+    ],
+    "*.{json,md,css,scss,yml,yaml}": "prettier --write"
+  },
+  "knip": {
+    "ignore": [
+      "backups/**",
+      "workspaces/**",
+      ".worktrees/**",
+      "demo/**",
+      ".tmp/**",
+      ".local/**",
+      ".next/**",
+      "dist/**",
+      ".specify/**",
+      ".codex/**"
+    ]
   }
 }

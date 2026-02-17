@@ -1,80 +1,80 @@
 # Persona and Rooms System
 
-Stand: 2026-02-13
+**Stand:** 2026-02-17
 
-## Scope
+## 1. Funktionserläuterung
 
-Diese Datei ist die aktive technische Referenz fuer Personas + Rooms.
-Sie ersetzt den Mix aus Analysebericht, Implementierungsnotizen und Hardening-Rollout.
-Historische Detailstaende liegen unter `docs/archive/rooms/` und `docs/archive/plans/completed/`.
+Das Persona-/Rooms-System orchestriert Multi-Persona-Konversationen in persistenten Rooms mit gesteuertem Turn-Zyklus.
 
-## Systemueberblick
+### Kernkonzepte
 
-- Personas definieren Identitaet und Verhaltenskontext ueber Datei-Inhalte pro Persona.
-- Rooms orchestrieren Multi-Persona-Diskussionen mit persisted state.
-- Room-Zyklen laufen serverseitig ueber den Orchestrator.
-- UI-Sync erfolgt ueber Gateway Events (`room.*`) via WebSocket.
+- **Persona**: Konfigurierbare Identität inkl. dateibasiertem Kontext
+- **Room**: Laufender Multi-Persona-Container
+- **Member**: Persona-Zuordnung mit Status/Model-Overrides
+- **Orchestrator**: Turn-Ausführung, Lease/Keepalive, Dispatch
+- **Runtime Role**: Ausführungsmodus `web`, `scheduler`, `both`
 
-## Hauptkomponenten
+---
 
-- Persona Domain:
-  - `src/server/personas/personaRepository.ts`
-  - `src/server/personas/personaTypes.ts`
-- Rooms Domain:
-  - `src/server/rooms/repository.ts`
-  - `src/server/rooms/sqliteRoomRepository.ts`
-  - `src/server/rooms/service.ts`
-  - `src/server/rooms/orchestrator.ts`
-  - `src/server/rooms/toolExecutor.ts`
-  - `src/server/rooms/runtimeRole.ts`
-- API:
-  - `app/api/rooms/*`
-  - `app/api/personas/*`
-- Frontend:
-  - `src/modules/rooms/*`
-  - `components/PersonasView.tsx`
+## 2. Architektur
 
-## Persistenz
+### 2.1 Komponenten
 
-Rooms speichern in `messages.db` (SQLite, `better-sqlite3`) u. a.:
+- `src/server/personas/personaRepository.ts`
+- `src/server/rooms/service.ts`
+- `src/server/rooms/orchestrator.ts`
+- `src/server/rooms/orchestratorInterval.ts`
+- `src/server/rooms/runtimeRole.ts`
+- `src/server/rooms/sqliteRoomRepository.ts`
+- `app/api/rooms/*`
+- `app/api/personas/*`
 
-- `rooms`
-- `room_members`
-- `room_runs`
-- `room_messages`
-- `room_message_sequences` (atomische Sequenzvergabe)
-- `room_member_runtime`
-- `room_persona_sessions`
-- `room_persona_context`
-- `room_interventions`
-- `persona_permissions`
+### 2.2 Lease- und Runtime-Modell
 
-## Runtime und Scheduling
+Rooms verwenden Lease-Mechanik, um parallele Verarbeitung zu verhindern. Der aktive Runner wird über `ROOMS_RUNNER` gesteuert.
 
-- Room-Zyklen werden durch den Orchestrator ausgefuehrt.
-- Reentrancy-Guard verhindert ueberlappende `runOnce()` in derselben Instanz.
-- Lease-Mechanik + Keepalive sichern Single-Owner-Verarbeitung je Room.
-- Stop-Race-Schutz verhindert falsches Ueberschreiben von `stopped` nach `degraded`.
-- `ROOMS_RUNNER` steuert, welche Runtime Rooms ausfuehrt (`web`, `scheduler`, `both`).
+---
 
-## Model-Routing und Ausfuehrung
+## 3. API-Referenz
 
-Routing-Reihenfolge pro Mitglied:
+### 3.1 Rooms
 
-1. Member `model_override` (wenn im aktiven Profil verfuegbar)
-2. Room-Profil
-3. Fallback-Profil `p1`
+| Methode | Pfad                                  | Zweck                  |
+| ------- | ------------------------------------- | ---------------------- |
+| GET     | `/api/rooms`                          | Rooms listen           |
+| POST    | `/api/rooms`                          | Room erstellen         |
+| GET     | `/api/rooms/[id]`                     | Room laden             |
+| DELETE  | `/api/rooms/[id]`                     | Room löschen           |
+| POST    | `/api/rooms/[id]/start`               | Room starten           |
+| POST    | `/api/rooms/[id]/stop`                | Room stoppen           |
+| GET     | `/api/rooms/[id]/state`               | Room-State laden       |
+| GET     | `/api/rooms/[id]/messages`            | Room-Nachrichten laden |
+| POST    | `/api/rooms/[id]/messages`            | Room-Nachricht senden  |
+| GET     | `/api/rooms/[id]/interventions`       | Interventionen laden   |
+| POST    | `/api/rooms/[id]/interventions`       | Intervention erstellen |
+| POST    | `/api/rooms/[id]/members`             | Member hinzufügen      |
+| PATCH   | `/api/rooms/[id]/members/[personaId]` | Member aktualisieren   |
+| DELETE  | `/api/rooms/[id]/members/[personaId]` | Member entfernen       |
+| GET     | `/api/rooms/membership-counts`        | Membership-Kennzahlen  |
 
-Pro Turn:
+### 3.2 Personas
 
-- Prompt-/Kontextaufbau
-- optional Tool Calls (permission-checked)
-- Antwortpersistenz + Broadcast
-- Runtime-Status/Metriken aktualisieren
+| Methode | Pfad                                  | Zweck                   |
+| ------- | ------------------------------------- | ----------------------- |
+| GET     | `/api/personas`                       | Personas listen         |
+| POST    | `/api/personas`                       | Persona erstellen       |
+| GET     | `/api/personas/[id]`                  | Persona laden           |
+| PUT     | `/api/personas/[id]`                  | Persona aktualisieren   |
+| DELETE  | `/api/personas/[id]`                  | Persona löschen         |
+| GET     | `/api/personas/[id]/permissions`      | Berechtigungen lesen    |
+| PUT     | `/api/personas/[id]/permissions`      | Berechtigungen setzen   |
+| GET     | `/api/personas/[id]/files/[filename]` | Persona-Datei lesen     |
+| PUT     | `/api/personas/[id]/files/[filename]` | Persona-Datei schreiben |
+| GET     | `/api/personas/templates`             | Templates laden         |
 
-## Realtime Events
+---
 
-Der Server emittiert:
+## 4. Realtime-Events (Auswahl)
 
 - `room.message`
 - `room.member.status`
@@ -82,47 +82,21 @@ Der Server emittiert:
 - `room.intervention`
 - `room.metrics`
 
-Client-seitiger Sync:
+---
 
-- `src/modules/rooms/useRoomSync.ts`
+## 5. Verifikation
 
-## API Surface (wichtig)
+```bash
+npm run test -- tests/unit/rooms
+npm run test -- tests/integration/rooms
+npm run typecheck
+npm run lint
+```
 
-- `GET/POST /api/rooms`
-- `GET/DELETE /api/rooms/[id]`
-- `POST /api/rooms/[id]/start`
-- `POST /api/rooms/[id]/stop`
-- `GET /api/rooms/[id]/state`
-- `GET/POST /api/rooms/[id]/messages`
-- `GET/POST /api/rooms/[id]/interventions`
-- `POST /api/rooms/[id]/members`
-- `DELETE /api/rooms/[id]/members/[personaId]`
+---
 
-## Verifikation
+## 6. Siehe auch
 
-Relevante Testbereiche:
-
-- `tests/unit/rooms/*`
-- `tests/integration/rooms/*`
-- `tests/integration/security/privileged-routes-auth.test.ts`
-
-Empfohlener Check:
-
-- `npm run test -- tests/unit/rooms tests/integration/rooms`
-- `npm run lint`
-- `npm run typecheck`
-
-## Bekannte Grenzen
-
-- SQLite-basierte Single-Node-Charakteristik fuer hohe horizontale Skalierung.
-- Keine dedizierte Queue-Infrastruktur fuer Rooms-Orchestrierung (timer-basiert).
-- UI-Timeline kann bei sehr langen Verlaeufen weiter optimiert werden (Pagination/Virtualisierung).
-
-## Historie
-
-Historische Rooms-Dokumente:
-
-- `docs/archive/rooms/2026-02-12-rooms-stability-performance-analysis.md`
-- `docs/archive/rooms/2026-02-12-rooms-system-maengel-analyse.md`
-- `docs/archive/rooms/ROOMS_IMPLEMENTATION_NOTES.md`
-- `docs/archive/plans/completed/2026-02-12-rooms-*.md`
+- `docs/SESSION_MANAGEMENT.md`
+- `docs/MEMORY_SYSTEM.md`
+- `docs/API_REFERENCE.md`

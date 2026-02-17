@@ -1,165 +1,112 @@
 # Skills System
 
-**Stand:** 2026-02-13
+**Stand:** 2026-02-17
 
-## Überblick
+## 1. Funktionserläuterung
 
-Das Skills-System ermöglicht die Erweiterung der KI-Fähigkeiten durch installierbare Tools. Es unterstützt:
+Das Skills-System verwaltet installierte Skills und stellt eine kontrollierte Ausführung für vordefinierte Skill-Handler bereit.
 
-- **8 Built-in Skills** (Core Extensions, Automation, Data & Media, System)
-- **Externe Skill-Installation** via npm, GitHub oder ClawHub
-- **Skill-basierte Tool-Execution** mit Approval-Workflow
+### Kernkonzepte
 
-## Architektur
+- **Skill Registry**: Persistierte Skill-Metadaten inkl. Install/Enabled-Status
+- **Built-in-Startbestand**: Standard-Skills beim Systemstart
+- **Runtime-Konfiguration**: Secret/Text-Konfiguration pro Skill-Feld
+- **Ausführungs-Dispatch**: Name-basierter Handler-Aufruf mit Argument-Normalisierung
 
-```
-skills/
-├── definitions.ts          # Skill-Manifest-Definitionen
-├── execute.ts             # Statische Funktions-Mappings
-├── runtime-client.ts       # Client-seitiger Skill-Zugriff
-├── SkillsRegistry.tsx     # UI-Komponente für Skill-Verwaltung
-├── browser/               # Browser-Skill
-├── filesystem/            # Dateisystem-Skill
-├── github-manager/        # GitHub-API-Skill
-├── python-runtime/        # Python-Execution-Skill
-├── search/                # Web-Suche-Skill
-├── shell-access/          # Shell-Command-Skill
-├── sql-bridge/            # SQL-Query-Skill
-└── vision/                # Bildanalyse-Skill
-```
+---
 
-## Built-in Skills
+## 2. Architektur
 
-| Skill        | Default | Beschreibung                            |
-| ------------ | ------- | --------------------------------------- |
-| `browser`    | ✅      | Website-Inhalte fetchen und analysieren |
-| `search`     | ✅      | Web-Suche durchführen                   |
-| `python`     | ✅      | Python-Code ausführen                   |
-| `vision`     | ✅      | Bilder analysieren (OCR, Beschreibung)  |
-| `filesystem` | ✅      | Dateien lesen/schreiben im Workspace    |
-| `shell`      | ❌      | Shell-Kommandos ausführen (riskant)     |
-| `github`     | ❌      | GitHub-API-Abfragen                     |
-| `sql`        | ❌      | SQL-Queries (read-only)                 |
+### 2.1 Komponenten
 
-## Skill-Installation
+- `src/server/skills/builtInSkills.ts`
+- `src/server/skills/skillRepository.ts`
+- `src/server/skills/skillInstaller.ts`
+- `src/server/skills/runtimeConfig.ts`
+- `src/server/skills/executeSkill.ts`
+- `src/server/skills/handlers/*`
+- `app/api/skills/*`
 
-### Via npm
+### 2.2 Built-in Skills (Seed)
 
-```bash
-# Lokale Installation
-npm install <skill-package>
+Quelle: `src/server/skills/builtInSkills.ts`
 
-# Skill-Manifest in skills/ einfügen
-```
+| Skill ID     | Default installiert |
+| ------------ | ------------------- |
+| `browser`    | ja                  |
+| `search`     | ja                  |
+| `python`     | ja                  |
+| `shell`      | nein                |
+| `github`     | nein                |
+| `vision`     | ja                  |
+| `sql`        | nein                |
+| `filesystem` | ja                  |
 
-### Via GitHub
+---
 
-```bash
-# Über UI: Skills Registry → GitHub Tab
-# API: POST /api/skills mit { source: 'github', repo, manifest }
-```
+## 3. API-Referenz
 
-### Via ClawHub
+| Methode | Pfad                         | Zweck                              |
+| ------- | ---------------------------- | ---------------------------------- |
+| GET     | `/api/skills`                | Skills auflisten                   |
+| POST    | `/api/skills`                | Skill installieren                 |
+| PATCH   | `/api/skills/[id]`           | Skill aktiviert/deaktiviert setzen |
+| DELETE  | `/api/skills/[id]`           | Skill entfernen (keine built-ins)  |
+| POST    | `/api/skills/execute`        | Skill-Handler ausführen            |
+| GET     | `/api/skills/runtime-config` | Runtime-Konfigurationsstatus lesen |
+| PUT     | `/api/skills/runtime-config` | Runtime-Konfigurationswert setzen  |
+| DELETE  | `/api/skills/runtime-config` | Runtime-Konfigurationswert löschen |
 
-```bash
-# Über UI: Skills Registry → ClawHub Tab
-# CLI: clawhub install <slug>
-```
-
-## API-Oberfläche
-
-### GET /api/skills
-
-Liste aller installierten Skills.
-
-**Response:**
+### Ausführungsanfrage
 
 ```json
 {
-  "ok": true,
-  "skills": [
-    {
-      "id": "browser",
-      "name": "Browser",
-      "description": "Fetch and analyze website content",
-      "enabled": true,
-      "installedByDefault": true
-    }
-  ]
+  "name": "file_read",
+  "args": {
+    "path": "README.md"
+  }
 }
 ```
 
-### POST /api/skills
+Unterstützte direkte Handler-Namen (`executeSkill.ts`):
 
-Skill installieren.
+- `file_read`
+- `shell_execute`
+- `python_execute`
+- `github_query`
+- `db_query`
+- `browser_snapshot`
+- `vision_analyze`
 
-**Body:**
+---
 
-```json
-{
-  "source": "npm|github|clawhub",
-  "name": "skill-name",
-  "manifest": { ... }
-}
-```
+## 4. Runtime-Konfiguration
 
-### DELETE /api/skills/[id]
+Quelle: `src/server/skills/runtimeConfig.ts`
 
-Skill deinstallieren.
+Aktuelle Felder:
 
-## Skill-Execution
+- `vision.gemini_api_key` (secret, erforderlich)
+- `github-manager.github_token` (secret, optional)
+- `sql-bridge.sqlite_db_path` (text, erforderlich)
 
-Skills werden über den Model-Hub mit Tool-Calling integriert:
+Werte können aus Store oder ENV aufgelöst werden; der Status zeigt Quelle + maskierten Wert.
 
-```typescript
-// skills/execute.ts
-import { browser } from '../skills/browser';
-import { filesystem } from '../skills/filesystem';
+---
 
-const SKILL_HANDLERS = {
-  browser_fetch: browser.fetch,
-  file_read: filesystem.readFile,
-  file_write: filesystem.writeFile,
-  // ...
-};
-
-export async function executeSkill(name: string, args: Record<string, unknown>) {
-  const handler = SKILL_HANDLERS[name];
-  if (!handler) throw new Error(`Unknown skill: ${name}`);
-  return handler(args);
-}
-```
-
-## Sicherheit
-
-### Command Approval
-
-Shell-Kommandos erfordern Benutzer-Approval:
-
-```
-User: Führe `rm -rf /` aus
-System: ⚠️ Genehmigung erforderlich für Shell-Kommando
-        [Genehmigen] [Immer erlauben] [Ablehnen]
-```
-
-### Risk-Levels
-
-Skills werden nach Risiko eingestuft:
-
-- **Low**: browser, search, filesystem (lesen), vision
-- **Medium**: filesystem (schreiben), python, sql
-- **High**: shell, github
-
-## Verifikation
+## 5. Verifikation
 
 ```bash
 npm run test -- tests/unit/skills
 npm run test -- tests/integration/skills
-npm run lint
 npm run typecheck
+npm run lint
 ```
 
-## Siehe auch
+---
 
-- [docs/CORE_HANDBOOK.md](CORE_HANDBOOK.md) – Architekturübersicht
-- [docs/plans/2026-02-13-clawhub-dual-lane-design.md](plans/2026-02-13-clawhub-dual-lane-design.md) – ClawHub-Integration
+## 6. Siehe auch
+
+- `docs/CLAWHUB_SYSTEM.md`
+- `docs/API_REFERENCE.md`
+- `docs/WORKER_SYSTEM.md`

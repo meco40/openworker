@@ -13,7 +13,7 @@ describe('GET /api/doctor', () => {
     }));
 
     const { GET } = await import('../../../app/api/doctor/route');
-    const response = await GET();
+    const response = await GET(new Request('http://localhost/api/doctor'));
     const payload = (await response.json()) as { ok: boolean; error: string };
 
     expect(response.status).toBe(401);
@@ -67,7 +67,7 @@ describe('GET /api/doctor', () => {
     }));
 
     const { GET } = await import('../../../app/api/doctor/route');
-    const response = await GET();
+    const response = await GET(new Request('http://localhost/api/doctor'));
     const payload = (await response.json()) as { ok: boolean; error: string };
 
     expect(response.status).toBe(401);

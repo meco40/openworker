@@ -1,6 +1,6 @@
 # Core Handbook
 
-Stand: 2026-02-13
+Stand: 2026-02-17
 
 ## Zweck
 
@@ -69,6 +69,14 @@ Quelle:
 - Rooms/Personas: `docs/PERSONA_ROOMS_SYSTEM.md`
 - Omnichannel/Gateway Betrieb: `docs/OMNICHANNEL_GATEWAY_OPERATIONS.md`
 - Session-Implementierung: `docs/SESSION_MANAGEMENT_IMPLEMENTATION.md`
+- Skills: `docs/SKILLS_SYSTEM.md`
+- Worker: `docs/WORKER_SYSTEM.md`
+- Worker Orchestra: `docs/WORKER_ORCHESTRA_SYSTEM.md`
+- Automationen: `docs/AUTOMATION_SYSTEM.md`
+- Memory: `docs/MEMORY_SYSTEM.md`
+- Security: `docs/SECURITY_SYSTEM.md`
+- Deployment: `docs/DEPLOYMENT_OPERATIONS.md`
+- API-Referenz: `docs/API_REFERENCE.md`
 - Provider-Matrix: `docs/architecture/model-hub-provider-matrix.md`
 - Aktive Plaene: `docs/plans/README.md`
 - Archiv: `docs/archive/README.md`

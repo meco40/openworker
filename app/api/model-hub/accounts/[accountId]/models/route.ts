@@ -8,11 +8,11 @@ import { resolveRequestUserContext } from '../../../../../../src/server/auth/use
 export const runtime = 'nodejs';
 
 type RouteContext = {
-  params: { accountId: string } | Promise<{ accountId: string }>;
+  params: Promise<{ accountId: string }>;
 };
 
 async function resolveAccountId(context: RouteContext): Promise<string> {
-  const params = await Promise.resolve(context.params);
+  const params = await context.params;
   return String(params.accountId || '').trim();
 }
 

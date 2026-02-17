@@ -13,7 +13,7 @@ describe('GET /api/health', () => {
     }));
 
     const { GET } = await import('../../../app/api/health/route');
-    const response = await GET();
+    const response = await GET(new Request('http://localhost/api/health'));
     const payload = (await response.json()) as { ok: boolean; error: string };
 
     expect(response.status).toBe(401);
@@ -57,7 +57,7 @@ describe('GET /api/health', () => {
     }));
 
     const { GET } = await import('../../../app/api/health/route');
-    const response = await GET();
+    const response = await GET(new Request('http://localhost/api/health'));
     const payload = (await response.json()) as { ok: boolean; error: string };
 
     expect(response.status).toBe(401);

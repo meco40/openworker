@@ -1,39 +1,48 @@
 # Model Hub Provider Matrix (Production Reference)
 
-Stand: 2026-02-10
+Stand: 2026-02-17
 
 ## Ziel
 
-Dieses Dokument fixiert die offiziell verifizierten Auth-/API-Baselines fuer den Multi-Provider Model Hub.
+Dieses Dokument hält die aktuellen Provider-, Auth- und Endpoint-Baselines des produktiven Model Hub fest.
 
-## Provider (11)
+## Provider (14)
 
-| Provider                | Prim. Auth       | OAuth                 | API Base (Healthcheck)                                           | Notes                                                                                       |
-| ----------------------- | ---------------- | --------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| OpenAI                  | API Key          | Nein                  | `https://api.openai.com/v1/models`                               | Standard OpenAI Platform API                                                                |
-| OpenAI Codex            | OAuth            | Ja (PKCE)             | `https://api.openai.com/v1/models`                               | OAuth via öffentlicher Codex-App-ID, default Redirect `http://localhost:1455/auth/callback` |
-| Google Gemini           | API Key          | Nein                  | Gemini SDK / GenerateContent                                     | Native Google GenAI SDK                                                                     |
-| Anthropic               | API Key          | Nein                  | `POST https://api.anthropic.com/v1/messages`                     | Header `x-api-key` + `anthropic-version`                                                    |
-| OpenRouter              | API Key          | Ja (PKCE)             | `GET https://openrouter.ai/api/v1/key`                           | OAuth ueber `/auth` + Token-Exchange                                                        |
-| xAI                     | API Key          | Nein                  | `GET https://api.x.ai/v1/models`                                 | API key auth                                                                                |
-| Mistral                 | API Key          | Nein                  | `GET https://api.mistral.ai/v1/models`                           | API key auth                                                                                |
-| Cohere                  | API Key          | Nein                  | `GET https://api.cohere.com/v2/models`                           | API key auth                                                                                |
-| Z.AI                    | API Key          | Nein                  | `POST https://api.z.ai/api/paas/v4/chat/completions`             | OpenAI-kompatibler Flow                                                                     |
-| Kimi (Moonshot)         | API Key          | Nein                  | `GET https://api.moonshot.cn/v1/models`                          | OpenAI-kompatible API                                                                       |
-| ByteDance ModelArk      | API Key          | Nein                  | `POST https://ark.cn-beijing.volces.com/api/v3/chat/completions` | Model/Endpoint-ID erforderlich                                                              |
-| GitHub Copilot / Models | OAuth oder Token | Ja (GitHub OAuth App) | `GET https://api.github.com/user`                                | Fuer Account-Pairing + GitHub Identity                                                      |
+| Provider                | Primäre Auth  | OAuth | API Base / Health-Orientierung             | Notes                               |
+| ----------------------- | ------------- | ----- | ------------------------------------------ | ----------------------------------- |
+| OpenAI                  | API Key       | Nein  | `https://api.openai.com/v1`                | Native OpenAI Adapter               |
+| OpenAI Codex            | OAuth         | Ja    | `https://chatgpt.com/backend-api`          | Codex-spezifischer OAuth-Flow       |
+| Google Gemini           | API Key       | Nein  | SDK-basiert                                | Native GenAI-Integration            |
+| Anthropic               | API Key       | Nein  | `https://api.anthropic.com/v1`             | Native Messages API                 |
+| OpenRouter              | API Key       | Ja    | `https://openrouter.ai/api/v1`             | OpenAI-kompatibel + OAuth           |
+| Ollama (Local)          | none/API Key  | Nein  | `http://localhost:11434/v1`                | Lokaler OpenAI-kompatibler Endpoint |
+| LM Studio (Local)       | none/API Key  | Nein  | `http://localhost:1234/v1`                 | Lokaler OpenAI-kompatibler Endpoint |
+| xAI                     | API Key       | Nein  | `https://api.x.ai/v1`                      | Native xAI-Adapter                  |
+| Mistral                 | API Key       | Nein  | `https://api.mistral.ai/v1`                | Native Mistral-Adapter              |
+| Cohere                  | API Key       | Nein  | `https://api.cohere.com/v2`                | Native Cohere-Adapter               |
+| Z.AI                    | API Key       | Nein  | `https://api.z.ai/api/paas/v4`             | OpenAI-kompatibel                   |
+| Kimi Code               | API Key       | Nein  | `https://api.kimi.com/coding/v1`           | OpenAI-kompatibel                   |
+| ByteDance ModelArk      | API Key       | Nein  | `https://ark.cn-beijing.volces.com/api/v3` | OpenAI-kompatibel                   |
+| GitHub Copilot / Models | OAuth/API Key | Ja    | `https://api.github.com`                   | GitHub-native Adapter               |
 
-## Offizielle Quellen
+## Quelle im Code
 
-- OpenAI API Auth + API Reference: https://platform.openai.com/docs/api-reference/authentication
-- OpenAI OAuth (Sign-in / OAuth-kontext): https://platform.openai.com/docs/actions/authentication
-- Gemini API docs: https://ai.google.dev/gemini-api/docs
-- Anthropic Messages API: https://docs.anthropic.com/en/api/messages
-- OpenRouter Quickstart + OAuth PKCE: https://openrouter.ai/docs/quickstart und https://openrouter.ai/docs/use-cases/oauth-pkce
-- xAI API docs: https://docs.x.ai/docs/overview
-- Mistral docs: https://docs.mistral.ai
-- Cohere docs: https://docs.cohere.com
-- Z.AI docs: https://docs.z.ai
-- Kimi API docs (Moonshot): https://platform.moonshot.cn/docs/guide/start-using-kimi-api
-- ByteDance/BytePlus ModelArk Auth + Endpoints: https://docs.byteplus.com/id/docs/ModelArk/Authentication und https://docs.byteplus.com/id/docs/ModelArk/API_reference
-- GitHub OAuth + GitHub Models REST: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps und https://docs.github.com/en/rest/models
+- Provider-Katalog: `src/server/model-hub/providerCatalog.ts`
+- Adapter-Registry: `src/server/model-hub/Models/registry.ts`
+
+## Offizielle Referenzen
+
+- OpenAI: https://platform.openai.com/docs/api-reference
+- OpenAI Codex: https://platform.openai.com/docs/guides/codex
+- Gemini: https://ai.google.dev/gemini-api/docs
+- Anthropic: https://docs.anthropic.com/en/api/messages
+- OpenRouter: https://openrouter.ai/docs/quickstart
+- Ollama: https://ollama.com/blog/openai-compatibility
+- LM Studio: https://lmstudio.ai/docs/app/api/endpoints/openai
+- xAI: https://docs.x.ai/docs/overview
+- Mistral: https://docs.mistral.ai
+- Cohere: https://docs.cohere.com
+- Z.AI: https://docs.z.ai
+- Kimi: https://www.kimi.com/code/docs/en/
+- ByteDance/BytePlus: https://docs.byteplus.com/id/docs/ModelArk/Authentication
+- GitHub Models: https://docs.github.com/en/rest/models

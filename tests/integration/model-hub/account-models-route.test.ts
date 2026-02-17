@@ -53,7 +53,7 @@ describe('model-hub account models route', () => {
     const response = await listModels(
       new Request('http://localhost/api/model-hub/accounts/a/models'),
       {
-        params: { accountId },
+        params: Promise.resolve({ accountId }),
       },
     );
     const json = await response.json();

@@ -1,94 +1,108 @@
 # Dokumentations-Verbesserungsplan
 
-**Priorität:** 1. Root README | 2. Fehlende Dokumentationen | 3. Einheitlich Deutsch | 4. API-Referenz
-**Stand:** 2026-02-13
+**Stand:** 2026-02-17
 
-## Aufgaben
+## Status: ✅ ABgeschlossen
 
-### 1. Root README.md überarbeiten ✅
+Alle geplanten Dokumentationen wurden erstellt oder aktualisiert.
 
-- [ ] Datum hinzufügen
-- [ ] Verweis auf docs/ ergänzen
-- [ ] Alle Kernfeatures erwähnen (Rooms, Personas, Omnichannel, Skills, Worker, Memory)
-- [ ] Provider-Übersicht ergänzen (11 statt nur Gemini)
-- [ ] Quality Gates dokumentieren
-- [ ] Einheitlich Deutsch
+## Abgeschlossene Aufgaben
 
-### 2. plans/README.md korrigieren ✅
+### 1. Root README.md ✅
 
-- [ ] ClawHub-Dual-Lane-Plan hinzufügen
+- [x] Datum aktualisiert
+- [x] Verweis auf docs/ ergänzt
+- [x] Alle Kernfeatures erwähnt (Rooms, Personas, Omnichannel, Skills, Worker, Memory)
+- [x] Provider-Übersicht ergänzt (11 Provider)
+- [x] Quality Gates dokumentiert
+- [x] Einheitlich Deutsch
 
-### 3. docs/SKILLS_SYSTEM.md erstellen (NEU) ⬜
+### 2. docs/README.md ✅
 
-- [ ] Skills-Architektur (8 Built-in Skills)
-- [ ] Skill-Handler (shell, file, browser, python, vision, sql, github, search)
-- [ ] Skill-Installation (npm, GitHub, ClawHub)
-- [ ] Skill-Execution-Runtime
-- [ ] API-Oberfläche dokumentieren
+- [x] Einstieg in die Projekt-Dokumentation
+- [x] Alle aktiven Dokumente verlinkt
 
-### 4. docs/WORKER_SYSTEM.md erstellen (NEU) ⬜
+### 3. docs/SKILLS_SYSTEM.md ✅
 
-- [ ] Worker-Architektur (Executor, Planner, Agent)
-- [ ] Task-Zustände und Prioritäten
-- [ ] Workspace-Management
-- [ ] Command-Approval-Workflow
-- [ ] API-Oberfläche dokumentieren
+- [x] Skills-Architektur (8 Built-in Skills)
+- [x] Skill-Handler dokumentiert
+- [x] Skill-Installation (npm, GitHub, ClawHub)
+- [x] Skill-Execution-Runtime
+- [x] API-Oberfläche dokumentiert
 
-### 5. docs/MEMORY_SYSTEM.md erstellen (NEU) ⬜
+### 4. docs/WORKER_SYSTEM.md ✅
 
-- [ ] Memory-Typen (core_memory_store, core_memory_recall)
-- [ ] Embedding-Pipeline
-- [ ] Vector-Similarity-Suche
-- [ ] Persistenz (SQLite)
-- [ ] API-Oberfläche dokumentieren
+- [x] Worker-Architektur (Executor, Planner, Agent)
+- [x] Task-Zustände und Prioritäten
+- [x] Workspace-Management
+- [x] Command-Approval-Workflow
+- [x] API-Oberfläche dokumentiert
 
-### 6. docs/SECURITY_SYSTEM.md erstellen (NEU) ⬜
+### 5. docs/MEMORY_SYSTEM.md ✅
 
-- [ ] Security-Checks (Firewall, Encryption, Audit, Isolation)
-- [ ] Channel-Security (Webhook-Signaturen)
-- [ ] Command-Permissions und Risk-Levels
-- [ ] Credential-Store
-- [ ] API-Oberfläche dokumentieren
+- [x] Memory-Typen (core_memory_store, core_memory_recall)
+- [x] Embedding-Pipeline
+- [x] Vector-Similarity-Suche
+- [x] Persistenz (SQLite + Mem0)
+- [x] API-Oberfläche dokumentiert
 
-### 7. docs/DEPLOYMENT_OPERATIONS.md erstellen (NEU) ⬜
+### 6. docs/SECURITY_SYSTEM.md ✅
 
-- [ ] Docker-Setup (Dockerfile, docker-compose)
-- [ ] Environment-Variablen
-- [ ] Systemd-Services
-- [ ] Health-Checks
-- [ ] Monitoring und Metriken
+- [x] Security-Checks (Firewall, Encryption, Audit, Isolation)
+- [x] Channel-Security (Webhook-Signaturen)
+- [x] Command-Permissions und Risk-Levels
+- [x] Credential-Store
+- [x] API-Oberfläche dokumentiert
 
-### 8. docs/API_REFERENCE.md erstellen (NEU) ⬜
+### 7. docs/DEPLOYMENT_OPERATIONS.md ✅
 
-- [ ] Konsolidierte API-Übersicht aller Routes
-- [ ] Gruppiert nach Domäne (channels, rooms, personas, worker, model-hub, skills, memory, security, clawhub, control-plane)
-- [ ] HTTP-Methoden und Pfade
-- [ ] Auth-Anforderungen
+- [x] Docker-Setup (Dockerfile, docker-compose)
+- [x] Environment-Variablen
+- [x] Systemd-Services
+- [x] Health-Checks
+- [x] Monitoring und Metriken
 
-### 9. docs/README.md aktualisieren ⬜
+### 8. docs/API_REFERENCE.md ✅
 
-- [ ] Neue Dokumente in Index aufnehmen
-- [ ] Einheitlich Deutsch
+- [x] Konsolidierte API-Übersicht aller Routes
+- [x] Gruppiert nach Domäne
+- [x] HTTP-Methoden und Pfade
+- [x] Auth-Anforderungen
 
-### 10. Bestehende Dokumente sprachlich anpassen ⬜
+### 9. Neue Dokumente erstellt ✅
 
-- [ ] SESSION_MANAGEMENT → Deutsch (oder English konsistent)
-- [ ] Plans → English konsistent oder Deutsch
-- [ ] Klare Sprachrichtlinie definieren
+- [x] docs/WORKER_ORCHESTRA_SYSTEM.md - Worker Orchestra Workflow-System
+- [x] docs/AUTOMATION_SYSTEM.md - Cron-basierte Automationen
 
-## Abhängigkeiten
+## Dokumentations-Index
 
-- `src/server/skills/*` → docs/SKILLS_SYSTEM.md
-- `src/server/worker/*` → docs/WORKER_SYSTEM.md
-- `src/server/memory/*` → docs/MEMORY_SYSTEM.md
-- `src/server/security/*` → docs/SECURITY_SYSTEM.md
-- `Dockerfile`, `docker-compose.yml`, `ops/systemd/*` → docs/DEPLOYMENT_OPERATIONS.md
-- `app/api/*` → docs/API_REFERENCE.md
+| Dokument                                                                               | Beschreibung                   | Stand      |
+| -------------------------------------------------------------------------------------- | ------------------------------ | ---------- |
+| [README.md](README.md)                                                                 | Projekt-Übersicht              | 2026-02-17 |
+| [docs/README.md](docs/README.md)                                                       | Dokumentations-Index           | 2026-02-17 |
+| [docs/CORE_HANDBOOK.md](docs/CORE_HANDBOOK.md)                                         | Technischer Gesamtüberblick    | 2026-02-17 |
+| [docs/PERSONA_ROOMS_SYSTEM.md](docs/PERSONA_ROOMS_SYSTEM.md)                           | Persona- und Rooms-Architektur | 2026-02-17 |
+| [docs/OMNICHANNEL_GATEWAY_OPERATIONS.md](docs/OMNICHANNEL_GATEWAY_OPERATIONS.md)       | Omnichannel-Betrieb            | 2026-02-17 |
+| [docs/SESSION_MANAGEMENT_IMPLEMENTATION.md](docs/SESSION_MANAGEMENT_IMPLEMENTATION.md) | Session-Management             | 2026-02-17 |
+| [docs/SKILLS_SYSTEM.md](docs/SKILLS_SYSTEM.md)                                         | Skill-Architektur              | 2026-02-17 |
+| [docs/WORKER_SYSTEM.md](docs/WORKER_SYSTEM.md)                                         | Worker-Agenten System          | 2026-02-17 |
+| [docs/WORKER_ORCHESTRA_SYSTEM.md](docs/WORKER_ORCHESTRA_SYSTEM.md)                     | Worker Orchestra Workflows     | 2026-02-17 |
+| [docs/AUTOMATION_SYSTEM.md](docs/AUTOMATION_SYSTEM.md)                                 | Automationen                   | 2026-02-17 |
+| [docs/MEMORY_SYSTEM.md](docs/MEMORY_SYSTEM.md)                                         | Memory-Architektur             | 2026-02-17 |
+| [docs/SECURITY_SYSTEM.md](docs/SECURITY_SYSTEM.md)                                     | Security-Architektur           | 2026-02-17 |
+| [docs/DEPLOYMENT_OPERATIONS.md](docs/DEPLOYMENT_OPERATIONS.md)                         | Deployment & Betrieb           | 2026-02-17 |
+| [docs/API_REFERENCE.md](docs/API_REFERENCE.md)                                         | Vollständige API-Referenz      | 2026-02-17 |
 
 ## Verifikation
 
-Nach Abschluss:
+```bash
+npm run lint
+npm run typecheck
+npm run test
+```
 
-- `npm run lint`
-- `npm run typecheck`
-- Alle neuen Docs haben "Stand: YYYY-MM-DD"
+## Archiv
+
+- Abgeschlossene Pläne: `docs/archive/plans/completed/`
+- Historische Analysen: `docs/archive/analysis/`
+- Alte Architektur-Entscheidungen: `docs/archive/architecture-proposals/`
