@@ -9,6 +9,8 @@ import type { ExtractionPersonaContext } from './prompts';
 import type { IngestionWindow, KnowledgeIngestionCursor } from './ingestionCursor';
 import type { KnowledgeRepository } from './repository';
 import { sanitizeKnowledgeFacts } from './textQuality';
+import { deduplicateEvent } from './eventDedup';
+import { createId } from '../../shared/lib/ids';
 
 interface IngestionCursorLike {
   getPendingWindows(limitConversations?: number): IngestionWindow[];
@@ -24,6 +26,9 @@ interface KnowledgeRepositoryLike {
   upsertIngestionCheckpoint?: KnowledgeRepository['upsertIngestionCheckpoint'];
   upsertEpisode: KnowledgeRepository['upsertEpisode'];
   upsertMeetingLedger: KnowledgeRepository['upsertMeetingLedger'];
+  upsertEvent?: KnowledgeRepository['upsertEvent'];
+  findOverlappingEvents?: KnowledgeRepository['findOverlappingEvents'];
+  appendEventSources?: KnowledgeRepository['appendEventSources'];
 }
 
 interface MemoryServiceLike {
@@ -228,6 +233,68 @@ export class KnowledgeIngestionService {
           window.personaId,
           storeError instanceof Error ? storeError.message : String(storeError),
         );
+      }
+    }
+
+    // ── Event aggregation storage ────────────────────────────
+    if (
+      extraction.events &&
+      extraction.events.length > 0 &&
+      this.deps.knowledgeRepository.upsertEvent &&
+      this.deps.knowledgeRepository.findOverlappingEvents &&
+      this.deps.knowledgeRepository.appendEventSources
+    ) {
+      for (const event of extraction.events) {
+        const scope = { userId: window.userId, personaId: window.personaId };
+        const dedupResult = deduplicateEvent(event, scope, {
+          findOverlappingEvents: this.deps.knowledgeRepository.findOverlappingEvents.bind(
+            this.deps.knowledgeRepository,
+          ),
+          appendEventSources: this.deps.knowledgeRepository.appendEventSources.bind(
+            this.deps.knowledgeRepository,
+          ),
+        });
+
+        if (dedupResult.action === 'new') {
+          this.deps.knowledgeRepository.upsertEvent({
+            id: createId('kevt'),
+            userId: window.userId,
+            personaId: window.personaId,
+            conversationId: window.conversationId,
+            eventType: event.eventType,
+            speakerRole: event.speakerRole,
+            speakerEntity: event.speakerRole === 'assistant' ? window.personaId : 'User',
+            subjectEntity: event.subject,
+            counterpartEntity: event.counterpart,
+            relationLabel: event.relationLabel,
+            startDate: event.startDate,
+            endDate: event.endDate,
+            dayCount: event.dayCount,
+            sourceSeqJson: JSON.stringify(event.sourceSeq),
+            sourceSummary: `${event.subject} ${event.eventType} with ${event.counterpart}`,
+            isConfirmation: false,
+            confidence: 0.85,
+          });
+        } else if (dedupResult.action === 'confirmation') {
+          // Confirmation boosts confidence on existing event — do not insert a new row
+          // because the UNIQUE constraint would overwrite the original with is_confirmation=true
+          const overlapping = this.deps.knowledgeRepository.findOverlappingEvents({
+            userId: window.userId,
+            personaId: window.personaId,
+            eventType: event.eventType,
+            counterpartEntity: event.counterpart,
+            from: event.startDate,
+            to: event.endDate,
+          });
+          if (overlapping.length > 0) {
+            this.deps.knowledgeRepository.appendEventSources(
+              overlapping[0].id,
+              event.sourceSeq,
+              'Confirmed by user',
+            );
+          }
+        }
+        // 'merge' action already handled by deduplicateEvent (appendEventSources)
       }
     }
   }
