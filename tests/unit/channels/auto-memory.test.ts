@@ -68,4 +68,30 @@ describe('autoMemory candidate builder', () => {
     expect(isAutoSessionMemoryEnabled()).toBe(true);
     process.env.CHAT_AUTO_SESSION_MEMORY = previous;
   });
+
+  it('classifies recurring pattern as workflow_pattern with recurrence metadata', () => {
+    const candidates = buildAutoMemoryCandidates([
+      msg('user', 'Jeden Montag gehe ich ins Fitnessstudio.'),
+    ]);
+
+    const pattern = candidates.find((item) => item.type === 'workflow_pattern');
+    expect(pattern).toBeDefined();
+    expect(pattern!.importance).toBe(4);
+  });
+
+  it('detects daily recurrence pattern', () => {
+    const candidates = buildAutoMemoryCandidates([
+      msg('user', 'Täglich mache ich eine Stunde Yoga.'),
+    ]);
+
+    const pattern = candidates.find((item) => item.type === 'workflow_pattern');
+    expect(pattern).toBeDefined();
+  });
+
+  it('does not classify non-recurring text as workflow_pattern', () => {
+    const candidates = buildAutoMemoryCandidates([msg('user', 'Ich war gestern beim Arzt.')]);
+
+    const pattern = candidates.find((item) => item.type === 'workflow_pattern');
+    expect(pattern).toBeUndefined();
+  });
 });

@@ -1,5 +1,6 @@
 import type { MemoryType } from '../../../../core/memory/types';
 import type { StoredMessage } from './repository';
+import { detectRecurrence } from '../../knowledge/recurrenceDetector';
 
 export interface AutoMemoryCandidate {
   type: MemoryType;
@@ -86,6 +87,12 @@ function classifyCandidate(content: string): AutoMemoryCandidate | null {
     /\b(ruhig|introvertiert|extrovertiert|strukturiert|kreativ|geduldig|ungeduldig)\b/i.test(lower)
   ) {
     return { type: 'personality_trait', content: clipText(text), importance: 3 };
+  }
+
+  // Recurring pattern detection (daily, weekly, monthly)
+  const recurrence = detectRecurrence(text);
+  if (recurrence) {
+    return { type: 'workflow_pattern', content: clipText(text), importance: 4 };
   }
 
   return null;
