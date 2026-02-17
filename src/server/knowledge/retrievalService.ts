@@ -3,6 +3,7 @@ import { planKnowledgeQuery } from './queryPlanner';
 import { enforceSectionBudgets, estimateTokenCount, trimToTokenBudget } from './tokenBudget';
 import type { KnowledgeEpisode, KnowledgeRepository, MeetingLedgerEntry } from './repository';
 import { computeEventAnswer } from './eventAnswerComputer';
+import type { EntityGraphFilter, EntityLookupResult } from './entityGraph';
 
 interface MemoryRecallLike {
   recallDetailed: (
@@ -27,6 +28,10 @@ interface RetrievalKnowledgeRepository {
   listEpisodes: KnowledgeRepository['listEpisodes'];
   insertRetrievalAudit: KnowledgeRepository['insertRetrievalAudit'];
   countUniqueDays?: KnowledgeRepository['countUniqueDays'];
+  // Entity Graph (optional)
+  resolveEntity?: (text: string, filter: EntityGraphFilter) => EntityLookupResult | null;
+  getEntityWithRelations?: KnowledgeRepository['getEntityWithRelations'];
+  getRelatedEntities?: KnowledgeRepository['getRelatedEntities'];
 }
 
 export interface KnowledgeRetrievalInput {
@@ -387,6 +392,23 @@ function buildEvidence(
   };
 }
 
+function formatProjectGraph(
+  projectName: string,
+  relations: Array<{ relationType: string; targetEntityId: string }>,
+  relatedEntities: Array<{ canonicalName: string; id?: string; category: string }>,
+): string {
+  const lines: string[] = [`Projekt: ${projectName}`];
+  const entityById = new Map<string, string>();
+  for (const e of relatedEntities) {
+    if (e.id) entityById.set(e.id, e.canonicalName);
+  }
+  for (const rel of relations) {
+    const name = entityById.get(rel.targetEntityId) ?? rel.targetEntityId;
+    lines.push(`${rel.relationType}: ${name}`);
+  }
+  return lines.join('\n');
+}
+
 function selectConversationId(
   episodes: KnowledgeEpisode[],
   ledgerRows: MeetingLedgerEntry[],
@@ -469,6 +491,37 @@ export class KnowledgeRetrievalService {
     const rulesIntent = isRulesIntentQuery(input.query);
     const topicFilter = plan.topic && plan.topic !== 'ausgehandelt' ? plan.topic : undefined;
 
+    // ── Entity resolution: resolve counterpart/topic via graph ──
+    const graphFilter: EntityGraphFilter = {
+      userId: input.userId,
+      personaId: input.personaId,
+    };
+    if (plan.counterpart && this.options.knowledgeRepository.resolveEntity) {
+      const entityMatch = this.options.knowledgeRepository.resolveEntity(
+        plan.counterpart,
+        graphFilter,
+      );
+      if (entityMatch) {
+        plan.resolvedEntityId = entityMatch.entity.id;
+        plan.resolvedEntityName = entityMatch.entity.canonicalName;
+        const aliasNames = [entityMatch.entity.canonicalName];
+        if (this.options.knowledgeRepository.getEntityWithRelations) {
+          const { aliases } = this.options.knowledgeRepository.getEntityWithRelations(
+            entityMatch.entity.id,
+          );
+          for (const a of aliases) {
+            aliasNames.push(a.alias);
+          }
+        }
+        plan.counterpartAliases = aliasNames;
+
+        // Override eventFilter counterpart with resolved canonical name
+        if (plan.eventFilter) {
+          plan.eventFilter.counterpartEntity = entityMatch.entity.canonicalName;
+        }
+      }
+    }
+
     // ── Fast-path: count_recall with event aggregation ─────────
     let computedAnswerText: string | null = null;
     if (
@@ -485,6 +538,31 @@ export class KnowledgeRetrievalService {
           ),
         },
       );
+    }
+
+    // ── Project entity context for general queries ─────────────
+    let entityContextSection = '';
+    if (
+      plan.intent === 'general_recall' &&
+      plan.topic &&
+      this.options.knowledgeRepository.resolveEntity &&
+      this.options.knowledgeRepository.getEntityWithRelations &&
+      this.options.knowledgeRepository.getRelatedEntities
+    ) {
+      const topicMatch = this.options.knowledgeRepository.resolveEntity(plan.topic, graphFilter);
+      if (topicMatch && topicMatch.entity.category === 'project') {
+        const { relations } = this.options.knowledgeRepository.getEntityWithRelations(
+          topicMatch.entity.id,
+        );
+        const relatedEntities = this.options.knowledgeRepository.getRelatedEntities(
+          topicMatch.entity.id,
+        );
+        entityContextSection = formatProjectGraph(
+          topicMatch.entity.canonicalName,
+          relations,
+          relatedEntities,
+        );
+      }
     }
 
     const filter = {
@@ -558,7 +636,11 @@ export class KnowledgeRetrievalService {
       const semanticContext = buildSemanticContextForQuery(input.query, semantic);
 
       const hasSignals =
-        stageStats.ledger > 0 || stageStats.episodes > 0 || stageStats.semantic > 0;
+        stageStats.ledger > 0 ||
+        stageStats.episodes > 0 ||
+        stageStats.semantic > 0 ||
+        !!computedAnswerText ||
+        !!entityContextSection;
       if (!hasSignals) {
         this.options.knowledgeRepository.insertRetrievalAudit({
           userId: input.userId,
@@ -632,6 +714,7 @@ export class KnowledgeRetrievalService {
         ? ['Kontext: Regelwissen aus Historie.', ...ruleHighlights.map((entry) => `- ${entry}`)]
         : [
             ...(computedAnswerText ? [computedAnswerText] : []),
+            ...(entityContextSection ? [`[Entity-Kontext]\n${entityContextSection}`] : []),
             counterpart
               ? `Kontext: Meeting mit ${counterpart}.`
               : 'Kontext: Wissensrueckgriff aktiv.',

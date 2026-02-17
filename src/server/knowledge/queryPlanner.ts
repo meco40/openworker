@@ -22,6 +22,10 @@ export interface KnowledgeQueryPlan {
   topic: string | null;
   detailDepth: KnowledgeDetailDepth;
   eventFilter?: KnowledgeEventQueryFilter;
+  /** Populated by retrieval after entity resolution */
+  resolvedEntityId?: string;
+  resolvedEntityName?: string;
+  counterpartAliases?: string[];
 }
 
 function toIsoUtc(
@@ -111,6 +115,10 @@ function parseTopic(query: string): string | null {
   for (const candidate of candidates) {
     if (lowered.includes(candidate)) return candidate;
   }
+
+  // Generic topic extraction: "ueber <word>" / "about <word>"
+  const ueberMatch = /\bueber\s+(?:(?:das|die|den|dem)\s)?(\w[\w-]*)/i.exec(query);
+  if (ueberMatch?.[1]) return ueberMatch[1].toLowerCase();
 
   return null;
 }
