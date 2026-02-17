@@ -823,6 +823,10 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
       conditions.push('event_type = ?');
       params.push(filter.eventType);
     }
+    if (filter.speakerRole) {
+      conditions.push('speaker_role = ?');
+      params.push(filter.speakerRole);
+    }
     if (filter.counterpartEntity) {
       conditions.push('LOWER(counterpart_entity) = ?');
       params.push(filter.counterpartEntity.toLowerCase());
