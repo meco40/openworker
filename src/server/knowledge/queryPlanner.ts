@@ -1,9 +1,18 @@
-export type KnowledgeQueryIntent = 'meeting_recall' | 'negotiation_recall' | 'general_recall';
+export type KnowledgeQueryIntent =
+  | 'meeting_recall'
+  | 'negotiation_recall'
+  | 'count_recall'
+  | 'general_recall';
 export type KnowledgeDetailDepth = 'low' | 'medium' | 'high';
 
 export interface KnowledgeTimeRange {
   from: string;
   to: string;
+}
+
+export interface KnowledgeEventQueryFilter {
+  eventType?: string;
+  counterpartEntity?: string;
 }
 
 export interface KnowledgeQueryPlan {
@@ -12,6 +21,7 @@ export interface KnowledgeQueryPlan {
   counterpart: string | null;
   topic: string | null;
   detailDepth: KnowledgeDetailDepth;
+  eventFilter?: KnowledgeEventQueryFilter;
 }
 
 function toIsoUtc(
@@ -107,6 +117,9 @@ function parseTopic(query: string): string | null {
 
 function resolveIntent(query: string): KnowledgeQueryIntent {
   const lowered = query.toLowerCase();
+  if (/\b(wie\s+viele?\s+tage?|wie\s+oft|insgesamt|anzahl)\b/i.test(lowered)) {
+    return 'count_recall';
+  }
   if (/\b(ausgehandelt|verhandelt|deal|vereinbart)\b/i.test(lowered)) {
     return 'negotiation_recall';
   }
@@ -128,15 +141,52 @@ function resolveDetailDepth(query: string, intent: KnowledgeQueryIntent): Knowle
   return 'low';
 }
 
+const EVENT_TYPE_KEYWORDS: Array<{ pattern: RegExp; eventType: string }> = [
+  { pattern: /\b(geschlafen|uebernacht\w*|schlaf\w*)\b/i, eventType: 'shared_sleep' },
+  { pattern: /\b(besucht\w*|besuch\w*)\b/i, eventType: 'visit' },
+  { pattern: /\b(reise\w*|gereist|trip|urlaub\w*)\b/i, eventType: 'trip' },
+  { pattern: /\b(treffen|getroffen|meeting)\b/i, eventType: 'meeting' },
+  { pattern: /\b(aktivitaet\w*|unternommen|gemacht)\b/i, eventType: 'activity' },
+  { pattern: /\b(essen|gegessen|meal|dinner|lunch)\b/i, eventType: 'meal' },
+  { pattern: /\b(termin\w*|appointment)\b/i, eventType: 'appointment' },
+  { pattern: /\b(feier\w*|gefeiert|party|celebration)\b/i, eventType: 'celebration' },
+];
+
+function resolveEventFilter(
+  query: string,
+  counterpart: string | null,
+): KnowledgeEventQueryFilter | undefined {
+  const lowered = query.toLowerCase();
+  let eventType: string | undefined;
+
+  for (const entry of EVENT_TYPE_KEYWORDS) {
+    if (entry.pattern.test(lowered)) {
+      eventType = entry.eventType;
+      break;
+    }
+  }
+
+  if (!eventType && !counterpart) return undefined;
+
+  return {
+    eventType,
+    counterpartEntity: counterpart ?? undefined,
+  };
+}
+
 export function planKnowledgeQuery(query: string, now = new Date()): KnowledgeQueryPlan {
   const normalized = String(query || '').trim();
   const intent = resolveIntent(normalized);
+  const counterpart = parseCounterpart(normalized);
+  const eventFilter =
+    intent === 'count_recall' ? resolveEventFilter(normalized, counterpart) : undefined;
 
   return {
     intent,
     timeRange: parseTimeRange(normalized, now),
-    counterpart: parseCounterpart(normalized),
+    counterpart,
     topic: parseTopic(normalized),
     detailDepth: resolveDetailDepth(normalized, intent),
+    eventFilter,
   };
 }
