@@ -4,6 +4,7 @@ import { enforceSectionBudgets, estimateTokenCount, trimToTokenBudget } from './
 import type { KnowledgeEpisode, KnowledgeRepository, MeetingLedgerEntry } from './repository';
 import { computeEventAnswer } from './eventAnswerComputer';
 import type { EntityGraphFilter, EntityLookupResult } from './entityGraph';
+import { adjustRecallScore } from './recallScoring';
 
 interface MemoryRecallLike {
   recallDetailed: (
@@ -218,18 +219,35 @@ function computeTokenOverlapScore(text: string, tokens: string[]): number {
   return score;
 }
 
+function computeEpisodeAge(updatedAt: string | null | undefined): number {
+  const ts = Date.parse(String(updatedAt || ''));
+  if (!Number.isFinite(ts)) return 365;
+  return Math.max(0, (Date.now() - ts) / 86_400_000);
+}
+
 function rankEpisodesByQuery(episodes: KnowledgeEpisode[], query: string): KnowledgeEpisode[] {
   const tokens = tokenizeQueryForRanking(query);
   if (tokens.length === 0) return episodes;
   return [...episodes].sort((left, right) => {
-    const leftScore = computeTokenOverlapScore(
+    const leftOverlap = computeTokenOverlapScore(
       `${left.topicKey} ${left.teaser} ${left.episode} ${(left.facts || []).join(' ')}`,
       tokens,
     );
-    const rightScore = computeTokenOverlapScore(
+    const rightOverlap = computeTokenOverlapScore(
       `${right.topicKey} ${right.teaser} ${right.episode} ${(right.facts || []).join(' ')}`,
       tokens,
     );
+    // Blend overlap with freshness decay via adjustRecallScore
+    const leftScore = adjustRecallScore({
+      baseScore: leftOverlap || 0.1,
+      confidence: 0.5,
+      ageDays: computeEpisodeAge(left.updatedAt),
+    });
+    const rightScore = adjustRecallScore({
+      baseScore: rightOverlap || 0.1,
+      confidence: 0.5,
+      ageDays: computeEpisodeAge(right.updatedAt),
+    });
     if (rightScore !== leftScore) return rightScore - leftScore;
     return Date.parse(String(right.updatedAt || '')) - Date.parse(String(left.updatedAt || ''));
   });
@@ -239,18 +257,29 @@ function rankLedgerByQuery(ledgerRows: MeetingLedgerEntry[], query: string): Mee
   const tokens = tokenizeQueryForRanking(query);
   if (tokens.length === 0) return ledgerRows;
   return [...ledgerRows].sort((left, right) => {
-    const leftScore = computeTokenOverlapScore(
+    const leftOverlap = computeTokenOverlapScore(
       `${left.topicKey} ${left.counterpart || ''} ${left.decisions.join(' ')} ${left.negotiatedTerms.join(
         ' ',
       )} ${left.openPoints.join(' ')} ${left.actionItems.join(' ')}`,
       tokens,
     );
-    const rightScore = computeTokenOverlapScore(
+    const rightOverlap = computeTokenOverlapScore(
       `${right.topicKey} ${right.counterpart || ''} ${right.decisions.join(
         ' ',
       )} ${right.negotiatedTerms.join(' ')} ${right.openPoints.join(' ')} ${right.actionItems.join(' ')}`,
       tokens,
     );
+    // Blend overlap with freshness decay via adjustRecallScore
+    const leftScore = adjustRecallScore({
+      baseScore: leftOverlap || 0.1,
+      confidence: 0.5,
+      ageDays: computeEpisodeAge(left.updatedAt),
+    });
+    const rightScore = adjustRecallScore({
+      baseScore: rightOverlap || 0.1,
+      confidence: 0.5,
+      ageDays: computeEpisodeAge(right.updatedAt),
+    });
     if (rightScore !== leftScore) return rightScore - leftScore;
     return Date.parse(String(right.updatedAt || '')) - Date.parse(String(left.updatedAt || ''));
   });
