@@ -15,8 +15,6 @@ import { createId } from '../../shared/lib/ids';
 import { detectContradictionSignal } from './contradictionDetector';
 import { checkMemoryPoisoning } from './security/memoryPoisoningGuard';
 import { detectEmotion } from './emotionTracker';
-import { resolvePronouns } from './pronounResolver';
-import type { PronounContext } from './pronounResolver';
 import { detectCorrection } from './correctionDetector';
 import { expandMultilingualAliases } from './multilingualAliases';
 import { detectProjectStatusSignal } from './projectTracker';
@@ -291,19 +289,16 @@ export class KnowledgeIngestionService {
       }
     }
 
-    // ── Pronoun resolution context ───────────────────────────
-    // Build context from entities for pronoun resolution in facts.
-    const lastMentionedPerson = extraction.entities?.[0]?.name ?? null;
-    const pronounCtx: PronounContext = {
-      lastMentionedPerson,
-      lastMentionedProject: null,
-      speakerPersonaName: personaContext.name,
-      speakerUserId: window.userId,
-    };
-
-    const rawFacts = sanitizeKnowledgeFacts(extraction.facts);
-    // Apply pronoun resolution to each fact
-    const facts = rawFacts.map((fact) => resolvePronouns(fact, pronounCtx));
+    // ── Fact sanitization ────────────────────────────────────
+    // NOTE: Pronoun resolution (resolvePronouns) was disabled because it caused
+    // more harm than good — it blindly replaced ALL masculine pronouns (er/ihm/sein)
+    // with the first extracted entity name, which after self-ref normalization is
+    // often the persona itself. This produced broken facts like:
+    //   "Ich verspreche, immer für ihn da zu Nata Girl"  (sein→Nata Girl)
+    //   "Ich habe Max versprochen, Nata Girl näherzukommen"  (ihm→Nata Girl)
+    // The verb "sein" (to be) was also caught as a pronoun.
+    // The LLM already produces facts with named entities; resolution is unnecessary.
+    const facts = sanitizeKnowledgeFacts(extraction.facts);
     const topicKey = String(extraction.meetingLedger.topicKey || '').trim() || 'general-meeting';
 
     this.deps.knowledgeRepository.upsertEpisode({
