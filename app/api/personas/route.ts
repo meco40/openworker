@@ -4,8 +4,10 @@ import { getPersonaRepository } from '../../../src/server/personas/personaReposi
 import { getModelHubService } from '../../../src/server/model-hub/runtime';
 import {
   PERSONA_FILE_NAMES,
+  MEMORY_PERSONA_TYPES,
   type CreatePersonaInput,
   type PersonaFileName,
+  type MemoryPersonaType,
 } from '../../../src/server/personas/personaTypes';
 
 export const runtime = 'nodejs';
@@ -55,6 +57,7 @@ export async function POST(request: Request) {
       vibe?: string;
       preferredModelId?: string | null;
       modelHubProfileId?: string | null;
+      memoryPersonaType?: string;
       files?: Record<string, string>;
     };
 
@@ -91,6 +94,20 @@ export async function POST(request: Request) {
       modelHubProfileId = body.modelHubProfileId.trim();
     }
 
+    let memoryPersonaType: MemoryPersonaType | undefined;
+    if (body.memoryPersonaType !== undefined) {
+      if (!MEMORY_PERSONA_TYPES.includes(body.memoryPersonaType as MemoryPersonaType)) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: `Invalid memoryPersonaType. Allowed: ${MEMORY_PERSONA_TYPES.join(', ')}`,
+          },
+          { status: 400 },
+        );
+      }
+      memoryPersonaType = body.memoryPersonaType as MemoryPersonaType;
+    }
+
     const repo = getPersonaRepository();
 
     // Validate and filter files (if provided) before passing to createPersona
@@ -113,6 +130,7 @@ export async function POST(request: Request) {
       vibe: body.vibe?.trim() || '',
       preferredModelId,
       modelHubProfileId,
+      memoryPersonaType,
       files:
         Object.keys(validatedFiles).length > 0
           ? (validatedFiles as Partial<Record<PersonaFileName, string>>)

@@ -1,8 +1,16 @@
 'use client';
 
 import React from 'react';
-import { PERSONA_TAB_NAMES } from '../../src/server/personas/personaTypes';
-import type { PersonaTabName, PersonaWithFiles } from '../../src/server/personas/personaTypes';
+import {
+  PERSONA_TAB_NAMES,
+  MEMORY_PERSONA_TYPES,
+  MEMORY_PERSONA_TYPE_LABELS,
+} from '../../src/server/personas/personaTypes';
+import type {
+  PersonaTabName,
+  PersonaWithFiles,
+  MemoryPersonaType,
+} from '../../src/server/personas/personaTypes';
 import { TAB_LABELS } from './personaLabels';
 
 interface PipelineModel {
@@ -45,6 +53,9 @@ interface PersonaEditorPaneProps {
   preferredModelId: string | null;
   onPreferredModelChange: (modelId: string | null) => void;
   savingPreferredModel: boolean;
+  memoryPersonaType: MemoryPersonaType;
+  onMemoryPersonaTypeChange: (type: MemoryPersonaType) => void;
+  savingMemoryPersonaType: boolean;
 }
 
 export function PersonaEditorPane({
@@ -77,6 +88,9 @@ export function PersonaEditorPane({
   preferredModelId,
   onPreferredModelChange,
   savingPreferredModel,
+  memoryPersonaType,
+  onMemoryPersonaTypeChange,
+  savingMemoryPersonaType,
 }: PersonaEditorPaneProps) {
   const isGatewayTab = activeTab === 'GATEWAY';
   const activeFile = isGatewayTab ? null : activeTab;
@@ -345,6 +359,31 @@ export function PersonaEditorPane({
                   </div>
                 </div>
               )}
+
+              {/* Memory Persona Type Selection */}
+              <div className="space-y-2 border-t border-zinc-800 pt-6">
+                <h4 className="text-lg font-bold text-white">Memory Persona-Typ</h4>
+                <p className="text-sm text-zinc-400">
+                  Bestimmt, wie das Gedächtnissystem Wissen extrahiert und gewichtet. Roleplay
+                  priorisiert Emotionen und Beziehungen, Builder fokussiert auf Projekte und
+                  Tech-Entscheidungen, Assistent auf Aufgaben und Termine.
+                </p>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-300">Persona-Typ</label>
+                  <select
+                    value={memoryPersonaType}
+                    onChange={(e) => onMemoryPersonaTypeChange(e.target.value as MemoryPersonaType)}
+                    disabled={savingMemoryPersonaType}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {MEMORY_PERSONA_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {MEMORY_PERSONA_TYPE_LABELS[type]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         ) : (

@@ -3,6 +3,10 @@ import { resolveRequestUserContext } from '../../../../src/server/auth/userConte
 import { getMemoryService } from '../../../../src/server/memory/runtime';
 import { getModelHubService } from '../../../../src/server/model-hub/runtime';
 import { getPersonaRepository } from '../../../../src/server/personas/personaRepository';
+import {
+  MEMORY_PERSONA_TYPES,
+  type MemoryPersonaType,
+} from '../../../../src/server/personas/personaTypes';
 
 export const runtime = 'nodejs';
 
@@ -66,6 +70,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       vibe?: string;
       preferredModelId?: string | null;
       modelHubProfileId?: string | null;
+      memoryPersonaType?: string;
     };
 
     const updates: {
@@ -74,6 +79,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       vibe?: string;
       preferredModelId?: string | null;
       modelHubProfileId?: string | null;
+      memoryPersonaType?: MemoryPersonaType;
     } = {};
     if (body.name !== undefined) updates.name = body.name.trim();
     if (body.emoji !== undefined) updates.emoji = body.emoji.trim();
@@ -115,6 +121,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
           { status: 400 },
         );
       }
+    }
+    if (body.memoryPersonaType !== undefined) {
+      if (!MEMORY_PERSONA_TYPES.includes(body.memoryPersonaType as MemoryPersonaType)) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: `Invalid memoryPersonaType. Allowed: ${MEMORY_PERSONA_TYPES.join(', ')}`,
+          },
+          { status: 400 },
+        );
+      }
+      updates.memoryPersonaType = body.memoryPersonaType as MemoryPersonaType;
     }
 
     if (Object.keys(updates).length === 0) {

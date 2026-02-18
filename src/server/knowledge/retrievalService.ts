@@ -10,7 +10,6 @@ import type { EvidenceAssessment } from './answerSafetyPolicy';
 import { detectQueryComplexity, calculateRecallBudget } from './recallBudgetCalculator';
 import { adjustScoreByStrategy } from './personaStrategies';
 import type { PersonaType } from './personaStrategies';
-import { detectPersonaType } from './personaTypeDetector';
 
 interface MemoryRecallLike {
   recallDetailed: (
@@ -73,8 +72,11 @@ export interface KnowledgeRetrievalResult {
 export interface KnowledgeRetrievalServiceOptions {
   maxContextTokens: number;
   knowledgeRepository: RetrievalKnowledgeRepository;
-  memoryService: MemoryRecallLike;
+  /** Optional — when null/undefined, semantic recall is skipped. */
+  memoryService?: MemoryRecallLike | null;
   messageRepository: MessageLookupRepository;
+  /** Optional callback to look up the stored persona memory type from the persona DB. */
+  getPersonaMemoryType?: (personaId: string) => PersonaType | null;
 }
 
 function uniqueStrings(values: string[]): string[] {
@@ -646,13 +648,10 @@ export class KnowledgeRetrievalService {
       let ledgerRows = this.options.knowledgeRepository.listMeetingLedger(filter);
       let episodes = this.options.knowledgeRepository.listEpisodes(filter);
 
-      // ── Detect persona type for strategy-based ranking ─────
-      // Infer persona type from episode/ledger content heuristics.
-      const contentSample = episodes
-        .slice(0, 5)
-        .map((e) => `${e.teaser} ${e.episode} ${(e.facts || []).join(' ')}`)
-        .join(' ');
-      const inferredPersonaType = detectPersonaType({ content: contentSample });
+      // ── Resolve persona type for strategy-based ranking ─────
+      // Use the stored persona type from the DB if available, otherwise fall back to 'general'.
+      const storedPersonaType = this.options.getPersonaMemoryType?.(input.personaId) ?? null;
+      const effectivePersonaType: PersonaType = storedPersonaType || 'general';
 
       if (!plan.counterpart) {
         const counterpartCandidates = uniqueStrings([
@@ -670,7 +669,7 @@ export class KnowledgeRetrievalService {
         }
       }
       ledgerRows = rankLedgerByQuery(ledgerRows, input.query).slice(0, 8);
-      episodes = rankEpisodesByQuery(episodes, input.query, inferredPersonaType).slice(0, 8);
+      episodes = rankEpisodesByQuery(episodes, input.query, effectivePersonaType).slice(0, 8);
 
       if (rulesIntent) {
         const ruleLedger = ledgerRows.filter((row) =>
@@ -691,12 +690,14 @@ export class KnowledgeRetrievalService {
       stageStats.ledger = ledgerRows.length;
       stageStats.episodes = episodes.length;
 
-      const semantic = await this.options.memoryService.recallDetailed(
-        input.personaId,
-        input.query,
-        3,
-        input.userId,
-      );
+      const semantic = this.options.memoryService
+        ? await this.options.memoryService.recallDetailed(
+            input.personaId,
+            input.query,
+            3,
+            input.userId,
+          )
+        : { matches: [] };
       stageStats.semantic = Math.max(0, semantic.matches.length);
       const semanticContext = buildSemanticContextForQuery(input.query, semantic);
 

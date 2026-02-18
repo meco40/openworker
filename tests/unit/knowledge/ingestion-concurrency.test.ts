@@ -147,11 +147,12 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
     });
 
     // The window-level processing should succeed even when individual stores fail.
-    // Errors are swallowed per-fact (logged via console.warn).
+    // After the first Mem0 failure, remaining stores are skipped (fast-fail)
+    // to avoid blocking on repeated HTTP timeouts.
     const result = await service.runOnce();
 
-    // All 3 store calls attempted — the service does not short-circuit
-    expect(store).toHaveBeenCalledTimes(3);
+    // Only 2 store calls: first succeeds, second fails, third is skipped (fast-fail)
+    expect(store).toHaveBeenCalledTimes(2);
     // processWindow does not throw on individual store failures, so no errors
     expect(result.errors).toHaveLength(0);
   });

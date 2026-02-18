@@ -287,4 +287,43 @@ describe('KnowledgeIngestionService', () => {
     expect(lastCall!.contradictionType).toBe('value_change');
     expect(lastCall!.supersedes).toBe('Max ist mein Bruder');
   });
+
+  it('skips direct ingestion when delta is below configured minimum batch size', async () => {
+    const extract = vi.fn(async () => buildExtraction());
+    const upsertCheckpoint = vi.fn();
+
+    const service = new KnowledgeIngestionService(
+      {
+        cursor: {
+          getPendingWindows: vi.fn(() => []),
+          markWindowProcessed: vi.fn(),
+        },
+        extractor: { extract },
+        knowledgeRepository: {
+          getIngestionCheckpoint: vi.fn(() => ({ lastSeq: 0 })),
+          upsertIngestionCheckpoint: upsertCheckpoint,
+          upsertEpisode: vi.fn(),
+          upsertMeetingLedger: vi.fn(),
+        },
+        memoryService: { store: vi.fn(async () => ({ id: 'mem-1' })) },
+      },
+      {
+        minMessagesPerBatch: 50,
+      },
+    );
+
+    const messages = Array.from({ length: 40 }, (_, idx) =>
+      createMessage(idx + 1, 'conv-threshold', `Nachricht ${idx + 1}`),
+    );
+
+    await service.ingestConversationWindow({
+      conversationId: 'conv-threshold',
+      userId: 'user-1',
+      personaId: 'persona-1',
+      messages,
+    });
+
+    expect(extract).not.toHaveBeenCalled();
+    expect(upsertCheckpoint).not.toHaveBeenCalled();
+  });
 });

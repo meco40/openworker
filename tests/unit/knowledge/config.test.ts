@@ -15,6 +15,7 @@ describe('knowledge config', () => {
     expect(config.retrievalEnabled).toBe(false);
     expect(config.maxContextTokens).toBe(4000);
     expect(config.ingestIntervalMs).toBe(600000);
+    expect(config.minMessagesPerBatch).toBe(1);
   });
 
   it('parses booleans from common env variants', () => {
@@ -35,18 +36,29 @@ describe('knowledge config', () => {
     const tooLow = resolveKnowledgeConfig({
       KNOWLEDGE_MAX_CONTEXT_TOKENS: '5',
       KNOWLEDGE_INGEST_INTERVAL_MS: '100',
+      KNOWLEDGE_MIN_MESSAGES_PER_BATCH: '0',
     });
 
     expect(tooLow.maxContextTokens).toBe(200);
     expect(tooLow.ingestIntervalMs).toBe(60000);
+    expect(tooLow.minMessagesPerBatch).toBe(1);
 
     const tooHigh = resolveKnowledgeConfig({
       KNOWLEDGE_MAX_CONTEXT_TOKENS: '999999',
       KNOWLEDGE_INGEST_INTERVAL_MS: '999999999',
+      KNOWLEDGE_MIN_MESSAGES_PER_BATCH: '9999',
     });
 
     expect(tooHigh.maxContextTokens).toBe(8000);
     expect(tooHigh.ingestIntervalMs).toBe(3600000);
+    expect(tooHigh.minMessagesPerBatch).toBe(50);
+  });
+
+  it('parses minimum messages per batch from env', () => {
+    const config = resolveKnowledgeConfig({
+      KNOWLEDGE_MIN_MESSAGES_PER_BATCH: '50',
+    });
+    expect(config.minMessagesPerBatch).toBe(50);
   });
 
   it('new phase flags default to false', () => {

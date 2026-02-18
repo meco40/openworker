@@ -60,7 +60,14 @@ export interface KnowledgeIngestionServiceDependencies {
   cursor: IngestionCursorLike;
   extractor: KnowledgeExtractorLike;
   knowledgeRepository: KnowledgeRepositoryLike;
-  memoryService: MemoryServiceLike;
+  /** Optional — when null/undefined, Mem0 storage is silently skipped. */
+  memoryService?: MemoryServiceLike | null;
+  /** Optional: resolve persona ID → human-readable name (e.g. "Lea"). */
+  resolvePersonaName?: (personaId: string) => string | null;
+}
+
+export interface KnowledgeIngestionServiceOptions {
+  minMessagesPerBatch?: number;
 }
 
 export interface KnowledgeIngestionError {
@@ -99,7 +106,15 @@ function inferSourceEnd(window: IngestionWindow): number {
 }
 
 export class KnowledgeIngestionService {
-  constructor(private readonly deps: KnowledgeIngestionServiceDependencies) {}
+  private readonly minMessagesPerBatch: number;
+
+  constructor(
+    private readonly deps: KnowledgeIngestionServiceDependencies,
+    options: KnowledgeIngestionServiceOptions = {},
+  ) {
+    const configured = Math.floor(Number(options.minMessagesPerBatch || 1));
+    this.minMessagesPerBatch = Number.isFinite(configured) ? Math.max(1, configured) : 1;
+  }
 
   async ingestConversationWindow(input: IngestConversationWindowInput): Promise<void> {
     const personaId = String(input.personaId || '').trim();
@@ -119,6 +134,7 @@ export class KnowledgeIngestionService {
       (message) => Math.floor(Number(message.seq || 0)) > fromSeqExclusive,
     );
     if (deltaMessages.length === 0) return;
+    if (deltaMessages.length < this.minMessagesPerBatch) return;
 
     const toSeqInclusive = Math.max(
       fromSeqExclusive,
@@ -149,6 +165,7 @@ export class KnowledgeIngestionService {
     const errors: KnowledgeIngestionError[] = [];
 
     for (const window of windows) {
+      if (window.messages.length < this.minMessagesPerBatch) continue;
       try {
         await this.processWindow(window);
         this.deps.cursor.markWindowProcessed(window);
@@ -171,9 +188,11 @@ export class KnowledgeIngestionService {
   }
 
   private async processWindow(window: IngestionWindow): Promise<void> {
-    // Build persona context from ingestion window (can be extended to load from repository)
+    // Build persona context — resolve human-readable name from persona ID
+    const resolvedName = this.deps.resolvePersonaName?.(window.personaId) || null;
+    const personaName = resolvedName || window.personaId;
     const personaContext: ExtractionPersonaContext = {
-      name: window.personaId, // Fallback to ID, should be replaced with actual name
+      name: personaName,
       identityTerms: ['ich', 'mein', 'meine'], // German self-references
     };
 
@@ -184,6 +203,64 @@ export class KnowledgeIngestionService {
       messages: window.messages,
       personaContext,
     });
+
+    // ── Normalize entity names: replace self-references with real persona name ──
+    // Prevents duplicate entities like "Ich" or UUID-based persona entities.
+    if (extraction.entities && personaName !== window.personaId) {
+      const selfRefs = new Set(['ich', 'me', 'myself', window.personaId.toLowerCase()]);
+      for (const entity of extraction.entities) {
+        // Replace entity name if it's a self-reference
+        if (selfRefs.has(entity.name.toLowerCase())) {
+          entity.name = personaName;
+        }
+        // Also fix relation targets that are self-references
+        if (entity.relations) {
+          for (const rel of entity.relations) {
+            if (selfRefs.has(rel.targetName.toLowerCase())) {
+              rel.targetName = personaName;
+            }
+          }
+        }
+      }
+      // Fix event subjects/counterparts that are self-references
+      if (extraction.events) {
+        for (const event of extraction.events) {
+          if (event.subject && selfRefs.has(event.subject.toLowerCase())) {
+            event.subject = personaName;
+          }
+          if (event.counterpart && selfRefs.has(event.counterpart.toLowerCase())) {
+            event.counterpart = personaName;
+          }
+        }
+      }
+    }
+
+    // ── Post-extraction speaker role validation ──────────────
+    // Cross-check speakerRole against subject entity name.
+    // If subject IS the persona → speakerRole must be 'assistant'.
+    // If subject IS 'User' or known user name → speakerRole must be 'user'.
+    if (extraction.events && personaName) {
+      // Collect known user-entity names from this extraction
+      const userEntityNames = new Set<string>();
+      userEntityNames.add('user');
+      if (extraction.entities) {
+        for (const ent of extraction.entities) {
+          if (ent.owner === 'user' && ent.category === 'person') {
+            userEntityNames.add(ent.name.toLowerCase());
+          }
+        }
+      }
+      const personaLower = personaName.toLowerCase();
+
+      for (const event of extraction.events) {
+        const subjectLower = event.subject?.toLowerCase() || '';
+        if (subjectLower === personaLower && event.speakerRole !== 'assistant') {
+          event.speakerRole = 'assistant';
+        } else if (userEntityNames.has(subjectLower) && event.speakerRole !== 'user') {
+          event.speakerRole = 'user';
+        }
+      }
+    }
 
     const sourceSeqStart = inferSourceStart(window);
     const sourceSeqEnd = inferSourceEnd(window);
@@ -260,6 +337,7 @@ export class KnowledgeIngestionService {
       confidence: extraction.meetingLedger.confidence,
     });
 
+    let mem0FailCount = 0;
     for (let factIdx = 0; factIdx < facts.length; factIdx++) {
       const fact = facts[factIdx];
 
@@ -338,22 +416,37 @@ export class KnowledgeIngestionService {
       }
       metadata.lifecycleStatus = lifecycleStatus;
 
-      try {
-        await this.deps.memoryService.store(
-          window.personaId,
-          'fact',
-          fact,
-          4,
-          window.userId,
-          metadata,
-        );
-      } catch (storeError) {
-        console.warn(
-          '[KnowledgeIngestion] failed to store fact, continuing with remaining',
-          window.personaId,
-          storeError instanceof Error ? storeError.message : String(storeError),
-        );
+      // Skip Mem0 storage after first failure in this window (fast-fail to avoid
+      // blocking on repeated HTTP timeouts when Mem0 connection pool is exhausted)
+      if (this.deps.memoryService && mem0FailCount === 0) {
+        try {
+          // Rate-limit Mem0 calls to avoid connection pool exhaustion
+          if (factIdx > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          await this.deps.memoryService.store(
+            window.personaId,
+            'fact',
+            fact,
+            4,
+            window.userId,
+            metadata,
+          );
+        } catch (storeError) {
+          mem0FailCount++;
+          console.warn(
+            '[KnowledgeIngestion] Mem0 store failed, skipping remaining Mem0 calls for this window:',
+            storeError instanceof Error ? storeError.message : String(storeError),
+          );
+        }
+      } else {
+        mem0FailCount++;
       }
+    }
+    if (mem0FailCount > 0) {
+      console.warn(
+        `[KnowledgeIngestion] ${mem0FailCount}/${facts.length} Mem0 stores failed for window ${window.personaId} seq=${inferSourceStart(window)}-${inferSourceEnd(window)}`,
+      );
     }
 
     // ── Task completion detection ─────────────────────────────
@@ -379,8 +472,9 @@ export class KnowledgeIngestionService {
       for (const msg of window.messages) {
         if (msg.role !== 'user') continue;
         const completionMatch = detectTaskCompletion(String(msg.content || ''), openTasks);
-        if (completionMatch) {
+        if (completionMatch && this.deps.memoryService && mem0FailCount === 0) {
           try {
+            await new Promise((resolve) => setTimeout(resolve, 100));
             await this.deps.memoryService.store(
               window.personaId,
               'fact',
@@ -397,11 +491,8 @@ export class KnowledgeIngestionService {
                 lifecycleStatus: 'confirmed',
               },
             );
-          } catch (taskError) {
-            console.warn(
-              '[KnowledgeIngestion] failed to store task completion:',
-              taskError instanceof Error ? taskError.message : String(taskError),
-            );
+          } catch {
+            // Task completion Mem0 failures are non-critical; counted in mem0FailCount is per-window
           }
         }
       }
@@ -500,9 +591,19 @@ export class KnowledgeIngestionService {
     ) {
       const entityExtractor = new EntityExtractor();
       const repo = this.deps.knowledgeRepository;
-      const upsertEntity = repo.upsertEntity!;
-      const addAlias = repo.addAlias!;
-      const resolveEntity = repo.resolveEntity!;
+      const upsertEntity = repo.upsertEntity!.bind(repo);
+      const addAlias = repo.addAlias!.bind(repo);
+      const resolveEntity = repo.resolveEntity!.bind(repo);
+
+      // ── PASS 1: Create/merge all entities + aliases (no relations yet) ──
+      const pendingRelations: Array<{
+        entityId: string;
+        relations: {
+          targetName: string;
+          relationType: string;
+          direction: 'outgoing' | 'incoming';
+        }[];
+      }> = [];
 
       for (const rawEntity of extraction.entities) {
         const validated = entityExtractor.validateOwner(rawEntity, window.messages);
@@ -519,6 +620,8 @@ export class KnowledgeIngestionService {
             : [],
         );
 
+        let entityId: string;
+
         if (verdict.action === 'create') {
           const newEntity = upsertEntity({
             id: createId('ent'),
@@ -529,6 +632,7 @@ export class KnowledgeIngestionService {
             owner: validated.owner,
             properties: validated.properties,
           });
+          entityId = newEntity.id;
 
           // Add original aliases + multilingual expansions
           const allAliases = new Set(validated.aliases);
@@ -559,25 +663,11 @@ export class KnowledgeIngestionService {
               });
             }
           }
-
-          if (repo.addRelation) {
-            for (const rel of validated.relations) {
-              const target = resolveEntity(rel.targetName, graphFilter);
-              if (target) {
-                repo.addRelation({
-                  sourceEntityId: rel.direction === 'outgoing' ? newEntity.id : target.entity.id,
-                  targetEntityId: rel.direction === 'outgoing' ? target.entity.id : newEntity.id,
-                  relationType: rel.relationType,
-                  properties: {},
-                  confidence: 0.8,
-                });
-              }
-            }
-          }
         } else {
+          entityId = existing!.entity.id;
+
           // Merge: add new aliases and properties
           if (verdict.newAliases && repo.addAlias) {
-            // Expand aliases multilingually before adding
             const expandedNewAliases = new Set(verdict.newAliases);
             for (const alias of verdict.newAliases) {
               for (const expanded of expandMultilingualAliases(alias)) {
@@ -596,6 +686,30 @@ export class KnowledgeIngestionService {
           }
           if (verdict.updates?.properties && repo.updateEntityProperties) {
             repo.updateEntityProperties(existing!.entity.id, verdict.updates.properties);
+          }
+        }
+
+        // Collect relations for pass 2 (both create and merge paths)
+        if (verdict.relations && verdict.relations.length > 0) {
+          pendingRelations.push({ entityId, relations: verdict.relations });
+        }
+      }
+
+      // ── PASS 2: Store all relations (all entities now exist) ──
+      if (repo.addRelation && pendingRelations.length > 0) {
+        const graphFilter = { userId: window.userId, personaId: window.personaId };
+        for (const { entityId, relations } of pendingRelations) {
+          for (const rel of relations) {
+            const target = resolveEntity(rel.targetName, graphFilter);
+            if (target) {
+              repo.addRelation({
+                sourceEntityId: rel.direction === 'outgoing' ? entityId : target.entity.id,
+                targetEntityId: rel.direction === 'outgoing' ? target.entity.id : entityId,
+                relationType: rel.relationType,
+                properties: {},
+                confidence: 0.8,
+              });
+            }
           }
         }
       }

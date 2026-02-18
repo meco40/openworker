@@ -6,6 +6,7 @@ export interface KnowledgeConfig {
   retrievalEnabled: boolean;
   maxContextTokens: number;
   ingestIntervalMs: number;
+  minMessagesPerBatch: number;
 
   // Phase 3: Memory Reliability
   contradictionDetectionEnabled: boolean;
@@ -31,6 +32,8 @@ const MIN_CONTEXT_TOKENS = 200;
 const MAX_CONTEXT_TOKENS = 8000;
 const MIN_INGEST_INTERVAL_MS = 60_000;
 const MAX_INGEST_INTERVAL_MS = 3_600_000;
+const MIN_MESSAGES_PER_BATCH = 1;
+const MAX_MESSAGES_PER_BATCH = 50;
 
 export const KNOWLEDGE_DEFAULT_CONFIG: KnowledgeConfig = {
   layerEnabled: false,
@@ -39,6 +42,7 @@ export const KNOWLEDGE_DEFAULT_CONFIG: KnowledgeConfig = {
   retrievalEnabled: false,
   maxContextTokens: 4000,
   ingestIntervalMs: 600_000,
+  minMessagesPerBatch: 1,
   contradictionDetectionEnabled: false,
   correctionDetectionEnabled: false,
   dynamicRecallBudgetEnabled: false,
@@ -95,6 +99,12 @@ export function resolveKnowledgeConfig(env: EnvLike = process.env as EnvLike): K
       KNOWLEDGE_DEFAULT_CONFIG.ingestIntervalMs,
       MIN_INGEST_INTERVAL_MS,
       MAX_INGEST_INTERVAL_MS,
+    ),
+    minMessagesPerBatch: clampNumber(
+      env.KNOWLEDGE_MIN_MESSAGES_PER_BATCH,
+      KNOWLEDGE_DEFAULT_CONFIG.minMessagesPerBatch,
+      MIN_MESSAGES_PER_BATCH,
+      MAX_MESSAGES_PER_BATCH,
     ),
     contradictionDetectionEnabled: parseBoolean(
       env.KNOWLEDGE_CONTRADICTION_DETECTION,

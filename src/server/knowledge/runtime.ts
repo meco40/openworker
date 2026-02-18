@@ -12,6 +12,8 @@ import { SqliteKnowledgeRepository } from './sqliteKnowledgeRepository';
 import { KnowledgeRuntimeLoop } from './runtimeLoop';
 import { detectPlaceholder, detectStaleRelativeTime, detectLowRelevance } from './cleanupDetector';
 import { detectOrphans } from './reconciliation';
+import { getPersonaRepository } from '../personas/personaRepository';
+import type { PersonaType } from './personaStrategies';
 
 declare global {
   var __knowledgeMessageRepository: MessageRepository | undefined;
@@ -73,22 +75,48 @@ export function getKnowledgeExtractor(): KnowledgeExtractor {
 
 export function getKnowledgeIngestionCursor(): KnowledgeIngestionCursor {
   if (!globalThis.__knowledgeCursor) {
+    const config = getKnowledgeConfig();
     globalThis.__knowledgeCursor = new KnowledgeIngestionCursor(
       getKnowledgeMessageRepository(),
       getKnowledgeRepository(),
+      { minMessagesPerBatch: config.minMessagesPerBatch },
     );
   }
   return globalThis.__knowledgeCursor;
 }
 
+function tryGetMemoryService(): ReturnType<typeof getMemoryService> | null {
+  try {
+    return getMemoryService();
+  } catch (err) {
+    console.warn(
+      '[knowledge] Mem0 unavailable — Mem0 storage will be skipped during ingestion.',
+      err instanceof Error ? err.message : String(err),
+    );
+    return null;
+  }
+}
+
 export function getKnowledgeIngestionService(): KnowledgeIngestionService {
   if (!globalThis.__knowledgeIngestionService) {
-    globalThis.__knowledgeIngestionService = new KnowledgeIngestionService({
-      cursor: getKnowledgeIngestionCursor(),
-      extractor: getKnowledgeExtractor(),
-      knowledgeRepository: getKnowledgeRepository(),
-      memoryService: getMemoryService(),
-    });
+    const config = getKnowledgeConfig();
+    globalThis.__knowledgeIngestionService = new KnowledgeIngestionService(
+      {
+        cursor: getKnowledgeIngestionCursor(),
+        extractor: getKnowledgeExtractor(),
+        knowledgeRepository: getKnowledgeRepository(),
+        memoryService: tryGetMemoryService(),
+        resolvePersonaName: (personaId: string) => {
+          try {
+            const persona = getPersonaRepository().getPersona(personaId);
+            return persona?.name ?? null;
+          } catch {
+            return null;
+          }
+        },
+      },
+      { minMessagesPerBatch: config.minMessagesPerBatch },
+    );
   }
   return globalThis.__knowledgeIngestionService;
 }
@@ -99,8 +127,12 @@ export function getKnowledgeRetrievalService(): KnowledgeRetrievalService {
     globalThis.__knowledgeRetrievalService = new KnowledgeRetrievalService({
       maxContextTokens: config.maxContextTokens,
       knowledgeRepository: getKnowledgeRepository(),
-      memoryService: getMemoryService(),
+      memoryService: tryGetMemoryService(),
       messageRepository: getKnowledgeMessageRepository(),
+      getPersonaMemoryType: (personaId: string): PersonaType | null => {
+        const persona = getPersonaRepository().getPersona(personaId);
+        return (persona?.memoryPersonaType as PersonaType) ?? null;
+      },
     });
   }
   return globalThis.__knowledgeRetrievalService;

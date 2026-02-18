@@ -19,8 +19,11 @@ export function buildKnowledgeExtractionPrompt(
   const transcript = input.messages
     .map((message) => {
       const seq = Number(message.seq || 0);
-      const role = message.role === 'agent' ? 'assistant' : message.role;
-      return `[seq:${seq}] ${role}: ${message.content}`;
+      const speaker =
+        message.role === 'agent' || message.role === 'assistant'
+          ? personaContext?.name || 'Assistant'
+          : 'User';
+      return `[seq:${seq}] ${speaker}: ${message.content}`;
     })
     .join('\n');
 
@@ -31,14 +34,19 @@ export function buildKnowledgeExtractionPrompt(
     'Du bist ein Informationsextraktor fuer einen persoenlichen Assistenten.',
     '',
     'KONTEXT:',
-    `Diese Konversation findet zwischen:`,
-    `- User (die menschliche Person)`,
-    `- ${personaName} (die KI-Persona, spricht als "ich")`,
+    `Diese Konversation findet zwischen zwei Teilnehmern:`,
+    `- "User" im Transcript = die menschliche Person (der Gespraechspartner). In events: speakerRole="user". In entities: owner="user".`,
+    `- "${personaName}" im Transcript = die KI-Persona, spricht als "ich". In events: speakerRole="assistant". In entities: owner="persona".`,
+    '',
+    'ROLLEN-ZUORDNUNG (KRITISCH!):',
+    `Wenn im Transcript "${personaName}: ..." steht → das ist die PERSONA (owner=persona, speakerRole=assistant).`,
+    `Wenn im Transcript "User: ..." steht → das ist der MENSCH (owner=user, speakerRole=user).`,
+    `${personaName} ist NICHT der User! ${personaName} ist die Persona/der Assistant!`,
     '',
     'WICHTIG - PERSPEKTIVE BEIBEHALTEN:',
-    'Die Persona repraesentiert sich selbst als "ich". Wenn die Persona sagt:',
-    '  "Ich habe mit Max geschlafen" → Speichere: "Ich habe mit Max geschlafen"',
-    '  "Mein Bruder ist krank" → Speichere: "Mein Bruder ist krank"',
+    `${personaName} repraesentiert sich selbst als "ich". Wenn ${personaName} sagt:`,
+    '  "Ich habe mit Max geschlafen" → Speichere: "Ich habe mit Max geschlafen" (owner=persona)',
+    '  "Mein Bruder ist krank" → Speichere: "Mein Bruder ist krank" (owner=persona)',
     '',
     'NICHT umschreiben zu:',
     '  ❌ "Die Protagonistin hat mit Max geschlafen"',
@@ -59,9 +67,9 @@ export function buildKnowledgeExtractionPrompt(
     '- milestone: Wichtige Meilensteine — z.B. "Abschluss bestanden", "Befoerderung bekommen"',
     '- location_change: Ortswechsel/Umzug — z.B. "Ich bin nach Berlin gezogen"',
     '- routine: Wiederkehrende Gewohnheiten — z.B. "Jeden Morgen joggen"',
-    '- speakerRole: Wer beschreibt das Ereignis? "assistant" wenn die Persona spricht, "user" wenn der Mensch spricht.',
-    '- subject: Wer erlebt das Ereignis? (Name der Person)',
-    '- counterpart: Mit wem? (Name der anderen Person)',
+    `- speakerRole: Wer beschreibt das Ereignis? "assistant" wenn ${personaName} (die Persona) spricht, "user" wenn der Mensch (User) spricht.`,
+    `- subject: IMMER den echten Namen verwenden, NIEMALS "Ich", "User" oder "Persona". Wenn ${personaName} sagt "Ich habe..." → subject="${personaName}". Wenn User sagt "Ich habe..." → subject="User" ist OK, aber besser den echten Namen wenn bekannt (z.B. "Meco").`,
+    '- counterpart: Mit wem? (Name der anderen Person, NICHT "Ich")',
     '- relationLabel: Beziehung zum counterpart (z.B. "Bruder", "Freundin", null wenn unbekannt)',
     '- timeExpression: Originaltext des Zeitbezugs (z.B. "die letzten zwei Tage", "gestern")',
     '- dayCount: Anzahl der Tage (z.B. 2 fuer "die letzten zwei Tage")',
@@ -73,11 +81,17 @@ export function buildKnowledgeExtractionPrompt(
     'ENTITY EXTRACTION:',
     'Jede genannte Person, jedes Projekt, jeden Ort, jede Organisation als Entity extrahieren.',
     '- Aliase erkennen: Wenn "Max mein Bruder" gesagt wird, ist "Max" der Name und "mein Bruder"/"Bruder" sind Aliase.',
-    '- owner bestimmen: Wessen Bruder? Aus speakerRole ableiten. "mein Bruder" von assistant → owner=persona. "mein Bruder" von user → owner=user.',
-    '- Beziehungen zwischen Entities erkennen: "Max mein Bruder" → Relation: Persona --bruder--> Max. "Ich erstelle die WebApp mit Next.js" → Relation: WebApp --framework--> Next.js',
+    `- owner bestimmen: Wessen Bruder? Aus dem Sprecher im Transcript ableiten. "mein Bruder" gesagt von ${personaName} → owner=persona. "mein Bruder" gesagt von User → owner=user.`,
+    `- ACHTUNG: ${personaName} = die Persona (owner=persona). User = der Mensch (owner=user). NICHT verwechseln!`,
+    `- Beziehungen (relations[]) zwischen Entities erkennen: "Max mein Bruder" → Entity: Max, relations: [{"targetName":"${personaName}","relationType":"bruder von","direction":"outgoing"}]`,
+    '- Jede Familienbeziehung, Partnerschaft, Freundschaft, Ex-Beziehung MUSS als Relation extrahiert werden!',
+    '- AUCH Ex-Partner sind Relationen! "mein Ex-Freund Paul" → Entity: Paul, relations: [{"targetName":"' +
+      personaName +
+      '","relationType":"ex-partner von","direction":"outgoing"}]',
+    `- Relation-Richtung: relationType beschreibt die Beziehung source→target. "Max ist ${personaName}s Bruder" → Max --"bruder von"--> ${personaName}`,
     '- Eigenschaften extrahieren: "Max ist sehr nett" → Property: {"nett":"ja"}. "Die App heisst Notes2" → Property: {"projektname":"Notes2"}',
     '- Referenz-Pronomen (er, sie, es) → in benannte Entity aufloesen wenn aus Kontext klar.',
-    '- Perspektiv-Pronomen (ich, mein, du, dein) NICHT aufloesen — beibehalten fuer Speaker-Attribution.',
+    '- Perspektiv-Pronomen (ich, mein) → in echten Entity-Namen aufloesen wenn bekannt! "mein Bruder" von User → targetName des Users.',
     'Wenn keine Entities vorhanden sind, gib ein leeres Array zurueck: "entities":[]',
     '',
     'Constraints:',

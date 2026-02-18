@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePersona } from '../src/modules/personas/PersonaContext';
-import type { PersonaTabName } from '../src/server/personas/personaTypes';
+import type { PersonaTabName, MemoryPersonaType } from '../src/server/personas/personaTypes';
 import { RoomDetailPanel } from '../src/modules/rooms/components/RoomDetailPanel';
 import { CreateRoomModal } from '../src/modules/rooms/components/CreateRoomModal';
 import { PersonasSidebar } from './personas/PersonasSidebar';
@@ -32,6 +32,17 @@ const PersonasView: React.FC = () => {
     preferredModelId,
     setPreferredModelId,
   } = usePersonaSelection({ activeTab });
+
+  // Memory persona type state
+  const [memoryPersonaType, setMemoryPersonaType] = useState<MemoryPersonaType>('general');
+  const [savingMemoryPersonaType, setSavingMemoryPersonaType] = useState(false);
+
+  // Sync memoryPersonaType when persona loads
+  useEffect(() => {
+    if (selectedPersona) {
+      setMemoryPersonaType(selectedPersona.memoryPersonaType || 'general');
+    }
+  }, [selectedPersona]);
 
   // Editor state
   const { editorContent, setEditorContent, dirty, setDirty, saveFile } = usePersonaEditor({
@@ -168,6 +179,31 @@ const PersonasView: React.FC = () => {
     [selectedId, savePreferredModel, refreshPersonas, loadPersona, setPreferredModelId],
   );
 
+  // Save memory persona type
+  const handleSaveMemoryPersonaType = useCallback(
+    async (type: MemoryPersonaType) => {
+      if (!selectedId) return;
+      setMemoryPersonaType(type);
+      setSavingMemoryPersonaType(true);
+      try {
+        const res = await fetch(`/api/personas/${selectedId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ memoryPersonaType: type }),
+        });
+        if (res.ok) {
+          await refreshPersonas();
+          await loadPersona(selectedId);
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        setSavingMemoryPersonaType(false);
+      }
+    },
+    [selectedId, refreshPersonas, loadPersona],
+  );
+
   return (
     <div className="animate-in fade-in flex h-full duration-500">
       <PersonasSidebar
@@ -255,6 +291,9 @@ const PersonasView: React.FC = () => {
             preferredModelId={preferredModelId}
             onPreferredModelChange={handleSavePreferredModel}
             savingPreferredModel={savingPreferredModel}
+            memoryPersonaType={memoryPersonaType}
+            onMemoryPersonaTypeChange={handleSaveMemoryPersonaType}
+            savingMemoryPersonaType={savingMemoryPersonaType}
           />
         )}
       </div>

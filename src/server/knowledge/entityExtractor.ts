@@ -55,6 +55,8 @@ export interface MergeVerdict {
   action: 'create' | 'merge';
   updates?: { properties?: Record<string, string> };
   newAliases?: string[];
+  /** Relations to process — carried through for both create and merge paths */
+  relations?: ExtractedEntity['relations'];
 }
 
 export class EntityExtractor {
@@ -181,7 +183,10 @@ export class EntityExtractor {
     existingAliases: EntityAlias[],
   ): MergeVerdict {
     if (!existing) {
-      return { action: 'create' };
+      return {
+        action: 'create',
+        relations: extracted.relations.length > 0 ? extracted.relations : undefined,
+      };
     }
 
     // Merge: find new aliases and properties
@@ -201,6 +206,7 @@ export class EntityExtractor {
       action: 'merge',
       updates: hasNewProperties ? { properties: newProperties } : undefined,
       newAliases: newAliases.length > 0 ? newAliases : undefined,
+      relations: extracted.relations.length > 0 ? extracted.relations : undefined,
     };
   }
 }

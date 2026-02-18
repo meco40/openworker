@@ -3,6 +3,7 @@ import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import type {
   CreatePersonaInput,
+  MemoryPersonaType,
   PersonaFileName,
   PersonaProfile,
   PersonaSummary,
@@ -10,6 +11,7 @@ import type {
 } from './personaTypes';
 import {
   MAX_PERSONA_INSTRUCTION_CHARS,
+  MEMORY_PERSONA_TYPES,
   PERSONA_FILE_NAMES,
   PERSONA_INSTRUCTION_FILES,
 } from './personaTypes';
@@ -26,6 +28,7 @@ function toPersona(row: Record<string, unknown>): PersonaProfile {
     vibe: row.vibe as string,
     preferredModelId: (row.preferred_model_id as string) || null,
     modelHubProfileId: (row.model_hub_profile_id as string) || null,
+    memoryPersonaType: ((row.memory_persona_type as string) || 'general') as MemoryPersonaType,
     userId: row.user_id as string,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -40,6 +43,7 @@ function toSummary(row: Record<string, unknown>): PersonaSummary {
     vibe: row.vibe as string,
     preferredModelId: (row.preferred_model_id as string) || null,
     modelHubProfileId: (row.model_hub_profile_id as string) || null,
+    memoryPersonaType: ((row.memory_persona_type as string) || 'general') as MemoryPersonaType,
     updatedAt: row.updated_at as string,
   };
 }
@@ -83,6 +87,13 @@ export class PersonaRepository {
     }
     try {
       this.db.exec('ALTER TABLE personas ADD COLUMN model_hub_profile_id TEXT');
+    } catch {
+      // column already exists
+    }
+    try {
+      this.db.exec(
+        "ALTER TABLE personas ADD COLUMN memory_persona_type TEXT NOT NULL DEFAULT 'general'",
+      );
     } catch {
       // column already exists
     }
@@ -141,11 +152,12 @@ export class PersonaRepository {
   createPersona(input: CreatePersonaInput): PersonaProfile {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
+    const memoryPersonaType = input.memoryPersonaType || 'general';
 
     this.db
       .prepare(
-        `INSERT INTO personas (id, name, emoji, vibe, preferred_model_id, model_hub_profile_id, user_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO personas (id, name, emoji, vibe, preferred_model_id, model_hub_profile_id, memory_persona_type, user_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -154,6 +166,7 @@ export class PersonaRepository {
         input.vibe,
         input.preferredModelId || null,
         input.modelHubProfileId || null,
+        memoryPersonaType,
         input.userId,
         now,
         now,
@@ -179,6 +192,7 @@ export class PersonaRepository {
       vibe?: string;
       preferredModelId?: string | null;
       modelHubProfileId?: string | null;
+      memoryPersonaType?: MemoryPersonaType;
     },
   ): void {
     const now = new Date().toISOString();
@@ -204,6 +218,12 @@ export class PersonaRepository {
     if (updates.modelHubProfileId !== undefined) {
       setClauses.push('model_hub_profile_id = ?');
       values.push(updates.modelHubProfileId);
+    }
+    if (updates.memoryPersonaType !== undefined) {
+      if (MEMORY_PERSONA_TYPES.includes(updates.memoryPersonaType)) {
+        setClauses.push('memory_persona_type = ?');
+        values.push(updates.memoryPersonaType);
+      }
     }
 
     values.push(id);

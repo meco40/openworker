@@ -60,10 +60,11 @@ interface CliOptions {
   dryRun: boolean;
   personaFilter?: string;
   limit: number;
+  concurrency: number;
 }
 
 function parseArgs(argv: string[]): CliOptions {
-  const options: CliOptions = { dryRun: false, limit: 200 };
+  const options: CliOptions = { dryRun: false, limit: 200, concurrency: 4 };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--dry-run') {
@@ -81,9 +82,32 @@ function parseArgs(argv: string[]): CliOptions {
         options.limit = Math.floor(parsed);
       }
       index += 1;
+      continue;
+    }
+    if (arg === '--concurrency' || arg === '-j') {
+      const parsed = Number(argv[index + 1]);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        options.concurrency = Math.min(10, Math.floor(parsed));
+      }
+      index += 1;
     }
   }
   return options;
+}
+
+/** Process an array in batches of `size`, running each batch concurrently. */
+async function parallelBatch<T, R>(
+  items: T[],
+  size: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += size) {
+    const batch = items.slice(i, i + size);
+    const batchResults = await Promise.all(batch.map((item, batchIdx) => fn(item, i + batchIdx)));
+    results.push(...batchResults);
+  }
+  return results;
 }
 
 // ── Main ─────────────────────────────────────────────────────
@@ -147,14 +171,16 @@ async function main(): Promise<void> {
   }
 
   // ── Run ingestion ──────────────────────────────────────────
-  console.log('\n[knowledge-ingestion] Starting ingestion...\n');
+  const concurrency = options.concurrency;
+  console.log(`\n[knowledge-ingestion] Starting ingestion (concurrency=${concurrency})...\n`);
+  const startTime = Date.now();
   const service = getKnowledgeIngestionService();
 
   // If persona filter is active, ingest individual windows instead of runOnce
   if (options.personaFilter) {
     let ok = 0;
     let fail = 0;
-    for (const window of windows) {
+    await parallelBatch(windows, concurrency, async (window) => {
       try {
         await service.ingestConversationWindow({
           conversationId: window.conversationId,
@@ -164,17 +190,22 @@ async function main(): Promise<void> {
         });
         cursor.markWindowProcessed(window);
         ok += 1;
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(
-          `  ✓ ${window.conversationId} (${window.messages.length} messages, persona=${window.personaId})`,
+          `  ✓ [${elapsed}s] seq=${window.fromSeqExclusive + 1}..${window.toSeqInclusive} (${window.messages.length} msgs)`,
         );
       } catch (error) {
         fail += 1;
         console.error(
-          `  ✗ ${window.conversationId}: ${error instanceof Error ? error.message : String(error)}`,
+          `  ✗ seq=${window.fromSeqExclusive + 1}..${window.toSeqInclusive}: ${error instanceof Error ? error.message : String(error)}`,
         );
+        if (error instanceof Error && error.stack) {
+          console.error('    Stack:', error.stack.split('\n').slice(0, 8).join('\n    '));
+        }
       }
-    }
-    console.log(`\n[knowledge-ingestion] Done. ok=${ok} failed=${fail}`);
+    });
+    const totalSec = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`\n[knowledge-ingestion] Done in ${totalSec}s. ok=${ok} failed=${fail}`);
   } else {
     const result = await service.runOnce();
     console.log(
