@@ -17,7 +17,21 @@ function buildState(partial: Partial<UseOpsNodesResult> = {}): UseOpsNodesResult
     refreshing: false,
     error: null,
     data: null,
+    pendingAction: null,
+    mutationError: null,
+    mutationNotice: null,
     refresh: vi.fn(async () => {}),
+    actions: {
+      approveExecCommand: vi.fn(async () => {}),
+      revokeExecCommand: vi.fn(async () => {}),
+      clearExecApprovals: vi.fn(async () => {}),
+      setChannelPersona: vi.fn(async () => {}),
+      connectChannel: vi.fn(async () => {}),
+      disconnectChannel: vi.fn(async () => {}),
+      rotateChannelSecret: vi.fn(async () => {}),
+      rejectTelegramPending: vi.fn(async () => {}),
+      clearMutationNotice: vi.fn(() => {}),
+    },
     ...partial,
   };
 }
@@ -54,6 +68,17 @@ describe('NodesView', () => {
               generatedAt: '2026-02-20T00:00:00.000Z',
             },
             channels: [],
+            personas: [],
+            execApprovals: {
+              total: 0,
+              items: [],
+            },
+            telegramPairing: {
+              status: 'idle',
+              pendingChatId: null,
+              pendingExpiresAt: null,
+              hasPending: false,
+            },
             automation: {
               activeRules: 0,
               queuedRuns: 0,
@@ -102,8 +127,39 @@ describe('NodesView', () => {
                 peerName: 'Ops Room',
                 transport: 'polling',
                 lastSeenAt: '2026-02-20T00:10:00.000Z',
+                personaId: 'persona-1',
+                supportsInbound: true,
+                supportsOutbound: true,
+                supportsPairing: true,
+                supportsStreaming: false,
+                accounts: [],
               },
             ],
+            personas: [
+              {
+                id: 'persona-1',
+                name: 'Nexus',
+                emoji: '🤖',
+                vibe: 'operator',
+                updatedAt: '2026-02-20T00:00:00.000Z',
+              },
+            ],
+            execApprovals: {
+              total: 1,
+              items: [
+                {
+                  command: 'echo hello',
+                  updatedAt: '2026-02-20T00:10:00.000Z',
+                  fingerprint: 'fp-1',
+                },
+              ],
+            },
+            telegramPairing: {
+              status: 'awaiting_code',
+              pendingChatId: 'chat-99',
+              pendingExpiresAt: '2026-02-20T00:20:00.000Z',
+              hasPending: true,
+            },
             automation: {
               activeRules: 2,
               queuedRuns: 1,
@@ -128,5 +184,8 @@ describe('NodesView', () => {
     expect(html).toContain('Health Status');
     expect(html).toContain('Doctor Findings');
     expect(html).toContain('Lease Age');
+    expect(html).toContain('Exec Approvals');
+    expect(html).toContain('Channel Controls');
+    expect(html).toContain('Telegram Pending Pairing');
   });
 });

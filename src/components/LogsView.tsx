@@ -25,6 +25,8 @@ const LogsView: React.FC = () => {
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [historyLimit, setHistoryLimit] = useState<number>(500);
+  const [streamBufferLimit, setStreamBufferLimit] = useState<number>(1000);
 
   // Logs hook
   const {
@@ -33,9 +35,12 @@ const LogsView: React.FC = () => {
     sources,
     categories,
     totalCount,
+    hasMoreHistory,
+    isLoadingMore,
     isConnected,
     isLoading,
     copiedId,
+    loadOlder,
     handleClear,
     handleExport,
     handleCopyLog,
@@ -44,6 +49,8 @@ const LogsView: React.FC = () => {
     sourceFilter,
     categoryFilter,
     search,
+    historyLimit,
+    streamBufferLimit,
   });
 
   // Diagnostics hook
@@ -88,6 +95,13 @@ const LogsView: React.FC = () => {
         autoScroll={autoScroll}
         onToggleAutoScroll={toggleAutoScroll}
         logsCount={logs.length}
+        historyLimit={historyLimit}
+        onHistoryLimitChange={setHistoryLimit}
+        streamBufferLimit={streamBufferLimit}
+        onStreamBufferLimitChange={setStreamBufferLimit}
+        hasMoreHistory={hasMoreHistory}
+        isLoadingMore={isLoadingMore}
+        onLoadOlder={() => void loadOlder()}
         onExport={handleExport}
         onClear={() => void handleClear()}
       />
@@ -109,6 +123,7 @@ const LogsView: React.FC = () => {
       <StatusBar
         filteredCount={filteredLogs.length}
         totalCount={totalCount}
+        hasMoreHistory={hasMoreHistory}
         autoScroll={autoScroll}
         isConnected={isConnected}
       />

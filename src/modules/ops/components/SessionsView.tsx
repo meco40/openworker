@@ -75,6 +75,52 @@ const SessionsView: React.FC = () => {
             </button>
           </div>
         </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="space-y-1 text-xs text-zinc-400">
+            <span>Active within minutes</span>
+            <input
+              type="number"
+              min={1}
+              max={10080}
+              value={state.activeMinutes}
+              onChange={(event) => state.actions.setActiveMinutes(event.target.value)}
+              placeholder="60"
+              className="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100"
+            />
+          </label>
+          <label className="space-y-1 text-xs text-zinc-400">
+            <span>Limit</span>
+            <input
+              type="number"
+              min={1}
+              max={200}
+              value={state.limit}
+              onChange={(event) => state.actions.setLimit(Number.parseInt(event.target.value, 10))}
+              className="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100"
+            />
+          </label>
+          <label className="flex items-center gap-2 rounded border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              checked={state.includeGlobalRequested}
+              onChange={(event) => state.actions.setIncludeGlobalRequested(event.target.checked)}
+            />
+            Include global sessions
+          </label>
+          <label className="flex items-center gap-2 rounded border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              checked={state.includeUnknown}
+              onChange={(event) => state.actions.setIncludeUnknown(event.target.checked)}
+            />
+            Include unknown sessions
+          </label>
+        </div>
+        {state.data?.query.includeGlobalRequested && !state.data.query.includeGlobalApplied && (
+          <p className="mt-3 rounded border border-amber-800/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+            Include global was requested but is disabled in authenticated mode for data isolation.
+          </p>
+        )}
       </section>
 
       {state.loading ? (

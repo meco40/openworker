@@ -132,8 +132,8 @@ export class AutomationService {
     });
   }
 
-  listRuns(ruleId: string, userId: string): AutomationRun[] {
-    return this.repo.listRuns(ruleId, userId);
+  listRuns(ruleId: string, userId: string, limit?: number): AutomationRun[] {
+    return this.repo.listRuns(ruleId, userId, limit);
   }
 
   acquireLease(instanceId: string, ttlMs: number, nowIso?: string): boolean {

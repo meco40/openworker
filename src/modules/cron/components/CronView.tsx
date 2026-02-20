@@ -315,8 +315,31 @@ const CronView: React.FC<CronViewProps> = ({ state }) => {
 
             <section className="rounded-lg border border-zinc-800 bg-zinc-900/60">
               <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-                <h3 className="text-sm font-semibold text-zinc-200">Run History</h3>
-                {selectedRule && <span className="text-xs text-zinc-500">{selectedRule.name}</span>}
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-200">Run History</h3>
+                  <p className="mt-0.5 text-[11px] text-zinc-500">
+                    Run history depth controls how many recent runs are requested.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-zinc-500">Run history depth</label>
+                  <select
+                    value={String(cron.historyLimit)}
+                    onChange={(event) =>
+                      cron.actions.setHistoryLimit(Number.parseInt(event.target.value, 10))
+                    }
+                    className="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-[11px] text-zinc-200"
+                  >
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                  </select>
+                  {selectedRule && (
+                    <span className="text-xs text-zinc-500">{selectedRule.name}</span>
+                  )}
+                </div>
               </header>
               <div className="space-y-2 p-4">
                 {cron.historyLoading && (

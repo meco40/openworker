@@ -5,6 +5,22 @@ import type { LogCategory, LogLevel } from '@/logging/logTypes';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const DEFAULT_LIMIT = 200;
+const MIN_LIMIT = 1;
+const MAX_LIMIT = 1000;
+
+function parseLimit(searchParams: URLSearchParams): number {
+  const raw = searchParams.get('limit');
+  if (raw === null) {
+    return DEFAULT_LIMIT;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_LIMIT;
+  }
+  return Math.min(Math.max(parsed, MIN_LIMIT), MAX_LIMIT);
+}
+
 /**
  * GET /api/logs — fetch historical logs with optional filters.
  *
@@ -37,7 +53,7 @@ export async function GET(request: Request) {
   const source = searchParams.get('source');
   const category = searchParams.get('category') as LogCategory | null;
   const search = searchParams.get('search');
-  const limit = searchParams.get('limit');
+  const limit = parseLimit(searchParams);
   const before = searchParams.get('before');
 
   const logs = repo.listLogs({
@@ -45,19 +61,38 @@ export async function GET(request: Request) {
     source: source || undefined,
     category: category || undefined,
     search: search || undefined,
-    limit: limit ? parseInt(limit, 10) : undefined,
+    limit,
     before: before || undefined,
   });
 
-  const count = repo.getLogCount({
+  const total = repo.getLogCount({
+    level: level || undefined,
+    source: source || undefined,
+    category: category || undefined,
+    search: search || undefined,
+  });
+
+  const pageWindowCount = repo.getLogCount({
     level: level || undefined,
     source: source || undefined,
     category: category || undefined,
     search: search || undefined,
     before: before || undefined,
   });
-
-  return Response.json({ ok: true, logs, total: count });
+  const hasMore = pageWindowCount > logs.length;
+  const nextCursor = logs.length > 0 ? (logs[0]?.createdAt ?? null) : null;
+  return Response.json({
+    ok: true,
+    logs,
+    total,
+    page: {
+      limit,
+      before: before || null,
+      returned: logs.length,
+      hasMore,
+      nextCursor,
+    },
+  });
 }
 
 /**

@@ -158,19 +158,148 @@ describe('ops routes', () => {
     );
     const payload = (await response.json()) as {
       ok: boolean;
-      query: { q: string; limit: number };
+      query: {
+        q: string;
+        limit: number;
+        activeMinutes: number | null;
+        includeGlobalRequested: boolean;
+        includeGlobalApplied: boolean;
+        includeUnknown: boolean;
+      };
       sessions: Array<{ id: string }>;
     };
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
     expect(listConversations).toHaveBeenCalledWith('ops-user', 200);
-    expect(payload.query).toEqual({ q: 'ops', limit: 200 });
-    expect(payload.sessions.map((session) => session.id)).toEqual(['conv-1', 'conv-3']);
+    expect(payload.query).toEqual({
+      q: 'ops',
+      limit: 200,
+      activeMinutes: null,
+      includeGlobalRequested: false,
+      includeGlobalApplied: false,
+      includeUnknown: true,
+    });
+    expect(payload.sessions.map((session) => session.id)).toEqual(['conv-3', 'conv-1']);
+  });
+
+  it('applies sessions advanced filters and global merge in unauthenticated legacy mode', async () => {
+    mockUserContext({ userId: 'ops-user', authenticated: false });
+
+    const now = Date.now();
+    const freshIso = new Date(now - 5 * 60_000).toISOString();
+    const staleIso = new Date(now - 3 * 60 * 60_000).toISOString();
+
+    const listConversations = vi.fn((userId?: string, limit?: number) => {
+      const own = [
+        {
+          id: 'conv-1',
+          channelType: 'WebChat',
+          externalChatId: 'default',
+          userId: 'ops-user',
+          title: 'Ops Personal',
+          modelOverride: null,
+          personaId: 'persona-1',
+          createdAt: freshIso,
+          updatedAt: freshIso,
+        },
+        {
+          id: 'conv-2',
+          channelType: 'Slack',
+          externalChatId: 'incident',
+          userId: 'ops-user',
+          title: 'Old Incident',
+          modelOverride: null,
+          personaId: 'persona-2',
+          createdAt: staleIso,
+          updatedAt: staleIso,
+        },
+        {
+          id: 'conv-3',
+          channelType: 'Telegram',
+          externalChatId: 'chat-3',
+          userId: 'ops-user',
+          title: 'Unknown Persona',
+          modelOverride: null,
+          personaId: null,
+          createdAt: freshIso,
+          updatedAt: freshIso,
+        },
+      ];
+
+      const global = [
+        {
+          id: 'conv-4',
+          channelType: 'Discord',
+          externalChatId: 'global-1',
+          userId: 'other-user',
+          title: 'Global Ops',
+          modelOverride: null,
+          personaId: 'persona-9',
+          createdAt: freshIso,
+          updatedAt: freshIso,
+        },
+        own[0],
+      ];
+
+      const rows = userId ? own : global;
+      if (typeof limit === 'number') {
+        return rows.slice(0, limit);
+      }
+      return rows;
+    });
+
+    vi.doMock('../../../src/server/channels/messages/runtime', () => ({
+      getMessageService: () => ({
+        listConversations,
+      }),
+    }));
+
+    const route = await import('../../../app/api/ops/sessions/route');
+    const response = await route.GET(
+      new Request(
+        'http://localhost/api/ops/sessions?limit=200&activeMinutes=60&includeUnknown=0&includeGlobal=1',
+      ),
+    );
+
+    const payload = (await response.json()) as {
+      ok: boolean;
+      query: {
+        q: string;
+        limit: number;
+        activeMinutes: number | null;
+        includeGlobalRequested: boolean;
+        includeGlobalApplied: boolean;
+        includeUnknown: boolean;
+      };
+      sessions: Array<{ id: string }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.query).toEqual({
+      q: '',
+      limit: 200,
+      activeMinutes: 60,
+      includeGlobalRequested: true,
+      includeGlobalApplied: true,
+      includeUnknown: false,
+    });
+    expect(listConversations).toHaveBeenCalledWith('ops-user', 200);
+    expect(listConversations).toHaveBeenCalledWith(undefined, 200);
+    expect(payload.sessions.map((session) => session.id)).toEqual(['conv-1', 'conv-4']);
   });
 
   it('returns node summary from health/doctor, channel state and room/automation metrics', async () => {
     mockUserContext({ userId: 'ops-user', authenticated: true });
+
+    const listApprovedCommands = vi.fn().mockReturnValue([
+      {
+        fingerprint: 'fp-a',
+        command: 'echo hello',
+        updatedAt: '2026-02-20T10:00:20.000Z',
+      },
+    ]);
 
     const runHealthCommand = vi.fn().mockResolvedValue({
       status: 'ok',
@@ -192,6 +321,33 @@ describe('ops routes', () => {
     vi.doMock('../../../src/commands/doctorCommand', () => ({
       runDoctorCommand,
     }));
+    vi.doMock('../../../src/server/gateway/exec-approval-manager', () => ({
+      listApprovedCommands,
+    }));
+    vi.doMock('../../../src/server/personas/personaRepository', () => ({
+      getPersonaRepository: () => ({
+        listPersonas: () => [
+          {
+            id: 'persona-1',
+            name: 'Nexus',
+            emoji: '🤖',
+            vibe: 'operator',
+            preferredModelId: null,
+            modelHubProfileId: null,
+            memoryPersonaType: 'general',
+            updatedAt: '2026-02-20T10:00:30.000Z',
+          },
+        ],
+      }),
+    }));
+    vi.doMock('../../../src/server/channels/pairing/telegramCodePairing', () => ({
+      getTelegramPairingSnapshot: () => ({
+        status: 'awaiting_code',
+        pendingChatId: 'chat-7',
+        pendingExpiresAt: '2026-02-20T10:30:00.000Z',
+        hasPending: true,
+      }),
+    }));
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({
       getMessageRepository: () => ({
         listChannelBindings: () => [
@@ -201,6 +357,7 @@ describe('ops routes', () => {
             externalPeerId: 'chat-1',
             peerName: 'ops',
             transport: 'webhook',
+            personaId: 'persona-1',
             lastSeenAt: '2026-02-20T10:00:00.000Z',
           },
         ],
@@ -237,7 +394,10 @@ describe('ops routes', () => {
       nodes: {
         health: { status: string };
         doctor: { status: string };
-        channels: Array<{ channel: string }>;
+        channels: Array<{ channel: string; supportsPairing: boolean; personaId: string | null }>;
+        personas: Array<{ id: string }>;
+        execApprovals: { total: number; items: Array<{ command: string }> };
+        telegramPairing: { hasPending: boolean; pendingChatId: string | null };
         automation: { activeRules: number };
         rooms: { runningRooms: number };
       };
@@ -249,9 +409,242 @@ describe('ops routes', () => {
     expect(runDoctorCommand).toHaveBeenCalledWith({ memoryDiagnosticsEnabled: true });
     expect(payload.nodes.health.status).toBe('ok');
     expect(payload.nodes.doctor.status).toBe('degraded');
-    expect(payload.nodes.channels).toHaveLength(1);
+    expect(payload.nodes.channels.length).toBeGreaterThan(0);
+    const telegramChannel = payload.nodes.channels.find((entry) => entry.channel === 'telegram');
+    expect(telegramChannel).toMatchObject({
+      channel: 'telegram',
+      supportsPairing: true,
+      personaId: 'persona-1',
+    });
+    expect(payload.nodes.personas).toEqual([expect.objectContaining({ id: 'persona-1' })]);
+    expect(payload.nodes.execApprovals.total).toBe(1);
+    expect(payload.nodes.execApprovals.items[0]).toEqual(
+      expect.objectContaining({ command: 'echo hello' }),
+    );
+    expect(payload.nodes.telegramPairing).toEqual(
+      expect.objectContaining({ hasPending: true, pendingChatId: 'chat-7' }),
+    );
     expect(payload.nodes.automation.activeRules).toBe(2);
     expect(payload.nodes.rooms.runningRooms).toBe(1);
+    expect(listApprovedCommands).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies nodes mutation actions and returns updated snapshots', async () => {
+    mockUserContext({ userId: 'ops-user', authenticated: true });
+
+    const approveCommand = vi.fn();
+    const revokeCommand = vi.fn().mockReturnValue(true);
+    const clearApprovedCommands = vi.fn();
+    const pairChannel = vi.fn().mockResolvedValue({
+      status: 'connected',
+      peerName: 'Ops Bridge',
+      transport: 'webhook',
+      accountId: 'default',
+    });
+    const unpairChannel = vi.fn().mockImplementation(async () => {});
+    const upsertBridgeAccount = vi.fn().mockReturnValue('default');
+    const normalizeBridgeAccountId = vi.fn((value?: string) => value || 'default');
+    const rejectTelegramPendingPairingRequest = vi.fn().mockReturnValue(true);
+    const updateChannelBindingPersona = vi.fn();
+
+    vi.doMock('../../../src/commands/healthCommand', () => ({
+      runHealthCommand: vi.fn().mockResolvedValue({
+        status: 'ok',
+        checks: [],
+        summary: { ok: 1, warning: 0, critical: 0, skipped: 0 },
+        generatedAt: '2026-02-20T10:00:00.000Z',
+      }),
+    }));
+    vi.doMock('../../../src/commands/doctorCommand', () => ({
+      runDoctorCommand: vi.fn().mockResolvedValue({
+        status: 'ok',
+        checks: [],
+        findings: [],
+        recommendations: [],
+        generatedAt: '2026-02-20T10:00:00.000Z',
+      }),
+    }));
+    vi.doMock('../../../src/server/channels/messages/runtime', () => ({
+      getMessageRepository: () => ({
+        listChannelBindings: () => [],
+        updateChannelBindingPersona,
+      }),
+    }));
+    vi.doMock('../../../src/server/automation/runtime', () => ({
+      getAutomationService: () => ({
+        getMetrics: () => ({
+          activeRules: 0,
+          queuedRuns: 0,
+          runningRuns: 0,
+          deadLetterRuns: 0,
+          leaseAgeSeconds: null,
+        }),
+      }),
+    }));
+    vi.doMock('../../../src/server/rooms/runtime', () => ({
+      getRoomRepository: () => ({
+        getMetrics: () => ({
+          totalRooms: 0,
+          runningRooms: 0,
+          totalMembers: 0,
+          totalMessages: 0,
+        }),
+      }),
+    }));
+    vi.doMock('../../../src/server/personas/personaRepository', () => ({
+      getPersonaRepository: () => ({
+        listPersonas: () => [
+          {
+            id: 'persona-1',
+            name: 'Nexus',
+            emoji: '🤖',
+            vibe: 'operator',
+            preferredModelId: null,
+            modelHubProfileId: null,
+            memoryPersonaType: 'general',
+            updatedAt: '2026-02-20T10:00:00.000Z',
+          },
+        ],
+      }),
+    }));
+    vi.doMock('../../../src/server/gateway/exec-approval-manager', () => ({
+      listApprovedCommands: vi.fn().mockReturnValue([]),
+      approveCommand,
+      revokeCommand,
+      clearApprovedCommands,
+    }));
+    vi.doMock('../../../src/server/channels/pairing', () => ({
+      isPairChannelType: (value: string) =>
+        value === 'telegram' ||
+        value === 'discord' ||
+        value === 'slack' ||
+        value === 'whatsapp' ||
+        value === 'imessage',
+      pairChannel,
+      unpairChannel,
+    }));
+    vi.doMock('../../../src/server/channels/pairing/bridgeAccounts', () => ({
+      upsertBridgeAccount,
+      normalizeBridgeAccountId,
+      listBridgeAccounts: () => [],
+    }));
+    vi.doMock('../../../src/server/channels/pairing/telegramCodePairing', () => ({
+      getTelegramPairingSnapshot: () => ({
+        status: 'idle',
+        pendingChatId: null,
+        pendingExpiresAt: null,
+        hasPending: false,
+      }),
+      rejectTelegramPendingPairingRequest,
+    }));
+
+    const route = await import('../../../app/api/ops/nodes/route');
+
+    const approveResponse = await route.POST(
+      new Request('http://localhost/api/ops/nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'exec.approve', command: 'echo hello' }),
+      }),
+    );
+    expect(approveResponse.status).toBe(200);
+    expect(approveCommand).toHaveBeenCalledWith('echo hello');
+
+    const bindResponse = await route.POST(
+      new Request('http://localhost/api/ops/nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'bindings.setPersona',
+          channel: 'telegram',
+          personaId: 'persona-1',
+        }),
+      }),
+    );
+    expect(bindResponse.status).toBe(200);
+    expect(updateChannelBindingPersona).toHaveBeenCalledWith('ops-user', 'telegram', 'persona-1');
+
+    const connectResponse = await route.POST(
+      new Request('http://localhost/api/ops/nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'channels.connect',
+          channel: 'telegram',
+          token: 'secret-token',
+        }),
+      }),
+    );
+    expect(connectResponse.status).toBe(200);
+    expect(pairChannel).toHaveBeenCalledWith('telegram', 'secret-token', undefined);
+
+    const disconnectResponse = await route.POST(
+      new Request('http://localhost/api/ops/nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'channels.disconnect',
+          channel: 'telegram',
+          accountId: 'default',
+        }),
+      }),
+    );
+    expect(disconnectResponse.status).toBe(200);
+    expect(unpairChannel).toHaveBeenCalledWith('telegram', 'default');
+
+    const rotateResponse = await route.POST(
+      new Request('http://localhost/api/ops/nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'channels.rotateSecret',
+          channel: 'whatsapp',
+          accountId: 'default',
+        }),
+      }),
+    );
+    expect(rotateResponse.status).toBe(200);
+    expect(normalizeBridgeAccountId).toHaveBeenCalledWith('default');
+    expect(upsertBridgeAccount).toHaveBeenCalledTimes(1);
+
+    const revokeResponse = await route.POST(
+      new Request('http://localhost/api/ops/nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'exec.revoke', command: 'echo hello' }),
+      }),
+    );
+    expect(revokeResponse.status).toBe(200);
+    expect(revokeCommand).toHaveBeenCalledWith('echo hello');
+
+    const rejectTelegramResponse = await route.POST(
+      new Request('http://localhost/api/ops/nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'telegram.rejectPending' }),
+      }),
+    );
+    expect(rejectTelegramResponse.status).toBe(200);
+    expect(rejectTelegramPendingPairingRequest).toHaveBeenCalledTimes(1);
+
+    const clearResponse = await route.POST(
+      new Request('http://localhost/api/ops/nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'exec.clear' }),
+      }),
+    );
+    const clearPayload = (await clearResponse.json()) as {
+      ok: boolean;
+      mutation: { action: string; cleared: boolean };
+    };
+    expect(clearResponse.status).toBe(200);
+    expect(clearPayload.ok).toBe(true);
+    expect(clearPayload.mutation).toEqual({
+      action: 'exec.clear',
+      cleared: true,
+    });
+    expect(clearApprovedCommands).toHaveBeenCalledTimes(1);
   });
 
   it('returns personas, active room counts and a bounded runtime room snapshot', async () => {

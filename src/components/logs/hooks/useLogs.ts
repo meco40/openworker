@@ -9,41 +9,134 @@ interface UseLogsOptions {
   sourceFilter: string;
   categoryFilter: string;
   search: string;
+  historyLimit: number;
+  streamBufferLimit: number;
 }
 
 export function useLogs(options: UseLogsOptions) {
-  const { levelFilter, sourceFilter, categoryFilter, search } = options;
+  const { levelFilter, sourceFilter, categoryFilter, search, historyLimit, streamBufferLimit } = options;
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [sources, setSources] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const safeHistoryLimit = Number.isFinite(historyLimit)
+    ? Math.min(1000, Math.max(1, Math.floor(historyLimit)))
+    : 500;
+  const safeStreamBufferLimit = Number.isFinite(streamBufferLimit)
+    ? Math.min(5000, Math.max(100, Math.floor(streamBufferLimit)))
+    : 1000;
+
+  function resolveFallbackCursor(entries: LogEntry[]): string | null {
+    return entries.length > 0 ? entries[0]?.createdAt ?? null : null;
+  }
+
+  function mergeUniqueLogs(older: LogEntry[], existing: LogEntry[]): LogEntry[] {
+    const next: LogEntry[] = [];
+    const seenIds = new Set<string>();
+    for (const entry of [...older, ...existing]) {
+      if (seenIds.has(entry.id)) {
+        continue;
+      }
+      seenIds.add(entry.id);
+      next.push(entry);
+    }
+    return next;
+  }
+
+  interface LogsResponsePayload {
+    ok?: boolean;
+    logs?: LogEntry[];
+    total?: number;
+    page?: {
+      limit?: number;
+      before?: string | null;
+      returned?: number;
+      hasMore?: boolean;
+      nextCursor?: string | null;
+    };
+  }
+
   // Fetch historical logs
   const fetchLogs = useCallback(async () => {
+    setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (levelFilter !== 'all') params.set('level', levelFilter);
       if (sourceFilter !== 'all') params.set('source', sourceFilter);
       if (categoryFilter !== 'all') params.set('category', categoryFilter);
       if (search) params.set('search', search);
-      params.set('limit', '500');
+      params.set('limit', String(safeHistoryLimit));
 
       const res = await fetch(`/api/logs?${params.toString()}`);
-      const data = await res.json();
+      const data = (await res.json()) as LogsResponsePayload;
       if (data.ok) {
-        setLogs(data.logs);
-        setTotalCount(data.total);
+        const nextLogs = Array.isArray(data.logs) ? data.logs : [];
+        setLogs(nextLogs);
+        setTotalCount(typeof data.total === 'number' ? data.total : nextLogs.length);
+        setHasMoreHistory(Boolean(data.page?.hasMore));
+        setHistoryCursor(data.page?.nextCursor ?? resolveFallbackCursor(nextLogs));
       }
     } catch {
       // Silently fail
     } finally {
       setIsLoading(false);
     }
-  }, [categoryFilter, levelFilter, sourceFilter, search]);
+  }, [categoryFilter, levelFilter, safeHistoryLimit, search, sourceFilter]);
+
+  const loadOlder = useCallback(async () => {
+    if (!historyCursor || !hasMoreHistory || isLoadingMore) {
+      return;
+    }
+    setIsLoadingMore(true);
+    try {
+      const params = new URLSearchParams();
+      if (levelFilter !== 'all') params.set('level', levelFilter);
+      if (sourceFilter !== 'all') params.set('source', sourceFilter);
+      if (categoryFilter !== 'all') params.set('category', categoryFilter);
+      if (search) params.set('search', search);
+      params.set('limit', String(safeHistoryLimit));
+      params.set('before', historyCursor);
+
+      const res = await fetch(`/api/logs?${params.toString()}`);
+      const data = (await res.json()) as LogsResponsePayload;
+      if (data.ok) {
+        const olderLogs = Array.isArray(data.logs) ? data.logs : [];
+        setLogs((previous) => {
+          const merged = mergeUniqueLogs(olderLogs, previous);
+          return merged.length > safeStreamBufferLimit
+            ? merged.slice(-safeStreamBufferLimit)
+            : merged;
+        });
+        setHasMoreHistory(Boolean(data.page?.hasMore));
+        setHistoryCursor(data.page?.nextCursor ?? resolveFallbackCursor(olderLogs));
+        if (typeof data.total === 'number') {
+          setTotalCount(data.total);
+        }
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [
+    categoryFilter,
+    hasMoreHistory,
+    historyCursor,
+    isLoadingMore,
+    levelFilter,
+    safeHistoryLimit,
+    safeStreamBufferLimit,
+    search,
+    sourceFilter,
+  ]);
 
   const fetchSources = useCallback(async () => {
     try {
@@ -95,7 +188,9 @@ export function useLogs(options: UseLogsOptions) {
         const entry = payload as LogEntry;
         setLogs((prev) => {
           const next = [...prev, entry];
-          return next.length > 1000 ? next.slice(-1000) : next;
+          return next.length > safeStreamBufferLimit
+            ? next.slice(-safeStreamBufferLimit)
+            : next;
         });
         setTotalCount((c) => c + 1);
 
@@ -126,7 +221,7 @@ export function useLogs(options: UseLogsOptions) {
       client.request('logs.unsubscribe', {}).catch(() => {});
       setIsConnected(false);
     };
-  }, []);
+  }, [safeStreamBufferLimit]);
 
   // Filtered logs
   const filteredLogs = logs.filter((l) => {
@@ -143,6 +238,8 @@ export function useLogs(options: UseLogsOptions) {
       await fetch('/api/logs', { method: 'DELETE' });
       setLogs([]);
       setTotalCount(0);
+      setHasMoreHistory(false);
+      setHistoryCursor(null);
     } catch {
       // Silently fail
     }
@@ -178,10 +275,13 @@ export function useLogs(options: UseLogsOptions) {
     sources,
     categories,
     totalCount,
+    hasMoreHistory,
+    isLoadingMore,
     isConnected,
     isLoading,
     copiedId,
     fetchLogs,
+    loadOlder,
     handleClear,
     handleExport,
     handleCopyLog,

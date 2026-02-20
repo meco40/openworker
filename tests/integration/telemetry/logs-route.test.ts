@@ -99,6 +99,59 @@ describe('logs route access and filtering', () => {
     expect(data.categories).toEqual(['integration', 'security', 'system']);
   });
 
+  it('returns cursor pagination metadata and keeps total count stable across before-cursor pages', async () => {
+    mockUserContext({ userId: 'legacy-local-user', authenticated: false });
+    for (let index = 0; index < 6; index += 1) {
+      repo.insertLog('info', 'SYS', `extra-${index}`, undefined, 'system');
+    }
+    const { GET } = await loadRoute();
+
+    const firstResponse = await GET(new Request('http://localhost/api/logs?limit=3'));
+    const firstData = (await firstResponse.json()) as {
+      ok: boolean;
+      logs: Array<{ createdAt: string }>;
+      total: number;
+      page: { limit: number; before: string | null; nextCursor: string | null; hasMore: boolean };
+    };
+
+    expect(firstData.ok).toBe(true);
+    expect(firstData.page.limit).toBe(3);
+    expect(firstData.page.before).toBeNull();
+    expect(firstData.page.hasMore).toBe(true);
+    expect(firstData.page.nextCursor).toBeTruthy();
+    expect(firstData.total).toBe(9);
+    expect(firstData.logs).toHaveLength(3);
+
+    const cursor = String(firstData.page.nextCursor);
+    const secondResponse = await GET(
+      new Request(`http://localhost/api/logs?limit=3&before=${encodeURIComponent(cursor)}`),
+    );
+    const secondData = (await secondResponse.json()) as {
+      ok: boolean;
+      logs: Array<{ createdAt: string }>;
+      total: number;
+      page: { limit: number; before: string | null; nextCursor: string | null; hasMore: boolean };
+    };
+
+    expect(secondData.ok).toBe(true);
+    expect(secondData.total).toBe(firstData.total);
+    expect(secondData.page.before).toBe(cursor);
+    expect(secondData.logs.every((log) => log.createdAt < cursor)).toBe(true);
+  });
+
+  it('clamps log history limit to a safe maximum', async () => {
+    mockUserContext({ userId: 'legacy-local-user', authenticated: false });
+    const { GET } = await loadRoute();
+    const response = await GET(new Request('http://localhost/api/logs?limit=999999'));
+    const data = (await response.json()) as {
+      ok: boolean;
+      page: { limit: number };
+    };
+
+    expect(data.ok).toBe(true);
+    expect(data.page.limit).toBe(1000);
+  });
+
   it('clears logs for authenticated or legacy-local context', async () => {
     mockUserContext({ userId: 'legacy-local-user', authenticated: false });
     const { DELETE } = await loadRoute();

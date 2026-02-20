@@ -13,6 +13,7 @@ interface CronViewTestState {
   rules: CronRule[];
   selectedRuleId: string | null;
   runs: CronRun[];
+  historyLimit: number;
   metrics: CronMetrics | null;
   loading: boolean;
   refreshing: boolean;
@@ -35,6 +36,7 @@ interface CronViewTestState {
     deleteRule: (ruleId: string) => Promise<void>;
     toggleRule: (ruleId: string, enabled: boolean) => Promise<void>;
     runNow: (ruleId: string) => Promise<void>;
+    setHistoryLimit: (value: number) => void;
     refreshAll: () => Promise<void>;
   };
 }
@@ -47,6 +49,7 @@ function buildState(partial: Partial<CronViewTestState> = {}): CronViewTestState
     rules: [],
     selectedRuleId: null,
     runs: [],
+    historyLimit: 20,
     metrics: {
       activeRules: 0,
       queuedRuns: 0,
@@ -75,6 +78,7 @@ function buildState(partial: Partial<CronViewTestState> = {}): CronViewTestState
       deleteRule: asyncNoop,
       toggleRule: asyncNoop,
       runNow: asyncNoop,
+      setHistoryLimit: noop,
       refreshAll: asyncNoop,
     },
     ...partial,
@@ -119,6 +123,11 @@ describe('CronView', () => {
     expect(html).toContain('Morning Briefing');
     expect(html).toContain('0 9 * * *');
     expect(html).toContain('UTC');
+  });
+
+  it('renders a run history depth control for operators', () => {
+    const html = renderToStaticMarkup(createElement(CronView, { state: buildState() }));
+    expect(html).toContain('Run history depth');
   });
 
   it('validates required rule form fields', () => {

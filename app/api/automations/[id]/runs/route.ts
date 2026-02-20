@@ -35,7 +35,6 @@ export async function GET(request: Request, context: RouteContext) {
 
   const { id } = await context.params;
   const limit = parseOptionalLimit(request);
-  const runs = getAutomationService().listRuns(id, userId);
-  const boundedRuns = limit === undefined ? runs : runs.slice(0, limit);
-  return NextResponse.json({ ok: true, runs: boundedRuns });
+  const runs = getAutomationService().listRuns(id, userId, limit);
+  return NextResponse.json({ ok: true, runs });
 }

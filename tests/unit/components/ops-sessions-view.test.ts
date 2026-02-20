@@ -15,6 +15,10 @@ const mockedUseOpsSessions = vi.mocked(useOpsSessions);
 function buildState(partial: Partial<UseOpsSessionsResult> = {}): UseOpsSessionsResult {
   return {
     query: '',
+    limit: 200,
+    activeMinutes: '',
+    includeGlobalRequested: false,
+    includeUnknown: true,
     loading: false,
     refreshing: false,
     error: null,
@@ -25,6 +29,10 @@ function buildState(partial: Partial<UseOpsSessionsResult> = {}): UseOpsSessions
     actions: {
       refresh: vi.fn(async () => {}),
       setQuery: vi.fn(),
+      setLimit: vi.fn(),
+      setActiveMinutes: vi.fn(),
+      setIncludeGlobalRequested: vi.fn(),
+      setIncludeUnknown: vi.fn(),
       setCreateDraft: vi.fn(),
       setRenameDraft: vi.fn(),
       createSession: vi.fn(async () => {}),
@@ -47,6 +55,8 @@ describe('SessionsView', () => {
     expect(html).toContain('Sessions');
     expect(html).toContain('Search sessions');
     expect(html).toContain('Create Session');
+    expect(html).toContain('Active within minutes');
+    expect(html).toContain('Include global sessions');
     expect(html).toContain('Loading sessions...');
   });
 
@@ -55,7 +65,14 @@ describe('SessionsView', () => {
       buildState({
         data: {
           ok: true,
-          query: { q: '', limit: 50 },
+          query: {
+            q: '',
+            limit: 50,
+            activeMinutes: null,
+            includeGlobalRequested: false,
+            includeGlobalApplied: false,
+            includeUnknown: true,
+          },
           sessions: [],
           generatedAt: '2026-02-20T00:00:00.000Z',
         },
@@ -72,7 +89,14 @@ describe('SessionsView', () => {
         renameDraftById: { 'conv-1': 'Renamed title' },
         data: {
           ok: true,
-          query: { q: '', limit: 50 },
+          query: {
+            q: '',
+            limit: 50,
+            activeMinutes: null,
+            includeGlobalRequested: false,
+            includeGlobalApplied: false,
+            includeUnknown: true,
+          },
           sessions: [
             {
               id: 'conv-1',

@@ -219,6 +219,26 @@ describe('automation routes', () => {
     };
     expect(runsWithInvalidLimitPayload.ok).toBe(true);
     expect(runsWithInvalidLimitPayload.runs.length).toBeGreaterThanOrEqual(4);
+
+    for (let index = 0; index < 56; index += 1) {
+      const runResponse = await runRoute.POST(
+        new Request(`http://localhost/api/automations/${ruleId}/run`, { method: 'POST' }),
+        { params: Promise.resolve({ id: ruleId }) },
+      );
+      expect(runResponse.status).toBe(200);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+    }
+
+    const runsWithLargeLimitResponse = await runsRoute.GET(
+      new Request(`http://localhost/api/automations/${ruleId}/runs?limit=120`),
+      { params: Promise.resolve({ id: ruleId }) },
+    );
+    const runsWithLargeLimitPayload = (await runsWithLargeLimitResponse.json()) as {
+      ok: boolean;
+      runs: Array<{ id: string }>;
+    };
+    expect(runsWithLargeLimitPayload.ok).toBe(true);
+    expect(runsWithLargeLimitPayload.runs.length).toBeGreaterThan(50);
   });
 
   it('returns automation metrics and lease state from GET /api/automations/metrics', async () => {

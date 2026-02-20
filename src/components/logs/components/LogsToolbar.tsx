@@ -17,6 +17,13 @@ interface LogsToolbarProps {
   autoScroll: boolean;
   onToggleAutoScroll: () => void;
   logsCount: number;
+  historyLimit: number;
+  onHistoryLimitChange: (value: number) => void;
+  streamBufferLimit: number;
+  onStreamBufferLimitChange: (value: number) => void;
+  hasMoreHistory: boolean;
+  isLoadingMore: boolean;
+  onLoadOlder: () => void;
   onExport: () => void;
   onClear: () => void;
 }
@@ -35,6 +42,13 @@ export const LogsToolbar: React.FC<LogsToolbarProps> = ({
   autoScroll,
   onToggleAutoScroll,
   logsCount,
+  historyLimit,
+  onHistoryLimitChange,
+  streamBufferLimit,
+  onStreamBufferLimitChange,
+  hasMoreHistory,
+  isLoadingMore,
+  onLoadOlder,
   onExport,
   onClear,
 }) => {
@@ -105,6 +119,30 @@ export const LogsToolbar: React.FC<LogsToolbarProps> = ({
         ))}
       </select>
 
+      <select
+        value={String(historyLimit)}
+        onChange={(e) => onHistoryLimitChange(Number.parseInt(e.target.value, 10))}
+        className="cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-xs font-bold text-zinc-300 transition-colors focus:border-zinc-600 focus:outline-none"
+        title="History fetch size per page"
+      >
+        <option value="100">HISTORY 100</option>
+        <option value="200">HISTORY 200</option>
+        <option value="500">HISTORY 500</option>
+        <option value="1000">HISTORY 1000</option>
+      </select>
+
+      <select
+        value={String(streamBufferLimit)}
+        onChange={(e) => onStreamBufferLimitChange(Number.parseInt(e.target.value, 10))}
+        className="cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-xs font-bold text-zinc-300 transition-colors focus:border-zinc-600 focus:outline-none"
+        title="Max buffered entries kept in memory"
+      >
+        <option value="500">BUFFER 500</option>
+        <option value="1000">BUFFER 1000</option>
+        <option value="2000">BUFFER 2000</option>
+        <option value="5000">BUFFER 5000</option>
+      </select>
+
       {/* Auto-scroll toggle */}
       <button
         onClick={onToggleAutoScroll}
@@ -140,6 +178,14 @@ export const LogsToolbar: React.FC<LogsToolbarProps> = ({
             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
           />
         </svg>
+      </button>
+
+      <button
+        onClick={onLoadOlder}
+        disabled={!hasMoreHistory || isLoadingMore}
+        className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-xs font-bold text-zinc-300 transition-all hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-30"
+      >
+        {isLoadingMore ? 'Loading older...' : 'Load older'}
       </button>
 
       {/* Clear */}

@@ -42,6 +42,10 @@ export interface OpsSessionsResponse {
   query: {
     q: string;
     limit: number;
+    activeMinutes: number | null;
+    includeGlobalRequested: boolean;
+    includeGlobalApplied: boolean;
+    includeUnknown: boolean;
   };
   sessions: OpsSessionSummary[];
   generatedAt: string;
@@ -53,11 +57,27 @@ export interface OpsNodeChannelSummary {
   externalPeerId: string | null;
   peerName: string | null;
   transport: string | null;
+  personaId: string | null;
   lastSeenAt: string | null;
+  supportsInbound: boolean;
+  supportsOutbound: boolean;
+  supportsPairing: boolean;
+  supportsStreaming: boolean;
+  accounts?: Array<{
+    accountId: string;
+    pairingStatus: string | null;
+    peerName: string | null;
+    lastSeenAt: string | null;
+    allowFrom: string[];
+  }>;
 }
 
 export interface OpsNodesResponse {
   ok: true;
+  mutation?: {
+    action: string;
+    [key: string]: unknown;
+  };
   nodes: {
     health: {
       status: string;
@@ -82,6 +102,27 @@ export interface OpsNodesResponse {
       runningRuns: number;
       deadLetterRuns: number;
       leaseAgeSeconds: number | null;
+    };
+    personas: Array<{
+      id: string;
+      name: string;
+      emoji: string;
+      vibe: string;
+      updatedAt: string;
+    }>;
+    execApprovals: {
+      total: number;
+      items: Array<{
+        fingerprint: string;
+        command: string;
+        updatedAt: string;
+      }>;
+    };
+    telegramPairing: {
+      status: string;
+      pendingChatId: string | null;
+      pendingExpiresAt: string | null;
+      hasPending: boolean;
     };
     rooms: {
       totalRooms: number;

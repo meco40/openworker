@@ -25,6 +25,13 @@ export interface TelegramPairingConfirmResult {
   error?: string;
 }
 
+export interface TelegramPairingSnapshot {
+  status: TelegramChannelStatus | 'idle';
+  pendingChatId: string | null;
+  pendingExpiresAt: string | null;
+  hasPending: boolean;
+}
+
 function clearPendingPairingCode(): void {
   const store = getCredentialStore();
   store.setCredential(CHANNEL, KEY_PENDING_CHAT_ID, '');
@@ -49,6 +56,39 @@ function readPendingPairingState(): {
   }
 
   return { pendingChatId, pendingCode, pendingExpiresAt };
+}
+
+export function getTelegramPairingSnapshot(now = new Date()): TelegramPairingSnapshot {
+  const store = getCredentialStore();
+  const statusRaw = store.getCredential(CHANNEL, KEY_PAIRING_STATUS);
+  const status: TelegramChannelStatus | 'idle' =
+    statusRaw === 'connected' || statusRaw === 'awaiting_code' ? statusRaw : 'idle';
+
+  const { pendingChatId, pendingCode, pendingExpiresAt } = readPendingPairingState();
+  const hasPending =
+    Boolean(pendingChatId) &&
+    Boolean(pendingCode) &&
+    Boolean(pendingExpiresAt) &&
+    (pendingExpiresAt as Date).valueOf() > now.valueOf();
+
+  return {
+    status,
+    pendingChatId: hasPending ? pendingChatId : null,
+    pendingExpiresAt: hasPending && pendingExpiresAt ? pendingExpiresAt.toISOString() : null,
+    hasPending,
+  };
+}
+
+export function rejectTelegramPendingPairingRequest(now = new Date()): boolean {
+  const { pendingChatId, pendingCode, pendingExpiresAt } = readPendingPairingState();
+  const hasPending =
+    Boolean(pendingChatId) &&
+    Boolean(pendingCode) &&
+    Boolean(pendingExpiresAt) &&
+    (pendingExpiresAt as Date).valueOf() > now.valueOf();
+
+  clearPendingPairingCode();
+  return hasPending;
 }
 
 function generateSixDigitCode(): string {

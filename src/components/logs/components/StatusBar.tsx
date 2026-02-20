@@ -5,6 +5,7 @@ import React from 'react';
 interface StatusBarProps {
   filteredCount: number;
   totalCount: number;
+  hasMoreHistory: boolean;
   autoScroll: boolean;
   isConnected: boolean;
 }
@@ -12,6 +13,7 @@ interface StatusBarProps {
 export const StatusBar: React.FC<StatusBarProps> = ({
   filteredCount,
   totalCount,
+  hasMoreHistory,
   autoScroll,
   isConnected,
 }) => {
@@ -20,8 +22,9 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       <div className="flex items-center space-x-4">
         <span>{filteredCount} entries shown</span>
         {filteredCount !== totalCount && (
-          <span className="text-zinc-700">({totalCount} total loaded)</span>
+          <span className="text-zinc-700">({totalCount} total matching)</span>
         )}
+        {hasMoreHistory && <span className="text-zinc-700">more history available</span>}
       </div>
       <div className="flex items-center space-x-4">
         {autoScroll && (

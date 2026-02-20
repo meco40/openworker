@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CronLeaseState, CronMetrics, CronRule, CronRun } from '@/modules/cron/types';
 
-const HISTORY_LIMIT = 20;
 const RULE_LIMIT = 200;
+const DEFAULT_HISTORY_LIMIT = 20;
+const MIN_HISTORY_LIMIT = 1;
+const MAX_HISTORY_LIMIT = 500;
 
 type EditableCronField = 'name' | 'cronExpression' | 'prompt';
 
@@ -52,6 +54,7 @@ export interface UseCronRulesResult {
   rules: CronRule[];
   selectedRuleId: string | null;
   runs: CronRun[];
+  historyLimit: number;
   metrics: CronMetrics | null;
   loading: boolean;
   refreshing: boolean;
@@ -74,8 +77,16 @@ export interface UseCronRulesResult {
     deleteRule: (ruleId: string) => Promise<void>;
     toggleRule: (ruleId: string, enabled: boolean) => Promise<void>;
     runNow: (ruleId: string) => Promise<void>;
+    setHistoryLimit: (value: number) => void;
     refreshAll: () => Promise<void>;
   };
+}
+
+function clampHistoryLimit(value: number): number {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_HISTORY_LIMIT;
+  }
+  return Math.min(MAX_HISTORY_LIMIT, Math.max(MIN_HISTORY_LIMIT, Math.floor(value)));
 }
 
 export function createCronRuleDraft(rule?: CronRule | null): CronRuleDraft {
@@ -164,9 +175,9 @@ async function fetchMetrics(): Promise<CronMetrics> {
   };
 }
 
-async function fetchRuns(ruleId: string): Promise<CronRun[]> {
+async function fetchRuns(ruleId: string, limit: number): Promise<CronRun[]> {
   const response = await fetch(
-    `/api/automations/${encodeURIComponent(ruleId)}/runs?limit=${HISTORY_LIMIT}`,
+    `/api/automations/${encodeURIComponent(ruleId)}/runs?limit=${clampHistoryLimit(limit)}`,
     {
       cache: 'no-store',
     },
@@ -179,6 +190,7 @@ export function useCronRules(): UseCronRulesResult {
   const [rules, setRules] = useState<CronRule[]>([]);
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
   const [runs, setRuns] = useState<CronRun[]>([]);
+  const [historyLimit, setHistoryLimit] = useState<number>(DEFAULT_HISTORY_LIMIT);
   const [metrics, setMetrics] = useState<CronMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -236,7 +248,7 @@ export function useCronRules(): UseCronRulesResult {
     setHistoryLoading(true);
     setHistoryError(null);
 
-    void fetchRuns(selectedRuleId)
+    void fetchRuns(selectedRuleId, historyLimit)
       .then((nextRuns) => {
         if (!cancelled) {
           setRuns(nextRuns);
@@ -257,7 +269,7 @@ export function useCronRules(): UseCronRulesResult {
     return () => {
       cancelled = true;
     };
-  }, [selectedRuleId]);
+  }, [historyLimit, selectedRuleId]);
 
   const startCreate = useCallback(() => {
     editingRuleIdRef.current = null;
@@ -420,7 +432,7 @@ export function useCronRules(): UseCronRulesResult {
         if (selectedRuleId === ruleId) {
           setHistoryLoading(true);
           try {
-            const nextRuns = await fetchRuns(ruleId);
+            const nextRuns = await fetchRuns(ruleId, historyLimit);
             setRuns(nextRuns);
             setHistoryError(null);
           } finally {
@@ -436,13 +448,14 @@ export function useCronRules(): UseCronRulesResult {
         setPendingRuleId(null);
       }
     },
-    [refreshAll, selectedRuleId],
+    [historyLimit, refreshAll, selectedRuleId],
   );
 
   return {
     rules,
     selectedRuleId,
     runs,
+    historyLimit,
     metrics,
     loading,
     refreshing,
@@ -465,6 +478,9 @@ export function useCronRules(): UseCronRulesResult {
       deleteRule,
       toggleRule,
       runNow,
+      setHistoryLimit: (value: number) => {
+        setHistoryLimit(clampHistoryLimit(value));
+      },
       refreshAll,
     },
   };

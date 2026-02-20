@@ -1,104 +1,312 @@
-# Demo OpenClaw vs. unsere WebApp: Vergleich und umgesetzte Punkte
+# OpenClaw Demo vs unsere WebApp: Tiefes Gesamtreview (Funktionen, Qualitaet, Nutzen)
 
-Stand: 2026-02-20
+Stand: 2026-02-20  
+Vergleichsbasis: `demo/openclaw-main` vs aktueller Zustand unserer WebApp auf `main`
 
-## 1) Zusammenfassung des vorherigen Vergleichs
+## 1) Executive Summary
 
-Im vorherigen Review wurde der Bereich `demo/openclaw` gegen unsere bestehende Channel-Integration verglichen. Fokus war: Was bringt schnell mehr Stabilitaet, Sicherheit und Betriebsfaehigkeit.
+Wenn man nur die reine Ops-Konsole betrachtet, ist die OpenClaw-Demo aktuell in der Tiefe pro Ops-Seite noch vorne (vor allem `nodes`, `agents`, `usage`).
 
-Priorisierte Punkte aus dem Vergleich:
+Wenn man das Gesamtsystem betrachtet (Ops + produktive Integrationen + Security/Channel-Realitaet + Testabsicherung), ist unsere WebApp in mehreren produktionsnahen Bereichen staerker.
 
-1. Account-Auswahl im Pairing-UI (Account-Selector), damit Multi-Account im Frontend sauber nutzbar ist.
-2. Robuste Multi-Account-Verarbeitung fuer WhatsApp (Inbound + Outbound), inkl. klarer Account-Zuordnung und besserer Validierung.
-3. Weitere Verbesserungen am Pairing/Operations-Fluss (nicht als erstes priorisiert umgesetzt).
-4. Channel Health Monitor mit automatischen Health-Checks und Self-Healing bei Bridge-Problemen.
+Kurz gesagt:
 
-Bewertung aus dem Vergleich:
+- **OpenClaw Demo staerker**: Ops-Spezialtiefe und Bedienlogik innerhalb einzelner Ops-Screens.
+- **Unsere WebApp staerker**: integrierte Plattformbreite, Channel-Realitaet, Prompt-Risiko-Transparenz, API-/Integrationstest-Reife.
 
-- Punkt 2 und Punkt 4 liefern den hoechsten direkten Nutzen fuer Produktion (Zuverlaessigkeit + weniger manuelle Eingriffe).
-- Punkt 1 ist wichtig fuer Bedienbarkeit und wurde im Anschluss ebenfalls umgesetzt.
+---
 
-Hinweis: Aeltere, groessere OpenClaw-Vergleiche liegen bereits in:
+## 2) Wie bewertet wurde
 
-- `docs/archive/analysis/OPENCLAW_FUNKTIONEN_ANALYSE_WEBAPP.md`
-- `docs/openai-agents-sdk-vs-openclaw-tiefenanalyse.md`
+Die Bewertung ist codebasiert, nicht meinungsbasiert.
 
-## 2) Umgesetzte Aenderungen
+Primarquellen:
 
-## Punkt 2: Multi-Account + robuste WhatsApp-Verarbeitung
+- Demo UI/Navi/Views:
+  - `demo/openclaw-main/ui/src/ui/navigation.ts:7`
+  - `demo/openclaw-main/ui/src/ui/app-render.ts:299`
+  - `demo/openclaw-main/ui/src/ui/views/sessions.ts:128`
+  - `demo/openclaw-main/ui/src/ui/views/usage.ts:515`
+  - `demo/openclaw-main/ui/src/ui/views/nodes.ts:32`
+  - `demo/openclaw-main/ui/src/ui/views/agents.ts:31`
+  - `demo/openclaw-main/ui/src/ui/views/logs.ts:45`
+- Unsere WebApp:
+  - `src/components/Sidebar.tsx:49`
+  - `src/modules/app-shell/components/AppShellViewContent.tsx:137`
+  - `app/api/ops/sessions/route.ts:95`
+  - `src/modules/ops/components/SessionsView.tsx:80`
+  - `app/api/logs/route.ts:82`
+  - `src/components/logs/components/LogsToolbar.tsx:188`
+  - `src/modules/cron/components/CronView.tsx:325`
+  - `src/components/stats/PromptLogsTab.tsx:19`
+  - `src/messenger/ChannelPairing.tsx:17`
+  - `src/server/channels/healthMonitor.ts:58`
+- Qualitaet/Security/Doku:
+  - `demo/openclaw-main/docs/security/README.md:7`
+  - `demo/openclaw-main/docs/security/THREAT-MODEL-ATLAS.md:24`
+  - `docs/SECURITY_SYSTEM.md:798`
+  - `src/server/auth/userContext.ts:41`
+  - `tests/integration/ops/ops-routes.test.ts:21`
+  - `tests/integration/automation/automations-routes.test.ts:59`
+  - `tests/integration/telemetry/logs-route.test.ts:33`
+  - `tests/integration/telemetry/logs-ingest-route.test.ts:65`
 
-### Backend/Domain
+---
 
-- Account-spezifische Credentials/Status/Allowlist eingefuehrt:
-  - `src/server/channels/pairing/bridgeAccounts.ts`
-  - `src/server/channels/credentials/credentialStore.ts` (`deleteCredential`)
-- Pair/Unpair account-faehig gemacht:
-  - `src/server/channels/pairing/bridge.ts`
-  - `src/server/channels/pairing/index.ts`
-  - `src/server/channels/pairing/unpair.ts`
-  - `app/api/channels/pair/route.ts`
-  - `src/server/gateway/methods/channels.ts`
-  - `app/api/channels/state/route.ts`
+## 3) Gesamtvergleich auf einen Blick
 
-### WhatsApp Inbound/Outbound
+| Dimension                    | OpenClaw Demo                                             | Unsere WebApp                                                                                 | Urteil                               |
+| ---------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Funktionen (Ops)             | Sehr tiefe Ops-Screens mit vielen direkten Aktionen       | 7 Ops-Seiten vorhanden, plus juengst ausgebaut (Sessions/Logs/Cron)                           | Demo leicht vorne in Ops-Tiefe       |
+| Funktionen (Gesamtprodukt)   | Fokus stark auf Gateway/Ops-Flows                         | Breitere integrierte Produktflaeche (Models, Personas, Memory, Tasks, Profile, Security etc.) | Unsere WebApp vorne                  |
+| Qualitaet (UI-Reife)         | Sehr aufgeraeumte Ops-IA und starke View-Spezialisierung  | Modular, aber unterschiedliche Reifegrade je Screen                                           | Gemischt                             |
+| Qualitaet (Tests/API)        | Gute UI/View-Tests in Demo-Scope                          | Sehr breite Integrationstests ueber APIs und Security Guards                                  | Unsere WebApp vorne                  |
+| Security/Trust-Kommunikation | Sehr starke oeffentliche Threat-Model-/Trust-Doku         | Sehr starke technische Security-Implementierung + Auth Guards                                 | Beide stark, mit anderem Schwerpunkt |
+| Nutzen im Betrieb            | Sehr gut fuer Ops-Teams, die tiefe Einzelscreens brauchen | Sehr gut fuer produktionsnahe Teams mit Multi-Channel/Prompt-Risk/Integrationsbedarf          | Kontextabhaengig                     |
 
-- Webhook robust gemacht (Account-Resolution, Secret-Check, Allowlist, Dedupe, Attachment-Handling):
-  - `app/api/channels/whatsapp/webhook/route.ts`
-- Normalisierung verbessert (Fallback fuer Text/ID):
-  - `src/server/channels/inbound/normalizers.ts`
-- Outbound account-aware gemacht (`x-openclaw-account-id`, scoped chat IDs):
-  - `src/server/channels/outbound/whatsapp.ts`
-  - `src/server/channels/outbound/router.ts`
+---
 
-## Punkt 4: Channel Health Monitor
+## 4) Tiefer Funktionsvergleich
 
-- Periodischer Health-Check fuer WhatsApp/iMessage Bridge.
-- Fehlerzaehler + Schwellwert + Cooldown.
-- Automatischer Repair-Versuch (Webhook-Refresh) und Status-Update pro Account.
+## 4.1 Informationsarchitektur und Navigation
 
-Dateien:
+**OpenClaw Demo Vorteil**
 
-- `src/server/channels/healthMonitor.ts`
-- `src/server/channels/messages/runtime.ts` (Start im Runtime-Bootstrap)
+- Klare Navigationsgruppen (`control`, `agent`, `settings`) mit fokussierten Tabs (`sessions`, `usage`, `cron`, `nodes`, `agents`, `logs`) in einer konsistenten IA: `demo/openclaw-main/ui/src/ui/navigation.ts:7`.
+- Zentrale Verdrahtung aller Views ueber einen orchestrierten Render-Flow: `demo/openclaw-main/ui/src/ui/app-render.ts:146`.
 
-## Ergaenzend umgesetzt (im Anschluss)
+**Unsere WebApp Vorteil**
 
-### Punkt 1: Account-Selector im UI
+- Deutlich breitere App-Oberflaeche in derselben Shell, nicht nur Ops:
+  - Sidebar-Views inkl. `MODELS`, `PERSONAS`, `MEMORY`, `TASKS`, `SECURITY`, `PROFILE`: `src/components/Sidebar.tsx:13`.
+  - Direkte View-Routing-Abdeckung in AppShell: `src/modules/app-shell/components/AppShellViewContent.tsx:97`.
 
-- Account-Auswahl im Pairing-UI eingebaut (WhatsApp/iMessage).
-- State-Handling fuer Auswahl + neuer Account.
-- Pair/Unpair sendet `accountId`.
+**Bewertung**
 
-Datei:
+- Nur Ops-Cockpit: Demo klarer.
+- Integrierte Produktplattform: unsere WebApp breiter.
 
-- `messenger/ChannelPairing.tsx`
+## 4.2 Sessions
 
-### Admin-API fuer `allow_from`
+**OpenClaw Demo Vorteil**
 
-- API zum Lesen/Schreiben der WhatsApp-Allowlist pro Account.
-- Auth-Pruefung und Normalisierung enthalten.
+- Tiefe Session-Steuerung pro Zeile inkl. Thinking/Verbose/Reasoning-Overrides und Chat-Deeplink: `demo/openclaw-main/ui/src/ui/views/sessions.ts:270`, `demo/openclaw-main/ui/src/ui/views/sessions.ts:303`.
 
-Datei:
+**Unsere WebApp Vorteil**
 
-- `app/api/channels/whatsapp/accounts/route.ts`
+- Produktive CRUD-Flows (Create/Rename/Delete) plus ausgebauter Filterbereich:
+  - `Active within minutes`, `Include global`, `Include unknown`: `src/modules/ops/components/SessionsView.tsx:80`.
+- Serverseitige sichere Scope-Logik fuer `includeGlobalApplied` und Filter:
+  - `app/api/ops/sessions/route.ts:99`.
 
-## 3) Tests und Verifikation
+**Bewertung**
 
-Neu/erweitert:
+- Demo tiefer in pro-Session-Override-Operability.
+- Unsere App staerker in sicherer produktiver Session-Verwaltung.
 
-- `tests/unit/channels/bridge-accounts.test.ts`
-- `tests/unit/channels/whatsapp-outbound.test.ts`
-- `tests/unit/channels/health-monitor.test.ts`
-- `tests/unit/channels/whatsapp-webhook-route.test.ts`
-- `tests/integration/channels/whatsapp-accounts-route.test.ts`
-- `tests/channels-pair-route.test.ts`
-- `tests/unit/gateway/channels-methods.test.ts`
+## 4.3 Usage / Stats
 
-Durchgefuehrte Checks:
+**OpenClaw Demo Vorteil**
 
-- `npm run typecheck` erfolgreich.
-- Mehrere gezielte Unit/Integration-Tests fuer die neuen Channel-Flows erfolgreich.
+- Sehr tiefer Usage-Stack: Query-Tokens, Vorschlaege, Session-/Day-/Hour-Filter, Export CSV/JSON, Detailpanels:
+  - `demo/openclaw-main/ui/src/ui/views/usage.ts:515`
+  - `demo/openclaw-main/ui/src/ui/views/usage.ts:637`
+  - `demo/openclaw-main/ui/src/ui/views/usage.ts:820`
 
-## 4) Ergebnis in einem Satz
+**Unsere WebApp Vorteil**
 
-Die WebApp hat jetzt den zentralen Mehrwert aus dem Vergleich in den kritischen Bereichen umgesetzt: robuste Multi-Account-Channel-Verarbeitung, Health-Monitoring mit Self-Heal, sowie UI/API-Bausteine fuer saubere Account-Bedienung.
+- Stark integrierte Prompt-Dispatch-Telemetrie mit Risk-Level, Risk-Score, Reasons, Provider/Model-Filtern und Diagnostics:
+  - `src/components/stats/PromptLogsTab.tsx:19`
+  - `src/components/stats/PromptLogsTab.tsx:326`
+  - `src/components/stats/PromptLogsTab.tsx:456`
+
+**Bewertung**
+
+- Demo vorne bei klassischer Usage-Forensik.
+- Unsere App vorne bei Prompt-Risk-Transparenz.
+
+## 4.4 Cron
+
+**OpenClaw Demo**
+
+- Reife Cron-Jobs-Ansicht mit Actions und Run-History.
+
+**Unsere WebApp**
+
+- Funktionsparitaet bei Kernaktionen plus juengst erweiterte History-Tiefe:
+  - UI `Run history depth`: `src/modules/cron/components/CronView.tsx:325`
+  - Hook-State `historyLimit`: `src/modules/cron/hooks/useCronRules.ts:193`
+  - Route/Service-Limit-Weitergabe: `app/api/automations/[id]/runs/route.ts:37`, `src/server/automation/service.ts:135`
+
+**Bewertung**
+
+- In der Kernfunktion inzwischen weitgehend gleichwertig.
+
+## 4.5 Nodes
+
+**OpenClaw Demo Vorteil (deutlich)**
+
+- Aktive Device- und Token-Operationen direkt im UI:
+  - Approve/Reject: `demo/openclaw-main/ui/src/ui/views/nodes.ts:144`
+  - Rotate/Revoke: `demo/openclaw-main/ui/src/ui/views/nodes.ts:197`
+  - Exec-Node-Bindings/Approvals: `demo/openclaw-main/ui/src/ui/views/nodes.ts:277`
+
+**Unsere WebApp**
+
+- Sehr gute Read-/Lagebild-Sicht (Health/Doctor/Automation/Bindings), aber weniger direkte Steueraktionen.
+
+**Bewertung**
+
+- Demo klar vorne.
+
+## 4.6 Agents
+
+**OpenClaw Demo Vorteil (deutlich)**
+
+- Multi-Panel-Ansatz: `overview`, `files`, `tools`, `skills`, `channels`, `cron`:
+  - `demo/openclaw-main/ui/src/ui/views/agents.ts:31`
+  - `demo/openclaw-main/ui/src/ui/views/agents.ts:315`
+
+**Unsere WebApp**
+
+- Kompakter Runtime-Ueberblick, schnell und stabil, aber weniger tief.
+
+**Bewertung**
+
+- Demo klar vorne in Operability-Tiefe.
+
+## 4.7 Logs
+
+**OpenClaw Demo**
+
+- Klassisches File-tail-Pattern mit Level-Filtern, Export, Auto-follow:
+  - `demo/openclaw-main/ui/src/ui/views/logs.ts:91`
+
+**Unsere WebApp**
+
+- Realtime + Cursor-Nachladen + konfigurierbare History/Buffer:
+  - API `hasMore/nextCursor`: `app/api/logs/route.ts:82`
+  - Hook `hasMoreHistory`: `src/components/logs/hooks/useLogs.ts:24`
+  - UI `Load older`, `HISTORY`, `BUFFER`: `src/components/logs/components/LogsToolbar.tsx:128`
+
+**Bewertung**
+
+- Bei Log-Skalierung in der WebUI aktuell unsere App vorne.
+
+---
+
+## 5) Qualitaetsvergleich (Reife, Security, Tests, Doku)
+
+## 5.1 Architektur
+
+**OpenClaw Demo Staerke**
+
+- Sehr koharente zentrale UI-Steuerung (Lit + zentraler App-Render), gut fuer konsistente Ops-Interaktion.
+
+**Unsere WebApp Staerke**
+
+- Modulare Systemarchitektur mit klar dokumentierten Domainen und Security-Layern:
+  - `docs/ARCHITECTURE_DIAGRAM.md:3`
+
+## 5.2 Security und Auth
+
+**OpenClaw Demo Staerke**
+
+- Exzellente oeffentliche Security-Positionierung inkl. Threat-Model-Programm:
+  - `demo/openclaw-main/docs/security/README.md:7`
+  - `demo/openclaw-main/docs/security/THREAT-MODEL-ATLAS.md:24`
+
+**Unsere WebApp Staerke**
+
+- Starke technische Security-Umsetzung:
+  - ABAC dokumentiert: `docs/SECURITY_SYSTEM.md:798`
+  - Request-Context/Auth-Gates: `src/server/auth/userContext.ts:41`
+  - Viele Endpunkt-Tests gegen Unauthorized/Scope-Fehler.
+
+## 5.3 Testreife
+
+**OpenClaw Demo**
+
+- Gute View-nahe UI-Tests in zentralen Ops-Bereichen.
+
+**Unsere WebApp**
+
+- Sehr breite Integrations- und API-Testabdeckung in produktionskritischen Bereichen:
+  - Ops: `tests/integration/ops/ops-routes.test.ts:21`
+  - Automations: `tests/integration/automation/automations-routes.test.ts:59`
+  - Telemetrie/Logs: `tests/integration/telemetry/logs-route.test.ts:33`
+  - Ingest/Auth: `tests/integration/telemetry/logs-ingest-route.test.ts:65`
+
+**Bewertung**
+
+- Teststrategie unterschiedlich:
+  - Demo staerker auf UI-View-Verhalten.
+  - Unsere App staerker auf API-/Security-/Integration-Haerte.
+
+---
+
+## 6) Nutzwertvergleich
+
+## 6.1 Betriebsnutzen (Ops)
+
+**OpenClaw Demo**
+
+- Sehr stark fuer Operatoren, die tief in einem einzelnen Ops-Screen arbeiten (Nodes/Agents/Usage).
+
+**Unsere WebApp**
+
+- Sehr stark fuer Teams, die Ops plus reale Integrationen gemeinsam brauchen:
+  - Multi-Account Pairing/Allowlist/Webhook-Scope: `src/messenger/ChannelPairing.tsx:312`, `app/api/channels/whatsapp/webhook/route.ts:205`
+  - Auto-Repair-Mechanik fuer Channel-Health: `src/server/channels/healthMonitor.ts:58`
+
+## 6.2 Produktnutzen
+
+**OpenClaw Demo**
+
+- Hoher Nutzen als fokussierte Ops/Control-Oberflaeche.
+
+**Unsere WebApp**
+
+- Hoher Nutzen als integrierte Produktkonsole (mehr End-to-End im selben UI):
+  - `MODELS`, `PERSONAS`, `MEMORY`, `TASKS`, `SECURITY`, `PROFILE`: `src/components/Sidebar.tsx:13`.
+
+## 6.3 Teamnutzen
+
+**OpenClaw Demo**
+
+- Klare Ops-IA reduziert Einarbeitungszeit fuer klassische Operator-Rollen.
+
+**Unsere WebApp**
+
+- Gemeinsame Datenbasis fuer Product + Ops + Security durch kombinierte Views (Stats/Prompt-Risk/Channels/Ops) in einer Shell.
+
+---
+
+## 7) Wo OpenClaw besser ist (heute)
+
+1. **Nodes-Operability-Tiefe** (Approve/Reject/Rotate/Revoke/Bindings direkt im Screen).
+2. **Agents-Multi-Panel-Reife** (Files/Tools/Skills/Channels/Cron als zusammenhaengende Agenten-Konsole).
+3. **Usage-Forensik** (starkes Query-/Export-/Drilldown-Niveau).
+
+---
+
+## 8) Wo unsere WebApp besser ist (heute)
+
+1. **Gesamtplattform-Breite im selben Produkt** (nicht nur Ops).
+2. **Produktionsnahe Channel-Realitaet** (Multi-Account + Allowlist + account-scoped webhook + Health-Reparatur).
+3. **Prompt-Risk-Observability** mit Diagnostics/Filter/Cost/Risk-Reasons.
+4. **API-/Security-Integrationstest-Haerte** ueber kritische Routen.
+
+---
+
+## 9) Endurteil
+
+Es gibt keinen absoluten "Gesamtsieger" ohne Kontext:
+
+- Wenn Ziel = **maximal tiefe Ops-Konsole pro Einzelscreen**, ist die **OpenClaw-Demo aktuell vorne**.
+- Wenn Ziel = **integrierte produktionsnahe Control Plane mit breiter Funktionsflaeche und starker API-/Security-Absicherung**, ist **unsere WebApp aktuell vorne**.
+
+Strategisch ist fuer uns der beste Weg:
+
+- Demo-Staerken gezielt uebernehmen (`nodes`, `agents`, `usage`-Tiefe),
+- dabei unsere bestehenden Staerken (Channel-Realitaet, Prompt-Risk, Integrationsreife) beibehalten.

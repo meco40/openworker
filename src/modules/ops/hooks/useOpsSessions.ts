@@ -17,6 +17,10 @@ interface SessionMutationPayload extends ErrorPayload {
 
 export interface UseOpsSessionsResult {
   query: string;
+  limit: number;
+  activeMinutes: string;
+  includeGlobalRequested: boolean;
+  includeUnknown: boolean;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
@@ -27,6 +31,10 @@ export interface UseOpsSessionsResult {
   actions: {
     refresh: () => Promise<void>;
     setQuery: (value: string) => void;
+    setLimit: (value: number) => void;
+    setActiveMinutes: (value: string) => void;
+    setIncludeGlobalRequested: (value: boolean) => void;
+    setIncludeUnknown: (value: boolean) => void;
     setCreateDraft: (value: string) => void;
     setRenameDraft: (conversationId: string, value: string) => void;
     createSession: () => Promise<void>;
@@ -49,6 +57,10 @@ async function readJson<T extends ErrorPayload>(response: Response): Promise<T> 
 
 export function useOpsSessions(): UseOpsSessionsResult {
   const [query, setQuery] = useState('');
+  const [limit, setLimit] = useState(200);
+  const [activeMinutes, setActiveMinutes] = useState('');
+  const [includeGlobalRequested, setIncludeGlobalRequested] = useState(false);
+  const [includeUnknown, setIncludeUnknown] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +70,7 @@ export function useOpsSessions(): UseOpsSessionsResult {
   const [renameDraftById, setRenameDraftById] = useState<Record<string, string>>({});
 
   const queryString = useMemo(() => query.trim(), [query]);
+  const activeMinutesString = useMemo(() => activeMinutes.trim(), [activeMinutes]);
 
   const refresh = useCallback(async () => {
     if (loading) {
@@ -69,9 +82,18 @@ export function useOpsSessions(): UseOpsSessionsResult {
     setError(null);
     try {
       const params = new URLSearchParams();
-      params.set('limit', '200');
+      params.set('limit', String(limit));
       if (queryString) {
         params.set('q', queryString);
+      }
+      if (activeMinutesString) {
+        params.set('activeMinutes', activeMinutesString);
+      }
+      if (includeGlobalRequested) {
+        params.set('includeGlobal', '1');
+      }
+      if (!includeUnknown) {
+        params.set('includeUnknown', '0');
       }
 
       const response = await fetch(`/api/ops/sessions?${params.toString()}`, { cache: 'no-store' });
@@ -92,7 +114,7 @@ export function useOpsSessions(): UseOpsSessionsResult {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [loading, queryString]);
+  }, [activeMinutesString, includeGlobalRequested, includeUnknown, limit, loading, queryString]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -178,6 +200,10 @@ export function useOpsSessions(): UseOpsSessionsResult {
 
   return {
     query,
+    limit,
+    activeMinutes,
+    includeGlobalRequested,
+    includeUnknown,
     loading,
     refreshing,
     error,
@@ -188,6 +214,15 @@ export function useOpsSessions(): UseOpsSessionsResult {
     actions: {
       refresh,
       setQuery,
+      setLimit: (value: number) => {
+        if (!Number.isFinite(value)) {
+          return;
+        }
+        setLimit(Math.min(200, Math.max(1, Math.floor(value))));
+      },
+      setActiveMinutes,
+      setIncludeGlobalRequested,
+      setIncludeUnknown,
       setCreateDraft,
       setRenameDraft: (conversationId: string, value: string) => {
         setRenameDraftById((previous) => ({ ...previous, [conversationId]: value }));
