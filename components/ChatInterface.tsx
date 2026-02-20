@@ -1,5 +1,13 @@
 import React from 'react';
-import type { ChannelType, Conversation, Message, MessageAttachment } from '../types';
+import type {
+  ChatApprovalDecision,
+  ChannelType,
+  ChatStreamDebugState,
+  Conversation,
+  Message,
+  MessageApprovalRequest,
+  MessageAttachment,
+} from '../types';
 import ChatConversationList from '../src/modules/chat/components/ChatConversationList';
 import ChatDragOverlay from '../src/modules/chat/components/ChatDragOverlay';
 import ChatInputArea from '../src/modules/chat/components/ChatInputArea';
@@ -14,7 +22,13 @@ interface ChatInterfaceProps {
   onDeleteConversation: (id: string) => void;
   messages: Message[];
   onSendMessage: (content: string, platform: ChannelType, attachment?: MessageAttachment) => void;
+  onRespondApproval: (
+    message: Message,
+    approvalRequest: MessageApprovalRequest,
+    decision: ChatApprovalDecision,
+  ) => void;
   isTyping?: boolean;
+  chatStreamDebug: ChatStreamDebugState;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -25,7 +39,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onDeleteConversation,
   messages,
   onSendMessage,
+  onRespondApproval,
   isTyping,
+  chatStreamDebug,
 }) => {
   const {
     activeConversation,
@@ -87,6 +103,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           activeConversation={activeConversation}
           messages={messages}
           isTyping={isTyping}
+          chatStreamDebug={chatStreamDebug}
+          onRespondApproval={onRespondApproval}
           scrollRef={scrollRef}
         />
         <ChatInputArea

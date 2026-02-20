@@ -447,11 +447,9 @@ export class RoomOrchestrator {
                   updatedAt: this.now().toISOString(),
                 });
 
-                const permissions = this.repository.getPersonaPermissions(selected.personaId);
                 const toolResult = await executeRoomTool({
                   functionName: fc.name,
                   args: (fc.args as Record<string, unknown>) ?? {},
-                  permissions,
                 });
 
                 // Append tool result to conversation for next round

@@ -13,7 +13,7 @@ function renderMetric(value: number | undefined): string {
 }
 
 const AppShellHeader: React.FC<AppShellHeaderProps> = ({ metricsState }) => {
-  const openTaskCount = metricsState.metrics?.pendingWorkerTasks;
+  const activeSessions = metricsState.metrics?.activeWsSessions;
   const vectorNodeCount = metricsState.metrics?.vectorNodeCount;
 
   return (
@@ -31,8 +31,8 @@ const AppShellHeader: React.FC<AppShellHeaderProps> = ({ metricsState }) => {
       </div>
       <div className="flex items-center space-x-6">
         <div className="text-right">
-          <div className="text-[10px] text-zinc-600 uppercase">Open Tasks</div>
-          <div className="font-mono font-bold text-emerald-500">{renderMetric(openTaskCount)}</div>
+          <div className="text-[10px] text-zinc-600 uppercase">Active Sessions</div>
+          <div className="font-mono font-bold text-emerald-500">{renderMetric(activeSessions)}</div>
         </div>
         <div className="text-right">
           <div className="text-[10px] text-zinc-600 uppercase">Vector Nodes</div>

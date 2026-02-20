@@ -14,6 +14,7 @@ import python from '../../../skills/python-runtime';
 import search from '../../../skills/search';
 import shell from '../../../skills/shell-access';
 import sql from '../../../skills/sql-bridge';
+import subagents from '../../../skills/subagents';
 import vision from '../../../skills/vision';
 
 export interface BuiltInSkillSeed {
@@ -28,7 +29,8 @@ export const BUILT_IN_SKILLS: BuiltInSkillSeed[] = [
 
   // Automation & Code
   { manifest: python, installedByDefault: true },
-  { manifest: shell, installedByDefault: false },
+  { manifest: shell, installedByDefault: true },
+  { manifest: subagents, installedByDefault: true },
   { manifest: github, installedByDefault: false },
 
   // Data & Media

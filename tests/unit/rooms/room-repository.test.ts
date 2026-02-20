@@ -79,17 +79,6 @@ describe('SqliteRoomRepository', () => {
     expect(page.map((m) => m.content)).toEqual(['Hallo', 'Hi']);
   });
 
-  it('persists and retrieves global persona permissions', () => {
-    repo.setPersonaPermissions('persona-1', {
-      tools: { search: true, shell_execute: false },
-    });
-
-    const permissions = repo.getPersonaPermissions('persona-1');
-    expect(permissions).toBeTruthy();
-    expect(permissions?.tools.search).toBe(true);
-    expect(permissions?.tools.shell_execute).toBe(false);
-  });
-
   it('stores room run lease, member runtime, persona sessions, and persona context', () => {
     const room = repo.createRoom({
       userId: 'user-a',

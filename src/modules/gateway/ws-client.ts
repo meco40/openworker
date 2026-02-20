@@ -75,6 +75,7 @@ export class GatewayClient {
     }
     this.intentionalClose = false;
     this.connectFailures = 0;
+    this.clearReconnectTimer();
     this.createSocket();
   }
 
@@ -93,7 +94,9 @@ export class GatewayClient {
    * Send an RPC request and wait for the response.
    */
   async request<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    await this.ensureSocketOpen();
+    const ws = this.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
       throw new Error('WebSocket not connected');
     }
 
@@ -113,7 +116,13 @@ export class GatewayClient {
         timer,
       });
 
-      this.ws!.send(JSON.stringify(frame));
+      try {
+        ws.send(JSON.stringify(frame));
+      } catch (error) {
+        clearTimeout(timer);
+        this.pendingRequests.delete(id);
+        reject(error instanceof Error ? error : new Error('WebSocket send failed.'));
+      }
     });
   }
 
@@ -138,7 +147,9 @@ export class GatewayClient {
     params: Record<string, unknown>,
     onChunk: (delta: string) => void,
   ): Promise<void> {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    await this.ensureSocketOpen();
+    const ws = this.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
       throw new Error('WebSocket not connected');
     }
 
@@ -175,7 +186,14 @@ export class GatewayClient {
         timer,
       });
 
-      this.ws!.send(JSON.stringify(frame));
+      try {
+        ws.send(JSON.stringify(frame));
+      } catch (error) {
+        clearTimeout(timer);
+        this.pendingRequests.delete(id);
+        this.streamHandlers.delete(id);
+        reject(error instanceof Error ? error : new Error('WebSocket send failed.'));
+      }
     });
   }
 
@@ -348,6 +366,49 @@ export class GatewayClient {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+  }
+
+  private async ensureSocketOpen(timeoutMs = REQUEST_TIMEOUT_MS): Promise<void> {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    this.connect();
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        clearInterval(poll);
+        unsubscribe();
+        fn();
+      };
+
+      const timer = setTimeout(() => {
+        finish(() => reject(new Error('WebSocket not connected')));
+      }, timeoutMs);
+
+      const poll = setInterval(() => {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          finish(resolve);
+        }
+      }, 50);
+
+      const unsubscribe = this.onStateChange((state) => {
+        if (
+          state === 'connected' ||
+          (this.ws && this.ws.readyState === WebSocket.OPEN)
+        ) {
+          finish(resolve);
+        }
+      });
+
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        finish(resolve);
+      }
+    });
   }
 
   private rejectAllPending(reason: string): void {

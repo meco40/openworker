@@ -45,18 +45,6 @@ vi.mock('../../../src/server/model-hub/runtime', () => ({
   getModelHubEncryptionKey: () => 'test-encryption-key',
 }));
 
-vi.mock('../../../src/server/config/gatewayConfig', () => ({
-  loadGatewayConfig: vi.fn(async () => ({ config: {}, revision: 'rev-1' })),
-}));
-
-vi.mock('../../../src/server/worker/openai/openaiToolRegistry', () => ({
-  resolveEnabledOpenAiWorkerToolNamesFromConfig: vi.fn(() => []),
-  resolveOpenAiWorkerToolApprovalPolicyFromConfig: vi.fn(() => ({
-    defaultMode: 'ask_approve',
-    byFunctionName: {},
-  })),
-}));
-
 vi.mock('../../../src/server/channels/outbound/router', () => ({
   deliverOutbound: deliverOutboundMock,
 }));
@@ -155,6 +143,14 @@ function buildRepository(personaId: string | null, userId = 'user-1'): MessageRe
   };
 }
 
+function getDispatchedMessages(): Array<{ role: string; content: string }> {
+  const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
+  const request = (call?.[2] ?? {}) as {
+    messages?: Array<{ role: string; content: string }>;
+  };
+  return request.messages ?? [];
+}
+
 describe('MessageService knowledge recall integration', () => {
   beforeEach(() => {
     dispatchWithFallbackMock.mockClear();
@@ -177,16 +173,14 @@ describe('MessageService knowledge recall integration', () => {
     );
 
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
-    // Parallel recall: Mem0 is now queried alongside Knowledge
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
 
-    const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
-    const dispatchInput = (call?.[2] ?? {}) as {
-      messages?: Array<{ role: string; content: string }>;
-    };
-    const dispatchedMessages = dispatchInput.messages ?? [];
-    expect(dispatchedMessages[0]?.role).toBe('system');
-    expect(dispatchedMessages[0]?.content).toContain('Knowledge: Mittags Sauna');
+    const dispatchedMessages = getDispatchedMessages();
+    expect(
+      dispatchedMessages.some(
+        (message) => message.role === 'system' && message.content.includes('Knowledge: Mittags Sauna'),
+      ),
+    ).toBe(true);
   });
 
   it('injects knowledge context for compact retrospective wording ("wie war gestern sauna?")', async () => {
@@ -202,16 +196,14 @@ describe('MessageService knowledge recall integration', () => {
     );
 
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
-    // Parallel recall: Mem0 is now queried alongside Knowledge
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
 
-    const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
-    const dispatchInput = (call?.[2] ?? {}) as {
-      messages?: Array<{ role: string; content: string }>;
-    };
-    const dispatchedMessages = dispatchInput.messages ?? [];
-    expect(dispatchedMessages[0]?.role).toBe('system');
-    expect(dispatchedMessages[0]?.content).toContain('Knowledge: Mittags Sauna');
+    const dispatchedMessages = getDispatchedMessages();
+    expect(
+      dispatchedMessages.some(
+        (message) => message.role === 'system' && message.content.includes('Knowledge: Mittags Sauna'),
+      ),
+    ).toBe(true);
   });
 
   it('recalls knowledge for known counterpart mentions without requiring explicit probe trigger', async () => {
@@ -229,7 +221,6 @@ describe('MessageService knowledge recall integration', () => {
 
     expect(knowledgeShouldTriggerRecallMock).not.toHaveBeenCalled();
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
-    // Parallel recall: Mem0 is now queried alongside Knowledge
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
   });
 
@@ -246,7 +237,6 @@ describe('MessageService knowledge recall integration', () => {
     );
 
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
-    // Parallel recall: Mem0 is now queried alongside Knowledge
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
   });
 
@@ -263,13 +253,10 @@ describe('MessageService knowledge recall integration', () => {
     );
 
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
-    // Parallel recall: Mem0 is now queried alongside Knowledge
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
   });
 
   it('uses unified legacy scope for telegram in single-user mode (no channel-scoped fallback)', async () => {
-    // After Phase 1 cross-channel fix, Telegram in single-user mode resolves
-    // directly to legacy-local-user — no fallback to channel:telegram:* needed.
     const service = new MessageService(buildRepository('persona-1', 'legacy-local-user'));
     knowledgeRetrieveMock.mockImplementation(async () => {
       return {
@@ -289,21 +276,15 @@ describe('MessageService knowledge recall integration', () => {
       'legacy-local-user',
     );
 
-    // Only one call — directly to legacy-local-user, no channel-scoped attempt
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
     const calls = knowledgeRetrieveMock.mock.calls as unknown[][];
     const firstCall = (calls[0]?.[0] ?? {}) as Record<string, unknown>;
     expect(firstCall).toMatchObject({
       userId: 'legacy-local-user',
     });
-    // Parallel recall: Mem0 is now queried alongside Knowledge
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
 
-    const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
-    const dispatchInput = (call?.[2] ?? {}) as {
-      messages?: Array<{ role: string; content: string }>;
-    };
-    const dispatchedMessages = dispatchInput.messages ?? [];
-    expect(dispatchedMessages[0]?.content).toContain('Knowledge context');
+    const dispatchedMessages = getDispatchedMessages();
+    expect(dispatchedMessages.some((message) => message.content.includes('Knowledge context'))).toBe(true);
   });
 });

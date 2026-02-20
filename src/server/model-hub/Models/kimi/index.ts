@@ -58,8 +58,11 @@ const kimiProviderAdapter: ProviderAdapter = {
 
     return result;
   },
-  dispatchGateway: ({ secret }, request) =>
-    dispatchOpenAICompatibleChat(KIMI_CODE_BASE_URL, secret, 'kimi', request),
+  dispatchGateway: ({ secret }, request, options) =>
+    dispatchOpenAICompatibleChat(KIMI_CODE_BASE_URL, secret, 'kimi', request, {
+      signal: options?.signal,
+      onStreamDelta: options?.onStreamDelta,
+    }),
 };
 
 export default kimiProviderAdapter;

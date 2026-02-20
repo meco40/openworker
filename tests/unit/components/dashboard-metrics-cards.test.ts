@@ -21,7 +21,6 @@ const baseState: GatewayState = {
 const metricsState: ControlPlaneMetricsState = {
   metrics: {
     uptimeSeconds: 3661,
-    pendingWorkerTasks: 4,
     activeWsSessions: 9,
     tokensToday: 12345,
     vectorNodeCount: 7,
@@ -42,7 +41,6 @@ describe('Dashboard top KPI cards', () => {
     );
 
     expect(html).toContain('Uptime');
-    expect(html).toContain('Pending Worker Tasks');
     expect(html).toContain('Active WS Sessions');
     expect(html).toContain('Tokens Today');
 

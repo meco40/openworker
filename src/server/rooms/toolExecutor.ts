@@ -1,4 +1,3 @@
-import type { PersonaPermissions } from './types';
 import { getSkillRepository } from '../skills/skillRepository';
 import { executeSkillFunctionCall } from '../../../skills/execute';
 import type { Skill } from '../../../types';
@@ -11,25 +10,15 @@ export interface ToolExecutionResult {
 export interface ToolExecutionInput {
   functionName: string;
   args: Record<string, unknown>;
-  permissions: PersonaPermissions | null;
 }
 
 /**
- * Execute a real skill function call with permission gating.
+ * Execute a real skill function call.
  *
- * 1. Check persona-level permission for the tool.
- * 2. Load installed skills from the repository.
- * 3. Delegate to the shared skill executor.
+ * 1. Load installed skills from the repository.
+ * 2. Delegate to the shared skill executor.
  */
 export async function executeRoomTool(input: ToolExecutionInput): Promise<ToolExecutionResult> {
-  const allowed = Boolean(input.permissions?.tools?.[input.functionName]);
-  if (!allowed) {
-    return {
-      ok: false,
-      output: `Tool denied: ${input.functionName}`,
-    };
-  }
-
   try {
     const repo = await getSkillRepository();
     const skillRows = repo.listSkills();

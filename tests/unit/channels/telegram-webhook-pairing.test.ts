@@ -11,6 +11,10 @@ const handleInbound = vi.fn();
 
 vi.mock('../../../src/server/channels/messages/runtime', () => ({
   getMessageService: () => ({
+    getOrCreateConversation: () => ({
+      id: 'conv-123',
+      userId: 'user-123',
+    }),
     handleInbound,
   }),
 }));
@@ -100,13 +104,14 @@ describe('telegram webhook pairing gate', () => {
 
     expect(response.status).toBe(200);
     expect(json.ok).toBe(true);
-    expect(handleInbound).toHaveBeenCalledWith(
-      ChannelType.TELEGRAM,
-      '123',
-      'ready now',
-      'alice',
-      '11',
-    );
+    expect(handleInbound).toHaveBeenCalledTimes(1);
+    const [channel, externalChatId, content, sender, externalMessageId] = handleInbound.mock
+      .calls[0] as [ChannelType, string, string, string, string];
+    expect(channel).toBe(ChannelType.TELEGRAM);
+    expect(externalChatId).toBe('123');
+    expect(content).toBe('ready now');
+    expect(sender).toBe('alice');
+    expect(externalMessageId).toBe('11');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CommandPermission } from '../types';
 import { SECURITY_RULES } from '../constants';
 import { buildCommandSecurityChecks } from '../src/modules/security/overview';
@@ -11,25 +11,18 @@ interface SecurityStatusResponse {
   error?: string;
 }
 
-type ApprovalMode = 'deny' | 'ask_approve' | 'approve_always';
-
-interface OpenAiWorkerToolPolicy {
-  id: string;
-  name: string;
-  description: string;
-  functionName: string;
-  enabled: boolean;
-  approvalMode: ApprovalMode;
-}
-
-interface OpenAiWorkerPolicyResponse {
+interface PolicyExplainResponse {
   ok: boolean;
-  tools?: OpenAiWorkerToolPolicy[];
-  defaultApprovalMode?: ApprovalMode;
+  generatedAt?: string;
+  revision?: string;
+  source?: string;
+  channels?: {
+    webchatEnabled?: boolean;
+    telegramEnabled?: boolean;
+    slackEnabled?: boolean;
+  };
   error?: string;
 }
-
-const APPROVAL_MODE_OPTIONS: ApprovalMode[] = ['deny', 'ask_approve', 'approve_always'];
 
 const STATUS_META: Record<
   SecurityCheckStatus,
@@ -55,20 +48,17 @@ const STATUS_META: Record<
 const CHECK_ORDER: Array<SecurityCheck['id']> = ['firewall', 'encryption', 'audit', 'isolation'];
 
 const SecurityView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'commands' | 'worker-policies'>(
-    'overview',
-  );
+  const [activeTab, setActiveTab] = useState<'overview' | 'commands'>('overview');
   const [commands, setCommands] = useState<CommandPermission[]>(SECURITY_RULES);
   const [remoteChecks, setRemoteChecks] = useState<SecurityCheck[]>([]);
   const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(true);
   const [checkError, setCheckError] = useState<string | null>(null);
-  const [workerTools, setWorkerTools] = useState<OpenAiWorkerToolPolicy[]>([]);
-  const [defaultApprovalMode, setDefaultApprovalMode] = useState<ApprovalMode>('ask_approve');
-  const [isWorkerPolicyLoading, setIsWorkerPolicyLoading] = useState(true);
-  const [workerPolicyError, setWorkerPolicyError] = useState<string | null>(null);
-  const [workerPolicySavingId, setWorkerPolicySavingId] = useState<string | null>(null);
-  const [isWorkerDefaultSaving, setIsWorkerDefaultSaving] = useState(false);
+
+  const [showPolicyExplain, setShowPolicyExplain] = useState(false);
+  const [policyExplainLoading, setPolicyExplainLoading] = useState(false);
+  const [policyExplainError, setPolicyExplainError] = useState<string | null>(null);
+  const [policyExplain, setPolicyExplain] = useState<PolicyExplainResponse | null>(null);
 
   const refreshStatus = useCallback(async () => {
     setIsChecking(true);
@@ -89,109 +79,27 @@ const SecurityView: React.FC = () => {
     }
   }, []);
 
-  const loadWorkerPolicies = useCallback(async () => {
-    setIsWorkerPolicyLoading(true);
-    setWorkerPolicyError(null);
+  const loadPolicyExplain = useCallback(async () => {
+    setPolicyExplainLoading(true);
+    setPolicyExplainError(null);
     try {
-      const response = await fetch('/api/worker/openai/tools', { cache: 'no-store' });
-      const payload = (await response.json()) as OpenAiWorkerPolicyResponse;
-      if (!response.ok || !payload.ok || !payload.tools) {
-        throw new Error(payload.error || 'Worker policy load failed.');
+      const response = await fetch('/api/security/policy-explain', { cache: 'no-store' });
+      const payload = (await response.json()) as PolicyExplainResponse;
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Policy explain load failed.');
       }
-      setWorkerTools(payload.tools);
-      setDefaultApprovalMode(payload.defaultApprovalMode || 'ask_approve');
+      setPolicyExplain(payload);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Worker policy load failed.';
-      setWorkerPolicyError(message);
-      setWorkerTools([]);
+      setPolicyExplainError(error instanceof Error ? error.message : 'Policy explain load failed.');
+      setPolicyExplain(null);
     } finally {
-      setIsWorkerPolicyLoading(false);
+      setPolicyExplainLoading(false);
     }
   }, []);
-
-  const patchWorkerPolicy = useCallback(async (body: Record<string, unknown>) => {
-    const response = await fetch('/api/worker/openai/tools', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const payload = (await response.json()) as OpenAiWorkerPolicyResponse;
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.error || 'Worker policy update failed.');
-    }
-    return payload;
-  }, []);
-
-  const handleWorkerToolToggle = useCallback(
-    async (id: string, enabled: boolean) => {
-      setWorkerPolicySavingId(id);
-      setWorkerPolicyError(null);
-      try {
-        const payload = await patchWorkerPolicy({ id, enabled });
-        if (!payload.tools && payload.defaultApprovalMode === undefined) {
-          setWorkerTools((previous) =>
-            previous.map((tool) => (tool.id === id ? { ...tool, enabled } : tool)),
-          );
-        }
-        await loadWorkerPolicies();
-      } catch (error) {
-        setWorkerPolicyError(
-          error instanceof Error ? error.message : 'Worker policy update failed.',
-        );
-      } finally {
-        setWorkerPolicySavingId(null);
-      }
-    },
-    [loadWorkerPolicies, patchWorkerPolicy],
-  );
-
-  const handleWorkerToolModeChange = useCallback(
-    async (id: string, approvalMode: ApprovalMode) => {
-      setWorkerPolicySavingId(id);
-      setWorkerPolicyError(null);
-      try {
-        await patchWorkerPolicy({ id, approvalMode });
-        setWorkerTools((previous) =>
-          previous.map((tool) => (tool.id === id ? { ...tool, approvalMode } : tool)),
-        );
-      } catch (error) {
-        setWorkerPolicyError(
-          error instanceof Error ? error.message : 'Worker policy update failed.',
-        );
-      } finally {
-        setWorkerPolicySavingId(null);
-      }
-    },
-    [patchWorkerPolicy],
-  );
-
-  const handleDefaultModeChange = useCallback(
-    async (mode: ApprovalMode) => {
-      const previous = defaultApprovalMode;
-      setDefaultApprovalMode(mode);
-      setIsWorkerDefaultSaving(true);
-      setWorkerPolicyError(null);
-      try {
-        await patchWorkerPolicy({ defaultApprovalMode: mode });
-      } catch (error) {
-        setDefaultApprovalMode(previous);
-        setWorkerPolicyError(
-          error instanceof Error ? error.message : 'Worker policy update failed.',
-        );
-      } finally {
-        setIsWorkerDefaultSaving(false);
-      }
-    },
-    [defaultApprovalMode, patchWorkerPolicy],
-  );
 
   useEffect(() => {
     void refreshStatus();
   }, [refreshStatus]);
-
-  useEffect(() => {
-    void loadWorkerPolicies();
-  }, [loadWorkerPolicies]);
 
   const localChecks = useMemo(() => buildCommandSecurityChecks(commands), [commands]);
 
@@ -204,7 +112,7 @@ const SecurityView: React.FC = () => {
       id,
       label: id,
       status: 'warning',
-      detail: 'Kein Sicherheitsstatus verfügbar.',
+      detail: 'Kein Sicherheitsstatus verfuegbar.',
     });
 
     return CHECK_ORDER.map((id) => map.get(id) || fallbackCheck(id));
@@ -219,13 +127,16 @@ const SecurityView: React.FC = () => {
     [checks],
   );
 
+  const policyExplainText = useMemo(
+    () => (policyExplain ? JSON.stringify(policyExplain, null, 2) : ''),
+    [policyExplain],
+  );
+
   return (
     <div className="animate-in fade-in space-y-8 duration-500">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-white uppercase">
-            Security Panel
-          </h2>
+          <h2 className="text-2xl font-black tracking-tight text-white uppercase">Security Panel</h2>
           <div className="mt-1 text-[10px] tracking-widest text-zinc-500 uppercase">
             {lastCheckedAt
               ? `Last Check: ${new Date(lastCheckedAt).toLocaleString()}`
@@ -256,14 +167,6 @@ const SecurityView: React.FC = () => {
               }`}
             >
               Whitelist
-            </button>
-            <button
-              onClick={() => setActiveTab('worker-policies')}
-              className={`rounded-lg px-4 py-2 text-[10px] font-black tracking-widest uppercase ${
-                activeTab === 'worker-policies' ? 'bg-indigo-600 text-white' : 'text-zinc-500'
-              }`}
-            >
-              Worker Policies
             </button>
           </div>
         </div>
@@ -296,20 +199,68 @@ const SecurityView: React.FC = () => {
             {checks.map((check) => {
               const status = STATUS_META[check.status];
               return (
-                <div
-                  key={check.id}
-                  className={`border bg-zinc-900/50 ${status.border} rounded-2xl p-6`}
-                >
+                <div key={check.id} className={`border bg-zinc-900/50 ${status.border} rounded-2xl p-6`}>
                   <h4 className="mb-2 text-xs font-black text-white uppercase">{check.label}</h4>
                   <div className={`font-mono text-[10px] uppercase ${status.className}`}>
                     Status: {status.label}
                   </div>
-                  <div className="mt-2 text-[10px] leading-relaxed text-zinc-500">
-                    {check.detail}
-                  </div>
+                  <div className="mt-2 text-[10px] leading-relaxed text-zinc-500">{check.detail}</div>
                 </div>
               );
             })}
+          </div>
+
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+                  Effective Policy Explain
+                </div>
+                <div className="mt-1 text-[11px] text-zinc-500">
+                  Zeigt die aktuell aktive Security- und Channel-Policy.
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const next = !showPolicyExplain;
+                    setShowPolicyExplain(next);
+                    if (next && !policyExplain && !policyExplainLoading) {
+                      void loadPolicyExplain();
+                    }
+                  }}
+                  className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-[10px] font-black tracking-widest text-zinc-300 uppercase hover:text-white disabled:opacity-60"
+                  disabled={policyExplainLoading}
+                >
+                  {showPolicyExplain ? 'Hide' : 'Show'}
+                </button>
+                <button
+                  onClick={() => void loadPolicyExplain()}
+                  className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-[10px] font-black tracking-widest text-zinc-300 uppercase hover:text-white disabled:opacity-60"
+                  disabled={policyExplainLoading}
+                >
+                  {policyExplainLoading ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
+            </div>
+
+            {policyExplainError && (
+              <div className="mb-3 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400">
+                Policy Explain Fehler: {policyExplainError}
+              </div>
+            )}
+
+            {showPolicyExplain && policyExplain && (
+              <div className="space-y-2">
+                <div className="text-[11px] text-zinc-500">
+                  Revision: <span className="font-mono text-zinc-300">{policyExplain.revision || 'n/a'}</span>
+                  {' '}| Source: <span className="font-mono text-zinc-300">{policyExplain.source || 'unknown'}</span>
+                </div>
+                <pre className="max-h-80 overflow-auto rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-[10px] leading-relaxed text-zinc-300">
+                  {policyExplainText}
+                </pre>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -361,111 +312,6 @@ const SecurityView: React.FC = () => {
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {activeTab === 'worker-policies' && (
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-            <div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
-              Global Default
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <select
-                value={defaultApprovalMode}
-                onChange={(event) =>
-                  void handleDefaultModeChange(event.target.value as ApprovalMode)
-                }
-                disabled={isWorkerDefaultSaving}
-                className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:border-indigo-500 focus:outline-none disabled:opacity-60"
-              >
-                {APPROVAL_MODE_OPTIONS.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {mode}
-                  </option>
-                ))}
-              </select>
-              <span className="text-[11px] text-zinc-500">
-                Gilt für alle Tools ohne spezifisches Override.
-              </span>
-            </div>
-          </div>
-
-          {workerPolicyError && (
-            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400">
-              Worker-Policy Fehler: {workerPolicyError}
-            </div>
-          )}
-
-          <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900">
-            <table className="w-full text-left text-[11px]">
-              <thead className="bg-zinc-950 font-black tracking-widest text-zinc-600 uppercase">
-                <tr>
-                  <th className="px-6 py-4">Tool</th>
-                  <th className="px-6 py-4">Function</th>
-                  <th className="px-6 py-4">Policy</th>
-                  <th className="px-6 py-4 text-right">Access</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {workerTools.map((tool) => (
-                  <tr key={tool.id} className="hover:bg-zinc-800/20">
-                    <td className="px-6 py-4">
-                      <div className="text-xs font-semibold text-white">{tool.name}</div>
-                      <div className="mt-1 text-[10px] text-zinc-500">{tool.description}</div>
-                    </td>
-                    <td className="px-6 py-4 font-mono text-[10px] text-indigo-400">
-                      {tool.functionName}
-                    </td>
-                    <td className="px-6 py-4">
-                      <select
-                        value={tool.approvalMode}
-                        onChange={(event) =>
-                          void handleWorkerToolModeChange(
-                            tool.id,
-                            event.target.value as ApprovalMode,
-                          )
-                        }
-                        disabled={workerPolicySavingId === tool.id}
-                        className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[10px] text-zinc-200 focus:border-indigo-500 focus:outline-none disabled:opacity-60"
-                      >
-                        {APPROVAL_MODE_OPTIONS.map((mode) => (
-                          <option key={mode} value={mode}>
-                            {mode}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => void handleWorkerToolToggle(tool.id, !tool.enabled)}
-                        disabled={workerPolicySavingId === tool.id}
-                        className={`rounded px-3 py-1.5 text-[9px] font-black uppercase ${
-                          tool.enabled ? 'text-emerald-500' : 'text-zinc-600'
-                        } disabled:opacity-60`}
-                      >
-                        {tool.enabled ? 'Allowed' : 'Blocked'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {!isWorkerPolicyLoading && workerTools.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-6 text-center text-xs text-zinc-500">
-                      Keine Worker-Tools gefunden.
-                    </td>
-                  </tr>
-                )}
-                {isWorkerPolicyLoading && (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-6 text-center text-xs text-zinc-500">
-                      Lade Worker-Policies ...
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
         </div>
       )}
     </div>

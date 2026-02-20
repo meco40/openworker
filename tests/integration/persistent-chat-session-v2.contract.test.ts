@@ -9,10 +9,11 @@ function read(relativePath: string): string {
 }
 
 describe('persistent chat session v2 contract', () => {
-  it('routes primary chat send path through server channels API', () => {
+  it('routes primary chat send path through gateway streaming API', () => {
     const app = read('App.tsx');
 
-    expect(app).toContain("fetch('/api/channels/messages'");
+    expect(app).toContain('requestStream(');
+    expect(app).toContain("'chat.stream'");
     expect(app).toContain('setIsServerResponding(true)');
     expect(app).toContain('isPersistentSessionV2Enabled');
   });

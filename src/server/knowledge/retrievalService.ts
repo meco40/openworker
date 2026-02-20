@@ -697,7 +697,7 @@ export class KnowledgeRetrievalService {
             3,
             input.userId,
           )
-        : { matches: [] };
+        : { context: '', matches: [] };
       stageStats.semantic = Math.max(0, semantic.matches.length);
       const semanticContext = buildSemanticContextForQuery(input.query, semantic);
 

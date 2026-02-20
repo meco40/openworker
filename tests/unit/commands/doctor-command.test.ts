@@ -26,7 +26,6 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.resetModules();
   globalThis.__logRepository = undefined;
-  delete process.env.WORKER_DB_PATH;
 });
 
 describe('runDoctorCommand', () => {
@@ -118,28 +117,6 @@ describe('runDoctorCommand', () => {
     expect(report.status).toBe('degraded');
     repo.close();
     globalThis.__logRepository = undefined;
-  });
-
-  it('creates backlog finding when more than 20 tasks are open', async () => {
-    vi.doMock('../../../src/commands/healthCommand', () => mockHealth([], 'ok'));
-    process.env.WORKER_DB_PATH = ':memory:';
-
-    const { getWorkerRepository } = await import('../../../src/server/worker/workerRepository');
-    const repo = getWorkerRepository();
-    for (let i = 0; i < 21; i += 1) {
-      repo.createTask({
-        title: `Task ${i}`,
-        objective: 'Backlog growth',
-        originPlatform: 'WebChat' as never,
-        originConversation: `conv-${i}`,
-      });
-    }
-
-    const { runDoctorCommand } = await import('../../../src/commands/doctorCommand');
-    const report = await runDoctorCommand();
-
-    expect(report.findings.some((finding) => finding.id === 'task_backlog')).toBe(true);
-    expect(report.status).toBe('degraded');
   });
 
   it('creates error trend anomaly finding when current window spikes against previous window', async () => {

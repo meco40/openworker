@@ -52,6 +52,9 @@ interface CodexResponsePayload {
 interface CodexSseEvent {
   type?: unknown;
   delta?: unknown;
+  arguments?: unknown;
+  call_id?: unknown;
+  item_id?: unknown;
   message?: unknown;
   code?: unknown;
   error?: {
@@ -272,6 +275,69 @@ function buildCodexInputMessages(
   return converted;
 }
 
+function mapCodexFunctionTool(rawTool: unknown): Record<string, unknown> | null {
+  if (!rawTool || typeof rawTool !== 'object' || Array.isArray(rawTool)) return null;
+
+  const typedRawTool = rawTool as {
+    type?: unknown;
+    name?: unknown;
+    description?: unknown;
+    parameters?: unknown;
+    strict?: unknown;
+    function?: {
+      name?: unknown;
+      description?: unknown;
+      parameters?: unknown;
+      strict?: unknown;
+    };
+  };
+
+  if (typedRawTool.type !== 'function') return null;
+
+  const directName = toNonEmptyString(typedRawTool.name);
+  const nestedName = toNonEmptyString(typedRawTool.function?.name);
+  const name = directName || nestedName;
+  if (!name) return null;
+
+  const description =
+    toStringOrNull(typedRawTool.description) ??
+    toStringOrNull(typedRawTool.function?.description) ??
+    undefined;
+  const parameters =
+    (typedRawTool.parameters &&
+    typeof typedRawTool.parameters === 'object' &&
+    !Array.isArray(typedRawTool.parameters)
+      ? typedRawTool.parameters
+      : undefined) ??
+    (typedRawTool.function?.parameters &&
+    typeof typedRawTool.function.parameters === 'object' &&
+    !Array.isArray(typedRawTool.function.parameters)
+      ? typedRawTool.function.parameters
+      : undefined);
+  const strict =
+    typeof typedRawTool.strict === 'boolean'
+      ? typedRawTool.strict
+      : typeof typedRawTool.function?.strict === 'boolean'
+        ? typedRawTool.function.strict
+        : undefined;
+
+  const mapped: Record<string, unknown> = {
+    type: 'function',
+    name,
+  };
+  if (description !== undefined) mapped.description = description;
+  if (parameters !== undefined) mapped.parameters = parameters;
+  if (strict !== undefined) mapped.strict = strict;
+  return mapped;
+}
+
+function mapCodexTools(tools: unknown): Array<Record<string, unknown>> {
+  if (!Array.isArray(tools) || tools.length === 0) return [];
+  return tools
+    .map((tool) => mapCodexFunctionTool(tool))
+    .filter((tool): tool is Record<string, unknown> => tool !== null);
+}
+
 function buildCodexRequestBody(request: GatewayRequest): Record<string, unknown> {
   const systemParts = request.messages
     .filter((message) => message.role === 'system')
@@ -303,6 +369,11 @@ function buildCodexRequestBody(request: GatewayRequest): Record<string, unknown>
     };
   }
 
+  const tools = mapCodexTools(request.tools);
+  if (tools.length > 0) {
+    body.tools = tools;
+  }
+
   return body;
 }
 
@@ -324,6 +395,55 @@ function extractTextFromCodexOutput(output: unknown): string {
     }
   }
   return chunks.join('').trim();
+}
+
+function mapFunctionCallArgs(rawArgs: unknown): unknown {
+  if (typeof rawArgs === 'string') {
+    try {
+      return JSON.parse(rawArgs);
+    } catch {
+      return { raw: rawArgs };
+    }
+  }
+  if (rawArgs && typeof rawArgs === 'object') {
+    return rawArgs;
+  }
+  return undefined;
+}
+
+function extractFunctionCallsFromCodexOutput(
+  output: unknown,
+): Array<{ name: string; args?: unknown }> {
+  if (!Array.isArray(output)) return [];
+
+  const calls: Array<{ name: string; args?: unknown }> = [];
+  for (const item of output) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const typedItem = item as { type?: unknown; name?: unknown; arguments?: unknown };
+    if (typedItem.type !== 'function_call') continue;
+    const name = toNonEmptyString(typedItem.name);
+    if (!name) continue;
+    const args = mapFunctionCallArgs(typedItem.arguments);
+    if (args !== undefined) {
+      calls.push({ name, args });
+    } else {
+      calls.push({ name });
+    }
+  }
+  return calls;
+}
+
+function appendUniqueFunctionCalls(
+  target: Array<{ name: string; args?: unknown }>,
+  incoming: Array<{ name: string; args?: unknown }>,
+): void {
+  const existingKeys = new Set(target.map((call) => `${call.name}::${JSON.stringify(call.args ?? null)}`));
+  for (const call of incoming) {
+    const key = `${call.name}::${JSON.stringify(call.args ?? null)}`;
+    if (existingKeys.has(key)) continue;
+    existingKeys.add(key);
+    target.push(call);
+  }
 }
 
 function mapCodexUsage(
@@ -385,7 +505,13 @@ function parseSseEvents(chunk: string): CodexSseEvent[] {
 
 async function parseCodexSseResponse(
   response: Response,
-): Promise<{ text: string; model?: string; usage?: GatewayResponse['usage'] }> {
+  onStreamDelta?: (delta: string) => void,
+): Promise<{
+  text: string;
+  model?: string;
+  usage?: GatewayResponse['usage'];
+  functionCalls?: Array<{ name: string; args?: unknown }>;
+}> {
   if (!response.body) {
     throw new Error('OpenAI Codex response stream was empty.');
   }
@@ -397,6 +523,7 @@ async function parseCodexSseResponse(
   let fallbackText = '';
   let model: string | undefined;
   let usage: GatewayResponse['usage'] | undefined;
+  const functionCalls: Array<{ name: string; args?: unknown }> = [];
 
   while (true) {
     const { done, value } = await reader.read();
@@ -427,14 +554,33 @@ async function parseCodexSseResponse(
 
       if (type === 'response.output_text.delta' || type === 'response.refusal.delta') {
         const delta = toStringOrNull(event.delta);
-        if (delta !== null) deltas.push(delta);
+        if (delta !== null) {
+          deltas.push(delta);
+          if (onStreamDelta) onStreamDelta(delta);
+        }
       }
 
       if (type === 'response.output_item.done') {
-        if (deltas.length > 0 || fallbackText) continue;
         const item = event.item;
         if (!item || typeof item !== 'object') continue;
-        const typedItem = item as { type?: unknown; content?: unknown };
+        const typedItem = item as {
+          type?: unknown;
+          content?: unknown;
+          name?: unknown;
+          arguments?: unknown;
+        };
+        if (typedItem.type === 'function_call') {
+          const name = toNonEmptyString(typedItem.name);
+          if (name) {
+            const args = mapFunctionCallArgs(typedItem.arguments);
+            appendUniqueFunctionCalls(
+              functionCalls,
+              args !== undefined ? [{ name, args }] : [{ name }],
+            );
+          }
+          continue;
+        }
+        if (deltas.length > 0 || fallbackText) continue;
         if (typedItem.type !== 'message' || !Array.isArray(typedItem.content)) continue;
         const chunks: string[] = [];
         for (const contentPart of typedItem.content) {
@@ -454,6 +600,10 @@ async function parseCodexSseResponse(
         const modelName = toNonEmptyString(responsePayload?.model);
         if (modelName) model = modelName;
         usage = mapCodexUsage(responsePayload?.usage) ?? usage;
+        appendUniqueFunctionCalls(
+          functionCalls,
+          extractFunctionCallsFromCodexOutput(responsePayload?.output),
+        );
         if (deltas.length === 0 && !fallbackText) {
           fallbackText = extractTextFromCodexOutput(responsePayload?.output);
         }
@@ -479,7 +629,12 @@ async function parseCodexSseResponse(
   }
 
   const text = deltas.join('').trim() || fallbackText;
-  return { text, model, usage };
+  return {
+    text,
+    model,
+    usage,
+    functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
+  };
 }
 
 function parseCodexHttpError(raw: string, status: number): string {
@@ -514,7 +669,7 @@ function parseCodexHttpError(raw: string, status: number): string {
 async function dispatchCodexResponses(
   secret: string,
   request: GatewayRequest,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; onStreamDelta?: (delta: string) => void },
 ): Promise<GatewayResponse> {
   const endpoint = resolveCodexEndpoint();
   let headers: Record<string, string>;
@@ -570,13 +725,14 @@ async function dispatchCodexResponses(
   }
 
   try {
-    const parsed = await parseCodexSseResponse(response);
+    const parsed = await parseCodexSseResponse(response, options?.onStreamDelta);
     return {
       ok: true,
       text: parsed.text,
       model: parsed.model || request.model,
       provider: 'openai-codex',
       usage: parsed.usage,
+      functionCalls: parsed.functionCalls,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'OpenAI Codex stream parse failed.';
@@ -629,7 +785,10 @@ const openAICodexProviderAdapter: ProviderAdapter = {
       model: options?.model,
     }),
   dispatchGateway: ({ secret }, request, options) =>
-    dispatchCodexResponses(secret, request, { signal: options?.signal }),
+    dispatchCodexResponses(secret, request, {
+      signal: options?.signal,
+      onStreamDelta: options?.onStreamDelta,
+    }),
 };
 
 export default openAICodexProviderAdapter;

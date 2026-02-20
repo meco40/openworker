@@ -82,12 +82,16 @@ const githubProviderAdapter: ProviderAdapter = {
       : { ok: false, message: `GitHub connectivity failed: ${result.message}` };
   },
 
-  dispatchGateway: ({ secret }, request) =>
+  dispatchGateway: ({ secret }, request, options) =>
     dispatchOpenAICompatibleChat(
       'https://models.inference.ai.azure.com',
       secret,
       'github-copilot',
       request,
+      {
+        signal: options?.signal,
+        onStreamDelta: options?.onStreamDelta,
+      },
     ),
 };
 

@@ -9,6 +9,8 @@ Zuletzt bereinigt: 2026-02-17
    - Knowledge Base für Agent-Zugriff mit Dokument-Ingestion, hybrider Retrieval und Citations
 2. `docs/plans/2026-02-13-clawhub-dual-lane-design.md`
    - ClawHub-Integration mit Dual-Lane-Architektur (Tool-Lane + ClawHub-Lane)
+3. `docs/plans/2026-02-19-single-port-cross-platform-runtime-design.md`
+   - Single-Port-App-Modus mit Cross-Platform-Zielbild (Windows, WSL2, Linux) und Docker als Option
 
 ## Hinweis
 

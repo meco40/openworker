@@ -44,6 +44,7 @@ describe('/api/config route', () => {
       fs.unlinkSync(`${configPath}.bak`);
     }
     process.env.OPENCLAW_CONFIG_PATH = configPath;
+    process.env.OPENCLAW_CONFIG_BACKEND = 'file';
   });
 
   afterEach(() => {
@@ -54,6 +55,7 @@ describe('/api/config route', () => {
       fs.unlinkSync(`${configPath}.bak`);
     }
     delete process.env.OPENCLAW_CONFIG_PATH;
+    delete process.env.OPENCLAW_CONFIG_BACKEND;
     vi.restoreAllMocks();
     vi.resetModules();
   });

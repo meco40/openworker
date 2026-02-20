@@ -1,7 +1,6 @@
 import type {
   AppendRoomMessageInput,
   CreateRoomInput,
-  PersonaPermissions,
   Room,
   RoomMemberRuntime,
   RoomPersonaContext,
@@ -41,9 +40,6 @@ export interface RoomRepository {
 
   addIntervention(roomId: string, userId: string, note: string): RoomIntervention;
   listInterventions(roomId: string, limit?: number): RoomIntervention[];
-
-  setPersonaPermissions(personaId: string, permissions: PersonaPermissions): void;
-  getPersonaPermissions(personaId: string): PersonaPermissions | null;
 
   acquireRoomLease(roomId: string, leaseOwner: string, leaseExpiresAt: string): RoomRun;
   heartbeatRoomLease(

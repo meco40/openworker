@@ -8,8 +8,7 @@ export interface DoctorFinding {
     | 'security_warning'
     | 'bridge_unreachable'
     | 'error_trend_anomaly'
-    | 'error_spike'
-    | 'task_backlog';
+    | 'error_spike';
   severity: DoctorFindingSeverity;
   title: string;
   detail: string;
@@ -20,12 +19,10 @@ interface BuildDoctorFindingsInput {
   checks: HealthCheck[];
   errorCountLast15m: number;
   errorCountPrevious15m: number;
-  openTaskCount: number;
 }
 
 const ERROR_SPIKE_WARNING_THRESHOLD = 5;
 const ERROR_SPIKE_CRITICAL_THRESHOLD = 10;
-const TASK_BACKLOG_WARNING_THRESHOLD = 20;
 
 export function buildDoctorFindings(input: BuildDoctorFindingsInput): DoctorFinding[] {
   const findings: DoctorFinding[] = [];
@@ -96,16 +93,6 @@ export function buildDoctorFindings(input: BuildDoctorFindingsInput): DoctorFind
       detail: `Error trend changed from ${input.errorCountPrevious15m} to ${input.errorCountLast15m} in consecutive 15-minute windows.`,
       recommendation:
         'Investigate recent deployments or upstream dependency changes and set temporary alert escalation.',
-    });
-  }
-
-  if (input.openTaskCount > TASK_BACKLOG_WARNING_THRESHOLD) {
-    findings.push({
-      id: 'task_backlog',
-      severity: 'warning',
-      title: 'Worker Task Backlog',
-      detail: `${input.openTaskCount} tasks are currently open.`,
-      recommendation: 'Scale workers or reduce queue pressure before backlog impacts latency.',
     });
   }
 

@@ -1,13 +1,68 @@
 import { ChannelType } from '../../../../types';
 import { getMessageService } from '../messages/runtime';
-import { deliverTelegram } from '../outbound/telegram';
+import { answerTelegramCallbackQuery, deliverTelegram } from '../outbound/telegram';
 import { ensureTelegramPairingCode, isTelegramChatAuthorized } from './telegramCodePairing';
+import {
+  handleTelegramNativeCommand,
+  processTelegramModelCallback,
+  type TelegramModelCallbackQuery,
+} from '../telegram/modelSelection';
+import { applyTelegramGroupMigration } from '../telegram/groupMigration';
+import { extractTelegramInboundMedia, resolveTelegramInboundText } from '../telegram/media';
 
 export interface TelegramInboundMessage {
   message_id: number;
   from?: { id: number; first_name?: string; username?: string };
-  chat: { id: number; type: string };
+  chat: { id: number; type: string; is_forum?: boolean };
   text?: string;
+  caption?: string;
+  message_thread_id?: number;
+  migrate_to_chat_id?: number;
+  migrate_from_chat_id?: number;
+  photo?: Array<{ file_id: string; width?: number; height?: number; file_size?: number }>;
+  document?: {
+    file_id: string;
+    file_name?: string;
+    mime_type?: string;
+    file_size?: number;
+  };
+  audio?: {
+    file_id: string;
+    file_name?: string;
+    mime_type?: string;
+    file_size?: number;
+    duration?: number;
+    title?: string;
+    performer?: string;
+  };
+  voice?: {
+    file_id: string;
+    mime_type?: string;
+    file_size?: number;
+    duration?: number;
+  };
+  video?: {
+    file_id: string;
+    file_name?: string;
+    mime_type?: string;
+    file_size?: number;
+    duration?: number;
+  };
+  animation?: {
+    file_id: string;
+    file_name?: string;
+    mime_type?: string;
+    file_size?: number;
+    duration?: number;
+  };
+  sticker?: {
+    file_id: string;
+    file_unique_id?: string;
+    emoji?: string;
+    set_name?: string;
+    is_animated?: boolean;
+    is_video?: boolean;
+  };
 }
 
 export interface TelegramInboundProcessResult {
@@ -15,15 +70,25 @@ export interface TelegramInboundProcessResult {
   codeIssued: boolean;
 }
 
+export interface TelegramInboundUpdate {
+  message?: TelegramInboundMessage;
+  callback_query?: TelegramModelCallbackQuery;
+}
+
 export async function processTelegramInboundMessage(
   message: TelegramInboundMessage,
 ): Promise<TelegramInboundProcessResult> {
-  if (!message.text) {
-    return { handled: false, codeIssued: false };
+  const migration = applyTelegramGroupMigration(message);
+  if (migration.migrated) {
+    console.log(
+      '[Telegram] Group migration applied: %s -> %s',
+      migration.oldChatId,
+      migration.newChatId,
+    );
   }
 
   const chatId = String(message.chat.id);
-  const text = message.text;
+  const externalChatId = resolveTelegramConversationExternalChatId(message);
   const senderName =
     message.from?.username || message.from?.first_name || `user-${message.from?.id}`;
   const externalMsgId = String(message.message_id);
@@ -61,7 +126,87 @@ export async function processTelegramInboundMessage(
     return { handled: false, codeIssued: false };
   }
 
+  const commandText = message.text?.trim();
+  if (commandText && (await handleTelegramNativeCommand(chatId, commandText, externalChatId))) {
+    return { handled: true, codeIssued: false };
+  }
+
   const service = getMessageService();
-  await service.handleInbound(ChannelType.TELEGRAM, chatId, text, senderName, externalMsgId);
+  const conversation = service.getOrCreateConversation(ChannelType.TELEGRAM, externalChatId);
+  const media = await extractTelegramInboundMedia({
+    message,
+    userId: conversation.userId,
+    conversationId: conversation.id,
+    botToken:
+      process.env.TELEGRAM_BOT_TOKEN ||
+      (await import('../credentials')).getCredentialStore().getCredential('telegram', 'bot_token'),
+  });
+  const content = resolveTelegramInboundText(message, media.summaryText);
+  if (!content) {
+    return { handled: false, codeIssued: false };
+  }
+
+  await service.handleInbound(
+    ChannelType.TELEGRAM,
+    externalChatId,
+    content,
+    senderName,
+    externalMsgId,
+    undefined,
+    undefined,
+    media.attachments,
+  );
   return { handled: true, codeIssued: false };
+}
+
+export async function processTelegramInboundUpdate(
+  update: TelegramInboundUpdate,
+): Promise<TelegramInboundProcessResult> {
+  if (update.callback_query) {
+    const callbackChatId = update.callback_query.message?.chat?.id;
+    if (
+      typeof callbackChatId === 'number' &&
+      !isTelegramChatAuthorized(String(callbackChatId))
+    ) {
+      await answerTelegramCallbackQuery(update.callback_query.id, 'Pairing required.');
+      return { handled: true, codeIssued: false };
+    }
+
+    const handled = await processTelegramModelCallback(update.callback_query);
+    return { handled, codeIssued: false };
+  }
+
+  if (update.message) {
+    return processTelegramInboundMessage(update.message);
+  }
+
+  return { handled: false, codeIssued: false };
+}
+
+function resolveTelegramConversationExternalChatId(message: TelegramInboundMessage): string {
+  const baseChatId = String(message.chat.id);
+  const threadId =
+    typeof message.message_thread_id === 'number' && Number.isFinite(message.message_thread_id)
+      ? Math.trunc(message.message_thread_id)
+      : null;
+
+  if (threadId === null || threadId <= 0) {
+    return baseChatId;
+  }
+
+  if (message.chat.type === 'private') {
+    return `${baseChatId}:topic:${threadId}`;
+  }
+
+  const isForumGroup = message.chat.type === 'supergroup' && message.chat.is_forum === true;
+  if (!isForumGroup) {
+    return baseChatId;
+  }
+
+  // Telegram forum "General topic" has id=1 and should route to base group session.
+  if (threadId === 1) {
+    return baseChatId;
+  }
+
+  return `${baseChatId}:topic:${threadId}`;
 }

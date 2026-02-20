@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+﻿import fs from 'node:fs';
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import { runMigrations } from './repositories/migrations';
@@ -11,7 +11,6 @@ import {
   RuntimeRepository,
   PersonaRepository,
   InterventionRepository,
-  PermissionRepository,
 } from './repositories';
 
 /**
@@ -27,7 +26,6 @@ import {
  * - RuntimeRepository: Member runtime state
  * - PersonaRepository: Persona sessions, thread messages, context
  * - InterventionRepository: Room interventions
- * - PermissionRepository: Persona permissions
  */
 export class SqliteRoomRepository implements RoomRepository {
   private readonly db: BetterSqlite3.Database;
@@ -40,7 +38,6 @@ export class SqliteRoomRepository implements RoomRepository {
   private readonly runtimeRepo: RuntimeRepository;
   private readonly personaRepo: PersonaRepository;
   private readonly interventionRepo: InterventionRepository;
-  private readonly permissionRepo: PermissionRepository;
 
   constructor(
     dbPath = process.env.ROOMS_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db',
@@ -67,12 +64,11 @@ export class SqliteRoomRepository implements RoomRepository {
     this.runtimeRepo = new RuntimeRepository(this.db);
     this.personaRepo = new PersonaRepository(this.db);
     this.interventionRepo = new InterventionRepository(this.db);
-    this.permissionRepo = new PermissionRepository(this.db);
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // Rooms
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   createRoom(input: Parameters<RoomRepo['createRoom']>[0]) {
     return this.roomRepo.createRoom(input);
@@ -98,9 +94,9 @@ export class SqliteRoomRepository implements RoomRepository {
     return this.roomRepo.updateRunState(roomId, runState);
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // Members
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   addMember(
     roomId: string,
@@ -120,9 +116,9 @@ export class SqliteRoomRepository implements RoomRepository {
     return this.memberRepo.listMembers(roomId);
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // Messages
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   appendMessage(input: Parameters<MessageRepository['appendMessage']>[0]) {
     return this.messageRepo.appendMessage(input);
@@ -140,9 +136,9 @@ export class SqliteRoomRepository implements RoomRepository {
     return this.messageRepo.countMessages(roomId);
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // Interventions
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   addIntervention(roomId: string, userId: string, note: string) {
     return this.interventionRepo.addIntervention(roomId, userId, note);
@@ -152,24 +148,9 @@ export class SqliteRoomRepository implements RoomRepository {
     return this.interventionRepo.listInterventions(roomId, limit);
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // Permissions
-  // ═══════════════════════════════════════════════════════════════
-
-  setPersonaPermissions(
-    personaId: string,
-    permissions: Parameters<PermissionRepository['setPersonaPermissions']>[1],
-  ) {
-    return this.permissionRepo.setPersonaPermissions(personaId, permissions);
-  }
-
-  getPersonaPermissions(personaId: string) {
-    return this.permissionRepo.getPersonaPermissions(personaId);
-  }
-
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // Runs / Leases
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   acquireRoomLease(roomId: string, leaseOwner: string, leaseExpiresAt: string) {
     return this.runRepo.acquireRoomLease(roomId, leaseOwner, leaseExpiresAt);
@@ -191,9 +172,9 @@ export class SqliteRoomRepository implements RoomRepository {
     return this.runRepo.closeActiveRoomRun(roomId, endedState, failureReason);
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // Runtime
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   upsertMemberRuntime(input: Parameters<RuntimeRepository['upsertMemberRuntime']>[0]) {
     return this.runtimeRepo.upsertMemberRuntime(input);
@@ -207,9 +188,9 @@ export class SqliteRoomRepository implements RoomRepository {
     return this.runtimeRepo.listMemberRuntime(roomId);
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // Persona Sessions & Context
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   upsertPersonaSession(
     roomId: string,
@@ -249,9 +230,9 @@ export class SqliteRoomRepository implements RoomRepository {
     return this.personaRepo.listActiveRoomCountsByPersona(userId);
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // Metrics
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   getMetrics(): {
     totalRooms: number;
@@ -270,11 +251,13 @@ export class SqliteRoomRepository implements RoomRepository {
     };
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // Lifecycle
-  // ═══════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   close(): void {
     this.db.close();
   }
 }
+
+

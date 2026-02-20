@@ -24,6 +24,7 @@ OpenClaw Gateway ist eine **Next.js-basierte Multi-Channel-KI-Plattform** mit Un
 
 - Node.js 22+
 - npm
+- Docker Desktop (fuer lokalen Mem0-Stack)
 
 ### Installation
 
@@ -39,12 +40,22 @@ cp .env.local.example .env.local
 ### Lokale Entwicklung
 
 ```bash
+# Lokalen Mem0-Stack starten (Postgres + mem0 API)
+npm run mem0:local:up
+
 # Web-Server starten
 npm run dev
 
 # Scheduler starten (optional, für Rooms und Automations)
 npm run dev:scheduler
 ```
+
+`npm run dev` startet nur, wenn Mem0 erreichbar ist. Fuer den lokalen Stack sind in `.env.local` mindestens diese Werte noetig:
+
+- `MEMORY_PROVIDER=mem0`
+- `MEM0_BASE_URL=http://127.0.0.1:8010`
+- `MEM0_API_KEY=local-mem0-dev-token` (oder eigener Token)
+- `GEMINI_API_KEY=<dein-key>` (wird vom lokalen Mem0-Service benoetigt)
 
 ### Produktion
 

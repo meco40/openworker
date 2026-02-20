@@ -7,28 +7,22 @@ import type {
 } from '../../../src/server/channels/messages/repository';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
-  vi.fn(async () => ({
+  vi.fn<
+    () => Promise<{
+      ok: boolean;
+      text: string;
+      provider: string;
+      model: string;
+      error?: string;
+    }>
+  >(async () => ({
     ok: true,
-    text: 'fallback text',
+    text: '[model-hub-gateway profile=p9 model=test-model] tool output',
     provider: 'test-provider',
     model: 'test-model',
   })),
 );
 
-const resolveEnabledToolsMock = vi.hoisted(() => vi.fn(() => ['safe_shell']));
-const resolveToolPolicyMock = vi.hoisted(() =>
-  vi.fn(() => ({
-    defaultMode: 'ask_approve',
-    byFunctionName: { safe_shell: 'approve_always' },
-  })),
-);
-const startRunMock = vi.hoisted(() =>
-  vi.fn(async () => ({
-    runId: 'chat-run-1',
-    status: 'completed',
-    output: '[model-hub-gateway profile=p9 model=openai:gpt-4o-mini] tool output',
-  })),
-);
 const deliverOutboundMock = vi.hoisted(() => vi.fn(async () => {}));
 const broadcastToUserMock = vi.hoisted(() => vi.fn());
 const memoryRecallMock = vi.hoisted(() =>
@@ -43,21 +37,6 @@ vi.mock('../../../src/server/model-hub/runtime', () => ({
     dispatchWithFallback: dispatchWithFallbackMock,
   }),
   getModelHubEncryptionKey: () => 'test-key',
-}));
-
-vi.mock('../../../src/server/config/gatewayConfig', () => ({
-  loadGatewayConfig: vi.fn(async () => ({ config: {}, revision: 'rev-1' })),
-}));
-
-vi.mock('../../../src/server/worker/openai/openaiToolRegistry', () => ({
-  resolveEnabledOpenAiWorkerToolNamesFromConfig: resolveEnabledToolsMock,
-  resolveOpenAiWorkerToolApprovalPolicyFromConfig: resolveToolPolicyMock,
-}));
-
-vi.mock('../../../src/server/worker/openai/openaiWorkerClient', () => ({
-  getOpenAiWorkerClient: () => ({
-    startRun: startRunMock,
-  }),
 }));
 
 vi.mock('../../../src/server/channels/outbound/router', () => ({
@@ -91,6 +70,30 @@ vi.mock('../../../src/server/personas/personaRepository', async () => {
     }),
   };
 });
+
+vi.mock('../../../src/server/skills/skillRepository', () => ({
+  getSkillRepository: async () => ({
+    listSkills: () => [
+      {
+        id: 'shell-access',
+        name: 'Safe Shell',
+        description: 'Shell skill',
+        category: 'Automation',
+        version: '1.0.0',
+        installed: true,
+        functionName: 'shell_execute',
+        source: 'built-in',
+        sourceUrl: null,
+      },
+    ],
+    getSkill: () => null,
+    setInstalled: () => true,
+  }),
+}));
+
+vi.mock('../../../skills/definitions', () => ({
+  mapSkillsToTools: () => [],
+}));
 
 import { MessageService } from '../../../src/server/channels/messages/service';
 
@@ -168,18 +171,15 @@ function buildRepository(personaId: string | null): MessageRepository {
   };
 }
 
-describe('MessageService webchat tools routing', () => {
+describe('MessageService webchat model-hub routing', () => {
   beforeEach(() => {
     dispatchWithFallbackMock.mockClear();
-    resolveEnabledToolsMock.mockClear();
-    resolveToolPolicyMock.mockClear();
-    startRunMock.mockClear();
     deliverOutboundMock.mockClear();
     broadcastToUserMock.mockClear();
     memoryRecallMock.mockClear();
   });
 
-  it('uses OpenAI sidecar run when worker tools are enabled for webchat', async () => {
+  it('dispatches webchat via model hub using persona routing preferences', async () => {
     const service = new MessageService(buildRepository('persona-1'));
 
     const result = await service.handleInbound(
@@ -191,68 +191,48 @@ describe('MessageService webchat tools routing', () => {
       'user-1',
     );
 
-    expect(startRunMock).toHaveBeenCalledTimes(1);
-    expect(startRunMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        objective: 'Nutze safe_shell und suche nach notizen.md',
-        personaId: 'persona-1',
-        preferredModelId: 'gpt-4o-mini',
-        modelHubProfileId: 'p9',
-        enabledTools: ['safe_shell'],
-        toolApprovalPolicy: {
-          defaultMode: 'ask_approve',
-          byFunctionName: { safe_shell: 'approve_always' },
-        },
-        messages: expect.arrayContaining([
-          expect.objectContaining({
-            role: 'system',
-            content: expect.stringContaining('safe_shell'),
-          }),
-          expect.objectContaining({ role: 'user' }),
-        ]),
-      }),
-    );
-    expect(dispatchWithFallbackMock).not.toHaveBeenCalled();
+    expect(dispatchWithFallbackMock).toHaveBeenCalledTimes(1);
+    const firstCall = dispatchWithFallbackMock.mock.calls[0] as unknown[];
+    expect(firstCall[0]).toBe('p9');
+    expect(firstCall[1]).toBe('test-key');
+
+    const request = (firstCall[2] ?? {}) as {
+      auditContext?: { kind?: string; conversationId?: string };
+      messages?: Array<{ role: string; content: string }>;
+    };
+    const options = (firstCall[3] ?? {}) as {
+      signal?: AbortSignal;
+      modelOverride?: string;
+    };
+
+    expect(request.auditContext).toEqual({ kind: 'chat', conversationId: 'conv-1' });
+    expect(request.messages).toEqual(expect.arrayContaining([expect.objectContaining({ role: 'user' })]));
+    expect(options.modelOverride).toBe('gpt-4o-mini');
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+
     expect(result.agentMsg.content).toBe('tool output');
   });
 
-  it('falls back and applies sidecar cooldown when sidecar is unreachable', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const fetchFailure = new TypeError('fetch failed') as TypeError & {
-      cause?: { code?: string };
-    };
-    fetchFailure.cause = { code: 'ECONNREFUSED' };
-    startRunMock.mockRejectedValueOnce(fetchFailure);
+  it('returns model-hub errors to the user message flow', async () => {
+    dispatchWithFallbackMock.mockResolvedValueOnce({
+      ok: false,
+      text: '',
+      provider: 'test-provider',
+      model: 'test-model',
+      error: 'pipeline unavailable',
+    });
 
     const service = new MessageService(buildRepository('persona-1'));
-
-    await service.handleInbound(
+    const result = await service.handleInbound(
       ChannelType.WEBCHAT,
       'default',
-      'Bitte lese die README',
-      undefined,
-      undefined,
-      'user-1',
-    );
-    await service.handleInbound(
-      ChannelType.WEBCHAT,
-      'default',
-      'Und jetzt führe safe_shell aus',
+      'Bitte pruefe den Fehler',
       undefined,
       undefined,
       'user-1',
     );
 
-    expect(startRunMock).toHaveBeenCalledTimes(1);
-    expect(dispatchWithFallbackMock).toHaveBeenCalledTimes(2);
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('OpenAI sidecar unavailable'));
-    expect(errorSpy).not.toHaveBeenCalledWith(
-      'OpenAI sidecar chat dispatch failed, falling back to model hub:',
-      expect.anything(),
-    );
-
-    warnSpy.mockRestore();
-    errorSpy.mockRestore();
+    expect(dispatchWithFallbackMock).toHaveBeenCalledTimes(1);
+    expect(result.agentMsg.content).toContain('pipeline unavailable');
   });
 });

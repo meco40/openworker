@@ -1,12 +1,15 @@
 import React from 'react';
 import dynamic from 'next/dynamic';
 import {
+  type ChatApprovalDecision,
   type ChannelType,
   type ControlPlaneMetricsState,
+  type ChatStreamDebugState,
   type Conversation,
   type CoupledChannel,
   type GatewayState,
   type Message,
+  type MessageApprovalRequest,
   type MessageAttachment,
   type ScheduledTask,
   type Skill,
@@ -17,7 +20,6 @@ import ChatInterface from '../../../../components/ChatInterface';
 import ChannelPairing from '../../../../messenger/ChannelPairing';
 import ViewErrorBoundary from '../../../../components/ViewErrorBoundary';
 
-const WorkerView = dynamic(() => import('../../../../WorkerView'));
 const ModelHub = dynamic(() => import('../../../../components/ModelHub'));
 const SkillsRegistry = dynamic(() => import('../../../../skills/SkillsRegistry'));
 const TaskManagerView = dynamic(() => import('../../tasks/components/TaskManagerView'));
@@ -41,7 +43,13 @@ interface AppShellViewContentProps {
   conversations: Conversation[];
   activeConversationId: string | null;
   isAgentTyping: boolean;
+  chatStreamDebug: ChatStreamDebugState;
   onSendMessage: (content: string, platform: ChannelType, attachment?: MessageAttachment) => void;
+  onRespondApproval: (
+    message: Message,
+    approvalRequest: MessageApprovalRequest,
+    decision: ChatApprovalDecision,
+  ) => void;
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
@@ -61,7 +69,9 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
   conversations,
   activeConversationId,
   isAgentTyping,
+  chatStreamDebug,
   onSendMessage,
+  onRespondApproval,
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
@@ -79,11 +89,6 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
           />
         </ViewErrorBoundary>
       )}
-      {currentView === View.WORKER && (
-        <ViewErrorBoundary label="Autonomous Worker">
-          <WorkerView />
-        </ViewErrorBoundary>
-      )}
       {currentView === View.MODELS && (
         <ViewErrorBoundary label="AI Model Hub">
           <ModelHub />
@@ -94,7 +99,9 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
           <ChatInterface
             messages={messages}
             onSendMessage={onSendMessage}
+            onRespondApproval={onRespondApproval}
             isTyping={isAgentTyping}
+            chatStreamDebug={chatStreamDebug}
             conversations={conversations}
             activeConversationId={activeConversationId}
             onSelectConversation={onSelectConversation}

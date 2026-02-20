@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest';
 import SecurityView from '../../../components/SecurityView';
 
 describe('SecurityView', () => {
-  it('renders tabs for overview, whitelist and worker policies', () => {
+  it('renders tabs for overview and whitelist', () => {
     const html = renderToStaticMarkup(createElement(SecurityView));
 
     expect(html).toContain('Overview');
     expect(html).toContain('Whitelist');
-    expect(html).toContain('Worker Policies');
+    expect(html).not.toContain('Worker Policies');
   });
 });

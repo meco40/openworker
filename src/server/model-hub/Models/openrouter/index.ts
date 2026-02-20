@@ -35,12 +35,14 @@ const openRouterProviderAdapter: ProviderAdapter = {
       : { ok: false, message: `OpenRouter connectivity failed: ${result.message}` };
   },
 
-  dispatchGateway: ({ secret }, request) =>
+  dispatchGateway: ({ secret }, request, options) =>
     dispatchOpenAICompatibleChat('https://openrouter.ai/api/v1', secret, 'openrouter', request, {
       extraHeaders: {
         'HTTP-Referer': 'https://openclaw.app',
         'X-Title': 'OpenClaw',
       },
+      signal: options?.signal,
+      onStreamDelta: options?.onStreamDelta,
     }),
 };
 

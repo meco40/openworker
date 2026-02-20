@@ -43,7 +43,7 @@ const bytedanceProviderAdapter: ProviderAdapter = {
       secret,
       'bytedance',
       request,
-      { signal: options?.signal },
+      { signal: options?.signal, onStreamDelta: options?.onStreamDelta },
     ),
 };
 

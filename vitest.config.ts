@@ -16,8 +16,6 @@ export default defineConfig({
         'src/modules/**',
         'src/server/model-hub/**',
         'app/api/model-hub/**',
-        'src/server/worker/**',
-        'app/api/worker/**',
         'src/server/skills/**',
         'app/api/skills/**',
         'src/server/personas/**',

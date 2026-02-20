@@ -18,7 +18,6 @@ export function runMigrations(db: BetterSqlite3.Database): void {
   createRoomPersonaSessionsTable(db);
   createRoomPersonaThreadMessagesTable(db);
   createRoomPersonaContextTable(db);
-  createPersonaPermissionsTable(db);
   createRoomInterventionsTable(db);
 }
 
@@ -390,16 +389,6 @@ function createRoomPersonaContextTable(db: BetterSqlite3.Database): void {
       last_message_seq INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL,
       PRIMARY KEY (room_id, persona_id)
-    );
-  `);
-}
-
-function createPersonaPermissionsTable(db: BetterSqlite3.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS persona_permissions (
-      persona_id TEXT PRIMARY KEY,
-      tools_json TEXT NOT NULL,
-      updated_at TEXT NOT NULL
     );
   `);
 }

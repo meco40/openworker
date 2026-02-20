@@ -77,15 +77,13 @@ describe('operatorProfileConfig', () => {
       { workspaceSlots: 20, dailyTokenBudget: 500 },
       {
         tokensToday: 125,
-        pendingWorkerTasks: 4,
         rooms: { totalRooms: 7, runningRooms: 2, totalMembers: 0, totalMessages: 0 },
-        orchestra: { runCount: 5, failFastAbortCount: 1, activeSubagentSessions: 3 },
       },
     );
 
     expect(usage.workspaceUsed).toBe(7);
     expect(usage.workspaceTotal).toBe(20);
-    expect(usage.activeAgents).toBe(3);
+    expect(usage.activeAgents).toBe(2);
     expect(usage.remainingBudgetPercent).toBe(75);
     expect(usage.tokensToday).toBe(125);
   });

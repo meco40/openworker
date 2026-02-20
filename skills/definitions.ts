@@ -15,6 +15,7 @@ import filesystem from './filesystem';
 import github from './github-manager';
 import shell from './shell-access';
 import sql from './sql-bridge';
+import subagents from './subagents';
 
 interface SkillModule {
   id: string;
@@ -30,6 +31,7 @@ const SKILL_MODULES: SkillModule[] = [
   github,
   shell,
   sql,
+  subagents,
 ];
 
 /**

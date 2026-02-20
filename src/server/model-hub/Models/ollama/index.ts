@@ -78,6 +78,7 @@ const ollamaProviderAdapter: ProviderAdapter = {
   dispatchGateway: ({ secret }, request, options) =>
     dispatchOpenAICompatibleChat(OLLAMA_OPENAI_BASE_URL, secret, 'ollama', request, {
       signal: options?.signal,
+      onStreamDelta: options?.onStreamDelta,
     }),
 };
 

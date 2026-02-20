@@ -162,3 +162,28 @@ export function isTelegramChatAuthorized(chatId: string): boolean {
   const pairedChatId = store.getCredential(CHANNEL, KEY_PAIRED_CHAT_ID);
   return status === 'connected' && !!pairedChatId && pairedChatId === chatId;
 }
+
+export function migrateTelegramPairedChatId(oldChatId: string, newChatId: string): boolean {
+  const normalizedOld = oldChatId.trim();
+  const normalizedNew = newChatId.trim();
+  if (!normalizedOld || !normalizedNew || normalizedOld === normalizedNew) {
+    return false;
+  }
+
+  const store = getCredentialStore();
+  let changed = false;
+
+  const pairedChatId = store.getCredential(CHANNEL, KEY_PAIRED_CHAT_ID);
+  if (pairedChatId === normalizedOld) {
+    store.setCredential(CHANNEL, KEY_PAIRED_CHAT_ID, normalizedNew);
+    changed = true;
+  }
+
+  const pendingChatId = store.getCredential(CHANNEL, KEY_PENDING_CHAT_ID);
+  if (pendingChatId === normalizedOld) {
+    store.setCredential(CHANNEL, KEY_PENDING_CHAT_ID, normalizedNew);
+    changed = true;
+  }
+
+  return changed;
+}

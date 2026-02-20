@@ -1,6 +1,5 @@
 @import 'tailwindcss';
 @import '@xyflow/react/dist/style.css';
-@import '../styles/worker.css';
 
 body {
   font-family: var(--font-sans), sans-serif;

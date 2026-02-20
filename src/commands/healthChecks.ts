@@ -5,13 +5,11 @@ import {
   runLoggingRepositoryCheck,
   runMemoryRepositoryCheck,
   runStatsRepositoryCheck,
-  runWorkerRepositoryCheck,
 } from './health/checks/coreChecks';
 import {
   runAlertRoutingCheck,
   runErrorBudgetCheck,
   runMemoryPressureCheck,
-  runTaskBacklogCheck,
 } from './health/checks/diagnosticsChecks';
 import { runBridgeIntegrationChecks } from './health/checks/integrationChecks';
 import { runSecuritySnapshotCheck } from './health/checks/securityChecks';
@@ -21,13 +19,11 @@ export async function runHealthChecks(options: HealthCommandOptions = {}): Promi
   const detailedMemoryDiagnostics = options.memoryDiagnosticsEnabled === true;
 
   checks.push(runLoggingRepositoryCheck());
-  checks.push(runWorkerRepositoryCheck());
   checks.push(runStatsRepositoryCheck());
   checks.push(await runMemoryRepositoryCheck());
   checks.push(runSecuritySnapshotCheck());
   checks.push(runGatewayRegistryCheck());
   checks.push(runErrorBudgetCheck());
-  checks.push(runTaskBacklogCheck());
   checks.push(await runMemoryPressureCheck(detailedMemoryDiagnostics));
   checks.push(runAlertRoutingCheck());
   checks.push(...(await runBridgeIntegrationChecks(options)));

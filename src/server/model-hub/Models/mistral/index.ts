@@ -16,8 +16,11 @@ const mistralProviderAdapter: ProviderAdapter = {
       'Mistral connectivity verified (models list reachable).',
       'Mistral connectivity failed: ',
     ),
-  dispatchGateway: ({ secret }, request) =>
-    dispatchOpenAICompatibleChat('https://api.mistral.ai/v1', secret, 'mistral', request),
+  dispatchGateway: ({ secret }, request, options) =>
+    dispatchOpenAICompatibleChat('https://api.mistral.ai/v1', secret, 'mistral', request, {
+      signal: options?.signal,
+      onStreamDelta: options?.onStreamDelta,
+    }),
 };
 
 export default mistralProviderAdapter;

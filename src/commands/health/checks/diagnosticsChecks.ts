@@ -1,4 +1,3 @@
-import { getWorkerRepository } from '../../../server/worker/workerRepository';
 import { log } from '../../../logging/logService';
 import type { HealthCheck } from '../../healthTypes';
 import {
@@ -17,18 +16,8 @@ import {
 const ERROR_BUDGET_MIN_SAMPLE = 20;
 const ERROR_BUDGET_WARNING_RATIO = 0.05;
 const ERROR_BUDGET_CRITICAL_RATIO = 0.1;
-const TASK_BACKLOG_WARNING_THRESHOLD = 20;
-const TASK_BACKLOG_CRITICAL_THRESHOLD = 50;
 const MEMORY_PRESSURE_WARNING = 0.8;
 const MEMORY_PRESSURE_CRITICAL = 0.9;
-const OPEN_TASK_STATUSES = new Set([
-  'queued',
-  'planning',
-  'clarifying',
-  'executing',
-  'review',
-  'waiting_approval',
-]);
 
 export function runErrorBudgetCheck(): HealthCheck {
   const start = Date.now();
@@ -78,49 +67,6 @@ export function runErrorBudgetCheck(): HealthCheck {
       start,
       'warning',
       `Error budget check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    );
-  }
-}
-
-export function runTaskBacklogCheck(): HealthCheck {
-  const start = Date.now();
-  try {
-    const tasks = getWorkerRepository().listTasks({ limit: 5000 });
-    const openTaskCount = tasks.filter((task) => OPEN_TASK_STATUSES.has(task.status)).length;
-    if (openTaskCount > TASK_BACKLOG_CRITICAL_THRESHOLD) {
-      return failCheck(
-        'diagnostics.task_backlog',
-        'diagnostics',
-        start,
-        'critical',
-        `Task backlog critical: ${openTaskCount} open tasks.`,
-        { openTaskCount },
-      );
-    }
-    if (openTaskCount > TASK_BACKLOG_WARNING_THRESHOLD) {
-      return failCheck(
-        'diagnostics.task_backlog',
-        'diagnostics',
-        start,
-        'warning',
-        `Task backlog warning: ${openTaskCount} open tasks.`,
-        { openTaskCount },
-      );
-    }
-    return okCheck(
-      'diagnostics.task_backlog',
-      'diagnostics',
-      start,
-      `Task backlog healthy: ${openTaskCount} open tasks.`,
-      { openTaskCount },
-    );
-  } catch (error) {
-    return failCheck(
-      'diagnostics.task_backlog',
-      'diagnostics',
-      start,
-      'warning',
-      `Task backlog check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
     );
   }
 }

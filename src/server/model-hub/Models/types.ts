@@ -90,6 +90,6 @@ export interface ProviderAdapter {
   dispatchGateway?: (
     context: ProviderExecutionContext,
     request: GatewayRequest,
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; onStreamDelta?: (delta: string) => void },
   ) => Promise<GatewayResponse>;
 }

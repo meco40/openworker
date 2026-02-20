@@ -10,6 +10,7 @@ export const runtime = 'nodejs';
 interface PairRequest {
   channel?: string;
   token?: string;
+  accountId?: string;
 }
 
 export async function POST(request: Request) {
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Unsupported channel' }, { status: 400 });
     }
 
-    const validated = await pairChannel(body.channel, body.token || '');
+    const validated = await pairChannel(body.channel, body.token || '', body.accountId);
     const status =
       typeof validated === 'object' &&
       validated !== null &&
@@ -38,6 +39,14 @@ export async function POST(request: Request) {
         ? ((validated as { transport: string }).transport as string)
         : undefined;
 
+    const resolvedAccountId =
+      typeof validated === 'object' &&
+      validated !== null &&
+      'accountId' in validated &&
+      typeof (validated as { accountId?: unknown }).accountId === 'string'
+        ? ((validated as { accountId: string }).accountId as string)
+        : body.accountId || 'default';
+
     return NextResponse.json({
       ok: true,
       status,
@@ -45,6 +54,7 @@ export async function POST(request: Request) {
       peerName: validated.peerName,
       connectedAt: new Date().toISOString(),
       details: validated.details,
+      accountId: resolvedAccountId,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown channel pairing error';
@@ -55,6 +65,7 @@ export async function POST(request: Request) {
 
 interface UnpairRequest {
   channel?: string;
+  accountId?: string;
 }
 
 export async function DELETE(request: Request) {
@@ -67,12 +78,13 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ ok: false, error: 'Unsupported channel' }, { status: 400 });
     }
 
-    await unpairChannel(body.channel);
+    await unpairChannel(body.channel, body.accountId);
 
     return NextResponse.json({
       ok: true,
       status: 'disconnected',
       channel: body.channel,
+      accountId: body.accountId || 'default',
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown channel unpair error';

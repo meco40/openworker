@@ -110,10 +110,7 @@ export function computeOperatorUsageSnapshot(
 ): OperatorUsageSnapshot {
   const workspaceUsed = Math.max(0, metrics?.rooms?.totalRooms || 0);
   const workspaceTotal = Math.max(1, limits.workspaceSlots);
-  const activeAgents = Math.max(
-    0,
-    metrics?.orchestra?.activeSubagentSessions ?? metrics?.pendingWorkerTasks ?? 0,
-  );
+  const activeAgents = Math.max(0, metrics?.rooms?.runningRooms || 0);
   const tokensToday = Math.max(0, metrics?.tokensToday || 0);
   const budget = Math.max(1, limits.dailyTokenBudget);
   const consumedPercent = clampInt((tokensToday / budget) * 100, 0, 100);

@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto';
+import fs from 'node:fs';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import BetterSqlite3 from 'better-sqlite3';
 import {
   ALLOWED_UI_DEFAULT_VIEWS,
   isAllowedUiDefaultView,
@@ -11,7 +13,7 @@ import {
 } from '../../shared/config/uiSchema';
 
 export type GatewayConfig = Record<string, unknown>;
-export type GatewayConfigSource = 'default' | 'file';
+export type GatewayConfigSource = 'default' | 'file' | 'db';
 
 export interface GatewayConfigWarning {
   code: string;
@@ -42,11 +44,18 @@ type NormalizeMode = 'load' | 'save';
 
 export const REDACTED_SECRET_VALUE = '__REDACTED__';
 const WORKSPACE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../');
+const GATEWAY_CONFIG_DB_ROW_ID = 1;
+const GATEWAY_CONFIG_DB_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS gateway_config_state (
+    id INTEGER PRIMARY KEY,
+    config_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+`;
 
 const SECRET_PATHS = [
   ['channels', 'telegram', 'token'],
   ['gateway', 'auth', 'token'],
-  ['worker', 'openai', 'callbackToken'],
 ] as const;
 
 const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
@@ -69,46 +78,6 @@ const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
   tools: {
     browser: { managed: true, headless: true },
     sandbox: { type: 'docker', enabled: false },
-  },
-  worker: {
-    runtime: 'legacy',
-    openai: {
-      sidecarUrl: 'http://127.0.0.1:8011',
-      callbackToken: 'ENV_OPENAI_WORKER_TOKEN',
-      maxConcurrentRuns: 8,
-      maxQueueDepth: 256,
-      maxTokensPerRun: 120000,
-      maxCostUsdPerRun: 10,
-      maxCostUsdPerUserPerDay: 25,
-      maxRequestsPerMinutePerUser: 60,
-      security: {
-        defaultApprovalMode: 'ask_approve',
-        tools: {},
-      },
-      tools: {
-        shell: {
-          enabled: false,
-        },
-        browser: {
-          enabled: false,
-        },
-        browserUse: {
-          enabled: false,
-        },
-        files: {
-          enabled: false,
-        },
-        github: {
-          enabled: false,
-        },
-        mcp: {
-          enabled: false,
-        },
-        computerUse: {
-          enabled: false,
-        },
-      },
-    },
   },
   ui: {
     defaultView: 'dashboard',
@@ -151,22 +120,6 @@ function ensureBoolean(value: unknown, label: string): boolean {
     throw new GatewayConfigValidationError(`${label} must be a boolean.`);
   }
   return value;
-}
-
-function ensureOpenAiApprovalMode(
-  value: unknown,
-  label: string,
-): 'deny' | 'ask_approve' | 'approve_always' {
-  if (typeof value !== 'string') {
-    throw new GatewayConfigValidationError(`${label} must be a string.`);
-  }
-  const normalized = value.trim();
-  if (!new Set(['deny', 'ask_approve', 'approve_always']).has(normalized)) {
-    throw new GatewayConfigValidationError(
-      `${label} must be one of: deny, ask_approve, approve_always.`,
-    );
-  }
-  return normalized as 'deny' | 'ask_approve' | 'approve_always';
 }
 
 function ensureIntInRange(value: unknown, label: string, min: number, max: number): number {
@@ -407,136 +360,6 @@ function normalizeGatewayConfig(
     }
   }
 
-  if (root.worker !== undefined) {
-    const worker = ensureObject(root.worker, 'worker');
-    if (worker.runtime !== undefined) {
-      const runtime = ensureString(worker.runtime, 'worker.runtime');
-      if (!new Set(['legacy', 'openai']).has(runtime)) {
-        throw new GatewayConfigValidationError('worker.runtime must be one of: legacy, openai.');
-      }
-    }
-    if (worker.openai !== undefined) {
-      const openai = ensureObject(worker.openai, 'worker.openai');
-      if (openai.sidecarUrl !== undefined) {
-        ensureString(openai.sidecarUrl, 'worker.openai.sidecarUrl');
-      }
-      if (openai.callbackToken !== undefined) {
-        ensureString(openai.callbackToken, 'worker.openai.callbackToken');
-      }
-      if (openai.maxConcurrentRuns !== undefined) {
-        ensureIntInRange(openai.maxConcurrentRuns, 'worker.openai.maxConcurrentRuns', 1, 256);
-      }
-      if (openai.maxQueueDepth !== undefined) {
-        ensureIntInRange(openai.maxQueueDepth, 'worker.openai.maxQueueDepth', 1, 100000);
-      }
-      if (openai.maxTokensPerRun !== undefined) {
-        ensureIntInRange(openai.maxTokensPerRun, 'worker.openai.maxTokensPerRun', 1, 100000000);
-      }
-      if (openai.maxCostUsdPerRun !== undefined) {
-        if (typeof openai.maxCostUsdPerRun !== 'number' || openai.maxCostUsdPerRun < 0) {
-          throw new GatewayConfigValidationError(
-            'worker.openai.maxCostUsdPerRun must be a non-negative number.',
-          );
-        }
-      }
-      if (openai.maxCostUsdPerUserPerDay !== undefined) {
-        if (
-          typeof openai.maxCostUsdPerUserPerDay !== 'number' ||
-          openai.maxCostUsdPerUserPerDay < 0
-        ) {
-          throw new GatewayConfigValidationError(
-            'worker.openai.maxCostUsdPerUserPerDay must be a non-negative number.',
-          );
-        }
-      }
-      if (openai.maxRequestsPerMinutePerUser !== undefined) {
-        ensureIntInRange(
-          openai.maxRequestsPerMinutePerUser,
-          'worker.openai.maxRequestsPerMinutePerUser',
-          1,
-          1000000,
-        );
-      }
-      if (openai.tools !== undefined) {
-        const tools = ensureObject(openai.tools, 'worker.openai.tools');
-        if (tools.shell !== undefined) {
-          const shell = ensureObject(tools.shell, 'worker.openai.tools.shell');
-          if (shell.enabled !== undefined) {
-            ensureBoolean(shell.enabled, 'worker.openai.tools.shell.enabled');
-          }
-        }
-        if (tools.browser !== undefined) {
-          const browser = ensureObject(tools.browser, 'worker.openai.tools.browser');
-          if (browser.enabled !== undefined) {
-            ensureBoolean(browser.enabled, 'worker.openai.tools.browser.enabled');
-          }
-        }
-        if (tools.browserUse !== undefined) {
-          const browserUse = ensureObject(tools.browserUse, 'worker.openai.tools.browserUse');
-          if (browserUse.enabled !== undefined) {
-            ensureBoolean(browserUse.enabled, 'worker.openai.tools.browserUse.enabled');
-          }
-        }
-        if (tools.files !== undefined) {
-          const files = ensureObject(tools.files, 'worker.openai.tools.files');
-          if (files.enabled !== undefined) {
-            ensureBoolean(files.enabled, 'worker.openai.tools.files.enabled');
-          }
-        }
-        if (tools.github !== undefined) {
-          const github = ensureObject(tools.github, 'worker.openai.tools.github');
-          if (github.enabled !== undefined) {
-            ensureBoolean(github.enabled, 'worker.openai.tools.github.enabled');
-          }
-        }
-        if (tools.mcp !== undefined) {
-          const mcp = ensureObject(tools.mcp, 'worker.openai.tools.mcp');
-          if (mcp.enabled !== undefined) {
-            ensureBoolean(mcp.enabled, 'worker.openai.tools.mcp.enabled');
-          }
-        }
-        if (tools.computerUse !== undefined) {
-          const computerUse = ensureObject(tools.computerUse, 'worker.openai.tools.computerUse');
-          if (computerUse.enabled !== undefined) {
-            ensureBoolean(computerUse.enabled, 'worker.openai.tools.computerUse.enabled');
-          }
-        }
-      }
-      if (openai.security !== undefined) {
-        const security = ensureObject(openai.security, 'worker.openai.security');
-        if (security.defaultApprovalMode !== undefined) {
-          ensureOpenAiApprovalMode(
-            security.defaultApprovalMode,
-            'worker.openai.security.defaultApprovalMode',
-          );
-        }
-        if (security.tools !== undefined) {
-          const tools = ensureObject(security.tools, 'worker.openai.security.tools');
-          const toolKeys = [
-            'shell',
-            'browser',
-            'browserUse',
-            'files',
-            'github',
-            'mcp',
-            'computerUse',
-          ];
-          for (const key of toolKeys) {
-            const maybeTool = tools[key];
-            if (maybeTool === undefined) continue;
-            const tool = ensureObject(maybeTool, `worker.openai.security.tools.${key}`);
-            if (tool.approvalMode !== undefined) {
-              ensureOpenAiApprovalMode(
-                tool.approvalMode,
-                `worker.openai.security.tools.${key}.approvalMode`,
-              );
-            }
-          }
-        }
-      }
-    }
-  }
-
   normalizeUiConfig(root, mode, warnings);
 
   if (gateway.auth !== undefined) {
@@ -596,6 +419,20 @@ export function resolveGatewayConfigPath(): string {
   return path.join(os.homedir(), '.openclaw', 'openclaw.json');
 }
 
+function resolveGatewayConfigBackend(): 'db' | 'file' {
+  const raw = String(process.env.OPENCLAW_CONFIG_BACKEND || 'db').trim().toLowerCase();
+  return raw === 'file' ? 'file' : 'db';
+}
+
+function resolveGatewayConfigDbPath(): string {
+  const configuredPath = String(process.env.GATEWAY_CONFIG_DB_PATH || '').trim();
+  if (configuredPath) {
+    if (path.isAbsolute(configuredPath)) return configuredPath;
+    return path.resolve(WORKSPACE_ROOT, configuredPath);
+  }
+  return path.resolve('.local/gateway-config.db');
+}
+
 export function computeGatewayConfigRevision(config: GatewayConfig): string {
   const normalized = JSON.stringify(config);
   return createHash('sha256').update(normalized).digest('hex').slice(0, 16);
@@ -652,6 +489,47 @@ function restoreRedactedSecrets(nextConfig: unknown, currentConfig: GatewayConfi
 }
 
 export async function loadGatewayConfig(): Promise<GatewayConfigState> {
+  if (resolveGatewayConfigBackend() === 'db') {
+    const dbPath = resolveGatewayConfigDbPath();
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    const db = new BetterSqlite3(dbPath);
+    try {
+      db.exec(GATEWAY_CONFIG_DB_TABLE_SQL);
+      const row = db
+        .prepare('SELECT config_json FROM gateway_config_state WHERE id = ?')
+        .get(GATEWAY_CONFIG_DB_ROW_ID) as { config_json?: string } | undefined;
+
+      if (!row?.config_json) {
+        const normalized = normalizeGatewayConfig(cloneDefaultConfig(), 'load');
+        return {
+          config: normalized.config,
+          source: 'default',
+          path: dbPath,
+          warnings: [],
+          revision: computeGatewayConfigRevision(normalized.config),
+        };
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(row.config_json);
+      } catch {
+        throw new GatewayConfigValidationError('Gateway config row contains invalid JSON.');
+      }
+
+      const normalized = normalizeGatewayConfig(parsed, 'load');
+      return {
+        config: normalized.config,
+        source: 'db',
+        path: dbPath,
+        warnings: normalized.warnings,
+        revision: computeGatewayConfigRevision(normalized.config),
+      };
+    } finally {
+      db.close();
+    }
+  }
+
   const configPath = resolveGatewayConfigPath();
 
   try {
@@ -713,9 +591,64 @@ export async function saveGatewayConfig(
 ): Promise<{
   config: GatewayConfig;
   path: string;
+  source: GatewayConfigSource;
   warnings: GatewayConfigWarning[];
   revision: string;
 }> {
+  if (resolveGatewayConfigBackend() === 'db') {
+    const dbPath = resolveGatewayConfigDbPath();
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    const db = new BetterSqlite3(dbPath);
+    try {
+      db.exec('PRAGMA journal_mode = WAL');
+      db.exec(GATEWAY_CONFIG_DB_TABLE_SQL);
+
+      const row = db
+        .prepare('SELECT config_json FROM gateway_config_state WHERE id = ?')
+        .get(GATEWAY_CONFIG_DB_ROW_ID) as { config_json?: string } | undefined;
+
+      const currentNormalized = (() => {
+        if (!row?.config_json) return normalizeGatewayConfig(cloneDefaultConfig(), 'load');
+        const parsed = JSON.parse(row.config_json) as unknown;
+        return normalizeGatewayConfig(parsed, 'load');
+      })();
+      const currentRevision = computeGatewayConfigRevision(currentNormalized.config);
+
+      const expectedRevision = String(options?.expectedRevision || '').trim();
+      if (!expectedRevision || expectedRevision !== currentRevision) {
+        throw new GatewayConfigConflictError(
+          'Config was changed by another session. Reload and review your changes.',
+          currentRevision,
+        );
+      }
+
+      const restoredInput = restoreRedactedSecrets(input, currentNormalized.config);
+      const normalized = normalizeGatewayConfig(restoredInput, 'save');
+      const config = normalized.config;
+      const revision = computeGatewayConfigRevision(config);
+
+      db.prepare(
+        `
+          INSERT INTO gateway_config_state (id, config_json, updated_at)
+          VALUES (?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            config_json = excluded.config_json,
+            updated_at = excluded.updated_at
+        `,
+      ).run(GATEWAY_CONFIG_DB_ROW_ID, JSON.stringify(config), new Date().toISOString());
+
+      return {
+        config,
+        path: dbPath,
+        source: 'db',
+        warnings: normalized.warnings,
+        revision,
+      };
+    } finally {
+      db.close();
+    }
+  }
+
   const current = await loadGatewayConfig();
   const expectedRevision = String(options?.expectedRevision || '').trim();
   if (!expectedRevision || expectedRevision !== current.revision) {
@@ -744,6 +677,7 @@ export async function saveGatewayConfig(
   return {
     config,
     path: configPath,
+    source: 'file',
     warnings: normalized.warnings,
     revision: computeGatewayConfigRevision(config),
   };

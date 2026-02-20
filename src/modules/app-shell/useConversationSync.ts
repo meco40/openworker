@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Conversation, Message } from '../../../types';
 import {
-  appendMessageIfMissing,
   mapConversationApiMessage,
   mapConversationStreamMessage,
+  upsertMessageReplacingStreamingDraft,
   upsertConversationActivity,
 } from './runtimeLogic';
 import { getGatewayClient } from '../gateway/ws-client';
@@ -69,7 +69,7 @@ export function useConversationSync() {
 
         if (data.conversationId === activeConversationRef.current) {
           setMessages((previous) =>
-            appendMessageIfMissing(previous, mapConversationStreamMessage(data)),
+            upsertMessageReplacingStreamingDraft(previous, mapConversationStreamMessage(data)),
           );
         }
 

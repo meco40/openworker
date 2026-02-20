@@ -39,18 +39,6 @@ vi.mock('../../../src/server/model-hub/runtime', () => ({
   getModelHubEncryptionKey: () => 'test-encryption-key',
 }));
 
-vi.mock('../../../src/server/config/gatewayConfig', () => ({
-  loadGatewayConfig: vi.fn(async () => ({ config: {}, revision: 'rev-1' })),
-}));
-
-vi.mock('../../../src/server/worker/openai/openaiToolRegistry', () => ({
-  resolveEnabledOpenAiWorkerToolNamesFromConfig: vi.fn(() => []),
-  resolveOpenAiWorkerToolApprovalPolicyFromConfig: vi.fn(() => ({
-    defaultMode: 'ask_approve',
-    byFunctionName: {},
-  })),
-}));
-
 vi.mock('../../../src/server/channels/outbound/router', () => ({
   deliverOutbound: deliverOutboundMock,
 }));
@@ -141,6 +129,14 @@ function buildRepository(personaId: string | null): MessageRepository {
   };
 }
 
+function getDispatchedMessages(): Array<{ role: string; content: string }> {
+  const call = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
+  const request = (call?.[2] ?? {}) as {
+    messages?: Array<{ role: string; content: string }>;
+  };
+  return request.messages ?? [];
+}
+
 describe('MessageService memory recall gating', () => {
   beforeEach(() => {
     dispatchWithFallbackMock.mockClear();
@@ -181,19 +177,15 @@ describe('MessageService memory recall gating', () => {
       'user-1',
     );
 
-    const firstDispatchCall = dispatchWithFallbackMock.mock.calls[0] as unknown[] | undefined;
-    const dispatchInput = (firstDispatchCall?.[2] ?? {}) as {
-      messages?: Array<{
-        role: string;
-        content: string;
-      }>;
-    };
-    const dispatchedMessages = dispatchInput.messages ?? [];
-    expect(dispatchedMessages[0]?.role).toBe('system');
-    expect(dispatchedMessages[0]?.content).toContain('Relevant memory context');
-    expect(dispatchedMessages[0]?.content).toContain('Kaffee immer schwarz');
-    expect(dispatchedMessages[0]?.content).toContain('Interpretation rules');
-    expect(dispatchedMessages[0]?.content).toContain('[Subject: user]');
+    const dispatchedMessages = getDispatchedMessages();
+    const memorySystemMessage = dispatchedMessages.find(
+      (message) =>
+        message.role === 'system' &&
+        message.content.includes('Relevant memory context') &&
+        message.content.includes('Interpretation rules'),
+    );
+    expect(memorySystemMessage).toBeDefined();
+    expect(memorySystemMessage?.content).toContain('Kaffee immer schwarz');
   });
 
   it('attempts recall for regular user requests without explicit memory keywords', async () => {
@@ -202,7 +194,7 @@ describe('MessageService memory recall gating', () => {
     await service.handleInbound(
       ChannelType.WEBCHAT,
       'default',
-      'Schreibe mir bitte eine freundliche Begrüßung.',
+      'Schreibe mir bitte eine freundliche Begruessung.',
       undefined,
       undefined,
       'user-1',

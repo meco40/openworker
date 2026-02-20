@@ -18,6 +18,7 @@ const xAIProviderAdapter: ProviderAdapter = {
   dispatchGateway: ({ secret }, request, options) =>
     dispatchOpenAICompatibleChat('https://api.x.ai/v1', secret, 'xai', request, {
       signal: options?.signal,
+      onStreamDelta: options?.onStreamDelta,
     }),
 };
 

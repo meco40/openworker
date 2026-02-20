@@ -1,8 +1,18 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { View, ChannelType, CoupledChannel, MessageAttachment, Skill } from './types';
+import {
+  View,
+  ChannelType,
+  ChatApprovalDecision,
+  ChatStreamDebugState,
+  CoupledChannel,
+  MessageAttachment,
+  MessageApprovalRequest,
+  Message,
+  Skill,
+} from './types';
 import Sidebar from './components/Sidebar';
 import { buildInitialShellState } from './src/modules/app-shell/useAppShellState';
 import {
@@ -10,11 +20,10 @@ import {
   saveCoupledChannelsToStorage,
 } from './src/modules/app-shell/channelStorage';
 import {
-  appendMessageIfMissing,
   buildConversationTitle,
-  mapConversationApiMessage,
   removeConversationById,
   resolveActiveConversationAfterDeletion,
+  STREAMING_DRAFT_ID_PREFIX,
 } from './src/modules/app-shell/runtimeLogic';
 import { getClientStorage } from './src/modules/app-shell/clientStorage';
 import { useConversationSync } from './src/modules/app-shell/useConversationSync';
@@ -28,6 +37,7 @@ import AppShellHeader from './src/modules/app-shell/components/AppShellHeader';
 import AppShellViewContent from './src/modules/app-shell/components/AppShellViewContent';
 import { usePersona } from './src/modules/personas/PersonaContext';
 import { resolveDefaultViewFromConfig } from './src/server/config/uiRuntimeConfig';
+import { getGatewayClient } from './src/modules/gateway/ws-client';
 
 const TerminalWizard = dynamic(() => import('./components/TerminalWizard'));
 const LiveCanvas = dynamic(() => import('./components/LiveCanvas').then((mod) => mod.LiveCanvas), {
@@ -37,11 +47,48 @@ const LiveCanvas = dynamic(() => import('./components/LiveCanvas').then((mod) =>
 const isPersistentSessionV2Enabled =
   String(process.env.NEXT_PUBLIC_CHAT_PERSISTENT_SESSION_V2 || 'true').toLowerCase() === 'true';
 
+const DEFAULT_CHAT_STREAM_DEBUG: ChatStreamDebugState = {
+  phase: 'idle',
+  transport: 'unknown',
+  updatedAt: new Date(0).toISOString(),
+};
+
+async function waitForGatewayConnected(timeoutMs = 5_000): Promise<void> {
+  const client = getGatewayClient();
+  if (client.state === 'connected') return;
+
+  client.connect();
+
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      unsubscribe();
+      reject(new Error('WebSocket not connected.'));
+    }, timeoutMs);
+
+    const unsubscribe = client.onStateChange((state) => {
+      if (state === 'connected') {
+        clearTimeout(timer);
+        unsubscribe();
+        resolve();
+      }
+    });
+
+    if (client.state === 'connected') {
+      clearTimeout(timer);
+      unsubscribe();
+      resolve();
+    }
+  });
+}
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(() => buildInitialShellState().currentView);
   const [onboarded, setOnboarded] = useState<boolean>(true);
   const [isCanvasOpen, setIsCanvasOpen] = useState(false);
   const [isServerResponding, setIsServerResponding] = useState(false);
+  const [chatStreamDebug, setChatStreamDebug] = useState<ChatStreamDebugState>(
+    DEFAULT_CHAT_STREAM_DEBUG,
+  );
   const [skills, setSkills] = useState<Skill[]>([]);
   const { activePersonaId } = usePersona();
 
@@ -105,6 +152,10 @@ const App: React.FC = () => {
     activeConversationId,
     setActiveConversationId,
   } = useConversationSync();
+  const activeConversationIdRef = useRef<string | null>(activeConversationId);
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
   const { gatewayState, addEventLog, updateMemoryDisplay } = useGatewayState();
   const { scheduledTasks, setScheduledTasks } = useTaskScheduler({ addEventLog, setMessages });
   const controlPlaneMetricsState = useControlPlaneMetrics();
@@ -128,15 +179,28 @@ const App: React.FC = () => {
       }
 
       const clientMessageId = crypto.randomUUID();
+      const streamingMessageId = `${STREAMING_DRAFT_ID_PREFIX}${clientMessageId}`;
+      const conversationIdAtSend = activeConversationId;
+      const streamingTimestamp = new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      setChatStreamDebug({
+        phase: 'running',
+        transport: 'unknown',
+        updatedAt: new Date().toISOString(),
+      });
 
       setIsServerResponding(true);
       addEventLog('CHAN', `Signal via ${platform}`);
+      let sawDelta = false;
 
       try {
-        const response = await fetch('/api/channels/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        await waitForGatewayConnected();
+        const gatewayClient = getGatewayClient();
+        await gatewayClient.requestStream(
+          'chat.stream',
+          {
             conversationId: activeConversationId,
             content,
             clientMessageId,
@@ -149,46 +213,64 @@ const App: React.FC = () => {
                   url: attachment.url,
                 }
               : undefined,
-          }),
+          },
+          (delta) => {
+            if (!delta) return;
+            sawDelta = true;
+            setIsServerResponding(false);
+            setChatStreamDebug({
+              phase: 'running',
+              transport: 'live-delta',
+              updatedAt: new Date().toISOString(),
+            });
+            if (activeConversationIdRef.current !== conversationIdAtSend) {
+              return;
+            }
+            setMessages((previous) => {
+              const index = previous.findIndex((message) => message.id === streamingMessageId);
+              const currentText = index >= 0 ? previous[index].content : '';
+              const draft = {
+                id: streamingMessageId,
+                role: 'agent' as const,
+                content: `${currentText}${delta}`,
+                timestamp: streamingTimestamp,
+                conversationId: conversationIdAtSend,
+                platform,
+                streaming: true,
+              };
+              if (index >= 0) {
+                const next = [...previous];
+                next[index] = draft;
+                return next;
+              }
+              return [...previous, draft];
+            });
+          },
+        );
+        if (sawDelta && activeConversationIdRef.current === conversationIdAtSend) {
+          setMessages((previous) =>
+            previous.map((message) =>
+              message.id === streamingMessageId ? { ...message, streaming: false } : message,
+            ),
+          );
+        }
+        setChatStreamDebug({
+          phase: 'done',
+          transport: sawDelta ? 'live-delta' : 'final-only',
+          updatedAt: new Date().toISOString(),
         });
-
-        const data = (await response.json()) as {
-          ok?: boolean;
-          error?: string;
-          userMessage?: {
-            id: string;
-            conversationId?: string;
-            role: 'user' | 'agent' | 'system';
-            content: string;
-            metadata?: string | null;
-            createdAt: string;
-            platform: ChannelType;
-          };
-          agentMessage?: {
-            id: string;
-            conversationId?: string;
-            role: 'user' | 'agent' | 'system';
-            content: string;
-            metadata?: string | null;
-            createdAt: string;
-            platform: ChannelType;
-          };
-        };
-
-        if (!response.ok || !data.ok) {
-          throw new Error(data.error || `HTTP ${response.status}`);
-        }
-
-        // Fallback in case WS event delivery is delayed/missed: append API response once.
-        if (data.userMessage && data.agentMessage) {
-          const mappedUser = mapConversationApiMessage(data.userMessage);
-          const mappedAgent = mapConversationApiMessage(data.agentMessage);
-          setMessages((previous) => {
-            const withUser = appendMessageIfMissing(previous, mappedUser);
-            return appendMessageIfMissing(withUser, mappedAgent);
-          });
-        }
       } catch (error) {
+        if (activeConversationIdRef.current === conversationIdAtSend) {
+          setMessages((previous) =>
+            previous.filter((message) => message.id !== streamingMessageId),
+          );
+        }
+        setChatStreamDebug({
+          phase: 'error',
+          transport: sawDelta ? 'live-delta' : 'unknown',
+          message: error instanceof Error ? error.message : 'Message dispatch failed.',
+          updatedAt: new Date().toISOString(),
+        });
         addEventLog('SYS', error instanceof Error ? error.message : 'Message dispatch failed.');
       } finally {
         setIsServerResponding(false);
@@ -224,6 +306,88 @@ const App: React.FC = () => {
       }
     },
     [addEventLog, handleAgentResponse, setMessages],
+  );
+
+  const respondChatApproval = useCallback(
+    async (
+      message: Message,
+      approvalRequest: MessageApprovalRequest,
+      decision: ChatApprovalDecision,
+    ) => {
+      const conversationId = message.conversationId || activeConversationIdRef.current;
+      if (!conversationId) {
+        addEventLog('SYS', 'Keine aktive Conversation fuer Approval gefunden.');
+        return;
+      }
+
+      setMessages((previous) =>
+        previous.map((entry) =>
+          entry.id === message.id
+            ? { ...entry, approvalSubmitting: true, approvalError: undefined }
+            : entry,
+        ),
+      );
+
+      try {
+        await waitForGatewayConnected();
+        const gatewayClient = getGatewayClient();
+        const approved = decision !== 'deny';
+        const approveAlways = decision === 'approve_always';
+
+        type ApprovalResponsePayload = {
+          ok?: boolean;
+          policyUpdated?: boolean;
+          status?: string | null;
+        };
+
+        const payload = await gatewayClient.request<ApprovalResponsePayload>(
+          'chat.approval.respond',
+          {
+            conversationId,
+            approvalToken: approvalRequest.token,
+            approved,
+            approveAlways,
+            toolId: approvalRequest.toolId,
+            toolFunctionName: approvalRequest.toolFunctionName,
+          },
+        );
+
+        setMessages((previous) =>
+          previous.map((entry) =>
+            entry.id === message.id
+              ? {
+                  ...entry,
+                  approvalSubmitting: false,
+                  approvalResolved: decision,
+                  approvalError: undefined,
+                }
+              : entry,
+          ),
+        );
+
+        if (approveAlways && payload?.policyUpdated) {
+          addEventLog('SYS', 'Policy gespeichert: Tool steht jetzt auf approve_always.');
+        } else if (approved && payload?.status === 'approval_required') {
+          addEventLog('SYS', 'Weitere Genehmigung erforderlich.');
+        }
+      } catch (error) {
+        const messageText =
+          error instanceof Error ? error.message : 'Approval konnte nicht gesendet werden.';
+        setMessages((previous) =>
+          previous.map((entry) =>
+            entry.id === message.id
+              ? {
+                  ...entry,
+                  approvalSubmitting: false,
+                  approvalError: messageText,
+                }
+              : entry,
+          ),
+        );
+        addEventLog('SYS', messageText);
+      }
+    },
+    [addEventLog, setMessages],
   );
 
   const handleNewConversation = useCallback(async () => {
@@ -336,6 +500,7 @@ const App: React.FC = () => {
           conversations={conversations}
           activeConversationId={activeConversationId}
           isAgentTyping={isServerResponding || isRuntimeAgentTyping}
+          chatStreamDebug={chatStreamDebug}
           onSendMessage={
             isPersistentSessionV2Enabled
               ? sendChatMessage
@@ -348,6 +513,7 @@ const App: React.FC = () => {
           coupledChannels={coupledChannels}
           onUpdateCoupling={handleUpdateCoupling}
           onSimulateIncoming={(content, platform) => routeMessage(content, platform, 'user')}
+          onRespondApproval={respondChatApproval}
         />
       </main>
       {isCanvasOpen && (

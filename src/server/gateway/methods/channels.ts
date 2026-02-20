@@ -4,6 +4,7 @@ import { broadcastToUser } from '../broadcast';
 import { GatewayEvents } from '../events';
 import { CHANNEL_CAPABILITIES } from '../../channels/adapters/capabilities';
 import type { ChannelKey } from '../../channels/adapters/types';
+import { listBridgeAccounts } from '../../channels/pairing/bridgeAccounts';
 
 function safeString(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -23,12 +24,17 @@ registerMethod(
 
     const channels = Object.entries(CHANNEL_CAPABILITIES).map(([channel, capabilities]) => {
       const binding = bindingMap.get(channel as ChannelKey);
+      const bridgeAccounts =
+        channel === 'whatsapp' || channel === 'imessage'
+          ? listBridgeAccounts(channel)
+          : undefined;
       return {
         channel,
         status: binding?.status ?? 'idle',
         peerName: binding?.peerName ?? null,
         transport: binding?.transport ?? null,
         lastSeenAt: binding?.lastSeenAt ?? null,
+        accounts: bridgeAccounts,
         ...capabilities,
       };
     });
@@ -45,13 +51,14 @@ registerMethod(
   async (params: Record<string, unknown>, client: GatewayClient, respond: RespondFn) => {
     const channel = safeString(params.channel).trim().toLowerCase();
     const token = safeString(params.token);
+    const accountId = safeString(params.accountId);
 
     const { isPairChannelType, pairChannel } = await import('../../channels/pairing');
     if (!isPairChannelType(channel)) {
       throw new Error(`Unsupported channel: ${channel}`);
     }
 
-    const result = await pairChannel(channel, token);
+    const result = await pairChannel(channel, token, accountId || undefined);
     const status =
       typeof result === 'object' &&
       result !== null &&
@@ -82,11 +89,18 @@ registerMethod(
       status: status === 'awaiting_code' ? 'awaiting_code' : 'connected',
       peerName,
       transport,
+      metadata:
+        typeof result === 'object' && result !== null && 'accountId' in result
+          ? { accountId: (result as { accountId?: unknown }).accountId || accountId || 'default' }
+          : accountId
+            ? { accountId }
+            : undefined,
     });
 
     const updatedAt = new Date().toISOString();
     broadcastToUser(client.userId, GatewayEvents.CHANNELS_STATUS, {
       channel,
+      accountId: accountId || 'default',
       status,
       peerName,
       transport,
@@ -96,6 +110,12 @@ registerMethod(
     respond({
       ok: true,
       channel,
+      accountId:
+        typeof result === 'object' &&
+        result !== null &&
+        typeof (result as { accountId?: unknown }).accountId === 'string'
+          ? ((result as { accountId: string }).accountId as string)
+          : accountId || 'default',
       status,
       transport,
       peerName,
@@ -112,12 +132,13 @@ registerMethod(
   'channels.unpair',
   async (params: Record<string, unknown>, client: GatewayClient, respond: RespondFn) => {
     const channel = safeString(params.channel).trim().toLowerCase();
+    const accountId = safeString(params.accountId);
     const { isPairChannelType, unpairChannel } = await import('../../channels/pairing');
     if (!isPairChannelType(channel)) {
       throw new Error(`Unsupported channel: ${channel}`);
     }
 
-    await unpairChannel(channel);
+    await unpairChannel(channel, accountId || undefined);
 
     const { getMessageRepository } = await import('../../channels/messages/runtime');
     const repo = getMessageRepository();
@@ -125,11 +146,13 @@ registerMethod(
       userId: client.userId,
       channel,
       status: 'disconnected',
+      metadata: accountId ? { accountId } : undefined,
     });
 
     const updatedAt = new Date().toISOString();
     broadcastToUser(client.userId, GatewayEvents.CHANNELS_STATUS, {
       channel,
+      accountId: accountId || 'default',
       status: 'disconnected',
       updatedAt,
     });
@@ -137,6 +160,7 @@ registerMethod(
     respond({
       ok: true,
       channel,
+      accountId: accountId || 'default',
       status: 'disconnected',
       updatedAt,
     });

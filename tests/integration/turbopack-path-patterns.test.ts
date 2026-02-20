@@ -23,7 +23,6 @@ describe('turbopack path pattern guard', () => {
       'src/server/skills/handlers/fileRead.ts',
       'src/server/skills/skillRepository.ts',
       'src/server/stats/tokenUsageRepository.ts',
-      'src/server/worker/workerRepository.ts',
     ];
 
     for (const file of files) {

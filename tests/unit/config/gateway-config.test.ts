@@ -52,6 +52,7 @@ describe('gatewayConfig service', () => {
       fs.unlinkSync(`${configPath}.bak`);
     }
     process.env.OPENCLAW_CONFIG_PATH = configPath;
+    process.env.OPENCLAW_CONFIG_BACKEND = 'file';
 
     fsMock.mkdir.mockReset();
     fsMock.readFile.mockReset();
@@ -74,6 +75,7 @@ describe('gatewayConfig service', () => {
       fs.unlinkSync(`${configPath}.bak`);
     }
     delete process.env.OPENCLAW_CONFIG_PATH;
+    delete process.env.OPENCLAW_CONFIG_BACKEND;
     vi.restoreAllMocks();
     vi.resetModules();
   });
@@ -201,7 +203,7 @@ describe('gatewayConfig service', () => {
     ).rejects.toThrow('ui.timeFormat');
   });
 
-  it('rejects invalid worker.openai.security.defaultApprovalMode on save', async () => {
+  it('rejects invalid ui.defaultView on save', async () => {
     const { loadGatewayConfig, saveGatewayConfig } =
       await import('../../../src/server/config/gatewayConfig');
     const loaded = await loadGatewayConfig();
@@ -210,17 +212,13 @@ describe('gatewayConfig service', () => {
       saveGatewayConfig(
         {
           ...validConfig(),
-          worker: {
-            openai: {
-              security: {
-                defaultApprovalMode: 'prompt',
-              },
-            },
+          ui: {
+            defaultView: 'worker',
           },
         },
         { expectedRevision: loaded.revision },
       ),
-    ).rejects.toThrow('worker.openai.security.defaultApprovalMode');
+    ).rejects.toThrow('ui.defaultView');
   });
 
   it('writes atomically via temporary file and rename', async () => {

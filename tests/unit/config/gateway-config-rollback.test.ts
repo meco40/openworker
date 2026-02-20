@@ -14,6 +14,7 @@ vi.mock('node:fs/promises', () => fsMock);
 describe('gateway config rollback safety', () => {
   it('cleans temp file when rename fails and keeps previous file', async () => {
     process.env.OPENCLAW_CONFIG_PATH = '.local/gateway-rollback-test.json';
+    process.env.OPENCLAW_CONFIG_BACKEND = 'file';
     const expectedPath = path.resolve(process.cwd(), '.local/gateway-rollback-test.json');
     let configReadCount = 0;
 
@@ -47,5 +48,6 @@ describe('gateway config rollback safety', () => {
     expect(fsMock.writeFile.mock.calls.some((args) => String(args[0]).endsWith('.bak'))).toBe(true);
 
     delete process.env.OPENCLAW_CONFIG_PATH;
+    delete process.env.OPENCLAW_CONFIG_BACKEND;
   });
 });

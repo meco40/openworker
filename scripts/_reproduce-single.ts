@@ -57,10 +57,19 @@ async function main() {
       messages: messages.map((m) => ({
         id: String(m.id),
         seq: Number(m.seq),
-        role: String(m.role) as 'user' | 'assistant',
+        role:
+          String(m.role).toLowerCase() === 'assistant'
+            ? 'agent'
+            : String(m.role).toLowerCase() === 'system'
+              ? 'system'
+              : 'user',
         content: String(m.content),
         createdAt: String(m.created_at),
         conversationId: CONVERSATION_ID,
+        platform: 'WebChat' as never,
+        externalMsgId: null,
+        senderName: null,
+        metadata: null,
       })),
     });
     console.log('[run] ingestConversationWindow returned (no error)');

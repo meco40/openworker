@@ -173,15 +173,10 @@ const HEALTH_ISSUE_HINTS: Record<
     meaning: 'Sicherheitsregeln oder Secrets sind nicht vollständig abgesichert.',
     action: 'Open `/api/security/status` and resolve warning entries.',
   },
-  'diagnostics.task_backlog': {
-    title: 'Worker-Backlog ist hoch',
-    meaning: 'Zu viele offene Tasks verlangsamen Antworten und Verarbeitung.',
-    action: 'Offene Tasks reduzieren oder Worker-Kapazitaet erhoehen.',
-  },
   'diagnostics.memory_pressure': {
     title: 'Arbeitsspeicher ist fast voll',
     meaning: 'Der Arbeitsspeicher (Node-Heap) ist nahe am Limit und kann instabil werden.',
-    action: 'Worker-Last reduzieren, alte Tasks aufraeumen und Prozess neu starten.',
+    action: 'Inaktive Sessions reduzieren, Last senken und Prozess bei Bedarf neu starten.',
   },
   'diagnostics.error_budget': {
     title: 'Fehlerquote zu hoch',

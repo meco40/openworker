@@ -18,9 +18,18 @@ export interface Peer {
 
 export interface MessageAttachment {
   name: string;
-  type: string; // MIME type
-  url: string; // data URL or object URL
-  size: number; // bytes
+  type: string;
+  url: string;
+  size: number;
+}
+
+export type ChatApprovalDecision = 'approve_once' | 'approve_always' | 'deny';
+
+export interface MessageApprovalRequest {
+  token: string;
+  prompt?: string;
+  toolId?: string;
+  toolFunctionName?: string;
 }
 
 export interface Message {
@@ -29,8 +38,21 @@ export interface Message {
   content: string;
   timestamp: string;
   peerId?: string;
+  conversationId?: string;
   platform: ChannelType;
   attachment?: MessageAttachment;
+  streaming?: boolean;
+  approvalRequest?: MessageApprovalRequest;
+  approvalSubmitting?: boolean;
+  approvalResolved?: ChatApprovalDecision;
+  approvalError?: string;
+}
+
+export interface ChatStreamDebugState {
+  phase: 'idle' | 'running' | 'done' | 'error';
+  transport: 'unknown' | 'live-delta' | 'final-only';
+  message?: string;
+  updatedAt: string;
 }
 
 export interface Conversation {
@@ -55,7 +77,7 @@ export interface MemoryEntry {
 
 export interface ScheduledTask {
   id: string;
-  targetTime: string; // ISO String
+  targetTime: string;
   content: string;
   platform: ChannelType;
   status: 'pending' | 'triggered' | 'cancelled';
@@ -77,15 +99,9 @@ export interface GatewayState {
 
 export interface ControlPlaneMetrics {
   uptimeSeconds: number;
-  pendingWorkerTasks: number;
   activeWsSessions: number;
   tokensToday: number;
   vectorNodeCount: number;
-  orchestra?: {
-    runCount: number;
-    failFastAbortCount: number;
-    activeSubagentSessions: number;
-  };
   rooms?: {
     totalRooms: number;
     runningRooms: number;
@@ -129,7 +145,6 @@ export enum View {
   PROFILE = 'profile',
   TASKS = 'tasks',
   MODELS = 'models',
-  WORKER = 'worker',
   PERSONAS = 'personas',
   MEMORY = 'memory',
 }
@@ -177,97 +192,6 @@ export interface ModelProfile {
   stack: ConfiguredModel[];
 }
 
-export type WorkspaceType = 'research' | 'webapp' | 'creative' | 'data' | 'general';
-
-export enum WorkerTaskStatus {
-  INBOX = 'inbox',
-  QUEUED = 'queued',
-  ASSIGNED = 'assigned',
-  PLANNING = 'planning',
-  CLARIFYING = 'clarifying',
-  EXECUTING = 'executing',
-  WAITING_APPROVAL = 'waiting_approval',
-  TESTING = 'testing',
-  REVIEW = 'review',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled',
-  INTERRUPTED = 'interrupted',
-}
-
-export interface WorkerQuestion {
-  id: string;
-  text: string;
-  options: string[];
-}
-
-export interface WorkerArtifact {
-  id: string;
-  name: string;
-  type: string;
-  content: string;
-  mimeType: string | null;
-}
-
-export interface WorkerStep {
-  id: string;
-  taskId: string;
-  stepIndex: number;
-  description: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  output: string | null;
-  startedAt: string | null;
-  completedAt: string | null;
-}
-
-export interface WorkspaceFile {
-  name: string;
-  relativePath: string;
-  size: number;
-  modifiedAt: string;
-  isDirectory: boolean;
-}
-
-export interface WorkerTask {
-  id: string;
-  title: string;
-  objective: string;
-  status: WorkerTaskStatus;
-  workspaceType: WorkspaceType;
-  priority: 'low' | 'normal' | 'high' | 'urgent';
-  currentStep: number;
-  totalSteps: number;
-  resultSummary: string | null;
-  errorMessage: string | null;
-  workspacePath: string | null;
-  resumable: boolean;
-  assignedPersonaId: string | null;
-  planningMessages: string | null;
-  planningComplete: boolean;
-  steps?: WorkerStep[];
-  artifacts?: WorkerArtifact[];
-  createdAt: string;
-  startedAt: string | null;
-  completedAt: string | null;
-}
-
-export interface WorkerActivity {
-  id: string;
-  taskId: string;
-  type:
-    | 'status_change'
-    | 'persona_assigned'
-    | 'step_completed'
-    | 'step_failed'
-    | 'error'
-    | 'note'
-    | 'agent_message';
-  message: string;
-  metadata: string | null;
-  createdAt: string;
-}
-
-// Skill interface — supports built-in and externally installed skills
 export interface Skill {
   id: string;
   name: string;
@@ -280,7 +204,6 @@ export interface Skill {
   sourceUrl?: string;
 }
 
-// Fixed: Added CommandPermission interface used by SecurityView and constants
 export interface CommandPermission {
   id: string;
   command: string;

@@ -1,0 +1,63 @@
+services:
+  mem0-postgres:
+    image: pgvector/pgvector:pg17
+    container_name: openclaw-mem0-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mem0
+      POSTGRES_USER: mem0
+      POSTGRES_PASSWORD: mem0
+    volumes:
+      - mem0-postgres-data:/var/lib/postgresql/data
+    ports:
+      - '5433:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U mem0 -d mem0']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mem0-local:
+    build:
+      context: docker/mem0-local
+      dockerfile: Dockerfile
+    container_name: openclaw-mem0-local
+    restart: unless-stopped
+    depends_on:
+      mem0-postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: mem0-postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: mem0
+      POSTGRES_USER: mem0
+      POSTGRES_PASSWORD: mem0
+      POSTGRES_COLLECTION_NAME: mem0
+      MEM0_API_KEY: ${MEM0_API_KEY:-local-mem0-dev-token}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      MEM0_ALLOW_ADMIN_ENDPOINTS: 'true'
+      MEM0_LLM_PROVIDER: gemini
+      MEM0_LLM_MODEL: gemini-2.0-flash
+      MEM0_EMBEDDER_PROVIDER: gemini
+      MEM0_EMBEDDER_MODEL: gemini-embedding-001
+      MEM0_EMBEDDING_DIMS: 768
+      HISTORY_DB_PATH: /app/history/history.db
+    volumes:
+      - mem0-history-data:/app/history
+    ports:
+      - '8010:8000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=5).read()",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mem0-postgres-data:
+  mem0-history-data:

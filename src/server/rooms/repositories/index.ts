@@ -6,5 +6,4 @@ export { RunRepository } from './runRepository';
 export { RuntimeRepository } from './runtimeRepository';
 export { PersonaRepository } from './personaRepository';
 export { InterventionRepository } from './interventionRepository';
-export { PermissionRepository } from './permissionRepository';
 export { runMigrations } from './migrations';

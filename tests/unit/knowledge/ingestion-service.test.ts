@@ -300,7 +300,12 @@ describe('KnowledgeIngestionService', () => {
         },
         extractor: { extract },
         knowledgeRepository: {
-          getIngestionCheckpoint: vi.fn(() => ({ lastSeq: 0 })),
+          getIngestionCheckpoint: vi.fn(() => ({
+            conversationId: 'conv-threshold',
+            personaId: 'persona-1',
+            lastSeq: 0,
+            updatedAt: new Date().toISOString(),
+          })),
           upsertIngestionCheckpoint: upsertCheckpoint,
           upsertEpisode: vi.fn(),
           upsertMeetingLedger: vi.fn(),

@@ -17,7 +17,7 @@ export function isPairChannelType(value: string): value is PairChannelType {
   );
 }
 
-export async function pairChannel(channel: PairChannelType, token = '') {
+export async function pairChannel(channel: PairChannelType, token = '', accountId?: string) {
   if (channel === 'telegram') {
     return pairTelegram(token);
   }
@@ -28,7 +28,7 @@ export async function pairChannel(channel: PairChannelType, token = '') {
     return pairSlack(token);
   }
   if (channel === 'whatsapp' || channel === 'imessage') {
-    return pairBridgeChannel(channel);
+    return pairBridgeChannel(channel, accountId);
   }
   throw new Error(`Unsupported channel: ${channel}`);
 }

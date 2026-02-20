@@ -164,7 +164,7 @@ export async function PUT(request: Request) {
     const saved = await saveGatewayConfig(body.config, { expectedRevision: revision });
     logConfigSaveSuccess({
       userId,
-      source: 'file',
+      source: saved.source,
       warningCount: saved.warnings.length,
       revision: saved.revision,
       status: 200,
@@ -173,7 +173,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({
       ok: true,
       config: redactGatewayConfigSecrets(saved.config),
-      source: 'file',
+      source: saved.source,
       displayPath: toGatewayConfigDisplayPath(saved.path),
       warnings: saved.warnings,
       revision: saved.revision,

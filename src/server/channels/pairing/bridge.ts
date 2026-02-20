@@ -1,46 +1,116 @@
+import crypto from 'node:crypto';
 import { getCredentialStore } from '../credentials';
+import {
+  normalizeBridgeAccountId,
+  resolveBridgeAccountSecret,
+  upsertBridgeAccount,
+  type BridgeChannel,
+} from './bridgeAccounts';
 
-export async function pairBridgeChannel(channel: 'whatsapp' | 'imessage') {
+function resolveBridgeUrl(channel: BridgeChannel): string {
   const envName = channel === 'whatsapp' ? 'WHATSAPP_BRIDGE_URL' : 'IMESSAGE_BRIDGE_URL';
   const bridgeUrl = process.env[envName];
   if (!bridgeUrl) {
     throw new Error(`${envName} is not configured.`);
   }
+  return bridgeUrl.replace(/\/$/, '');
+}
 
-  // 1. Health check
-  const healthUrl = `${bridgeUrl.replace(/\/$/, '')}/health`;
-  const response = await fetch(healthUrl);
+export async function probeBridgeHealth(channel: BridgeChannel): Promise<{
+  ok: boolean;
+  status: number;
+  peerName?: string;
+  details?: Record<string, unknown>;
+}> {
+  const bridgeBaseUrl = resolveBridgeUrl(channel);
+  const response = await fetch(`${bridgeBaseUrl}/health`);
   if (!response.ok) {
-    throw new Error(`${channel} bridge health check failed with ${response.status}.`);
+    return { ok: false, status: response.status };
   }
-  const data = (await response.json().catch(() => ({}))) as { peerName?: string };
 
-  // 2. Register webhook callback so the bridge forwards incoming messages to us
+  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  return {
+    ok: true,
+    status: response.status,
+    peerName: typeof payload.peerName === 'string' ? payload.peerName : undefined,
+    details: payload,
+  };
+}
+
+export async function registerBridgeWebhook(params: {
+  channel: BridgeChannel;
+  accountId?: string;
+  webhookSecret?: string;
+}): Promise<{ ok: boolean; callbackUrl?: string }> {
+  const accountId = normalizeBridgeAccountId(params.accountId);
+  const bridgeBaseUrl = resolveBridgeUrl(params.channel);
   const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || process.env.VERCEL_URL;
-  if (appUrl) {
-    const webhookUrl = `${appUrl.replace(/\/$/, '')}/api/channels/${channel}/webhook`;
-    try {
-      await fetch(`${bridgeUrl.replace(/\/$/, '')}/webhook`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callbackUrl: webhookUrl }),
-      });
-    } catch (error) {
-      console.warn(`${channel} webhook registration warning:`, error);
-    }
-  } else {
-    console.warn('APP_URL not set — bridge webhook not registered.');
+  if (!appUrl) {
+    console.warn('APP_URL not set - bridge webhook not registered.');
+    return { ok: false };
   }
+
+  const callbackUrl = `${appUrl.replace(/\/$/, '')}/api/channels/${params.channel}/webhook?accountId=${encodeURIComponent(accountId)}`;
+  const webhookSecret =
+    params.webhookSecret || resolveBridgeAccountSecret(params.channel, accountId);
+
+  try {
+    const response = await fetch(`${bridgeBaseUrl}/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        callbackUrl,
+        accountId,
+        secret: webhookSecret,
+        headers: {
+          'x-webhook-secret': webhookSecret,
+          'x-openclaw-account-id': accountId,
+        },
+      }),
+    });
+    if (!response.ok) {
+      console.warn(
+        `${params.channel} webhook registration failed with status ${response.status}.`,
+      );
+      return { ok: false, callbackUrl };
+    }
+    return { ok: true, callbackUrl };
+  } catch (error) {
+    console.warn(`${params.channel} webhook registration warning:`, error);
+    return { ok: false, callbackUrl };
+  }
+}
+
+export async function pairBridgeChannel(channel: BridgeChannel, accountIdInput?: string) {
+  const accountId = normalizeBridgeAccountId(accountIdInput);
+  const health = await probeBridgeHealth(channel);
+  if (!health.ok) {
+    throw new Error(`${channel} bridge health check failed with ${health.status}.`);
+  }
+
+  const webhookSecret = crypto.randomBytes(32).toString('hex');
+  await registerBridgeWebhook({ channel, accountId, webhookSecret });
 
   try {
     const store = getCredentialStore();
-    store.setCredential(channel, 'pairing_status', 'connected');
+    upsertBridgeAccount(
+      channel,
+      {
+        accountId,
+        pairingStatus: 'connected',
+        webhookSecret,
+        peerName: health.peerName || `${channel}-bridge`,
+        touchLastSeen: true,
+      },
+      store,
+    );
   } catch (error) {
     console.warn(`${channel} pairing status persistence warning:`, error);
   }
 
   return {
-    peerName: data.peerName || `${channel}-bridge`,
-    details: data,
+    accountId,
+    peerName: health.peerName || `${channel}-bridge`,
+    details: health.details || {},
   };
 }

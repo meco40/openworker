@@ -61,7 +61,6 @@ describe('RoomOrchestrator ClawHub prompt hydration', () => {
     });
     repo.addMember(room.id, 'persona-1', 'Researcher', 1, 'grok-4');
     repo.updateRunState(room.id, 'running');
-    repo.setPersonaPermissions('persona-1', { tools: { search: false } });
 
     const orchestrator = new RoomOrchestrator(repo, {
       instanceId: 'scheduler-a',

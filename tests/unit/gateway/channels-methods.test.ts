@@ -115,7 +115,7 @@ describe('gateway channels methods', () => {
       (frame) => sent.push(frame),
     );
 
-    expect(pairChannel).toHaveBeenCalledWith('telegram', 'abc');
+    expect(pairChannel).toHaveBeenCalledWith('telegram', 'abc', undefined);
     expect(upsertChannelBinding).toHaveBeenCalled();
     expect(broadcastToUser).toHaveBeenCalled();
     const response = sent[0] as { ok: boolean; payload: { status: string } };
@@ -152,7 +152,7 @@ describe('gateway channels methods', () => {
       (frame) => sent.push(frame),
     );
 
-    expect(unpairChannel).toHaveBeenCalledWith('telegram');
+    expect(unpairChannel).toHaveBeenCalledWith('telegram', undefined);
     expect(upsertChannelBinding).toHaveBeenCalled();
     const response = sent[0] as { ok: boolean; payload: { status: string } };
     expect(response.ok).toBe(true);

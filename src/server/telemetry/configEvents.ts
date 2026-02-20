@@ -1,6 +1,6 @@
 export interface ConfigEventPayload {
   userId?: string;
-  source?: 'default' | 'file' | 'unknown';
+  source?: 'default' | 'file' | 'db' | 'unknown';
   warningCount?: number;
   status?: number;
   reason?: string;

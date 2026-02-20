@@ -253,7 +253,11 @@ export class ModelHubService {
     profileId: string,
     encryptionKey: string,
     request: Omit<GatewayRequest, 'model'>,
-    options?: { signal?: AbortSignal; modelOverride?: string },
+    options?: {
+      signal?: AbortSignal;
+      modelOverride?: string;
+      onStreamDelta?: (delta: string) => void;
+    },
   ): Promise<GatewayResponse> {
     const pipeline = this.repository.listPipelineModels(profileId);
     const activeModels = pipeline.filter((m) => m.status === 'active');
@@ -301,7 +305,7 @@ export class ModelHubService {
             model: preferredTarget.modelName,
             reasoning_effort: preferredReasoningEffort ?? request.reasoning_effort,
           },
-          { signal: options?.signal },
+          { signal: options?.signal, onStreamDelta: options?.onStreamDelta },
         );
 
         if (preferredResult.ok) {
@@ -350,7 +354,7 @@ export class ModelHubService {
           model: entry.modelName,
           reasoning_effort: pipelineReasoningEffort ?? request.reasoning_effort,
         },
-        { signal: options?.signal },
+        { signal: options?.signal, onStreamDelta: options?.onStreamDelta },
       );
 
       if (result.ok) {

@@ -48,6 +48,112 @@ function extractGeminiFunctionCalls(result: unknown): Array<{ name: string; args
     .filter((call): call is { name: string; args?: unknown } => Boolean(call && call.name));
 }
 
+function mapOpenAiTypeToGemini(type: unknown): string {
+  switch (String(type || '').toLowerCase()) {
+    case 'number':
+      return 'NUMBER';
+    case 'integer':
+      return 'INTEGER';
+    case 'boolean':
+      return 'BOOLEAN';
+    case 'array':
+      return 'ARRAY';
+    case 'object':
+      return 'OBJECT';
+    default:
+      return 'STRING';
+  }
+}
+
+function normalizeGeminiTools(rawTools: unknown[]): unknown[] {
+  const normalized: unknown[] = [];
+
+  for (const rawTool of rawTools) {
+    if (!rawTool || typeof rawTool !== 'object' || Array.isArray(rawTool)) {
+      continue;
+    }
+
+    const tool = rawTool as {
+      functionDeclarations?: unknown;
+      type?: unknown;
+      function?: {
+        name?: unknown;
+        description?: unknown;
+        parameters?: {
+          type?: unknown;
+          properties?: Record<string, { type?: unknown; description?: unknown; enum?: unknown }>;
+          required?: unknown;
+        };
+      };
+    };
+
+    if (Array.isArray(tool.functionDeclarations) && tool.functionDeclarations.length > 0) {
+      normalized.push(tool);
+      continue;
+    }
+
+    if (tool.type !== 'function' || !tool.function || typeof tool.function.name !== 'string') {
+      continue;
+    }
+
+    const rawParams =
+      tool.function.parameters && typeof tool.function.parameters === 'object'
+        ? tool.function.parameters
+        : {};
+    const rawProperties =
+      rawParams.properties && typeof rawParams.properties === 'object'
+        ? rawParams.properties
+        : {};
+
+    const properties: Record<string, { type: string; description?: string; enum?: string[] }> = {};
+    for (const [name, property] of Object.entries(rawProperties)) {
+      if (!property || typeof property !== 'object') continue;
+      const typedProperty = property as {
+        type?: unknown;
+        description?: unknown;
+        enum?: unknown;
+      };
+      const nextProperty: { type: string; description?: string; enum?: string[] } = {
+        type: mapOpenAiTypeToGemini(typedProperty.type),
+      };
+      if (typeof typedProperty.description === 'string') {
+        nextProperty.description = typedProperty.description;
+      }
+      if (Array.isArray(typedProperty.enum)) {
+        const enumValues = typedProperty.enum
+          .filter((value): value is string => typeof value === 'string')
+          .map((value) => value.trim())
+          .filter(Boolean);
+        if (enumValues.length > 0) {
+          nextProperty.enum = enumValues;
+        }
+      }
+      properties[name] = nextProperty;
+    }
+
+    const required = Array.isArray(rawParams.required)
+      ? rawParams.required.filter((value): value is string => typeof value === 'string')
+      : [];
+
+    normalized.push({
+      functionDeclarations: [
+        {
+          name: tool.function.name,
+          description:
+            typeof tool.function.description === 'string' ? tool.function.description : undefined,
+          parameters: {
+            type: mapOpenAiTypeToGemini(rawParams.type),
+            properties,
+            required,
+          },
+        },
+      ],
+    });
+  }
+
+  return normalized;
+}
+
 const geminiProviderAdapter: ProviderAdapter = {
   id: 'gemini',
   async fetchModels({ secret }) {
@@ -123,7 +229,10 @@ const geminiProviderAdapter: ProviderAdapter = {
       if (request.temperature !== undefined) config.temperature = request.temperature;
       if (request.responseMimeType) config.responseMimeType = request.responseMimeType;
       if (Array.isArray(request.tools) && request.tools.length > 0) {
-        config.tools = request.tools;
+        const tools = normalizeGeminiTools(request.tools);
+        if (tools.length > 0) {
+          config.tools = tools;
+        }
       }
 
       const generatePromise = (ai.models as GeminiModelsApi).generateContent({

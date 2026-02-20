@@ -98,7 +98,7 @@ export function useChatInterfaceState({
   useEffect(() => {
     if (messages.length > 0) {
       const last = messages[messages.length - 1];
-      if (last.role === 'agent' || last.role === 'system') {
+      if ((last.role === 'agent' || last.role === 'system') && !last.streaming) {
         setIsGenerating(false);
       }
     }

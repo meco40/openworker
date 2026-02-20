@@ -60,12 +60,23 @@ async function main() {
   const result = await extractor.extract({
     messages: sampleMessages.map((m) => ({
       id: m.id,
+      conversationId: CONVERSATION_ID,
       seq: m.seq,
-      role: m.role as 'user' | 'assistant',
+      role:
+        String(m.role).toLowerCase() === 'assistant'
+          ? 'agent'
+          : String(m.role).toLowerCase() === 'system'
+            ? 'system'
+            : 'user',
       content: m.content,
+      platform: 'WebChat' as never,
+      externalMsgId: null,
+      senderName: null,
+      metadata: null,
       createdAt: m.created_at,
     })),
     conversationId: CONVERSATION_ID,
+    userId: 'legacy-local-user',
     personaId: PERSONA_ID,
   });
 

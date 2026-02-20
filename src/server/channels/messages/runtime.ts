@@ -5,6 +5,7 @@ declare global {
   var __messageRepository: SqliteMessageRepository | undefined;
   var __messageService: MessageService | undefined;
   var __pollingResumeChecked: boolean | undefined;
+  var __channelHealthMonitorChecked: boolean | undefined;
 }
 
 export function getMessageRepository(): SqliteMessageRepository {
@@ -41,6 +42,18 @@ export function getMessageService(): MessageService {
         }
       } catch (err) {
         console.warn('[Runtime] Could not auto-resume Telegram polling:', err);
+      }
+    })();
+  }
+
+  if (!globalThis.__channelHealthMonitorChecked) {
+    globalThis.__channelHealthMonitorChecked = true;
+    (async () => {
+      try {
+        const { startChannelHealthMonitor } = await import('../healthMonitor');
+        startChannelHealthMonitor();
+      } catch (error) {
+        console.warn('[Runtime] Could not start channel health monitor:', error);
       }
     })();
   }

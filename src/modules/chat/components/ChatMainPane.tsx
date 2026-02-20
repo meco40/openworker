@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
-import type { Conversation, Message } from '../../../../types';
+import type {
+  ChatApprovalDecision,
+  ChatStreamDebugState,
+  Conversation,
+  Message,
+  MessageApprovalRequest,
+} from '../../../../types';
 import { getPlatformMeta } from '../uiUtils';
 import ChatMessageAttachment from './ChatMessageAttachment';
 import { usePersona } from '../../personas/PersonaContext';
@@ -8,6 +14,12 @@ interface ChatMainPaneProps {
   activeConversation: Conversation | undefined;
   messages: Message[];
   isTyping?: boolean;
+  chatStreamDebug: ChatStreamDebugState;
+  onRespondApproval: (
+    message: Message,
+    approvalRequest: MessageApprovalRequest,
+    decision: ChatApprovalDecision,
+  ) => void;
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -15,11 +27,31 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
   activeConversation,
   messages,
   isTyping,
+  chatStreamDebug,
+  onRespondApproval,
   scrollRef,
 }) => {
   const activeMeta = activeConversation ? getPlatformMeta(activeConversation.channelType) : null;
   const { activePersona, personas, activePersonaId, setActivePersonaId } = usePersona();
   const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
+  const streamDebugLabel =
+    chatStreamDebug.phase === 'running'
+      ? chatStreamDebug.transport === 'live-delta'
+        ? 'Stream: LIVE-Delta aktiv'
+        : 'Stream: wartet auf Delta'
+      : chatStreamDebug.phase === 'done'
+        ? chatStreamDebug.transport === 'live-delta'
+          ? 'Letzte Antwort: LIVE-Delta'
+          : 'Letzte Antwort: final-only'
+        : chatStreamDebug.phase === 'error'
+          ? `Stream: Fehler${chatStreamDebug.message ? ` (${chatStreamDebug.message})` : ''}`
+          : 'Stream: idle';
+  const streamDebugClass =
+    chatStreamDebug.transport === 'live-delta'
+      ? 'border-emerald-500/30 bg-emerald-600/15 text-emerald-300'
+      : chatStreamDebug.phase === 'error'
+        ? 'border-rose-500/30 bg-rose-600/15 text-rose-300'
+        : 'border-amber-500/30 bg-amber-600/15 text-amber-300';
 
   return (
     <>
@@ -49,8 +81,13 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
           )}
         </div>
 
-        {/* Persona Switcher */}
-        <div className="relative">
+        <div className="flex items-center gap-2">
+          <div className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${streamDebugClass}`}>
+            {streamDebugLabel}
+          </div>
+
+          {/* Persona Switcher */}
+          <div className="relative">
           <button
             onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
             className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
@@ -110,6 +147,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
               )}
             </div>
           )}
+          </div>
         </div>
       </header>
 
@@ -136,6 +174,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
         ) : (
           messages.map((message) => {
             const meta = getPlatformMeta(message.platform);
+            const approvalRequest = message.approvalRequest;
             return (
               <div
                 key={message.id}
@@ -181,6 +220,58 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                     </div>
                     {message.attachment && (
                       <ChatMessageAttachment attachment={message.attachment} />
+                    )}
+                    {approvalRequest && (
+                      <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                        {approvalRequest.prompt && (
+                          <div className="mb-2 whitespace-pre-wrap text-xs leading-relaxed text-amber-100">
+                            {approvalRequest.prompt}
+                          </div>
+                        )}
+
+                        {!message.approvalResolved ? (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => onRespondApproval(message, approvalRequest, 'approve_once')}
+                              disabled={message.approvalSubmitting}
+                              className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-60"
+                            >
+                              Approve once
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onRespondApproval(message, approvalRequest, 'approve_always')
+                              }
+                              disabled={message.approvalSubmitting}
+                              className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-[10px] font-semibold text-indigo-300 transition hover:bg-indigo-500/20 disabled:opacity-60"
+                            >
+                              Approve always
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onRespondApproval(message, approvalRequest, 'deny')}
+                              disabled={message.approvalSubmitting}
+                              className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-[10px] font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-60"
+                            >
+                              Deny
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-zinc-400">
+                            {message.approvalResolved === 'approve_once'
+                              ? 'Genehmigt (einmal).'
+                              : message.approvalResolved === 'approve_always'
+                                ? 'Genehmigt (immer) und Policy gespeichert.'
+                                : 'Abgelehnt.'}
+                          </div>
+                        )}
+
+                        {message.approvalError && (
+                          <div className="mt-2 text-[11px] text-rose-300">{message.approvalError}</div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

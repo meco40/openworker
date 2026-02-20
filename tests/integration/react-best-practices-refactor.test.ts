@@ -27,7 +27,7 @@ describe('react/next best-practices refactor', () => {
   it('uses dynamic imports for heavy optional views', () => {
     const viewContent = read('src/modules/app-shell/components/AppShellViewContent.tsx');
     expect(viewContent).toContain("import dynamic from 'next/dynamic';");
-    expect(viewContent).toContain("dynamic(() => import('../../../../WorkerView'))");
+    expect(viewContent).not.toContain("dynamic(() => import('../../../../WorkerView'))");
     expect(viewContent).toContain("dynamic(() => import('../../../../components/ModelHub'))");
   });
 
@@ -82,11 +82,10 @@ describe('react/next best-practices refactor', () => {
     expect(dashboard).toContain('[...scheduled].sort(');
   });
 
-  it('uses API-based hook for worker task management', () => {
-    const workerView = read('WorkerView.tsx');
-    // WorkerView now delegates to useWorkerTasks hook via API instead of client-side setTasks
-    expect(workerView).toContain('useWorkerTasks');
-    expect(workerView).not.toContain('ai(');
+  it('keeps worker view detached from the main app shell', () => {
+    const appShellViewContent = read('src/modules/app-shell/components/AppShellViewContent.tsx');
+    expect(appShellViewContent).not.toContain('View.WORKER');
+    expect(appShellViewContent).not.toContain('Autonomous Worker');
   });
 
   it('uses lazy state initialization for expensive initial values', () => {

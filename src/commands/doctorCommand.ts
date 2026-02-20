@@ -1,5 +1,4 @@
 import { getLogRepository } from '../logging/logRepository';
-import { getWorkerRepository } from '../server/worker/workerRepository';
 import { runHealthCommand } from './healthCommand';
 import { buildDoctorFindings, type DoctorFinding } from './doctorRules';
 import type { HealthCheck, HealthCommandOptions, HealthReportStatus } from './healthTypes';
@@ -11,15 +10,6 @@ export interface DoctorReport {
   recommendations: string[];
   generatedAt: string;
 }
-
-const OPEN_TASK_STATUSES = new Set([
-  'queued',
-  'planning',
-  'clarifying',
-  'executing',
-  'review',
-  'waiting_approval',
-]);
 
 function resolveErrorCountLast15m(): number {
   const now = Date.now();
@@ -40,11 +30,6 @@ function resolveErrorCountPrevious15m(): number {
     const ts = Date.parse(entry.createdAt || entry.timestamp);
     return Number.isFinite(ts) && ts >= lower && ts < upper;
   }).length;
-}
-
-function resolveOpenTaskCount(): number {
-  const tasks = getWorkerRepository().listTasks({ limit: 5000 });
-  return tasks.filter((task) => OPEN_TASK_STATUSES.has(task.status)).length;
 }
 
 function resolveDoctorStatus(
@@ -68,7 +53,6 @@ export async function runDoctorCommand(options: HealthCommandOptions = {}): Prom
     checks: health.checks,
     errorCountLast15m,
     errorCountPrevious15m,
-    openTaskCount: resolveOpenTaskCount(),
   });
 
   const recommendations = Array.from(

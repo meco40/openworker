@@ -88,8 +88,6 @@ const config = [
       'src/server/channels/messages/service.ts',
       'src/server/channels/pairing/telegramInbound.ts',
       'src/server/channels/pairing/telegramPolling.ts',
-      'src/server/worker/workerAgent.ts',
-      'src/server/worker/workerCallback.ts',
     ],
     rules: {
       // These modules intentionally share singleton runtime state.

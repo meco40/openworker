@@ -7,6 +7,10 @@
     "dev": "tsx watch server.ts",
     "dev:scheduler": "tsx watch scheduler.ts",
     "dev:next": "next dev",
+    "cli": "node --import tsx src/cli/program.ts",
+    "cli:gateway": "node --import tsx src/cli/program.ts gateway",
+    "cli:channels": "node --import tsx src/cli/program.ts channels",
+    "cli:node": "node --import tsx src/cli/program.ts node",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
@@ -26,10 +30,11 @@
     "memory:cleanup-noise": "node --import tsx scripts/memory-cleanup-noise.ts",
     "memory:backfill-channel-scope": "node --import tsx scripts/memory-backfill-channel-scope.ts",
     "knowledge:ingest": "node --import tsx scripts/trigger-knowledge-ingestion.ts",
-    "worker:openai:dev": "cd services/openai_worker && .venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8011 --reload",
-    "worker:openai:test": "cd services/openai_worker && .venv\\Scripts\\python.exe -m pytest tests -q",
-    "worker:openai:load": "npm run test -- tests/load/worker-openai-load.test.ts",
-    "worker:openai:ci": "npm run typecheck && npm run test -- tests/unit/worker/openai-worker-runtime.test.ts tests/integration/worker/openai-event-ordering.test.ts tests/integration/worker/openai-duplicate-events.test.ts tests/integration/worker/openai-schema-version.test.ts tests/integration/worker/openai-runtime-failover.test.ts tests/integration/worker/openai-budget-enforcement.test.ts tests/integration/worker/openai-rate-limit.test.ts tests/load/worker-openai-load.test.ts && cd services/openai_worker && .venv\\Scripts\\python.exe -m pytest tests -q",
+    "smoke:chat-cli-approval": "node --import tsx scripts/smoke-chat-cli-approval.ts",
+    "mem0:local:up": "docker compose --env-file .env.local -f docker-compose.mem0-local.yml up -d --build",
+    "mem0:local:down": "docker compose --env-file .env.local -f docker-compose.mem0-local.yml down",
+    "mem0:local:logs": "docker compose --env-file .env.local -f docker-compose.mem0-local.yml logs -f mem0-local mem0-postgres",
+    "mem0:local:ps": "docker compose --env-file .env.local -f docker-compose.mem0-local.yml ps",
     "dev:stack": "npm run dev",
     "speckit:help": "pwsh -File .specify/scripts/powershell/check-prerequisites.ps1 -Help",
     "speckit:new": "pwsh -File .specify/scripts/powershell/create-new-feature.ps1",
@@ -110,5 +115,6 @@
       ".specify/**",
       ".codex/**"
     ]
-  }
+  },
+  "packageManager": "pnpm@10.30.1+sha512.3590e550d5384caa39bd5c7c739f72270234b2f6059e13018f975c313b1eb9fefcc09714048765d4d9efe961382c312e624572c0420762bdc5d5940cdf9be73a"
 }

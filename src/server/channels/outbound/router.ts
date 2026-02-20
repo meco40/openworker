@@ -43,7 +43,8 @@ function ensureDefaultAdapters(): void {
   if (!getAdapter('whatsapp')) {
     registerAdapter({
       channel: 'whatsapp',
-      send: async ({ externalChatId, content }) => deliverWhatsApp(externalChatId, content),
+      send: async ({ externalChatId, content, metadata }) =>
+        deliverWhatsApp(externalChatId, content, metadata),
     });
   }
   if (!getAdapter('discord')) {

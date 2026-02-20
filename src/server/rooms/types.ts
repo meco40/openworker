@@ -37,10 +37,6 @@ export interface RoomMessage {
   createdAt: string;
 }
 
-export interface PersonaPermissions {
-  tools: Record<string, boolean>;
-}
-
 export interface RoomIntervention {
   id: string;
   roomId: string;

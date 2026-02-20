@@ -1,7 +1,6 @@
 import { getClientRegistry } from '../../../server/gateway/client-registry';
 import { getMemoryProviderKind, getMemoryService } from '../../../server/memory/runtime';
 import { getTokenUsageRepository } from '../../../server/stats/tokenUsageRepository';
-import { getWorkerRepository } from '../../../server/worker/workerRepository';
 import { getLogRepository } from '../../../logging/logRepository';
 import { resolveKnowledgeConfig } from '../../../server/knowledge/config';
 import { getKnowledgeRepository } from '../../../server/knowledge/runtime';
@@ -23,24 +22,6 @@ export function runLoggingRepositoryCheck(): HealthCheck {
       start,
       'critical',
       `Logging repository unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    );
-  }
-}
-
-export function runWorkerRepositoryCheck(): HealthCheck {
-  const start = Date.now();
-  try {
-    const taskCount = getWorkerRepository().listTasks({ limit: 1_000 }).length;
-    return okCheck('core.worker_repository', 'core', start, 'Worker repository reachable.', {
-      taskCount,
-    });
-  } catch (error) {
-    return failCheck(
-      'core.worker_repository',
-      'core',
-      start,
-      'critical',
-      `Worker repository unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`,
     );
   }
 }

@@ -56,6 +56,12 @@ export class CredentialStore {
     return row?.value ?? null;
   }
 
+  deleteCredential(channel: string, key: string): void {
+    this.db
+      .prepare('DELETE FROM channel_credentials WHERE channel = ? AND key = ?')
+      .run(channel, key);
+  }
+
   deleteCredentials(channel: string): void {
     this.db.prepare('DELETE FROM channel_credentials WHERE channel = ?').run(channel);
   }

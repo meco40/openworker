@@ -20,6 +20,7 @@ const lmStudioProviderAdapter: ProviderAdapter = {
   dispatchGateway: ({ secret }, request, options) =>
     dispatchOpenAICompatibleChat(LMSTUDIO_BASE_URL, secret, 'lmstudio', request, {
       signal: options?.signal,
+      onStreamDelta: options?.onStreamDelta,
     }),
 };
 

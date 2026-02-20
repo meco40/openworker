@@ -1,11 +1,21 @@
 import { getCredentialStore } from '../credentials';
+import {
+  listBridgeAccountIds,
+  normalizeBridgeAccountId,
+  removeBridgeAccount,
+  resolveBridgeAccountSecret,
+  type BridgeChannel,
+} from './bridgeAccounts';
 
 export type UnpairChannelType = 'whatsapp' | 'telegram' | 'discord' | 'imessage' | 'slack';
 
 /**
  * Disconnects a channel by removing webhooks and clearing credentials.
  */
-export async function unpairChannel(channel: UnpairChannelType): Promise<void> {
+export async function unpairChannel(
+  channel: UnpairChannelType,
+  accountId?: string,
+): Promise<void> {
   switch (channel) {
     case 'telegram':
       await unpairTelegram(getCredentialStore());
@@ -14,10 +24,10 @@ export async function unpairChannel(channel: UnpairChannelType): Promise<void> {
       unpairDiscord(getCredentialStore());
       break;
     case 'whatsapp':
-      await unpairBridge('whatsapp', getCredentialStore());
+      await unpairBridge('whatsapp', getCredentialStore(), accountId);
       break;
     case 'imessage':
-      await unpairBridge('imessage', getCredentialStore());
+      await unpairBridge('imessage', getCredentialStore(), accountId);
       break;
     case 'slack':
       unpairSlack(getCredentialStore());
@@ -57,20 +67,39 @@ function unpairSlack(store: ReturnType<typeof getCredentialStore>): void {
 }
 
 async function unpairBridge(
-  channel: 'whatsapp' | 'imessage',
+  channel: BridgeChannel,
   store: ReturnType<typeof getCredentialStore>,
+  accountIdInput?: string,
 ): Promise<void> {
   const envName = channel === 'whatsapp' ? 'WHATSAPP_BRIDGE_URL' : 'IMESSAGE_BRIDGE_URL';
   const bridgeUrl = process.env[envName];
+  const accountId = normalizeBridgeAccountId(accountIdInput);
+  const shouldUnpairAll = accountIdInput === undefined;
+  const targetAccountIds = shouldUnpairAll ? listBridgeAccountIds(channel, store) : [accountId];
+  const accountsToClear = targetAccountIds.length > 0 ? targetAccountIds : [accountId];
 
-  // Attempt to deregister our webhook from the bridge
-  if (bridgeUrl) {
-    try {
-      await fetch(`${bridgeUrl.replace(/\/$/, '')}/webhook`, { method: 'DELETE' });
-    } catch (error) {
-      console.warn(`${channel} webhook deregistration warning:`, error);
+  for (const targetAccountId of accountsToClear) {
+    // Attempt to deregister our webhook from the bridge
+    if (bridgeUrl) {
+      try {
+        const url = `${bridgeUrl.replace(/\/$/, '')}/webhook?accountId=${encodeURIComponent(targetAccountId)}`;
+        const secret = resolveBridgeAccountSecret(channel, targetAccountId, store);
+        await fetch(url, {
+          method: 'DELETE',
+          headers: secret ? { 'x-webhook-secret': secret } : undefined,
+        });
+      } catch (error) {
+        console.warn(`${channel} webhook deregistration warning:`, error);
+      }
     }
+
+    removeBridgeAccount(channel, targetAccountId, store);
   }
 
-  store.deleteCredentials(channel);
+  if (shouldUnpairAll) {
+    const hasRemainingAccounts = listBridgeAccountIds(channel, store).length > 0;
+    if (!hasRemainingAccounts) {
+      store.deleteCredentials(channel);
+    }
+  }
 }

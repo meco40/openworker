@@ -19,6 +19,7 @@ const openAIProviderAdapter: ProviderAdapter = {
   dispatchGateway: ({ secret }, request, options) =>
     dispatchOpenAICompatibleChat('https://api.openai.com/v1', secret, 'openai', request, {
       signal: options?.signal,
+      onStreamDelta: options?.onStreamDelta,
     }),
 };
 

@@ -1,5 +1,12 @@
 import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
+import { isCommandApproved } from '../../gateway/exec-approval-manager';
+import {
+  commandFingerprint,
+  evaluateNodeCommandPolicy,
+  normalizeCommand,
+} from '../../gateway/node-command-policy';
+import type { SkillDispatchContext } from '../executeSkill';
 
 const execFile = promisify(execFileCallback);
 
@@ -12,34 +19,28 @@ function resolveShell(command: string): { file: string; args: string[] } {
   return { file: '/bin/bash', args: ['-lc', command] };
 }
 
-export async function shellExecuteHandler(args: Record<string, unknown>) {
+export async function shellExecuteHandler(
+  args: Record<string, unknown>,
+  context?: SkillDispatchContext,
+) {
   const command = String(args.command || '').trim();
   if (!command) throw new Error('shell_execute requires command.');
 
-  const loweredCommand = command.toLowerCase();
-  const blockedTokens = [
-    'rm -rf',
-    'shutdown',
-    'reboot',
-    'mkfs',
-    'powershell -enc',
-    'reg delete',
-    'sc stop',
-    'diskpart',
-    'bcdedit',
-    'invoke-expression',
-    ':(){',
-    'dd if=',
-    'cipher /w',
-  ];
+  const policy = evaluateNodeCommandPolicy(command);
+  if (!policy.allowed) {
+    throw new Error(policy.reason || 'Command blocked by security policy.');
+  }
 
-  const hasBlockedToken = blockedTokens.some((token) => loweredCommand.includes(token));
-  const isForcedWindowsDelete = /\bdel\s+\/f\s+\/s\s+\/q\b/i.test(command);
-  const isFormatCommand = /\bformat\b/i.test(command);
-  const isIexWord = /\biex\b/i.test(command);
-
-  if (hasBlockedToken || isForcedWindowsDelete || isFormatCommand || isIexWord) {
-    throw new Error('Command blocked by security policy.');
+  const requiresApproval =
+    String(process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
+  if (requiresApproval && !context?.bypassApproval && !isCommandApproved(normalizeCommand(command))) {
+    throw new Error(
+      [
+        'Command requires approval.',
+        `Fingerprint: ${commandFingerprint(command)}`,
+        'Approve via CLI: npm run cli -- node approve --command "<command>"',
+      ].join(' '),
+    );
   }
 
   try {

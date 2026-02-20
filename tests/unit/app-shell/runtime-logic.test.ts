@@ -5,6 +5,8 @@ import {
   mapConversationApiMessage,
   removeConversationById,
   resolveActiveConversationAfterDeletion,
+  STREAMING_DRAFT_ID_PREFIX,
+  upsertMessageReplacingStreamingDraft,
   upsertConversationActivity,
 } from '../../../src/modules/app-shell/runtimeLogic';
 import {
@@ -100,6 +102,33 @@ describe('app-shell runtime logic', () => {
     });
   });
 
+  it('maps approval metadata to approval request payload', () => {
+    const mapped = mapConversationApiMessage({
+      id: 'msg-approval',
+      conversationId: 'conv-approval',
+      role: 'agent',
+      content: 'Tool-Ausfuehrung benoetigt Genehmigung.',
+      createdAt: '2026-02-10T08:31:00.000Z',
+      platform: 'WebChat' as never,
+      metadata: JSON.stringify({
+        runtime: 'openai-sidecar',
+        status: 'approval_required',
+        approvalToken: 'tok-123',
+        approvalPrompt: 'Approve tool action?\n\nTool: safe_shell',
+        approvalToolId: 'shell',
+        approvalToolFunction: 'safe_shell',
+      }),
+    });
+
+    expect(mapped.conversationId).toBe('conv-approval');
+    expect(mapped.approvalRequest).toEqual({
+      token: 'tok-123',
+      prompt: 'Approve tool action?\n\nTool: safe_shell',
+      toolId: 'shell',
+      toolFunctionName: 'safe_shell',
+    });
+  });
+
   it('appends message only once by id', () => {
     const base: Message[] = [
       {
@@ -119,6 +148,30 @@ describe('app-shell runtime logic', () => {
     };
 
     expect(appendMessageIfMissing(base, incoming)).toHaveLength(1);
+  });
+
+  it('replaces local streaming draft when persisted agent message arrives', () => {
+    const base: Message[] = [
+      {
+        id: `${STREAMING_DRAFT_ID_PREFIX}abc`,
+        role: 'agent',
+        content: 'Teilantwort...',
+        timestamp: '10:00',
+        platform: 'WebChat' as never,
+        streaming: true,
+      },
+    ];
+    const incoming: Message = {
+      id: 'msg-final-1',
+      role: 'agent',
+      content: 'Finale Antwort',
+      timestamp: '10:01',
+      platform: 'WebChat' as never,
+    };
+
+    const updated = upsertMessageReplacingStreamingDraft(base, incoming);
+    expect(updated).toHaveLength(1);
+    expect(updated[0]).toEqual(incoming);
   });
 
   it('bumps active conversation to top when message arrives', () => {

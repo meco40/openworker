@@ -21,7 +21,9 @@ interface WhatsAppInboundPayload {
   from?: string;
   chatId?: string;
   body?: string;
+  text?: string;
   messageId?: string;
+  id?: string;
   senderName?: string;
 }
 
@@ -91,7 +93,7 @@ export function normalizeDiscordInbound(payload: DiscordInboundPayload): Inbound
 }
 
 export function normalizeWhatsAppInbound(payload: WhatsAppInboundPayload): InboundEnvelope | null {
-  const content = normalizeText(payload.body);
+  const content = normalizeText(payload.body) || normalizeText(payload.text);
   const chatId = payload.chatId?.trim() || payload.from?.trim();
   if (!content || !chatId) {
     return null;
@@ -102,7 +104,7 @@ export function normalizeWhatsAppInbound(payload: WhatsAppInboundPayload): Inbou
     content,
     payload,
     payload.senderName || payload.from || null,
-    payload.messageId?.trim() || null,
+    payload.messageId?.trim() || payload.id?.trim() || null,
   );
 }
 

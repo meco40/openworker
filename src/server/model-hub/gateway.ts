@@ -36,7 +36,7 @@ export async function dispatchGatewayRequest(
   account: ProviderAccountRecord,
   encryptionKey: string,
   request: GatewayRequest,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; onStreamDelta?: (delta: string) => void },
 ): Promise<GatewayResponse> {
   const provider = findProvider(account.providerId);
   if (!provider) {
@@ -66,10 +66,14 @@ export async function dispatchGatewayRequest(
   let result: GatewayResponse;
 
   if (adapter?.dispatchGateway) {
-    result = await adapter.dispatchGateway(context, request, { signal: options?.signal });
+    result = await adapter.dispatchGateway(context, request, {
+      signal: options?.signal,
+      onStreamDelta: options?.onStreamDelta,
+    });
   } else if (provider.apiBaseUrl) {
     result = await dispatchOpenAICompatibleChat(provider.apiBaseUrl, secret, provider.id, request, {
       signal: options?.signal,
+      onStreamDelta: options?.onStreamDelta,
     });
   } else {
     result = {

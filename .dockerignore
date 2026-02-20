@@ -9,7 +9,7 @@ node_modules
 .env.local
 .env.*.local
 backups
-demo
+demo/
 docs
 tests
 vitest.config.ts

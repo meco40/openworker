@@ -43,7 +43,7 @@ describe('LogsView diagnostics data helpers', () => {
     expect(insight.code).toBe('diagnostics.memory_pressure');
     expect(insight.severity).toBe('critical');
     expect(insight.meaning).toContain('Arbeitsspeicher');
-    expect(insight.action).toContain('Worker');
+    expect(insight.action).toContain('Last');
   });
 
   it('uses generic fallback for unknown issue codes', () => {

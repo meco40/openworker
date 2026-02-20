@@ -34,8 +34,11 @@ const zaiProviderAdapter: ProviderAdapter = {
       : { ok: false, message: `Z.AI connectivity failed: ${result.message}` };
   },
 
-  dispatchGateway: ({ secret }, request) =>
-    dispatchOpenAICompatibleChat('https://api.z.ai/api/paas/v4', secret, 'zai', request),
+  dispatchGateway: ({ secret }, request, options) =>
+    dispatchOpenAICompatibleChat('https://api.z.ai/api/paas/v4', secret, 'zai', request, {
+      signal: options?.signal,
+      onStreamDelta: options?.onStreamDelta,
+    }),
 };
 
 export default zaiProviderAdapter;

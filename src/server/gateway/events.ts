@@ -1,9 +1,4 @@
-// ─── Gateway Event Types ─────────────────────────────────────
-// Typed event payloads for all WebSocket events.
-
 import type { ChannelType } from '../../../types';
-
-// ─── Chat Events ─────────────────────────────────────────────
 
 export interface ChatMessagePayload {
   id: string;
@@ -34,37 +29,6 @@ export interface ConversationResetPayload {
   oldConversationId: string;
   newConversationId: string;
 }
-// ─── Worker Events ───────────────────────────────────────────
-
-export interface WorkerStatusPayload {
-  taskId: string;
-  status: string;
-  message: string;
-  timestamp: string;
-  runId?: string | null;
-  source?: 'legacy' | 'openai';
-}
-
-export interface WorkerApprovalRequestPayload {
-  taskId: string;
-  command: string;
-  description: string;
-  timeout: number;
-  approvalToken?: string;
-}
-
-export interface WorkerWorkflowPayload {
-  taskId: string;
-  runId: string | null;
-  flowPublishedId: string | null;
-  nodes: Array<{ id: string; personaId: string | null; status: string }>;
-  edges: Array<{ from: string; to: string }>;
-  activePath: string[];
-  currentNodeId: string | null;
-  timestamp: string;
-}
-
-// ─── Log Events ──────────────────────────────────────────────
 
 export interface LogEntryPayload {
   timestamp: string;
@@ -72,15 +36,11 @@ export interface LogEntryPayload {
   message: string;
 }
 
-// ─── Presence Events ─────────────────────────────────────────
-
 export interface PresenceUpdatePayload {
   userId: string;
   status: 'online' | 'offline';
   connectionCount: number;
 }
-
-// ─── Channel/Inbox Events ───────────────────────────────────
 
 export interface ChannelStatusPayload {
   channel: string;
@@ -95,8 +55,6 @@ export interface InboxUpdatedPayload {
   channelType: string;
   updatedAt: string;
 }
-
-// ─── Rooms Events ────────────────────────────────────────────
 
 export interface RoomMessagePayload {
   id: string;
@@ -136,8 +94,6 @@ export interface RoomMetricsPayload {
   generatedAt: string;
 }
 
-// ─── System Events ───────────────────────────────────────────
-
 export interface TickPayload {
   ts: number;
 }
@@ -148,8 +104,6 @@ export interface HelloOkPayload {
   methods: string[];
 }
 
-// ─── Event Name Constants ────────────────────────────────────
-
 export const GatewayEvents = {
   HELLO_OK: 'hello-ok',
   CHAT_MESSAGE: 'chat.message',
@@ -158,9 +112,6 @@ export const GatewayEvents = {
   CONVERSATION_DELETED: 'conversation.deleted',
   CONVERSATION_RESET: 'conversation.reset',
   PERSONA_CHANGED: 'persona.changed',
-  WORKER_STATUS: 'worker.status',
-  WORKER_WORKFLOW: 'worker.workflow',
-  WORKER_APPROVAL_REQUESTED: 'worker.approval.requested',
   LOG_ENTRY: 'log.entry',
   PRESENCE_UPDATE: 'presence.update',
   CHANNELS_STATUS: 'channels.status',

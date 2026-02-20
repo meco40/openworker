@@ -1,5 +1,3 @@
-import type { WorkerTaskStatus } from '../../../../src/server/worker/workerTypes';
-import { getWorkerRepository } from '../../../../src/server/worker/workerRepository';
 import { getTokenUsageRepository } from '../../../../src/server/stats/tokenUsageRepository';
 import { getMemoryService } from '../../../../src/server/memory/runtime';
 import { getClientRegistry } from '../../../../src/server/gateway/client-registry';
@@ -9,15 +7,6 @@ import { getMessageRepository } from '../../../../src/server/channels/messages/r
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const OPEN_STATUSES = new Set<WorkerTaskStatus>([
-  'queued',
-  'planning',
-  'clarifying',
-  'executing',
-  'review',
-  'waiting_approval',
-]);
 
 function resolveTodayRange(): { from: string; to: string } {
   const now = new Date();
@@ -69,12 +58,6 @@ export async function GET() {
   try {
     const userContext = await resolveRequestUserContext();
     const uptimeSeconds = Math.floor(process.uptime());
-
-    const workerRepository = getWorkerRepository();
-    const pendingWorkerTasks = workerRepository
-      .listTasks()
-      .filter((task) => OPEN_STATUSES.has(task.status)).length;
-    const orchestraMetrics = workerRepository.getOrchestraMetrics();
 
     const activeWsSessions = getClientRegistry().connectionCount;
 
@@ -136,11 +119,9 @@ export async function GET() {
       ok: true,
       metrics: {
         uptimeSeconds,
-        pendingWorkerTasks,
         activeWsSessions,
         tokensToday,
         vectorNodeCount,
-        orchestra: orchestraMetrics,
         automation: automationMetrics,
         rooms: roomMetrics,
         knowledge: knowledgeMetrics,
