@@ -142,4 +142,144 @@ describe('automation routes', () => {
     expect(responseWhenFlagOff.status).toBe(401);
     expect(responseWhenFlagOn.status).toBe(401);
   });
+
+  it('bounds GET /api/automations and /api/automations/[id]/runs via safe limit parsing', async () => {
+    const automationsRoute = await import('../../../app/api/automations/route');
+    const runRoute = await import('../../../app/api/automations/[id]/run/route');
+    const runsRoute = await import('../../../app/api/automations/[id]/runs/route');
+
+    for (let index = 0; index < 4; index += 1) {
+      const createResponse = await automationsRoute.POST(
+        new Request('http://localhost/api/automations', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            name: `Rule ${index + 1}`,
+            cronExpression: '0 10 * * *',
+            timezone: 'UTC',
+            prompt: `Prompt ${index + 1}`,
+            enabled: true,
+          }),
+        }),
+      );
+      expect(createResponse.status).toBe(200);
+    }
+
+    const listWithLimitResponse = await (
+      automationsRoute.GET as (request: Request) => Promise<Response>
+    )(new Request('http://localhost/api/automations?limit=2'));
+    const listWithLimitPayload = (await listWithLimitResponse.json()) as {
+      ok: boolean;
+      rules: Array<{ id: string }>;
+    };
+    expect(listWithLimitPayload.ok).toBe(true);
+    expect(listWithLimitPayload.rules).toHaveLength(2);
+
+    const listWithInvalidLimitResponse = await (
+      automationsRoute.GET as (request: Request) => Promise<Response>
+    )(new Request('http://localhost/api/automations?limit=not-a-number'));
+    const listWithInvalidLimitPayload = (await listWithInvalidLimitResponse.json()) as {
+      ok: boolean;
+      rules: Array<{ id: string }>;
+    };
+    expect(listWithInvalidLimitPayload.ok).toBe(true);
+    expect(listWithInvalidLimitPayload.rules.length).toBeGreaterThanOrEqual(4);
+
+    const createdRuleId = listWithInvalidLimitPayload.rules[0]?.id;
+    expect(createdRuleId).toBeTruthy();
+    const ruleId = String(createdRuleId);
+
+    for (let index = 0; index < 4; index += 1) {
+      const runResponse = await runRoute.POST(
+        new Request(`http://localhost/api/automations/${ruleId}/run`, { method: 'POST' }),
+        { params: Promise.resolve({ id: ruleId }) },
+      );
+      expect(runResponse.status).toBe(200);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+    }
+
+    const runsWithLimitResponse = await runsRoute.GET(
+      new Request(`http://localhost/api/automations/${ruleId}/runs?limit=2`),
+      { params: Promise.resolve({ id: ruleId }) },
+    );
+    const runsWithLimitPayload = (await runsWithLimitResponse.json()) as {
+      ok: boolean;
+      runs: Array<{ id: string }>;
+    };
+    expect(runsWithLimitPayload.ok).toBe(true);
+    expect(runsWithLimitPayload.runs).toHaveLength(2);
+
+    const runsWithInvalidLimitResponse = await runsRoute.GET(
+      new Request(`http://localhost/api/automations/${ruleId}/runs?limit=not-a-number`),
+      { params: Promise.resolve({ id: ruleId }) },
+    );
+    const runsWithInvalidLimitPayload = (await runsWithInvalidLimitResponse.json()) as {
+      ok: boolean;
+      runs: Array<{ id: string }>;
+    };
+    expect(runsWithInvalidLimitPayload.ok).toBe(true);
+    expect(runsWithInvalidLimitPayload.runs.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('returns automation metrics and lease state from GET /api/automations/metrics', async () => {
+    const runtime = await import('../../../src/server/automation/runtime');
+    const automationsRoute = await import('../../../app/api/automations/route');
+    const runRoute = await import('../../../app/api/automations/[id]/run/route');
+    const metricsRoute = await import('../../../app/api/automations/metrics/route');
+
+    const createResponse = await automationsRoute.POST(
+      new Request('http://localhost/api/automations', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Metrics rule',
+          cronExpression: '0 10 * * *',
+          timezone: 'UTC',
+          prompt: 'Metrics prompt',
+          enabled: true,
+        }),
+      }),
+    );
+    const created = (await createResponse.json()) as { ok: boolean; rule: { id: string } };
+    expect(created.ok).toBe(true);
+
+    const runResponse = await runRoute.POST(
+      new Request(`http://localhost/api/automations/${created.rule.id}/run`, { method: 'POST' }),
+      { params: Promise.resolve({ id: created.rule.id }) },
+    );
+    expect(runResponse.status).toBe(200);
+
+    const leaseAcquired = runtime
+      .getAutomationService()
+      .acquireLease('metrics-test-instance', 30_000);
+    expect(leaseAcquired).toBe(true);
+
+    const metricsResponse = await metricsRoute.GET();
+    expect(metricsResponse.status).toBe(200);
+    const metricsPayload = (await metricsResponse.json()) as {
+      ok: boolean;
+      metrics: {
+        activeRules: number;
+        queuedRuns: number;
+        runningRuns: number;
+        deadLetterRuns: number;
+        leaseAgeSeconds: number | null;
+      };
+      leaseState: { instanceId: string } | null;
+    };
+
+    expect(metricsPayload.ok).toBe(true);
+    expect(metricsPayload.metrics.activeRules).toBeGreaterThanOrEqual(1);
+    expect(metricsPayload.metrics.queuedRuns).toBeGreaterThanOrEqual(1);
+    expect(typeof metricsPayload.metrics.runningRuns).toBe('number');
+    expect(typeof metricsPayload.metrics.deadLetterRuns).toBe('number');
+    expect(metricsPayload.leaseState?.instanceId).toBe('metrics-test-instance');
+  });
+
+  it('returns 401 for GET /api/automations/metrics when auth is required and session is missing', async () => {
+    process.env.REQUIRE_AUTH = 'true';
+    const metricsRoute = await import('../../../app/api/automations/metrics/route');
+    const response = await metricsRoute.GET();
+    expect(response.status).toBe(401);
+  });
 });
