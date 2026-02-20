@@ -30,6 +30,7 @@ interface CronRunPayload extends OkPayload {
 interface CronMetricsPayload extends OkPayload {
   metrics?: Partial<CronMetrics>;
   lease?: Partial<CronLeaseState> | null;
+  leaseState?: Partial<CronLeaseState> | null;
 }
 
 export interface CronRuleDraft {
@@ -153,12 +154,13 @@ async function fetchMetrics(): Promise<CronMetrics> {
   const response = await fetch('/api/automations/metrics', { cache: 'no-store' });
   const payload = await readJson<CronMetricsPayload>(response);
   const metrics = payload.metrics || {};
+  const lease = payload.leaseState ?? payload.lease;
   return {
     activeRules: typeof metrics.activeRules === 'number' ? metrics.activeRules : 0,
     queuedRuns: typeof metrics.queuedRuns === 'number' ? metrics.queuedRuns : 0,
     runningRuns: typeof metrics.runningRuns === 'number' ? metrics.runningRuns : 0,
     deadLetterRuns: typeof metrics.deadLetterRuns === 'number' ? metrics.deadLetterRuns : 0,
-    leaseAgeSeconds: resolveLeaseAgeSeconds(payload.lease, payload.metrics),
+    leaseAgeSeconds: resolveLeaseAgeSeconds(lease, payload.metrics),
   };
 }
 
