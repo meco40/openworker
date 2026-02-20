@@ -74,20 +74,35 @@ npm run start
 ```
 ├── app/                    # Next.js App Router & API-Routen
 ├── src/
-│   ├── server/            # Serverseitige Domänen
+│   ├── cli/               # CLI-Programme & Befehle
+│   ├── commands/          # Health-Checks & Diagnose-Befehle
+│   ├── components/        # Wiederverwendbare UI-Komponenten
+│   ├── core/              # Core-Infrastruktur (Memory)
+│   ├── lib/               # Utility-Funktionen
+│   ├── logging/           # Logging-Infrastruktur
+│   ├── messenger/         # Messenger-Integrationen (Telegram, WhatsApp)
+│   ├── modules/           # Frontend Feature-Module (Hooks, Services)
+│   ├── server/            # Serverseitige Domänen (DDD)
 │   │   ├── channels/      # Omnichannel-Messaging
 │   │   ├── rooms/         # Multi-Persona-Rooms
-│   │   ├── worker/        # Autonome Agenten
-│   │   ├── skills/        # Skill-Execution
+│   │   ├── skills/        # Skill-Execution Engine
 │   │   ├── memory/        # Konzeptuelles Memory
-│   │   ├── model-hub/     # Multi-Provider-KI
+│   │   ├── model-hub/     # Multi-Provider-KI (11 Provider)
 │   │   ├── security/      # Security-Checks
-│   │   └── clawhub/       # ClawHub-Integration
-│   ├── modules/           # Frontend Feature-Module
-│   └── shared/            # Geteilte Typen & Utilities
-├── skills/                # Skill-Definitionen
-├── tests/                 # Unit-, Integrations- & Contract-Tests
+│   │   ├── clawhub/       # ClawHub-Integration
+│   │   ├── knowledge/     # Knowledge Base System
+│   │   ├── automation/    # Cron-basierte Automationen
+│   │   └── gateway/       # WebSocket Gateway
+│   ├── services/          # Externe Service-Integrationen
+│   ├── shared/            # Geteilte Typen, Config & Utilities
+│   └── skills/            # Skill-Definitionen & Handlers
+├── tests/                 # Test-Suite
+│   ├── contract/          # API-Vertrags-Tests
+│   ├── e2e/               # End-to-End Tests
+│   ├── integration/       # Integrationstests
+│   └── unit/              # Unit-Tests
 ├── docs/                  # Technische Dokumentation
+├── scripts/               # Hilfsskripte
 └── ops/                   # Operations-Konfiguration (systemd)
 ```
 
