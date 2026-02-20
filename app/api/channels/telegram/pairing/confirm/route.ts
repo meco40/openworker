@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { confirmTelegramPairingCode } from '../../../../../../src/server/channels/pairing/telegramCodePairing';
+import { confirmTelegramPairingCode } from '@/server/channels/pairing/telegramCodePairing';
 
 export const runtime = 'nodejs';
 

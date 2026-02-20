@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { dispatchSkill, normalizeSkillArgs } from '../../../../src/server/skills/executeSkill';
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import { dispatchSkill, normalizeSkillArgs } from '@/server/skills/executeSkill';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 

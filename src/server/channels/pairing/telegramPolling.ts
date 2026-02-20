@@ -1,6 +1,6 @@
-import { getCredentialStore } from '../credentials';
-import { processTelegramInboundUpdate } from './telegramInbound';
-import { serializeTelegramAllowedUpdates } from '../telegram/allowedUpdates';
+import { getCredentialStore } from '@/server/channels/credentials';
+import { processTelegramInboundUpdate } from '@/server/channels/pairing/telegramInbound';
+import { serializeTelegramAllowedUpdates } from '@/server/channels/telegram/allowedUpdates';
 
 const CHANNEL = 'telegram';
 const POLL_INTERVAL_MS = 2_000;

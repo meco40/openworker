@@ -1,10 +1,10 @@
-import { registerMethod, type RespondFn } from '../method-router';
-import type { GatewayClient } from '../client-registry';
-import { broadcastToUser } from '../broadcast';
-import { GatewayEvents } from '../events';
-import { CHANNEL_CAPABILITIES } from '../../channels/adapters/capabilities';
-import type { ChannelKey } from '../../channels/adapters/types';
-import { listBridgeAccounts } from '../../channels/pairing/bridgeAccounts';
+import { registerMethod, type RespondFn } from '@/server/gateway/method-router';
+import type { GatewayClient } from '@/server/gateway/client-registry';
+import { broadcastToUser } from '@/server/gateway/broadcast';
+import { GatewayEvents } from '@/server/gateway/events';
+import { CHANNEL_CAPABILITIES } from '@/server/channels/adapters/capabilities';
+import type { ChannelKey } from '@/server/channels/adapters/types';
+import { listBridgeAccounts } from '@/server/channels/pairing/bridgeAccounts';
 
 function safeString(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -17,7 +17,7 @@ function normalizeText(value: string): string {
 registerMethod(
   'channels.list',
   async (_params: Record<string, unknown>, client: GatewayClient, respond: RespondFn) => {
-    const { getMessageRepository } = await import('../../channels/messages/runtime');
+    const { getMessageRepository } = await import('@/server/channels/messages/runtime');
     const repo = getMessageRepository();
     const bindings = repo.listChannelBindings?.(client.userId) ?? [];
     const bindingMap = new Map(bindings.map((binding) => [binding.channel, binding]));
@@ -51,7 +51,7 @@ registerMethod(
     const token = safeString(params.token);
     const accountId = safeString(params.accountId);
 
-    const { isPairChannelType, pairChannel } = await import('../../channels/pairing');
+    const { isPairChannelType, pairChannel } = await import('@/server/channels/pairing');
     if (!isPairChannelType(channel)) {
       throw new Error(`Unsupported channel: ${channel}`);
     }
@@ -79,7 +79,7 @@ registerMethod(
         ? (result as { peerName: string }).peerName
         : undefined;
 
-    const { getMessageRepository } = await import('../../channels/messages/runtime');
+    const { getMessageRepository } = await import('@/server/channels/messages/runtime');
     const repo = getMessageRepository();
     repo.upsertChannelBinding?.({
       userId: client.userId,
@@ -131,14 +131,14 @@ registerMethod(
   async (params: Record<string, unknown>, client: GatewayClient, respond: RespondFn) => {
     const channel = safeString(params.channel).trim().toLowerCase();
     const accountId = safeString(params.accountId);
-    const { isPairChannelType, unpairChannel } = await import('../../channels/pairing');
+    const { isPairChannelType, unpairChannel } = await import('@/server/channels/pairing');
     if (!isPairChannelType(channel)) {
       throw new Error(`Unsupported channel: ${channel}`);
     }
 
     await unpairChannel(channel, accountId || undefined);
 
-    const { getMessageRepository } = await import('../../channels/messages/runtime');
+    const { getMessageRepository } = await import('@/server/channels/messages/runtime');
     const repo = getMessageRepository();
     repo.upsertChannelBinding?.({
       userId: client.userId,
@@ -173,7 +173,7 @@ registerMethod(
     const requestedLimit = Number(params.limit);
     const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(100, requestedLimit)) : 50;
 
-    const { getMessageService } = await import('../../channels/messages/runtime');
+    const { getMessageService } = await import('@/server/channels/messages/runtime');
     const service = getMessageService();
 
     const conversations = service.listConversations(client.userId, limit);

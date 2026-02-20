@@ -1,4 +1,4 @@
-import { decryptSecret, encryptSecret, maskSecret } from './crypto';
+import { decryptSecret, encryptSecret, maskSecret } from '@/server/model-hub/crypto';
 import type {
   CreatePipelineModelInput,
   ModelHubRepository,
@@ -6,10 +6,10 @@ import type {
   PipelineModelEntry,
   ProviderAccountRecord,
   ProviderAccountView,
-} from './repository';
-import { fetchModelsForAccount, type FetchedModel } from './modelFetcher';
-import { dispatchGatewayRequest, type GatewayRequest, type GatewayResponse } from './gateway';
-import { isJwtExpiringSoon, refreshOpenAICodexToken } from './codexAuth';
+} from '@/server/model-hub/repository';
+import { fetchModelsForAccount, type FetchedModel } from '@/server/model-hub/modelFetcher';
+import { dispatchGatewayRequest, type GatewayRequest, type GatewayResponse } from '@/server/model-hub/gateway';
+import { isJwtExpiringSoon, refreshOpenAICodexToken } from '@/server/model-hub/codexAuth';
 
 interface ConnectProviderAccountInput {
   providerId: string;
@@ -396,7 +396,7 @@ export class ModelHubService {
       return { error: 'Gemini account record not found.' };
     }
 
-    const { decryptSecret } = await import('./crypto');
+    const { decryptSecret } = await import('@/server/model-hub/crypto');
     const secret = decryptSecret(record.encryptedSecret, encryptionKey);
     if (!secret?.trim()) {
       return { error: 'Gemini account secret is missing or empty.' };

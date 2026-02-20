@@ -5,10 +5,10 @@ import type {
   Conversation,
   Message,
   MessageApprovalRequest,
-} from '../../../../types';
-import { getPlatformMeta } from '../uiUtils';
-import ChatMessageAttachment from './ChatMessageAttachment';
-import { usePersona } from '../../personas/PersonaContext';
+} from '@/shared/domain/types';
+import { getPlatformMeta } from '@/modules/chat/uiUtils';
+import ChatMessageAttachment from '@/modules/chat/components/ChatMessageAttachment';
+import { usePersona } from '@/modules/personas/PersonaContext';
 
 interface ChatMainPaneProps {
   activeConversation: Conversation | undefined;

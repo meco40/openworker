@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { GatewayState, SystemLog } from '../../../types';
-import { getMemorySnapshot } from '../../../core/memory';
-import { usePersona } from '../personas/PersonaContext';
+import type { GatewayState, SystemLog } from '@/shared/domain/types';
+import { getMemorySnapshot } from '@/core/memory';
+import { usePersona } from '@/modules/personas/PersonaContext';
 
 function createInitialGatewayState(): GatewayState {
   return {

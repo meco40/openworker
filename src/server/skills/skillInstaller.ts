@@ -21,8 +21,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { SkillManifest, ToolDefinition, BuiltInToolDefinition } from '../../shared/toolSchema';
-import { getSkillRepository, type SkillRow } from './skillRepository';
+import type { SkillManifest, ToolDefinition, BuiltInToolDefinition } from '@/shared/toolSchema';
+import { getSkillRepository, type SkillRow } from '@/server/skills/skillRepository';
 
 const execFile = promisify(execFileCallback);
 

@@ -1,4 +1,4 @@
-import type { ProviderCatalogEntry } from './types';
+import type { ProviderCatalogEntry } from '@/server/model-hub/types';
 
 export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
   {

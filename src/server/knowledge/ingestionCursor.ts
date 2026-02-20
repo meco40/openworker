@@ -1,8 +1,8 @@
-import type { Conversation } from '../../../types';
-import type { MessageRepository, StoredMessage } from '../channels/messages/repository';
-import { resolveMemoryScopedUserIdForConversation } from '../memory/userScope';
-import type { KnowledgeRepository } from './repository';
-import { createPersonaIsolationPolicy } from './personaIsolationPolicy';
+import type { Conversation } from '@/shared/domain/types';
+import type { MessageRepository, StoredMessage } from '@/server/channels/messages/repository';
+import { resolveMemoryScopedUserIdForConversation } from '@/server/memory/userScope';
+import type { KnowledgeRepository } from '@/server/knowledge/repository';
+import { createPersonaIsolationPolicy } from '@/server/knowledge/personaIsolationPolicy';
 
 /**
  * Maximum number of messages per ingestion window.

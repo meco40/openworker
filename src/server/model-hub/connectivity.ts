@@ -1,8 +1,8 @@
-import { getProviderAdapter } from './Models';
-import { testOpenAICompatibleModelsEndpoint } from './Models/shared/openaiCompatible';
-import { decryptSecret } from './crypto';
-import { PROVIDER_CATALOG } from './providerCatalog';
-import type { ProviderAccountRecord } from './repository';
+import { getProviderAdapter } from '@/server/model-hub/Models';
+import { testOpenAICompatibleModelsEndpoint } from '@/server/model-hub/Models/shared/openaiCompatible';
+import { decryptSecret } from '@/server/model-hub/crypto';
+import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
+import type { ProviderAccountRecord } from '@/server/model-hub/repository';
 
 function findProvider(providerId: string) {
   return PROVIDER_CATALOG.find((provider) => provider.id === providerId) ?? null;

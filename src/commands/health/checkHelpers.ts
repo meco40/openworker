@@ -1,11 +1,11 @@
 import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { getCredentialStore } from '../../server/channels/credentials';
-import { getMemoryService } from '../../server/memory/runtime';
-import { getLogRepository } from '../../logging/logRepository';
-import type { HealthCheck, HealthCheckStatus, HealthCommandOptions } from '../healthTypes';
-import type { MemoryNode } from '../../../core/memory/types';
+import { getCredentialStore } from '@/server/channels/credentials';
+import { getMemoryService } from '@/server/memory/runtime';
+import { getLogRepository } from '@/logging/logRepository';
+import type { HealthCheck, HealthCheckStatus, HealthCommandOptions } from '@/commands/healthTypes';
+import type { MemoryNode } from '@/core/memory/types';
 
 export const DEFAULT_TIMEOUT_MS = 3000;
 export const ERROR_BUDGET_WINDOW_MS = 15 * 60 * 1000;

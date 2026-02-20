@@ -11,7 +11,7 @@ loadEnvConfig(process.cwd());
 import {
   getKnowledgeIngestionService,
   getKnowledgeIngestionCursor,
-} from '../src/server/knowledge/runtime';
+} from '@/server/knowledge/runtime';
 
 async function main(): Promise<void> {
   console.log('[debug] Creating service...');

@@ -13,7 +13,7 @@ const { loadEnvConfig } = require('@next/env') as {
 loadEnvConfig(process.cwd());
 
 import SqliteDatabase from 'better-sqlite3';
-import { getKnowledgeExtractor, getKnowledgeRepository } from '../src/server/knowledge/runtime';
+import { getKnowledgeExtractor, getKnowledgeRepository } from '@/server/knowledge/runtime';
 
 const PERSONA_ID = '48979798-6783-4ae2-895b-1d0222b2af26';
 const CONVERSATION_ID = '8c010a84-74b8-4c9d-beb7-b93cfef673e7';

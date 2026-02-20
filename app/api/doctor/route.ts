@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { runDoctorCommand } from '../../../src/commands/doctorCommand';
-import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
+import { runDoctorCommand } from '@/commands/doctorCommand';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

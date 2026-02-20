@@ -32,8 +32,8 @@ import {
   getKnowledgeIngestionService,
   getKnowledgeIngestionCursor,
   getKnowledgeRepository,
-} from '../src/server/knowledge/runtime';
-import { resolveKnowledgeConfig } from '../src/server/knowledge/config';
+} from '@/server/knowledge/runtime';
+import { resolveKnowledgeConfig } from '@/server/knowledge/config';
 
 // ── Persona name resolution ─────────────────────────────────
 

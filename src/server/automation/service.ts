@@ -1,13 +1,13 @@
-import { computeNextRunAt, validateCronExpression, validateTimezone } from './cronEngine';
-import { executeAgentRunAction } from './executor';
-import type { AutomationRepository } from './repository';
+import { computeNextRunAt, validateCronExpression, validateTimezone } from '@/server/automation/cronEngine';
+import { executeAgentRunAction } from '@/server/automation/executor';
+import type { AutomationRepository } from '@/server/automation/repository';
 import type {
   AutomationRule,
   AutomationRun,
   CreateAutomationRuleInput,
   SchedulerLeaseState,
   UpdateAutomationRuleInput,
-} from './types';
+} from '@/server/automation/types';
 
 export interface AutomationServiceDeps {
   runPrompt: (input: {

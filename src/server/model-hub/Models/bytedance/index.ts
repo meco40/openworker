@@ -1,6 +1,6 @@
-import type { ProviderAdapter } from '../types';
-import { fetchJsonOk } from '../shared/http';
-import { dispatchOpenAICompatibleChat } from '../shared/openaiCompatible';
+import type { ProviderAdapter } from '@/server/model-hub/Models/types';
+import { fetchJsonOk } from '@/server/model-hub/Models/shared/http';
+import { dispatchOpenAICompatibleChat } from '@/server/model-hub/Models/shared/openaiCompatible';
 
 const bytedanceProviderAdapter: ProviderAdapter = {
   id: 'bytedance',

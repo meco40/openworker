@@ -1,4 +1,4 @@
-export { getProviderAdapter, listProviderAdapterIds } from './registry';
+export { getProviderAdapter, listProviderAdapterIds } from '@/server/model-hub/Models/registry';
 export type {
   ConnectivityResult,
   FetchedModel,
@@ -7,4 +7,4 @@ export type {
   GatewayResponse,
   ProviderAdapter,
   ProviderExecutionContext,
-} from './types';
+} from '@/server/model-hub/Models/types';

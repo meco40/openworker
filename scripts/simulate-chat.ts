@@ -24,11 +24,11 @@ loadEnvConfig(process.cwd());
 
 import BetterSqlite3 from 'better-sqlite3';
 import fs from 'node:fs';
-import { getKnowledgeRetrievalService } from '../src/server/knowledge/runtime';
-import { resolveKnowledgeConfig } from '../src/server/knowledge/config';
-import { getMemoryService } from '../src/server/memory/runtime';
-import { getModelHubService, getModelHubEncryptionKey } from '../src/server/model-hub/runtime';
-import { LEGACY_LOCAL_USER_ID } from '../src/server/auth/constants';
+import { getKnowledgeRetrievalService } from '@/server/knowledge/runtime';
+import { resolveKnowledgeConfig } from '@/server/knowledge/config';
+import { getMemoryService } from '@/server/memory/runtime';
+import { getModelHubService, getModelHubEncryptionKey } from '@/server/model-hub/runtime';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 
 // ── Types ────────────────────────────────────────────────────
 

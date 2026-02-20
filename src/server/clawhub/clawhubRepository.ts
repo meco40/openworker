@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 
-import type { ClawHubSkillRow, UpsertClawHubSkillInput } from './types';
+import type { ClawHubSkillRow, UpsertClawHubSkillInput } from '@/server/clawhub/types';
 
 function toRow(raw: Record<string, unknown>): ClawHubSkillRow {
   return {

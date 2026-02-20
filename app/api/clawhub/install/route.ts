@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
-import { getClawHubService } from '../../../../src/server/clawhub/clawhubService';
-import { isValidClawHubSlug, toClawHubHttpStatus } from '../../../../src/server/clawhub/errors';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getClawHubService } from '@/server/clawhub/clawhubService';
+import { isValidClawHubSlug, toClawHubHttpStatus } from '@/server/clawhub/errors';
 
 export const runtime = 'nodejs';
 

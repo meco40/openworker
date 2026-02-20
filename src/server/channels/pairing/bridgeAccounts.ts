@@ -1,4 +1,4 @@
-import { getCredentialStore, type CredentialStore } from '../credentials';
+import { getCredentialStore, type CredentialStore } from '@/server/channels/credentials';
 
 export type BridgeChannel = 'whatsapp' | 'imessage';
 

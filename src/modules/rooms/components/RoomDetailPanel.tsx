@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PersonaSummary } from '../../../server/personas/personaTypes';
+import type { PersonaSummary } from '@/server/personas/personaTypes';
 import type {
   RoomInterventionEvent,
   RoomMember,
@@ -11,7 +11,7 @@ import type {
   RoomRunStatusEvent,
   RoomState,
   RoomSummary,
-} from '../types';
+} from '@/modules/rooms/types';
 
 function formatTimestamp(iso: string): string {
   try {

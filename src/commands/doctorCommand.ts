@@ -1,7 +1,7 @@
-import { getLogRepository } from '../logging/logRepository';
-import { runHealthCommand } from './healthCommand';
-import { buildDoctorFindings, type DoctorFinding } from './doctorRules';
-import type { HealthCheck, HealthCommandOptions, HealthReportStatus } from './healthTypes';
+import { getLogRepository } from '@/logging/logRepository';
+import { runHealthCommand } from '@/commands/healthCommand';
+import { buildDoctorFindings, type DoctorFinding } from '@/commands/doctorRules';
+import type { HealthCheck, HealthCommandOptions, HealthReportStatus } from '@/commands/healthTypes';
 
 export interface DoctorReport {
   status: HealthReportStatus;

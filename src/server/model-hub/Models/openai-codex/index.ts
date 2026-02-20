@@ -1,16 +1,16 @@
-import { extractCodexAccountId } from '../../codexAuth';
-import { fetchWithTimeout } from '../shared/http';
+import { extractCodexAccountId } from '@/server/model-hub/codexAuth';
+import { fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
 import type {
   ConnectivityResult,
   FetchedModel,
   GatewayRequest,
   GatewayResponse,
   ProviderAdapter,
-} from '../types';
+} from '@/server/model-hub/Models/types';
 import {
   readStoredAttachmentAsDataUrl,
   readStoredAttachmentBuffer,
-} from '../../../channels/messages/attachments';
+} from '@/server/channels/messages/attachments';
 
 const CODEX_BASE_URL = 'https://chatgpt.com/backend-api';
 const CODEX_RESPONSES_PATH = '/codex/responses';

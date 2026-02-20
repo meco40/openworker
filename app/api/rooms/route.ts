@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
-import { getRoomService } from '../../../src/server/rooms/runtime';
-import type { RoomGoalMode } from '../../../src/server/rooms/types';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getRoomService } from '@/server/rooms/runtime';
+import type { RoomGoalMode } from '@/server/rooms/types';
 
 export const runtime = 'nodejs';
 

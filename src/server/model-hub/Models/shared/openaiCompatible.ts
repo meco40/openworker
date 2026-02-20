@@ -1,9 +1,9 @@
-import type { ConnectivityResult, FetchedModel, GatewayRequest, GatewayResponse } from '../types';
-import { fetchWithTimeout } from './http';
+import type { ConnectivityResult, FetchedModel, GatewayRequest, GatewayResponse } from '@/server/model-hub/Models/types';
+import { fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
 import {
   readStoredAttachmentAsDataUrl,
   readStoredAttachmentBuffer,
-} from '../../../channels/messages/attachments';
+} from '@/server/channels/messages/attachments';
 
 const GATEWAY_TIMEOUT_MS = 60_000;
 

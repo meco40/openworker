@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PERSONA_TEMPLATES } from '../../../../lib/persona-templates';
+import { PERSONA_TEMPLATES } from '@/lib/persona-templates';
 
 export const runtime = 'nodejs';
 

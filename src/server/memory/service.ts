@@ -1,6 +1,6 @@
-import type { MemoryNode, MemoryType } from '../../../core/memory/types';
-import type { Mem0Client, Mem0HistoryEntry, Mem0MemoryRecord, Mem0SearchHit } from './mem0Client';
-import { LEGACY_LOCAL_USER_ID } from '../auth/constants';
+import type { MemoryNode, MemoryType } from '@/core/memory/types';
+import type { Mem0Client, Mem0HistoryEntry, Mem0MemoryRecord, Mem0SearchHit } from '@/server/memory/mem0Client';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 
 export type MemoryFeedbackSignal = 'positive' | 'negative';
 

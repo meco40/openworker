@@ -2,7 +2,7 @@ import { execFile as execFileCallback } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import type { ClawHubCliResult } from './types';
+import type { ClawHubCliResult } from '@/server/clawhub/types';
 
 const execFile = promisify(execFileCallback);
 

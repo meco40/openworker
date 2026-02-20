@@ -1,5 +1,5 @@
-import { logFromSystemEvent } from '../../../../src/logging/logService';
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import { logFromSystemEvent } from '@/logging/logService';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { buildSecurityStatusSnapshot } from '../../../../src/server/security/status';
+import { buildSecurityStatusSnapshot } from '@/server/security/status';
 
 export const runtime = 'nodejs';
 

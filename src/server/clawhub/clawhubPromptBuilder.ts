@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { ClawHubRepository } from './clawhubRepository';
+import type { ClawHubRepository } from '@/server/clawhub/clawhubRepository';
 
 interface PromptBuilderOptions {
   workspaceDir: string;

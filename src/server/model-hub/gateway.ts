@@ -3,26 +3,26 @@ import {
   type GatewayMessage,
   type GatewayRequest,
   type GatewayResponse,
-} from './Models';
-import { dispatchOpenAICompatibleChat } from './Models/shared/openaiCompatible';
-import { decryptSecret } from './crypto';
-import { PROVIDER_CATALOG } from './providerCatalog';
-import type { ProviderAccountRecord } from './repository';
-import type { ProviderCatalogEntry } from './types';
-import { getTokenUsageRepository } from '../stats/tokenUsageRepository';
-import { getPromptDispatchRepository } from '../stats/promptDispatchRepository';
+} from '@/server/model-hub/Models';
+import { dispatchOpenAICompatibleChat } from '@/server/model-hub/Models/shared/openaiCompatible';
+import { decryptSecret } from '@/server/model-hub/crypto';
+import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
+import type { ProviderAccountRecord } from '@/server/model-hub/repository';
+import type { ProviderCatalogEntry } from '@/server/model-hub/types';
+import { getTokenUsageRepository } from '@/server/stats/tokenUsageRepository';
+import { getPromptDispatchRepository } from '@/server/stats/promptDispatchRepository';
 import {
   detectPromptInjection,
   estimatePromptTokens,
   redactGatewayRequest,
-} from '../stats/promptAudit';
+} from '@/server/stats/promptAudit';
 import {
   markPromptDispatchAttempt,
   markPromptDispatchError,
   markPromptDispatchInsert,
-} from '../stats/promptDispatchDiagnostics';
-import { getOpenRouterModelPricing } from '../stats/openRouterPricing';
-import { getXaiModelPricing } from '../stats/xaiPricing';
+} from '@/server/stats/promptDispatchDiagnostics';
+import { getOpenRouterModelPricing } from '@/server/stats/openRouterPricing';
+import { getXaiModelPricing } from '@/server/stats/xaiPricing';
 
 function findProvider(providerId: string): ProviderCatalogEntry | null {
   return PROVIDER_CATALOG.find((provider) => provider.id === providerId) ?? null;

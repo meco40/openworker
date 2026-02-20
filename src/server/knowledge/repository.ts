@@ -3,14 +3,14 @@ import type {
   KnowledgeEvent,
   KnowledgeEventFilter,
   UpsertKnowledgeEventInput,
-} from './eventTypes';
+} from '@/server/knowledge/eventTypes';
 import type {
   EntityAlias,
   EntityGraphFilter,
   EntityLookupResult,
   EntityRelation,
   KnowledgeEntity,
-} from './entityGraph';
+} from '@/server/knowledge/entityGraph';
 
 export interface KnowledgeSourceRef {
   seq: number;

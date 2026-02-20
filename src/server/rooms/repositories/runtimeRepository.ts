@@ -1,6 +1,6 @@
-import { toMemberRuntime } from '../roomRowMappers';
-import type { RoomMemberRuntime, UpsertMemberRuntimeInput } from '../types';
-import { BaseRepository } from './baseRepository';
+import { toMemberRuntime } from '@/server/rooms/roomRowMappers';
+import type { RoomMemberRuntime, UpsertMemberRuntimeInput } from '@/server/rooms/types';
+import { BaseRepository } from '@/server/rooms/repositories/baseRepository';
 
 /**
  * Repository for room member runtime-related operations.

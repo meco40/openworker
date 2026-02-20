@@ -1,4 +1,4 @@
-import { getCredentialStore } from '../credentials';
+import { getCredentialStore } from '@/server/channels/credentials';
 
 export async function pairSlack(token: string) {
   if (!token) {

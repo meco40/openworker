@@ -1,4 +1,4 @@
-import { getCredentialStore } from '../credentials';
+import { getCredentialStore } from '@/server/channels/credentials';
 
 /**
  * Delivers a message to Slack via chat.postMessage API.

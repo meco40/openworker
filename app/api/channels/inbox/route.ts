@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
-import { getMessageService } from '../../../../src/server/channels/messages/runtime';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getMessageService } from '@/server/channels/messages/runtime';
 
 export const runtime = 'nodejs';
 

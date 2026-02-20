@@ -1,7 +1,7 @@
-import { broadcastToSubscribed } from '../server/gateway/broadcast';
-import { GatewayEvents } from '../server/gateway/events';
-import { getLogRepository } from './logRepository';
-import type { LogCategory, LogEntry, LogLevel } from './logTypes';
+import { broadcastToSubscribed } from '@/server/gateway/broadcast';
+import { GatewayEvents } from '@/server/gateway/events';
+import { getLogRepository } from '@/logging/logRepository';
+import type { LogCategory, LogEntry, LogLevel } from '@/logging/logTypes';
 
 const TYPE_LEVEL_MAP: Record<string, LogLevel> = {
   AUTH: 'info',

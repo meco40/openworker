@@ -1,4 +1,4 @@
-import type { ChannelKey } from '../adapters/types';
+import type { ChannelKey } from '@/server/channels/adapters/types';
 
 export interface InboundEnvelope {
   channel: ChannelKey;

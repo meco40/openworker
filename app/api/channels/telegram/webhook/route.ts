@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { processTelegramInboundUpdate } from '../../../../../src/server/channels/pairing/telegramInbound';
-import { verifyTelegramWebhook } from '../../../../../src/server/channels/webhookAuth';
+import { processTelegramInboundUpdate } from '@/server/channels/pairing/telegramInbound';
+import { verifyTelegramWebhook } from '@/server/channels/webhookAuth';
 
 export const runtime = 'nodejs';
 
@@ -73,7 +73,7 @@ interface TelegramUpdate {
 
 export async function POST(request: Request) {
   try {
-    const { getCredentialStore } = await import('../../../../../src/server/channels/credentials');
+    const { getCredentialStore } = await import('@/server/channels/credentials');
     const secretToken =
       getCredentialStore().getCredential('telegram', 'webhook_secret') ||
       process.env.TELEGRAM_WEBHOOK_SECRET ||

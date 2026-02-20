@@ -1,6 +1,6 @@
-import { toMember } from '../roomRowMappers';
-import type { RoomMember } from '../types';
-import { BaseRepository } from './baseRepository';
+import { toMember } from '@/server/rooms/roomRowMappers';
+import type { RoomMember } from '@/server/rooms/types';
+import { BaseRepository } from '@/server/rooms/repositories/baseRepository';
 
 /**
  * Repository for room member-related operations.

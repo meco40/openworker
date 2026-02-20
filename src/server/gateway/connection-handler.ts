@@ -2,12 +2,12 @@
 // WebSocket lifecycle: registration, frame dispatch, cleanup.
 
 import type { WebSocket } from 'ws';
-import { getClientRegistry, type GatewayClient } from './client-registry';
-import { broadcastToUser } from './broadcast';
-import { parseFrame, makeError, makeEvent } from './protocol';
-import { GatewayEvents, type HelloOkPayload } from './events';
-import { GATEWAY_VERSION, MAX_REQUESTS_PER_MINUTE } from './constants';
-import { dispatchMethod, getRegisteredMethods } from './method-router';
+import { getClientRegistry, type GatewayClient } from '@/server/gateway/client-registry';
+import { broadcastToUser } from '@/server/gateway/broadcast';
+import { parseFrame, makeError, makeEvent } from '@/server/gateway/protocol';
+import { GatewayEvents, type HelloOkPayload } from '@/server/gateway/events';
+import { GATEWAY_VERSION, MAX_REQUESTS_PER_MINUTE } from '@/server/gateway/constants';
+import { dispatchMethod, getRegisteredMethods } from '@/server/gateway/method-router';
 
 // ─── Connection Setup ────────────────────────────────────────
 

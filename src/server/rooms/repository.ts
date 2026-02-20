@@ -13,7 +13,7 @@ import type {
   RoomMessage,
   RoomRunState,
   UpsertMemberRuntimeInput,
-} from './types';
+} from '@/server/rooms/types';
 
 export interface RoomRepository {
   createRoom(input: CreateRoomInput): Room;

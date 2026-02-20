@@ -1,4 +1,4 @@
-import { parseTelegramTarget } from '../telegram/targets';
+import { parseTelegramTarget } from '@/server/channels/telegram/targets';
 
 const TELEGRAM_MAX_LENGTH = 4096;
 const TELEGRAM_MAX_CALLBACK_DATA_BYTES = 64;
@@ -88,7 +88,7 @@ async function resolveTelegramToken(explicitToken?: string): Promise<string | nu
     return explicitToken.trim();
   }
 
-  const { getCredentialStore } = await import('../credentials');
+  const { getCredentialStore } = await import('@/server/channels/credentials');
   return (
     getCredentialStore().getCredential('telegram', 'bot_token') ||
     process.env.TELEGRAM_BOT_TOKEN ||

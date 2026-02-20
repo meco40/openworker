@@ -2,8 +2,8 @@
  * Entity Extractor — normalizes, validates, and merges LLM-extracted entities
  * before they are persisted to the knowledge entity graph.
  */
-import type { EntityAlias, EntityCategory, KnowledgeEntity } from './entityGraph';
-import type { StoredMessage } from '../channels/messages/repository';
+import type { EntityAlias, EntityCategory, KnowledgeEntity } from '@/server/knowledge/entityGraph';
+import type { StoredMessage } from '@/server/channels/messages/repository';
 
 /**
  * Shape returned by the LLM for each entity in the extraction JSON.

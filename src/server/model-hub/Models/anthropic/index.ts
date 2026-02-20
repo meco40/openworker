@@ -1,5 +1,5 @@
-import type { ProviderAdapter } from '../types';
-import { fetchJsonOk, fetchWithTimeout } from '../shared/http';
+import type { ProviderAdapter } from '@/server/model-hub/Models/types';
+import { fetchJsonOk, fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
 
 const anthropicProviderAdapter: ProviderAdapter = {
   id: 'anthropic',

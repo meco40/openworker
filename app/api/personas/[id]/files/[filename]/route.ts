@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '../../../../../../src/server/auth/userContext';
-import { getPersonaRepository } from '../../../../../../src/server/personas/personaRepository';
-import {
-  PERSONA_FILE_NAMES,
-  type PersonaFileName,
-} from '../../../../../../src/server/personas/personaTypes';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
+import { PERSONA_FILE_NAMES, type PersonaFileName } from '@/server/personas/personaTypes';
 
 export const runtime = 'nodejs';
 

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Conversation, Message } from '../../../types';
+import type { Conversation, Message } from '@/shared/domain/types';
 import {
   mapConversationApiMessage,
   mapConversationStreamMessage,
   upsertMessageReplacingStreamingDraft,
   upsertConversationActivity,
-} from './runtimeLogic';
-import { getGatewayClient } from '../gateway/ws-client';
+} from '@/modules/app-shell/runtimeLogic';
+import { getGatewayClient } from '@/modules/gateway/ws-client';
 
 interface ConversationListResponse {
   ok: boolean;

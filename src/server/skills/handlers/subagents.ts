@@ -1,5 +1,5 @@
-import { ChannelType } from '../../../../types';
-import type { SkillDispatchContext } from '../types';
+import { ChannelType } from '@/shared/domain/types';
+import type { SkillDispatchContext } from '@/server/skills/types';
 
 export async function subagentsHandler(
   args: Record<string, unknown>,

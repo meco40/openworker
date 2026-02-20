@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { GatewayRpcClient } from '../src/cli/lib/gatewayRpc';
+import { GatewayRpcClient } from '@/cli/lib/gatewayRpc';
 
 const require = createRequire(import.meta.url);
 const { loadEnvConfig } = require('@next/env') as {

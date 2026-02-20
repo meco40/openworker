@@ -6,7 +6,7 @@ import {
   commandFingerprint,
   evaluateNodeCommandPolicy,
   normalizeCommand,
-} from './node-command-policy';
+} from '@/server/gateway/node-command-policy';
 
 interface ApprovalStoreRecord {
   fingerprint: string;

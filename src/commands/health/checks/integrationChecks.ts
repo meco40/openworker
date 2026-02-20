@@ -1,5 +1,5 @@
-import type { HealthCheck, HealthCommandOptions } from '../../healthTypes';
-import { runBridgeHealthCheck } from '../checkHelpers';
+import type { HealthCheck, HealthCommandOptions } from '@/commands/healthTypes';
+import { runBridgeHealthCheck } from '@/commands/health/checkHelpers';
 
 export async function runBridgeIntegrationChecks(
   options: HealthCommandOptions,

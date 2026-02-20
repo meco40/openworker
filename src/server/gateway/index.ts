@@ -10,8 +10,8 @@ import './methods/sessions';
 import './methods/channels';
 
 // Re-export for use in server.ts
-export { handleConnection } from './connection-handler';
-export { getClientRegistry } from './client-registry';
-export { broadcast, broadcastToUser, broadcastToSubscribed } from './broadcast';
-export { makeEvent } from './protocol';
-export type { GatewayClient } from './client-registry';
+export { handleConnection } from '@/server/gateway/connection-handler';
+export { getClientRegistry } from '@/server/gateway/client-registry';
+export { broadcast, broadcastToUser, broadcastToSubscribed } from '@/server/gateway/broadcast';
+export { makeEvent } from '@/server/gateway/protocol';
+export type { GatewayClient } from '@/server/gateway/client-registry';

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
-import { maskSecret } from '../model-hub/crypto';
+import { maskSecret } from '@/server/model-hub/crypto';
 
 type ConfigValueKind = 'secret' | 'text';
 type ConfigSource = 'store' | 'env' | null;

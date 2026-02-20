@@ -1,15 +1,15 @@
-import type { StoredMessage } from '../channels/messages/repository';
-import { planKnowledgeQuery } from './queryPlanner';
-import { enforceSectionBudgets, estimateTokenCount, trimToTokenBudget } from './tokenBudget';
-import type { KnowledgeEpisode, KnowledgeRepository, MeetingLedgerEntry } from './repository';
-import { computeEventAnswer } from './eventAnswerComputer';
-import type { EntityGraphFilter, EntityLookupResult } from './entityGraph';
-import { adjustRecallScore } from './recallScoring';
-import { assessAnswerSafety, buildSafetyInstruction } from './answerSafetyPolicy';
-import type { EvidenceAssessment } from './answerSafetyPolicy';
-import { detectQueryComplexity, calculateRecallBudget } from './recallBudgetCalculator';
-import { adjustScoreByStrategy } from './personaStrategies';
-import type { PersonaType } from './personaStrategies';
+import type { StoredMessage } from '@/server/channels/messages/repository';
+import { planKnowledgeQuery } from '@/server/knowledge/queryPlanner';
+import { enforceSectionBudgets, estimateTokenCount, trimToTokenBudget } from '@/server/knowledge/tokenBudget';
+import type { KnowledgeEpisode, KnowledgeRepository, MeetingLedgerEntry } from '@/server/knowledge/repository';
+import { computeEventAnswer } from '@/server/knowledge/eventAnswerComputer';
+import type { EntityGraphFilter, EntityLookupResult } from '@/server/knowledge/entityGraph';
+import { adjustRecallScore } from '@/server/knowledge/recallScoring';
+import { assessAnswerSafety, buildSafetyInstruction } from '@/server/knowledge/answerSafetyPolicy';
+import type { EvidenceAssessment } from '@/server/knowledge/answerSafetyPolicy';
+import { detectQueryComplexity, calculateRecallBudget } from '@/server/knowledge/recallBudgetCalculator';
+import { adjustScoreByStrategy } from '@/server/knowledge/personaStrategies';
+import type { PersonaType } from '@/server/knowledge/personaStrategies';
 
 interface MemoryRecallLike {
   recallDetailed: (

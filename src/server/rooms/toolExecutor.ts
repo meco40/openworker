@@ -1,6 +1,6 @@
-import { getSkillRepository } from '../skills/skillRepository';
-import { executeSkillFunctionCall } from '../../../skills/execute';
-import type { Skill } from '../../../types';
+import { getSkillRepository } from '@/server/skills/skillRepository';
+import { executeSkillFunctionCall } from '@/skills/execute';
+import type { Skill } from '@/shared/domain/types';
 
 export interface ToolExecutionResult {
   ok: boolean;

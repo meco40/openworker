@@ -1,22 +1,22 @@
 import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { getMessageService } from '../../../../../src/server/channels/messages/runtime';
+import { getMessageService } from '@/server/channels/messages/runtime';
 import {
   persistIncomingAttachment,
   type IncomingMessageAttachmentPayload,
   type StoredMessageAttachment,
-} from '../../../../../src/server/channels/messages/attachments';
-import { verifySharedSecret } from '../../../../../src/server/channels/webhookAuth';
-import { ChannelType } from '../../../../../types';
-import { normalizeWhatsAppInbound } from '../../../../../src/server/channels/inbound/normalizers';
+} from '@/server/channels/messages/attachments';
+import { verifySharedSecret } from '@/server/channels/webhookAuth';
+import { ChannelType } from '@/shared/domain/types';
+import { normalizeWhatsAppInbound } from '@/server/channels/inbound/normalizers';
 import {
   readBridgeAccountAllowFrom,
   resolveBridgeAccountIdFromRequest,
   resolveBridgeAccountSecret,
   scopeBridgeExternalChatId,
   upsertBridgeAccount,
-} from '../../../../../src/server/channels/pairing/bridgeAccounts';
-import { getCredentialStore } from '../../../../../src/server/channels/credentials';
+} from '@/server/channels/pairing/bridgeAccounts';
+import { getCredentialStore } from '@/server/channels/credentials';
 
 export const runtime = 'nodejs';
 

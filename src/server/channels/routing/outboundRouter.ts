@@ -1,5 +1,5 @@
-import type { ChannelKey } from '../adapters/types';
-import { getAdapter } from './adapterRegistry';
+import type { ChannelKey } from '@/server/channels/adapters/types';
+import { getAdapter } from '@/server/channels/routing/adapterRegistry';
 
 export interface OutboundRouteCommand {
   channel: ChannelKey;

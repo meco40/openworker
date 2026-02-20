@@ -1,8 +1,8 @@
 ﻿import fs from 'node:fs';
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
-import { runMigrations } from './repositories/migrations';
-import type { RoomRepository } from './repository';
+import { runMigrations } from '@/server/rooms/repositories/migrations';
+import type { RoomRepository } from '@/server/rooms/repository';
 import {
   RoomRepository as RoomRepo,
   MemberRepository,
@@ -11,7 +11,7 @@ import {
   RuntimeRepository,
   PersonaRepository,
   InterventionRepository,
-} from './repositories';
+} from '@/server/rooms/repositories';
 
 /**
  * Main SQLite implementation of the RoomRepository interface.

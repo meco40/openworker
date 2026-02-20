@@ -1,6 +1,6 @@
-import { RoomService } from './service';
-import { SqliteRoomRepository } from './sqliteRoomRepository';
-import { RoomOrchestrator, type RoomOrchestratorOptions } from './orchestrator';
+import { RoomService } from '@/server/rooms/service';
+import { SqliteRoomRepository } from '@/server/rooms/sqliteRoomRepository';
+import { RoomOrchestrator, type RoomOrchestratorOptions } from '@/server/rooms/orchestrator';
 
 let roomRepository: SqliteRoomRepository | undefined;
 let roomService: RoomService | undefined;

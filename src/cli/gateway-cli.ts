@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
-import { isMethodAllowed } from '../server/gateway/method-scopes';
-import { GatewayRpcClient } from './lib/gatewayRpc';
+import { isMethodAllowed } from '@/server/gateway/method-scopes';
+import { GatewayRpcClient } from '@/cli/lib/gatewayRpc';
 
 function popOption(args: string[], name: string): string | undefined {
   const index = args.indexOf(name);

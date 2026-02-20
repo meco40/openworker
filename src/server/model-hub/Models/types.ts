@@ -1,5 +1,5 @@
-import type { ProviderAccountRecord } from '../repository';
-import type { ProviderCatalogEntry } from '../types';
+import type { ProviderAccountRecord } from '@/server/model-hub/repository';
+import type { ProviderCatalogEntry } from '@/server/model-hub/types';
 
 export interface FetchedModel {
   id: string;

@@ -1,17 +1,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { parseClawHubSearchOutput } from './searchParser';
-import { ClawHubInputError, ClawHubNotFoundError, isValidClawHubSlug } from './errors';
+import { parseClawHubSearchOutput } from '@/server/clawhub/searchParser';
+import { ClawHubInputError, ClawHubNotFoundError, isValidClawHubSlug } from '@/server/clawhub/errors';
 import type {
   ClawHubCliLike,
   ClawHubSearchParseResult,
   ClawHubSkillRow,
   UpsertClawHubSkillInput,
-} from './types';
-import { ClawHubCli } from './clawhubCli';
-import { ClawHubRepository, getClawHubRepository } from './clawhubRepository';
-import { buildClawHubPromptBlock } from './clawhubPromptBuilder';
+} from '@/server/clawhub/types';
+import { ClawHubCli } from '@/server/clawhub/clawhubCli';
+import { ClawHubRepository, getClawHubRepository } from '@/server/clawhub/clawhubRepository';
+import { buildClawHubPromptBlock } from '@/server/clawhub/clawhubPromptBuilder';
 
 interface ClawHubLockFile {
   skills?: Record<

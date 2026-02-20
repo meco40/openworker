@@ -8,7 +8,7 @@
  * - general: concise overview
  */
 
-import type { PersonaType } from './personaTypeDetector';
+import type { PersonaType } from '@/server/knowledge/personaTypeDetector';
 
 export const SUMMARY_PROMPTS: Record<PersonaType, string> = {
   roleplay: `Fasse das Gespraech als NARRATIVE zusammen.

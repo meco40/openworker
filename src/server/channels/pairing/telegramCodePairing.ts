@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { getCredentialStore } from '../credentials';
+import { getCredentialStore } from '@/server/channels/credentials';
 
 const CHANNEL = 'telegram';
 

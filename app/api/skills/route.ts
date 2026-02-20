@@ -4,9 +4,9 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getSkillRepository } from '../../../src/server/skills/skillRepository';
-import { installFromSource } from '../../../src/server/skills/skillInstaller';
-import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
+import { getSkillRepository } from '@/server/skills/skillRepository';
+import { installFromSource } from '@/server/skills/skillInstaller';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 

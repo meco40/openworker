@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 
-import type { LogCategory, LogEntry, LogFilter, LogLevel } from './logTypes';
+import type { LogCategory, LogEntry, LogFilter, LogLevel } from '@/logging/logTypes';
 
 function toLogEntry(row: Record<string, unknown>): LogEntry {
   return {

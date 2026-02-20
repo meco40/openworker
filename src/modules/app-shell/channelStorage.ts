@@ -1,4 +1,4 @@
-import type { CoupledChannel } from '../../../types';
+import type { CoupledChannel } from '@/shared/domain/types';
 
 export const COUPLED_CHANNELS_STORAGE_KEY = 'openclaw.coupledChannels.v1';
 

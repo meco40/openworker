@@ -1,4 +1,4 @@
-import type { RoomMemberStatus, RoomMember, RoomMessage, RoomState, RoomSummary } from './types';
+import type { RoomMemberStatus, RoomMember, RoomMessage, RoomState, RoomSummary } from '@/modules/rooms/types';
 
 export async function listRooms(): Promise<RoomSummary[]> {
   const response = await fetch('/api/rooms');

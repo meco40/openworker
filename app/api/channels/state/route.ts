@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
-import { getMessageRepository } from '../../../../src/server/channels/messages/runtime';
-import { CHANNEL_CAPABILITIES } from '../../../../src/server/channels/adapters/capabilities';
-import type { ChannelKey } from '../../../../src/server/channels/adapters/types';
-import { listBridgeAccounts } from '../../../../src/server/channels/pairing/bridgeAccounts';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getMessageRepository } from '@/server/channels/messages/runtime';
+import { CHANNEL_CAPABILITIES } from '@/server/channels/adapters/capabilities';
+import type { ChannelKey } from '@/server/channels/adapters/types';
+import { listBridgeAccounts } from '@/server/channels/pairing/bridgeAccounts';
 
 export const runtime = 'nodejs';
 

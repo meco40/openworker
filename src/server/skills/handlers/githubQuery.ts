@@ -1,4 +1,4 @@
-import { getRuntimeConfigValue } from '../runtimeConfig';
+import { getRuntimeConfigValue } from '@/server/skills/runtimeConfig';
 
 interface GithubResponseItem {
   id?: number;

@@ -1,4 +1,4 @@
-import type { CommandPermission } from '../../../types';
+import type { CommandPermission } from '@/shared/domain/types';
 
 export type SecurityCheckStatus = 'ok' | 'warning' | 'critical';
 

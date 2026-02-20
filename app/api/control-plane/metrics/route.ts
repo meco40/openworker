@@ -1,9 +1,9 @@
-import { getTokenUsageRepository } from '../../../../src/server/stats/tokenUsageRepository';
-import { getMemoryService } from '../../../../src/server/memory/runtime';
-import { getClientRegistry } from '../../../../src/server/gateway/client-registry';
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
-import { LEGACY_LOCAL_USER_ID } from '../../../../src/server/auth/constants';
-import { getMessageRepository } from '../../../../src/server/channels/messages/runtime';
+import { getTokenUsageRepository } from '@/server/stats/tokenUsageRepository';
+import { getMemoryService } from '@/server/memory/runtime';
+import { getClientRegistry } from '@/server/gateway/client-registry';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
+import { getMessageRepository } from '@/server/channels/messages/runtime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -81,9 +81,9 @@ export async function GET() {
     } | null = null;
 
     const [automationImport, roomImport, knowledgeImport] = await Promise.allSettled([
-      import('../../../../src/server/automation/runtime'),
-      import('../../../../src/server/rooms/runtime'),
-      import('../../../../src/server/knowledge/runtime').then((mod) => ({
+      import('@/server/automation/runtime'),
+      import('@/server/rooms/runtime'),
+      import('@/server/knowledge/runtime').then((mod) => ({
         getKnowledgeRepository: mod.getKnowledgeRepository,
       })),
     ]);

@@ -10,7 +10,7 @@ import {
   isAllowedUiDefaultView,
   isAllowedUiDensity,
   isAllowedUiTimeFormat,
-} from '../../shared/config/uiSchema';
+} from '@/shared/config/uiSchema';
 
 export type GatewayConfig = Record<string, unknown>;
 export type GatewayConfigSource = 'default' | 'file' | 'db';

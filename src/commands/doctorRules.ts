@@ -1,4 +1,4 @@
-import type { HealthCheck } from './healthTypes';
+import type { HealthCheck } from '@/commands/healthTypes';
 
 export type DoctorFindingSeverity = 'warning' | 'critical';
 

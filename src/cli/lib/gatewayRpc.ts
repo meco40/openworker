@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
-import { GatewayEvents } from '../../server/gateway/events';
+import { GatewayEvents } from '@/server/gateway/events';
 import {
   parseFrame,
   type EventFrame,
   type ResponseFrame,
   type StreamFrame,
-} from '../../server/gateway/protocol';
+} from '@/server/gateway/protocol';
 
 interface PendingRequest {
   resolve: (payload: unknown) => void;

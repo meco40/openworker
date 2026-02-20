@@ -4,7 +4,7 @@
 import {
   getKnowledgeIngestionCursor,
   getKnowledgeIngestionService,
-} from '../src/server/knowledge/runtime';
+} from '@/server/knowledge/runtime';
 
 async function main() {
   const cursor = getKnowledgeIngestionCursor();

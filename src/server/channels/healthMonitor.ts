@@ -1,10 +1,10 @@
-import { registerBridgeWebhook, probeBridgeHealth } from './pairing/bridge';
+import { registerBridgeWebhook, probeBridgeHealth } from '@/server/channels/pairing/bridge';
 import {
   listBridgeAccounts,
   resolveBridgeAccountSecret,
   upsertBridgeAccount,
   type BridgeChannel,
-} from './pairing/bridgeAccounts';
+} from '@/server/channels/pairing/bridgeAccounts';
 
 const DEFAULT_INTERVAL_MS = Number(process.env.CHANNEL_HEALTH_MONITOR_INTERVAL_MS || 60_000);
 const DEFAULT_FAILURE_THRESHOLD = Number(process.env.CHANNEL_HEALTH_MONITOR_FAILURE_THRESHOLD || 3);

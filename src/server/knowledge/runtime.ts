@@ -1,19 +1,19 @@
-import type { MessageRepository } from '../channels/messages/repository';
-import { SqliteMessageRepository } from '../channels/messages/sqliteMessageRepository';
-import { getModelHubService, getModelHubEncryptionKey } from '../model-hub/runtime';
-import { getMemoryService } from '../memory/runtime';
-import { getKnowledgeConfig } from './config';
-import { KnowledgeExtractor } from './extractor';
-import { KnowledgeIngestionCursor } from './ingestionCursor';
-import { KnowledgeIngestionService } from './ingestionService';
-import { KnowledgeRetrievalService } from './retrievalService';
-import type { KnowledgeRepository } from './repository';
-import { SqliteKnowledgeRepository } from './sqliteKnowledgeRepository';
-import { KnowledgeRuntimeLoop } from './runtimeLoop';
-import { detectPlaceholder, detectStaleRelativeTime, detectLowRelevance } from './cleanupDetector';
-import { detectOrphans } from './reconciliation';
-import { getPersonaRepository } from '../personas/personaRepository';
-import type { PersonaType } from './personaStrategies';
+import type { MessageRepository } from '@/server/channels/messages/repository';
+import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
+import { getModelHubService, getModelHubEncryptionKey } from '@/server/model-hub/runtime';
+import { getMemoryService } from '@/server/memory/runtime';
+import { getKnowledgeConfig } from '@/server/knowledge/config';
+import { KnowledgeExtractor } from '@/server/knowledge/extractor';
+import { KnowledgeIngestionCursor } from '@/server/knowledge/ingestionCursor';
+import { KnowledgeIngestionService } from '@/server/knowledge/ingestionService';
+import { KnowledgeRetrievalService } from '@/server/knowledge/retrievalService';
+import type { KnowledgeRepository } from '@/server/knowledge/repository';
+import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
+import { KnowledgeRuntimeLoop } from '@/server/knowledge/runtimeLoop';
+import { detectPlaceholder, detectStaleRelativeTime, detectLowRelevance } from '@/server/knowledge/cleanupDetector';
+import { detectOrphans } from '@/server/knowledge/reconciliation';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
+import type { PersonaType } from '@/server/knowledge/personaStrategies';
 
 declare global {
   var __knowledgeMessageRepository: MessageRepository | undefined;

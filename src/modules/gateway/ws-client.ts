@@ -7,8 +7,8 @@ import type {
   RequestFrame,
   ResponseFrame,
   StreamFrame,
-} from '../../server/gateway/protocol';
-import type { GatewayEvent } from '../../server/gateway/events';
+} from '@/server/gateway/protocol';
+import type { GatewayEvent } from '@/server/gateway/events';
 
 // ─── Types ───────────────────────────────────────────────────
 

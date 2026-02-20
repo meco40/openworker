@@ -1,6 +1,6 @@
-import { ChannelType } from '../../../../types';
-import type { Conversation, MessageRepository } from './repository';
-import type { ChannelKey } from '../adapters/types';
+import { ChannelType } from '@/shared/domain/types';
+import type { Conversation, MessageRepository } from '@/server/channels/messages/repository';
+import type { ChannelKey } from '@/server/channels/adapters/types';
 
 type ChannelBindingRepo = Pick<
   MessageRepository,

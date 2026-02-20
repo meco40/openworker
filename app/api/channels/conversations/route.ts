@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getMessageService } from '../../../../src/server/channels/messages/runtime';
-import type { ChannelType } from '../../../../types';
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import { getMessageService } from '@/server/channels/messages/runtime';
+import type { ChannelType } from '@/shared/domain/types';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 
@@ -78,8 +78,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Conversation not found' }, { status: 404 });
     }
 
-    const { broadcastToUser } = await import('../../../../src/server/gateway/broadcast');
-    const { GatewayEvents } = await import('../../../../src/server/gateway/events');
+    const { broadcastToUser } = await import('@/server/gateway/broadcast');
+    const { GatewayEvents } = await import('@/server/gateway/events');
     broadcastToUser(userContext.userId, GatewayEvents.CONVERSATION_DELETED, { conversationId });
 
     return NextResponse.json({ ok: true });

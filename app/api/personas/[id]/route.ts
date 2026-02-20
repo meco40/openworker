@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
-import { getMemoryService } from '../../../../src/server/memory/runtime';
-import { getModelHubService } from '../../../../src/server/model-hub/runtime';
-import { getPersonaRepository } from '../../../../src/server/personas/personaRepository';
-import {
-  MEMORY_PERSONA_TYPES,
-  type MemoryPersonaType,
-} from '../../../../src/server/personas/personaTypes';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getMemoryService } from '@/server/memory/runtime';
+import { getModelHubService } from '@/server/model-hub/runtime';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
+import { MEMORY_PERSONA_TYPES, type MemoryPersonaType } from '@/server/personas/personaTypes';
 
 export const runtime = 'nodejs';
 

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getMessageService } from '../../../../src/server/channels/messages/runtime';
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import { getMessageService } from '@/server/channels/messages/runtime';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 import {
   persistIncomingAttachment,
   type IncomingMessageAttachmentPayload,
   type StoredMessageAttachment,
-} from '../../../../src/server/channels/messages/attachments';
+} from '@/server/channels/messages/attachments';
 
 export const runtime = 'nodejs';
 

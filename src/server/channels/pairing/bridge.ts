@@ -1,11 +1,11 @@
 import crypto from 'node:crypto';
-import { getCredentialStore } from '../credentials';
+import { getCredentialStore } from '@/server/channels/credentials';
 import {
   normalizeBridgeAccountId,
   resolveBridgeAccountSecret,
   upsertBridgeAccount,
   type BridgeChannel,
-} from './bridgeAccounts';
+} from '@/server/channels/pairing/bridgeAccounts';
 
 function resolveBridgeUrl(channel: BridgeChannel): string {
   const envName = channel === 'whatsapp' ? 'WHATSAPP_BRIDGE_URL' : 'IMESSAGE_BRIDGE_URL';

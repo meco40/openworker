@@ -1,4 +1,4 @@
-import { GatewayRpcClient } from './lib/gatewayRpc';
+import { GatewayRpcClient } from '@/cli/lib/gatewayRpc';
 
 function popOption(args: string[], name: string): string | undefined {
   const index = args.indexOf(name);

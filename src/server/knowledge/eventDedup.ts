@@ -1,5 +1,5 @@
-import type { ExtractedEvent } from './eventExtractor';
-import type { KnowledgeEventFilter } from './eventTypes';
+import type { ExtractedEvent } from '@/server/knowledge/eventExtractor';
+import type { KnowledgeEventFilter } from '@/server/knowledge/eventTypes';
 
 /**
  * Result of the deduplication check for a single extracted event.

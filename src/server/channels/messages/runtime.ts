@@ -1,5 +1,5 @@
-import { SqliteMessageRepository } from './sqliteMessageRepository';
-import { MessageService } from './service';
+import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
+import { MessageService } from '@/server/channels/messages/service';
 
 declare global {
   var __messageRepository: SqliteMessageRepository | undefined;
@@ -25,7 +25,7 @@ export function getMessageService(): MessageService {
     globalThis.__pollingResumeChecked = true;
     (async () => {
       try {
-        const { getCredentialStore } = await import('../credentials');
+        const { getCredentialStore } = await import('@/server/channels/credentials');
         const store = getCredentialStore();
         const transport = store.getCredential('telegram', 'update_transport');
         const status = store.getCredential('telegram', 'pairing_status');
@@ -36,7 +36,7 @@ export function getMessageService(): MessageService {
           token &&
           (status === 'connected' || status === 'awaiting_code')
         ) {
-          const { startTelegramPolling } = await import('../pairing/telegramPolling');
+          const { startTelegramPolling } = await import('@/server/channels/pairing/telegramPolling');
           await startTelegramPolling();
           console.log('[Runtime] Auto-resumed Telegram polling after server restart.');
         }
@@ -50,7 +50,7 @@ export function getMessageService(): MessageService {
     globalThis.__channelHealthMonitorChecked = true;
     (async () => {
       try {
-        const { startChannelHealthMonitor } = await import('../healthMonitor');
+        const { startChannelHealthMonitor } = await import('@/server/channels/healthMonitor');
         startChannelHealthMonitor();
       } catch (error) {
         console.warn('[Runtime] Could not start channel health monitor:', error);

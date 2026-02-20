@@ -1,11 +1,11 @@
-import { getCredentialStore } from '../credentials';
+import { getCredentialStore } from '@/server/channels/credentials';
 import {
   listBridgeAccountIds,
   normalizeBridgeAccountId,
   removeBridgeAccount,
   resolveBridgeAccountSecret,
   type BridgeChannel,
-} from './bridgeAccounts';
+} from '@/server/channels/pairing/bridgeAccounts';
 
 export type UnpairChannelType = 'whatsapp' | 'telegram' | 'discord' | 'imessage' | 'slack';
 

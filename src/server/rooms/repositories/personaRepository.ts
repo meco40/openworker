@@ -1,11 +1,11 @@
-import { toPersonaSession, toPersonaThreadMessage, toPersonaContext } from '../roomRowMappers';
+import { toPersonaSession, toPersonaThreadMessage, toPersonaContext } from '@/server/rooms/roomRowMappers';
 import type {
   RoomPersonaSession,
   RoomPersonaThreadMessage,
   RoomPersonaThreadRole,
   RoomPersonaContext,
-} from '../types';
-import { BaseRepository } from './baseRepository';
+} from '@/server/rooms/types';
+import { BaseRepository } from '@/server/rooms/repositories/baseRepository';
 
 /**
  * Repository for room persona-related operations (sessions, thread messages, context).

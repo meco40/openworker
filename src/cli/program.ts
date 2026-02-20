@@ -1,8 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { runChannelsCli } from './channels-cli';
-import { runGatewayCli } from './gateway-cli';
-import { runNodeCli } from './node-cli';
+import { runChannelsCli } from '@/cli/channels-cli';
+import { runGatewayCli } from '@/cli/gateway-cli';
+import { runNodeCli } from '@/cli/node-cli';
 
 function printHelp(): void {
   console.log(`openclaw <command>

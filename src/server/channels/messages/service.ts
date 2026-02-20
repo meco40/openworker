@@ -1,39 +1,39 @@
 import crypto from 'node:crypto';
-import { ChannelType } from '../../../../types';
-import type { Skill } from '../../../../types';
-import type { MessageRepository, StoredMessage, Conversation } from './repository';
-import { broadcastToUser } from '../../gateway/broadcast';
-import { GatewayEvents } from '../../gateway/events';
-import { deliverOutbound } from '../outbound/router';
-import { getModelHubService, getModelHubEncryptionKey } from '../../model-hub/runtime';
-import { routeMessage } from './messageRouter';
-import { SessionManager } from './sessionManager';
-import { HistoryManager } from './historyManager';
-import { ContextBuilder } from './contextBuilder';
-import { fuseRecallSources } from './recallFusion';
-import type { SearchMessagesOptions } from './sqliteMessageRepository';
-import { getPersonaRepository } from '../../personas/personaRepository';
-import { buildFallbackSummary, isAiSummaryEnabled } from './summary';
+import { ChannelType } from '@/shared/domain/types';
+import type { Skill } from '@/shared/domain/types';
+import type { MessageRepository, StoredMessage, Conversation } from '@/server/channels/messages/repository';
+import { broadcastToUser } from '@/server/gateway/broadcast';
+import { GatewayEvents } from '@/server/gateway/events';
+import { deliverOutbound } from '@/server/channels/outbound/router';
+import { getModelHubService, getModelHubEncryptionKey } from '@/server/model-hub/runtime';
+import { routeMessage } from '@/server/channels/messages/messageRouter';
+import { SessionManager } from '@/server/channels/messages/sessionManager';
+import { HistoryManager } from '@/server/channels/messages/historyManager';
+import { ContextBuilder } from '@/server/channels/messages/contextBuilder';
+import { fuseRecallSources } from '@/server/channels/messages/recallFusion';
+import type { SearchMessagesOptions } from '@/server/channels/messages/sqliteMessageRepository';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
+import { buildFallbackSummary, isAiSummaryEnabled } from '@/server/channels/messages/summary';
 import {
   applyChannelBindingPersona,
   getChannelBindingPersonaId,
   setChannelBindingPersona,
-} from './channelBindingPersona';
-import { getMemoryService } from '../../memory/runtime';
-import { resolveMemoryScopedUserId, resolveMemoryUserIdCandidates } from '../../memory/userScope';
-import { resolveKnowledgeConfig } from '../../knowledge/config';
+} from '@/server/channels/messages/channelBindingPersona';
+import { getMemoryService } from '@/server/memory/runtime';
+import { resolveMemoryScopedUserId, resolveMemoryUserIdCandidates } from '@/server/memory/userScope';
+import { resolveKnowledgeConfig } from '@/server/knowledge/config';
 import {
   getKnowledgeIngestionService,
   getKnowledgeRetrievalService,
-} from '../../knowledge/runtime';
-import { buildAutoMemoryCandidates, isAutoSessionMemoryEnabled } from './autoMemory';
-import type { MemoryFeedbackSignal } from '../../memory/service';
-import { getProactiveGateService } from '../../proactive/runtime';
-import { buildMessageAttachmentMetadata, type StoredMessageAttachment } from './attachments';
-import { mapSkillsToTools } from '../../../../skills/definitions';
-import { getSkillRepository } from '../../skills/skillRepository';
-import { approveCommand, isCommandApproved } from '../../gateway/exec-approval-manager';
-import { evaluateNodeCommandPolicy } from '../../gateway/node-command-policy';
+} from '@/server/knowledge/runtime';
+import { buildAutoMemoryCandidates, isAutoSessionMemoryEnabled } from '@/server/channels/messages/autoMemory';
+import type { MemoryFeedbackSignal } from '@/server/memory/service';
+import { getProactiveGateService } from '@/server/proactive/runtime';
+import { buildMessageAttachmentMetadata, type StoredMessageAttachment } from '@/server/channels/messages/attachments';
+import { mapSkillsToTools } from '@/skills/definitions';
+import { getSkillRepository } from '@/server/skills/skillRepository';
+import { approveCommand, isCommandApproved } from '@/server/gateway/exec-approval-manager';
+import { evaluateNodeCommandPolicy } from '@/server/gateway/node-command-policy';
 import {
   abortSubagentRun,
   attachSubagentRuntime,
@@ -47,7 +47,7 @@ import {
   markSubagentRunKilled,
   replaceSubagentRun,
   type SubagentRunRecord,
-} from '../../agents/subagentRegistry';
+} from '@/server/agents/subagentRegistry';
 
 function extractMemorySaveContent(content: string): string | null {
   const trimmed = content.trim();
@@ -514,10 +514,10 @@ export class MessageService {
     externalChatId: string,
   ): Promise<StoredMessage> {
     const fullCommand = payload ? `/cron ${payload}` : '/cron';
-    const { parseCronCommand } = await import('../../automation/commands');
+    const { parseCronCommand } = await import('@/server/automation/commands');
     const parsed = parseCronCommand(fullCommand);
 
-    const { getAutomationService } = await import('../../automation/runtime');
+    const { getAutomationService } = await import('@/server/automation/runtime');
     const automationService = getAutomationService();
 
     switch (parsed.action) {
@@ -1610,7 +1610,7 @@ export class MessageService {
     }
 
     try {
-      const { dispatchSkill, normalizeSkillArgs } = await import('../../skills/executeSkill');
+      const { dispatchSkill, normalizeSkillArgs } = await import('@/server/skills/executeSkill');
       const result = await dispatchSkill(functionName, normalizeSkillArgs(args), {
         bypassApproval: functionName === 'shell_execute' && Boolean(params.skipApprovalCheck),
         conversationId: params.conversation.id,

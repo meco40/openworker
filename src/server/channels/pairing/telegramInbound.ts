@@ -1,14 +1,14 @@
-import { ChannelType } from '../../../../types';
-import { getMessageService } from '../messages/runtime';
-import { answerTelegramCallbackQuery, deliverTelegram } from '../outbound/telegram';
-import { ensureTelegramPairingCode, isTelegramChatAuthorized } from './telegramCodePairing';
+import { ChannelType } from '@/shared/domain/types';
+import { getMessageService } from '@/server/channels/messages/runtime';
+import { answerTelegramCallbackQuery, deliverTelegram } from '@/server/channels/outbound/telegram';
+import { ensureTelegramPairingCode, isTelegramChatAuthorized } from '@/server/channels/pairing/telegramCodePairing';
 import {
   handleTelegramNativeCommand,
   processTelegramModelCallback,
   type TelegramModelCallbackQuery,
-} from '../telegram/modelSelection';
-import { applyTelegramGroupMigration } from '../telegram/groupMigration';
-import { extractTelegramInboundMedia, resolveTelegramInboundText } from '../telegram/media';
+} from '@/server/channels/telegram/modelSelection';
+import { applyTelegramGroupMigration } from '@/server/channels/telegram/groupMigration';
+import { extractTelegramInboundMedia, resolveTelegramInboundText } from '@/server/channels/telegram/media';
 
 export interface TelegramInboundMessage {
   message_id: number;
@@ -139,7 +139,7 @@ export async function processTelegramInboundMessage(
     conversationId: conversation.id,
     botToken:
       process.env.TELEGRAM_BOT_TOKEN ||
-      (await import('../credentials')).getCredentialStore().getCredential('telegram', 'bot_token'),
+      (await import('@/server/channels/credentials')).getCredentialStore().getCredential('telegram', 'bot_token'),
   });
   const content = resolveTelegramInboundText(message, media.summaryText);
   if (!content) {

@@ -1,28 +1,28 @@
-import type { MemoryService } from '../memory/service';
+import type { MemoryService } from '@/server/memory/service';
 import {
   KnowledgeExtractionInput,
   KnowledgeExtractionResult,
   KnowledgeExtractor,
   detectFactSubject,
-} from './extractor';
-import type { ExtractionPersonaContext } from './prompts';
-import type { IngestionWindow, KnowledgeIngestionCursor } from './ingestionCursor';
-import type { KnowledgeRepository } from './repository';
-import { sanitizeKnowledgeFacts } from './textQuality';
-import { deduplicateEvent } from './eventDedup';
-import { EntityExtractor, isRelationWord } from './entityExtractor';
-import { createId } from '../../shared/lib/ids';
-import { detectContradictionSignal } from './contradictionDetector';
-import { checkMemoryPoisoning } from './security/memoryPoisoningGuard';
-import { detectEmotion } from './emotionTracker';
-import { detectCorrection } from './correctionDetector';
-import { expandMultilingualAliases } from './multilingualAliases';
-import { detectProjectStatusSignal } from './projectTracker';
-import { detectTaskCompletion } from './taskTracker';
-import type { TrackedTask } from './taskTracker';
-import { transitionLifecycle } from './factLifecycle';
-import type { LifecycleStatus } from './factLifecycle';
-import { resolveRelativeTime } from './timeResolver';
+} from '@/server/knowledge/extractor';
+import type { ExtractionPersonaContext } from '@/server/knowledge/prompts';
+import type { IngestionWindow, KnowledgeIngestionCursor } from '@/server/knowledge/ingestionCursor';
+import type { KnowledgeRepository } from '@/server/knowledge/repository';
+import { sanitizeKnowledgeFacts } from '@/server/knowledge/textQuality';
+import { deduplicateEvent } from '@/server/knowledge/eventDedup';
+import { EntityExtractor, isRelationWord } from '@/server/knowledge/entityExtractor';
+import { createId } from '@/shared/lib/ids';
+import { detectContradictionSignal } from '@/server/knowledge/contradictionDetector';
+import { checkMemoryPoisoning } from '@/server/knowledge/security/memoryPoisoningGuard';
+import { detectEmotion } from '@/server/knowledge/emotionTracker';
+import { detectCorrection } from '@/server/knowledge/correctionDetector';
+import { expandMultilingualAliases } from '@/server/knowledge/multilingualAliases';
+import { detectProjectStatusSignal } from '@/server/knowledge/projectTracker';
+import { detectTaskCompletion } from '@/server/knowledge/taskTracker';
+import type { TrackedTask } from '@/server/knowledge/taskTracker';
+import { transitionLifecycle } from '@/server/knowledge/factLifecycle';
+import type { LifecycleStatus } from '@/server/knowledge/factLifecycle';
+import { resolveRelativeTime } from '@/server/knowledge/timeResolver';
 
 interface IngestionCursorLike {
   getPendingWindows(limitConversations?: number): IngestionWindow[];

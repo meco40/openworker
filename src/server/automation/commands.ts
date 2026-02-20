@@ -1,4 +1,4 @@
-import { intervalToCronExpression } from './cronEngine';
+import { intervalToCronExpression } from '@/server/automation/cronEngine';
 
 type ParsedCronCommand =
   | {

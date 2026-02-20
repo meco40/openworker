@@ -1,4 +1,4 @@
-import { parseScopedBridgeExternalChatId } from '../pairing/bridgeAccounts';
+import { parseScopedBridgeExternalChatId } from '@/server/channels/pairing/bridgeAccounts';
 
 /**
  * Delivers a message to WhatsApp via the configured bridge.

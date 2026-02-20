@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { buildEffectivePolicyExplainSnapshot } from '../../../../src/server/security/policyExplain';
+import { buildEffectivePolicyExplainSnapshot } from '@/server/security/policyExplain';
 
 export const runtime = 'nodejs';
 

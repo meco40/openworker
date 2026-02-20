@@ -1,4 +1,4 @@
-import { getTokenUsageRepository } from '../../../src/server/stats/tokenUsageRepository';
+import { getTokenUsageRepository } from '@/server/stats/tokenUsageRepository';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

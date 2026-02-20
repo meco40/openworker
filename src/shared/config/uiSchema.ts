@@ -1,4 +1,4 @@
-import { View } from '../../../types';
+import { View } from '@/shared/domain/types';
 
 export const ALLOWED_UI_DEFAULT_VIEWS = Object.freeze(Object.values(View));
 export const ALLOWED_UI_DENSITIES = Object.freeze(['comfortable', 'compact'] as const);

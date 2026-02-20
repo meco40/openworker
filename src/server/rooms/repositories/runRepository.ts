@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
-import { toRun } from '../roomRowMappers';
-import type { RoomRun, RoomRunState } from '../types';
-import { BaseRepository } from './baseRepository';
+import { toRun } from '@/server/rooms/roomRowMappers';
+import type { RoomRun, RoomRunState } from '@/server/rooms/types';
+import { BaseRepository } from '@/server/rooms/repositories/baseRepository';
 
 /**
  * Repository for room run/lease-related operations.

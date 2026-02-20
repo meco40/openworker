@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import type { PersonaSummary, PersonaWithFiles } from '../../server/personas/personaTypes';
+import type { PersonaSummary, PersonaWithFiles } from '@/server/personas/personaTypes';
 
 // ─── Types ───────────────────────────────────────────────────
 interface PersonaContextValue {

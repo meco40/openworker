@@ -1,7 +1,7 @@
-import type { MessageRepository } from './repository';
-import { getPersonaRepository } from '../../personas/personaRepository';
-import type { GatewayMessage } from '../../model-hub/Models/types';
-import { extractStoredAttachmentsFromMetadata } from './attachments';
+import type { MessageRepository } from '@/server/channels/messages/repository';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
+import type { GatewayMessage } from '@/server/model-hub/Models/types';
+import { extractStoredAttachmentsFromMetadata } from '@/server/channels/messages/attachments';
 
 export class ContextBuilder {
   constructor(private readonly repo: MessageRepository) {}

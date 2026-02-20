@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useGatewayConnection, useGatewayEvent } from '../gateway/useGatewayConnection';
+import { useGatewayConnection, useGatewayEvent } from '@/modules/gateway/useGatewayConnection';
 import type {
   RoomInterventionEvent,
   RoomMemberStatus,
   RoomMessage,
   RoomMetricsEvent,
   RoomRunStatusEvent,
-} from './types';
+} from '@/modules/rooms/types';
 
 export function upsertRoomMessage(previous: RoomMessage[], incoming: RoomMessage): RoomMessage[] {
   if (previous.some((item) => item.id === incoming.id || item.seq === incoming.seq)) {

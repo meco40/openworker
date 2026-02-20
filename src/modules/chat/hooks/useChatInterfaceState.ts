@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type React from 'react';
-import type { ChannelType, Conversation, Message, MessageAttachment } from '../../../../types';
-import { validateAttachmentFile } from '../uiUtils';
-import { getGatewayClient } from '../../gateway/ws-client';
+import type { ChannelType, Conversation, Message, MessageAttachment } from '@/shared/domain/types';
+import { validateAttachmentFile } from '@/modules/chat/uiUtils';
+import { getGatewayClient } from '@/modules/gateway/ws-client';
 
 interface UseChatInterfaceStateArgs {
   conversations: Conversation[];

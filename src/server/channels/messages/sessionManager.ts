@@ -1,6 +1,6 @@
-import type { ChannelType, Conversation } from '../../../../types';
-import type { MessageRepository } from './repository';
-import { LEGACY_LOCAL_USER_ID } from '../../auth/constants';
+import type { ChannelType, Conversation } from '@/shared/domain/types';
+import type { MessageRepository } from '@/server/channels/messages/repository';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 
 export class SessionManager {
   resolveUserId(userId?: string): string {

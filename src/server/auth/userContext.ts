@@ -1,8 +1,8 @@
 import type { Session } from 'next-auth';
-import { auth } from '../../auth';
-import { getPrincipalUserId } from './principal';
+import { auth } from '@/auth';
+import { getPrincipalUserId } from '@/server/auth/principal';
 
-export { LEGACY_LOCAL_USER_ID } from './constants';
+export { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 
 export function isAuthRequired(): boolean {
   return String(process.env.REQUIRE_AUTH || 'false').toLowerCase() === 'true';

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 
-import type { AutomationRepository } from './repository';
+import type { AutomationRepository } from '@/server/automation/repository';
 import type {
   AutomationDeadLetter,
   AutomationRule,
@@ -12,8 +12,8 @@ import type {
   CreateAutomationRunInput,
   SchedulerLeaseState,
   UpdateAutomationRuleInput,
-} from './types';
-import { toDeadLetter, toLease, toRule, toRun } from './automationRowMappers';
+} from '@/server/automation/types';
+import { toDeadLetter, toLease, toRule, toRun } from '@/server/automation/automationRowMappers';
 
 const LEASE_KEY = 'scheduler-singleton';
 

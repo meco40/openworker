@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
-import { getRoomService } from '../../../../../src/server/rooms/runtime';
-import { getPersonaRepository } from '../../../../../src/server/personas/personaRepository';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getRoomService } from '@/server/rooms/runtime';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
 
 export const runtime = 'nodejs';
 

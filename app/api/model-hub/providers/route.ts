@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PROVIDER_CATALOG } from '../../../../src/server/model-hub/providerCatalog';
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 

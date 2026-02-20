@@ -1,4 +1,4 @@
-import type { EncryptedSecretPayload } from './crypto';
+import type { EncryptedSecretPayload } from '@/server/model-hub/crypto';
 
 export interface CreateProviderAccountInput {
   providerId: string;

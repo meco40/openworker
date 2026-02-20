@@ -2,9 +2,9 @@ import {
   MAX_ATTACHMENT_BYTES,
   persistIncomingAttachment,
   type StoredMessageAttachment,
-} from '../messages/attachments';
-import { buildStickerSummary, getStickerSummary, setStickerSummary } from './stickerCache';
-import { resolveTelegramVoiceLabel } from './voice';
+} from '@/server/channels/messages/attachments';
+import { buildStickerSummary, getStickerSummary, setStickerSummary } from '@/server/channels/telegram/stickerCache';
+import { resolveTelegramVoiceLabel } from '@/server/channels/telegram/voice';
 
 export interface TelegramInboundMediaMessage {
   photo?: Array<{ file_id: string; width?: number; height?: number; file_size?: number }>;

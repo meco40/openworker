@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type React from 'react';
-import type { Message, ScheduledTask, SystemLog } from '../../../types';
-import { getDuePendingTasks, markDueTasksTriggered } from './taskScheduling';
+import type { Message, ScheduledTask, SystemLog } from '@/shared/domain/types';
+import { getDuePendingTasks, markDueTasksTriggered } from '@/modules/app-shell/taskScheduling';
 
 interface UseTaskSchedulerArgs {
   addEventLog: (type: SystemLog['type'], message: string) => void;

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
-import { getRuntimeConfigValue } from '../runtimeConfig';
+import { getRuntimeConfigValue } from '@/server/skills/runtimeConfig';
 
 const MAX_RESULT_ROWS = 200;
 

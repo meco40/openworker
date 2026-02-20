@@ -1,6 +1,6 @@
-import type { FetchedModel, ProviderAdapter } from '../types';
-import { dispatchOpenAICompatibleChat } from '../shared/openaiCompatible';
-import { fetchWithTimeout } from '../shared/http';
+import type { FetchedModel, ProviderAdapter } from '@/server/model-hub/Models/types';
+import { dispatchOpenAICompatibleChat } from '@/server/model-hub/Models/shared/openaiCompatible';
+import { fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
 
 const OLLAMA_OPENAI_BASE_URL = 'http://localhost:11434/v1';
 const OLLAMA_TAGS_URL = 'http://localhost:11434/api/tags';

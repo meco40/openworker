@@ -1,9 +1,9 @@
-import { pairBridgeChannel } from './bridge';
-import { pairDiscord } from './discord';
-import { pairSlack } from './slack';
-import { pairTelegram } from './telegram';
-export { unpairChannel } from './unpair';
-export type { UnpairChannelType } from './unpair';
+import { pairBridgeChannel } from '@/server/channels/pairing/bridge';
+import { pairDiscord } from '@/server/channels/pairing/discord';
+import { pairSlack } from '@/server/channels/pairing/slack';
+import { pairTelegram } from '@/server/channels/pairing/telegram';
+export { unpairChannel } from '@/server/channels/pairing/unpair';
+export type { UnpairChannelType } from '@/server/channels/pairing/unpair';
 
 export type PairChannelType = 'whatsapp' | 'telegram' | 'discord' | 'imessage' | 'slack';
 

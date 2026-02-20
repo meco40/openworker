@@ -1,4 +1,4 @@
-import { loadGatewayConfig } from '../config/gatewayConfig';
+import { loadGatewayConfig } from '@/server/config/gatewayConfig';
 
 export interface EffectivePolicyExplainSnapshot {
   generatedAt: string;

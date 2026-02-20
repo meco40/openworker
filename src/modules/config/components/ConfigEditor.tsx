@@ -1,3 +1,3 @@
-import ConfigEditor from '../../../../components/ConfigEditor';
+import ConfigEditor from '@/components/ConfigEditor';
 
 export default ConfigEditor;

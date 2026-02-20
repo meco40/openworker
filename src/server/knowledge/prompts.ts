@@ -1,4 +1,4 @@
-import type { StoredMessage } from '../channels/messages/repository';
+import type { StoredMessage } from '@/server/channels/messages/repository';
 
 export interface KnowledgePromptInput {
   conversationId: string;

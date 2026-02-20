@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { getRuntimeConfigValue } from '../runtimeConfig';
+import { getRuntimeConfigValue } from '@/server/skills/runtimeConfig';
 
 function getServerGeminiKey(): string {
   const key = getRuntimeConfigValue('vision.gemini_api_key') || '';

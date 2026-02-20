@@ -17,13 +17,13 @@ import type {
   UpsertKnowledgeCheckpointInput,
   UpsertKnowledgeEpisodeInput,
   UpsertMeetingLedgerInput,
-} from './repository';
+} from '@/server/knowledge/repository';
 import type {
   EventAggregationResult,
   KnowledgeEvent,
   KnowledgeEventFilter,
   UpsertKnowledgeEventInput,
-} from './eventTypes';
+} from '@/server/knowledge/eventTypes';
 import type {
   EntityAlias,
   EntityCategory,
@@ -31,7 +31,7 @@ import type {
   EntityLookupResult,
   EntityRelation,
   KnowledgeEntity,
-} from './entityGraph';
+} from '@/server/knowledge/entityGraph';
 
 function parseJsonArray<T>(value: unknown): T[] {
   if (typeof value !== 'string' || !value.trim()) return [];

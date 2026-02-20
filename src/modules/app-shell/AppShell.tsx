@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import App from '../../../App';
-import ErrorBoundary from '../../../components/ErrorBoundary';
-import { PersonaProvider } from '../personas/PersonaContext';
+import App from '@/modules/app-shell/App';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { PersonaProvider } from '@/modules/personas/PersonaContext';
 
 const AppShell: React.FC = () => {
   return (

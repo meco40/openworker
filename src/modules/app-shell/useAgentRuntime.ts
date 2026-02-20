@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type React from 'react';
-import type { ChannelType, Message, ScheduledTask, Skill, SystemLog } from '../../../types';
-import { ai, getSystemInstruction } from '../../../services/gateway';
-import type { GatewayChat, GatewayStreamChunk } from '../../../services/gateway';
-import { mapSkillsToTools } from '../../../skills/definitions';
-import { executeSkillFunctionCall } from '../../../skills/execute';
-import { subscribeClawHubChanged } from '../../../skills/clawhub-events';
-import { CORE_MEMORY_TOOLS, handleCoreMemoryCall } from '../../../core/memory';
-import { createAgentPlaceholder } from '../chat/services/handleAgentResponse';
-import { parseTaskScheduleArgs } from './taskScheduling';
-import { usePersona } from '../personas/PersonaContext';
-import { buildSystemInstruction } from './systemInstruction';
+import type { ChannelType, Message, ScheduledTask, Skill, SystemLog } from '@/shared/domain/types';
+import { ai, getSystemInstruction } from '@/services/gateway';
+import type { GatewayChat, GatewayStreamChunk } from '@/services/gateway';
+import { mapSkillsToTools } from '@/skills/definitions';
+import { executeSkillFunctionCall } from '@/skills/execute';
+import { subscribeClawHubChanged } from '@/skills/clawhub-events';
+import { CORE_MEMORY_TOOLS, handleCoreMemoryCall } from '@/core/memory';
+import { createAgentPlaceholder } from '@/modules/chat/services/handleAgentResponse';
+import { parseTaskScheduleArgs } from '@/modules/app-shell/taskScheduling';
+import { usePersona } from '@/modules/personas/PersonaContext';
+import { buildSystemInstruction } from '@/modules/app-shell/systemInstruction';
 
 interface UseAgentRuntimeArgs {
   skills: Skill[];

@@ -1,5 +1,5 @@
-import { ModelHubService } from './service';
-import { SqliteModelHubRepository } from './repositories/sqliteModelHubRepository';
+import { ModelHubService } from '@/server/model-hub/service';
+import { SqliteModelHubRepository } from '@/server/model-hub/repositories/sqliteModelHubRepository';
 
 const DEV_FALLBACK_KEY = '0123456789abcdef0123456789abcdef';
 

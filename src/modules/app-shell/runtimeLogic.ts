@@ -1,4 +1,4 @@
-import type { ChannelType, Conversation, Message, MessageAttachment } from '../../../types';
+import type { ChannelType, Conversation, Message, MessageAttachment } from '@/shared/domain/types';
 
 interface ConversationApiMessage {
   id: string;

@@ -1,4 +1,4 @@
-import { ChannelType } from '../../../types';
+import { ChannelType } from '@/shared/domain/types';
 
 export interface PlatformMeta {
   color: string;

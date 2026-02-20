@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getMessageService } from '../../../../../src/server/channels/messages/runtime';
-import { verifyDiscordWebhook } from '../../../../../src/server/channels/webhookAuth';
-import { ChannelType } from '../../../../../types';
-import { normalizeDiscordInbound } from '../../../../../src/server/channels/inbound/normalizers';
+import { getMessageService } from '@/server/channels/messages/runtime';
+import { verifyDiscordWebhook } from '@/server/channels/webhookAuth';
+import { ChannelType } from '@/shared/domain/types';
+import { normalizeDiscordInbound } from '@/server/channels/inbound/normalizers';
 
 export const runtime = 'nodejs';
 

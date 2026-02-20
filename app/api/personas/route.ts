@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
-import { getPersonaRepository } from '../../../src/server/personas/personaRepository';
-import { getModelHubService } from '../../../src/server/model-hub/runtime';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
+import { getModelHubService } from '@/server/model-hub/runtime';
 import {
   PERSONA_FILE_NAMES,
   MEMORY_PERSONA_TYPES,
   type CreatePersonaInput,
   type PersonaFileName,
   type MemoryPersonaType,
-} from '../../../src/server/personas/personaTypes';
+} from '@/server/personas/personaTypes';
 
 export const runtime = 'nodejs';
 

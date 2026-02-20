@@ -1,4 +1,4 @@
-import type { InboundEnvelope } from './envelope';
+import type { InboundEnvelope } from '@/server/channels/inbound/envelope';
 
 interface TelegramInboundPayload {
   update_id?: number;

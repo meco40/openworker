@@ -1,4 +1,4 @@
-import type { ProactiveDecision, ProactiveSignalInput, ProactiveSummaryRow } from './types';
+import type { ProactiveDecision, ProactiveSignalInput, ProactiveSummaryRow } from '@/server/proactive/types';
 
 export interface ProactiveRepository {
   insertSignals(signals: ProactiveSignalInput[]): number;

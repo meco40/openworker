@@ -1,9 +1,9 @@
-import type { FetchedModel, ProviderAdapter } from '../types';
+import type { FetchedModel, ProviderAdapter } from '@/server/model-hub/Models/types';
 import {
   dispatchOpenAICompatibleChat,
   fetchOpenAICompatibleModels,
   testOpenAICompatibleModelsEndpoint,
-} from '../shared/openaiCompatible';
+} from '@/server/model-hub/Models/shared/openaiCompatible';
 
 const KIMI_CODE_BASE_URL = 'https://api.kimi.com/coding/v1';
 

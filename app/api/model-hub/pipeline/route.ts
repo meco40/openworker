@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getModelHubService } from '../../../../src/server/model-hub/runtime';
-import type { PipelineReasoningEffort } from '../../../../src/server/model-hub/repository';
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import { getModelHubService } from '@/server/model-hub/runtime';
+import type { PipelineReasoningEffort } from '@/server/model-hub/repository';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 

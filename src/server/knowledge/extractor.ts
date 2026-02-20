@@ -1,9 +1,9 @@
-import type { StoredMessage } from '../channels/messages/repository';
-import { buildKnowledgeExtractionPrompt, type ExtractionPersonaContext } from './prompts';
-import type { KnowledgeSourceRef } from './repository';
-import { isMeaningfulKnowledgeText, sanitizeKnowledgeFacts } from './textQuality';
-import { EventExtractor, type ExtractedEvent } from './eventExtractor';
-import { EntityExtractor, type ExtractedEntity } from './entityExtractor';
+import type { StoredMessage } from '@/server/channels/messages/repository';
+import { buildKnowledgeExtractionPrompt, type ExtractionPersonaContext } from '@/server/knowledge/prompts';
+import type { KnowledgeSourceRef } from '@/server/knowledge/repository';
+import { isMeaningfulKnowledgeText, sanitizeKnowledgeFacts } from '@/server/knowledge/textQuality';
+import { EventExtractor, type ExtractedEvent } from '@/server/knowledge/eventExtractor';
+import { EntityExtractor, type ExtractedEntity } from '@/server/knowledge/entityExtractor';
 
 export interface KnowledgeMeetingLedger {
   topicKey: string;

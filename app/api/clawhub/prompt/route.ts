@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
-import { getClawHubService } from '../../../../src/server/clawhub/clawhubService';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getClawHubService } from '@/server/clawhub/clawhubService';
 
 export const runtime = 'nodejs';
 

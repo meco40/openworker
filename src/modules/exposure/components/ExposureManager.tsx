@@ -1,3 +1,3 @@
-import ExposureManager from '../../../../components/ExposureManager';
+import ExposureManager from '@/components/ExposureManager';
 
 export default ExposureManager;

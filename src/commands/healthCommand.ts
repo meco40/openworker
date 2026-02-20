@@ -1,4 +1,4 @@
-import { runHealthChecks } from './healthChecks';
+import { runHealthChecks } from '@/commands/healthChecks';
 import type {
   HealthCheck,
   HealthCheckStatus,
@@ -6,7 +6,7 @@ import type {
   HealthReport,
   HealthReportStatus,
   HealthSummary,
-} from './healthTypes';
+} from '@/commands/healthTypes';
 
 function aggregateSummary(checks: HealthCheck[]): HealthSummary {
   const summary: HealthSummary = { ok: 0, warning: 0, critical: 0, skipped: 0 };

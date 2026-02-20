@@ -1,12 +1,12 @@
-import { ChannelType } from '../../../../types';
-import { deliverTelegram } from './telegram';
-import { deliverWhatsApp } from './whatsapp';
-import { deliverDiscord } from './discord';
-import { deliveriMessage } from './imessage';
-import { deliverSlack } from './slack';
-import type { ChannelKey } from '../adapters/types';
-import { getAdapter, registerAdapter } from '../routing/adapterRegistry';
-import { routeOutbound } from '../routing/outboundRouter';
+import { ChannelType } from '@/shared/domain/types';
+import { deliverTelegram } from '@/server/channels/outbound/telegram';
+import { deliverWhatsApp } from '@/server/channels/outbound/whatsapp';
+import { deliverDiscord } from '@/server/channels/outbound/discord';
+import { deliveriMessage } from '@/server/channels/outbound/imessage';
+import { deliverSlack } from '@/server/channels/outbound/slack';
+import type { ChannelKey } from '@/server/channels/adapters/types';
+import { getAdapter, registerAdapter } from '@/server/channels/routing/adapterRegistry';
+import { routeOutbound } from '@/server/channels/routing/outboundRouter';
 
 let defaultAdaptersRegistered = false;
 

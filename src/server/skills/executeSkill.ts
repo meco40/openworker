@@ -1,16 +1,16 @@
-import { normalizeArgs } from '../../shared/normalizeArgs';
-import { browserSnapshotHandler } from './handlers/browserSnapshot';
-import { dbQueryHandler } from './handlers/dbQuery';
-import { fileReadHandler } from './handlers/fileRead';
-import { githubQueryHandler } from './handlers/githubQuery';
-import { pythonExecuteHandler } from './handlers/pythonExecute';
-import { shellExecuteHandler } from './handlers/shellExecute';
-import { subagentsHandler } from './handlers/subagents';
-import { visionAnalyzeHandler } from './handlers/visionAnalyze';
-import type { SkillDispatchContext, SkillHandler } from './types';
+import { normalizeArgs } from '@/shared/normalizeArgs';
+import { browserSnapshotHandler } from '@/server/skills/handlers/browserSnapshot';
+import { dbQueryHandler } from '@/server/skills/handlers/dbQuery';
+import { fileReadHandler } from '@/server/skills/handlers/fileRead';
+import { githubQueryHandler } from '@/server/skills/handlers/githubQuery';
+import { pythonExecuteHandler } from '@/server/skills/handlers/pythonExecute';
+import { shellExecuteHandler } from '@/server/skills/handlers/shellExecute';
+import { subagentsHandler } from '@/server/skills/handlers/subagents';
+import { visionAnalyzeHandler } from '@/server/skills/handlers/visionAnalyze';
+import type { SkillDispatchContext, SkillHandler } from '@/server/skills/types';
 
 export { normalizeArgs as normalizeSkillArgs };
-export type { SkillDispatchContext } from './types';
+export type { SkillDispatchContext } from '@/server/skills/types';
 
 const SKILL_HANDLERS: Record<string, SkillHandler> = {
   file_read: fileReadHandler,

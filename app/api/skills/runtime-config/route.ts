@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 import {
   getSkillRuntimeConfigStore,
   resolveSkillRuntimeConfigStatus,
-} from '../../../../src/server/skills/runtimeConfig';
+} from '@/server/skills/runtimeConfig';
 
 export const runtime = 'nodejs';
 

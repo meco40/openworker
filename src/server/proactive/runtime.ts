@@ -1,5 +1,5 @@
-import { ProactiveGateService } from './service';
-import { SqliteProactiveRepository } from './sqliteProactiveRepository';
+import { ProactiveGateService } from '@/server/proactive/service';
+import { SqliteProactiveRepository } from '@/server/proactive/sqliteProactiveRepository';
 
 declare global {
   var __proactiveRepository: SqliteProactiveRepository | undefined;

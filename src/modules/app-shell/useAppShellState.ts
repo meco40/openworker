@@ -1,6 +1,6 @@
-import { ChannelType, View } from '../../../types';
-import { isAllowedUiDefaultView } from '../../shared/config/uiSchema';
-import type { AppShellState } from './types';
+import { ChannelType, View } from '@/shared/domain/types';
+import { isAllowedUiDefaultView } from '@/shared/config/uiSchema';
+import type { AppShellState } from '@/modules/app-shell/types';
 
 export function resolveViewFromConfig(value: unknown): View {
   const candidate = typeof value === 'string' ? value.trim() : '';

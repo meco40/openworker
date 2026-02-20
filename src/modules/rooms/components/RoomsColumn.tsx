@@ -1,6 +1,6 @@
 'use client';
 
-import type { RoomSummary } from '../types';
+import type { RoomSummary } from '@/modules/rooms/types';
 
 interface RoomsColumnProps {
   rooms: RoomSummary[];

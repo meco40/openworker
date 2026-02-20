@@ -1,9 +1,9 @@
 // ─── Presence Method Handlers ────────────────────────────────
 // RPC methods for online user presence.
 
-import { registerMethod, type RespondFn } from '../method-router';
-import type { GatewayClient } from '../client-registry';
-import { getClientRegistry } from '../client-registry';
+import { registerMethod, type RespondFn } from '@/server/gateway/method-router';
+import type { GatewayClient } from '@/server/gateway/client-registry';
+import { getClientRegistry } from '@/server/gateway/client-registry';
 
 // ─── presence.list ───────────────────────────────────────────
 // Return a list of currently connected user IDs.

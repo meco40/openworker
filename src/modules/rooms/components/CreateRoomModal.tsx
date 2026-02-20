@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import type { RoomGoalMode } from '../types';
+import type { RoomGoalMode } from '@/modules/rooms/types';
 
 interface CreateRoomModalProps {
   open: boolean;

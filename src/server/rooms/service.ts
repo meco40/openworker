@@ -1,4 +1,4 @@
-import type { RoomRepository } from './repository';
+import type { RoomRepository } from '@/server/rooms/repository';
 import type {
   Room,
   RoomIntervention,
@@ -6,10 +6,10 @@ import type {
   RoomMemberRuntime,
   RoomMessage,
   RoomRunState,
-} from './types';
-import { broadcastToUser } from '../gateway/broadcast';
-import { GatewayEvents } from '../gateway/events';
-import { getPersonaRepository } from '../personas/personaRepository';
+} from '@/server/rooms/types';
+import { broadcastToUser } from '@/server/gateway/broadcast';
+import { GatewayEvents } from '@/server/gateway/events';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
 
 export interface ResolveRoomRoutingInput {
   roomProfileId: string;

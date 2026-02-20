@@ -1,18 +1,18 @@
-import type { HealthCheck, HealthCommandOptions } from './healthTypes';
+import type { HealthCheck, HealthCommandOptions } from '@/commands/healthTypes';
 import {
   runGatewayRegistryCheck,
   runKnowledgeLayerCheck,
   runLoggingRepositoryCheck,
   runMemoryRepositoryCheck,
   runStatsRepositoryCheck,
-} from './health/checks/coreChecks';
+} from '@/commands/health/checks/coreChecks';
 import {
   runAlertRoutingCheck,
   runErrorBudgetCheck,
   runMemoryPressureCheck,
-} from './health/checks/diagnosticsChecks';
-import { runBridgeIntegrationChecks } from './health/checks/integrationChecks';
-import { runSecuritySnapshotCheck } from './health/checks/securityChecks';
+} from '@/commands/health/checks/diagnosticsChecks';
+import { runBridgeIntegrationChecks } from '@/commands/health/checks/integrationChecks';
+import { runSecuritySnapshotCheck } from '@/commands/health/checks/securityChecks';
 
 export async function runHealthChecks(options: HealthCommandOptions = {}): Promise<HealthCheck[]> {
   const checks: HealthCheck[] = [];

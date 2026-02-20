@@ -1,4 +1,4 @@
-import { getFieldMetadata, type ConfigFieldRisk } from './fieldMetadata';
+import { getFieldMetadata, type ConfigFieldRisk } from '@/shared/config/fieldMetadata';
 
 export interface DiffItem {
   path: string;

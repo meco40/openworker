@@ -1,4 +1,4 @@
-import type { ControlPlaneMetrics } from '../../../types';
+import type { ControlPlaneMetrics } from '@/shared/domain/types';
 
 export interface OperatorProfileState {
   displayName: string;

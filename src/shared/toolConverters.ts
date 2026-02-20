@@ -7,8 +7,8 @@
  *   - claude  → Anthropic / MCP tool
  */
 
-import type { SkillToolDefinition, ToolDefinition, ToolParameterProperty } from './toolSchema';
-import { isBuiltIn } from './toolSchema';
+import type { SkillToolDefinition, ToolDefinition, ToolParameterProperty } from '@/shared/toolSchema';
+import { isBuiltIn } from '@/shared/toolSchema';
 
 // ── Gemini ───────────────────────────────────────────────────────
 

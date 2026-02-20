@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { normalizeBrowserOrigin } from './urlOrigin';
+import { normalizeBrowserOrigin } from '@/server/model-hub/urlOrigin';
 
 const CALLBACK_HOST = '127.0.0.1';
 const CALLBACK_PORT = 1455;

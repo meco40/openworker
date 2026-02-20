@@ -1,5 +1,5 @@
-import type { ChannelType, Message } from '../../../../types';
-import { toMessage } from './routeMessage';
+import type { ChannelType, Message } from '@/shared/domain/types';
+import { toMessage } from '@/modules/chat/services/routeMessage';
 
 export function createAgentPlaceholder(platform: ChannelType): Message {
   return toMessage('', platform, 'agent', {

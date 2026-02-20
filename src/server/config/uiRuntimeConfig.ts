@@ -1,5 +1,5 @@
-import { View } from '../../../types';
-import { resolveViewFromConfig } from '../../modules/app-shell/useAppShellState';
+import { View } from '@/shared/domain/types';
+import { resolveViewFromConfig } from '@/modules/app-shell/useAppShellState';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

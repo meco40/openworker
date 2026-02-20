@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server';
-import {
-  isPairChannelType,
-  pairChannel,
-  unpairChannel,
-} from '../../../../src/server/channels/pairing';
+import { isPairChannelType, pairChannel, unpairChannel } from '@/server/channels/pairing';
 
 export const runtime = 'nodejs';
 

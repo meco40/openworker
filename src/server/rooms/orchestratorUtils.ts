@@ -1,6 +1,6 @@
-import type { GatewayMessage } from '../model-hub/Models/types';
-import { resolveRoomRouting } from './service';
-import type { RoomMember, RoomMessage } from './types';
+import type { GatewayMessage } from '@/server/model-hub/Models/types';
+import { resolveRoomRouting } from '@/server/rooms/service';
+import type { RoomMember, RoomMessage } from '@/server/rooms/types';
 
 export interface RoutableMember {
   personaId: string;

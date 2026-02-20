@@ -10,8 +10,8 @@ import type {
   PipelineModelEntry,
   ProviderAccountRecord,
   ProviderAccountView,
-} from '../repository';
-import type { EncryptedSecretPayload } from '../crypto';
+} from '@/server/model-hub/repository';
+import type { EncryptedSecretPayload } from '@/server/model-hub/crypto';
 
 interface ProviderAccountRow {
   id: string;

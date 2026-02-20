@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import type { MemoryType } from '../../../core/memory/types';
-import { getMemoryService } from '../../../src/server/memory/runtime';
-import { MemoryVersionConflictError } from '../../../src/server/memory/service';
-import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
-import { LEGACY_LOCAL_USER_ID } from '../../../src/server/auth/constants';
-import { getMessageRepository } from '../../../src/server/channels/messages/runtime';
+import type { MemoryType } from '@/core/memory/types';
+import { getMemoryService } from '@/server/memory/runtime';
+import { MemoryVersionConflictError } from '@/server/memory/service';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
+import { getMessageRepository } from '@/server/channels/messages/runtime';
 
 export const runtime = 'nodejs';
 

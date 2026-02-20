@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { SECURITY_RULES } from '../../../constants';
-import type { CommandPermission } from '../../../types';
-import { getCredentialStore } from '../channels/credentials';
+import { SECURITY_RULES } from '@/shared/domain/constants';
+import type { CommandPermission } from '@/shared/domain/types';
+import { getCredentialStore } from '@/server/channels/credentials';
 
 export type SecurityCheckStatus = 'ok' | 'warning' | 'critical';
 

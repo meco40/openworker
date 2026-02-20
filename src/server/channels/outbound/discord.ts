@@ -2,7 +2,7 @@
  * Delivers a message to a Discord channel via the Bot API.
  */
 export async function deliverDiscord(channelId: string, text: string): Promise<void> {
-  const { getCredentialStore } = await import('../credentials');
+  const { getCredentialStore } = await import('@/server/channels/credentials');
   const token =
     getCredentialStore().getCredential('discord', 'bot_token') || process.env.DISCORD_BOT_TOKEN;
   if (!token) {

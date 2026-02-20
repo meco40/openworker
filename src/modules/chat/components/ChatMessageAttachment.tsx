@@ -1,6 +1,6 @@
 import React from 'react';
-import type { MessageAttachment } from '../../../../types';
-import { formatFileSize, getAttachmentIcon } from '../uiUtils';
+import type { MessageAttachment } from '@/shared/domain/types';
+import { formatFileSize, getAttachmentIcon } from '@/modules/chat/uiUtils';
 
 interface ChatMessageAttachmentProps {
   attachment: MessageAttachment;

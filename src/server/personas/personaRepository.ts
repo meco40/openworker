@@ -8,13 +8,13 @@ import type {
   PersonaProfile,
   PersonaSummary,
   PersonaWithFiles,
-} from './personaTypes';
+} from '@/server/personas/personaTypes';
 import {
   MAX_PERSONA_INSTRUCTION_CHARS,
   MEMORY_PERSONA_TYPES,
   PERSONA_FILE_NAMES,
   PERSONA_INSTRUCTION_FILES,
-} from './personaTypes';
+} from '@/server/personas/personaTypes';
 
 const NEXUS_PERSONA_NAME = 'nexus';
 

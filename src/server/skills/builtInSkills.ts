@@ -5,17 +5,17 @@
  * External skills installed via GitHub/npm are added at runtime.
  */
 
-import type { SkillManifest } from '../../shared/toolSchema';
+import type { SkillManifest } from '@/shared/toolSchema';
 
-import browser from '../../../skills/browser';
-import filesystem from '../../../skills/filesystem';
-import github from '../../../skills/github-manager';
-import python from '../../../skills/python-runtime';
-import search from '../../../skills/search';
-import shell from '../../../skills/shell-access';
-import sql from '../../../skills/sql-bridge';
-import subagents from '../../../skills/subagents';
-import vision from '../../../skills/vision';
+import browser from '@/skills/browser';
+import filesystem from '@/skills/filesystem';
+import github from '@/skills/github-manager';
+import python from '@/skills/python-runtime';
+import search from '@/skills/search';
+import shell from '@/skills/shell-access';
+import sql from '@/skills/sql-bridge';
+import subagents from '@/skills/subagents';
+import vision from '@/skills/vision';
 
 export interface BuiltInSkillSeed {
   manifest: SkillManifest;

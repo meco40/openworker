@@ -6,8 +6,8 @@ import {
   listApprovedCommands,
   promptCommandApproval,
   revokeCommand,
-} from '../server/gateway/exec-approval-manager';
-import { evaluateNodeCommandPolicy } from '../server/gateway/node-command-policy';
+} from '@/server/gateway/exec-approval-manager';
+import { evaluateNodeCommandPolicy } from '@/server/gateway/node-command-policy';
 
 function popOption(args: string[], name: string): string | undefined {
   const index = args.indexOf(name);

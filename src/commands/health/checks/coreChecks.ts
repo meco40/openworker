@@ -1,12 +1,12 @@
-import { getClientRegistry } from '../../../server/gateway/client-registry';
-import { getMemoryProviderKind, getMemoryService } from '../../../server/memory/runtime';
-import { getTokenUsageRepository } from '../../../server/stats/tokenUsageRepository';
-import { getLogRepository } from '../../../logging/logRepository';
-import { resolveKnowledgeConfig } from '../../../server/knowledge/config';
-import { getKnowledgeRepository } from '../../../server/knowledge/runtime';
-import { LEGACY_LOCAL_USER_ID } from '../../../server/auth/constants';
-import type { HealthCheck } from '../../healthTypes';
-import { failCheck, okCheck, skippedCheck } from '../checkHelpers';
+import { getClientRegistry } from '@/server/gateway/client-registry';
+import { getMemoryProviderKind, getMemoryService } from '@/server/memory/runtime';
+import { getTokenUsageRepository } from '@/server/stats/tokenUsageRepository';
+import { getLogRepository } from '@/logging/logRepository';
+import { resolveKnowledgeConfig } from '@/server/knowledge/config';
+import { getKnowledgeRepository } from '@/server/knowledge/runtime';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
+import type { HealthCheck } from '@/commands/healthTypes';
+import { failCheck, okCheck, skippedCheck } from '@/commands/health/checkHelpers';
 
 export function runLoggingRepositoryCheck(): HealthCheck {
   const start = Date.now();

@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
-import type { ProviderAdapter } from '../types';
-import { fetchWithTimeout } from '../shared/http';
+import type { ProviderAdapter } from '@/server/model-hub/Models/types';
+import { fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
 
 interface GeminiUsageMetadata {
   promptTokenCount?: number;

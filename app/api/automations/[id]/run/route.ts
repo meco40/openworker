@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { getAutomationService } from '../../../../../src/server/automation/runtime';
-import { resolveAutomationUserId } from '../../../../../src/server/automation/httpAuth';
+import { getAutomationService } from '@/server/automation/runtime';
+import { resolveAutomationUserId } from '@/server/automation/httpAuth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -1,5 +1,5 @@
-import type { ChannelType, Message } from '../../../../types';
-import type { ChatRole, MessageInput } from '../types';
+import type { ChannelType, Message } from '@/shared/domain/types';
+import type { ChatRole, MessageInput } from '@/modules/chat/types';
 
 function createMessageId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;

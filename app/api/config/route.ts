@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 import {
   GatewayConfigConflictError,
   GatewayConfigValidationError,
@@ -7,14 +7,14 @@ import {
   redactGatewayConfigSecrets,
   saveGatewayConfig,
   toGatewayConfigDisplayPath,
-} from '../../../src/server/config/gatewayConfig';
+} from '@/server/config/gatewayConfig';
 import {
   logConfigLoadFailed,
   logConfigLoadSuccess,
   logConfigSaveAttempt,
   logConfigSaveFailed,
   logConfigSaveSuccess,
-} from '../../../src/server/telemetry/configEvents';
+} from '@/server/telemetry/configEvents';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

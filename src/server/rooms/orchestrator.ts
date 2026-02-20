@@ -1,12 +1,12 @@
-import type { RoomRepository } from './repository';
-import type { GatewayMessage } from '../model-hub/Models/types';
-import { broadcastToUser } from '../gateway/broadcast';
-import { GatewayEvents } from '../gateway/events';
-import { executeRoomTool } from './toolExecutor';
-import { getPersonaRepository } from '../personas/personaRepository';
-import { getSkillRepository } from '../skills/skillRepository';
-import { mapSkillsToTools } from '../../../skills/definitions';
-import type { Skill } from '../../../types';
+import type { RoomRepository } from '@/server/rooms/repository';
+import type { GatewayMessage } from '@/server/model-hub/Models/types';
+import { broadcastToUser } from '@/server/gateway/broadcast';
+import { GatewayEvents } from '@/server/gateway/events';
+import { executeRoomTool } from '@/server/rooms/toolExecutor';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
+import { getSkillRepository } from '@/server/skills/skillRepository';
+import { mapSkillsToTools } from '@/skills/definitions';
+import type { Skill } from '@/shared/domain/types';
 import {
   buildGatewayHistoryMessages,
   buildPersonaNameMap,
@@ -14,7 +14,7 @@ import {
   resolveRoutableMembers,
   selectNextSpeaker,
   stripSpeakerPrefix,
-} from './orchestratorUtils';
+} from '@/server/rooms/orchestratorUtils';
 
 export interface RoomOrchestratorRunResult {
   processedRooms: number;
@@ -69,7 +69,7 @@ export class RoomOrchestrator {
     }
 
     try {
-      const { getModelHubService } = await import('../model-hub/runtime');
+      const { getModelHubService } = await import('@/server/model-hub/runtime');
       const service = getModelHubService();
       const roomProfileModels = service
         .listPipeline(roomProfileId)
@@ -220,7 +220,7 @@ export class RoomOrchestrator {
             const persona = personaRepo.getPersona(selected.personaId);
             let clawHubPromptBlock = '';
             try {
-              const { getClawHubService } = await import('../clawhub/clawhubService');
+              const { getClawHubService } = await import('@/server/clawhub/clawhubService');
               clawHubPromptBlock = await getClawHubService().getPromptBlock();
             } catch {
               clawHubPromptBlock = '';
@@ -338,7 +338,7 @@ export class RoomOrchestrator {
             // ── Dispatch to AI model via ModelHub ───────────────────────
 
             const { getModelHubService, getModelHubEncryptionKey } =
-              await import('../model-hub/runtime');
+              await import('@/server/model-hub/runtime');
             const hubService = getModelHubService();
             const encryptionKey = getModelHubEncryptionKey();
 

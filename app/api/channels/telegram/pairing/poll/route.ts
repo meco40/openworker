@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getCredentialStore } from '../../../../../../src/server/channels/credentials';
+import { getCredentialStore } from '@/server/channels/credentials';
 import {
   isTelegramPollingActive,
   startTelegramPolling,
-} from '../../../../../../src/server/channels/pairing/telegramPolling';
+} from '@/server/channels/pairing/telegramPolling';
 
 export const runtime = 'nodejs';
 

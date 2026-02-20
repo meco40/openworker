@@ -3,7 +3,7 @@
  * into a single labeled context string for the LLM.
  */
 
-import type { StoredMessage } from './repository';
+import type { StoredMessage } from '@/server/channels/messages/repository';
 
 // ── Budget configuration ─────────────────────────────────────
 

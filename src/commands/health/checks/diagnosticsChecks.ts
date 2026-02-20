@@ -1,5 +1,5 @@
-import { log } from '../../../logging/logService';
-import type { HealthCheck } from '../../healthTypes';
+import { log } from '@/logging/logService';
+import type { HealthCheck } from '@/commands/healthTypes';
 import {
   failCheck,
   formatPercent,
@@ -11,7 +11,7 @@ import {
   skippedCheck,
   type MemoryNodeDiagnostics,
   type NodeProcessDiagnostics,
-} from '../checkHelpers';
+} from '@/commands/health/checkHelpers';
 
 const ERROR_BUDGET_MIN_SAMPLE = 20;
 const ERROR_BUDGET_WARNING_RATIO = 0.05;

@@ -1,4 +1,4 @@
-import type { ScheduledTask } from '../../../types';
+import type { ScheduledTask } from '@/shared/domain/types';
 
 export interface CoreTaskScheduleArgs {
   time_iso?: string;

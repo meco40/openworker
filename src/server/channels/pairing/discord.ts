@@ -9,7 +9,7 @@ export async function pairDiscord(token: string) {
   }
 
   // Persist token to credential store + env fallback
-  const { getCredentialStore } = await import('../credentials');
+  const { getCredentialStore } = await import('@/server/channels/credentials');
   const store = getCredentialStore();
   store.setCredential('discord', 'bot_token', token);
   process.env.DISCORD_BOT_TOKEN = token;

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 import {
   listBridgeAccounts,
   normalizeBridgeAccountId,
   upsertBridgeAccount,
   writeBridgeAccountAllowFrom,
-} from '../../../../../src/server/channels/pairing/bridgeAccounts';
+} from '@/server/channels/pairing/bridgeAccounts';
 
 export const runtime = 'nodejs';
 

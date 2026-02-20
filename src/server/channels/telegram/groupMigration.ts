@@ -1,4 +1,4 @@
-import { migrateTelegramPairedChatId } from '../pairing/telegramCodePairing';
+import { migrateTelegramPairedChatId } from '@/server/channels/pairing/telegramCodePairing';
 
 export interface TelegramGroupMigrationMessage {
   chat: { id: number };

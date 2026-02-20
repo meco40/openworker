@@ -1,9 +1,9 @@
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Chat Method Handlers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // RPC methods for chat operations over WebSocket.
 
-import { registerMethod, type RespondFn, type SendRawFn } from '../method-router';
-import { makeStream } from '../protocol';
-import type { GatewayClient } from '../client-registry';
+import { registerMethod, type RespondFn, type SendRawFn } from '@/server/gateway/method-router';
+import { makeStream } from '@/server/gateway/protocol';
+import type { GatewayClient } from '@/server/gateway/client-registry';
 
 interface RpcAttachmentInput {
   name?: string;
@@ -21,7 +21,7 @@ async function resolveWebUiMessageInput(
   userId: string,
 ): Promise<{
   service: Awaited<
-    ReturnType<(typeof import('../../channels/messages/runtime'))['getMessageService']>
+    ReturnType<(typeof import('@/server/channels/messages/runtime'))['getMessageService']>
   >;
   conversationId: string;
   content: string;
@@ -29,7 +29,7 @@ async function resolveWebUiMessageInput(
   attachments?: Array<
     Awaited<
       ReturnType<
-        (typeof import('../../channels/messages/attachments'))['persistIncomingAttachment']
+        (typeof import('@/server/channels/messages/attachments'))['persistIncomingAttachment']
       >
     >
   >;
@@ -46,7 +46,7 @@ async function resolveWebUiMessageInput(
     throw new Error('conversationId and content or attachment are required');
   }
 
-  const { getMessageService } = await import('../../channels/messages/runtime');
+  const { getMessageService } = await import('@/server/channels/messages/runtime');
   const service = getMessageService();
 
   if (personaId) {
@@ -60,14 +60,14 @@ async function resolveWebUiMessageInput(
     | Array<
         Awaited<
           ReturnType<
-            (typeof import('../../channels/messages/attachments'))['persistIncomingAttachment']
+            (typeof import('@/server/channels/messages/attachments'))['persistIncomingAttachment']
           >
         >
       >
     | undefined;
 
   if (hasAttachment) {
-    const { persistIncomingAttachment } = await import('../../channels/messages/attachments');
+    const { persistIncomingAttachment } = await import('@/server/channels/messages/attachments');
     const declaredSize =
       typeof attachment?.size === 'number' && Number.isFinite(attachment.size)
         ? Math.max(0, Math.floor(attachment.size))
@@ -169,7 +169,7 @@ registerMethod(
       throw new Error('conversationId is required');
     }
 
-    const { getMessageRepository } = await import('../../channels/messages/runtime');
+    const { getMessageRepository } = await import('@/server/channels/messages/runtime');
     const repo = getMessageRepository();
     const messages = repo.listMessages(conversationId, limit, before);
     respond(messages);
@@ -182,7 +182,7 @@ registerMethod(
 registerMethod(
   'chat.conversations.list',
   async (_params: Record<string, unknown>, client: GatewayClient, respond: RespondFn, _ctx) => {
-    const { getMessageRepository } = await import('../../channels/messages/runtime');
+    const { getMessageRepository } = await import('@/server/channels/messages/runtime');
     const repo = getMessageRepository();
     const conversations = repo.listConversations(50, client.userId);
     respond(conversations);
@@ -201,13 +201,13 @@ registerMethod(
       throw new Error('conversationId is required');
     }
 
-    const { getMessageService } = await import('../../channels/messages/runtime');
+    const { getMessageService } = await import('@/server/channels/messages/runtime');
     const service = getMessageService();
 
     const aborted = service.abortGeneration(conversationId);
     if (aborted) {
-      const { broadcastToUser } = await import('../../gateway/broadcast');
-      const { GatewayEvents } = await import('../../gateway/events');
+      const { broadcastToUser } = await import('@/server/gateway/broadcast');
+      const { GatewayEvents } = await import('@/server/gateway/events');
       broadcastToUser(client.userId, GatewayEvents.CHAT_ABORTED, { conversationId });
     }
     respond({ aborted });
@@ -231,7 +231,7 @@ registerMethod(
       throw new Error('approvalToken is required');
     }
 
-    const { getMessageService } = await import('../../channels/messages/runtime');
+    const { getMessageService } = await import('@/server/channels/messages/runtime');
     const service = getMessageService();
     const result = await service.respondToolApproval({
       conversationId,

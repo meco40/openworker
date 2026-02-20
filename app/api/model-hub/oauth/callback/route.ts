@@ -1,16 +1,10 @@
 import { NextResponse } from 'next/server';
-import { parseOAuthState } from '../../../../../src/server/model-hub/oauth';
-import { PROVIDER_CATALOG } from '../../../../../src/server/model-hub/providerCatalog';
-import {
-  getOpenAICodexClientId,
-  OPENAI_CODEX_TOKEN_URL,
-} from '../../../../../src/server/model-hub/codexAuth';
-import {
-  getModelHubEncryptionKey,
-  getModelHubService,
-} from '../../../../../src/server/model-hub/runtime';
-import { buildModelHubCallbackUrl } from '../../../../../src/server/model-hub/urlOrigin';
-import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
+import { parseOAuthState } from '@/server/model-hub/oauth';
+import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
+import { getOpenAICodexClientId, OPENAI_CODEX_TOKEN_URL } from '@/server/model-hub/codexAuth';
+import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
+import { buildModelHubCallbackUrl } from '@/server/model-hub/urlOrigin';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 

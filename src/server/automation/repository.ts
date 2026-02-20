@@ -6,7 +6,7 @@ import type {
   CreateAutomationRunInput,
   SchedulerLeaseState,
   UpdateAutomationRuleInput,
-} from './types';
+} from '@/server/automation/types';
 
 export interface AutomationRepository {
   createRule(input: CreateAutomationRuleInput): AutomationRule;

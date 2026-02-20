@@ -4,8 +4,8 @@
 import {
   getKnowledgeIngestionCursor,
   getKnowledgeIngestionService,
-} from '../src/server/knowledge/runtime';
-import { getPersonaRepository } from '../src/server/personas/personaRepository';
+} from '@/server/knowledge/runtime';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
 
 const PERSONA_ID = '48979798-6783-4ae2-895b-1d0222b2af26';
 

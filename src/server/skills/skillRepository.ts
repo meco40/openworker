@@ -9,8 +9,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import BetterSqlite3 from 'better-sqlite3';
-import type { SkillToolDefinition } from '../../shared/toolSchema';
-import type { BuiltInSkillSeed } from './builtInSkills';
+import type { SkillToolDefinition } from '@/shared/toolSchema';
+import type { BuiltInSkillSeed } from '@/server/skills/builtInSkills';
 
 // ── Row types ────────────────────────────────────────────────────
 
@@ -202,7 +202,7 @@ export async function getSkillRepository(): Promise<SkillRepository> {
     _instance = new SkillRepository();
   }
   if (!_seeded) {
-    const { BUILT_IN_SKILLS } = await import('./builtInSkills');
+    const { BUILT_IN_SKILLS } = await import('@/server/skills/builtInSkills');
     _instance.seedBuiltIns(BUILT_IN_SKILLS);
     _seeded = true;
   }

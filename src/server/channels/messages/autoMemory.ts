@@ -1,6 +1,6 @@
-import type { MemoryType } from '../../../../core/memory/types';
-import type { StoredMessage } from './repository';
-import { detectRecurrence } from '../../knowledge/recurrenceDetector';
+import type { MemoryType } from '@/core/memory/types';
+import type { StoredMessage } from '@/server/channels/messages/repository';
+import { detectRecurrence } from '@/server/knowledge/recurrenceDetector';
 
 export interface AutoMemoryCandidate {
   type: MemoryType;

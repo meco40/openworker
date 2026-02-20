@@ -9,7 +9,7 @@ import type {
   RoomPersonaThreadMessage,
   RoomRun,
   RoomRunState,
-} from './types';
+} from '@/server/rooms/types';
 
 export function toRoom(row: Record<string, unknown>): Room {
   return {

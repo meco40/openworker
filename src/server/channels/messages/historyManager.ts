@@ -1,5 +1,5 @@
-import type { ChannelType } from '../../../../types';
-import type { MessageRepository, StoredMessage } from './repository';
+import type { ChannelType } from '@/shared/domain/types';
+import type { MessageRepository, StoredMessage } from '@/server/channels/messages/repository';
 
 export class HistoryManager {
   constructor(private readonly repo: MessageRepository) {}

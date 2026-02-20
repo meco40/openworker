@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
-import { ChannelType } from '../../../../../types';
-import { getMessageService } from '../../../../../src/server/channels/messages/runtime';
-import { verifySharedSecret } from '../../../../../src/server/channels/webhookAuth';
+import { ChannelType } from '@/shared/domain/types';
+import { getMessageService } from '@/server/channels/messages/runtime';
+import { verifySharedSecret } from '@/server/channels/webhookAuth';
 
 export const runtime = 'nodejs';
 

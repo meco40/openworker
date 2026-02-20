@@ -1,13 +1,13 @@
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
-import { getTokenUsageRepository } from '../../../../src/server/stats/tokenUsageRepository';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getTokenUsageRepository } from '@/server/stats/tokenUsageRepository';
 import {
   getPromptDispatchRepository,
   type PromptDispatchFilter,
-} from '../../../../src/server/stats/promptDispatchRepository';
+} from '@/server/stats/promptDispatchRepository';
 import {
   getPromptDispatchDiagnostics,
   resetPromptDispatchDiagnostics,
-} from '../../../../src/server/stats/promptDispatchDiagnostics';
+} from '@/server/stats/promptDispatchDiagnostics';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

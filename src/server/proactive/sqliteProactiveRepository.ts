@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import BetterSqlite3 from 'better-sqlite3';
-import type { ProactiveRepository } from './repository';
-import type { ProactiveDecision, ProactiveSignalInput, ProactiveSummaryRow } from './types';
+import type { ProactiveRepository } from '@/server/proactive/repository';
+import type { ProactiveDecision, ProactiveSignalInput, ProactiveSummaryRow } from '@/server/proactive/types';
 
 interface ProactiveDecisionRow {
   id: string;

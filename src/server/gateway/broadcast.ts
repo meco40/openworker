@@ -1,9 +1,9 @@
 // ─── Gateway Broadcast ───────────────────────────────────────
 // Scoped broadcast for WebSocket events with slow-consumer handling.
 
-import { getClientRegistry, type GatewayClient } from './client-registry';
-import { makeEvent } from './protocol';
-import { MAX_BUFFERED_BYTES } from './constants';
+import { getClientRegistry, type GatewayClient } from '@/server/gateway/client-registry';
+import { makeEvent } from '@/server/gateway/protocol';
+import { MAX_BUFFERED_BYTES } from '@/server/gateway/constants';
 
 // ─── Broadcast Functions ─────────────────────────────────────
 

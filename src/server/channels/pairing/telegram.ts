@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
-import { beginTelegramCodePairing } from './telegramCodePairing';
-import { startTelegramPolling, stopTelegramPolling } from './telegramPolling';
-import { serializeTelegramAllowedUpdates } from '../telegram/allowedUpdates';
-import { syncTelegramNativeCommands } from '../telegram/nativeCommands';
+import { beginTelegramCodePairing } from '@/server/channels/pairing/telegramCodePairing';
+import { startTelegramPolling, stopTelegramPolling } from '@/server/channels/pairing/telegramPolling';
+import { serializeTelegramAllowedUpdates } from '@/server/channels/telegram/allowedUpdates';
+import { syncTelegramNativeCommands } from '@/server/channels/telegram/nativeCommands';
 
 export async function pairTelegram(token: string) {
   if (!token) throw new Error('Telegram token is required.');
@@ -53,7 +53,7 @@ export async function pairTelegram(token: string) {
     }
   }
 
-  const { getCredentialStore } = await import('../credentials');
+  const { getCredentialStore } = await import('@/server/channels/credentials');
   const store = getCredentialStore();
 
   stopTelegramPolling();

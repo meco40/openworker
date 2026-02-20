@@ -1,5 +1,5 @@
-import { SqliteAutomationRepository } from './sqliteAutomationRepository';
-import { AutomationService } from './service';
+import { SqliteAutomationRepository } from '@/server/automation/sqliteAutomationRepository';
+import { AutomationService } from '@/server/automation/service';
 
 interface AutomationRuntimeOptions {
   instanceId: string;
@@ -81,7 +81,7 @@ async function defaultRunPrompt(input: {
   prompt: string;
   conversationId?: string | null;
 }): Promise<{ summary?: string }> {
-  const { getMessageService } = await import('../channels/messages/runtime');
+  const { getMessageService } = await import('@/server/channels/messages/runtime');
   const messageService = getMessageService();
   const conversationId =
     input.conversationId || messageService.getDefaultWebChatConversation(input.userId).id;

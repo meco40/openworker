@@ -1,4 +1,4 @@
-import type { GatewayRequest } from '../model-hub/Models/types';
+import type { GatewayRequest } from '@/server/model-hub/Models/types';
 
 export interface PromptInjectionDetection {
   riskLevel: 'low' | 'medium' | 'high';

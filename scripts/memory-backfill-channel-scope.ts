@@ -4,12 +4,12 @@ import fs from 'node:fs';
 import BetterSqlite3 from 'better-sqlite3';
 import nextEnv from '@next/env';
 
-import { LEGACY_LOCAL_USER_ID } from '../src/server/auth/constants';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 import {
   createMem0ClientFromEnv,
   type Mem0Client,
   type Mem0MemoryRecord,
-} from '../src/server/memory/mem0Client';
+} from '@/server/memory/mem0Client';
 
 const DEFAULT_MESSAGES_DB_PATH = '.local/messages.db';
 const MEMORY_PAGE_SIZE = 200;

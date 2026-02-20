@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
-import { testProviderAccountConnectivity } from '../../../../../src/server/model-hub/connectivity';
-import {
-  getModelHubEncryptionKey,
-  getModelHubService,
-} from '../../../../../src/server/model-hub/runtime';
-import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
+import { testProviderAccountConnectivity } from '@/server/model-hub/connectivity';
+import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 

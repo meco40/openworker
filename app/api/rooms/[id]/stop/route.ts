@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
-import { getRoomService } from '../../../../../src/server/rooms/runtime';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getRoomService } from '@/server/rooms/runtime';
 
 export const runtime = 'nodejs';
 

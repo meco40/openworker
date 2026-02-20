@@ -3,7 +3,7 @@ import type {
   AutomationRule,
   AutomationRun,
   SchedulerLeaseState,
-} from './types';
+} from '@/server/automation/types';
 
 export function toRule(row: Record<string, unknown>): AutomationRule {
   return {

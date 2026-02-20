@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { ControlPlaneMetrics, ControlPlaneMetricsState } from '../../../types';
+import type { ControlPlaneMetrics, ControlPlaneMetricsState } from '@/shared/domain/types';
 
 interface ControlPlaneMetricsResponse {
   ok: boolean;

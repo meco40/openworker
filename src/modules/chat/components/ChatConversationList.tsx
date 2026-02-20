@@ -1,7 +1,7 @@
 import React from 'react';
-import type { Conversation } from '../../../../types';
-import { getPlatformMeta } from '../uiUtils';
-import InboxFilters from './InboxFilters';
+import type { Conversation } from '@/shared/domain/types';
+import { getPlatformMeta } from '@/modules/chat/uiUtils';
+import InboxFilters from '@/modules/chat/components/InboxFilters';
 
 interface ChatConversationListProps {
   conversations: Conversation[];

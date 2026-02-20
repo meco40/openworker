@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
-import {
-  getModelHubEncryptionKey,
-  getModelHubService,
-} from '../../../../src/server/model-hub/runtime';
-import type { GatewayMessage } from '../../../../src/server/model-hub/gateway';
-import { resolveRequestUserContext } from '../../../../src/server/auth/userContext';
+import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
+import type { GatewayMessage } from '@/server/model-hub/gateway';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 

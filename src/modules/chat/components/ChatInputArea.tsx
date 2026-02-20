@@ -1,6 +1,6 @@
 import React from 'react';
-import type { Conversation, MessageAttachment } from '../../../../types';
-import { ALLOWED_ATTACHMENT_TYPES, formatFileSize } from '../uiUtils';
+import type { Conversation, MessageAttachment } from '@/shared/domain/types';
+import { ALLOWED_ATTACHMENT_TYPES, formatFileSize } from '@/modules/chat/uiUtils';
 
 interface ChatInputAreaProps {
   activeConversation: Conversation | undefined;

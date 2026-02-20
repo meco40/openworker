@@ -1,13 +1,13 @@
-import { ChannelType } from '../../../../types';
-import type { PipelineModelEntry } from '../../model-hub/repository';
-import { getModelHubService } from '../../model-hub/runtime';
+import { ChannelType } from '@/shared/domain/types';
+import type { PipelineModelEntry } from '@/server/model-hub/repository';
+import { getModelHubService } from '@/server/model-hub/runtime';
 import {
   answerTelegramCallbackQuery,
   buildInlineKeyboard,
   deliverTelegram,
   editTelegramMessage,
   type TelegramReplyMarkup,
-} from '../outbound/telegram';
+} from '@/server/channels/outbound/telegram';
 import {
   buildBrowseProvidersButton,
   buildModelsKeyboard,
@@ -15,7 +15,7 @@ import {
   calculateTotalPages,
   getModelsPageSize,
   parseModelCallbackData,
-} from './modelButtons';
+} from '@/server/channels/telegram/modelButtons';
 
 type TelegramModelProvider = {
   id: string;
@@ -162,7 +162,7 @@ function resolveProfileId(): string {
 
 async function resolveTelegramConversation(chatId: string, conversationExternalChatId?: string) {
   // eslint-disable-next-line import-x/no-cycle
-  const { getMessageService } = await import('../messages/runtime');
+  const { getMessageService } = await import('@/server/channels/messages/runtime');
   const service = getMessageService();
   const conversation = service.getOrCreateConversation(
     ChannelType.TELEGRAM,

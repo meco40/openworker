@@ -1,5 +1,5 @@
-import type { InboundEnvelope } from '../inbound/envelope';
-import { getAdapter } from './adapterRegistry';
+import type { InboundEnvelope } from '@/server/channels/inbound/envelope';
+import { getAdapter } from '@/server/channels/routing/adapterRegistry';
 
 export async function routeInbound(
   envelope: InboundEnvelope,

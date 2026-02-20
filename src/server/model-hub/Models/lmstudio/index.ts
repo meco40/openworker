@@ -1,9 +1,9 @@
-import type { ProviderAdapter } from '../types';
+import type { ProviderAdapter } from '@/server/model-hub/Models/types';
 import {
   dispatchOpenAICompatibleChat,
   fetchOpenAICompatibleModels,
   testOpenAICompatibleModelsEndpoint,
-} from '../shared/openaiCompatible';
+} from '@/server/model-hub/Models/shared/openaiCompatible';
 
 const LMSTUDIO_BASE_URL = 'http://localhost:1234/v1';
 

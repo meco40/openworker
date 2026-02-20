@@ -1,6 +1,6 @@
-import { resolveRequestUserContext } from '../../../src/server/auth/userContext';
-import { getLogRepository } from '../../../src/logging/logRepository';
-import type { LogCategory, LogLevel } from '../../../src/logging/logTypes';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getLogRepository } from '@/logging/logRepository';
+import type { LogCategory, LogLevel } from '@/logging/logTypes';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

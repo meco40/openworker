@@ -1,8 +1,8 @@
 // ─── Log Method Handlers ─────────────────────────────────────
 // RPC methods for log viewing and subscriptions.
 
-import { registerMethod, type RespondFn } from '../method-router';
-import type { GatewayClient } from '../client-registry';
+import { registerMethod, type RespondFn } from '@/server/gateway/method-router';
+import type { GatewayClient } from '@/server/gateway/client-registry';
 
 // ─── logs.list ───────────────────────────────────────────────
 // Fetch recent logs with optional filtering.
@@ -10,7 +10,7 @@ import type { GatewayClient } from '../client-registry';
 registerMethod(
   'logs.list',
   async (params: Record<string, unknown>, _client: GatewayClient, respond: RespondFn, _ctx) => {
-    const { getLogRepository } = await import('../../../logging/logRepository');
+    const { getLogRepository } = await import('@/logging/logRepository');
     const repo = getLogRepository();
 
     const filter: Record<string, unknown> = {};
@@ -64,7 +64,7 @@ registerMethod(
 registerMethod(
   'logs.sources',
   async (_params: Record<string, unknown>, _client: GatewayClient, respond: RespondFn, _ctx) => {
-    const { getLogRepository } = await import('../../../logging/logRepository');
+    const { getLogRepository } = await import('@/logging/logRepository');
     const repo = getLogRepository();
     respond(repo.getSources());
   },
@@ -73,7 +73,7 @@ registerMethod(
 registerMethod(
   'logs.categories',
   async (_params: Record<string, unknown>, _client: GatewayClient, respond: RespondFn, _ctx) => {
-    const { getLogRepository } = await import('../../../logging/logRepository');
+    const { getLogRepository } = await import('@/logging/logRepository');
     const repo = getLogRepository();
     respond(repo.getCategories());
   },
@@ -85,7 +85,7 @@ registerMethod(
 registerMethod(
   'logs.clear',
   async (_params: Record<string, unknown>, _client: GatewayClient, respond: RespondFn, _ctx) => {
-    const { getLogRepository } = await import('../../../logging/logRepository');
+    const { getLogRepository } = await import('@/logging/logRepository');
     const repo = getLogRepository();
     const cleared = repo.clearLogs();
     respond({ cleared });

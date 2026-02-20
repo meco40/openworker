@@ -1,12 +1,12 @@
 import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
-import { isCommandApproved } from '../../gateway/exec-approval-manager';
+import { isCommandApproved } from '@/server/gateway/exec-approval-manager';
 import {
   commandFingerprint,
   evaluateNodeCommandPolicy,
   normalizeCommand,
-} from '../../gateway/node-command-policy';
-import type { SkillDispatchContext } from '../types';
+} from '@/server/gateway/node-command-policy';
+import type { SkillDispatchContext } from '@/server/skills/types';
 
 const execFile = promisify(execFileCallback);
 

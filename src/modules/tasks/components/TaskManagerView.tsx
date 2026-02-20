@@ -1,3 +1,3 @@
-import TaskManagerView from '../../../../components/TaskManagerView';
+import TaskManagerView from '@/components/TaskManagerView';
 
 export default TaskManagerView;

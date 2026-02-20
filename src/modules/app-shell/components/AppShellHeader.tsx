@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ControlPlaneMetricsState } from '../../../../types';
+import type { ControlPlaneMetricsState } from '@/shared/domain/types';
 
 interface AppShellHeaderProps {
   metricsState: ControlPlaneMetricsState;

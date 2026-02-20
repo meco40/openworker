@@ -1,4 +1,4 @@
-import type { KnowledgeEventFilter, EventAggregationResult } from './eventTypes';
+import type { KnowledgeEventFilter, EventAggregationResult } from '@/server/knowledge/eventTypes';
 
 export interface EventAnswerScope {
   userId: string;

@@ -1,6 +1,6 @@
-import type { ChannelKey } from '../adapters/types';
-import type { InboundEnvelope } from '../inbound/envelope';
-import type { OutboundRouteCommand } from './outboundRouter';
+import type { ChannelKey } from '@/server/channels/adapters/types';
+import type { InboundEnvelope } from '@/server/channels/inbound/envelope';
+import type { OutboundRouteCommand } from '@/server/channels/routing/outboundRouter';
 
 export interface ChannelAdapter {
   channel: ChannelKey;

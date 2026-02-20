@@ -1,11 +1,11 @@
-import type { ChannelType, Conversation } from '../../../../types';
-import type { ChannelKey } from '../adapters/types';
+import type { ChannelType, Conversation } from '@/shared/domain/types';
+import type { ChannelKey } from '@/server/channels/adapters/types';
 import type {
   ChannelBinding,
   ChannelBindingStatus,
   UpsertChannelBindingInput,
-} from './channelBindings';
-import type { SearchMessagesOptions } from './sqliteMessageRepository';
+} from '@/server/channels/messages/channelBindings';
+import type { SearchMessagesOptions } from '@/server/channels/messages/sqliteMessageRepository';
 
 // ─── Data shapes ─────────────────────────────────────────────
 

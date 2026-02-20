@@ -1,4 +1,4 @@
-import type { MemoryNode, MemoryType } from '../../../core/memory/types';
+import type { MemoryNode, MemoryType } from '@/core/memory/types';
 
 export interface MemoryListPageInput {
   page: number;

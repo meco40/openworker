@@ -1,23 +1,16 @@
 import { NextResponse } from 'next/server';
-import {
-  createOAuthNonce,
-  createOAuthState,
-  createPkcePair,
-} from '../../../../../src/server/model-hub/oauth';
-import { getModelHubEncryptionKey } from '../../../../../src/server/model-hub/runtime';
-import { PROVIDER_CATALOG } from '../../../../../src/server/model-hub/providerCatalog';
+import { createOAuthNonce, createOAuthState, createPkcePair } from '@/server/model-hub/oauth';
+import { getModelHubEncryptionKey } from '@/server/model-hub/runtime';
+import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
 import {
   getOpenAICodexClientId,
   OPENAI_CODEX_AUTHORIZE_URL,
   OPENAI_CODEX_LOCAL_REDIRECT_URI,
   OPENAI_CODEX_SCOPE,
-} from '../../../../../src/server/model-hub/codexAuth';
-import { ensureCodexLocalCallbackBridge } from '../../../../../src/server/model-hub/codexLocalCallbackBridge';
-import {
-  buildModelHubCallbackUrl,
-  normalizeBrowserOrigin,
-} from '../../../../../src/server/model-hub/urlOrigin';
-import { resolveRequestUserContext } from '../../../../../src/server/auth/userContext';
+} from '@/server/model-hub/codexAuth';
+import { ensureCodexLocalCallbackBridge } from '@/server/model-hub/codexLocalCallbackBridge';
+import { buildModelHubCallbackUrl, normalizeBrowserOrigin } from '@/server/model-hub/urlOrigin';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 

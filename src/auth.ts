@@ -1,6 +1,6 @@
 import { getServerSession, type NextAuthOptions } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { getAuthUserStore } from './server/auth/userStore';
+import { getAuthUserStore } from '@/server/auth/userStore';
 
 const LOCAL_DEVELOPMENT_AUTH_SECRET = 'openclaw-local-nextauth-secret';
 

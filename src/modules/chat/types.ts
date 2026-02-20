@@ -1,4 +1,4 @@
-import type { ChannelType, Message } from '../../../types';
+import type { ChannelType, Message } from '@/shared/domain/types';
 
 export type ChatRole = Message['role'];
 

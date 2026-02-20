@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import BetterSqlite3 from 'better-sqlite3';
-import { ChannelType } from '../../../../types';
+import { ChannelType } from '@/shared/domain/types';
 import type {
   ConversationContextState,
   Conversation,
@@ -10,15 +10,15 @@ import type {
   MessageRepository,
   SaveMessageInput,
   StoredMessage,
-} from './repository';
-import { LEGACY_LOCAL_USER_ID } from '../../auth/constants';
+} from '@/server/channels/messages/repository';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 import type {
   ChannelBinding,
   ChannelBindingStatus,
   UpsertChannelBindingInput,
-} from './channelBindings';
-import type { ChannelKey } from '../adapters/types';
-import { toChannelBinding, toConversation, toMessage } from './messageRowMappers';
+} from '@/server/channels/messages/channelBindings';
+import type { ChannelKey } from '@/server/channels/adapters/types';
+import { toChannelBinding, toConversation, toMessage } from '@/server/channels/messages/messageRowMappers';
 
 // ─── FTS5 stop words (German + English) ──────────────────────
 // Common function words that add no search value and make AND-queries too restrictive.

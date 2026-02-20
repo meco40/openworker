@@ -1,5 +1,5 @@
-import { resolveRequestUserContext } from '../auth/userContext';
-import { getPrincipalUserId } from '../auth/principal';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getPrincipalUserId } from '@/server/auth/principal';
 
 export async function resolveAutomationUserId(): Promise<string | null> {
   const context = await resolveRequestUserContext();

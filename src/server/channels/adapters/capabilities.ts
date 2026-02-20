@@ -1,4 +1,4 @@
-import type { ChannelCapabilities, ChannelKey } from './types';
+import type { ChannelCapabilities, ChannelKey } from '@/server/channels/adapters/types';
 
 export const CHANNEL_CAPABILITIES: Record<ChannelKey, ChannelCapabilities> = {
   webchat: {

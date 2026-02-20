@@ -1,9 +1,9 @@
 // ─── Session Method Handlers ────────────────────────────────
 // RPC methods for session lifecycle operations over WebSocket.
 
-import { registerMethod, type RespondFn } from '../method-router';
-import type { GatewayClient } from '../client-registry';
-import { ChannelType } from '../../../../types';
+import { registerMethod, type RespondFn } from '@/server/gateway/method-router';
+import type { GatewayClient } from '@/server/gateway/client-registry';
+import { ChannelType } from '@/shared/domain/types';
 
 // ─── sessions.delete ─────────────────────────────────────────
 // Delete a conversation and all its messages.
@@ -17,14 +17,14 @@ registerMethod(
       throw new Error('conversationId is required');
     }
 
-    const { getMessageService } = await import('../../channels/messages/runtime');
+    const { getMessageService } = await import('@/server/channels/messages/runtime');
     const service = getMessageService();
 
     const deleted = service.deleteConversation(conversationId, client.userId);
 
     if (deleted) {
-      const { broadcastToUser } = await import('../../gateway/broadcast');
-      const { GatewayEvents } = await import('../../gateway/events');
+      const { broadcastToUser } = await import('@/server/gateway/broadcast');
+      const { GatewayEvents } = await import('@/server/gateway/events');
       broadcastToUser(client.userId, GatewayEvents.CONVERSATION_DELETED, { conversationId });
     }
 
@@ -40,7 +40,7 @@ registerMethod(
   async (params: Record<string, unknown>, client: GatewayClient, respond: RespondFn, _ctx) => {
     const title = params.title as string | undefined;
 
-    const { getMessageService } = await import('../../channels/messages/runtime');
+    const { getMessageService } = await import('@/server/channels/messages/runtime');
     const service = getMessageService();
 
     const newConversation = service.getOrCreateConversation(
@@ -50,8 +50,8 @@ registerMethod(
       client.userId,
     );
 
-    const { broadcastToUser } = await import('../../gateway/broadcast');
-    const { GatewayEvents } = await import('../../gateway/events');
+    const { broadcastToUser } = await import('@/server/gateway/broadcast');
+    const { GatewayEvents } = await import('@/server/gateway/events');
     broadcastToUser(client.userId, GatewayEvents.CONVERSATION_RESET, {
       oldConversationId: null,
       newConversationId: newConversation.id,
@@ -73,7 +73,7 @@ registerMethod(
       throw new Error('conversationId is required');
     }
 
-    const { getMessageService } = await import('../../channels/messages/runtime');
+    const { getMessageService } = await import('@/server/channels/messages/runtime');
     const service = getMessageService();
 
     // Model override — null clears the override

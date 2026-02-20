@@ -1,6 +1,6 @@
-import { buildSecurityStatusSnapshot } from '../../../server/security/status';
-import type { HealthCheck, HealthCheckStatus } from '../../healthTypes';
-import { elapsedMs, failCheck } from '../checkHelpers';
+import { buildSecurityStatusSnapshot } from '@/server/security/status';
+import type { HealthCheck, HealthCheckStatus } from '@/commands/healthTypes';
+import { elapsedMs, failCheck } from '@/commands/health/checkHelpers';
 
 export function runSecuritySnapshotCheck(): HealthCheck {
   const start = Date.now();

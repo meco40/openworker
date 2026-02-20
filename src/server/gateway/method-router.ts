@@ -1,9 +1,9 @@
 // ─── Gateway Method Router ───────────────────────────────────
 // Dispatches RPC requests to registered method handlers.
 
-import type { RequestFrame } from './protocol';
-import { makeResponse, makeError } from './protocol';
-import type { GatewayClient } from './client-registry';
+import type { RequestFrame } from '@/server/gateway/protocol';
+import { makeResponse, makeError } from '@/server/gateway/protocol';
+import type { GatewayClient } from '@/server/gateway/client-registry';
 
 // ─── Types ───────────────────────────────────────────────────
 

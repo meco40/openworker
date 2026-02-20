@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
-import { ChannelType, type CoupledChannel } from '../../../types';
-import { getGatewayClient } from '../gateway/ws-client';
+import { ChannelType, type CoupledChannel } from '@/shared/domain/types';
+import { getGatewayClient } from '@/modules/gateway/ws-client';
 
 interface ChannelStateApiItem {
   channel: string;

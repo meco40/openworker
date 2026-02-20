@@ -1,4 +1,4 @@
-import type { ClawHubSearchItem, ClawHubSearchParseResult } from './types';
+import type { ClawHubSearchItem, ClawHubSearchParseResult } from '@/server/clawhub/types';
 
 const SEARCH_ROW = /^([A-Za-z0-9._/-]+)\s+v([0-9A-Za-z.+-]+)\s+(.+?)\s+\(([-+]?\d*\.?\d+)\)\s*$/;
 

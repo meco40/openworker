@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
-import { toIntervention } from '../roomRowMappers';
-import type { RoomIntervention } from '../types';
-import { BaseRepository } from './baseRepository';
+import { toIntervention } from '@/server/rooms/roomRowMappers';
+import type { RoomIntervention } from '@/server/rooms/types';
+import { BaseRepository } from '@/server/rooms/repositories/baseRepository';
 
 /**
  * Repository for room intervention-related operations.

@@ -1,4 +1,4 @@
-import type { ChannelType } from '../../../types';
+import type { ChannelType } from '@/shared/domain/types';
 
 export interface ChatMessagePayload {
   id: string;
