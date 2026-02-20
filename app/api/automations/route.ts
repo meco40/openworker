@@ -14,15 +14,38 @@ interface CreateAutomationBody {
   enabled?: boolean;
 }
 
-export async function GET() {
+const MIN_LIMIT = 1;
+const MAX_LIMIT = 500;
+
+function parseOptionalLimit(request?: Request): number | undefined {
+  if (!request) {
+    return undefined;
+  }
+
+  const rawLimit = new URL(request.url).searchParams.get('limit');
+  if (rawLimit === null) {
+    return undefined;
+  }
+
+  const parsedLimit = Number.parseInt(rawLimit, 10);
+  if (!Number.isFinite(parsedLimit)) {
+    return undefined;
+  }
+
+  return Math.min(Math.max(parsedLimit, MIN_LIMIT), MAX_LIMIT);
+}
+
+export async function GET(request?: Request) {
   const userId = await resolveAutomationUserId();
   if (!userId) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
   const service = getAutomationService();
+  const limit = parseOptionalLimit(request);
   const rules = service.listRules(userId);
-  return NextResponse.json({ ok: true, rules });
+  const boundedRules = limit === undefined ? rules : rules.slice(0, limit);
+  return NextResponse.json({ ok: true, rules: boundedRules });
 }
 
 export async function POST(request: Request) {

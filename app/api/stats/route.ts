@@ -1,11 +1,23 @@
 import { getTokenUsageRepository } from '@/server/stats/tokenUsageRepository';
+import { getMessageRepository } from '@/server/channels/messages/runtime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/**
- * Resolves a preset name to { from, to } ISO date strings.
- */
+interface SessionLensSummary {
+  totalSessions: number;
+  byChannel: Array<{ channelType: string; count: number }>;
+  topSessions: Array<{
+    id: string;
+    title: string;
+    channelType: string;
+    externalChatId: string | null;
+    modelOverride: string | null;
+    personaId: string | null;
+    updatedAt: string;
+  }>;
+}
+
 function resolvePreset(preset: string): { from: string; to: string } {
   const now = new Date();
   const to = now.toISOString();
@@ -31,20 +43,47 @@ function resolvePreset(preset: string): { from: string; to: string } {
   }
 }
 
-/**
- * GET /api/stats — returns token usage statistics with optional time filtering.
- *
- * Query params:
- *   preset — 'today' | 'week' | 'month'
- *   from   — ISO date string (start of range)
- *   to     — ISO date string (end of range)
- */
+function parseIncludeSessions(searchParams: URLSearchParams): boolean {
+  const raw = String(searchParams.get('sessions') || '')
+    .trim()
+    .toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
+function buildSessionLens(): SessionLensSummary {
+  const repo = getMessageRepository();
+  const sessions = repo.listConversations(200);
+
+  const countsByChannel = new Map<string, number>();
+  for (const session of sessions) {
+    const channelKey = String(session.channelType || 'unknown');
+    countsByChannel.set(channelKey, (countsByChannel.get(channelKey) || 0) + 1);
+  }
+
+  const byChannel = Array.from(countsByChannel.entries())
+    .map(([channelType, count]) => ({ channelType, count }))
+    .sort((left, right) => right.count - left.count);
+
+  return {
+    totalSessions: sessions.length,
+    byChannel,
+    topSessions: sessions.slice(0, 20).map((session) => ({
+      id: session.id,
+      title: session.title,
+      channelType: String(session.channelType),
+      externalChatId: session.externalChatId,
+      modelOverride: session.modelOverride,
+      personaId: session.personaId,
+      updatedAt: session.updatedAt,
+    })),
+  };
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const repo = getTokenUsageRepository();
 
-    // Resolve time range
     let from = searchParams.get('from') || undefined;
     let to = searchParams.get('to') || undefined;
 
@@ -55,12 +94,11 @@ export async function GET(request: Request) {
       to = resolved.to || undefined;
     }
 
-    // Gather data
+    const includeSessions = parseIncludeSessions(searchParams);
+
     const total = repo.getTotalTokens(from, to);
     const byModel = repo.getUsageSummary(from, to);
     const entryCount = repo.getEntryCount();
-
-    // Uptime (process-level)
     const uptimeSeconds = Math.floor(process.uptime());
 
     return Response.json({
@@ -83,6 +121,7 @@ export async function GET(request: Request) {
           total: entry.totalTokens,
         })),
       },
+      sessionLens: includeSessions ? buildSessionLens() : undefined,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch stats.';

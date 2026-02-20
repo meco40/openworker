@@ -147,6 +147,11 @@ export enum View {
   MODELS = 'models',
   PERSONAS = 'personas',
   MEMORY = 'memory',
+  CRON = 'cron',
+  INSTANCES = 'instances',
+  SESSIONS = 'sessions',
+  NODES = 'nodes',
+  AGENTS = 'agents',
 }
 
 export interface CoupledChannel {

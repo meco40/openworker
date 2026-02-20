@@ -15,8 +15,14 @@ const fallbackResolvers = [
 describe('default view config', () => {
   it('uses configured default view when valid', () => {
     expect(resolveViewFromConfig('wizard')).toBe(View.WIZARD);
+    expect(resolveViewFromConfig('cron')).toBe(View.CRON);
+    expect(resolveViewFromConfig('instances')).toBe(View.INSTANCES);
+    expect(resolveViewFromConfig('sessions')).toBe(View.SESSIONS);
     expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'personas' } })).toBe(View.PERSONAS);
+    expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'cron' } })).toBe(View.CRON);
     expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'memory' } })).toBe(View.MEMORY);
+    expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'nodes' } })).toBe(View.NODES);
+    expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'agents' } })).toBe(View.AGENTS);
   });
 
   describe.each(fallbackResolvers)('%s', (_resolverName, resolve) => {

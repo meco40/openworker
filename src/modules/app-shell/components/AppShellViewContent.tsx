@@ -31,6 +31,11 @@ const ExposureManager = dynamic(() => import('@/modules/exposure/components/Expo
 const StatsView = dynamic(() => import('@/components/StatsView'));
 const PersonasView = dynamic(() => import('@/components/PersonasView'));
 const MemoryView = dynamic(() => import('@/components/MemoryView'));
+const CronView = dynamic(() => import('@/modules/cron/components/CronView'));
+const InstancesView = dynamic(() => import('@/modules/ops/components/InstancesView'));
+const SessionsView = dynamic(() => import('@/modules/ops/components/SessionsView'));
+const NodesView = dynamic(() => import('@/modules/ops/components/NodesView'));
+const AgentsView = dynamic(() => import('@/modules/ops/components/AgentsView'));
 
 interface AppShellViewContentProps {
   currentView: View;
@@ -127,6 +132,31 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
       {currentView === View.TASKS && (
         <ViewErrorBoundary label="Task Monitor">
           <TaskManagerView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.INSTANCES && (
+        <ViewErrorBoundary label="Instances">
+          <InstancesView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.SESSIONS && (
+        <ViewErrorBoundary label="Sessions">
+          <SessionsView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.CRON && (
+        <ViewErrorBoundary label="Cron">
+          <CronView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.NODES && (
+        <ViewErrorBoundary label="Nodes">
+          <NodesView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.AGENTS && (
+        <ViewErrorBoundary label="Agents">
+          <AgentsView />
         </ViewErrorBoundary>
       )}
       {currentView === View.LOGS && (
