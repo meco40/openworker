@@ -10,7 +10,7 @@ function read(relativePath: string): string {
 
 describe('persistent chat session v2 contract', () => {
   it('routes primary chat send path through gateway streaming API', () => {
-    const app = read('App.tsx');
+    const app = read('src/modules/app-shell/App.tsx');
 
     expect(app).toContain('requestStream(');
     expect(app).toContain("'chat.stream'");

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { CoupledChannel } from '../../../types';
-import { buildInitialShellState } from '../../../src/modules/app-shell/useAppShellState';
+import type { CoupledChannel } from '@/shared/domain/types';
+import { buildInitialShellState } from '@/modules/app-shell/useAppShellState';
 import {
   COUPLED_CHANNELS_STORAGE_KEY,
   loadCoupledChannelsFromStorage,
   saveCoupledChannelsToStorage,
-} from '../../../src/modules/app-shell/channelStorage';
+} from '@/modules/app-shell/channelStorage';
 
 interface StorageLike {
   getItem: (key: string) => string | null;

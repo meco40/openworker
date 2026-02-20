@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { View } from '../../../types';
+import { View } from '@/shared/domain/types';
 import {
   ALLOWED_UI_DEFAULT_VIEWS,
   ALLOWED_UI_DENSITIES,
   ALLOWED_UI_TIME_FORMATS,
-} from '../../../src/shared/config/uiSchema';
+} from '@/shared/config/uiSchema';
 
 describe('ui schema constants', () => {
   it('shares default views with View enum values', () => {

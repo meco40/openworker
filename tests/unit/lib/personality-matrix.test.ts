@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { GatewayState, MemoryEntry, ScheduledTask } from '../../../types';
-import { buildPersonalityMatrix } from '../../../lib/personalityMatrix';
+import type { GatewayState, MemoryEntry, ScheduledTask } from '@/shared/domain/types';
+import { buildPersonalityMatrix } from '@/lib/personalityMatrix';
 
 function memoryEntry(overrides: Partial<MemoryEntry>): MemoryEntry {
   return {

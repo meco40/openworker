@@ -4,7 +4,7 @@ import {
   buildProviderKeyboard,
   calculateTotalPages,
   parseModelCallbackData,
-} from '../../../src/server/channels/telegram/modelButtons';
+} from '@/server/channels/telegram/modelButtons';
 
 describe('telegram model buttons', () => {
   it('parses provider list callbacks', () => {

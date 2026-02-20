@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   extractTelegramInboundMedia,
   resolveTelegramInboundText,
-} from '../../../src/server/channels/telegram/media';
+} from '@/server/channels/telegram/media';
 
 describe('telegram media helper', () => {
   beforeEach(() => {

@@ -7,7 +7,7 @@ import {
   OPENAI_CODEX_PUBLIC_CLIENT_ID,
   readCodexCliCredentials,
   refreshOpenAICodexToken,
-} from '../../../src/server/model-hub/codexAuth';
+} from '@/server/model-hub/codexAuth';
 
 const ORIGINAL_ENV = { ...process.env };
 const ORIGINAL_FETCH = global.fetch;

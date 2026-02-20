@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ModelHubRepository } from '../../../src/server/model-hub/repository';
+import type { ModelHubRepository } from '@/server/model-hub/repository';
 
 vi.mock('../../../src/server/model-hub/gateway', () => ({
   dispatchGatewayRequest: vi.fn(async () => ({
@@ -30,7 +30,7 @@ function createMockRepository(overrides: Partial<ModelHubRepository> = {}): Mode
 
 describe('ModelHubService reasoning effort dispatch', () => {
   it('maps xhigh pipeline reasoning effort to high for provider request payload', async () => {
-    const { dispatchGatewayRequest } = await import('../../../src/server/model-hub/gateway');
+    const { dispatchGatewayRequest } = await import('@/server/model-hub/gateway');
     const dispatchMock = vi.mocked(dispatchGatewayRequest);
 
     const now = new Date().toISOString();
@@ -67,7 +67,7 @@ describe('ModelHubService reasoning effort dispatch', () => {
       getAccountRecordById: vi.fn().mockReturnValue(account),
     });
 
-    const { ModelHubService } = await import('../../../src/server/model-hub/service');
+    const { ModelHubService } = await import('@/server/model-hub/service');
     const service = new ModelHubService(repo);
 
     const result = await service.dispatchWithFallback('p1', 'encryption-key', {

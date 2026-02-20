@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pairChannel } from '../../../src/server/channels/pairing';
+import { pairChannel } from '@/server/channels/pairing';
 
 describe('pairChannel', () => {
   it('rejects unsupported channels', async () => {

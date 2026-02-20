@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ChannelType } from '../../types';
+import { ChannelType } from '@/shared/domain/types';
 
 type GlobalSingletons = typeof globalThis & {
   __tokenUsageRepository?: unknown;
@@ -44,14 +44,14 @@ describe('GET /api/control-plane/metrics', () => {
     (globalThis as GlobalSingletons).__gatewayClientRegistry = undefined;
     (globalThis as GlobalSingletons).__messageRepository = undefined;
 
-    const { TokenUsageRepository } = await import('../../src/server/stats/tokenUsageRepository');
+    const { TokenUsageRepository } = await import('@/server/stats/tokenUsageRepository');
     const tokenRepo = new TokenUsageRepository(process.env.STATS_DB_PATH);
     tokenRepo.recordUsage('gemini', 'gemini-2.5-pro', 10, 20, 30);
     tokenRepo.recordUsage('openai', 'gpt-4.1', 40, 30, 70);
     (globalThis as GlobalSingletons).__tokenUsageRepository = tokenRepo;
 
-    const { createMem0Client } = await import('../../src/server/memory/mem0Client');
-    const { MemoryService } = await import('../../src/server/memory/service');
+    const { createMem0Client } = await import('@/server/memory/mem0Client');
+    const { MemoryService } = await import('@/server/memory/service');
     const mem0Store = new Map<
       string,
       Array<{ id: string; content: string; metadata: Record<string, unknown> }>
@@ -163,7 +163,7 @@ describe('GET /api/control-plane/metrics', () => {
     (globalThis as GlobalSingletons).__mem0Client = mem0Client;
     (globalThis as GlobalSingletons).__memoryService = memoryService;
 
-    const { getClientRegistry } = await import('../../src/server/gateway/client-registry');
+    const { getClientRegistry } = await import('@/server/gateway/client-registry');
     const clientRegistry = getClientRegistry();
     for (let i = 0; i < 7; i += 1) {
       clientRegistry.register({
@@ -230,14 +230,14 @@ describe('GET /api/control-plane/metrics', () => {
 
   it('counts vector nodes for the resolved request user context', async () => {
     const scopedUserId = 'metrics-user-scoped';
-    const { getMemoryService } = await import('../../src/server/memory/runtime');
+    const { getMemoryService } = await import('@/server/memory/runtime');
     const memoryService = getMemoryService();
     await memoryService.store('persona-metrics', 'fact', 'scoped memory one', 3, scopedUserId);
     await memoryService.store('persona-metrics', 'fact', 'scoped memory two', 3, scopedUserId);
     await memoryService.store('persona-metrics', 'fact', 'scoped memory three', 3, scopedUserId);
 
     vi.doMock('../../src/server/auth/userContext', async () => {
-      const actual = await vi.importActual<typeof import('../../src/server/auth/userContext')>(
+      const actual = await vi.importActual<typeof import('@/server/auth/userContext')>(
         '../../src/server/auth/userContext',
       );
       return {
@@ -266,7 +266,7 @@ describe('GET /api/control-plane/metrics', () => {
 
   it('includes channel-scoped vectors for legacy local user', async () => {
     const channelScopedUserId = 'channel:telegram:1527785051';
-    const { getMemoryService } = await import('../../src/server/memory/runtime');
+    const { getMemoryService } = await import('@/server/memory/runtime');
     const memoryService = getMemoryService();
     await memoryService.store(
       'persona-metrics',
@@ -297,10 +297,10 @@ describe('GET /api/control-plane/metrics', () => {
           updatedAt: new Date().toISOString(),
         },
       ],
-    } as unknown as import('../../src/server/channels/messages/sqliteMessageRepository').SqliteMessageRepository;
+    } as unknown as import('@/server/channels/messages/sqliteMessageRepository').SqliteMessageRepository;
 
     vi.doMock('../../src/server/auth/userContext', async () => {
-      const actual = await vi.importActual<typeof import('../../src/server/auth/userContext')>(
+      const actual = await vi.importActual<typeof import('@/server/auth/userContext')>(
         '../../src/server/auth/userContext',
       );
       return {

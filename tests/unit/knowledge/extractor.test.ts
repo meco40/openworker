@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { StoredMessage } from '../../../src/server/channels/messages/repository';
-import { KnowledgeExtractor } from '../../../src/server/knowledge/extractor';
+import type { StoredMessage } from '@/server/channels/messages/repository';
+import { KnowledgeExtractor } from '@/server/knowledge/extractor';
 
 function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;

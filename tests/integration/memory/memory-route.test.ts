@@ -273,7 +273,7 @@ describe('/api/memory route', () => {
   it('includes channel-scoped memory for legacy web user when channel conversation exists', async () => {
     const telegramExternalChatId = '1527785051';
     const channelScopedUserId = `channel:telegram:${telegramExternalChatId}`;
-    const memoryServiceModule = await import('../../../src/server/memory/runtime');
+    const memoryServiceModule = await import('@/server/memory/runtime');
     const memoryService = memoryServiceModule.getMemoryService();
     await memoryService.store(
       personaId,

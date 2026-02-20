@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CredentialStore } from '../../../src/server/channels/credentials/credentialStore';
+import { CredentialStore } from '@/server/channels/credentials/credentialStore';
 import {
   scopeBridgeExternalChatId,
   upsertBridgeAccount,
-} from '../../../src/server/channels/pairing/bridgeAccounts';
+} from '@/server/channels/pairing/bridgeAccounts';
 
 type TestGlobals = typeof globalThis & {
   __credentialStore?: CredentialStore;

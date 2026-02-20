@@ -3,7 +3,7 @@ import {
   detectEmotion,
   deriveRelationshipTrend,
   type RelationshipStatus,
-} from '../../../src/server/knowledge/emotionTracker';
+} from '@/server/knowledge/emotionTracker';
 
 describe('detectEmotion', () => {
   it('detects sadness', () => {

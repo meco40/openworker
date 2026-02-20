@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ClawHubNotFoundError } from '../../../src/server/clawhub/errors';
+import { ClawHubNotFoundError } from '@/server/clawhub/errors';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({

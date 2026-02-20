@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { StoredMessage } from '../../../src/server/channels/messages/repository';
-import { KnowledgeRetrievalService } from '../../../src/server/knowledge/retrievalService';
+import type { StoredMessage } from '@/server/channels/messages/repository';
+import { KnowledgeRetrievalService } from '@/server/knowledge/retrievalService';
 
 function makeMessage(seq: number, content: string): StoredMessage {
   return {

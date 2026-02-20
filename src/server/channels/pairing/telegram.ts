@@ -1,6 +1,9 @@
 import crypto from 'node:crypto';
 import { beginTelegramCodePairing } from '@/server/channels/pairing/telegramCodePairing';
-import { startTelegramPolling, stopTelegramPolling } from '@/server/channels/pairing/telegramPolling';
+import {
+  startTelegramPolling,
+  stopTelegramPolling,
+} from '@/server/channels/pairing/telegramPolling';
 import { serializeTelegramAllowedUpdates } from '@/server/channels/telegram/allowedUpdates';
 import { syncTelegramNativeCommands } from '@/server/channels/telegram/nativeCommands';
 

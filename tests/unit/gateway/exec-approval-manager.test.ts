@@ -8,7 +8,7 @@ import {
   isCommandApproved,
   listApprovedCommands,
   revokeCommand,
-} from '../../../src/server/gateway/exec-approval-manager';
+} from '@/server/gateway/exec-approval-manager';
 
 function makeStorePath(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-approvals-'));

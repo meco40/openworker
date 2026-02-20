@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
-import { SqliteKnowledgeRepository } from '../../../src/server/knowledge/sqliteKnowledgeRepository';
-import type { UpsertKnowledgeEventInput } from '../../../src/server/knowledge/eventTypes';
-import {
-  computeEventAnswer,
-  type EventAnswerScope,
-} from '../../../src/server/knowledge/eventAnswerComputer';
+import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
+import type { UpsertKnowledgeEventInput } from '@/server/knowledge/eventTypes';
+import { computeEventAnswer, type EventAnswerScope } from '@/server/knowledge/eventAnswerComputer';
 
 const TEST_DB_DIR = '.local';
 let dbPath: string;

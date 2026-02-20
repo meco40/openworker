@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { ChannelType, type Conversation } from '../../../types';
-import { filterConversations } from '../../../src/modules/chat/hooks/useChatInterfaceState';
+import { ChannelType, type Conversation } from '@/shared/domain/types';
+import { filterConversations } from '@/modules/chat/hooks/useChatInterfaceState';
 
 function conversation(overrides: Partial<Conversation>): Conversation {
   return {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateRecallBudget,
   detectQueryComplexity,
-} from '../../../src/server/knowledge/recallBudgetCalculator';
+} from '@/server/knowledge/recallBudgetCalculator';
 
 describe('recallBudgetCalculator', () => {
   describe('detectQueryComplexity', () => {

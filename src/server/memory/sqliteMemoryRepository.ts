@@ -3,7 +3,11 @@ import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import type { MemoryNode, MemoryType } from '@/core/memory/types';
 import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
-import type { MemoryListPageInput, MemoryListPageResult, MemoryRepository } from '@/server/memory/repository';
+import type {
+  MemoryListPageInput,
+  MemoryListPageResult,
+  MemoryRepository,
+} from '@/server/memory/repository';
 
 interface MemoryRow {
   id: string;

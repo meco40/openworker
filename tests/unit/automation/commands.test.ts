@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseCronCommand } from '../../../src/server/automation/commands';
+import { parseCronCommand } from '@/server/automation/commands';
 
 describe('automation command parser', () => {
   it('parses /cron add command with quoted args', () => {

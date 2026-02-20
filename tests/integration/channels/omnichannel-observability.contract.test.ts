@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { LogRepository } from '../../../src/logging/logRepository';
+import { LogRepository } from '@/logging/logRepository';
 
 describe('omnichannel observability contract', () => {
   let repo: LogRepository;
@@ -16,7 +16,7 @@ describe('omnichannel observability contract', () => {
   });
 
   it('emits structured channel telemetry log entries', async () => {
-    const { logChannelEvent } = await import('../../../src/logging/logService');
+    const { logChannelEvent } = await import('@/logging/logService');
 
     logChannelEvent('inbound', 'telegram', 'accepted', { latencyMs: 7 });
     logChannelEvent('outbound', 'slack', 'failed', { reason: 'token_invalid' });

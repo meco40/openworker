@@ -3,7 +3,7 @@ import {
   PERSONA_STRATEGIES,
   adjustScoreByStrategy,
   type PersonaType,
-} from '../../../src/server/knowledge/personaStrategies';
+} from '@/server/knowledge/personaStrategies';
 
 describe('PERSONA_STRATEGIES', () => {
   it('has strategies for all persona types', () => {

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Mem0Client } from '../../../src/server/memory/mem0Client';
+import type { Mem0Client } from '@/server/memory/mem0Client';
 import {
   assertMemoryRuntimeConfiguration,
   assertMemoryRuntimeReady,
-} from '../../../src/server/memory/runtime';
+} from '@/server/memory/runtime';
 
 type GlobalSingletons = typeof globalThis & {
   __mem0Client?: Mem0Client | null;

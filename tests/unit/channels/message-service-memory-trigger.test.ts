@@ -1,11 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ChannelType } from '../../../types';
-import type {
-  MessageRepository,
-  StoredMessage,
-} from '../../../src/server/channels/messages/repository';
-import type { Conversation } from '../../../types';
-import { LEGACY_LOCAL_USER_ID } from '../../../src/server/auth/constants';
+import { ChannelType } from '@/shared/domain/types';
+import type { MessageRepository, StoredMessage } from '@/server/channels/messages/repository';
+import type { Conversation } from '@/shared/domain/types';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
   vi.fn(async () => ({
@@ -45,7 +42,7 @@ vi.mock('../../../src/server/memory/runtime', () => ({
   }),
 }));
 
-import { MessageService } from '../../../src/server/channels/messages/service';
+import { MessageService } from '@/server/channels/messages/service';
 
 function buildRepository(
   personaId: string | null,

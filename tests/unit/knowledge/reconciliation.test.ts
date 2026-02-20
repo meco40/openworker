@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectOrphans, type StoreEntry } from '../../../src/server/knowledge/reconciliation';
+import { detectOrphans, type StoreEntry } from '@/server/knowledge/reconciliation';
 
 describe('detectOrphans', () => {
   it('detects mem0 orphans (in mem0 but not in knowledge)', () => {

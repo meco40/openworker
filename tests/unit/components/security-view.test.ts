@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import SecurityView from '../../../components/SecurityView';
+import SecurityView from '@/components/SecurityView';
 
 describe('SecurityView', () => {
   it('renders tabs for overview and whitelist', () => {

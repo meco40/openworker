@@ -10,7 +10,11 @@ import { KnowledgeRetrievalService } from '@/server/knowledge/retrievalService';
 import type { KnowledgeRepository } from '@/server/knowledge/repository';
 import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
 import { KnowledgeRuntimeLoop } from '@/server/knowledge/runtimeLoop';
-import { detectPlaceholder, detectStaleRelativeTime, detectLowRelevance } from '@/server/knowledge/cleanupDetector';
+import {
+  detectPlaceholder,
+  detectStaleRelativeTime,
+  detectLowRelevance,
+} from '@/server/knowledge/cleanupDetector';
 import { detectOrphans } from '@/server/knowledge/reconciliation';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
 import type { PersonaType } from '@/server/knowledge/personaStrategies';

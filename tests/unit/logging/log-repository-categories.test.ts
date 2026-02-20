@@ -3,7 +3,7 @@ import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { LogRepository } from '../../../src/logging/logRepository';
+import { LogRepository } from '@/logging/logRepository';
 
 function uniqueDbPath(name: string): string {
   return path.join(

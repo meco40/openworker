@@ -1,7 +1,11 @@
 import crypto from 'node:crypto';
 import { ChannelType } from '@/shared/domain/types';
 import type { Skill } from '@/shared/domain/types';
-import type { MessageRepository, StoredMessage, Conversation } from '@/server/channels/messages/repository';
+import type {
+  MessageRepository,
+  StoredMessage,
+  Conversation,
+} from '@/server/channels/messages/repository';
 import { broadcastToUser } from '@/server/gateway/broadcast';
 import { GatewayEvents } from '@/server/gateway/events';
 import { deliverOutbound } from '@/server/channels/outbound/router';
@@ -20,16 +24,25 @@ import {
   setChannelBindingPersona,
 } from '@/server/channels/messages/channelBindingPersona';
 import { getMemoryService } from '@/server/memory/runtime';
-import { resolveMemoryScopedUserId, resolveMemoryUserIdCandidates } from '@/server/memory/userScope';
+import {
+  resolveMemoryScopedUserId,
+  resolveMemoryUserIdCandidates,
+} from '@/server/memory/userScope';
 import { resolveKnowledgeConfig } from '@/server/knowledge/config';
 import {
   getKnowledgeIngestionService,
   getKnowledgeRetrievalService,
 } from '@/server/knowledge/runtime';
-import { buildAutoMemoryCandidates, isAutoSessionMemoryEnabled } from '@/server/channels/messages/autoMemory';
+import {
+  buildAutoMemoryCandidates,
+  isAutoSessionMemoryEnabled,
+} from '@/server/channels/messages/autoMemory';
 import type { MemoryFeedbackSignal } from '@/server/memory/service';
 import { getProactiveGateService } from '@/server/proactive/runtime';
-import { buildMessageAttachmentMetadata, type StoredMessageAttachment } from '@/server/channels/messages/attachments';
+import {
+  buildMessageAttachmentMetadata,
+  type StoredMessageAttachment,
+} from '@/server/channels/messages/attachments';
 import { mapSkillsToTools } from '@/skills/definitions';
 import { getSkillRepository } from '@/server/skills/skillRepository';
 import { approveCommand, isCommandApproved } from '@/server/gateway/exec-approval-manager';

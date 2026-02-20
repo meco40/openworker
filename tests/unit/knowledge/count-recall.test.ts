@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planKnowledgeQuery } from '../../../src/server/knowledge/queryPlanner';
+import { planKnowledgeQuery } from '@/server/knowledge/queryPlanner';
 
 describe('count_recall intent', () => {
   it('detects "wie viele tage" as count_recall', () => {

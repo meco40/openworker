@@ -7,7 +7,7 @@ import {
   okCheck,
   failCheck,
   skippedCheck,
-} from '../../../src/commands/health/checkHelpers';
+} from '@/commands/health/checkHelpers';
 
 describe('health check helpers', () => {
   it('formats percentages with one decimal', () => {

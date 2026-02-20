@@ -3,7 +3,7 @@ import {
   transitionLifecycle,
   isActiveStatus,
   type LifecycleSignal,
-} from '../../../src/server/knowledge/factLifecycle';
+} from '@/server/knowledge/factLifecycle';
 
 describe('transitionLifecycle', () => {
   it('new → confirmed on user_confirmed', () => {

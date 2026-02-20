@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PromptDispatchRepository } from '../../../src/server/stats/promptDispatchRepository';
-import { TokenUsageRepository } from '../../../src/server/stats/tokenUsageRepository';
+import { PromptDispatchRepository } from '@/server/stats/promptDispatchRepository';
+import { TokenUsageRepository } from '@/server/stats/tokenUsageRepository';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({

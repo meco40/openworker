@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { SqliteKnowledgeRepository } from '../../../src/server/knowledge/sqliteKnowledgeRepository';
+import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
 
 function createDbPath(): string {
   return path.join(

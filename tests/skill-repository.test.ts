@@ -1,9 +1,9 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { SkillRepository } from '../src/server/skills/skillRepository';
-import type { BuiltInSkillSeed } from '../src/server/skills/builtInSkills';
-import type { SkillManifest } from '../src/shared/toolSchema';
+import { SkillRepository } from '@/server/skills/skillRepository';
+import type { BuiltInSkillSeed } from '@/server/skills/builtInSkills';
+import type { SkillManifest } from '@/shared/toolSchema';
 
 const TEST_DB_DIR = path.join(process.cwd(), '.local', 'test');
 

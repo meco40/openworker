@@ -3,7 +3,7 @@ import {
   assessAnswerSafety,
   buildSafetyInstruction,
   type EvidenceAssessment,
-} from '../../../src/server/knowledge/answerSafetyPolicy';
+} from '@/server/knowledge/answerSafetyPolicy';
 
 describe('answerSafetyPolicy', () => {
   describe('assessAnswerSafety', () => {

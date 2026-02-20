@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ContextBuilder } from '../../../src/server/channels/messages/contextBuilder';
-import type { MessageRepository } from '../../../src/server/channels/messages/repository';
-import { ChannelType } from '../../../types';
+import { ContextBuilder } from '@/server/channels/messages/contextBuilder';
+import type { MessageRepository } from '@/server/channels/messages/repository';
+import { ChannelType } from '@/shared/domain/types';
 
 function createRepo(): MessageRepository {
   return {

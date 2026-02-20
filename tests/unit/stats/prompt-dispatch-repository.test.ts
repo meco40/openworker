@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   PromptDispatchRepository,
   type PromptDispatchRiskLevel,
-} from '../../../src/server/stats/promptDispatchRepository';
+} from '@/server/stats/promptDispatchRepository';
 
 describe('PromptDispatchRepository', () => {
   let repo: PromptDispatchRepository;

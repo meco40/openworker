@@ -7,7 +7,7 @@ import {
   extractStoredAttachmentsFromMetadata,
   persistIncomingAttachment,
   readStoredAttachmentBuffer,
-} from '../../../src/server/channels/messages/attachments';
+} from '@/server/channels/messages/attachments';
 
 describe('message attachments storage', () => {
   const previousDir = process.env.CHAT_ATTACHMENTS_DIR;

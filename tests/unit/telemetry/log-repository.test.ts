@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { LogRepository } from '../../../src/logging/logRepository';
+import { LogRepository } from '@/logging/logRepository';
 
 describe('LogRepository', () => {
   let repo: LogRepository;

@@ -1,8 +1,8 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { POST as pollPost } from '../../../app/api/channels/telegram/pairing/poll/route';
-import { CredentialStore } from '../../../src/server/channels/credentials/credentialStore';
-import { beginTelegramCodePairing } from '../../../src/server/channels/pairing/telegramCodePairing';
-import { stopTelegramPolling } from '../../../src/server/channels/pairing/telegramPolling';
+import { CredentialStore } from '@/server/channels/credentials/credentialStore';
+import { beginTelegramCodePairing } from '@/server/channels/pairing/telegramCodePairing';
+import { stopTelegramPolling } from '@/server/channels/pairing/telegramPolling';
 
 function makeRequest() {
   return new Request('http://localhost/api/channels/telegram/pairing/poll', {

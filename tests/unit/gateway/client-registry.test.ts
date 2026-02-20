@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 
 // Client registry uses globalThis singleton — import after potential cleanup
-import { getClientRegistry, type GatewayClient } from '../../../src/server/gateway/client-registry';
+import { getClientRegistry, type GatewayClient } from '@/server/gateway/client-registry';
 
 function makeMockSocket(): WebSocket {
   return {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { ChannelType } from '../../../types';
-import { loadChannelState } from '../../../src/modules/app-shell/useChannelStateSync';
+import { ChannelType } from '@/shared/domain/types';
+import { loadChannelState } from '@/modules/app-shell/useChannelStateSync';
 
 describe('channel state sync', () => {
   it('maps /api/channels/state payload into coupled-channel updates', async () => {

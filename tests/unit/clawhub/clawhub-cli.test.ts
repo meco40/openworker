@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { ClawHubCli } from '../../../src/server/clawhub/clawhubCli';
+import { ClawHubCli } from '@/server/clawhub/clawhubCli';
 
 describe('ClawHubCli', () => {
   it('falls back to npx when clawhub binary is missing', async () => {

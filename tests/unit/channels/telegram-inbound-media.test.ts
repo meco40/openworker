@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ChannelType } from '../../../types';
-import { CredentialStore } from '../../../src/server/channels/credentials/credentialStore';
+import { ChannelType } from '@/shared/domain/types';
+import { CredentialStore } from '@/server/channels/credentials/credentialStore';
 import {
   beginTelegramCodePairing,
   confirmTelegramPairingCode,
   ensureTelegramPairingCode,
-} from '../../../src/server/channels/pairing/telegramCodePairing';
+} from '@/server/channels/pairing/telegramCodePairing';
 
 const handleInbound = vi.fn();
 const getOrCreateConversation = vi.fn();
@@ -69,7 +69,7 @@ describe('telegram inbound media routing', () => {
 
   it('routes non-text media messages with generated summary text and attachments', async () => {
     const { processTelegramInboundMessage } =
-      await import('../../../src/server/channels/pairing/telegramInbound');
+      await import('@/server/channels/pairing/telegramInbound');
 
     const result = await processTelegramInboundMessage({
       message_id: 11,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PROVIDER_CATALOG } from '../../../src/server/model-hub/providerCatalog';
+import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
 
 describe('provider catalog coverage', () => {
   it('contains the required multi-provider set', () => {

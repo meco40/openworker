@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { FILE_LABELS } from '../../../components/personas/personaLabels';
+import { FILE_LABELS } from '@/components/personas/personaLabels';
 
 describe('persona labels', () => {
   it('contains labels for all supported persona files', () => {

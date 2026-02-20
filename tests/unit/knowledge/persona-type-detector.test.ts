@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectPersonaType } from '../../../src/server/knowledge/personaTypeDetector';
+import { detectPersonaType } from '@/server/knowledge/personaTypeDetector';
 
 describe('detectPersonaType', () => {
   it('detects builder from code/framework keywords', () => {

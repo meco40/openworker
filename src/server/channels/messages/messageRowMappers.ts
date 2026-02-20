@@ -1,7 +1,10 @@
 import { ChannelType } from '@/shared/domain/types';
 import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 import type { Conversation, StoredMessage } from '@/server/channels/messages/repository';
-import type { ChannelBinding, ChannelBindingStatus } from '@/server/channels/messages/channelBindings';
+import type {
+  ChannelBinding,
+  ChannelBindingStatus,
+} from '@/server/channels/messages/channelBindings';
 import type { ChannelKey } from '@/server/channels/adapters/types';
 
 export function toConversation(row: Record<string, unknown>): Conversation {

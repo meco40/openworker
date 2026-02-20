@@ -34,7 +34,7 @@ describe('slack pairing', () => {
       ),
     );
 
-    const { pairChannel } = await import('../../../src/server/channels/pairing');
+    const { pairChannel } = await import('@/server/channels/pairing');
     const result = await pairChannel('slack', 'xoxb-test-token');
 
     expect(result).toMatchObject({

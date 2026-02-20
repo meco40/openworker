@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { SqliteMessageRepository } from '../../../src/server/channels/messages/sqliteMessageRepository';
-import { ChannelType } from '../../../types';
-import type { Conversation } from '../../../src/server/channels/messages/repository';
+import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
+import { ChannelType } from '@/shared/domain/types';
+import type { Conversation } from '@/server/channels/messages/repository';
 
 describe('SqliteMessageRepository', () => {
   let repo: SqliteMessageRepository;

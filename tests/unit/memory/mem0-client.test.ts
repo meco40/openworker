@@ -4,7 +4,7 @@ import {
   createMem0ClientFromEnv,
   type Mem0ListMemoryResult,
   type Mem0ClientConfig,
-} from '../../../src/server/memory/mem0Client';
+} from '@/server/memory/mem0Client';
 
 describe('mem0Client', () => {
   afterEach(() => {

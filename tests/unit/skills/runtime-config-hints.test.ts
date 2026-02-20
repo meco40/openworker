@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildSkillConfigHints } from '../../../skills/runtime-config-hints';
-import type { SkillRuntimeConfigStatus } from '../../../skills/runtime-config-client';
+import { buildSkillConfigHints } from '@/skills/runtime-config-hints';
+import type { SkillRuntimeConfigStatus } from '@/skills/runtime-config-client';
 
 function config(overrides: Partial<SkillRuntimeConfigStatus>): SkillRuntimeConfigStatus {
   return {

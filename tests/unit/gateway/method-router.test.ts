@@ -5,9 +5,9 @@ import {
   registerMethod,
   dispatchMethod,
   getRegisteredMethods,
-} from '../../../src/server/gateway/method-router';
-import type { RequestFrame } from '../../../src/server/gateway/protocol';
-import type { GatewayClient } from '../../../src/server/gateway/client-registry';
+} from '@/server/gateway/method-router';
+import type { RequestFrame } from '@/server/gateway/protocol';
+import type { GatewayClient } from '@/server/gateway/client-registry';
 
 function makeMockSocket(): WebSocket {
   return {

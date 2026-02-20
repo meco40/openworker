@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EventExtractor, type ExtractedEvent } from '../../../src/server/knowledge/eventExtractor';
+import { EventExtractor, type ExtractedEvent } from '@/server/knowledge/eventExtractor';
 
 interface MinimalMessage {
   seq: number;

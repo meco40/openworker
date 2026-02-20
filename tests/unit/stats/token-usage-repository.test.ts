@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { TokenUsageRepository } from '../../../src/server/stats/tokenUsageRepository';
+import { TokenUsageRepository } from '@/server/stats/tokenUsageRepository';
 
 describe('TokenUsageRepository', () => {
   let repo: TokenUsageRepository;

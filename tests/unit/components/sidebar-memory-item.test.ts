@@ -1,8 +1,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import Sidebar from '../../../components/Sidebar';
-import { View } from '../../../types';
+import Sidebar from '@/components/Sidebar';
+import { View } from '@/shared/domain/types';
 
 describe('Sidebar memory navigation', () => {
   it('uses single-user profile label in navigation', () => {

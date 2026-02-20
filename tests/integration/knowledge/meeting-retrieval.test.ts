@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { StoredMessage } from '../../../src/server/channels/messages/repository';
-import { KnowledgeRetrievalService } from '../../../src/server/knowledge/retrievalService';
-import { SqliteKnowledgeRepository } from '../../../src/server/knowledge/sqliteKnowledgeRepository';
+import type { StoredMessage } from '@/server/channels/messages/repository';
+import { KnowledgeRetrievalService } from '@/server/knowledge/retrievalService';
+import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
 
 function createDbPath(): string {
   return path.join(

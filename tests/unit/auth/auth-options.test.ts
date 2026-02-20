@@ -17,7 +17,7 @@ describe('auth options secret resolution', () => {
     };
     vi.resetModules();
 
-    const { authOptions } = await import('../../../src/auth');
+    const { authOptions } = await import('@/auth');
 
     expect(authOptions.secret).toBe('nextauth-secret');
   });
@@ -31,7 +31,7 @@ describe('auth options secret resolution', () => {
     delete process.env.NEXTAUTH_SECRET;
     vi.resetModules();
 
-    const { authOptions } = await import('../../../src/auth');
+    const { authOptions } = await import('@/auth');
 
     expect(authOptions.secret).toBe('auth-secret-only');
   });
@@ -45,7 +45,7 @@ describe('auth options secret resolution', () => {
     delete process.env.AUTH_SECRET;
     vi.resetModules();
 
-    const { authOptions } = await import('../../../src/auth');
+    const { authOptions } = await import('@/auth');
 
     expect(typeof authOptions.secret).toBe('string');
     expect(authOptions.secret).toBe('openclaw-local-nextauth-secret');
@@ -60,7 +60,7 @@ describe('auth options secret resolution', () => {
     delete process.env.AUTH_SECRET;
     vi.resetModules();
 
-    const { authOptions } = await import('../../../src/auth');
+    const { authOptions } = await import('@/auth');
 
     expect(authOptions.secret).toBe('openclaw-local-nextauth-secret');
   });

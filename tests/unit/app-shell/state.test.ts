@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildInitialShellState } from '../../../src/modules/app-shell/useAppShellState';
+import { buildInitialShellState } from '@/modules/app-shell/useAppShellState';
 
 describe('shell state', () => {
   it('creates default view and channels', () => {

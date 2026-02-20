@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { summarizeConfigDiff, hasHighRiskDiff } from '../../../src/shared/config/diffSummary';
+import { summarizeConfigDiff, hasHighRiskDiff } from '@/shared/config/diffSummary';
 
 describe('config editor diff preview utilities', () => {
   it('builds diff summary with risk tags', () => {

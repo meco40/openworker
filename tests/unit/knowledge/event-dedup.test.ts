@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
-import { SqliteKnowledgeRepository } from '../../../src/server/knowledge/sqliteKnowledgeRepository';
-import type { UpsertKnowledgeEventInput } from '../../../src/server/knowledge/eventTypes';
-import type { ExtractedEvent } from '../../../src/server/knowledge/eventExtractor';
-import { deduplicateEvent } from '../../../src/server/knowledge/eventDedup';
+import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
+import type { UpsertKnowledgeEventInput } from '@/server/knowledge/eventTypes';
+import type { ExtractedEvent } from '@/server/knowledge/eventExtractor';
+import { deduplicateEvent } from '@/server/knowledge/eventDedup';
 
 const TEST_DB_DIR = '.local';
 let dbPath: string;

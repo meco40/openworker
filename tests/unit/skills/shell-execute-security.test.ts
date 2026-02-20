@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shellExecuteHandler } from '../../../src/server/skills/handlers/shellExecute';
+import { shellExecuteHandler } from '@/server/skills/handlers/shellExecute';
 
 describe('shellExecuteHandler security', () => {
   it('blocks encoded powershell payloads', async () => {

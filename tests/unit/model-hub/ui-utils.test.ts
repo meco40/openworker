@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterLiveModels, getDefaultActiveModel } from '../../../components/model-hub/utils';
+import { filterLiveModels, getDefaultActiveModel } from '@/components/model-hub/utils';
 
 describe('model-hub ui utils', () => {
   it('returns active model with the lowest priority as default', () => {

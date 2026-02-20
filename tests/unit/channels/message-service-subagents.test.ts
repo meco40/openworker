@@ -1,11 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ChannelType } from '../../../types';
-import type { Conversation } from '../../../types';
-import type {
-  MessageRepository,
-  StoredMessage,
-} from '../../../src/server/channels/messages/repository';
-import { resetSubagentRegistryForTests } from '../../../src/server/agents/subagentRegistry';
+import { ChannelType } from '@/shared/domain/types';
+import type { Conversation } from '@/shared/domain/types';
+import type { MessageRepository, StoredMessage } from '@/server/channels/messages/repository';
+import { resetSubagentRegistryForTests } from '@/server/agents/subagentRegistry';
 
 const dispatchWithFallbackMock = vi.hoisted(() => vi.fn());
 
@@ -79,11 +76,11 @@ vi.mock('../../../src/server/skills/skillRepository', () => ({
   }),
 }));
 
-vi.mock('../../../skills/definitions', () => ({
+vi.mock('@/skills/definitions', () => ({
   mapSkillsToTools: () => [],
 }));
 
-import { MessageService } from '../../../src/server/channels/messages/service';
+import { MessageService } from '@/server/channels/messages/service';
 
 function buildRepository(personaId: string | null): MessageRepository {
   let seq = 0;

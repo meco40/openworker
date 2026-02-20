@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapValidationMessageToFieldPath } from '../../../src/shared/config/fieldMetadata';
+import { mapValidationMessageToFieldPath } from '@/shared/config/fieldMetadata';
 
 describe('config editor conflict recovery semantics', () => {
   it('uses deterministic stale-revision message mapping', () => {

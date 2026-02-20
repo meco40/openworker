@@ -4,7 +4,7 @@ import {
   sanitizeKnowledgeFacts,
   classifyTextReliability,
   detectTemporalStatus,
-} from '../../../src/server/knowledge/textQuality';
+} from '@/server/knowledge/textQuality';
 
 describe('knowledge text quality', () => {
   it('classifies command and greeting artifacts as noise', () => {

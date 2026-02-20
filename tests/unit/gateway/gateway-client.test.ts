@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import type { GatewayStreamChunk } from '../../../services/gateway';
+import type { GatewayStreamChunk } from '@/services/gateway';
 
 /**
  * Tests for services/gateway.ts — the client-side AI gateway service.
@@ -14,7 +14,7 @@ describe('services/gateway', () => {
   type FetchMockCall = [string, { body?: string } & Record<string, unknown>];
   type FetchWithMockCalls = typeof fetch & { mock: { calls: FetchMockCall[] } };
 
-  let ai: typeof import('../../../services/gateway').ai;
+  let ai: typeof import('@/services/gateway').ai;
   let originalFetch: typeof globalThis.fetch;
 
   beforeEach(async () => {
@@ -37,7 +37,7 @@ describe('services/gateway', () => {
   }
 
   async function loadGateway() {
-    const mod = await import('../../../services/gateway');
+    const mod = await import('@/services/gateway');
     ai = mod.ai;
     return mod;
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { splitTelegramMessage } from '../src/server/channels/outbound/telegram';
+import { splitTelegramMessage } from '@/server/channels/outbound/telegram';
 
 describe('splitTelegramMessage', () => {
   it('returns the original text when under 4096 chars', () => {

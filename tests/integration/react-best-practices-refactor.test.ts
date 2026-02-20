@@ -28,7 +28,7 @@ describe('react/next best-practices refactor', () => {
     const viewContent = read('src/modules/app-shell/components/AppShellViewContent.tsx');
     expect(viewContent).toContain("import dynamic from 'next/dynamic';");
     expect(viewContent).not.toContain("dynamic(() => import('../../../../WorkerView'))");
-    expect(viewContent).toContain("dynamic(() => import('../../../../components/ModelHub'))");
+    expect(viewContent).toContain("dynamic(() => import('@/components/ModelHub'))");
   });
 
   it('loads fonts via next/font self-hosting instead of Google stylesheet links', () => {
@@ -50,7 +50,7 @@ describe('react/next best-practices refactor', () => {
   });
 
   it('parallelizes independent room refresh actions in PersonasView', () => {
-    const personasView = read('components/PersonasView.tsx');
+    const personasView = read('src/components/PersonasView.tsx');
     expect(personasView).toContain(
       'await Promise.all([loadRoomDetail(selectedRoomId), refreshRooms()]);',
     );
@@ -77,7 +77,7 @@ describe('react/next best-practices refactor', () => {
   });
 
   it('avoids mutating sort in Dashboard render path', () => {
-    const dashboard = read('components/Dashboard.tsx');
+    const dashboard = read('src/components/Dashboard.tsx');
     expect(dashboard).not.toContain('scheduled.sort(');
     expect(dashboard).toContain('[...scheduled].sort(');
   });
@@ -89,7 +89,7 @@ describe('react/next best-practices refactor', () => {
   });
 
   it('uses lazy state initialization for expensive initial values', () => {
-    const app = read('App.tsx');
+    const app = read('src/modules/app-shell/App.tsx');
     const conversationSync = read('src/modules/app-shell/useConversationSync.ts');
     const gatewayState = read('src/modules/app-shell/useGatewayState.ts');
 

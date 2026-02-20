@@ -15,7 +15,7 @@ vi.mock('../../../src/server/knowledge/config', () => ({
   getKnowledgeConfig: mockResolveKnowledgeConfig,
 }));
 
-import { runKnowledgeLayerCheck } from '../../../src/commands/health/checks/coreChecks';
+import { runKnowledgeLayerCheck } from '@/commands/health/checks/coreChecks';
 
 describe('Knowledge health check', () => {
   it('returns ok when knowledge layer is enabled and stats are healthy', () => {

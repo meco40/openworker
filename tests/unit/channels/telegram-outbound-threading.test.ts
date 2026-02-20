@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CredentialStore } from '../../../src/server/channels/credentials/credentialStore';
-import {
-  deliverTelegram,
-  editTelegramMessage,
-} from '../../../src/server/channels/outbound/telegram';
+import { CredentialStore } from '@/server/channels/credentials/credentialStore';
+import { deliverTelegram, editTelegramMessage } from '@/server/channels/outbound/telegram';
 
 describe('telegram outbound threading', () => {
   const fetchMock = vi.fn();

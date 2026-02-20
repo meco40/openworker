@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createPcmBlob, decodeBase64, encodeBase64 } from '../services/audio';
+import { createPcmBlob, decodeBase64, encodeBase64 } from '@/services/audio';
 
 describe('audio utilities', () => {
   it('encodes and decodes base64 without data loss', () => {

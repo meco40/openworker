@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SkillRuntimeConfigStore } from '../../../src/server/skills/runtimeConfig';
+import { SkillRuntimeConfigStore } from '@/server/skills/runtimeConfig';
 
 type MockUserContext = { userId: string; authenticated: boolean } | null;
 

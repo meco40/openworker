@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveRoomRouting } from '../../../src/server/rooms/service';
+import { resolveRoomRouting } from '@/server/rooms/service';
 
 describe('Room service routing resolver', () => {
   it('uses member model override when it is active in room profile', () => {

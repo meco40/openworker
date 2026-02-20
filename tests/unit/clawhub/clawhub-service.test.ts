@@ -3,9 +3,9 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ClawHubRepository } from '../../../src/server/clawhub/clawhubRepository';
-import { ClawHubService } from '../../../src/server/clawhub/clawhubService';
-import type { ClawHubCliLike } from '../../../src/server/clawhub/types';
+import { ClawHubRepository } from '@/server/clawhub/clawhubRepository';
+import { ClawHubService } from '@/server/clawhub/clawhubService';
+import type { ClawHubCliLike } from '@/server/clawhub/types';
 
 function uniqueDir(name: string): string {
   return path.join(

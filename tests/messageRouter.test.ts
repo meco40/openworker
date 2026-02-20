@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { routeMessage } from '../src/server/channels/messages/messageRouter';
+import { routeMessage } from '@/server/channels/messages/messageRouter';
 
 describe('routeMessage', () => {
   it('routes /new and /reset to session-command', () => {

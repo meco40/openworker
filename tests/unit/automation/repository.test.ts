@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { SqliteAutomationRepository } from '../../../src/server/automation/sqliteAutomationRepository';
+import { SqliteAutomationRepository } from '@/server/automation/sqliteAutomationRepository';
 
 function uniqueDbPath(name: string): string {
   return path.join(

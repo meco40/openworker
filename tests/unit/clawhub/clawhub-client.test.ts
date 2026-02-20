@@ -6,7 +6,7 @@ import {
   searchClawHubSkills,
   setClawHubSkillEnabled,
   uninstallClawHubSkill,
-} from '../../../skills/clawhub-client';
+} from '@/skills/clawhub-client';
 
 describe('clawhub-client', () => {
   afterEach(() => {

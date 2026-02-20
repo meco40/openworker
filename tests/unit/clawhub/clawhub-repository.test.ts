@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ClawHubRepository } from '../../../src/server/clawhub/clawhubRepository';
+import { ClawHubRepository } from '@/server/clawhub/clawhubRepository';
 
 describe('ClawHubRepository', () => {
   it('stores enabled flag and allows toggling', () => {

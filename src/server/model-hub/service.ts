@@ -8,7 +8,11 @@ import type {
   ProviderAccountView,
 } from '@/server/model-hub/repository';
 import { fetchModelsForAccount, type FetchedModel } from '@/server/model-hub/modelFetcher';
-import { dispatchGatewayRequest, type GatewayRequest, type GatewayResponse } from '@/server/model-hub/gateway';
+import {
+  dispatchGatewayRequest,
+  type GatewayRequest,
+  type GatewayResponse,
+} from '@/server/model-hub/gateway';
 import { isJwtExpiringSoon, refreshOpenAICodexToken } from '@/server/model-hub/codexAuth';
 
 interface ConnectProviderAccountInput {

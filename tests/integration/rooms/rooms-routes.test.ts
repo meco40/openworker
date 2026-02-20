@@ -169,7 +169,7 @@ describe('rooms routes', () => {
     };
     expect(interventionList.interventions[0]?.note).toContain('Solar');
 
-    const { getRoomRepository } = await import('../../../src/server/rooms/runtime');
+    const { getRoomRepository } = await import('@/server/rooms/runtime');
     const repo = getRoomRepository();
     repo.appendMessage({
       roomId,

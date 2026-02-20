@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { toMessage } from '../../../src/modules/chat/services/routeMessage';
-import { ChannelType } from '../../../types';
+import { toMessage } from '@/modules/chat/services/routeMessage';
+import { ChannelType } from '@/shared/domain/types';
 
 describe('routeMessage', () => {
   it('creates a user message payload', () => {

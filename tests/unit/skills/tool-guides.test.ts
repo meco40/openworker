@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Skill } from '../../../types';
-import type { SkillRuntimeConfigStatus } from '../../../skills/runtime-config-client';
-import { getToolGuide } from '../../../skills/tool-guides';
+import type { Skill } from '@/shared/domain/types';
+import type { SkillRuntimeConfigStatus } from '@/skills/runtime-config-client';
+import { getToolGuide } from '@/skills/tool-guides';
 
 function makeSkill(overrides: Partial<Skill>): Skill {
   return {

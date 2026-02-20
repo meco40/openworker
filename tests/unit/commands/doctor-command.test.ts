@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { LogRepository } from '../../../src/logging/logRepository';
+import { LogRepository } from '@/logging/logRepository';
 
 type MockHealthCheck = {
   id: string;
@@ -46,7 +46,7 @@ describe('runDoctorCommand', () => {
       ),
     );
 
-    const { runDoctorCommand } = await import('../../../src/commands/doctorCommand');
+    const { runDoctorCommand } = await import('@/commands/doctorCommand');
     const report = await runDoctorCommand();
 
     expect(report.status).toBe('critical');
@@ -69,7 +69,7 @@ describe('runDoctorCommand', () => {
       ),
     );
 
-    const { runDoctorCommand } = await import('../../../src/commands/doctorCommand');
+    const { runDoctorCommand } = await import('@/commands/doctorCommand');
     const report = await runDoctorCommand();
 
     expect(report.status).toBe('degraded');
@@ -93,7 +93,7 @@ describe('runDoctorCommand', () => {
       ),
     );
 
-    const { runDoctorCommand } = await import('../../../src/commands/doctorCommand');
+    const { runDoctorCommand } = await import('@/commands/doctorCommand');
     const report = await runDoctorCommand();
 
     expect(report.status).toBe('degraded');
@@ -110,7 +110,7 @@ describe('runDoctorCommand', () => {
     }
     globalThis.__logRepository = repo;
 
-    const { runDoctorCommand } = await import('../../../src/commands/doctorCommand');
+    const { runDoctorCommand } = await import('@/commands/doctorCommand');
     const report = await runDoctorCommand();
 
     expect(report.findings.some((finding) => finding.id === 'error_spike')).toBe(true);
@@ -152,7 +152,7 @@ describe('runDoctorCommand', () => {
       });
     });
 
-    const { runDoctorCommand } = await import('../../../src/commands/doctorCommand');
+    const { runDoctorCommand } = await import('@/commands/doctorCommand');
     const report = await runDoctorCommand();
 
     expect(report.findings.some((finding) => finding.id === 'error_trend_anomaly')).toBe(true);

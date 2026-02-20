@@ -5,8 +5,8 @@ import {
   estimatePromptTokens,
   redactGatewayRequest,
   redactSensitiveText,
-} from '../../../src/server/stats/promptAudit';
-import type { GatewayRequest } from '../../../src/server/model-hub/Models/types';
+} from '@/server/stats/promptAudit';
+import type { GatewayRequest } from '@/server/model-hub/Models/types';
 
 describe('promptAudit', () => {
   it('redacts common secrets and authorization values', () => {

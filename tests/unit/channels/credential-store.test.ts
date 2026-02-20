@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CredentialStore } from '../../../src/server/channels/credentials/credentialStore';
+import { CredentialStore } from '@/server/channels/credentials/credentialStore';
 
 describe('CredentialStore', () => {
   let store: CredentialStore;

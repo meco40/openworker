@@ -20,8 +20,7 @@ describe('openai-codex model fetching', () => {
   });
 
   it('returns known codex model seeds even without remote model lookup', async () => {
-    const { default: adapter } =
-      await import('../../../src/server/model-hub/Models/openai-codex/index');
+    const { default: adapter } = await import('@/server/model-hub/Models/openai-codex/index');
 
     const models = await adapter.fetchModels?.({
       secret: 'token',
@@ -47,8 +46,7 @@ describe('openai-codex model fetching', () => {
   });
 
   it('keeps custom provider default models while adding codex seeds', async () => {
-    const { default: adapter } =
-      await import('../../../src/server/model-hub/Models/openai-codex/index');
+    const { default: adapter } = await import('@/server/model-hub/Models/openai-codex/index');
 
     const models = await adapter.fetchModels?.({
       secret: 'token',
@@ -86,8 +84,7 @@ describe('openai-codex model fetching', () => {
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { default: adapter } =
-      await import('../../../src/server/model-hub/Models/openai-codex/index');
+    const { default: adapter } = await import('@/server/model-hub/Models/openai-codex/index');
 
     const result = await adapter.dispatchGateway?.(
       {
@@ -155,8 +152,7 @@ describe('openai-codex model fetching', () => {
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { default: adapter } =
-      await import('../../../src/server/model-hub/Models/openai-codex/index');
+    const { default: adapter } = await import('@/server/model-hub/Models/openai-codex/index');
 
     const result = await adapter.dispatchGateway?.(
       {
@@ -208,8 +204,7 @@ describe('openai-codex model fetching', () => {
     );
     fs.writeFileSync(imagePath, pngBytes);
 
-    const { default: adapter } =
-      await import('../../../src/server/model-hub/Models/openai-codex/index');
+    const { default: adapter } = await import('@/server/model-hub/Models/openai-codex/index');
 
     await adapter.dispatchGateway?.(
       {

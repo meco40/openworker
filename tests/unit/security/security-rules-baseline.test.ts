@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SECURITY_RULES } from '../../../constants';
+import { SECURITY_RULES } from '@/shared/domain/constants';
 
 describe('security rules baseline', () => {
   it('contains blocked high-risk destructive and privileged commands', () => {

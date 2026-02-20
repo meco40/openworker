@@ -5,7 +5,7 @@ import {
   normalizeIMessageInbound,
   normalizeTelegramInbound,
   normalizeWhatsAppInbound,
-} from '../../../src/server/channels/inbound/normalizers';
+} from '@/server/channels/inbound/normalizers';
 
 describe('inbound normalizers', () => {
   it('maps telegram webhook payload to unified envelope', () => {

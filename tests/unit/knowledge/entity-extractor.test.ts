@@ -2,10 +2,10 @@
  * Tests for EntityExtractor: normalizeEntities, validateOwner, mergeWithExisting
  */
 import { describe, expect, it } from 'vitest';
-import { EntityExtractor, isRelationWord } from '../../../src/server/knowledge/entityExtractor';
-import type { ExtractedEntity } from '../../../src/server/knowledge/entityExtractor';
-import type { StoredMessage } from '../../../src/server/channels/messages/repository';
-import type { EntityAlias, KnowledgeEntity } from '../../../src/server/knowledge/entityGraph';
+import { EntityExtractor, isRelationWord } from '@/server/knowledge/entityExtractor';
+import type { ExtractedEntity } from '@/server/knowledge/entityExtractor';
+import type { StoredMessage } from '@/server/channels/messages/repository';
+import type { EntityAlias, KnowledgeEntity } from '@/server/knowledge/entityGraph';
 
 function makeMsg(seq: number, role: string, content: string): StoredMessage {
   return {

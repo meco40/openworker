@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isMethodAllowed } from '../../../src/server/gateway/method-scopes';
+import { isMethodAllowed } from '@/server/gateway/method-scopes';
 
 describe('gateway method scopes', () => {
   it('allows safe gateway.call methods', () => {

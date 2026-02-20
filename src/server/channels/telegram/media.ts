@@ -3,7 +3,11 @@ import {
   persistIncomingAttachment,
   type StoredMessageAttachment,
 } from '@/server/channels/messages/attachments';
-import { buildStickerSummary, getStickerSummary, setStickerSummary } from '@/server/channels/telegram/stickerCache';
+import {
+  buildStickerSummary,
+  getStickerSummary,
+  setStickerSummary,
+} from '@/server/channels/telegram/stickerCache';
 import { resolveTelegramVoiceLabel } from '@/server/channels/telegram/voice';
 
 export interface TelegramInboundMediaMessage {

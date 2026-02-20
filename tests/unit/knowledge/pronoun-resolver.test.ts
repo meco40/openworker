@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  resolvePronouns,
-  type PronounContext,
-} from '../../../src/server/knowledge/pronounResolver';
+import { resolvePronouns, type PronounContext } from '@/server/knowledge/pronounResolver';
 
 describe('pronounResolver', () => {
   const baseContext: PronounContext = {

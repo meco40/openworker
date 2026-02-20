@@ -1,5 +1,8 @@
 import type { StoredMessage } from '@/server/channels/messages/repository';
-import { buildKnowledgeExtractionPrompt, type ExtractionPersonaContext } from '@/server/knowledge/prompts';
+import {
+  buildKnowledgeExtractionPrompt,
+  type ExtractionPersonaContext,
+} from '@/server/knowledge/prompts';
 import type { KnowledgeSourceRef } from '@/server/knowledge/repository';
 import { isMeaningfulKnowledgeText, sanitizeKnowledgeFacts } from '@/server/knowledge/textQuality';
 import { EventExtractor, type ExtractedEvent } from '@/server/knowledge/eventExtractor';

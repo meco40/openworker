@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { scopeBridgeExternalChatId } from '../../../src/server/channels/pairing/bridgeAccounts';
-import { deliverWhatsApp } from '../../../src/server/channels/outbound/whatsapp';
+import { scopeBridgeExternalChatId } from '@/server/channels/pairing/bridgeAccounts';
+import { deliverWhatsApp } from '@/server/channels/outbound/whatsapp';
 
 describe('whatsapp outbound delivery', () => {
   const previousBridgeUrl = process.env.WHATSAPP_BRIDGE_URL;

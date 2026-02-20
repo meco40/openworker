@@ -1,18 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { statusIconForWorker } from '../../../src/server/channels/messages/statusIcons';
+import { statusIconForWorker } from '@/server/channels/messages/statusIcons';
 import {
   applyChannelBindingPersona,
   getChannelBindingPersonaId,
   setChannelBindingPersona,
-} from '../../../src/server/channels/messages/channelBindingPersona';
-import {
-  buildFallbackSummary,
-  isAiSummaryEnabled,
-} from '../../../src/server/channels/messages/summary';
-import { ChannelType } from '../../../types';
-import type { ChannelKey } from '../../../src/server/channels/adapters/types';
-import type { ChannelBinding } from '../../../src/server/channels/messages/channelBindings';
+} from '@/server/channels/messages/channelBindingPersona';
+import { buildFallbackSummary, isAiSummaryEnabled } from '@/server/channels/messages/summary';
+import { ChannelType } from '@/shared/domain/types';
+import type { ChannelKey } from '@/server/channels/adapters/types';
+import type { ChannelBinding } from '@/server/channels/messages/channelBindings';
 
 describe('message service extracted modules', () => {
   it('returns status icon with unknown fallback', () => {

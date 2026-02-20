@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  computeNextRunAt,
-  validateCronExpression,
-} from '../../../src/server/automation/cronEngine';
+import { computeNextRunAt, validateCronExpression } from '@/server/automation/cronEngine';
 
 describe('automation cron engine', () => {
   it('validates cron expressions', () => {

@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  verifyTelegramWebhook,
-  verifySharedSecret,
-} from '../../../src/server/channels/webhookAuth';
+import { verifyTelegramWebhook, verifySharedSecret } from '@/server/channels/webhookAuth';
 
 // ─── Helper ──────────────────────────────────────────────────
 

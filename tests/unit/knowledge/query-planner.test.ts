@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planKnowledgeQuery } from '../../../src/server/knowledge/queryPlanner';
+import { planKnowledgeQuery } from '@/server/knowledge/queryPlanner';
 
 describe('knowledge query planner', () => {
   it('parses meeting with counterpart and relative time range', () => {

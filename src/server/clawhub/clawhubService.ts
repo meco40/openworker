@@ -2,7 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { parseClawHubSearchOutput } from '@/server/clawhub/searchParser';
-import { ClawHubInputError, ClawHubNotFoundError, isValidClawHubSlug } from '@/server/clawhub/errors';
+import {
+  ClawHubInputError,
+  ClawHubNotFoundError,
+  isValidClawHubSlug,
+} from '@/server/clawhub/errors';
 import type {
   ClawHubCliLike,
   ClawHubSearchParseResult,

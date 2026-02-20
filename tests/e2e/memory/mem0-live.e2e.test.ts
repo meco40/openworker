@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createMem0Client } from '../../../src/server/memory/mem0Client';
-import { MemoryService } from '../../../src/server/memory/service';
+import { createMem0Client } from '@/server/memory/mem0Client';
+import { MemoryService } from '@/server/memory/service';
 
 const liveEnabled = String(process.env.MEM0_E2E || '').trim() === '1';
 const baseUrl = String(process.env.MEM0_BASE_URL || '').trim();

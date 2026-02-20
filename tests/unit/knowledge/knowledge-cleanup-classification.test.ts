@@ -3,7 +3,7 @@ import {
   detectPlaceholder,
   detectStaleRelativeTime,
   detectLowRelevance,
-} from '../../../src/server/knowledge/cleanupDetector';
+} from '@/server/knowledge/cleanupDetector';
 
 /**
  * Integration test: validates the cleanupDetector functions

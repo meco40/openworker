@@ -15,7 +15,7 @@ describe('kimi model fetching', () => {
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { default: adapter } = await import('../../../src/server/model-hub/Models/kimi/index');
+    const { default: adapter } = await import('@/server/model-hub/Models/kimi/index');
 
     const models = await adapter.fetchModels?.({
       secret: 'sk-kimi-test',

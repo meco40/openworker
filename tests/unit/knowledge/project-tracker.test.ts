@@ -3,7 +3,7 @@ import {
   disambiguateProject,
   detectProjectStatusSignal,
   type ProjectState,
-} from '../../../src/server/knowledge/projectTracker';
+} from '@/server/knowledge/projectTracker';
 
 function makeProject(overrides: Partial<ProjectState> = {}): ProjectState {
   return {

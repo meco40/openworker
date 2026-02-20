@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { LEGACY_LOCAL_USER_ID } from '../../../src/server/auth/constants';
-import { SqliteMessageRepository } from '../../../src/server/channels/messages/sqliteMessageRepository';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
+import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
 
 describe('GET /api/channels/state', () => {
   let repo: SqliteMessageRepository;

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { ChannelType } from '../../../types';
+import { ChannelType } from '@/shared/domain/types';
 import {
   MAX_FILE_SIZE,
   formatFileSize,
   getAttachmentIcon,
   getPlatformMeta,
   validateAttachmentFile,
-} from '../../../src/modules/chat/uiUtils';
+} from '@/modules/chat/uiUtils';
 
 describe('chat ui utils', () => {
   it('formats bytes into human-readable units', () => {

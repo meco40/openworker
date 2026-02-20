@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getXaiModelPricing } from '../../../src/server/stats/xaiPricing';
+import { getXaiModelPricing } from '@/server/stats/xaiPricing';
 
 describe('xai pricing', () => {
   it('returns per-token rates from per-million pricing for a known model', async () => {

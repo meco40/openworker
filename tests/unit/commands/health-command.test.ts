@@ -26,7 +26,7 @@ afterEach(() => {
 
 describe('runHealthCommand', () => {
   it('returns skipped integration checks when bridge URLs are not configured', async () => {
-    const { runHealthCommand } = await import('../../../src/commands/healthCommand');
+    const { runHealthCommand } = await import('@/commands/healthCommand');
     const report = await runHealthCommand();
 
     expect(report.summary.skipped).toBeGreaterThanOrEqual(2);
@@ -74,10 +74,10 @@ describe('runHealthCommand', () => {
       }),
     }));
 
-    const { getCredentialStore } = await import('../../../src/server/channels/credentials');
+    const { getCredentialStore } = await import('@/server/channels/credentials');
     getCredentialStore().setCredential('whatsapp', 'pairing_status', 'connected');
 
-    const { runHealthCommand } = await import('../../../src/commands/healthCommand');
+    const { runHealthCommand } = await import('@/commands/healthCommand');
     const report = await runHealthCommand({
       fetchImpl: vi.fn().mockResolvedValue(
         new Response(JSON.stringify({ ok: false }), {
@@ -102,7 +102,7 @@ describe('runHealthCommand', () => {
       }),
     );
 
-    const { runHealthCommand } = await import('../../../src/commands/healthCommand');
+    const { runHealthCommand } = await import('@/commands/healthCommand');
     const report = await runHealthCommand({ fetchImpl: fetchMock });
 
     const bridgeCheck = report.checks.find((c) => c.id === 'integration.whatsapp_bridge');
@@ -118,7 +118,7 @@ describe('runHealthCommand', () => {
       }),
     }));
 
-    const { runHealthCommand } = await import('../../../src/commands/healthCommand');
+    const { runHealthCommand } = await import('@/commands/healthCommand');
     const report = await runHealthCommand();
 
     expect(report.checks.find((c) => c.id === 'security.snapshot')?.status).toBe('critical');
@@ -128,12 +128,12 @@ describe('runHealthCommand', () => {
   it('marks report as critical when a configured bridge check times out', async () => {
     process.env.MESSAGES_DB_PATH = ':memory:';
     process.env.WHATSAPP_BRIDGE_URL = 'http://bridge.local';
-    const { getCredentialStore } = await import('../../../src/server/channels/credentials');
+    const { getCredentialStore } = await import('@/server/channels/credentials');
     getCredentialStore().setCredential('whatsapp', 'pairing_status', 'connected');
     const timeoutError = new Error('operation timed out') as Error & { name: string };
     timeoutError.name = 'AbortError';
 
-    const { runHealthCommand } = await import('../../../src/commands/healthCommand');
+    const { runHealthCommand } = await import('@/commands/healthCommand');
     const report = await runHealthCommand({
       fetchImpl: vi.fn().mockRejectedValue(timeoutError),
       timeoutMs: 25,
@@ -147,7 +147,7 @@ describe('runHealthCommand', () => {
   it('includes diagnostics checks for error budget, memory pressure and alert routing', async () => {
     process.env.MESSAGES_DB_PATH = ':memory:';
 
-    const { LogRepository } = await import('../../../src/logging/logRepository');
+    const { LogRepository } = await import('@/logging/logRepository');
     const repo = new LogRepository(':memory:');
     globalThis.__logRepository = repo;
 
@@ -158,7 +158,7 @@ describe('runHealthCommand', () => {
       repo.insertLog('error', 'SYS', `error-${i}`, { i }, 'system');
     }
 
-    const { runHealthCommand } = await import('../../../src/commands/healthCommand');
+    const { runHealthCommand } = await import('@/commands/healthCommand');
     const report = await runHealthCommand();
 
     expect(report.checks.some((c) => c.id === 'diagnostics.error_budget')).toBe(true);
@@ -170,11 +170,11 @@ describe('runHealthCommand', () => {
     process.env.MESSAGES_DB_PATH = ':memory:';
     process.env.LOGS_DB_PATH = ':memory:';
 
-    const { LogRepository } = await import('../../../src/logging/logRepository');
+    const { LogRepository } = await import('@/logging/logRepository');
     const repo = new LogRepository(':memory:');
     globalThis.__logRepository = repo;
 
-    const { runHealthCommand } = await import('../../../src/commands/healthCommand');
+    const { runHealthCommand } = await import('@/commands/healthCommand');
     const report = await runHealthCommand({ memoryDiagnosticsEnabled: true });
     const memoryCheck = report.checks.find((c) => c.id === 'diagnostics.memory_pressure');
 
@@ -197,11 +197,11 @@ describe('runHealthCommand', () => {
     process.env.MESSAGES_DB_PATH = ':memory:';
     process.env.LOGS_DB_PATH = ':memory:';
 
-    const { LogRepository } = await import('../../../src/logging/logRepository');
+    const { LogRepository } = await import('@/logging/logRepository');
     const repo = new LogRepository(':memory:');
     globalThis.__logRepository = repo;
 
-    const { runHealthCommand } = await import('../../../src/commands/healthCommand');
+    const { runHealthCommand } = await import('@/commands/healthCommand');
     const report = await runHealthCommand({ memoryDiagnosticsEnabled: false });
     const memoryCheck = report.checks.find((c) => c.id === 'diagnostics.memory_pressure');
 

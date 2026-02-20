@@ -25,7 +25,7 @@ describe('telegram inbound callback handling', () => {
 
   it('rejects callback updates from unpaired chats', async () => {
     const { processTelegramInboundUpdate } =
-      await import('../../../src/server/channels/pairing/telegramInbound');
+      await import('@/server/channels/pairing/telegramInbound');
 
     const result = await processTelegramInboundUpdate({
       callback_query: {
@@ -46,7 +46,7 @@ describe('telegram inbound callback handling', () => {
   it('dispatches authorized callback updates to model handler', async () => {
     processTelegramModelCallback.mockResolvedValue(true);
     const { processTelegramInboundUpdate } =
-      await import('../../../src/server/channels/pairing/telegramInbound');
+      await import('@/server/channels/pairing/telegramInbound');
 
     const update = {
       callback_query: {

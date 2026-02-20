@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { StoredMessage } from '../../../src/server/channels/messages/repository';
-import type { KnowledgeExtractionResult } from '../../../src/server/knowledge/extractor';
-import type { IngestionWindow } from '../../../src/server/knowledge/ingestionCursor';
-import { KnowledgeIngestionService } from '../../../src/server/knowledge/ingestionService';
+import type { StoredMessage } from '@/server/channels/messages/repository';
+import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
+import type { IngestionWindow } from '@/server/knowledge/ingestionCursor';
+import { KnowledgeIngestionService } from '@/server/knowledge/ingestionService';
 
 function createMessage(seq: number, conversationId: string, content: string): StoredMessage {
   return {

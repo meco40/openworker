@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  getFieldMetadata,
-  mapValidationMessageToFieldPath,
-} from '../../../src/shared/config/fieldMetadata';
+import { getFieldMetadata, mapValidationMessageToFieldPath } from '@/shared/config/fieldMetadata';
 
 describe('config editor validation mapping', () => {
   it('maps backend validation messages to known field paths', () => {

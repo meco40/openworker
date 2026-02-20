@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  KNOWLEDGE_DEFAULT_CONFIG,
-  resolveKnowledgeConfig,
-} from '../../../src/server/knowledge/config';
+import { KNOWLEDGE_DEFAULT_CONFIG, resolveKnowledgeConfig } from '@/server/knowledge/config';
 
 describe('knowledge config', () => {
   it('returns safe defaults when env is empty', () => {

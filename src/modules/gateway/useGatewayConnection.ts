@@ -5,7 +5,11 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { getGatewayClient, type ConnectionState, type GatewayClient } from '@/modules/gateway/ws-client';
+import {
+  getGatewayClient,
+  type ConnectionState,
+  type GatewayClient,
+} from '@/modules/gateway/ws-client';
 import type { GatewayEvent } from '@/server/gateway/events';
 
 // ─── Connection State ────────────────────────────────────────

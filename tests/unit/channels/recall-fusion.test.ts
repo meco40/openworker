@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { fuseRecallSources } from '../../../src/server/channels/messages/recallFusion';
-import type { StoredMessage } from '../../../src/server/channels/messages/repository';
-import { ChannelType } from '../../../types';
+import { fuseRecallSources } from '@/server/channels/messages/recallFusion';
+import type { StoredMessage } from '@/server/channels/messages/repository';
+import { ChannelType } from '@/shared/domain/types';
 
 function makeChatHit(content: string, daysAgo = 0): StoredMessage {
   const date = new Date();

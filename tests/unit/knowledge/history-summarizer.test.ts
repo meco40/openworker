@@ -3,7 +3,7 @@ import {
   buildHistorySummary,
   groupByWeek,
   type ConversationSummary,
-} from '../../../src/server/knowledge/historySummarizer';
+} from '@/server/knowledge/historySummarizer';
 
 function makeSummary(overrides: Partial<ConversationSummary> = {}): ConversationSummary {
   return {

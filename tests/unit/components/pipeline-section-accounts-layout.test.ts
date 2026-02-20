@@ -1,8 +1,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import PipelineSection from '../../../components/model-hub/sections/PipelineSection';
-import type { ProviderCatalogEntry } from '../../../components/model-hub/types';
+import PipelineSection from '@/components/model-hub/sections/PipelineSection';
+import type { ProviderCatalogEntry } from '@/components/model-hub/types';
 
 describe('pipeline section account row layout', () => {
   it('renders long masked secrets as truncated text with a title', () => {

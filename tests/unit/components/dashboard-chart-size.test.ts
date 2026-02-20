@@ -1,8 +1,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import Dashboard from '../../../components/Dashboard';
-import { type ControlPlaneMetricsState, type GatewayState } from '../../../types';
+import Dashboard from '@/components/Dashboard';
+import { type ControlPlaneMetricsState, type GatewayState } from '@/shared/domain/types';
 
 const baseState: GatewayState = {
   version: 'test',

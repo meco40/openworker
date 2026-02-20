@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Conversation } from '../../../types';
-import type { MessageRepository } from '../../../src/server/channels/messages/repository';
+import type { Conversation } from '@/shared/domain/types';
+import type { MessageRepository } from '@/server/channels/messages/repository';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
   vi.fn(async () => ({
@@ -26,7 +26,7 @@ vi.mock('../../../src/server/memory/runtime', () => ({
   }),
 }));
 
-import { MessageService } from '../../../src/server/channels/messages/service';
+import { MessageService } from '@/server/channels/messages/service';
 
 function buildRepository(): MessageRepository {
   return {

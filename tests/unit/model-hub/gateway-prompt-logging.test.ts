@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PromptDispatchRepository } from '../../../src/server/stats/promptDispatchRepository';
-import { TokenUsageRepository } from '../../../src/server/stats/tokenUsageRepository';
+import { PromptDispatchRepository } from '@/server/stats/promptDispatchRepository';
+import { TokenUsageRepository } from '@/server/stats/tokenUsageRepository';
 
 type GlobalSingletons = typeof globalThis & {
   __promptDispatchRepository?: PromptDispatchRepository;
@@ -78,7 +78,7 @@ describe('dispatchGatewayRequest prompt logging', () => {
       }),
     }));
 
-    const { dispatchGatewayRequest } = await import('../../../src/server/model-hub/gateway');
+    const { dispatchGatewayRequest } = await import('@/server/model-hub/gateway');
     const result = await dispatchGatewayRequest(buildAccount('openrouter'), 'key', {
       model: 'gpt-4.1',
       messages: [{ role: 'user', content: 'Hello world' }],
@@ -125,7 +125,7 @@ describe('dispatchGatewayRequest prompt logging', () => {
       }),
     }));
 
-    const { dispatchGatewayRequest } = await import('../../../src/server/model-hub/gateway');
+    const { dispatchGatewayRequest } = await import('@/server/model-hub/gateway');
     const result = await dispatchGatewayRequest(buildAccount('xai'), 'key', {
       model: 'grok-4-1-fast-reasoning',
       messages: [{ role: 'user', content: 'Hello world' }],
@@ -166,7 +166,7 @@ describe('dispatchGatewayRequest prompt logging', () => {
       decryptSecret: () => 'sk-test',
     }));
 
-    const { dispatchGatewayRequest } = await import('../../../src/server/model-hub/gateway');
+    const { dispatchGatewayRequest } = await import('@/server/model-hub/gateway');
     const result = await dispatchGatewayRequest(buildAccount(), 'key', {
       model: 'gpt-4.1',
       messages: [
@@ -210,7 +210,7 @@ describe('dispatchGatewayRequest prompt logging', () => {
       throw new Error('db broken');
     });
 
-    const { dispatchGatewayRequest } = await import('../../../src/server/model-hub/gateway');
+    const { dispatchGatewayRequest } = await import('@/server/model-hub/gateway');
     const result = await dispatchGatewayRequest(buildAccount(), 'key', {
       model: 'gpt-4.1',
       messages: [{ role: 'user', content: 'hello' }],

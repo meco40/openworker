@@ -5,7 +5,7 @@ import {
   extractDoctorFindingDetails,
   extractHealthIssues,
   toHealthIssueInsight,
-} from '../../../components/LogsView';
+} from '@/components/LogsView';
 
 describe('LogsView diagnostics data helpers', () => {
   it('extracts warning and critical health issues from checks', () => {

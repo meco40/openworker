@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createPersonaIsolationPolicy,
   type PersonaMessage,
-} from '../../../src/server/knowledge/personaIsolationPolicy';
+} from '@/server/knowledge/personaIsolationPolicy';
 
 function makeMessage(overrides: Partial<PersonaMessage> = {}): PersonaMessage {
   return {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { MessageRepository } from '../../../src/server/channels/messages/repository';
-import { MessageService } from '../../../src/server/channels/messages/service';
+import type { MessageRepository } from '@/server/channels/messages/repository';
+import { MessageService } from '@/server/channels/messages/service';
 
 function buildRepository(
   deleteConversation: MessageRepository['deleteConversation'],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkMemoryPoisoning } from '../../../src/server/knowledge/security/memoryPoisoningGuard';
+import { checkMemoryPoisoning } from '@/server/knowledge/security/memoryPoisoningGuard';
 
 describe('memoryPoisoningGuard', () => {
   describe('checkMemoryPoisoning', () => {

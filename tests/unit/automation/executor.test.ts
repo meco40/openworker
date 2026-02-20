@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { TimeoutError, executeAgentRunAction } from '../../../src/server/automation/executor';
+import { TimeoutError, executeAgentRunAction } from '@/server/automation/executor';
 
 describe('automation executor', () => {
   it('executes the agent action and returns a summary', async () => {

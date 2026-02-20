@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PROVIDER_CATALOG } from '../../../src/server/model-hub/providerCatalog';
-import { getProviderAdapter } from '../../../src/server/model-hub/Models';
+import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
+import { getProviderAdapter } from '@/server/model-hub/Models';
 
 describe('model-hub provider registry', () => {
   it('has an adapter for each provider in catalog', () => {

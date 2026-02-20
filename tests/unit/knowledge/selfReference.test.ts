@@ -3,9 +3,9 @@ import {
   isPersonaSelfReference,
   isUserReference,
   detectFactSubject,
-} from '../../../src/server/knowledge/extractor';
-import { detectMemorySubject } from '../../../src/server/memory/service';
-import type { MemoryNode } from '../../../core/memory/types';
+} from '@/server/knowledge/extractor';
+import { detectMemorySubject } from '@/server/memory/service';
+import type { MemoryNode } from '@/core/memory/types';
 
 describe('Self-Reference Detection', () => {
   describe('isPersonaSelfReference', () => {

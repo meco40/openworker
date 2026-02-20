@@ -18,7 +18,11 @@ import type {
   UpsertChannelBindingInput,
 } from '@/server/channels/messages/channelBindings';
 import type { ChannelKey } from '@/server/channels/adapters/types';
-import { toChannelBinding, toConversation, toMessage } from '@/server/channels/messages/messageRowMappers';
+import {
+  toChannelBinding,
+  toConversation,
+  toMessage,
+} from '@/server/channels/messages/messageRowMappers';
 
 // ─── FTS5 stop words (German + English) ──────────────────────
 // Common function words that add no search value and make AND-queries too restrictive.

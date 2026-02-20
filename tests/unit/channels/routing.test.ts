@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   registerAdapter,
   resetAdapterRegistryForTests,
-} from '../../../src/server/channels/routing/adapterRegistry';
-import { routeOutbound } from '../../../src/server/channels/routing/outboundRouter';
-import { routeInbound } from '../../../src/server/channels/routing/inboundRouter';
+} from '@/server/channels/routing/adapterRegistry';
+import { routeOutbound } from '@/server/channels/routing/outboundRouter';
+import { routeInbound } from '@/server/channels/routing/inboundRouter';
 
 describe('channel routing', () => {
   beforeEach(() => {

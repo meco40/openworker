@@ -1,6 +1,10 @@
 import React from 'react';
 import { CAPABILITY_LABELS } from '@/components/model-hub/constants';
-import type { ProviderAccount, ProviderCatalogEntry, PipelineModel } from '@/components/model-hub/types';
+import type {
+  ProviderAccount,
+  ProviderCatalogEntry,
+  PipelineModel,
+} from '@/components/model-hub/types';
 
 interface PipelineSectionProps {
   isLoadingPipeline: boolean;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { createElement } from 'react';
 
-import ProfileView from '../../../components/ProfileView';
+import ProfileView from '@/components/ProfileView';
 
 describe('ProfileView copy', () => {
   it('uses single-user wording and removes saas billing language', () => {

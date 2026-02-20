@@ -5,7 +5,7 @@ import {
   ClawHubNotFoundError,
   isValidClawHubSlug,
   toClawHubHttpStatus,
-} from '../../../src/server/clawhub/errors';
+} from '@/server/clawhub/errors';
 
 describe('clawhub errors', () => {
   it('maps typed errors to stable HTTP status codes', () => {

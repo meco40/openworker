@@ -3,9 +3,9 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SqliteAutomationRepository } from '../../../src/server/automation/sqliteAutomationRepository';
-import { AutomationService } from '../../../src/server/automation/service';
-import { AutomationRuntime } from '../../../src/server/automation/runtime';
+import { SqliteAutomationRepository } from '@/server/automation/sqliteAutomationRepository';
+import { AutomationService } from '@/server/automation/service';
+import { AutomationRuntime } from '@/server/automation/runtime';
 
 function uniqueDbPath(name: string): string {
   return path.join(

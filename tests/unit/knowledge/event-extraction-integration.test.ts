@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildKnowledgeExtractionPrompt } from '../../../src/server/knowledge/prompts';
-import {
-  KnowledgeExtractor,
-  type KnowledgeExtractionInput,
-} from '../../../src/server/knowledge/extractor';
-import type { StoredMessage } from '../../../src/server/channels/messages/repository';
+import { buildKnowledgeExtractionPrompt } from '@/server/knowledge/prompts';
+import { KnowledgeExtractor, type KnowledgeExtractionInput } from '@/server/knowledge/extractor';
+import type { StoredMessage } from '@/server/channels/messages/repository';
 
 function makeMsg(seq: number, role: string, content: string): StoredMessage {
   return {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectTaskCompletion, type TrackedTask } from '../../../src/server/knowledge/taskTracker';
+import { detectTaskCompletion, type TrackedTask } from '@/server/knowledge/taskTracker';
 
 function makeTask(overrides: Partial<TrackedTask> = {}): TrackedTask {
   return {

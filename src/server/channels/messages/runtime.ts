@@ -36,7 +36,8 @@ export function getMessageService(): MessageService {
           token &&
           (status === 'connected' || status === 'awaiting_code')
         ) {
-          const { startTelegramPolling } = await import('@/server/channels/pairing/telegramPolling');
+          const { startTelegramPolling } =
+            await import('@/server/channels/pairing/telegramPolling');
           await startTelegramPolling();
           console.log('[Runtime] Auto-resumed Telegram polling after server restart.');
         }

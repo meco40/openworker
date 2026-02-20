@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectCorrection } from '../../../src/server/knowledge/correctionDetector';
+import { detectCorrection } from '@/server/knowledge/correctionDetector';
 
 describe('correctionDetector', () => {
   describe('detectCorrection', () => {

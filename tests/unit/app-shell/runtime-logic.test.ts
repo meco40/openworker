@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Conversation, Message, ScheduledTask } from '../../../types';
+import type { Conversation, Message, ScheduledTask } from '@/shared/domain/types';
 import {
   appendMessageIfMissing,
   mapConversationApiMessage,
@@ -8,11 +8,8 @@ import {
   STREAMING_DRAFT_ID_PREFIX,
   upsertMessageReplacingStreamingDraft,
   upsertConversationActivity,
-} from '../../../src/modules/app-shell/runtimeLogic';
-import {
-  parseTaskScheduleArgs,
-  markDueTasksTriggered,
-} from '../../../src/modules/app-shell/taskScheduling';
+} from '@/modules/app-shell/runtimeLogic';
+import { parseTaskScheduleArgs, markDueTasksTriggered } from '@/modules/app-shell/taskScheduling';
 
 describe('app-shell runtime logic', () => {
   it('parses scheduling arguments only when values are strings', () => {

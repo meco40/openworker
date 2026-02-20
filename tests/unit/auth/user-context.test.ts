@@ -1,8 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  LEGACY_LOCAL_USER_ID,
-  resolveUserIdFromSession,
-} from '../../../src/server/auth/userContext';
+import { LEGACY_LOCAL_USER_ID, resolveUserIdFromSession } from '@/server/auth/userContext';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -58,7 +55,7 @@ describe('resolveRequestUserContext', () => {
         ),
     }));
 
-    const { resolveRequestUserContext } = await import('../../../src/server/auth/userContext');
+    const { resolveRequestUserContext } = await import('@/server/auth/userContext');
     const context = await resolveRequestUserContext();
 
     expect(context).toEqual({
@@ -83,7 +80,7 @@ describe('resolveRequestUserContext', () => {
         ),
     }));
 
-    const { resolveRequestUserContext } = await import('../../../src/server/auth/userContext');
+    const { resolveRequestUserContext } = await import('@/server/auth/userContext');
     const context = await resolveRequestUserContext();
 
     expect(context).toEqual({
@@ -104,7 +101,7 @@ describe('resolveRequestUserContext', () => {
         ),
     }));
 
-    const { resolveRequestUserContext } = await import('../../../src/server/auth/userContext');
+    const { resolveRequestUserContext } = await import('@/server/auth/userContext');
     const context = await resolveRequestUserContext();
 
     expect(context).toBeNull();
@@ -116,7 +113,7 @@ describe('resolveRequestUserContext', () => {
       auth: vi.fn().mockRejectedValue(new Error('Database unavailable')),
     }));
 
-    const { resolveRequestUserContext } = await import('../../../src/server/auth/userContext');
+    const { resolveRequestUserContext } = await import('@/server/auth/userContext');
 
     await expect(resolveRequestUserContext()).rejects.toThrow('Database unavailable');
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveKnowledgeConfig } from '../../../src/server/knowledge/config';
+import { resolveKnowledgeConfig } from '@/server/knowledge/config';
 
 /**
  * Tests for the trigger-knowledge-ingestion script's prerequisites.

@@ -123,7 +123,7 @@ describe('channel pair route requests', () => {
 
   it('handles whatsapp bridge health request', async () => {
     const { POST: pairPost } = await import('../app/api/channels/pair/route');
-    const { getCredentialStore } = await import('../src/server/channels/credentials');
+    const { getCredentialStore } = await import('@/server/channels/credentials');
     process.env.WHATSAPP_BRIDGE_URL = 'http://localhost:8787';
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ peerName: 'wa-bridge' }), {
@@ -144,7 +144,7 @@ describe('channel pair route requests', () => {
 
   it('pairs whatsapp account-specific bridge credentials', async () => {
     const { POST: pairPost } = await import('../app/api/channels/pair/route');
-    const { getCredentialStore } = await import('../src/server/channels/credentials');
+    const { getCredentialStore } = await import('@/server/channels/credentials');
     process.env.WHATSAPP_BRIDGE_URL = 'http://localhost:8787';
     process.env.APP_URL = 'http://localhost:3000';
     const fetchMock = vi
@@ -177,7 +177,7 @@ describe('channel pair route requests', () => {
 
   it('handles imessage bridge health request', async () => {
     const { POST: pairPost } = await import('../app/api/channels/pair/route');
-    const { getCredentialStore } = await import('../src/server/channels/credentials');
+    const { getCredentialStore } = await import('@/server/channels/credentials');
     process.env.IMESSAGE_BRIDGE_URL = 'http://localhost:8788';
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ peerName: 'imessage-bridge' }), {

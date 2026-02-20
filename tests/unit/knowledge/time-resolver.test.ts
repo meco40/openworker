@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  resolveRelativeTime,
-  type TimeResolutionContext,
-} from '../../../src/server/knowledge/timeResolver';
+import { resolveRelativeTime, type TimeResolutionContext } from '@/server/knowledge/timeResolver';
 
 function makeContext(overrides: Partial<TimeResolutionContext> = {}): TimeResolutionContext {
   return {

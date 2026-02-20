@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { RoomOrchestrator } from '../../../src/server/rooms/orchestrator';
-import { SqliteRoomRepository } from '../../../src/server/rooms/sqliteRoomRepository';
-import type { AppendRoomMessageInput } from '../../../src/server/rooms/types';
+import { RoomOrchestrator } from '@/server/rooms/orchestrator';
+import { SqliteRoomRepository } from '@/server/rooms/sqliteRoomRepository';
+import type { AppendRoomMessageInput } from '@/server/rooms/types';
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
   getModelHubService: () => ({
@@ -36,7 +36,7 @@ vi.mock('../../../src/server/skills/skillRepository', () => ({
   }),
 }));
 
-vi.mock('../../../skills/definitions', () => ({
+vi.mock('@/skills/definitions', () => ({
   mapSkillsToTools: vi.fn().mockReturnValue([]),
 }));
 

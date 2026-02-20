@@ -3,8 +3,8 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ClawHubRepository } from '../../../src/server/clawhub/clawhubRepository';
-import { buildClawHubPromptBlock } from '../../../src/server/clawhub/clawhubPromptBuilder';
+import { ClawHubRepository } from '@/server/clawhub/clawhubRepository';
+import { buildClawHubPromptBlock } from '@/server/clawhub/clawhubPromptBuilder';
 
 function uniqueDir(name: string): string {
   return path.join(

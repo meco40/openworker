@@ -4,8 +4,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
-import { SqliteKnowledgeRepository } from '../../../src/server/knowledge/sqliteKnowledgeRepository';
-import type { EntityGraphFilter } from '../../../src/server/knowledge/entityGraph';
+import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
+import type { EntityGraphFilter } from '@/server/knowledge/entityGraph';
 
 const TEST_DB_DIR = '.local';
 let dbPath: string;

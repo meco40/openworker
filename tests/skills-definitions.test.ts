@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { mapSkillsToTools } from '../skills/definitions';
-import type { Skill } from '../types';
+import { mapSkillsToTools } from '@/skills/definitions';
+import type { Skill } from '@/shared/domain/types';
 
 const makeSkill = (id: string, installed: boolean): Skill => ({
   id,

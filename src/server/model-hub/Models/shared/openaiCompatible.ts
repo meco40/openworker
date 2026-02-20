@@ -1,4 +1,9 @@
-import type { ConnectivityResult, FetchedModel, GatewayRequest, GatewayResponse } from '@/server/model-hub/Models/types';
+import type {
+  ConnectivityResult,
+  FetchedModel,
+  GatewayRequest,
+  GatewayResponse,
+} from '@/server/model-hub/Models/types';
 import { fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
 import {
   readStoredAttachmentAsDataUrl,

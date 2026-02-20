@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildSystemInstruction } from '../../../src/modules/app-shell/systemInstruction';
+import { buildSystemInstruction } from '@/modules/app-shell/systemInstruction';
 
 describe('buildSystemInstruction', () => {
   it('appends clawhub prompt block when present', () => {

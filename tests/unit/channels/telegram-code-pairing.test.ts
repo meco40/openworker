@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CredentialStore } from '../../../src/server/channels/credentials/credentialStore';
+import { CredentialStore } from '@/server/channels/credentials/credentialStore';
 import {
   beginTelegramCodePairing,
   confirmTelegramPairingCode,
   ensureTelegramPairingCode,
   isTelegramChatAuthorized,
-} from '../../../src/server/channels/pairing/telegramCodePairing';
+} from '@/server/channels/pairing/telegramCodePairing';
 
 const NOW = new Date('2026-02-10T08:00:00.000Z');
 

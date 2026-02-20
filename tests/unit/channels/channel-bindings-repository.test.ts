@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { SqliteMessageRepository } from '../../../src/server/channels/messages/sqliteMessageRepository';
+import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
 
 describe('channel bindings repository', () => {
   it('stores and lists per-user channel bindings', () => {

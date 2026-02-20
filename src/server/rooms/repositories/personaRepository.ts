@@ -1,4 +1,8 @@
-import { toPersonaSession, toPersonaThreadMessage, toPersonaContext } from '@/server/rooms/roomRowMappers';
+import {
+  toPersonaSession,
+  toPersonaThreadMessage,
+  toPersonaContext,
+} from '@/server/rooms/roomRowMappers';
 import type {
   RoomPersonaSession,
   RoomPersonaThreadMessage,

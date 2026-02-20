@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PersonaRepository } from '../../../src/server/personas/personaRepository';
+import { PersonaRepository } from '@/server/personas/personaRepository';
 
 describe('persona model binding persistence', () => {
   it('stores and updates preferredModelId and modelHubProfileId', () => {

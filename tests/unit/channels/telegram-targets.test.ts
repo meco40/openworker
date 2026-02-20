@@ -3,7 +3,7 @@ import {
   parseTelegramTarget,
   resolveTelegramTargetChatType,
   stripTelegramInternalPrefixes,
-} from '../../../src/server/channels/telegram/targets';
+} from '@/server/channels/telegram/targets';
 
 describe('telegram targets', () => {
   it('strips telegram prefixes', () => {

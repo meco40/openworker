@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { encryptSecret } from '../../../src/server/model-hub/crypto';
-import type { ProviderAccountRecord } from '../../../src/server/model-hub/repository';
-import { testProviderAccountConnectivity } from '../../../src/server/model-hub/connectivity';
+import { encryptSecret } from '@/server/model-hub/crypto';
+import type { ProviderAccountRecord } from '@/server/model-hub/repository';
+import { testProviderAccountConnectivity } from '@/server/model-hub/connectivity';
 
 const KEY = '0123456789abcdef0123456789abcdef';
 

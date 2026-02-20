@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ROOM_ORCHESTRATOR_INTERVAL_MS,
   getRoomOrchestratorIntervalMs,
-} from '../../../src/server/rooms/orchestratorInterval';
+} from '@/server/rooms/orchestratorInterval';
 
 describe('room orchestrator interval', () => {
   it('defaults to 15 seconds when env is unset', () => {

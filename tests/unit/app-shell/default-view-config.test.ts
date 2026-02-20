@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { View } from '../../../types';
-import { resolveDefaultViewFromConfig } from '../../../src/server/config/uiRuntimeConfig';
-import { resolveViewFromConfig } from '../../../src/modules/app-shell/useAppShellState';
+import { View } from '@/shared/domain/types';
+import { resolveDefaultViewFromConfig } from '@/server/config/uiRuntimeConfig';
+import { resolveViewFromConfig } from '@/modules/app-shell/useAppShellState';
 
 const invalidViewValues = ['invalid-view', 'teams'] as const;
 const fallbackResolvers = [

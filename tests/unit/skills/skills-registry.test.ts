@@ -3,8 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type React from 'react';
 
-import SkillsRegistry from '../../../skills/SkillsRegistry';
-import type { Skill } from '../../../types';
+import SkillsRegistry from '@/skills/SkillsRegistry';
+import type { Skill } from '@/shared/domain/types';
 
 function noopSetSkills(
   _updater: React.SetStateAction<Skill[]> | ((prevState: Skill[]) => Skill[]),

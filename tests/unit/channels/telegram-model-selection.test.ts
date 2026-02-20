@@ -76,7 +76,7 @@ describe('telegram model selection', () => {
 
   it('handles /model command and sends provider menu', async () => {
     const { handleTelegramNativeCommand } =
-      await import('../../../src/server/channels/telegram/modelSelection');
+      await import('@/server/channels/telegram/modelSelection');
 
     const handled = await handleTelegramNativeCommand('123', '/model');
 
@@ -94,7 +94,7 @@ describe('telegram model selection', () => {
     });
 
     const { handleTelegramNativeCommand } =
-      await import('../../../src/server/channels/telegram/modelSelection');
+      await import('@/server/channels/telegram/modelSelection');
 
     const handled = await handleTelegramNativeCommand('123', '/model off');
 
@@ -104,7 +104,7 @@ describe('telegram model selection', () => {
 
   it('applies model override from callback selection', async () => {
     const { processTelegramModelCallback } =
-      await import('../../../src/server/channels/telegram/modelSelection');
+      await import('@/server/channels/telegram/modelSelection');
 
     const handled = await processTelegramModelCallback({
       id: 'cb-1',
@@ -120,7 +120,7 @@ describe('telegram model selection', () => {
 
   it('ignores unknown callback payloads', async () => {
     const { processTelegramModelCallback } =
-      await import('../../../src/server/channels/telegram/modelSelection');
+      await import('@/server/channels/telegram/modelSelection');
 
     const handled = await processTelegramModelCallback({
       id: 'cb-2',

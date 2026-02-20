@@ -3,7 +3,7 @@ import {
   SkillRuntimeConfigStore,
   getRuntimeConfigValue,
   resolveSkillRuntimeConfigStatus,
-} from '../../../src/server/skills/runtimeConfig';
+} from '@/server/skills/runtimeConfig';
 
 describe('SkillRuntimeConfigStore', () => {
   let store: SkillRuntimeConfigStore;

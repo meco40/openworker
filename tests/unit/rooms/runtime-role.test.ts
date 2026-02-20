@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveRoomRunnerMode, shouldRunRooms } from '../../../src/server/rooms/runtimeRole';
+import { resolveRoomRunnerMode, shouldRunRooms } from '@/server/rooms/runtimeRole';
 
 function withMode(mode: string): NodeJS.ProcessEnv {
   return { NODE_ENV: 'test', ROOMS_RUNNER: mode } as unknown as NodeJS.ProcessEnv;

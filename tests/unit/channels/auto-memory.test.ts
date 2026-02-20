@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ChannelType } from '../../../types';
-import type { StoredMessage } from '../../../src/server/channels/messages/repository';
+import { ChannelType } from '@/shared/domain/types';
+import type { StoredMessage } from '@/server/channels/messages/repository';
 import {
   buildAutoMemoryCandidates,
   isAutoSessionMemoryEnabled,
-} from '../../../src/server/channels/messages/autoMemory';
+} from '@/server/channels/messages/autoMemory';
 
 function msg(
   role: StoredMessage['role'],

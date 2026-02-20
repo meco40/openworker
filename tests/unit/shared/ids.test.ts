@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createId } from '../../../src/shared/lib/ids';
+import { createId } from '@/shared/lib/ids';
 
 describe('createId', () => {
   it('creates prefixed ids', () => {

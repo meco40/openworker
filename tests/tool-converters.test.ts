@@ -1,15 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import {
-  toGeminiTool,
-  toOpenAITool,
-  toClaudeTool,
-  convertTools,
-} from '../src/shared/toolConverters';
+import { toGeminiTool, toOpenAITool, toClaudeTool, convertTools } from '@/shared/toolConverters';
 import type {
   ToolDefinition,
   BuiltInToolDefinition,
   SkillToolDefinition,
-} from '../src/shared/toolSchema';
+} from '@/shared/toolSchema';
 
 const SAMPLE_TOOL: ToolDefinition = {
   name: 'browser_snapshot',

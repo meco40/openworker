@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expandMultilingualAliases } from '../../../src/server/knowledge/multilingualAliases';
+import { expandMultilingualAliases } from '@/server/knowledge/multilingualAliases';
 
 describe('multilingualAliases', () => {
   describe('expandMultilingualAliases', () => {

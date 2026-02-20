@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { CredentialStore } from '../../../src/server/channels/credentials/credentialStore';
-import {
-  listBridgeAccounts,
-  upsertBridgeAccount,
-} from '../../../src/server/channels/pairing/bridgeAccounts';
+import { CredentialStore } from '@/server/channels/credentials/credentialStore';
+import { listBridgeAccounts, upsertBridgeAccount } from '@/server/channels/pairing/bridgeAccounts';
 
 type TestGlobals = typeof globalThis & {
   __credentialStore?: CredentialStore;

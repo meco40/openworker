@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import PromptLogsTab from '../../../components/stats/PromptLogsTab';
+import PromptLogsTab from '@/components/stats/PromptLogsTab';
 
 describe('PromptLogsTab', () => {
   it('renders logs panel shell with filters and table headers', () => {

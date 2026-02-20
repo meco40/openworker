@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { RoomOrchestrator } from '../../../src/server/rooms/orchestrator';
-import { SqliteRoomRepository } from '../../../src/server/rooms/sqliteRoomRepository';
+import { RoomOrchestrator } from '@/server/rooms/orchestrator';
+import { SqliteRoomRepository } from '@/server/rooms/sqliteRoomRepository';
 
 // Mock the model hub runtime — return a simple text response
 vi.mock('../../../src/server/model-hub/runtime', () => ({
@@ -39,7 +39,7 @@ vi.mock('../../../src/server/skills/skillRepository', () => ({
 }));
 
 // Mock skill definitions
-vi.mock('../../../skills/definitions', () => ({
+vi.mock('@/skills/definitions', () => ({
   mapSkillsToTools: vi.fn().mockReturnValue([]),
 }));
 

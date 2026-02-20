@@ -5,7 +5,7 @@ import {
   stripSpeakerPrefix,
   buildGatewayHistoryMessages,
   type RoutableMember,
-} from '../../../src/server/rooms/orchestratorUtils';
+} from '@/server/rooms/orchestratorUtils';
 
 describe('orchestrator utils', () => {
   it('selects next speaker in round-robin order', () => {

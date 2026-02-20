@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { SqliteKnowledgeRepository } from '../../../src/server/knowledge/sqliteKnowledgeRepository';
-import type { UpsertKnowledgeEventInput } from '../../../src/server/knowledge/eventTypes';
+import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
+import type { UpsertKnowledgeEventInput } from '@/server/knowledge/eventTypes';
 
 function createDbPath(): string {
   return path.join(

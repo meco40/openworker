@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { POST as confirmPost } from '../../../app/api/channels/telegram/pairing/confirm/route';
-import { CredentialStore } from '../../../src/server/channels/credentials/credentialStore';
+import { CredentialStore } from '@/server/channels/credentials/credentialStore';
 import {
   beginTelegramCodePairing,
   ensureTelegramPairingCode,
-} from '../../../src/server/channels/pairing/telegramCodePairing';
+} from '@/server/channels/pairing/telegramCodePairing';
 
 function makeRequest(body: Record<string, unknown>) {
   return new Request('http://localhost/api/channels/telegram/pairing/confirm', {

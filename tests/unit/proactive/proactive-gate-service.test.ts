@@ -3,9 +3,9 @@ import type {
   ProactiveDecision,
   ProactiveSignalInput,
   ProactiveSummaryRow,
-} from '../../../src/server/proactive/types';
-import type { ProactiveRepository } from '../../../src/server/proactive/repository';
-import { ProactiveGateService } from '../../../src/server/proactive/service';
+} from '@/server/proactive/types';
+import type { ProactiveRepository } from '@/server/proactive/repository';
+import { ProactiveGateService } from '@/server/proactive/service';
 
 class InMemoryProactiveRepository implements ProactiveRepository {
   private readonly signals: ProactiveSignalInput[] = [];

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getOpenRouterModelPricing } from '../../../src/server/stats/openRouterPricing';
+import { getOpenRouterModelPricing } from '@/server/stats/openRouterPricing';
 
 describe('openRouter pricing', () => {
   beforeEach(() => {

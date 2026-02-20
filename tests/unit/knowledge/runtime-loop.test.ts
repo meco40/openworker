@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { KnowledgeRuntimeLoop } from '../../../src/server/knowledge/runtimeLoop';
+import { KnowledgeRuntimeLoop } from '@/server/knowledge/runtimeLoop';
 
 describe('KnowledgeRuntimeLoop', () => {
   afterEach(() => {

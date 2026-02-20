@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dispatchSkill } from '../../../src/server/skills/executeSkill';
+import { dispatchSkill } from '@/server/skills/executeSkill';
 
 describe('dispatchSkill', () => {
   it('routes file_read', async () => {

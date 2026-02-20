@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AuthUserStore } from '../../../src/server/auth/userStore';
+import { AuthUserStore } from '@/server/auth/userStore';
 
 const tempDbPaths: string[] = [];
 

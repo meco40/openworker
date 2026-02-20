@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectContradictionSignal } from '../../../src/server/knowledge/contradictionDetector';
+import { detectContradictionSignal } from '@/server/knowledge/contradictionDetector';
 
 describe('detectContradictionSignal', () => {
   it('detects value_change when same entity has different property values', () => {

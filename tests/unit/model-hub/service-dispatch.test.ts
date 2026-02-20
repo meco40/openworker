@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ModelHubRepository } from '../../../src/server/model-hub/repository';
+import type { ModelHubRepository } from '@/server/model-hub/repository';
 
 /**
  * Tests for the ModelHub service dispatchWithFallback method.
@@ -28,7 +28,7 @@ function createMockRepository(overrides: Partial<ModelHubRepository> = {}): Mode
 
 describe('ModelHubService.dispatchWithFallback', () => {
   it('returns error when no active models in pipeline', async () => {
-    const { ModelHubService } = await import('../../../src/server/model-hub/service');
+    const { ModelHubService } = await import('@/server/model-hub/service');
 
     const repo = createMockRepository({
       listPipelineModels: vi.fn().mockReturnValue([]),
@@ -44,7 +44,7 @@ describe('ModelHubService.dispatchWithFallback', () => {
   });
 
   it('returns error when no active models remain (all offline)', async () => {
-    const { ModelHubService } = await import('../../../src/server/model-hub/service');
+    const { ModelHubService } = await import('@/server/model-hub/service');
 
     const repo = createMockRepository({
       listPipelineModels: vi.fn().mockReturnValue([
@@ -68,7 +68,7 @@ describe('ModelHubService.dispatchWithFallback', () => {
   });
 
   it('skips models where account is not found', async () => {
-    const { ModelHubService } = await import('../../../src/server/model-hub/service');
+    const { ModelHubService } = await import('@/server/model-hub/service');
 
     const repo = createMockRepository({
       listPipelineModels: vi.fn().mockReturnValue([
@@ -127,7 +127,7 @@ describe('GatewayResponse type extensions', () => {
 
 describe('ModelHubService.movePipelineModel', () => {
   it('moves a model up and swaps priorities with the previous model', async () => {
-    const { ModelHubService } = await import('../../../src/server/model-hub/service');
+    const { ModelHubService } = await import('@/server/model-hub/service');
 
     const updatePriority = vi.fn();
     const repo = createMockRepository({
@@ -149,7 +149,7 @@ describe('ModelHubService.movePipelineModel', () => {
   });
 
   it('returns false when moving the first model up', async () => {
-    const { ModelHubService } = await import('../../../src/server/model-hub/service');
+    const { ModelHubService } = await import('@/server/model-hub/service');
 
     const updatePriority = vi.fn();
     const repo = createMockRepository({

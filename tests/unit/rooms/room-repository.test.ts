@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { SqliteRoomRepository } from '../../../src/server/rooms/sqliteRoomRepository';
+import { SqliteRoomRepository } from '@/server/rooms/sqliteRoomRepository';
 
 describe('SqliteRoomRepository', () => {
   let repo: SqliteRoomRepository;

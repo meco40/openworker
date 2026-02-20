@@ -8,13 +8,13 @@ function read(relativePath: string): string {
 
 describe('recharts animation guard', () => {
   it('disables Radar animation in Dashboard to avoid strict-mode update loops', () => {
-    const dashboard = read('components/Dashboard.tsx');
+    const dashboard = read('src/components/Dashboard.tsx');
     expect(dashboard).toContain('<Radar');
     expect(dashboard).toContain('isAnimationActive={false}');
   });
 
   it('disables Bar animation in StatsView to avoid strict-mode update loops', () => {
-    const statsView = read('components/StatsView.tsx');
+    const statsView = read('src/components/StatsView.tsx');
     expect(statsView).toContain('<Bar');
     expect(statsView).toContain('isAnimationActive={false}');
   });

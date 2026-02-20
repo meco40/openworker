@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { MemoryNode } from '../../../core/memory/types';
-import { SqliteMemoryRepository } from '../../../src/server/memory/sqliteMemoryRepository';
+import type { MemoryNode } from '@/core/memory/types';
+import { SqliteMemoryRepository } from '@/server/memory/sqliteMemoryRepository';
 
 function createNode(overrides: Partial<MemoryNode> = {}): MemoryNode {
   return {

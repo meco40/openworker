@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { SqliteRoomRepository } from '../../../src/server/rooms/sqliteRoomRepository';
+import { SqliteRoomRepository } from '@/server/rooms/sqliteRoomRepository';
 
 type InternalDb = {
   prepare: (sql: string) => { get: (...params: unknown[]) => unknown };

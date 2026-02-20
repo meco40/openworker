@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   resolveMemoryScopedUserId,
   resolveMemoryUserIdCandidates,
-} from '../../../src/server/memory/userScope';
+} from '@/server/memory/userScope';
 
 describe('resolveMemoryScopedUserId', () => {
   it('returns legacy-local-user for webchat in single-user mode', () => {

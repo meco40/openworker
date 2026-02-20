@@ -1,5 +1,9 @@
 import type { ProactiveRepository } from '@/server/proactive/repository';
-import type { ProactiveDecision, ProactiveMessageInput, ProactiveSignalInput } from '@/server/proactive/types';
+import type {
+  ProactiveDecision,
+  ProactiveMessageInput,
+  ProactiveSignalInput,
+} from '@/server/proactive/types';
 
 const LOOKBACK_DAYS = 30;
 const SUGGEST_THRESHOLD = 0.72;

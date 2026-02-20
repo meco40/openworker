@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import ConfigEditor from '../../../components/ConfigEditor';
+import ConfigEditor from '@/components/ConfigEditor';
 
 describe('config editor accessibility baseline', () => {
   it('renders aria labels for key controls', () => {

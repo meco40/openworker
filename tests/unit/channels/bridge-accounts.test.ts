@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CredentialStore } from '../../../src/server/channels/credentials/credentialStore';
+import { CredentialStore } from '@/server/channels/credentials/credentialStore';
 import {
   listBridgeAccountIds,
   normalizeBridgeAccountId,
@@ -9,7 +9,7 @@ import {
   resolveBridgeAccountSecret,
   scopeBridgeExternalChatId,
   upsertBridgeAccount,
-} from '../../../src/server/channels/pairing/bridgeAccounts';
+} from '@/server/channels/pairing/bridgeAccounts';
 
 describe('bridge account helpers', () => {
   it('normalizes account ids and falls back to default', () => {

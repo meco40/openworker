@@ -4,7 +4,7 @@ import {
   getAdapter,
   registerAdapter,
   resetAdapterRegistryForTests,
-} from '../../../src/server/channels/routing/adapterRegistry';
+} from '@/server/channels/routing/adapterRegistry';
 
 describe('adapter registry', () => {
   beforeEach(() => {

@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import ConfigEditor from '../../../components/ConfigEditor';
+import ConfigEditor from '@/components/ConfigEditor';
 
 describe('ConfigEditor tabs', () => {
   it('renders core tab labels for simple and advanced editing', () => {

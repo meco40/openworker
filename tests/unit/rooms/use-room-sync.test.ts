@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { upsertRoomMessage } from '../../../src/modules/rooms/useRoomSync';
-import type { RoomMessage } from '../../../src/modules/rooms/types';
+import { upsertRoomMessage } from '@/modules/rooms/useRoomSync';
+import type { RoomMessage } from '@/modules/rooms/types';
 
 function message(seq: number, overrides: Partial<RoomMessage> = {}): RoomMessage {
   return {

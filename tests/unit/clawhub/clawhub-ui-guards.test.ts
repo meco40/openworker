@@ -5,7 +5,7 @@ import {
   emitClawHubChanged,
   subscribeClawHubChanged,
   type ClawHubEventTarget,
-} from '../../../skills/clawhub-events';
+} from '@/skills/clawhub-events';
 
 describe('ClawHub UI guardrails', () => {
   it('emits clawhub changed event on provided target', () => {

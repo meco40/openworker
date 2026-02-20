@@ -3,9 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SqliteMessageRepository } from '../../../src/server/channels/messages/sqliteMessageRepository';
-import { LEGACY_LOCAL_USER_ID } from '../../../src/server/auth/constants';
-import { ChannelType } from '../../../types';
+import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
+import { ChannelType } from '@/shared/domain/types';
 
 const tempPaths: string[] = [];
 

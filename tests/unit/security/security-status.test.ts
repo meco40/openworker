@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { CommandPermission } from '../../../types';
-import { buildSecurityStatusSnapshot } from '../../../src/server/security/status';
+import type { CommandPermission } from '@/shared/domain/types';
+import { buildSecurityStatusSnapshot } from '@/server/security/status';
 
 const BASE_RULES: CommandPermission[] = [
   { id: 'c1', command: 'ls', description: 'List', category: 'Files', risk: 'Low', enabled: true },

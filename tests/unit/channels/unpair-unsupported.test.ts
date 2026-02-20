@@ -12,7 +12,7 @@ describe('unpairChannel unsupported input', () => {
       getCredentialStore: getCredentialStoreMock,
     }));
 
-    const { unpairChannel } = await import('../../../src/server/channels/pairing/unpair');
+    const { unpairChannel } = await import('@/server/channels/pairing/unpair');
 
     await expect(unpairChannel('signal' as unknown as 'telegram')).rejects.toThrow(
       'Unsupported channel',

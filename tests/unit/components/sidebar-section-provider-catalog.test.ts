@@ -1,8 +1,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import SidebarSection from '../../../components/model-hub/sections/SidebarSection';
-import type { ProviderCatalogEntry } from '../../../components/model-hub/types';
+import SidebarSection from '@/components/model-hub/sections/SidebarSection';
+import type { ProviderCatalogEntry } from '@/components/model-hub/types';
 
 describe('sidebar section provider catalog panel', () => {
   it('does not render the provider catalog block', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseClawHubSearchOutput } from '../../../src/server/clawhub/searchParser';
+import { parseClawHubSearchOutput } from '@/server/clawhub/searchParser';
 
 describe('parseClawHubSearchOutput', () => {
   it('parses standard search output rows', () => {

@@ -67,8 +67,7 @@ describe('channel health monitor', () => {
       resolveBridgeAccountSecret,
     }));
 
-    const { startChannelHealthMonitor } =
-      await import('../../../src/server/channels/healthMonitor');
+    const { startChannelHealthMonitor } = await import('@/server/channels/healthMonitor');
     const monitor = startChannelHealthMonitor();
 
     await vi.advanceTimersByTimeAsync(50);

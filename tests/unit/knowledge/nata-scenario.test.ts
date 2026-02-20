@@ -10,12 +10,12 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
-import { SqliteKnowledgeRepository } from '../../../src/server/knowledge/sqliteKnowledgeRepository';
-import { KnowledgeIngestionService } from '../../../src/server/knowledge/ingestionService';
-import { computeEventAnswer } from '../../../src/server/knowledge/eventAnswerComputer';
-import { planKnowledgeQuery } from '../../../src/server/knowledge/queryPlanner';
-import type { KnowledgeExtractionResult } from '../../../src/server/knowledge/extractor';
-import type { StoredMessage } from '../../../src/server/channels/messages/repository';
+import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
+import { KnowledgeIngestionService } from '@/server/knowledge/ingestionService';
+import { computeEventAnswer } from '@/server/knowledge/eventAnswerComputer';
+import { planKnowledgeQuery } from '@/server/knowledge/queryPlanner';
+import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
+import type { StoredMessage } from '@/server/channels/messages/repository';
 
 const TEST_DB_DIR = '.local';
 let dbPath: string;

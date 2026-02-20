@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { GatewayClient } from '../../../src/server/gateway/client-registry';
-import type { RequestFrame } from '../../../src/server/gateway/protocol';
+import type { GatewayClient } from '@/server/gateway/client-registry';
+import type { RequestFrame } from '@/server/gateway/protocol';
 
 function makeClient(userId = 'user-1'): GatewayClient {
   return {
@@ -72,8 +72,8 @@ async function setupForChannelsTests() {
     }),
   }));
 
-  const { dispatchMethod } = await import('../../../src/server/gateway/method-router');
-  await import('../../../src/server/gateway/methods/channels');
+  const { dispatchMethod } = await import('@/server/gateway/method-router');
+  await import('@/server/gateway/methods/channels');
 
   return { dispatchMethod, pairChannel, unpairChannel, upsertChannelBinding, broadcastToUser };
 }

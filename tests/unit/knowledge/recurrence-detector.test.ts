@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectRecurrence } from '../../../src/server/knowledge/recurrenceDetector';
+import { detectRecurrence } from '@/server/knowledge/recurrenceDetector';
 
 describe('detectRecurrence', () => {
   it('detects daily recurrence', () => {

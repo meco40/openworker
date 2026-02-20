@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { RoomOrchestrator } from '../../../src/server/rooms/orchestrator';
-import { SqliteRoomRepository } from '../../../src/server/rooms/sqliteRoomRepository';
+import { RoomOrchestrator } from '@/server/rooms/orchestrator';
+import { SqliteRoomRepository } from '@/server/rooms/sqliteRoomRepository';
 
 const dispatchWithFallbackMock = vi.fn().mockResolvedValue({
   ok: true,
@@ -36,7 +36,7 @@ vi.mock('../../../src/server/skills/skillRepository', () => ({
   }),
 }));
 
-vi.mock('../../../skills/definitions', () => ({
+vi.mock('@/skills/definitions', () => ({
   mapSkillsToTools: vi.fn().mockReturnValue([]),
 }));
 

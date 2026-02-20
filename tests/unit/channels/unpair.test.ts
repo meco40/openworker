@@ -20,14 +20,13 @@ describe('unpairChannel', () => {
   });
 
   it('unpairs telegram: calls deleteWebhook and clears credentials', async () => {
-    const { CredentialStore } =
-      await import('../../../src/server/channels/credentials/credentialStore');
+    const { CredentialStore } = await import('@/server/channels/credentials/credentialStore');
     const store = new CredentialStore(':memory:');
     store.setCredential('telegram', 'bot_token', 'test-token');
     store.setCredential('telegram', 'webhook_secret', 'test-secret');
     (globalThis as Record<string, unknown>).__credentialStore = store;
 
-    const { unpairChannel } = await import('../../../src/server/channels/pairing/unpair');
+    const { unpairChannel } = await import('@/server/channels/pairing/unpair');
     await unpairChannel('telegram');
 
     // deleteWebhook should have been called
@@ -42,13 +41,12 @@ describe('unpairChannel', () => {
   });
 
   it('unpairs discord: clears credentials without API call', async () => {
-    const { CredentialStore } =
-      await import('../../../src/server/channels/credentials/credentialStore');
+    const { CredentialStore } = await import('@/server/channels/credentials/credentialStore');
     const store = new CredentialStore(':memory:');
     store.setCredential('discord', 'bot_token', 'dc-token');
     (globalThis as Record<string, unknown>).__credentialStore = store;
 
-    const { unpairChannel } = await import('../../../src/server/channels/pairing/unpair');
+    const { unpairChannel } = await import('@/server/channels/pairing/unpair');
     await unpairChannel('discord');
 
     expect(store.getCredential('discord', 'bot_token')).toBeNull();
@@ -57,7 +55,7 @@ describe('unpairChannel', () => {
   });
 
   it('throws for unsupported channel', async () => {
-    const { unpairChannel } = await import('../../../src/server/channels/pairing/unpair');
+    const { unpairChannel } = await import('@/server/channels/pairing/unpair');
     await expect(unpairChannel('signal' as 'telegram')).rejects.toThrow('Unsupported channel');
   });
 });

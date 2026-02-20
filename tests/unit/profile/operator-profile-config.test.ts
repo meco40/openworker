@@ -4,7 +4,7 @@ import {
   computeOperatorUsageSnapshot,
   parseOperatorProfileFromConfig,
   type OperatorProfileState,
-} from '../../../src/modules/profile/operatorProfileConfig';
+} from '@/modules/profile/operatorProfileConfig';
 
 describe('operatorProfileConfig', () => {
   it('parses safe defaults when operator config is missing', () => {

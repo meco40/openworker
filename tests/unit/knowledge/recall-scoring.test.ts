@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { adjustRecallScore, isDuplicateContent } from '../../../src/server/knowledge/recallScoring';
+import { adjustRecallScore, isDuplicateContent } from '@/server/knowledge/recallScoring';
 
 describe('isDuplicateContent', () => {
   it('detects exact duplicate (case-insensitive)', () => {

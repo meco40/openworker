@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ChannelType } from '../../../types';
+import { ChannelType } from '@/shared/domain/types';
 
 // ─── Telegram Webhook Parsing ────────────────────────────────
 

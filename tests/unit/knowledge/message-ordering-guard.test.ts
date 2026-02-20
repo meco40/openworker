@@ -5,7 +5,7 @@ import {
   reorderByTimestamp,
   type IncomingMessage,
   type StoredMessage,
-} from '../../../src/server/knowledge/messageOrderingGuard';
+} from '@/server/knowledge/messageOrderingGuard';
 
 function makeIncoming(overrides: Partial<IncomingMessage> = {}): IncomingMessage {
   return {
