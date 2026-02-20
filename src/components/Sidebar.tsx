@@ -46,10 +46,26 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onToggleCan
       label: 'Task Monitor',
       icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
     },
+    { id: View.INSTANCES, label: 'Instances', icon: 'M4 7h16M4 12h16M4 17h16' },
+    {
+      id: View.SESSIONS,
+      label: 'Sessions',
+      icon: 'M8 7h8M6 3h12a1 1 0 011 1v16a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z',
+    },
     {
       id: View.CRON,
       label: 'Cron',
       icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+    {
+      id: View.NODES,
+      label: 'Nodes',
+      icon: 'M5 12h14M12 5v14M3 7h4v4H3V7zm14 0h4v4h-4V7zM3 13h4v4H3v-4zm14 0h4v4h-4v-4z',
+    },
+    {
+      id: View.AGENTS,
+      label: 'Agents',
+      icon: 'M12 2a3 3 0 013 3v2h1a2 2 0 012 2v8a2 2 0 01-2 2h-8a2 2 0 01-2-2V9a2 2 0 012-2h1V5a3 3 0 013-3z',
     },
     {
       id: View.LOGS,
