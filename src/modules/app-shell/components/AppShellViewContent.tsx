@@ -31,6 +31,7 @@ const ExposureManager = dynamic(() => import('@/modules/exposure/components/Expo
 const StatsView = dynamic(() => import('@/components/StatsView'));
 const PersonasView = dynamic(() => import('@/components/PersonasView'));
 const MemoryView = dynamic(() => import('@/components/MemoryView'));
+const CronView = dynamic(() => import('@/modules/cron/components/CronView'));
 
 interface AppShellViewContentProps {
   currentView: View;
@@ -167,6 +168,11 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
       {currentView === View.MEMORY && (
         <ViewErrorBoundary label="Memory">
           <MemoryView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.CRON && (
+        <ViewErrorBoundary label="Cron">
+          <CronView />
         </ViewErrorBoundary>
       )}
     </div>
