@@ -76,19 +76,18 @@ function readStore(filePath: string): SubagentRunStore {
       return { version: STORE_VERSION, runs: [] };
     }
 
-    const runs = parsed.runs.filter(
-      (entry): entry is SubagentRunRecord =>
-        Boolean(
-          entry &&
-            typeof entry.runId === 'string' &&
-            typeof entry.requesterConversationId === 'string' &&
-            typeof entry.requesterUserId === 'string' &&
-            typeof entry.agentId === 'string' &&
-            typeof entry.task === 'string' &&
-            typeof entry.status === 'string' &&
-            typeof entry.createdAt === 'string' &&
-            typeof entry.startedAt === 'string',
-        ),
+    const runs = parsed.runs.filter((entry): entry is SubagentRunRecord =>
+      Boolean(
+        entry &&
+        typeof entry.runId === 'string' &&
+        typeof entry.requesterConversationId === 'string' &&
+        typeof entry.requesterUserId === 'string' &&
+        typeof entry.agentId === 'string' &&
+        typeof entry.task === 'string' &&
+        typeof entry.status === 'string' &&
+        typeof entry.createdAt === 'string' &&
+        typeof entry.startedAt === 'string',
+      ),
     );
 
     return { version: STORE_VERSION, runs };
@@ -110,14 +109,19 @@ function toTimestamp(value?: string): number {
 }
 
 function sortRunsDescending(runs: SubagentRunRecord[]): SubagentRunRecord[] {
-  return [...runs].sort((a, b) => toTimestamp(b.startedAt || b.createdAt) - toTimestamp(a.startedAt || a.createdAt));
+  return [...runs].sort(
+    (a, b) => toTimestamp(b.startedAt || b.createdAt) - toTimestamp(a.startedAt || a.createdAt),
+  );
 }
 
 function persist(): void {
   const allRuns = Array.from(state.runsById.values());
   const active = allRuns.filter((run) => run.status === 'running');
   const finished = allRuns.filter((run) => run.status !== 'running');
-  const cappedFinished = sortRunsDescending(finished).slice(0, Math.max(0, MAX_PERSISTED_RUNS - active.length));
+  const cappedFinished = sortRunsDescending(finished).slice(
+    0,
+    Math.max(0, MAX_PERSISTED_RUNS - active.length),
+  );
   writeStore(resolveStorePath(), sortRunsDescending([...active, ...cappedFinished]));
 }
 
@@ -141,7 +145,10 @@ function ensureLoaded(): void {
   persist();
 }
 
-function updateRun(runId: string, updater: (run: SubagentRunRecord) => SubagentRunRecord): SubagentRunRecord | null {
+function updateRun(
+  runId: string,
+  updater: (run: SubagentRunRecord) => SubagentRunRecord,
+): SubagentRunRecord | null {
   ensureLoaded();
   const existing = state.runsById.get(runId);
   if (!existing) return null;
@@ -181,7 +188,10 @@ export function detachSubagentRuntime(runId: string): void {
   state.runtimesById.delete(runId);
 }
 
-export function completeSubagentRun(runId: string, resultPreview?: string): SubagentRunRecord | null {
+export function completeSubagentRun(
+  runId: string,
+  resultPreview?: string,
+): SubagentRunRecord | null {
   detachSubagentRuntime(runId);
   return updateRun(runId, (run) => ({
     ...run,
@@ -261,7 +271,9 @@ export function listSubagentRunsForConversation(
     ),
   );
   const active = all.filter((run) => run.status === 'running');
-  const recent = all.filter((run) => run.status !== 'running' && toTimestamp(run.endedAt || run.startedAt) >= cutoff);
+  const recent = all.filter(
+    (run) => run.status !== 'running' && toTimestamp(run.endedAt || run.startedAt) >= cutoff,
+  );
   return { active, recent };
 }
 

@@ -225,7 +225,9 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({
         }
       } else {
         const suffix = payload.accountId ? ` [${payload.accountId}]` : '';
-        addLog(`Success! ${activeTab.toUpperCase()} bridge established${suffix} (${payload.peerName}).`);
+        addLog(
+          `Success! ${activeTab.toUpperCase()} bridge established${suffix} (${payload.peerName}).`,
+        );
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -631,4 +633,3 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({
 };
 
 export default ChannelPairing;
-

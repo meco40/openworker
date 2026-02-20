@@ -68,9 +68,8 @@ describe('telegram inbound media routing', () => {
   });
 
   it('routes non-text media messages with generated summary text and attachments', async () => {
-    const { processTelegramInboundMessage } = await import(
-      '../../../src/server/channels/pairing/telegramInbound'
-    );
+    const { processTelegramInboundMessage } =
+      await import('../../../src/server/channels/pairing/telegramInbound');
 
     const result = await processTelegramInboundMessage({
       message_id: 11,

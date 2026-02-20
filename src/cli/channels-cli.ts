@@ -79,4 +79,3 @@ export async function runChannelsCli(argv: string[]): Promise<void> {
 
   throw new Error(`Unknown channels command: ${command}`);
 }
-

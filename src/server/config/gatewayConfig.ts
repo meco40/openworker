@@ -420,7 +420,9 @@ export function resolveGatewayConfigPath(): string {
 }
 
 function resolveGatewayConfigBackend(): 'db' | 'file' {
-  const raw = String(process.env.OPENCLAW_CONFIG_BACKEND || 'db').trim().toLowerCase();
+  const raw = String(process.env.OPENCLAW_CONFIG_BACKEND || 'db')
+    .trim()
+    .toLowerCase();
   return raw === 'file' ? 'file' : 'db';
 }
 

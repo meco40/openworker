@@ -159,4 +159,3 @@ export function startChannelHealthMonitor(): ChannelMonitorHandle {
   globalThis.__channelHealthMonitorHandle = handle;
   return handle;
 }
-

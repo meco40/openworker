@@ -38,9 +38,11 @@ describe('channel health monitor', () => {
     else process.env.CHANNEL_HEALTH_MONITOR_ENABLED = previousEnabled;
     if (previousInterval === undefined) delete process.env.CHANNEL_HEALTH_MONITOR_INTERVAL_MS;
     else process.env.CHANNEL_HEALTH_MONITOR_INTERVAL_MS = previousInterval;
-    if (previousThreshold === undefined) delete process.env.CHANNEL_HEALTH_MONITOR_FAILURE_THRESHOLD;
+    if (previousThreshold === undefined)
+      delete process.env.CHANNEL_HEALTH_MONITOR_FAILURE_THRESHOLD;
     else process.env.CHANNEL_HEALTH_MONITOR_FAILURE_THRESHOLD = previousThreshold;
-    if (previousCooldown === undefined) delete process.env.CHANNEL_HEALTH_MONITOR_REPAIR_COOLDOWN_MS;
+    if (previousCooldown === undefined)
+      delete process.env.CHANNEL_HEALTH_MONITOR_REPAIR_COOLDOWN_MS;
     else process.env.CHANNEL_HEALTH_MONITOR_REPAIR_COOLDOWN_MS = previousCooldown;
     if (previousBridgeUrl === undefined) delete process.env.WHATSAPP_BRIDGE_URL;
     else process.env.WHATSAPP_BRIDGE_URL = previousBridgeUrl;
@@ -65,7 +67,8 @@ describe('channel health monitor', () => {
       resolveBridgeAccountSecret,
     }));
 
-    const { startChannelHealthMonitor } = await import('../../../src/server/channels/healthMonitor');
+    const { startChannelHealthMonitor } =
+      await import('../../../src/server/channels/healthMonitor');
     const monitor = startChannelHealthMonitor();
 
     await vi.advanceTimersByTimeAsync(50);
@@ -85,4 +88,3 @@ describe('channel health monitor', () => {
     monitor.stop();
   });
 });
-

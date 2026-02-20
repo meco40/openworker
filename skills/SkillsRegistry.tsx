@@ -287,13 +287,7 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
     } finally {
       endClawHubAction();
     }
-  }, [
-    beginClawHubAction,
-    loadRuntimeConfigs,
-    notifyClawHubChanged,
-    endClawHubAction,
-    setSkills,
-  ]);
+  }, [beginClawHubAction, loadRuntimeConfigs, notifyClawHubChanged, endClawHubAction, setSkills]);
 
   const handleRuntimeConfigDraft = useCallback((id: string, value: string) => {
     setRuntimeConfigDrafts((previous) => ({

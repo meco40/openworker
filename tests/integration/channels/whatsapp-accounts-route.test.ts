@@ -75,7 +75,9 @@ describe('whatsapp accounts route', () => {
     expect(payload.accountId).toBe('support');
     expect(payload.allowFrom).toEqual(['+49123', 'team-a']);
 
-    const support = listBridgeAccounts('whatsapp', store).find((entry) => entry.accountId === 'support');
+    const support = listBridgeAccounts('whatsapp', store).find(
+      (entry) => entry.accountId === 'support',
+    );
     expect(support?.allowFrom).toEqual(['+49123', 'team-a']);
   });
 
@@ -86,4 +88,3 @@ describe('whatsapp accounts route', () => {
     expect(response.status).toBe(401);
   });
 });
-

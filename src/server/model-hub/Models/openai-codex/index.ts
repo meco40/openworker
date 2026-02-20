@@ -437,7 +437,9 @@ function appendUniqueFunctionCalls(
   target: Array<{ name: string; args?: unknown }>,
   incoming: Array<{ name: string; args?: unknown }>,
 ): void {
-  const existingKeys = new Set(target.map((call) => `${call.name}::${JSON.stringify(call.args ?? null)}`));
+  const existingKeys = new Set(
+    target.map((call) => `${call.name}::${JSON.stringify(call.args ?? null)}`),
+  );
   for (const call of incoming) {
     const key = `${call.name}::${JSON.stringify(call.args ?? null)}`;
     if (existingKeys.has(key)) continue;

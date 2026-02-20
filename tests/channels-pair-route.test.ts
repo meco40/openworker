@@ -168,9 +168,9 @@ describe('channel pair route requests', () => {
     expect(response.status).toBe(200);
     expect(json.ok).toBe(true);
     expect(json.accountId).toBe('sales');
-    expect(
-      getCredentialStore().getCredential('whatsapp', 'account.sales.pairing_status'),
-    ).toBe('connected');
+    expect(getCredentialStore().getCredential('whatsapp', 'account.sales.pairing_status')).toBe(
+      'connected',
+    );
     expect(fetchMock.mock.calls[1]?.[0]).toContain('/webhook');
     fetchMock.mockRestore();
   });

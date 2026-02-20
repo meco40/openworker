@@ -178,7 +178,8 @@ describe('MessageService knowledge recall integration', () => {
     const dispatchedMessages = getDispatchedMessages();
     expect(
       dispatchedMessages.some(
-        (message) => message.role === 'system' && message.content.includes('Knowledge: Mittags Sauna'),
+        (message) =>
+          message.role === 'system' && message.content.includes('Knowledge: Mittags Sauna'),
       ),
     ).toBe(true);
   });
@@ -201,7 +202,8 @@ describe('MessageService knowledge recall integration', () => {
     const dispatchedMessages = getDispatchedMessages();
     expect(
       dispatchedMessages.some(
-        (message) => message.role === 'system' && message.content.includes('Knowledge: Mittags Sauna'),
+        (message) =>
+          message.role === 'system' && message.content.includes('Knowledge: Mittags Sauna'),
       ),
     ).toBe(true);
   });
@@ -285,6 +287,8 @@ describe('MessageService knowledge recall integration', () => {
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
 
     const dispatchedMessages = getDispatchedMessages();
-    expect(dispatchedMessages.some((message) => message.content.includes('Knowledge context'))).toBe(true);
+    expect(
+      dispatchedMessages.some((message) => message.content.includes('Knowledge context')),
+    ).toBe(true);
   });
 });

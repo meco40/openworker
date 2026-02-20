@@ -48,4 +48,3 @@ describe('exec approval manager', () => {
     expect(listApprovedCommands({ storePath })).toHaveLength(0);
   });
 });
-

@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CredentialStore } from '../../../src/server/channels/credentials/credentialStore';
-import { beginTelegramCodePairing, confirmTelegramPairingCode, ensureTelegramPairingCode } from '../../../src/server/channels/pairing/telegramCodePairing';
-import { applyTelegramGroupMigration, resolveTelegramGroupMigration } from '../../../src/server/channels/telegram/groupMigration';
+import {
+  beginTelegramCodePairing,
+  confirmTelegramPairingCode,
+  ensureTelegramPairingCode,
+} from '../../../src/server/channels/pairing/telegramCodePairing';
+import {
+  applyTelegramGroupMigration,
+  resolveTelegramGroupMigration,
+} from '../../../src/server/channels/telegram/groupMigration';
 
 describe('telegram group migration', () => {
   beforeEach(() => {

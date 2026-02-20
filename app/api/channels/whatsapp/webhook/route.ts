@@ -73,7 +73,9 @@ function isSenderAllowed(sender: string, allowFrom: string[]): boolean {
   if (!normalizedSender) {
     return false;
   }
-  return allowFrom.some((allowed) => normalizedSender.includes(allowed) || allowed.includes(normalizedSender));
+  return allowFrom.some(
+    (allowed) => normalizedSender.includes(allowed) || allowed.includes(normalizedSender),
+  );
 }
 
 function buildFallbackMessageId(payload: WhatsAppWebhookPayload, accountId: string): string {
@@ -206,7 +208,8 @@ export async function POST(request: Request) {
     }
 
     const scopedChatId = scopeBridgeExternalChatId(accountId, envelope.externalChatId);
-    const dedupeId = (envelope.externalMessageId || '').trim() || buildFallbackMessageId(payload, accountId);
+    const dedupeId =
+      (envelope.externalMessageId || '').trim() || buildFallbackMessageId(payload, accountId);
     const attachments = await resolveInboundAttachments({
       payload,
       accountId,

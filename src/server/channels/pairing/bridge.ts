@@ -69,9 +69,7 @@ export async function registerBridgeWebhook(params: {
       }),
     });
     if (!response.ok) {
-      console.warn(
-        `${params.channel} webhook registration failed with status ${response.status}.`,
-      );
+      console.warn(`${params.channel} webhook registration failed with status ${response.status}.`);
       return { ok: false, callbackUrl };
     }
     return { ok: true, callbackUrl };

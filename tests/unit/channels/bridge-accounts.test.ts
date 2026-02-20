@@ -69,4 +69,3 @@ describe('bridge account helpers', () => {
     expect(resolved).toBe('body');
   });
 });
-

@@ -259,5 +259,3 @@ export class SqliteRoomRepository implements RoomRepository {
     this.db.close();
   }
 }
-
-

@@ -62,4 +62,3 @@ const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (invokedPath === currentFilePath) {
   void main();
 }
-

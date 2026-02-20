@@ -18,7 +18,9 @@ const dispatchWithFallbackMock = vi.hoisted(() =>
     }>
   >(),
 );
-const dispatchSkillMock = vi.hoisted(() => vi.fn(async () => ({ stdout: 'ok', stderr: '', exitCode: 0 })));
+const dispatchSkillMock = vi.hoisted(() =>
+  vi.fn(async () => ({ stdout: 'ok', stderr: '', exitCode: 0 })),
+);
 const approveCommandMock = vi.hoisted(() => vi.fn());
 const isCommandApprovedMock = vi.hoisted(() => vi.fn(() => false));
 

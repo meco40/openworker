@@ -86,9 +86,8 @@ const App: React.FC = () => {
   const [onboarded, setOnboarded] = useState<boolean>(true);
   const [isCanvasOpen, setIsCanvasOpen] = useState(false);
   const [isServerResponding, setIsServerResponding] = useState(false);
-  const [chatStreamDebug, setChatStreamDebug] = useState<ChatStreamDebugState>(
-    DEFAULT_CHAT_STREAM_DEBUG,
-  );
+  const [chatStreamDebug, setChatStreamDebug] =
+    useState<ChatStreamDebugState>(DEFAULT_CHAT_STREAM_DEBUG);
   const [skills, setSkills] = useState<Skill[]>([]);
   const { activePersonaId } = usePersona();
 

@@ -32,9 +32,7 @@ export interface TelegramModelCallbackQuery {
   };
 }
 
-type ParsedNativeCommand =
-  | { kind: 'none' }
-  | { kind: 'model'; args: string; command: '/model' };
+type ParsedNativeCommand = { kind: 'none' } | { kind: 'model'; args: string; command: '/model' };
 
 const CLEAR_MODEL_ARGS = new Set(['off', 'clear', 'auto', 'default']);
 
@@ -57,7 +55,10 @@ function parseNativeCommand(text: string): ParsedNativeCommand {
 }
 
 function normalizeProviderKey(providerId: string): string {
-  return providerId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  return providerId
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '');
 }
 
 function listActiveProviders(profileId: string): TelegramModelProvider[] {
@@ -204,7 +205,10 @@ export async function handleTelegramNativeCommand(
     return false;
   }
 
-  const { service, conversation } = await resolveTelegramConversation(chatId, conversationExternalChatId);
+  const { service, conversation } = await resolveTelegramConversation(
+    chatId,
+    conversationExternalChatId,
+  );
   const profileId = resolveProfileId();
   const providers = listActiveProviders(profileId);
   const arg = parsed.args.trim();
@@ -227,7 +231,10 @@ export async function handleTelegramNativeCommand(
     }
 
     service.setModelOverride(conversation.id, selected.model, conversation.userId);
-    await deliverTelegram(chatId, `Model override set to ${selected.model} (${selected.provider}).`);
+    await deliverTelegram(
+      chatId,
+      `Model override set to ${selected.model} (${selected.provider}).`,
+    );
     return true;
   }
 
@@ -346,7 +353,9 @@ export function resolveActivePipelineEntries(profileId = resolveProfileId()): Pi
     .filter((entry) => entry.status === 'active');
 }
 
-function resolveCallbackConversationExternalChatId(query: TelegramModelCallbackQuery): string | undefined {
+function resolveCallbackConversationExternalChatId(
+  query: TelegramModelCallbackQuery,
+): string | undefined {
   const chat = query.message?.chat;
   if (!chat || typeof chat.id !== 'number') {
     return undefined;
@@ -355,7 +364,9 @@ function resolveCallbackConversationExternalChatId(query: TelegramModelCallbackQ
   const baseChatId = String(chat.id);
   const rawThreadId = query.message?.message_thread_id;
   const threadId =
-    typeof rawThreadId === 'number' && Number.isFinite(rawThreadId) ? Math.trunc(rawThreadId) : null;
+    typeof rawThreadId === 'number' && Number.isFinite(rawThreadId)
+      ? Math.trunc(rawThreadId)
+      : null;
 
   if (threadId === null || threadId <= 0) {
     return baseChatId;

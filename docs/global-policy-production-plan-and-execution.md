@@ -1,9 +1,11 @@
 ﻿# Global Policy Production Plan and Execution
 
 ## Goal
+
 Make tool and security policy globally enforced as a single source of truth, while personas only influence behavior/skills/workspace start.
 
 ## Scope
+
 - Keep OpenAI-based architecture.
 - Remove persona-level tool enforcement from runtime paths.
 - Enforce global tool/security policy in legacy worker execution.
@@ -11,6 +13,7 @@ Make tool and security policy globally enforced as a single source of truth, whi
 - Remove active persona-permission gating in Rooms tool execution.
 
 ## Production Plan
+
 1. Baseline audit
    - Identify all runtime gates that can allow/deny tool calls.
    - Identify persona-level and room-level overrides.
@@ -37,7 +40,9 @@ Make tool and security policy globally enforced as a single source of truth, whi
    - Identify residual risks and remaining hardening tasks.
 
 ## Best-Case Review (Target Behavior)
+
 Best-case means:
+
 - A tool is allowed or denied by one global authority.
 - Persona text cannot silently block or grant tools.
 - WebUI and Telegram share the same sidecar tool path behavior.
@@ -45,9 +50,11 @@ Best-case means:
 - Shell approval behavior follows global security mode.
 
 ## Execution Status
+
 All scoped steps above have been executed in code.
 
 ### Implemented changes
+
 1. Persona tool restrictions removed from worker execution path.
    - `src/server/worker/personaIntegration.ts`
    - `src/server/worker/workerExecutor.ts`
@@ -76,6 +83,7 @@ All scoped steps above have been executed in code.
    - `app/api/security/policy-explain/route.ts`
 
 ## Verification Results
+
 1. Targeted tests passed:
    - `tests/unit/security/policy-explain.test.ts`
    - `tests/unit/worker/persona-integration.test.ts`
@@ -89,14 +97,17 @@ All scoped steps above have been executed in code.
    - Not introduced by this change set.
 
 ## Production-Readiness Assessment
+
 Status: Ready for controlled rollout.
 
 Why:
+
 - Central runtime behavior now aligns with global tool/security authority.
 - Persona-level hidden tool denies removed from active execution paths.
 - Cross-channel sidecar behavior is now consistent by design.
 
 ## Residual Risks and Follow-ups
+
 1. Global policy mapping for legacy worker tools is explicit but minimal.
    - Current mapping: `shell/files/browser` to legacy tool names.
    - If new legacy tools are added, mapping must be updated.
@@ -105,6 +116,7 @@ Why:
    - Extend if per-user/channel policy layers are introduced.
 
 ## Suggested Next Hardening (short list)
+
 1. Add audit events tied to policy decisions (`allowed/denied + reason`).
 2. Add integration tests for Telegram sidecar tool execution path.
 3. Add e2e tests for global shell approval modes (`deny`, `ask_approve`, `approve_always`).

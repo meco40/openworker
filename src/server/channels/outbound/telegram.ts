@@ -21,7 +21,10 @@ export interface TelegramTextOptions {
 }
 
 export function formatTelegramText(text: string): string {
-  return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\u0000/g, '');
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\u0000/g, '');
 }
 
 export function splitTelegramMessage(text: string, maxLen = TELEGRAM_MAX_LENGTH): string[] {
@@ -141,7 +144,8 @@ export async function deliverTelegram(
   const parsedTarget = parseTelegramTarget(target);
   const chatId = parsedTarget.chatId;
   const normalizedThreadId =
-    typeof parsedTarget.messageThreadId === 'number' && Number.isFinite(parsedTarget.messageThreadId)
+    typeof parsedTarget.messageThreadId === 'number' &&
+    Number.isFinite(parsedTarget.messageThreadId)
       ? Math.trunc(parsedTarget.messageThreadId)
       : undefined;
   const messageThreadId =
@@ -156,9 +160,7 @@ export async function deliverTelegram(
       chat_id: chatId,
       text: chunk,
       ...(options.parseMode ? { parse_mode: options.parseMode } : {}),
-      ...(options.disableWebPagePreview === false
-        ? {}
-        : { disable_web_page_preview: true }),
+      ...(options.disableWebPagePreview === false ? {} : { disable_web_page_preview: true }),
       ...(index === 0 && options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
       ...(typeof messageThreadId === 'number' && messageThreadId > 0
         ? { message_thread_id: messageThreadId }
@@ -184,7 +186,8 @@ export async function editTelegramMessage(
   const parsedTarget = parseTelegramTarget(target);
   const chatId = parsedTarget.chatId;
   const normalizedThreadId =
-    typeof parsedTarget.messageThreadId === 'number' && Number.isFinite(parsedTarget.messageThreadId)
+    typeof parsedTarget.messageThreadId === 'number' &&
+    Number.isFinite(parsedTarget.messageThreadId)
       ? Math.trunc(parsedTarget.messageThreadId)
       : undefined;
   const messageThreadId =

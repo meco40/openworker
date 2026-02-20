@@ -397,10 +397,7 @@ export class GatewayClient {
       }, 50);
 
       const unsubscribe = this.onStateChange((state) => {
-        if (
-          state === 'connected' ||
-          (this.ws && this.ws.readyState === WebSocket.OPEN)
-        ) {
+        if (state === 'connected' || (this.ws && this.ws.readyState === WebSocket.OPEN)) {
           finish(resolve);
         }
       });

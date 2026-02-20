@@ -134,7 +134,9 @@ export async function promptCommandApproval(
   const rl = readline.createInterface({ input, output });
   try {
     const answer = (
-      await rl.question(`Approve command?\n  ${normalizeCommand(command)}\n[y]es / [a]lways / [n]o: `)
+      await rl.question(
+        `Approve command?\n  ${normalizeCommand(command)}\n[y]es / [a]lways / [n]o: `,
+      )
     )
       .trim()
       .toLowerCase();
@@ -150,4 +152,3 @@ export async function promptCommandApproval(
     rl.close();
   }
 }
-

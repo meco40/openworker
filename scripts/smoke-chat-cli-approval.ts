@@ -121,7 +121,9 @@ function resolveApprovalCandidate(messages: ChatHistoryMessage[]): ApprovalCandi
           ? metadata.approval_prompt.trim() || undefined
           : undefined;
     const toolId =
-      typeof metadata.approvalToolId === 'string' ? metadata.approvalToolId.trim() || undefined : undefined;
+      typeof metadata.approvalToolId === 'string'
+        ? metadata.approvalToolId.trim() || undefined
+        : undefined;
     const toolFunctionName =
       typeof metadata.approvalToolFunction === 'string'
         ? metadata.approvalToolFunction.trim() || undefined
@@ -221,7 +223,9 @@ async function main(): Promise<void> {
 
     if (!approval) {
       console.log('\nNo approval_required message found.');
-      console.log('If your prompt did not trigger shell_execute, rerun with a stricter tool prompt.');
+      console.log(
+        'If your prompt did not trigger shell_execute, rerun with a stricter tool prompt.',
+      );
       const latestAgent = [...historyAfterStream].reverse().find((entry) => entry.role === 'agent');
       printFinalMessage(latestAgent);
       return;

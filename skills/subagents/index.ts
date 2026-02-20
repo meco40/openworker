@@ -52,4 +52,3 @@ const subagentsSkill = {
 };
 
 export default subagentsSkill;
-

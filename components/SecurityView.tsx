@@ -136,7 +136,9 @@ const SecurityView: React.FC = () => {
     <div className="animate-in fade-in space-y-8 duration-500">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-white uppercase">Security Panel</h2>
+          <h2 className="text-2xl font-black tracking-tight text-white uppercase">
+            Security Panel
+          </h2>
           <div className="mt-1 text-[10px] tracking-widest text-zinc-500 uppercase">
             {lastCheckedAt
               ? `Last Check: ${new Date(lastCheckedAt).toLocaleString()}`
@@ -199,12 +201,17 @@ const SecurityView: React.FC = () => {
             {checks.map((check) => {
               const status = STATUS_META[check.status];
               return (
-                <div key={check.id} className={`border bg-zinc-900/50 ${status.border} rounded-2xl p-6`}>
+                <div
+                  key={check.id}
+                  className={`border bg-zinc-900/50 ${status.border} rounded-2xl p-6`}
+                >
                   <h4 className="mb-2 text-xs font-black text-white uppercase">{check.label}</h4>
                   <div className={`font-mono text-[10px] uppercase ${status.className}`}>
                     Status: {status.label}
                   </div>
-                  <div className="mt-2 text-[10px] leading-relaxed text-zinc-500">{check.detail}</div>
+                  <div className="mt-2 text-[10px] leading-relaxed text-zinc-500">
+                    {check.detail}
+                  </div>
                 </div>
               );
             })}
@@ -253,8 +260,12 @@ const SecurityView: React.FC = () => {
             {showPolicyExplain && policyExplain && (
               <div className="space-y-2">
                 <div className="text-[11px] text-zinc-500">
-                  Revision: <span className="font-mono text-zinc-300">{policyExplain.revision || 'n/a'}</span>
-                  {' '}| Source: <span className="font-mono text-zinc-300">{policyExplain.source || 'unknown'}</span>
+                  Revision:{' '}
+                  <span className="font-mono text-zinc-300">{policyExplain.revision || 'n/a'}</span>{' '}
+                  | Source:{' '}
+                  <span className="font-mono text-zinc-300">
+                    {policyExplain.source || 'unknown'}
+                  </span>
                 </div>
                 <pre className="max-h-80 overflow-auto rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-[10px] leading-relaxed text-zinc-300">
                   {policyExplainText}

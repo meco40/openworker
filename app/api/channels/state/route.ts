@@ -22,9 +22,7 @@ export async function GET() {
   const channels = Object.entries(CHANNEL_CAPABILITIES).map(([channel, capabilities]) => {
     const binding = bindingMap.get(channel as ChannelKey);
     const bridgeAccounts =
-      channel === 'whatsapp' || channel === 'imessage'
-        ? listBridgeAccounts(channel)
-        : undefined;
+      channel === 'whatsapp' || channel === 'imessage' ? listBridgeAccounts(channel) : undefined;
     return {
       channel,
       status: binding?.status ?? 'idle',

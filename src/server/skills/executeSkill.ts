@@ -1,5 +1,4 @@
 import { normalizeArgs } from '../../shared/normalizeArgs';
-import { ChannelType } from '../../../types';
 import { browserSnapshotHandler } from './handlers/browserSnapshot';
 import { dbQueryHandler } from './handlers/dbQuery';
 import { fileReadHandler } from './handlers/fileRead';
@@ -8,21 +7,10 @@ import { pythonExecuteHandler } from './handlers/pythonExecute';
 import { shellExecuteHandler } from './handlers/shellExecute';
 import { subagentsHandler } from './handlers/subagents';
 import { visionAnalyzeHandler } from './handlers/visionAnalyze';
+import type { SkillDispatchContext, SkillHandler } from './types';
 
 export { normalizeArgs as normalizeSkillArgs };
-
-export interface SkillDispatchContext {
-  bypassApproval?: boolean;
-  conversationId?: string;
-  userId?: string;
-  platform?: ChannelType;
-  externalChatId?: string;
-}
-
-type SkillHandler = (
-  args: Record<string, unknown>,
-  context?: SkillDispatchContext,
-) => Promise<unknown>;
+export type { SkillDispatchContext } from './types';
 
 const SKILL_HANDLERS: Record<string, SkillHandler> = {
   file_read: fileReadHandler,

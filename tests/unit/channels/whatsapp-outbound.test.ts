@@ -9,7 +9,11 @@ describe('whatsapp outbound delivery', () => {
     process.env.WHATSAPP_BRIDGE_URL = 'http://bridge.local';
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } })),
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+        ),
     );
   });
 
@@ -42,4 +46,3 @@ describe('whatsapp outbound delivery', () => {
     });
   });
 });
-

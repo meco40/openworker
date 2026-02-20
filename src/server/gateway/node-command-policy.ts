@@ -71,4 +71,3 @@ export function evaluateNodeCommandPolicy(command: string): NodeCommandPolicyRes
     fingerprint: commandFingerprint(command),
   };
 }
-

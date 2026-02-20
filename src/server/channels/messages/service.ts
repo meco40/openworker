@@ -32,7 +32,6 @@ import { getProactiveGateService } from '../../proactive/runtime';
 import { buildMessageAttachmentMetadata, type StoredMessageAttachment } from './attachments';
 import { mapSkillsToTools } from '../../../../skills/definitions';
 import { getSkillRepository } from '../../skills/skillRepository';
-import { dispatchSkill, normalizeSkillArgs } from '../../skills/executeSkill';
 import { approveCommand, isCommandApproved } from '../../gateway/exec-approval-manager';
 import { evaluateNodeCommandPolicy } from '../../gateway/node-command-policy';
 import {
@@ -215,7 +214,7 @@ function inferShellCommandFromNaturalLanguage(content: string): string | null {
     if (process.platform === 'win32') {
       return "$desktop=[Environment]::GetFolderPath('Desktop'); (Get-ChildItem -LiteralPath $desktop -Force -File | Measure-Object).Count";
     }
-    return "if [ -d \"$HOME/Desktop\" ]; then find \"$HOME/Desktop\" -maxdepth 1 -type f | wc -l; else echo 0; fi";
+    return 'if [ -d "$HOME/Desktop" ]; then find "$HOME/Desktop" -maxdepth 1 -type f | wc -l; else echo 0; fi';
   }
 
   return null;
@@ -918,7 +917,9 @@ export class MessageService {
         abortSignal: abortController.signal,
       });
 
-      const preview = (modelOutcome.content || '').trim().slice(0, SUBAGENT_RESULT_PREVIEW_MAX_CHARS);
+      const preview = (modelOutcome.content || '')
+        .trim()
+        .slice(0, SUBAGENT_RESULT_PREVIEW_MAX_CHARS);
       completeSubagentRun(run.runId, preview);
 
       const announceContent = [
@@ -1152,7 +1153,10 @@ export class MessageService {
           },
         };
       }
-      const wasRunning = abortSubagentRun(resolved.run.runId, 'Subagent run was stopped by requester.');
+      const wasRunning = abortSubagentRun(
+        resolved.run.runId,
+        'Subagent run was stopped by requester.',
+      );
       if (!wasRunning) {
         markSubagentRunKilled(resolved.run.runId, 'Subagent run was stopped by requester.');
       }
@@ -1318,7 +1322,9 @@ export class MessageService {
       };
     }
 
-    const actionRaw = String(params.args.action || 'list').trim().toLowerCase();
+    const actionRaw = String(params.args.action || 'list')
+      .trim()
+      .toLowerCase();
     const action: SubagentAction =
       actionRaw === 'spawn' ||
       actionRaw === 'kill' ||
@@ -1432,17 +1438,11 @@ export class MessageService {
       onStreamDelta,
     });
 
-    return this.sendResponse(
-      conversation,
-      modelOutcome.content,
-      platform,
-      externalChatId,
-      {
-        ...modelOutcome.metadata,
-        runtime: 'chat-shell-inference',
-        inferredCommand: command,
-      },
-    );
+    return this.sendResponse(conversation, modelOutcome.content, platform, externalChatId, {
+      ...modelOutcome.metadata,
+      runtime: 'chat-shell-inference',
+      inferredCommand: command,
+    });
   }
 
   private resolveChatModelRouting(conversation: Conversation): {
@@ -1610,12 +1610,14 @@ export class MessageService {
     }
 
     try {
+      const { dispatchSkill, normalizeSkillArgs } = await import('../../skills/executeSkill');
       const result = await dispatchSkill(functionName, normalizeSkillArgs(args), {
         bypassApproval: functionName === 'shell_execute' && Boolean(params.skipApprovalCheck),
         conversationId: params.conversation.id,
         userId: params.conversation.userId,
         platform: params.platform,
         externalChatId: params.externalChatId,
+        invokeSubagentToolCall: (subagentParams) => this.invokeSubagentToolCall(subagentParams),
       });
       return {
         kind: 'ok',
@@ -1715,7 +1717,9 @@ export class MessageService {
         continue;
       }
 
-      const normalized = String(result.text || '').replace(MODEL_HUB_GATEWAY_PREFIX_RE, '').trim();
+      const normalized = String(result.text || '')
+        .replace(MODEL_HUB_GATEWAY_PREFIX_RE, '')
+        .trim();
       return {
         content: normalized || '(empty response)',
         metadata: {
@@ -1931,7 +1935,9 @@ export class MessageService {
       toolExecution.kind === 'ok'
         ? `Tool "${pending.toolFunctionName}" result:\n${toolExecution.output}`
         : `Tool "${pending.toolFunctionName}" failed:\n${
-            toolExecution.kind === 'approval_required' ? 'Approval unresolved.' : toolExecution.output
+            toolExecution.kind === 'approval_required'
+              ? 'Approval unresolved.'
+              : toolExecution.output
           }`;
 
     const messages = this.contextBuilder.buildGatewayMessages(
@@ -2570,6 +2576,3 @@ export class MessageService {
     }
   }
 }
-
-
-

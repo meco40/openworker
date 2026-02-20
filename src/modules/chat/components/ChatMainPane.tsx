@@ -82,71 +82,73 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <div className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${streamDebugClass}`}>
+          <div
+            className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${streamDebugClass}`}
+          >
             {streamDebugLabel}
           </div>
 
           {/* Persona Switcher */}
           <div className="relative">
-          <button
-            onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
-              activePersona
-                ? 'border-indigo-500/30 bg-indigo-600/15 text-indigo-300 hover:bg-indigo-600/25'
-                : 'border-zinc-700 bg-zinc-800/50 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300'
-            }`}
-          >
-            <span>{activePersona?.emoji || '🤖'}</span>
-            <span>{activePersona?.name || 'Default'}</span>
-            <svg
-              className="h-3 w-3"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
+            <button
+              onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
+                activePersona
+                  ? 'border-indigo-500/30 bg-indigo-600/15 text-indigo-300 hover:bg-indigo-600/25'
+                  : 'border-zinc-700 bg-zinc-800/50 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300'
+              }`}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-
-          {showPersonaDropdown && (
-            <div className="absolute top-full right-0 z-50 mt-1 w-56 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
-              <button
-                onClick={() => {
-                  setActivePersonaId(null);
-                  setShowPersonaDropdown(false);
-                }}
-                className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
-                  !activePersonaId
-                    ? 'bg-indigo-600/20 text-white'
-                    : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
-                }`}
+              <span>{activePersona?.emoji || '🤖'}</span>
+              <span>{activePersona?.name || 'Default'}</span>
+              <svg
+                className="h-3 w-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
               >
-                <span>🤖</span>
-                <span>Default (kein Persona)</span>
-              </button>
-              {personas.map((p) => (
+                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+
+            {showPersonaDropdown && (
+              <div className="absolute top-full right-0 z-50 mt-1 w-56 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
                 <button
-                  key={p.id}
                   onClick={() => {
-                    setActivePersonaId(p.id);
+                    setActivePersonaId(null);
                     setShowPersonaDropdown(false);
                   }}
                   className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
-                    activePersonaId === p.id
+                    !activePersonaId
                       ? 'bg-indigo-600/20 text-white'
                       : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
                   }`}
                 >
-                  <span>{p.emoji}</span>
-                  <span className="truncate">{p.name}</span>
+                  <span>🤖</span>
+                  <span>Default (kein Persona)</span>
                 </button>
-              ))}
-              {personas.length === 0 && (
-                <div className="px-4 py-3 text-xs text-zinc-600">Keine Personas erstellt</div>
-              )}
-            </div>
-          )}
+                {personas.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setActivePersonaId(p.id);
+                      setShowPersonaDropdown(false);
+                    }}
+                    className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
+                      activePersonaId === p.id
+                        ? 'bg-indigo-600/20 text-white'
+                        : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+                    }`}
+                  >
+                    <span>{p.emoji}</span>
+                    <span className="truncate">{p.name}</span>
+                  </button>
+                ))}
+                {personas.length === 0 && (
+                  <div className="px-4 py-3 text-xs text-zinc-600">Keine Personas erstellt</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -224,7 +226,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                     {approvalRequest && (
                       <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
                         {approvalRequest.prompt && (
-                          <div className="mb-2 whitespace-pre-wrap text-xs leading-relaxed text-amber-100">
+                          <div className="mb-2 text-xs leading-relaxed whitespace-pre-wrap text-amber-100">
                             {approvalRequest.prompt}
                           </div>
                         )}
@@ -233,7 +235,9 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                           <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => onRespondApproval(message, approvalRequest, 'approve_once')}
+                              onClick={() =>
+                                onRespondApproval(message, approvalRequest, 'approve_once')
+                              }
                               disabled={message.approvalSubmitting}
                               className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-60"
                             >
@@ -269,7 +273,9 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                         )}
 
                         {message.approvalError && (
-                          <div className="mt-2 text-[11px] text-rose-300">{message.approvalError}</div>
+                          <div className="mt-2 text-[11px] text-rose-300">
+                            {message.approvalError}
+                          </div>
                         )}
                       </div>
                     )}

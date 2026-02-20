@@ -140,7 +140,9 @@ describe('whatsapp webhook route', () => {
 
     await POST(allowedRequest);
     expect(handleInbound).toHaveBeenCalledTimes(1);
-    const attachments = handleInbound.mock.calls[0][7] as Array<{ storagePath?: string }> | undefined;
+    const attachments = handleInbound.mock.calls[0][7] as
+      | Array<{ storagePath?: string }>
+      | undefined;
     expect(Array.isArray(attachments)).toBe(true);
     expect(attachments?.length).toBe(1);
     expect(String(attachments?.[0]?.storagePath || '')).not.toHaveLength(0);

@@ -1,4 +1,8 @@
-import { MAX_ATTACHMENT_BYTES, persistIncomingAttachment, type StoredMessageAttachment } from '../messages/attachments';
+import {
+  MAX_ATTACHMENT_BYTES,
+  persistIncomingAttachment,
+  type StoredMessageAttachment,
+} from '../messages/attachments';
 import { buildStickerSummary, getStickerSummary, setStickerSummary } from './stickerCache';
 import { resolveTelegramVoiceLabel } from './voice';
 
@@ -120,7 +124,9 @@ export async function extractTelegramInboundMedia(params: {
   }
 }
 
-function resolveMediaCandidate(message: TelegramInboundMediaMessage): TelegramMediaCandidate | null {
+function resolveMediaCandidate(
+  message: TelegramInboundMediaMessage,
+): TelegramMediaCandidate | null {
   if (Array.isArray(message.photo) && message.photo.length > 0) {
     const best = [...message.photo].sort((a, b) => (b.file_size || 0) - (a.file_size || 0))[0];
     if (best?.file_id) {
@@ -137,7 +143,8 @@ function resolveMediaCandidate(message: TelegramInboundMediaMessage): TelegramMe
   if (message.document?.file_id) {
     return {
       fileId: message.document.file_id,
-      fileName: message.document.file_name?.trim() || `telegram-document-${message.document.file_id}`,
+      fileName:
+        message.document.file_name?.trim() || `telegram-document-${message.document.file_id}`,
       mimeType: message.document.mime_type?.trim() || 'application/octet-stream',
       fileSize: message.document.file_size,
       summary: `[Document: ${message.document.file_name?.trim() || 'file'}]`,
@@ -178,7 +185,8 @@ function resolveMediaCandidate(message: TelegramInboundMediaMessage): TelegramMe
     return {
       fileId: message.animation.file_id,
       fileName:
-        message.animation.file_name?.trim() || `telegram-animation-${message.animation.file_id}.mp4`,
+        message.animation.file_name?.trim() ||
+        `telegram-animation-${message.animation.file_id}.mp4`,
       mimeType: message.animation.mime_type?.trim() || 'video/mp4',
       fileSize: message.animation.file_size,
       summary: '[Animation]',
@@ -215,7 +223,10 @@ async function downloadTelegramFileAsDataUrl(params: {
   fallbackMimeType: string;
   declaredFileSize?: number;
 }): Promise<{ name: string; type: string; size: number; dataUrl: string } | null> {
-  if (typeof params.declaredFileSize === 'number' && params.declaredFileSize > MAX_ATTACHMENT_BYTES) {
+  if (
+    typeof params.declaredFileSize === 'number' &&
+    params.declaredFileSize > MAX_ATTACHMENT_BYTES
+  ) {
     console.warn(
       '[Telegram] Skipping media %s (size=%d exceeds max=%d).',
       params.fileId,
@@ -253,7 +264,9 @@ async function downloadTelegramFileAsDataUrl(params: {
     return null;
   }
 
-  const binaryResponse = await fetch(`https://api.telegram.org/file/bot${params.token}/${filePath}`);
+  const binaryResponse = await fetch(
+    `https://api.telegram.org/file/bot${params.token}/${filePath}`,
+  );
   if (!binaryResponse.ok) {
     throw new Error(`Telegram file download failed (${binaryResponse.status})`);
   }

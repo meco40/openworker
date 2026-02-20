@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CredentialStore } from '../../../src/server/channels/credentials/credentialStore';
-import { deliverTelegram, editTelegramMessage } from '../../../src/server/channels/outbound/telegram';
+import {
+  deliverTelegram,
+  editTelegramMessage,
+} from '../../../src/server/channels/outbound/telegram';
 
 describe('telegram outbound threading', () => {
   const fetchMock = vi.fn();
@@ -11,7 +14,10 @@ describe('telegram outbound threading', () => {
     store.setCredential('telegram', 'bot_token', 'bot-token');
     fetchMock.mockReset();
     fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
     );
     vi.stubGlobal('fetch', fetchMock);
   });

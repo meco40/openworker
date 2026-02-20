@@ -30,7 +30,16 @@ const FUNCTION_TO_SKILL: Record<string, string> = {};
 const MODULES: Record<string, SkillModule> = {};
 
 // Register all built-in skill modules.
-for (const mod of [browser, filesystem, github, python, shell, sql, subagents, vision] as SkillModule[]) {
+for (const mod of [
+  browser,
+  filesystem,
+  github,
+  python,
+  shell,
+  sql,
+  subagents,
+  vision,
+] as SkillModule[]) {
   FUNCTION_TO_SKILL[mod.functionName] = mod.id;
   MODULES[mod.id] = mod;
 }

@@ -164,10 +164,7 @@ export async function processTelegramInboundUpdate(
 ): Promise<TelegramInboundProcessResult> {
   if (update.callback_query) {
     const callbackChatId = update.callback_query.message?.chat?.id;
-    if (
-      typeof callbackChatId === 'number' &&
-      !isTelegramChatAuthorized(String(callbackChatId))
-    ) {
+    if (typeof callbackChatId === 'number' && !isTelegramChatAuthorized(String(callbackChatId))) {
       await answerTelegramCallbackQuery(update.callback_query.id, 'Pairing required.');
       return { handled: true, codeIssued: false };
     }

@@ -19,8 +19,7 @@ export function buildKnowledgeExtractionPrompt(
   const transcript = input.messages
     .map((message) => {
       const seq = Number(message.seq || 0);
-      const speaker =
-        message.role === 'agent' ? personaContext?.name || 'Assistant' : 'User';
+      const speaker = message.role === 'agent' ? personaContext?.name || 'Assistant' : 'User';
       return `[seq:${seq}] ${speaker}: ${message.content}`;
     })
     .join('\n');

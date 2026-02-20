@@ -206,7 +206,9 @@ describe('MessageService webchat model-hub routing', () => {
     };
 
     expect(request.auditContext).toEqual({ kind: 'chat', conversationId: 'conv-1' });
-    expect(request.messages).toEqual(expect.arrayContaining([expect.objectContaining({ role: 'user' })]));
+    expect(request.messages).toEqual(
+      expect.arrayContaining([expect.objectContaining({ role: 'user' })]),
+    );
     expect(options.modelOverride).toBe('gpt-4o-mini');
     expect(options.signal).toBeInstanceOf(AbortSignal);
 

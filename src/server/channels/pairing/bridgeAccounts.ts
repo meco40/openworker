@@ -75,9 +75,7 @@ export function normalizeBridgeAccountId(accountId?: string | null): string {
     return DEFAULT_BRIDGE_ACCOUNT_ID;
   }
   if (!ACCOUNT_ID_PATTERN.test(raw)) {
-    throw new Error(
-      'Invalid accountId. Use lowercase letters, digits, "_" or "-", max 63 chars.',
-    );
+    throw new Error('Invalid accountId. Use lowercase letters, digits, "_" or "-", max 63 chars.');
   }
   return raw;
 }
@@ -210,8 +208,7 @@ export function resolveBridgeAccountIdFromRequest(params: {
   request: Request;
   bodyAccountId?: unknown;
 }): string {
-  const bodyAccountId =
-    typeof params.bodyAccountId === 'string' ? params.bodyAccountId : undefined;
+  const bodyAccountId = typeof params.bodyAccountId === 'string' ? params.bodyAccountId : undefined;
   const headerAccountId = params.request.headers.get('x-openclaw-account-id') || undefined;
   const urlAccountId = new URL(params.request.url).searchParams.get('accountId') || undefined;
   return normalizeBridgeAccountId(bodyAccountId || headerAccountId || urlAccountId);

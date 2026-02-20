@@ -1,5 +1,5 @@
 import { ChannelType } from '../../../../types';
-import type { SkillDispatchContext } from '../executeSkill';
+import type { SkillDispatchContext } from '../types';
 
 export async function subagentsHandler(
   args: Record<string, unknown>,
@@ -23,9 +23,14 @@ export async function subagentsHandler(
       ? context.externalChatId
       : 'default';
 
-  const { getMessageService } = await import('../../channels/messages/runtime');
-  const service = getMessageService();
-  return service.invokeSubagentToolCall({
+  if (!context?.invokeSubagentToolCall) {
+    return {
+      status: 'error',
+      error: 'subagents handler unavailable in current runtime context.',
+    };
+  }
+
+  return context.invokeSubagentToolCall({
     args,
     conversationId,
     userId,

@@ -6,7 +6,7 @@ import {
   evaluateNodeCommandPolicy,
   normalizeCommand,
 } from '../../gateway/node-command-policy';
-import type { SkillDispatchContext } from '../executeSkill';
+import type { SkillDispatchContext } from '../types';
 
 const execFile = promisify(execFileCallback);
 
@@ -33,7 +33,11 @@ export async function shellExecuteHandler(
 
   const requiresApproval =
     String(process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
-  if (requiresApproval && !context?.bypassApproval && !isCommandApproved(normalizeCommand(command))) {
+  if (
+    requiresApproval &&
+    !context?.bypassApproval &&
+    !isCommandApproved(normalizeCommand(command))
+  ) {
     throw new Error(
       [
         'Command requires approval.',

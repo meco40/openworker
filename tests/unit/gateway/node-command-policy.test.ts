@@ -25,4 +25,3 @@ describe('node command policy', () => {
     expect(commandFingerprint(one)).toBe(commandFingerprint(two));
   });
 });
-

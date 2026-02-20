@@ -101,9 +101,7 @@ function normalizeGeminiTools(rawTools: unknown[]): unknown[] {
         ? tool.function.parameters
         : {};
     const rawProperties =
-      rawParams.properties && typeof rawParams.properties === 'object'
-        ? rawParams.properties
-        : {};
+      rawParams.properties && typeof rawParams.properties === 'object' ? rawParams.properties : {};
 
     const properties: Record<string, { type: string; description?: string; enum?: string[] }> = {};
     for (const [name, property] of Object.entries(rawProperties)) {

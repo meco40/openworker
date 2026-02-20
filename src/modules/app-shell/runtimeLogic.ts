@@ -178,7 +178,9 @@ function parseMessageAttachment(
   };
 }
 
-function parseMessageApprovalRequest(metadata: ParsedMessageMetadata | null): Message['approvalRequest'] {
+function parseMessageApprovalRequest(
+  metadata: ParsedMessageMetadata | null,
+): Message['approvalRequest'] {
   if (!metadata) return undefined;
   if (String(metadata.status || '').trim() !== 'approval_required') return undefined;
 
@@ -198,7 +200,9 @@ function parseMessageApprovalRequest(metadata: ParsedMessageMetadata | null): Me
         ? metadata.approval_prompt.trim() || undefined
         : undefined;
   const toolId =
-    typeof metadata.approvalToolId === 'string' ? metadata.approvalToolId.trim() || undefined : undefined;
+    typeof metadata.approvalToolId === 'string'
+      ? metadata.approvalToolId.trim() || undefined
+      : undefined;
   const toolFunctionName =
     typeof metadata.approvalToolFunction === 'string'
       ? metadata.approvalToolFunction.trim() || undefined

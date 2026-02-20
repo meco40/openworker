@@ -252,4 +252,3 @@ describe('MessageService subagents commands and tool calls', () => {
     expect(String(listed.text || '')).toContain('Subagents');
   });
 });
-

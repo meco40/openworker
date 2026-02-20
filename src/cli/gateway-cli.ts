@@ -114,9 +114,7 @@ export async function runGatewayCli(argv: string[]): Promise<void> {
     }
     const unsafe = popFlag(args, '--unsafe');
     if (!unsafe && !isMethodAllowed('gateway.call', method)) {
-      throw new Error(
-        `Method "${method}" is outside gateway.call scope. Use --unsafe to bypass.`,
-      );
+      throw new Error(`Method "${method}" is outside gateway.call scope. Use --unsafe to bypass.`);
     }
 
     const paramsRaw = popOption(args, '--params');
@@ -167,4 +165,3 @@ export async function runGatewayCli(argv: string[]): Promise<void> {
 
   throw new Error(`Unknown gateway command: ${command}`);
 }
-

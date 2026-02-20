@@ -16,14 +16,21 @@ function normalizeStringParam(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-async function resolveWebUiMessageInput(params: Record<string, unknown>, userId: string): Promise<{
-  service: Awaited<ReturnType<typeof import('../../channels/messages/runtime')['getMessageService']>>;
+async function resolveWebUiMessageInput(
+  params: Record<string, unknown>,
+  userId: string,
+): Promise<{
+  service: Awaited<
+    ReturnType<(typeof import('../../channels/messages/runtime'))['getMessageService']>
+  >;
   conversationId: string;
   content: string;
   clientMessageId?: string;
   attachments?: Array<
     Awaited<
-      ReturnType<typeof import('../../channels/messages/attachments')['persistIncomingAttachment']>
+      ReturnType<
+        (typeof import('../../channels/messages/attachments'))['persistIncomingAttachment']
+      >
     >
   >;
 }> {
@@ -52,7 +59,9 @@ async function resolveWebUiMessageInput(params: Record<string, unknown>, userId:
   let attachments:
     | Array<
         Awaited<
-          ReturnType<typeof import('../../channels/messages/attachments')['persistIncomingAttachment']>
+          ReturnType<
+            (typeof import('../../channels/messages/attachments'))['persistIncomingAttachment']
+          >
         >
       >
     | undefined;
@@ -236,4 +245,3 @@ registerMethod(
     respond(result);
   },
 );
-
