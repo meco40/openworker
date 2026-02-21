@@ -322,8 +322,11 @@ const CronView: React.FC<CronViewProps> = ({ state }) => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-[11px] text-zinc-500">Run history depth</label>
+                  <label htmlFor="cron-history-depth" className="text-[11px] text-zinc-500">
+                    Run history depth
+                  </label>
                   <select
+                    id="cron-history-depth"
                     value={String(cron.historyLimit)}
                     onChange={(event) =>
                       cron.actions.setHistoryLimit(Number.parseInt(event.target.value, 10))

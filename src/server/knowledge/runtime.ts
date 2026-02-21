@@ -208,7 +208,7 @@ export function stopKnowledgeRuntimeLoop(): void {
   globalThis.__knowledgeRuntimeLoop?.stop();
 }
 
-function resetKnowledgeRuntimeForTests(): void {
+export function resetKnowledgeRuntimeForTests(): void {
   globalThis.__knowledgeRuntimeLoop?.stop();
   globalThis.__knowledgeMessageRepository = undefined;
   globalThis.__knowledgeRuntimeLoop = undefined;

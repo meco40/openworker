@@ -15,6 +15,13 @@ import {
   assertMemoryRuntimeConfiguration,
   assertMemoryRuntimeReady,
 } from './src/server/memory/runtime.js';
+import {
+  getPersonaTelegramBotRegistry,
+} from './src/server/telegram/personaTelegramBotRegistry.js';
+import {
+  startPersonaBotPolling,
+  stopAllPersonaBotPolling,
+} from './src/server/telegram/personaTelegramPoller.js';
 
 const require = createRequire(import.meta.url);
 const { loadEnvConfig } = require('@next/env') as {
@@ -143,11 +150,27 @@ Promise.resolve()
       console.log('[rooms] scheduler disabled in web process by ROOMS_RUNNER');
     }
 
+    // ─── Persona Telegram Bot Polling ─────────────────────────
+    async function startPersonaBotPollers(): Promise<void> {
+      try {
+        const registry = getPersonaTelegramBotRegistry();
+        const bots = registry.listActiveBots().filter((b) => b.transport === 'polling');
+        if (bots.length > 0) {
+          console.log(`[telegram] Starting polling for ${bots.length} persona bot(s)`);
+          await Promise.all(bots.map((b) => startPersonaBotPolling(b.botId)));
+        }
+      } catch (error) {
+        console.warn('[telegram] Failed to start persona bot pollers:', error);
+      }
+    }
+    void startPersonaBotPollers();
+
     // ─── Graceful Shutdown ─────────────────────────────────────
     function shutdown() {
       console.log('[gateway] Shutting down...');
       clearInterval(tickInterval);
       if (roomTimer) clearInterval(roomTimer);
+      stopAllPersonaBotPolling();
 
       const registry = getClientRegistry();
       for (const client of registry.getAll()) {

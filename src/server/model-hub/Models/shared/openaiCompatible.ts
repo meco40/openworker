@@ -45,7 +45,7 @@ function readTextAttachmentSnippet(
     if (!bytes.length) return null;
     const text = bytes
       .toString('utf8')
-      .replace(/\u0000/g, '')
+      .replaceAll('\u0000', '')
       .trim();
     if (!text) return null;
     return text.slice(0, 12_000);

@@ -15,8 +15,8 @@ function resolveShell(command: string): { file: string; args: string[] } {
     return { file: 'powershell', args: ['-NoProfile', '-Command', command] };
   }
 
-  // Use a POSIX shell in CI/Linux environments.
-  return { file: '/bin/bash', args: ['-lc', command] };
+  // Use /bin/sh for broad Linux/container compatibility (e.g. alpine).
+  return { file: '/bin/sh', args: ['-lc', command] };
 }
 
 export async function shellExecuteHandler(

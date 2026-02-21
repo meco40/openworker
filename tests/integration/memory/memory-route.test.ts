@@ -544,6 +544,44 @@ describe('/api/memory route', () => {
     expect(listJson.nodes).toHaveLength(0);
   });
 
+  it('requires explicit confirm token before deleting all persona memory', async () => {
+    await POST(
+      makePostRequest({
+        fcName: 'core_memory_store',
+        args: { personaId, type: 'fact', content: 'guarded-delete-all', importance: 4 },
+      }),
+    );
+
+    const unconfirmedDelete = await DELETE(
+      new Request(`http://localhost/api/memory?personaId=${encodeURIComponent(personaId)}`, {
+        method: 'DELETE',
+      }),
+    );
+    const unconfirmedJson = await unconfirmedDelete.json();
+    expect(unconfirmedDelete.status).toBe(400);
+    expect(unconfirmedJson.ok).toBe(false);
+    expect(String(unconfirmedJson.error || '')).toMatch(/confirm/i);
+
+    const listBeforeConfirmedDelete = await GET(
+      new Request(`http://localhost/api/memory?personaId=${encodeURIComponent(personaId)}`),
+    );
+    const listBeforeConfirmedDeleteJson = await listBeforeConfirmedDelete.json();
+    expect(listBeforeConfirmedDelete.status).toBe(200);
+    expect(listBeforeConfirmedDeleteJson.ok).toBe(true);
+    expect(listBeforeConfirmedDeleteJson.nodes).toHaveLength(1);
+
+    const confirmedDelete = await DELETE(
+      new Request(
+        `http://localhost/api/memory?personaId=${encodeURIComponent(personaId)}&confirm=delete-all-memory`,
+        { method: 'DELETE' },
+      ),
+    );
+    const confirmedDeleteJson = await confirmedDelete.json();
+    expect(confirmedDelete.status).toBe(200);
+    expect(confirmedDeleteJson.ok).toBe(true);
+    expect(confirmedDeleteJson.deleted).toBe(1);
+  });
+
   it('supports bulk update and bulk delete via PATCH', async () => {
     const first = await POST(
       makePostRequest({

@@ -1,13 +1,10 @@
 import type {
-  FetchedModel,
   GatewayRequest,
-  GatewayResponse,
   ProviderAdapter,
 } from '@/server/model-hub/Models/types';
 import { fetchJsonOk, fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
 import {
   readStoredAttachmentAsDataUrl,
-  readStoredAttachmentBuffer,
 } from '@/server/channels/messages/attachments';
 
 // Anthropic content block types

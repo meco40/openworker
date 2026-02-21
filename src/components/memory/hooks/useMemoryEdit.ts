@@ -11,6 +11,62 @@ interface UseMemoryEditOptions {
   setErrorMessage: (message: string | null) => void;
 }
 
+interface MemorySnapshotResponse {
+  ok?: boolean;
+  nodes?: MemoryNode[];
+  error?: string;
+}
+
+interface MemoryDeleteResponse {
+  ok?: boolean;
+  deleted?: number;
+  error?: string;
+}
+
+const DELETE_ALL_CONFIRM_TOKEN = 'delete-all-memory';
+const DELETE_CONFIRMATION_PHRASE = 'DELETE';
+
+function buildMemoryBackupFileName(personaId: string): string {
+  const safePersonaId = personaId.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  return `memory-backup-${safePersonaId}-${stamp}.json`;
+}
+
+async function exportPersonaMemorySnapshot(
+  personaId: string,
+): Promise<{ fileName: string; nodeCount: number }> {
+  const response = await fetch(`/api/memory?personaId=${encodeURIComponent(personaId)}`, {
+    cache: 'no-store',
+  });
+  const payload = (await response.json()) as MemorySnapshotResponse;
+  if (!response.ok || !payload.ok || !Array.isArray(payload.nodes)) {
+    throw new Error(String(payload.error || `Backup export failed (HTTP ${response.status}).`));
+  }
+
+  const fileName = buildMemoryBackupFileName(personaId);
+  const exportPayload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    personaId,
+    nodeCount: payload.nodes.length,
+    nodes: payload.nodes,
+  };
+
+  const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+    type: 'application/json;charset=utf-8',
+  });
+  const objectUrl = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(objectUrl);
+
+  return { fileName, nodeCount: payload.nodes.length };
+}
+
 export function useMemoryEdit(options: UseMemoryEditOptions) {
   const { selectedPersonaId, nodes, reloadCurrent, setErrorMessage } = options;
 
@@ -96,23 +152,45 @@ export function useMemoryEdit(options: UseMemoryEditOptions) {
   const clearPersonaMemory = useCallback(
     async (onSuccess?: () => void) => {
       if (!selectedPersonaId) return;
-      if (!window.confirm('Alle Memory-Einträge dieser Persona löschen?')) return;
+      const firstConfirm = window.confirm(
+        'Vor dem Loeschen wird ein JSON-Backup exportiert. Danach folgt eine zweite Sicherheitsabfrage. Fortfahren?',
+      );
+      if (!firstConfirm) return;
+
       setClearingAll(true);
       try {
+        const { fileName, nodeCount } = await exportPersonaMemorySnapshot(selectedPersonaId);
+        const secondConfirm = window.prompt(
+          `Backup exportiert (${nodeCount} Eintraege, Datei: ${fileName}). Gib ${DELETE_CONFIRMATION_PHRASE} ein, um alle Persona-Memory-Eintraege endgueltig zu loeschen.`,
+          '',
+        );
+        if (String(secondConfirm || '').trim().toUpperCase() !== DELETE_CONFIRMATION_PHRASE) {
+          setErrorMessage('Loeschen abgebrochen. Keine Memory-Eintraege wurden entfernt.');
+          return;
+        }
+
         const response = await fetch(
-          `/api/memory?personaId=${encodeURIComponent(selectedPersonaId)}`,
+          `/api/memory?personaId=${encodeURIComponent(selectedPersonaId)}&confirm=${encodeURIComponent(DELETE_ALL_CONFIRM_TOKEN)}`,
           { method: 'DELETE' },
         );
-        if (response.ok) {
+        const payload = (await response.json()) as MemoryDeleteResponse;
+        if (response.ok && payload.ok) {
+          setErrorMessage(null);
           onSuccess?.();
           await reloadCurrent();
           cancelEdit();
+        } else {
+          setErrorMessage(String(payload.error || `Loeschen fehlgeschlagen (HTTP ${response.status}).`));
         }
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error ? error.message : 'Backup export oder Loeschen fehlgeschlagen.',
+        );
       } finally {
         setClearingAll(false);
       }
     },
-    [cancelEdit, reloadCurrent, selectedPersonaId],
+    [cancelEdit, reloadCurrent, selectedPersonaId, setErrorMessage],
   );
 
   const updateDraftContent = useCallback((content: string) => {

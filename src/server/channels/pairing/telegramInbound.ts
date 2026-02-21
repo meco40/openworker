@@ -76,6 +76,16 @@ export interface TelegramInboundProcessResult {
   codeIssued: boolean;
 }
 
+/**
+ * Context injected when a message arrives via a persona-bound Telegram bot.
+ * When present, code-pairing is skipped and the personaId is forced.
+ */
+export interface TelegramBotContext {
+  botId: string;
+  personaId: string;
+  token: string;
+}
+
 export interface TelegramInboundUpdate {
   message?: TelegramInboundMessage;
   callback_query?: TelegramModelCallbackQuery;
@@ -83,6 +93,7 @@ export interface TelegramInboundUpdate {
 
 export async function processTelegramInboundMessage(
   message: TelegramInboundMessage,
+  botContext?: TelegramBotContext,
 ): Promise<TelegramInboundProcessResult> {
   const migration = applyTelegramGroupMigration(message);
   if (migration.migrated) {
@@ -99,7 +110,8 @@ export async function processTelegramInboundMessage(
     message.from?.username || message.from?.first_name || `user-${message.from?.id}`;
   const externalMsgId = String(message.message_id);
 
-  if (!isTelegramChatAuthorized(chatId)) {
+  // Persona-bound bots bypass code-pairing — all chats are trusted
+  if (!botContext && !isTelegramChatAuthorized(chatId)) {
     const pairingResult = ensureTelegramPairingCode(chatId);
     if (pairingResult.kind === 'issued') {
       const expiration = new Date(pairingResult.expiresAt).toLocaleTimeString([], {
@@ -139,15 +151,25 @@ export async function processTelegramInboundMessage(
 
   const service = getMessageService();
   const conversation = service.getOrCreateConversation(ChannelType.TELEGRAM, externalChatId);
+
+  // Force personaId from bot context when the conversation has none yet
+  if (botContext?.personaId && !conversation.personaId) {
+    service.setPersonaId(conversation.id, botContext.personaId, conversation.userId);
+  }
+
+  // Use persona bot token for media extraction, fall back to global credential
+  const resolvedToken =
+    botContext?.token ??
+    process.env.TELEGRAM_BOT_TOKEN ??
+    (await import('@/server/channels/credentials'))
+      .getCredentialStore()
+      .getCredential('telegram', 'bot_token');
+
   const media = await extractTelegramInboundMedia({
     message,
     userId: conversation.userId,
     conversationId: conversation.id,
-    botToken:
-      process.env.TELEGRAM_BOT_TOKEN ||
-      (await import('@/server/channels/credentials'))
-        .getCredentialStore()
-        .getCredential('telegram', 'bot_token'),
+    botToken: resolvedToken,
   });
   const content = resolveTelegramInboundText(message, media.summaryText);
   if (!content) {
@@ -169,10 +191,16 @@ export async function processTelegramInboundMessage(
 
 export async function processTelegramInboundUpdate(
   update: TelegramInboundUpdate,
+  botContext?: TelegramBotContext,
 ): Promise<TelegramInboundProcessResult> {
   if (update.callback_query) {
+    // Persona-bound bots: skip pairing guard for callbacks too
     const callbackChatId = update.callback_query.message?.chat?.id;
-    if (typeof callbackChatId === 'number' && !isTelegramChatAuthorized(String(callbackChatId))) {
+    if (
+      !botContext &&
+      typeof callbackChatId === 'number' &&
+      !isTelegramChatAuthorized(String(callbackChatId))
+    ) {
       await answerTelegramCallbackQuery(update.callback_query.id, 'Pairing required.');
       return { handled: true, codeIssued: false };
     }
@@ -182,7 +210,7 @@ export async function processTelegramInboundUpdate(
   }
 
   if (update.message) {
-    return processTelegramInboundMessage(update.message);
+    return processTelegramInboundMessage(update.message, botContext);
   }
 
   return { handled: false, codeIssued: false };

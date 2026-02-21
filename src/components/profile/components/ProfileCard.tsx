@@ -34,10 +34,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
       <div className="w-full flex-1 space-y-6">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="ml-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+            <label
+              htmlFor="profile-display-name"
+              className="ml-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase"
+            >
               Display Name
             </label>
             <input
+              id="profile-display-name"
               type="text"
               value={profile.displayName}
               onChange={(event) => onUpdateDisplayName(event.target.value)}
@@ -46,10 +50,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             />
           </div>
           <div className="space-y-2">
-            <label className="ml-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+            <label
+              htmlFor="profile-local-uuid"
+              className="ml-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase"
+            >
               Local UUID
             </label>
             <input
+              id="profile-local-uuid"
               type="text"
               readOnly
               value={profile.localUuid || 'Will be generated on save'}
@@ -59,10 +67,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         </div>
 
         <div className="space-y-2">
-          <label className="ml-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+          <label
+            htmlFor="profile-primary-contact"
+            className="ml-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase"
+          >
             Primary Contact
           </label>
           <input
+            id="profile-primary-contact"
             type="email"
             value={profile.primaryContact}
             onChange={(event) => onUpdatePrimaryContact(event.target.value)}

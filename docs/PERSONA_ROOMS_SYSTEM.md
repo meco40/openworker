@@ -67,16 +67,48 @@ Rooms verwenden Lease-Mechanik, um parallele Verarbeitung zu verhindern. Der akt
 
 ### 3.2 Personas
 
-| Methode | Pfad                                  | Zweck                   |
-| ------- | ------------------------------------- | ----------------------- |
-| GET     | `/api/personas`                       | Personas listen         |
-| POST    | `/api/personas`                       | Persona erstellen       |
-| GET     | `/api/personas/[id]`                  | Persona laden           |
-| PUT     | `/api/personas/[id]`                  | Persona aktualisieren   |
-| DELETE  | `/api/personas/[id]`                  | Persona löschen         |
-| GET     | `/api/personas/[id]/files/[filename]` | Persona-Datei lesen     |
-| PUT     | `/api/personas/[id]/files/[filename]` | Persona-Datei schreiben |
-| GET     | `/api/personas/templates`             | Templates laden         |
+| Methode | Pfad                                  | Zweck                           |
+| ------- | ------------------------------------- | --------------------------------|
+| GET     | `/api/personas`                       | Personas listen                 |
+| POST    | `/api/personas`                       | Persona erstellen               |
+| GET     | `/api/personas/[id]`                  | Persona laden                   |
+| PUT     | `/api/personas/[id]`                  | Persona aktualisieren           |
+| DELETE  | `/api/personas/[id]`                  | Persona löschen                 |
+| GET     | `/api/personas/[id]/files/[filename]` | Persona-Datei lesen             |
+| PUT     | `/api/personas/[id]/files/[filename]` | Persona-Datei schreiben         |
+| GET     | `/api/personas/templates`             | Templates laden                 |
+| GET     | `/api/personas/[id]/telegram`         | Telegram-Bot-Status der Persona |
+| POST    | `/api/personas/[id]/telegram`         | Telegram-Bot verbinden          |
+| DELETE  | `/api/personas/[id]/telegram`         | Telegram-Bot trennen            |
+
+---
+
+## 3a. Persona-gebundene Telegram Bots
+
+Jede Persona kann optional einen eigenen Telegram-Bot-Token erhalten. Damit läuft jede Persona auf einem separaten Bot — Nachrichten mit Persona Girl gehen an Bot A, Nachrichten mit Persona Nexus an Bot B, jeweils in unabhängigen Telegram-Chats.
+
+### Einrichtung (UI)
+
+Im **Gateway-Tab** der Persona-Einstellungen (`PersonaEditorPane`) gibt es die Sektion **Telegram Bot**:
+
+1. Token aus `@BotFather` eintragen und auf **Bot verbinden** klicken.
+2. Das System validiert den Token, wählt Webhook oder Polling und zeigt den Bot-Benutzernamen an.
+3. Trennen löscht den Webhook und stoppt den Poller.
+
+### Beteiligte Komponenten
+
+| Datei | Rolle |
+| ----- | ----- |
+| `src/server/telegram/personaTelegramBotRegistry.ts` | SQLite-Registry (`persona_telegram_bots`) |
+| `src/server/telegram/personaTelegramPairing.ts` | Token validieren, Bot registrieren, Poller starten |
+| `src/server/telegram/personaTelegramPoller.ts` | Polling je Bot, BotContext an Inbound übergeben |
+| `src/components/personas/PersonaTelegramBotSection.tsx` | UI-Komponente im Gateway-Tab |
+
+### Verhalten bei eingehenden Nachrichten
+
+- Ein `TelegramBotContext` (`{ botId, personaId, token }`) wird an `processTelegramInboundUpdate` übergeben.
+- Die Konversation erhält automatisch die konfigurierte `personaId` — kein manuelles `/persona`-Kommando nötig.
+- Das globale Pairing-Gate (Autorisierungsprüfung) wird für Persona-Bot-Nachrichten übersprungen.
 
 ---
 

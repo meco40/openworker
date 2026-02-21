@@ -120,12 +120,15 @@ function parseArgs(argv: string[]): { dir: string; dryRun: boolean } {
   return { dir, dryRun };
 }
 
+function toMegabytes(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(2);
+}
+
 function runCli(): void {
   const options = parseArgs(process.argv.slice(2));
   const candidates = collectCandidatesFromDir(options.dir);
   const result = cleanupCandidates(candidates, { dryRun: options.dryRun });
 
-  const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(2);
   console.log(
     JSON.stringify(
       {
@@ -134,7 +137,7 @@ function runCli(): void {
         matched: result.matched,
         deleted: result.deleted,
         failed: result.failed,
-        freedMB: mb(result.freedBytes),
+        freedMB: toMegabytes(result.freedBytes),
       },
       null,
       2,

@@ -75,7 +75,7 @@ export const MemoryToolbar: React.FC<MemoryToolbarProps> = ({
             disabled={!selectedPersonaId || clearingAll}
             className="rounded-md border border-red-900/60 px-3 py-1.5 text-xs text-red-300 hover:bg-red-950/40 disabled:opacity-40"
           >
-            Alle löschen
+            Export + alle loeschen
           </button>
         </div>
       </div>

@@ -101,10 +101,14 @@ export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoo
           {step === 'name' && (
             <div className="space-y-4">
               <div>
-                <label className="mb-2 block text-xs font-black tracking-widest text-zinc-400 uppercase">
+                <label
+                  htmlFor="create-room-name"
+                  className="mb-2 block text-xs font-black tracking-widest text-zinc-400 uppercase"
+                >
                   Room-Name
                 </label>
                 <input
+                  id="create-room-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => {
@@ -114,7 +118,6 @@ export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoo
                   }}
                   placeholder="z.B. Office, Home, Strategie-Team"
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
-                  autoFocus
                 />
               </div>
             </div>
@@ -122,9 +125,9 @@ export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoo
 
           {step === 'mode' && (
             <div className="space-y-3">
-              <label className="mb-2 block text-xs font-black tracking-widest text-zinc-400 uppercase">
+              <p className="mb-2 block text-xs font-black tracking-widest text-zinc-400 uppercase">
                 Modus wählen
-              </label>
+              </p>
               {(
                 Object.entries(GOAL_MODE_INFO) as [RoomGoalMode, typeof GOAL_MODE_INFO.planning][]
               ).map(([mode, info]) => (
@@ -152,7 +155,10 @@ export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoo
           {step === 'description' && (
             <div className="space-y-4">
               <div>
-                <label className="mb-2 block text-xs font-black tracking-widest text-zinc-400 uppercase">
+                <label
+                  htmlFor="create-room-description"
+                  className="mb-2 block text-xs font-black tracking-widest text-zinc-400 uppercase"
+                >
                   Aufgabe / Beschreibung
                 </label>
                 <p className="mb-3 text-[11px] text-zinc-500">
@@ -160,12 +166,12 @@ export function CreateRoomModal({ open, creating, onClose, onCreate }: CreateRoo
                   Kontext.
                 </p>
                 <textarea
+                  id="create-room-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="z.B. Analysiert die Q1-Ergebnisse und erstellt Handlungsempfehlungen…"
                   rows={4}
                   className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
-                  autoFocus
                 />
               </div>
 

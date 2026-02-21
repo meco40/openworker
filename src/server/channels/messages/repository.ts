@@ -5,7 +5,9 @@ import type {
   ChannelBindingStatus,
   UpsertChannelBindingInput,
 } from '@/server/channels/messages/channelBindings';
-import type { SearchMessagesOptions } from '@/server/channels/messages/sqliteMessageRepository';
+
+// Re-export SearchMessagesOptions from the queries module to maintain backward compatibility
+export type { SearchMessagesOptions } from '@/server/channels/messages/repository/queries/search';
 
 // ─── Data shapes ─────────────────────────────────────────────
 
@@ -92,7 +94,7 @@ export interface MessageRepository {
   updateModelOverride(id: string, modelOverride: string | null, userId: string): void;
   updatePersonaId(id: string, personaId: string | null, userId: string): void;
   findMessageByClientId(conversationId: string, clientMessageId: string): StoredMessage | null;
-  searchMessages?(query: string, opts?: SearchMessagesOptions): StoredMessage[];
+  searchMessages?(query: string, opts?: import('@/server/channels/messages/repository/queries/search').SearchMessagesOptions): Promise<StoredMessage[]> | StoredMessage[];
 
   getConversationContext(conversationId: string, userId?: string): ConversationContextState | null;
   upsertConversationContext(

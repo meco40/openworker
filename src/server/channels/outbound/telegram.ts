@@ -18,13 +18,17 @@ export interface TelegramTextOptions {
   replyMarkup?: TelegramReplyMarkup;
   parseMode?: 'HTML' | 'MarkdownV2';
   disableWebPagePreview?: boolean;
+  /** Override token — used by persona-bound bots. Takes priority over personaId lookup. */
+  token?: string;
+  /** Resolve token from persona's Telegram bot registry instead of global credential store. */
+  personaId?: string;
 }
 
 function formatTelegramText(text: string): string {
   return text
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
-    .replace(/\u0000/g, '');
+    .replaceAll('\u0000', '');
 }
 
 export function splitTelegramMessage(text: string, maxLen = TELEGRAM_MAX_LENGTH): string[] {
@@ -83,9 +87,21 @@ export function buildInlineKeyboard(
   return { inline_keyboard: normalized };
 }
 
-async function resolveTelegramToken(explicitToken?: string): Promise<string | null> {
+async function resolveTelegramToken(
+  explicitToken?: string,
+  personaId?: string,
+): Promise<string | null> {
   if (explicitToken?.trim()) {
     return explicitToken.trim();
+  }
+
+  // Persona-bound bots: look up the registered bot token
+  if (personaId) {
+    const { getPersonaTelegramBotRegistry } = await import(
+      '@/server/telegram/personaTelegramBotRegistry'
+    );
+    const bot = getPersonaTelegramBotRegistry().getBotByPersonaId(personaId);
+    if (bot?.token) return bot.token;
   }
 
   const { getCredentialStore } = await import('@/server/channels/credentials');
@@ -100,8 +116,9 @@ async function postTelegramApi(
   method: string,
   payload: Record<string, unknown>,
   explicitToken?: string,
+  personaId?: string,
 ): Promise<Response | null> {
-  const token = await resolveTelegramToken(explicitToken);
+  const token = await resolveTelegramToken(explicitToken, personaId);
   if (!token) {
     console.error('Telegram bot token not configured (neither in credential store nor env).');
     return null;
@@ -156,16 +173,21 @@ export async function deliverTelegram(
 
   for (let index = 0; index < chunks.length; index += 1) {
     const chunk = chunks[index];
-    const response = await postTelegramApi('sendMessage', {
-      chat_id: chatId,
-      text: chunk,
-      ...(options.parseMode ? { parse_mode: options.parseMode } : {}),
-      ...(options.disableWebPagePreview === false ? {} : { disable_web_page_preview: true }),
-      ...(index === 0 && options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
-      ...(typeof messageThreadId === 'number' && messageThreadId > 0
-        ? { message_thread_id: messageThreadId }
-        : {}),
-    });
+    const response = await postTelegramApi(
+      'sendMessage',
+      {
+        chat_id: chatId,
+        text: chunk,
+        ...(options.parseMode ? { parse_mode: options.parseMode } : {}),
+        ...(options.disableWebPagePreview === false ? {} : { disable_web_page_preview: true }),
+        ...(index === 0 && options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
+        ...(typeof messageThreadId === 'number' && messageThreadId > 0
+          ? { message_thread_id: messageThreadId }
+          : {}),
+      },
+      options.token,
+      options.personaId,
+    );
 
     if (!response) {
       return;
@@ -193,17 +215,22 @@ export async function editTelegramMessage(
   const messageThreadId =
     parsedTarget.chatType === 'group' && normalizedThreadId === 1 ? undefined : normalizedThreadId;
 
-  const response = await postTelegramApi('editMessageText', {
-    chat_id: chatId,
-    message_id: messageId,
-    text: formatTelegramText(text),
-    ...(options.parseMode ? { parse_mode: options.parseMode } : {}),
-    ...(options.disableWebPagePreview === false ? {} : { disable_web_page_preview: true }),
-    ...(options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
-    ...(typeof messageThreadId === 'number' && messageThreadId > 0
-      ? { message_thread_id: messageThreadId }
-      : {}),
-  });
+  const response = await postTelegramApi(
+    'editMessageText',
+    {
+      chat_id: chatId,
+      message_id: messageId,
+      text: formatTelegramText(text),
+      ...(options.parseMode ? { parse_mode: options.parseMode } : {}),
+      ...(options.disableWebPagePreview === false ? {} : { disable_web_page_preview: true }),
+      ...(options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
+      ...(typeof messageThreadId === 'number' && messageThreadId > 0
+        ? { message_thread_id: messageThreadId }
+        : {}),
+    },
+    options.token,
+    options.personaId,
+  );
 
   if (!response) {
     return;

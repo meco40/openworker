@@ -95,10 +95,11 @@ function toPositiveInt(input: string | undefined, fallback: number): number {
   return parsed;
 }
 
-function toEntry(row: Record<string, unknown>): PromptDispatchEntry {
-  const toNullableNumber = (value: unknown): number | null =>
-    value === null || value === undefined ? null : Number(value);
+function toNullableNumber(value: unknown): number | null {
+  return value === null || value === undefined ? null : Number(value);
+}
 
+function toEntry(row: Record<string, unknown>): PromptDispatchEntry {
   return {
     id: String(row.id),
     providerId: String(row.provider_id),

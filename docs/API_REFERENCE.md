@@ -24,7 +24,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | ------------- | -----: |
 | auth          |      1 |
 | automations   |      5 |
-| channels      |     14 |
+| channels      |     15 |
 | clawhub       |      7 |
 | config        |      1 |
 | control-plane |      1 |
@@ -35,7 +35,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | memory        |      1 |
 | model-hub     |     10 |
 | ops           |      4 |
-| personas      |      4 |
+| personas      |      5 |
 | rooms         |     10 |
 | security      |      2 |
 | skills        |      4 |
@@ -61,22 +61,23 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 ### /api/channels
 
-| Methods                  | Route                                  |
-| ------------------------ | -------------------------------------- |
-| DELETE, GET, PATCH, POST | /api/channels/conversations            |
-| POST                     | /api/channels/discord/webhook          |
-| POST                     | /api/channels/imessage/webhook         |
-| GET                      | /api/channels/inbox                    |
-| GET, POST                | /api/channels/messages                 |
-| GET                      | /api/channels/messages/attachments     |
-| DELETE, POST             | /api/channels/pair                     |
-| POST                     | /api/channels/slack/webhook            |
-| GET                      | /api/channels/state                    |
-| POST                     | /api/channels/telegram/pairing/confirm |
-| POST                     | /api/channels/telegram/pairing/poll    |
-| POST                     | /api/channels/telegram/webhook         |
-| GET, PUT                 | /api/channels/whatsapp/accounts        |
-| POST                     | /api/channels/whatsapp/webhook         |
+| Methods                  | Route                                       |
+| ------------------------ | ------------------------------------------- |
+| DELETE, GET, PATCH, POST | /api/channels/conversations                 |
+| POST                     | /api/channels/discord/webhook               |
+| POST                     | /api/channels/imessage/webhook              |
+| GET                      | /api/channels/inbox                         |
+| GET, POST                | /api/channels/messages                      |
+| GET                      | /api/channels/messages/attachments          |
+| DELETE, POST             | /api/channels/pair                          |
+| POST                     | /api/channels/slack/webhook                 |
+| GET                      | /api/channels/state                         |
+| POST                     | /api/channels/telegram/bots/[botId]/webhook |
+| POST                     | /api/channels/telegram/pairing/confirm      |
+| POST                     | /api/channels/telegram/pairing/poll         |
+| POST                     | /api/channels/telegram/webhook              |
+| GET, PUT                 | /api/channels/whatsapp/accounts             |
+| POST                     | /api/channels/whatsapp/webhook              |
 
 ### /api/clawhub
 
@@ -159,12 +160,13 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 ### /api/personas
 
-| Methods          | Route                               |
-| ---------------- | ----------------------------------- |
-| GET, POST        | /api/personas                       |
-| DELETE, GET, PUT | /api/personas/[id]                  |
-| GET, PUT         | /api/personas/[id]/files/[filename] |
-| GET              | /api/personas/templates             |
+| Methods                | Route                               |
+| ---------------------- | ----------------------------------- |
+| GET, POST              | /api/personas                       |
+| DELETE, GET, PUT       | /api/personas/[id]                  |
+| GET, PUT               | /api/personas/[id]/files/[filename] |
+| DELETE, GET, POST      | /api/personas/[id]/telegram         |
+| GET                    | /api/personas/templates             |
 
 ### /api/rooms
 
@@ -210,3 +212,5 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 - Security-Policy-Erklaerung ist aktiv unter `/api/security/policy-explain`.
 - Knowledge-Graph ist als eigene Read-Route aktiv unter `/api/knowledge/graph`.
 - Ops-Endpoints (`/api/ops/*`) sind der aktuelle operative Ersatz fuer fruehere Worker-Management-Routen.
+- `/api/personas/[id]/telegram` — Persona-gebundene Telegram-Bot-Verwaltung: `GET` liefert Bot-Status (kein Token), `POST` verbindet einen neuen Bot per Token, `DELETE` trennt den Bot.
+- `/api/channels/telegram/bots/[botId]/webhook` — Eingehende Updates für persona-gebundene Bots mit eigenem Webhook-Secret pro Bot.

@@ -22,6 +22,7 @@ Das Omnichannel-Gateway-System ermöglicht Multi-Channel-Messaging über verschi
 - **Outbound**: Ausgehende Nachrichten
 - **Pairing**: Verknüpfung mit externen Plattformen
 - **WebSocket Gateway**: Realtime-Kommunikation
+- **Persona-bound Bot**: Telegram-Bot, der exklusiv einer Persona zugeordnet ist — jede Persona hat ihren eigenen Bot-Token und damit einen eigenständigen Chat-Thread
 
 ---
 
@@ -140,6 +141,42 @@ flowchart TD
     H -->|Timeout| J[Cleanup]
     I --> K[Status: Connected]
     J --> L[Status: Failed]
+```
+
+### 2.5 Persona-gebundener Telegram Bot Flow
+
+```mermaid
+sequenceDiagram
+    participant UI as Persona Settings UI
+    participant API as POST /api/personas/[id]/telegram
+    participant Pair as personaTelegramPairing
+    participant TG as Telegram API
+    participant Reg as PersonaTelegramBotRegistry
+    participant Poll as PersonaTelegramPoller
+
+    UI->>API: POST { token }
+    API->>Pair: pairPersonaTelegram(personaId, token)
+    Pair->>TG: getMe() — Token validieren
+    TG-->>Pair: { ok, username }
+    Pair->>TG: setWebhook(url) oder getUpdates
+    alt Webhook erreichbar
+        TG-->>Pair: webhook gesetzt
+        Pair->>Reg: upsertBot({ transport: webhook })
+    else Polling Fallback
+        Pair->>Reg: upsertBot({ transport: polling })
+        Pair->>Poll: startPersonaBotPolling(botId)
+    end
+    Pair-->>API: { botId, peerName, transport }
+    API-->>UI: { ok, result }
+
+    loop Inbound (Polling)
+        Poll->>TG: getUpdates(offset)
+        TG-->>Poll: [updates]
+        Poll->>Poll: processTelegramInboundUpdate(update, botContext)
+    end
+
+    Note over Poll: botContext = { botId, personaId, token }
+    Note over Poll: personaId wird direkt in Konversation gesetzt
 ```
 
 ---
@@ -331,14 +368,17 @@ flowchart TB
 
 ## 4. Unterstützte Kanäle
 
-| Kanal    | Inbound | Outbound | Pairing  | Webhook Auth |
-| -------- | ------- | -------- | -------- | ------------ |
-| Telegram | ✅      | ✅       | Token    | Signature    |
-| Discord  | ✅      | ✅       | OAuth    | Signature    |
-| WhatsApp | ✅      | ✅       | Bridge   | Secret       |
-| Slack    | ✅      | ✅       | OAuth    | Secret       |
-| iMessage | ✅      | ✅       | Bridge   | Secret       |
-| WebChat  | ✅      | ✅       | Internal | -            |
+| Kanal                       | Inbound | Outbound | Pairing              | Webhook Auth |
+| --------------------------- | ------- | -------- | -------------------- | ------------ |
+| Telegram (global)           | ✅      | ✅       | Token (Credential)   | Signature    |
+| Telegram (Persona-Bot) ⬇️   | ✅      | ✅       | Token (Persona-DB)   | Signature    |
+| Discord                     | ✅      | ✅       | OAuth                | Signature    |
+| WhatsApp                    | ✅      | ✅       | Bridge               | Secret       |
+| Slack                       | ✅      | ✅       | OAuth                | Secret       |
+| iMessage                    | ✅      | ✅       | Bridge               | Secret       |
+| WebChat                     | ✅      | ✅       | Internal             | -            |
+
+> **Persona-gebundene Telegram Bots** ermöglichen es, pro Persona einen eigenen Bot-Token zu registrieren. Jeder Bot erhält eine eigene `botId`, einen separaten Webhook (`/api/channels/telegram/bots/[botId]/webhook`) oder Polling-Loop und liefert eingehende Nachrichten direkt unter der konfigurierten Persona aus — ohne globale `/persona`-Umschaltung.
 
 ---
 
@@ -438,18 +478,29 @@ GET    /api/channels/inbox         # Nachrichten-Inbox
 
 ```
 POST /api/channels/telegram/webhook
+POST /api/channels/telegram/bots/[botId]/webhook   # Persona-gebundener Bot-Webhook
 POST /api/channels/discord/webhook
 POST /api/channels/whatsapp/webhook
 POST /api/channels/slack/webhook
 POST /api/channels/imessage/webhook
 ```
 
-### 7.3 Telegram Pairing
+### 7.3 Telegram Pairing (globaler Bot)
 
 ```
 POST /api/channels/telegram/pairing/confirm
 POST /api/channels/telegram/pairing/poll
 ```
+
+### 7.4 Persona-gebundene Telegram Bots
+
+```
+GET    /api/personas/[id]/telegram   # Bot-Status für Persona (ohne Token)
+POST   /api/personas/[id]/telegram   # Bot verbinden: { token: string }
+DELETE /api/personas/[id]/telegram   # Bot trennen
+```
+
+Die `POST`-Route validiert den Token via `getMe`, wählt Webhook oder Polling-Transport, speichert den Bot in `persona_telegram_bots` (SQLite) und startet den Poller falls nötig. Der Token wird nie in API-Responses zurückgegeben.
 
 ---
 
@@ -473,7 +524,65 @@ npm run typecheck
 
 ---
 
-## 9. Siehe auch
+## 9. Persona-Telegram-Bot Konfiguration
+
+### Datenbankschema
+
+Tabelle `persona_telegram_bots` in `personas.db` (`PERSONAS_DB_PATH || '.local/personas.db'`):
+
+```sql
+CREATE TABLE persona_telegram_bots (
+  bot_id         TEXT PRIMARY KEY,
+  persona_id     TEXT UNIQUE NOT NULL,
+  token          TEXT NOT NULL,
+  webhook_secret TEXT NOT NULL,
+  peer_name      TEXT,
+  transport      TEXT NOT NULL DEFAULT 'polling',  -- 'webhook' | 'polling'
+  polling_offset INTEGER NOT NULL DEFAULT 0,
+  active         INTEGER NOT NULL DEFAULT 1,
+  created_at     TEXT NOT NULL,
+  updated_at     TEXT NOT NULL
+);
+```
+
+### BotContext bei Inbound
+
+Wenn Nachrichten über einen Persona-Bot eingehen, wird ein `TelegramBotContext` mitgegeben:
+
+```typescript
+interface TelegramBotContext {
+  botId: string;
+  personaId: string;
+  token: string;
+}
+```
+
+Dadurch überspringt `processTelegramInboundUpdate` die globale Pairing-Prüfung und setzt die Persona direkt auf der Konversation.
+
+### Outbound Token-Auflösung
+
+`deliverTelegram` löst den Bot-Token in dieser Reihenfolge auf:
+1. `options.token` — direkte Übergabe
+2. `options.personaId` → `PersonaTelegramBotRegistry.getBotByPersonaId(personaId).token`
+3. Globaler Credential-Store (`telegram.bot_token`)
+
+Da `responseHelper.ts` `conversation.personaId` automatisch weitergibt, wird für Persona-Bot-Konversationen immer der richtige Bot-Token verwendet.
+
+### Server-Start
+
+`server.ts` startet beim Hochfahren alle aktiven Polling-Bots aus der Registry automatisch:
+
+```typescript
+// Alle aktiven Polling-Bots beim Start wiederherstellen
+const bots = registry.listActiveBots().filter((b) => b.transport === 'polling');
+await Promise.all(bots.map((b) => startPersonaBotPolling(b.botId)));
+```
+
+Beim Shutdown werden alle Poller via `stopAllPersonaBotPolling()` sauber gestoppt.
+
+---
+
+## 10. Siehe auch
 
 - docs/SESSION_MANAGEMENT.md
 - docs/PERSONA_ROOMS_SYSTEM.md

@@ -18,12 +18,18 @@ export async function pythonExecuteHandler(args: Record<string, unknown>) {
     const typed = error as {
       stdout?: string;
       stderr?: string;
-      code?: number;
+      code?: number | string;
     };
+    const numericExitCode =
+      typeof typed.code === 'number'
+        ? typed.code
+        : Number.isFinite(Number(typed.code))
+          ? Number(typed.code)
+          : 1;
     return {
       stdout: typed.stdout || '',
       stderr: typed.stderr || 'Python execution failed.',
-      exitCode: typed.code ?? 1,
+      exitCode: numericExitCode,
     };
   }
 }

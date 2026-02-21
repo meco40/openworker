@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CommandPermission } from '@/shared/domain/types';
 import { SECURITY_RULES } from '@/shared/domain/constants';
 import { buildCommandSecurityChecks } from '@/modules/security/overview';

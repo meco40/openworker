@@ -33,7 +33,7 @@ describe('Knowledge view integration', () => {
   it('routes knowledge view in app shell content', () => {
     const source = read('src/modules/app-shell/components/AppShellViewContent.tsx');
     expect(source).toContain(
-      "const KnowledgeView = dynamic(() => import('@/components/KnowledgeView'))",
+      "const KnowledgeView = dynamic(() => import('@/components/KnowledgeView'),",
     );
     expect(source).toContain('currentView === View.KNOWLEDGE');
     expect(source).toContain('label="Knowledge"');

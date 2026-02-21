@@ -12,6 +12,7 @@ import type {
   MemoryPersonaType,
 } from '@/server/personas/personaTypes';
 import { TAB_LABELS } from '@/components/personas/personaLabels';
+import { PersonaTelegramBotSection } from '@/components/personas/PersonaTelegramBotSection';
 
 interface PipelineModel {
   id: string;
@@ -282,8 +283,11 @@ export function PersonaEditorPane({
                 <div className="space-y-4">
                   {/* Model Selection */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-zinc-300">Bevorzugtes Modell</label>
+                    <label htmlFor="persona-preferred-model" className="text-sm font-medium text-zinc-300">
+                      Bevorzugtes Modell
+                    </label>
                     <select
+                      id="persona-preferred-model"
                       value={preferredModelId ?? ''}
                       onChange={(e) =>
                         onPreferredModelChange(e.target.value ? e.target.value : null)
@@ -369,8 +373,11 @@ export function PersonaEditorPane({
                   Tech-Entscheidungen, Assistent auf Aufgaben und Termine.
                 </p>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-zinc-300">Persona-Typ</label>
+                  <label htmlFor="persona-memory-type" className="text-sm font-medium text-zinc-300">
+                    Persona-Typ
+                  </label>
                   <select
+                    id="persona-memory-type"
                     value={memoryPersonaType}
                     onChange={(e) => onMemoryPersonaTypeChange(e.target.value as MemoryPersonaType)}
                     disabled={savingMemoryPersonaType}
@@ -384,6 +391,9 @@ export function PersonaEditorPane({
                   </select>
                 </div>
               </div>
+
+              {/* Telegram Bot Pairing */}
+              {selectedId && <PersonaTelegramBotSection personaId={selectedId} />}
             </div>
           </div>
         ) : (

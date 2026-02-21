@@ -10,10 +10,10 @@ export const MAX_BUFFERED_BYTES = 1_572_864;
 export const TICK_INTERVAL_MS = 30_000;
 
 /** Handshake timeout — close if no hello within this window (10s) */
-const HANDSHAKE_TIMEOUT_MS = 10_000;
+export const HANDSHAKE_TIMEOUT_MS = 10_000;
 
 /** Maximum WebSocket connections per user (multi-tab) */
-const MAX_CONNECTIONS_PER_USER = 5;
+export const MAX_CONNECTIONS_PER_USER = 5;
 
 /** Maximum RPC requests per minute per connection */
 export const MAX_REQUESTS_PER_MINUTE = 60;

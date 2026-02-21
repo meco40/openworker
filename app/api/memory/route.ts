@@ -23,6 +23,7 @@ const ALLOWED_TYPES: MemoryType[] = [
   'personality_trait',
   'workflow_pattern',
 ];
+const DELETE_ALL_CONFIRM_TOKEN = 'delete-all-memory';
 
 function parseStoreArgs(raw: Record<string, unknown>) {
   const personaId = parsePersonaId(raw.personaId);
@@ -213,6 +214,10 @@ function parseBulkBody(raw: Record<string, unknown>): {
   }
 
   return { personaId, ids, action, updates };
+}
+
+function isDeleteAllConfirmed(raw: unknown): boolean {
+  return String(raw || '').trim().toLowerCase() === DELETE_ALL_CONFIRM_TOKEN;
 }
 
 function resolveMemoryReadUserScopes(baseUserId: string, personaId: string): string[] {
@@ -464,6 +469,12 @@ export async function DELETE(request: Request) {
     if (nodeId) {
       const deleted = (await service.delete(personaId, nodeId, userContext.userId)) ? 1 : 0;
       return NextResponse.json({ ok: true, deleted });
+    }
+
+    if (!isDeleteAllConfirmed(url.searchParams.get('confirm'))) {
+      throw new ValidationError(
+        `confirm=${DELETE_ALL_CONFIRM_TOKEN} is required to delete all memory entries for a persona.`,
+      );
     }
 
     const deleted = await service.deleteByPersona(personaId, userContext.userId);

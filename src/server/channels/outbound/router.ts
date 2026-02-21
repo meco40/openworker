@@ -37,7 +37,10 @@ function ensureDefaultAdapters(): void {
   if (!getAdapter('telegram')) {
     registerAdapter({
       channel: 'telegram',
-      send: async ({ externalChatId, content }) => deliverTelegram(externalChatId, content),
+      send: async ({ externalChatId, content, metadata }) =>
+        deliverTelegram(externalChatId, content, {
+          personaId: metadata?.personaId as string | undefined,
+        }),
     });
   }
   if (!getAdapter('whatsapp')) {
@@ -76,6 +79,7 @@ export async function deliverOutbound(
   platform: ChannelType,
   externalChatId: string,
   content: string,
+  options?: { personaId?: string },
 ): Promise<void> {
   ensureDefaultAdapters();
 
@@ -90,7 +94,12 @@ export async function deliverOutbound(
     return;
   }
 
-  const routed = await routeOutbound({ channel, externalChatId, content });
+  const routed = await routeOutbound({
+    channel,
+    externalChatId,
+    content,
+    ...(options?.personaId ? { metadata: { personaId: options.personaId } } : {}),
+  });
   if (!routed) {
     console.warn(`No outbound adapter registered for platform: ${platform}`);
   }
