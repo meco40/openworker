@@ -12,154 +12,139 @@ The memory system is a multi-layered architecture that enables the AI assistant 
 │                    Complete Data Flow & Retrieval                           │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-╔═══════════════════════════════════════════════════════════════════════════╗
-║  LAYER 1: WORKING MEMORY (Session Context)                                ║
-╠═══════════════════════════════════════════════════════════════════════════╣
-║  • Current conversation messages                                          ║
-║  • Active user intent                                                     ║
-║  • Temporary context window                                               ║
-╚═══════════════════════════════════════════════════════════════════════════╝
+╔═════════════════════════════════════════════════════════════════════════════╗
+║  LAYER 1: WORKING MEMORY (Session Context)                                  ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║  • Current conversation messages   • Active user intent                     ║
+║  • Temporary context window        • Ephemeral — cleared after session      ║
+╚═════════════════════════════════════════════════════════════════════════════╝
                                     │
                                     │ User sends message
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     RECALL PIPELINE (Context Building)                  │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐  │
-│  │ 1. DECISION     │  │ 2. PARALLEL     │  │ 3. FUSION               │  │
-│  │    Should recall│  │    SEARCH       │  │    Merge & rank         │  │
-│  │    memory?      │  │    sources      │  │    results              │  │
-│  │                 │  │                 │  │                         │  │
-│  │ Skip if: "ok",  │  │ ┌───────────┐   │  │ • Deduplicate           │  │
-│  │ "thanks", short │  │ │ MEM0      │   │  │ • Re-rank by relevance  │  │
-│  │ confirmations   │  │ │ Semantic  │   │  │ • Format for LLM        │  │
-│  │                 │  │ │ Search    │   │  │                         │  │
-│  │                 │  │ │           │   │  │                         │  │
-│  │                 │  │ │ Query ──► │   │  │                         │  │
-│  │                 │  │ │ Vectors   │   │  │                         │  │
-│  │                 │  │ │ (0.3+     │   │  │                         │  │
-│  │                 │  │ │  score)   │   │  │                         │  │
-│  │                 │  │ └─────┬─────┘   │  │                         │  │
-│  │                 │  │       │         │  │                         │  │
-│  │                 │  │ ┌─────▼─────┐   │  │                         │  │
-│  │                 │  │ │ KNOWLEDGE │   │  │                         │  │
-│  │                 │  │ │ RETRIEVAL │   │  │                         │  │
-│  │                 │  │ │           │   │  │                         │  │
-│  │                 │  │ │ ┌───────┐ │   │  │                         │  │
-│  │                 │  │ │ │Episodes │   │  │                         │  │
-│  │                 │  │ │ │(topics) │   │  │                         │  │
-│  │                 │  │ │ └───┬───┘ │   │  │                         │  │
-│  │                 │  │ │     │     │   │  │                         │  │
-│  │                 │  │ │ ┌───▼───┐ │   │  │                         │  │
-│  │                 │  │ │ │Meeting│ │   │  │                         │  │
-│  │                 │  │ │ │Ledger │ │   │  │                         │  │
-│  │                 │  │ │ │(decisions│  │  │                         │  │
-│  │                 │  │ │ │& actions)│  │  │                         │  │
-│  │                 │  │ │ └───┬───┘ │   │  │                         │  │
-│  │                 │  │ │     │     │   │  │                         │  │
-│  │                 │  │ │ ┌───▼───┐ │   │  │                         │  │
-│  │                 │  │ │ │ FTS5  │ │   │  │                         │  │
-│  │                 │  │ │ │ Chat  │ │   │  │                         │  │
-│  │                 │  │ │ │History│ │   │  │                         │  │
-│  │                 │  │ │ └───────┘ │   │  │                         │  │
-│  │                 │  │ └─────┬─────┘   │  │                         │  │
-│  │                 │  │       │         │  │                         │  │
-│  │                 │  │ ┌─────▼─────┐   │  │                         │  │
-│  │                 │  │ │  FALLBACK │   │  │                         │  │
-│  │                 │  │ │  Lexical  │   │  │                         │  │
-│  │                 │  │ │  search   │   │  │                         │  │
-│  │                 │  │ │  if rules │   │  │                         │  │
-│  │                 │  │ │  query    │   │  │                         │  │
-│  │                 │  │ └───────────┘   │  │                         │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      RECALL PIPELINE (Context Building)                     │
+│                                                                             │
+│  ┌──────────────────┐   ┌──────────────────────────────┐   ┌─────────────┐ │
+│  │ 1. DECISION      │   │ 2. ENTITY RESOLUTION         │   │ 3. PARALLEL │ │
+│  │                  │   │                              │   │    SEARCH   │ │
+│  │ Skip if trivial: │   │ resolveEntity("mein Bruder") │   │             │ │
+│  │ "ok", "thanks",  │   │  → KnowledgeEntity: Max      │   │ ┌─────────┐ │ │
+│  │ "yes", "hello"   │   │                              │   │ │  MEM0   │ │ │
+│  │                  │   │ resolvePronouns("er")        │   │ │Semantic │ │ │
+│  │ → skip retrieval │   │  → "Max"                     │   │ │ Search  │ │ │
+│  │                  │   │                              │   │ │score≥0.3│ │ │
+│  └──────────────────┘   └──────────────────────────────┘   │ └────┬────┘ │ │
+│                                                            │      │      │ │
+│                                                            │ ┌────▼────┐ │ │
+│                                                            │ │KNOWLEDGE│ │ │
+│                                                            │ │RETRIEVAL│ │ │
+│                                                            │ │         │ │ │
+│                                                            │ │Episodes │ │ │
+│                                                            │ │Ledgers  │ │ │
+│                                                            │ │Events   │ │ │
+│                                                            │ │EntityGph│ │ │
+│                                                            │ │FTS5 Chat│ │ │
+│                                                            │ └────┬────┘ │ │
+│                                                            │      │      │ │
+│                                                            │ ┌────▼────┐ │ │
+│                                                            │ │FALLBACK │ │ │
+│                                                            │ │ Lexical │ │ │
+│                                                            │ │(rules Q)│ │ │
+│                                                            │ └─────────┘ │ │
+│                                                            └─────────────┘ │
+│                                                                    │        │
+│  ┌─────────────────────────────────────────────────────────────────▼──────┐ │
+│  │ 4. FUSION  — Deduplicate · Re-rank by (similarity × importance)        │ │
+│  │             Format for LLM:  [preference] ... / [fact] ... / [lesson]  │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     │ Context + Prompt
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         LLM PROCESSING                                  │
-│  • Generate response using retrieved context                            │
-│  • Store response in conversation history                               │
-└────────────────────────────────────────┬────────────────────────────────┘
-                                         │
-                                         │ After response
-                                         ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    STORAGE PIPELINE (Memory Formation)                  │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐  │
-│  │ MANUAL SAVE     │  │ AUTO-MEMORY     │  │ KNOWLEDGE INGESTION     │  │
-│  │                 │  │                 │  │                         │  │
-│  │ "Save: ..."     │  │ buildAutoMemory │  │ maybeStoreKnowledge     │  │
-│  │ prefix detected │  │ Candidates()    │  │ Artifacts()             │  │
-│  │                 │  │                 │  │                         │  │
-│  │ Importance: 4   │  │ Importance: 2-3 │  │ Extract structured      │  │
-│  │ Type: fact      │  │ Type: detected  │  │ knowledge via LLM       │  │
-│  └────────┬────────┘  └────────┬────────┘  └────────────┬────────────┘  │
-│           │                    │                        │               │
-│           └────────────────────┼────────────────────────┘               │
-│                                │                                        │
-│                                ▼                                        │
-│  ╔═══════════════════════════════════════════════════════════════════╗  │
-│  ║  LAYER 2: LONG-TERM MEMORY (Persistent Storage)                   ║  │
-│  ╠═══════════════════════════════════════════════════════════════════╣  │
-│  ║                                                                   ║  │
-│  ║  ┌─────────────────────┐      ┌─────────────────────┐             ║  │
-│  ║  │    MEM0 CLOUD       │      │    KNOWLEDGE REPO   │             ║  │
-│  ║  │  (Semantic Memory)  │      │  (Episodic Memory)  │             ║  │
-│  ║  │                     │      │                     │             ║  │
-│  ║  │ • Vector embeddings │      │ • Episodes          │             ║  │
-│  ║  │ • Similarity search │      │ • Meeting Ledgers   │             ║  │
-│  ║  │ • Memory types:     │      │ • Decisions         │             ║  │
-│  ║  │   fact, preference, │      │ • Action Items      │             ║  │
-│  ║  │   avoidance, lesson │      │ • Facts per topic   │             ║  │
-│  ║  │                     │      │                     │             ║  │
-│  ║  │ Metadata:           │      │ Metadata:           │             ║  │
-║  ║  │ • importance (1-5)  │      │ • topicKey          │             ║  │
-║  ║  │ • confidence (0-1)  │      │ • counterpart       │             ║  │
-║  ║  │ • version           │      │ • sourceSeq range   │             ║  │
-║  ║  │ • userId+personaId  │      │                     │             ║  │
-║  ║  └─────────────────────┘      └─────────────────────┘             ║  │
-║  ║                                │                                  ║  │
-║  ║           ┌────────────────────┘                                  ║  │
-║  ║           │                                                       ║  │
-║  ║           ▼                                                       ║  │
-║  ║  ┌─────────────────────┐                                          ║  │
-║  ║  │   SQLITE BACKUP     │                                          ║  │
-║  ║  │  (Local Fallback)   │                                          ║  │
-║  ║  │                     │                                          ║  │
-║  ║  │ • memory_nodes table│                                          ║  │
-║  ║  │ • Same schema       │                                          ║  │
-║  ║  │ • Offline access    │                                          ║  │
-║  ║  │ • Sync with Mem0    │                                          ║  │
-║  ║  └─────────────────────┘                                          ║  │
-║  ╚═══════════════════════════════════════════════════════════════════╝  │
-└─────────────────────────────────────────────────────────────────────────┘
-                                         │
-                                         │ FEEDBACK LOOP
-                                         ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    LEARNING & MAINTENANCE                               │
-│  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │  User Feedback Detection                                          │  │
-│  │  ─────────────────────────────────────────────────────────────    │  │
-│  │                                                                   │  │
-│  │  "Correct" / "Exactly"  ──►  Confidence +0.15, Importance +1      │  │
-│  │                                                                   │  │
-│  │  "Wrong" / "Incorrect"  ──►  Confidence -0.2, Importance -1       │  │
-│  │                              │                                    │  │
-│  │                              ▼                                    │  │
-│  │                    3× Negative + Confidence < 0.15                │  │
-│  │                              │                                    │  │
-│  │                              ▼                                    │  │
-│  │                        AUTO-DELETE                                │  │
-│  │                                                                   │  │
-│  └───────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         NEXT SESSION CYCLE                              │
-│  Same Recall Pipeline ──► Context enriched with stored memories         │
-│                         ──► Seamless conversation continuation          │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            LLM PROCESSING                                   │
+│  • Generate response using retrieved context                                │
+│  • Store response in conversation history                                   │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │
+                                       │ After response
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     STORAGE PIPELINE (Memory Formation)                     │
+│                                                                             │
+│  ┌─────────────────┐   ┌─────────────────┐   ┌──────────────────────────┐  │
+│  │  MANUAL SAVE    │   │  AUTO-MEMORY    │   │  KNOWLEDGE INGESTION     │  │
+│  │                 │   │                 │   │                          │  │
+│  │ "Save: ..."     │   │ buildAutoMemory │   │ ┌──────────────────────┐ │  │
+│  │ prefix detected │   │ Candidates()    │   │ │ Poisoning Guard      │ │  │
+│  │                 │   │                 │   │ │ (blocks injections)  │ │  │
+│  │ Importance: 4   │   │ Importance: 2-3 │   │ └──────────┬───────────┘ │  │
+│  │ Type: fact      │   │ Type: detected  │   │            │ passed      │  │
+│  │ Source: manual  │   │ Source: auto    │   │            ▼             │  │
+│  └────────┬────────┘   └────────┬────────┘   │ LLM extracts:            │  │
+│           │                     │            │ • facts / episodes       │  │
+│           │                     │            │ • ledgers / events       │  │
+│           │                     │            │ • entities + relations   │  │
+│           │                     │            │ • pronouns resolved      │  │
+│           │                     │            └────────────┬────────────┘  │
+│           └─────────────────────┼─────────────────────────┘                │
+│                                 │                                          │
+│                                 ▼                                          │
+│  ╔═══════════════════════════════════════════════════════════════════════╗ │
+│  ║  LAYER 2: LONG-TERM MEMORY (Persistent Storage)                       ║ │
+│  ╠═══════════════════════════════════════════════════════════════════════╣ │
+│  ║                                                                       ║ │
+│  ║  ┌─────────────────────┐   ┌──────────────────────────────────────┐  ║  │
+│  ║  │    MEM0 CLOUD       │   │         KNOWLEDGE REPOSITORY         │  ║  │
+│  ║  │  (Semantic Memory)  │   │                                      │  ║  │
+│  ║  │                     │   │  Phase 1  Episodes (topicKey, facts) │  ║  │
+│  ║  │ Vector embeddings   │   │           Meeting Ledgers            │  ║  │
+│  ║  │ Similarity search   │   │           (decisions, actionItems)   │  ║  │
+│  ║  │                     │   │           Events (temporal facts,    │  ║  │
+│  ║  │ Memory types:       │   │           dedup, aggregation)        │  ║  │
+│  ║  │  fact, preference,  │   │                                      │  ║  │
+│  ║  │  avoidance, lesson, │   │  Phase 2  Entity Graph               │  ║  │
+│  ║  │  personality_trait, │   │           Entities + Aliases         │  ║  │
+│  ║  │  workflow_pattern   │   │           (Max ← "mein Bruder")      │  ║  │
+│  ║  │                     │   │           Relations (works_at, ...)  │  ║  │
+│  ║  │ Metadata:           │   │           Path-finding               │  ║  │
+│  ║  │  importance (1-5)   │   │                                      │  ║  │
+│  ║  │  confidence (0-1)   │   │  Phase 3  Conversation Summaries     │  ║  │
+│  ║  │  version            │   │           (topics, entities, tone)   │  ║  │
+│  ║  │  userId+personaId   │   │                                      │  ║  │
+│  ║  └──────────┬──────────┘   │           Retrieval Audit log        │  ║  │
+│  ║             │              └──────────────────────────────────────┘  ║  │
+│  ║             │                                                        ║  │
+│  ║             ▼                                                        ║  │
+│  ║  ┌─────────────────────┐                                             ║  │
+│  ║  │   SQLITE BACKUP     │                                             ║  │
+│  ║  │  (Local Fallback)   │  memory_nodes table · offline access        ║  │
+│  ║  └─────────────────────┘                                             ║  │
+│  ╚═══════════════════════════════════════════════════════════════════════╝  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       │ FEEDBACK LOOP
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       LEARNING & MAINTENANCE                                │
+│                                                                             │
+│  "Correct" / "Exactly"  ──►  Confidence +0.15, Importance +1               │
+│                                                                             │
+│  "Wrong" / "Incorrect"  ──►  Confidence -0.2,  Importance -1               │
+│                                      │                                      │
+│                                      ▼                                      │
+│                       3× Negative + Confidence < 0.15                       │
+│                                      │                                      │
+│                                      ▼                                      │
+│                                 AUTO-DELETE                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  NEXT SESSION CYCLE                                                         │
+│  Same Recall Pipeline ──► Context enriched with stored memories             │
+│                         ──► Entity Graph resolves references automatically  │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -171,11 +156,13 @@ The memory system is a multi-layered architecture that enables the AI assistant 
 3. [Recall Pipeline](#recall-pipeline)
 4. [Storage Pipeline](#storage-pipeline)
 5. [Long-Term Memory Stores](#long-term-memory-stores)
-6. [Learning & Feedback](#learning--feedback)
-7. [API Reference](#api-reference)
-8. [Configuration](#configuration)
-9. [Security & Privacy](#security--privacy)
-10. [Testing](#testing)
+6. [Entity Graph](#entity-graph)
+7. [Fact Lifecycle](#fact-lifecycle)
+8. [Learning & Feedback](#learning--feedback)
+9. [API Reference](#api-reference)
+10. [Configuration](#configuration)
+11. [Security & Privacy](#security--privacy)
+12. [Testing](#testing)
 
 ---
 
@@ -244,7 +231,7 @@ Persistent storage with three complementary stores:
 
 ## Recall Pipeline
 
-The recall pipeline builds context before LLM processing through three stages:
+The recall pipeline builds context before LLM processing through four stages:
 
 ### Stage 1: Decision
 
@@ -266,7 +253,36 @@ function shouldRecallMemoryForInput(input: string): boolean {
 
 **Why skip?** Retrieving memories for trivial confirmations adds latency without improving responses.
 
-### Stage 2: Parallel Search
+### Stage 2: Entity Resolution
+
+Before the parallel search, named references and pronouns in the query are resolved to known entity IDs from the Entity Graph:
+
+```typescript
+// Query: "Was hat mein Bruder gesagt?"
+const resolved = knowledgeRepo.resolveEntity('mein Bruder', { userId, personaId });
+// → { entity: { id: 'ent-abc', canonicalName: 'Max' }, matchType: 'alias', confidence: 0.9 }
+// Subsequent queries are scoped to episodes/ledgers where counterpart = 'ent-abc'
+```
+
+**Self-Reference Query Expansion**: `MemoryService` additionally expands perspective pronouns before the Mem0 search. When the user asks `"Was kannst du?"`, the query is also sent as `"Was kann ich?"` — ensuring persona self-reference memories (stored in first-person) surface for second-person queries and vice versa.
+
+```typescript
+// Implemented in MemoryService.expandSelfReferenceQuery()
+// 'du hast mir gesagt' → also searches 'ich habe dir gesagt'
+```
+
+**Memory Subject Classification**: Every recalled memory node is tagged with a subject before LLM injection, derived from content patterns and stored metadata:
+
+| Subject        | Detection                                | LLM Context Tag                        |
+| -------------- | ---------------------------------------- | -------------------------------------- |
+| `user`         | `du`/`dein`/`your` content patterns      | `[Subject: user]`                      |
+| `assistant`    | `ich`/`mein`/`I` self-reference patterns | `[Subject: assistant, Self-Reference]` |
+| `conversation` | `metadata.subject = 'conversation'`      | `[Subject: conversation]`              |
+| `null`         | Indeterminate                            | _(no tag)_                             |
+
+This classification prevents the LLM from confusing persona self-memories with facts about the user.
+
+### Stage 3: Parallel Search
 
 When retrieval is warranted, three sources are queried in parallel:
 
@@ -343,7 +359,7 @@ function isRulesLikeQuery(query: string): boolean {
 // yields insufficient results
 ```
 
-### Stage 3: Fusion
+### Stage 4: Fusion
 
 Results from all sources are merged and formatted:
 
@@ -578,10 +594,7 @@ Structured events with deduplication, source merging, and aggregation queries. U
 
 **Phase 2 — Entity Graph** (relationship store):
 
-Knowledge entities with aliases, typed relations, and path-finding. Enables queries like "Who is the CEO of Acme?" or "What projects is Alice working on?".
-
-Entity types: `person`, `organization`, `project`, `location`, `concept`, and more.
-Relation examples: `works_at`, `manages`, `owns`, `related_to`.
+See the dedicated [Entity Graph](#entity-graph) section for full documentation.
 
 **Phase 3 — Conversation Summaries**:
 
@@ -589,7 +602,7 @@ Per-conversation summaries including key topics, mentioned entities, emotional t
 
 **Retrieval Audit**:
 
-Every knowledge retrieval call is logged with stage statistics and token counts, enabling performance analysis and debugging via `GET /api/knowledge/stats`.
+Every knowledge retrieval call is logged with stage statistics and token counts, enabling performance analysis and debugging via `GET /api/control-plane/metrics` (`metrics.knowledge`).
 
 ### SQLite Backup (Local Fallback)
 
@@ -613,6 +626,207 @@ CREATE INDEX idx_nodes_scope ON memory_nodes(user_id, persona_id);
 CREATE INDEX idx_nodes_type ON memory_nodes(type);
 CREATE INDEX idx_nodes_importance ON memory_nodes(importance);
 ```
+
+---
+
+## Entity Graph
+
+The Entity Graph is the relationship layer of the Knowledge Repository. It enables the system to recognize that "Max", "mein Bruder", and "er" all refer to the same entity, and to traverse relationships between entities when building recall context.
+
+Storage location: `src/server/knowledge/entityGraph.ts`, `entityExtractor.ts`, `pronounResolver.ts`.
+Enabled when: `KNOWLEDGE_LAYER_ENABLED=true`.
+
+### Data Model
+
+```typescript
+// An entity is a named thing the system knows about
+type EntityCategory =
+  | 'person' // Max, Lisa, Tante Erna
+  | 'project' // Notes2, MeinBlog
+  | 'place' // Berlin, Büro, Zuhause
+  | 'organization' // Siemens, BMW
+  | 'concept' // Next.js, TypeScript
+  | 'object'; // Auto, Laptop
+
+interface KnowledgeEntity {
+  id: string; // 'ent-xxx'
+  userId: string;
+  personaId: string;
+  canonicalName: string; // 'Max'
+  category: EntityCategory;
+  owner: 'persona' | 'user' | 'shared'; // whose context — e.g. 'mein Bruder' → owner: 'user'
+  properties: Record<string, string>; // { beruf: 'Ingenieur', alter: '28' }
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Aliases let the system resolve references to the same entity
+interface EntityAlias {
+  id: string;
+  entityId: string;
+  alias: string; // 'mein Bruder', 'er', 'Bruder'
+  aliasType: 'name' | 'relation' | 'pronoun' | 'abbreviation';
+  owner: 'persona' | 'user' | 'shared';
+  confidence: number; // 0.0–1.0
+  createdAt: string;
+}
+
+// Relations link two entities with a typed, directional edge
+interface EntityRelation {
+  id: string;
+  sourceEntityId: string;
+  targetEntityId: string;
+  relationType: string; // 'bruder', 'auftraggeber', 'framework'
+  properties: Record<string, string>; // { seit: '2026-01', status: 'aktiv' }
+  confidence: number;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+### How Entities Are Extracted
+
+During knowledge ingestion, the LLM extracts entities from the conversation window. The `EntityExtractor` class normalizes, validates, and deduplicates the raw LLM output before it reaches the repository:
+
+```typescript
+interface ExtractedEntity {
+  name: string;
+  category: EntityCategory;
+  owner: 'persona' | 'user' | 'shared';
+  aliases: string[]; // ['mein Bruder', 'Bruder']
+  relations: {
+    targetName: string;
+    relationType: string;
+    direction: 'outgoing' | 'incoming';
+  }[];
+  properties: Record<string, string>;
+  sourceSeq: number[]; // Message sequence numbers
+}
+```
+
+When a new entity arrives:
+
+1. The repository tries to resolve the canonical name against existing entities.
+2. If a match is found → **merge**: new aliases and properties are added, existing relations updated.
+3. If no match → **create**: a new entity node is inserted.
+
+### Pronoun Resolution
+
+Before facts are written, reference pronouns are resolved to entity names to avoid dangling references:
+
+```typescript
+// 'er' → 'Max' (when Max was last mentioned)
+resolvePronouns('er ist Ingenieur', { lastMentionedPerson: 'Max', ... })
+// → 'Max ist Ingenieur'
+```
+
+Only masculine reference pronouns (`er`, `ihm`, `sein`, …) are resolved — feminine/neutral pronouns like `sie`/`ihr` are intentionally left ambiguous to avoid incorrect resolution.
+
+Perspective pronouns (`ich`, `mein`, `du`, `dein`) are never resolved and remain as-is.
+
+### Entity Resolution During Recall
+
+When the retrieval service processes a query, it resolves named references to entity IDs before searching:
+
+```
+Query: "Was hat mein Bruder gesagt?"
+         │
+         ▼
+ resolveEntity("mein Bruder") → { entity: Max, matchType: 'alias', confidence: 0.9 }
+         │
+         ▼
+ Retrieve all episodes + ledgers where counterpart = Max.id
+         │
+         ▼
+ Return context scoped to that entity
+```
+
+Lookup strategies (in priority order):
+
+| Match Type   | Example                                                                 |
+| ------------ | ----------------------------------------------------------------------- |
+| `exact_name` | Query contains `"Max"` and an entity with `canonicalName: 'Max'` exists |
+| `alias`      | Query contains `"mein Bruder"` and an alias entry maps it to Max        |
+| `relation`   | Query contains `"Bruder"` and a relation-word alias resolves it         |
+| `fuzzy`      | Partial name match with confidence score                                |
+
+### Path Finding
+
+The repository supports multi-hop traversal for questions like "What does the company that Alice works for do?":
+
+```typescript
+// Returns the chain of relation edges from entityA to entityB
+repository.findPath(entityA.id, entityB.id, maxDepth?: number): EntityRelation[]
+```
+
+### Relation-Word Aliases
+
+German relationship words are detected automatically as the `relation` alias type:
+
+> `bruder`, `schwester`, `mutter`, `vater`, `freund`, `freundin`, `tante`, `onkel`, `oma`, `opa`, `partner`, `partnerin`, `chef`, `kollege`, `nachbar`, …
+
+When a user says _"Mein Bruder heißt Max"_, the alias `mein Bruder` is stored for the entity `Max` with `aliasType: 'relation'` and `owner: 'user'`.
+
+### Multilingual Alias Expansion
+
+Entity aliases support automatic DE/EN equivalence via `src/server/knowledge/multilingualAliases.ts`. When an alias is stored or resolved, it is expanded to include cross-language equivalents:
+
+| German      | English equivalents     |
+| ----------- | ----------------------- |
+| `bruder`    | `brother`, `bro`        |
+| `schwester` | `sister`, `sis`         |
+| `mutter`    | `mother`, `mom`, `mama` |
+| `vater`     | `father`, `dad`, `papa` |
+| `freund`    | `friend`, `buddy`       |
+| `kollege`   | `colleague`, `coworker` |
+| `projekt`   | `project`               |
+| `aufgabe`   | `task`, `todo`          |
+
+Querying `"brother"` therefore finds entities aliased as `"Bruder"`, and vice versa.
+
+---
+
+## Fact Lifecycle
+
+Every fact, event, and entity in the Knowledge Repository passes through a state machine defined in `src/server/knowledge/factLifecycle.ts`. Only **active** facts (`new` or `confirmed`) are returned in recall results — stale, superseded, or rejected facts are silently excluded.
+
+### States
+
+```
+new ───────────────────────────────────────────► confirmed
+ │                  ▲                           │
+ │           reactivated                        │
+ ▼                  │                           ▼
+rejected ◄── garbage_collected ──── superseded ◄── contradicted / corrected
+                                        │
+                                   time_expired
+                                        │
+                                        ▼
+                                      stale
+```
+
+| State        | Description                             | Included in Recall |
+| ------------ | --------------------------------------- | ------------------ |
+| `new`        | Just extracted, not yet confirmed       | ✅ Yes             |
+| `confirmed`  | Repeated in session or user-confirmed   | ✅ Yes             |
+| `stale`      | Time-expired but not deleted            | ❌ No              |
+| `superseded` | Replaced by contradiction or correction | ❌ No              |
+| `rejected`   | Garbage-collected (low confidence)      | ❌ No              |
+
+### Transition Signals
+
+```typescript
+type LifecycleSignal =
+  | 'user_confirmed' // explicit positive feedback → confirmed
+  | 'repeated_in_session' // same fact seen again → new → confirmed
+  | 'contradicted' // conflicting fact detected → superseded
+  | 'corrected_by_user' // user corrects → superseded
+  | 'time_expired' // no longer current → stale
+  | 'reactivated' // fact becomes relevant again → confirmed
+  | 'garbage_collected'; // low-confidence cleanup → rejected
+```
+
+The state machine is a pure function `transitionLifecycle(currentStatus, signal)` — no side effects, fully testable in isolation.
 
 ---
 
@@ -683,205 +897,202 @@ User: That's wrong. I actually prefer tea, not coffee.
 
 ```typescript
 // Old memory is weakened
-await memoryService.registerFeedback({
-  memoryId: oldMemoryId,
-  feedback: 'negative',
-});
+await memoryService.registerFeedback(personaId, [oldMemoryId], 'negative', userId);
 
 // New correction is stored with high importance
-await memoryService.store({
-  content: 'User prefers tea over coffee',
-  type: 'preference',
-  importance: 5, // High due to explicit correction
-  metadata: {
-    source: 'correction',
-    replaces: oldMemoryId,
-  },
-});
+await memoryService.store(
+  personaId,
+  'preference',
+  'User prefers tea over coffee',
+  5, // High due to explicit correction
+  userId,
+  { source: 'correction', replaces: oldMemoryId },
+);
 ```
 
 ---
 
 ## API Reference
 
+> All `MemoryService` methods use **positional arguments**, not option objects. The first argument is always `personaId`; `userId` is an optional trailing argument.
+
 ### MemoryService
 
-Main interface for memory operations.
+Main interface for memory operations. Source: `src/server/memory/service.ts`.
 
-#### `store(options: StoreOptions): Promise<MemoryNode>`
+#### `store(personaId, type, content, importance, userId?, metadata?): Promise<MemoryNode>`
 
 Stores a new memory.
 
 ```typescript
-interface StoreOptions {
-  userId: string;
-  personaId: string;
-  content: string;
-  type?: MemoryType; // default: 'fact'
-  importance?: number; // default: 3
-  metadata?: Record<string, any>;
+// Signature
+store(
+  personaId: string,
+  type: MemoryType,
+  content: string,
+  importance: number,         // 1–5
+  userId?: string,
+  metadata?: Record<string, unknown>,
+): Promise<MemoryNode>
+
+// Example
+const node = await memoryService.store(
+  'assistant',
+  'preference',
+  'User prefers email over Slack',
+  4,
+  'user_123',
+);
+```
+
+#### `recall(personaId, query, limit?, userId?): Promise<string>`
+
+Returns memories formatted as a single string for LLM context injection. The string includes `[Type: ...]` and optional `[Subject: ...]` tags per memory.
+
+```typescript
+// Signature
+recall(
+  personaId: string,
+  query: string,
+  limit?: number,    // default: 3
+  userId?: string,
+): Promise<string>
+
+// Example
+const context = await memoryService.recall('assistant', 'communication preferences', 5, 'user_123');
+// Returns: "[Type: preference] User prefers email over Slack [Subject: user]\n..."
+```
+
+#### `recallDetailed(personaId, query, limit?, userId?): Promise<MemoryRecallResult>`
+
+Returns memories with individual similarity scores for programmatic processing.
+
+```typescript
+// Return type
+interface MemoryRecallResult {
+  context: string; // Same formatted string as recall()
+  matches: MemoryRecallMatch[];
+}
+
+interface MemoryRecallMatch {
+  node: MemoryNode;
+  similarity: number; // 0.0–1.0, filtered to ≥ 0.3
+  score: number; // Alias for similarity (used for sorting)
 }
 
 // Example
-const memory = await memoryService.store({
-  userId: 'user_123',
-  personaId: 'assistant',
-  content: 'User prefers email over Slack',
-  type: 'preference',
-  importance: 4,
-});
-```
-
-#### `recall(options: RecallOptions): Promise<string>`
-
-Retrieves memories formatted for LLM context.
-
-```typescript
-interface RecallOptions {
-  userId: string;
-  personaId: string;
-  query: string;
-  limit?: number; // default: 10
+const result = await memoryService.recallDetailed('assistant', 'vendor agreement', 5, 'user_123');
+for (const match of result.matches) {
+  console.log(match.node.content, match.similarity);
 }
-
-// Example
-const context = await memoryService.recall({
-  userId: 'user_123',
-  personaId: 'assistant',
-  query: 'How should I contact the user?',
-});
-// Returns formatted string for LLM context
 ```
 
-#### `recallDetailed(options: RecallOptions): Promise<MemoryResult[]>`
+#### `update(personaId, nodeId, input, userId?): Promise<MemoryNode | null>`
 
-Retrieves memories with scores for programmatic use.
-
-```typescript
-interface MemoryResult {
-  id: string;
-  content: string;
-  type: MemoryType;
-  importance: number;
-  confidence: number;
-  similarity: number; // Search relevance score
-  metadata: Record<string, any>;
-}
-
-// Example
-const results = await memoryService.recallDetailed({
-  userId: 'user_123',
-  personaId: 'assistant',
-  query: 'communication preferences',
-});
-// Returns array with relevance scores
-```
-
-#### `update(options: UpdateOptions): Promise<MemoryNode>`
-
-Updates an existing memory with optional version check.
+Updates an existing memory. Returns `null` if the memory was not found. Throws `MemoryVersionConflictError` if `expectedVersion` is provided and does not match.
 
 ```typescript
-interface UpdateOptions {
-  id: string;
-  userId: string;
+// Input type
+interface UpdateInput {
+  type?: MemoryType;
   content?: string;
   importance?: number;
-  confidence?: number;
-  metadata?: Record<string, any>;
-  expectedVersion?: number; // For optimistic locking
+  expectedVersion?: number; // Optimistic concurrency check
 }
 
-// Example with version check
-try {
-  await memoryService.update({
-    id: 'mem_abc',
-    userId: 'user_123',
-    content: 'Updated information',
-    expectedVersion: 2,
-  });
-} catch (e) {
-  if (e instanceof MemoryVersionConflictError) {
-    // Handle conflict - memory was modified elsewhere
-  }
+// Example
+const updated = await memoryService.update(
+  'assistant',
+  'mem_abc123',
+  { content: 'Updated information', expectedVersion: 2 },
+  'user_123',
+);
+```
+
+#### `delete(personaId, nodeId, userId?): Promise<boolean>`
+
+Deletes a single memory. Returns `true` if deleted, `false` if not found.
+
+```typescript
+const deleted = await memoryService.delete('assistant', 'mem_abc123', 'user_123');
+```
+
+#### `deleteByPersona(personaId, userId?): Promise<number>`
+
+Deletes all memories for a persona. Returns the count of deleted records.
+
+```typescript
+const count = await memoryService.deleteByPersona('assistant', 'user_123');
+```
+
+#### `registerFeedback(personaId, nodeIds, signal, userId?): Promise<number>`
+
+Applies a feedback signal to one or more memory nodes. Returns the count of updated nodes. Nodes that drop below `confidence < 0.15` after three negative signals are auto-deleted.
+
+```typescript
+// signal: 'positive' → confidence +0.15, importance +1
+//         'negative' → confidence −0.2,  importance −1 (auto-delete at threshold)
+const changed = await memoryService.registerFeedback(
+  'assistant',
+  ['mem_abc123', 'mem_def456'],
+  'negative',
+  'user_123',
+);
+```
+
+#### `history(personaId, nodeId, userId?): Promise<{ node: MemoryNode; entries: MemoryHistoryRecord[] } | null>`
+
+Returns the full version history of a memory node. Returns `null` if not found.
+
+```typescript
+const result = await memoryService.history('assistant', 'mem_abc123', 'user_123');
+if (result) {
+  console.log(`Current: ${result.node.content}`);
+  console.log(`${result.entries.length} history entries`);
 }
 ```
 
-#### `delete(id: string, userId: string): Promise<void>`
+#### `restoreFromHistory(personaId, nodeId, input, userId?): Promise<MemoryNode | null>`
 
-Deletes a memory.
-
-```typescript
-await memoryService.delete('mem_abc', 'user_123');
-```
-
-#### `registerFeedback(options: FeedbackOptions): Promise<void>`
-
-Processes user feedback on a memory.
+Restores a memory to a previous version by 0-based history index. Returns `null` if not found.
 
 ```typescript
-interface FeedbackOptions {
-  memoryId: string;
-  feedback: 'positive' | 'negative';
-  userId: string;
-}
-
-await memoryService.registerFeedback({
-  memoryId: 'mem_abc',
-  feedback: 'negative',
-  userId: 'user_123',
-});
-```
-
-#### `history(id: string, userId: string): Promise<MemoryVersion[]>`
-
-Retrieves version history of a memory.
-
-```typescript
-const history = await memoryService.history('mem_abc', 'user_123');
-// Returns array of previous versions
-```
-
-#### `restoreFromHistory(options: RestoreOptions): Promise<MemoryNode>`
-
-Restores a memory to a previous version.
-
-```typescript
-await memoryService.restoreFromHistory({
-  id: 'mem_abc',
-  userId: 'user_123',
-  version: 1,
-  expectedVersion: 3, // Optional version check
-});
+// input.restoreIndex is the 0-based index into entries returned by history()
+await memoryService.restoreFromHistory(
+  'assistant',
+  'mem_abc123',
+  { restoreIndex: 0, expectedVersion: 3 },
+  'user_123',
+);
 ```
 
 ### KnowledgeRetrievalService
 
-Retrieves structured knowledge context.
+Retrieves structured knowledge context. Source: `src/server/knowledge/retrievalService.ts`.
 
-#### `buildContext(options: BuildContextOptions): Promise<KnowledgeContext>`
+#### `buildContext(input: KnowledgeRetrievalInput): Promise<KnowledgeRetrievalResult>`
 
-Builds comprehensive context from all knowledge sources.
+Builds comprehensive context from all available knowledge sources (episodes, ledgers, events, entity graph, Mem0 semantic search).
 
 ```typescript
-interface BuildContextOptions {
+interface KnowledgeRetrievalInput {
   userId: string;
   personaId: string;
+  conversationId?: string;
   query: string;
-  counterpart?: string; // Filter by conversation partner
 }
 
 interface KnowledgeRetrievalResult {
-  context: string; // Formatted string for LLM injection
+  context: string; // Formatted context string for LLM injection
   sections: {
     answerDraft: string; // Contextual introduction
     keyDecisions: string; // Relevant decisions (formatted)
-    openPoints: string; // Outstanding items (formatted)
-    evidence: string; // Supporting message excerpts (formatted)
+    openPoints: string; // Outstanding items
+    evidence: string; // Supporting message excerpts
   };
   references: string[]; // Source IDs for citations
   tokenCount: number; // Approximate token usage
-  computedAnswer?: string | null; // Pre-computed direct answer (event queries)
+  computedAnswer?: string | null; // Pre-computed direct answer for event queries
 }
 
 // Example
@@ -889,7 +1100,7 @@ const result = await knowledgeRetrieval.buildContext({
   userId: 'user_123',
   personaId: 'assistant',
   query: 'What did we agree with the vendor?',
-  counterpart: 'vendor_acme',
+  conversationId: 'conv_abc',
 });
 ```
 
@@ -979,20 +1190,23 @@ interface MemoryScope {
 
 ### Error Types
 
-| Error                        | Cause                                  | Handling                              |
-| ---------------------------- | -------------------------------------- | ------------------------------------- |
-| `MemoryNotFoundError`        | Memory ID doesn't exist                | Return null or throw based on context |
-| `MemoryVersionConflictError` | Expected version doesn't match current | Retry with fresh data or alert user   |
-| `Mem0ConnectionError`        | Cannot reach Mem0 service              | Fall back to SQLite if available      |
-| `Mem0TimeoutError`           | Request exceeded timeout               | Retry with exponential backoff        |
-| `Mem0AuthenticationError`    | Invalid API key                        | Log error and fail fast               |
+Not-found conditions are **not** signaled by exceptions — affected methods return `null` or `false` instead.
+
+| Error                        | Cause                                           | Handling                                                           |
+| ---------------------------- | ----------------------------------------------- | ------------------------------------------------------------------ |
+| `MemoryVersionConflictError` | `expectedVersion` doesn’t match current version | Thrown by `update()` and `restoreFromHistory()` — reload and retry |
+| `Mem0ConnectionError`        | Cannot reach Mem0 service                       | Fall back to SQLite if available                                   |
+| `Mem0TimeoutError`           | Request exceeded timeout                        | Retry with exponential backoff                                     |
+| `Mem0AuthenticationError`    | Invalid API key                                 | Log error and fail fast                                            |
 
 ### Retry Logic
 
 The Mem0Client implements exponential backoff:
 
 ```typescript
-// Retry delays: 1s, 2s, 4s (with maxRetries=3)
+// Base delay: retryBaseDelayMs (default 500 ms)
+// Retry 1: 500 ms, Retry 2: 1000 ms, Retry 3: 2000 ms, …
+// Default maxRetries=0 (retries disabled; set MEM0_MAX_RETRIES > 0 to enable)
 const delay = retryBaseDelayMs * Math.pow(2, attempt);
 ```
 
@@ -1075,6 +1289,19 @@ The guard runs on every ingested message and blocks patterns such as:
 
 Blocked messages are rejected before the ingestion pipeline writes them to the repository.
 
+### Answer Safety Policy
+
+When building knowledge context, the `KnowledgeRetrievalService` assesses the strength of retrieved evidence and may inject hedging instructions into the system prompt. Implemented in `src/server/knowledge/answerSafetyPolicy.ts`.
+
+| Safety Level | Condition                                                     | System Prompt Effect                                 |
+| ------------ | ------------------------------------------------------------- | ---------------------------------------------------- |
+| `confident`  | ≥ 3 sources, avg confidence ≥ 0.7, or computed answer present | No hedging — answer freely                           |
+| `hedged`     | ≥ 1 source, avg confidence ≥ 0.5                              | `"Soweit ich mich erinnere…"` guidance injected      |
+| `caveat`     | ≥ 1 source with low confidence                                | `"Ich bin mir nicht ganz sicher…"` guidance injected |
+| `decline`    | No reliable evidence found                                    | Persona instructed not to fabricate facts            |
+
+This prevents confident hallucinations when memory coverage is sparse.
+
 ---
 
 ## Testing
@@ -1083,29 +1310,25 @@ Blocked messages are rejected before the ingestion pipeline writes them to the r
 
 ```typescript
 describe('MemoryService', () => {
-  it('should store and retrieve memory', async () => {
-    const memory = await service.store({
-      userId: 'test_user',
-      personaId: 'test_persona',
-      content: 'Test memory',
-    });
+  it('should store and recall a memory', async () => {
+    // store(personaId, type, content, importance, userId)
+    await service.store('test_persona', 'fact', 'Test memory', 3, 'test_user');
 
-    const recalled = await service.recall({
-      userId: 'test_user',
-      personaId: 'test_persona',
-      query: 'test',
-    });
+    // recall(personaId, query, limit, userId)
+    const context = await service.recall('test_persona', 'test', 5, 'test_user');
 
-    expect(recalled).toContain('Test memory');
+    expect(context).toContain('Test memory');
   });
 
-  it('should handle version conflicts', async () => {
+  it('should throw MemoryVersionConflictError on version mismatch', async () => {
+    // update(personaId, nodeId, input, userId)
     await expect(
-      service.update({
-        id: 'mem_123',
-        userId: 'test_user',
-        expectedVersion: 1, // Actual is 2
-      }),
+      service.update(
+        'test_persona',
+        'mem_123',
+        { content: 'updated', expectedVersion: 1 }, // Actual version is 2
+        'test_user',
+      ),
     ).rejects.toThrow(MemoryVersionConflictError);
   });
 });
@@ -1117,18 +1340,20 @@ Test the complete recall pipeline with real Mem0 instance (or mocked):
 
 ```typescript
 describe('Recall Pipeline', () => {
-  it('should skip retrieval for confirmations', () => {
+  it('should skip retrieval for short confirmations', () => {
     expect(shouldRecallMemoryForInput('ok')).toBe(false);
     expect(shouldRecallMemoryForInput('thanks!')).toBe(false);
   });
 
-  it('should fuse multiple sources', async () => {
-    const result = await buildRecallContext({
-      userId: 'test_user',
-      query: 'project timeline',
-    });
+  it('should resolve entity aliases before searching', async () => {
+    // 'mein Bruder' stored as alias for entity Max
+    const result = knowledgeRepo.resolveEntity('mein Bruder', { userId, personaId });
+    expect(result?.entity.canonicalName).toBe('Max');
+  });
 
-    expect(result).toContainSources(['mem0', 'episodes', 'ledgers']);
+  it('should expand self-reference pronouns in query', () => {
+    const expanded = service['expandSelfReferenceQuery']('du hast mir gesagt');
+    expect(expanded).toContain('ich habe dir gesagt');
   });
 });
 ```

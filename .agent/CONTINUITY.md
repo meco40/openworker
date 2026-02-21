@@ -27,6 +27,8 @@
 
 [PROGRESS]
 
+- 2026-02-21T17:20:11Z [TOOL] Ran explicit end-control verification suite (API parity, domain coverage, link integrity, non-legacy drift scan) across all active docs.
+- 2026-02-21T17:20:11Z [CODE] Corrected one remaining stale reference in `docs/memory-architecture.md` from `/api/knowledge/stats` to `/api/control-plane/metrics`.
 - 2026-02-21T16:47:31Z [CODE] Added `docs/AUTH_SYSTEM.md` as dedicated active system documentation for NextAuth/session/principal runtime behavior.
 - 2026-02-21T16:47:31Z [CODE] Added `docs/OPS_OBSERVABILITY_SYSTEM.md` to cover previously under-documented active domains (`config`, `control-plane`, `doctor`, `health`, `logs`, `stats`, `ops`).
 - 2026-02-21T16:47:31Z [CODE] Updated `docs/README.md` and `docs/CORE_HANDBOOK.md` documentation maps to include new active system docs; corrected stale Core Handbook endpoint examples.
@@ -59,6 +61,7 @@
 
 [DISCOVERIES]
 
+- 2026-02-21T17:20:11Z [TOOL] Final end-control found exactly one residual stale active-doc endpoint reference before fix: `docs/memory-architecture.md` line ~592 (`/api/knowledge/stats`).
 - 2026-02-21T16:47:31Z [TOOL] Active API domains `auth` and `stats` had no dedicated active system docs (outside `API_REFERENCE`) prior to this pass.
 - 2026-02-21T16:47:31Z [TOOL] `CORE_HANDBOOK.md` still contained stale/non-existent endpoint examples (`/api/health/gateway`, `/api/llm`) before correction.
 - 2026-02-21T16:47:31Z [TOOL] Legacy worker-route lists in active Worker docs were technically correct but visually ambiguous until explicit legacy labels were added per-route.
@@ -70,6 +73,7 @@
 
 [OUTCOMES]
 
+- 2026-02-21T17:20:11Z [TOOL] End-control pass result after fix: `ROUTE_FILES=71`, `API_REFERENCE_ROWS=71`, `UNCOVERED_DOMAINS=0`, `MISSING_LOCAL_LINKS=0`, `NONLEGACY_UNKNOWN_API_REFS=0`.
 - 2026-02-21T16:47:31Z [TOOL] Verification passed after additions: `ROUTE_FILES=71`, `API_REFERENCE_ROWS=71`, `UNCOVERED_DOMAINS=0`, `MISSING_LOCAL_LINKS=0`.
 - 2026-02-21T16:47:31Z [CODE] Active documentation set now includes dedicated auth and ops/observability system references aligned with current runtime and API surface.
 - 2026-02-21T16:47:31Z [TOOL] Final drift scan result: `NONLEGACY_UNKNOWN_API_REFS=0` across active docs.
