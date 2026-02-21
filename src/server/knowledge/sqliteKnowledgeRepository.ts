@@ -1267,6 +1267,50 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
     return rows.map((r) => this.mapEntityRow(r));
   }
 
+  getAliasCountsByEntityIds(entityIds: string[]): Record<string, number> {
+    const counts: Record<string, number> = {};
+    for (const entityId of entityIds) {
+      counts[entityId] = 0;
+    }
+    if (entityIds.length === 0) {
+      return counts;
+    }
+
+    const placeholders = entityIds.map(() => '?').join(',');
+    const rows = this.db
+      .prepare(
+        `SELECT entity_id, COUNT(*) AS alias_count
+         FROM knowledge_entity_aliases
+         WHERE entity_id IN (${placeholders})
+         GROUP BY entity_id`,
+      )
+      .all(...entityIds) as Array<{ entity_id: string; alias_count: number }>;
+
+    for (const row of rows) {
+      counts[row.entity_id] = Number(row.alias_count || 0);
+    }
+
+    return counts;
+  }
+
+  listRelationsByEntityIds(entityIds: string[]): EntityRelation[] {
+    if (entityIds.length === 0) {
+      return [];
+    }
+
+    const placeholders = entityIds.map(() => '?').join(',');
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM knowledge_entity_relations
+         WHERE source_entity_id IN (${placeholders})
+           AND target_entity_id IN (${placeholders})
+         ORDER BY created_at DESC`,
+      )
+      .all(...entityIds, ...entityIds) as Record<string, unknown>[];
+
+    return rows.map((row) => this.mapRelationRow(row));
+  }
+
   getEntityWithRelations(entityId: string): {
     entity: KnowledgeEntity;
     relations: EntityRelation[];

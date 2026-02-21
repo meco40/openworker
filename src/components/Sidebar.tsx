@@ -42,6 +42,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onToggleCan
       icon: 'M9 7h6m-6 4h6m-8 8h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2Z',
     },
     {
+      id: View.KNOWLEDGE,
+      label: 'Knowledge',
+      icon: 'M7 8h10M7 12h10M7 16h6M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
+    },
+    {
       id: View.TASKS,
       label: 'Task Monitor',
       icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',

@@ -31,6 +31,7 @@ const ExposureManager = dynamic(() => import('@/modules/exposure/components/Expo
 const StatsView = dynamic(() => import('@/components/StatsView'));
 const PersonasView = dynamic(() => import('@/components/PersonasView'));
 const MemoryView = dynamic(() => import('@/components/MemoryView'));
+const KnowledgeView = dynamic(() => import('@/components/KnowledgeView'));
 const CronView = dynamic(() => import('@/modules/cron/components/CronView'));
 const InstancesView = dynamic(() => import('@/modules/ops/components/InstancesView'));
 const SessionsView = dynamic(() => import('@/modules/ops/components/SessionsView'));
@@ -197,6 +198,11 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
       {currentView === View.MEMORY && (
         <ViewErrorBoundary label="Memory">
           <MemoryView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.KNOWLEDGE && (
+        <ViewErrorBoundary label="Knowledge">
+          <KnowledgeView />
         </ViewErrorBoundary>
       )}
     </div>

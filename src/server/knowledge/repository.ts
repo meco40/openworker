@@ -213,6 +213,8 @@ export interface KnowledgeRepository {
     filter: EntityGraphFilter,
   ): EntityLookupResult | null;
   listEntities(filter: EntityGraphFilter, limit?: number): KnowledgeEntity[];
+  getAliasCountsByEntityIds?(entityIds: string[]): Record<string, number>;
+  listRelationsByEntityIds?(entityIds: string[]): EntityRelation[];
   getEntityWithRelations(entityId: string): {
     entity: KnowledgeEntity;
     relations: EntityRelation[];
