@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
 import type { UpsertKnowledgeEventInput } from '@/server/knowledge/eventTypes';
 import type { ExtractedEvent } from '@/server/knowledge/eventExtractor';
 import { deduplicateEvent } from '@/server/knowledge/eventDedup';
+import { cleanupSqliteArtifacts } from '../../helpers/sqliteTestArtifacts';
 
 const TEST_DB_DIR = '.local';
 let dbPath: string;
@@ -58,7 +59,13 @@ beforeEach(() => {
 
 afterEach(() => {
   try {
-    if (existsSync(dbPath)) unlinkSync(dbPath);
+    repo?.close();
+  } catch {
+    // ignore close races
+  }
+
+  try {
+    cleanupSqliteArtifacts(dbPath);
   } catch {
     // ignore EBUSY on Windows
   }

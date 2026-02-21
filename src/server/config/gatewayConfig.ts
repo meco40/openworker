@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import BetterSqlite3 from 'better-sqlite3';
@@ -42,7 +41,7 @@ export class GatewayConfigConflictError extends Error {
 type JsonObject = Record<string, unknown>;
 type NormalizeMode = 'load' | 'save';
 
-export const REDACTED_SECRET_VALUE = '__REDACTED__';
+const REDACTED_SECRET_VALUE = '__REDACTED__';
 const WORKSPACE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../');
 const GATEWAY_CONFIG_DB_ROW_ID = 1;
 const GATEWAY_CONFIG_DB_TABLE_SQL = `
@@ -383,12 +382,24 @@ function normalizeDisplayPath(rawPath: string): string {
   return rawPath.split(path.sep).join('/');
 }
 
+function resolveHomeDirFromEnv(): string {
+  const home = String(process.env.HOME || process.env.USERPROFILE || '').trim();
+  return home ? path.resolve(home) : '';
+}
+
 export function toGatewayConfigDisplayPath(configPath: string): string {
   const absolutePath = path.resolve(configPath);
+  const homeDir = resolveHomeDirFromEnv();
 
-  const homeRelative = path.relative(os.homedir(), absolutePath);
-  if (homeRelative.length > 0 && !homeRelative.startsWith('..') && !path.isAbsolute(homeRelative)) {
-    return `~/${normalizeDisplayPath(homeRelative)}`;
+  if (homeDir) {
+    const homeRelative = path.relative(homeDir, absolutePath);
+    if (
+      homeRelative.length > 0 &&
+      !homeRelative.startsWith('..') &&
+      !path.isAbsolute(homeRelative)
+    ) {
+      return `~/${normalizeDisplayPath(homeRelative)}`;
+    }
   }
 
   const cwdRelative = path.relative(process.cwd(), absolutePath);
@@ -399,7 +410,7 @@ export function toGatewayConfigDisplayPath(configPath: string): string {
   return `.../${path.basename(absolutePath)}`;
 }
 
-export function resolveGatewayConfigPath(): string {
+function resolveGatewayConfigPath(): string {
   const configuredPath = process.env.OPENCLAW_CONFIG_PATH;
   if (typeof configuredPath === 'string' && configuredPath.trim().length > 0) {
     const trimmedPath = configuredPath.trim();
@@ -416,7 +427,11 @@ export function resolveGatewayConfigPath(): string {
     return path.resolve(WORKSPACE_ROOT, '.local', normalized);
   }
 
-  return path.join(os.homedir(), '.openclaw', 'openclaw.json');
+  const homeDir = resolveHomeDirFromEnv();
+  if (homeDir) {
+    return path.join(homeDir, '.openclaw', 'openclaw.json');
+  }
+  return path.resolve(WORKSPACE_ROOT, '.local', 'openclaw.json');
 }
 
 function resolveGatewayConfigBackend(): 'db' | 'file' {
@@ -435,7 +450,7 @@ function resolveGatewayConfigDbPath(): string {
   return path.resolve('.local/gateway-config.db');
 }
 
-export function computeGatewayConfigRevision(config: GatewayConfig): string {
+function computeGatewayConfigRevision(config: GatewayConfig): string {
   const normalized = JSON.stringify(config);
   return createHash('sha256').update(normalized).digest('hex').slice(0, 16);
 }

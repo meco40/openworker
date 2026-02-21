@@ -29,6 +29,8 @@
     "memory:reset": "node --import tsx scripts/memory-reset.ts",
     "memory:cleanup-noise": "node --import tsx scripts/memory-cleanup-noise.ts",
     "memory:backfill-channel-scope": "node --import tsx scripts/memory-backfill-channel-scope.ts",
+    "local:cleanup": "node --import tsx scripts/cleanup-local-artifacts.ts --apply",
+    "local:cleanup:dry": "node --import tsx scripts/cleanup-local-artifacts.ts --dry-run",
     "knowledge:ingest": "node --import tsx scripts/trigger-knowledge-ingestion.ts",
     "smoke:chat-cli-approval": "node --import tsx scripts/smoke-chat-cli-approval.ts",
     "mem0:local:up": "docker compose --env-file .env.local -f docker-compose.mem0-local.yml up -d --build",
@@ -43,10 +45,9 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@dagrejs/dagre": "^2.0.4",
-    "@google/genai": "^1.40.0",
+    "@google/genai": "^1.42.0",
+    "@next/env": "^16.1.6",
     "@xyflow/react": "^12.10.0",
-    "archiver": "^7.0.1",
     "better-sqlite3": "^12.6.2",
     "cron-parser": "^5.5.0",
     "next": "^16.1.6",
@@ -57,43 +58,43 @@
     "ws": "^8.19.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
     "@next/bundle-analyzer": "^16.1.6",
     "@tailwindcss/postcss": "^4.1.18",
-    "@types/archiver": "^7.0.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.19.10",
     "@types/react": "^19.2.13",
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
-    "@typescript-eslint/eslint-plugin": "^8.55.0",
-    "@typescript-eslint/parser": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/eslint-plugin": "^1.6.9",
     "cross-env": "^10.1.0",
-    "eslint": "^9.39.2",
+    "eslint": "^9.39.3",
     "eslint-config-next": "^16.1.6",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import-x": "^4.16.1",
     "eslint-plugin-promise": "^7.2.1",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.0",
     "eslint-plugin-security": "^3.0.1",
-    "eslint-plugin-sonarjs": "^3.0.6",
+    "eslint-plugin-sonarjs": "^4.0.0",
     "eslint-plugin-unicorn": "^63.0.0",
     "eslint-plugin-unused-imports": "^4.4.1",
-    "eslint-plugin-vitest": "^0.5.4",
-    "globals": "^17.3.0",
     "husky": "^9.1.7",
     "knip": "^5.83.1",
     "lint-staged": "^16.2.7",
+    "postcss": "^8.5.6",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "typescript-eslint": "^8.55.0",
     "vitest": "^4.0.18"
+  },
+  "overrides": {
+    "glob": "^13.0.6",
+    "minimatch": "^10.2.1",
+    "rimraf": "^6.1.3"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": [
@@ -103,6 +104,9 @@
     "*.{json,md,css,scss,yml,yaml}": "prettier --write"
   },
   "knip": {
+    "ignoreDependencies": [
+      "eslint-import-resolver-typescript"
+    ],
     "ignore": [
       "backups/**",
       "workspaces/**",

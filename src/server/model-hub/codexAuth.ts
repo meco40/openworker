@@ -1,7 +1,6 @@
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 export const OPENAI_CODEX_PUBLIC_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
@@ -39,9 +38,16 @@ function toStringOrEmpty(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function resolveHomeDirFromEnv(): string {
+  const home = toStringOrEmpty(process.env.HOME) || toStringOrEmpty(process.env.USERPROFILE);
+  return home ? path.resolve(home) : '';
+}
+
 function resolveCodexHomePath(): string {
   const configuredPath = process.env.CODEX_HOME?.trim();
-  const home = configuredPath || path.join(os.homedir(), '.codex');
+  const homeRoot = configuredPath || resolveHomeDirFromEnv();
+  if (!homeRoot) return '';
+  const home = configuredPath ? homeRoot : path.join(homeRoot, '.codex');
   try {
     return fs.realpathSync.native(home);
   } catch {
@@ -49,8 +55,20 @@ function resolveCodexHomePath(): string {
   }
 }
 
-function resolveCodexAuthFilePath(): string {
-  return path.join(resolveCodexHomePath(), 'auth.json');
+function resolveCodexAuthFilePath(): string | null {
+  const codexHome = resolveCodexHomePath();
+  if (!codexHome) return null;
+  return path.join(codexHome, 'auth.json');
+}
+
+function computeCodexKeychainAccount(codexHomePath: string): string {
+  const hash = createHash('sha256').update(codexHomePath).digest('hex');
+  return `cli|${hash.slice(0, 16)}`;
+}
+
+function resolveCodexHomePathOrNull(): string | null {
+  const codexHomePath = resolveCodexHomePath();
+  return codexHomePath || null;
 }
 
 function parseAuthPayload(raw: unknown): CodexCliCredentials | null {
@@ -72,15 +90,12 @@ function parseAuthPayload(raw: unknown): CodexCliCredentials | null {
   };
 }
 
-function computeCodexKeychainAccount(codexHomePath: string): string {
-  const hash = createHash('sha256').update(codexHomePath).digest('hex');
-  return `cli|${hash.slice(0, 16)}`;
-}
-
 function readCodexFromKeychain(): CodexCliCredentials | null {
   if (process.platform !== 'darwin') return null;
 
-  const account = computeCodexKeychainAccount(resolveCodexHomePath());
+  const codexHomePath = resolveCodexHomePathOrNull();
+  if (!codexHomePath) return null;
+  const account = computeCodexKeychainAccount(codexHomePath);
   try {
     const raw = execSync(`security find-generic-password -s "Codex Auth" -a "${account}" -w`, {
       encoding: 'utf8',
@@ -98,6 +113,7 @@ function readCodexFromKeychain(): CodexCliCredentials | null {
 
 function readCodexFromAuthFile(): CodexCliCredentials | null {
   const authPath = resolveCodexAuthFilePath();
+  if (!authPath) return null;
   try {
     const raw = fs.readFileSync(authPath, 'utf8');
     const parsed = JSON.parse(raw) as CodexAuthFilePayload;

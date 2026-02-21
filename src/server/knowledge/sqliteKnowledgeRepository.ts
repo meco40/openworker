@@ -100,6 +100,12 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
     this.migrate();
   }
 
+  close(): void {
+    if (this.db.open) {
+      this.db.close();
+    }
+  }
+
   private migrate(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS knowledge_ingestion_checkpoints (

@@ -19,7 +19,7 @@ export function getModelHubEncryptionKey(): string {
   throw new Error('Missing MODEL_HUB_ENCRYPTION_KEY');
 }
 
-export function getModelHubRepository(): SqliteModelHubRepository {
+function getModelHubRepository(): SqliteModelHubRepository {
   if (!globalThis.__modelHubRepository) {
     globalThis.__modelHubRepository = new SqliteModelHubRepository();
   }

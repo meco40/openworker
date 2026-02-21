@@ -36,7 +36,6 @@ import { toMessage } from '@/modules/chat/services/routeMessage';
 import AppShellHeader from '@/modules/app-shell/components/AppShellHeader';
 import AppShellViewContent from '@/modules/app-shell/components/AppShellViewContent';
 import { usePersona } from '@/modules/personas/PersonaContext';
-import { resolveDefaultViewFromConfig } from '@/server/config/uiRuntimeConfig';
 import { getGatewayClient } from '@/modules/gateway/ws-client';
 
 const TerminalWizard = dynamic(() => import('@/components/TerminalWizard'));
@@ -52,6 +51,10 @@ const DEFAULT_CHAT_STREAM_DEBUG: ChatStreamDebugState = {
   transport: 'unknown',
   updatedAt: new Date(0).toISOString(),
 };
+
+interface AppProps {
+  initialView: View;
+}
 
 async function waitForGatewayConnected(timeoutMs = 5_000): Promise<void> {
   const client = getGatewayClient();
@@ -81,18 +84,34 @@ async function waitForGatewayConnected(timeoutMs = 5_000): Promise<void> {
   });
 }
 
-const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<View>(() => buildInitialShellState().currentView);
+const App: React.FC<AppProps> = ({ initialView }) => {
+  const [currentView, setCurrentView] = useState<View>(() =>
+    buildInitialShellState(initialView).currentView,
+  );
   const [onboarded, setOnboarded] = useState<boolean>(true);
   const [isCanvasOpen, setIsCanvasOpen] = useState(false);
   const [isServerResponding, setIsServerResponding] = useState(false);
   const [chatStreamDebug, setChatStreamDebug] =
     useState<ChatStreamDebugState>(DEFAULT_CHAT_STREAM_DEBUG);
   const [skills, setSkills] = useState<Skill[]>([]);
-  const { activePersonaId } = usePersona();
+  const [skillsLoaded, setSkillsLoaded] = useState(false);
+  const { activePersonaId, setDataEnabled } = usePersona();
+  const shouldEnableChatData = currentView === View.CHAT;
+  const shouldEnableAgentRuntime = currentView === View.CHAT || currentView === View.CHANNELS;
+  const shouldEnablePersonaData = shouldEnableAgentRuntime || currentView === View.PERSONAS;
+  const shouldLoadSkills =
+    shouldEnableAgentRuntime || currentView === View.SKILLS || isCanvasOpen;
 
-  // Load persisted skills from SQLite on mount
   useEffect(() => {
+    setDataEnabled(shouldEnablePersonaData);
+  }, [setDataEnabled, shouldEnablePersonaData]);
+
+  // Load persisted skills only when a view depends on skill data.
+  useEffect(() => {
+    if (!shouldLoadSkills || skillsLoaded) {
+      return;
+    }
+
     fetch('/api/skills')
       .then((res) => res.json())
       .then((data) => {
@@ -110,38 +129,16 @@ const App: React.FC = () => {
               sourceUrl: s.sourceUrl ?? undefined,
             })),
           );
+          setSkillsLoaded(true);
         }
       })
       .catch((err) => console.error('Failed to load skills:', err));
-  }, []);
+  }, [shouldLoadSkills, skillsLoaded]);
 
   const [coupledChannels, setCoupledChannels] = useState<Record<string, CoupledChannel>>(() => {
     const fallbackChannels = buildInitialShellState().coupledChannels;
     return loadCoupledChannelsFromStorage(getClientStorage(), fallbackChannels);
   });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadConfiguredDefaultView = async () => {
-      try {
-        const response = await fetch('/api/config', { cache: 'no-store' });
-        const payload = (await response.json()) as { ok?: boolean; config?: unknown };
-        if (!payload.ok || cancelled) {
-          return;
-        }
-        const configuredView = resolveDefaultViewFromConfig(payload.config);
-        setCurrentView((previous) => (previous === View.DASHBOARD ? configuredView : previous));
-      } catch {
-        // keep dashboard fallback when config cannot be loaded in client
-      }
-    };
-
-    void loadConfiguredDefaultView();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const {
     conversations,
@@ -150,7 +147,7 @@ const App: React.FC = () => {
     setMessages,
     activeConversationId,
     setActiveConversationId,
-  } = useConversationSync();
+  } = useConversationSync({ enabled: shouldEnableChatData });
   const activeConversationIdRef = useRef<string | null>(activeConversationId);
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId;
@@ -159,6 +156,7 @@ const App: React.FC = () => {
   const { scheduledTasks, setScheduledTasks } = useTaskScheduler({ addEventLog, setMessages });
   const controlPlaneMetricsState = useControlPlaneMetrics();
   const { isAgentTyping: isRuntimeAgentTyping, handleAgentResponse } = useAgentRuntime({
+    enabled: shouldEnableAgentRuntime,
     skills,
     addEventLog,
     setMessages,

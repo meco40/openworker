@@ -12,6 +12,5 @@ import './methods/channels';
 // Re-export for use in server.ts
 export { handleConnection } from '@/server/gateway/connection-handler';
 export { getClientRegistry } from '@/server/gateway/client-registry';
-export { broadcast, broadcastToUser, broadcastToSubscribed } from '@/server/gateway/broadcast';
-export { makeEvent } from '@/server/gateway/protocol';
+export { broadcast } from '@/server/gateway/broadcast';
 export type { GatewayClient } from '@/server/gateway/client-registry';

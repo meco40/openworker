@@ -13,6 +13,7 @@ import { usePersona } from '@/modules/personas/PersonaContext';
 import { buildSystemInstruction } from '@/modules/app-shell/systemInstruction';
 
 interface UseAgentRuntimeArgs {
+  enabled: boolean;
   skills: Skill[];
   addEventLog: (type: SystemLog['type'], message: string) => void;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
@@ -21,6 +22,7 @@ interface UseAgentRuntimeArgs {
 }
 
 export function useAgentRuntime({
+  enabled,
   skills,
   addEventLog,
   setMessages,
@@ -33,6 +35,11 @@ export function useAgentRuntime({
   const { activePersona } = usePersona();
 
   useEffect(() => {
+    if (!enabled) {
+      setClawHubPromptBlock('');
+      return;
+    }
+
     let disposed = false;
 
     const loadClawHubPrompt = async () => {
@@ -63,9 +70,14 @@ export function useAgentRuntime({
       disposed = true;
       unsubscribe();
     };
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      chatRef.current = null;
+      return;
+    }
+
     const optionalTools = mapSkillsToTools(skills, 'gemini');
     const allTools = [...CORE_MEMORY_TOOLS, ...optionalTools];
 
@@ -82,10 +94,15 @@ export function useAgentRuntime({
         tools: allTools,
       },
     });
-  }, [skills, activePersona, clawHubPromptBlock]);
+  }, [enabled, skills, activePersona, clawHubPromptBlock]);
 
   const handleAgentResponse = useCallback(
     async (userContent: string, platform: ChannelType) => {
+      if (!enabled) {
+        addEventLog('SYS', 'Agent runtime is disabled in the current view.');
+        return;
+      }
+
       if (!chatRef.current) {
         addEventLog('SYS', 'Chat instance not initialized.');
         return;
@@ -244,7 +261,15 @@ export function useAgentRuntime({
         setIsAgentTyping(false);
       }
     },
-    [activePersona?.id, addEventLog, setMessages, setScheduledTasks, skills, updateMemoryDisplay],
+    [
+      enabled,
+      activePersona?.id,
+      addEventLog,
+      setMessages,
+      setScheduledTasks,
+      skills,
+      updateMemoryDisplay,
+    ],
   );
 
   return {

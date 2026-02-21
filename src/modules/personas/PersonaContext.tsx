@@ -17,6 +17,8 @@ interface PersonaContextValue {
   refreshPersonas: () => Promise<void>;
   /** Loading state */
   loading: boolean;
+  /** Enables/disables network-backed persona data loading */
+  setDataEnabled: (enabled: boolean) => void;
 }
 
 const PersonaContext = createContext<PersonaContextValue | null>(null);
@@ -27,6 +29,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
   const [activePersonaId, setActivePersonaIdState] = useState<string | null>(null);
   const [activePersona, setActivePersona] = useState<PersonaWithFiles | null>(null);
   const [loading, setLoading] = useState(false);
+  const [dataEnabled, setDataEnabled] = useState(false);
 
   // Fetch persona list
   const refreshPersonas = useCallback(async () => {
@@ -46,11 +49,18 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
 
   // Load on mount
   useEffect(() => {
-    refreshPersonas();
-  }, [refreshPersonas]);
+    if (!dataEnabled) {
+      return;
+    }
+    void refreshPersonas();
+  }, [refreshPersonas, dataEnabled]);
 
   // Fetch full persona when activePersonaId changes
   useEffect(() => {
+    if (!dataEnabled) {
+      return;
+    }
+
     if (!activePersonaId) {
       setActivePersona(null);
       return;
@@ -74,7 +84,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [activePersonaId]);
+  }, [activePersonaId, dataEnabled]);
 
   const setActivePersonaId = useCallback((id: string | null) => {
     setActivePersonaIdState(id);
@@ -102,8 +112,17 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       setActivePersonaId,
       refreshPersonas,
       loading,
+      setDataEnabled,
     }),
-    [personas, activePersona, activePersonaId, setActivePersonaId, refreshPersonas, loading],
+    [
+      personas,
+      activePersona,
+      activePersonaId,
+      setActivePersonaId,
+      refreshPersonas,
+      loading,
+      setDataEnabled,
+    ],
   );
 
   return <PersonaContext.Provider value={value}>{children}</PersonaContext.Provider>;

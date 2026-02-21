@@ -252,7 +252,7 @@ const USER_REFERENCE_PATTERNS = [
  * Detects if content represents a persona self-reference.
  * This is used both at storage time and retrieval time.
  */
-export function isPersonaSelfReference(content: string): boolean {
+function isPersonaSelfReference(content: string): boolean {
   const normalized = content.toLowerCase().trim();
   return PERSONA_SELF_PATTERNS.some((pattern) => pattern.test(normalized));
 }
@@ -260,7 +260,7 @@ export function isPersonaSelfReference(content: string): boolean {
 /**
  * Detects if content represents a user reference.
  */
-export function isUserReference(content: string): boolean {
+function isUserReference(content: string): boolean {
   const normalized = content.toLowerCase().trim();
   return USER_REFERENCE_PATTERNS.some((pattern) => pattern.test(normalized));
 }

@@ -1,312 +1,270 @@
-# OpenClaw Demo vs unsere WebApp: Tiefes Gesamtreview (Funktionen, Qualitaet, Nutzen)
+# OpenClaw Demo vs unsere WebApp: Aktualisiertes Gesamtreview (Funktionen, Qualitaet, Nutzen)
 
-Stand: 2026-02-20  
+Stand: 2026-02-21  
 Vergleichsbasis: `demo/openclaw-main` vs aktueller Zustand unserer WebApp auf `main`
 
-## 1) Executive Summary
+## 1) Executive Summary (neu)
 
-Wenn man nur die reine Ops-Konsole betrachtet, ist die OpenClaw-Demo aktuell in der Tiefe pro Ops-Seite noch vorne (vor allem `nodes`, `agents`, `usage`).
+Im letzten Vergleich war die Aussage: OpenClaw ist bei Ops-Tiefe klar vorne, besonders bei `nodes`.
+Das ist in dieser Absolutheit nicht mehr korrekt.
 
-Wenn man das Gesamtsystem betrachtet (Ops + produktive Integrationen + Security/Channel-Realitaet + Testabsicherung), ist unsere WebApp in mehreren produktionsnahen Bereichen staerker.
+Was sich geaendert hat:
 
-Kurz gesagt:
-
-- **OpenClaw Demo staerker**: Ops-Spezialtiefe und Bedienlogik innerhalb einzelner Ops-Screens.
-- **Unsere WebApp staerker**: integrierte Plattformbreite, Channel-Realitaet, Prompt-Risiko-Transparenz, API-/Integrationstest-Reife.
-
----
-
-## 2) Wie bewertet wurde
-
-Die Bewertung ist codebasiert, nicht meinungsbasiert.
-
-Primarquellen:
-
-- Demo UI/Navi/Views:
-  - `demo/openclaw-main/ui/src/ui/navigation.ts:7`
-  - `demo/openclaw-main/ui/src/ui/app-render.ts:299`
-  - `demo/openclaw-main/ui/src/ui/views/sessions.ts:128`
-  - `demo/openclaw-main/ui/src/ui/views/usage.ts:515`
-  - `demo/openclaw-main/ui/src/ui/views/nodes.ts:32`
-  - `demo/openclaw-main/ui/src/ui/views/agents.ts:31`
-  - `demo/openclaw-main/ui/src/ui/views/logs.ts:45`
-- Unsere WebApp:
-  - `src/components/Sidebar.tsx:49`
-  - `src/modules/app-shell/components/AppShellViewContent.tsx:137`
+- Unsere `nodes`-Seite ist von read-only auf echte Operability ausgebaut worden
+  (`exec approvals`, `channel connect/disconnect`, `rotate secret`, `persona binding`, `telegram pending reject`):
+  - `app/api/ops/nodes/route.ts:200`
+  - `app/api/ops/nodes/route.ts:240`
+  - `app/api/ops/nodes/route.ts:279`
+  - `src/modules/ops/components/NodesView.tsx:121`
+  - `src/modules/ops/components/NodesView.tsx:192`
+  - `src/modules/ops/components/NodesView.tsx:345`
+- `sessions` hat jetzt tiefere Filter-/Scope-Logik:
   - `app/api/ops/sessions/route.ts:95`
-  - `src/modules/ops/components/SessionsView.tsx:80`
+  - `app/api/ops/sessions/route.ts:99`
+  - `src/modules/ops/components/SessionsView.tsx:85`
+  - `src/modules/ops/components/SessionsView.tsx:119`
+- `logs` ist weiter stark bei Web-Operability (cursor + history/buffer control):
   - `app/api/logs/route.ts:82`
+  - `src/components/logs/hooks/useLogs.ts:94`
+  - `src/components/logs/components/LogsToolbar.tsx:128`
   - `src/components/logs/components/LogsToolbar.tsx:188`
-  - `src/modules/cron/components/CronView.tsx:325`
-  - `src/components/stats/PromptLogsTab.tsx:19`
-  - `src/messenger/ChannelPairing.tsx:17`
-  - `src/server/channels/healthMonitor.ts:58`
-- Qualitaet/Security/Doku:
-  - `demo/openclaw-main/docs/security/README.md:7`
-  - `demo/openclaw-main/docs/security/THREAT-MODEL-ATLAS.md:24`
-  - `docs/SECURITY_SYSTEM.md:798`
-  - `src/server/auth/userContext.ts:41`
-  - `tests/integration/ops/ops-routes.test.ts:21`
-  - `tests/integration/automation/automations-routes.test.ts:59`
-  - `tests/integration/telemetry/logs-route.test.ts:33`
-  - `tests/integration/telemetry/logs-ingest-route.test.ts:65`
+- `cron` run-history wurde weiter verstaerkt:
+  - `app/api/automations/[id]/runs/route.ts:13`
+  - `app/api/automations/[id]/runs/route.ts:37`
+  - `src/modules/cron/hooks/useCronRules.ts:193`
+  - `src/modules/cron/components/CronView.tsx:319`
+
+Kurzfazit jetzt:
+
+- **OpenClaw bleibt vorne** bei `agents`-Tiefe und klassischer `usage`-Forensik.
+- **Unsere WebApp hat deutlich aufgeholt** bei `nodes` und bleibt stark bei `logs`, `cron`, produktionsnaher Plattformbreite und API-Testhaerte.
 
 ---
 
-## 3) Gesamtvergleich auf einen Blick
+## 2) Welche Aussagen aus der alten Version veraltet sind
 
-| Dimension                    | OpenClaw Demo                                             | Unsere WebApp                                                                                 | Urteil                               |
-| ---------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------ |
-| Funktionen (Ops)             | Sehr tiefe Ops-Screens mit vielen direkten Aktionen       | 7 Ops-Seiten vorhanden, plus juengst ausgebaut (Sessions/Logs/Cron)                           | Demo leicht vorne in Ops-Tiefe       |
-| Funktionen (Gesamtprodukt)   | Fokus stark auf Gateway/Ops-Flows                         | Breitere integrierte Produktflaeche (Models, Personas, Memory, Tasks, Profile, Security etc.) | Unsere WebApp vorne                  |
-| Qualitaet (UI-Reife)         | Sehr aufgeraeumte Ops-IA und starke View-Spezialisierung  | Modular, aber unterschiedliche Reifegrade je Screen                                           | Gemischt                             |
-| Qualitaet (Tests/API)        | Gute UI/View-Tests in Demo-Scope                          | Sehr breite Integrationstests ueber APIs und Security Guards                                  | Unsere WebApp vorne                  |
-| Security/Trust-Kommunikation | Sehr starke oeffentliche Threat-Model-/Trust-Doku         | Sehr starke technische Security-Implementierung + Auth Guards                                 | Beide stark, mit anderem Schwerpunkt |
-| Nutzen im Betrieb            | Sehr gut fuer Ops-Teams, die tiefe Einzelscreens brauchen | Sehr gut fuer produktionsnahe Teams mit Multi-Channel/Prompt-Risk/Integrationsbedarf          | Kontextabhaengig                     |
+### Veraltet 1: "Nodes klar vorne bei OpenClaw"
+
+Das war frueher korrekt, weil unsere Nodes-Seite primar Read-Only war.  
+Mit dem neuen Stand ist das nicht mehr "klar vorne", sondern "OpenClaw noch vorne, aber Gap deutlich kleiner".
+
+Neue Fakten:
+
+- Eigene Nodes-Mutationsroute vorhanden: `POST /api/ops/nodes`
+  - `app/api/ops/nodes/route.ts:328`
+- Konkrete Actions vorhanden:
+  - `exec.approve/revoke/clear`: `app/api/ops/nodes/route.ts:200`
+  - `bindings.setPersona`: `app/api/ops/nodes/route.ts:220`
+  - `channels.connect/disconnect`: `app/api/ops/nodes/route.ts:240`, `app/api/ops/nodes/route.ts:265`
+  - `channels.rotateSecret`: `app/api/ops/nodes/route.ts:279`
+  - `telegram.rejectPending`: `app/api/ops/nodes/route.ts:304`
+
+OpenClaw bleibt trotzdem tiefer bei Device-Lifecycle:
+
+- `Approve/Reject`: `demo/openclaw-main/ui/src/ui/views/nodes.ts:144`
+- `Rotate/Revoke` (device tokens): `demo/openclaw-main/ui/src/ui/views/nodes.ts:197`
+
+### Veraltet 2: "Ops-Vergleich insgesamt klar Demo-lastig"
+
+Auch das muss nuanciert werden:
+
+- Unsere WebApp hat jetzt 7 Ops-Punkte sichtbar und direkt geroutet:
+  - Sidebar: `src/components/Sidebar.tsx:54`
+  - Rendering: `src/modules/app-shell/components/AppShellViewContent.tsx:138`
+- Nodes/Sessions/Cron/Logs wurden in der Tiefe nachgezogen.
+
+---
+
+## 3) Gesamtvergleich auf einen Blick (aktualisiert)
+
+| Dimension        | OpenClaw Demo                                               | Unsere WebApp                                                        | Urteil (2026-02-21)                  |
+| ---------------- | ----------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------ |
+| Ops-Tiefe gesamt | Sehr stark, vor allem `agents` + `usage` + Device-Workflows | Deutlich ausgebaut, besonders `nodes` + `sessions` + `logs` + `cron` | Eher ausgeglichener als vorher       |
+| Nodes            | Sehr tiefer Device- und Token-Lifecycle                     | Jetzt echte Operability inkl. Mutationen                             | OpenClaw leicht vorne                |
+| Sessions         | Tiefe per-session override controls                         | Starke produktive CRUD + sichere Scope-Filter                        | Unterschiedlicher Fokus, beide stark |
+| Usage            | Sehr tiefe Forensik/Query/Export                            | Stark bei Prompt-Risk-Observability                                  | OpenClaw vorne bei klassischer Usage |
+| Logs             | Solide klassische Logs-View                                 | Cursor + Load-Older + buffer/history controls                        | Unsere WebApp vorne                  |
+| Cron             | Reif                                                        | Kernparitaet + variable History-Limits                               | Nahezu gleichwertig                  |
+| Agents           | Multi-Panel tief (files/tools/skills/channels/cron)         | Kompakter Runtime-View                                               | OpenClaw klar vorne                  |
+| Plattformbreite  | Stark als Ops-Konsole                                       | Breitere integrierte Produktkonsole                                  | Unsere WebApp vorne                  |
 
 ---
 
 ## 4) Tiefer Funktionsvergleich
 
-## 4.1 Informationsarchitektur und Navigation
+## 4.1 Informationsarchitektur
 
-**OpenClaw Demo Vorteil**
+**OpenClaw Vorteil**
 
-- Klare Navigationsgruppen (`control`, `agent`, `settings`) mit fokussierten Tabs (`sessions`, `usage`, `cron`, `nodes`, `agents`, `logs`) in einer konsistenten IA: `demo/openclaw-main/ui/src/ui/navigation.ts:7`.
-- Zentrale Verdrahtung aller Views ueber einen orchestrierten Render-Flow: `demo/openclaw-main/ui/src/ui/app-render.ts:146`.
+- Sehr klare Tab-IA in Gruppen:
+  - `demo/openclaw-main/ui/src/ui/navigation.ts:7`
 
 **Unsere WebApp Vorteil**
 
-- Deutlich breitere App-Oberflaeche in derselben Shell, nicht nur Ops:
-  - Sidebar-Views inkl. `MODELS`, `PERSONAS`, `MEMORY`, `TASKS`, `SECURITY`, `PROFILE`: `src/components/Sidebar.tsx:13`.
-  - Direkte View-Routing-Abdeckung in AppShell: `src/modules/app-shell/components/AppShellViewContent.tsx:97`.
-
-**Bewertung**
-
-- Nur Ops-Cockpit: Demo klarer.
-- Integrierte Produktplattform: unsere WebApp breiter.
+- Breite integrierte Shell plus Ops-Cluster in einer App:
+  - `src/components/Sidebar.tsx:54`
+  - `src/modules/app-shell/components/AppShellViewContent.tsx:138`
 
 ## 4.2 Sessions
 
-**OpenClaw Demo Vorteil**
+**OpenClaw Vorteil**
 
-- Tiefe Session-Steuerung pro Zeile inkl. Thinking/Verbose/Reasoning-Overrides und Chat-Deeplink: `demo/openclaw-main/ui/src/ui/views/sessions.ts:270`, `demo/openclaw-main/ui/src/ui/views/sessions.ts:303`.
+- Tiefe session-level Overrides (thinking/verbose/reasoning):
+  - `demo/openclaw-main/ui/src/ui/views/sessions.ts:198`
+  - `demo/openclaw-main/ui/src/ui/views/sessions.ts:270`
 
 **Unsere WebApp Vorteil**
 
-- Produktive CRUD-Flows (Create/Rename/Delete) plus ausgebauter Filterbereich:
-  - `Active within minutes`, `Include global`, `Include unknown`: `src/modules/ops/components/SessionsView.tsx:80`.
-- Serverseitige sichere Scope-Logik fuer `includeGlobalApplied` und Filter:
-  - `app/api/ops/sessions/route.ts:99`.
-
-**Bewertung**
-
-- Demo tiefer in pro-Session-Override-Operability.
-- Unsere App staerker in sicherer produktiver Session-Verwaltung.
+- Produktive Verwaltung plus sichere Filterlogik:
+  - `activeMinutes/includeGlobal/includeUnknown`: `app/api/ops/sessions/route.ts:95`
+  - Scope-Absicherung (`includeGlobalApplied`): `app/api/ops/sessions/route.ts:99`
+  - UI-Filter sichtbar: `src/modules/ops/components/SessionsView.tsx:85`
 
 ## 4.3 Usage / Stats
 
-**OpenClaw Demo Vorteil**
+**OpenClaw Vorteil**
 
-- Sehr tiefer Usage-Stack: Query-Tokens, Vorschlaege, Session-/Day-/Hour-Filter, Export CSV/JSON, Detailpanels:
-  - `demo/openclaw-main/ui/src/ui/views/usage.ts:515`
+- Sehr tiefe Query-/Zeitachsen-/Export-Forensik:
+  - `demo/openclaw-main/ui/src/ui/views/usage.ts:45`
   - `demo/openclaw-main/ui/src/ui/views/usage.ts:637`
-  - `demo/openclaw-main/ui/src/ui/views/usage.ts:820`
+  - `demo/openclaw-main/ui/src/ui/views/usage.ts:522`
 
 **Unsere WebApp Vorteil**
 
-- Stark integrierte Prompt-Dispatch-Telemetrie mit Risk-Level, Risk-Score, Reasons, Provider/Model-Filtern und Diagnostics:
+- Starkes Prompt-Risk-Observability mit Risk-Level/Score/Reasons:
   - `src/components/stats/PromptLogsTab.tsx:19`
-  - `src/components/stats/PromptLogsTab.tsx:326`
-  - `src/components/stats/PromptLogsTab.tsx:456`
+  - `src/components/stats/PromptLogsTab.tsx:167`
+  - `src/components/stats/PromptLogsTab.tsx:485`
 
-**Bewertung**
-
-- Demo vorne bei klassischer Usage-Forensik.
-- Unsere App vorne bei Prompt-Risk-Transparenz.
+Bewertung: Demo vorne bei klassischer Usage-Forensik; unsere App vorne bei Prompt-Risk-Sicht.
 
 ## 4.4 Cron
 
-**OpenClaw Demo**
+**OpenClaw**
 
-- Reife Cron-Jobs-Ansicht mit Actions und Run-History.
+- Reife Cron-Oberflaeche.
 
-**Unsere WebApp**
+**Unsere WebApp (aktuell)**
 
-- Funktionsparitaet bei Kernaktionen plus juengst erweiterte History-Tiefe:
-  - UI `Run history depth`: `src/modules/cron/components/CronView.tsx:325`
-  - Hook-State `historyLimit`: `src/modules/cron/hooks/useCronRules.ts:193`
-  - Route/Service-Limit-Weitergabe: `app/api/automations/[id]/runs/route.ts:37`, `src/server/automation/service.ts:135`
+- Bounded API-Limits + einstellbare Run-History-Tiefe:
+  - `app/api/automations/[id]/runs/route.ts:13`
+  - `app/api/automations/[id]/runs/route.ts:37`
+  - `src/modules/cron/hooks/useCronRules.ts:193`
+  - `src/modules/cron/components/CronView.tsx:319`
 
-**Bewertung**
+Bewertung: praktisch gleichwertig fuer die Kernbedarfe.
 
-- In der Kernfunktion inzwischen weitgehend gleichwertig.
+## 4.5 Nodes (stark aktualisiert)
 
-## 4.5 Nodes
+**OpenClaw Vorteil (weiterhin)**
 
-**OpenClaw Demo Vorteil (deutlich)**
+- Device- und Token-Lifecycle im Screen:
+  - `demo/openclaw-main/ui/src/ui/views/nodes.ts:144`
+  - `demo/openclaw-main/ui/src/ui/views/nodes.ts:197`
+  - `demo/openclaw-main/ui/src/ui/views/nodes.ts:277`
 
-- Aktive Device- und Token-Operationen direkt im UI:
-  - Approve/Reject: `demo/openclaw-main/ui/src/ui/views/nodes.ts:144`
-  - Rotate/Revoke: `demo/openclaw-main/ui/src/ui/views/nodes.ts:197`
-  - Exec-Node-Bindings/Approvals: `demo/openclaw-main/ui/src/ui/views/nodes.ts:277`
+**Unsere WebApp (neu)**
 
-**Unsere WebApp**
+- Vollwertige Nodes-Operability mit API + UI:
+  - Action-Backend: `app/api/ops/nodes/route.ts:200`
+  - Channel/Pairing actions: `app/api/ops/nodes/route.ts:240`
+  - Secret rotation: `app/api/ops/nodes/route.ts:279`
+  - UI Panels: `src/modules/ops/components/NodesView.tsx:121`, `src/modules/ops/components/NodesView.tsx:192`
+  - Telegram pending handling: `src/modules/ops/components/NodesView.tsx:345`
+  - Hook-actions: `src/modules/ops/hooks/useOpsNodes.ts:126`
 
-- Sehr gute Read-/Lagebild-Sicht (Health/Doctor/Automation/Bindings), aber weniger direkte Steueraktionen.
-
-**Bewertung**
-
-- Demo klar vorne.
+Bewertung: Groesser Gap-Close; OpenClaw bleibt vorne bei Device-spezifischer Tiefe.
 
 ## 4.6 Agents
 
-**OpenClaw Demo Vorteil (deutlich)**
+**OpenClaw Vorteil**
 
-- Multi-Panel-Ansatz: `overview`, `files`, `tools`, `skills`, `channels`, `cron`:
+- Reifer Multi-Panel Agent-Workspace:
   - `demo/openclaw-main/ui/src/ui/views/agents.ts:31`
-  - `demo/openclaw-main/ui/src/ui/views/agents.ts:315`
+  - `demo/openclaw-main/ui/src/ui/views/agents.ts:316`
 
 **Unsere WebApp**
 
-- Kompakter Runtime-Ueberblick, schnell und stabil, aber weniger tief.
+- Solider Runtime-Ueberblick, aber weniger tief als Demo:
+  - `src/modules/ops/components/AgentsView.tsx`
 
-**Bewertung**
-
-- Demo klar vorne in Operability-Tiefe.
+Bewertung: OpenClaw klar vorne.
 
 ## 4.7 Logs
 
-**OpenClaw Demo**
+**OpenClaw**
 
-- Klassisches File-tail-Pattern mit Level-Filtern, Export, Auto-follow:
-  - `demo/openclaw-main/ui/src/ui/views/logs.ts:91`
-
-**Unsere WebApp**
-
-- Realtime + Cursor-Nachladen + konfigurierbare History/Buffer:
-  - API `hasMore/nextCursor`: `app/api/logs/route.ts:82`
-  - Hook `hasMoreHistory`: `src/components/logs/hooks/useLogs.ts:24`
-  - UI `Load older`, `HISTORY`, `BUFFER`: `src/components/logs/components/LogsToolbar.tsx:128`
-
-**Bewertung**
-
-- Bei Log-Skalierung in der WebUI aktuell unsere App vorne.
-
----
-
-## 5) Qualitaetsvergleich (Reife, Security, Tests, Doku)
-
-## 5.1 Architektur
-
-**OpenClaw Demo Staerke**
-
-- Sehr koharente zentrale UI-Steuerung (Lit + zentraler App-Render), gut fuer konsistente Ops-Interaktion.
-
-**Unsere WebApp Staerke**
-
-- Modulare Systemarchitektur mit klar dokumentierten Domainen und Security-Layern:
-  - `docs/ARCHITECTURE_DIAGRAM.md:3`
-
-## 5.2 Security und Auth
-
-**OpenClaw Demo Staerke**
-
-- Exzellente oeffentliche Security-Positionierung inkl. Threat-Model-Programm:
-  - `demo/openclaw-main/docs/security/README.md:7`
-  - `demo/openclaw-main/docs/security/THREAT-MODEL-ATLAS.md:24`
-
-**Unsere WebApp Staerke**
-
-- Starke technische Security-Umsetzung:
-  - ABAC dokumentiert: `docs/SECURITY_SYSTEM.md:798`
-  - Request-Context/Auth-Gates: `src/server/auth/userContext.ts:41`
-  - Viele Endpunkt-Tests gegen Unauthorized/Scope-Fehler.
-
-## 5.3 Testreife
-
-**OpenClaw Demo**
-
-- Gute View-nahe UI-Tests in zentralen Ops-Bereichen.
+- Klassische Logs-View mit Filter/Auto-follow.
 
 **Unsere WebApp**
 
-- Sehr breite Integrations- und API-Testabdeckung in produktionskritischen Bereichen:
-  - Ops: `tests/integration/ops/ops-routes.test.ts:21`
-  - Automations: `tests/integration/automation/automations-routes.test.ts:59`
-  - Telemetrie/Logs: `tests/integration/telemetry/logs-route.test.ts:33`
-  - Ingest/Auth: `tests/integration/telemetry/logs-ingest-route.test.ts:65`
+- Cursor-basierte Historie, Load-Older, HISTORY/BUFFER-Controls:
+  - `app/api/logs/route.ts:82`
+  - `app/api/logs/route.ts:93`
+  - `src/components/logs/hooks/useLogs.ts:94`
+  - `src/components/logs/components/LogsToolbar.tsx:128`
+  - `src/components/logs/components/LogsToolbar.tsx:188`
 
-**Bewertung**
-
-- Teststrategie unterschiedlich:
-  - Demo staerker auf UI-View-Verhalten.
-  - Unsere App staerker auf API-/Security-/Integration-Haerte.
+Bewertung: unsere WebApp bleibt hier vorne fuer Web-Ops-Skalierung.
 
 ---
 
-## 6) Nutzwertvergleich
+## 5) Qualitaetsvergleich (Tests, Betrieb, Sicherheit)
 
-## 6.1 Betriebsnutzen (Ops)
+## 5.1 Test-/Contract-Reife (aktualisiert)
 
-**OpenClaw Demo**
+Neue/aktualisierte Tests fuer die ausgebauten Ops-Pfade:
 
-- Sehr stark fuer Operatoren, die tief in einem einzelnen Ops-Screen arbeiten (Nodes/Agents/Usage).
+- Nodes API inkl. Mutationen:
+  - `tests/integration/ops/ops-routes.test.ts:432`
+- Sessions advanced filter contract:
+  - `tests/integration/ops/ops-routes.test.ts:186`
+- Logs cursor/limit contract:
+  - `tests/integration/telemetry/logs-route.test.ts:114`
+  - `tests/integration/telemetry/logs-route.test.ts:142`
+- Cron bounded runs limit:
+  - `tests/integration/automation/automations-routes.test.ts:146`
+- Nodes/Sessions/Cron UI unit coverage:
+  - `tests/unit/components/ops-nodes-view.test.ts:187`
+  - `tests/unit/components/ops-sessions-view.test.ts`
+  - `tests/unit/components/cron-view.test.ts`
 
-**Unsere WebApp**
+Bewertung: Unsere API-/Integrationshaerte ist weiterhin eine klare Staerke.
 
-- Sehr stark fuer Teams, die Ops plus reale Integrationen gemeinsam brauchen:
-  - Multi-Account Pairing/Allowlist/Webhook-Scope: `src/messenger/ChannelPairing.tsx:312`, `app/api/channels/whatsapp/webhook/route.ts:205`
-  - Auto-Repair-Mechanik fuer Channel-Health: `src/server/channels/healthMonitor.ts:58`
+## 5.2 Security-/Scope-Logik
 
-## 6.2 Produktnutzen
-
-**OpenClaw Demo**
-
-- Hoher Nutzen als fokussierte Ops/Control-Oberflaeche.
-
-**Unsere WebApp**
-
-- Hoher Nutzen als integrierte Produktkonsole (mehr End-to-End im selben UI):
-  - `MODELS`, `PERSONAS`, `MEMORY`, `TASKS`, `SECURITY`, `PROFILE`: `src/components/Sidebar.tsx:13`.
-
-## 6.3 Teamnutzen
-
-**OpenClaw Demo**
-
-- Klare Ops-IA reduziert Einarbeitungszeit fuer klassische Operator-Rollen.
-
-**Unsere WebApp**
-
-- Gemeinsame Datenbasis fuer Product + Ops + Security durch kombinierte Views (Stats/Prompt-Risk/Channels/Ops) in einer Shell.
+- User-Context-Guards in Ops-Routen bleiben zentral:
+  - `src/server/auth/userContext.ts:41`
+  - `app/api/ops/nodes/route.ts:314`
+  - `app/api/ops/sessions/route.ts:99`
 
 ---
 
-## 7) Wo OpenClaw besser ist (heute)
+## 6) Wo OpenClaw heute noch besser ist
 
-1. **Nodes-Operability-Tiefe** (Approve/Reject/Rotate/Revoke/Bindings direkt im Screen).
-2. **Agents-Multi-Panel-Reife** (Files/Tools/Skills/Channels/Cron als zusammenhaengende Agenten-Konsole).
-3. **Usage-Forensik** (starkes Query-/Export-/Drilldown-Niveau).
-
----
-
-## 8) Wo unsere WebApp besser ist (heute)
-
-1. **Gesamtplattform-Breite im selben Produkt** (nicht nur Ops).
-2. **Produktionsnahe Channel-Realitaet** (Multi-Account + Allowlist + account-scoped webhook + Health-Reparatur).
-3. **Prompt-Risk-Observability** mit Diagnostics/Filter/Cost/Risk-Reasons.
-4. **API-/Security-Integrationstest-Haerte** ueber kritische Routen.
+1. Agenten-Operability-Tiefe (`files/tools/skills/channels/cron`) in einem konsistenten Agenten-Workspace.
+2. Klassische Usage-Forensik mit sehr tiefen Query/Export/Drilldown-Flows.
+3. Device-/Token-Lifecycle auf Nodes weiterhin tiefer spezialisiert.
 
 ---
 
-## 9) Endurteil
+## 7) Wo unsere WebApp heute besser ist
 
-Es gibt keinen absoluten "Gesamtsieger" ohne Kontext:
+1. Plattformbreite in einer App-Shell (Ops + Produkt + Security + Memory + Personas).
+2. Logs-Ops im Web (cursor/history/buffer/load-older) sehr performant und bedienbar.
+3. Deutlich verbesserte Nodes-Operability mit serverseitigen Mutationen und UI-Steuerung.
+4. Starke API-/Integrations-Testabdeckung auf kritischen Betriebsrouten.
 
-- Wenn Ziel = **maximal tiefe Ops-Konsole pro Einzelscreen**, ist die **OpenClaw-Demo aktuell vorne**.
-- Wenn Ziel = **integrierte produktionsnahe Control Plane mit breiter Funktionsflaeche und starker API-/Security-Absicherung**, ist **unsere WebApp aktuell vorne**.
+---
 
-Strategisch ist fuer uns der beste Weg:
+## 8) Endurteil (neu)
 
-- Demo-Staerken gezielt uebernehmen (`nodes`, `agents`, `usage`-Tiefe),
-- dabei unsere bestehenden Staerken (Channel-Realitaet, Prompt-Risk, Integrationsreife) beibehalten.
+Der Vergleich ist jetzt weniger "Demo klar vorne" als noch am 2026-02-20:
+
+- **OpenClaw bleibt vorne** in `agents` und klassischer `usage`-Forensik.
+- **Unsere WebApp hat sichtbar aufgeholt** in `nodes` und bestaetigt Staerke bei `logs`, `cron`, Integrationsreife und Plattformbreite.
+
+Praktisch bedeutet das:
+
+- Fuer tiefste Agenten-/Usage-Operations ist Demo weiterhin Referenz.
+- Fuer produktionsnahe, integrierte Ops + Produktarbeit ist unsere WebApp inzwischen mindestens gleichwertig und in Teilbereichen klar besser.

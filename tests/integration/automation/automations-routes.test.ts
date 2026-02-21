@@ -81,7 +81,7 @@ describe('automation routes', () => {
     expect(created.ok).toBe(true);
     const ruleId = created.rule.id;
 
-    const listResponse = await automationsRoute.GET();
+    const listResponse = await automationsRoute.GET(new Request('http://localhost/api/automations'));
     const listed = (await listResponse.json()) as { ok: boolean; rules: Array<{ id: string }> };
     expect(listed.ok).toBe(true);
     expect(listed.rules.some((rule) => rule.id === ruleId)).toBe(true);
@@ -125,7 +125,7 @@ describe('automation routes', () => {
   it('returns 401 when REQUIRE_AUTH is true and no session exists', async () => {
     process.env.REQUIRE_AUTH = 'true';
     const automationsRoute = await import('../../../app/api/automations/route');
-    const response = await automationsRoute.GET();
+    const response = await automationsRoute.GET(new Request('http://localhost/api/automations'));
 
     expect(response.status).toBe(401);
   });
@@ -134,10 +134,14 @@ describe('automation routes', () => {
     process.env.REQUIRE_AUTH = 'true';
     process.env.CHAT_PERSISTENT_SESSION_V2 = 'false';
     const automationsRoute = await import('../../../app/api/automations/route');
-    const responseWhenFlagOff = await automationsRoute.GET();
+    const responseWhenFlagOff = await automationsRoute.GET(
+      new Request('http://localhost/api/automations'),
+    );
 
     process.env.CHAT_PERSISTENT_SESSION_V2 = 'true';
-    const responseWhenFlagOn = await automationsRoute.GET();
+    const responseWhenFlagOn = await automationsRoute.GET(
+      new Request('http://localhost/api/automations'),
+    );
 
     expect(responseWhenFlagOff.status).toBe(401);
     expect(responseWhenFlagOn.status).toBe(401);

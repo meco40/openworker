@@ -1,21 +1,16 @@
 import { NextResponse } from 'next/server';
 import { runDoctorCommand } from '@/commands/doctorCommand';
 import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { parseMemoryDiagnosticsEnabled } from '@/server/http/memoryDiagnostics';
+import { unauthorizedResponse } from '@/server/http/unauthorized';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function parseMemoryDiagnosticsEnabled(request: Request): boolean {
-  const raw = new URL(request.url).searchParams.get('memoryDiagnostics');
-  if (!raw) return false;
-  const normalized = raw.trim().toLowerCase();
-  return normalized === '1' || normalized === 'true' || normalized === 'on' || normalized === 'yes';
-}
-
 export async function GET(request: Request) {
   const userContext = await resolveRequestUserContext();
   if (!userContext) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   try {

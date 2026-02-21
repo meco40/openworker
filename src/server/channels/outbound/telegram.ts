@@ -20,7 +20,7 @@ export interface TelegramTextOptions {
   disableWebPagePreview?: boolean;
 }
 
-export function formatTelegramText(text: string): string {
+function formatTelegramText(text: string): string {
   return text
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')

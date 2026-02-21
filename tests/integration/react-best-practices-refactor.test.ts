@@ -28,7 +28,13 @@ describe('react/next best-practices refactor', () => {
     const viewContent = read('src/modules/app-shell/components/AppShellViewContent.tsx');
     expect(viewContent).toContain("import dynamic from 'next/dynamic';");
     expect(viewContent).not.toContain("dynamic(() => import('../../../../WorkerView'))");
-    expect(viewContent).toContain("dynamic(() => import('@/components/ModelHub'))");
+    expect(viewContent).toContain("dynamic(() => import('@/components/ModelHub')");
+    expect(viewContent).toContain("dynamic(() => import('@/components/Dashboard')");
+    expect(viewContent).toContain("dynamic(() => import('@/components/ChatInterface')");
+    expect(viewContent).toContain("dynamic(() => import('@/messenger/ChannelPairing')");
+    expect(viewContent).not.toContain("import Dashboard from '@/components/Dashboard';");
+    expect(viewContent).not.toContain("import ChatInterface from '@/components/ChatInterface';");
+    expect(viewContent).not.toContain("import ChannelPairing from '@/messenger/ChannelPairing';");
   });
 
   it('loads fonts via next/font self-hosting instead of Google stylesheet links', () => {
@@ -93,9 +99,41 @@ describe('react/next best-practices refactor', () => {
     const conversationSync = read('src/modules/app-shell/useConversationSync.ts');
     const gatewayState = read('src/modules/app-shell/useGatewayState.ts');
 
-    expect(app).toContain('useState<View>(() => buildInitialShellState().currentView)');
+    expect(app).toMatch(
+      /useState<View>\(\(\) =>\s*buildInitialShellState\(initialView\)\.currentView,?\s*\)/,
+    );
     expect(app).toContain('useState<Record<string, CoupledChannel>>(() => {');
     expect(conversationSync).toContain('useState<Message[]>(() => [])');
     expect(gatewayState).toContain('useState<GatewayState>(() => createInitialGatewayState())');
+  });
+
+  it('uses server-derived initial view and avoids startup config fetch in client app shell', () => {
+    const app = read('src/modules/app-shell/App.tsx');
+    const page = read('app/page.tsx');
+    const appShell = read('src/modules/app-shell/AppShell.tsx');
+
+    expect(app).not.toContain("fetch('/api/config'");
+    expect(page).toContain("import { loadGatewayConfig } from '@/server/config/gatewayConfig';");
+    expect(page).toContain(
+      "import { resolveDefaultViewFromConfig } from '@/server/config/uiRuntimeConfig';",
+    );
+    expect(appShell).toContain('initialView');
+    expect(app).toContain('initialView: View');
+  });
+
+  it('loads chat/persona/skills data only when required by active view', () => {
+    const app = read('src/modules/app-shell/App.tsx');
+    const conversationSync = read('src/modules/app-shell/useConversationSync.ts');
+    const agentRuntime = read('src/modules/app-shell/useAgentRuntime.ts');
+    const personaContext = read('src/modules/personas/PersonaContext.tsx');
+
+    expect(app).toContain('const shouldEnableChatData = currentView === View.CHAT;');
+    expect(app).toContain('enabled: shouldEnableChatData');
+    expect(conversationSync).toContain('enabled: boolean');
+    expect(conversationSync).toContain('if (!enabled) {');
+    expect(agentRuntime).toContain('enabled: boolean');
+    expect(agentRuntime).toContain('if (!enabled) {');
+    expect(personaContext).toContain('setDataEnabled: (enabled: boolean) => void;');
+    expect(personaContext).toContain('const [dataEnabled, setDataEnabled] = useState(false);');
   });
 });

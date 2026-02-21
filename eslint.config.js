@@ -8,7 +8,7 @@ import security from 'eslint-plugin-security';
 import sonarjs from 'eslint-plugin-sonarjs';
 import unicorn from 'eslint-plugin-unicorn';
 import unusedImports from 'eslint-plugin-unused-imports';
-import vitest from 'eslint-plugin-vitest';
+import vitest from '@vitest/eslint-plugin';
 
 const config = [
   ...nextVitals,
@@ -114,6 +114,8 @@ const config = [
       ...vitest.configs.recommended.rules,
       'vitest/no-focused-tests': 'error',
       'vitest/no-disabled-tests': 'warn',
+      // Preserve previous lint behavior after migrating to @vitest/eslint-plugin.
+      'vitest/no-conditional-expect': 'off',
     },
   },
   {

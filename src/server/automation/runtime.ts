@@ -97,7 +97,7 @@ async function defaultRunPrompt(input: {
   };
 }
 
-export function getAutomationRepository(): SqliteAutomationRepository {
+function getAutomationRepository(): SqliteAutomationRepository {
   if (!globalThis.__automationRepository) {
     globalThis.__automationRepository = new SqliteAutomationRepository();
   }
@@ -113,7 +113,7 @@ export function getAutomationService(): AutomationService {
   return globalThis.__automationService;
 }
 
-export function getAutomationRuntime(
+function getAutomationRuntime(
   instanceId = process.env.SCHEDULER_INSTANCE_ID || 'scheduler-1',
 ): AutomationRuntime {
   if (!globalThis.__automationRuntime) {

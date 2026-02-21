@@ -17,11 +17,7 @@ interface CreateAutomationBody {
 const MIN_LIMIT = 1;
 const MAX_LIMIT = 500;
 
-function parseOptionalLimit(request?: Request): number | undefined {
-  if (!request) {
-    return undefined;
-  }
-
+function parseOptionalLimit(request: Request): number | undefined {
   const rawLimit = new URL(request.url).searchParams.get('limit');
   if (rawLimit === null) {
     return undefined;
@@ -35,7 +31,7 @@ function parseOptionalLimit(request?: Request): number | undefined {
   return Math.min(Math.max(parsedLimit, MIN_LIMIT), MAX_LIMIT);
 }
 
-export async function GET(request?: Request) {
+export async function GET(request: Request) {
   const userId = await resolveAutomationUserId();
   if (!userId) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });

@@ -17,7 +17,7 @@ export function encodeBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-export async function decodeAudioData(
+async function decodeAudioData(
   data: Uint8Array,
   ctx: AudioContext,
   sampleRate: number,

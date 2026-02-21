@@ -116,7 +116,7 @@ export function resolveBridgeAccountSecret(
   return envWebhookSecret(channel);
 }
 
-export function resolveBridgeAccountStatus(
+function resolveBridgeAccountStatus(
   channel: BridgeChannel,
   accountId?: string | null,
   store: CredentialStore = getCredentialStore(),

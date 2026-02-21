@@ -91,7 +91,7 @@ export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
     icon: 'X',
     authMethods: ['api_key'],
     endpointType: 'xai-native',
-    capabilities: ['chat', 'tools'],
+    capabilities: ['chat', 'tools', 'vision'],
     defaultModels: ['grok-4', 'grok-3'],
     apiBaseUrl: 'https://api.x.ai/v1',
     docsUrl: 'https://docs.x.ai/docs/overview',

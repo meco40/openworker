@@ -10,12 +10,22 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   outputFileTracingExcludes: {
     '/*': [
+      '.local/**',
+      '.local/**/*.db',
       '.local/**/*.db-journal',
       '.local/**/*.db-shm',
       '.local/**/*.db-wal',
+      '**/.codex/**',
+      '**/.openclaw/**',
+      '**/C:/Users/**/.codex/**',
+      '**/C:/Users/**/.openclaw/**',
       'demo/**',
       'backups/**',
       'workspaces/**',
+      'tests/**',
+      'docs/**',
+      'src/server/skills/handlers/**',
+      // Keep compatibility exclude for historic dotted trace paths.
       'src/server/skills/handlers./**',
     ],
   },

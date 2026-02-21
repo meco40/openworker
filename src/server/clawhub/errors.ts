@@ -1,4 +1,4 @@
-export class ClawHubError extends Error {
+class ClawHubError extends Error {
   readonly status: number;
   readonly code: string;
 

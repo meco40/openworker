@@ -68,7 +68,7 @@ async function runExtractionModelViaHub(prompt: string): Promise<string> {
   return result.text;
 }
 
-export function getKnowledgeExtractor(): KnowledgeExtractor {
+function getKnowledgeExtractor(): KnowledgeExtractor {
   if (!globalThis.__knowledgeExtractor) {
     globalThis.__knowledgeExtractor = new KnowledgeExtractor({
       runExtractionModel: runExtractionModelViaHub,
@@ -142,7 +142,7 @@ export function getKnowledgeRetrievalService(): KnowledgeRetrievalService {
   return globalThis.__knowledgeRetrievalService;
 }
 
-export function getKnowledgeRuntimeLoop(): KnowledgeRuntimeLoop {
+function getKnowledgeRuntimeLoop(): KnowledgeRuntimeLoop {
   if (!globalThis.__knowledgeRuntimeLoop) {
     const config = getKnowledgeConfig();
     globalThis.__knowledgeRuntimeLoop = new KnowledgeRuntimeLoop({
@@ -208,7 +208,7 @@ export function stopKnowledgeRuntimeLoop(): void {
   globalThis.__knowledgeRuntimeLoop?.stop();
 }
 
-export function resetKnowledgeRuntimeForTests(): void {
+function resetKnowledgeRuntimeForTests(): void {
   globalThis.__knowledgeRuntimeLoop?.stop();
   globalThis.__knowledgeMessageRepository = undefined;
   globalThis.__knowledgeRuntimeLoop = undefined;

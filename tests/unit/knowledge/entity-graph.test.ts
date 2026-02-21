@@ -3,9 +3,10 @@
  * CRUD, alias resolution, relation traversal, owner isolation.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
 import type { EntityGraphFilter } from '@/server/knowledge/entityGraph';
+import { cleanupSqliteArtifacts } from '../../helpers/sqliteTestArtifacts';
 
 const TEST_DB_DIR = '.local';
 let dbPath: string;
@@ -24,7 +25,13 @@ beforeEach(() => {
 
 afterEach(() => {
   try {
-    if (existsSync(dbPath)) unlinkSync(dbPath);
+    repo?.close();
+  } catch {
+    // ignore close races
+  }
+
+  try {
+    cleanupSqliteArtifacts(dbPath);
   } catch {
     // ignore Windows EBUSY
   }

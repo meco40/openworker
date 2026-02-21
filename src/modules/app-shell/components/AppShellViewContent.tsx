@@ -15,28 +15,80 @@ import {
   type Skill,
   View,
 } from '@/shared/domain/types';
-import Dashboard from '@/components/Dashboard';
-import ChatInterface from '@/components/ChatInterface';
-import ChannelPairing from '@/messenger/ChannelPairing';
 import ViewErrorBoundary from '@/components/ViewErrorBoundary';
 
-const ModelHub = dynamic(() => import('@/components/ModelHub'));
-const SkillsRegistry = dynamic(() => import('@/skills/SkillsRegistry'));
-const TaskManagerView = dynamic(() => import('@/modules/tasks/components/TaskManagerView'));
-const LogsView = dynamic(() => import('@/modules/telemetry/components/LogsView'));
-const SecurityView = dynamic(() => import('@/components/SecurityView'));
-const ConfigEditor = dynamic(() => import('@/modules/config/components/ConfigEditor'));
-const ProfileView = dynamic(() => import('@/components/ProfileView'));
-const ExposureManager = dynamic(() => import('@/modules/exposure/components/ExposureManager'));
-const StatsView = dynamic(() => import('@/components/StatsView'));
-const PersonasView = dynamic(() => import('@/components/PersonasView'));
-const MemoryView = dynamic(() => import('@/components/MemoryView'));
-const KnowledgeView = dynamic(() => import('@/components/KnowledgeView'));
-const CronView = dynamic(() => import('@/modules/cron/components/CronView'));
-const InstancesView = dynamic(() => import('@/modules/ops/components/InstancesView'));
-const SessionsView = dynamic(() => import('@/modules/ops/components/SessionsView'));
-const NodesView = dynamic(() => import('@/modules/ops/components/NodesView'));
-const AgentsView = dynamic(() => import('@/modules/ops/components/AgentsView'));
+const ViewLoadingFallback: React.FC<{ label: string }> = ({ label }) => (
+  <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-xs font-semibold tracking-wide text-zinc-400">
+    Loading {label}...
+  </div>
+);
+
+function loading(label: string) {
+  return function ViewLoading() {
+    return <ViewLoadingFallback label={label} />;
+  };
+}
+
+const Dashboard = dynamic(() => import('@/components/Dashboard'), {
+  loading: loading('Control Plane'),
+});
+const ChatInterface = dynamic(() => import('@/components/ChatInterface'), {
+  loading: loading('Multi-Channel Inbox'),
+});
+const ChannelPairing = dynamic(() => import('@/messenger/ChannelPairing'), {
+  loading: loading('Messenger Coupling'),
+});
+const ModelHub = dynamic(() => import('@/components/ModelHub'), {
+  loading: loading('AI Model Hub'),
+});
+const SkillsRegistry = dynamic(() => import('@/skills/SkillsRegistry'), {
+  loading: loading('Skill Registry'),
+});
+const TaskManagerView = dynamic(() => import('@/modules/tasks/components/TaskManagerView'), {
+  loading: loading('Task Monitor'),
+});
+const LogsView = dynamic(() => import('@/modules/telemetry/components/LogsView'), {
+  loading: loading('System Logs'),
+});
+const SecurityView = dynamic(() => import('@/components/SecurityView'), {
+  loading: loading('Security Panel'),
+});
+const ConfigEditor = dynamic(() => import('@/modules/config/components/ConfigEditor'), {
+  loading: loading('Gateway Config'),
+});
+const ProfileView = dynamic(() => import('@/components/ProfileView'), {
+  loading: loading('Operator Profile'),
+});
+const ExposureManager = dynamic(() => import('@/modules/exposure/components/ExposureManager'), {
+  loading: loading('Remote Exposure'),
+});
+const StatsView = dynamic(() => import('@/components/StatsView'), {
+  loading: loading('Usage Stats'),
+});
+const PersonasView = dynamic(() => import('@/components/PersonasView'), {
+  loading: loading('Agent Personas'),
+});
+const MemoryView = dynamic(() => import('@/components/MemoryView'), {
+  loading: loading('Memory'),
+});
+const KnowledgeView = dynamic(() => import('@/components/KnowledgeView'), {
+  loading: loading('Knowledge'),
+});
+const CronView = dynamic(() => import('@/modules/cron/components/CronView'), {
+  loading: loading('Cron'),
+});
+const InstancesView = dynamic(() => import('@/modules/ops/components/InstancesView'), {
+  loading: loading('Instances'),
+});
+const SessionsView = dynamic(() => import('@/modules/ops/components/SessionsView'), {
+  loading: loading('Sessions'),
+});
+const NodesView = dynamic(() => import('@/modules/ops/components/NodesView'), {
+  loading: loading('Nodes'),
+});
+const AgentsView = dynamic(() => import('@/modules/ops/components/AgentsView'), {
+  loading: loading('Agents'),
+});
 
 interface AppShellViewContentProps {
   currentView: View;

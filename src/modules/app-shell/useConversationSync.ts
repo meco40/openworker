@@ -32,7 +32,11 @@ interface StreamConversationMessage extends PersistedConversationMessage {
   conversationId: string;
 }
 
-export function useConversationSync() {
+interface UseConversationSyncArgs {
+  enabled: boolean;
+}
+
+export function useConversationSync({ enabled }: UseConversationSyncArgs) {
   const [conversations, setConversations] = useState<Conversation[]>(() => []);
   const [messages, setMessages] = useState<Message[]>(() => []);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(() => null);
@@ -43,6 +47,10 @@ export function useConversationSync() {
   }, [activeConversationId]);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     fetch('/api/channels/conversations')
       .then((response) => response.json())
       .then((data: ConversationListResponse) => {
@@ -55,10 +63,14 @@ export function useConversationSync() {
         }
       })
       .catch((error) => console.warn('Failed to load conversations:', error));
-  }, []);
+  }, [enabled]);
 
   // ─── WebSocket Live Updates ──────────────────────────────
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const client = getGatewayClient();
     client.connect();
 
@@ -120,9 +132,13 @@ export function useConversationSync() {
       unsubReset();
       unsubAborted();
     };
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     if (!activeConversationId) {
       setMessages([]);
       return;
@@ -137,7 +153,7 @@ export function useConversationSync() {
         setMessages(data.messages.map(mapConversationApiMessage));
       })
       .catch(console.error);
-  }, [activeConversationId]);
+  }, [activeConversationId, enabled]);
 
   return {
     conversations,

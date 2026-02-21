@@ -9,13 +9,14 @@
  * Expected answer: contains "3" (2 + 1 = 3, confirmation ignored)
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
 import { KnowledgeIngestionService } from '@/server/knowledge/ingestionService';
 import { computeEventAnswer } from '@/server/knowledge/eventAnswerComputer';
 import { planKnowledgeQuery } from '@/server/knowledge/queryPlanner';
 import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
 import type { StoredMessage } from '@/server/channels/messages/repository';
+import { cleanupSqliteArtifacts } from '../../helpers/sqliteTestArtifacts';
 
 const TEST_DB_DIR = '.local';
 let dbPath: string;
@@ -44,7 +45,13 @@ beforeEach(() => {
 
 afterEach(() => {
   try {
-    if (existsSync(dbPath)) unlinkSync(dbPath);
+    repo?.close();
+  } catch {
+    // ignore close races
+  }
+
+  try {
+    cleanupSqliteArtifacts(dbPath);
   } catch {
     // ignore
   }
