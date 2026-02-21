@@ -1,6 +1,14 @@
 # Persona and Rooms System
 
-**Stand:** 2026-02-17
+## Metadata
+
+- Purpose: Verbindliche Referenz fuer Persona- und Room-Orchestrierung.
+- Scope: Room-Lifecycle, Member-Management, Orchestrator-Steuerung, Runtime-Rollen.
+- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
+- Last Reviewed: 2026-02-21
+- Related Runbooks: docs/runbooks/gateway-config-production-rollout.md
+
+---
 
 ## 1. Funktionserläuterung
 
@@ -66,8 +74,6 @@ Rooms verwenden Lease-Mechanik, um parallele Verarbeitung zu verhindern. Der akt
 | GET     | `/api/personas/[id]`                  | Persona laden           |
 | PUT     | `/api/personas/[id]`                  | Persona aktualisieren   |
 | DELETE  | `/api/personas/[id]`                  | Persona löschen         |
-| GET     | `/api/personas/[id]/permissions`      | Berechtigungen lesen    |
-| PUT     | `/api/personas/[id]/permissions`      | Berechtigungen setzen   |
 | GET     | `/api/personas/[id]/files/[filename]` | Persona-Datei lesen     |
 | PUT     | `/api/personas/[id]/files/[filename]` | Persona-Datei schreiben |
 | GET     | `/api/personas/templates`             | Templates laden         |

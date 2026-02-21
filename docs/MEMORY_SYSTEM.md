@@ -1,6 +1,14 @@
 # Memory System
 
-**Stand:** 2026-02-17
+## Metadata
+
+- Purpose: Verbindliche Referenz fuer den Memory-Layer und dessen Betriebsverhalten.
+- Scope: Memory-Erfassung, Recall, Feedback-Learning, Versionierung und API-Anbindung.
+- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
+- Last Reviewed: 2026-02-21
+- Related Runbooks: N/A
+
+---
 
 ## 1. Funktionserläuterung
 

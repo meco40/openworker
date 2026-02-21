@@ -1,6 +1,14 @@
 # Automation System
 
-**Stand:** 2026-02-17
+## Metadata
+
+- Purpose: Verbindliche Referenz fuer zeitgesteuerte Automations im System.
+- Scope: Cron-Regeln, Scheduler-Lease, Run-Queue, Retry/Dead-Letter, Triggerquellen.
+- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
+- Last Reviewed: 2026-02-21
+- Related Runbooks: N/A
+
+---
 
 ## 1. Funktionserläuterung
 
@@ -38,15 +46,16 @@ Pro Tick werden fällige Rules enqueued und queued Runs verarbeitet. Bei Fehlern
 
 ## 3. API-Referenz
 
-| Methode | Pfad                         | Zweck                  |
-| ------- | ---------------------------- | ---------------------- |
-| GET     | `/api/automations`           | Rules listen           |
-| POST    | `/api/automations`           | Rule erstellen         |
-| GET     | `/api/automations/[id]`      | Rule laden             |
-| PATCH   | `/api/automations/[id]`      | Rule aktualisieren     |
-| DELETE  | `/api/automations/[id]`      | Rule löschen           |
-| POST    | `/api/automations/[id]/run`  | Manuellen Run erzeugen |
-| GET     | `/api/automations/[id]/runs` | Runs zu Rule laden     |
+| Methode | Pfad                         | Zweck                                       |
+| ------- | ---------------------------- | ------------------------------------------- |
+| GET     | `/api/automations`           | Rules listen                                |
+| POST    | `/api/automations`           | Rule erstellen                              |
+| GET     | `/api/automations/[id]`      | Rule laden                                  |
+| PATCH   | `/api/automations/[id]`      | Rule aktualisieren                          |
+| DELETE  | `/api/automations/[id]`      | Rule löschen                                |
+| POST    | `/api/automations/[id]/run`  | Manuellen Run erzeugen                      |
+| GET     | `/api/automations/[id]/runs` | Runs zu Rule laden                          |
+| GET     | `/api/automations/metrics`   | Scheduler-Metriken und Lease-Status abrufen |
 
 ---
 

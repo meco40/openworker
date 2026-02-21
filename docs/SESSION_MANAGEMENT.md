@@ -1,6 +1,14 @@
 # Session Management System
 
-**Stand:** 2026-02-17
+## Metadata
+
+- Purpose: Verbindliche Referenz fuer Session-Lifecycle, Chat-Flows und Laufzeitkontrolle.
+- Scope: Conversation-Erzeugung, Nachrichtenfluss, Abort/Reset, Idempotenz, Model-Overrides.
+- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
+- Last Reviewed: 2026-02-21
+- Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md
+
+---
 
 ## 1. Funktionserläuterung
 
@@ -430,6 +438,6 @@ npm run typecheck
 
 ## 9. Siehe auch
 
-- docs/SESSION_MANAGEMENT_IMPLEMENTATION.md - Implementierungsdetails
+- docs/archive/reports/SESSION_MANAGEMENT_IMPLEMENTATION.md - Historische Implementierungsdetails (archiviert)
 - docs/MEMORY_SYSTEM.md - Memory-Integration
 - docs/CORE_HANDBOOK.md

@@ -25,7 +25,7 @@ const ALLOWED_TOP_LEVEL_FILES = new Set([
   'package-lock.json',
   'tsconfig.json',
   'next.config.ts',
-  'eslint.config.js',
+  '.oxlintrc.json',
 ]);
 
 function ensureWorkspacePath(userPath: string): string {

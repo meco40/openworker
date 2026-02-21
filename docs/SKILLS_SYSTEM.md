@@ -1,12 +1,22 @@
 # Skills System
 
-**Last Updated:** 2026-02-17
+## Metadata
+
+- Purpose: Verbindliche Referenz fuer Skill-Lifecycle und Skill-Execution-Governance.
+- Scope: Skill-Registry, Installation, Runtime-Konfiguration, Dispatch und Sicherheitsgrenzen.
+- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
+- Last Reviewed: 2026-02-21
+- Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md
+
+---
 
 This document describes the complete Skills System architecture, covering skill lifecycle management, execution dispatch, runtime configuration, security sandboxing, and integration with ClawHub.
 
 ## Overview
 
 The Skills System is a modular, extensible framework that enables the AI assistant to execute domain-specific capabilities through a unified interface. It combines **built-in skills** (shipped with the system) with **external skills** (installed from GitHub, npm, or manual sources) through a controlled execution environment.
+
+Current runtime baseline: 9 built-in skills (7 installed by default, 2 opt-in).
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -35,7 +45,8 @@ The Skills System is a modular, extensible framework that enables the AI assista
 │ • filesystem      │  │ • Manual manifests│  │ • Ratings         │
 │ • python          │  │                   │  │                   │
 │ • vision          │  │                   │  │                   │
-│ • shell (opt)     │  │                   │  │                   │
+│ • shell           │  │                   │  │                   │
+│ • subagents       │  │                   │  │                   │
 │ • github (opt)    │  │                   │  │                   │
 │ • sql (opt)       │  │                   │  │                   │
 └─────────┬─────────┘  └─────────┬─────────┘  └─────────┬─────────┘
@@ -355,14 +366,14 @@ export async function dispatchSkill(name: string, args: Record<string, unknown>)
 
 ### State Transitions
 
-| From            | To        | Trigger                   | API                      |
-| --------------- | --------- | ------------------------- | ------------------------ |
-| Seeded          | Installed | System boot               | Automatic                |
-| -               | Installed | GitHub/npm/manual install | `POST /api/skills`       |
-| Installed       | Active    | User enables              | `PATCH /api/skills/:id`  |
-| Active          | Disabled  | User disables             | `PATCH /api/skills/:id`  |
-| Disabled        | Active    | User enables              | `PATCH /api/skills/:id`  |
-| Active/Disabled | Removed   | User uninstalls           | `DELETE /api/skills/:id` |
+| From            | To        | Trigger                   | API                       |
+| --------------- | --------- | ------------------------- | ------------------------- |
+| Seeded          | Installed | System boot               | Automatic                 |
+| -               | Installed | GitHub/npm/manual install | `POST /api/skills`        |
+| Installed       | Active    | User enables              | `PATCH /api/skills/[id]`  |
+| Active          | Disabled  | User disables             | `PATCH /api/skills/[id]`  |
+| Disabled        | Active    | User enables              | `PATCH /api/skills/[id]`  |
+| Active/Disabled | Removed   | User uninstalls           | `DELETE /api/skills/[id]` |
 
 **Note:** Built-in skills cannot be removed, only disabled.
 
@@ -464,7 +475,7 @@ Executes Python code in a subprocess.
 | Attribute    | Value           |
 | ------------ | --------------- |
 | **Function** | `shell_execute` |
-| **Default**  | Not installed   |
+| **Default**  | Installed       |
 | **Category** | Automation      |
 
 Executes shell commands with security restrictions.
@@ -506,6 +517,26 @@ GitHub API integration for repository operations.
 **Configuration:**
 
 - Optional: `github-manager.github_token` (increases rate limits, enables private repos)
+
+#### `subagents` - Delegation Manager
+
+| Attribute    | Value       |
+| ------------ | ----------- |
+| **Function** | `subagents` |
+| **Default**  | Installed   |
+| **Category** | Automation  |
+
+Spawns and steers delegated helper agents for complex workflows.
+
+**Key Actions:**
+
+- `list`
+- `spawn`
+- `kill`
+- `steer`
+- `info`
+- `log`
+- `help`
 
 ### Data & Media
 
@@ -1031,7 +1062,7 @@ Content-Type: application/json
 #### Toggle Skill
 
 ```http
-PATCH /api/skills/:id
+PATCH /api/skills/[id]
 Content-Type: application/json
 
 {
@@ -1042,7 +1073,7 @@ Content-Type: application/json
 #### Remove Skill
 
 ```http
-DELETE /api/skills/:id
+DELETE /api/skills/[id]
 ```
 
 **Note:** Returns 400 if attempting to remove built-in skills.

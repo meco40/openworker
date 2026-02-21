@@ -1,7 +1,7 @@
 # Deployment & Operations Guide
 
 **Version:** 1.0.0  
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-21
 
 This document provides comprehensive guidance for deploying, operating, and maintaining OpenClaw Gateway in production environments. It covers deployment topologies, Docker configuration, systemd services, monitoring, backup strategies, and operational procedures.
 
@@ -92,10 +92,10 @@ OpenClaw Gateway is a multi-service Node.js application comprising:
 │  │  │  • React Frontend           │    │    │  │  • Background Tasks      │  │ │
 │  │  └─────────────────────────────┘    │    │  └──────────────────────────┘  │ │
 │  │            │                        │    │            │                   │ │
-│  │  ┌─────────▼──────────┐             │    │  ┌─────────▼──────────┐        │ │
-│  │  │  Worker Threads    │             │    │  │  Heartbeat Writer  │        │ │
-│  │  │  (Task Execution)  │             │    │  │  (.local/scheduler │        │ │
-│  │  └────────────────────┘             │    │  │   .heartbeat)      │        │ │
+│  │                                     │    │  ┌─────────▼──────────┐        │ │
+│  │                                     │    │  │  Heartbeat Writer  │        │ │
+│  │                                     │    │  │  (.local/scheduler │        │ │
+│  │                                     │    │  │   .heartbeat)      │        │ │
 │  │                                     │    │  └────────────────────┘        │ │
 │  │  Port: 3000                         │    │  Instance ID: scheduler-1      │ │
 │  │  Replicas: 2+ (scaled)              │    │  Replicas: 1 (singleton)       │ │
@@ -114,8 +114,7 @@ OpenClaw Gateway is a multi-service Node.js application comprising:
 │  │  │ messages.db   │  │  │  │ Vector Store  │  │  │  │  Google Gemini   │  │  │
 │  │  │ memory_nodes  │  │  │  │ Embeddings    │  │  │  │  (Primary LLM)   │  │  │
 │  │  │ knowledge_*   │  │  │  │ Search API    │  │  │  │                  │  │  │
-│  │  │ worker_queue  │  │  │  └───────────────┘  │  │  └──────────────────┘  │  │
-│  │  └───────────────┘  │  │                     │  │                        │  │
+│  │  └───────────────┘  │  │  └───────────────┘  │  │  └──────────────────┘  │  │
 │  │  Path: .local/      │  │  Base URL: $MEM0_   │  │  API Key: $GEMINI_    │  │
 │  │  Backup: Daily      │  │   BASE_URL          │  │   API_KEY             │  │
 │  └─────────────────────┘  └─────────────────────┘  └────────────────────────┘  │
@@ -746,12 +745,6 @@ GET /api/control-plane/metrics
     "discord": "connected",
     "whatsapp": "disconnected"
   },
-  "worker": {
-    "queuedTasks": 2,
-    "activeTasks": 1,
-    "completedTasks": 150,
-    "failedTasks": 3
-  },
   "memory": {
     "nodes": 150,
     "cacheHitRate": 0.85
@@ -820,9 +813,8 @@ Key metrics to monitor:
 | `http_requests_total`           | Counter   | Total HTTP requests          |
 | `http_request_duration_seconds` | Histogram | Request latency              |
 | `websocket_connections`         | Gauge     | Active WebSocket connections |
-| `worker_queue_size`             | Gauge     | Pending tasks in queue       |
-| `worker_active_tasks`           | Gauge     | Currently executing tasks    |
 | `memory_nodes_total`            | Gauge     | Total memory nodes stored    |
+| `automation_runs_total`         | Counter   | Total automation executions  |
 
 #### Alerting Rules (Prometheus)
 
@@ -853,14 +845,6 @@ groups:
           severity: warning
         annotations:
           summary: 'High error rate detected'
-
-      - alert: WorkerQueueBacklog
-        expr: worker_queue_size > 100
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'Worker queue backlog detected'
 ```
 
 #### Uptime Monitoring

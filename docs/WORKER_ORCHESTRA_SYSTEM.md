@@ -1,112 +1,119 @@
 # Worker Orchestra System
 
-**Stand:** 2026-02-17
+## Metadata
 
-## 1. Funktionserläuterung
-
-Worker Orchestra verwaltet graphbasierte Workflows (Draft/Published) und die statusbasierte Ausführung pro Node/Run.
-
-### Kernkonzepte
-
-- **Flow Draft**: Bearbeitbarer Workflow-Entwurf
-- **Published Flow**: Versionierter, ausführbarer Workflow
-- **Run**: Konkrete Ausführung eines veröffentlichten Flows
-- **Node Status**: Laufzeitstatus je Node im Run
-- **Workflow View**: Read-only Sicht auf aktiven Task-Workflow
+- Purpose: Verbindliche Referenz zum aktuellen Orchestrierungsstand nach Entfernung des frueheren Worker-Orchestra-API-Stacks.
+- Scope: Migration von Worker-Orchestra auf Rooms-Orchestrator, aktive Runtime-Pfade, Statusmodelle, API-Mapping.
+- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
+- Last Reviewed: 2026-02-21
+- Related Runbooks: docs/runbooks/gateway-config-production-rollout.md
 
 ---
 
-## 2. Architektur
+## 1. Aktueller Status
 
-### 2.1 Komponenten
+Die fruehere graphbasierte Worker-Orchestra-API (`/api/worker/orchestra/*`) ist im aktuellen Code nicht mehr aktiv.
 
-- `src/server/worker/orchestraService.ts`
-- `src/server/worker/orchestraRunner.ts`
-- `src/server/worker/orchestraGraph.ts`
-- `src/server/worker/orchestraValidator.ts`
-- `src/server/worker/orchestraWorkflow.ts`
-- `src/server/worker/orchestraFlags.ts`
-- `src/server/worker/repositories/flowRepository.ts`
-- `app/api/worker/orchestra/flows/*`
-- `app/api/worker/[id]/workflow/route.ts`
+Aktive Orchestrierung erfolgt ueber das Rooms-Subsystem:
 
-### 2.2 Flags
-
-Workflow-Routen sind flag-abhängig (`isWorkerOrchestraEnabled`, `isWorkerWorkflowTabEnabled`).
-Bei deaktivierten Flags liefern relevante Routen `404`.
+- Room-Lifecycle per `app/api/rooms/*`
+- Laufzeit-Orchestrierung per `src/server/rooms/orchestrator.ts`
+- Operative Uebersicht per `app/api/ops/agents` und `app/api/ops/nodes`
 
 ---
 
-## 3. API-Referenz
+## 2. Aktive Architektur
 
-### 3.1 Flow Lifecycle
+### 2.1 Kernkomponenten
 
-| Methode | Pfad                                       | Zweck                     |
-| ------- | ------------------------------------------ | ------------------------- |
-| GET     | `/api/worker/orchestra/flows`              | Drafts + Published listen |
-| POST    | `/api/worker/orchestra/flows`              | Draft erstellen           |
-| GET     | `/api/worker/orchestra/flows/[id]`         | Draft/Published laden     |
-| PATCH   | `/api/worker/orchestra/flows/[id]`         | Draft/Published ändern    |
-| DELETE  | `/api/worker/orchestra/flows/[id]`         | Draft/Published löschen   |
-| POST    | `/api/worker/orchestra/flows/[id]/publish` | Draft veröffentlichen     |
+- `src/server/rooms/orchestrator.ts`
+- `src/server/rooms/orchestratorInterval.ts`
+- `src/server/rooms/orchestratorUtils.ts`
+- `src/server/rooms/service.ts`
+- `src/server/rooms/runtime.ts`
+- `src/server/rooms/repositories/*`
+- `app/api/rooms/*`
+- `app/api/ops/agents/route.ts`
+- `app/api/ops/nodes/route.ts`
 
-### 3.2 Task Workflow Ansicht
+### 2.2 Laufzeitmodell
 
-| Methode | Pfad                        | Zweck                                |
-| ------- | --------------------------- | ------------------------------------ |
-| GET     | `/api/worker/[id]/workflow` | Node-/Edge-/Status-Snapshot für Task |
-
-### 3.3 Zugehörige Task-Routen
-
-| Methode | Pfad                            | Zweck                   |
-| ------- | ------------------------------- | ----------------------- |
-| GET     | `/api/worker/[id]/subagents`    | Subagent-Sessions laden |
-| POST    | `/api/worker/[id]/subagents`    | Subagent erstellen      |
-| PATCH   | `/api/worker/[id]/subagents`    | Subagent-Status setzen  |
-| GET     | `/api/worker/[id]/deliverables` | Deliverables laden      |
-| POST    | `/api/worker/[id]/deliverables` | Deliverable erstellen   |
+- Lease-basierte Ausfuehrung pro aktivem Room-Run
+- Round-Robin Persona-Speaker-Selection
+- Tool Calls innerhalb Room-Zyklen ueber `executeRoomTool(...)`
+- Model-Fallback via Model-Hub Dispatch
 
 ---
 
-## 4. Statusmodelle
+## 3. API-Referenz (Aktiv)
 
-### 4.1 Flow
+### 3.1 Room Orchestration API
 
-- `draft`
-- `published`
-- `archived`
+| Methode | Pfad                       | Zweck                        |
+| ------- | -------------------------- | ---------------------------- |
+| POST    | `/api/rooms/[id]/start`    | Room-Run starten             |
+| POST    | `/api/rooms/[id]/stop`     | Room-Run stoppen             |
+| GET     | `/api/rooms/[id]/state`    | Room-Run-Status lesen        |
+| GET     | `/api/rooms/[id]/messages` | Ergebnis-/Dialogverlauf      |
+| POST    | `/api/rooms/[id]/messages` | User-Input an Orchestrierung |
 
-### 4.2 Run
+### 3.2 Monitoring/Ops API
 
-- `pending`
+| Methode | Pfad              | Zweck                                                        |
+| ------- | ----------------- | ------------------------------------------------------------ |
+| GET     | `/api/ops/agents` | Persona-Aktivitaet + laufende Room-Snapshots                 |
+| GET     | `/api/ops/nodes`  | Health/Doctor/Channels/Automation/Exec-Approvals/Room-Metrik |
+
+---
+
+## 4. Statusmodelle (Aktiver Code)
+
+Aus `src/server/rooms/types.ts`:
+
+### 4.1 Room Run State
+
+- `stopped`
 - `running`
-- `completed`
-- `failed`
-- `cancelled`
+- `degraded`
 
-### 4.3 Node
+### 4.2 Member Runtime Status
 
-- `pending`
-- `running`
-- `completed`
-- `failed`
-- `skipped`
+- `idle`
+- `busy`
+- `interrupting`
+- `interrupted`
+- `error`
+- `paused`
 
 ---
 
-## 5. Verifikation
+## 5. Legacy-Hinweis
+
+Folgende frueheren Worker-Orchestra-Pfade sind nicht aktiv:
+
+- (Legacy, entfernt) `/api/worker/orchestra/flows`
+- (Legacy, entfernt) `/api/worker/orchestra/flows/[id]`
+- (Legacy, entfernt) `/api/worker/orchestra/flows/[id]/publish`
+- (Legacy, entfernt) `/api/worker/[id]/workflow`
+- `src/server/worker/orchestra*.ts`
+
+Historische Details liegen in archivierten oder alten Plan-Dokumenten.
+
+---
+
+## 6. Verifikation
 
 ```bash
-npm run test -- tests/unit/worker/orchestra-*
-npm run test -- tests/integration/worker/orchestra-*
+rg --files app/api | rg "rooms|ops|worker/orchestra"
+rg --files src/server/rooms
 npm run typecheck
 npm run lint
 ```
 
 ---
 
-## 6. Siehe auch
+## 7. Siehe auch
 
 - `docs/WORKER_SYSTEM.md`
 - `docs/PERSONA_ROOMS_SYSTEM.md`
-- `docs/API_REFERENCE.md`
+- `docs/SESSION_MANAGEMENT.md`

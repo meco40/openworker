@@ -174,6 +174,8 @@ The memory system is a multi-layered architecture that enables the AI assistant 
 6. [Learning & Feedback](#learning--feedback)
 7. [API Reference](#api-reference)
 8. [Configuration](#configuration)
+9. [Security & Privacy](#security--privacy)
+10. [Testing](#testing)
 
 ---
 
@@ -521,58 +523,73 @@ interface Mem0Memory {
 const mem0Client = new Mem0Client({
   baseUrl: process.env.MEM0_BASE_URL,
   apiKey: process.env.MEM0_API_KEY,
-  apiVersion: 'v1', // or 'v2' with fallback
+  apiPath: '/v1',
   timeoutMs: 5000,
-  maxRetries: 3,
-  retryBaseDelayMs: 1000,
+  maxRetries: 0, // retries disabled by default
+  retryBaseDelayMs: 500,
 });
 ```
 
 ### Knowledge Repository (Episodic Memory)
 
-SQLite-based storage for structured knowledge.
+SQLite-based storage for structured knowledge. Implemented as a modular phase-based system; phases are enabled independently via feature flags.
 
-**Episodes Table**:
+**Phase 1 — Episodes & Ledgers** (core, stable):
 
-```sql
-CREATE TABLE knowledge_episodes (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  persona_id TEXT NOT NULL,
-  topic_key TEXT NOT NULL,
-  counterpart TEXT,  -- who the conversation was with
-  teaser TEXT,       -- brief summary
-  episode TEXT,      -- full narrative
-  facts TEXT,        -- JSON array
-  source_seq_start INTEGER,
-  source_seq_end INTEGER,
-  created_at INTEGER,
-  updated_at INTEGER
-);
+```typescript
+// Episodes: thematic conversation blocks
+interface KnowledgeEpisode {
+  id: string;
+  userId: string;
+  personaId: string;
+  conversationId: string;
+  topicKey: string;
+  counterpart: string | null;
+  teaser: string;
+  episode: string; // full narrative
+  facts: string[]; // extracted statements
+  sourceSeqStart: number;
+  sourceSeqEnd: number;
+  sourceRefs: KnowledgeSourceRef[]; // { seq, quote }
+  eventAt: string | null; // ISO date if episode is time-bound
+  updatedAt: string;
+}
 
-CREATE INDEX idx_episodes_topic ON knowledge_episodes(topic_key);
-CREATE INDEX idx_episodes_counterpart ON knowledge_episodes(counterpart);
+// Meeting Ledgers: structured decisions and agreements
+interface MeetingLedgerEntry {
+  id: string;
+  topicKey: string;
+  counterpart: string | null;
+  participants: string[];
+  decisions: string[];
+  negotiatedTerms: string[];
+  openPoints: string[];
+  actionItems: string[];
+  sourceRefs: KnowledgeSourceRef[];
+  confidence: number;
+  eventAt: string | null;
+  updatedAt: string;
+}
 ```
 
-**Meeting Ledgers Table**:
+**Phase 1 — Events** (temporal fact store):
 
-```sql
-CREATE TABLE meeting_ledgers (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  persona_id TEXT NOT NULL,
-  topic_key TEXT NOT NULL,
-  counterpart TEXT,
-  decisions TEXT,        -- JSON array
-  negotiated_terms TEXT, -- JSON array
-  open_points TEXT,      -- JSON array
-  action_items TEXT,     -- JSON array
-  participants TEXT,     -- JSON array
-  source_seq_start INTEGER,
-  source_seq_end INTEGER,
-  created_at INTEGER
-);
-```
+Structured events with deduplication, source merging, and aggregation queries. Used for answering questions like "When did X happen?" or "How many times did Y occur?".
+
+**Phase 2 — Entity Graph** (relationship store):
+
+Knowledge entities with aliases, typed relations, and path-finding. Enables queries like "Who is the CEO of Acme?" or "What projects is Alice working on?".
+
+Entity types: `person`, `organization`, `project`, `location`, `concept`, and more.
+Relation examples: `works_at`, `manages`, `owns`, `related_to`.
+
+**Phase 3 — Conversation Summaries**:
+
+Per-conversation summaries including key topics, mentioned entities, emotional tone, and message count. Used by the dynamic recall budget to orient context retrieval.
+
+**Retrieval Audit**:
+
+Every knowledge retrieval call is logged with stage statistics and token counts, enabling performance analysis and debugging via `GET /api/knowledge/stats`.
 
 ### SQLite Backup (Local Fallback)
 
@@ -854,16 +871,21 @@ interface BuildContextOptions {
   counterpart?: string; // Filter by conversation partner
 }
 
-interface KnowledgeContext {
-  answerDraft: string; // Contextual introduction
-  keyDecisions: string[]; // Relevant decisions
-  openPoints: string[]; // Outstanding items
-  actionItems: string[]; // Tasks to complete
-  evidence: Message[]; // Supporting messages
+interface KnowledgeRetrievalResult {
+  context: string; // Formatted string for LLM injection
+  sections: {
+    answerDraft: string; // Contextual introduction
+    keyDecisions: string; // Relevant decisions (formatted)
+    openPoints: string; // Outstanding items (formatted)
+    evidence: string; // Supporting message excerpts (formatted)
+  };
+  references: string[]; // Source IDs for citations
+  tokenCount: number; // Approximate token usage
+  computedAnswer?: string | null; // Pre-computed direct answer (event queries)
 }
 
 // Example
-const context = await knowledgeRetrieval.buildContext({
+const result = await knowledgeRetrieval.buildContext({
   userId: 'user_123',
   personaId: 'assistant',
   query: 'What did we agree with the vendor?',
@@ -886,8 +908,8 @@ const context = await knowledgeRetrieval.buildContext({
 | `MEM0_API_KEY`             | Mem0 API authentication key           | If provider=mem0 | -       |
 | `MEM0_API_PATH`            | API version path                      | No               | `/v1`   |
 | `MEM0_TIMEOUT_MS`          | Request timeout in milliseconds       | No               | `5000`  |
-| `MEM0_MAX_RETRIES`         | Number of retry attempts              | No               | `3`     |
-| `MEM0_RETRY_BASE_DELAY_MS` | Base delay for exponential backoff    | No               | `1000`  |
+| `MEM0_MAX_RETRIES`         | Number of retry attempts              | No               | `0`     |
+| `MEM0_RETRY_BASE_DELAY_MS` | Base delay for exponential backoff    | No               | `500`   |
 
 #### SQLite Settings
 
@@ -898,14 +920,24 @@ const context = await knowledgeRetrieval.buildContext({
 
 #### Knowledge Layer Settings
 
-| Variable                       | Description                          | Required | Default           |
-| ------------------------------ | ------------------------------------ | -------- | ----------------- |
-| `KNOWLEDGE_LAYER_ENABLED`      | Master switch for knowledge system   | No       | `false`           |
-| `KNOWLEDGE_LEDGER_ENABLED`     | Enable meeting ledgers               | No       | `false`           |
-| `KNOWLEDGE_EPISODE_ENABLED`    | Enable episode storage               | No       | `false`           |
-| `KNOWLEDGE_RETRIEVAL_ENABLED`  | Enable knowledge retrieval           | No       | `false`           |
-| `KNOWLEDGE_MAX_CONTEXT_TOKENS` | Maximum tokens for knowledge context | No       | `4000`            |
-| `KNOWLEDGE_INGEST_INTERVAL_MS` | Minimum interval between ingestions  | No       | `600000` (10 min) |
+| Variable                            | Description                                 | Required | Default           |
+| ----------------------------------- | ------------------------------------------- | -------- | ----------------- |
+| `KNOWLEDGE_LAYER_ENABLED`           | Master switch for knowledge system          | No       | `false`           |
+| `KNOWLEDGE_LEDGER_ENABLED`          | Enable meeting ledgers                      | No       | `false`           |
+| `KNOWLEDGE_EPISODE_ENABLED`         | Enable episode storage                      | No       | `false`           |
+| `KNOWLEDGE_RETRIEVAL_ENABLED`       | Enable knowledge retrieval                  | No       | `false`           |
+| `KNOWLEDGE_MAX_CONTEXT_TOKENS`      | Maximum tokens for knowledge context        | No       | `4000`            |
+| `KNOWLEDGE_INGEST_INTERVAL_MS`      | Minimum interval between ingestions         | No       | `600000` (10 min) |
+| `KNOWLEDGE_MIN_MESSAGES_PER_BATCH`  | Minimum messages required per batch         | No       | `1`               |
+| `KNOWLEDGE_CONTRADICTION_DETECTION` | Enable contradiction detection (Phase 3)    | No       | `false`           |
+| `KNOWLEDGE_CORRECTION_DETECTION`    | Enable correction detection (Phase 3)       | No       | `false`           |
+| `KNOWLEDGE_DYNAMIC_RECALL_BUDGET`   | Enable dynamic recall budget (Phase 5)      | No       | `false`           |
+| `KNOWLEDGE_CONVERSATION_SUMMARY`    | Enable conversation summarization (Phase 5) | No       | `false`           |
+| `KNOWLEDGE_MEMORY_CONSOLIDATION`    | Enable memory consolidation (Phase 5)       | No       | `false`           |
+| `KNOWLEDGE_PERSONA_TYPE_AWARENESS`  | Enable persona-type-aware recall (Phase 6)  | No       | `false`           |
+| `KNOWLEDGE_EMOTION_TRACKING`        | Enable emotion tracking (roleplay personas) | No       | `false`           |
+| `KNOWLEDGE_PROJECT_TRACKING`        | Enable project tracking (builder personas)  | No       | `false`           |
+| `KNOWLEDGE_TASK_TRACKING`           | Enable task tracking (assistant personas)   | No       | `false`           |
 
 ### TypeScript Interfaces
 
@@ -1030,6 +1062,18 @@ const results = await memoryService.recall({
 - No automatic deletion (except via feedback loop)
 - Manual deletion via `memoryService.delete()`
 - Version history retained indefinitely
+
+### Memory Poisoning Guard
+
+Active defense against prompt-injection attacks that attempt to write malicious content into the knowledge store. Implemented in `src/server/knowledge/security/memoryPoisoningGuard.ts`.
+
+The guard runs on every ingested message and blocks patterns such as:
+
+- Instructions to override persona behavior (`"Ignore previous instructions..."`)
+- Attempts to exfiltrate stored memories
+- Encoded or obfuscated injection payloads
+
+Blocked messages are rejected before the ingestion pipeline writes them to the repository.
 
 ---
 

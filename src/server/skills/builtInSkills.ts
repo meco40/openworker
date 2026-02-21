@@ -1,7 +1,7 @@
 /**
  * Built-in skill definitions — seeded into the SQLite database on first run.
  *
- * These are the 8 real skills that ship with OpenClaw Gateway.
+ * These are the 9 real skills that ship with OpenClaw Gateway.
  * External skills installed via GitHub/npm are added at runtime.
  */
 

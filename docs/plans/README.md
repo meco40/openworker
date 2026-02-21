@@ -1,18 +1,16 @@
 # Active Plans
 
-Stand: 2026-02-17
-Zuletzt bereinigt: 2026-02-17
+Stand: 2026-02-21
+Zuletzt bereinigt: 2026-02-21
 
 ## In Bearbeitung / offen
 
-1. `docs/plans/2026-02-12-knowledge-base-agent-access-implementation.md`
-   - Knowledge Base für Agent-Zugriff mit Dokument-Ingestion, hybrider Retrieval und Citations
-2. `docs/plans/2026-02-13-clawhub-dual-lane-design.md`
-   - ClawHub-Integration mit Dual-Lane-Architektur (Tool-Lane + ClawHub-Lane)
-3. `docs/plans/2026-02-19-single-port-cross-platform-runtime-design.md`
-   - Single-Port-App-Modus mit Cross-Platform-Zielbild (Windows, WSL2, Linux) und Docker als Option
+1. `docs/plans/2026-02-21-webapp-cleanup-optimization.md`
+   - Aktuelle Bereinigung und technische Optimierung der Webapp.
+2. `docs/plans/2026-02-20-point7-best-case-plus-production-plan.md`
+   - Produktionsplan fuer den Point-7-Umsetzungsblock.
 
-## Hinweis
+## Archivierungsregel
 
-Abgeschlossene oder ersetzte Plaene wurden nach `docs/archive/plans/` verschoben.
-Inhaltlich doppelte Plaene wurden in konsolidierten Archivdokumenten zusammengefuehrt.
+Abgeschlossene Plaene kommen nach `docs/archive/plans/completed/`.
+Ersetzte oder fachlich ueberholte Plaene kommen nach `docs/archive/plans/superseded/`.

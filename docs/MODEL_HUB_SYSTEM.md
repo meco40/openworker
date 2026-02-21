@@ -1,5 +1,15 @@
 # Model Hub System
 
+## Metadata
+
+- Purpose: Verbindliche Referenz fuer Provider-Management und Model-Hub-Dispatch.
+- Scope: Providerkonten, OAuth-Linking, Model-Fetching, Pipeline/Fallback-Verhalten.
+- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
+- Last Reviewed: 2026-02-21
+- Related Runbooks: docs/runbooks/gateway-config-production-rollout.md
+
+---
+
 This document describes the complete Model Hub architecture, covering provider account management, pipeline dispatch with fallback strategies, model fetching, OAuth-based account linking, and secure credential storage.
 
 ## Overview
@@ -17,7 +27,7 @@ The Model Hub is a unified abstraction layer that enables seamless integration w
 ╠═══════════════════════════════════════════════════════════════════════════╣
 ║  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐  ║
 ║  │   GET/POST  │  │   DELETE    │  │    POST     │  │       GET       │  ║
-║  │  /accounts  │  │/accounts/:id│  │/accounts/:id│  │ /accounts/:id/  │  ║
+║  │  /accounts  │  │/accounts/:accountId│  │/accounts/:accountId│  │ /accounts/:accountId/  │  ║
 ║  │             │  │             │  │    /test    │  │     models      │  ║
 ║  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └────────┬────────┘  ║
 ║         │                │                │                  │           ║
@@ -911,14 +921,14 @@ const geminiProviderAdapter: ProviderAdapter = {
 
 #### Accounts
 
-| Method   | Endpoint                              | Description               |
-| -------- | ------------------------------------- | ------------------------- |
-| `GET`    | `/api/model-hub/accounts`             | List all accounts         |
-| `POST`   | `/api/model-hub/accounts`             | Create new account        |
-| `DELETE` | `/api/model-hub/accounts/[id]`        | Delete account            |
-| `GET`    | `/api/model-hub/accounts/[id]/models` | Fetch models for account  |
-| `POST`   | `/api/model-hub/accounts/[id]/test`   | Test account connectivity |
-| `POST`   | `/api/model-hub/accounts/test-all`    | Test all accounts         |
+| Method   | Endpoint                                     | Description               |
+| -------- | -------------------------------------------- | ------------------------- |
+| `GET`    | `/api/model-hub/accounts`                    | List all accounts         |
+| `POST`   | `/api/model-hub/accounts`                    | Create new account        |
+| `DELETE` | `/api/model-hub/accounts/[accountId]`        | Delete account            |
+| `GET`    | `/api/model-hub/accounts/[accountId]/models` | Fetch models for account  |
+| `POST`   | `/api/model-hub/accounts/[accountId]/test`   | Test account connectivity |
+| `POST`   | `/api/model-hub/accounts/test-all`           | Test all accounts         |
 
 #### Gateway
 

@@ -11,8 +11,8 @@
     "cli:gateway": "node --import tsx src/cli/program.ts gateway",
     "cli:channels": "node --import tsx src/cli/program.ts channels",
     "cli:node": "node --import tsx src/cli/program.ts node",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "typecheck": "tsc --noEmit",
@@ -83,10 +83,12 @@
     "husky": "^9.1.7",
     "knip": "^5.83.1",
     "lint-staged": "^16.2.7",
+    "oxlint": "^1.48.0",
     "postcss": "^8.5.6",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4.1.18",
+    "ts-api-utils": "^2.4.0",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vitest": "^4.0.18"
@@ -98,7 +100,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": [
-      "eslint --fix --max-warnings=0 --no-warn-ignored",
+      "oxlint --fix",
       "prettier --write"
     ],
     "*.{json,md,css,scss,yml,yaml}": "prettier --write"

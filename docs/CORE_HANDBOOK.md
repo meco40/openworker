@@ -1,6 +1,6 @@
 # Core Handbook
 
-**Status:** 2026-02-17  
+**Status:** 2026-02-21  
 **Version:** 1.0.0  
 **Purpose:** Authoritative technical reference for the OpenClaw Gateway Control Plane codebase
 
@@ -69,11 +69,11 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 │  │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └───────────┬─────────────┘ │    │
 │  │         │                │                │                     │               │    │
 │  │  ┌──────┴──────┐  ┌──────┴──────┐  ┌──────┴──────┐  ┌───────────┴─────────────┐ │    │
-│  │  │   Worker    │  │   Skills    │  │  Knowledge  │  │      Automation         │ │    │
+│  │  │  ClawHub    │  │   Skills    │  │  Knowledge  │  │      Automation         │ │    │
 │  │  │  ─────────  │  │  ─────────  │  │  ─────────  │  │  ────────────────────   │ │    │
-│  │  │ • Orchestra │  │ • Built-in  │  │ • Episodes  │  │ • Scheduled tasks       │ │    │
-│  │  │ • Tasks     │  │ • Custom    │  │ • Ledgers   │  │ • HTTP triggers         │ │    │
-│  │  │ • Workspace │  │ • Execution │  │ • Ingestion │  │ • Cron engine           │ │    │
+│  │  │ • Catalog   │  │ • Built-in  │  │ • Episodes  │  │ • Scheduled tasks       │ │    │
+│  │  │ • Install   │  │ • Custom    │  │ • Ledgers   │  │ • HTTP triggers         │ │    │
+│  │  │ • Lifecycle │  │ • Execution │  │ • Ingestion │  │ • Cron engine           │ │    │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────────────┘ │    │
 │  │                                                                                 │    │
 │  │  ┌─────────────────────────────────────────────────────────────────────────┐    │    │
@@ -94,7 +94,7 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 │  │   ├── rooms             (collaboration spaces)                                  │    │
 │  │   ├── memory_nodes      (local memory fallback)                                 │    │
 │  │   ├── knowledge_*       (episodic memory)                                       │    │
-│  │   ├── worker_*          (task orchestration)                                    │    │
+
 │  │   └── automations       (scheduled jobs)                                        │    │
 │  └─────────────────────────────────────────────────────────────────────────────────┘    │
 │                                                                                         │
@@ -144,19 +144,18 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 
 ### External Integrations
 
-| Component         | Package          | Version  | Purpose                 |
-| ----------------- | ---------------- | -------- | ----------------------- |
-| **Google GenAI**  | `@google/genai`  | ^1.40.0  | Gemini API access       |
-| **Flow Diagrams** | `@xyflow/react`  | ^12.10.0 | Orchestra visualization |
-| **Graph Layout**  | `@dagrejs/dagre` | ^2.0.4   | DAG auto-layout         |
-| **Archives**      | `archiver`       | ^7.0.1   | Workspace export        |
-| **Charts**        | `recharts`       | ^3.7.0   | Metrics visualization   |
+| Component         | Package         | Version  | Purpose                  |
+| ----------------- | --------------- | -------- | ------------------------ |
+| **Google GenAI**  | `@google/genai` | ^1.40.0  | Gemini API access        |
+| **Flow Diagrams** | `@xyflow/react` | ^12.10.0 | Graph/flow visualization |
+| **Archives**      | `archiver`      | ^7.0.1   | Workspace export         |
+| **Charts**        | `recharts`      | ^3.7.0   | Metrics visualization    |
 
 ### Development Tools
 
 | Category              | Package                | Version | Purpose                |
 | --------------------- | ---------------------- | ------- | ---------------------- |
-| **Linting**           | `eslint`               | ^9.39.2 | Code quality           |
+| **Linting**           | `oxlint`               | ^1.48.0 | Primary linter (fast)  |
 | **TypeScript ESLint** | `@typescript-eslint/*` | ^8.55.0 | TS-specific rules      |
 | **Formatting**        | `prettier`             | ^3.8.1  | Code formatting        |
 | **Testing**           | `vitest`               | ^4.0.18 | Unit/integration tests |
@@ -164,12 +163,6 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 | **Styling**           | `tailwindcss`          | ^4.1.18 | Utility CSS            |
 | **Git Hooks**         | `husky`                | ^9.1.7  | Pre-commit validation  |
 | **Dead Code**         | `knip`                 | ^5.83.1 | Unused code detection  |
-
-### Python Services (OpenAI Worker)
-
-- **Runtime:** Python 3.11+
-- **Framework:** FastAPI + Uvicorn
-- **Location:** `services/openai_worker/`
 
 ---
 
@@ -181,10 +174,15 @@ openclaw-gateway-control-plane/
 ├── app/                                    # Next.js App Router
 │   ├── api/                               # API route handlers
 │   │   ├── auth/[...nextauth]/            # NextAuth configuration
+│   │   ├── automations/                   # Automation rule endpoints
 │   │   ├── channels/                      # Channel webhook endpoints
-│   │   ├── gateway/                       # Gateway REST API
+│   │   ├── clawhub/                       # ClawHub skill catalog routes
 │   │   ├── health/                        # Health check endpoint
-│   │   └── upload/                        # File upload handler
+│   │   ├── model-hub/                     # Model Hub provider routes
+│   │   ├── ops/                           # Ops/monitoring routes
+│   │   ├── personas/                      # Persona CRUD routes
+│   │   ├── rooms/                         # Room orchestration routes
+│   │   └── skills/                        # Skill management routes
 │   ├── layout.tsx                         # Root layout
 │   ├── page.tsx                           # Home page
 │   └── globals.css                        # Global styles
@@ -193,11 +191,17 @@ openclaw-gateway-control-plane/
 │   ├── modules/                           # Frontend feature modules
 │   │   ├── app-shell/                     # Core app state & runtime
 │   │   ├── chat/                          # Chat interface components
+│   │   ├── config/                        # Config UI module
+│   │   ├── cron/                          # Automation scheduling UI
+│   │   ├── exposure/                      # Exposure/analytics module
 │   │   ├── gateway/                       # WebSocket client connection
+│   │   ├── ops/                           # Ops dashboard module
+│   │   ├── personas/                      # Persona management UI
 │   │   ├── profile/                       # User profile configuration
 │   │   ├── rooms/                         # Room management UI
 │   │   ├── security/                      # Security overview UI
-│   │   └── worker/                        # Worker task management UI
+│   │   ├── tasks/                         # Task management UI
+│   │   └── telemetry/                     # Telemetry/metrics UI
 │   │
 │   ├── server/                            # Server-side domains
 │   │   ├── auth/                          # Authentication & authorization
@@ -270,12 +274,6 @@ openclaw-gateway-control-plane/
 │   │   │
 │   │   ├── stats/                         # Token usage & pricing
 │   │   ├── telemetry/                     # Telemetry & events
-│   │   ├── worker/                        # Worker task system
-│   │   │   ├── openai/                    # OpenAI worker integration
-│   │   │   ├── orchestra*.ts              # Orchestra orchestration
-│   │   │   ├── phases/                    # Worker execution phases
-│   │   │   └── repositories/              # Worker data access
-│   │   │
 │   │   └── config/                        # Configuration management
 │   │
 │   ├── shared/                            # Shared utilities & types
@@ -292,16 +290,12 @@ openclaw-gateway-control-plane/
 │
 ├── lib/                                  # Client-side utilities
 │
-├── services/                             # External service implementations
-│   └── openai_worker/                    # Python OpenAI worker
-│       ├── app/                          # FastAPI application
-│       └── tests/                        # Python tests
-│
 ├── tests/                                # Test suites
 │   ├── unit/                             # Unit tests
 │   ├── integration/                      # Integration tests
 │   ├── contract/                         # Contract tests
-│   └── load/                             # Load tests
+│   ├── e2e/                              # End-to-end tests
+│   └── helpers/                          # Shared test utilities
 │
 ├── docs/                                 # Documentation
 │   ├── archive/                          # Historical docs
@@ -314,9 +308,7 @@ openclaw-gateway-control-plane/
 ├── workspaces/                           # Worker workspace storage
 ├── .local/                               # Local data & SQLite DBs
 ├── server.ts                             # Web server entry point
-├── scheduler.ts                          # Scheduler entry point
-├── App.tsx                               # Root React component
-└── WorkerView.tsx                        # Worker UI component
+└── scheduler.ts                          # Scheduler entry point
 ```
 
 ---
@@ -331,7 +323,7 @@ openclaw-gateway-control-plane/
 // ❌ BAD: Component handling business logic directly
 function ChatComponent() {
   const handleSend = async (message) => {
-    const response = await fetch('/api/llm', { ... });  // Don't do this
+    const response = await fetch('/api/model-hub/gateway', { ... });  // Don't do this
     const result = await processResponse(response);      // Business logic
     await saveToDatabase(result);                        // Infrastructure
   };
@@ -350,7 +342,7 @@ function ChatComponent() {
 **Principle:** API routes parse requests and delegate to services/use-cases. They contain no business logic.
 
 ```typescript
-// app/api/chat/route.ts
+// app/api/channels/messages/route.ts
 export async function POST(request: Request) {
   // 1. Parse & validate input
   const body = await request.json();
@@ -375,7 +367,7 @@ export async function POST(request: Request) {
 src/server/
 ├── channels/messages/service.ts      # Message processing logic
 ├── memory/service.ts                  # Memory operations
-├── worker/orchestraService.ts         # Task orchestration
+├── rooms/orchestrator.ts              # Room orchestration
 └── ...
 ```
 
@@ -479,7 +471,7 @@ npm run check
 
 # Individual checks:
 npm run typecheck   # TypeScript compilation check
-npm run lint        # ESLint validation
+npm run lint        # Oxlint validation
 npm run format:check # Prettier format check
 npm run test        # Vitest test suite
 npm run build       # Production build
@@ -487,10 +479,9 @@ npm run build       # Production build
 
 ### Git Workflow
 
-1. **Pre-commit hooks** (via Husky) automatically run:
-   - ESLint with auto-fix
+1. **Pre-commit hooks** (via Husky + lint-staged) automatically run:
+   - Oxlint with auto-fix
    - Prettier formatting
-   - Type checking
 
 2. **Commit message** should reference issue/plan when applicable:
 
@@ -533,8 +524,8 @@ The system uses **WebSocket** as the primary realtime channel, replacing legacy 
 │   ─────                       ───────                    ────── │
 │                                                                 │
 │   ┌─────────┐                ┌──────────┐              ┌──────┐ │
-│   │  React  │◄───WebSocket──►│  ws      │◄───Events──►│Rooms │ │
-│   │  Hook   │    /ws         │  Server  │              │Worker│ │
+│   │  React  │◄───WebSocket──►│  ws      │◄───Events──► │Rooms │ │
+│   │  Hook   │    /ws         │  Server  │              │Orch. │ │
 │   └────┬────┘                └────┬─────┘              └──┬───┘ │
 │        │                          │                       │     │
 │        │ JSON-RPC                 │ Broadcast             │     │
@@ -543,7 +534,7 @@ The system uses **WebSocket** as the primary realtime channel, replacing legacy 
 │   │ Methods │                │ Registry  │           │Memory  │ │
 │   │ - chat  │                │ - Users   │           │Channels│ │
 │   │ - logs  │                │ - Sessions│           └────────┘ │
-│   │ - worker│                └───────────┘                      │
+│   │ - sessns│                └───────────┘                      │
 │   └─────────┘                                                   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -551,12 +542,12 @@ The system uses **WebSocket** as the primary realtime channel, replacing legacy 
 
 ### Message Frame Types
 
-| Frame Type     | Direction       | Description            |
-| -------------- | --------------- | ---------------------- |
-| `rpc_request`  | Client → Server | Method invocation      |
-| `rpc_response` | Server → Client | Method result          |
-| `event`        | Server → Client | Broadcast notification |
-| `error`        | Bidirectional   | Error notification     |
+| Frame Type | Direction       | Description                                 |
+| ---------- | --------------- | ------------------------------------------- |
+| `req`      | Client → Server | Method invocation (`RequestFrame`)          |
+| `res`      | Server → Client | Method result (`ResponseFrame`)             |
+| `event`    | Server → Client | Broadcast notification (`EventFrame`)       |
+| `stream`   | Server → Client | Token-by-token AI streaming (`StreamFrame`) |
 
 ### Channel Operations
 
@@ -579,7 +570,6 @@ Message service → outbound router → adapter → external API
 | Telegram | ✅      | ✅       | Bot Token     |
 | WhatsApp | ✅      | ✅       | Business API  |
 | iMessage | ✅      | ✅       | Relay         |
-| Email    | ✅      | ✅       | IMAP/SMTP     |
 
 ---
 
@@ -625,7 +615,7 @@ interface PersonaConfig {
 For complete rooms/personas documentation, see:
 
 - `docs/PERSONA_ROOMS_SYSTEM.md` - System design
-- `docs/SESSION_MANAGEMENT_IMPLEMENTATION.md` - Session handling
+- `docs/SESSION_MANAGEMENT.md` - Session handling
 
 ---
 
@@ -694,7 +684,7 @@ All code must pass before merging:
 # 1. TypeScript compilation
 npm run typecheck
 
-# 2. ESLint validation
+# 2. Oxlint validation
 npm run lint
 
 # 3. Test suite
@@ -706,11 +696,11 @@ npm run build
 
 ### Automated Enforcement
 
-**Pre-commit (Husky):**
+**Pre-commit (Husky + lint-staged):**
 
 ```bash
 *.{js,jsx,ts,tsx,mjs,cjs}
-  → eslint --fix --max-warnings=0
+  → oxlint --fix
   → prettier --write
 
 *.{json,md,css,scss,yml,yaml}
@@ -721,10 +711,10 @@ npm run build
 
 | Metric     | Minimum | Target |
 | ---------- | ------- | ------ |
-| Statements | 70%     | 80%    |
-| Branches   | 60%     | 75%    |
-| Functions  | 70%     | 80%    |
-| Lines      | 70%     | 80%    |
+| Statements | 60%     | 70%    |
+| Branches   | 60%     | 70%    |
+| Functions  | 60%     | 70%    |
+| Lines      | 60%     | 70%    |
 
 Run coverage: `npm run test:coverage`
 
@@ -739,7 +729,7 @@ Run coverage: `npm run test:coverage`
 DEBUG=ws npm run dev
 
 # Monitor gateway connections
-curl http://localhost:3000/api/health/gateway
+curl http://localhost:3000/api/health
 ```
 
 ### Database Inspection
@@ -795,7 +785,7 @@ VERBOSE_LOGGING=true
 | **Unit**        | `tests/unit/`        | Individual functions  | Memory service tests    |
 | **Integration** | `tests/integration/` | Component interaction | Gateway WebSocket tests |
 | **Contract**    | `tests/contract/`    | API contracts         | Model provider tests    |
-| **Load**        | `tests/load/`        | Performance           | Worker load tests       |
+| **E2E**         | `tests/e2e/`         | End-to-end flows      | Chat flow tests         |
 
 ### Test Commands
 
@@ -811,22 +801,6 @@ npm run test:coverage
 
 # Specific test
 npm run test -- tests/unit/memory/service.test.ts
-
-# Load tests
-npm run test -- tests/load/worker-openai-load.test.ts
-```
-
-### Python Worker Tests
-
-```bash
-# Navigate to service
-cd services/openai_worker
-
-# Run Python tests
-.venv\Scripts\python.exe -m pytest tests -q
-
-# Or via npm
-npm run worker:openai:test
 ```
 
 ### Writing Tests
@@ -861,30 +835,31 @@ describe('myService', () => {
 
 ### System Documentation
 
-| Document                                    | Purpose               | Key Topics                             |
-| ------------------------------------------- | --------------------- | -------------------------------------- |
-| `docs/PERSONA_ROOMS_SYSTEM.md`              | Rooms & Personas      | Architecture, lifecycle, multi-persona |
-| `docs/OMNICHANNEL_GATEWAY_OPERATIONS.md`    | Gateway operations    | WebSocket protocol, scaling            |
-| `docs/OMNICHANNEL_GATEWAY_SYSTEM.md`        | Gateway system design | Message routing, adapters              |
-| `docs/SESSION_MANAGEMENT_IMPLEMENTATION.md` | Session handling      | Persistence, restoration               |
-| `docs/SESSION_MANAGEMENT.md`                | Session concepts      | Design principles                      |
+| Document                                 | Purpose               | Key Topics                                       |
+| ---------------------------------------- | --------------------- | ------------------------------------------------ |
+| `docs/PERSONA_ROOMS_SYSTEM.md`           | Rooms & Personas      | Architecture, lifecycle, multi-persona           |
+| `docs/OMNICHANNEL_GATEWAY_OPERATIONS.md` | Gateway operations    | WebSocket protocol, scaling                      |
+| `docs/OMNICHANNEL_GATEWAY_SYSTEM.md`     | Gateway system design | Message routing, adapters                        |
+| `docs/AUTH_SYSTEM.md`                    | Auth runtime          | NextAuth, session resolution, principal fallback |
+| `docs/SESSION_MANAGEMENT.md`             | Session concepts      | Design principles, abort, idempotency            |
 
 ### Subsystem Documentation
 
-| Document                          | Purpose                 | Key Topics                          |
-| --------------------------------- | ----------------------- | ----------------------------------- |
-| `docs/SKILLS_SYSTEM.md`           | Skill framework         | Built-in skills, custom skills      |
-| `docs/WORKER_SYSTEM.md`           | Worker tasks            | Task execution, state machine       |
-| `docs/WORKER_ORCHESTRA_SYSTEM.md` | Orchestra orchestration | Multi-worker workflows              |
-| `docs/AUTOMATION_SYSTEM.md`       | Scheduled automation    | Cron, triggers, HTTP hooks          |
-| `docs/MEMORY_SYSTEM.md`           | Memory system overview  | Mem0, SQLite, retrieval             |
-| `docs/memory-architecture.md`     | Memory architecture     | Detailed data flow, recall pipeline |
-| `docs/KNOWLEDGE_BASE_SYSTEM.md`   | Knowledge repository    | Episodes, ledgers, ingestion        |
-| `docs/CLAWHUB_SYSTEM.md`          | Skill marketplace       | Search, install, management         |
-| `docs/MODEL_HUB_SYSTEM.md`        | LLM provider hub        | Multi-provider, fallbacks           |
-| `docs/SECURITY_SYSTEM.md`         | Security architecture   | Auth, authorization, encryption     |
-| `docs/DEPLOYMENT_OPERATIONS.md`   | Deployment guide        | Production rollout, monitoring      |
-| `docs/API_REFERENCE.md`           | API documentation       | Endpoints, schemas                  |
+| Document                           | Purpose                 | Key Topics                               |
+| ---------------------------------- | ----------------------- | ---------------------------------------- |
+| `docs/SKILLS_SYSTEM.md`            | Skill framework         | Built-in skills, custom skills           |
+| `docs/WORKER_SYSTEM.md`            | Worker replacement docs | Current status, Ops/Rooms replacements   |
+| `docs/WORKER_ORCHESTRA_SYSTEM.md`  | Orchestra replacement   | Rooms-based orchestration                |
+| `docs/AUTOMATION_SYSTEM.md`        | Scheduled automation    | Cron, triggers, HTTP hooks               |
+| `docs/MEMORY_SYSTEM.md`            | Memory system overview  | Mem0, SQLite, retrieval                  |
+| `docs/memory-architecture.md`      | Memory architecture     | Detailed data flow, recall pipeline      |
+| `docs/KNOWLEDGE_BASE_SYSTEM.md`    | Knowledge repository    | Episodes, ledgers, ingestion             |
+| `docs/CLAWHUB_SYSTEM.md`           | Skill marketplace       | Search, install, management              |
+| `docs/MODEL_HUB_SYSTEM.md`         | LLM provider hub        | Multi-provider, fallbacks                |
+| `docs/OPS_OBSERVABILITY_SYSTEM.md` | Ops & observability     | Config, health, doctor, logs, stats, ops |
+| `docs/SECURITY_SYSTEM.md`          | Security architecture   | Auth, authorization, encryption          |
+| `docs/DEPLOYMENT_OPERATIONS.md`    | Deployment guide        | Production rollout, monitoring           |
+| `docs/API_REFERENCE.md`            | API documentation       | Endpoints, schemas                       |
 
 ### Architecture References
 
@@ -892,7 +867,6 @@ describe('myService', () => {
 | ------------------------------------------------ | ---------------------------- |
 | `docs/architecture/model-hub-provider-matrix.md` | Provider capability matrix   |
 | `docs/ARCHITECTURE_DIAGRAM.md`                   | Visual architecture overview |
-| `docs/ARCHITECTURE_ALTERNATIVES_ANALYSIS.md`     | Decision records             |
 
 ### Implementation Plans (Active)
 
@@ -903,8 +877,8 @@ Located in `docs/plans/` - Contains detailed implementation plans for in-progres
 Located in `docs/runbooks/` - Step-by-step operational procedures:
 
 - Gateway configuration rollout
-- OpenAI worker operations
-- Worker orchestra deployment
+- Chat CLI smoke approval
+- Worker-related historical runbooks (see archive)
 
 ### Archive
 
@@ -967,4 +941,4 @@ npm run knip             # Find unused code
 
 ---
 
-**Document Maintenance:** Update this handbook when making architectural changes. Last updated: 2026-02-17
+**Document Maintenance:** Update this handbook when making architectural changes. Last updated: 2026-02-21

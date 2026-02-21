@@ -1,6 +1,14 @@
 # Omnichannel and Gateway System
 
-**Stand:** 2026-02-17
+## Metadata
+
+- Purpose: Verbindliche Referenz fuer Multi-Channel-Routing und Gateway-Kommunikation.
+- Scope: Inbound/Outbound Routing, Adapter, Pairing, Webhooks, Gateway-RPC/Event-Flow.
+- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
+- Last Reviewed: 2026-02-21
+- Related Runbooks: docs/runbooks/gateway-config-production-rollout.md
+
+---
 
 ## 1. Funktionserläuterung
 

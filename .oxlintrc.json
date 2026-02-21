@@ -1,0 +1,281 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["nextjs", "typescript", "import", "unicorn"],
+  "categories": {
+    "correctness": "off"
+  },
+  "env": {
+    "builtin": true
+  },
+  "ignorePatterns": [
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    ".worktrees/**",
+    ".tmp/**",
+    ".tmp_merge/**",
+    "backups/**",
+    "demo/**",
+    "dist/**",
+    "coverage/**",
+    "node_modules/**"
+  ],
+  "rules": {
+    "@next/next/google-font-display": "warn",
+    "@next/next/google-font-preconnect": "warn",
+    "@next/next/next-script-for-ga": "warn",
+    "@next/next/no-async-client-component": "warn",
+    "@next/next/no-before-interactive-script-outside-document": "warn",
+    "@next/next/no-css-tags": "warn",
+    "@next/next/no-head-element": "warn",
+    "@next/next/no-html-link-for-pages": "error",
+    "@next/next/no-img-element": "warn",
+    "@next/next/no-page-custom-font": "warn",
+    "@next/next/no-styled-jsx-in-document": "warn",
+    "@next/next/no-sync-scripts": "error",
+    "@next/next/no-title-in-document-head": "warn",
+    "@next/next/no-typos": "warn",
+    "@next/next/no-unwanted-polyfillio": "warn",
+    "@next/next/inline-script-id": "error",
+    "@next/next/no-assign-module-variable": "error",
+    "@next/next/no-document-import-in-page": "error",
+    "@next/next/no-duplicate-head": "error",
+    "@next/next/no-head-import-in-document": "error",
+    "@next/next/no-script-component-in-head": "error",
+    "@typescript-eslint/ban-ts-comment": "error",
+    "no-array-constructor": "error",
+    "@typescript-eslint/no-duplicate-enum-values": "error",
+    "@typescript-eslint/no-empty-object-type": "error",
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-extra-non-null-assertion": "error",
+    "@typescript-eslint/no-misused-new": "error",
+    "@typescript-eslint/no-namespace": "error",
+    "@typescript-eslint/no-non-null-asserted-optional-chain": "error",
+    "@typescript-eslint/no-require-imports": "error",
+    "@typescript-eslint/no-this-alias": "error",
+    "@typescript-eslint/no-unnecessary-type-constraint": "error",
+    "@typescript-eslint/no-unsafe-declaration-merging": "error",
+    "@typescript-eslint/no-unsafe-function-type": "error",
+    "no-unused-expressions": "warn",
+    "no-unused-vars": "warn",
+    "@typescript-eslint/no-wrapper-object-types": "error",
+    "@typescript-eslint/prefer-as-const": "error",
+    "@typescript-eslint/prefer-namespace-keyword": "error",
+    "@typescript-eslint/triple-slash-reference": "error",
+    "import-x/namespace": "error",
+    "import-x/default": "error",
+    "import-x/export": "error",
+    "import-x/no-named-as-default": "warn",
+    "import-x/no-named-as-default-member": "warn",
+    "import-x/no-duplicates": "warn"
+  },
+  "settings": {
+    "import-x/extensions": [".ts", ".tsx", ".cts", ".mts", ".js", ".jsx", ".cjs", ".mjs"],
+    "import-x/external-module-folders": ["node_modules", "node_modules/@types"],
+    "import-x/parsers": {
+      "@typescript-eslint/parser": [".ts", ".tsx", ".cts", ".mts"]
+    },
+    "import-x/resolver": {
+      "typescript": true
+    }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
+      "rules": {
+        "react/display-name": "error",
+        "react/jsx-key": "error",
+        "react/jsx-no-comment-textnodes": "error",
+        "react/jsx-no-duplicate-props": "error",
+        "react/jsx-no-target-blank": "off",
+        "react/jsx-no-undef": "error",
+        "react/no-children-prop": "error",
+        "react/no-danger-with-children": "error",
+        "react/no-direct-mutation-state": "error",
+        "react/no-find-dom-node": "error",
+        "react/no-is-mounted": "error",
+        "react/no-render-return-value": "error",
+        "react/no-string-refs": "error",
+        "react/no-unescaped-entities": "error",
+        "react/no-unknown-property": "off",
+        "react/no-unsafe": "off",
+        "react/react-in-jsx-scope": "off",
+        "react/require-render-return": "error",
+        "react-hooks/rules-of-hooks": "error",
+        "react-hooks/exhaustive-deps": "warn",
+        "import/no-anonymous-default-export": "warn",
+        "jsx-a11y/alt-text": [
+          "warn",
+          {
+            "elements": ["img"],
+            "img": ["Image"]
+          }
+        ],
+        "jsx-a11y/aria-props": "warn",
+        "jsx-a11y/aria-proptypes": "warn",
+        "jsx-a11y/aria-unsupported-elements": "warn",
+        "jsx-a11y/role-has-required-aria-props": "warn",
+        "jsx-a11y/role-supports-aria-props": "warn"
+      },
+      "globals": {
+        "AudioWorkletGlobalScope": "readonly",
+        "AudioWorkletProcessor": "readonly",
+        "currentFrame": "readonly",
+        "currentTime": "readonly",
+        "registerProcessor": "readonly",
+        "sampleRate": "readonly",
+        "WorkletGlobalScope": "readonly"
+      },
+      "plugins": ["react", "jsx-a11y"],
+      "env": {
+        "browser": true,
+        "node": true
+      }
+    },
+    {
+      "files": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "rules": {
+        "constructor-super": "off",
+        "getter-return": "off",
+        "no-class-assign": "off",
+        "no-const-assign": "off",
+        "no-dupe-class-members": "off",
+        "no-dupe-keys": "off",
+        "no-func-assign": "off",
+        "no-import-assign": "off",
+        "no-new-native-nonconstructor": "off",
+        "no-obj-calls": "off",
+        "no-redeclare": "off",
+        "no-setter-return": "off",
+        "no-this-before-super": "off",
+        "no-undef": "off",
+        "no-unreachable": "off",
+        "no-unsafe-negation": "off",
+        "no-var": "error",
+        "no-with": "off",
+        "prefer-const": "error",
+        "prefer-rest-params": "error",
+        "prefer-spread": "error"
+      }
+    },
+    {
+      "files": ["**/*.{ts,tsx,js,jsx}"],
+      "rules": {
+        "react-hooks/rules-of-hooks": "error",
+        "react-hooks/exhaustive-deps": "warn",
+        "security/detect-buffer-noassert": "warn",
+        "security/detect-child-process": "warn",
+        "security/detect-disable-mustache-escape": "warn",
+        "security/detect-eval-with-expression": "warn",
+        "security/detect-new-buffer": "warn",
+        "security/detect-no-csrf-before-method-override": "warn",
+        "security/detect-non-literal-fs-filename": "off",
+        "security/detect-non-literal-regexp": "warn",
+        "security/detect-non-literal-require": "warn",
+        "security/detect-object-injection": "off",
+        "security/detect-possible-timing-attacks": "warn",
+        "security/detect-pseudoRandomBytes": "warn",
+        "security/detect-unsafe-regex": "warn",
+        "security/detect-bidi-characters": "warn",
+        "promise/always-return": "off",
+        "promise/no-return-wrap": "error",
+        "promise/param-names": "warn",
+        "promise/catch-or-return": "warn",
+        "promise/no-nesting": "warn",
+        "promise/no-promise-in-callback": "warn",
+        "promise/no-callback-in-promise": "warn",
+        "promise/avoid-new": "off",
+        "promise/no-new-statics": "error",
+        "promise/no-return-in-finally": "warn",
+        "promise/valid-params": "warn",
+        "sonarjs/no-identical-functions": "error",
+        "sonarjs/no-ignored-return": "error",
+        "sonarjs/no-useless-catch": "error",
+        "import-x/no-cycle": "warn",
+        "sonarjs/no-duplicate-string": "off",
+        "unicorn/prefer-node-protocol": "warn",
+        "unicorn/no-array-for-each": "off",
+        "unicorn/prefer-string-starts-ends-with": "warn",
+        "unicorn/no-useless-undefined": "warn",
+        "unicorn/consistent-function-scoping": "warn",
+        "unused-imports/no-unused-imports": "warn",
+        "unused-imports/no-unused-vars": [
+          "warn",
+          {
+            "argsIgnorePattern": "^_",
+            "args": "after-used",
+            "varsIgnorePattern": "^_",
+            "vars": "all",
+            "caughtErrorsIgnorePattern": "^_",
+            "caughtErrors": "all"
+          }
+        ],
+        "no-unused-vars": "off"
+      },
+      "jsPlugins": [
+        "eslint-plugin-security",
+        "eslint-plugin-sonarjs",
+        "eslint-plugin-unused-imports"
+      ],
+      "plugins": ["react", "promise"]
+    },
+    {
+      "files": [
+        "src/server/automation/runtime.ts",
+        "src/server/channels/messages/runtime.ts",
+        "src/server/channels/messages/service.ts",
+        "src/server/channels/pairing/telegramInbound.ts",
+        "src/server/channels/pairing/telegramPolling.ts"
+      ],
+      "rules": {
+        "import-x/no-cycle": "off"
+      }
+    },
+    {
+      "files": ["src/modules/personas/PersonaContext.tsx"],
+      "rules": {
+        "import-x/no-named-as-default-member": "off"
+      }
+    },
+    {
+      "files": ["**/*.{test,spec}.{ts,tsx,js,jsx}", "tests/**/*.{ts,tsx,js,jsx}"],
+      "rules": {
+        "vitest/expect-expect": "error",
+        "vitest/no-conditional-expect": "off",
+        "vitest/no-disabled-tests": "warn",
+        "vitest/no-focused-tests": "error",
+        "vitest/no-commented-out-tests": "error",
+        "vitest/no-identical-title": "error",
+        "vitest/no-import-node-test": "error",
+        "vitest/no-interpolation-in-snapshots": "error",
+        "vitest/no-mocks-import": "error",
+        "vitest/no-standalone-expect": "error",
+        "vitest/no-unneeded-async-expect-function": "error",
+        "vitest/require-local-test-context-for-concurrent-snapshots": "error",
+        "vitest/valid-describe-callback": "error",
+        "vitest/valid-expect": "error"
+      },
+      "globals": {
+        "suite": "writable",
+        "test": "writable",
+        "describe": "writable",
+        "it": "writable",
+        "expectTypeOf": "writable",
+        "assertType": "writable",
+        "expect": "writable",
+        "assert": "writable",
+        "chai": "writable",
+        "vitest": "writable",
+        "vi": "writable",
+        "beforeAll": "writable",
+        "afterAll": "writable",
+        "beforeEach": "writable",
+        "afterEach": "writable",
+        "onTestFailed": "writable",
+        "onTestFinished": "writable"
+      },
+      "plugins": ["vitest"]
+    }
+  ]
+}

@@ -1,6 +1,14 @@
 # ClawHub System
 
-**Stand:** 2026-02-17
+## Metadata
+
+- Purpose: Verbindliche Referenz fuer ClawHub-Integration im Skill-Subsystem.
+- Scope: Katalogsuche, Installation/Update, Aktivierungsstatus und Prompt-Integration.
+- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
+- Last Reviewed: 2026-02-21
+- Related Runbooks: N/A
+
+---
 
 ## 1. Funktionserläuterung
 
@@ -52,4 +60,4 @@ ClawHub erweitert das Skills-System um Suche, Installation und Lebenszyklus-Mana
 
 - `docs/SKILLS_SYSTEM.md`
 - `docs/API_REFERENCE.md`
-- `docs/plans/2026-02-13-clawhub-dual-lane-design.md`
+- `docs/archive/plans/completed/2026-02-13-clawhub-dual-lane-design.md` (historisches Design, archiviert)

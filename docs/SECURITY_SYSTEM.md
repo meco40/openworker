@@ -1,5 +1,15 @@
 # Security System
 
+## Metadata
+
+- Purpose: Verbindliche Referenz fuer Security-Architektur und Schutzmechanismen.
+- Scope: Webhook-Verifikation, Command-Approval, Credential-Schutz, Threat-Mitigation.
+- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
+- Last Reviewed: 2026-02-21
+- Related Runbooks: docs/runbooks/gateway-config-production-rollout.md
+
+---
+
 This document describes the comprehensive security architecture of the platform, covering security checks, webhook verification, command permission management, credential storage, and threat mitigation strategies.
 
 ## Overview
@@ -429,7 +439,7 @@ function verifyTelegramWebhook(request: Request, secretToken: string): boolean {
 curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://your-app.com/api/webhooks/telegram",
+    "url": "https://your-app.com/api/channels/telegram/webhook",
     "secret_token": "your-secret-token-here"
   }'
 ```
@@ -1080,6 +1090,12 @@ interface ChannelSecurityDiagnostic {
   detail: string;
 }
 ```
+
+### Effective Policy API
+
+#### `GET /api/security/policy-explain`
+
+Returns the effective runtime policy snapshot (including runtime mode and worker-removal flag).
 
 **Example Response:**
 

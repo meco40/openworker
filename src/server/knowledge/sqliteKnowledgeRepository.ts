@@ -967,7 +967,7 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
       realEvents.push(event);
       const start = new Date(event.startDate + 'T00:00:00Z');
       const end = new Date(event.endDate + 'T00:00:00Z');
-      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      for (const d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
         daySet.add(d.toISOString().slice(0, 10));
       }
     }

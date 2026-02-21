@@ -1,6 +1,14 @@
 # Knowledge Base System
 
-**Stand:** 2026-02-17
+## Metadata
+
+- Purpose: Verbindliche Referenz fuer internen Knowledge-Layer und Ingestion-Pipeline.
+- Scope: Episode-Ingestion, Ledger-Persistenz, Retrieval, Runtime-Loop, Token-Budgeting.
+- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
+- Last Reviewed: 2026-02-21
+- Related Runbooks: N/A
+
+---
 
 ## 1. Funktionserläuterung
 
@@ -32,11 +40,15 @@ Der Knowledge-Layer erweitert den Chat um strukturierte Wissensartefakte aus Kon
 
 ### 2.2 Laufzeitintegration
 
-Die Integration findet nicht über eigene öffentliche API-Routen statt, sondern innerhalb des Chat- und Memory-Flows:
+Die Hauptintegration erfolgt intern im Chat-/Memory-Flow:
 
 - Ingestion-Trigger: `MessageService.maybeStoreKnowledgeArtifacts(...)`
 - Retrieval-Trigger: `MessageService.buildRecallContext(...)`
 - Runtime Loop Start/Stop: `startKnowledgeRuntimeLoop()` / `stopKnowledgeRuntimeLoop()`
+
+Zusaetzlich existiert eine dedizierte Read-API fuer Graph-Visualisierung:
+
+- `GET /api/knowledge/graph` (mit `personaId`, optional `limit`, `edgeLimit`)
 
 ---
 
@@ -57,9 +69,13 @@ Quelle: `src/server/knowledge/config.ts`
 
 ## 4. API-Umfang
 
-Es gibt derzeit **keine öffentlichen Knowledge-HTTP-Routen** im Code (`app/api`).
+Aktive Knowledge-Route im Code:
 
-Die Knowledge-Funktionalität wird intern über Services konsumiert und über bestehende APIs (z. B. Chat/Channels) indirekt wirksam.
+| Methode | Pfad                   | Zweck                                                         |
+| ------- | ---------------------- | ------------------------------------------------------------- |
+| GET     | `/api/knowledge/graph` | Persona-spezifischen Entity-Graph (Nodes/Edges/Stats) abrufen |
+
+Die Ingestion- und Retrieval-Logik bleibt ansonsten intern und wird nicht als CRUD-HTTP-API exponiert.
 
 ---
 
@@ -79,4 +95,4 @@ npm run lint
 - `docs/MEMORY_SYSTEM.md`
 - `docs/SESSION_MANAGEMENT.md`
 - `docs/API_REFERENCE.md`
-- `docs/plans/2026-02-12-knowledge-base-agent-access-implementation.md`
+- `docs/archive/plans/completed/2026-02-12-knowledge-base-agent-access-implementation.md`

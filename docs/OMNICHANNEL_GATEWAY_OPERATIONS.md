@@ -1,6 +1,6 @@
 # Omnichannel and Gateway Operations
 
-Stand: 2026-02-17
+Stand: 2026-02-21
 
 ## Zweck
 
