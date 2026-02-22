@@ -1,6 +1,9 @@
 import { planKnowledgeQuery } from '@/server/knowledge/queryPlanner';
 import { computeEventAnswer } from '@/server/knowledge/eventAnswerComputer';
 import type { PersonaType } from '@/server/knowledge/personaStrategies';
+import type { KnowledgeEntity } from '@/server/knowledge/entityGraph';
+import type { KnowledgeEvent } from '@/server/knowledge/eventTypes';
+import type { StoredMessage } from '@/server/channels/messages/repository';
 
 import type {
   KnowledgeRetrievalInput,
@@ -15,11 +18,11 @@ import {
   detectMentionedCounterpart,
   isRulesIntentQuery,
 } from './query/intentDetector';
-import { isRuleLikeStatement } from './query/rulesExtractor';
+import { extractRuleFragments, isRuleLikeStatement } from './query/rulesExtractor';
 import { rankEpisodesByQuery } from './ranking/episodeRanker';
 import { rankLedgerByQuery } from './ranking/ledgerRanker';
 import { buildSemanticContextForQuery, formatProjectGraph } from './formatters/contextFormatter';
-import { buildEvidence } from './formatters/evidenceBuilder';
+import { buildEvidence, type EvidenceSourceRef } from './formatters/evidenceBuilder';
 import { isCounterpartMatch, selectConversationId } from './formatters/displayUtils';
 import {
   buildAnswerDraft,
@@ -27,6 +30,155 @@ import {
   extractCounterpartAndLists,
 } from './formatters/answerDraftBuilder';
 import { calculateAndApplyBudget } from './formatters/budgetCalculator';
+
+interface RuleEvidenceEntry {
+  text: string;
+  refs: EvidenceSourceRef[];
+}
+
+function normalizeRuleText(value: string): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenizeRuleText(value: string): string[] {
+  return normalizeRuleText(value)
+    .split(/[^a-z0-9äöüß]+/i)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 4);
+}
+
+function hasMeaningfulOverlap(left: string, right: string): boolean {
+  const leftNorm = normalizeRuleText(left);
+  const rightNorm = normalizeRuleText(right);
+  if (!leftNorm || !rightNorm) return false;
+  if (leftNorm.includes(rightNorm) || rightNorm.includes(leftNorm)) return true;
+
+  const leftTokens = new Set(tokenizeRuleText(leftNorm));
+  const rightTokens = tokenizeRuleText(rightNorm);
+  if (leftTokens.size === 0 || rightTokens.length === 0) return false;
+
+  let overlap = 0;
+  for (const token of rightTokens) {
+    if (leftTokens.has(token)) overlap += 1;
+  }
+
+  return overlap >= 2;
+}
+
+function parseEventSeqs(sourceSeqJson: string): number[] {
+  try {
+    const parsed = JSON.parse(sourceSeqJson);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((value) => Math.floor(Number(value || 0)))
+      .filter((seq) => Number.isFinite(seq) && seq > 0);
+  } catch {
+    return [];
+  }
+}
+
+function hasValidSourceRefs(
+  refs: Array<{ seq: number; quote: string }> | undefined | null,
+): boolean {
+  return (refs || []).some((ref) => Number(ref?.seq || 0) > 0);
+}
+
+function hasRuleLikeFragments(values: string[]): boolean {
+  const normalized = values
+    .map((value) => String(value || '').trim())
+    .filter((value) => value.length > 0);
+  if (normalized.some((value) => isRuleLikeStatement(value))) return true;
+  return extractRuleFragments(normalized.join('\n')).length > 0;
+}
+
+const BINARY_RECALL_QUERY_PATTERN =
+  /\b(waren wir|haben wir|war das|stimmt das|did we|were we|have we)\b/i;
+const NEGATION_SIGNAL_PATTERN = /\b(nicht|kein|keine|keinen|keinem|nie|niemals|never|no)\b/i;
+const GENERIC_QUERY_TOKENS = new Set([
+  'waren',
+  'haben',
+  'schon',
+  'mal',
+  'einmal',
+  'zusammen',
+  'wir',
+  'with',
+  'ever',
+  'did',
+  'were',
+  'have',
+]);
+
+function isBinaryRecallQuery(value: string): boolean {
+  const normalized = normalizeLookupText(value);
+  if (!normalized) return false;
+  return BINARY_RECALL_QUERY_PATTERN.test(normalized);
+}
+
+function extractQueryEvidenceTokens(value: string): string[] {
+  const normalized = normalizeLookupText(value);
+  if (!normalized) return [];
+  const tokens = normalized
+    .split(' ')
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 4);
+  const specific = tokens.filter((token) => !GENERIC_QUERY_TOKENS.has(token));
+  return specific.length > 0 ? specific : tokens;
+}
+
+function hasEvidenceTokenOverlap(text: string, tokens: string[]): boolean {
+  const normalized = normalizeLookupText(text);
+  if (!normalized || tokens.length === 0) return false;
+  return tokens.some((token) => normalized.includes(token));
+}
+
+function detectBinaryRecallConflict(
+  messages: StoredMessage[],
+  query: string,
+): { hasConflict: boolean; userSeqs: number[]; agentSeqs: number[] } {
+  if (!isBinaryRecallQuery(query)) {
+    return { hasConflict: false, userSeqs: [], agentSeqs: [] };
+  }
+
+  const tokens = extractQueryEvidenceTokens(query);
+  if (tokens.length === 0) {
+    return { hasConflict: false, userSeqs: [], agentSeqs: [] };
+  }
+
+  const relevant = messages.filter((message) => hasEvidenceTokenOverlap(message.content, tokens));
+  const userMessages = relevant.filter((message) => message.role === 'user');
+  const agentMessages = relevant.filter((message) => message.role === 'agent');
+
+  const userSeqs = new Set<number>();
+  const agentSeqs = new Set<number>();
+  for (const userMessage of userMessages) {
+    for (const agentMessage of agentMessages) {
+      const userHasNegation = NEGATION_SIGNAL_PATTERN.test(
+        normalizeLookupText(userMessage.content),
+      );
+      const agentHasNegation = NEGATION_SIGNAL_PATTERN.test(
+        normalizeLookupText(agentMessage.content),
+      );
+      if (userHasNegation === agentHasNegation) {
+        continue;
+      }
+
+      const userSeq = Math.floor(Number(userMessage.seq || 0));
+      const agentSeq = Math.floor(Number(agentMessage.seq || 0));
+      if (userSeq > 0) userSeqs.add(userSeq);
+      if (agentSeq > 0) agentSeqs.add(agentSeq);
+    }
+  }
+
+  return {
+    hasConflict: userSeqs.size > 0 && agentSeqs.size > 0,
+    userSeqs: [...userSeqs].sort((a, b) => a - b),
+    agentSeqs: [...agentSeqs].sort((a, b) => a - b),
+  };
+}
 
 export class KnowledgeRetrievalService {
   private readonly maxContextTokens: number;
@@ -148,6 +300,78 @@ export class KnowledgeRetrievalService {
     );
   }
 
+  private collectRuleFallbackEvidence(
+    entities: KnowledgeEntity[],
+    events: KnowledgeEvent[],
+  ): RuleEvidenceEntry[] {
+    const eventEntries: RuleEvidenceEntry[] = [];
+    for (const event of events) {
+      const summary = String(event.sourceSummary || '').trim();
+      if (!summary) continue;
+      const seqs = parseEventSeqs(event.sourceSeqJson);
+      if (seqs.length === 0) continue;
+      const refs = seqs.map((seq) => ({ seq, quote: summary }));
+      const fragments = uniqueStrings([
+        ...(isRuleLikeStatement(summary) ? [summary] : []),
+        ...extractRuleFragments(summary),
+      ]);
+      for (const fragment of fragments) {
+        if (!isRuleLikeStatement(fragment)) continue;
+        eventEntries.push({ text: fragment, refs });
+      }
+    }
+
+    const entityEntries: RuleEvidenceEntry[] = [];
+    for (const entity of entities) {
+      for (const [propertyKey, propertyValue] of Object.entries(entity.properties || {})) {
+        const rawValue = String(propertyValue || '').trim();
+        if (!rawValue) continue;
+        const rawCandidate = `${propertyKey}: ${rawValue}`.trim();
+        const fragments = uniqueStrings([
+          ...(isRuleLikeStatement(rawCandidate) ? [rawCandidate] : []),
+          ...extractRuleFragments(rawCandidate),
+        ]);
+
+        for (const fragment of fragments) {
+          if (!isRuleLikeStatement(fragment)) continue;
+          const matchedRefs = eventEntries
+            .filter((eventEntry) => hasMeaningfulOverlap(eventEntry.text, fragment))
+            .flatMap((eventEntry) => eventEntry.refs);
+          if (matchedRefs.length === 0) continue;
+          entityEntries.push({ text: fragment, refs: matchedRefs });
+        }
+      }
+    }
+
+    const merged = [...eventEntries, ...entityEntries];
+    const dedup = new Map<string, RuleEvidenceEntry>();
+    for (const entry of merged) {
+      const key = normalizeRuleText(entry.text);
+      if (!key) continue;
+      const current = dedup.get(key);
+      if (!current) {
+        dedup.set(key, entry);
+        continue;
+      }
+      const mergedRefs = uniqueStrings([
+        ...current.refs.map((ref) => `${ref.seq}:${ref.quote}`),
+        ...entry.refs.map((ref) => `${ref.seq}:${ref.quote}`),
+      ]).map((value) => {
+        const split = value.indexOf(':');
+        return {
+          seq: Number(value.slice(0, split)),
+          quote: value.slice(split + 1),
+        };
+      });
+      dedup.set(key, {
+        text: current.text,
+        refs: mergedRefs,
+      });
+    }
+
+    return [...dedup.values()].filter((entry) => entry.refs.length > 0);
+  }
+
   async retrieve(input: KnowledgeRetrievalInput): Promise<KnowledgeRetrievalResult> {
     const plan = planKnowledgeQuery(input.query);
     const rulesIntent = isRulesIntentQuery(input.query);
@@ -199,6 +423,7 @@ export class KnowledgeRetrievalService {
       episodes: 0,
       semantic: 0,
       evidence: 0,
+      graphRules: 0,
     };
 
     try {
@@ -237,22 +462,42 @@ export class KnowledgeRetrievalService {
 
       ledgerRows = rankLedgerByQuery(ledgerRows, input.query).slice(0, 8);
       episodes = rankEpisodesByQuery(episodes, input.query, effectivePersonaType).slice(0, 8);
+      let fallbackRuleEvidence: RuleEvidenceEntry[] = [];
 
       if (rulesIntent) {
-        const ruleLedger = ledgerRows.filter((row) =>
-          isRuleLikeStatement(
-            `${row.topicKey} ${row.decisions.join(' ')} ${row.negotiatedTerms.join(
-              ' ',
-            )} ${row.openPoints.join(' ')} ${row.actionItems.join(' ')}`,
-          ),
+        const ruleLedger = ledgerRows.filter((row) => {
+          if (!hasValidSourceRefs(row.sourceRefs)) return false;
+          return hasRuleLikeFragments([
+            ...row.decisions,
+            ...row.negotiatedTerms,
+            ...row.openPoints,
+            ...row.actionItems,
+          ]);
+        });
+        const ruleEpisodes = episodes.filter(
+          (row) =>
+            hasValidSourceRefs(row.sourceRefs) &&
+            hasRuleLikeFragments([row.topicKey, row.teaser, row.episode, ...row.facts]),
         );
-        const ruleEpisodes = episodes.filter((row) =>
-          isRuleLikeStatement(
-            `${row.topicKey} ${row.teaser} ${row.episode} ${row.facts.join(' ')}`,
-          ),
-        );
-        if (ruleLedger.length > 0) ledgerRows = ruleLedger;
-        if (ruleEpisodes.length > 0) episodes = ruleEpisodes;
+        ledgerRows = ruleLedger;
+        episodes = ruleEpisodes;
+
+        const fallbackEntities = this.options.knowledgeRepository.listEntities
+          ? this.options.knowledgeRepository.listEntities(graphFilter, 100)
+          : [];
+        const fallbackEvents = this.options.knowledgeRepository.listEvents
+          ? this.options.knowledgeRepository.listEvents(
+              {
+                userId: input.userId,
+                personaId: input.personaId,
+                from: plan.timeRange?.from,
+                to: plan.timeRange?.to,
+              },
+              120,
+            )
+          : [];
+        fallbackRuleEvidence = this.collectRuleFallbackEvidence(fallbackEntities, fallbackEvents);
+        stageStats.graphRules = fallbackRuleEvidence.length;
       }
 
       stageStats.ledger = ledgerRows.length;
@@ -273,6 +518,7 @@ export class KnowledgeRetrievalService {
       const hasSignals =
         stageStats.ledger > 0 ||
         stageStats.episodes > 0 ||
+        stageStats.graphRules > 0 ||
         stageStats.semantic > 0 ||
         !!computedAnswerText ||
         !!entityContextSection;
@@ -287,6 +533,20 @@ export class KnowledgeRetrievalService {
           tokenCount: 0,
           hadError: false,
         });
+        if (rulesIntent) {
+          return {
+            context: '',
+            sections: {
+              answerDraft:
+                'Unklar: In der Knowledge sind aktuell keine belegten Regeln mit Evidenz-Referenzen vorhanden.',
+              keyDecisions: 'Unklar: Keine belegten Regel-Fakten gefunden.',
+              openPoints: 'Unklar: Keine belegten offenen Regel-Punkte gefunden.',
+              evidence: 'Keine belegten Evidenz-Referenzen fuer Regeln gefunden.',
+            },
+            references: [],
+            tokenCount: 0,
+          };
+        }
         return {
           context: '',
           sections: { answerDraft: '', keyDecisions: '', openPoints: '', evidence: '' },
@@ -295,7 +555,7 @@ export class KnowledgeRetrievalService {
         };
       }
 
-      const conversationId = selectConversationId(episodes, ledgerRows);
+      const conversationId = selectConversationId(episodes, ledgerRows) || input.conversationId;
       const messages = conversationId
         ? this.options.messageRepository.listMessages(conversationId, 200, undefined, input.userId)
         : [];
@@ -306,10 +566,13 @@ export class KnowledgeRetrievalService {
         episodes,
         plan.counterpart ?? undefined,
       );
+      const mergedKeyDecisionsList = rulesIntent
+        ? uniqueStrings([...keyDecisionsList, ...fallbackRuleEvidence.map((entry) => entry.text)])
+        : keyDecisionsList;
 
       const { keyDecisions, openPoints } = filterListsForRulesIntent(
         rulesIntent,
-        keyDecisionsList,
+        mergedKeyDecisionsList,
         openPointsList,
       );
 
@@ -317,6 +580,7 @@ export class KnowledgeRetrievalService {
         rulesIntent,
         ledgerRows,
         episodes,
+        fallbackRuleHighlights: fallbackRuleEvidence.map((entry) => entry.text),
         counterpart,
         computedAnswerText,
         entityContextSection,
@@ -325,15 +589,40 @@ export class KnowledgeRetrievalService {
         openPointsList: openPoints,
       });
 
-      const { evidenceText, references } = buildEvidence(messages, episodes, ledgerRows);
+      const { evidenceText, references } = buildEvidence(messages, episodes, ledgerRows, {
+        extraRefs: fallbackRuleEvidence.flatMap((entry) => entry.refs),
+        allowMessageFallback: !rulesIntent,
+      });
 
-      const rawSections: KnowledgeRetrievalSections = {
-        answerDraft: answerDraftParts.join('\n').trim(),
-        keyDecisions:
-          keyDecisions.join('\n').trim() || 'Keine belastbaren Entscheidungen gefunden.',
-        openPoints: openPoints.join('\n').trim() || 'Keine offenen Punkte erkannt.',
-        evidence: evidenceText || 'Keine direkten Evidenzstellen gefunden.',
-      };
+      const hasRulesEvidence = references.length > 0;
+      const binaryRecallConflict = detectBinaryRecallConflict(messages, input.query);
+
+      const rawSections: KnowledgeRetrievalSections =
+        rulesIntent && !hasRulesEvidence
+          ? {
+              answerDraft:
+                'Unklar: In der Knowledge sind aktuell keine belegten Regeln mit Evidenz-Referenzen vorhanden.',
+              keyDecisions: 'Unklar: Keine belegten Regel-Fakten gefunden.',
+              openPoints: 'Unklar: Keine belegten offenen Regel-Punkte gefunden.',
+              evidence: 'Keine belegten Evidenz-Referenzen fuer Regeln gefunden.',
+            }
+          : binaryRecallConflict.hasConflict
+            ? {
+                answerDraft:
+                  'Unklar: In der Historie gibt es widerspruechliche Aussagen zur Frage.',
+                keyDecisions:
+                  'Widerspruch erkannt: Nutzer- und Assistant-Aussagen zur gleichen Erinnerung widersprechen sich.',
+                openPoints: 'Bitte den Sachverhalt kurz klaeren, damit die Erinnerung stabil wird.',
+                evidence:
+                  evidenceText || 'Widerspruch erkannt, aber keine Evidenzzeilen verfuegbar.',
+              }
+            : {
+                answerDraft: answerDraftParts.join('\n').trim(),
+                keyDecisions:
+                  keyDecisions.join('\n').trim() || 'Keine belastbaren Entscheidungen gefunden.',
+                openPoints: openPoints.join('\n').trim() || 'Keine offenen Punkte erkannt.',
+                evidence: evidenceText || 'Keine direkten Evidenzstellen gefunden.',
+              };
 
       const { context, budgetedSections, tokenCount } = calculateAndApplyBudget(rawSections, {
         query: input.query,
@@ -356,7 +645,7 @@ export class KnowledgeRetrievalService {
       return {
         context,
         sections: budgetedSections,
-        references,
+        references: rulesIntent && !hasRulesEvidence ? [] : references,
         tokenCount,
         computedAnswer: computedAnswerText,
       };

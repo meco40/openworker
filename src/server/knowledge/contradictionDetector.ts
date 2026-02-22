@@ -28,7 +28,8 @@ const SLOT_PATTERNS: Array<{ pattern: RegExp; slotName: string }> = [
   { pattern: /\bstudiere\s+(\w+)/i, slotName: 'study' },
 ];
 
-const NEGATION_WORDS = /\b(nicht|kein|keine|keinen|keinem)\b/i;
+const NEGATION_WORDS = /\b(nicht|kein|keine|keinen|keinem|nie|niemals|never)\b/i;
+const NEGATION_WORDS_GLOBAL = /\b(nicht|kein|keine|keinen|keinem|nie|niemals|never)\b/gi;
 
 /**
  * Extract the subject (first named entity or pronoun) from a fact.
@@ -70,14 +71,29 @@ function detectNegation(newFact: string, existingFact: string): boolean {
 
   // Strip negation words and compare remaining content
   const stripNeg = (t: string) =>
-    t.replace(NEGATION_WORDS, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    t
+      .replace(NEGATION_WORDS_GLOBAL, ' ')
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
 
   const strippedNew = stripNeg(newFact);
   const strippedExist = stripNeg(existingFact);
 
   // Calculate word overlap after stripping negation
-  const newWords = new Set(strippedNew.split(' ').filter((w) => w.length > 2));
-  const existWords = new Set(strippedExist.split(' ').filter((w) => w.length > 2));
+  const newWords = new Set(
+    strippedNew
+      .split(' ')
+      .map((w) => w.trim())
+      .filter((w) => w.length > 2),
+  );
+  const existWords = new Set(
+    strippedExist
+      .split(' ')
+      .map((w) => w.trim())
+      .filter((w) => w.length > 2),
+  );
 
   if (newWords.size === 0 || existWords.size === 0) return false;
 

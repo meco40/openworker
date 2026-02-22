@@ -1,9 +1,6 @@
 import type { ChannelType } from '@/shared/domain/types';
 import type { Conversation, StoredMessage } from '@/server/channels/messages/repository';
-import {
-  extractMemorySaveContent,
-  type SubagentDispatchContext,
-} from './types';
+import { extractMemorySaveContent, type SubagentDispatchContext } from './types';
 import { getMemoryService } from '@/server/memory/runtime';
 import { resolveMemoryScopedUserId } from '@/server/memory/userScope';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
@@ -279,7 +276,7 @@ export async function handlePersonaCommand(
   payload: string,
   platform: ChannelType,
   externalChatId: string,
-  repo: { 
+  repo: {
     updatePersonaId: (id: string, personaId: string | null, userId: string) => void;
   },
   sendResponse: CommandHandlerDeps['sendResponse'],
@@ -426,18 +423,11 @@ export async function handleMemorySave(
       channelType: platform || conversation.channelType,
       externalChatId: externalChatId || conversation.externalChatId || 'default',
     });
-    await getMemoryService().store(
-      conversation.personaId,
-      'fact',
-      memoryContent,
-      4,
-      memoryUserId,
-      {
-        subject: 'user',
-        sourceRole: 'user',
-        sourceType: 'manual_save',
-      },
-    );
+    await getMemoryService().store(conversation.personaId, 'fact', memoryContent, 4, memoryUserId, {
+      subject: 'user',
+      sourceRole: 'user',
+      sourceType: 'manual_save',
+    });
     return {
       saved: true,
       message: await sendResponse(

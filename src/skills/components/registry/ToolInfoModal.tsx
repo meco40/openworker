@@ -11,11 +11,7 @@ interface ToolInfoModalProps {
   onClose: () => void;
 }
 
-export const ToolInfoModal: React.FC<ToolInfoModalProps> = ({
-  skill,
-  runtimeConfigs,
-  onClose,
-}) => {
+export const ToolInfoModal: React.FC<ToolInfoModalProps> = ({ skill, runtimeConfigs, onClose }) => {
   if (!skill) return null;
 
   const toolGuide = getToolGuide(skill, runtimeConfigs);

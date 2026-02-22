@@ -28,6 +28,7 @@ const knowledgeRetrieveMock = vi.hoisted(() =>
   })),
 );
 const knowledgeShouldTriggerRecallMock = vi.hoisted(() => vi.fn(async () => false));
+const ensureKnowledgeIngestedForConversationMock = vi.hoisted(() => vi.fn(async () => null));
 const memoryRecallDetailedMock = vi.hoisted(() =>
   vi.fn(async () => ({
     context: 'Mem0 fallback context',
@@ -74,6 +75,7 @@ vi.mock('../../../src/server/knowledge/runtime', () => ({
     shouldTriggerRecall: knowledgeShouldTriggerRecallMock,
     retrieve: knowledgeRetrieveMock,
   }),
+  ensureKnowledgeIngestedForConversation: ensureKnowledgeIngestedForConversationMock,
 }));
 
 import { MessageService } from '@/server/channels/messages/service';
@@ -154,6 +156,7 @@ describe('MessageService knowledge recall integration', () => {
     knowledgeRetrieveMock.mockClear();
     knowledgeShouldTriggerRecallMock.mockClear();
     knowledgeShouldTriggerRecallMock.mockResolvedValue(false);
+    ensureKnowledgeIngestedForConversationMock.mockClear();
     memoryRecallDetailedMock.mockClear();
   });
 
@@ -170,6 +173,12 @@ describe('MessageService knowledge recall integration', () => {
     );
 
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
+    expect(ensureKnowledgeIngestedForConversationMock).toHaveBeenCalledTimes(1);
+    expect(ensureKnowledgeIngestedForConversationMock).toHaveBeenCalledWith({
+      conversationId: 'conv-1',
+      userId: 'user-1',
+      personaId: 'persona-1',
+    });
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
 
     const dispatchedMessages = getDispatchedMessages();

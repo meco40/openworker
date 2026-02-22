@@ -153,6 +153,30 @@ export enum View {
   SESSIONS = 'sessions',
   NODES = 'nodes',
   AGENTS = 'agents',
+  DEBUGGER = 'debugger',
+}
+
+export interface DebugConversationSummary {
+  conversationId: string;
+  turnCount: number;
+  totalTokens: number;
+  totalCostUsd: number | null;
+  lastActivity: string;
+  modelName: string;
+}
+
+export interface DebugTurn {
+  seq: number;
+  userPreview: string;
+  assistantPreview: string;
+  modelName: string;
+  promptTokens: number;
+  completionTokens: number;
+  latencyMs: number | null;
+  toolCalls: Array<{ name: string; args: Record<string, unknown> }>;
+  memoryContext: string | null;
+  riskLevel: 'low' | 'medium' | 'high';
+  dispatchId: string;
 }
 
 export interface CoupledChannel {

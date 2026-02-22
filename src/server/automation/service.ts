@@ -12,6 +12,8 @@ import type {
   SchedulerLeaseState,
   UpdateAutomationRuleInput,
 } from '@/server/automation/types';
+import type { FlowGraph } from '@/server/automation/flowTypes';
+import type { CompiledFlow } from '@/server/automation/flowCompiler';
 
 export interface AutomationServiceDeps {
   runPrompt: (input: {
@@ -135,6 +137,35 @@ export class AutomationService {
 
   listRuns(ruleId: string, userId: string, limit?: number): AutomationRun[] {
     return this.repo.listRuns(ruleId, userId, limit);
+  }
+
+  getFlowGraph(ruleId: string, userId: string): FlowGraph | null {
+    return this.repo.getFlowGraph(ruleId, userId);
+  }
+
+  saveFlowGraph(
+    ruleId: string,
+    userId: string,
+    graph: FlowGraph,
+    compiled: CompiledFlow,
+  ): AutomationRule | null {
+    // Step 1: persist flow_graph JSON directly (no cron revalidation)
+    const withGraph = this.repo.saveFlowGraph(ruleId, userId, graph);
+    if (!withGraph) return null;
+
+    // Step 2: update prompt + enabled from compiled output
+    // Only update cronExpression when the trigger is a cron trigger
+    const isCronTrigger = graph.nodes.some((n) => n.type === 'trigger.cron');
+    const patch: UpdateAutomationRuleInput = {
+      prompt: compiled.prompt,
+      enabled: compiled.enabled,
+    };
+    if (isCronTrigger) {
+      patch.cronExpression = compiled.cronExpression;
+      patch.timezone = compiled.timezone;
+    }
+
+    return this.repo.updateRule(ruleId, userId, patch);
   }
 
   acquireLease(instanceId: string, ttlMs: number, nowIso?: string): boolean {

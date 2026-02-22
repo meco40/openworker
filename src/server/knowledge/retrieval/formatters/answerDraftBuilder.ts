@@ -7,6 +7,7 @@ export interface AnswerDraftInput {
   rulesIntent: boolean;
   ledgerRows: MeetingLedgerEntry[];
   episodes: KnowledgeEpisode[];
+  fallbackRuleHighlights?: string[];
   counterpart: string | null;
   computedAnswerText: string | null;
   entityContextSection: string;
@@ -20,6 +21,7 @@ export function buildAnswerDraft(input: AnswerDraftInput): string[] {
     rulesIntent,
     ledgerRows,
     episodes,
+    fallbackRuleHighlights,
     counterpart,
     computedAnswerText,
     entityContextSection,
@@ -32,6 +34,7 @@ export function buildAnswerDraft(input: AnswerDraftInput): string[] {
     const ruleHighlights = uniqueStrings([
       ...keyDecisionsList,
       ...openPointsList,
+      ...(fallbackRuleHighlights || []),
       ...episodes.flatMap((episode) =>
         extractRuleFragments(
           `${episode.teaser || ''}\n${episode.episode || ''}\n${(episode.facts || []).join('\n')}`,
@@ -44,7 +47,6 @@ export function buildAnswerDraft(input: AnswerDraftInput): string[] {
           )}\n${row.actionItems.join('\n')}`,
         ),
       ),
-      ...extractRuleFragments(semanticContext),
     ]).slice(0, 8);
 
     return ['Kontext: Regelwissen aus Historie.', ...ruleHighlights.map((entry) => `- ${entry}`)];
@@ -54,9 +56,7 @@ export function buildAnswerDraft(input: AnswerDraftInput): string[] {
   return [
     ...(computedAnswerText ? [computedAnswerText] : []),
     ...(entityContextSection ? [`[Entity-Kontext]\n${entityContextSection}`] : []),
-    counterpart
-      ? `Kontext: Meeting mit ${counterpart}.`
-      : 'Kontext: Wissensrueckgriff aktiv.',
+    counterpart ? `Kontext: Meeting mit ${counterpart}.` : 'Kontext: Wissensrueckgriff aktiv.',
     latestEpisode?.teaser || '',
     semanticContext || '',
   ];

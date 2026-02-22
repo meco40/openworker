@@ -1,5 +1,10 @@
 import type BetterSqlite3 from 'better-sqlite3';
-import type { KnowledgeEvent, KnowledgeEventFilter, UpsertKnowledgeEventInput, EventAggregationResult } from '@/server/knowledge/eventTypes';
+import type {
+  KnowledgeEvent,
+  KnowledgeEventFilter,
+  UpsertKnowledgeEventInput,
+  EventAggregationResult,
+} from '@/server/knowledge/eventTypes';
 import { parseJsonArray } from './utils';
 
 export class EventRepository {

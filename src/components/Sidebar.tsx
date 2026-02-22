@@ -88,6 +88,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
   },
   {
+    id: View.DEBUGGER,
+    label: 'Debugger',
+    icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4',
+  },
+  {
     id: View.SECURITY,
     label: 'Security Panel',
     icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',

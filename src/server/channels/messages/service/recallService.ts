@@ -2,7 +2,10 @@ import type { Conversation, StoredMessage } from '@/server/channels/messages/rep
 import type { SearchMessagesOptions } from '@/server/channels/messages/sqliteMessageRepository';
 import { getMemoryService } from '@/server/memory/runtime';
 import { resolveKnowledgeConfig } from '@/server/knowledge/config';
-import { getKnowledgeRetrievalService } from '@/server/knowledge/runtime';
+import {
+  ensureKnowledgeIngestedForConversation,
+  getKnowledgeRetrievalService,
+} from '@/server/knowledge/runtime';
 import { resolveMemoryUserIdCandidates } from '@/server/memory/userScope';
 import { fuseRecallSources } from '@/server/channels/messages/recallFusion';
 import {
@@ -97,6 +100,15 @@ export class RecallService {
   ): Promise<string | null> {
     if (!service) return null;
     for (const userIdCandidate of memoryUserIds) {
+      try {
+        await ensureKnowledgeIngestedForConversation({
+          conversationId: conversation.id,
+          userId: userIdCandidate,
+          personaId: conversation.personaId!,
+        });
+      } catch (error) {
+        console.error('Knowledge pre-ingest failed:', error);
+      }
       try {
         const result = await service.retrieve({
           userId: userIdCandidate,

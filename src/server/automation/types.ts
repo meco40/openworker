@@ -1,3 +1,5 @@
+import type { FlowGraph } from '@/server/automation/flowTypes';
+
 export type AutomationTriggerSource = 'cron' | 'manual';
 
 export type AutomationRunStatus =
@@ -22,6 +24,7 @@ export interface AutomationRule {
   lastError: string | null;
   createdAt: string;
   updatedAt: string;
+  flowGraph: FlowGraph | null;
 }
 
 export interface AutomationRun {
@@ -77,6 +80,7 @@ export interface UpdateAutomationRuleInput {
   lastRunAt?: string | null;
   consecutiveFailures?: number;
   lastError?: string | null;
+  flowGraph?: FlowGraph | null;
 }
 
 export interface CreateAutomationRunInput {

@@ -27,7 +27,11 @@ export interface SubagentExecutorDeps {
       messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
       modelHubProfileId: string;
       preferredModelId?: string;
-      toolContext: { tools: unknown[]; installedFunctionNames: Set<string>; functionToSkillId: Map<string, string> };
+      toolContext: {
+        tools: unknown[];
+        installedFunctionNames: Set<string>;
+        functionToSkillId: Map<string, string>;
+      };
       abortSignal?: AbortSignal;
       onStreamDelta?: (delta: string) => void;
     },
@@ -52,12 +56,15 @@ export async function runSubagent(
 ): Promise<void> {
   const { conversation, platform, externalChatId, run } = params;
   const abortController = new AbortController();
-  const { attachSubagentRuntime, detachSubagentRuntime } = await import('@/server/agents/subagentRegistry');
+  const { attachSubagentRuntime, detachSubagentRuntime } =
+    await import('@/server/agents/subagentRegistry');
   attachSubagentRuntime(run.runId, { abortController });
 
   try {
     const routing = deps.resolveChatModelRouting(conversation);
-    const toolContext = deps.subagentManager.filterToolContextForSubagent(await deps.toolManager.resolveToolContext());
+    const toolContext = deps.subagentManager.filterToolContextForSubagent(
+      await deps.toolManager.resolveToolContext(),
+    );
     const preferredModelId = run.modelOverride || routing.preferredModelId;
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
       {
@@ -82,9 +89,7 @@ export async function runSubagent(
       abortSignal: abortController.signal,
     });
 
-    const preview = (modelOutcome.content || '')
-      .trim()
-      .slice(0, SUBAGENT_RESULT_PREVIEW_MAX_CHARS);
+    const preview = (modelOutcome.content || '').trim().slice(0, SUBAGENT_RESULT_PREVIEW_MAX_CHARS);
     completeSubagentRun(run.runId, preview);
 
     const announceContent = [

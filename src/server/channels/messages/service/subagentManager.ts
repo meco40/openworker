@@ -297,7 +297,7 @@ export class SubagentManager {
         task: parsed.task,
         modelOverride: parsed.modelOverride,
       });
-      
+
       // Start the subagent run asynchronously
       void deps.runSubagent({
         conversation,

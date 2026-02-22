@@ -1,7 +1,5 @@
 // Main exports from the retrieval module
-export {
-  KnowledgeRetrievalService,
-} from './service';
+export { KnowledgeRetrievalService } from './service';
 
 export type {
   KnowledgeRetrievalInput,
@@ -25,42 +23,21 @@ export {
   isCounterpartMatch,
 } from './query/intentDetector';
 
-export {
-  isRuleLikeStatement,
-  extractRuleFragments,
-} from './query/rulesExtractor';
+export { isRuleLikeStatement, extractRuleFragments } from './query/rulesExtractor';
 
-export {
-  tokenizeQueryForRanking,
-} from './query/queryParser';
+export { tokenizeQueryForRanking } from './query/queryParser';
 
-export {
-  computeEpisodeAge,
-  rankEpisodesByQuery,
-} from './ranking/episodeRanker';
+export { computeEpisodeAge, rankEpisodesByQuery } from './ranking/episodeRanker';
 
-export {
-  rankLedgerByQuery,
-} from './ranking/ledgerRanker';
+export { rankLedgerByQuery } from './ranking/ledgerRanker';
 
-export {
-  computeTokenOverlapScore,
-  detectEmotionalToneInText,
-} from './ranking/scoring';
+export { computeTokenOverlapScore, detectEmotionalToneInText } from './ranking/scoring';
 
-export {
-  buildSemanticContextForQuery,
-  formatProjectGraph,
-} from './formatters/contextFormatter';
+export { buildSemanticContextForQuery, formatProjectGraph } from './formatters/contextFormatter';
 
-export {
-  buildEvidence,
-} from './formatters/evidenceBuilder';
+export { buildEvidence } from './formatters/evidenceBuilder';
 
-export {
-  toDisplayName,
-  selectConversationId,
-} from './formatters/displayUtils';
+export { toDisplayName, selectConversationId } from './formatters/displayUtils';
 
 export {
   buildAnswerDraft,
@@ -68,15 +45,8 @@ export {
   extractCounterpartAndLists,
 } from './formatters/answerDraftBuilder';
 
-export {
-  calculateAndApplyBudget,
-} from './formatters/budgetCalculator';
+export { calculateAndApplyBudget } from './formatters/budgetCalculator';
 
-export type {
-  AnswerDraftInput,
-} from './formatters/answerDraftBuilder';
+export type { AnswerDraftInput } from './formatters/answerDraftBuilder';
 
-export type {
-  BudgetContext,
-  BudgetResult,
-} from './formatters/budgetCalculator';
+export type { BudgetContext, BudgetResult } from './formatters/budgetCalculator';

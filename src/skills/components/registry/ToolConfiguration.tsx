@@ -26,7 +26,9 @@ export const ToolConfiguration: React.FC<ToolConfigurationProps> = ({
 }) => (
   <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-6 shadow-lg">
     <div className="mb-4 flex items-center justify-between gap-3">
-      <h3 className="text-sm font-black tracking-widest text-white uppercase">Tool Configuration</h3>
+      <h3 className="text-sm font-black tracking-widest text-white uppercase">
+        Tool Configuration
+      </h3>
       <button
         onClick={() => onRefresh()}
         disabled={loading}

@@ -6,6 +6,7 @@ declare global {
   var __messageService: MessageService | undefined;
   var __pollingResumeChecked: boolean | undefined;
   var __channelHealthMonitorChecked: boolean | undefined;
+  var __eventSubscribersChecked: boolean | undefined;
   var __messageRuntimeBootstrapPromise: Promise<void> | undefined;
 }
 
@@ -56,6 +57,16 @@ async function bootstrapMessageRuntimeInternal(): Promise<void> {
       startChannelHealthMonitor();
     } catch (error) {
       console.warn('[Runtime] Could not start channel health monitor:', error);
+    }
+  }
+
+  if (!globalThis.__eventSubscribersChecked) {
+    globalThis.__eventSubscribersChecked = true;
+    try {
+      const { registerProactiveEventSubscribers } = await import('@/server/proactive/subscribers');
+      registerProactiveEventSubscribers();
+    } catch (error) {
+      console.warn('[Runtime] Could not register proactive event subscribers:', error);
     }
   }
 }

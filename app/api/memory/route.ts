@@ -217,7 +217,11 @@ function parseBulkBody(raw: Record<string, unknown>): {
 }
 
 function isDeleteAllConfirmed(raw: unknown): boolean {
-  return String(raw || '').trim().toLowerCase() === DELETE_ALL_CONFIRM_TOKEN;
+  return (
+    String(raw || '')
+      .trim()
+      .toLowerCase() === DELETE_ALL_CONFIRM_TOKEN
+  );
 }
 
 function resolveMemoryReadUserScopes(baseUserId: string, personaId: string): string[] {

@@ -1,7 +1,7 @@
 # Deployment & Operations Guide
 
 **Version:** 1.0.0  
-**Last Updated:** 2026-02-21
+**Last Updated:** 2026-02-22
 
 This document provides comprehensive guidance for deploying, operating, and maintaining OpenClaw Gateway in production environments. It covers deployment topologies, Docker configuration, systemd services, monitoring, backup strategies, and operational procedures.
 
@@ -93,9 +93,9 @@ OpenClaw Gateway is a multi-service Node.js application comprising:
 │  │  └─────────────────────────────┘    │    │  └──────────────────────────┘  │ │
 │  │            │                        │    │            │                   │ │
 │  │                                     │    │  ┌─────────▼──────────┐        │ │
-│  │                                     │    │  │  Heartbeat Writer  │        │ │
-│  │                                     │    │  │  (.local/scheduler │        │ │
-│  │                                     │    │  │   .heartbeat)      │        │ │
+│  │                                     │    │  │ Lease Heartbeat    │        │ │
+│  │                                     │    │  │ + /api/health/     │        │ │
+│  │                                     │    │  │ scheduler status    │        │ │
 │  │                                     │    │  └────────────────────┘        │ │
 │  │  Port: 3000                         │    │  Instance ID: scheduler-1      │ │
 │  │  Replicas: 2+ (scaled)              │    │  Replicas: 1 (singleton)       │ │
@@ -771,31 +771,22 @@ GET /api/logs?level=error&limit=100&since=2026-02-17T00:00:00Z
 
 ### Scheduler Health Check
 
-The scheduler writes a heartbeat file for health monitoring:
+Use the dedicated scheduler health endpoint for heartbeat monitoring:
 
-**Heartbeat File:** `.local/scheduler.heartbeat`
+**Endpoint:** `/api/health/scheduler`
 
 ```bash
 #!/bin/bash
 # scheduler-health-check.sh
 
-HEARTBEAT_FILE="/opt/openclaw/.local/scheduler.heartbeat"
-MAX_AGE_MS=60000  # 60 seconds
+SCHEDULER_URL="http://localhost:3000/api/health/scheduler"
+SCHEDULER_TOKEN="${SCHEDULER_HEALTH_TOKEN:-}"
 
-if [ ! -f "$HEARTBEAT_FILE" ]; then
-    echo "ERROR: Heartbeat file not found"
-    exit 1
+if [ -n "$SCHEDULER_TOKEN" ]; then
+  curl -fsS -H "x-scheduler-health-token: $SCHEDULER_TOKEN" "$SCHEDULER_URL" > /dev/null
+else
+  curl -fsS "$SCHEDULER_URL" > /dev/null
 fi
-
-FILE_AGE_MS=$(($(date +%s%3N) - $(stat -c %Y%3N "$HEARTBEAT_FILE")))
-
-if [ "$FILE_AGE_MS" -gt "$MAX_AGE_MS" ]; then
-    echo "ERROR: Heartbeat is ${FILE_AGE_MS}ms old (max: ${MAX_AGE_MS}ms)"
-    exit 1
-fi
-
-echo "OK: Heartbeat is ${FILE_AGE_MS}ms old"
-exit 0
 ```
 
 ### Monitoring Setup
@@ -854,7 +845,8 @@ groups:
 # uptime-check.sh
 
 WEB_URL="http://localhost:3000/api/health"
-HEARTBEAT_FILE="/opt/openclaw/.local/scheduler.heartbeat"
+SCHEDULER_URL="http://localhost:3000/api/health/scheduler"
+SCHEDULER_TOKEN="${SCHEDULER_HEALTH_TOKEN:-}"
 ALERT_WEBHOOK="${ALERT_WEBHOOK_URL}"
 
 # Check web service
@@ -864,16 +856,17 @@ if ! curl -fsS "$WEB_URL" > /dev/null; then
     curl -X POST "$ALERT_WEBHOOK" -d '{"text":"OpenClaw web service unhealthy"}'
 fi
 
-# Check scheduler heartbeat
-if [ -f "$HEARTBEAT_FILE" ]; then
-    AGE=$(($(date +%s) - $(stat -c %Y "$HEARTBEAT_FILE")))
-    if [ "$AGE" -gt 120 ]; then
-        echo "$(date): Scheduler heartbeat stale (${AGE}s)" | tee -a /opt/openclaw/logs/monitor.log
-        curl -X POST "$ALERT_WEBHOOK" -d '{"text":"OpenClaw scheduler heartbeat stale"}'
+# Check scheduler heartbeat endpoint
+if [ -n "$SCHEDULER_TOKEN" ]; then
+    if ! curl -fsS -H "x-scheduler-health-token: $SCHEDULER_TOKEN" "$SCHEDULER_URL" > /dev/null; then
+        echo "$(date): Scheduler heartbeat endpoint unhealthy" | tee -a /opt/openclaw/logs/monitor.log
+        curl -X POST "$ALERT_WEBHOOK" -d '{"text":"OpenClaw scheduler heartbeat endpoint unhealthy"}'
     fi
 else
-    echo "$(date): Scheduler heartbeat missing" | tee -a /opt/openclaw/logs/monitor.log
-    curl -X POST "$ALERT_WEBHOOK" -d '{"text":"OpenClaw scheduler heartbeat missing"}'
+    if ! curl -fsS "$SCHEDULER_URL" > /dev/null; then
+        echo "$(date): Scheduler heartbeat endpoint unhealthy" | tee -a /opt/openclaw/logs/monitor.log
+        curl -X POST "$ALERT_WEBHOOK" -d '{"text":"OpenClaw scheduler heartbeat endpoint unhealthy"}'
+    fi
 fi
 ```
 
@@ -1420,11 +1413,11 @@ systemctl edit openclaw-web
 ### Scheduler Not Processing Jobs
 
 ```bash
-# Check heartbeat
-stat /opt/openclaw/.local/scheduler.heartbeat
+# Check scheduler heartbeat endpoint
+curl -i http://localhost:3000/api/health/scheduler
 
-# Check for scheduler lock
-ls -la /opt/openclaw/.local/*.lock
+# Inspect heartbeat payload (freshness, instanceId, ageMs)
+curl -fsS http://localhost:3000/api/health/scheduler | jq .
 
 # View scheduler logs
 sudo journalctl -u openclaw-scheduler -f

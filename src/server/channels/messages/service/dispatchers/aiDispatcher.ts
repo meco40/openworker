@@ -26,9 +26,14 @@ export interface AIDispatcherDeps {
       messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
       modelHubProfileId: string;
       preferredModelId?: string;
-      toolContext: { tools: unknown[]; installedFunctionNames: Set<string>; functionToSkillId: Map<string, string> };
+      toolContext: {
+        tools: unknown[];
+        installedFunctionNames: Set<string>;
+        functionToSkillId: Map<string, string>;
+      };
       abortSignal?: AbortSignal;
       onStreamDelta?: (delta: string) => void;
+      auditContextExtras?: { turnSeq?: number; memoryContext?: string };
     },
   ) => Promise<{ content: string; metadata: Record<string, unknown> }>;
   activeRequests: Map<string, AbortController>;
@@ -42,6 +47,7 @@ export async function dispatchToAI(
     externalChatId: string;
     userInput: string;
     onStreamDelta?: (delta: string) => void;
+    turnSeq?: number;
   },
 ): Promise<{ content: string; metadata: Record<string, unknown> }> {
   const { conversation, userInput, onStreamDelta } = params;
@@ -87,6 +93,10 @@ export async function dispatchToAI(
       toolContext,
       abortSignal: abortController.signal,
       onStreamDelta,
+      auditContextExtras: {
+        turnSeq: params.turnSeq,
+        memoryContext: memoryContext ?? undefined,
+      },
     });
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
@@ -118,9 +128,14 @@ export async function runModelToolLoop(
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
     modelHubProfileId: string;
     preferredModelId?: string;
-    toolContext: { tools: unknown[]; installedFunctionNames: Set<string>; functionToSkillId: Map<string, string> };
+    toolContext: {
+      tools: unknown[];
+      installedFunctionNames: Set<string>;
+      functionToSkillId: Map<string, string>;
+    };
     abortSignal?: AbortSignal;
     onStreamDelta?: (delta: string) => void;
+    auditContextExtras?: { turnSeq?: number; memoryContext?: string };
   },
 ): Promise<{ content: string; metadata: Record<string, unknown> }> {
   const { conversation, messages, modelHubProfileId, preferredModelId, toolContext } = params;
@@ -137,6 +152,7 @@ export async function runModelToolLoop(
         auditContext: {
           kind: 'chat',
           conversationId: conversation.id,
+          ...(params.auditContextExtras ?? {}),
         },
       },
       {

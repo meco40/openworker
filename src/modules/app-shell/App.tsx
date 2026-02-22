@@ -5,13 +5,9 @@ import dynamic from 'next/dynamic';
 import {
   View,
   ChannelType,
-  ChatApprovalDecision,
   ChatStreamDebugState,
   CoupledChannel,
   MessageAttachment,
-  MessageApprovalRequest,
-  Message,
-  Skill,
 } from '@/shared/domain/types';
 import Sidebar from '@/components/Sidebar';
 import { buildInitialShellState } from '@/modules/app-shell/useAppShellState';
@@ -19,12 +15,7 @@ import {
   loadCoupledChannelsFromStorage,
   saveCoupledChannelsToStorage,
 } from '@/modules/app-shell/channelStorage';
-import {
-  buildConversationTitle,
-  removeConversationById,
-  resolveActiveConversationAfterDeletion,
-  STREAMING_DRAFT_ID_PREFIX,
-} from '@/modules/app-shell/runtimeLogic';
+import { STREAMING_DRAFT_ID_PREFIX } from '@/modules/app-shell/runtimeLogic';
 import { getClientStorage } from '@/modules/app-shell/clientStorage';
 import { useConversationSync } from '@/modules/app-shell/useConversationSync';
 import { useGatewayState } from '@/modules/app-shell/useGatewayState';
@@ -32,7 +23,10 @@ import { useTaskScheduler } from '@/modules/app-shell/useTaskScheduler';
 import { useAgentRuntime } from '@/modules/app-shell/useAgentRuntime';
 import { useControlPlaneMetrics } from '@/modules/app-shell/useControlPlaneMetrics';
 import { useChannelStateSync } from '@/modules/app-shell/useChannelStateSync';
-import { toMessage } from '@/modules/chat/services/routeMessage';
+import { useSkillsCatalog } from '@/modules/app-shell/useSkillsCatalog';
+import { useConversationActions } from '@/modules/app-shell/useConversationActions';
+import { useChatMessageActions } from '@/modules/app-shell/useChatMessageActions';
+import { waitForGatewayConnected } from '@/modules/app-shell/gatewayConnection';
 import AppShellHeader from '@/modules/app-shell/components/AppShellHeader';
 import AppShellViewContent from '@/modules/app-shell/components/AppShellViewContent';
 import { usePersona } from '@/modules/personas/PersonaContext';
@@ -56,84 +50,25 @@ interface AppProps {
   initialView: View;
 }
 
-async function waitForGatewayConnected(timeoutMs = 5_000): Promise<void> {
-  const client = getGatewayClient();
-  if (client.state === 'connected') return;
-
-  client.connect();
-
-  await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      unsubscribe();
-      reject(new Error('WebSocket not connected.'));
-    }, timeoutMs);
-
-    const unsubscribe = client.onStateChange((state) => {
-      if (state === 'connected') {
-        clearTimeout(timer);
-        unsubscribe();
-        resolve();
-      }
-    });
-
-    if (client.state === 'connected') {
-      clearTimeout(timer);
-      unsubscribe();
-      resolve();
-    }
-  });
-}
-
 const App: React.FC<AppProps> = ({ initialView }) => {
-  const [currentView, setCurrentView] = useState<View>(() =>
-    buildInitialShellState(initialView).currentView,
+  const [currentView, setCurrentView] = useState<View>(
+    () => buildInitialShellState(initialView).currentView,
   );
   const [onboarded, setOnboarded] = useState<boolean>(true);
   const [isCanvasOpen, setIsCanvasOpen] = useState(false);
   const [isServerResponding, setIsServerResponding] = useState(false);
   const [chatStreamDebug, setChatStreamDebug] =
     useState<ChatStreamDebugState>(DEFAULT_CHAT_STREAM_DEBUG);
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [skillsLoaded, setSkillsLoaded] = useState(false);
   const { activePersonaId, setDataEnabled } = usePersona();
   const shouldEnableChatData = currentView === View.CHAT;
   const shouldEnableAgentRuntime = currentView === View.CHAT || currentView === View.CHANNELS;
   const shouldEnablePersonaData = shouldEnableAgentRuntime || currentView === View.PERSONAS;
-  const shouldLoadSkills =
-    shouldEnableAgentRuntime || currentView === View.SKILLS || isCanvasOpen;
+  const shouldLoadSkills = shouldEnableAgentRuntime || currentView === View.SKILLS || isCanvasOpen;
+  const { skills, setSkills } = useSkillsCatalog({ shouldLoadSkills });
 
   useEffect(() => {
     setDataEnabled(shouldEnablePersonaData);
   }, [setDataEnabled, shouldEnablePersonaData]);
-
-  // Load persisted skills only when a view depends on skill data.
-  useEffect(() => {
-    if (!shouldLoadSkills || skillsLoaded) {
-      return;
-    }
-
-    fetch('/api/skills')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.ok && Array.isArray(data.skills)) {
-          setSkills(
-            data.skills.map((s: Record<string, unknown>) => ({
-              id: s.id,
-              name: s.name,
-              description: s.description,
-              category: s.category,
-              installed: s.installed,
-              version: s.version,
-              functionName: s.functionName,
-              source: s.source,
-              sourceUrl: s.sourceUrl ?? undefined,
-            })),
-          );
-          setSkillsLoaded(true);
-        }
-      })
-      .catch((err) => console.error('Failed to load skills:', err));
-  }, [shouldLoadSkills, skillsLoaded]);
 
   const [coupledChannels, setCoupledChannels] = useState<Record<string, CoupledChannel>>(() => {
     const fallbackChannels = buildInitialShellState().coupledChannels;
@@ -162,6 +97,21 @@ const App: React.FC<AppProps> = ({ initialView }) => {
     setMessages,
     setScheduledTasks,
     updateMemoryDisplay,
+  });
+  const { routeMessage, respondChatApproval } = useChatMessageActions({
+    activeConversationIdRef,
+    addEventLog,
+    setMessages,
+    handleAgentResponse,
+  });
+  const { handleNewConversation, handleDeleteConversation } = useConversationActions({
+    activeConversationId,
+    activePersonaId,
+    conversations,
+    addEventLog,
+    setConversations,
+    setActiveConversationId,
+    setMessages,
   });
 
   useEffect(() => {
@@ -274,198 +224,6 @@ const App: React.FC<AppProps> = ({ initialView }) => {
       }
     },
     [activeConversationId, activePersonaId, addEventLog, setMessages],
-  );
-
-  const routeMessage = useCallback(
-    async (
-      content: string,
-      platform: ChannelType,
-      role: 'user' | 'agent' | 'system',
-      attachment?: MessageAttachment,
-    ) => {
-      const message = toMessage(content, platform, role);
-      if (attachment) {
-        message.attachment = attachment;
-      }
-      setMessages((previous) => [...previous, message]);
-
-      if (role === 'system') {
-        addEventLog('SYS', content);
-      } else {
-        addEventLog('CHAN', `Signal via ${platform}`);
-      }
-
-      if (role === 'user') {
-        const fullContent = attachment
-          ? `${content}\n\n[Attached file: ${attachment.name} (${attachment.type})]`
-          : content;
-        await handleAgentResponse(fullContent, platform);
-      }
-    },
-    [addEventLog, handleAgentResponse, setMessages],
-  );
-
-  const respondChatApproval = useCallback(
-    async (
-      message: Message,
-      approvalRequest: MessageApprovalRequest,
-      decision: ChatApprovalDecision,
-    ) => {
-      const conversationId = message.conversationId || activeConversationIdRef.current;
-      if (!conversationId) {
-        addEventLog('SYS', 'Keine aktive Conversation fuer Approval gefunden.');
-        return;
-      }
-
-      setMessages((previous) =>
-        previous.map((entry) =>
-          entry.id === message.id
-            ? { ...entry, approvalSubmitting: true, approvalError: undefined }
-            : entry,
-        ),
-      );
-
-      try {
-        await waitForGatewayConnected();
-        const gatewayClient = getGatewayClient();
-        const approved = decision !== 'deny';
-        const approveAlways = decision === 'approve_always';
-
-        type ApprovalResponsePayload = {
-          ok?: boolean;
-          policyUpdated?: boolean;
-          status?: string | null;
-        };
-
-        const payload = await gatewayClient.request<ApprovalResponsePayload>(
-          'chat.approval.respond',
-          {
-            conversationId,
-            approvalToken: approvalRequest.token,
-            approved,
-            approveAlways,
-            toolId: approvalRequest.toolId,
-            toolFunctionName: approvalRequest.toolFunctionName,
-          },
-        );
-
-        setMessages((previous) =>
-          previous.map((entry) =>
-            entry.id === message.id
-              ? {
-                  ...entry,
-                  approvalSubmitting: false,
-                  approvalResolved: decision,
-                  approvalError: undefined,
-                }
-              : entry,
-          ),
-        );
-
-        if (approveAlways && payload?.policyUpdated) {
-          addEventLog('SYS', 'Policy gespeichert: Tool steht jetzt auf approve_always.');
-        } else if (approved && payload?.status === 'approval_required') {
-          addEventLog('SYS', 'Weitere Genehmigung erforderlich.');
-        }
-      } catch (error) {
-        const messageText =
-          error instanceof Error ? error.message : 'Approval konnte nicht gesendet werden.';
-        setMessages((previous) =>
-          previous.map((entry) =>
-            entry.id === message.id
-              ? {
-                  ...entry,
-                  approvalSubmitting: false,
-                  approvalError: messageText,
-                }
-              : entry,
-          ),
-        );
-        addEventLog('SYS', messageText);
-      }
-    },
-    [addEventLog, setMessages],
-  );
-
-  const handleNewConversation = useCallback(async () => {
-    try {
-      const response = await fetch('/api/channels/conversations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          channelType: ChannelType.WEBCHAT,
-          title: buildConversationTitle(),
-          personaId: activePersonaId || undefined,
-        }),
-      });
-      const data = await response.json();
-      if (data.ok && data.conversation) {
-        setConversations((previous) => [data.conversation, ...previous]);
-        setActiveConversationId(data.conversation.id);
-        setMessages([]);
-        addEventLog('SYS', 'Neue Conversation erstellt.');
-      }
-    } catch (error) {
-      console.error('Failed to create conversation:', error);
-    }
-  }, [addEventLog, activePersonaId, setActiveConversationId, setConversations, setMessages]);
-
-  const handleDeleteConversation = useCallback(
-    async (conversationId: string) => {
-      const conversation = conversations.find((item) => item.id === conversationId);
-      const confirmationLabel = conversation?.title || conversationId;
-      if (typeof window !== 'undefined') {
-        const confirmed = window.confirm(
-          `Conversation "${confirmationLabel}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
-        );
-        if (!confirmed) {
-          return;
-        }
-      }
-
-      try {
-        const response = await fetch(
-          `/api/channels/conversations?id=${encodeURIComponent(conversationId)}`,
-          { method: 'DELETE' },
-        );
-        const data = (await response.json()) as { ok?: boolean; error?: string };
-        if (!response.ok || !data.ok) {
-          throw new Error(data.error || `HTTP ${response.status}`);
-        }
-
-        const remainingConversations = removeConversationById(conversations, conversationId);
-        const nextActiveConversationId = resolveActiveConversationAfterDeletion(
-          remainingConversations,
-          activeConversationId,
-          conversationId,
-        );
-
-        setConversations(remainingConversations);
-        setActiveConversationId(nextActiveConversationId);
-        if (activeConversationId === conversationId) {
-          setMessages([]);
-        }
-
-        addEventLog('SYS', `Conversation gelöscht: ${confirmationLabel}`);
-
-        if (remainingConversations.length === 0) {
-          await handleNewConversation();
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Conversation konnte nicht gelöscht werden.';
-        addEventLog('SYS', message);
-      }
-    },
-    [
-      activeConversationId,
-      addEventLog,
-      conversations,
-      handleNewConversation,
-      setActiveConversationId,
-      setConversations,
-      setMessages,
-    ],
   );
 
   const handleUpdateCoupling = useCallback((id: string, update: Partial<CoupledChannel>) => {

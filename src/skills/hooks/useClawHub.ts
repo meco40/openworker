@@ -95,83 +95,95 @@ export function useClawHub(): import('@/skills/components/registry/types').UseCl
     setError('');
   }, []);
 
-  const handleInstall = useCallback(async (slug: string) => {
-    if (!beginAction()) return;
-    try {
-      const response = await installClawHubSkill({ slug });
-      if (!response.ok) {
-        setError(response.error || 'ClawHub install failed.');
-        return;
+  const handleInstall = useCallback(
+    async (slug: string) => {
+      if (!beginAction()) return;
+      try {
+        const response = await installClawHubSkill({ slug });
+        if (!response.ok) {
+          setError(response.error || 'ClawHub install failed.');
+          return;
+        }
+        const refreshed = await listInstalledClawHubSkills();
+        if (refreshed.ok) {
+          setInstalled(normalizeInstalledSkills(refreshed.skills));
+          notifyChanged();
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'ClawHub install failed.');
+      } finally {
+        endAction();
       }
-      const refreshed = await listInstalledClawHubSkills();
-      if (refreshed.ok) {
-        setInstalled(normalizeInstalledSkills(refreshed.skills));
+    },
+    [beginAction, endAction, notifyChanged],
+  );
+
+  const handleUpdate = useCallback(
+    async (slug?: string) => {
+      if (!beginAction()) return;
+      try {
+        const response = await updateClawHubSkill(slug ? { slug } : { all: true });
+        if (!response.ok) {
+          setError(response.error || 'ClawHub update failed.');
+          return;
+        }
+        const refreshed = await listInstalledClawHubSkills();
+        if (refreshed.ok) {
+          setInstalled(normalizeInstalledSkills(refreshed.skills));
+          notifyChanged();
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'ClawHub update failed.');
+      } finally {
+        endAction();
+      }
+    },
+    [beginAction, endAction, notifyChanged],
+  );
+
+  const handleUninstall = useCallback(
+    async (slug: string) => {
+      if (!beginAction()) return;
+      try {
+        const response = await uninstallClawHubSkill(slug);
+        if (!response.ok) {
+          setError(response.error || 'ClawHub uninstall failed.');
+          return;
+        }
+        setInstalled(normalizeInstalledSkills(response.skills));
         notifyChanged();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'ClawHub uninstall failed.');
+      } finally {
+        endAction();
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ClawHub install failed.');
-    } finally {
-      endAction();
-    }
-  }, [beginAction, endAction, notifyChanged]);
+    },
+    [beginAction, endAction, notifyChanged],
+  );
 
-  const handleUpdate = useCallback(async (slug?: string) => {
-    if (!beginAction()) return;
-    try {
-      const response = await updateClawHubSkill(slug ? { slug } : { all: true });
-      if (!response.ok) {
-        setError(response.error || 'ClawHub update failed.');
-        return;
-      }
-      const refreshed = await listInstalledClawHubSkills();
-      if (refreshed.ok) {
-        setInstalled(normalizeInstalledSkills(refreshed.skills));
+  const handleToggleEnabled = useCallback(
+    async (slug: string, enabled: boolean) => {
+      if (!beginAction()) return;
+      try {
+        const response = await setClawHubSkillEnabled(slug, enabled);
+        if (!response.ok || !response.skill) {
+          setError(response.error || 'Failed to update ClawHub skill state.');
+          return;
+        }
+        setInstalled((prev) =>
+          prev.map((item) =>
+            item.slug === slug ? { ...item, enabled: response.skill!.enabled } : item,
+          ),
+        );
         notifyChanged();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to update ClawHub skill state.');
+      } finally {
+        endAction();
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ClawHub update failed.');
-    } finally {
-      endAction();
-    }
-  }, [beginAction, endAction, notifyChanged]);
-
-  const handleUninstall = useCallback(async (slug: string) => {
-    if (!beginAction()) return;
-    try {
-      const response = await uninstallClawHubSkill(slug);
-      if (!response.ok) {
-        setError(response.error || 'ClawHub uninstall failed.');
-        return;
-      }
-      setInstalled(normalizeInstalledSkills(response.skills));
-      notifyChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ClawHub uninstall failed.');
-    } finally {
-      endAction();
-    }
-  }, [beginAction, endAction, notifyChanged]);
-
-  const handleToggleEnabled = useCallback(async (slug: string, enabled: boolean) => {
-    if (!beginAction()) return;
-    try {
-      const response = await setClawHubSkillEnabled(slug, enabled);
-      if (!response.ok || !response.skill) {
-        setError(response.error || 'Failed to update ClawHub skill state.');
-        return;
-      }
-      setInstalled((prev) =>
-        prev.map((item) =>
-          item.slug === slug ? { ...item, enabled: response.skill!.enabled } : item,
-        ),
-      );
-      notifyChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update ClawHub skill state.');
-    } finally {
-      endAction();
-    }
-  }, [beginAction, endAction, notifyChanged]);
+    },
+    [beginAction, endAction, notifyChanged],
+  );
 
   return {
     query,

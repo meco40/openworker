@@ -1,8 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useCronRules, type UseCronRulesResult } from '@/modules/cron/hooks/useCronRules';
 import type { CronRule, CronRunStatus } from '@/modules/cron/types';
+
+const FlowBuilderView = dynamic(
+  () => import('@/modules/flow-builder/FlowBuilderView').then((m) => m.FlowBuilderView),
+  { ssr: false, loading: () => <div className="p-8 text-zinc-500">Loading flow editor...</div> },
+);
 
 interface CronViewProps {
   state?: UseCronRulesResult;
@@ -52,6 +58,19 @@ const CronView: React.FC<CronViewProps> = ({ state }) => {
   const hookState = useCronRules();
   const cron = state ?? hookState;
   const selectedRule = cron.rules.find((rule) => rule.id === cron.selectedRuleId) ?? null;
+  const [flowBuilderRuleId, setFlowBuilderRuleId] = useState<string | null>(null);
+
+  if (flowBuilderRuleId) {
+    return (
+      <div className="h-screen">
+        <FlowBuilderView
+          ruleId={flowBuilderRuleId}
+          ruleName={cron.rules.find((r) => r.id === flowBuilderRuleId)?.name ?? 'Flow'}
+          onBack={() => setFlowBuilderRuleId(null)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -181,6 +200,16 @@ const CronView: React.FC<CronViewProps> = ({ state }) => {
                                 className="rounded border border-zinc-700 px-2 py-1 text-[11px] text-zinc-100 transition hover:bg-zinc-800 disabled:opacity-50"
                               >
                                 {rule.enabled ? 'Disable' : 'Enable'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setFlowBuilderRuleId(rule.id);
+                                }}
+                                className="rounded border border-zinc-700 px-2 py-1 text-[11px] text-zinc-100 transition hover:bg-zinc-800"
+                              >
+                                Flow
                               </button>
                               <button
                                 type="button"

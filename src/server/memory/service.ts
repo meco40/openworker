@@ -1,10 +1,6 @@
 import type { MemoryNode, MemoryType } from '@/core/memory/types';
 import type { Mem0Client, Mem0MemoryRecord } from '@/server/memory/mem0Client';
-import type {
-  MemoryFeedbackSignal,
-  MemoryRecallResult,
-  MemoryHistoryRecord,
-} from './types';
+import type { MemoryFeedbackSignal, MemoryRecallResult, MemoryHistoryRecord } from './types';
 import { MemoryVersionConflictError } from './errors';
 import { toMemoryNode, toHistoryRecord } from './mappers/nodeMappers';
 import { resolveUserId, asVersion } from './validators/typeValidators';
@@ -343,17 +339,20 @@ export class MemoryService {
     updates: { type?: MemoryType; importance?: number },
     userId?: string,
   ): Promise<number> {
-    return bulkUpdate(
-      (pid, nid, input, uid) => this.update(pid, nid, input, uid),
-      { personaId, nodeIds, updates, userId },
-    );
+    return bulkUpdate((pid, nid, input, uid) => this.update(pid, nid, input, uid), {
+      personaId,
+      nodeIds,
+      updates,
+      userId,
+    });
   }
 
   async bulkDelete(personaId: string, nodeIds: string[], userId?: string): Promise<number> {
-    return bulkDelete(
-      (pid, nid, uid) => this.delete(pid, nid, uid),
-      { personaId, nodeIds, userId },
-    );
+    return bulkDelete((pid, nid, uid) => this.delete(pid, nid, uid), {
+      personaId,
+      nodeIds,
+      userId,
+    });
   }
 
   async deleteByPersona(personaId: string, userId?: string): Promise<number> {

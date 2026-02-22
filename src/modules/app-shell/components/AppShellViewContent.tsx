@@ -89,6 +89,10 @@ const NodesView = dynamic(() => import('@/modules/ops/components/NodesView'), {
 const AgentsView = dynamic(() => import('@/modules/ops/components/AgentsView'), {
   loading: loading('Agents'),
 });
+const ConversationDebuggerView = dynamic(
+  () => import('@/modules/conversation-debugger/ConversationDebuggerView'),
+  { loading: loading('Conversation Debugger') },
+);
 
 interface AppShellViewContentProps {
   currentView: View;
@@ -255,6 +259,11 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
       {currentView === View.KNOWLEDGE && (
         <ViewErrorBoundary label="Knowledge">
           <KnowledgeView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.DEBUGGER && (
+        <ViewErrorBoundary label="Conversation Debugger">
+          <ConversationDebuggerView />
         </ViewErrorBoundary>
       )}
     </div>

@@ -4,13 +4,15 @@
 # ── Stage 1: Dependencies ─────────────────────────────────────
 FROM node:22-alpine AS deps
 WORKDIR /app
+ENV HUSKY=0
 
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 # ── Stage 2: Build ────────────────────────────────────────────
 FROM node:22-alpine AS builder
 WORKDIR /app
+ENV HUSKY=0
 
 COPY package.json package-lock.json* ./
 RUN npm ci

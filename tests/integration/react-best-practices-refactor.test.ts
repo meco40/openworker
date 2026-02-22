@@ -100,7 +100,7 @@ describe('react/next best-practices refactor', () => {
     const gatewayState = read('src/modules/app-shell/useGatewayState.ts');
 
     expect(app).toMatch(
-      /useState<View>\(\(\) =>\s*buildInitialShellState\(initialView\)\.currentView,?\s*\)/,
+      /useState<View>\(\s*\(\)\s*=>\s*buildInitialShellState\(initialView\)\.currentView,?\s*\)/,
     );
     expect(app).toContain('useState<Record<string, CoupledChannel>>(() => {');
     expect(conversationSync).toContain('useState<Message[]>(() => [])');

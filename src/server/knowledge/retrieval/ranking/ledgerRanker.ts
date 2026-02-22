@@ -4,7 +4,10 @@ import { tokenizeQueryForRanking } from '../query/queryParser';
 import { computeTokenOverlapScore } from './scoring';
 import { computeEpisodeAge } from './episodeRanker';
 
-export function rankLedgerByQuery(ledgerRows: MeetingLedgerEntry[], query: string): MeetingLedgerEntry[] {
+export function rankLedgerByQuery(
+  ledgerRows: MeetingLedgerEntry[],
+  query: string,
+): MeetingLedgerEntry[] {
   const tokens = tokenizeQueryForRanking(query);
   if (tokens.length === 0) return ledgerRows;
   return [...ledgerRows].sort((left, right) => {

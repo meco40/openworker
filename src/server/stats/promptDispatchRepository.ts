@@ -8,6 +8,7 @@
 import crypto from 'node:crypto';
 import type BetterSqlite3 from 'better-sqlite3';
 import { openSqliteDatabase } from '@/server/db/sqlite';
+import type { DebugConversationSummary } from '@/shared/domain/types';
 
 export type PromptDispatchKind =
   | 'chat'
@@ -44,6 +45,12 @@ export interface PromptDispatchEntry {
   completionCostUsd: number | null;
   totalCostUsd: number | null;
   createdAt: string;
+  // Conversation linkage
+  conversationId: string | null;
+  turnSeq: number | null;
+  latencyMs: number | null;
+  toolCallsJson: string;
+  memoryContextJson: string | null;
 }
 
 export interface PromptDispatchFilter {
@@ -55,6 +62,7 @@ export interface PromptDispatchFilter {
   risk?: PromptDispatchRiskLevel | 'flagged';
   limit?: number;
   before?: string;
+  conversationId?: string;
 }
 
 export interface PromptDispatchSummary {
@@ -86,6 +94,12 @@ export interface RecordPromptDispatchInput {
   completionCostUsd?: number | null;
   totalCostUsd?: number | null;
   createdAt?: string;
+  // Conversation linkage
+  conversationId?: string | null;
+  turnSeq?: number | null;
+  latencyMs?: number | null;
+  toolCallsJson?: string;
+  memoryContextJson?: string | null;
 }
 
 function toPositiveInt(input: string | undefined, fallback: number): number {
@@ -122,6 +136,11 @@ function toEntry(row: Record<string, unknown>): PromptDispatchEntry {
     completionCostUsd: toNullableNumber(row.completion_cost_usd),
     totalCostUsd: toNullableNumber(row.total_cost_usd),
     createdAt: String(row.created_at),
+    conversationId: row.conversation_id ? String(row.conversation_id) : null,
+    turnSeq: row.turn_seq != null ? Number(row.turn_seq) : null,
+    latencyMs: row.latency_ms != null ? Number(row.latency_ms) : null,
+    toolCallsJson: String(row.tool_calls_json ?? '[]'),
+    memoryContextJson: row.memory_context_json ? String(row.memory_context_json) : null,
   };
 }
 
@@ -166,6 +185,10 @@ function buildWhere(filter: PromptDispatchFilter): {
     );
     const like = `%${filter.search}%`;
     params.push(like, like, like);
+  }
+  if (filter.conversationId) {
+    conditions.push('conversation_id = ?');
+    params.push(filter.conversationId);
   }
 
   return {
@@ -212,6 +235,21 @@ export class PromptDispatchRepository {
     this.ensureColumnExists('prompt_dispatch_logs', 'prompt_cost_usd', 'REAL');
     this.ensureColumnExists('prompt_dispatch_logs', 'completion_cost_usd', 'REAL');
     this.ensureColumnExists('prompt_dispatch_logs', 'total_cost_usd', 'REAL');
+    this.ensureColumnExists('prompt_dispatch_logs', 'conversation_id', 'TEXT');
+    this.ensureColumnExists('prompt_dispatch_logs', 'turn_seq', 'INTEGER');
+    this.ensureColumnExists('prompt_dispatch_logs', 'latency_ms', 'INTEGER');
+    this.ensureColumnExists(
+      'prompt_dispatch_logs',
+      'tool_calls_json',
+      "TEXT NOT NULL DEFAULT '[]'",
+    );
+    this.ensureColumnExists('prompt_dispatch_logs', 'memory_context_json', 'TEXT');
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_prompt_dispatch_logs_conversation
+        ON prompt_dispatch_logs (conversation_id)
+        WHERE conversation_id IS NOT NULL;
+    `);
 
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_prompt_dispatch_logs_created
@@ -251,8 +289,10 @@ export class PromptDispatchRepository {
           id, provider_id, model_name, account_id, dispatch_kind,
           prompt_tokens, prompt_tokens_source, completion_tokens, total_tokens,
           status, error_message, risk_level, risk_score, risk_reasons_json,
-          prompt_preview, prompt_payload_json, prompt_cost_usd, completion_cost_usd, total_cost_usd, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          prompt_preview, prompt_payload_json, prompt_cost_usd, completion_cost_usd, total_cost_usd,
+          conversation_id, turn_seq, latency_ms, tool_calls_json, memory_context_json,
+          created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -274,6 +314,11 @@ export class PromptDispatchRepository {
         input.promptCostUsd ?? null,
         input.completionCostUsd ?? null,
         input.totalCostUsd ?? null,
+        input.conversationId ?? null,
+        input.turnSeq ?? null,
+        input.latencyMs ?? null,
+        input.toolCallsJson ?? '[]',
+        input.memoryContextJson ?? null,
         createdAt,
       );
 
@@ -300,7 +345,43 @@ export class PromptDispatchRepository {
       completionCostUsd: input.completionCostUsd ?? null,
       totalCostUsd: input.totalCostUsd ?? null,
       createdAt,
+      conversationId: input.conversationId ?? null,
+      turnSeq: input.turnSeq ?? null,
+      latencyMs: input.latencyMs ?? null,
+      toolCallsJson: input.toolCallsJson ?? '[]',
+      memoryContextJson: input.memoryContextJson ?? null,
     };
+  }
+
+  listConversationSummaries(): DebugConversationSummary[] {
+    const rows = this.db
+      .prepare(
+        `SELECT
+          conversation_id,
+          COUNT(*) AS turn_count,
+          COALESCE(SUM(total_tokens), 0) AS total_tokens,
+          COALESCE(SUM(total_cost_usd), 0.0) AS total_cost_usd,
+          MAX(created_at) AS last_activity,
+          (
+            SELECT model_name FROM prompt_dispatch_logs p2
+            WHERE p2.conversation_id = p.conversation_id
+            ORDER BY created_at DESC LIMIT 1
+          ) AS model_name
+        FROM prompt_dispatch_logs p
+        WHERE conversation_id IS NOT NULL
+        GROUP BY conversation_id
+        ORDER BY last_activity DESC
+        LIMIT 100`,
+      )
+      .all() as Array<Record<string, unknown>>;
+    return rows.map((row) => ({
+      conversationId: String(row.conversation_id),
+      turnCount: Number(row.turn_count),
+      totalTokens: Number(row.total_tokens),
+      totalCostUsd: row.total_cost_usd != null ? Number(row.total_cost_usd) : null,
+      lastActivity: String(row.last_activity),
+      modelName: row.model_name ? String(row.model_name) : '',
+    }));
   }
 
   listDispatches(filter: PromptDispatchFilter): PromptDispatchEntry[] {

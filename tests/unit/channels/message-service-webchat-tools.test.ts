@@ -202,7 +202,7 @@ describe('MessageService webchat model-hub routing', () => {
       modelOverride?: string;
     };
 
-    expect(request.auditContext).toEqual({ kind: 'chat', conversationId: 'conv-1' });
+    expect(request.auditContext).toMatchObject({ kind: 'chat', conversationId: 'conv-1' });
     expect(request.messages).toEqual(
       expect.arrayContaining([expect.objectContaining({ role: 'user' })]),
     );

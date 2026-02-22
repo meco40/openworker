@@ -35,7 +35,9 @@ export function toStringArray(values: string[]): string[] {
   return values.map((value) => String(value || '').trim()).filter((value) => value.length > 0);
 }
 
-export function toSourceRefs(rows: { seq: number; quote: string }[]): { seq: number; quote: string }[] {
+export function toSourceRefs(
+  rows: { seq: number; quote: string }[],
+): { seq: number; quote: string }[] {
   return rows
     .map((row) => ({
       seq: Number(row.seq),

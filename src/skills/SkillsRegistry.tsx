@@ -72,7 +72,9 @@ const SkillsRegistry: React.FC<SkillsRegistryProps> = ({ skills, setSkills }) =>
       <header className="group relative flex items-center justify-between overflow-hidden rounded-[2.5rem] border border-zinc-800 bg-zinc-900/40 p-10 shadow-2xl">
         <div className="absolute top-0 right-0 -mt-40 -mr-40 h-80 w-80 rounded-full bg-indigo-600/10 blur-[100px]" />
         <div className="relative z-10">
-          <h2 className="text-3xl font-black tracking-tight text-white uppercase">Skill Registry</h2>
+          <h2 className="text-3xl font-black tracking-tight text-white uppercase">
+            Skill Registry
+          </h2>
           <p className="mt-2 max-w-md text-sm text-zinc-500">
             Extend agent capabilities. Installed skills become active tools in the KI context.
           </p>

@@ -1,8 +1,11 @@
 import type { StoredMessage } from '@/server/channels/messages/repository';
+import type { KnowledgeRepository } from '@/server/knowledge/repository';
 import type {
-  KnowledgeRepository,
-} from '@/server/knowledge/repository';
-import type { EntityGraphFilter, EntityLookupResult } from '@/server/knowledge/entityGraph';
+  EntityGraphFilter,
+  EntityLookupResult,
+  KnowledgeEntity,
+} from '@/server/knowledge/entityGraph';
+import type { KnowledgeEventFilter } from '@/server/knowledge/eventTypes';
 import type { PersonaType } from '@/server/knowledge/personaStrategies';
 
 export interface MemoryRecallLike {
@@ -28,6 +31,11 @@ export interface RetrievalKnowledgeRepository {
   listEpisodes: KnowledgeRepository['listEpisodes'];
   insertRetrievalAudit: KnowledgeRepository['insertRetrievalAudit'];
   countUniqueDays?: KnowledgeRepository['countUniqueDays'];
+  listEvents?: (
+    filter: KnowledgeEventFilter,
+    limit?: number,
+  ) => ReturnType<KnowledgeRepository['listEvents']>;
+  listEntities?: (filter: EntityGraphFilter, limit?: number) => KnowledgeEntity[];
   // Entity Graph (optional)
   resolveEntity?: (text: string, filter: EntityGraphFilter) => EntityLookupResult | null;
   getEntityWithRelations?: KnowledgeRepository['getEntityWithRelations'];

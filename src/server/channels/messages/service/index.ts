@@ -9,7 +9,11 @@ import { GatewayEvents } from '@/server/gateway/events';
 import { routeMessage } from '@/server/channels/messages/messageRouter';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
 import { applyChannelBindingPersona } from '@/server/channels/messages/channelBindingPersona';
-import { buildMessageAttachmentMetadata, type StoredMessageAttachment } from '@/server/channels/messages/attachments';
+import {
+  buildMessageAttachmentMetadata,
+  type StoredMessageAttachment,
+} from '@/server/channels/messages/attachments';
+import { getServerEventBus } from '@/server/events/runtime';
 import { SessionManager } from '@/server/channels/messages/sessionManager';
 import { HistoryManager } from '@/server/channels/messages/historyManager';
 import { ContextBuilder } from '@/server/channels/messages/contextBuilder';
@@ -203,6 +207,10 @@ export class MessageService {
         clientMessageId,
         metadata: buildMessageAttachmentMetadata(attachments),
       });
+      getServerEventBus().publish('chat.message.persisted', {
+        conversation,
+        message: userMsg,
+      });
 
       broadcastToUser(conversation.userId, GatewayEvents.CHAT_MESSAGE, userMsg);
 
@@ -332,6 +340,7 @@ export class MessageService {
           externalChatId,
           userInput: content,
           onStreamDelta,
+          turnSeq: userMsg.seq ?? undefined,
         },
       );
 
@@ -582,6 +591,10 @@ export class MessageService {
     }
 
     const msg = this.repo.saveMessage({ conversationId, role, content, platform, metadata });
+    getServerEventBus().publish('chat.message.persisted', {
+      conversation,
+      message: msg,
+    });
     broadcastToUser(conversation.userId, GatewayEvents.CHAT_MESSAGE, msg);
     return msg;
   }

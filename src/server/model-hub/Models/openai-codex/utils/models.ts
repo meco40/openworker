@@ -9,7 +9,10 @@ export function mapDefaultModels(defaultModels: string[]): FetchedModel[] {
   }));
 }
 
-export function mergeUniqueModels(primary: FetchedModel[], secondary: FetchedModel[]): FetchedModel[] {
+export function mergeUniqueModels(
+  primary: FetchedModel[],
+  secondary: FetchedModel[],
+): FetchedModel[] {
   const seen = new Set<string>();
   const merged: FetchedModel[] = [];
   for (const model of [...primary, ...secondary]) {

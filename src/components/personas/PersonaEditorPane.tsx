@@ -283,7 +283,10 @@ export function PersonaEditorPane({
                 <div className="space-y-4">
                   {/* Model Selection */}
                   <div className="space-y-2">
-                    <label htmlFor="persona-preferred-model" className="text-sm font-medium text-zinc-300">
+                    <label
+                      htmlFor="persona-preferred-model"
+                      className="text-sm font-medium text-zinc-300"
+                    >
                       Bevorzugtes Modell
                     </label>
                     <select
@@ -373,7 +376,10 @@ export function PersonaEditorPane({
                   Tech-Entscheidungen, Assistent auf Aufgaben und Termine.
                 </p>
                 <div className="space-y-2">
-                  <label htmlFor="persona-memory-type" className="text-sm font-medium text-zinc-300">
+                  <label
+                    htmlFor="persona-memory-type"
+                    className="text-sm font-medium text-zinc-300"
+                  >
                     Persona-Typ
                   </label>
                   <select

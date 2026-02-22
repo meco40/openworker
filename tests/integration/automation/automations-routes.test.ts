@@ -81,7 +81,9 @@ describe('automation routes', () => {
     expect(created.ok).toBe(true);
     const ruleId = created.rule.id;
 
-    const listResponse = await automationsRoute.GET(new Request('http://localhost/api/automations'));
+    const listResponse = await automationsRoute.GET(
+      new Request('http://localhost/api/automations'),
+    );
     const listed = (await listResponse.json()) as { ok: boolean; rules: Array<{ id: string }> };
     expect(listed.ok).toBe(true);
     expect(listed.rules.some((rule) => rule.id === ruleId)).toBe(true);

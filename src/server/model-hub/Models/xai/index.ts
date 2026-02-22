@@ -73,10 +73,7 @@ function readTextAttachmentSnippet(
   try {
     const bytes = readStoredAttachmentBuffer(attachment);
     if (!bytes.length) return null;
-    const text = bytes
-      .toString('utf8')
-      .replaceAll('\u0000', '')
-      .trim();
+    const text = bytes.toString('utf8').replaceAll('\u0000', '').trim();
     if (!text) return null;
     return text.slice(0, 12_000);
   } catch {
@@ -84,9 +81,7 @@ function readTextAttachmentSnippet(
   }
 }
 
-function buildXAIInputMessages(
-  messages: GatewayRequest['messages'],
-): XAIInputMessage[] {
+function buildXAIInputMessages(messages: GatewayRequest['messages']): XAIInputMessage[] {
   const result: XAIInputMessage[] = [];
 
   // Find the latest user message with attachments for image inclusion
@@ -166,7 +161,9 @@ function buildXAIInputMessages(
         }
       }
 
-      textParts.push(`[Attachment: ${attachment.name} (${attachment.mimeType}, ${attachment.size} bytes)]`);
+      textParts.push(
+        `[Attachment: ${attachment.name} (${attachment.mimeType}, ${attachment.size} bytes)]`,
+      );
     }
 
     // Add remaining text parts
@@ -206,8 +203,7 @@ function mapOpenAIToolToXAI(rawTool: unknown): XAIFunctionTool | null {
   if (tool.type !== 'function') return null;
 
   const directName = typeof tool.name === 'string' ? tool.name.trim() : '';
-  const nestedName =
-    typeof tool.function?.name === 'string' ? tool.function.name.trim() : '';
+  const nestedName = typeof tool.function?.name === 'string' ? tool.function.name.trim() : '';
   const name = directName || nestedName;
   if (!name) return null;
 
@@ -232,9 +228,7 @@ function mapOpenAIToolToXAI(rawTool: unknown): XAIFunctionTool | null {
   };
 }
 
-function extractXAIFunctionCalls(
-  output: unknown[],
-): Array<{ name: string; args?: unknown }> {
+function extractXAIFunctionCalls(output: unknown[]): Array<{ name: string; args?: unknown }> {
   const calls: Array<{ name: string; args?: unknown }> = [];
 
   for (const item of output) {

@@ -12,6 +12,7 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
       ROOMS_RUNNER: scheduler
+      SCHEDULER_HEALTH_TOKEN: ${SCHEDULER_HEALTH_TOKEN:-}
       MEMORY_PROVIDER: mem0
       MEM0_BASE_URL: ${MEM0_BASE_URL}
       MEM0_API_KEY: ${MEM0_API_KEY}
@@ -49,7 +50,7 @@ services:
       AUTOMATION_MAX_ATTEMPTS: 3
       AUTOMATION_RETRY_BACKOFF_MS: 30000,120000,600000
       AUTOMATION_AUTO_PAUSE_FAILURES: 10
-      AUTOMATION_HEARTBEAT_FILE: /app/.local/scheduler.heartbeat
+      SCHEDULER_HEALTH_TOKEN: ${SCHEDULER_HEALTH_TOKEN:-}
     volumes:
       - ./.local:/app/.local
     depends_on:
@@ -58,10 +59,8 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'node',
-          '-e',
-          "const fs=require('fs');const p='/app/.local/scheduler.heartbeat';if(!fs.existsSync(p)){process.exit(1);}const age=Date.now()-fs.statSync(p).mtimeMs;process.exit(age<60000?0:1);",
+          'CMD-SHELL',
+          'if [ -n "$SCHEDULER_HEALTH_TOKEN" ]; then wget --no-verbose --tries=1 --header="x-scheduler-health-token: $SCHEDULER_HEALTH_TOKEN" --spider http://web:3000/api/health/scheduler; else wget --no-verbose --tries=1 --spider http://web:3000/api/health/scheduler; fi',
         ]
       interval: 30s
       timeout: 5s

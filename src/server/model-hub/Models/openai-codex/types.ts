@@ -1,6 +1,9 @@
 import type { GatewayRequest } from '@/server/model-hub/Models/types';
 
-export type CodexReasoningEffort = NonNullable<GatewayRequest['reasoning_effort']> | 'minimal' | 'xhigh';
+export type CodexReasoningEffort =
+  | NonNullable<GatewayRequest['reasoning_effort']>
+  | 'minimal'
+  | 'xhigh';
 
 export interface CodexUsagePayload {
   input_tokens?: unknown;

@@ -43,12 +43,13 @@ Quellen: `app/api/ops/*`, `src/modules/ops/types.ts`
 
 ### 2.3 Health und Diagnose
 
-| Methode | Pfad          | Zweck                                      |
-| ------- | ------------- | ------------------------------------------ |
-| GET     | `/api/health` | Laufzeit-Healthreport (`runHealthCommand`) |
-| GET     | `/api/doctor` | Diagnostikreport (`runDoctorCommand`)      |
+| Methode | Pfad                    | Zweck                                                               |
+| ------- | ----------------------- | ------------------------------------------------------------------- |
+| GET     | `/api/health`           | Laufzeit-Healthreport (`runHealthCommand`)                          |
+| GET     | `/api/health/scheduler` | Scheduler-Heartbeat-Health via Lease (`automation_scheduler_lease`) |
+| GET     | `/api/doctor`           | Diagnostikreport (`runDoctorCommand`)                               |
 
-Quellen: `app/api/health/route.ts`, `app/api/doctor/route.ts`
+Quellen: `app/api/health/route.ts`, `app/api/health/scheduler/route.ts`, `app/api/doctor/route.ts`
 
 ### 2.4 Control Plane Metrics
 

@@ -68,7 +68,7 @@ Rooms verwenden Lease-Mechanik, um parallele Verarbeitung zu verhindern. Der akt
 ### 3.2 Personas
 
 | Methode | Pfad                                  | Zweck                           |
-| ------- | ------------------------------------- | --------------------------------|
+| ------- | ------------------------------------- | ------------------------------- |
 | GET     | `/api/personas`                       | Personas listen                 |
 | POST    | `/api/personas`                       | Persona erstellen               |
 | GET     | `/api/personas/[id]`                  | Persona laden                   |
@@ -97,12 +97,12 @@ Im **Gateway-Tab** der Persona-Einstellungen (`PersonaEditorPane`) gibt es die S
 
 ### Beteiligte Komponenten
 
-| Datei | Rolle |
-| ----- | ----- |
-| `src/server/telegram/personaTelegramBotRegistry.ts` | SQLite-Registry (`persona_telegram_bots`) |
-| `src/server/telegram/personaTelegramPairing.ts` | Token validieren, Bot registrieren, Poller starten |
-| `src/server/telegram/personaTelegramPoller.ts` | Polling je Bot, BotContext an Inbound übergeben |
-| `src/components/personas/PersonaTelegramBotSection.tsx` | UI-Komponente im Gateway-Tab |
+| Datei                                                   | Rolle                                              |
+| ------------------------------------------------------- | -------------------------------------------------- |
+| `src/server/telegram/personaTelegramBotRegistry.ts`     | SQLite-Registry (`persona_telegram_bots`)          |
+| `src/server/telegram/personaTelegramPairing.ts`         | Token validieren, Bot registrieren, Poller starten |
+| `src/server/telegram/personaTelegramPoller.ts`          | Polling je Bot, BotContext an Inbound übergeben    |
+| `src/components/personas/PersonaTelegramBotSection.tsx` | UI-Komponente im Gateway-Tab                       |
 
 ### Verhalten bei eingehenden Nachrichten
 

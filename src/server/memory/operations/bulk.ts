@@ -24,10 +24,7 @@ export type UpdateFn = (
 
 export type DeleteFn = (personaId: string, nodeId: string, userId?: string) => Promise<boolean>;
 
-export async function bulkUpdate(
-  updateFn: UpdateFn,
-  options: BulkUpdateOptions,
-): Promise<number> {
+export async function bulkUpdate(updateFn: UpdateFn, options: BulkUpdateOptions): Promise<number> {
   const { personaId, nodeIds, updates, userId } = options;
   let changed = 0;
   for (const nodeId of Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)))) {
@@ -45,10 +42,7 @@ export async function bulkUpdate(
   return changed;
 }
 
-export async function bulkDelete(
-  deleteFn: DeleteFn,
-  options: BulkDeleteOptions,
-): Promise<number> {
+export async function bulkDelete(deleteFn: DeleteFn, options: BulkDeleteOptions): Promise<number> {
   const { personaId, nodeIds, userId } = options;
   let changed = 0;
   for (const nodeId of Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)))) {

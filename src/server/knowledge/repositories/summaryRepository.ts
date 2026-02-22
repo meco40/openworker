@@ -1,6 +1,9 @@
 import crypto from 'node:crypto';
 import type BetterSqlite3 from 'better-sqlite3';
-import type { ConversationSummaryEntry, UpsertConversationSummaryInput } from '@/server/knowledge/repository';
+import type {
+  ConversationSummaryEntry,
+  UpsertConversationSummaryInput,
+} from '@/server/knowledge/repository';
 import { parseJsonArray } from './utils';
 
 export class SummaryRepository {

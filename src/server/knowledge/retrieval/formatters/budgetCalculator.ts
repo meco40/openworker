@@ -31,7 +31,8 @@ export function calculateAndApplyBudget(
   rawSections: KnowledgeRetrievalSections,
   context: BudgetContext,
 ): BudgetResult {
-  const { query, counterpartAliasesLength, stageStats, computedAnswerText, maxContextTokens } = context;
+  const { query, counterpartAliasesLength, stageStats, computedAnswerText, maxContextTokens } =
+    context;
 
   // ── Dynamic recall budget ──────────────────────────────
   const queryComplexity = detectQueryComplexity(query);

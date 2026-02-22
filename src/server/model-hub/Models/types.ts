@@ -42,6 +42,10 @@ export type GatewayAuditKind =
 export interface GatewayAuditContext {
   kind: GatewayAuditKind;
   conversationId?: string;
+  /** Sequence number of the user message that triggered this dispatch */
+  turnSeq?: number;
+  /** Fused recall context injected this turn — stored truncated (500 chars max) */
+  memoryContext?: string;
   taskId?: string;
   stepId?: string;
   nodeId?: string;

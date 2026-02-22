@@ -38,51 +38,59 @@ export function useRuntimeConfigs(): import('@/skills/components/registry/types'
     setDrafts((prev) => ({ ...prev, [id]: value }));
   }, []);
 
-  const handleSave = useCallback(async (id: string) => {
-    const value = String(drafts[id] || '').trim();
-    if (!value) {
-      setError('Please enter a value before saving.');
-      return;
-    }
-
-    setSavingId(id);
-    setError('');
-    try {
-      const response = await setSkillRuntimeConfig(id, value);
-      if (!response.ok) {
-        setError(response.error || 'Failed to save tool configuration.');
+  const handleSave = useCallback(
+    async (id: string) => {
+      const value = String(drafts[id] || '').trim();
+      if (!value) {
+        setError('Please enter a value before saving.');
         return;
       }
-      setDrafts((prev) => ({ ...prev, [id]: '' }));
-      await loadConfigs();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save tool configuration.');
-    } finally {
-      setSavingId(null);
-    }
-  }, [drafts, loadConfigs]);
 
-  const handleClear = useCallback(async (id: string) => {
-    setSavingId(id);
-    setError('');
-    try {
-      const response = await clearSkillRuntimeConfig(id);
-      if (!response.ok) {
-        setError(response.error || 'Failed to clear tool configuration.');
-        return;
+      setSavingId(id);
+      setError('');
+      try {
+        const response = await setSkillRuntimeConfig(id, value);
+        if (!response.ok) {
+          setError(response.error || 'Failed to save tool configuration.');
+          return;
+        }
+        setDrafts((prev) => ({ ...prev, [id]: '' }));
+        await loadConfigs();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save tool configuration.');
+      } finally {
+        setSavingId(null);
       }
-      setDrafts((prev) => ({ ...prev, [id]: '' }));
-      await loadConfigs();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to clear tool configuration.');
-    } finally {
-      setSavingId(null);
-    }
-  }, [loadConfigs]);
+    },
+    [drafts, loadConfigs],
+  );
+
+  const handleClear = useCallback(
+    async (id: string) => {
+      setSavingId(id);
+      setError('');
+      try {
+        const response = await clearSkillRuntimeConfig(id);
+        if (!response.ok) {
+          setError(response.error || 'Failed to clear tool configuration.');
+          return;
+        }
+        setDrafts((prev) => ({ ...prev, [id]: '' }));
+        await loadConfigs();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to clear tool configuration.');
+      } finally {
+        setSavingId(null);
+      }
+    },
+    [loadConfigs],
+  );
 
   const getMissingRequired = useCallback(
     (skillId: string): SkillRuntimeConfigStatus[] =>
-      configs.filter((config) => config.skillId === skillId && config.required && !config.configured),
+      configs.filter(
+        (config) => config.skillId === skillId && config.required && !config.configured,
+      ),
     [configs],
   );
 

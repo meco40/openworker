@@ -1,5 +1,8 @@
 import type BetterSqlite3 from 'better-sqlite3';
-import type { KnowledgeCheckpoint, UpsertKnowledgeCheckpointInput } from '@/server/knowledge/repository';
+import type {
+  KnowledgeCheckpoint,
+  UpsertKnowledgeCheckpointInput,
+} from '@/server/knowledge/repository';
 
 export class CheckpointRepository {
   constructor(private readonly db: BetterSqlite3.Database) {}

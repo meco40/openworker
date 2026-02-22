@@ -20,6 +20,7 @@ function buildRule(overrides: Partial<AutomationRule> = {}): AutomationRule {
     lastError: null,
     createdAt: now,
     updatedAt: now,
+    flowGraph: null,
     ...overrides,
   };
 }
@@ -111,6 +112,8 @@ function createMockRepository(overrides: Partial<AutomationRepository> = {}): Au
     })),
     countActiveRules: vi.fn(() => 0),
     countRunsByStatus: vi.fn(() => 0),
+    getFlowGraph: vi.fn(() => null),
+    saveFlowGraph: vi.fn(() => null),
     acquireLease: vi.fn(() => true),
     releaseLease: vi.fn(),
     getLeaseState: vi.fn(() => null as SchedulerLeaseState | null),

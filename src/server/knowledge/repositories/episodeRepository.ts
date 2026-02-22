@@ -1,6 +1,10 @@
 import crypto from 'node:crypto';
 import type BetterSqlite3 from 'better-sqlite3';
-import type { KnowledgeEpisode, UpsertKnowledgeEpisodeInput, ListKnowledgeFilter } from '@/server/knowledge/repository';
+import type {
+  KnowledgeEpisode,
+  UpsertKnowledgeEpisodeInput,
+  ListKnowledgeFilter,
+} from '@/server/knowledge/repository';
 import { parseJsonArray, parseIso, asLimit, toStringArray, toSourceRefs } from './utils';
 
 export class EpisodeRepository {

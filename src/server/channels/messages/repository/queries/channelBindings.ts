@@ -78,11 +78,7 @@ export class ChannelBindingQueries {
     return row ? toChannelBinding(row) : null;
   }
 
-  updateChannelBindingPersona(
-    userId: string,
-    channel: ChannelKey,
-    personaId: string | null,
-  ): void {
+  updateChannelBindingPersona(userId: string, channel: ChannelKey, personaId: string | null): void {
     const normalizedUserId = this.normalizeUserId(userId);
     const now = new Date().toISOString();
     this.db

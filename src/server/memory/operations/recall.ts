@@ -147,10 +147,7 @@ export async function recallDetailed(
   };
 }
 
-export async function recall(
-  client: Mem0Client,
-  options: RecallOptions,
-): Promise<string> {
+export async function recall(client: Mem0Client, options: RecallOptions): Promise<string> {
   const result = await recallDetailed(client, options);
   return result.context;
 }

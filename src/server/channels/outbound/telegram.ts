@@ -25,10 +25,7 @@ export interface TelegramTextOptions {
 }
 
 function formatTelegramText(text: string): string {
-  return text
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .replaceAll('\u0000', '');
+  return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replaceAll('\u0000', '');
 }
 
 export function splitTelegramMessage(text: string, maxLen = TELEGRAM_MAX_LENGTH): string[] {
@@ -97,9 +94,8 @@ async function resolveTelegramToken(
 
   // Persona-bound bots: look up the registered bot token
   if (personaId) {
-    const { getPersonaTelegramBotRegistry } = await import(
-      '@/server/telegram/personaTelegramBotRegistry'
-    );
+    const { getPersonaTelegramBotRegistry } =
+      await import('@/server/telegram/personaTelegramBotRegistry');
     const bot = getPersonaTelegramBotRegistry().getBotByPersonaId(personaId);
     if (bot?.token) return bot.token;
   }

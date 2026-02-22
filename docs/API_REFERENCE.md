@@ -29,7 +29,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | config        |      1 |
 | control-plane |      1 |
 | doctor        |      1 |
-| health        |      1 |
+| health        |      2 |
 | knowledge     |      1 |
 | logs          |      2 |
 | memory        |      1 |
@@ -110,9 +110,10 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 ### /api/health
 
-| Methods | Route       |
-| ------- | ----------- |
-| GET     | /api/health |
+| Methods | Route                 |
+| ------- | --------------------- |
+| GET     | /api/health           |
+| GET     | /api/health/scheduler |
 
 ### /api/knowledge
 

@@ -11,6 +11,7 @@ import type {
   SchedulerLeaseState,
   UpdateAutomationRuleInput,
 } from '@/server/automation/types';
+import type { FlowGraph } from '@/server/automation/flowTypes';
 import { toDeadLetter, toLease, toRule, toRun } from '@/server/automation/automationRowMappers';
 import { openSqliteDatabase } from '@/server/db/sqlite';
 
@@ -89,6 +90,13 @@ export class SqliteAutomationRepository implements AutomationRepository {
         updated_at TEXT NOT NULL
       );
     `);
+
+    // Idempotente Spalte für flow_graph — ALTER TABLE safely ignoriert, wenn Spalte existiert
+    try {
+      this.db.exec(`ALTER TABLE automation_rules ADD COLUMN flow_graph TEXT;`);
+    } catch {
+      // Spalte existiert bereits — ignorieren
+    }
   }
 
   createRule(input: CreateAutomationRuleInput): AutomationRule {
@@ -229,6 +237,25 @@ export class SqliteAutomationRepository implements AutomationRepository {
       )
       .all(nowIso, limit) as Array<Record<string, unknown>>;
     return rows.map(toRule);
+  }
+
+  getFlowGraph(ruleId: string, userId: string): FlowGraph | null {
+    const rule = this.getRule(ruleId, userId);
+    return rule?.flowGraph ?? null;
+  }
+
+  saveFlowGraph(ruleId: string, userId: string, graph: FlowGraph): AutomationRule | null {
+    const existing = this.getRule(ruleId, userId);
+    if (!existing) return null;
+
+    const graphJson = JSON.stringify(graph);
+    this.db
+      .prepare(
+        `UPDATE automation_rules SET flow_graph = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+      )
+      .run(graphJson, new Date().toISOString(), ruleId, userId);
+
+    return this.getRule(ruleId, userId);
   }
 
   createOrGetRun(input: CreateAutomationRunInput): AutomationRun {

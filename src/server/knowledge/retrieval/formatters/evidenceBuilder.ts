@@ -2,14 +2,27 @@ import type { StoredMessage } from '@/server/channels/messages/repository';
 import type { KnowledgeEpisode, MeetingLedgerEntry } from '@/server/knowledge/repository';
 import { uniqueStrings } from '../utils/arrayUtils';
 
+export interface EvidenceSourceRef {
+  seq: number;
+  quote: string;
+}
+
 export function buildEvidence(
   messages: StoredMessage[],
   episodes: KnowledgeEpisode[],
   ledgerRows: MeetingLedgerEntry[],
+  options: {
+    extraRefs?: EvidenceSourceRef[];
+    allowMessageFallback?: boolean;
+  } = {},
 ): { evidenceText: string; references: string[] } {
+  const extraRefs = options.extraRefs || [];
+  const allowMessageFallback = options.allowMessageFallback ?? true;
+
   const refs = [
     ...ledgerRows.flatMap((row) => row.sourceRefs || []),
     ...episodes.flatMap((row) => row.sourceRefs || []),
+    ...extraRefs,
   ]
     .map((ref) => ({
       seq: Math.floor(Number(ref.seq || 0)),
@@ -42,7 +55,7 @@ export function buildEvidence(
     references.push(`seq:${ref.seq}`);
   }
 
-  if (evidenceLines.length === 0) {
+  if (allowMessageFallback && evidenceLines.length === 0) {
     for (const message of messages.slice(0, 4)) {
       const seq = Math.floor(Number(message.seq || 0));
       if (!Number.isFinite(seq) || seq <= 0) continue;

@@ -33,9 +33,8 @@ export function createMigrationHelpers(db: BetterSqlite3.Database): MigrationHel
   function migrateFtsRebuild(): void {
     // Only rebuild once when there are existing messages not yet indexed.
     // After triggers are in place all new inserts are automatically indexed.
-    const msgCount = (
-      db.prepare('SELECT COUNT(*) as cnt FROM messages').get() as { cnt: number }
-    ).cnt;
+    const msgCount = (db.prepare('SELECT COUNT(*) as cnt FROM messages').get() as { cnt: number })
+      .cnt;
     if (msgCount === 0) return;
 
     const ftsCount = (
@@ -49,10 +48,7 @@ export function createMigrationHelpers(db: BetterSqlite3.Database): MigrationHel
   return { hasColumn, backfillMessageSeq, migrateFtsRebuild };
 }
 
-export function runMigrations(
-  db: BetterSqlite3.Database,
-  helpers: MigrationHelpers,
-): void {
+export function runMigrations(db: BetterSqlite3.Database, helpers: MigrationHelpers): void {
   const { hasColumn, backfillMessageSeq, migrateFtsRebuild } = helpers;
 
   db.exec(`
@@ -119,9 +115,10 @@ export function runMigrations(
 
   if (!hasColumn('conversations', 'user_id')) {
     db.exec(`ALTER TABLE conversations ADD COLUMN user_id TEXT`);
-    db
-      .prepare('UPDATE conversations SET user_id = ? WHERE user_id IS NULL OR user_id = ?')
-      .run(LEGACY_LOCAL_USER_ID, '');
+    db.prepare('UPDATE conversations SET user_id = ? WHERE user_id IS NULL OR user_id = ?').run(
+      LEGACY_LOCAL_USER_ID,
+      '',
+    );
   }
 
   if (!hasColumn('messages', 'seq')) {

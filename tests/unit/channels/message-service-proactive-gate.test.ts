@@ -13,6 +13,7 @@ const dispatchWithFallbackMock = vi.hoisted(() =>
 
 const proactiveIngestMock = vi.hoisted(() => vi.fn(() => 2));
 const proactiveEvaluateMock = vi.hoisted(() => vi.fn(() => []));
+const eventBusPublishMock = vi.hoisted(() => vi.fn());
 const memoryStoreMock = vi.hoisted(() => vi.fn(async () => ({ id: 'mem-1' })));
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
@@ -26,6 +27,12 @@ vi.mock('../../../src/server/proactive/runtime', () => ({
   getProactiveGateService: () => ({
     ingestMessages: proactiveIngestMock,
     evaluate: proactiveEvaluateMock,
+  }),
+}));
+
+vi.mock('../../../src/server/events/runtime', () => ({
+  getServerEventBus: () => ({
+    publish: eventBusPublishMock,
   }),
 }));
 
@@ -107,10 +114,11 @@ describe('MessageService proactive relevance integration', () => {
     dispatchWithFallbackMock.mockClear();
     proactiveIngestMock.mockClear();
     proactiveEvaluateMock.mockClear();
+    eventBusPublishMock.mockClear();
     memoryStoreMock.mockClear();
   });
 
-  it('feeds unsummarized messages into proactive gate during summary refresh', async () => {
+  it('publishes summary refreshed event instead of directly invoking proactive gate', async () => {
     const service = new MessageService(buildRepository());
     const conversation: Conversation = {
       id: 'c-1',
@@ -128,7 +136,15 @@ describe('MessageService proactive relevance integration', () => {
       service as unknown as { maybeRefreshConversationSummary: (c: Conversation) => Promise<void> }
     ).maybeRefreshConversationSummary(conversation);
 
-    expect(proactiveIngestMock).toHaveBeenCalledTimes(1);
-    expect(proactiveEvaluateMock).toHaveBeenCalledTimes(1);
+    expect(eventBusPublishMock).toHaveBeenCalledWith(
+      'chat.summary.refreshed',
+      expect.objectContaining({
+        conversationId: 'c-1',
+        userId: 'user-1',
+        personaId: 'persona-1',
+      }),
+    );
+    expect(proactiveIngestMock).toHaveBeenCalledTimes(0);
+    expect(proactiveEvaluateMock).toHaveBeenCalledTimes(0);
   });
 });

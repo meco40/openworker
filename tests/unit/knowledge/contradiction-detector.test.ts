@@ -59,4 +59,13 @@ describe('detectContradictionSignal', () => {
     expect(result.hasContradiction).toBe(true);
     expect(result.contradictionType).toBe('negation');
   });
+
+  it('detects nie vs positive contradiction', () => {
+    const result = detectContradictionSignal(
+      'Wir waren nie zusammen in der Sauna',
+      'Wir waren schon mal zusammen in der Sauna',
+    );
+    expect(result.hasContradiction).toBe(true);
+    expect(result.contradictionType).toBe('negation');
+  });
 });

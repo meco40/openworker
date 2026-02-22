@@ -1,11 +1,6 @@
-import type {
-  GatewayRequest,
-  ProviderAdapter,
-} from '@/server/model-hub/Models/types';
+import type { GatewayRequest, ProviderAdapter } from '@/server/model-hub/Models/types';
 import { fetchJsonOk, fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
-import {
-  readStoredAttachmentAsDataUrl,
-} from '@/server/channels/messages/attachments';
+import { readStoredAttachmentAsDataUrl } from '@/server/channels/messages/attachments';
 
 // Anthropic content block types
 interface AnthropicTextBlock {

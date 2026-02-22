@@ -101,28 +101,72 @@ function tryGetMemoryService(): ReturnType<typeof getMemoryService> | null {
   }
 }
 
+function createKnowledgeIngestionDependencies() {
+  return {
+    cursor: getKnowledgeIngestionCursor(),
+    extractor: getKnowledgeExtractor(),
+    knowledgeRepository: getKnowledgeRepository(),
+    memoryService: tryGetMemoryService(),
+    resolvePersonaName: (personaId: string) => {
+      try {
+        const persona = getPersonaRepository().getPersona(personaId);
+        return persona?.name ?? null;
+      } catch {
+        return null;
+      }
+    },
+  };
+}
+
 export function getKnowledgeIngestionService(): KnowledgeIngestionService {
   if (!globalThis.__knowledgeIngestionService) {
     const config = getKnowledgeConfig();
     globalThis.__knowledgeIngestionService = new KnowledgeIngestionService(
-      {
-        cursor: getKnowledgeIngestionCursor(),
-        extractor: getKnowledgeExtractor(),
-        knowledgeRepository: getKnowledgeRepository(),
-        memoryService: tryGetMemoryService(),
-        resolvePersonaName: (personaId: string) => {
-          try {
-            const persona = getPersonaRepository().getPersona(personaId);
-            return persona?.name ?? null;
-          } catch {
-            return null;
-          }
-        },
-      },
+      createKnowledgeIngestionDependencies(),
       { minMessagesPerBatch: config.minMessagesPerBatch },
     );
   }
   return globalThis.__knowledgeIngestionService;
+}
+
+export async function ensureKnowledgeIngestedForConversation(input: {
+  conversationId: string;
+  userId: string;
+  personaId: string;
+}): Promise<{ triggered: boolean; pendingMessages: number }> {
+  const conversationId = String(input.conversationId || '').trim();
+  const userId = String(input.userId || '').trim();
+  const personaId = String(input.personaId || '').trim();
+  if (!conversationId || !userId || !personaId) {
+    return { triggered: false, pendingMessages: 0 };
+  }
+
+  const messageRepo = getKnowledgeMessageRepository();
+  const messages = messageRepo.listMessages(conversationId, 1000, undefined, userId);
+  if (!messages || messages.length === 0) {
+    return { triggered: false, pendingMessages: 0 };
+  }
+
+  const checkpoint =
+    getKnowledgeRepository().getIngestionCheckpoint(conversationId, personaId)?.lastSeq ?? 0;
+  const pendingMessages = messages.filter(
+    (message) => Number(message.seq || 0) > checkpoint,
+  ).length;
+  if (pendingMessages <= 0) {
+    return { triggered: false, pendingMessages: 0 };
+  }
+
+  const oneShotService = new KnowledgeIngestionService(createKnowledgeIngestionDependencies(), {
+    minMessagesPerBatch: 1,
+  });
+  await oneShotService.ingestConversationWindow({
+    conversationId,
+    userId,
+    personaId,
+    messages,
+  });
+
+  return { triggered: true, pendingMessages };
 }
 
 export function getKnowledgeRetrievalService(): KnowledgeRetrievalService {

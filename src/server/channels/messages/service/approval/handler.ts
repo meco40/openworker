@@ -21,7 +21,11 @@ export interface ApprovalHandlerDeps {
       messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
       modelHubProfileId: string;
       preferredModelId?: string;
-      toolContext: { tools: unknown[]; installedFunctionNames: Set<string>; functionToSkillId: Map<string, string> };
+      toolContext: {
+        tools: unknown[];
+        installedFunctionNames: Set<string>;
+        functionToSkillId: Map<string, string>;
+      };
       abortSignal?: AbortSignal;
       onStreamDelta?: (delta: string) => void;
     },

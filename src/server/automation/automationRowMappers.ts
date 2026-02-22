@@ -1,3 +1,4 @@
+import type { FlowGraph } from '@/server/automation/flowTypes';
 import type {
   AutomationDeadLetter,
   AutomationRule,
@@ -6,6 +7,15 @@ import type {
 } from '@/server/automation/types';
 
 export function toRule(row: Record<string, unknown>): AutomationRule {
+  let flowGraph: FlowGraph | null = null;
+  if (typeof row.flow_graph === 'string' && row.flow_graph.length > 0) {
+    try {
+      flowGraph = JSON.parse(row.flow_graph) as FlowGraph;
+    } catch {
+      // Corrupt JSON — treat as no flow graph
+      flowGraph = null;
+    }
+  }
   return {
     id: row.id as string,
     userId: row.user_id as string,
@@ -20,6 +30,7 @@ export function toRule(row: Record<string, unknown>): AutomationRule {
     lastError: (row.last_error as string) || null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+    flowGraph,
   };
 }
 

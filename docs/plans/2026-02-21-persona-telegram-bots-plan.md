@@ -319,14 +319,12 @@ import { PersonaTelegramBotRegistry } from '@/server/telegram/personaTelegramBot
 
 vi.mock('@/server/telegram/personaTelegramBotRegistry', () => {
   const registry = {
-    upsertBot: vi
-      .fn()
-      .mockReturnValue({
-        botId: 'girl',
-        personaId: 'p1',
-        transport: 'polling',
-        peerName: 'girl_bot',
-      }),
+    upsertBot: vi.fn().mockReturnValue({
+      botId: 'girl',
+      personaId: 'p1',
+      transport: 'polling',
+      peerName: 'girl_bot',
+    }),
     removeByPersonaId: vi.fn(),
     getBotByPersonaId: vi.fn(),
   };

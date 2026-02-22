@@ -9,6 +9,7 @@ import type { ExtractionPersonaContext } from '@/server/knowledge/prompts';
 import type { IngestionWindow, KnowledgeIngestionCursor } from '@/server/knowledge/ingestionCursor';
 import type { KnowledgeRepository } from '@/server/knowledge/repository';
 import { sanitizeKnowledgeFacts } from '@/server/knowledge/textQuality';
+import { isRuleLikeStatement } from '@/server/knowledge/retrieval/query/rulesExtractor';
 import { deduplicateEvent } from '@/server/knowledge/eventDedup';
 import { EntityExtractor, isRelationWord } from '@/server/knowledge/entityExtractor';
 import { createId } from '@/shared/lib/ids';
@@ -101,6 +102,101 @@ function inferSourceEnd(window: IngestionWindow): number {
       window.fromSeqExclusive,
   );
   return Math.max(0, Math.floor(lastSeq));
+}
+
+function normalizeRuleEvidenceText(value: string): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenizeRuleEvidence(value: string): string[] {
+  return normalizeRuleEvidenceText(value)
+    .split(/[^a-z0-9äöüß]+/i)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 4);
+}
+
+function hasRuleEvidenceMatch(ruleFact: string, evidenceTexts: string[]): boolean {
+  const normalizedRuleFact = normalizeRuleEvidenceText(ruleFact);
+  if (!normalizedRuleFact) return false;
+
+  const factTokens = new Set(tokenizeRuleEvidence(normalizedRuleFact));
+  for (const evidenceText of evidenceTexts) {
+    const normalizedEvidence = normalizeRuleEvidenceText(evidenceText);
+    if (!normalizedEvidence) continue;
+    if (
+      normalizedEvidence.includes(normalizedRuleFact) ||
+      normalizedRuleFact.includes(normalizedEvidence)
+    ) {
+      return true;
+    }
+
+    const evidenceTokens = tokenizeRuleEvidence(normalizedEvidence);
+    if (factTokens.size === 0 || evidenceTokens.length === 0) continue;
+    let overlap = 0;
+    for (const token of evidenceTokens) {
+      if (factTokens.has(token)) overlap += 1;
+    }
+    if (overlap >= 2) return true;
+  }
+
+  return false;
+}
+
+function collectUserRuleEvidenceTexts(
+  window: IngestionWindow,
+  sourceRefs: Array<{ seq: number; quote: string }>,
+): string[] {
+  const seqToRole = new Map<number, string>();
+  for (const message of window.messages) {
+    const seq = Math.floor(Number(message.seq || 0));
+    if (Number.isFinite(seq) && seq > 0) {
+      seqToRole.set(seq, String(message.role || '').toLowerCase());
+    }
+  }
+
+  const userMessages = window.messages
+    .filter((message) => String(message.role || '').toLowerCase() === 'user')
+    .map((message) => String(message.content || '').trim());
+
+  const userSourceQuotes = sourceRefs
+    .map((sourceRef) => {
+      const seq = Math.floor(Number(sourceRef.seq || 0));
+      return {
+        seq,
+        quote: String(sourceRef.quote || '').trim(),
+        role: seqToRole.get(seq) || '',
+      };
+    })
+    .filter((entry) => entry.role === 'user')
+    .map((entry) => entry.quote);
+
+  const unique = new Set<string>();
+  for (const text of [...userMessages, ...userSourceQuotes]) {
+    const normalized = normalizeRuleEvidenceText(text);
+    if (!normalized) continue;
+    unique.add(text.trim());
+  }
+
+  return [...unique];
+}
+
+function keepOnlyEvidenceBackedRuleStatements(values: string[], evidenceTexts: string[]): string[] {
+  const output: string[] = [];
+  for (const value of values) {
+    const statement = String(value || '').trim();
+    if (!statement) continue;
+    if (!isRuleLikeStatement(statement)) {
+      output.push(statement);
+      continue;
+    }
+    if (hasRuleEvidenceMatch(statement, evidenceTexts)) {
+      output.push(statement);
+    }
+  }
+  return output;
 }
 
 export class KnowledgeIngestionService {
@@ -298,8 +394,31 @@ export class KnowledgeIngestionService {
     //   "Ich habe Max versprochen, Nata Girl näherzukommen"  (ihm→Nata Girl)
     // The verb "sein" (to be) was also caught as a pronoun.
     // The LLM already produces facts with named entities; resolution is unnecessary.
-    const facts = sanitizeKnowledgeFacts(extraction.facts);
+    const userRuleEvidenceTexts = collectUserRuleEvidenceTexts(
+      window,
+      extraction.meetingLedger.sourceRefs || [],
+    );
+    const facts = keepOnlyEvidenceBackedRuleStatements(
+      sanitizeKnowledgeFacts(extraction.facts),
+      userRuleEvidenceTexts,
+    );
     const topicKey = String(extraction.meetingLedger.topicKey || '').trim() || 'general-meeting';
+    const filteredDecisions = keepOnlyEvidenceBackedRuleStatements(
+      extraction.meetingLedger.decisions,
+      userRuleEvidenceTexts,
+    );
+    const filteredNegotiatedTerms = keepOnlyEvidenceBackedRuleStatements(
+      extraction.meetingLedger.negotiatedTerms,
+      userRuleEvidenceTexts,
+    );
+    const filteredOpenPoints = keepOnlyEvidenceBackedRuleStatements(
+      extraction.meetingLedger.openPoints,
+      userRuleEvidenceTexts,
+    );
+    const filteredActionItems = keepOnlyEvidenceBackedRuleStatements(
+      extraction.meetingLedger.actionItems,
+      userRuleEvidenceTexts,
+    );
 
     this.deps.knowledgeRepository.upsertEpisode({
       userId: window.userId,
@@ -324,10 +443,10 @@ export class KnowledgeIngestionService {
       counterpart: extraction.meetingLedger.counterpart,
       eventAt: window.messages[window.messages.length - 1]?.createdAt || null,
       participants: extraction.meetingLedger.participants,
-      decisions: extraction.meetingLedger.decisions,
-      negotiatedTerms: extraction.meetingLedger.negotiatedTerms,
-      openPoints: extraction.meetingLedger.openPoints,
-      actionItems: extraction.meetingLedger.actionItems,
+      decisions: filteredDecisions,
+      negotiatedTerms: filteredNegotiatedTerms,
+      openPoints: filteredOpenPoints,
+      actionItems: filteredActionItems,
       sourceRefs: extraction.meetingLedger.sourceRefs,
       confidence: extraction.meetingLedger.confidence,
     });
@@ -446,8 +565,8 @@ export class KnowledgeIngestionService {
 
     // ── Task completion detection ─────────────────────────────
     // Scan user messages for task completion signals against open action items from extraction.
-    if (extraction.meetingLedger.actionItems && extraction.meetingLedger.actionItems.length > 0) {
-      const openTasks: TrackedTask[] = extraction.meetingLedger.actionItems.map((item, idx) => ({
+    if (filteredActionItems.length > 0) {
+      const openTasks: TrackedTask[] = filteredActionItems.map((item, idx) => ({
         id: `action-${idx}`,
         userId: window.userId,
         personaId: window.personaId,

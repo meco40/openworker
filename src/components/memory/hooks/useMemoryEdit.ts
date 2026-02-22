@@ -164,7 +164,11 @@ export function useMemoryEdit(options: UseMemoryEditOptions) {
           `Backup exportiert (${nodeCount} Eintraege, Datei: ${fileName}). Gib ${DELETE_CONFIRMATION_PHRASE} ein, um alle Persona-Memory-Eintraege endgueltig zu loeschen.`,
           '',
         );
-        if (String(secondConfirm || '').trim().toUpperCase() !== DELETE_CONFIRMATION_PHRASE) {
+        if (
+          String(secondConfirm || '')
+            .trim()
+            .toUpperCase() !== DELETE_CONFIRMATION_PHRASE
+        ) {
           setErrorMessage('Loeschen abgebrochen. Keine Memory-Eintraege wurden entfernt.');
           return;
         }
@@ -180,7 +184,9 @@ export function useMemoryEdit(options: UseMemoryEditOptions) {
           await reloadCurrent();
           cancelEdit();
         } else {
-          setErrorMessage(String(payload.error || `Loeschen fehlgeschlagen (HTTP ${response.status}).`));
+          setErrorMessage(
+            String(payload.error || `Loeschen fehlgeschlagen (HTTP ${response.status}).`),
+          );
         }
       } catch (error) {
         setErrorMessage(

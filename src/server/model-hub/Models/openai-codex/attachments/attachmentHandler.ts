@@ -23,10 +23,7 @@ export function readTextAttachmentSnippet(
   try {
     const bytes = readStoredAttachmentBuffer(attachment);
     if (!bytes.length) return null;
-    const text = bytes
-      .toString('utf8')
-      .replaceAll('\u0000', '')
-      .trim();
+    const text = bytes.toString('utf8').replaceAll('\u0000', '').trim();
     if (!text) return null;
     return text.slice(0, 12_000);
   } catch {

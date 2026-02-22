@@ -368,15 +368,15 @@ flowchart TB
 
 ## 4. Unterstützte Kanäle
 
-| Kanal                       | Inbound | Outbound | Pairing              | Webhook Auth |
-| --------------------------- | ------- | -------- | -------------------- | ------------ |
-| Telegram (global)           | ✅      | ✅       | Token (Credential)   | Signature    |
-| Telegram (Persona-Bot) ⬇️   | ✅      | ✅       | Token (Persona-DB)   | Signature    |
-| Discord                     | ✅      | ✅       | OAuth                | Signature    |
-| WhatsApp                    | ✅      | ✅       | Bridge               | Secret       |
-| Slack                       | ✅      | ✅       | OAuth                | Secret       |
-| iMessage                    | ✅      | ✅       | Bridge               | Secret       |
-| WebChat                     | ✅      | ✅       | Internal             | -            |
+| Kanal                     | Inbound | Outbound | Pairing            | Webhook Auth |
+| ------------------------- | ------- | -------- | ------------------ | ------------ |
+| Telegram (global)         | ✅      | ✅       | Token (Credential) | Signature    |
+| Telegram (Persona-Bot) ⬇️ | ✅      | ✅       | Token (Persona-DB) | Signature    |
+| Discord                   | ✅      | ✅       | OAuth              | Signature    |
+| WhatsApp                  | ✅      | ✅       | Bridge             | Secret       |
+| Slack                     | ✅      | ✅       | OAuth              | Secret       |
+| iMessage                  | ✅      | ✅       | Bridge             | Secret       |
+| WebChat                   | ✅      | ✅       | Internal           | -            |
 
 > **Persona-gebundene Telegram Bots** ermöglichen es, pro Persona einen eigenen Bot-Token zu registrieren. Jeder Bot erhält eine eigene `botId`, einen separaten Webhook (`/api/channels/telegram/bots/[botId]/webhook`) oder Polling-Loop und liefert eingehende Nachrichten direkt unter der konfigurierten Persona aus — ohne globale `/persona`-Umschaltung.
 
@@ -562,6 +562,7 @@ Dadurch überspringt `processTelegramInboundUpdate` die globale Pairing-Prüfung
 ### Outbound Token-Auflösung
 
 `deliverTelegram` löst den Bot-Token in dieser Reihenfolge auf:
+
 1. `options.token` — direkte Übergabe
 2. `options.personaId` → `PersonaTelegramBotRegistry.getBotByPersonaId(personaId).token`
 3. Globaler Credential-Store (`telegram.bot_token`)

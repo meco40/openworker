@@ -7,6 +7,7 @@ import type {
   SchedulerLeaseState,
   UpdateAutomationRuleInput,
 } from '@/server/automation/types';
+import type { FlowGraph } from '@/server/automation/flowTypes';
 
 export interface AutomationRepository {
   createRule(input: CreateAutomationRuleInput): AutomationRule;
@@ -20,6 +21,9 @@ export interface AutomationRepository {
   getRuleById(ruleId: string): AutomationRule | null;
   listRules(userId: string): AutomationRule[];
   listDueRules(nowIso: string, limit?: number): AutomationRule[];
+
+  getFlowGraph(ruleId: string, userId: string): FlowGraph | null;
+  saveFlowGraph(ruleId: string, userId: string, graph: FlowGraph): AutomationRule | null;
 
   createOrGetRun(input: CreateAutomationRunInput): AutomationRun;
   getRun(runId: string): AutomationRun | null;

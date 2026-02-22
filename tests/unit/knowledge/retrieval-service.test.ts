@@ -462,6 +462,148 @@ describe('KnowledgeRetrievalService', () => {
     expect(result.sections.keyDecisions).toContain('Niemals zu spät kommen');
   });
 
+  it('falls back to entity properties and matching events for rules retrieval', async () => {
+    const service = new KnowledgeRetrievalService({
+      maxContextTokens: 1200,
+      knowledgeRepository: {
+        listMeetingLedger: vi.fn(() => []),
+        listEpisodes: vi.fn(() => []),
+        listEntities: vi.fn(() => [
+          {
+            id: 'ent-rules',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            canonicalName: 'Arbeitsregeln',
+            category: 'concept' as const,
+            owner: 'shared' as const,
+            properties: {
+              rules:
+                'Regeln: 1. Arbeitsbeginn ist 08:00 Uhr. 2. Im Meeting bleibt das Handy lautlos.',
+            },
+            createdAt: '2026-02-20T09:00:00.000Z',
+            updatedAt: '2026-02-20T09:00:00.000Z',
+          },
+        ]),
+        listEvents: vi.fn(() => [
+          {
+            id: 'evt-rules-1',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-1',
+            eventType: 'meeting',
+            speakerRole: 'user' as const,
+            speakerEntity: 'User',
+            subjectEntity: 'Arbeitsregeln',
+            counterpartEntity: 'Nata',
+            relationLabel: null,
+            startDate: '2026-02-20',
+            endDate: '2026-02-20',
+            dayCount: 1,
+            sourceSeqJson: '[11,12]',
+            sourceSummary:
+              'Regeln: 1. Arbeitsbeginn ist 08:00 Uhr. 2. Im Meeting bleibt das Handy lautlos.',
+            isConfirmation: false,
+            confidence: 0.9,
+            createdAt: '2026-02-20T09:00:00.000Z',
+            updatedAt: '2026-02-20T09:00:00.000Z',
+          },
+        ]),
+        insertRetrievalAudit: vi.fn(() => ({
+          id: 'audit-rules-fallback',
+          userId: 'user-1',
+          personaId: 'persona-1',
+          conversationId: 'conv-1',
+          query: 'Was sind die Regeln auf der Arbeit?',
+          stageStats: {},
+          tokenCount: 0,
+          hadError: false,
+          errorMessage: null,
+          createdAt: new Date().toISOString(),
+        })),
+      },
+      memoryService: {
+        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+      },
+      messageRepository: {
+        listMessages: vi.fn(() => [
+          makeMessage(11, 'Arbeitsbeginn ist 08:00 Uhr.'),
+          makeMessage(12, 'Im Meeting bleibt das Handy lautlos.'),
+        ]),
+      },
+    });
+
+    const result = await service.retrieve({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-1',
+      query: 'Was sind die Regeln auf der Arbeit?',
+    });
+
+    expect(result.sections.answerDraft).toContain('Arbeitsbeginn ist 08:00 Uhr');
+    expect(result.sections.answerDraft).toContain('Handy lautlos');
+    expect(result.references).toContain('seq:11');
+    expect(result.sections.evidence).toContain('[seq:11]');
+  });
+
+  it('returns "unklar" for rules queries when no evidence refs exist', async () => {
+    const service = new KnowledgeRetrievalService({
+      maxContextTokens: 1200,
+      knowledgeRepository: {
+        listMeetingLedger: vi.fn(() => [
+          {
+            id: 'led-no-refs',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-1',
+            topicKey: 'office-rules',
+            counterpart: null,
+            eventAt: '2025-08-11T09:00:00.000Z',
+            participants: [],
+            decisions: ['Regel: Arbeitsbeginn ist 08:00 Uhr.'],
+            negotiatedTerms: [],
+            openPoints: [],
+            actionItems: [],
+            sourceRefs: [],
+            confidence: 0.9,
+            updatedAt: '2025-08-11T10:00:00.000Z',
+          },
+        ]),
+        listEpisodes: vi.fn(() => []),
+        listEntities: vi.fn(() => []),
+        listEvents: vi.fn(() => []),
+        insertRetrievalAudit: vi.fn(() => ({
+          id: 'audit-rules-unclear',
+          userId: 'user-1',
+          personaId: 'persona-1',
+          conversationId: 'conv-1',
+          query: 'Was sind die Regeln?',
+          stageStats: {},
+          tokenCount: 0,
+          hadError: false,
+          errorMessage: null,
+          createdAt: new Date().toISOString(),
+        })),
+      },
+      memoryService: {
+        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+      },
+      messageRepository: {
+        listMessages: vi.fn(() => [makeMessage(1, 'Hallo')]),
+      },
+    });
+
+    const result = await service.retrieve({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-1',
+      query: 'Was sind die Regeln?',
+    });
+
+    expect(result.references).toHaveLength(0);
+    expect(result.sections.answerDraft.toLowerCase()).toContain('unklar');
+    expect(result.sections.answerDraft).not.toContain('Arbeitsbeginn ist 08:00 Uhr');
+  });
+
   it('falls back to unfiltered topic query when strict topic filter returns no rows', async () => {
     const ledgerWithTopic = vi.fn((filter?: { topicKey?: string }) => {
       if (filter?.topicKey) return [];
@@ -645,5 +787,91 @@ describe('KnowledgeRetrievalService', () => {
     expect(answerDraft).toContain('Frisches Projekt Alpha Update');
     // And its facts should appear in keyDecisions
     expect(result.sections.keyDecisions).toContain('Projekt Alpha laeuft gut');
+  });
+
+  it('returns "Unklar" when evidence contains a user/assistant contradiction for binary recall query', async () => {
+    const service = new KnowledgeRetrievalService({
+      maxContextTokens: 1200,
+      knowledgeRepository: {
+        listMeetingLedger: vi.fn(() => [
+          {
+            id: 'led-sauna',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-1',
+            topicKey: 'general-meeting',
+            counterpart: null,
+            eventAt: '2026-02-22T02:53:50.000Z',
+            participants: [],
+            decisions: [],
+            negotiatedTerms: [],
+            openPoints: [],
+            actionItems: [],
+            sourceRefs: [
+              { seq: 55, quote: 'Doch wir waren schon mal in der Sauna' },
+              { seq: 56, quote: 'Oh, nein, wir waren nie zusammen in der Sauna.' },
+            ],
+            confidence: 0.8,
+            updatedAt: '2026-02-22T02:53:55.000Z',
+          },
+        ]),
+        listEpisodes: vi.fn(() => [
+          {
+            id: 'ep-sauna',
+            userId: 'user-1',
+            personaId: 'persona-1',
+            conversationId: 'conv-1',
+            topicKey: 'general-meeting',
+            counterpart: null,
+            teaser: 'Sauna-Rueckblick',
+            episode: 'Es gibt gemischte Aussagen zur Sauna.',
+            facts: ['Nata Girl und Meco waren nie zusammen in der Sauna.'],
+            sourceSeqStart: 51,
+            sourceSeqEnd: 56,
+            sourceRefs: [
+              { seq: 55, quote: 'Doch wir waren schon mal in der Sauna' },
+              { seq: 56, quote: 'Oh, nein, wir waren nie zusammen in der Sauna.' },
+            ],
+            eventAt: '2026-02-22T02:53:55.000Z',
+            updatedAt: '2026-02-22T02:53:55.000Z',
+          },
+        ]),
+        listEntities: vi.fn(() => []),
+        listEvents: vi.fn(() => []),
+        insertRetrievalAudit: vi.fn(() => ({
+          id: 'audit-contradiction',
+          userId: 'user-1',
+          personaId: 'persona-1',
+          conversationId: 'conv-1',
+          query: 'Waren wir schon mal in der Sauna?',
+          stageStats: {},
+          tokenCount: 0,
+          hadError: false,
+          errorMessage: null,
+          createdAt: new Date().toISOString(),
+        })),
+      },
+      memoryService: {
+        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+      },
+      messageRepository: {
+        listMessages: vi.fn(() => [
+          makeMessage(55, 'Doch wir waren schon mal in der Sauna'),
+          makeMessage(56, 'Oh, nein, wir waren nie zusammen in der Sauna.'),
+        ]),
+      },
+    });
+
+    const result = await service.retrieve({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-1',
+      query: 'Waren wir schon mal in der Sauna?',
+    });
+
+    expect(result.sections.answerDraft.toLowerCase()).toContain('unklar');
+    expect(result.sections.keyDecisions.toLowerCase()).toContain('widerspruch');
+    expect(result.references).toContain('seq:55');
+    expect(result.references).toContain('seq:56');
   });
 });

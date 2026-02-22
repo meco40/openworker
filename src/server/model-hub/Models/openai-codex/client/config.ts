@@ -1,9 +1,5 @@
 import { extractCodexAccountId } from '@/server/model-hub/codexAuth';
-import {
-  CODEX_BASE_URL,
-  CODEX_RESPONSES_PATH,
-  OPENAI_CODEX_AUTH_CLAIM_HINT,
-} from '../constants';
+import { CODEX_BASE_URL, CODEX_RESPONSES_PATH, OPENAI_CODEX_AUTH_CLAIM_HINT } from '../constants';
 import type { CodexReasoningEffort } from '../types';
 
 export function resolveCodexProbeModel(

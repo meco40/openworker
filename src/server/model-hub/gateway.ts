@@ -65,6 +65,8 @@ export async function dispatchGatewayRequest(
 
   let result: GatewayResponse;
 
+  const dispatchStart = Date.now();
+
   if (adapter?.dispatchGateway) {
     result = await adapter.dispatchGateway(context, request, {
       signal: options?.signal,
@@ -84,6 +86,8 @@ export async function dispatchGatewayRequest(
       error: `No gateway adapter for provider: ${provider.name}`,
     };
   }
+
+  const latencyMs = Date.now() - dispatchStart;
 
   // Record token usage (fire-and-forget, never breaks dispatch)
   if (result.ok && result.usage) {
@@ -169,6 +173,13 @@ export async function dispatchGatewayRequest(
       promptCostUsd,
       completionCostUsd,
       totalCostUsd,
+      conversationId: request.auditContext?.conversationId ?? null,
+      turnSeq: request.auditContext?.turnSeq ?? null,
+      latencyMs,
+      toolCallsJson: JSON.stringify(result.functionCalls ?? []),
+      memoryContextJson: request.auditContext?.memoryContext
+        ? request.auditContext.memoryContext.slice(0, 500)
+        : null,
     });
     markPromptDispatchInsert(entry.createdAt);
   } catch (error) {

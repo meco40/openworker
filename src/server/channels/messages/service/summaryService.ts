@@ -2,18 +2,34 @@ import type { Conversation, StoredMessage } from '@/server/channels/messages/rep
 import { getModelHubService, getModelHubEncryptionKey } from '@/server/model-hub/runtime';
 import { buildFallbackSummary, isAiSummaryEnabled } from '@/server/channels/messages/summary';
 import { resolveMemoryScopedUserId } from '@/server/memory/userScope';
-import { getProactiveGateService } from '@/server/proactive/runtime';
 import { getMemoryService } from '@/server/memory/runtime';
-import { isAutoSessionMemoryEnabled, buildAutoMemoryCandidates } from '@/server/channels/messages/autoMemory';
+import {
+  isAutoSessionMemoryEnabled,
+  buildAutoMemoryCandidates,
+} from '@/server/channels/messages/autoMemory';
+import { getServerEventBus } from '@/server/events/runtime';
 
 export class SummaryService {
   private summaryRefreshInFlight = new Set<string>();
 
   constructor(
     private readonly repo: {
-      listMessages: (conversationId: string, limit?: number, before?: string, userId?: string) => StoredMessage[];
-      getConversationContext: (conversationId: string, userId: string) => { summaryText?: string; summaryUptoSeq?: number } | null;
-      upsertConversationContext: (conversationId: string, summaryText: string, uptoSeq: number, userId: string) => void;
+      listMessages: (
+        conversationId: string,
+        limit?: number,
+        before?: string,
+        userId?: string,
+      ) => StoredMessage[];
+      getConversationContext: (
+        conversationId: string,
+        userId: string,
+      ) => { summaryText?: string; summaryUptoSeq?: number } | null;
+      upsertConversationContext: (
+        conversationId: string,
+        summaryText: string,
+        uptoSeq: number,
+        userId: string,
+      ) => void;
     },
   ) {}
 
@@ -78,9 +94,18 @@ export class SummaryService {
         conversation.userId,
       );
 
+      getServerEventBus().publish('chat.summary.refreshed', {
+        conversationId: conversation.id,
+        userId: conversation.userId,
+        personaId: conversation.personaId,
+        summaryText: mergedSummary,
+        summaryUptoSeq: uptoSeq,
+        messages: summarizationChunk,
+        createdAt: new Date().toISOString(),
+      });
+
       await this.maybeStoreAutoSessionMemory(conversation, summarizationChunk);
       await this.maybeStoreKnowledgeArtifacts(conversation, summarizationChunk, mergedSummary);
-      await this.maybeEvaluateProactiveGate(conversation, summarizationChunk);
     } finally {
       this.summaryRefreshInFlight.delete(conversation.id);
     }
@@ -149,30 +174,6 @@ export class SummaryService {
       });
     } catch (error) {
       console.error('Knowledge ingestion failed:', error);
-    }
-  }
-
-  private async maybeEvaluateProactiveGate(
-    conversation: Conversation,
-    messages: StoredMessage[],
-  ): Promise<void> {
-    if (!conversation.personaId) return;
-    if (messages.length === 0) return;
-
-    try {
-      const service = getProactiveGateService();
-      service.ingestMessages(
-        conversation.userId,
-        conversation.personaId,
-        messages.map((message) => ({
-          role: message.role,
-          content: message.content,
-          createdAt: message.createdAt,
-        })),
-      );
-      service.evaluate(conversation.userId, conversation.personaId);
-    } catch (error) {
-      console.error('Proactive gate evaluation failed:', error);
     }
   }
 
