@@ -104,7 +104,25 @@ export function shouldRecallMemoryForInput(content: string): boolean {
   const tokenCount = normalized.split(/\s+/).filter(Boolean).length;
   if (tokenCount <= 2 && !/[?]/.test(normalized)) return false;
 
-  return true;
+  const hasQuestionSignal =
+    /[?]/.test(normalized) ||
+    /^(was|wie|wann|wo|wer|warum|wieso|which|what|when|where|who|why)\b/i.test(normalized);
+  const hasRulesCue =
+    /\b(regel|regeln|rule|rules|richtlinie|richtlinien|policy|policies|vorgabe|vorgaben)\b/i.test(
+      normalized,
+    );
+  const hasRecallCue =
+    /\b(erinner|erinnerst|erinnern|remember|recall|schon mal|damals|frueher|früher|letzte|letzten|gestern|vorgestern|besprochen|gesagt|vereinbart|ausgehandelt|waren wir|haben wir)\b/i.test(
+      normalized,
+    );
+  const hasDirectiveRecallCue =
+    /\b(nenne|sag|sage|zeige|zeig|liste|list|fass|fasse|summarize|tell)\b/i.test(normalized);
+
+  if (hasRulesCue && (hasQuestionSignal || hasDirectiveRecallCue)) return true;
+  if (hasQuestionSignal && hasRecallCue) return true;
+  if (hasDirectiveRecallCue && hasRecallCue) return true;
+
+  return false;
 }
 
 export function normalizeMemoryContext(context: string): string | null {

@@ -20,6 +20,9 @@ const ConversationDebuggerView: React.FC<ConversationDebuggerViewProps> = ({
     selectedConversationId,
     turns,
     turnsLoading,
+    turnsLoadingMore,
+    turnsHasMore,
+    turnsError,
     selectedTurnSeq,
     replayModalOpen,
     replayFromSeq,
@@ -29,6 +32,7 @@ const ConversationDebuggerView: React.FC<ConversationDebuggerViewProps> = ({
     loadConversations,
     selectConversation,
     selectTurn,
+    loadMoreTurns,
     openReplayModal,
     closeReplayModal,
     startReplay,
@@ -97,7 +101,7 @@ const ConversationDebuggerView: React.FC<ConversationDebuggerViewProps> = ({
         {/* Left pane — conversation list */}
         <div
           className={`flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 p-4 ${
-            showDetailPane ? 'hidden sm:flex sm:w-1/3 lg:w-2/5' : 'flex w-full'
+            showDetailPane ? 'hidden sm:flex sm:w-[30%]' : 'flex w-full'
           }`}
         >
           <h2 className="mb-3 text-xs font-semibold tracking-wider text-zinc-500 uppercase">
@@ -119,7 +123,7 @@ const ConversationDebuggerView: React.FC<ConversationDebuggerViewProps> = ({
         {showDetailPane && (
           <div className="flex min-w-0 flex-1 gap-4 overflow-hidden">
             {/* Turn timeline */}
-            <div className="flex w-52 shrink-0 flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 p-3">
+            <div className="flex w-[22rem] shrink-0 flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 p-3 xl:w-[26rem]">
               <h2 className="mb-2 text-xs font-semibold tracking-wider text-zinc-500 uppercase">
                 Turns
               </h2>
@@ -127,8 +131,12 @@ const ConversationDebuggerView: React.FC<ConversationDebuggerViewProps> = ({
                 <TurnTimeline
                   turns={turns}
                   loading={turnsLoading}
+                  loadingMore={turnsLoadingMore}
+                  error={turnsError}
+                  hasMore={turnsHasMore}
                   selectedSeq={selectedTurnSeq}
                   onSelect={selectTurn}
+                  onLoadMore={() => void loadMoreTurns()}
                 />
               </div>
             </div>

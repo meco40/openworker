@@ -10,7 +10,6 @@ describe('Sidebar cron navigation', () => {
       createElement(Sidebar, {
         activeView: View.DASHBOARD,
         onViewChange: () => {},
-        onToggleCanvas: () => {},
       }),
     );
     const navLabels = Array.from(

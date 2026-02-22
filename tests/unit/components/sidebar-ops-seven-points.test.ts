@@ -10,7 +10,6 @@ describe('Sidebar ops seven-point navigation', () => {
       createElement(Sidebar, {
         activeView: View.DASHBOARD,
         onViewChange: () => {},
-        onToggleCanvas: () => {},
       }),
     );
 

@@ -45,7 +45,6 @@
 - **Autonomen Worker** mit KI-gesteuerter Planung, Step-Execution und Workspace-Management
 - **Skill-System** mit 8 integrierten Tool-Handlern + SQLite-basierter Skill-Registry
 - **Voice Mode** mit Gemini Native Audio
-- **Live Vision Canvas** mit Kamera-Streaming
 - Historisch: Team-Management mit Multi-Tenant-Unterstützung (in aktiver UI entfernt)
 - **Authentifizierung** via NextAuth v4 (JWT + Credentials Provider) ✅
 - **Memory-System** mit Embedding-basierter semantischer Suche
@@ -78,7 +77,7 @@ Das System basiert auf **Next.js 16 App Router** mit einem **Custom HTTP+WebSock
 │                                                                              │
 │  ┌────────────────────────────────────────────────────────────────────────┐  │
 │  │                        📡 Sidebar Navigation                          │  │
-│  │   13 Views · Companion Apps Status · Live Canvas · WS Connection      │  │
+│  │   13 Views · Companion Apps Status · WS Connection                    │  │
 │  └────────────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────────────┘
                                      │
@@ -347,7 +346,6 @@ d:\web\clawtest\
 │   ├── TeamManager.tsx               # Historisch, in aktiver UI entfernt
 │   ├── SecurityView.tsx              # Security Panel (207 Zeilen)
 │   ├── VoiceOverlay.tsx              # Voice Mode (130 Zeilen)
-│   ├── LiveCanvas.tsx                # Kamera-Stream + Vision (120 Zeilen)
 │   ├── TaskManagerView.tsx           # Task Monitor (105 Zeilen)
 │   ├── ProfileView.tsx               # SaaS Identity (99 Zeilen)
 │   ├── WorkerFlow.tsx                # Worker Flow Visualisierung (97 Zeilen)
@@ -509,7 +507,7 @@ d:\web\clawtest\
 **`App.tsx`** (256 Zeilen) ist die zentrale Komponente und orchestriert:
 
 - **7 Custom Hooks**: `useConversationSync`, `useGatewayState`, `useTaskScheduler`, `useControlPlaneMetrics`, `useAgentRuntime`, `useChannelStateSync`, `useCallback`
-- **State Management**: `currentView`, `onboarded`, `isCanvasOpen`, `isServerResponding`, `teams`, `tasks`, `skills`, `coupledChannels`
+- **State Management**: `currentView`, `onboarded`, `isServerResponding`, `teams`, `tasks`, `skills`, `coupledChannels`
 - **Dynamic Imports**: Alle Views werden lazy-loaded via `next/dynamic`
 - **WebSocket-Integration**: Channel State Sync via WebSocket Gateway
 - **Conversation-Management**: Multi-Conversation-Support via `useConversationSync`
@@ -534,7 +532,7 @@ d:\web\clawtest\
 | `config`    | Gateway Config      | JSON-Konfiguration            |
 | `profile`   | SaaS Identity       | Profil & Billing              |
 
-Plus: **Companion Apps Status** (macOS Node, iOS Node), **ConnectionStatus**, **LIVE CANVAS** Button, Version `v1.2.4`.
+Plus: **Companion Apps Status** (macOS Node, iOS Node), **ConnectionStatus**, Version `v1.2.4`.
 
 ### 5.2 Komponenten-Detail
 

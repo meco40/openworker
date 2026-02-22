@@ -5,7 +5,6 @@ import ConnectionStatus from '@/components/ConnectionStatus';
 interface SidebarProps {
   activeView: View;
   onViewChange: (view: View) => void;
-  onToggleCanvas: () => void;
 }
 
 interface SidebarItem {
@@ -109,7 +108,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onToggleCanvas }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
   const handleViewChange = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       const nextView = event.currentTarget.dataset.view as View | undefined;
@@ -169,20 +168,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onToggleCan
       </div>
 
       <div className="space-y-2 border-t border-zinc-800 bg-[#0c0c0c] p-4">
-        <button
-          onClick={onToggleCanvas}
-          className="flex w-full items-center justify-center space-x-2 rounded bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-indigo-700"
-        >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-            />
-          </svg>
-          <span>LIVE CANVAS</span>
-        </button>
         <div className="flex items-center justify-between px-2 pt-2 font-mono text-[10px] text-zinc-600 uppercase">
           <span>Node: Localhost</span>
           <span className="text-emerald-500">v1.2.4</span>

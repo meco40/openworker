@@ -15,7 +15,7 @@
 | Multi-Channel Messaging (Telegram, WhatsApp, Discord, iMessage, WebChat) | ✅ SSE-basiert                      |
 | Autonomer Worker                                                         | ✅ Sequential Queue                 |
 | Voice Mode (Gemini Native Audio)                                         | ✅                                  |
-| Live Vision Canvas                                                       | ✅                                  |
+| Vision Skill (`vision_analyze`)                                          | ✅                                  |
 | Skills System (7 Built-In)                                               | ✅ Persistent in SQLite             |
 | Logs, Stats, Security Panel                                              | ✅                                  |
 | SQLite Persistenz                                                        | ✅ Messages, Credentials, Model Hub |

@@ -1,7 +1,10 @@
 // ─── Gateway Constants ───────────────────────────────────────
 
-/** Maximum WebSocket message payload size (512 KB) */
-export const MAX_PAYLOAD_BYTES = 524_288;
+/**
+ * Maximum WebSocket message payload size (16 MB).
+ * Must allow chat attachments transported as data URLs (base64 overhead).
+ */
+export const MAX_PAYLOAD_BYTES = 16 * 1024 * 1024;
 
 /** Maximum buffered bytes before closing slow consumers (1.5 MB) */
 export const MAX_BUFFERED_BYTES = 1_572_864;

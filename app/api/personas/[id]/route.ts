@@ -4,6 +4,7 @@ import { getMemoryService } from '@/server/memory/runtime';
 import { getModelHubService } from '@/server/model-hub/runtime';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
 import { MEMORY_PERSONA_TYPES, type MemoryPersonaType } from '@/server/personas/personaTypes';
+import { unpairPersonaTelegram } from '@/server/telegram/personaTelegramPairing';
 
 export const runtime = 'nodejs';
 
@@ -162,6 +163,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
     }
 
+    await unpairPersonaTelegram(id);
     await getMemoryService().deleteByPersona(id, userContext.userId);
     repo.deletePersona(id);
     return NextResponse.json({ ok: true });

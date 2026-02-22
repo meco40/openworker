@@ -33,9 +33,6 @@ import { usePersona } from '@/modules/personas/PersonaContext';
 import { getGatewayClient } from '@/modules/gateway/ws-client';
 
 const TerminalWizard = dynamic(() => import('@/components/TerminalWizard'));
-const LiveCanvas = dynamic(() => import('@/components/LiveCanvas').then((mod) => mod.LiveCanvas), {
-  ssr: false,
-});
 
 const isPersistentSessionV2Enabled =
   String(process.env.NEXT_PUBLIC_CHAT_PERSISTENT_SESSION_V2 || 'true').toLowerCase() === 'true';
@@ -55,7 +52,6 @@ const App: React.FC<AppProps> = ({ initialView }) => {
     () => buildInitialShellState(initialView).currentView,
   );
   const [onboarded, setOnboarded] = useState<boolean>(true);
-  const [isCanvasOpen, setIsCanvasOpen] = useState(false);
   const [isServerResponding, setIsServerResponding] = useState(false);
   const [chatStreamDebug, setChatStreamDebug] =
     useState<ChatStreamDebugState>(DEFAULT_CHAT_STREAM_DEBUG);
@@ -63,7 +59,7 @@ const App: React.FC<AppProps> = ({ initialView }) => {
   const shouldEnableChatData = currentView === View.CHAT;
   const shouldEnableAgentRuntime = currentView === View.CHAT || currentView === View.CHANNELS;
   const shouldEnablePersonaData = shouldEnableAgentRuntime || currentView === View.PERSONAS;
-  const shouldLoadSkills = shouldEnableAgentRuntime || currentView === View.SKILLS || isCanvasOpen;
+  const shouldLoadSkills = shouldEnableAgentRuntime || currentView === View.SKILLS;
   const { skills, setSkills } = useSkillsCatalog({ shouldLoadSkills });
 
   useEffect(() => {
@@ -237,11 +233,7 @@ const App: React.FC<AppProps> = ({ initialView }) => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0a0a0a] text-zinc-300">
-      <Sidebar
-        activeView={currentView}
-        onViewChange={setCurrentView}
-        onToggleCanvas={() => setIsCanvasOpen(!isCanvasOpen)}
-      />
+      <Sidebar activeView={currentView} onViewChange={setCurrentView} />
       <main className="relative flex flex-1 flex-col overflow-hidden">
         <AppShellHeader metricsState={controlPlaneMetricsState} />
         <AppShellViewContent
@@ -271,12 +263,6 @@ const App: React.FC<AppProps> = ({ initialView }) => {
           onRespondApproval={respondChatApproval}
         />
       </main>
-      {isCanvasOpen && (
-        <LiveCanvas
-          onClose={() => setIsCanvasOpen(false)}
-          isVisionEnabled={skills.find((skill) => skill.id === 'vision')?.installed}
-        />
-      )}
     </div>
   );
 };

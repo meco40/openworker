@@ -207,4 +207,73 @@ describe('persona memory cascade delete', () => {
     expect(afterDeletePayload.ok).toBe(true);
     expect(afterDeletePayload.nodes).toHaveLength(0);
   }, 15_000);
+
+  it('unpairs persona telegram bot when persona is deleted', async () => {
+    const personasDbPath = path.join(
+      process.cwd(),
+      '.local',
+      `personas.telegram-unpair.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
+    );
+    cleanupPaths.push(personasDbPath);
+    process.env.PERSONAS_DB_PATH = personasDbPath;
+    process.env.MEMORY_PROVIDER = 'mem0';
+    process.env.MEM0_BASE_URL = 'http://mem0.local';
+    process.env.MEM0_API_PATH = '/v1';
+    process.env.MEM0_API_KEY = 'mem0_test_key';
+
+    const unpairPersonaTelegram = vi.fn(async () => {});
+    vi.doMock('../../../src/server/telegram/personaTelegramPairing', () => ({
+      unpairPersonaTelegram,
+    }));
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+        const url = typeof input === 'string' ? input : input.toString();
+        const parsed = new URL(url);
+        const method = String(init?.method || 'GET').toUpperCase();
+
+        if (method === 'DELETE' && parsed.pathname.endsWith('/v1/memories')) {
+          return new Response(JSON.stringify({ deleted: 0 }), { status: 200 });
+        }
+
+        return new Response(JSON.stringify({ error: `Unhandled ${method} ${parsed.pathname}` }), {
+          status: 500,
+        });
+      }) as unknown as typeof fetch,
+    );
+
+    mockUserContext({ userId: 'user-a', authenticated: true });
+
+    (globalThis as { __modelHubService?: unknown }).__modelHubService = {
+      dispatchEmbedding: vi.fn(async () => ({ embedding: { values: [1, 0] } })),
+    };
+
+    const personasRoute = await loadPersonasRoute();
+    const createResponse = await personasRoute.POST(
+      new Request('http://localhost/api/personas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Telegram Persona' }),
+      }),
+    );
+    const createPayload = (await createResponse.json()) as {
+      ok: boolean;
+      persona: { id: string };
+    };
+
+    expect(createResponse.status).toBe(201);
+    expect(createPayload.ok).toBe(true);
+
+    const personaByIdRoute = await loadPersonaByIdRoute();
+    const deleteResponse = await personaByIdRoute.DELETE(
+      new Request(`http://localhost/api/personas/${createPayload.persona.id}`, {
+        method: 'DELETE',
+      }),
+      { params: Promise.resolve({ id: createPayload.persona.id }) },
+    );
+
+    expect(deleteResponse.status).toBe(200);
+    expect(unpairPersonaTelegram).toHaveBeenCalledWith(createPayload.persona.id);
+  });
 });

@@ -20,7 +20,6 @@ describe('Knowledge view integration', () => {
       createElement(Sidebar, {
         activeView: View.DASHBOARD,
         onViewChange: () => {},
-        onToggleCanvas: () => {},
       }),
     );
     const navLabels = Array.from(

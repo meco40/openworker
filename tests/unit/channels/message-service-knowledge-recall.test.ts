@@ -190,6 +190,23 @@ describe('MessageService knowledge recall integration', () => {
     ).toBe(true);
   });
 
+  it('skips knowledge/memory recall for regular non-retrospective chat', async () => {
+    const service = new MessageService(buildRepository('persona-1'));
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Ich koche heute Pasta und spaeter gehe ich spazieren.',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(knowledgeRetrieveMock).not.toHaveBeenCalled();
+    expect(ensureKnowledgeIngestedForConversationMock).not.toHaveBeenCalled();
+    expect(memoryRecallDetailedMock).not.toHaveBeenCalled();
+  });
+
   it('injects knowledge context for compact retrospective wording ("wie war gestern sauna?")', async () => {
     const service = new MessageService(buildRepository('persona-1'));
 

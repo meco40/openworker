@@ -62,6 +62,7 @@ export interface PromptDispatchFilter {
   risk?: PromptDispatchRiskLevel | 'flagged';
   limit?: number;
   before?: string;
+  beforeTurnSeq?: number;
   conversationId?: string;
 }
 
@@ -162,6 +163,10 @@ function buildWhere(filter: PromptDispatchFilter): {
   if (filter.before) {
     conditions.push('created_at < ?');
     params.push(filter.before);
+  }
+  if (filter.beforeTurnSeq != null && Number.isFinite(filter.beforeTurnSeq)) {
+    conditions.push('turn_seq < ?');
+    params.push(Math.floor(filter.beforeTurnSeq));
   }
   if (filter.provider) {
     conditions.push('provider_id = ?');
@@ -387,7 +392,10 @@ export class PromptDispatchRepository {
   listDispatches(filter: PromptDispatchFilter): PromptDispatchEntry[] {
     const { where, params } = buildWhere(filter);
     const limit = filter.limit ?? 100;
-    const sql = `SELECT * FROM prompt_dispatch_logs ${where} ORDER BY created_at DESC LIMIT ?`;
+    const orderBy = filter.conversationId
+      ? 'ORDER BY turn_seq DESC, created_at DESC'
+      : 'ORDER BY created_at DESC';
+    const sql = `SELECT * FROM prompt_dispatch_logs ${where} ${orderBy} LIMIT ?`;
     const rows = this.db.prepare(sql).all(...params, limit) as Array<Record<string, unknown>>;
     return rows.map(toEntry);
   }
