@@ -1,26 +1,26 @@
-# Persona and Rooms System
+# Persona System
 
 ## Metadata
 
-- Purpose: Verbindliche Referenz fuer Persona- und Room-Orchestrierung.
-- Scope: Room-Lifecycle, Member-Management, Orchestrator-Steuerung, Runtime-Rollen.
+- Purpose: Verbindliche Referenz fuer Persona-Verwaltung und persona-gebundene Channel-Integrationen.
+- Scope: Persona-Lifecycle, Datei-Kontext, Telegram-Bot-Bindings je Persona.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-21
+- Last Reviewed: 2026-02-22
 - Related Runbooks: docs/runbooks/gateway-config-production-rollout.md
 
 ---
 
-## 1. Funktionserläuterung
+## 1. Funktionserlaeuterung
 
-Das Persona-/Rooms-System orchestriert Multi-Persona-Konversationen in persistenten Rooms mit gesteuertem Turn-Zyklus.
+Das Persona-System verwaltet Identitaeten, Datei-Kontexte und persona-spezifische Channel-Bindings.
 
 ### Kernkonzepte
 
-- **Persona**: Konfigurierbare Identität inkl. dateibasiertem Kontext
-- **Room**: Laufender Multi-Persona-Container
-- **Member**: Persona-Zuordnung mit Status/Model-Overrides
-- **Orchestrator**: Turn-Ausführung, Lease/Keepalive, Dispatch
-- **Runtime Role**: Ausführungsmodus `web`, `scheduler`, `both`
+- **Persona**: Konfigurierbare Identitaet mit Prompting-/Kontextdaten
+- **Persona Files**: Dateien pro Persona fuer dauerhaftes Kontextwissen
+- **Persona Telegram Bot**: Optionaler Telegram-Bot pro Persona mit eigener Token-/Webhook-Konfiguration
+
+Hinweis: Das fruehere Rooms-Subsystem (`/api/rooms/*`, `src/server/rooms/*`) ist aus der aktiven Runtime entfernt.
 
 ---
 
@@ -29,43 +29,16 @@ Das Persona-/Rooms-System orchestriert Multi-Persona-Konversationen in persisten
 ### 2.1 Komponenten
 
 - `src/server/personas/personaRepository.ts`
-- `src/server/rooms/service.ts`
-- `src/server/rooms/orchestrator.ts`
-- `src/server/rooms/orchestratorInterval.ts`
-- `src/server/rooms/runtimeRole.ts`
-- `src/server/rooms/sqliteRoomRepository.ts`
-- `app/api/rooms/*`
+- `src/server/personas/`
+- `src/server/channels/outbound/telegram.ts`
+- `src/components/personas/PersonaEditorPane.tsx`
 - `app/api/personas/*`
-
-### 2.2 Lease- und Runtime-Modell
-
-Rooms verwenden Lease-Mechanik, um parallele Verarbeitung zu verhindern. Der aktive Runner wird über `ROOMS_RUNNER` gesteuert.
 
 ---
 
 ## 3. API-Referenz
 
-### 3.1 Rooms
-
-| Methode | Pfad                                  | Zweck                  |
-| ------- | ------------------------------------- | ---------------------- |
-| GET     | `/api/rooms`                          | Rooms listen           |
-| POST    | `/api/rooms`                          | Room erstellen         |
-| GET     | `/api/rooms/[id]`                     | Room laden             |
-| DELETE  | `/api/rooms/[id]`                     | Room löschen           |
-| POST    | `/api/rooms/[id]/start`               | Room starten           |
-| POST    | `/api/rooms/[id]/stop`                | Room stoppen           |
-| GET     | `/api/rooms/[id]/state`               | Room-State laden       |
-| GET     | `/api/rooms/[id]/messages`            | Room-Nachrichten laden |
-| POST    | `/api/rooms/[id]/messages`            | Room-Nachricht senden  |
-| GET     | `/api/rooms/[id]/interventions`       | Interventionen laden   |
-| POST    | `/api/rooms/[id]/interventions`       | Intervention erstellen |
-| POST    | `/api/rooms/[id]/members`             | Member hinzufügen      |
-| PATCH   | `/api/rooms/[id]/members/[personaId]` | Member aktualisieren   |
-| DELETE  | `/api/rooms/[id]/members/[personaId]` | Member entfernen       |
-| GET     | `/api/rooms/membership-counts`        | Membership-Kennzahlen  |
-
-### 3.2 Personas
+### 3.1 Personas
 
 | Methode | Pfad                                  | Zweck                           |
 | ------- | ------------------------------------- | ------------------------------- |
@@ -73,7 +46,7 @@ Rooms verwenden Lease-Mechanik, um parallele Verarbeitung zu verhindern. Der akt
 | POST    | `/api/personas`                       | Persona erstellen               |
 | GET     | `/api/personas/[id]`                  | Persona laden                   |
 | PUT     | `/api/personas/[id]`                  | Persona aktualisieren           |
-| DELETE  | `/api/personas/[id]`                  | Persona löschen                 |
+| DELETE  | `/api/personas/[id]`                  | Persona loeschen                |
 | GET     | `/api/personas/[id]/files/[filename]` | Persona-Datei lesen             |
 | PUT     | `/api/personas/[id]/files/[filename]` | Persona-Datei schreiben         |
 | GET     | `/api/personas/templates`             | Templates laden                 |
@@ -83,50 +56,31 @@ Rooms verwenden Lease-Mechanik, um parallele Verarbeitung zu verhindern. Der akt
 
 ---
 
-## 3a. Persona-gebundene Telegram Bots
+## 4. Persona-gebundene Telegram Bots
 
-Jede Persona kann optional einen eigenen Telegram-Bot-Token erhalten. Damit läuft jede Persona auf einem separaten Bot — Nachrichten mit Persona Girl gehen an Bot A, Nachrichten mit Persona Nexus an Bot B, jeweils in unabhängigen Telegram-Chats.
+Jede Persona kann optional einen eigenen Telegram-Bot-Token erhalten. Damit laeuft jede Persona auf einem separaten Bot.
 
 ### Einrichtung (UI)
 
-Im **Gateway-Tab** der Persona-Einstellungen (`PersonaEditorPane`) gibt es die Sektion **Telegram Bot**:
+Im Gateway-Tab der Persona-Einstellungen (`PersonaEditorPane`) gibt es die Sektion Telegram Bot:
 
-1. Token aus `@BotFather` eintragen und auf **Bot verbinden** klicken.
-2. Das System validiert den Token, wählt Webhook oder Polling und zeigt den Bot-Benutzernamen an.
-3. Trennen löscht den Webhook und stoppt den Poller.
-
-### Beteiligte Komponenten
-
-| Datei                                                   | Rolle                                              |
-| ------------------------------------------------------- | -------------------------------------------------- |
-| `src/server/telegram/personaTelegramBotRegistry.ts`     | SQLite-Registry (`persona_telegram_bots`)          |
-| `src/server/telegram/personaTelegramPairing.ts`         | Token validieren, Bot registrieren, Poller starten |
-| `src/server/telegram/personaTelegramPoller.ts`          | Polling je Bot, BotContext an Inbound übergeben    |
-| `src/components/personas/PersonaTelegramBotSection.tsx` | UI-Komponente im Gateway-Tab                       |
+1. Token aus `@BotFather` eintragen und auf Bot verbinden klicken.
+2. Das System validiert den Token, waehlt Webhook oder Polling und zeigt den Bot-Benutzernamen an.
+3. Trennen loescht den Webhook und stoppt den Poller.
 
 ### Verhalten bei eingehenden Nachrichten
 
-- Ein `TelegramBotContext` (`{ botId, personaId, token }`) wird an `processTelegramInboundUpdate` übergeben.
-- Die Konversation erhält automatisch die konfigurierte `personaId` — kein manuelles `/persona`-Kommando nötig.
-- Das globale Pairing-Gate (Autorisierungsprüfung) wird für Persona-Bot-Nachrichten übersprungen.
-
----
-
-## 4. Realtime-Events (Auswahl)
-
-- `room.message`
-- `room.member.status`
-- `room.run.status`
-- `room.intervention`
-- `room.metrics`
+- Ein `TelegramBotContext` (`{ botId, personaId, token }`) wird an die Inbound-Verarbeitung uebergeben.
+- Die Konversation erhaelt automatisch die konfigurierte `personaId`.
+- Globales Pairing-Gate wird fuer Persona-Bot-Nachrichten uebersprungen.
 
 ---
 
 ## 5. Verifikation
 
 ```bash
-npm run test -- tests/unit/rooms
-npm run test -- tests/integration/rooms
+npm run test -- tests/integration/personas
+npm run test -- tests/unit/channels/telegram-* tests/channels-pair-route.test.ts
 npm run typecheck
 npm run lint
 ```
@@ -135,6 +89,6 @@ npm run lint
 
 ## 6. Siehe auch
 
-- `docs/SESSION_MANAGEMENT.md`
-- `docs/MEMORY_SYSTEM.md`
 - `docs/API_REFERENCE.md`
+- `docs/OMNICHANNEL_GATEWAY_SYSTEM.md`
+- `docs/DEPLOYMENT_OPERATIONS.md`

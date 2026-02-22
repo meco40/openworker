@@ -1,6 +1,6 @@
 # Core Handbook
 
-**Status:** 2026-02-21  
+**Status:** 2026-02-22  
 **Version:** 1.0.0  
 **Purpose:** Authoritative technical reference for the OpenClaw Gateway Control Plane codebase
 
@@ -11,6 +11,14 @@
 This document serves as the **single source of truth** for the OpenClaw Gateway Control Plane architecture, development practices, and operational procedures. It provides comprehensive guidance for developers, operators, and maintainers working with the system.
 
 Historical analyses, deprecated designs, and completed implementation plans are archived in `docs/archive/`.
+
+## 2026-02-22 Errata (Current Runtime Delta)
+
+- The legacy Rooms domain is removed from active runtime (`/api/rooms/*`, `src/server/rooms/*` no longer exist).
+- New debug routes are active: `/api/debug/conversations`, `/api/debug/conversations/[id]/turns`, `/api/debug/conversations/[id]/replay`.
+- Automation flow authoring is active via `/api/automations/[id]/flow` (`GET`/`PUT`) with server-side validation/compile.
+- Proactive coupling was replaced by typed internal events (`chat.message.persisted`, `chat.summary.refreshed`) via `src/server/events/*` and `src/server/proactive/subscribers.ts`.
+- If any deeper section in this handbook still references active Rooms runtime behavior, treat that section as historical until full handbook refresh.
 
 ---
 

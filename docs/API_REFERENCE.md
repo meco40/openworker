@@ -23,11 +23,12 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | Domain        | Routes |
 | ------------- | -----: |
 | auth          |      1 |
-| automations   |      5 |
+| automations   |      6 |
 | channels      |     15 |
 | clawhub       |      7 |
 | config        |      1 |
 | control-plane |      1 |
+| debug         |      3 |
 | doctor        |      1 |
 | health        |      2 |
 | knowledge     |      1 |
@@ -54,9 +55,18 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | ------------------ | -------------------------- |
 | GET, POST          | /api/automations           |
 | DELETE, GET, PATCH | /api/automations/[id]      |
+| GET, PUT           | /api/automations/[id]/flow |
 | POST               | /api/automations/[id]/run  |
 | GET                | /api/automations/[id]/runs |
 | GET                | /api/automations/metrics   |
+
+### /api/debug
+
+| Methods | Route                                |
+| ------- | ------------------------------------ |
+| GET     | /api/debug/conversations             |
+| POST    | /api/debug/conversations/[id]/replay |
+| GET     | /api/debug/conversations/[id]/turns  |
 
 ### /api/channels
 
@@ -197,5 +207,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 - Security-Policy-Erklaerung ist aktiv unter `/api/security/policy-explain`.
 - Knowledge-Graph ist als eigene Read-Route aktiv unter `/api/knowledge/graph`.
 - Ops-Endpoints (`/api/ops/*`) sind der aktuelle operative Ersatz fuer fruehere Worker-Management-Routen.
+- `/api/automations/[id]/flow` verwaltet den visuellen `flowGraph` (GET/PUT) fuer Automation-Regeln.
+- Debug-Endpoints (`/api/debug/*`) liefern Conversation-Turn-Analysen und Replay fuer technische Diagnose.
 - `/api/personas/[id]/telegram` — Persona-gebundene Telegram-Bot-Verwaltung: `GET` liefert Bot-Status (kein Token), `POST` verbindet einen neuen Bot per Token, `DELETE` trennt den Bot.
 - `/api/channels/telegram/bots/[botId]/webhook` — Eingehende Updates für persona-gebundene Bots mit eigenem Webhook-Secret pro Bot.
