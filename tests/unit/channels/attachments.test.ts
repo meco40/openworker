@@ -7,17 +7,26 @@ import {
   extractStoredAttachmentsFromMetadata,
   persistIncomingAttachment,
   readStoredAttachmentBuffer,
+  resolveStoredAttachmentPath,
 } from '@/server/channels/messages/attachments';
 
 describe('message attachments storage', () => {
   const previousDir = process.env.CHAT_ATTACHMENTS_DIR;
   let tempDir: string | null = null;
+  const cleanupPaths: string[] = [];
 
   afterEach(() => {
     process.env.CHAT_ATTACHMENTS_DIR = previousDir;
     if (tempDir) {
       fs.rmSync(tempDir, { recursive: true, force: true });
       tempDir = null;
+    }
+    for (const filePath of cleanupPaths.splice(0, cleanupPaths.length)) {
+      try {
+        fs.rmSync(filePath, { recursive: true, force: true });
+      } catch {
+        // noop
+      }
     }
   });
 
@@ -71,5 +80,46 @@ describe('message attachments storage', () => {
         },
       }),
     ).toThrow(/not allowed/i);
+  });
+
+  it('stores persona-scoped attachments under .local/personas/<slug>/uploads', () => {
+    const dataUrl = 'data:text/plain;base64,aGVsbG8=';
+
+    const stored = persistIncomingAttachment({
+      userId: 'u1',
+      conversationId: 'c1',
+      personaSlug: 'nata_girl',
+      attachment: {
+        name: 'note.txt',
+        type: 'text/plain',
+        size: Buffer.from(dataUrl.split(',')[1], 'base64').length,
+        dataUrl,
+      },
+    });
+
+    expect(stored.storagePath.startsWith('personas/nata_girl/uploads/docs/')).toBe(true);
+    const absolutePath = resolveStoredAttachmentPath(stored.storagePath);
+    cleanupPaths.push(path.resolve('.local/personas/nata_girl'));
+    expect(fs.existsSync(absolutePath)).toBe(true);
+  });
+
+  it('routes persona image attachments into uploads/images', () => {
+    const dataUrl =
+      'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxAQEBAQEA8QEA8QEA8PDw8QDw8QEA8QFREWFhURFRUYHSggGBolGxUVITEhJSkrLi4uFx8zODMsNygtLisBCgoKDQ0NDg0NDisZFRkrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrK//AABEIAAEAAQMBIgACEQEDEQH/xAAXAAEBAQEAAAAAAAAAAAAAAAABAgAD/8QAFhEBAQEAAAAAAAAAAAAAAAAAABEh/9oADAMBAAIQAxAAAAHiiAH/xAAWEAEBAQAAAAAAAAAAAAAAAAAAARH/2gAIAQEAAT8Aqf/EABYRAQEBAAAAAAAAAAAAAAAAAAABEf/aAAgBAgEBPwCn/8QAFhEBAQEAAAAAAAAAAAAAAAAAABEh/9oACAEDAQE/AKf/2Q==';
+
+    const stored = persistIncomingAttachment({
+      userId: 'u1',
+      conversationId: 'c1',
+      personaSlug: 'nata_girl',
+      attachment: {
+        name: 'photo.jpg',
+        type: 'image/jpeg',
+        size: Buffer.from(dataUrl.split(',')[1], 'base64').length,
+        dataUrl,
+      },
+    });
+
+    expect(stored.storagePath.startsWith('personas/nata_girl/uploads/images/')).toBe(true);
+    cleanupPaths.push(path.resolve('.local/personas/nata_girl'));
   });
 });

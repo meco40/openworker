@@ -57,6 +57,7 @@ export const PERSONA_INSTRUCTION_FILES: PersonaFileName[] = ['SOUL.md', 'AGENTS.
 export interface PersonaProfile {
   id: string;
   name: string;
+  slug: string;
   emoji: string;
   vibe: string;
   preferredModelId: string | null;
@@ -74,6 +75,7 @@ export interface PersonaWithFiles extends PersonaProfile {
 export interface PersonaSummary {
   id: string;
   name: string;
+  slug: string;
   emoji: string;
   vibe: string;
   preferredModelId: string | null;

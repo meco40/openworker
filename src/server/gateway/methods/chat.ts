@@ -16,6 +16,19 @@ function normalizeStringParam(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
+function resolveConversationsListLimit(value: unknown): number {
+  const defaultLimit = 50;
+  const maxLimit = 200;
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return defaultLimit;
+  }
+  const normalized = Math.floor(value);
+  if (normalized < 1) {
+    return defaultLimit;
+  }
+  return Math.min(normalized, maxLimit);
+}
+
 async function resolveWebUiMessageInput(
   params: Record<string, unknown>,
   userId: string,
@@ -55,6 +68,13 @@ async function resolveWebUiMessageInput(
       service.setPersonaId(conversationId, personaId, userId);
     }
   }
+  const conversationAfterBind = service.getConversation(conversationId, userId);
+  const effectivePersonaId = personaId || conversationAfterBind?.personaId || null;
+  const personaSlug = effectivePersonaId
+    ? (await import('@/server/personas/personaRepository')).getPersonaRepository().getPersona(
+        effectivePersonaId,
+      )?.slug || null
+    : null;
 
   let attachments:
     | Array<
@@ -76,6 +96,7 @@ async function resolveWebUiMessageInput(
       persistIncomingAttachment({
         userId,
         conversationId,
+        personaSlug,
         attachment: {
           name: String(attachment?.name || 'attachment'),
           type: String(attachment?.type || ''),
@@ -171,7 +192,7 @@ registerMethod(
 
     const { getMessageRepository } = await import('@/server/channels/messages/runtime');
     const repo = getMessageRepository();
-    const messages = repo.listMessages(conversationId, limit, before);
+    const messages = repo.listMessages(conversationId, limit, before, client.userId);
     respond(messages);
   },
 );
@@ -181,10 +202,11 @@ registerMethod(
 
 registerMethod(
   'chat.conversations.list',
-  async (_params: Record<string, unknown>, client: GatewayClient, respond: RespondFn, _ctx) => {
+  async (params: Record<string, unknown>, client: GatewayClient, respond: RespondFn, _ctx) => {
     const { getMessageRepository } = await import('@/server/channels/messages/runtime');
     const repo = getMessageRepository();
-    const conversations = repo.listConversations(50, client.userId);
+    const limit = resolveConversationsListLimit(params.limit);
+    const conversations = repo.listConversations(limit, client.userId);
     respond(conversations);
   },
 );

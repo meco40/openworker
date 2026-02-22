@@ -88,6 +88,7 @@ export async function extractTelegramInboundMedia(params: {
   message: TelegramInboundMediaMessage;
   userId: string;
   conversationId: string;
+  personaSlug?: string | null;
   botToken: string | null;
 }): Promise<TelegramInboundMediaResult> {
   const candidate = resolveMediaCandidate(params.message);
@@ -115,6 +116,7 @@ export async function extractTelegramInboundMedia(params: {
     const stored = persistIncomingAttachment({
       userId: params.userId,
       conversationId: params.conversationId,
+      personaSlug: params.personaSlug || null,
       attachment: payload,
     });
 

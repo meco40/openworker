@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type {
   ChatApprovalDecision,
   ChatStreamDebugState,
@@ -34,6 +34,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
   const activeMeta = activeConversation ? getPlatformMeta(activeConversation.channelType) : null;
   const { activePersona, personas, activePersonaId, setActivePersonaId } = usePersona();
   const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const streamDebugLabel =
     chatStreamDebug.phase === 'running'
       ? chatStreamDebug.transport === 'live-delta'
@@ -52,6 +53,24 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
       : chatStreamDebug.phase === 'error'
         ? 'border-rose-500/30 bg-rose-600/15 text-rose-300'
         : 'border-amber-500/30 bg-amber-600/15 text-amber-300';
+
+  useEffect(() => {
+    if (!showPersonaDropdown) {
+      return;
+    }
+
+    const onDocumentMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!dropdownRef.current?.contains(target || null)) {
+        setShowPersonaDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', onDocumentMouseDown);
+    return () => {
+      document.removeEventListener('mousedown', onDocumentMouseDown);
+    };
+  }, [showPersonaDropdown]);
 
   return (
     <>
@@ -89,9 +108,10 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
           </div>
 
           {/* Persona Switcher */}
-          <div className="relative">
+          <div ref={dropdownRef} className="relative">
             <button
               onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
+              data-testid="persona-dropdown-toggle"
               className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
                 activePersona
                   ? 'border-indigo-500/30 bg-indigo-600/15 text-indigo-300 hover:bg-indigo-600/25'
@@ -112,7 +132,10 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
             </button>
 
             {showPersonaDropdown && (
-              <div className="absolute top-full right-0 z-50 mt-1 w-56 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
+              <div
+                data-testid="persona-dropdown-menu"
+                className="absolute top-full right-0 z-50 mt-1 w-56 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl"
+              >
                 <button
                   onClick={() => {
                     setActivePersonaId(null);
@@ -180,6 +203,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
             return (
               <div
                 key={message.id}
+                data-testid={message.role === 'agent' ? 'chat-message-agent' : undefined}
                 className={`flex flex-col ${
                   message.role === 'user' ? 'items-end' : 'items-start'
                 } animate-in fade-in slide-in-from-bottom-2 duration-300`}

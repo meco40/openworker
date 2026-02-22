@@ -1,0 +1,27 @@
+services:
+  e2e-smoke:
+    image: node:22
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - e2e_smoke_node_modules:/workspace/node_modules
+      - e2e_smoke_next:/workspace/.next
+    command: ['sh', '-lc', 'npm ci && npm run build && npm run test:e2e:smoke']
+
+  e2e-browser:
+    image: mcr.microsoft.com/playwright:v1.58.2-noble
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - e2e_browser_node_modules:/workspace/node_modules
+      - e2e_browser_next:/workspace/.next
+    environment:
+      CI: '1'
+      PLAYWRIGHT_PORT: '3000'
+    command: ['sh', '-lc', 'npm ci && npm run build && npm run test:e2e:browser']
+
+volumes:
+  e2e_smoke_node_modules:
+  e2e_smoke_next:
+  e2e_browser_node_modules:
+  e2e_browser_next:

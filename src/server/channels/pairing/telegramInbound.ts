@@ -156,6 +156,12 @@ export async function processTelegramInboundMessage(
   if (botContext?.personaId && !conversation.personaId) {
     service.setPersonaId(conversation.id, botContext.personaId, conversation.userId);
   }
+  const effectivePersonaId = botContext?.personaId || conversation.personaId || null;
+  const personaSlug = effectivePersonaId
+    ? (await import('@/server/personas/personaRepository'))
+        .getPersonaRepository()
+        .getPersona(effectivePersonaId)?.slug || null
+    : null;
 
   // Use persona bot token for media extraction, fall back to global credential
   const resolvedToken =
@@ -169,6 +175,7 @@ export async function processTelegramInboundMessage(
     message,
     userId: conversation.userId,
     conversationId: conversation.id,
+    personaSlug,
     botToken: resolvedToken,
   });
   const content = resolveTelegramInboundText(message, media.summaryText);

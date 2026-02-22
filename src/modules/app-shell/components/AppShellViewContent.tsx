@@ -104,9 +104,16 @@ interface AppShellViewContentProps {
   messages: Message[];
   conversations: Conversation[];
   activeConversationId: string | null;
+  activePersonaId?: string | null;
   isAgentTyping: boolean;
   chatStreamDebug: ChatStreamDebugState;
-  onSendMessage: (content: string, platform: ChannelType, attachment?: MessageAttachment) => void;
+  onSendMessage: (
+    content: string,
+    platform: ChannelType,
+    attachment?: MessageAttachment,
+    conversationId?: string,
+    personaId?: string,
+  ) => void | Promise<void>;
   onRespondApproval: (
     message: Message,
     approvalRequest: MessageApprovalRequest,
@@ -130,6 +137,7 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
   messages,
   conversations,
   activeConversationId,
+  activePersonaId,
   isAgentTyping,
   chatStreamDebug,
   onSendMessage,
@@ -166,6 +174,7 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
             chatStreamDebug={chatStreamDebug}
             conversations={conversations}
             activeConversationId={activeConversationId}
+            activePersonaId={activePersonaId}
             onSelectConversation={onSelectConversation}
             onNewConversation={onNewConversation}
             onDeleteConversation={onDeleteConversation}

@@ -1,17 +1,21 @@
 import React from 'react';
 import type { Conversation, MessageAttachment } from '@/shared/domain/types';
+import type { QueuedChatMessage } from '@/modules/chat/types';
 import { ALLOWED_ATTACHMENT_TYPES, formatFileSize } from '@/modules/chat/uiUtils';
 
 interface ChatInputAreaProps {
   activeConversation: Conversation | undefined;
   input: string;
   pendingFile: MessageAttachment | null;
+  validationError?: string | null;
+  queuedMessages?: QueuedChatMessage[];
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   textInputRef?: React.RefObject<HTMLInputElement | null>;
   isGenerating?: boolean;
   onInputChange: (value: string) => void;
   onSend: () => void;
   onAbort?: () => void;
+  onRemoveQueuedMessage?: (queueId: string) => void;
   onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onRemovePendingFile: () => void;
 }
@@ -20,16 +24,20 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
   activeConversation,
   input,
   pendingFile,
+  validationError = null,
+  queuedMessages = [],
   fileInputRef,
   textInputRef,
   isGenerating = false,
   onInputChange,
   onSend,
   onAbort,
+  onRemoveQueuedMessage,
   onFileSelect,
   onRemovePendingFile,
 }) => {
   const canSend = Boolean((input.trim() || pendingFile) && activeConversation);
+  const hasQueued = queuedMessages.length > 0;
 
   return (
     <div className="z-20 border-t border-zinc-800 bg-zinc-950/80 p-6 backdrop-blur-2xl">
@@ -66,6 +74,43 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
           </button>
         </div>
       )}
+      {hasQueued && (
+        <div data-testid="chat-queue-list" className="mb-3 space-y-2">
+          <div className="text-[11px] font-semibold text-amber-300">
+            Warteschlange: {queuedMessages.length}
+          </div>
+          <div className="max-h-24 space-y-1 overflow-auto pr-1">
+            {queuedMessages.map((queued) => (
+              <div
+                key={queued.id}
+                data-testid="chat-queue-item"
+                className="flex items-center gap-2 rounded-lg border border-zinc-700/60 bg-zinc-900/70 px-2 py-1.5"
+              >
+                <div className="min-w-0 flex-1 text-[11px] text-zinc-300">
+                  <span className="truncate">
+                    {queued.content.trim() || queued.attachmentName || '[Anhang]'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => onRemoveQueuedMessage?.(queued.id)}
+                  className="rounded border border-red-900/60 px-2 py-0.5 text-[10px] text-red-300 hover:bg-red-950/40"
+                  title="Aus Warteschlange entfernen"
+                >
+                  Entfernen
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {validationError && (
+        <div
+          role="alert"
+          className="mb-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200"
+        >
+          {validationError}
+        </div>
+      )}
 
       <div className="group relative">
         <div className="relative flex items-center space-x-2 rounded-xl border border-zinc-800 bg-zinc-900 p-2 pl-3 transition-all focus-within:border-zinc-700">
@@ -98,10 +143,11 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 
           <input
             ref={textInputRef}
+            data-testid="chat-input"
             type="text"
             value={input}
             onChange={(event) => onInputChange(event.target.value)}
-            onKeyDown={(event) => event.key === 'Enter' && !isGenerating && onSend()}
+            onKeyDown={(event) => event.key === 'Enter' && onSend()}
             placeholder={
               isGenerating
                 ? 'KI generiert Antwort...'
@@ -109,10 +155,10 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                   ? `Nachricht an ${activeConversation.channelType}...`
                   : 'Conversation auswählen...'
             }
-            disabled={!activeConversation || isGenerating}
+            disabled={!activeConversation}
             className="flex-1 bg-transparent py-2 text-sm font-medium text-white placeholder-zinc-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
-          {isGenerating ? (
+          {isGenerating && (
             <button
               onClick={onAbort}
               className="shrink-0 animate-pulse rounded-lg bg-red-600 p-2.5 text-white shadow-lg transition-all hover:bg-red-500 active:scale-95"
@@ -130,26 +176,26 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                 />
               </svg>
             </button>
-          ) : (
-            <button
-              onClick={onSend}
-              disabled={!canSend}
-              className={`shrink-0 rounded-lg p-2.5 transition-all ${
-                canSend
-                  ? 'bg-violet-600 text-white shadow-lg active:scale-95'
-                  : 'cursor-not-allowed bg-zinc-800 text-zinc-600'
-              }`}
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                />
-              </svg>
-            </button>
           )}
+          <button
+            onClick={onSend}
+            data-testid="chat-send-button"
+            disabled={!canSend}
+            className={`shrink-0 rounded-lg p-2.5 transition-all ${
+              canSend
+                ? 'bg-violet-600 text-white shadow-lg active:scale-95'
+                : 'cursor-not-allowed bg-zinc-800 text-zinc-600'
+            }`}
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+              />
+            </svg>
+          </button>
         </div>
       </div>
     </div>

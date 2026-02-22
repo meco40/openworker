@@ -80,6 +80,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       memoryPersonaType?: MemoryPersonaType;
     } = {};
     if (body.name !== undefined) updates.name = body.name.trim();
+    if (updates.name !== undefined && updates.name.length === 0) {
+      return NextResponse.json({ ok: false, error: 'name must not be empty' }, { status: 400 });
+    }
     if (body.emoji !== undefined) updates.emoji = body.emoji.trim();
     if (body.vibe !== undefined) updates.vibe = body.vibe.trim();
     if (body.preferredModelId !== undefined) {
@@ -142,6 +145,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ ok: true, persona: updated });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    if (/slug already exists/i.test(message)) {
+      return NextResponse.json({ ok: false, error: message }, { status: 409 });
+    }
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

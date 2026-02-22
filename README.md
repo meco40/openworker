@@ -130,11 +130,34 @@ npm run typecheck
 # Tests (alle)
 npm run test
 
+# E2E Smoke (deterministisch, Vitest)
+npm run test:e2e:smoke
+
+# E2E Browser-Journeys (Playwright)
+npm run test:e2e:browser
+
+# E2E Live (Mem0, opt-in via MEM0_E2E=1)
+npm run test:e2e:live
+
 # Vollständiger Check
 npm run check
 
 # Build (Produktion)
 npm run build
+```
+
+### E2E im Container
+
+```bash
+# Smoke-Lane im Container
+sh scripts/e2e/run-smoke-in-container.sh
+
+# Browser-Lane im Container
+sh scripts/e2e/run-browser-in-container.sh
+
+# Windows PowerShell
+pwsh -File scripts/e2e/run-smoke-in-container.ps1
+pwsh -File scripts/e2e/run-browser-in-container.ps1
 ```
 
 ---

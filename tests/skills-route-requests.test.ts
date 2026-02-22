@@ -117,4 +117,24 @@ describe('skills execute route requests', () => {
     expect(json.ok).toBe(false);
     expect(String(json.error)).toContain('vision_analyze requires imageBase64 or imageUrl');
   });
+
+  it('handles multi_tool_use.parallel request', async () => {
+    const response = await executeSkillPost(
+      makeRequest({
+        name: 'multi_tool_use.parallel',
+        args: {
+          tool_uses: [
+            { recipient_name: 'functions.shell_execute', parameters: { command: 'echo route-par' } },
+            { name: 'file_read', args: { path: 'README.md' } },
+          ],
+        },
+      }),
+    );
+    const json = await response.json();
+    expect(response.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(json.result.status).toBe('ok');
+    expect(json.result.successCount).toBe(2);
+    expect(json.result.failureCount).toBe(0);
+  });
 });

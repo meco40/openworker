@@ -11,6 +11,7 @@ import type { Skill } from '@/shared/domain/types';
 import browser from '@/skills/browser';
 import filesystem from '@/skills/filesystem';
 import github from '@/skills/github-manager';
+import multiToolUseParallel from '@/skills/multi-tool-use-parallel';
 import python from '@/skills/python-runtime';
 import shell from '@/skills/shell-access';
 import sql from '@/skills/sql-bridge';
@@ -34,6 +35,7 @@ for (const mod of [
   browser,
   filesystem,
   github,
+  multiToolUseParallel,
   python,
   shell,
   sql,

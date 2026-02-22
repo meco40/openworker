@@ -61,16 +61,17 @@ Update attachment persistence routing so chat uploads for a persona are stored u
 - image attachments -> `uploads/images/`
 - document and text attachments -> `uploads/docs/`
 
-Non-persona chat handling must be explicitly defined by implementation policy:
+Non-persona chat handling is defined as fallback routing to legacy storage:
 
-- either reject upload without persona context, or
-- route to a dedicated fallback bucket (for example `.local/personas/_unassigned`).
+- keep compatibility bucket at `.local/uploads/chat/...` for non-persona flows
+- route persona-scoped uploads to `.local/personas/<slug>/uploads/...`
 
 ## Migration Plan
 
 ### Trigger
 
 Run once at startup via bootstrap hook.
+Use a marker file `.local/personas/.migration-v1.done` to guarantee idempotency.
 
 ### Source and Target
 
@@ -89,7 +90,7 @@ Run once at startup via bootstrap hook.
 ### Migration Properties
 
 - idempotent (safe to re-run)
-- batched processing to avoid startup spikes
+- bounded sequential processing with skip-and-log behavior; no full in-memory preload
 - robust skip-and-log behavior for missing or orphaned files
 
 ## Error Handling and Safety
@@ -129,6 +130,13 @@ Run once at startup via bootstrap hook.
 3. Deploy and run one-time auto-migration in production.
 4. Keep legacy path readable during transition window.
 5. Mark `.local/uploads/chat` as deprecated after verification.
+
+## Production Readiness Additions
+
+- enforce global unique slug at DB level (unique index) plus API-level 409 conflicts
+- reject empty rename targets for persona names
+- preserve backward compatibility for existing metadata and non-persona channels
+- keep migration fail-safe: runtime logs warning and continues serving traffic
 
 ## Out of Scope
 

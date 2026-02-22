@@ -73,7 +73,10 @@ export class MessageService {
     this.historyManager = new HistoryManager(repo);
     this.contextBuilder = new ContextBuilder(repo);
     this.subagentManager = new SubagentManager(() => this.getSubagentMaxActivePerConversation());
-    this.toolManager = new ToolManager(() => this.requiresInteractiveToolApproval());
+    this.toolManager = new ToolManager(
+      () => this.requiresInteractiveToolApproval(),
+      this.invokeSubagentToolCall.bind(this),
+    );
     this.recallService = new RecallService();
     this.summaryService = new SummaryService(repo);
     this.summaryRefreshInFlight = (

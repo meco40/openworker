@@ -10,6 +10,7 @@ import type { SkillManifest } from '@/shared/toolSchema';
 import browser from '@/skills/browser';
 import filesystem from '@/skills/filesystem';
 import github from '@/skills/github-manager';
+import multiToolUseParallel from '@/skills/multi-tool-use-parallel';
 import python from '@/skills/python-runtime';
 import search from '@/skills/search';
 import shell from '@/skills/shell-access';
@@ -31,6 +32,7 @@ export const BUILT_IN_SKILLS: BuiltInSkillSeed[] = [
   { manifest: python, installedByDefault: true },
   { manifest: shell, installedByDefault: true },
   { manifest: subagents, installedByDefault: true },
+  { manifest: multiToolUseParallel, installedByDefault: true },
   { manifest: github, installedByDefault: false },
 
   // Data & Media

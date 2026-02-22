@@ -38,6 +38,9 @@ export async function GET() {
     return NextResponse.json({ ok: true, personas });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    if (/slug already exists/i.test(message)) {
+      return NextResponse.json({ ok: false, error: message }, { status: 409 });
+    }
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
