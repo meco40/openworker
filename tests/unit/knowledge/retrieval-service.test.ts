@@ -462,6 +462,99 @@ describe('KnowledgeRetrievalService', () => {
     expect(result.sections.keyDecisions).toContain('Niemals zu spät kommen');
   });
 
+  it('falls back to unfiltered topic query when strict topic filter returns no rows', async () => {
+    const ledgerWithTopic = vi.fn((filter?: { topicKey?: string }) => {
+      if (filter?.topicKey) return [];
+      return [
+        {
+          id: 'led-fallback',
+          userId: 'user-1',
+          personaId: 'persona-1',
+          conversationId: 'conv-1',
+          topicKey: 'general-meeting',
+          counterpart: null,
+          eventAt: '2025-08-11T09:00:00.000Z',
+          participants: [],
+          decisions: ['Sauna-Regel aus allgemeinem Meeting-Kontext'],
+          negotiatedTerms: [],
+          openPoints: [],
+          actionItems: [],
+          sourceRefs: [{ seq: 2, quote: 'Sauna-Regel' }],
+          confidence: 0.8,
+          updatedAt: '2025-08-11T10:00:00.000Z',
+        },
+      ];
+    });
+    const episodesWithTopic = vi.fn((filter?: { topicKey?: string }) => {
+      if (filter?.topicKey) return [];
+      return [
+        {
+          id: 'ep-fallback',
+          userId: 'user-1',
+          personaId: 'persona-1',
+          conversationId: 'conv-1',
+          topicKey: 'general-meeting',
+          counterpart: null,
+          teaser: 'Sauna aus allgemeinem Meeting erwaehnt',
+          episode: 'Wir sprachen ueber Regeln und Sauna im allgemeinen Meeting.',
+          facts: ['Sauna-Regel aus Meeting'],
+          sourceSeqStart: 1,
+          sourceSeqEnd: 4,
+          sourceRefs: [{ seq: 2, quote: 'Sauna-Regel' }],
+          eventAt: '2025-08-11T09:00:00.000Z',
+          updatedAt: '2025-08-11T10:00:00.000Z',
+        },
+      ];
+    });
+
+    const service = new KnowledgeRetrievalService({
+      maxContextTokens: 1200,
+      knowledgeRepository: {
+        listMeetingLedger: ledgerWithTopic,
+        listEpisodes: episodesWithTopic,
+        insertRetrievalAudit: vi.fn(() => ({
+          id: 'audit-fallback',
+          userId: 'user-1',
+          personaId: 'persona-1',
+          conversationId: 'conv-1',
+          query: 'heute mittag sauna',
+          stageStats: {},
+          tokenCount: 0,
+          hadError: false,
+          errorMessage: null,
+          createdAt: new Date().toISOString(),
+        })),
+      },
+      memoryService: {
+        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+      },
+      messageRepository: {
+        listMessages: vi.fn(() => []),
+      },
+    });
+
+    const result = await service.retrieve({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-1',
+      query: 'heute mittag sauna',
+    });
+
+    expect(result.sections.keyDecisions).toContain('Sauna-Regel aus allgemeinem Meeting-Kontext');
+    expect(ledgerWithTopic).toHaveBeenCalledTimes(2);
+    expect(episodesWithTopic).toHaveBeenCalledTimes(2);
+    expect(
+      ledgerWithTopic.mock.calls.some(
+        (call) => ((call?.[0] as { topicKey?: string } | undefined)?.topicKey ?? null) === null,
+      ),
+    ).toBe(true);
+    expect(
+      episodesWithTopic.mock.calls.some(
+        (call) => ((call?.[0] as { topicKey?: string } | undefined)?.topicKey ?? null) === null,
+      ),
+    ).toBe(true);
+  });
+
   it('ranks fresher episodes higher when token overlap is equal', async () => {
     const now = new Date();
     const recentDate = new Date(now.getTime() - 2 * 86400000).toISOString(); // 2 days ago

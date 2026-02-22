@@ -111,14 +111,46 @@ function parseTopic(query: string): string | null {
   const lowered = query.toLowerCase();
   if (lowered.includes('ausgehandelt')) return 'ausgehandelt';
 
-  const candidates = ['sauna', 'meeting', 'vertrag', 'rabatt', 'sla', 'preis'];
-  for (const candidate of candidates) {
-    if (lowered.includes(candidate)) return candidate;
+  // Explicit topic cues are preferred and always accepted.
+  const explicitTopicCues = [
+    'zum thema',
+    'bezug auf',
+    'bezug',
+    'bezueglich',
+    'bezüglich',
+    'hinsichtlich',
+    'ueber',
+    'über',
+    'about',
+    'thema',
+  ];
+  for (const cue of explicitTopicCues) {
+    const marker = `${cue} `;
+    const at = lowered.indexOf(marker);
+    if (at < 0) continue;
+    let remainder = lowered.slice(at + marker.length).trimStart();
+    remainder = remainder.replace(/^(das|die|den|dem)\s+/, '');
+    const tokenMatch = /^([a-z0-9][a-z0-9-]*)/i.exec(remainder);
+    if (tokenMatch?.[1]) return tokenMatch[1].toLowerCase();
   }
 
-  // Generic topic extraction: "ueber <word>" / "about <word>"
-  const ueberMatch = /\bueber\s+(?:(?:das|die|den|dem)\s)?(\w[\w-]*)/i.exec(query);
-  if (ueberMatch?.[1]) return ueberMatch[1].toLowerCase();
+  const candidates = ['sauna', 'meeting', 'vertrag', 'rabatt', 'sla', 'preis'];
+  const normalizedTokens = lowered
+    .replace(/[?!.,;:]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+  const hasTopicCue = /\b(detail|details|regel|regeln|status|stand)\b/i.test(lowered);
+  const tailToken = normalizedTokens[normalizedTokens.length - 1] || '';
+  const normalizedForContains = ` ${normalizedTokens.join(' ')} `;
+
+  for (const candidate of candidates) {
+    if (!normalizedForContains.includes(` ${candidate} `)) continue;
+
+    // Keep telegraphic prompts ("heute mittag sauna") searchable by topic, but
+    // avoid forcing topic filters for longer narrative/location questions.
+    const isTelegraphicTail = normalizedTokens.length <= 4 && tailToken === candidate;
+    if (hasTopicCue || isTelegraphicTail) return candidate;
+  }
 
   return null;
 }

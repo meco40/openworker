@@ -1,13 +1,12 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import crypto from 'node:crypto';
-import BetterSqlite3 from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
 import type { ProactiveRepository } from '@/server/proactive/repository';
 import type {
   ProactiveDecision,
   ProactiveSignalInput,
   ProactiveSummaryRow,
 } from '@/server/proactive/types';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 
 interface ProactiveDecisionRow {
   id: string;
@@ -39,13 +38,7 @@ export class SqliteProactiveRepository implements ProactiveRepository {
   constructor(
     dbPath = process.env.PROACTIVE_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db',
   ) {
-    if (dbPath === ':memory:') {
-      this.db = new BetterSqlite3(':memory:');
-    } else {
-      const fullPath = path.resolve(dbPath);
-      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new BetterSqlite3(fullPath);
-    }
+    this.db = openSqliteDatabase({ dbPath });
     this.migrate();
   }
 

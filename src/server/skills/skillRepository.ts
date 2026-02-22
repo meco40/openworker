@@ -5,12 +5,11 @@
  * so that activation state survives page reloads and server restarts.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
 import crypto from 'node:crypto';
-import BetterSqlite3 from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
 import type { SkillToolDefinition } from '@/shared/toolSchema';
 import type { BuiltInSkillSeed } from '@/server/skills/builtInSkills';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 
 // ── Row types ────────────────────────────────────────────────────
 
@@ -67,9 +66,7 @@ export class SkillRepository {
   private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.SKILLS_DB_PATH || '.local/skills.db') {
-    const fullPath = path.resolve(dbPath);
-    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    this.db = new BetterSqlite3(fullPath);
+    this.db = openSqliteDatabase({ dbPath });
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS skills (

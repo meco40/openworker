@@ -1,7 +1,5 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import crypto from 'node:crypto';
-import BetterSqlite3 from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
 import type {
   CreatePipelineModelInput,
   CreateProviderAccountInput,
@@ -12,6 +10,7 @@ import type {
   ProviderAccountView,
 } from '@/server/model-hub/repository';
 import type { EncryptedSecretPayload } from '@/server/model-hub/crypto';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 
 interface ProviderAccountRow {
   id: string;
@@ -80,9 +79,7 @@ export class SqliteModelHubRepository implements ModelHubRepository {
   private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.MODEL_HUB_DB_PATH || '.local/model-hub.db') {
-    const fullPath = path.resolve(dbPath);
-    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    this.db = new BetterSqlite3(fullPath);
+    this.db = openSqliteDatabase({ dbPath });
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS model_hub_accounts (
         id TEXT PRIMARY KEY,

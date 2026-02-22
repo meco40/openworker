@@ -7,8 +7,6 @@ import {
   assertMemoryRuntimeConfiguration,
   assertMemoryRuntimeReady,
 } from './src/server/memory/runtime';
-import { getRoomOrchestrator } from './src/server/rooms/runtime';
-import { shouldRunRooms } from './src/server/rooms/runtimeRole';
 import {
   startKnowledgeRuntimeLoop,
   stopKnowledgeRuntimeLoop,
@@ -27,7 +25,6 @@ const heartbeatFile =
 const heartbeatIntervalMs = Number(process.env.AUTOMATION_HEARTBEAT_INTERVAL_MS || 10_000);
 
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-let roomTimer: ReturnType<typeof setInterval> | null = null;
 
 function writeHeartbeat(): void {
   try {
@@ -51,36 +48,9 @@ function stopHeartbeat(): void {
   }
 }
 
-const roomIntervalMs = Number(process.env.ROOM_ORCHESTRATOR_INTERVAL_MS || 30_000);
-
-async function runRoomCycle(): Promise<void> {
-  try {
-    const orchestrator = getRoomOrchestrator({ instanceId });
-    await orchestrator.runOnce();
-  } catch (error) {
-    console.warn('[rooms-scheduler] room cycle failed:', error);
-  }
-}
-
-function startRoomScheduler(): void {
-  void runRoomCycle();
-  roomTimer = setInterval(() => {
-    void runRoomCycle();
-  }, roomIntervalMs);
-  roomTimer.unref();
-}
-
-function stopRoomScheduler(): void {
-  if (roomTimer) {
-    clearInterval(roomTimer);
-    roomTimer = null;
-  }
-}
-
 function shutdown(): void {
   console.log('[automation-scheduler] shutting down...');
   stopHeartbeat();
-  stopRoomScheduler();
   stopKnowledgeRuntimeLoop();
   stopAutomationRuntime();
   process.exit(0);
@@ -94,11 +64,6 @@ async function bootstrap(): Promise<void> {
 
   startAutomationRuntime(instanceId);
   startHeartbeat();
-  if (shouldRunRooms('scheduler')) {
-    startRoomScheduler();
-  } else {
-    console.log('[rooms-scheduler] room cycle disabled in scheduler process by ROOMS_RUNNER');
-  }
   startKnowledgeRuntimeLoop();
 
   process.on('SIGTERM', shutdown);

@@ -1,6 +1,5 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import BetterSqlite3 from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 
 // ─── Channel Credential Store ────────────────────────────────
 // Persists bot tokens and secrets in SQLite instead of process.env.
@@ -16,13 +15,7 @@ export class CredentialStore {
   private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.MESSAGES_DB_PATH || '.local/messages.db') {
-    if (dbPath === ':memory:') {
-      this.db = new BetterSqlite3(':memory:');
-    } else {
-      const fullPath = path.resolve(dbPath);
-      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new BetterSqlite3(fullPath);
-    }
+    this.db = openSqliteDatabase({ dbPath });
     this.migrate();
   }
 

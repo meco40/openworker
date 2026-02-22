@@ -1,7 +1,6 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import BetterSqlite3 from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
 import { maskSecret } from '@/server/model-hub/crypto';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 
 type ConfigValueKind = 'secret' | 'text';
 type ConfigSource = 'store' | 'env' | null;
@@ -96,13 +95,7 @@ export class SkillRuntimeConfigStore {
   private readonly db: BetterSqlite3.Database;
 
   constructor(dbPath = process.env.SKILLS_DB_PATH || '.local/skills.db') {
-    if (dbPath === ':memory:') {
-      this.db = new BetterSqlite3(':memory:');
-    } else {
-      const fullPath = path.resolve(dbPath);
-      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new BetterSqlite3(fullPath);
-    }
+    this.db = openSqliteDatabase({ dbPath });
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS skill_runtime_config (

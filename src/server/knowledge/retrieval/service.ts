@@ -10,7 +10,11 @@ import type {
   KnowledgeRetrievalServiceOptions,
 } from './types';
 import { uniqueStrings } from './utils/arrayUtils';
-import { normalizeLookupText, detectMentionedCounterpart, isRulesIntentQuery } from './query/intentDetector';
+import {
+  normalizeLookupText,
+  detectMentionedCounterpart,
+  isRulesIntentQuery,
+} from './query/intentDetector';
 import { isRuleLikeStatement } from './query/rulesExtractor';
 import { rankEpisodesByQuery } from './ranking/episodeRanker';
 import { rankLedgerByQuery } from './ranking/ledgerRanker';
@@ -114,7 +118,9 @@ export class KnowledgeRetrievalService {
     const { relations } = this.options.knowledgeRepository.getEntityWithRelations(
       topicMatch.entity.id,
     );
-    const relatedEntities = this.options.knowledgeRepository.getRelatedEntities(topicMatch.entity.id);
+    const relatedEntities = this.options.knowledgeRepository.getRelatedEntities(
+      topicMatch.entity.id,
+    );
     return formatProjectGraph(topicMatch.entity.canonicalName, relations, relatedEntities);
   }
 
@@ -146,6 +152,7 @@ export class KnowledgeRetrievalService {
     const plan = planKnowledgeQuery(input.query);
     const rulesIntent = isRulesIntentQuery(input.query);
     const topicFilter = plan.topic && plan.topic !== 'ausgehandelt' ? plan.topic : undefined;
+    const strictTopicFilterRequested = Boolean(topicFilter);
 
     // ── Entity resolution: resolve counterpart/topic via graph ──
     const graphFilter = { userId: input.userId, personaId: input.personaId };
@@ -197,6 +204,17 @@ export class KnowledgeRetrievalService {
     try {
       let ledgerRows = this.options.knowledgeRepository.listMeetingLedger(filter);
       let episodes = this.options.knowledgeRepository.listEpisodes(filter);
+      let usedTopicFallback = false;
+
+      if (strictTopicFilterRequested && ledgerRows.length === 0 && episodes.length === 0) {
+        const relaxedFilter = {
+          ...filter,
+          topicKey: undefined,
+        };
+        ledgerRows = this.options.knowledgeRepository.listMeetingLedger(relaxedFilter);
+        episodes = this.options.knowledgeRepository.listEpisodes(relaxedFilter);
+        usedTopicFallback = true;
+      }
 
       const storedPersonaType = this.options.getPersonaMemoryType?.(input.personaId) ?? null;
       const effectivePersonaType: PersonaType = storedPersonaType || 'general';
@@ -239,6 +257,7 @@ export class KnowledgeRetrievalService {
 
       stageStats.ledger = ledgerRows.length;
       stageStats.episodes = episodes.length;
+      stageStats.topicFallback = usedTopicFallback ? 1 : 0;
 
       const semantic = this.options.memoryService
         ? await this.options.memoryService.recallDetailed(
@@ -310,21 +329,19 @@ export class KnowledgeRetrievalService {
 
       const rawSections: KnowledgeRetrievalSections = {
         answerDraft: answerDraftParts.join('\n').trim(),
-        keyDecisions: keyDecisions.join('\n').trim() || 'Keine belastbaren Entscheidungen gefunden.',
+        keyDecisions:
+          keyDecisions.join('\n').trim() || 'Keine belastbaren Entscheidungen gefunden.',
         openPoints: openPoints.join('\n').trim() || 'Keine offenen Punkte erkannt.',
         evidence: evidenceText || 'Keine direkten Evidenzstellen gefunden.',
       };
 
-      const { context, budgetedSections, tokenCount } = calculateAndApplyBudget(
-        rawSections,
-        {
-          query: input.query,
-          counterpartAliasesLength: plan.counterpartAliases?.length ?? 0,
-          stageStats,
-          computedAnswerText,
-          maxContextTokens: this.maxContextTokens,
-        },
-      );
+      const { context, budgetedSections, tokenCount } = calculateAndApplyBudget(rawSections, {
+        query: input.query,
+        counterpartAliasesLength: plan.counterpartAliases?.length ?? 0,
+        stageStats,
+        computedAnswerText,
+        maxContextTokens: this.maxContextTokens,
+      });
 
       this.options.knowledgeRepository.insertRetrievalAudit({
         userId: input.userId,

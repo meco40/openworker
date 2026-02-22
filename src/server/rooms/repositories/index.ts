@@ -1,9 +1,0 @@
-export { BaseRepository } from '@/server/rooms/repositories/baseRepository';
-export { RoomRepository } from '@/server/rooms/repositories/roomRepository';
-export { MemberRepository } from '@/server/rooms/repositories/memberRepository';
-export { MessageRepository } from '@/server/rooms/repositories/messageRepository';
-export { RunRepository } from '@/server/rooms/repositories/runRepository';
-export { RuntimeRepository } from '@/server/rooms/repositories/runtimeRepository';
-export { PersonaRepository } from '@/server/rooms/repositories/personaRepository';
-export { InterventionRepository } from '@/server/rooms/repositories/interventionRepository';
-export { runMigrations } from '@/server/rooms/repositories/migrations';

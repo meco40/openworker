@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer operative Steuerung, Diagnose und Observability-APIs.
 - Scope: Ops-Endpunkte, Config-API, Health/Doctor, Control-Plane-Metriken, Logs, Stats.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-21
+- Last Reviewed: 2026-02-22
 - Related Runbooks: docs/runbooks/gateway-config-production-rollout.md, docs/runbooks/chat-cli-smoke-approval.md
 
 ---
@@ -33,9 +33,9 @@ Quellen: `app/api/config/route.ts`, `src/server/config/gatewayConfig.ts`
 
 | Methode | Pfad                 | Zweck                                                                        |
 | ------- | -------------------- | ---------------------------------------------------------------------------- |
-| GET     | `/api/ops/nodes`     | Health, Doctor, Channels, Personas, Automation, Rooms, Exec-Approvals        |
+| GET     | `/api/ops/nodes`     | Health, Doctor, Channels, Personas, Automation, Exec-Approvals               |
 | POST    | `/api/ops/nodes`     | Operative Aktionen (z. B. `exec.approve`, Pairing, Binding, Secret-Rotation) |
-| GET     | `/api/ops/agents`    | Persona-Uebersicht + aktive Room-Snapshots                                   |
+| GET     | `/api/ops/agents`    | Persona-Uebersicht                                                           |
 | GET     | `/api/ops/sessions`  | Sessionsuche/-filterung (q, activeMinutes, includeUnknown, includeGlobal)    |
 | GET     | `/api/ops/instances` | WebSocket-Connection-Instanzen pro User + global                             |
 
@@ -52,9 +52,9 @@ Quellen: `app/api/health/route.ts`, `app/api/doctor/route.ts`
 
 ### 2.4 Control Plane Metrics
 
-| Methode | Pfad                         | Zweck                                                                           |
-| ------- | ---------------------------- | ------------------------------------------------------------------------------- |
-| GET     | `/api/control-plane/metrics` | Aggregierte Runtime-Metriken (WS, Tokens, Memory, Automation, Rooms, Knowledge) |
+| Methode | Pfad                         | Zweck                                                                    |
+| ------- | ---------------------------- | ------------------------------------------------------------------------ |
+| GET     | `/api/control-plane/metrics` | Aggregierte Runtime-Metriken (WS, Tokens, Memory, Automation, Knowledge) |
 
 Quelle: `app/api/control-plane/metrics/route.ts`
 

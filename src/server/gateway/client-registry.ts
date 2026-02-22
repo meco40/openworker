@@ -10,6 +10,8 @@ export interface GatewayClient {
   connId: string;
   userId: string;
   connectedAt: number;
+  /** Liveness flag for transport-level ping/pong keepalive. */
+  isAlive?: boolean;
   subscriptions: Set<string>;
   requestCount: number;
   requestWindowStart: number;

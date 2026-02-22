@@ -19,6 +19,7 @@ export function handleConnection(socket: WebSocket, userId: string): void {
     connId,
     userId,
     connectedAt: Date.now(),
+    isAlive: true,
     subscriptions: new Set(),
     requestCount: 0,
     requestWindowStart: Date.now(),
@@ -100,6 +101,11 @@ export function handleConnection(socket: WebSocket, userId: string): void {
   // ─── Error Handler ───────────────────────────────────────
   socket.on('error', (err) => {
     console.error(`[gateway] Socket error for ${connId}:`, err.message);
+  });
+
+  // WS protocol pong frames keep transport liveness current.
+  socket.on('pong', () => {
+    client.isAlive = true;
   });
 
   console.log(`[gateway] Client ${connId} connected (user: ${userId})`);

@@ -80,21 +80,36 @@ async function defaultRunPrompt(input: {
   userId: string;
   prompt: string;
   conversationId?: string | null;
+  signal?: AbortSignal;
 }): Promise<{ summary?: string }> {
   const { getMessageService } = await import('@/server/channels/messages/runtime');
   const messageService = getMessageService();
   const conversationId =
     input.conversationId || messageService.getDefaultWebChatConversation(input.userId).id;
-  const result = await messageService.handleWebUIMessage(
-    conversationId,
-    input.prompt,
-    input.userId,
-    `automation-${Date.now()}`,
-  );
 
-  return {
-    summary: result.agentMsg.content.slice(0, 500),
+  const abortRunningGeneration = () => {
+    messageService.abortGeneration(conversationId);
   };
+  if (input.signal?.aborted) {
+    abortRunningGeneration();
+    throw Object.assign(new Error('Aborted'), { name: 'AbortError' });
+  }
+  input.signal?.addEventListener('abort', abortRunningGeneration, { once: true });
+
+  try {
+    const result = await messageService.handleWebUIMessage(
+      conversationId,
+      input.prompt,
+      input.userId,
+      `automation-${Date.now()}`,
+    );
+
+    return {
+      summary: result.agentMsg.content.slice(0, 500),
+    };
+  } finally {
+    input.signal?.removeEventListener('abort', abortRunningGeneration);
+  }
 }
 
 function getAutomationRepository(): SqliteAutomationRepository {

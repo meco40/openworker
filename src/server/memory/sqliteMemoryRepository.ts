@@ -1,6 +1,4 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import BetterSqlite3 from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
 import type { MemoryNode, MemoryType } from '@/core/memory/types';
 import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 import type {
@@ -8,6 +6,7 @@ import type {
   MemoryListPageResult,
   MemoryRepository,
 } from '@/server/memory/repository';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 
 interface MemoryRow {
   id: string;
@@ -42,13 +41,7 @@ export class SqliteMemoryRepository implements MemoryRepository {
   constructor(
     dbPath = process.env.MEMORY_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db',
   ) {
-    if (dbPath === ':memory:') {
-      this.db = new BetterSqlite3(':memory:');
-    } else {
-      const fullPath = path.resolve(dbPath);
-      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new BetterSqlite3(fullPath);
-    }
+    this.db = openSqliteDatabase({ dbPath });
     this.migrate();
   }
 

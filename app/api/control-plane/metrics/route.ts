@@ -73,16 +73,9 @@ export async function GET() {
       deadLetterRuns: number;
       leaseAgeSeconds: number | null;
     } | null = null;
-    let roomMetrics: {
-      totalRooms: number;
-      runningRooms: number;
-      totalMembers: number;
-      totalMessages: number;
-    } | null = null;
 
-    const [automationImport, roomImport, knowledgeImport] = await Promise.allSettled([
+    const [automationImport, knowledgeImport] = await Promise.allSettled([
       import('@/server/automation/runtime'),
-      import('@/server/rooms/runtime'),
       import('@/server/knowledge/runtime').then((mod) => ({
         getKnowledgeRepository: mod.getKnowledgeRepository,
       })),
@@ -90,10 +83,6 @@ export async function GET() {
 
     if (automationImport.status === 'fulfilled') {
       automationMetrics = automationImport.value.getAutomationService().getMetrics();
-    }
-
-    if (roomImport.status === 'fulfilled') {
-      roomMetrics = roomImport.value.getRoomRepository().getMetrics();
     }
 
     let knowledgeMetrics: {
@@ -123,7 +112,7 @@ export async function GET() {
         tokensToday,
         vectorNodeCount,
         automation: automationMetrics,
-        rooms: roomMetrics,
+        rooms: null,
         knowledge: knowledgeMetrics,
         generatedAt: new Date().toISOString(),
       },

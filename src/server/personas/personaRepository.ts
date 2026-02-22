@@ -1,6 +1,4 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import BetterSqlite3 from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
 import type {
   CreatePersonaInput,
   MemoryPersonaType,
@@ -9,6 +7,7 @@ import type {
   PersonaSummary,
   PersonaWithFiles,
 } from '@/server/personas/personaTypes';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 import {
   MAX_PERSONA_INSTRUCTION_CHARS,
   MEMORY_PERSONA_TYPES,
@@ -54,14 +53,7 @@ export class PersonaRepository {
   private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.PERSONAS_DB_PATH || '.local/personas.db') {
-    if (dbPath === ':memory:') {
-      this.db = new BetterSqlite3(':memory:');
-    } else {
-      const fullPath = path.resolve(dbPath);
-      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new BetterSqlite3(fullPath);
-    }
-    this.db.pragma('journal_mode = WAL');
+    this.db = openSqliteDatabase({ dbPath });
     this.migrate();
   }
 
@@ -112,9 +104,6 @@ export class PersonaRepository {
       CREATE INDEX IF NOT EXISTS idx_personas_user
         ON personas (user_id, updated_at DESC);
     `);
-
-    // Enable FK enforcement
-    this.db.pragma('foreign_keys = ON');
   }
 
   // ─── Persona CRUD ──────────────────────────────────────────

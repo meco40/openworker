@@ -5,10 +5,9 @@
  * aggregate stats by provider, model, and time range.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
 import crypto from 'node:crypto';
-import BetterSqlite3 from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -56,13 +55,7 @@ export class TokenUsageRepository {
   private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.STATS_DB_PATH || '.local/stats.db') {
-    if (dbPath === ':memory:') {
-      this.db = new BetterSqlite3(':memory:');
-    } else {
-      const fullPath = path.resolve(dbPath);
-      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new BetterSqlite3(fullPath);
-    }
+    this.db = openSqliteDatabase({ dbPath });
     this.migrate();
   }
 

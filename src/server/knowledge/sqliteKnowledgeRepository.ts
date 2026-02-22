@@ -1,9 +1,15 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import BetterSqlite3 from 'better-sqlite3';
-import type { KnowledgeRepository, KnowledgeStats, ListKnowledgeFilter } from '@/server/knowledge/repository';
-import type { KnowledgeEventFilter, UpsertKnowledgeEventInput } from '@/server/knowledge/eventTypes';
+import type BetterSqlite3 from 'better-sqlite3';
+import type {
+  KnowledgeRepository,
+  KnowledgeStats,
+  ListKnowledgeFilter,
+} from '@/server/knowledge/repository';
+import type {
+  KnowledgeEventFilter,
+  UpsertKnowledgeEventInput,
+} from '@/server/knowledge/eventTypes';
 import type { EntityGraphFilter } from '@/server/knowledge/entityGraph';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 import { parseIso } from './repositories/utils';
 import {
   CheckpointRepository,
@@ -29,17 +35,7 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
   constructor(
     dbPath = process.env.KNOWLEDGE_DB_PATH || process.env.MESSAGES_DB_PATH || '.local/messages.db',
   ) {
-    if (dbPath === ':memory:') {
-      this.db = new BetterSqlite3(':memory:');
-    } else {
-      const fullPath = path.resolve(dbPath);
-      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new BetterSqlite3(fullPath);
-    }
-
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('busy_timeout = 5000');
-    this.db.pragma('foreign_keys = ON');
+    this.db = openSqliteDatabase({ dbPath });
 
     runKnowledgeMigrations(this.db);
 
@@ -67,7 +63,9 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
     return this.checkpointRepo.getIngestionCheckpoint(conversationId, personaId);
   }
 
-  upsertIngestionCheckpoint(input: import('@/server/knowledge/repository').UpsertKnowledgeCheckpointInput) {
+  upsertIngestionCheckpoint(
+    input: import('@/server/knowledge/repository').UpsertKnowledgeCheckpointInput,
+  ) {
     return this.checkpointRepo.upsertIngestionCheckpoint(input);
   }
 
@@ -265,15 +263,27 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
   // Entity Graph Operations (delegated to EntityRepository)
   // ════════════════════════════════════════════════════════════
 
-  upsertEntity(input: Omit<import('@/server/knowledge/entityGraph').KnowledgeEntity, 'createdAt' | 'updatedAt'>) {
+  upsertEntity(
+    input: Omit<
+      import('@/server/knowledge/entityGraph').KnowledgeEntity,
+      'createdAt' | 'updatedAt'
+    >,
+  ) {
     return this.entityRepo.upsertEntity(input);
   }
 
-  addAlias(alias: Omit<import('@/server/knowledge/entityGraph').EntityAlias, 'id' | 'createdAt'>): void {
+  addAlias(
+    alias: Omit<import('@/server/knowledge/entityGraph').EntityAlias, 'id' | 'createdAt'>,
+  ): void {
     return this.entityRepo.addAlias(alias);
   }
 
-  addRelation(relation: Omit<import('@/server/knowledge/entityGraph').EntityRelation, 'id' | 'createdAt' | 'updatedAt'>): void {
+  addRelation(
+    relation: Omit<
+      import('@/server/knowledge/entityGraph').EntityRelation,
+      'id' | 'createdAt' | 'updatedAt'
+    >,
+  ): void {
     return this.entityRepo.addRelation(relation);
   }
 
@@ -285,11 +295,7 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
     return this.entityRepo.resolveEntity(text, filter);
   }
 
-  resolveEntityByRelation(
-    relation: string,
-    owner: 'persona' | 'user',
-    filter: EntityGraphFilter,
-  ) {
+  resolveEntityByRelation(relation: string, owner: 'persona' | 'user', filter: EntityGraphFilter) {
     return this.entityRepo.resolveEntityByRelation(relation, owner, filter);
   }
 
@@ -329,7 +335,9 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
   // Conversation Summary Operations (delegated to SummaryRepository)
   // ════════════════════════════════════════════════════════════
 
-  upsertConversationSummary(input: import('@/server/knowledge/repository').UpsertConversationSummaryInput) {
+  upsertConversationSummary(
+    input: import('@/server/knowledge/repository').UpsertConversationSummaryInput,
+  ) {
     return this.summaryRepo.upsertConversationSummary(input);
   }
 

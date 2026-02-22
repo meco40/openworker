@@ -26,7 +26,6 @@ import {
   revokeCommand,
 } from '@/server/gateway/exec-approval-manager';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
-import { getRoomRepository } from '@/server/rooms/runtime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -182,7 +181,6 @@ async function buildNodesPayload(
         })),
       },
       telegramPairing: getTelegramPairingSnapshot(),
-      rooms: getRoomRepository().getMetrics(),
       generatedAt: new Date().toISOString(),
     },
   };

@@ -1,7 +1,6 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import crypto from 'node:crypto';
-import BetterSqlite3 from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 
 interface AuthUserRecord {
   id: string;
@@ -55,9 +54,7 @@ export class AuthUserStore {
   private readonly db: ReturnType<typeof BetterSqlite3>;
 
   constructor(dbPath = process.env.AUTH_DB_PATH || '.local/auth.db') {
-    const fullPath = path.resolve(dbPath);
-    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    this.db = new BetterSqlite3(fullPath);
+    this.db = openSqliteDatabase({ dbPath });
     this.migrate();
     this.ensureDefaultUser();
   }

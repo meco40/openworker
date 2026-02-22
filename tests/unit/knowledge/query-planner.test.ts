@@ -46,4 +46,14 @@ describe('knowledge query planner', () => {
     expect(plan.timeRange?.to).toBe('2026-02-14T23:59:59.999Z');
     expect(plan.detailDepth).toBe('medium');
   });
+
+  it('does not force topic from long location-style mention without topic cue', () => {
+    const plan = planKnowledgeQuery(
+      'Waren wir schon mal in der Sauna?',
+      new Date('2026-02-15T18:30:00.000Z'),
+    );
+
+    expect(plan.intent).toBe('general_recall');
+    expect(plan.topic).toBeNull();
+  });
 });

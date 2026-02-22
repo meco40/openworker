@@ -290,7 +290,7 @@ describe('ops routes', () => {
     expect(payload.sessions.map((session) => session.id)).toEqual(['conv-1', 'conv-4']);
   });
 
-  it('returns node summary from health/doctor, channel state and room/automation metrics', async () => {
+  it('returns node summary from health/doctor, channel state and automation metrics', async () => {
     mockUserContext({ userId: 'ops-user', authenticated: true });
 
     const listApprovedCommands = vi.fn().mockReturnValue([
@@ -374,17 +374,6 @@ describe('ops routes', () => {
         }),
       }),
     }));
-    vi.doMock('../../../src/server/rooms/runtime', () => ({
-      getRoomRepository: () => ({
-        getMetrics: () => ({
-          totalRooms: 3,
-          runningRooms: 1,
-          totalMembers: 7,
-          totalMessages: 23,
-        }),
-      }),
-    }));
-
     const route = await import('../../../app/api/ops/nodes/route');
     const response = await route.GET(
       new Request('http://localhost/api/ops/nodes?memoryDiagnostics=true'),
@@ -399,7 +388,6 @@ describe('ops routes', () => {
         execApprovals: { total: number; items: Array<{ command: string }> };
         telegramPairing: { hasPending: boolean; pendingChatId: string | null };
         automation: { activeRules: number };
-        rooms: { runningRooms: number };
       };
     };
 
@@ -425,7 +413,7 @@ describe('ops routes', () => {
       expect.objectContaining({ hasPending: true, pendingChatId: 'chat-7' }),
     );
     expect(payload.nodes.automation.activeRules).toBe(2);
-    expect(payload.nodes.rooms.runningRooms).toBe(1);
+    expect(payload.nodes).not.toHaveProperty('rooms');
     expect(listApprovedCommands).toHaveBeenCalledTimes(1);
   });
 
@@ -478,16 +466,6 @@ describe('ops routes', () => {
           runningRuns: 0,
           deadLetterRuns: 0,
           leaseAgeSeconds: null,
-        }),
-      }),
-    }));
-    vi.doMock('../../../src/server/rooms/runtime', () => ({
-      getRoomRepository: () => ({
-        getMetrics: () => ({
-          totalRooms: 0,
-          runningRooms: 0,
-          totalMembers: 0,
-          totalMessages: 0,
         }),
       }),
     }));
@@ -647,7 +625,7 @@ describe('ops routes', () => {
     expect(clearApprovedCommands).toHaveBeenCalledTimes(1);
   });
 
-  it('returns personas, active room counts and a bounded runtime room snapshot', async () => {
+  it('returns personas without room-runtime snapshots', async () => {
     mockUserContext({ userId: 'ops-user', authenticated: true });
 
     vi.doMock('../../../src/server/personas/personaRepository', () => ({
@@ -677,109 +655,22 @@ describe('ops routes', () => {
       }),
     }));
 
-    vi.doMock('../../../src/server/rooms/runtime', () => ({
-      getRoomService: () => ({
-        listActiveRoomCountsByPersona: () => ({
-          'persona-1': 2,
-          'persona-2': 0,
-        }),
-      }),
-      getRoomRepository: () => ({
-        listRunningRooms: () => [
-          {
-            id: 'room-1',
-            userId: 'ops-user',
-            name: 'Ops Room',
-            runState: 'running',
-            goalMode: 'planning',
-            routingProfileId: 'p1',
-            description: null,
-            createdAt: '2026-02-20T11:05:00.000Z',
-            updatedAt: '2026-02-20T11:06:00.000Z',
-          },
-          {
-            id: 'room-2',
-            userId: 'ops-user',
-            name: 'Warm Standby',
-            runState: 'degraded',
-            goalMode: 'simulation',
-            routingProfileId: 'p1',
-            description: null,
-            createdAt: '2026-02-20T11:07:00.000Z',
-            updatedAt: '2026-02-20T11:08:00.000Z',
-          },
-          {
-            id: 'room-3',
-            userId: 'other-user',
-            name: 'Foreign',
-            runState: 'running',
-            goalMode: 'free',
-            routingProfileId: 'p1',
-            description: null,
-            createdAt: '2026-02-20T11:09:00.000Z',
-            updatedAt: '2026-02-20T11:10:00.000Z',
-          },
-        ],
-        listMembers: (roomId: string) =>
-          roomId === 'room-1'
-            ? [{ personaId: 'persona-1' }, { personaId: 'persona-2' }]
-            : [{ personaId: 'persona-1' }],
-        listMemberRuntime: (roomId: string) =>
-          roomId === 'room-1'
-            ? [
-                { personaId: 'persona-1', status: 'busy' },
-                { personaId: 'persona-2', status: 'idle' },
-              ]
-            : [{ personaId: 'persona-1', status: 'paused' }],
-        getActiveRoomRun: (roomId: string) =>
-          roomId === 'room-1'
-            ? {
-                id: 'run-1',
-                runState: 'running',
-                leaseOwner: 'worker-a',
-                leaseExpiresAt: '2026-02-20T11:12:00.000Z',
-                heartbeatAt: '2026-02-20T11:11:55.000Z',
-              }
-            : {
-                id: 'run-2',
-                runState: 'degraded',
-                leaseOwner: 'worker-b',
-                leaseExpiresAt: '2026-02-20T11:12:30.000Z',
-                heartbeatAt: '2026-02-20T11:12:05.000Z',
-              },
-      }),
-    }));
-
     const route = await import('../../../app/api/ops/agents/route');
     const response = await route.GET(new Request('http://localhost/api/ops/agents?limit=0'));
     const payload = (await response.json()) as {
       ok: boolean;
       agents: {
-        personas: Array<{ id: string; activeRoomCount: number }>;
-        sampledRooms: Array<{
-          roomId: string;
-          runState: string;
-          memberCount: number;
-          runtimeByStatus: Record<string, number>;
-        }>;
+        personas: Array<{ id: string }>;
       };
     };
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
     expect(payload.agents.personas).toEqual([
-      expect.objectContaining({ id: 'persona-1', activeRoomCount: 2 }),
-      expect.objectContaining({ id: 'persona-2', activeRoomCount: 0 }),
+      expect.objectContaining({ id: 'persona-1' }),
+      expect.objectContaining({ id: 'persona-2' }),
     ]);
-    expect(payload.agents.sampledRooms).toHaveLength(1);
-    expect(payload.agents.sampledRooms[0]).toMatchObject({
-      roomId: 'room-1',
-      runState: 'running',
-      memberCount: 2,
-      runtimeByStatus: {
-        busy: 1,
-        idle: 1,
-      },
-    });
+    expect(payload.agents).not.toHaveProperty('sampledRooms');
+    expect(payload.agents.personas[0]).not.toHaveProperty('activeRoomCount');
   });
 });

@@ -1,6 +1,5 @@
 import type { Conversation } from '@/shared/domain/types';
 import type { PersonaSummary } from '@/server/personas/personaTypes';
-import type { RoomRunState } from '@/server/rooms/types';
 
 export interface OpsInstancesConnectionSummary {
   connId: string;
@@ -124,37 +123,14 @@ export interface OpsNodesResponse {
       pendingExpiresAt: string | null;
       hasPending: boolean;
     };
-    rooms: {
-      totalRooms: number;
-      runningRooms: number;
-      totalMembers: number;
-      totalMessages: number;
-    };
     generatedAt: string;
   };
 }
 
-export interface OpsAgentPersonaSummary extends Pick<
+export type OpsAgentPersonaSummary = Pick<
   PersonaSummary,
   'id' | 'name' | 'emoji' | 'vibe' | 'updatedAt'
-> {
-  activeRoomCount: number;
-}
-
-export interface OpsAgentRoomSnapshot {
-  roomId: string;
-  roomName: string;
-  runState: RoomRunState;
-  memberCount: number;
-  runtimeByStatus: Record<string, number>;
-  activeRun: {
-    runId: string;
-    runState: RoomRunState;
-    leaseOwner: string | null;
-    leaseExpiresAt: string | null;
-    heartbeatAt: string | null;
-  } | null;
-}
+>;
 
 export interface OpsAgentsResponse {
   ok: true;
@@ -163,7 +139,6 @@ export interface OpsAgentsResponse {
   };
   agents: {
     personas: OpsAgentPersonaSummary[];
-    sampledRooms: OpsAgentRoomSnapshot[];
     generatedAt: string;
   };
 }

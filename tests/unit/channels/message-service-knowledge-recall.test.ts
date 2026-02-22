@@ -288,4 +288,32 @@ describe('MessageService knowledge recall integration', () => {
       dispatchedMessages.some((message) => message.content.includes('Knowledge context')),
     ).toBe(true);
   });
+
+  it('skips repeated mem0 recall for temporarily empty persona scope', async () => {
+    const service = new MessageService(buildRepository('persona-1', 'legacy-local-user'));
+    memoryRecallDetailedMock.mockResolvedValue({
+      context: 'No relevant memories found.',
+      matches: [],
+    });
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Erinnerst du dich an unsere Regeln von gestern?',
+      undefined,
+      undefined,
+      'legacy-local-user',
+    );
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Erinnerst du dich nochmal an unsere Regeln von gestern?',
+      undefined,
+      undefined,
+      'legacy-local-user',
+    );
+
+    expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,15 +1,14 @@
 import { createHash } from 'node:crypto';
-import fs from 'node:fs';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import BetterSqlite3 from 'better-sqlite3';
 import {
   ALLOWED_UI_DEFAULT_VIEWS,
   isAllowedUiDefaultView,
   isAllowedUiDensity,
   isAllowedUiTimeFormat,
 } from '@/shared/config/uiSchema';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 
 export type GatewayConfig = Record<string, unknown>;
 export type GatewayConfigSource = 'default' | 'file' | 'db';
@@ -508,8 +507,7 @@ function restoreRedactedSecrets(nextConfig: unknown, currentConfig: GatewayConfi
 export async function loadGatewayConfig(): Promise<GatewayConfigState> {
   if (resolveGatewayConfigBackend() === 'db') {
     const dbPath = resolveGatewayConfigDbPath();
-    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-    const db = new BetterSqlite3(dbPath);
+    const db = openSqliteDatabase({ dbPath });
     try {
       db.exec(GATEWAY_CONFIG_DB_TABLE_SQL);
       const row = db
@@ -614,10 +612,8 @@ export async function saveGatewayConfig(
 }> {
   if (resolveGatewayConfigBackend() === 'db') {
     const dbPath = resolveGatewayConfigDbPath();
-    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-    const db = new BetterSqlite3(dbPath);
+    const db = openSqliteDatabase({ dbPath });
     try {
-      db.exec('PRAGMA journal_mode = WAL');
       db.exec(GATEWAY_CONFIG_DB_TABLE_SQL);
 
       const row = db

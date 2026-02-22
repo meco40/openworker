@@ -8,20 +8,18 @@ import { WebSocketServer } from 'ws';
 import { getToken } from 'next-auth/jwt';
 import { handleConnection, getClientRegistry, broadcast } from './src/server/gateway/index.js';
 import { TICK_INTERVAL_MS, MAX_PAYLOAD_BYTES } from './src/server/gateway/constants.js';
+import { runGatewayKeepaliveSweep } from './src/server/gateway/keepalive.js';
 import { getPrincipalUserId } from './src/server/auth/principal.js';
-import { getRoomOrchestrator } from './src/server/rooms/runtime.js';
-import { shouldRunRooms } from './src/server/rooms/runtimeRole.js';
 import {
   assertMemoryRuntimeConfiguration,
   assertMemoryRuntimeReady,
 } from './src/server/memory/runtime.js';
-import {
-  getPersonaTelegramBotRegistry,
-} from './src/server/telegram/personaTelegramBotRegistry.js';
+import { getPersonaTelegramBotRegistry } from './src/server/telegram/personaTelegramBotRegistry.js';
 import {
   startPersonaBotPolling,
   stopAllPersonaBotPolling,
 } from './src/server/telegram/personaTelegramPoller.js';
+import { bootstrapMessageRuntime } from './src/server/channels/messages/runtime.js';
 
 const require = createRequire(import.meta.url);
 const { loadEnvConfig } = require('@next/env') as {
@@ -52,6 +50,7 @@ Promise.resolve()
   .then(async () => {
     assertMemoryRuntimeConfiguration();
     await assertMemoryRuntimeReady();
+    await bootstrapMessageRuntime();
     await app.prepare();
   })
   .then(() => {
@@ -117,38 +116,8 @@ Promise.resolve()
     // ─── Tick / Keepalive ──────────────────────────────────────
     const tickInterval = setInterval(() => {
       broadcast('tick', { ts: Date.now() });
+      runGatewayKeepaliveSweep();
     }, TICK_INTERVAL_MS);
-
-    // ─── Room Orchestrator (inline scheduler) ─────────────────
-    const ROOM_INTERVAL_MS = Number(process.env.ROOM_ORCHESTRATOR_INTERVAL_MS || 30_000);
-    let roomTimer: ReturnType<typeof setInterval> | null = null;
-
-    async function runRoomCycle(): Promise<void> {
-      try {
-        const orchestrator = getRoomOrchestrator({ instanceId: `server-${process.pid}` });
-        const result = await orchestrator.runOnce();
-        if (result.processedRooms > 0) {
-          console.log(
-            `[rooms] processed ${result.processedRooms} rooms, ${result.createdMessages} messages`,
-          );
-        }
-      } catch (error) {
-        console.warn('[rooms] cycle failed:', error);
-      }
-    }
-
-    function startRoomScheduler(): void {
-      console.log(`[rooms] scheduler started (interval=${ROOM_INTERVAL_MS}ms)`);
-      void runRoomCycle();
-      roomTimer = setInterval(() => void runRoomCycle(), ROOM_INTERVAL_MS);
-      roomTimer.unref();
-    }
-
-    if (shouldRunRooms('web')) {
-      startRoomScheduler();
-    } else {
-      console.log('[rooms] scheduler disabled in web process by ROOMS_RUNNER');
-    }
 
     // ─── Persona Telegram Bot Polling ─────────────────────────
     async function startPersonaBotPollers(): Promise<void> {
@@ -169,7 +138,6 @@ Promise.resolve()
     function shutdown() {
       console.log('[gateway] Shutting down...');
       clearInterval(tickInterval);
-      if (roomTimer) clearInterval(roomTimer);
       stopAllPersonaBotPolling();
 
       const registry = getClientRegistry();

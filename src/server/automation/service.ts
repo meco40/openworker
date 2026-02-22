@@ -18,6 +18,7 @@ export interface AutomationServiceDeps {
     userId: string;
     prompt: string;
     conversationId?: string | null;
+    signal?: AbortSignal;
   }) => Promise<{ summary?: string }>;
 }
 

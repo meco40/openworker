@@ -14,7 +14,6 @@ export default defineConfig({
       exclude: [
         'components/**',
         'src/modules/**',
-        'src/server/model-hub/**',
         'app/api/model-hub/**',
         'src/server/skills/**',
         'app/api/skills/**',

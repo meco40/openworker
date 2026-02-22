@@ -192,4 +192,156 @@ describe('SqliteKnowledgeRepository', () => {
     expect(summaries[0].summaryText).toBe('Aktualisierte Zusammenfassung');
     expect(summaries[0].messageCount).toBe(10);
   });
+
+  it('supports in-memory database path and idempotent close', () => {
+    const repo = new SqliteKnowledgeRepository(':memory:');
+    expect(repo.getIngestionCheckpoint('conv-memory', 'persona-memory')).toBeNull();
+    expect(() => repo.close()).not.toThrow();
+    expect(() => repo.close()).not.toThrow();
+  });
+
+  it('counts retrieval errors and exposes latest ingestion lag', () => {
+    const repo = new SqliteKnowledgeRepository(dbPath);
+    repo.upsertIngestionCheckpoint({
+      conversationId: 'conv-1',
+      personaId: 'persona-1',
+      lastSeq: 3,
+    });
+    repo.insertRetrievalAudit({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-1',
+      query: 'Fehlerhafte Abfrage',
+      stageStats: {},
+      tokenCount: 10,
+      hadError: true,
+      errorMessage: 'boom',
+    });
+
+    const stats = repo.getKnowledgeStats('user-1', 'persona-1');
+    expect(stats.retrievalErrorCount).toBe(1);
+    expect(stats.latestIngestionAt).toBeTruthy();
+    expect(stats.ingestionLagMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('prunes by cutoff with dry-run and delete modes', () => {
+    const repo = new SqliteKnowledgeRepository(dbPath);
+    repo.upsertEpisode({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-prune-ep',
+      topicKey: 'topic-prune',
+      counterpart: null,
+      teaser: 'teaser',
+      episode: 'episode',
+      facts: ['fact'],
+      sourceSeqStart: 1,
+      sourceSeqEnd: 1,
+      sourceRefs: [],
+      eventAt: '2025-01-01T00:00:00.000Z',
+    });
+    repo.upsertMeetingLedger({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-prune-ledger',
+      topicKey: 'topic-prune',
+      counterpart: null,
+      eventAt: '2025-01-01T00:00:00.000Z',
+      participants: [],
+      decisions: [],
+      negotiatedTerms: [],
+      openPoints: [],
+      actionItems: [],
+      sourceRefs: [],
+      confidence: 0.5,
+    });
+    repo.insertRetrievalAudit({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-prune-audit',
+      query: 'q',
+      stageStats: {},
+      tokenCount: 1,
+      hadError: false,
+    });
+
+    expect(
+      repo.pruneKnowledgeBefore({
+        userId: 'user-1',
+        personaId: 'persona-1',
+        beforeIso: 'not-a-date',
+      }),
+    ).toEqual({ episodes: 0, ledger: 0, audits: 0 });
+
+    const dryRun = repo.pruneKnowledgeBefore({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      beforeIso: '2099-01-01T00:00:00.000Z',
+      dryRun: true,
+    });
+    expect(dryRun.episodes).toBeGreaterThanOrEqual(1);
+    expect(dryRun.ledger).toBeGreaterThanOrEqual(1);
+    expect(dryRun.audits).toBeGreaterThanOrEqual(1);
+
+    const beforeDeleteStats = repo.getKnowledgeStats('user-1', 'persona-1');
+    expect(beforeDeleteStats.retrievalErrorCount).toBe(0);
+
+    const deleted = repo.pruneKnowledgeBefore({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      beforeIso: '2099-01-01T00:00:00.000Z',
+    });
+    expect(deleted).toEqual(dryRun);
+    expect(repo.listEpisodes({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
+    expect(repo.listMeetingLedger({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
+    expect(repo.listRetrievalAudit({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
+  });
+
+  it('deletes all scoped knowledge artifacts in one transaction', () => {
+    const repo = new SqliteKnowledgeRepository(dbPath);
+    repo.upsertEpisode({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-delete-ep',
+      topicKey: 'topic-delete',
+      counterpart: null,
+      teaser: 'teaser',
+      episode: 'episode',
+      facts: ['fact'],
+      sourceSeqStart: 1,
+      sourceSeqEnd: 1,
+      sourceRefs: [],
+      eventAt: null,
+    });
+    repo.upsertMeetingLedger({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-delete-ledger',
+      topicKey: 'topic-delete',
+      counterpart: null,
+      eventAt: null,
+      participants: [],
+      decisions: [],
+      negotiatedTerms: [],
+      openPoints: [],
+      actionItems: [],
+      sourceRefs: [],
+      confidence: 0.8,
+    });
+    repo.insertRetrievalAudit({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-delete-audit',
+      query: 'q',
+      stageStats: {},
+      tokenCount: 1,
+      hadError: false,
+    });
+
+    const removed = repo.deleteKnowledgeByScope('user-1', 'persona-1');
+    expect(removed).toBeGreaterThanOrEqual(3);
+    expect(repo.listEpisodes({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
+    expect(repo.listMeetingLedger({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
+    expect(repo.listRetrievalAudit({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
+  });
 });

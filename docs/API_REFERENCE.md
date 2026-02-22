@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz aller aktuell implementierten HTTP-API-Routen unter `app/api` mit exportierten Methoden.
 - Scope: Route-/Methoden-Katalog, Domain-Gruppierung, Runtime-Hinweise zum aktuellen Systemzustand.
 - Source of Truth: This document is derived from `app/api/**/route.ts` and overrides archived API documents on conflicts.
-- Last Reviewed: 2026-02-21
+- Last Reviewed: 2026-02-22
 - Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md, docs/runbooks/gateway-config-production-rollout.md
 
 ---
@@ -36,7 +36,6 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | model-hub     |     10 |
 | ops           |      4 |
 | personas      |      5 |
-| rooms         |     10 |
 | security      |      2 |
 | skills        |      4 |
 | stats         |      2 |
@@ -160,28 +159,13 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 ### /api/personas
 
-| Methods                | Route                               |
-| ---------------------- | ----------------------------------- |
-| GET, POST              | /api/personas                       |
-| DELETE, GET, PUT       | /api/personas/[id]                  |
-| GET, PUT               | /api/personas/[id]/files/[filename] |
-| DELETE, GET, POST      | /api/personas/[id]/telegram         |
-| GET                    | /api/personas/templates             |
-
-### /api/rooms
-
-| Methods       | Route                               |
-| ------------- | ----------------------------------- |
-| GET, POST     | /api/rooms                          |
-| DELETE, GET   | /api/rooms/[id]                     |
-| GET, POST     | /api/rooms/[id]/interventions       |
-| POST          | /api/rooms/[id]/members             |
-| DELETE, PATCH | /api/rooms/[id]/members/[personaId] |
-| GET, POST     | /api/rooms/[id]/messages            |
-| POST          | /api/rooms/[id]/start               |
-| GET           | /api/rooms/[id]/state               |
-| POST          | /api/rooms/[id]/stop                |
-| GET           | /api/rooms/membership-counts        |
+| Methods           | Route                               |
+| ----------------- | ----------------------------------- |
+| GET, POST         | /api/personas                       |
+| DELETE, GET, PUT  | /api/personas/[id]                  |
+| GET, PUT          | /api/personas/[id]/files/[filename] |
+| DELETE, GET, POST | /api/personas/[id]/telegram         |
+| GET               | /api/personas/templates             |
 
 ### /api/security
 

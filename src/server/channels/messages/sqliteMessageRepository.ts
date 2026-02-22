@@ -1,6 +1,4 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import BetterSqlite3 from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
 import type { ChannelType, Conversation } from '@/shared/domain/types';
 import type {
   ConversationContextState,
@@ -16,7 +14,6 @@ import type {
   UpsertChannelBindingInput,
 } from '@/server/channels/messages/channelBindings';
 import type { ChannelKey } from '@/server/channels/adapters/types';
-import { toMessage } from '@/server/channels/messages/messageRowMappers';
 
 // ─── Modular imports ─────────────────────────────────────────
 
@@ -30,7 +27,7 @@ import { ContextQueries } from '@/server/channels/messages/repository/queries/co
 import { ChannelBindingQueries } from '@/server/channels/messages/repository/queries/channelBindings';
 import { SearchQueries } from '@/server/channels/messages/repository/queries/search';
 import { DeleteQueries } from '@/server/channels/messages/repository/queries/delete';
-import { buildFtsQuery } from '@/server/channels/messages/repository/utils/ftsHelpers';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 
 // ─── FTS5 search options ─────────────────────────────────────
 
@@ -56,16 +53,7 @@ export class SqliteMessageRepository implements MessageRepository {
   private readonly deleteQueries: DeleteQueries;
 
   constructor(dbPath = process.env.MESSAGES_DB_PATH || '.local/messages.db') {
-    if (dbPath === ':memory:') {
-      this.db = new BetterSqlite3(':memory:');
-    } else {
-      const fullPath = path.resolve(dbPath);
-      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-      this.db = new BetterSqlite3(fullPath);
-    }
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('busy_timeout = 5000');
-    this.db.pragma('foreign_keys = ON');
+    this.db = openSqliteDatabase({ dbPath });
 
     // Initialize query modules
     const normalizeUserId = this.normalizeUserId.bind(this);
@@ -104,7 +92,11 @@ export class SqliteMessageRepository implements MessageRepository {
     externalChatId: string,
     userId?: string,
   ): Conversation | null {
-    return this.conversationQueries.getConversationByExternalChat(channelType, externalChatId, userId);
+    return this.conversationQueries.getConversationByExternalChat(
+      channelType,
+      externalChatId,
+      userId,
+    );
   }
 
   getOrCreateConversation(
@@ -113,7 +105,12 @@ export class SqliteMessageRepository implements MessageRepository {
     title?: string,
     userId?: string,
   ): Conversation {
-    return this.conversationQueries.getOrCreateConversation(channelType, externalChatId, title, userId);
+    return this.conversationQueries.getOrCreateConversation(
+      channelType,
+      externalChatId,
+      title,
+      userId,
+    );
   }
 
   listConversations(limit = 50, userId?: string): Conversation[] {
@@ -221,11 +218,7 @@ export class SqliteMessageRepository implements MessageRepository {
     return this.channelBindingQueries.getChannelBinding(userId, channel);
   }
 
-  updateChannelBindingPersona(
-    userId: string,
-    channel: ChannelKey,
-    personaId: string | null,
-  ): void {
+  updateChannelBindingPersona(userId: string, channel: ChannelKey, personaId: string | null): void {
     return this.channelBindingQueries.updateChannelBindingPersona(userId, channel, personaId);
   }
 
@@ -241,50 +234,7 @@ export class SqliteMessageRepository implements MessageRepository {
   // ─── Full-Text Search ───────────────────────────────────────
 
   searchMessages(query: string, opts: SearchMessagesOptions = {}): StoredMessage[] {
-    const trimmed = query.trim();
-    if (!trimmed) return [];
-
-    const limit = Math.max(1, Math.min(200, opts.limit ?? 50));
-    const params: (string | number)[] = [];
-    const conditions: string[] = [];
-
-    // Build FTS5 match expression — AND all tokens
-    const ftsQuery = buildFtsQuery(trimmed);
-    params.push(ftsQuery);
-
-    if (opts.userId) {
-      conditions.push('c.user_id = ?');
-      params.push(opts.userId);
-    }
-    if (opts.conversationId) {
-      conditions.push('m.conversation_id = ?');
-      params.push(opts.conversationId);
-    }
-    if (opts.personaId) {
-      conditions.push('c.persona_id = ?');
-      params.push(opts.personaId);
-    }
-    if (opts.role) {
-      conditions.push('m.role = ?');
-      params.push(opts.role);
-    }
-
-    const whereClause = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
-
-    const sql = `
-      SELECT m.*
-      FROM messages_fts fts
-      JOIN messages m ON m.rowid = fts.rowid
-      JOIN conversations c ON c.id = m.conversation_id
-      WHERE messages_fts MATCH ?
-      ${whereClause}
-      ORDER BY bm25(messages_fts) ASC
-      LIMIT ?
-    `;
-    params.push(limit);
-
-    const rows = this.db.prepare(sql).all(...params) as Array<Record<string, unknown>>;
-    return rows.map(toMessage);
+    return this.searchQueries.searchMessages(query, opts);
   }
 
   close(): void {

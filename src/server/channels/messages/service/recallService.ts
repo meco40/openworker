@@ -16,15 +16,40 @@ import {
   type KnowledgeRetrievalServiceLike,
 } from './types';
 
+const MEM0_EMPTY_SCOPE_TTL_MS = 5 * 60 * 1000;
+
 export class RecallService {
   private lastRecallByConversation = new Map<string, LastRecallState>();
+  private emptyMem0ScopeCache = new Map<string, number>();
 
   constructor() {}
 
-  async buildRecallContext(
-    conversation: Conversation,
-    userInput: string,
-  ): Promise<string | null> {
+  private getMem0ScopeKey(personaId: string, userId: string): string {
+    return `${personaId}::${userId}`;
+  }
+
+  private isMem0ScopeTemporarilyEmpty(personaId: string, userId: string): boolean {
+    const key = this.getMem0ScopeKey(personaId, userId);
+    const expiresAt = this.emptyMem0ScopeCache.get(key);
+    if (!expiresAt) return false;
+    if (expiresAt <= Date.now()) {
+      this.emptyMem0ScopeCache.delete(key);
+      return false;
+    }
+    return true;
+  }
+
+  private markMem0ScopeTemporarilyEmpty(personaId: string, userId: string): void {
+    const key = this.getMem0ScopeKey(personaId, userId);
+    this.emptyMem0ScopeCache.set(key, Date.now() + MEM0_EMPTY_SCOPE_TTL_MS);
+  }
+
+  private clearMem0ScopeEmptyMarker(personaId: string, userId: string): void {
+    const key = this.getMem0ScopeKey(personaId, userId);
+    this.emptyMem0ScopeCache.delete(key);
+  }
+
+  async buildRecallContext(conversation: Conversation, userInput: string): Promise<string | null> {
     if (!conversation.personaId) {
       this.lastRecallByConversation.delete(conversation.id);
       return null;
@@ -94,24 +119,35 @@ export class RecallService {
     conversation: Conversation,
     userInput: string,
   ): Promise<string | null> {
+    const personaId = conversation.personaId!;
     for (const userIdCandidate of memoryUserIds) {
+      if (this.isMem0ScopeTemporarilyEmpty(personaId, userIdCandidate)) {
+        continue;
+      }
       try {
         const recalled = await getMemoryService().recallDetailed(
-          conversation.personaId!,
+          personaId,
           userInput,
           MEMORY_RECALL_LIMIT,
           userIdCandidate,
         );
         if (recalled.matches.length > 0) {
+          this.clearMem0ScopeEmptyMarker(personaId, userIdCandidate);
           this.lastRecallByConversation.set(conversation.id, {
-            personaId: conversation.personaId!,
+            personaId,
             userId: userIdCandidate,
             nodeIds: recalled.matches.map((entry) => entry.node.id),
             queriedAt: Date.now(),
           });
         }
         const normalized = normalizeMemoryContext(recalled.context);
-        if (normalized) return normalized;
+        if (normalized) {
+          this.clearMem0ScopeEmptyMarker(personaId, userIdCandidate);
+          return normalized;
+        }
+        if (recalled.matches.length === 0) {
+          this.markMem0ScopeTemporarilyEmpty(personaId, userIdCandidate);
+        }
       } catch (error) {
         console.error('Memory recall failed:', error);
       }
@@ -169,10 +205,7 @@ export class RecallService {
     }
   }
 
-  async maybeLearnFromFeedback(
-    conversation: Conversation,
-    userInput: string,
-  ): Promise<void> {
+  async maybeLearnFromFeedback(conversation: Conversation, userInput: string): Promise<void> {
     if (!conversation.personaId) return;
 
     const feedback = detectMemoryFeedbackSignal(userInput);

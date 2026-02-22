@@ -36,7 +36,7 @@ describe('AgentsView', () => {
     expect(html).toContain('Refresh');
   });
 
-  it('renders empty rooms state', () => {
+  it('renders empty personas state', () => {
     mockedUseOpsAgents.mockReturnValue(
       buildState({
         data: {
@@ -44,7 +44,6 @@ describe('AgentsView', () => {
           query: { limit: 20 },
           agents: {
             personas: [],
-            sampledRooms: [],
             generatedAt: '2026-02-20T00:00:00.000Z',
           },
         },
@@ -52,10 +51,10 @@ describe('AgentsView', () => {
     );
 
     const html = renderToStaticMarkup(createElement(AgentsView));
-    expect(html).toContain('No running agent rooms currently sampled.');
+    expect(html).toContain('No personas found for this user.');
   });
 
-  it('renders persona and room runtime details', () => {
+  it('renders persona details', () => {
     mockedUseOpsAgents.mockReturnValue(
       buildState({
         data: {
@@ -69,26 +68,6 @@ describe('AgentsView', () => {
                 emoji: '🤖',
                 vibe: 'operator',
                 updatedAt: '2026-02-20T00:00:00.000Z',
-                activeRoomCount: 2,
-              },
-            ],
-            sampledRooms: [
-              {
-                roomId: 'room-1',
-                roomName: 'Ops Room',
-                runState: 'running',
-                memberCount: 2,
-                runtimeByStatus: {
-                  busy: 1,
-                  idle: 1,
-                },
-                activeRun: {
-                  runId: 'run-1',
-                  runState: 'running',
-                  leaseOwner: 'worker-a',
-                  leaseExpiresAt: '2026-02-20T00:10:00.000Z',
-                  heartbeatAt: '2026-02-20T00:09:58.000Z',
-                },
               },
             ],
             generatedAt: '2026-02-20T00:00:00.000Z',
@@ -99,8 +78,6 @@ describe('AgentsView', () => {
 
     const html = renderToStaticMarkup(createElement(AgentsView));
     expect(html).toContain('Nexus');
-    expect(html).toContain('Ops Room');
-    expect(html).toContain('busy: 1');
-    expect(html).toContain('Lease Owner');
+    expect(html).toContain('operator');
   });
 });

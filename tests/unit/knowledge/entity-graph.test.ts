@@ -458,4 +458,131 @@ describe('Entity Graph — Relations', () => {
     const path = repo.findPath(nata.id, unrelated.id, 3);
     expect(path).toHaveLength(0);
   });
+
+  it('respects maxDepth in findPath traversal', () => {
+    const a = repo.upsertEntity({
+      id: 'ent-a',
+      userId: 'user-1',
+      personaId: 'persona-nata',
+      canonicalName: 'A',
+      category: 'concept',
+      owner: 'shared',
+      properties: {},
+    });
+    const b = repo.upsertEntity({
+      id: 'ent-b',
+      userId: 'user-1',
+      personaId: 'persona-nata',
+      canonicalName: 'B',
+      category: 'concept',
+      owner: 'shared',
+      properties: {},
+    });
+    const c = repo.upsertEntity({
+      id: 'ent-c',
+      userId: 'user-1',
+      personaId: 'persona-nata',
+      canonicalName: 'C',
+      category: 'concept',
+      owner: 'shared',
+      properties: {},
+    });
+
+    repo.addRelation({
+      sourceEntityId: a.id,
+      targetEntityId: b.id,
+      relationType: 'step',
+      properties: {},
+      confidence: 0.9,
+    });
+    repo.addRelation({
+      sourceEntityId: b.id,
+      targetEntityId: c.id,
+      relationType: 'step',
+      properties: {},
+      confidence: 0.9,
+    });
+
+    expect(repo.findPath(a.id, c.id, 1)).toHaveLength(0);
+    expect(repo.findPath(a.id, c.id, 2)).toHaveLength(2);
+  });
+});
+
+describe('Entity Graph — repository edge branches', () => {
+  it('listEntities supports owner filter', () => {
+    repo.upsertEntity({
+      id: 'ent-owner-1',
+      userId: 'user-1',
+      personaId: 'persona-nata',
+      canonicalName: 'PersonaOwned',
+      category: 'person',
+      owner: 'persona',
+      properties: {},
+    });
+    repo.upsertEntity({
+      id: 'ent-owner-2',
+      userId: 'user-1',
+      personaId: 'persona-nata',
+      canonicalName: 'UserOwned',
+      category: 'person',
+      owner: 'user',
+      properties: {},
+    });
+
+    const userOwned = repo.listEntities({ ...FILTER, owner: 'user' });
+    expect(userOwned).toHaveLength(1);
+    expect(userOwned[0].canonicalName).toBe('UserOwned');
+  });
+
+  it('returns alias counts for empty and populated id lists', () => {
+    expect(repo.getAliasCountsByEntityIds([])).toEqual({});
+
+    const entity = repo.upsertEntity({
+      id: 'ent-alias-count',
+      userId: 'user-1',
+      personaId: 'persona-nata',
+      canonicalName: 'Counted',
+      category: 'person',
+      owner: 'persona',
+      properties: {},
+    });
+    repo.addAlias({
+      entityId: entity.id,
+      alias: 'One',
+      aliasType: 'abbreviation',
+      owner: 'persona',
+      confidence: 0.8,
+    });
+    repo.addAlias({
+      entityId: entity.id,
+      alias: 'Two',
+      aliasType: 'abbreviation',
+      owner: 'persona',
+      confidence: 0.8,
+    });
+
+    const counts = repo.getAliasCountsByEntityIds([entity.id, 'missing']);
+    expect(counts[entity.id]).toBe(2);
+    expect(counts.missing).toBe(0);
+  });
+
+  it('handles empty relation lists and throws for missing entity details', () => {
+    expect(repo.listRelationsByEntityIds([])).toEqual([]);
+    expect(() => repo.getEntityWithRelations('missing-id')).toThrow('Entity missing-id not found');
+  });
+
+  it('returns empty related entities and null relation lookup when nothing matches', () => {
+    const entity = repo.upsertEntity({
+      id: 'ent-orphan',
+      userId: 'user-1',
+      personaId: 'persona-nata',
+      canonicalName: 'Orphan',
+      category: 'person',
+      owner: 'shared',
+      properties: {},
+    });
+
+    expect(repo.getRelatedEntities(entity.id, 'friend')).toEqual([]);
+    expect(repo.resolveEntityByRelation('unknown', 'persona', FILTER)).toBeNull();
+  });
 });
