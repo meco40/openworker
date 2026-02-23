@@ -36,11 +36,14 @@ export function usePersonaEditor(options: UsePersonaEditorOptions): UsePersonaEd
     if (!selectedId || activeTab === 'GATEWAY') return;
     setSaving(true);
     try {
-      await fetch(`/api/personas/${selectedId}/files/${activeTab}`, {
+      const response = await fetch(`/api/personas/${selectedId}/files/${activeTab}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: editorContent }),
       });
+      if (!response.ok) {
+        throw new Error(`Failed to save persona file (${response.status})`);
+      }
       setDirty(false);
     } catch {
       /* ignore */

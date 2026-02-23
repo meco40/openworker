@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { MemoryNode, MemoryType } from '@/core/memory/types';
 import type {
   Mem0Client,
@@ -292,6 +292,25 @@ describe('MemoryService (mem0-only)', () => {
     );
     expect(filtered.nodes).toHaveLength(1);
     expect(filtered.nodes[0].content).toBe('gamma');
+  });
+
+  it('returns memory count via lightweight first-page metadata lookup', async () => {
+    const client = createInMemoryMem0Client();
+    const service = new MemoryService(client);
+    await service.store('persona-a', 'fact', 'alpha', 4, 'user-a');
+    await service.store('persona-b', 'fact', 'beta', 3, 'user-a');
+
+    const listSpy = vi.spyOn(client, 'listMemories');
+    const count = await service.count(undefined, 'user-a');
+
+    expect(count).toBe(2);
+    expect(listSpy).toHaveBeenCalledTimes(1);
+    expect(listSpy).toHaveBeenCalledWith({
+      userId: 'user-a',
+      personaId: undefined,
+      page: 1,
+      pageSize: 1,
+    });
   });
 
   it('updates memory content/type/importance', async () => {

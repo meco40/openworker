@@ -16,6 +16,8 @@ export {
   DIAGNOSTICS_REFRESH_INTERVAL_MS,
   extractDoctorFindingDetails,
   extractHealthIssues,
+  summarizeHealthChecks,
+  toHealthDiagnosticsStatus,
   toHealthIssueInsight,
 } from '@/components/logs/diagnostics';
 

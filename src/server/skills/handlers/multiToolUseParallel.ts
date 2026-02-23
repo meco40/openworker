@@ -16,7 +16,8 @@ type ParallelToolCallInput = {
   parameters?: unknown;
 };
 
-const PARALLEL_SKILL_NAME = 'multi_tool_use.parallel';
+const PARALLEL_SKILL_NAME = 'multi_tool_use_parallel';
+const LEGACY_PARALLEL_SKILL_NAME = 'multi_tool_use.parallel';
 
 const SUPPORTED_PARALLEL_HANDLERS: Record<
   string,
@@ -70,7 +71,7 @@ export async function multiToolUseParallelHandler(
         };
       }
 
-      if (name === PARALLEL_SKILL_NAME) {
+      if (name === PARALLEL_SKILL_NAME || name === LEGACY_PARALLEL_SKILL_NAME) {
         return {
           index,
           name,

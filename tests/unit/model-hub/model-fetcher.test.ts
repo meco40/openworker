@@ -36,6 +36,8 @@ async function setupFetcher(options: {
   decryptSecretReturn?: string;
   openAICompatibleResult?: Array<{ id: string; name: string; provider: string }>;
   openAICompatibleThrows?: boolean;
+  openRouterEmbeddingResult?: Array<{ id: string; name?: string; context_length?: number }>;
+  openRouterEmbeddingThrows?: boolean;
 }) {
   vi.resetModules();
 
@@ -46,6 +48,14 @@ async function setupFetcher(options: {
         throw new Error('openai-compatible failed');
       })
     : vi.fn(async () => options.openAICompatibleResult ?? []);
+  const fetchWithTimeout = options.openRouterEmbeddingThrows
+    ? vi.fn(async () => {
+        throw new Error('openrouter embeddings failed');
+      })
+    : vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ data: options.openRouterEmbeddingResult ?? [] }),
+      }));
 
   vi.doMock('../../../src/server/model-hub/providerCatalog', () => ({
     PROVIDER_CATALOG: options.catalog,
@@ -56,6 +66,9 @@ async function setupFetcher(options: {
   vi.doMock('../../../src/server/model-hub/Models/shared/openaiCompatible', () => ({
     fetchOpenAICompatibleModels,
   }));
+  vi.doMock('../../../src/server/model-hub/Models/shared/http', () => ({
+    fetchWithTimeout,
+  }));
   vi.doMock('../../../src/server/model-hub/crypto', () => ({
     decryptSecret,
   }));
@@ -65,6 +78,7 @@ async function setupFetcher(options: {
     fetchModelsForAccount: mod.fetchModelsForAccount,
     getProviderAdapter,
     fetchOpenAICompatibleModels,
+    fetchWithTimeout,
     decryptSecret,
   };
 }
@@ -157,6 +171,47 @@ describe('fetchModelsForAccount', () => {
       'openrouter',
     );
     expect(result).toEqual([{ id: 'm1', name: 'm1', provider: 'openrouter' }]);
+  });
+
+  it('uses OpenRouter embeddings endpoint when purpose is embedding', async () => {
+    const { fetchModelsForAccount, fetchWithTimeout } = await setupFetcher({
+      catalog: [
+        {
+          id: 'openrouter',
+          name: 'OpenRouter',
+          icon: 'R',
+          authMethods: ['api_key'],
+          endpointType: 'openai-compatible',
+          capabilities: ['chat', 'embeddings'],
+          defaultModels: ['openai/gpt-4.1-mini'],
+          apiBaseUrl: 'https://openrouter.ai/api/v1',
+        },
+      ],
+      adapter: null,
+      openRouterEmbeddingResult: [
+        { id: 'qwen/qwen3-embedding-8b', name: 'Qwen3 Embedding 8B', context_length: 32768 },
+      ],
+    });
+
+    const result = await fetchModelsForAccount(buildAccount('openrouter'), 'key', {
+      purpose: 'embedding',
+    });
+
+    expect(fetchWithTimeout).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/embeddings/models',
+      {
+        method: 'GET',
+        headers: { Authorization: 'Bearer provider-secret' },
+      },
+    );
+    expect(result).toEqual([
+      {
+        id: 'qwen/qwen3-embedding-8b',
+        name: 'Qwen3 Embedding 8B',
+        provider: 'openrouter',
+        context_window: 32768,
+      },
+    ]);
   });
 
   it('returns default models when provider has no apiBase and no adapter', async () => {

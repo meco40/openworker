@@ -9,12 +9,18 @@ import type {
 interface PipelineSectionProps {
   isLoadingPipeline: boolean;
   pipeline: PipelineModel[];
+  isLoadingEmbeddingPipeline: boolean;
+  embeddingPipeline: PipelineModel[];
   providerLookup: Map<string, ProviderCatalogEntry>;
   providerAccounts: ProviderAccount[];
   onOpenAddModelModal: () => void;
+  onOpenAddEmbeddingModelModal: () => void;
   onToggleModelStatus: (modelId: string, currentStatus: string) => void;
   onMoveModel: (modelId: string, direction: 'up' | 'down') => void;
   onRemoveModelFromPipeline: (modelId: string) => void;
+  onToggleEmbeddingModelStatus: (modelId: string, currentStatus: string) => void;
+  onMoveEmbeddingModel: (modelId: string, direction: 'up' | 'down') => void;
+  onRemoveEmbeddingModelFromPipeline: (modelId: string) => void;
   isLoadingAccounts: boolean;
   deletingAccountId: string | null;
   onSetDeletingAccountId: (accountId: string | null) => void;
@@ -24,17 +30,174 @@ interface PipelineSectionProps {
 const PipelineSection: React.FC<PipelineSectionProps> = ({
   isLoadingPipeline,
   pipeline,
+  isLoadingEmbeddingPipeline,
+  embeddingPipeline,
   providerLookup,
   providerAccounts,
   onOpenAddModelModal,
+  onOpenAddEmbeddingModelModal,
   onToggleModelStatus,
   onMoveModel,
   onRemoveModelFromPipeline,
+  onToggleEmbeddingModelStatus,
+  onMoveEmbeddingModel,
+  onRemoveEmbeddingModelFromPipeline,
   isLoadingAccounts,
   deletingAccountId,
   onSetDeletingAccountId,
   onDeleteAccount,
 }) => {
+  const hasEmbeddingCapableAccount = providerAccounts.some((account) =>
+    providerLookup.get(account.providerId)?.capabilities.includes('embeddings'),
+  );
+
+  function renderPipelineCards(options: {
+    isLoading: boolean;
+    models: PipelineModel[];
+    showPrimaryBadge: boolean;
+    emptyTitle: string;
+    emptyDescription: string;
+    onToggleStatus: (modelId: string, currentStatus: string) => void;
+    onMove: (modelId: string, direction: 'up' | 'down') => void;
+    onRemove: (modelId: string) => void;
+  }) {
+    const {
+      isLoading,
+      models,
+      showPrimaryBadge,
+      emptyTitle,
+      emptyDescription,
+      onToggleStatus,
+      onMove,
+      onRemove,
+    } = options;
+
+    if (isLoading) {
+      return (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center">
+          <div className="animate-pulse text-sm text-zinc-500">Pipeline wird geladen...</div>
+        </div>
+      );
+    }
+
+    if (models.length === 0) {
+      return (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center">
+          <div className="text-sm font-bold text-white">{emptyTitle}</div>
+          <p className="mt-2 text-xs text-zinc-500">{emptyDescription}</p>
+        </div>
+      );
+    }
+
+    return models.map((model, idx) => {
+      const provider = providerLookup.get(model.providerId);
+      const account = providerAccounts.find((entry) => entry.id === model.accountId);
+      const isFirst = idx === 0;
+      const isLast = idx === models.length - 1;
+
+      return (
+        <div
+          key={model.id}
+          className={`group relative flex items-center rounded-2xl border bg-zinc-900 p-6 transition-all duration-300 ${
+            model.status === 'active'
+              ? 'border-zinc-800'
+              : model.status === 'rate-limited'
+                ? 'border-amber-500/30 opacity-70'
+                : 'border-rose-500/30 opacity-50 grayscale'
+          }`}
+        >
+          <div className="mr-6 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-xl shadow-inner">
+            {provider?.icon ?? '?'}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center space-x-2">
+              <h4 className="truncate text-base font-bold tracking-tight text-white">
+                {model.modelName}
+              </h4>
+              {showPrimaryBadge && idx === 0 && (
+                <span className="rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[8px] font-black text-emerald-500 uppercase">
+                  Primary
+                </span>
+              )}
+              {model.status === 'rate-limited' && (
+                <span className="rounded border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[8px] font-black text-amber-500 uppercase">
+                  Rate Limited
+                </span>
+              )}
+            </div>
+            <div className="mt-1 flex flex-wrap items-center space-x-3">
+              <span className="font-mono text-[10px] text-zinc-600 uppercase">
+                Provider: {provider?.name ?? model.providerId}
+              </span>
+              {account && (
+                <>
+                  <span className="text-zinc-800">·</span>
+                  <span className="font-mono text-[10px] text-zinc-600">{account.label}</span>
+                </>
+              )}
+              <span className="text-zinc-800">·</span>
+              <span className="font-mono text-[10px] text-zinc-600">P{model.priority}</span>
+              <span className="text-zinc-800">·</span>
+              <span
+                className={`text-[9px] font-black uppercase ${
+                  model.status === 'active'
+                    ? 'text-emerald-500'
+                    : model.status === 'rate-limited'
+                      ? 'text-amber-500'
+                      : 'text-rose-500'
+                }`}
+              >
+                {model.status}
+              </span>
+            </div>
+            {provider && provider.capabilities.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {provider.capabilities.map((capability) => (
+                  <span
+                    key={capability}
+                    className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[8px] text-zinc-400"
+                  >
+                    {CAPABILITY_LABELS[capability] || capability}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={() => onMove(model.id, 'up')}
+              disabled={isFirst}
+              aria-label={`Move ${model.modelName} up`}
+              className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-zinc-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ↑
+            </button>
+            <button
+              onClick={() => onMove(model.id, 'down')}
+              disabled={isLast}
+              aria-label={`Move ${model.modelName} down`}
+              className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-zinc-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ↓
+            </button>
+            <button
+              onClick={() => onToggleStatus(model.id, model.status)}
+              className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-zinc-700 hover:text-white"
+            >
+              {model.status === 'active' ? 'Disable' : 'Enable'}
+            </button>
+            <button
+              onClick={() => onRemove(model.id)}
+              className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-rose-900/50 hover:text-rose-400"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      );
+    });
+  }
+
   return (
     <div className="space-y-6 lg:col-span-2">
       <div className="flex items-center justify-between gap-4 px-2">
@@ -59,125 +222,67 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
       </div>
 
       <div className="space-y-4">
-        {isLoadingPipeline ? (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center">
-            <div className="animate-pulse text-sm text-zinc-500">Pipeline wird geladen...</div>
-          </div>
-        ) : pipeline.length === 0 ? (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center">
-            <div className="text-sm font-bold text-white">Keine Modelle konfiguriert</div>
-            <p className="mt-2 text-xs text-zinc-500">
-              Verbinde zuerst einen Provider-Account und füge danach ein Modell hinzu.
-            </p>
-          </div>
-        ) : (
-          pipeline.map((model, idx) => {
-            const provider = providerLookup.get(model.providerId);
-            const account = providerAccounts.find((entry) => entry.id === model.accountId);
-            const isFirst = idx === 0;
-            const isLast = idx === pipeline.length - 1;
-            return (
-              <div
-                key={model.id}
-                className={`group relative flex items-center rounded-2xl border bg-zinc-900 p-6 transition-all duration-300 ${
-                  model.status === 'active'
-                    ? 'border-zinc-800'
-                    : model.status === 'rate-limited'
-                      ? 'border-amber-500/30 opacity-70'
-                      : 'border-rose-500/30 opacity-50 grayscale'
-                }`}
-              >
-                <div className="mr-6 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-xl shadow-inner">
-                  {provider?.icon ?? '?'}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center space-x-2">
-                    <h4 className="truncate text-base font-bold tracking-tight text-white">
-                      {model.modelName}
-                    </h4>
-                    {idx === 0 && (
-                      <span className="rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[8px] font-black text-emerald-500 uppercase">
-                        Primary
-                      </span>
-                    )}
-                    {model.status === 'rate-limited' && (
-                      <span className="rounded border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[8px] font-black text-amber-500 uppercase">
-                        Rate Limited
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center space-x-3">
-                    <span className="font-mono text-[10px] text-zinc-600 uppercase">
-                      Provider: {provider?.name ?? model.providerId}
-                    </span>
-                    {account && (
-                      <>
-                        <span className="text-zinc-800">·</span>
-                        <span className="font-mono text-[10px] text-zinc-600">{account.label}</span>
-                      </>
-                    )}
-                    <span className="text-zinc-800">·</span>
-                    <span className="font-mono text-[10px] text-zinc-600">P{model.priority}</span>
-                    <span className="text-zinc-800">·</span>
-                    <span
-                      className={`text-[9px] font-black uppercase ${
-                        model.status === 'active'
-                          ? 'text-emerald-500'
-                          : model.status === 'rate-limited'
-                            ? 'text-amber-500'
-                            : 'text-rose-500'
-                      }`}
-                    >
-                      {model.status}
-                    </span>
-                  </div>
-                  {provider && provider.capabilities.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {provider.capabilities.map((capability) => (
-                        <span
-                          key={capability}
-                          className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[8px] text-zinc-400"
-                        >
-                          {CAPABILITY_LABELS[capability] || capability}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    onClick={() => onMoveModel(model.id, 'up')}
-                    disabled={isFirst}
-                    aria-label={`Move ${model.modelName} up`}
-                    className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-zinc-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    onClick={() => onMoveModel(model.id, 'down')}
-                    disabled={isLast}
-                    aria-label={`Move ${model.modelName} down`}
-                    className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-zinc-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    onClick={() => onToggleModelStatus(model.id, model.status)}
-                    className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-zinc-700 hover:text-white"
-                  >
-                    {model.status === 'active' ? 'Disable' : 'Enable'}
-                  </button>
-                  <button
-                    onClick={() => onRemoveModelFromPipeline(model.id)}
-                    className="rounded-xl bg-zinc-800 px-3 py-2 text-[9px] font-black tracking-widest text-zinc-400 uppercase transition-all hover:bg-rose-900/50 hover:text-rose-400"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            );
-          })
-        )}
+        {renderPipelineCards({
+          isLoading: isLoadingPipeline,
+          models: pipeline,
+          showPrimaryBadge: true,
+          emptyTitle: 'Keine Modelle konfiguriert',
+          emptyDescription:
+            'Verbinde zuerst einen Provider-Account und füge danach ein Modell hinzu.',
+          onToggleStatus: onToggleModelStatus,
+          onMove: onMoveModel,
+          onRemove: onRemoveModelFromPipeline,
+        })}
+      </div>
+
+      <div className="mt-8 flex items-center justify-between gap-4 px-2">
+        <h3 className="flex items-center space-x-2 text-xs font-black tracking-[0.2em] text-zinc-500 uppercase">
+          <svg
+            className="h-4 w-4 text-emerald-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M4 7h16M4 12h16M4 17h10M16 4l4 4-4 4"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span>Active Embedding Model</span>
+        </h3>
+        <button
+          onClick={onOpenAddEmbeddingModelModal}
+          disabled={!hasEmbeddingCapableAccount}
+          className="rounded-xl bg-emerald-600 px-4 py-2 text-[10px] font-black tracking-widest text-white uppercase transition-all hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-600"
+        >
+          Embedding hinzufügen
+        </button>
+      </div>
+
+      {!isLoadingEmbeddingPipeline && embeddingPipeline.length === 0 && (
+        <div className="mx-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-xs font-bold text-amber-300">Warnung</p>
+          <p className="mt-1 text-xs text-amber-200/90">
+            Bitte ein Embedding Model hinzufügen, sonst kann der Embedding-Dienst nicht genutzt
+            werden.
+          </p>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {renderPipelineCards({
+          isLoading: isLoadingEmbeddingPipeline,
+          models: embeddingPipeline,
+          showPrimaryBadge: false,
+          emptyTitle: 'Kein Embedding-Modell konfiguriert',
+          emptyDescription:
+            'Füge ein Modell mit Embeddings-Unterstützung hinzu, um Embedding-Requests gezielt zu routen.',
+          onToggleStatus: onToggleEmbeddingModelStatus,
+          onMove: onMoveEmbeddingModel,
+          onRemove: onRemoveEmbeddingModelFromPipeline,
+        })}
       </div>
 
       <div className="mt-10 space-y-4">

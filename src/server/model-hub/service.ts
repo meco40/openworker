@@ -14,6 +14,8 @@ import {
   type GatewayResponse,
 } from '@/server/model-hub/gateway';
 import { isJwtExpiringSoon, refreshOpenAICodexToken } from '@/server/model-hub/codexAuth';
+import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
+import { fetchWithTimeout, parseErrorMessage } from '@/server/model-hub/Models/shared/http';
 
 interface ConnectProviderAccountInput {
   providerId: string;
@@ -27,6 +29,16 @@ interface ConnectProviderAccountInput {
 interface GeminiEmbeddingModelsApi {
   embedContent(payload: Record<string, unknown>): Promise<Record<string, unknown>>;
   batchEmbedContents?(payload: Record<string, unknown>): Promise<Record<string, unknown>>;
+}
+
+const EMBEDDING_PROFILE_ID = 'p1-embeddings';
+
+interface OpenAICompatibleEmbeddingResponse {
+  data?: Array<{ embedding?: number[]; index?: number }>;
+}
+
+interface CohereEmbeddingResponse {
+  embeddings?: { float?: number[][] } | number[][];
 }
 
 function tryExtractBatchPayloadAsEmbedContent(
@@ -75,6 +87,191 @@ function tryExtractBatchPayloadAsEmbedContent(
 
   if (contents.length === 0) return null;
   return { model: firstModel.trim(), contents };
+}
+
+function normalizeBearerSecret(secret: string): string {
+  return secret
+    .trim()
+    .replace(/^Bearer\s+/i, '')
+    .trim();
+}
+
+function extractTextParts(value: unknown): string[] {
+  if (typeof value === 'string') {
+    const text = value.trim();
+    return text ? [text] : [];
+  }
+  if (!Array.isArray(value)) return [];
+
+  const texts: string[] = [];
+  for (const entry of value) {
+    if (typeof entry === 'string') {
+      const text = entry.trim();
+      if (text) texts.push(text);
+      continue;
+    }
+    if (!entry || typeof entry !== 'object') continue;
+    const parts = (entry as { parts?: unknown }).parts;
+    if (!Array.isArray(parts)) continue;
+    for (const part of parts) {
+      if (!part || typeof part !== 'object') continue;
+      const text = (part as { text?: unknown }).text;
+      if (typeof text === 'string' && text.trim()) {
+        texts.push(text.trim());
+      }
+    }
+  }
+  return texts;
+}
+
+function normalizeOpenAICompatibleEmbeddingInput(
+  operation: 'embedContent' | 'batchEmbedContents',
+  payload: Record<string, unknown>,
+  fallbackModel: string,
+): { model: string; input: string[] } | null {
+  const requestedModel =
+    typeof payload.model === 'string' && payload.model.trim().length > 0
+      ? payload.model.trim()
+      : '';
+  const model = requestedModel || fallbackModel.trim();
+  if (!model) return null;
+
+  if (payload.input !== undefined) {
+    if (typeof payload.input === 'string' && payload.input.trim()) {
+      return { model, input: [payload.input.trim()] };
+    }
+    if (Array.isArray(payload.input)) {
+      const normalized = payload.input
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim())
+        .filter(Boolean);
+      if (normalized.length > 0) {
+        return { model, input: normalized };
+      }
+    }
+  }
+
+  if (operation === 'embedContent') {
+    const fromContents = extractTextParts(payload.contents);
+    if (fromContents.length > 0) return { model, input: fromContents };
+    const fromContent = extractTextParts((payload as { content?: unknown }).content);
+    if (fromContent.length > 0) return { model, input: fromContent };
+    return null;
+  }
+
+  const batchFallback = tryExtractBatchPayloadAsEmbedContent(payload);
+  if (batchFallback) {
+    return {
+      model: requestedModel || batchFallback.model || model,
+      input: batchFallback.contents,
+    };
+  }
+
+  const fromContents = extractTextParts(payload.contents);
+  if (fromContents.length > 0) return { model, input: fromContents };
+  return null;
+}
+
+async function dispatchOpenAICompatibleEmbedding(
+  providerId: string,
+  baseUrl: string,
+  secret: string,
+  operation: 'embedContent' | 'batchEmbedContents',
+  payload: Record<string, unknown>,
+  fallbackModel: string,
+): Promise<Record<string, unknown>> {
+  const normalized = normalizeOpenAICompatibleEmbeddingInput(operation, payload, fallbackModel);
+  if (!normalized) {
+    return { error: 'Embedding payload is missing a supported model/input format.' };
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  const normalizedSecret = normalizeBearerSecret(secret);
+  if (normalizedSecret) {
+    headers.Authorization = `Bearer ${normalizedSecret}`;
+  }
+  if (providerId === 'openrouter') {
+    headers['HTTP-Referer'] = 'https://openclaw.app';
+    headers['X-Title'] = 'OpenClaw';
+  }
+
+  const response = await fetchWithTimeout(
+    `${baseUrl.replace(/\/$/, '')}/embeddings`,
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: normalized.model,
+        input: normalized.input,
+      }),
+    },
+    60_000,
+  );
+
+  if (!response.ok) {
+    return { error: await parseErrorMessage(response) };
+  }
+
+  const json = (await response.json().catch(() => ({}))) as OpenAICompatibleEmbeddingResponse;
+  const vectors = (json.data ?? [])
+    .map((entry) => (Array.isArray(entry?.embedding) ? entry.embedding : []))
+    .filter((embedding) => embedding.length > 0);
+
+  if (operation === 'embedContent') {
+    return { embedding: { values: vectors[0] ?? [] } };
+  }
+  return { embeddings: vectors.map((values) => ({ values })) };
+}
+
+async function dispatchCohereEmbedding(
+  secret: string,
+  operation: 'embedContent' | 'batchEmbedContents',
+  payload: Record<string, unknown>,
+  fallbackModel: string,
+): Promise<Record<string, unknown>> {
+  const normalized = normalizeOpenAICompatibleEmbeddingInput(operation, payload, fallbackModel);
+  if (!normalized) {
+    return { error: 'Embedding payload is missing a supported model/input format.' };
+  }
+
+  const response = await fetchWithTimeout(
+    'https://api.cohere.com/v2/embed',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${normalizeBearerSecret(secret)}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: normalized.model,
+        texts: normalized.input,
+        embedding_types: ['float'],
+      }),
+    },
+    60_000,
+  );
+
+  if (!response.ok) {
+    return { error: await parseErrorMessage(response) };
+  }
+
+  const json = (await response.json().catch(() => ({}))) as CohereEmbeddingResponse;
+  const rawEmbeddings = Array.isArray(json.embeddings)
+    ? json.embeddings
+    : Array.isArray(json.embeddings?.float)
+      ? json.embeddings.float
+      : [];
+
+  const vectors = rawEmbeddings.filter(
+    (embedding): embedding is number[] => Array.isArray(embedding) && embedding.length > 0,
+  );
+
+  if (operation === 'embedContent') {
+    return { embedding: { values: vectors[0] ?? [] } };
+  }
+  return { embeddings: vectors.map((values) => ({ values })) };
 }
 
 function mapPipelineReasoningEffort(
@@ -182,9 +379,17 @@ export class ModelHubService {
   // ─── Model fetching ────────────────────────────────────────────
 
   async fetchModelsForAccount(accountId: string, encryptionKey: string): Promise<FetchedModel[]> {
+    return this.fetchModelsForAccountByPurpose(accountId, encryptionKey);
+  }
+
+  async fetchModelsForAccountByPurpose(
+    accountId: string,
+    encryptionKey: string,
+    purpose: 'general' | 'embedding' = 'general',
+  ): Promise<FetchedModel[]> {
     const account = await this.getUsableAccountById(accountId, encryptionKey);
     if (!account) return [];
-    return fetchModelsForAccount(account, encryptionKey);
+    return fetchModelsForAccount(account, encryptionKey, { purpose });
   }
 
   // ─── Pipeline management ───────────────────────────────────────
@@ -388,17 +593,30 @@ export class ModelHubService {
     encryptionKey: string,
     input: { operation: 'embedContent' | 'batchEmbedContents'; payload: Record<string, unknown> },
   ): Promise<Record<string, unknown>> {
-    // Find an account with a Gemini provider for embeddings
-    const accounts = this.repository.listAccounts();
-    const geminiAccount = accounts.find((a) => a.providerId === 'gemini');
-    if (!geminiAccount) {
-      return { error: 'No Gemini account available for embeddings.' };
+    const embeddingPipeline = this.repository
+      .listPipelineModels(EMBEDDING_PROFILE_ID)
+      .filter((model) => model.status === 'active')
+      .sort((a, b) => a.priority - b.priority);
+    const preferredEmbeddingModel = embeddingPipeline[0];
+
+    if (!preferredEmbeddingModel) {
+      return { error: 'No active embedding model configured. Add one in Gateway Control.' };
     }
 
-    const record = this.repository.getAccountRecordById(geminiAccount.id);
-    if (!record) {
-      return { error: 'Gemini account record not found.' };
+    const provider = PROVIDER_CATALOG.find(
+      (entry) => entry.id === preferredEmbeddingModel.providerId,
+    );
+    if (!provider) {
+      return { error: `Unknown embedding provider: ${preferredEmbeddingModel.providerId}.` };
     }
+
+    const record: ProviderAccountRecord | null = this.repository.getAccountRecordById(
+      preferredEmbeddingModel.accountId,
+    );
+    if (!record) {
+      return { error: 'Embedding account record not found.' };
+    }
+    const defaultEmbeddingModel: string | null = preferredEmbeddingModel.modelName?.trim() || null;
 
     const { decryptSecret } = await import('@/server/model-hub/crypto');
     const secret = decryptSecret(record.encryptedSecret, encryptionKey);
@@ -406,13 +624,46 @@ export class ModelHubService {
       return { error: 'Gemini account secret is missing or empty.' };
     }
 
-    const { GoogleGenAI } = await import('@google/genai');
-    const ai = new GoogleGenAI({ apiKey: secret });
-    const modelsApi = ai.models as unknown as GeminiEmbeddingModelsApi;
+    const requestedModel =
+      typeof input.payload.model === 'string' && input.payload.model.trim().length > 0
+        ? input.payload.model.trim()
+        : null;
+    const embeddingPayload =
+      input.operation === 'embedContent' && !requestedModel && defaultEmbeddingModel
+        ? { ...input.payload, model: defaultEmbeddingModel }
+        : input.payload;
 
     try {
+      if (provider.id !== 'gemini') {
+        if (provider.id === 'cohere') {
+          return await dispatchCohereEmbedding(
+            secret,
+            input.operation,
+            input.payload,
+            defaultEmbeddingModel || '',
+          );
+        }
+        if (provider.apiBaseUrl) {
+          return await dispatchOpenAICompatibleEmbedding(
+            provider.id,
+            provider.apiBaseUrl,
+            secret,
+            input.operation,
+            input.payload,
+            defaultEmbeddingModel || '',
+          );
+        }
+        return {
+          error: `Embedding provider "${provider.id}" is not supported yet.`,
+        };
+      }
+
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: secret });
+      const modelsApi = ai.models as unknown as GeminiEmbeddingModelsApi;
+
       if (input.operation === 'embedContent') {
-        const result = await modelsApi.embedContent(input.payload);
+        const result = await modelsApi.embedContent(embeddingPayload);
         return result ?? {};
       }
       if (input.operation === 'batchEmbedContents') {

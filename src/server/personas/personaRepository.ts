@@ -406,7 +406,21 @@ export class PersonaRepository {
     for (const persona of personas) {
       const slug = String(persona.slug || '').trim();
       if (!slug) continue;
-      ensurePersonaFiles(slug, legacyByPersonaId.get(persona.id));
+      const legacyFiles = legacyByPersonaId.get(persona.id);
+      ensurePersonaFiles(slug, legacyFiles);
+
+      if (!legacyFiles) continue;
+      for (const filename of PERSONA_FILE_NAMES) {
+        const legacyContent = legacyFiles[filename];
+        if (typeof legacyContent !== 'string' || legacyContent.length === 0) {
+          continue;
+        }
+
+        const currentContent = readPersonaFile(slug, filename);
+        if (currentContent !== null && currentContent.trim().length === 0) {
+          writePersonaFile(slug, filename, legacyContent);
+        }
+      }
     }
 
     this.db.exec('DROP TABLE IF EXISTS persona_files');

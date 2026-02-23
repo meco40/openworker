@@ -62,7 +62,7 @@ export function useChatInterfaceState({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const textInputRef = useRef<HTMLInputElement>(null);
+  const textInputRef = useRef<HTMLTextAreaElement>(null);
   const sendQueueRef = useRef<
     Array<{
       id: string;

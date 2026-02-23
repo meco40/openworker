@@ -58,6 +58,7 @@ export async function GET() {
   try {
     const userContext = await resolveRequestUserContext();
     const uptimeSeconds = Math.floor(process.uptime());
+    const ramUsageBytes = process.memoryUsage().rss;
 
     const activeWsSessions = getClientRegistry().connectionCount;
 
@@ -111,6 +112,7 @@ export async function GET() {
         activeWsSessions,
         tokensToday,
         vectorNodeCount,
+        ramUsageBytes,
         automation: automationMetrics,
         rooms: null,
         knowledge: knowledgeMetrics,

@@ -299,7 +299,9 @@ describe('ModelHubService core flows', () => {
 
     const result = await service.fetchModelsForAccount(account.id, 'enc-key');
 
-    expect(fetchModelsForAccount).toHaveBeenCalledWith(account, 'enc-key');
+    expect(fetchModelsForAccount).toHaveBeenCalledWith(account, 'enc-key', {
+      purpose: 'general',
+    });
     expect(result).toEqual([{ id: 'gpt-4.1', name: 'gpt-4.1', provider: 'openai' }]);
   });
 

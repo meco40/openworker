@@ -7,9 +7,9 @@ const manifest: SkillManifest = {
   description: 'Execute multiple independent tool calls in parallel and aggregate results.',
   version: '1.0.0',
   category: 'Automation',
-  functionName: 'multi_tool_use.parallel',
+  functionName: 'multi_tool_use_parallel',
   tool: {
-    name: 'multi_tool_use.parallel',
+    name: 'multi_tool_use_parallel',
     description: 'Run multiple tool calls in parallel.',
     parameters: {
       type: 'object',
@@ -32,7 +32,7 @@ const manifest: SkillManifest = {
 const multiToolUseParallelSkill = {
   ...manifest,
   execute: async (args: Record<string, unknown>) =>
-    executeSkillApi('multi_tool_use.parallel', args),
+    executeSkillApi('multi_tool_use_parallel', args),
 };
 
 export default multiToolUseParallelSkill;

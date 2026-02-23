@@ -106,7 +106,6 @@ const PersonasView: React.FC = () => {
     activeRoomCountsByPersona,
     refreshRooms,
     loadRoomDetail,
-    selectRoom,
     handleCreateRoom,
     startSelectedRoom,
     stopSelectedRoom,
@@ -142,14 +141,6 @@ const PersonasView: React.FC = () => {
       setEditingMeta(false);
     },
     [dirty, setSelectedId, setDirty, setEditingMeta],
-  );
-
-  const handleSelectRoom = useCallback(
-    (roomId: string) => {
-      selectRoom(roomId, dirty);
-      setDirty(false);
-    },
-    [selectRoom, dirty, setDirty],
   );
 
   // Effects
@@ -216,10 +207,6 @@ const PersonasView: React.FC = () => {
         creating={creating}
         templates={templates}
         onCreatePersona={createPersona}
-        roomsLoading={roomsLoading}
-        rooms={rooms}
-        selectedRoomId={selectedRoomId}
-        onSelectRoom={handleSelectRoom}
       />
 
       {/* ── Right Panel: Editor ───────────────────────────── */}

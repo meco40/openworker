@@ -4,6 +4,8 @@ import {
   DIAGNOSTICS_REFRESH_INTERVAL_MS,
   extractDoctorFindingDetails,
   extractHealthIssues,
+  summarizeHealthChecks,
+  toHealthDiagnosticsStatus,
   toHealthIssueInsight,
 } from '@/components/LogsView';
 
@@ -55,7 +57,18 @@ describe('LogsView diagnostics data helpers', () => {
     expect(insight.action).toContain('/api/health');
   });
 
-  it('uses 60-second diagnostics refresh interval', () => {
-    expect(DIAGNOSTICS_REFRESH_INTERVAL_MS).toBe(60000);
+  it('summarizes health checks and derives degraded status', () => {
+    const summary = summarizeHealthChecks([
+      { id: 'a', status: 'ok', message: 'ok' },
+      { id: 'b', status: 'warning', message: 'warn' },
+      { id: 'c', status: 'skipped', message: 'skip' },
+    ]);
+
+    expect(summary).toEqual({ ok: 1, warning: 1, critical: 0, skipped: 1 });
+    expect(toHealthDiagnosticsStatus(summary)).toBe('degraded');
+  });
+
+  it('uses 180-second diagnostics refresh interval', () => {
+    expect(DIAGNOSTICS_REFRESH_INTERVAL_MS).toBe(180000);
   });
 });

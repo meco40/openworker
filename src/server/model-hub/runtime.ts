@@ -58,7 +58,9 @@ function buildTestModeService(): ModelHubService {
       }
 
       const lastUserMessage = getLastUserMessage(request);
-      const hasParallelToolResult = lastUserMessage.includes('Tool "multi_tool_use.parallel"');
+      const hasParallelToolResult =
+        lastUserMessage.includes('Tool "multi_tool_use_parallel"') ||
+        lastUserMessage.includes('Tool "multi_tool_use.parallel"');
 
       if (lastUserMessage.includes('parallel-check') && !hasParallelToolResult) {
         return {
@@ -68,7 +70,7 @@ function buildTestModeService(): ModelHubService {
           model: options?.modelOverride || 'test-mode-model',
           functionCalls: [
             {
-              name: 'multi_tool_use.parallel',
+              name: 'multi_tool_use_parallel',
               args: {
                 tool_uses: [
                   {

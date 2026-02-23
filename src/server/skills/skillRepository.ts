@@ -101,6 +101,18 @@ export class SkillRepository {
         tool_definition, handler_path, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, 'built-in', NULL, ?, NULL, ?, ?)
     `);
+    const sync = this.db.prepare(`
+      UPDATE skills
+      SET
+        name = ?,
+        description = ?,
+        category = ?,
+        version = ?,
+        function_name = ?,
+        tool_definition = ?,
+        updated_at = ?
+      WHERE id = ? AND source = 'built-in'
+    `);
 
     const now = new Date().toISOString();
     for (const seed of seeds) {
@@ -116,6 +128,16 @@ export class SkillRepository {
         JSON.stringify(m.tool),
         now,
         now,
+      );
+      sync.run(
+        m.name,
+        m.description,
+        m.category,
+        m.version,
+        m.functionName,
+        JSON.stringify(m.tool),
+        now,
+        m.id,
       );
     }
   }

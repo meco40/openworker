@@ -47,7 +47,7 @@ export function runStatsRepositoryCheck(): HealthCheck {
 export async function runMemoryRepositoryCheck(): Promise<HealthCheck> {
   const start = Date.now();
   try {
-    const nodeCount = (await getMemoryService().snapshot()).length;
+    const nodeCount = await getMemoryService().count();
     const provider = getMemoryProviderKind();
     return okCheck('core.memory_repository', 'core', start, 'Memory repository reachable.', {
       nodeCount,

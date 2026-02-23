@@ -1,8 +1,34 @@
-import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import { PersonaRepository } from '@/server/personas/personaRepository';
 
 describe('persona model binding persistence', () => {
+  const cleanupDirs: string[] = [];
+
+  function createTestPersonasRootPath(): string {
+    const rootPath = path.resolve(
+      '.local',
+      `personas.test.preferred.${Date.now()}.${Math.random().toString(36).slice(2)}`,
+    );
+    cleanupDirs.push(rootPath);
+    process.env.PERSONAS_ROOT_PATH = rootPath;
+    return rootPath;
+  }
+
+  afterEach(() => {
+    delete process.env.PERSONAS_ROOT_PATH;
+    for (const dirPath of cleanupDirs.splice(0, cleanupDirs.length)) {
+      try {
+        fs.rmSync(dirPath, { recursive: true, force: true });
+      } catch {
+        // ignore in tests
+      }
+    }
+  });
+
   it('stores and updates preferredModelId and modelHubProfileId', () => {
+    createTestPersonasRootPath();
     const repo = new PersonaRepository(':memory:');
     const created = repo.createPersona({
       userId: 'user-a',
@@ -37,6 +63,7 @@ describe('persona model binding persistence', () => {
   });
 
   it('does not include TOOLS.md in system instruction for non-Nexus personas', () => {
+    createTestPersonasRootPath();
     const repo = new PersonaRepository(':memory:');
     const created = repo.createPersona({
       userId: 'user-a',
@@ -61,6 +88,7 @@ describe('persona model binding persistence', () => {
   });
 
   it('includes TOOLS.md in system instruction for Nexus persona', () => {
+    createTestPersonasRootPath();
     const repo = new PersonaRepository(':memory:');
     const created = repo.createPersona({
       userId: 'user-a',

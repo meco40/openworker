@@ -106,6 +106,19 @@ export class MemoryService {
     return nodes;
   }
 
+  async count(personaId?: string, userId?: string): Promise<number> {
+    const scopedUserId = resolveUserId(userId);
+    const listed = await this.mem0Client.listMemories({
+      userId: scopedUserId,
+      personaId,
+      page: 1,
+      pageSize: 1,
+    });
+    return Number.isFinite(listed.total) && listed.total >= 0
+      ? Math.floor(listed.total)
+      : listed.memories.length;
+  }
+
   async listPage(
     personaId: string,
     input: {

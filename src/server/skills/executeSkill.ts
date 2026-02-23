@@ -22,6 +22,7 @@ const SKILL_HANDLERS: Record<string, SkillHandler> = {
   browser_snapshot: browserSnapshotHandler,
   vision_analyze: visionAnalyzeHandler,
   subagents: subagentsHandler,
+  multi_tool_use_parallel: multiToolUseParallelHandler,
   'multi_tool_use.parallel': multiToolUseParallelHandler,
 };
 

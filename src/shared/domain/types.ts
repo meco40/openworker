@@ -102,6 +102,7 @@ export interface ControlPlaneMetrics {
   activeWsSessions: number;
   tokensToday: number;
   vectorNodeCount: number;
+  ramUsageBytes?: number;
   rooms?: {
     totalRooms: number;
     runningRooms: number;

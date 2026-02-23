@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { PROFILE_ID } from '@/components/model-hub/constants';
+import { EMBEDDING_PROFILE_ID, PROFILE_ID } from '@/components/model-hub/constants';
 import AddModelModal from '@/components/model-hub/modals/AddModelModal';
 import HeaderSection from '@/components/model-hub/sections/HeaderSection';
 import PipelineSection from '@/components/model-hub/sections/PipelineSection';
@@ -43,6 +43,8 @@ const ModelHub: React.FC = () => {
 
   const [pipeline, setPipeline] = useState<PipelineModel[]>([]);
   const [isLoadingPipeline, setIsLoadingPipeline] = useState(true);
+  const [embeddingPipeline, setEmbeddingPipeline] = useState<PipelineModel[]>([]);
+  const [isLoadingEmbeddingPipeline, setIsLoadingEmbeddingPipeline] = useState(true);
 
   const [connectProviderId, setConnectProviderId] = useState('');
   const [connectAuthMethod, setConnectAuthMethod] = useState<'none' | 'api_key' | 'oauth'>(
@@ -59,6 +61,7 @@ const ModelHub: React.FC = () => {
   const [bulkProbeSummary, setBulkProbeSummary] = useState<string | null>(null);
 
   const [isAddModelOpen, setIsAddModelOpen] = useState(false);
+  const [addModelMode, setAddModelMode] = useState<'pipeline' | 'embedding'>('pipeline');
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [selectedModelId, setSelectedModelId] = useState('');
   const [selectedReasoningEffort, setSelectedReasoningEffort] =
@@ -101,9 +104,22 @@ const ModelHub: React.FC = () => {
     [liveModels, modelSearchQuery],
   );
 
+  const embeddingCapableAccounts = useMemo(
+    () =>
+      providerAccounts.filter((account) =>
+        providerLookup.get(account.providerId)?.capabilities.includes('embeddings'),
+      ),
+    [providerAccounts, providerLookup],
+  );
+
+  const selectableAccounts = useMemo(
+    () => (addModelMode === 'embedding' ? embeddingCapableAccounts : providerAccounts),
+    [addModelMode, embeddingCapableAccounts, providerAccounts],
+  );
+
   const selectedAccount = useMemo(
-    () => providerAccounts.find((account) => account.id === selectedAccountId) ?? null,
-    [providerAccounts, selectedAccountId],
+    () => selectableAccounts.find((account) => account.id === selectedAccountId) ?? null,
+    [selectableAccounts, selectedAccountId],
   );
 
   const loadProviders = useCallback(async () => {
@@ -136,25 +152,45 @@ const ModelHub: React.FC = () => {
     }
   }, []);
 
+  const loadPipelineByProfile = useCallback(
+    async (
+      profileId: string,
+      setModels: React.Dispatch<React.SetStateAction<PipelineModel[]>>,
+      setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+    ) => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/model-hub/pipeline?profileId=${profileId}`);
+        const data = (await response.json()) as ApiResponse & { models?: PipelineModel[] };
+        if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        setModels(data.models ?? []);
+      } catch {
+        setModels([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
   const loadPipeline = useCallback(async () => {
-    setIsLoadingPipeline(true);
-    try {
-      const response = await fetch(`/api/model-hub/pipeline?profileId=${PROFILE_ID}`);
-      const data = (await response.json()) as ApiResponse & { models?: PipelineModel[] };
-      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
-      setPipeline(data.models ?? []);
-    } catch {
-      setPipeline([]);
-    } finally {
-      setIsLoadingPipeline(false);
-    }
-  }, []);
+    await loadPipelineByProfile(PROFILE_ID, setPipeline, setIsLoadingPipeline);
+  }, [loadPipelineByProfile]);
+
+  const loadEmbeddingPipeline = useCallback(async () => {
+    await loadPipelineByProfile(
+      EMBEDDING_PROFILE_ID,
+      setEmbeddingPipeline,
+      setIsLoadingEmbeddingPipeline,
+    );
+  }, [loadPipelineByProfile]);
 
   useEffect(() => {
     void loadProviders();
     void loadAccounts();
     void loadPipeline();
-  }, [loadProviders, loadAccounts, loadPipeline]);
+    void loadEmbeddingPipeline();
+  }, [loadProviders, loadAccounts, loadPipeline, loadEmbeddingPipeline]);
 
   useEffect(() => {
     if (!selectedConnectProvider) return;
@@ -270,18 +306,24 @@ const ModelHub: React.FC = () => {
       const data = (await response.json()) as ApiResponse;
       if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
       setDeletingAccountId(null);
-      await Promise.all([loadAccounts(), loadPipeline()]);
+      await Promise.all([loadAccounts(), loadPipeline(), loadEmbeddingPipeline()]);
     } catch (error) {
       setAccountsError(error instanceof Error ? error.message : 'Delete failed');
     }
   }
 
-  async function fetchLiveModelsForAccount(accountId: string) {
+  async function fetchLiveModelsForAccount(
+    accountId: string,
+    mode: 'pipeline' | 'embedding' = addModelMode,
+  ) {
     setIsLoadingModels(true);
     setLiveModels([]);
     setModelSearchQuery('');
     try {
-      const response = await fetch(`/api/model-hub/accounts/${accountId}/models`);
+      const purpose = mode === 'embedding' ? 'embedding' : 'general';
+      const response = await fetch(
+        `/api/model-hub/accounts/${accountId}/models?purpose=${purpose}`,
+      );
       const data = (await response.json()) as ApiResponse & { models?: FetchedModel[] };
       if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
       const models = data.models ?? [];
@@ -371,34 +413,43 @@ const ModelHub: React.FC = () => {
     }
   }
 
-  function openAddModelModal() {
-    if (providerAccounts.length === 0) {
-      setProbeResult('Bitte zuerst einen Provider-Account verbinden.');
+  function openAddModelModal(mode: 'pipeline' | 'embedding') {
+    const accountsForMode = mode === 'embedding' ? embeddingCapableAccounts : providerAccounts;
+    if (accountsForMode.length === 0) {
+      setProbeResult(
+        mode === 'embedding'
+          ? 'Bitte zuerst einen Embeddings-fähigen Provider-Account verbinden.'
+          : 'Bitte zuerst einen Provider-Account verbinden.',
+      );
       return;
     }
-    const initial = providerAccounts[0];
+    setAddModelMode(mode);
+    const initial = accountsForMode[0];
     setSelectedAccountId(initial.id);
     setSelectedModelId('');
     setSelectedReasoningEffort('high');
-    setSelectedPriority(pipeline.length + 1);
+    setSelectedPriority((mode === 'embedding' ? embeddingPipeline.length : pipeline.length) + 1);
     setIsAddModelOpen(true);
-    void fetchLiveModelsForAccount(initial.id);
+    void fetchLiveModelsForAccount(initial.id, mode);
   }
 
   async function saveAddedModel() {
     if (!selectedAccount || !selectedModelId) return;
+    const profileId = addModelMode === 'embedding' ? EMBEDDING_PROFILE_ID : PROFILE_ID;
     try {
       const response = await fetch('/api/model-hub/pipeline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'add',
-          profileId: PROFILE_ID,
+          profileId,
           accountId: selectedAccount.id,
           providerId: selectedAccount.providerId,
           modelName: selectedModelId,
           reasoningEffort:
-            selectedAccount.providerId === 'openai-codex' ? selectedReasoningEffort : undefined,
+            addModelMode === 'pipeline' && selectedAccount.providerId === 'openai-codex'
+              ? selectedReasoningEffort
+              : undefined,
           priority: selectedPriority,
         }),
       });
@@ -406,13 +457,20 @@ const ModelHub: React.FC = () => {
       if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
       setIsAddModelOpen(false);
       setSelectedModelId('');
-      await loadPipeline();
+      if (addModelMode === 'embedding') {
+        await loadEmbeddingPipeline();
+      } else {
+        await loadPipeline();
+      }
     } catch (error) {
       setProbeResult(error instanceof Error ? error.message : 'Model hinzufügen fehlgeschlagen');
     }
   }
 
-  async function removeModelFromPipeline(modelId: string) {
+  async function removeModelFromPipeline(
+    modelId: string,
+    mode: 'pipeline' | 'embedding' = 'pipeline',
+  ) {
     try {
       const response = await fetch('/api/model-hub/pipeline', {
         method: 'POST',
@@ -421,13 +479,21 @@ const ModelHub: React.FC = () => {
       });
       const data = (await response.json()) as ApiResponse;
       if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
-      await loadPipeline();
+      if (mode === 'embedding') {
+        await loadEmbeddingPipeline();
+      } else {
+        await loadPipeline();
+      }
     } catch (error) {
       setProbeResult(error instanceof Error ? error.message : 'Entfernen fehlgeschlagen');
     }
   }
 
-  async function toggleModelStatus(modelId: string, currentStatus: string) {
+  async function toggleModelStatus(
+    modelId: string,
+    currentStatus: string,
+    mode: 'pipeline' | 'embedding' = 'pipeline',
+  ) {
     const newStatus = currentStatus === 'active' ? 'offline' : 'active';
     try {
       const response = await fetch('/api/model-hub/pipeline', {
@@ -437,22 +503,35 @@ const ModelHub: React.FC = () => {
       });
       const data = (await response.json()) as ApiResponse;
       if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
-      await loadPipeline();
+      if (mode === 'embedding') {
+        await loadEmbeddingPipeline();
+      } else {
+        await loadPipeline();
+      }
     } catch (error) {
       setProbeResult(error instanceof Error ? error.message : 'Status-Update fehlgeschlagen');
     }
   }
 
-  async function moveModelInPipeline(modelId: string, direction: 'up' | 'down') {
+  async function moveModelInPipeline(
+    modelId: string,
+    direction: 'up' | 'down',
+    mode: 'pipeline' | 'embedding' = 'pipeline',
+  ) {
     try {
+      const profileId = mode === 'embedding' ? EMBEDDING_PROFILE_ID : PROFILE_ID;
       const response = await fetch('/api/model-hub/pipeline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reorder', profileId: PROFILE_ID, modelId, direction }),
+        body: JSON.stringify({ action: 'reorder', profileId, modelId, direction }),
       });
       const data = (await response.json()) as ApiResponse;
       if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
-      await loadPipeline();
+      if (mode === 'embedding') {
+        await loadEmbeddingPipeline();
+      } else {
+        await loadPipeline();
+      }
     } catch (error) {
       setProbeResult(error instanceof Error ? error.message : 'Reorder fehlgeschlagen');
     }
@@ -476,12 +555,28 @@ const ModelHub: React.FC = () => {
         <PipelineSection
           isLoadingPipeline={isLoadingPipeline}
           pipeline={pipeline}
+          isLoadingEmbeddingPipeline={isLoadingEmbeddingPipeline}
+          embeddingPipeline={embeddingPipeline}
           providerLookup={providerLookup}
           providerAccounts={providerAccounts}
-          onOpenAddModelModal={openAddModelModal}
-          onToggleModelStatus={toggleModelStatus}
-          onMoveModel={moveModelInPipeline}
-          onRemoveModelFromPipeline={removeModelFromPipeline}
+          onOpenAddModelModal={() => openAddModelModal('pipeline')}
+          onOpenAddEmbeddingModelModal={() => openAddModelModal('embedding')}
+          onToggleModelStatus={(modelId, currentStatus) =>
+            void toggleModelStatus(modelId, currentStatus, 'pipeline')
+          }
+          onMoveModel={(modelId, direction) =>
+            void moveModelInPipeline(modelId, direction, 'pipeline')
+          }
+          onRemoveModelFromPipeline={(modelId) => void removeModelFromPipeline(modelId, 'pipeline')}
+          onToggleEmbeddingModelStatus={(modelId, currentStatus) =>
+            void toggleModelStatus(modelId, currentStatus, 'embedding')
+          }
+          onMoveEmbeddingModel={(modelId, direction) =>
+            void moveModelInPipeline(modelId, direction, 'embedding')
+          }
+          onRemoveEmbeddingModelFromPipeline={(modelId) =>
+            void removeModelFromPipeline(modelId, 'embedding')
+          }
           isLoadingAccounts={isLoadingAccounts}
           deletingAccountId={deletingAccountId}
           onSetDeletingAccountId={setDeletingAccountId}
@@ -517,21 +612,25 @@ const ModelHub: React.FC = () => {
 
       <AddModelModal
         isOpen={isAddModelOpen}
-        providerAccounts={providerAccounts}
+        mode={addModelMode}
+        providerAccounts={selectableAccounts}
         providerLookup={providerLookup}
         selectedAccountId={selectedAccountId}
         onSelectedAccountIdChange={(accountId) => {
           setSelectedAccountId(accountId);
-          const nextAccount = providerAccounts.find((account) => account.id === accountId);
-          if (nextAccount?.providerId === 'openai-codex') {
+          const nextAccount = selectableAccounts.find((account) => account.id === accountId);
+          if (addModelMode === 'pipeline' && nextAccount?.providerId === 'openai-codex') {
             setSelectedReasoningEffort('high');
           }
         }}
         selectedAccount={selectedAccount}
         onFetchLiveModelsForAccount={(accountId) => {
-          void fetchLiveModelsForAccount(accountId);
+          void fetchLiveModelsForAccount(accountId, addModelMode);
         }}
-        onClose={() => setIsAddModelOpen(false)}
+        onClose={() => {
+          setIsAddModelOpen(false);
+          setAddModelMode('pipeline');
+        }}
         isLoadingModels={isLoadingModels}
         liveModels={liveModels}
         filteredLiveModels={filteredLiveModels}
@@ -543,7 +642,7 @@ const ModelHub: React.FC = () => {
         onSelectedReasoningEffortChange={setSelectedReasoningEffort}
         selectedPriority={selectedPriority}
         onSelectedPriorityChange={setSelectedPriority}
-        pipelineLength={pipeline.length}
+        pipelineLength={addModelMode === 'embedding' ? embeddingPipeline.length : pipeline.length}
         onSave={() => {
           void saveAddedModel();
         }}

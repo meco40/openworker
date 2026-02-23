@@ -10,9 +10,20 @@ describe('persona workspace lifecycle', () => {
   const cleanupFiles: string[] = [];
   const cleanupDirs: string[] = [];
 
+  function createTestPersonasRootPath(): string {
+    const rootPath = path.resolve(
+      '.local',
+      `personas.test.workspace.${Date.now()}.${Math.random().toString(36).slice(2)}`,
+    );
+    cleanupDirs.push(rootPath);
+    process.env.PERSONAS_ROOT_PATH = rootPath;
+    return rootPath;
+  }
+
   afterEach(() => {
     delete process.env.PERSONAS_DB_PATH;
     delete process.env.MESSAGES_DB_PATH;
+    delete process.env.PERSONAS_ROOT_PATH;
     for (const dirPath of cleanupDirs.splice(0, cleanupDirs.length)) {
       try {
         fs.rmSync(dirPath, { recursive: true, force: true });
@@ -30,11 +41,6 @@ describe('persona workspace lifecycle', () => {
       }
     }
     try {
-      fs.rmSync(path.resolve('.local/personas'), { recursive: true, force: true });
-    } catch {
-      // ignore in tests
-    }
-    try {
       fs.rmSync(path.resolve('.local/uploads/chat'), { recursive: true, force: true });
     } catch {
       // ignore in tests
@@ -42,6 +48,7 @@ describe('persona workspace lifecycle', () => {
   });
 
   it('creates slug + workspace and rejects duplicate slug', () => {
+    const personasRootPath = createTestPersonasRootPath();
     const repo = new PersonaRepository(':memory:');
 
     const first = repo.createPersona({
@@ -52,9 +59,9 @@ describe('persona workspace lifecycle', () => {
     });
 
     expect(first.slug).toBe('nata_girl');
-    expect(fs.existsSync(path.resolve('.local/personas/nata_girl/uploads/images'))).toBe(true);
-    expect(fs.existsSync(path.resolve('.local/personas/nata_girl/uploads/docs'))).toBe(true);
-    expect(fs.existsSync(path.resolve('.local/personas/nata_girl/knowledge'))).toBe(true);
+    expect(fs.existsSync(path.join(personasRootPath, 'nata_girl', 'uploads', 'images'))).toBe(true);
+    expect(fs.existsSync(path.join(personasRootPath, 'nata_girl', 'uploads', 'docs'))).toBe(true);
+    expect(fs.existsSync(path.join(personasRootPath, 'nata_girl', 'knowledge'))).toBe(true);
 
     expect(() =>
       repo.createPersona({
@@ -69,6 +76,7 @@ describe('persona workspace lifecycle', () => {
   });
 
   it('renames workspace folder when persona name changes', () => {
+    const personasRootPath = createTestPersonasRootPath();
     const repo = new PersonaRepository(':memory:');
     const created = repo.createPersona({
       userId: 'u1',
@@ -77,19 +85,20 @@ describe('persona workspace lifecycle', () => {
       vibe: '',
     });
 
-    const oldPath = path.resolve(`.local/personas/${created.slug}`);
+    const oldPath = path.join(personasRootPath, created.slug);
     expect(fs.existsSync(oldPath)).toBe(true);
 
     repo.updatePersona(created.id, { name: 'Nata Prime' });
 
     const updated = repo.getPersona(created.id);
     expect(updated?.slug).toBe('nata_prime');
-    expect(fs.existsSync(path.resolve('.local/personas/nata_prime'))).toBe(true);
+    expect(fs.existsSync(path.join(personasRootPath, 'nata_prime'))).toBe(true);
     expect(fs.existsSync(oldPath)).toBe(false);
     repo.close();
   });
 
   it('migrates legacy chat uploads into persona workspace and rewrites metadata paths', () => {
+    const personasRootPath = createTestPersonasRootPath();
     const personasDbPath = path.resolve(
       '.local',
       `personas.workspace.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
@@ -152,7 +161,7 @@ describe('persona workspace lifecycle', () => {
     const rewrittenPath = String(metadata.attachments?.[0]?.storagePath || '');
     expect(rewrittenPath.startsWith('personas/nata_girl/uploads/docs/')).toBe(true);
     expect(fs.existsSync(path.resolve('.local/uploads/chat', legacyRelative))).toBe(false);
-    expect(fs.existsSync(path.resolve('.local/personas/.migration-v1.done'))).toBe(true);
+    expect(fs.existsSync(path.join(personasRootPath, '.migration-v1.done'))).toBe(true);
 
     messageRepo.close();
     personaRepo.close();

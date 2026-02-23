@@ -25,6 +25,8 @@ describe('pipeline section account row layout', () => {
       createElement(PipelineSection, {
         isLoadingPipeline: false,
         pipeline: [],
+        isLoadingEmbeddingPipeline: false,
+        embeddingPipeline: [],
         providerLookup,
         providerAccounts: [
           {
@@ -41,9 +43,13 @@ describe('pipeline section account row layout', () => {
           },
         ],
         onOpenAddModelModal: () => {},
+        onOpenAddEmbeddingModelModal: () => {},
         onToggleModelStatus: () => {},
         onMoveModel: () => {},
         onRemoveModelFromPipeline: () => {},
+        onToggleEmbeddingModelStatus: () => {},
+        onMoveEmbeddingModel: () => {},
+        onRemoveEmbeddingModelFromPipeline: () => {},
         isLoadingAccounts: false,
         deletingAccountId: null,
         onSetDeletingAccountId: () => {},
@@ -55,5 +61,36 @@ describe('pipeline section account row layout', () => {
       'title="************************************************************0704d"',
     );
     expect(html).toContain('truncate font-mono text-[10px] text-zinc-600');
+  });
+
+  it('renders active embedding model section with add button', () => {
+    const providerLookup = new Map<string, ProviderCatalogEntry>();
+
+    const html = renderToStaticMarkup(
+      createElement(PipelineSection, {
+        isLoadingPipeline: false,
+        pipeline: [],
+        isLoadingEmbeddingPipeline: false,
+        embeddingPipeline: [],
+        providerLookup,
+        providerAccounts: [],
+        onOpenAddModelModal: () => {},
+        onOpenAddEmbeddingModelModal: () => {},
+        onToggleModelStatus: () => {},
+        onMoveModel: () => {},
+        onRemoveModelFromPipeline: () => {},
+        onToggleEmbeddingModelStatus: () => {},
+        onMoveEmbeddingModel: () => {},
+        onRemoveEmbeddingModelFromPipeline: () => {},
+        isLoadingAccounts: false,
+        deletingAccountId: null,
+        onSetDeletingAccountId: () => {},
+        onDeleteAccount: () => {},
+      }),
+    );
+
+    expect(html).toContain('Active Embedding Model');
+    expect(html).toContain('Embedding hinzufügen');
+    expect(html).toContain('Bitte ein Embedding Model hinzufügen');
   });
 });

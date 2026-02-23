@@ -12,9 +12,30 @@ function renderMetric(value: number | undefined): string {
   return value.toLocaleString('de-DE');
 }
 
+function renderRamUsageMetric(bytes: number | undefined): string {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes < 0) {
+    return '--';
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  const fractionDigits = unitIndex === 0 || value >= 10 ? 0 : 1;
+  return `${value.toLocaleString('de-DE', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  })} ${units[unitIndex]}`;
+}
+
 const AppShellHeader: React.FC<AppShellHeaderProps> = ({ metricsState }) => {
   const activeSessions = metricsState.metrics?.activeWsSessions;
   const vectorNodeCount = metricsState.metrics?.vectorNodeCount;
+  const ramUsageBytes = metricsState.metrics?.ramUsageBytes;
 
   return (
     <header className="z-10 flex h-16 items-center justify-between border-b border-zinc-800 bg-[#0c0c0c] px-6">
@@ -37,6 +58,10 @@ const AppShellHeader: React.FC<AppShellHeaderProps> = ({ metricsState }) => {
         <div className="text-right">
           <div className="text-[10px] text-zinc-600 uppercase">Vector Nodes</div>
           <div className="font-mono text-zinc-300">{renderMetric(vectorNodeCount)}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[10px] text-zinc-600 uppercase">RAM Usage</div>
+          <div className="font-mono text-zinc-300">{renderRamUsageMetric(ramUsageBytes)}</div>
         </div>
       </div>
     </header>

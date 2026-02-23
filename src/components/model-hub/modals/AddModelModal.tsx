@@ -8,6 +8,7 @@ import type {
 
 interface AddModelModalProps {
   isOpen: boolean;
+  mode: 'pipeline' | 'embedding';
   providerAccounts: ProviderAccount[];
   providerLookup: Map<string, ProviderCatalogEntry>;
   selectedAccountId: string;
@@ -32,6 +33,7 @@ interface AddModelModalProps {
 
 const AddModelModal: React.FC<AddModelModalProps> = ({
   isOpen,
+  mode,
   providerAccounts,
   providerLookup,
   selectedAccountId,
@@ -54,6 +56,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
   onSave,
 }) => {
   if (!isOpen) return null;
+  const isEmbeddingMode = mode === 'embedding';
   const isCodexAccount = selectedAccount?.providerId === 'openai-codex';
 
   return (
@@ -62,10 +65,12 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-2xl font-black tracking-tight text-white uppercase">
-              Modell hinzufügen
+              {isEmbeddingMode ? 'Embedding-Modell hinzufügen' : 'Modell hinzufügen'}
             </h3>
             <p className="mt-1 text-sm text-zinc-500">
-              Account wählen → Modell auswählen → Priorität → Speichern
+              {isEmbeddingMode
+                ? 'Embedding-Account wählen → Modell auswählen → Priorität → Speichern'
+                : 'Account wählen → Modell auswählen → Priorität → Speichern'}
             </p>
           </div>
           <button
@@ -186,7 +191,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
           </div>
 
           <div>
-            {isCodexAccount && (
+            {!isEmbeddingMode && isCodexAccount && (
               <div className="mb-6">
                 <div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
                   Step 3: Denkstufe
@@ -212,7 +217,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
             )}
 
             <div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
-              Step {isCodexAccount ? '4' : '3'}: Priorität
+              Step {!isEmbeddingMode && isCodexAccount ? '4' : '3'}: Priorität
             </div>
             <select
               value={selectedPriority}
@@ -242,7 +247,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
             disabled={!selectedAccount || !selectedModelId}
             className="rounded-xl bg-indigo-600 px-6 py-3 text-[10px] font-black tracking-widest text-white uppercase transition-all hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600"
           >
-            Speichern & Aktivieren
+            {isEmbeddingMode ? 'Als Embedding speichern' : 'Speichern & Aktivieren'}
           </button>
         </div>
       </div>

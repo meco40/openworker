@@ -19,7 +19,7 @@ export interface LogEntry {
 
 export type LevelFilter = 'all' | 'debug' | 'info' | 'warn' | 'error';
 export type DiagnosticsStatus = 'ok' | 'degraded' | 'critical' | 'unknown';
-export const DIAGNOSTICS_REFRESH_INTERVAL_MS = 60000;
+export const DIAGNOSTICS_REFRESH_INTERVAL_MS = 180000;
 export const MEMORY_DIAGNOSTICS_STORAGE_KEY = 'openclaw-memory-diagnostics-enabled';
 
 export interface HealthSummary {
@@ -71,6 +71,7 @@ export interface HealthApiResponse {
 export interface DoctorApiResponse {
   ok?: boolean;
   status?: 'ok' | 'degraded' | 'critical';
+  checks?: HealthCheckSnapshot[];
   findings?: DoctorFindingSnapshot[];
   recommendations?: string[];
   generatedAt?: string;
@@ -162,6 +163,38 @@ export function parseDiagnosticsStatus(value: unknown): DiagnosticsStatus {
     return value;
   }
   return 'unknown';
+}
+
+type HealthCheckStatusSnapshot = keyof HealthSummary;
+
+function parseHealthCheckStatus(value: unknown): HealthCheckStatusSnapshot | null {
+  if (value === 'ok' || value === 'warning' || value === 'critical' || value === 'skipped') {
+    return value;
+  }
+  return null;
+}
+
+export function summarizeHealthChecks(checks: HealthCheckSnapshot[] | undefined): HealthSummary | null {
+  if (!Array.isArray(checks)) return null;
+
+  const summary: HealthSummary = { ok: 0, warning: 0, critical: 0, skipped: 0 };
+  let recognized = 0;
+
+  for (const check of checks) {
+    const status = parseHealthCheckStatus(check?.status);
+    if (!status) continue;
+    summary[status] += 1;
+    recognized += 1;
+  }
+
+  return recognized > 0 ? summary : null;
+}
+
+export function toHealthDiagnosticsStatus(summary: HealthSummary | null): DiagnosticsStatus {
+  if (!summary) return 'unknown';
+  if (summary.critical > 0) return 'critical';
+  if (summary.warning > 0) return 'degraded';
+  return 'ok';
 }
 
 const HEALTH_ISSUE_HINTS: Record<

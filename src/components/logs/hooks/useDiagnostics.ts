@@ -7,9 +7,10 @@ import {
   extractDoctorFindingDetails,
   extractHealthIssues,
   parseDiagnosticsStatus,
+  summarizeHealthChecks,
+  toHealthDiagnosticsStatus,
   type DoctorApiResponse,
   type DoctorDiagnosticsState,
-  type HealthApiResponse,
   type HealthDiagnosticsState,
 } from '@/components/logs/diagnostics';
 
@@ -57,80 +58,12 @@ export function useDiagnostics() {
   const fetchDiagnostics = useCallback(async () => {
     setDiagnosticsLoading(true);
     const memoryDiagnosticsFlag = memoryDiagnosticsEnabled ? '1' : '0';
+    try {
+      const response = await fetch(`/api/doctor?memoryDiagnostics=${memoryDiagnosticsFlag}`);
+      const payload = (await response.json()) as DoctorApiResponse;
 
-    const [healthResult, doctorResult] = await Promise.allSettled([
-      fetch(`/api/health?memoryDiagnostics=${memoryDiagnosticsFlag}`),
-      fetch(`/api/doctor?memoryDiagnostics=${memoryDiagnosticsFlag}`),
-    ]);
-
-    if (healthResult.status === 'fulfilled') {
-      try {
-        const payload = (await healthResult.value.json()) as HealthApiResponse;
-        if (!healthResult.value.ok || payload.ok === false) {
-          setHealthDiagnostics({
-            status: 'unknown',
-            summary: null,
-            issues: [],
-            generatedAt: null,
-            error: payload.error || 'Health endpoint is not accessible.',
-          });
-        } else {
-          setHealthDiagnostics({
-            status: parseDiagnosticsStatus(payload.status),
-            summary: payload.summary || null,
-            issues: extractHealthIssues(payload.checks),
-            generatedAt: payload.generatedAt || null,
-            error: null,
-          });
-        }
-      } catch {
-        setHealthDiagnostics({
-          status: 'unknown',
-          summary: null,
-          issues: [],
-          generatedAt: null,
-          error: 'Health response parsing failed.',
-        });
-      }
-    } else {
-      setHealthDiagnostics({
-        status: 'unknown',
-        summary: null,
-        issues: [],
-        generatedAt: null,
-        error: 'Health diagnostics request failed.',
-      });
-    }
-
-    if (doctorResult.status === 'fulfilled') {
-      try {
-        const payload = (await doctorResult.value.json()) as DoctorApiResponse;
-        if (!doctorResult.value.ok || payload.ok === false) {
-          setDoctorDiagnostics({
-            status: 'unknown',
-            findingsCount: 0,
-            recommendationsCount: 0,
-            findingDetails: [],
-            recommendations: [],
-            generatedAt: null,
-            error: payload.error || 'Doctor endpoint is not accessible.',
-          });
-        } else {
-          setDoctorDiagnostics({
-            status: parseDiagnosticsStatus(payload.status),
-            findingsCount: Array.isArray(payload.findings) ? payload.findings.length : 0,
-            recommendationsCount: Array.isArray(payload.recommendations)
-              ? payload.recommendations.length
-              : 0,
-            findingDetails: extractDoctorFindingDetails(payload.findings),
-            recommendations: Array.isArray(payload.recommendations)
-              ? payload.recommendations.slice(0, 3)
-              : [],
-            generatedAt: payload.generatedAt || null,
-            error: null,
-          });
-        }
-      } catch {
+      if (!response.ok || payload.ok === false) {
+        const error = payload.error || 'Doctor endpoint is not accessible.';
         setDoctorDiagnostics({
           status: 'unknown',
           findingsCount: 0,
@@ -138,10 +71,43 @@ export function useDiagnostics() {
           findingDetails: [],
           recommendations: [],
           generatedAt: null,
-          error: 'Doctor response parsing failed.',
+          error,
         });
+        setHealthDiagnostics({
+          status: 'unknown',
+          summary: null,
+          issues: [],
+          generatedAt: null,
+          error,
+        });
+        return;
       }
-    } else {
+
+      const summary = summarizeHealthChecks(payload.checks);
+      setHealthDiagnostics({
+        status:
+          summary !== null ? toHealthDiagnosticsStatus(summary) : parseDiagnosticsStatus(payload.status),
+        summary,
+        issues: extractHealthIssues(payload.checks),
+        generatedAt: payload.generatedAt || null,
+        error: null,
+      });
+
+      setDoctorDiagnostics({
+        status: parseDiagnosticsStatus(payload.status),
+        findingsCount: Array.isArray(payload.findings) ? payload.findings.length : 0,
+        recommendationsCount: Array.isArray(payload.recommendations)
+          ? payload.recommendations.length
+          : 0,
+        findingDetails: extractDoctorFindingDetails(payload.findings),
+        recommendations: Array.isArray(payload.recommendations)
+          ? payload.recommendations.slice(0, 3)
+          : [],
+        generatedAt: payload.generatedAt || null,
+        error: null,
+      });
+    } catch {
+      const error = 'Doctor diagnostics request failed.';
       setDoctorDiagnostics({
         status: 'unknown',
         findingsCount: 0,
@@ -149,11 +115,18 @@ export function useDiagnostics() {
         findingDetails: [],
         recommendations: [],
         generatedAt: null,
-        error: 'Doctor diagnostics request failed.',
+        error,
       });
+      setHealthDiagnostics({
+        status: 'unknown',
+        summary: null,
+        issues: [],
+        generatedAt: null,
+        error,
+      });
+    } finally {
+      setDiagnosticsLoading(false);
     }
-
-    setDiagnosticsLoading(false);
   }, [memoryDiagnosticsEnabled]);
 
   // Initial fetch

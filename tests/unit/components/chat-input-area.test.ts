@@ -27,7 +27,7 @@ describe('ChatInputArea', () => {
         input: 'queued message',
         pendingFile: null as MessageAttachment | null,
         fileInputRef: createRef<HTMLInputElement>(),
-        textInputRef: createRef<HTMLInputElement>(),
+        textInputRef: createRef<HTMLTextAreaElement>(),
         isGenerating: true,
         onInputChange: vi.fn(),
         onSend: vi.fn(),
@@ -38,8 +38,8 @@ describe('ChatInputArea', () => {
     );
 
     expect(html).toContain('KI generiert Antwort...');
-    expect(html).toContain('type="text"');
-    expect(html).not.toContain('type="text" disabled=""');
+    expect(html).toContain('<textarea');
+    expect(html).not.toContain('<textarea disabled=""');
     expect(html).toContain('Generation abbrechen');
   });
 
@@ -54,7 +54,7 @@ describe('ChatInputArea', () => {
           { id: 'q2', content: '', attachmentName: 'note.txt' },
         ],
         fileInputRef: createRef<HTMLInputElement>(),
-        textInputRef: createRef<HTMLInputElement>(),
+        textInputRef: createRef<HTMLTextAreaElement>(),
         isGenerating: true,
         onInputChange: vi.fn(),
         onSend: vi.fn(),
@@ -79,7 +79,7 @@ describe('ChatInputArea', () => {
         pendingFile: null as MessageAttachment | null,
         validationError: 'Datei ist zu groß',
         fileInputRef: createRef<HTMLInputElement>(),
-        textInputRef: createRef<HTMLInputElement>(),
+        textInputRef: createRef<HTMLTextAreaElement>(),
         isGenerating: false,
         onInputChange: vi.fn(),
         onSend: vi.fn(),

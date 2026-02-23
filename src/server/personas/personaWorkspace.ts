@@ -3,13 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { PERSONA_FILE_NAMES, type PersonaFileName } from '@/server/personas/personaTypes';
 
-const PERSONAS_ROOT = path.resolve('.local/personas');
-const MIGRATION_MARKER_FILE = path.join(PERSONAS_ROOT, '.migration-v1.done');
-
 const WORKSPACE_SUBDIRECTORIES = [
   'uploads',
   'uploads/images',
   'uploads/docs',
+  'projects',
   'knowledge',
   'memory',
   'logs',
@@ -19,11 +17,11 @@ const WORKSPACE_SUBDIRECTORIES = [
 ] as const;
 
 export function getPersonasRootDir(): string {
-  return PERSONAS_ROOT;
+  return resolvePersonasRootDir();
 }
 
 export function getMigrationMarkerPath(): string {
-  return MIGRATION_MARKER_FILE;
+  return path.join(resolvePersonasRootDir(), '.migration-v1.done');
 }
 
 export function slugifyPersonaName(name: string): string {
@@ -146,17 +144,26 @@ export function isPersonaScopedStoragePath(storagePath: string): boolean {
 }
 
 export function ensurePersonasRoot(): void {
-  fs.mkdirSync(PERSONAS_ROOT, { recursive: true });
+  fs.mkdirSync(resolvePersonasRootDir(), { recursive: true });
 }
 
 function resolvePersonaPath(...segments: string[]): string {
+  const personasRoot = resolvePersonasRootDir();
   ensurePersonasRoot();
-  const resolved = path.resolve(PERSONAS_ROOT, ...segments);
-  const root = PERSONAS_ROOT.endsWith(path.sep) ? PERSONAS_ROOT : `${PERSONAS_ROOT}${path.sep}`;
-  if (resolved !== PERSONAS_ROOT && !resolved.startsWith(root)) {
+  const resolved = path.resolve(personasRoot, ...segments);
+  const root = personasRoot.endsWith(path.sep) ? personasRoot : `${personasRoot}${path.sep}`;
+  if (resolved !== personasRoot && !resolved.startsWith(root)) {
     throw new Error('Resolved persona path is outside of persona root.');
   }
   return resolved;
+}
+
+function resolvePersonasRootDir(): string {
+  const configuredRoot = String(process.env.PERSONAS_ROOT_PATH || '').trim();
+  if (configuredRoot.length > 0) {
+    return path.resolve(configuredRoot);
+  }
+  return path.resolve('.local/personas');
 }
 
 function toBase64Url(value: string): string {

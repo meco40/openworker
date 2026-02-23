@@ -58,7 +58,7 @@ export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
     icon: 'R',
     authMethods: ['api_key', 'oauth'],
     endpointType: 'openai-compatible',
-    capabilities: ['chat', 'tools', 'vision'],
+    capabilities: ['chat', 'tools', 'vision', 'embeddings'],
     defaultModels: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet'],
     apiBaseUrl: 'https://openrouter.ai/api/v1',
     docsUrl: 'https://openrouter.ai/docs/quickstart',

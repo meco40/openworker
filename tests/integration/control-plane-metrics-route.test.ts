@@ -213,6 +213,7 @@ describe('GET /api/control-plane/metrics', () => {
         activeWsSessions: number;
         tokensToday: number;
         vectorNodeCount: number;
+        ramUsageBytes: number;
         generatedAt: string;
       };
       error?: string;
@@ -225,6 +226,7 @@ describe('GET /api/control-plane/metrics', () => {
     expect(payload.metrics?.activeWsSessions).toBe(7);
     expect(payload.metrics?.tokensToday).toBe(100);
     expect(payload.metrics?.vectorNodeCount).toBe(2);
+    expect(payload.metrics?.ramUsageBytes).toBeGreaterThan(0);
     expect(typeof payload.metrics?.generatedAt).toBe('string');
   });
 

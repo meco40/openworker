@@ -24,9 +24,16 @@ export async function GET(_request: Request, context: RouteContext) {
     if (!accountId) {
       return NextResponse.json({ ok: false, error: 'Missing accountId.' }, { status: 400 });
     }
+    const requestUrl = new URL(_request.url);
+    const purpose = requestUrl.searchParams.get('purpose')?.trim().toLowerCase();
+    const fetchPurpose = purpose === 'embedding' ? 'embedding' : 'general';
 
     const service = getModelHubService();
-    const models = await service.fetchModelsForAccount(accountId, getModelHubEncryptionKey());
+    const models = await service.fetchModelsForAccountByPurpose(
+      accountId,
+      getModelHubEncryptionKey(),
+      fetchPurpose,
+    );
 
     return NextResponse.json({ ok: true, models });
   } catch (error) {

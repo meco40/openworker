@@ -8,3 +8,4 @@ export const CAPABILITY_LABELS: Record<string, string> = {
 };
 
 export const PROFILE_ID = 'p1';
+export const EMBEDDING_PROFILE_ID = 'p1-embeddings';

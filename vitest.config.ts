@@ -5,10 +5,43 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    include: ['tests/**/*.test.ts'],
     testTimeout: 20_000,
     hookTimeout: 20_000,
     maxWorkers: 4,
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'unit-fast',
+          isolate: false,
+          include: ['tests/unit/**/*.test.ts'],
+          exclude: [
+            'tests/unit/channels/message-service-*.test.ts',
+            'tests/unit/channels/telegram-*.test.ts',
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'unit-isolated',
+          isolate: true,
+          include: [
+            'tests/unit/channels/message-service-*.test.ts',
+            'tests/unit/channels/telegram-*.test.ts',
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'core-isolated',
+          isolate: true,
+          include: ['tests/**/*.test.ts'],
+          exclude: ['tests/unit/**/*.test.ts', 'tests/e2e/**/*.e2e.test.ts'],
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       exclude: [

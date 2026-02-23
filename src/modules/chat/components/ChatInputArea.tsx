@@ -10,7 +10,7 @@ interface ChatInputAreaProps {
   validationError?: string | null;
   queuedMessages?: QueuedChatMessage[];
   fileInputRef: React.RefObject<HTMLInputElement | null>;
-  textInputRef?: React.RefObject<HTMLInputElement | null>;
+  textInputRef?: React.RefObject<HTMLTextAreaElement | null>;
   isGenerating?: boolean;
   onInputChange: (value: string) => void;
   onSend: () => void;
@@ -18,6 +18,10 @@ interface ChatInputAreaProps {
   onRemoveQueuedMessage?: (queueId: string) => void;
   onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onRemovePendingFile: () => void;
+}
+
+export function shouldSendOnInputKeyDown(event: { key: string; altKey?: boolean }): boolean {
+  return event.key === 'Enter' && !event.altKey;
 }
 
 const ChatInputArea: React.FC<ChatInputAreaProps> = ({
@@ -141,13 +145,17 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
             className="hidden"
           />
 
-          <input
+          <textarea
             ref={textInputRef}
             data-testid="chat-input"
-            type="text"
             value={input}
             onChange={(event) => onInputChange(event.target.value)}
-            onKeyDown={(event) => event.key === 'Enter' && onSend()}
+            onKeyDown={(event) => {
+              if (shouldSendOnInputKeyDown(event)) {
+                event.preventDefault();
+                onSend();
+              }
+            }}
             placeholder={
               isGenerating
                 ? 'KI generiert Antwort...'
@@ -155,8 +163,9 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                   ? `Nachricht an ${activeConversation.channelType}...`
                   : 'Conversation auswählen...'
             }
+            rows={1}
             disabled={!activeConversation}
-            className="flex-1 bg-transparent py-2 text-sm font-medium text-white placeholder-zinc-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            className="max-h-40 flex-1 resize-none bg-transparent py-2 text-sm font-medium text-white placeholder-zinc-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
           {isGenerating && (
             <button

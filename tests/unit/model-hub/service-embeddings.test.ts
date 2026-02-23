@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   ModelHubRepository,
+  PipelineModelEntry,
   ProviderAccountRecord,
   ProviderAccountView,
 } from '@/server/model-hub/repository';
@@ -34,6 +35,20 @@ function buildAccountRecord(providerId: string): ProviderAccountRecord {
       tag: 'tag',
     },
     encryptedRefreshToken: null,
+  };
+}
+
+function buildEmbeddingPipelineEntry(accountId: string): PipelineModelEntry {
+  return {
+    id: 'embed-1',
+    profileId: 'p1-embeddings',
+    accountId,
+    providerId: 'gemini',
+    modelName: 'text-embedding-004',
+    priority: 1,
+    status: 'active',
+    createdAt: '2026-02-23T00:00:00.000Z',
+    updatedAt: '2026-02-23T00:00:00.000Z',
   };
 }
 
@@ -113,10 +128,8 @@ describe('ModelHubService.dispatchEmbedding', () => {
     vi.resetModules();
   });
 
-  it('returns error when no Gemini account exists', async () => {
-    const repository = createMockRepository({
-      listAccounts: vi.fn().mockReturnValue([buildAccountView('openai')]),
-    });
+  it('returns error when no embedding model is configured', async () => {
+    const repository = createMockRepository();
     const { service } = await setupService({ repository });
 
     const result = await service.dispatchEmbedding('enc-key', {
@@ -124,13 +137,15 @@ describe('ModelHubService.dispatchEmbedding', () => {
       payload: { model: 'text-embedding-004', contents: ['hello'] },
     });
 
-    expect(result).toEqual({ error: 'No Gemini account available for embeddings.' });
+    expect(result).toEqual({
+      error: 'No active embedding model configured. Add one in Gateway Control.',
+    });
   });
 
-  it('returns error when Gemini account record is missing', async () => {
+  it('returns error when embedding account record is missing', async () => {
     const geminiView = buildAccountView('gemini');
     const repository = createMockRepository({
-      listAccounts: vi.fn().mockReturnValue([geminiView]),
+      listPipelineModels: vi.fn().mockReturnValue([buildEmbeddingPipelineEntry(geminiView.id)]),
       getAccountRecordById: vi.fn().mockReturnValue(null),
     });
     const { service } = await setupService({ repository });
@@ -140,13 +155,13 @@ describe('ModelHubService.dispatchEmbedding', () => {
       payload: { model: 'text-embedding-004', contents: ['hello'] },
     });
 
-    expect(result).toEqual({ error: 'Gemini account record not found.' });
+    expect(result).toEqual({ error: 'Embedding account record not found.' });
   });
 
   it('returns error when decrypted Gemini secret is empty', async () => {
     const geminiRecord = buildAccountRecord('gemini');
     const repository = createMockRepository({
-      listAccounts: vi.fn().mockReturnValue([buildAccountView('gemini')]),
+      listPipelineModels: vi.fn().mockReturnValue([buildEmbeddingPipelineEntry('acc-gemini')]),
       getAccountRecordById: vi.fn().mockReturnValue(geminiRecord),
     });
     const { service } = await setupService({ repository, decryptSecretReturn: '  ' });
@@ -162,7 +177,7 @@ describe('ModelHubService.dispatchEmbedding', () => {
   it('dispatches embedContent operation directly', async () => {
     const geminiRecord = buildAccountRecord('gemini');
     const repository = createMockRepository({
-      listAccounts: vi.fn().mockReturnValue([buildAccountView('gemini')]),
+      listPipelineModels: vi.fn().mockReturnValue([buildEmbeddingPipelineEntry('acc-gemini')]),
       getAccountRecordById: vi.fn().mockReturnValue(geminiRecord),
     });
     const embedContent = vi.fn(async () => ({ embedding: { values: [0.1, 0.2] } }));
@@ -181,10 +196,38 @@ describe('ModelHubService.dispatchEmbedding', () => {
     expect(result).toEqual({ embedding: { values: [0.1, 0.2] } });
   });
 
+  it('uses active embedding pipeline model when payload.model is missing', async () => {
+    const geminiRecord = buildAccountRecord('gemini');
+    const geminiView = buildAccountView('gemini');
+    const repository = createMockRepository({
+      getAccountRecordById: vi.fn().mockReturnValue(geminiRecord),
+      listPipelineModels: vi.fn((profileId: string) => {
+        if (profileId !== 'p1-embeddings') return [];
+        return [buildEmbeddingPipelineEntry(geminiView.id)];
+      }),
+    });
+    const embedContent = vi.fn(async () => ({ embedding: { values: [3, 2, 1] } }));
+    const { service } = await setupService({
+      repository,
+      modelsApi: { embedContent },
+    });
+
+    const result = await service.dispatchEmbedding('enc-key', {
+      operation: 'embedContent',
+      payload: { contents: ['hello'] },
+    });
+
+    expect(embedContent).toHaveBeenCalledWith({
+      model: 'text-embedding-004',
+      contents: ['hello'],
+    });
+    expect(result).toEqual({ embedding: { values: [3, 2, 1] } });
+  });
+
   it('dispatches batchEmbedContents when provider SDK supports it', async () => {
     const geminiRecord = buildAccountRecord('gemini');
     const repository = createMockRepository({
-      listAccounts: vi.fn().mockReturnValue([buildAccountView('gemini')]),
+      listPipelineModels: vi.fn().mockReturnValue([buildEmbeddingPipelineEntry('acc-gemini')]),
       getAccountRecordById: vi.fn().mockReturnValue(geminiRecord),
     });
     const embedContent = vi.fn(async () => ({ unused: true }));
@@ -210,7 +253,7 @@ describe('ModelHubService.dispatchEmbedding', () => {
   it('falls back from batchEmbedContents to embedContent by extracting payload contents', async () => {
     const geminiRecord = buildAccountRecord('gemini');
     const repository = createMockRepository({
-      listAccounts: vi.fn().mockReturnValue([buildAccountView('gemini')]),
+      listPipelineModels: vi.fn().mockReturnValue([buildEmbeddingPipelineEntry('acc-gemini')]),
       getAccountRecordById: vi.fn().mockReturnValue(geminiRecord),
     });
     const embedContent = vi.fn(async () => ({ embedding: { values: [9, 9, 9] } }));
@@ -246,7 +289,7 @@ describe('ModelHubService.dispatchEmbedding', () => {
   it('returns empty embeddings when batch fallback payload is not extractable', async () => {
     const geminiRecord = buildAccountRecord('gemini');
     const repository = createMockRepository({
-      listAccounts: vi.fn().mockReturnValue([buildAccountView('gemini')]),
+      listPipelineModels: vi.fn().mockReturnValue([buildEmbeddingPipelineEntry('acc-gemini')]),
       getAccountRecordById: vi.fn().mockReturnValue(geminiRecord),
     });
     const embedContent = vi.fn(async () => ({ shouldNot: 'run' }));
@@ -267,7 +310,7 @@ describe('ModelHubService.dispatchEmbedding', () => {
   it('returns unknown operation error for unsupported embedding operation', async () => {
     const geminiRecord = buildAccountRecord('gemini');
     const repository = createMockRepository({
-      listAccounts: vi.fn().mockReturnValue([buildAccountView('gemini')]),
+      listPipelineModels: vi.fn().mockReturnValue([buildEmbeddingPipelineEntry('acc-gemini')]),
       getAccountRecordById: vi.fn().mockReturnValue(geminiRecord),
     });
     const { service } = await setupService({ repository });
@@ -283,7 +326,7 @@ describe('ModelHubService.dispatchEmbedding', () => {
   it('returns thrown error message from embedding provider', async () => {
     const geminiRecord = buildAccountRecord('gemini');
     const repository = createMockRepository({
-      listAccounts: vi.fn().mockReturnValue([buildAccountView('gemini')]),
+      listPipelineModels: vi.fn().mockReturnValue([buildEmbeddingPipelineEntry('acc-gemini')]),
       getAccountRecordById: vi.fn().mockReturnValue(geminiRecord),
     });
     const embedContent = vi.fn(async () => {
@@ -300,5 +343,57 @@ describe('ModelHubService.dispatchEmbedding', () => {
     });
 
     expect(result).toEqual({ error: 'provider down' });
+  });
+
+  it('dispatches embedContent through openai-compatible embedding endpoint for openrouter', async () => {
+    const openrouterRecord = buildAccountRecord('openrouter');
+    const repository = createMockRepository({
+      listPipelineModels: vi.fn().mockReturnValue([
+        {
+          id: 'embed-or',
+          profileId: 'p1-embeddings',
+          accountId: openrouterRecord.id,
+          providerId: 'openrouter',
+          modelName: 'openai/text-embedding-3-small',
+          priority: 1,
+          status: 'active',
+          createdAt: '2026-02-23T00:00:00.000Z',
+          updatedAt: '2026-02-23T00:00:00.000Z',
+        },
+      ]),
+      getAccountRecordById: vi.fn().mockReturnValue(openrouterRecord),
+    });
+
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({
+        data: [{ embedding: [0.11, 0.22, 0.33], index: 0 }],
+      }),
+      text: async () => '',
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { service } = await setupService({ repository });
+
+    const result = await service.dispatchEmbedding('enc-key', {
+      operation: 'embedContent',
+      payload: { contents: ['hello openrouter'] },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const firstCall = fetchMock.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    const url = String(firstCall?.[0] ?? '');
+    const init = (firstCall?.[1] ?? {}) as RequestInit;
+    expect(url).toContain('openrouter.ai/api/v1/embeddings');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(String(init.body))).toEqual({
+      model: 'openai/text-embedding-3-small',
+      input: ['hello openrouter'],
+    });
+
+    expect(result).toEqual({ embedding: { values: [0.11, 0.22, 0.33] } });
   });
 });

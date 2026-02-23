@@ -14,6 +14,7 @@
 - 2026-02-23T22:59:51+01:00 [USER] Add persona-scoped project-folder logic so delegated agent tasks create a new workspace folder per task and execute tools there (subagent orchestration + shell/python cwd).
 - 2026-02-23T23:28:49+01:00 [USER] Rework project/workspace strategy via brainstorming: explicit `/project` control, conversation-scoped active project, hybrid no-project guard approval, no built-in worktree feature.
 - 2026-02-23T23:48:35+01:00 [USER] Apply Vitest speedup plan: keep E2E out of default `test` lane and use non-isolated execution only for unit tests.
+- 2026-02-24T00:13:30+01:00 [USER] Fix non-isolated Vitest flakiness introduced by `unit-fast` lane so full `vitest` run is stable again.
 
 [DECISIONS]
 
@@ -47,6 +48,7 @@
 - 2026-02-23T23:48:35+01:00 [CODE] Main `vitest.config.ts` now uses two projects: `unit-fast` (`isolate: false`, `tests/unit/**/*.test.ts`) and `core-isolated` (`isolate: true`) excluding unit + E2E files.
 - 2026-02-23T23:54:31+01:00 [CODE] Added explicit `approval-command` routing (`/approve`, `/deny`) and integrated conversation-scoped project guard approvals via existing pending-approval token metadata.
 - 2026-02-23T23:54:31+01:00 [CODE] Standardized active-project workspace propagation by resolving conversation project cwd once in `MessageService` and reusing it for AI tool loops, `/shell`, inferred shell, and approval replay.
+- 2026-02-24T00:13:30+01:00 [CODE] Added dedicated `unit-isolated` Vitest project for `tests/unit/channels/message-service-*.test.ts` and `tests/unit/channels/telegram-*.test.ts`; excluded these globs from `unit-fast`.
 
 [PROGRESS]
 
@@ -96,6 +98,9 @@
 - 2026-02-23T23:54:31+01:00 [CODE] Wired `workspaceCwd` through `dispatchToAI`, inferred shell flow, `/shell` command path, and approval replay (`approval/handler.ts`) using active conversation project state.
 - 2026-02-23T23:54:31+01:00 [CODE] Added/updated tests: `message-service-project-guard.test.ts`, `message-service-project-approval-command.test.ts`, `message-service-project-workspace-cwd.test.ts`, router approval-command assertions, and stabilized project/subagent tests for non-isolated unit lane.
 - 2026-02-23T23:56:52+01:00 [CODE] Added `docs/PROJECT_WORKSPACE_SYSTEM.md` with command contract, guard lifecycle, conversation-scope model, and workspace cwd routing; cross-linked from `docs/WORKER_ORCHESTRA_SYSTEM.md`.
+- 2026-02-24T00:08:18+01:00 [TOOL] Ran Vitest benchmark A/B using temporary baseline config `.tmp/bench/vitest.config.old.ts` (pre-change behavior) vs current `vitest.config.ts`; captured logs in `.tmp/bench/old-run.log` and `.tmp/bench/new-run.log`.
+- 2026-02-24T00:13:30+01:00 [CODE] Extended `tests/unit/testing/vitest-main-config-contract.test.ts` with RED/GREEN assertions for three-lane split (`unit-fast`, `unit-isolated`, `core-isolated`) and explicit include/exclude globs.
+- 2026-02-24T00:13:30+01:00 [CODE] Updated `vitest.config.ts` with new `unit-isolated` lane + `unit-fast` excludes to eliminate cross-file non-isolated interference.
 
 [DISCOVERIES]
 
@@ -118,6 +123,9 @@
 - 2026-02-23T23:48:35+01:00 [TOOL] In this repo setup, top-level `projects` entries with direct `name`/`isolate` caused TS2769 in `vitest.config.ts`; typed-safe form is `{ extends: true, test: { ... } }`.
 - 2026-02-23T23:54:31+01:00 [TOOL] Non-isolated `unit-fast` lane can surface cross-file `vi.mock` collisions (e.g., `personaRepository.listPersonas` missing) when tests rely on slash-driven persona setup; repo-direct persona activation avoids this coupling.
 - 2026-02-23T23:54:31+01:00 [TOOL] Approval replay tests must mock one additional model dispatch call because `respondToolApproval` re-enters `runModelToolLoop` after tool execution.
+- 2026-02-24T00:08:18+01:00 [TOOL] Initial old-config benchmark attempt was invalid because alias resolution used config `__dirname` under `.tmp/bench`; corrected to `path.resolve(process.cwd(), 'src')`.
+- 2026-02-24T00:08:18+01:00 [TOOL] New split config benchmark run is faster but currently fails in `unit-fast` lane (non-isolated cross-test side effects), primarily Telegram/pairing and auto-session-memory assertions.
+- 2026-02-24T00:13:30+01:00 [TOOL] Failing `unit-fast` files pass individually (`message-service-knowledge-recall`, `telegram-inbound-callbacks`, `telegram-pairing-poll-route`), confirming order-dependent interference rather than deterministic logic bugs.
 
 [OUTCOMES]
 
@@ -145,3 +153,6 @@
 - 2026-02-23T23:54:31+01:00 [TOOL] Verification passed: `pnpm typecheck` (this supersedes the earlier TS2353 failure note from 2026-02-23T23:48:35+01:00).
 - 2026-02-23T23:54:31+01:00 [TOOL] Verification passed: `pnpm lint` with 8 pre-existing a11y warnings and 0 errors.
 - 2026-02-23T23:56:52+01:00 [CODE] Documentation outcome: project workspace/guard system is now documented in `docs/PROJECT_WORKSPACE_SYSTEM.md` and linked from `docs/WORKER_ORCHESTRA_SYSTEM.md`.
+- 2026-02-24T00:08:18+01:00 [TOOL] Benchmark result (wall clock): old config `48.11s` (exit 0) vs new config `32.58s` (exit 1), delta `-15.53s` (`32.28%` faster). Vitest-reported duration: `46.87s` old vs `31.15s` new.
+- 2026-02-24T00:13:30+01:00 [TOOL] Verification passed after lane split refinement: `pnpm vitest run tests/unit/testing/vitest-main-config-contract.test.ts tests/unit/testing/e2e-config-contract.test.ts --config vitest.config.ts` and full `pnpm vitest run --config vitest.config.ts` (328 files, 1458 tests passing).
+- 2026-02-24T00:13:30+01:00 [TOOL] Quality gates: `pnpm typecheck` passed; `pnpm lint` passed with existing 8 a11y warnings and 0 errors.
