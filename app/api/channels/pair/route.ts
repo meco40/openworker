@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isPairChannelType, pairChannel, unpairChannel } from '@/server/channels/pairing';
+import { getMessageRepository } from '@/server/channels/messages/runtime';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 
@@ -43,12 +45,31 @@ export async function POST(request: Request) {
         ? ((validated as { accountId: string }).accountId as string)
         : body.accountId || 'default';
 
+    const connectedAt = new Date().toISOString();
+
+    // Persist binding so /api/channels/state reflects the real status on refresh
+    const userContext = await resolveRequestUserContext();
+    if (userContext) {
+      const repo = getMessageRepository();
+      repo.upsertChannelBinding?.({
+        userId: userContext.userId,
+        channel: body.channel,
+        status: status === 'awaiting_code' ? 'awaiting_code' : 'connected',
+        peerName: validated.peerName,
+        transport,
+        metadata:
+          resolvedAccountId && resolvedAccountId !== 'default'
+            ? { accountId: resolvedAccountId }
+            : undefined,
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       status,
       transport,
       peerName: validated.peerName,
-      connectedAt: new Date().toISOString(),
+      connectedAt,
       details: validated.details,
       accountId: resolvedAccountId,
     });
@@ -75,6 +96,18 @@ export async function DELETE(request: Request) {
     }
 
     await unpairChannel(body.channel, body.accountId);
+
+    // Clear binding in the DB so state route reflects 'idle' on refresh
+    const userContext = await resolveRequestUserContext();
+    if (userContext) {
+      const repo = getMessageRepository();
+      repo.upsertChannelBinding?.({
+        userId: userContext.userId,
+        channel: body.channel,
+        status: 'disconnected',
+        metadata: body.accountId ? { accountId: body.accountId } : undefined,
+      });
+    }
 
     return NextResponse.json({
       ok: true,

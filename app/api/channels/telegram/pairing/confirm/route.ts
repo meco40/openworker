@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { confirmTelegramPairingCode } from '@/server/channels/pairing/telegramCodePairing';
+import { getMessageRepository } from '@/server/channels/messages/runtime';
+import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getCredentialStore } from '@/server/channels/credentials';
 
 export const runtime = 'nodejs';
 
@@ -19,11 +22,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: confirmed.error }, { status: 400 });
     }
 
+    const connectedAt = new Date().toISOString();
+
+    // Persist binding so /api/channels/state reflects 'connected' on refresh
+    const userContext = await resolveRequestUserContext();
+    if (userContext) {
+      const store = getCredentialStore();
+      const transport = store.getCredential('telegram', 'update_transport') || 'webhook';
+      const repo = getMessageRepository();
+      repo.upsertChannelBinding?.({
+        userId: userContext.userId,
+        channel: 'telegram',
+        status: 'connected',
+        peerName: confirmed.chatId ? `telegram:${confirmed.chatId}` : undefined,
+        transport,
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       status: 'connected',
       chatId: confirmed.chatId,
-      connectedAt: new Date().toISOString(),
+      connectedAt,
     });
   } catch (error) {
     const message =
