@@ -23,7 +23,14 @@ import {
 } from './types';
 
 export class SubagentManager {
-  constructor(private readonly getSubagentMaxActivePerConversation: () => number) {}
+  constructor(
+    private readonly getSubagentMaxActivePerConversation: () => number,
+    private readonly resolveConversationWorkspace?: (conversation: Conversation) => {
+      projectId?: string;
+      workspacePath?: string;
+      workspaceRelativePath?: string;
+    } | null,
+  ) {}
 
   parseSubagentAction(
     payload: string,
@@ -205,6 +212,11 @@ export class SubagentManager {
       throw new Error(`Subagent limit reached (${active}/${maxActive}).`);
     }
 
+    const workspace = this.resolveConversationWorkspace?.(params.conversation) || null;
+    const projectId = workspace?.projectId;
+    const workspacePath = workspace?.workspacePath;
+    const workspaceRelativePath = workspace?.workspaceRelativePath;
+
     const run = createSubagentRun({
       requesterConversationId: params.conversation.id,
       requesterUserId: params.conversation.userId,
@@ -212,6 +224,9 @@ export class SubagentManager {
       task: params.task,
       guidance: params.guidance,
       modelOverride: params.modelOverride,
+      projectId,
+      workspacePath,
+      workspaceRelativePath,
     });
 
     return run;
@@ -313,6 +328,9 @@ export class SubagentManager {
           action: 'spawn',
           runId: run.runId,
           agentId: run.agentId,
+          projectId: run.projectId || null,
+          workspacePath: run.workspacePath || null,
+          workspaceRelativePath: run.workspaceRelativePath || null,
         },
       };
     }
@@ -484,6 +502,7 @@ export class SubagentManager {
               `endedAt: ${run.endedAt || '-'}`,
               `task: ${run.task}`,
               run.guidance ? `guidance: ${run.guidance}` : null,
+              run.workspacePath ? `workspace: ${run.workspacePath}` : null,
               run.error ? `error: ${run.error}` : null,
             ]
               .filter(Boolean)

@@ -31,8 +31,11 @@ import {
   handleShellCommand,
   handleSubagentCommand,
   handlePersonaCommand,
+  handleApprovalCommand,
+  handleProjectCommand,
   type CommandHandlerDeps,
 } from './commandHandlers';
+import { buildProjectGuardPrompt, isProjectRequiredIntent } from './projectGuard';
 
 // Import modular functions
 import { createSendResponse } from './utils/responseHelper';
@@ -72,7 +75,10 @@ export class MessageService {
   constructor(private readonly repo: MessageRepository) {
     this.historyManager = new HistoryManager(repo);
     this.contextBuilder = new ContextBuilder(repo);
-    this.subagentManager = new SubagentManager(() => this.getSubagentMaxActivePerConversation());
+    this.subagentManager = new SubagentManager(
+      () => this.getSubagentMaxActivePerConversation(),
+      this.resolveConversationWorkspace.bind(this),
+    );
     this.toolManager = new ToolManager(
       () => this.requiresInteractiveToolApproval(),
       this.invokeSubagentToolCall.bind(this),
@@ -97,6 +103,100 @@ export class MessageService {
 
   private requiresInteractiveToolApproval(): boolean {
     return String(process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
+  }
+
+  private resolveConversationWorkspace(conversation: Conversation): {
+    projectId?: string;
+    workspacePath?: string;
+    workspaceRelativePath?: string;
+  } | null {
+    if (
+      typeof this.repo.getConversationProjectState !== 'function' ||
+      typeof this.repo.getProjectByIdOrSlug !== 'function'
+    ) {
+      return null;
+    }
+
+    if (!conversation.personaId) {
+      return null;
+    }
+
+    const projectState = this.repo.getConversationProjectState(conversation.id, conversation.userId);
+    if (!projectState.activeProjectId) {
+      return null;
+    }
+
+    const project = this.repo.getProjectByIdOrSlug(
+      conversation.personaId,
+      conversation.userId,
+      projectState.activeProjectId,
+    );
+    if (!project) {
+      return null;
+    }
+
+    return {
+      projectId: project.id,
+      workspacePath: project.workspacePath,
+      workspaceRelativePath: project.workspaceRelativePath || undefined,
+    };
+  }
+
+  private resolveConversationWorkspaceCwd(conversation: Conversation): string | undefined {
+    return this.resolveConversationWorkspace(conversation)?.workspacePath;
+  }
+
+  private async maybeRequireProjectGuard(params: {
+    conversation: Conversation;
+    platform: ChannelType;
+    externalChatId: string;
+    content: string;
+  }): Promise<StoredMessage | null> {
+    const { conversation, platform, externalChatId, content } = params;
+    if (!conversation.personaId || !isProjectRequiredIntent(content)) {
+      return null;
+    }
+
+    if (
+      typeof this.repo.getConversationProjectState !== 'function' ||
+      typeof this.repo.listProjectsByPersona !== 'function'
+    ) {
+      return null;
+    }
+
+    const projectState = this.repo.getConversationProjectState(conversation.id, conversation.userId);
+    if (projectState.activeProjectId || projectState.guardApprovedWithoutProject) {
+      return null;
+    }
+
+    const projects = this.repo
+      .listProjectsByPersona(conversation.personaId, conversation.userId)
+      .slice(0, 5)
+      .map((project) => ({ name: project.name, slug: project.slug }));
+    const pending = this.toolManager.createPendingApproval({
+      conversation,
+      platform,
+      externalChatId,
+      toolFunctionName: 'project_workspace_guard',
+      toolId: 'project-workspace-guard',
+      args: {
+        reason: 'missing_active_project',
+      },
+    });
+    const prompt = buildProjectGuardPrompt({
+      approvalToken: pending.token,
+      projects,
+    });
+    return this.sendResponse(
+      conversation,
+      prompt,
+      platform,
+      externalChatId,
+      this.toolManager.buildApprovalMetadata(pending, prompt, {
+        ok: false,
+        runtime: 'project-workspace-guard',
+      }),
+    );
   }
 
   private resolveChatModelRouting(conversation: Conversation): {
@@ -263,6 +363,35 @@ export class MessageService {
         };
       }
 
+      if (route.target === 'project-command') {
+        return {
+          userMsg,
+          agentMsg: await handleProjectCommand(
+            conversation,
+            route.payload,
+            platform,
+            externalChatId,
+            this.repo,
+            this.sendResponse.bind(this),
+          ),
+        };
+      }
+
+      if (route.target === 'approval-command') {
+        return {
+          userMsg,
+          agentMsg: await handleApprovalCommand(
+            conversation,
+            route.payload,
+            route.command,
+            platform,
+            externalChatId,
+            this.getCommandHandlerDeps(),
+            this.respondToolApproval.bind(this),
+          ),
+        };
+      }
+
       if (route.target === 'shell-command') {
         return {
           userMsg,
@@ -312,6 +441,16 @@ export class MessageService {
         return { userMsg, agentMsg: memorySaveResult.message };
       }
 
+      const projectGuardMessage = await this.maybeRequireProjectGuard({
+        conversation: effectiveConversation,
+        platform,
+        externalChatId,
+        content,
+      });
+      if (projectGuardMessage) {
+        return { userMsg, agentMsg: projectGuardMessage };
+      }
+
       const inferredShellCommand = inferShellCommandFromNaturalLanguage(content);
       if (inferredShellCommand) {
         return {
@@ -335,6 +474,7 @@ export class MessageService {
           toolManager: this.toolManager,
           resolveChatModelRouting: this.resolveChatModelRouting.bind(this),
           runModelToolLoop,
+          resolveConversationWorkspaceCwd: this.resolveConversationWorkspaceCwd.bind(this),
           activeRequests: this.activeRequests,
         },
         {
@@ -370,6 +510,7 @@ export class MessageService {
     onStreamDelta?: (delta: string) => void;
   }): Promise<StoredMessage> {
     const { conversation, platform, externalChatId, userInput, command, onStreamDelta } = params;
+    const workspaceCwd = this.resolveConversationWorkspaceCwd(conversation);
     await this.toolManager.ensureShellSkillInstalled();
     const toolContext = await this.toolManager.resolveToolContext();
     const installedFunctions = new Set(toolContext.installedFunctionNames);
@@ -381,6 +522,7 @@ export class MessageService {
       externalChatId,
       functionName: 'shell_execute',
       args: { command },
+      workspaceCwd,
       installedFunctions,
       toolId: toolContext.functionToSkillId.get('shell_execute') || 'shell-access',
     });
@@ -420,6 +562,7 @@ export class MessageService {
       messages,
       modelHubProfileId,
       preferredModelId,
+      workspaceCwd,
       toolContext,
       onStreamDelta,
     });
@@ -493,6 +636,10 @@ export class MessageService {
         toolManager: this.toolManager,
         summaryService: this.summaryService,
         getConversation: this.getConversation.bind(this),
+        setConversationProjectGuardApproved: (conversationId, userId, approved) => {
+          this.repo.setConversationProjectGuardApproved?.(conversationId, userId, approved);
+        },
+        resolveConversationWorkspaceCwd: this.resolveConversationWorkspaceCwd.bind(this),
         resolveChatModelRouting: this.resolveChatModelRouting.bind(this),
         runModelToolLoop,
       },
@@ -508,6 +655,7 @@ export class MessageService {
       subagentManager: this.subagentManager,
       toolManager: this.toolManager,
       historyManager: this.historyManager,
+      resolveWorkspaceCwd: this.resolveConversationWorkspaceCwd.bind(this),
       sendResponse: this.sendResponse.bind(this),
       startSubagentRun: async (params) => {
         const run = await this.subagentManager.startSubagentRun(params);

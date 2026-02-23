@@ -10,6 +10,7 @@ export interface SubagentToolCallParams {
 
 export interface SkillDispatchContext {
   bypassApproval?: boolean;
+  workspaceCwd?: string;
   conversationId?: string;
   userId?: string;
   platform?: ChannelType;

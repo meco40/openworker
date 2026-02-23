@@ -27,6 +27,7 @@ export interface SubagentExecutorDeps {
       messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
       modelHubProfileId: string;
       preferredModelId?: string;
+      workspaceCwd?: string;
       toolContext: {
         tools: unknown[];
         installedFunctionNames: Set<string>;
@@ -72,6 +73,14 @@ export async function runSubagent(
         content:
           'You are a focused subagent. Solve only the delegated task and return concise, factual results.',
       },
+      ...(run.workspacePath
+        ? [
+            {
+              role: 'system' as const,
+              content: `Task workspace directory: ${run.workspacePath}`,
+            },
+          ]
+        : []),
       {
         role: 'user',
         content: run.guidance
@@ -85,6 +94,7 @@ export async function runSubagent(
       messages,
       modelHubProfileId: routing.modelHubProfileId,
       preferredModelId,
+      workspaceCwd: run.workspacePath,
       toolContext,
       abortSignal: abortController.signal,
     });

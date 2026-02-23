@@ -10,6 +10,12 @@ export interface ApprovalHandlerDeps {
   toolManager: ToolManager;
   summaryService: SummaryService;
   getConversation: (conversationId: string, userId: string) => Conversation | null;
+  setConversationProjectGuardApproved?: (
+    conversationId: string,
+    userId: string,
+    approved: boolean,
+  ) => void;
+  resolveConversationWorkspaceCwd?: (conversation: Conversation) => string | undefined;
   resolveChatModelRouting: (conversation: Conversation) => {
     preferredModelId?: string;
     modelHubProfileId: string;
@@ -21,6 +27,7 @@ export interface ApprovalHandlerDeps {
       messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
       modelHubProfileId: string;
       preferredModelId?: string;
+      workspaceCwd?: string;
       toolContext: {
         tools: unknown[];
         installedFunctionNames: Set<string>;
@@ -85,6 +92,29 @@ export async function respondToolApproval(
     return { ok: false, status: 'not_found', policyUpdated: false };
   }
 
+  const workspaceCwd = deps.resolveConversationWorkspaceCwd?.(conversation);
+
+  if (pending.toolFunctionName === 'project_workspace_guard') {
+    if (!params.approved) {
+      await sendResponse(
+        conversation,
+        'Freigabe ohne Projekt wurde abgelehnt. Nutze `/project new <name>` oder `/project use <id|slug>`.',
+        pending.platform,
+        pending.externalChatId,
+      );
+      return { ok: true, status: 'denied', policyUpdated: false };
+    }
+
+    deps.setConversationProjectGuardApproved?.(conversation.id, conversation.userId, true);
+    await sendResponse(
+      conversation,
+      'Freigabe gespeichert. Diese Konversation darf voruebergehend ohne aktives Projekt fortfahren, bis ein Projekt gesetzt oder gewechselt wird.',
+      pending.platform,
+      pending.externalChatId,
+    );
+    return { ok: true, status: 'approved', policyUpdated: false };
+  }
+
   if (!params.approved) {
     await sendResponse(
       conversation,
@@ -108,6 +138,7 @@ export async function respondToolApproval(
     externalChatId: pending.externalChatId,
     functionName: pending.toolFunctionName,
     args: pending.args,
+    workspaceCwd,
     installedFunctions: toolContext.installedFunctionNames,
     toolId: pending.toolId,
     skipApprovalCheck: true,
@@ -135,6 +166,7 @@ export async function respondToolApproval(
     messages,
     modelHubProfileId,
     preferredModelId,
+    workspaceCwd,
     toolContext,
   });
 

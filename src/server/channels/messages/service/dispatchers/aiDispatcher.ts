@@ -19,6 +19,7 @@ export interface AIDispatcherDeps {
     preferredModelId?: string;
     modelHubProfileId: string;
   };
+  resolveConversationWorkspaceCwd?: (conversation: Conversation) => string | undefined;
   runModelToolLoop: (
     toolManager: ToolManager,
     params: {
@@ -26,6 +27,7 @@ export interface AIDispatcherDeps {
       messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
       modelHubProfileId: string;
       preferredModelId?: string;
+      workspaceCwd?: string;
       toolContext: {
         tools: unknown[];
         installedFunctionNames: Set<string>;
@@ -84,12 +86,14 @@ export async function dispatchToAI(
   let modelOutcome: { content: string; metadata: Record<string, unknown> };
   try {
     const { preferredModelId, modelHubProfileId } = deps.resolveChatModelRouting(conversation);
+    const workspaceCwd = deps.resolveConversationWorkspaceCwd?.(conversation);
     const toolContext = await deps.toolManager.resolveToolContext();
     modelOutcome = await deps.runModelToolLoop(deps.toolManager, {
       conversation,
       messages,
       modelHubProfileId,
       preferredModelId,
+      workspaceCwd,
       toolContext,
       abortSignal: abortController.signal,
       onStreamDelta,
@@ -128,6 +132,7 @@ export async function runModelToolLoop(
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
     modelHubProfileId: string;
     preferredModelId?: string;
+    workspaceCwd?: string;
     toolContext: {
       tools: unknown[];
       installedFunctionNames: Set<string>;
@@ -190,6 +195,7 @@ export async function runModelToolLoop(
         externalChatId: conversation.externalChatId || 'default',
         functionName,
         args: (functionCall.args as Record<string, unknown>) || {},
+        workspaceCwd: params.workspaceCwd,
         installedFunctions: toolContext.installedFunctionNames,
         toolId: toolContext.functionToSkillId.get(functionName),
       });

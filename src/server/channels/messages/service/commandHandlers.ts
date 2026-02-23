@@ -4,6 +4,7 @@ import { extractMemorySaveContent, type SubagentDispatchContext } from './types'
 import { getMemoryService } from '@/server/memory/runtime';
 import { resolveMemoryScopedUserId } from '@/server/memory/userScope';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
+import { createPersonaProjectWorkspace } from '@/server/personas/personaProjectWorkspace';
 import {
   getChannelBindingPersonaId,
   setChannelBindingPersona,
@@ -16,6 +17,7 @@ export interface CommandHandlerDeps {
   subagentManager: SubagentManager;
   toolManager: ToolManager;
   historyManager: HistoryManager;
+  resolveWorkspaceCwd?: (conversation: Conversation) => string | undefined;
   sendResponse: (
     conversation: Conversation,
     content: string,
@@ -211,6 +213,7 @@ export async function handleShellCommand(
     externalChatId,
     functionName: 'shell_execute',
     args: { command },
+    workspaceCwd: deps.resolveWorkspaceCwd?.(conversation),
     installedFunctions,
     toolId: toolContext.functionToSkillId.get('shell_execute') || 'shell-access',
   });
@@ -239,6 +242,80 @@ export async function handleShellCommand(
     tool: 'shell_execute',
     command,
   });
+}
+
+export async function handleApprovalCommand(
+  conversation: Conversation,
+  payload: string,
+  command: string | undefined,
+  platform: ChannelType,
+  externalChatId: string,
+  deps: CommandHandlerDeps,
+  respondToolApproval: (params: {
+    conversationId: string;
+    userId: string;
+    approvalToken: string;
+    approved: boolean;
+    approveAlways?: boolean;
+    toolId?: string;
+    toolFunctionName?: string;
+  }) => Promise<{
+    ok: boolean;
+    status: 'approved' | 'denied' | 'not_found' | 'approval_required';
+    policyUpdated: boolean;
+  }>,
+): Promise<StoredMessage> {
+  const token = String(payload || '').trim();
+  const normalizedCommand = String(command || '').trim().toLowerCase();
+  const approved = normalizedCommand === '/approve';
+
+  if (!token) {
+    return deps.sendResponse(
+      conversation,
+      'Usage: /approve <token> oder /deny <token>',
+      platform,
+      externalChatId,
+    );
+  }
+
+  const before = deps.historyManager.listRecentMessages(conversation.id, conversation.userId, 20);
+  const beforeIds = new Set(before.map((message) => message.id));
+
+  const approvalResult = await respondToolApproval({
+    conversationId: conversation.id,
+    userId: conversation.userId,
+    approvalToken: token,
+    approved,
+    approveAlways: false,
+  });
+
+  const after = deps.historyManager.listRecentMessages(conversation.id, conversation.userId, 20);
+  const emittedAgentMessage =
+    after.find((message) => message.role === 'agent' && !beforeIds.has(message.id)) || null;
+  if (emittedAgentMessage) {
+    return emittedAgentMessage;
+  }
+
+  if (approvalResult.status === 'not_found') {
+    return deps.sendResponse(
+      conversation,
+      '⚠️ Approval-Token nicht gefunden oder abgelaufen.',
+      platform,
+      externalChatId,
+    );
+  }
+  if (approvalResult.status === 'approval_required') {
+    return deps.sendResponse(
+      conversation,
+      'Weitere Genehmigung erforderlich.',
+      platform,
+      externalChatId,
+    );
+  }
+  if (approvalResult.status === 'denied') {
+    return deps.sendResponse(conversation, 'Freigabe abgelehnt.', platform, externalChatId);
+  }
+  return deps.sendResponse(conversation, 'Freigabe verarbeitet.', platform, externalChatId);
 }
 
 export async function handleSubagentCommand(
@@ -375,6 +452,192 @@ export async function handlePersonaCommand(
   return sendResponse(
     conversation,
     `🎭 Persona gewechselt: ${match.emoji} **${match.name}**\nAlle neuen Nachrichten in ${platform} nutzen jetzt diese Persona.`,
+    platform,
+    externalChatId,
+  );
+}
+
+export async function handleProjectCommand(
+  conversation: Conversation,
+  payload: string,
+  platform: ChannelType,
+  externalChatId: string,
+  repo: {
+    createProject?: (input: {
+      userId: string;
+      personaId: string;
+      name: string;
+      workspacePath: string;
+      workspaceRelativePath?: string;
+    }) => { id: string; name: string; slug: string; workspacePath: string };
+    listProjectsByPersona?: (
+      personaId: string,
+      userId: string,
+    ) => Array<{ id: string; name: string; slug: string; workspacePath: string }>;
+    getProjectByIdOrSlug?: (
+      personaId: string,
+      userId: string,
+      idOrSlug: string,
+    ) => { id: string; name: string; slug: string; workspacePath: string } | null;
+    setActiveProjectForConversation?: (
+      conversationId: string,
+      userId: string,
+      projectId: string | null,
+    ) => void;
+    getConversationProjectState?: (
+      conversationId: string,
+      userId: string,
+    ) => { activeProjectId: string | null };
+  },
+  sendResponse: CommandHandlerDeps['sendResponse'],
+): Promise<StoredMessage> {
+  if (!conversation.personaId) {
+    return sendResponse(
+      conversation,
+      '⚠️ Kein Persona-Kontext aktiv. Bitte zuerst `/persona <name>` setzen.',
+      platform,
+      externalChatId,
+    );
+  }
+
+  if (
+    typeof repo.createProject !== 'function' ||
+    typeof repo.listProjectsByPersona !== 'function' ||
+    typeof repo.getProjectByIdOrSlug !== 'function' ||
+    typeof repo.setActiveProjectForConversation !== 'function' ||
+    typeof repo.getConversationProjectState !== 'function'
+  ) {
+    return sendResponse(
+      conversation,
+      '⚠️ Projektverwaltung ist in diesem Runtime-Modus nicht verfügbar.',
+      platform,
+      externalChatId,
+    );
+  }
+
+  const trimmed = String(payload || '').trim();
+  const [rawAction, ...restTokens] = trimmed.split(/\s+/).filter(Boolean);
+  const action = String(rawAction || 'status').toLowerCase();
+  const rest = restTokens.join(' ').trim();
+
+  if (action === 'new') {
+    const name = rest;
+    if (!name) {
+      return sendResponse(
+        conversation,
+        'Usage: /project new <name>',
+        platform,
+        externalChatId,
+      );
+    }
+    const persona = getPersonaRepository().getPersona(conversation.personaId);
+    if (!persona?.slug) {
+      return sendResponse(
+        conversation,
+        '⚠️ Aktive Persona nicht gefunden.',
+        platform,
+        externalChatId,
+      );
+    }
+
+    const workspace = createPersonaProjectWorkspace({
+      personaSlug: persona.slug,
+      task: name,
+      requestedName: name,
+    });
+    const project = repo.createProject({
+      userId: conversation.userId,
+      personaId: conversation.personaId,
+      name,
+      workspacePath: workspace.absolutePath,
+      workspaceRelativePath: workspace.relativePath,
+    });
+    repo.setActiveProjectForConversation(conversation.id, conversation.userId, project.id);
+
+    return sendResponse(
+      conversation,
+      `✅ Projekt erstellt und aktiv: ${project.name}\nID: ${project.id}\nSlug: ${project.slug}`,
+      platform,
+      externalChatId,
+    );
+  }
+
+  if (action === 'list') {
+    const projects = repo.listProjectsByPersona(conversation.personaId, conversation.userId);
+    if (projects.length === 0) {
+      return sendResponse(
+        conversation,
+        'Keine Projekte vorhanden. Erzeuge eines mit `/project new <name>`.',
+        platform,
+        externalChatId,
+      );
+    }
+    const lines = ['📁 Projekte:', ''];
+    projects.forEach((project, index) => {
+      lines.push(`${index + 1}. ${project.name} (${project.slug})`);
+    });
+    return sendResponse(conversation, lines.join('\n'), platform, externalChatId);
+  }
+
+  if (action === 'use') {
+    const identifier = rest;
+    if (!identifier) {
+      return sendResponse(
+        conversation,
+        'Usage: /project use <id|slug>',
+        platform,
+        externalChatId,
+      );
+    }
+    const project = repo.getProjectByIdOrSlug(conversation.personaId, conversation.userId, identifier);
+    if (!project) {
+      return sendResponse(
+        conversation,
+        `⚠️ Projekt nicht gefunden: ${identifier}`,
+        platform,
+        externalChatId,
+      );
+    }
+    repo.setActiveProjectForConversation(conversation.id, conversation.userId, project.id);
+    return sendResponse(
+      conversation,
+      `✅ Aktives Projekt: ${project.name} (${project.slug})`,
+      platform,
+      externalChatId,
+    );
+  }
+
+  if (action === 'clear') {
+    repo.setActiveProjectForConversation(conversation.id, conversation.userId, null);
+    return sendResponse(conversation, 'Aktives Projekt wurde entfernt.', platform, externalChatId);
+  }
+
+  const state = repo.getConversationProjectState(conversation.id, conversation.userId);
+  if (!state.activeProjectId) {
+    return sendResponse(
+      conversation,
+      'Kein aktives Projekt gesetzt. Nutze `/project new <name>` oder `/project use <id|slug>`.',
+      platform,
+      externalChatId,
+    );
+  }
+
+  const project = repo.getProjectByIdOrSlug(
+    conversation.personaId,
+    conversation.userId,
+    state.activeProjectId,
+  );
+  if (!project) {
+    return sendResponse(
+      conversation,
+      'Aktives Projekt nicht mehr verfügbar.',
+      platform,
+      externalChatId,
+    );
+  }
+  return sendResponse(
+    conversation,
+    `Aktives Projekt: ${project.name}\nID: ${project.id}\nSlug: ${project.slug}`,
     platform,
     externalChatId,
   );

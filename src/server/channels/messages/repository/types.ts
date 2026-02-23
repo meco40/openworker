@@ -45,6 +45,25 @@ export interface ConversationContextState {
   updatedAt: string;
 }
 
+export interface PersonaProjectRecord {
+  id: string;
+  userId: string;
+  personaId: string;
+  name: string;
+  slug: string;
+  workspacePath: string;
+  workspaceRelativePath: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationProjectState {
+  conversationId: string;
+  activeProjectId: string | null;
+  guardApprovedWithoutProject: boolean;
+  updatedAt: string | null;
+}
+
 // ─── Search Options ───────────────────────────────────────────
 
 export interface SearchMessagesOptions {

@@ -13,4 +13,6 @@ export type {
   CreateConversationInput,
   SaveMessageInput,
   ConversationContextState,
+  PersonaProjectRecord,
+  ConversationProjectState,
 } from '@/server/channels/messages/repository/types';

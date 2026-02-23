@@ -12,6 +12,9 @@ export interface SubagentRunRecord {
   task: string;
   guidance?: string;
   modelOverride?: string;
+  projectId?: string;
+  workspacePath?: string;
+  workspaceRelativePath?: string;
   status: SubagentRunStatus;
   createdAt: string;
   startedAt: string;
@@ -37,6 +40,9 @@ interface CreateSubagentRunInput {
   task: string;
   guidance?: string;
   modelOverride?: string;
+  projectId?: string;
+  workspacePath?: string;
+  workspaceRelativePath?: string;
 }
 
 const STORE_VERSION = 1;
@@ -86,7 +92,11 @@ function readStore(filePath: string): SubagentRunStore {
         typeof entry.task === 'string' &&
         typeof entry.status === 'string' &&
         typeof entry.createdAt === 'string' &&
-        typeof entry.startedAt === 'string',
+        typeof entry.startedAt === 'string' &&
+        (entry.projectId === undefined || typeof entry.projectId === 'string') &&
+        (entry.workspacePath === undefined || typeof entry.workspacePath === 'string') &&
+        (entry.workspaceRelativePath === undefined ||
+          typeof entry.workspaceRelativePath === 'string'),
       ),
     );
 
@@ -169,6 +179,9 @@ export function createSubagentRun(input: CreateSubagentRunInput): SubagentRunRec
     task: input.task,
     guidance: input.guidance,
     modelOverride: input.modelOverride,
+    projectId: input.projectId,
+    workspacePath: input.workspacePath,
+    workspaceRelativePath: input.workspaceRelativePath,
     status: 'running',
     createdAt: now,
     startedAt: now,

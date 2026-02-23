@@ -79,6 +79,33 @@ export class ToolManager {
     };
   }
 
+  createPendingApproval(params: {
+    conversation: Conversation;
+    platform: ChannelType;
+    externalChatId: string;
+    toolFunctionName: string;
+    toolId?: string;
+    args?: Record<string, unknown>;
+    command?: string;
+  }): PendingToolApproval {
+    this.prunePendingToolApprovals();
+    const token = crypto.randomUUID();
+    const pending: PendingToolApproval = {
+      token,
+      userId: params.conversation.userId,
+      conversationId: params.conversation.id,
+      platform: params.platform,
+      externalChatId: params.externalChatId,
+      toolFunctionName: params.toolFunctionName,
+      toolId: params.toolId,
+      args: params.args || {},
+      command: params.command,
+      createdAtMs: Date.now(),
+    };
+    this.pendingToolApprovals.set(token, pending);
+    return pending;
+  }
+
   async ensureShellSkillInstalled(): Promise<void> {
     const skillRepo = await getSkillRepository();
     const repoLike = skillRepo as Partial<{
@@ -137,6 +164,7 @@ export class ToolManager {
     externalChatId: string;
     functionName: string;
     args: Record<string, unknown>;
+    workspaceCwd?: string;
     installedFunctions: Set<string>;
     toolId?: string;
     skipApprovalCheck?: boolean;
@@ -169,21 +197,15 @@ export class ToolManager {
         !params.skipApprovalCheck &&
         !isCommandApproved(policy.normalizedCommand)
       ) {
-        this.prunePendingToolApprovals();
-        const token = crypto.randomUUID();
-        const pending: PendingToolApproval = {
-          token,
-          userId: params.conversation.userId,
-          conversationId: params.conversation.id,
+        const pending = this.createPendingApproval({
+          conversation: params.conversation,
           platform: params.platform,
           externalChatId: params.externalChatId,
           toolFunctionName: functionName,
           toolId: params.toolId,
           args,
           command: policy.normalizedCommand,
-          createdAtMs: Date.now(),
-        };
-        this.pendingToolApprovals.set(token, pending);
+        });
         return {
           kind: 'approval_required',
           prompt: this.buildToolApprovalPrompt(policy.normalizedCommand),
@@ -196,6 +218,7 @@ export class ToolManager {
       const { dispatchSkill, normalizeSkillArgs } = await import('@/server/skills/executeSkill');
       const result = await dispatchSkill(functionName, normalizeSkillArgs(args), {
         bypassApproval: functionName === 'shell_execute' && Boolean(params.skipApprovalCheck),
+        workspaceCwd: params.workspaceCwd,
         conversationId: params.conversation.id,
         userId: params.conversation.userId,
         platform: params.platform,

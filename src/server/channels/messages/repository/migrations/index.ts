@@ -113,6 +113,30 @@ export function runMigrations(db: BetterSqlite3.Database, helpers: MigrationHelp
     );
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS persona_projects (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      persona_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      workspace_path TEXT NOT NULL,
+      workspace_relative_path TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS conversation_project_state (
+      conversation_id TEXT PRIMARY KEY REFERENCES conversations(id),
+      user_id TEXT NOT NULL,
+      active_project_id TEXT REFERENCES persona_projects(id),
+      guard_approved_without_project INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
   if (!hasColumn('conversations', 'user_id')) {
     db.exec(`ALTER TABLE conversations ADD COLUMN user_id TEXT`);
     db.prepare('UPDATE conversations SET user_id = ? WHERE user_id IS NULL OR user_id = ?').run(
@@ -167,6 +191,21 @@ export function runMigrations(db: BetterSqlite3.Database, helpers: MigrationHelp
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_channel_bindings_user_updated
       ON channel_bindings (user_id, updated_at DESC);
+  `);
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_persona_projects_unique_slug
+      ON persona_projects (user_id, persona_id, slug);
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_persona_projects_user_persona_updated
+      ON persona_projects (user_id, persona_id, updated_at DESC);
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_conversation_project_state_user_updated
+      ON conversation_project_state (user_id, updated_at DESC);
   `);
 
   // ─── FTS5 full-text search on messages ───────────────────

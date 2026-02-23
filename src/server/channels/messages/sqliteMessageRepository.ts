@@ -27,6 +27,7 @@ import { ContextQueries } from '@/server/channels/messages/repository/queries/co
 import { ChannelBindingQueries } from '@/server/channels/messages/repository/queries/channelBindings';
 import { SearchQueries } from '@/server/channels/messages/repository/queries/search';
 import { DeleteQueries } from '@/server/channels/messages/repository/queries/delete';
+import { ProjectQueries } from '@/server/channels/messages/repository/queries/projects';
 import { openSqliteDatabase } from '@/server/db/sqlite';
 
 // ─── FTS5 search options ─────────────────────────────────────
@@ -51,6 +52,7 @@ export class SqliteMessageRepository implements MessageRepository {
   private readonly channelBindingQueries: ChannelBindingQueries;
   private readonly searchQueries: SearchQueries;
   private readonly deleteQueries: DeleteQueries;
+  private readonly projectQueries: ProjectQueries;
 
   constructor(dbPath = process.env.MESSAGES_DB_PATH || '.local/messages.db') {
     this.db = openSqliteDatabase({ dbPath });
@@ -63,6 +65,7 @@ export class SqliteMessageRepository implements MessageRepository {
     this.channelBindingQueries = new ChannelBindingQueries(this.db, normalizeUserId);
     this.searchQueries = new SearchQueries(this.db);
     this.deleteQueries = new DeleteQueries(this.db, normalizeUserId);
+    this.projectQueries = new ProjectQueries(this.db, normalizeUserId);
 
     this.migrate();
   }
@@ -235,6 +238,36 @@ export class SqliteMessageRepository implements MessageRepository {
 
   searchMessages(query: string, opts: SearchMessagesOptions = {}): StoredMessage[] {
     return this.searchQueries.searchMessages(query, opts);
+  }
+
+  createProject(input: {
+    userId: string;
+    personaId: string;
+    name: string;
+    workspacePath: string;
+    workspaceRelativePath?: string;
+  }) {
+    return this.projectQueries.createProject(input);
+  }
+
+  listProjectsByPersona(personaId: string, userId: string) {
+    return this.projectQueries.listProjectsByPersona(personaId, userId);
+  }
+
+  getProjectByIdOrSlug(personaId: string, userId: string, idOrSlug: string) {
+    return this.projectQueries.getProjectByIdOrSlug(personaId, userId, idOrSlug);
+  }
+
+  setActiveProjectForConversation(conversationId: string, userId: string, projectId: string | null) {
+    return this.projectQueries.setActiveProjectForConversation(conversationId, userId, projectId);
+  }
+
+  getConversationProjectState(conversationId: string, userId: string) {
+    return this.projectQueries.getConversationProjectState(conversationId, userId);
+  }
+
+  setConversationProjectGuardApproved(conversationId: string, userId: string, approved: boolean) {
+    return this.projectQueries.setConversationProjectGuardApproved(conversationId, userId, approved);
   }
 
   close(): void {

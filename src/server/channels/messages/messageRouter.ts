@@ -9,7 +9,9 @@ export interface RouteResult {
     | 'session-command'
     | 'automation-command'
     | 'persona-command'
-    | 'subagent-command';
+    | 'project-command'
+    | 'subagent-command'
+    | 'approval-command';
   payload: string;
   command?: string;
 }
@@ -17,6 +19,7 @@ export interface RouteResult {
 const SESSION_COMMANDS = ['/new', '/reset'] as const;
 const SHELL_COMMANDS = ['/shell', '/bash'] as const;
 const SUBAGENT_COMMANDS = ['/subagents', '/kill', '/steer'] as const;
+const APPROVAL_COMMANDS = ['/approve', '/deny'] as const;
 
 /**
  * Routes an incoming message to chat, automation, persona or shell-command.
@@ -42,6 +45,18 @@ export function routeMessage(content: string): RouteResult {
   if (lower === '/cron' || lower.startsWith('/cron ')) {
     const payload = trimmed.slice('/cron'.length).trim();
     return { target: 'automation-command', payload, command: '/cron' };
+  }
+
+  if (lower === '/project' || lower.startsWith('/project ')) {
+    const payload = trimmed.slice('/project'.length).trim();
+    return { target: 'project-command', payload, command: '/project' };
+  }
+
+  for (const cmd of APPROVAL_COMMANDS) {
+    if (lower === cmd || lower.startsWith(`${cmd} `)) {
+      const payload = trimmed.slice(cmd.length).trim();
+      return { target: 'approval-command', payload, command: cmd };
+    }
   }
 
   for (const cmd of SHELL_COMMANDS) {

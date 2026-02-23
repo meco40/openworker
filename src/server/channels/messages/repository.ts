@@ -54,6 +54,25 @@ export interface ConversationContextState {
   updatedAt: string;
 }
 
+export interface PersonaProjectRecord {
+  id: string;
+  userId: string;
+  personaId: string;
+  name: string;
+  slug: string;
+  workspacePath: string;
+  workspaceRelativePath: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationProjectState {
+  conversationId: string;
+  activeProjectId: string | null;
+  guardApprovedWithoutProject: boolean;
+  updatedAt: string | null;
+}
+
 // ─── Repository Interface ────────────────────────────────────
 
 export interface MessageRepository {
@@ -116,5 +135,33 @@ export interface MessageRepository {
     channel: ChannelKey,
     atIso?: string,
     status?: ChannelBindingStatus,
+  ): void;
+
+  createProject?(input: {
+    userId: string;
+    personaId: string;
+    name: string;
+    workspacePath: string;
+    workspaceRelativePath?: string;
+  }): PersonaProjectRecord;
+  listProjectsByPersona?(personaId: string, userId: string): PersonaProjectRecord[];
+  getProjectByIdOrSlug?(
+    personaId: string,
+    userId: string,
+    idOrSlug: string,
+  ): PersonaProjectRecord | null;
+  setActiveProjectForConversation?(
+    conversationId: string,
+    userId: string,
+    projectId: string | null,
+  ): void;
+  getConversationProjectState?(
+    conversationId: string,
+    userId: string,
+  ): ConversationProjectState;
+  setConversationProjectGuardApproved?(
+    conversationId: string,
+    userId: string,
+    approved: boolean,
   ): void;
 }

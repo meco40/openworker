@@ -7,6 +7,7 @@ import {
   normalizeCommand,
 } from '@/server/gateway/node-command-policy';
 import type { SkillDispatchContext } from '@/server/skills/types';
+import { resolveSkillExecutionCwd } from '@/server/skills/handlers/executionCwd';
 
 const execFile = promisify(execFileCallback);
 
@@ -49,8 +50,9 @@ export async function shellExecuteHandler(
 
   try {
     const shell = resolveShell(command);
+    const cwd = resolveSkillExecutionCwd(context);
     const { stdout, stderr } = await execFile(shell.file, shell.args, {
-      cwd: process.cwd(),
+      cwd,
       timeout: 15_000,
       maxBuffer: 1_000_000,
     });
