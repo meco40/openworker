@@ -22,6 +22,13 @@ export async function pairPersonaTelegram(
   token: string,
 ): Promise<PairPersonaTelegramResult> {
   if (!token?.trim()) throw new Error('Token is required.');
+  const registry = getPersonaTelegramBotRegistry();
+  const tokenOwner = registry.listAllBots().find((bot) => bot.token === token);
+  if (tokenOwner) {
+    throw new Error(
+      `Telegram token is already paired with persona "${tokenOwner.personaId}". Unpair it first.`,
+    );
+  }
 
   // 1. Validate token with getMe
   const meResponse = await fetch(`https://api.telegram.org/bot${token}/getMe`);
@@ -88,7 +95,6 @@ export async function pairPersonaTelegram(
   }
 
   // 4. Stop any existing bot for this persona
-  const registry = getPersonaTelegramBotRegistry();
   const existing = registry.getBotByPersonaId(personaId);
   if (existing) {
     stopPersonaBotPolling(existing.botId);

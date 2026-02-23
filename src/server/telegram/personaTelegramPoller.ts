@@ -21,6 +21,21 @@ export async function startPersonaBotPolling(botId: string): Promise<void> {
   const existing = pollers.get(botId);
   if (existing?.active) return;
 
+  const registry = getPersonaTelegramBotRegistry();
+  const candidateBot = registry.getBot(botId);
+  if (candidateBot) {
+    for (const [activeBotId, state] of pollers) {
+      if (!state.active || activeBotId === botId) continue;
+      const activeBot = registry.getBot(activeBotId);
+      if (activeBot && activeBot.token === candidateBot.token) {
+        console.warn(
+          `[PersonaBotPoller:${botId}] skipped start because token is already active on ${activeBotId}`,
+        );
+        return;
+      }
+    }
+  }
+
   pollers.set(botId, { timer: null, active: true });
   schedulePersonaBotPoll(botId);
 }
