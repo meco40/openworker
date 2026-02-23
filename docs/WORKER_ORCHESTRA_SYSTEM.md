@@ -70,3 +70,4 @@ npm run lint
 - `docs/WORKER_SYSTEM.md`
 - `docs/AUTOMATION_SYSTEM.md`
 - `docs/API_REFERENCE.md`
+- `docs/PROJECT_WORKSPACE_SYSTEM.md`
