@@ -25,8 +25,6 @@ interface PersonasSidebarProps {
   rooms: RoomSummary[];
   selectedRoomId: string | null;
   onSelectRoom: (roomId: string) => void;
-  roomCreating: boolean;
-  onCreateRoomFlow: () => void;
 }
 
 export function PersonasSidebar({
@@ -44,8 +42,6 @@ export function PersonasSidebar({
   rooms,
   selectedRoomId,
   onSelectRoom,
-  roomCreating,
-  onCreateRoomFlow,
 }: PersonasSidebarProps) {
   return (
     <div className="flex w-72 shrink-0 flex-col border-r border-zinc-800">
@@ -143,25 +139,7 @@ export function PersonasSidebar({
 
       <div className="flex min-h-0 flex-col border-t border-zinc-800" style={{ maxHeight: '45%' }}>
         <div className="border-b border-zinc-800 p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-black tracking-widest text-white uppercase">Rooms</h2>
-            <button
-              onClick={onCreateRoomFlow}
-              disabled={roomCreating}
-              className="rounded-lg bg-emerald-600 p-1.5 text-white transition-colors hover:bg-emerald-500 disabled:opacity-60"
-              title="Neuen Room erstellen"
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-            </button>
-          </div>
+          <h2 className="text-sm font-black tracking-widest text-white uppercase">Rooms</h2>
         </div>
         <div className="flex-1 space-y-1 overflow-y-auto p-2">
           {roomsLoading && rooms.length === 0 && (

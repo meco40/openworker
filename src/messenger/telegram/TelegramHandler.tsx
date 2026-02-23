@@ -32,26 +32,43 @@ export const TelegramHandler: React.FC<TelegramHandlerProps> = ({
 }) => {
   if (channel.status === 'idle') {
     return (
-      <div className="animate-in fade-in slide-in-from-bottom-4 max-w-sm space-y-6 duration-500">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10 text-3xl text-blue-500 shadow-xl">
-          ✈️
+      <div className="animate-in fade-in flex flex-col gap-5 duration-300">
+        <div className="flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-xl">
+            ✈️
+          </div>
+          <div>
+            <h3 className="font-semibold text-white">Telegram Integration</h3>
+            <p className="mt-0.5 text-sm text-zinc-400">
+              Enter your BotFather API token to bridge Telegram traffic directly into the control
+              plane.
+            </p>
+          </div>
         </div>
-        <h3 className="text-xl font-bold text-white">Telegram Integration</h3>
-        <p className="text-sm leading-relaxed text-zinc-500">
-          Input your BotFather API token to bridge Telegram traffic.
-        </p>
-        <input
-          type="text"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder="TELEGRAM_API_TOKEN"
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-950 p-3 font-mono text-sm text-white focus:border-blue-500 focus:outline-none"
-        />
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-zinc-400">Bot Token</label>
+          <input
+            type="text"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && token && onStartPairing()}
+            placeholder="TELEGRAM_API_TOKEN"
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 font-mono text-sm text-white placeholder-zinc-600 transition-colors focus:border-blue-500/50 focus:outline-none"
+          />
+        </div>
         <button
           onClick={onStartPairing}
           disabled={!token}
-          className="w-full rounded-lg bg-blue-600 py-4 font-bold tracking-widest text-white uppercase shadow-lg transition-all hover:bg-blue-700 disabled:opacity-30"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+            />
+          </svg>
           Establish Bridge
         </button>
       </div>
@@ -60,10 +77,11 @@ export const TelegramHandler: React.FC<TelegramHandlerProps> = ({
 
   if (channel.status === 'pairing') {
     return (
-      <div className="flex flex-col items-center space-y-6">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-        <div className="font-mono text-xs font-bold text-blue-500 uppercase">
-          Validating Bot Token...
+      <div className="animate-in fade-in flex flex-col items-center gap-4 py-6 duration-300">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+        <div className="text-center">
+          <p className="text-sm font-medium text-white">Validating Bot Token</p>
+          <p className="mt-1 text-xs text-zinc-500">Contacting Telegram API…</p>
         </div>
       </div>
     );
@@ -71,68 +89,122 @@ export const TelegramHandler: React.FC<TelegramHandlerProps> = ({
 
   if (channel.status === 'awaiting_code') {
     return (
-      <div className="animate-in fade-in w-full max-w-sm space-y-6 duration-500">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10 text-3xl text-blue-500 shadow-xl">
-          🔐
+      <div className="animate-in fade-in flex flex-col gap-5 duration-300">
+        <div className="flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-xl">
+            🔐
+          </div>
+          <div>
+            <h3 className="font-semibold text-white">Confirm Telegram Pairing</h3>
+            <p className="mt-0.5 text-sm text-zinc-400">
+              Send any message to your Telegram bot, then enter the pairing code you receive.
+            </p>
+          </div>
         </div>
-        <h3 className="text-xl font-bold text-white">Confirm Telegram Pairing</h3>
-        <p className="text-sm leading-relaxed text-zinc-500">
-          Send any message to your Telegram bot, then enter the received pairing code here.
-        </p>
-        <input
-          type="text"
-          value={pairingCode}
-          onChange={(e) => setPairingCode(e.target.value)}
-          placeholder="PAIRING_CODE"
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-950 p-3 font-mono text-sm text-white focus:border-blue-500 focus:outline-none"
-        />
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-300">
+          <span className="font-semibold">Step 1:</span> Open Telegram and message your bot.
+          <br />
+          <span className="font-semibold">Step 2:</span> The bot replies with a pairing code — paste
+          it below.
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-zinc-400">Pairing Code</label>
+          <input
+            type="text"
+            value={pairingCode}
+            onChange={(e) => setPairingCode(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && pairingCode.trim() && onConfirmPairingCode()}
+            placeholder="Enter the code from the bot"
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 font-mono text-sm text-white placeholder-zinc-600 transition-colors focus:border-blue-500/50 focus:outline-none"
+          />
+        </div>
         <button
           onClick={onConfirmPairingCode}
           disabled={!pairingCode.trim() || isConfirmingCode}
-          className="w-full rounded-lg bg-blue-600 py-4 font-bold tracking-widest text-white uppercase shadow-lg transition-all hover:bg-blue-700 disabled:opacity-30"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {isConfirmingCode ? 'Confirming...' : 'Confirm Pairing Code'}
+          {isConfirmingCode ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              Confirming…
+            </>
+          ) : (
+            'Confirm Pairing Code'
+          )}
         </button>
-        <button
-          onClick={onDisconnect}
-          className="w-full rounded border border-rose-900/50 py-3 text-[10px] font-bold tracking-widest text-rose-500 uppercase transition-all hover:bg-rose-950/20"
-        >
-          Cancel Pairing
-        </button>
+        <div className="border-t border-zinc-800 pt-2">
+          <button
+            onClick={onDisconnect}
+            className="text-sm text-zinc-500 transition-colors hover:text-rose-400"
+          >
+            Cancel pairing
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="animate-in fade-in w-full max-w-sm space-y-6 duration-500">
-      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-blue-500 text-white shadow-2xl">
-        <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-        </svg>
+    <div className="animate-in fade-in flex flex-col gap-5 duration-300">
+      <div className="flex items-center justify-between rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
+            <svg
+              className="h-4 w-4 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">Telegram Bot Connected</p>
+            {channel.peerName && (
+              <p className="mt-0.5 font-mono text-xs text-zinc-400">{channel.peerName}</p>
+            )}
+          </div>
+        </div>
+        <span className="flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+          Live
+        </span>
       </div>
-      <h3 className="text-2xl font-bold text-white">Telegram Bot Live</h3>
-      <div className="mt-8 space-y-4 rounded-xl border border-blue-500/20 bg-zinc-950 p-4">
-        <div className="flex space-x-2">
+
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+          Test Inbound Message
+        </label>
+        <div className="flex gap-2">
           <input
             value={simMessage}
             onChange={(e) => setSimMessage(e.target.value)}
-            placeholder="Ingress test message..."
-            className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 p-2.5 text-xs text-white transition-all focus:border-blue-500 focus:outline-none"
+            onKeyDown={(e) => e.key === 'Enter' && onSimulate()}
+            placeholder="Simulate a message from Telegram…"
+            className="flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white placeholder-zinc-600 transition-colors focus:border-blue-500/50 focus:outline-none"
           />
           <button
             onClick={onSimulate}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white uppercase transition-all"
+            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-600"
           >
-            Push
+            Send
           </button>
         </div>
       </div>
-      <button
-        onClick={onDisconnect}
-        className="w-full rounded border border-rose-900/50 py-3 text-[10px] font-bold tracking-widest text-rose-500 uppercase transition-all hover:bg-rose-950/20"
-      >
-        Dismantle Link
-      </button>
+
+      <div className="border-t border-zinc-800 pt-2">
+        <button
+          onClick={onDisconnect}
+          className="text-sm text-zinc-500 transition-colors hover:text-rose-400"
+        >
+          Disconnect Telegram
+        </button>
+      </div>
     </div>
   );
 };

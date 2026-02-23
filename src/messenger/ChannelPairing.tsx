@@ -413,66 +413,96 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-12">
-      <div className="flex flex-col">
-        <h2 className="text-xl font-bold tracking-tight text-white">Messenger Coupling</h2>
-        <p className="text-sm text-zinc-500">
-          Bridge external communications to the Gateway Control Plane.
-        </p>
+    <div className="mx-auto max-w-6xl space-y-6 pb-12">
+      {/* Page Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-white">Messenger Coupling</h2>
+          <p className="mt-0.5 text-sm text-zinc-500">
+            Bridge external communications to the Gateway Control Plane.
+          </p>
+        </div>
+        <div className="hidden shrink-0 items-center gap-2 md:flex">
+          {(
+            [
+              { id: 'whatsapp', label: 'WhatsApp', color: 'emerald' },
+              { id: 'telegram', label: 'Telegram', color: 'blue' },
+              { id: 'discord', label: 'Discord', color: 'indigo' },
+              { id: 'imessage', label: 'iMessage', color: 'sky' },
+              { id: 'slack', label: 'Slack', color: 'cyan' },
+            ] as const
+          )
+            .filter((t) => coupledChannels[t.id]?.status === 'connected')
+            .map((t) => (
+              <span
+                key={t.id}
+                className="flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs text-zinc-300"
+              >
+                <span className={`h-1.5 w-1.5 rounded-full bg-${t.color}-500`} />
+                {t.label}
+              </span>
+            ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-        <div className="space-y-2 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 p-4 shadow-xl">
-          <h4 className="mb-4 px-2 text-[10px] font-black tracking-widest text-zinc-600 uppercase">
-            Available Nodes
-          </h4>
-          {[
+      {/* Channel Tab Bar */}
+      <div className="flex gap-1 rounded-xl border border-zinc-800 bg-zinc-900/80 p-1.5">
+        {(
+          [
             { id: 'whatsapp', label: 'WhatsApp', icon: '💬', color: 'emerald' },
             { id: 'telegram', label: 'Telegram', icon: '✈️', color: 'blue' },
-            { id: 'discord', label: 'Discord Bot', icon: '👾', color: 'indigo' },
+            { id: 'discord', label: 'Discord', icon: '👾', color: 'indigo' },
             { id: 'imessage', label: 'iMessage', icon: '☁️', color: 'sky' },
             { id: 'slack', label: 'Slack', icon: '🟦', color: 'cyan' },
-          ].map((tab) => (
+          ] as const
+        ).map((tab) => {
+          const status = coupledChannels[tab.id]?.status;
+          const isActive = activeTab === tab.id;
+          return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as ActiveTab)}
-              className={`flex w-full items-center justify-between rounded-lg p-3 text-xs font-bold transition-all ${
-                activeTab === tab.id
-                  ? `bg-zinc-800 text-${tab.color}-500 shadow-inner`
+              className={`relative flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all md:flex-none md:justify-start md:px-4 ${
+                isActive
+                  ? 'bg-zinc-800 text-white shadow-sm'
                   : 'text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300'
               }`}
             >
-              <span className="flex items-center space-x-3">
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </span>
-              <div
-                className={`h-1.5 w-1.5 rounded-full ${coupledChannels[tab.id].status === 'connected' ? `bg-${tab.color}-500` : 'bg-zinc-800'}`}
-              />
+              <span className="text-base">{tab.icon}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
+              {status === 'connected' && (
+                <span className={`ml-auto h-2 w-2 shrink-0 rounded-full bg-${tab.color}-500`} />
+              )}
+              {(status === 'pairing' || status === 'awaiting_code') && (
+                <span className="ml-auto h-2 w-2 shrink-0 animate-pulse rounded-full bg-amber-500" />
+              )}
             </button>
-          ))}
-        </div>
+          );
+        })}
+      </div>
 
-        <div className="space-y-6 lg:col-span-2">
+      {/* Content */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        {/* Main Panel */}
+        <div className="space-y-4 xl:col-span-2">
+          {/* Account Selector – bridge tabs only */}
           {activeBridgeTab && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 shadow-xl">
-              <div className="mb-3 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
-                Account Selector ({activeBridgeTab.toUpperCase()})
-              </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <label className="flex flex-col gap-1 text-left">
-                  <span className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
-                    Active Account
-                  </span>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <h4 className="mb-4 text-xs font-semibold tracking-widest text-zinc-400 uppercase">
+                Account — {activeBridgeTab.toUpperCase()}
+              </h4>
+              <div className="flex flex-wrap gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-zinc-500">Active</label>
                   <select
                     value={selectedBridgeAccount[activeBridgeTab]}
-                    onChange={(event) =>
-                      setSelectedBridgeAccount((previous) => ({
-                        ...previous,
-                        [activeBridgeTab]: event.target.value,
+                    onChange={(e) =>
+                      setSelectedBridgeAccount((prev) => ({
+                        ...prev,
+                        [activeBridgeTab]: e.target.value,
                       }))
                     }
-                    className="rounded-lg border border-zinc-800 bg-zinc-950 p-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                    className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white focus:border-zinc-500 focus:outline-none"
                   >
                     {accountOptions.map((id) => (
                       <option key={id} value={id}>
@@ -480,64 +510,63 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({
                       </option>
                     ))}
                   </select>
-                </label>
-
-                <label className="flex flex-col gap-1 text-left">
-                  <span className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
-                    New Account
-                  </span>
-                  <input
-                    value={newBridgeAccountDraft[activeBridgeTab]}
-                    onChange={(event) =>
-                      setNewBridgeAccountDraft((previous) => ({
-                        ...previous,
-                        [activeBridgeTab]: event.target.value,
-                      }))
-                    }
-                    placeholder="support"
-                    className="rounded-lg border border-zinc-800 bg-zinc-950 p-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </label>
-
-                <div className="flex items-end">
-                  <button
-                    onClick={applyNewAccountId}
-                    className="w-full rounded-lg bg-zinc-800 px-3 py-2 text-xs font-bold tracking-widest text-zinc-100 uppercase hover:bg-zinc-700"
-                  >
-                    Use Account
-                  </button>
                 </div>
-              </div>
-
-              {activeTab === 'whatsapp' && (
-                <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950 p-3">
-                  <div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
-                    Allow From (Optional)
-                  </div>
-                  <p className="mb-2 text-left text-[11px] text-zinc-500">
-                    Comma-separated sender filters, e.g. <code>+49123, sales-team</code>
-                  </p>
+                <div className="flex min-w-40 flex-1 flex-col gap-1.5">
+                  <label className="text-xs text-zinc-500">Add Account</label>
                   <div className="flex gap-2">
                     <input
-                      value={allowFromInput}
-                      onChange={(event) => setAllowFromInput(event.target.value)}
-                      placeholder="+49123, +49888"
-                      className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 p-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                      value={newBridgeAccountDraft[activeBridgeTab]}
+                      onChange={(e) =>
+                        setNewBridgeAccountDraft((prev) => ({
+                          ...prev,
+                          [activeBridgeTab]: e.target.value,
+                        }))
+                      }
+                      onKeyDown={(e) => e.key === 'Enter' && applyNewAccountId()}
+                      placeholder="e.g. support"
+                      className="flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white placeholder-zinc-600 focus:border-zinc-500 focus:outline-none"
                     />
                     <button
-                      onClick={saveAllowFrom}
-                      disabled={isSavingAllowFrom}
-                      className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold tracking-widest text-white uppercase hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={applyNewAccountId}
+                      className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-700"
                     >
-                      {isSavingAllowFrom ? 'Saving...' : 'Save'}
+                      Use
                     </button>
+                  </div>
+                </div>
+              </div>
+              {activeTab === 'whatsapp' && (
+                <div className="mt-4 border-t border-zinc-800 pt-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-zinc-500">
+                      Allow From{' '}
+                      <span className="text-zinc-600">
+                        — optional comma-separated sender filters
+                      </span>
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        value={allowFromInput}
+                        onChange={(e) => setAllowFromInput(e.target.value)}
+                        placeholder="+49123, +49888, sales-team"
+                        className="flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white placeholder-zinc-600 focus:border-zinc-500 focus:outline-none"
+                      />
+                      <button
+                        onClick={saveAllowFrom}
+                        disabled={isSavingAllowFrom}
+                        className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isSavingAllowFrom ? 'Saving…' : 'Save'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          <div className="flex min-h-[450px] flex-col items-center justify-center overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 p-10 text-center shadow-2xl">
+          {/* Channel Handler */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
             {activeTab === 'whatsapp' && (
               <WhatsAppHandler
                 channel={currentChannel}
@@ -569,7 +598,7 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({
                 channel={currentChannel}
                 title="Discord Bot"
                 icon="👾"
-                description="Use a Discord Bot Token to relay server or DM messages."
+                description="Use a Discord Bot Token to relay server and DM messages."
                 accent="indigo"
                 token={inputToken}
                 setToken={setInputToken}
@@ -615,16 +644,41 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-col rounded-xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
-          <h4 className="mb-6 text-[10px] font-black tracking-widest text-white uppercase">
-            Security Context
-          </h4>
-          <div className="h-[250px] space-y-2 overflow-y-auto rounded-lg border border-zinc-800 bg-black p-3 font-mono text-[9px]">
-            {pairingLogs.map((log, index) => (
-              <div key={index} className="text-zinc-500">
-                {log}
-              </div>
-            ))}
+        {/* Activity Log */}
+        <div className="flex flex-col rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h4 className="text-xs font-semibold tracking-widest text-zinc-400 uppercase">
+              Activity Log
+            </h4>
+            {pairingLogs.length > 0 && (
+              <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
+                {pairingLogs.length}
+              </span>
+            )}
+          </div>
+          <div className="flex-1 space-y-1.5 overflow-y-auto">
+            {pairingLogs.length === 0 ? (
+              <p className="pt-8 text-center text-xs text-zinc-600">No activity yet</p>
+            ) : (
+              pairingLogs.map((log, index) => {
+                const isError = /fail|error|warn|reject/i.test(log);
+                const isSuccess = /success|confirmed|live|established|connected/i.test(log);
+                return (
+                  <div
+                    key={index}
+                    className={`rounded-lg border px-3 py-2 font-mono text-[11px] leading-relaxed ${
+                      isError
+                        ? 'border-rose-900/30 bg-rose-950/20 text-rose-400'
+                        : isSuccess
+                          ? 'border-emerald-900/30 bg-emerald-950/20 text-emerald-400'
+                          : 'border-zinc-800/60 bg-zinc-950/50 text-zinc-500'
+                    }`}
+                  >
+                    {log}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

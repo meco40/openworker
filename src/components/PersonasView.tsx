@@ -107,7 +107,6 @@ const PersonasView: React.FC = () => {
     refreshRooms,
     loadRoomDetail,
     selectRoom,
-    createRoomFlow,
     handleCreateRoom,
     startSelectedRoom,
     stopSelectedRoom,
@@ -221,8 +220,6 @@ const PersonasView: React.FC = () => {
         rooms={rooms}
         selectedRoomId={selectedRoomId}
         onSelectRoom={handleSelectRoom}
-        roomCreating={roomCreating}
-        onCreateRoomFlow={createRoomFlow}
       />
 
       {/* ── Right Panel: Editor ───────────────────────────── */}
