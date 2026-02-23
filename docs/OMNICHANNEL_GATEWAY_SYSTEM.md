@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer Multi-Channel-Routing und Gateway-Kommunikation.
 - Scope: Inbound/Outbound Routing, Adapter, Pairing, Webhooks, Gateway-RPC/Event-Flow.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-21
+- Last Reviewed: 2026-02-23
 - Related Runbooks: docs/runbooks/gateway-config-production-rollout.md
 
 ---
@@ -50,17 +50,12 @@ sequenceDiagram
     IR->>MR: route(message)
     MR->>MR: determineTarget()
 
-    alt Direct Message
-        MR->>MS: handleInbound()
-        MS->>MS: deduplicate()
-        MS->>MS: buildContext()
-        MS->>MH: dispatch()
-        MH-->>MS: response
-        MS->>MS: saveMessage()
-    else Room Message
-        MR->>R[Room Service]
-        R->>R: process()
-    end
+    MR->>MS: handleInbound()
+    MS->>MS: deduplicate()
+    MS->>MS: buildContext()
+    MS->>MH: dispatch()
+    MH-->>MS: response
+    MS->>MS: saveMessage()
 
     MS-->>IR: result
     IR-->>Ext: Acknowledge
@@ -225,7 +220,6 @@ src/server/gateway/
     ├── chat.ts
     ├── channels.ts
     ├── sessions.ts
-    ├── worker.ts
     ├── logs.ts
     └── presence.ts
 ```
@@ -319,8 +313,6 @@ flowchart TB
 
     subgraph Domain
         MS[MessageService]
-        RS[RoomService]
-        WS2[WorkerService]
     end
 
     subgraph Clients
@@ -344,11 +336,7 @@ flowchart TB
     OR --> AR
 
     IR --> MS
-    IR --> RS
-
     MS --> OR
-    RS --> OR
-    WS2 --> OR
 
     Web --> WS
     Mobile --> WS
@@ -356,11 +344,7 @@ flowchart TB
     WS --> CR
     WS --> MR
     MR --> MS
-    MR --> RS
-    MR --> WS2
-
     MS --> BC
-    RS --> BC
     BC --> CR
 ```
 
@@ -393,47 +377,53 @@ interface RPCRequest {
   params: unknown;
 }
 
-// Methoden
-('chat.send'); // Nachricht senden
-('chat.stream'); // Streaming-Nachricht
-('chat.abort'); // Generierung abbrechen
-('sessions.delete'); // Session löschen
-('sessions.reset'); // Session zurücksetzen
-('sessions.patch'); // Session aktualisieren
-('channels.list'); // Channel-Liste
-('channels.pair'); // Channel koppeln
-('channels.unpair'); // Channel trennen
-('inbox.list'); // Inbox-Liste
-('worker.start'); // Worker starten
-('automation.run'); // Automation ausführen
+// Methoden (aktiver Stand in src/server/gateway/methods/*)
+('chat.send');
+('chat.stream');
+('chat.history');
+('chat.conversations.list');
+('chat.abort');
+('chat.approval.respond');
+('sessions.delete');
+('sessions.reset');
+('sessions.patch');
+('channels.list');
+('channels.pair');
+('channels.unpair');
+('inbox.list');
+('logs.list');
+('logs.subscribe');
+('logs.unsubscribe');
+('logs.sources');
+('logs.categories');
+('logs.clear');
+('presence.list');
+('presence.whoami');
 ```
 
 ### 5.2 Server -> Client (Events)
 
 ```typescript
-// Room Events
+// Active gateway events
+'hello-ok';
+'chat.message';
+'chat.stream';
+'chat.aborted';
+'conversation.deleted';
+'conversation.reset';
+'persona.changed';
+'log.entry';
+'presence.update';
+'channels.status';
+'inbox.updated';
+'tick';
+
+// Legacy compatibility constants (defined, currently not emitted by active server paths)
 'room.message';
 'room.member.status';
 'room.run.status';
 'room.intervention';
 'room.metrics';
-
-// Chat Events
-'conversation.new';
-'conversation.deleted';
-'conversation.reset';
-'chat.typing';
-'chat.aborted';
-
-// Worker Events
-'worker.status';
-'worker.activity';
-
-// Automation Events
-'automation.triggered';
-
-// Presence
-'presence.update';
 ```
 
 ---

@@ -1,6 +1,6 @@
 # OpenClaw Gateway Control Plane
 
-**Stand:** 2026-02-17  
+**Stand:** 2026-02-23  
 **Version:** 1.0.0
 
 ---
@@ -10,9 +10,9 @@
 OpenClaw Gateway ist eine **Next.js-basierte Multi-Channel-KI-Plattform** mit Unterstützung für:
 
 - **Omnichannel-Messaging** (Telegram, WhatsApp, Discord, iMessage, Slack, WebChat)
-- **Multi-Persona-Rooms** mit persistenter Konversation und Orchestrierung
-- **Autonome Worker-Agenten** für komplexe Aufgaben
-- **Skill-basiertes Tool-System** mit 8 Built-in Skills + ClawHub-Erweiterungen
+- **Persistente Chat-Konversationen** mit Persona-Bindung und Streaming-Tool-Loop
+- **Automation- und Ops-Steuerung** über Scheduler, Ops-API und Runtime-Health
+- **Skill-basiertes Tool-System** mit 10 Built-in Skills (8 Default + 2 opt-in) + ClawHub-Erweiterungen
 - **Konzeptuelles Memory** mit Embedding-basierter Ähnlichkeitssuche
 - **Multi-Provider-KI** (11 Provider: OpenAI, Anthropic, Google Gemini, xAI, Mistral, Cohere, OpenRouter, Z.AI, Kimi, ByteDance, GitHub Copilot)
 
@@ -46,7 +46,7 @@ npm run mem0:local:up
 # Web-Server starten
 npm run dev
 
-# Scheduler starten (optional, für Rooms und Automations)
+# Scheduler starten (optional, für Automations-Läufe und Scheduler-Health)
 npm run dev:scheduler
 ```
 
@@ -84,7 +84,6 @@ npm run start
 │   ├── modules/           # Frontend Feature-Module (Hooks, Services)
 │   ├── server/            # Serverseitige Domänen (DDD)
 │   │   ├── channels/      # Omnichannel-Messaging
-│   │   ├── rooms/         # Multi-Persona-Rooms
 │   │   ├── skills/        # Skill-Execution Engine
 │   │   ├── memory/        # Konzeptuelles Memory
 │   │   ├── model-hub/     # Multi-Provider-KI (11 Provider)
@@ -185,24 +184,24 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 
 ## Dokumentation
 
-| Dokument                                                                 | Beschreibung                    |
-| ------------------------------------------------------------------------ | ------------------------------- |
-| [docs/README.md](docs/README.md)                                         | Dokumentations-Index            |
-| [docs/CORE_HANDBOOK.md](docs/CORE_HANDBOOK.md)                           | Technischer Gesamtüberblick     |
-| [docs/SESSION_MANAGEMENT.md](docs/SESSION_MANAGEMENT.md)                 | Session-Management System       |
-| [docs/MEMORY_SYSTEM.md](docs/MEMORY_SYSTEM.md)                           | Memory-System mit Embeddings    |
-| [docs/OMNICHANNEL_GATEWAY_SYSTEM.md](docs/OMNICHANNEL_GATEWAY_SYSTEM.md) | Omnichannel-Messaging & Gateway |
-| [docs/MODEL_HUB_SYSTEM.md](docs/MODEL_HUB_SYSTEM.md)                     | Multi-Provider KI-System        |
-| [docs/PERSONA_ROOMS_SYSTEM.md](docs/PERSONA_ROOMS_SYSTEM.md)             | Persona- & Rooms-System         |
-| [docs/WORKER_SYSTEM.md](docs/WORKER_SYSTEM.md)                           | Worker-Agenten System           |
-| [docs/WORKER_ORCHESTRA_SYSTEM.md](docs/WORKER_ORCHESTRA_SYSTEM.md)       | Visual Workflow Orchestration   |
-| [docs/AUTOMATION_SYSTEM.md](docs/AUTOMATION_SYSTEM.md)                   | Cron-basierte Automationen      |
-| [docs/SKILLS_SYSTEM.md](docs/SKILLS_SYSTEM.md)                           | Skill-System & Tools            |
-| [docs/CLAWHUB_SYSTEM.md](docs/CLAWHUB_SYSTEM.md)                         | ClawHub Skill-Repository        |
-| [docs/KNOWLEDGE_BASE_SYSTEM.md](docs/KNOWLEDGE_BASE_SYSTEM.md)           | Knowledge Base (Beta)           |
-| [docs/SECURITY_SYSTEM.md](docs/SECURITY_SYSTEM.md)                       | Security-Architektur            |
-| [docs/DEPLOYMENT_OPERATIONS.md](docs/DEPLOYMENT_OPERATIONS.md)           | Deployment & Betrieb            |
-| [docs/API_REFERENCE.md](docs/API_REFERENCE.md)                           | Vollständige API-Referenz       |
+| Dokument                                                                 | Beschreibung                       |
+| ------------------------------------------------------------------------ | ---------------------------------- |
+| [docs/README.md](docs/README.md)                                         | Dokumentations-Index               |
+| [docs/CORE_HANDBOOK.md](docs/CORE_HANDBOOK.md)                           | Technischer Gesamtüberblick        |
+| [docs/SESSION_MANAGEMENT.md](docs/SESSION_MANAGEMENT.md)                 | Session-Management System          |
+| [docs/MEMORY_SYSTEM.md](docs/MEMORY_SYSTEM.md)                           | Memory-System mit Embeddings       |
+| [docs/OMNICHANNEL_GATEWAY_SYSTEM.md](docs/OMNICHANNEL_GATEWAY_SYSTEM.md) | Omnichannel-Messaging & Gateway    |
+| [docs/MODEL_HUB_SYSTEM.md](docs/MODEL_HUB_SYSTEM.md)                     | Multi-Provider KI-System           |
+| [docs/PERSONA_ROOMS_SYSTEM.md](docs/PERSONA_ROOMS_SYSTEM.md)             | Persona-System                     |
+| [docs/WORKER_SYSTEM.md](docs/WORKER_SYSTEM.md)                           | Legacy-Status (Worker entfernt)    |
+| [docs/WORKER_ORCHESTRA_SYSTEM.md](docs/WORKER_ORCHESTRA_SYSTEM.md)       | Legacy-Status (Orchestra entfernt) |
+| [docs/AUTOMATION_SYSTEM.md](docs/AUTOMATION_SYSTEM.md)                   | Cron-basierte Automationen         |
+| [docs/SKILLS_SYSTEM.md](docs/SKILLS_SYSTEM.md)                           | Skill-System & Tools               |
+| [docs/CLAWHUB_SYSTEM.md](docs/CLAWHUB_SYSTEM.md)                         | ClawHub Skill-Repository           |
+| [docs/KNOWLEDGE_BASE_SYSTEM.md](docs/KNOWLEDGE_BASE_SYSTEM.md)           | Knowledge Base (Beta)              |
+| [docs/SECURITY_SYSTEM.md](docs/SECURITY_SYSTEM.md)                       | Security-Architektur               |
+| [docs/DEPLOYMENT_OPERATIONS.md](docs/DEPLOYMENT_OPERATIONS.md)           | Deployment & Betrieb               |
+| [docs/API_REFERENCE.md](docs/API_REFERENCE.md)                           | Vollständige API-Referenz          |
 
 ---
 

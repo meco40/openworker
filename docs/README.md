@@ -1,6 +1,6 @@
 # Dokumentationsindex
 
-Stand: 2026-02-21
+Stand: 2026-02-23
 
 Diese Seite listet nur aktive Source-of-Truth Dokumente.
 Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.

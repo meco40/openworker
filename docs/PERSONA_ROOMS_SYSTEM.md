@@ -39,7 +39,7 @@ Hinweis: Das fruehere Rooms-Subsystem (`/api/rooms/*`, `src/server/rooms/*`) ist
 - **Persona-Metadaten** (`id`, `name`, `slug`, Modell-Bindings, User-Scope) bleiben in `personas.db` (`PERSONAS_DB_PATH`).
 - **Persona-Dateiinhalte** (`SOUL.md`, `IDENTITY.md`, `AGENTS.md`, `USER.md`, `TOOLS.md`, `HEARTBEAT.md`) werden dateibasiert unter `.local/personas/<slug>/` gespeichert.
 - Die API-Routen `/api/personas/[id]/files/[filename]` bleiben unveraendert und lesen/schreiben diese Markdown-Dateien.
-- Legacy-Inhalte aus der frueheren Tabelle `persona_files` werden beim Repository-Start in fehlende Dateisystem-Dateien migriert; danach wird `persona_files` geleert.
+- Legacy-Inhalte aus der frueheren Tabelle `persona_files` werden beim Repository-Start in fehlende Dateisystem-Dateien migriert; danach wird `persona_files` entfernt (`DROP TABLE IF EXISTS persona_files`).
 
 ---
 

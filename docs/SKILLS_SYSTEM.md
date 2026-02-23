@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer Skill-Lifecycle und Skill-Execution-Governance.
 - Scope: Skill-Registry, Installation, Runtime-Konfiguration, Dispatch und Sicherheitsgrenzen.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-21
+- Last Reviewed: 2026-02-23
 - Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md
 
 ---
@@ -16,7 +16,7 @@ This document describes the complete Skills System architecture, covering skill 
 
 The Skills System is a modular, extensible framework that enables the AI assistant to execute domain-specific capabilities through a unified interface. It combines **built-in skills** (shipped with the system) with **external skills** (installed from GitHub, npm, or manual sources) through a controlled execution environment.
 
-Current runtime baseline: 9 built-in skills (7 installed by default, 2 opt-in).
+Current runtime baseline: 10 built-in skills (8 installed by default, 2 opt-in).
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -47,6 +47,7 @@ Current runtime baseline: 9 built-in skills (7 installed by default, 2 opt-in).
 │ • vision          │  │                   │  │                   │
 │ • shell           │  │                   │  │                   │
 │ • subagents       │  │                   │  │                   │
+│ • multi-tool-use-parallel │  │            │  │                   │
 │ • github (opt)    │  │                   │  │                   │
 │ • sql (opt)       │  │                   │  │                   │
 └─────────┬─────────┘  └─────────┬─────────┘  └─────────┬─────────┘
@@ -307,6 +308,8 @@ const SKILL_HANDLERS: Record<string, SkillHandler> = {
   db_query: dbQueryHandler,
   browser_snapshot: browserSnapshotHandler,
   vision_analyze: visionAnalyzeHandler,
+  subagents: subagentsHandler,
+  'multi_tool_use.parallel': multiToolUseParallelHandler,
 };
 
 export async function dispatchSkill(name: string, args: Record<string, unknown>) {
@@ -537,6 +540,32 @@ Spawns and steers delegated helper agents for complex workflows.
 - `info`
 - `log`
 - `help`
+
+#### `multi-tool-use-parallel` - Parallel Tool Dispatcher
+
+| Attribute    | Value                     |
+| ------------ | ------------------------- |
+| **Function** | `multi_tool_use.parallel` |
+| **Default**  | Installed                 |
+| **Category** | Automation                |
+
+Runs multiple runtime tool calls in parallel via one dispatcher call.
+
+**Parameters:**
+
+```json
+{
+  "tool_uses": {
+    "type": "array",
+    "description": "List of tool calls with name + args"
+  }
+}
+```
+
+**Guards:**
+
+- `tool_uses` must be a non-empty array
+- nested `multi_tool_use.parallel` calls are blocked
 
 ### Data & Media
 
