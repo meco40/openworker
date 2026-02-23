@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { shellExecuteHandler } from '@/server/skills/handlers/shellExecute';
 
@@ -54,6 +57,27 @@ describe('shellExecuteHandler security', () => {
       } else {
         process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = previous;
       }
+    }
+  });
+
+  it('runs in provided workspace cwd when present in dispatch context', async () => {
+    const personasRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'personas-root-'));
+    process.env.PERSONAS_ROOT_PATH = personasRoot;
+    const workspaceDir = path.join(personasRoot, 'tester', 'projects', 'sample-task');
+    fs.mkdirSync(workspaceDir, { recursive: true });
+    const command = process.platform === 'win32' ? '(Get-Location).Path' : 'pwd';
+
+    try {
+      const result = (await shellExecuteHandler({ command }, { workspaceCwd: workspaceDir })) as {
+        stdout?: string;
+        exitCode?: number;
+      };
+
+      expect(result.exitCode).toBe(0);
+      expect(String(result.stdout || '').toLowerCase()).toContain(workspaceDir.toLowerCase());
+    } finally {
+      delete process.env.PERSONAS_ROOT_PATH;
+      fs.rmSync(personasRoot, { recursive: true, force: true });
     }
   });
 });

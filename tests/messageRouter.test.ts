@@ -23,6 +23,29 @@ describe('routeMessage', () => {
     });
   });
 
+  it('routes /project to project-command', () => {
+    expect(routeMessage('/project new Notes')).toEqual({
+      target: 'project-command',
+      payload: 'new Notes',
+      command: '/project',
+    });
+    expect(routeMessage('/project list')).toEqual({
+      target: 'project-command',
+      payload: 'list',
+      command: '/project',
+    });
+    expect(routeMessage('/project use notes')).toEqual({
+      target: 'project-command',
+      payload: 'use notes',
+      command: '/project',
+    });
+    expect(routeMessage('/project status')).toEqual({
+      target: 'project-command',
+      payload: 'status',
+      command: '/project',
+    });
+  });
+
   it('routes /cron to automation-command', () => {
     expect(routeMessage('/cron list')).toEqual({
       target: 'automation-command',
@@ -79,9 +102,18 @@ describe('routeMessage', () => {
       target: 'chat',
       payload: '/worker-status task-1',
     });
+  });
+
+  it('routes /approve and /deny to approval-command', () => {
     expect(routeMessage('/approve task-1')).toEqual({
-      target: 'chat',
-      payload: '/approve task-1',
+      target: 'approval-command',
+      payload: 'task-1',
+      command: '/approve',
+    });
+    expect(routeMessage('/deny task-1')).toEqual({
+      target: 'approval-command',
+      payload: 'task-1',
+      command: '/deny',
     });
   });
 
