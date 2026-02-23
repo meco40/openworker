@@ -12,11 +12,15 @@ import {
   type ToolExecutionResult,
   type ResolvedToolContext,
 } from './types';
+import type { SubagentToolCallParams } from '@/server/skills/types';
 
 export class ToolManager {
   private pendingToolApprovals = new Map<string, PendingToolApproval>();
 
-  constructor(private readonly requiresInteractiveToolApproval: () => boolean) {}
+  constructor(
+    private readonly requiresInteractiveToolApproval: () => boolean,
+    private readonly invokeSubagentToolCall?: (params: SubagentToolCallParams) => Promise<unknown>,
+  ) {}
 
   prunePendingToolApprovals(now = Date.now()): void {
     for (const [token, pending] of this.pendingToolApprovals) {
@@ -196,6 +200,7 @@ export class ToolManager {
         userId: params.conversation.userId,
         platform: params.platform,
         externalChatId: params.externalChatId,
+        invokeSubagentToolCall: this.invokeSubagentToolCall,
       });
       return {
         kind: 'ok',

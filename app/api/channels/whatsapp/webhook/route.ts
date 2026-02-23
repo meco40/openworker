@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getMessageService } from '@/server/channels/messages/runtime';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
 import {
   persistIncomingAttachment,
   type IncomingMessageAttachmentPayload,
@@ -131,6 +132,7 @@ async function resolveInboundAttachments(params: {
   payload: WhatsAppWebhookPayload;
   accountId: string;
   scopedChatId: string;
+  personaSlug?: string | null;
 }): Promise<StoredMessageAttachment[]> {
   const enableRemoteFetch = String(process.env.WHATSAPP_WEBHOOK_FETCH_MEDIA || 'false') === 'true';
   const entries = [...(params.payload.attachments || [])];
@@ -176,6 +178,7 @@ async function resolveInboundAttachments(params: {
       persistIncomingAttachment({
         userId: `channel:whatsapp:${params.accountId}`,
         conversationId: params.scopedChatId,
+        personaSlug: params.personaSlug || null,
         attachment: payload,
       }),
     );
@@ -210,13 +213,23 @@ export async function POST(request: Request) {
     const scopedChatId = scopeBridgeExternalChatId(accountId, envelope.externalChatId);
     const dedupeId =
       (envelope.externalMessageId || '').trim() || buildFallbackMessageId(payload, accountId);
+    const service = getMessageService();
+    let personaSlug: string | null = null;
+    if (
+      typeof (service as { getOrCreateConversation?: unknown }).getOrCreateConversation ===
+      'function'
+    ) {
+      const conversation = service.getOrCreateConversation(ChannelType.WHATSAPP, scopedChatId);
+      personaSlug = conversation.personaId
+        ? getPersonaRepository().getPersona(conversation.personaId)?.slug || null
+        : null;
+    }
     const attachments = await resolveInboundAttachments({
       payload,
       accountId,
       scopedChatId,
+      personaSlug,
     });
-
-    const service = getMessageService();
     await service.handleInbound(
       ChannelType.WHATSAPP,
       scopedChatId,

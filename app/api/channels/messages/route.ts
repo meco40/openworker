@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getMessageService } from '@/server/channels/messages/runtime';
 import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
 import {
   persistIncomingAttachment,
   type IncomingMessageAttachmentPayload,
@@ -56,6 +57,16 @@ export async function POST(request: Request) {
     const service = getMessageService();
     const conversationId =
       body.conversationId || service.getDefaultWebChatConversation(userContext.userId).id;
+    const conversation = service.getConversation(conversationId, userContext.userId);
+
+    if (body.personaId && conversation && !conversation.personaId) {
+      service.setPersonaId(conversationId, body.personaId, userContext.userId);
+    }
+
+    const effectivePersonaId = body.personaId || conversation?.personaId || null;
+    const personaSlug = effectivePersonaId
+      ? getPersonaRepository().getPersona(effectivePersonaId)?.slug || null
+      : null;
 
     const content = String(body.content || '');
     const trimmedContent = content.trim();
@@ -83,6 +94,7 @@ export async function POST(request: Request) {
           persistIncomingAttachment({
             userId: userContext.userId,
             conversationId,
+            personaSlug,
             attachment: attachmentPayload,
           }),
         );
@@ -90,14 +102,6 @@ export async function POST(request: Request) {
         const message =
           error instanceof Error ? error.message : 'Attachment could not be processed.';
         return NextResponse.json({ ok: false, error: message }, { status: 400 });
-      }
-    }
-
-    // If personaId provided and conversation doesn't have one, bind it
-    if (body.personaId) {
-      const conversation = service.getConversation(conversationId, userContext.userId);
-      if (conversation && !conversation.personaId) {
-        service.setPersonaId(conversationId, body.personaId, userContext.userId);
       }
     }
 

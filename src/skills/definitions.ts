@@ -13,6 +13,7 @@ import search from '@/skills/search';
 import vision from '@/skills/vision';
 import filesystem from '@/skills/filesystem';
 import github from '@/skills/github-manager';
+import multiToolUseParallel from '@/skills/multi-tool-use-parallel';
 import shell from '@/skills/shell-access';
 import sql from '@/skills/sql-bridge';
 import subagents from '@/skills/subagents';
@@ -29,6 +30,7 @@ const SKILL_MODULES: SkillModule[] = [
   vision,
   filesystem,
   github,
+  multiToolUseParallel,
   shell,
   sql,
   subagents,

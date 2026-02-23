@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Conversation, Message } from '@/shared/domain/types';
 import {
   mapConversationApiMessage,
@@ -46,24 +46,42 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
     activeConversationRef.current = activeConversationId;
   }, [activeConversationId]);
 
+  const loadConversations = useCallback(async () => {
+    try {
+      const response = await fetch('/api/channels/conversations');
+      const data = (await response.json()) as ConversationListResponse;
+      if (!data.ok) {
+        return;
+      }
+      setConversations(data.conversations);
+      if (data.conversations.length > 0 && !activeConversationRef.current) {
+        setActiveConversationId(data.conversations[0].id);
+      }
+    } catch (error) {
+      console.warn('Failed to load conversations:', error);
+    }
+  }, []);
+
+  const loadMessages = useCallback(async (conversationId: string) => {
+    try {
+      const response = await fetch(`/api/channels/messages?conversationId=${conversationId}`);
+      const data = (await response.json()) as ConversationMessagesResponse;
+      if (!data.ok) {
+        return;
+      }
+      setMessages(data.messages.map(mapConversationApiMessage));
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
+
   useEffect(() => {
     if (!enabled) {
       return;
     }
 
-    fetch('/api/channels/conversations')
-      .then((response) => response.json())
-      .then((data: ConversationListResponse) => {
-        if (!data.ok) {
-          return;
-        }
-        setConversations(data.conversations);
-        if (data.conversations.length > 0 && !activeConversationRef.current) {
-          setActiveConversationId(data.conversations[0].id);
-        }
-      })
-      .catch((error) => console.warn('Failed to load conversations:', error));
-  }, [enabled]);
+    void loadConversations();
+  }, [enabled, loadConversations]);
 
   // ─── WebSocket Live Updates ──────────────────────────────
   useEffect(() => {
@@ -125,14 +143,23 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
     const unsubAborted = client.on('chat.aborted', () => {
       // No special UI action needed — the aborted message arrives via chat.message
     });
+    const unsubState = client.onStateChange((state) => {
+      if (state !== 'connected') return;
+      void loadConversations();
+      const currentConversationId = activeConversationRef.current;
+      if (currentConversationId) {
+        void loadMessages(currentConversationId);
+      }
+    });
 
     return () => {
       unsub();
       unsubDeleted();
       unsubReset();
       unsubAborted();
+      unsubState();
     };
-  }, [enabled]);
+  }, [enabled, loadConversations, loadMessages]);
 
   useEffect(() => {
     if (!enabled) {
@@ -144,16 +171,8 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
       return;
     }
 
-    fetch(`/api/channels/messages?conversationId=${activeConversationId}`)
-      .then((response) => response.json())
-      .then((data: ConversationMessagesResponse) => {
-        if (!data.ok) {
-          return;
-        }
-        setMessages(data.messages.map(mapConversationApiMessage));
-      })
-      .catch(console.error);
-  }, [activeConversationId, enabled]);
+    void loadMessages(activeConversationId);
+  }, [activeConversationId, enabled, loadMessages]);
 
   return {
     conversations,

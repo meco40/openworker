@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz aller aktuell implementierten HTTP-API-Routen unter `app/api` mit exportierten Methoden.
 - Scope: Route-/Methoden-Katalog, Domain-Gruppierung, Runtime-Hinweise zum aktuellen Systemzustand.
 - Source of Truth: This document is derived from `app/api/**/route.ts` and overrides archived API documents on conflicts.
-- Last Reviewed: 2026-02-22
+- Last Reviewed: 2026-02-23
 - Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md, docs/runbooks/gateway-config-production-rollout.md
 
 ---
@@ -36,7 +36,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | memory        |      1 |
 | model-hub     |     10 |
 | ops           |      4 |
-| personas      |      5 |
+| personas      |      4 |
 | security      |      2 |
 | skills        |      4 |
 | stats         |      2 |
@@ -170,13 +170,12 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 ### /api/personas
 
-| Methods           | Route                               |
-| ----------------- | ----------------------------------- |
-| GET, POST         | /api/personas                       |
-| DELETE, GET, PUT  | /api/personas/[id]                  |
-| GET, PUT          | /api/personas/[id]/files/[filename] |
-| DELETE, GET, POST | /api/personas/[id]/telegram         |
-| GET               | /api/personas/templates             |
+| Methods          | Route                               |
+| ---------------- | ----------------------------------- |
+| GET, POST        | /api/personas                       |
+| DELETE, GET, PUT | /api/personas/[id]                  |
+| GET, PUT         | /api/personas/[id]/files/[filename] |
+| GET              | /api/personas/templates             |
 
 ### /api/security
 
@@ -209,5 +208,4 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 - Ops-Endpoints (`/api/ops/*`) sind der aktuelle operative Ersatz fuer fruehere Worker-Management-Routen.
 - `/api/automations/[id]/flow` verwaltet den visuellen `flowGraph` (GET/PUT) fuer Automation-Regeln.
 - Debug-Endpoints (`/api/debug/*`) liefern Conversation-Turn-Analysen und Replay fuer technische Diagnose.
-- `/api/personas/[id]/telegram` — Persona-gebundene Telegram-Bot-Verwaltung: `GET` liefert Bot-Status (kein Token), `POST` verbindet einen neuen Bot per Token, `DELETE` trennt den Bot.
 - `/api/channels/telegram/bots/[botId]/webhook` — Eingehende Updates für persona-gebundene Bots mit eigenem Webhook-Secret pro Bot.

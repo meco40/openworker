@@ -115,15 +115,22 @@ const App: React.FC<AppProps> = ({ initialView }) => {
   }, [coupledChannels]);
 
   const sendChatMessage = useCallback(
-    async (content: string, platform: ChannelType, attachment?: MessageAttachment) => {
-      if (!activeConversationId) {
+    async (
+      content: string,
+      platform: ChannelType,
+      attachment?: MessageAttachment,
+      conversationIdOverride?: string,
+      personaIdOverride?: string,
+    ) => {
+      const resolvedConversationId = conversationIdOverride || activeConversationId;
+      if (!resolvedConversationId) {
         addEventLog('SYS', 'Keine aktive Conversation verfügbar.');
         return;
       }
 
       const clientMessageId = crypto.randomUUID();
       const streamingMessageId = `${STREAMING_DRAFT_ID_PREFIX}${clientMessageId}`;
-      const conversationIdAtSend = activeConversationId;
+      const conversationIdAtSend = resolvedConversationId;
       const streamingTimestamp = new Date().toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
@@ -144,10 +151,10 @@ const App: React.FC<AppProps> = ({ initialView }) => {
         await gatewayClient.requestStream(
           'chat.stream',
           {
-            conversationId: activeConversationId,
+            conversationId: resolvedConversationId,
             content,
             clientMessageId,
-            personaId: activePersonaId || undefined,
+            personaId: personaIdOverride || activePersonaId || undefined,
             attachment: attachment
               ? {
                   name: attachment.name,
@@ -246,12 +253,13 @@ const App: React.FC<AppProps> = ({ initialView }) => {
           messages={messages}
           conversations={conversations}
           activeConversationId={activeConversationId}
+          activePersonaId={activePersonaId}
           isAgentTyping={isServerResponding || isRuntimeAgentTyping}
           chatStreamDebug={chatStreamDebug}
           onSendMessage={
             isPersistentSessionV2Enabled
               ? sendChatMessage
-              : (content, platform, attachment) =>
+              : (content, platform, attachment, _conversationId, _personaId) =>
                   routeMessage(content, platform, 'user', attachment)
           }
           onSelectConversation={setActiveConversationId}

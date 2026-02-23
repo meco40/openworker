@@ -34,6 +34,7 @@ const ChatConversationList: React.FC<ChatConversationListProps> = ({
         <h3 className="text-xs font-bold tracking-widest text-zinc-400 uppercase">Conversations</h3>
         <button
           type="button"
+          data-testid="chat-new-conversation"
           onClick={onNewConversation}
           title="Neue Conversation"
           className="flex h-8 w-8 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-600/10 text-violet-400 transition-all hover:border-violet-500/40 hover:bg-violet-600/20 active:scale-90"
@@ -73,6 +74,7 @@ const ChatConversationList: React.FC<ChatConversationListProps> = ({
               <div className="flex items-start gap-2">
                 <button
                   type="button"
+                  data-testid="chat-conversation-select"
                   onClick={() => onSelectConversation(conversation.id)}
                   className="min-w-0 flex-1 text-left"
                 >

@@ -17,11 +17,18 @@ import { useChatInterfaceState } from '@/modules/chat/hooks/useChatInterfaceStat
 interface ChatInterfaceProps {
   conversations: Conversation[];
   activeConversationId: string | null;
+  activePersonaId?: string | null;
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
   messages: Message[];
-  onSendMessage: (content: string, platform: ChannelType, attachment?: MessageAttachment) => void;
+  onSendMessage: (
+    content: string,
+    platform: ChannelType,
+    attachment?: MessageAttachment,
+    conversationId?: string,
+    personaId?: string,
+  ) => void | Promise<void>;
   onRespondApproval: (
     message: Message,
     approvalRequest: MessageApprovalRequest,
@@ -34,6 +41,7 @@ interface ChatInterfaceProps {
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
   conversations,
   activeConversationId,
+  activePersonaId,
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
@@ -49,8 +57,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setInput,
     pendingFile,
     setPendingFile,
+    validationError,
     isDragOver,
     isGenerating,
+    queuedMessages,
     channelFilter,
     setChannelFilter,
     searchQuery,
@@ -62,6 +72,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     textInputRef,
     handleSend,
     handleAbort,
+    removeQueuedMessage,
     handleFileSelect,
     handleDragOver,
     handleDragLeave,
@@ -69,6 +80,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   } = useChatInterfaceState({
     conversations,
     activeConversationId,
+    activePersonaId,
     messages,
     isTyping,
     onSendMessage,
@@ -111,12 +123,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           activeConversation={activeConversation}
           input={input}
           pendingFile={pendingFile}
+          validationError={validationError}
+          queuedMessages={queuedMessages}
           fileInputRef={fileInputRef}
           textInputRef={textInputRef}
           isGenerating={isGenerating}
           onInputChange={setInput}
           onSend={handleSend}
           onAbort={handleAbort}
+          onRemoveQueuedMessage={removeQueuedMessage}
           onFileSelect={handleFileSelect}
           onRemovePendingFile={() => setPendingFile(null)}
         />

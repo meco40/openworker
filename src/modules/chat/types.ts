@@ -9,3 +9,9 @@ export interface MessageInput {
   id?: string;
   timestamp?: string;
 }
+
+export interface QueuedChatMessage {
+  id: string;
+  content: string;
+  attachmentName?: string;
+}

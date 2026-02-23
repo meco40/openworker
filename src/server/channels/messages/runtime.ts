@@ -7,6 +7,8 @@ declare global {
   var __pollingResumeChecked: boolean | undefined;
   var __channelHealthMonitorChecked: boolean | undefined;
   var __eventSubscribersChecked: boolean | undefined;
+  var __personaWorkspaceMigrationChecked: boolean | undefined;
+  var __attachmentHealthMonitorChecked: boolean | undefined;
   var __messageRuntimeBootstrapPromise: Promise<void> | undefined;
 }
 
@@ -67,6 +69,35 @@ async function bootstrapMessageRuntimeInternal(): Promise<void> {
       registerProactiveEventSubscribers();
     } catch (error) {
       console.warn('[Runtime] Could not register proactive event subscribers:', error);
+    }
+  }
+
+  if (!globalThis.__personaWorkspaceMigrationChecked) {
+    globalThis.__personaWorkspaceMigrationChecked = true;
+    try {
+      const { migrateLegacyAttachmentsToPersonaWorkspaces } =
+        await import('@/server/personas/personaWorkspaceMigration');
+      const result = migrateLegacyAttachmentsToPersonaWorkspaces();
+      if (result.migratedFiles > 0 || result.touchedMessages > 0) {
+        console.log(
+          '[Runtime] Persona workspace migration completed (files=%d, messages=%d).',
+          result.migratedFiles,
+          result.touchedMessages,
+        );
+      }
+    } catch (error) {
+      console.warn('[Runtime] Persona workspace migration failed:', error);
+    }
+  }
+
+  if (!globalThis.__attachmentHealthMonitorChecked) {
+    globalThis.__attachmentHealthMonitorChecked = true;
+    try {
+      const { startAttachmentHealthMonitor } =
+        await import('@/server/channels/messages/attachmentHealthMonitor');
+      startAttachmentHealthMonitor();
+    } catch (error) {
+      console.warn('[Runtime] Could not start attachment health monitor:', error);
     }
   }
 }

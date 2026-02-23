@@ -29,22 +29,22 @@ const memoryRecallDetailedMock = vi.hoisted(() =>
 );
 const memoryRegisterFeedbackMock = vi.hoisted(() => vi.fn(() => 1));
 
-vi.mock('../../../src/server/model-hub/runtime', () => ({
+vi.mock('@/server/model-hub/runtime', () => ({
   getModelHubService: () => ({
     dispatchWithFallback: dispatchWithFallbackMock,
   }),
   getModelHubEncryptionKey: () => 'test-encryption-key',
 }));
 
-vi.mock('../../../src/server/channels/outbound/router', () => ({
+vi.mock('@/server/channels/outbound/router', () => ({
   deliverOutbound: deliverOutboundMock,
 }));
 
-vi.mock('../../../src/server/gateway/broadcast', () => ({
+vi.mock('@/server/gateway/broadcast', () => ({
   broadcastToUser: broadcastToUserMock,
 }));
 
-vi.mock('../../../src/server/memory/runtime', () => ({
+vi.mock('@/server/memory/runtime', () => ({
   getMemoryService: () => ({
     store: memoryStoreMock,
     recallDetailed: memoryRecallDetailedMock,
@@ -154,13 +154,13 @@ describe('MessageService memory recall gating', () => {
     });
   });
 
-  it('injects recalled memory context for memory-like user questions', async () => {
+  it('injects recalled memory context for retrospective memory questions', async () => {
     const service = new MessageService(buildRepository('persona-1'));
 
     await service.handleInbound(
       ChannelType.WEBCHAT,
       'default',
-      'Wie trinke ich meinen Kaffee?',
+      'Wie haben wir meinen Kaffee besprochen?',
       undefined,
       undefined,
       'user-1',
@@ -169,7 +169,7 @@ describe('MessageService memory recall gating', () => {
     expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(1);
     expect(memoryRecallDetailedMock).toHaveBeenCalledWith(
       'persona-1',
-      'Wie trinke ich meinen Kaffee?',
+      'Wie haben wir meinen Kaffee besprochen?',
       10,
       'user-1',
     );
@@ -185,7 +185,7 @@ describe('MessageService memory recall gating', () => {
     expect(memorySystemMessage?.content).toContain('Kaffee immer schwarz');
   });
 
-  it('attempts recall for regular user requests without explicit memory keywords', async () => {
+  it('skips recall for regular requests without explicit memory cues', async () => {
     const service = new MessageService(buildRepository('persona-1'));
 
     await service.handleInbound(
@@ -197,7 +197,7 @@ describe('MessageService memory recall gating', () => {
       'user-1',
     );
 
-    expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(1);
+    expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(0);
   });
 
   it('triggers recall for retrospective prompts like "letzte Woche besprochen"', async () => {
@@ -221,7 +221,7 @@ describe('MessageService memory recall gating', () => {
     await service.handleInbound(
       ChannelType.WEBCHAT,
       'default',
-      'Wie trinke ich meinen Kaffee?',
+      'Wie haben wir meinen Kaffee besprochen?',
       undefined,
       undefined,
       'user-1',

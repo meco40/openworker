@@ -12,7 +12,6 @@ import type {
   MemoryPersonaType,
 } from '@/server/personas/personaTypes';
 import { TAB_LABELS } from '@/components/personas/personaLabels';
-import { PersonaTelegramBotSection } from '@/components/personas/PersonaTelegramBotSection';
 
 interface PipelineModel {
   id: string;
@@ -397,9 +396,6 @@ export function PersonaEditorPane({
                   </select>
                 </div>
               </div>
-
-              {/* Telegram Bot Pairing */}
-              {selectedId && <PersonaTelegramBotSection personaId={selectedId} />}
             </div>
           </div>
         ) : (

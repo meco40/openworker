@@ -1,6 +1,11 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import {
+  createPersonaAttachmentStoragePath,
+  isPersonaScopedStoragePath,
+  resolvePersonaScopedStoragePath,
+} from '@/server/personas/personaWorkspace';
 
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
@@ -175,6 +180,9 @@ export function resolveStoredAttachmentPath(storagePath: string): string {
   if (path.isAbsolute(normalized)) {
     return path.normalize(normalized);
   }
+  if (isPersonaScopedStoragePath(normalized)) {
+    return resolvePersonaScopedStoragePath(normalized);
+  }
 
   const root = getAttachmentRootDir();
   const resolved = path.resolve(root, normalized);
@@ -199,6 +207,7 @@ export function readStoredAttachmentAsDataUrl(attachment: StoredMessageAttachmen
 export function persistIncomingAttachment(input: {
   userId: string;
   conversationId: string;
+  personaSlug?: string | null;
   attachment: IncomingMessageAttachmentPayload;
 }): StoredMessageAttachment {
   const declaredType = String(input.attachment.type || '')
@@ -223,13 +232,27 @@ export function persistIncomingAttachment(input: {
     throw new Error('Attachment size mismatch between metadata and payload.');
   }
 
-  const root = getAttachmentRootDir();
-  const userSegment = toBase64Url(input.userId);
-  const conversationSegment = toBase64Url(input.conversationId);
   const safeFileName = sanitizeFileName(input.attachment.name, mimeType);
-  const uniquePrefix = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-  const relativePath = `${userSegment}/${conversationSegment}/${uniquePrefix}-${safeFileName}`;
-  const absolutePath = ensureWithinRoot(path.resolve(root, relativePath));
+  const personaSlug = String(input.personaSlug || '').trim();
+  let storagePath: string;
+  let absolutePath: string;
+
+  if (personaSlug) {
+    storagePath = createPersonaAttachmentStoragePath({
+      slug: personaSlug,
+      conversationId: input.conversationId,
+      mimeType,
+      safeFileName,
+    });
+    absolutePath = resolvePersonaScopedStoragePath(storagePath);
+  } else {
+    const root = getAttachmentRootDir();
+    const userSegment = toBase64Url(input.userId);
+    const conversationSegment = toBase64Url(input.conversationId);
+    const uniquePrefix = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    storagePath = `${userSegment}/${conversationSegment}/${uniquePrefix}-${safeFileName}`;
+    absolutePath = ensureWithinRoot(path.resolve(root, storagePath));
+  }
 
   fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
   fs.writeFileSync(absolutePath, parsed.bytes);
@@ -238,7 +261,7 @@ export function persistIncomingAttachment(input: {
     name: safeFileName,
     mimeType,
     size: parsed.bytes.length,
-    storagePath: relativePath,
+    storagePath,
     sha256: crypto.createHash('sha256').update(parsed.bytes).digest('hex'),
   };
 }

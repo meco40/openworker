@@ -147,8 +147,8 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
-    participant UI as Persona Settings UI
-    participant API as POST /api/personas/[id]/telegram
+    participant UI as Messenger Coupling UI
+    participant API as Messenger Coupling API
     participant Pair as personaTelegramPairing
     participant TG as Telegram API
     participant Reg as PersonaTelegramBotRegistry
@@ -494,13 +494,8 @@ POST /api/channels/telegram/pairing/poll
 
 ### 7.4 Persona-gebundene Telegram Bots
 
-```
-GET    /api/personas/[id]/telegram   # Bot-Status für Persona (ohne Token)
-POST   /api/personas/[id]/telegram   # Bot verbinden: { token: string }
-DELETE /api/personas/[id]/telegram   # Bot trennen
-```
-
-Die `POST`-Route validiert den Token via `getMe`, wählt Webhook oder Polling-Transport, speichert den Bot in `persona_telegram_bots` (SQLite) und startet den Poller falls nötig. Der Token wird nie in API-Responses zurückgegeben.
+Die Konfiguration persona-gebundener Telegram-Bots erfolgt zentral ueber Messenger Coupling.
+Es gibt dafuer keine dedizierte Persona-Route mehr unter `/api/personas/[id]/telegram`.
 
 ---
 

@@ -3,6 +3,7 @@ import { browserSnapshotHandler } from '@/server/skills/handlers/browserSnapshot
 import { dbQueryHandler } from '@/server/skills/handlers/dbQuery';
 import { fileReadHandler } from '@/server/skills/handlers/fileRead';
 import { githubQueryHandler } from '@/server/skills/handlers/githubQuery';
+import { multiToolUseParallelHandler } from '@/server/skills/handlers/multiToolUseParallel';
 import { pythonExecuteHandler } from '@/server/skills/handlers/pythonExecute';
 import { shellExecuteHandler } from '@/server/skills/handlers/shellExecute';
 import { subagentsHandler } from '@/server/skills/handlers/subagents';
@@ -21,6 +22,7 @@ const SKILL_HANDLERS: Record<string, SkillHandler> = {
   browser_snapshot: browserSnapshotHandler,
   vision_analyze: visionAnalyzeHandler,
   subagents: subagentsHandler,
+  'multi_tool_use.parallel': multiToolUseParallelHandler,
 };
 
 export async function dispatchSkill(
