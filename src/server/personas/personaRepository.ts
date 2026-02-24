@@ -38,6 +38,8 @@ function toPersona(row: Record<string, unknown>): PersonaProfile {
     preferredModelId: (row.preferred_model_id as string) || null,
     modelHubProfileId: (row.model_hub_profile_id as string) || null,
     memoryPersonaType: ((row.memory_persona_type as string) || 'general') as MemoryPersonaType,
+    isAutonomous: Boolean(row.is_autonomous),
+    maxToolCalls: typeof row.max_tool_calls === 'number' ? row.max_tool_calls : 120,
     userId: row.user_id as string,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -54,6 +56,8 @@ function toSummary(row: Record<string, unknown>): PersonaSummary {
     preferredModelId: (row.preferred_model_id as string) || null,
     modelHubProfileId: (row.model_hub_profile_id as string) || null,
     memoryPersonaType: ((row.memory_persona_type as string) || 'general') as MemoryPersonaType,
+    isAutonomous: Boolean(row.is_autonomous),
+    maxToolCalls: typeof row.max_tool_calls === 'number' ? row.max_tool_calls : 120,
     updatedAt: row.updated_at as string,
   };
 }
@@ -102,6 +106,16 @@ export class PersonaRepository {
     }
     try {
       this.db.exec('ALTER TABLE personas ADD COLUMN slug TEXT');
+    } catch {
+      // column already exists
+    }
+    try {
+      this.db.exec('ALTER TABLE personas ADD COLUMN is_autonomous INTEGER NOT NULL DEFAULT 0');
+    } catch {
+      // column already exists
+    }
+    try {
+      this.db.exec('ALTER TABLE personas ADD COLUMN max_tool_calls INTEGER NOT NULL DEFAULT 120');
     } catch {
       // column already exists
     }
@@ -163,8 +177,8 @@ export class PersonaRepository {
     this.db.transaction(() => {
       this.db
         .prepare(
-          `INSERT INTO personas (id, name, slug, emoji, vibe, preferred_model_id, model_hub_profile_id, memory_persona_type, user_id, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO personas (id, name, slug, emoji, vibe, preferred_model_id, model_hub_profile_id, memory_persona_type, is_autonomous, max_tool_calls, user_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -175,6 +189,8 @@ export class PersonaRepository {
           input.preferredModelId || null,
           input.modelHubProfileId || null,
           memoryPersonaType,
+          input.isAutonomous ? 1 : 0,
+          typeof input.maxToolCalls === 'number' ? input.maxToolCalls : 120,
           input.userId,
           now,
           now,
@@ -194,6 +210,8 @@ export class PersonaRepository {
       preferredModelId?: string | null;
       modelHubProfileId?: string | null;
       memoryPersonaType?: MemoryPersonaType;
+      isAutonomous?: boolean;
+      maxToolCalls?: number;
     },
   ): void {
     const current = this.getPersona(id);
@@ -238,6 +256,15 @@ export class PersonaRepository {
         setClauses.push('memory_persona_type = ?');
         values.push(updates.memoryPersonaType);
       }
+    }
+    if (updates.isAutonomous !== undefined) {
+      setClauses.push('is_autonomous = ?');
+      values.push(updates.isAutonomous ? 1 : 0);
+    }
+    if (updates.maxToolCalls !== undefined) {
+      const clamped = Math.max(3, Math.min(500, Math.floor(updates.maxToolCalls)));
+      setClauses.push('max_tool_calls = ?');
+      values.push(clamped);
     }
 
     values.push(id);

@@ -68,7 +68,11 @@ export class ProjectQueries {
     return rows.map(toPersonaProjectRecord);
   }
 
-  getProjectByIdOrSlug(personaId: string, userId: string, idOrSlug: string): PersonaProjectRecord | null {
+  getProjectByIdOrSlug(
+    personaId: string,
+    userId: string,
+    idOrSlug: string,
+  ): PersonaProjectRecord | null {
     const normalizedUserId = this.normalizeUserId(userId);
     const normalized = String(idOrSlug || '').trim();
     if (!normalized) return null;
@@ -81,8 +85,41 @@ export class ProjectQueries {
         LIMIT 1
       `,
       )
-      .get(normalizedUserId, personaId, normalized, normalized) as Record<string, unknown> | undefined;
+      .get(normalizedUserId, personaId, normalized, normalized) as
+      | Record<string, unknown>
+      | undefined;
     return row ? toPersonaProjectRecord(row) : null;
+  }
+
+  deleteProjectByIdOrSlug(
+    personaId: string,
+    userId: string,
+    idOrSlug: string,
+  ): PersonaProjectRecord | null {
+    const normalizedUserId = this.normalizeUserId(userId);
+    const project = this.getProjectByIdOrSlug(personaId, normalizedUserId, idOrSlug);
+    if (!project) {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+    const transaction = this.db.transaction(() => {
+      this.db
+        .prepare(
+          `
+          UPDATE conversation_project_state
+          SET active_project_id = NULL, updated_at = ?
+          WHERE user_id = ? AND active_project_id = ?
+        `,
+        )
+        .run(now, normalizedUserId, project.id);
+
+      this.db
+        .prepare('DELETE FROM persona_projects WHERE id = ? AND user_id = ?')
+        .run(project.id, normalizedUserId);
+    });
+    transaction();
+    return project;
   }
 
   setActiveProjectForConversation(
@@ -93,7 +130,9 @@ export class ProjectQueries {
     const normalizedUserId = this.normalizeUserId(userId);
     const conversation = this.db
       .prepare('SELECT id, persona_id FROM conversations WHERE id = ? AND user_id = ? LIMIT 1')
-      .get(conversationId, normalizedUserId) as { id: string; persona_id: string | null } | undefined;
+      .get(conversationId, normalizedUserId) as
+      | { id: string; persona_id: string | null }
+      | undefined;
     if (!conversation) {
       throw new Error('Conversation not found.');
     }
@@ -185,13 +224,7 @@ export class ProjectQueries {
           updated_at = excluded.updated_at
       `,
       )
-      .run(
-        conversationId,
-        normalizedUserId,
-        existing.activeProjectId,
-        approved ? 1 : 0,
-        now,
-      );
+      .run(conversationId, normalizedUserId, existing.activeProjectId, approved ? 1 : 0, now);
   }
 
   private getProjectById(projectId: string, userId: string): PersonaProjectRecord | null {

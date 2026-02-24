@@ -8,6 +8,13 @@ import { pythonExecuteHandler } from '@/server/skills/handlers/pythonExecute';
 import { shellExecuteHandler } from '@/server/skills/handlers/shellExecute';
 import { subagentsHandler } from '@/server/skills/handlers/subagents';
 import { visionAnalyzeHandler } from '@/server/skills/handlers/visionAnalyze';
+import { webSearchHandler } from '@/server/skills/handlers/webSearch';
+import { webFetchHandler } from '@/server/skills/handlers/webFetch';
+import { httpRequestHandler } from '@/server/skills/handlers/httpRequest';
+import { notificationsHandler } from '@/server/skills/handlers/notifications';
+import { pdfGenerateHandler } from '@/server/skills/handlers/pdfGenerate';
+import { processManagerHandler } from '@/server/skills/handlers/processManager';
+import { gatewaySelfHealHandler } from '@/server/skills/handlers/gatewaySelfHeal';
 import type { SkillDispatchContext, SkillHandler } from '@/server/skills/types';
 
 export { normalizeArgs as normalizeSkillArgs };
@@ -24,6 +31,13 @@ const SKILL_HANDLERS: Record<string, SkillHandler> = {
   subagents: subagentsHandler,
   multi_tool_use_parallel: multiToolUseParallelHandler,
   'multi_tool_use.parallel': multiToolUseParallelHandler,
+  web_search: webSearchHandler,
+  web_fetch: webFetchHandler,
+  http_request: httpRequestHandler,
+  notifications: notificationsHandler,
+  pdf_generate: pdfGenerateHandler,
+  process_manager: processManagerHandler,
+  gateway_self_heal: gatewaySelfHealHandler,
 };
 
 export async function dispatchSkill(

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   createPersonaProjectWorkspace,
   getPersonaProjectsDir,
+  removePersonaProjectWorkspace,
   slugifyProjectName,
 } from '@/server/personas/personaProjectWorkspace';
 
@@ -58,5 +59,34 @@ describe('persona project workspace', () => {
 
     expect(first.projectId).not.toBe(second.projectId);
     expect(first.absolutePath).not.toBe(second.absolutePath);
+  });
+
+  it('removes project workspace safely inside persona projects directory', () => {
+    createIsolatedPersonasRoot();
+    const created = createPersonaProjectWorkspace({
+      personaSlug: 'next_js_dev',
+      task: 'Baue Notes App',
+    });
+    expect(fs.existsSync(created.absolutePath)).toBe(true);
+
+    removePersonaProjectWorkspace({
+      personaSlug: 'next_js_dev',
+      workspacePath: created.absolutePath,
+    });
+    expect(fs.existsSync(created.absolutePath)).toBe(false);
+  });
+
+  it('rejects removal for paths outside the persona projects directory', () => {
+    const personasRoot = createIsolatedPersonasRoot();
+    const outsidePath = path.join(personasRoot, 'outside-workspace');
+    fs.mkdirSync(outsidePath, { recursive: true });
+
+    expect(() =>
+      removePersonaProjectWorkspace({
+        personaSlug: 'next_js_dev',
+        workspacePath: outsidePath,
+      }),
+    ).toThrow(/outside/i);
+    expect(fs.existsSync(outsidePath)).toBe(true);
   });
 });

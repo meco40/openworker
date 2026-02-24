@@ -123,4 +123,90 @@ describe('project repository persistence', () => {
       projectRepo.setActiveProjectForConversation(conversation.id, userId, otherPersonaProject.id),
     ).toThrow(/persona/i);
   });
+
+  it('deletes project and clears active references from conversation state', () => {
+    const projectRepo = repo as unknown as {
+      createProject: (input: {
+        userId: string;
+        personaId: string;
+        name: string;
+        workspacePath: string;
+      }) => { id: string; slug: string };
+      setActiveProjectForConversation: (
+        conversationId: string,
+        userId: string,
+        projectId: string | null,
+      ) => void;
+      getConversationProjectState: (
+        conversationId: string,
+        userId: string,
+      ) => { activeProjectId: string | null };
+      deleteProjectByIdOrSlug: (
+        personaId: string,
+        userId: string,
+        idOrSlug: string,
+      ) => { id: string } | null;
+      getProjectByIdOrSlug: (
+        personaId: string,
+        userId: string,
+        idOrSlug: string,
+      ) => { id: string } | null;
+    };
+
+    const conversation = repo.createConversation({
+      channelType: ChannelType.WEBCHAT,
+      externalChatId: 'delete-default',
+      userId,
+      personaId: 'persona-a',
+      title: 'Delete projects',
+    });
+    const project = projectRepo.createProject({
+      userId,
+      personaId: 'persona-a',
+      name: 'Notes',
+      workspacePath: 'D:/work/persona-a/projects/notes',
+    });
+    projectRepo.setActiveProjectForConversation(conversation.id, userId, project.id);
+
+    const deleted = projectRepo.deleteProjectByIdOrSlug('persona-a', userId, project.slug);
+    expect(deleted?.id).toBe(project.id);
+    expect(
+      projectRepo.getConversationProjectState(conversation.id, userId).activeProjectId,
+    ).toBeNull();
+    expect(projectRepo.getProjectByIdOrSlug('persona-a', userId, project.id)).toBeNull();
+  });
+
+  it('deletes conversation even when conversation project state exists', () => {
+    const projectRepo = repo as unknown as {
+      createProject: (input: {
+        userId: string;
+        personaId: string;
+        name: string;
+        workspacePath: string;
+      }) => { id: string };
+      setActiveProjectForConversation: (
+        conversationId: string,
+        userId: string,
+        projectId: string | null,
+      ) => void;
+    };
+
+    const conversation = repo.createConversation({
+      channelType: ChannelType.WEBCHAT,
+      externalChatId: 'delete-with-project-state',
+      userId,
+      personaId: 'persona-a',
+      title: 'Delete conversation with project state',
+    });
+    const project = projectRepo.createProject({
+      userId,
+      personaId: 'persona-a',
+      name: 'Notes',
+      workspacePath: 'D:/work/persona-a/projects/notes',
+    });
+    projectRepo.setActiveProjectForConversation(conversation.id, userId, project.id);
+
+    expect(() => repo.deleteConversation(conversation.id, userId)).not.toThrow();
+    expect(repo.getConversation(conversation.id, userId)).toBeNull();
+  });
 });

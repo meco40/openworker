@@ -310,13 +310,39 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
           })
         )}
         {isTyping && (
-          <div className="flex animate-pulse flex-col items-start">
+          <div className="flex flex-col items-start">
             <div className="rounded-2xl rounded-tl-none border border-zinc-800 bg-zinc-900 p-4 px-6">
-              <div className="flex space-x-1">
-                <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:-0.3s]" />
-                <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:-0.15s]" />
-                <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600" />
-              </div>
+              {!chatStreamDebug.activeToolCall && (
+                <div className="flex space-x-1">
+                  <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:-0.3s]" />
+                  <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:-0.15s]" />
+                  <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600" />
+                </div>
+              )}
+              {chatStreamDebug.activeToolCall && (
+                <div className="flex items-center gap-1.5 text-[11px] font-medium">
+                  <svg
+                    className="h-3 w-3 animate-spin text-violet-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                  </svg>
+                  <span className="text-violet-300">{chatStreamDebug.activeToolCall}</span>
+                </div>
+              )}
             </div>
           </div>
         )}

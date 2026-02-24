@@ -8,6 +8,7 @@ import { broadcastToUser } from '@/server/gateway/broadcast';
 import { GatewayEvents } from '@/server/gateway/events';
 import { routeMessage } from '@/server/channels/messages/messageRouter';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
+import { createPersonaProjectWorkspace } from '@/server/personas/personaProjectWorkspace';
 import { applyChannelBindingPersona } from '@/server/channels/messages/channelBindingPersona';
 import {
   buildMessageAttachmentMetadata,
@@ -19,8 +20,10 @@ import { HistoryManager } from '@/server/channels/messages/historyManager';
 import { ContextBuilder } from '@/server/channels/messages/contextBuilder';
 
 import {
+  AUTONOMOUS_BUILD_MAX_TOOL_CALLS,
   inferShellCommandFromNaturalLanguage,
   SUBAGENT_MAX_ACTIVE_PER_CONVERSATION,
+  TOOL_CALLS_HARD_CAP,
 } from './types';
 import { SubagentManager } from './subagentManager';
 import { ToolManager } from './toolManager';
@@ -35,7 +38,11 @@ import {
   handleProjectCommand,
   type CommandHandlerDeps,
 } from './commandHandlers';
-import { buildProjectGuardPrompt, isProjectRequiredIntent } from './projectGuard';
+import {
+  buildProjectClarificationPrompt,
+  isProjectRequiredIntent,
+  resolveProjectNameFromClarificationReply,
+} from './projectGuard';
 
 // Import modular functions
 import { createSendResponse } from './utils/responseHelper';
@@ -68,6 +75,16 @@ export class MessageService {
   private readonly activeRequests = new Map<string, AbortController>();
   /** In-memory deduplication guard for active clientMessageIds */
   private readonly processingMessages = new Set<string>();
+  /** Single-shot clarification state for build-intent messages without active project */
+  private readonly pendingProjectClarifications = new Map<
+    string,
+    {
+      requestedAt: string;
+      originalTask: string;
+      platform: ChannelType;
+      externalChatId: string;
+    }
+  >();
 
   // Bound sendResponse function
   private readonly sendResponse: ReturnType<typeof createSendResponse>;
@@ -105,6 +122,14 @@ export class MessageService {
     return String(process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
   }
 
+  private resolveAutonomousBuildMaxToolCalls(): number {
+    const raw = Number.parseInt(String(process.env.OPENCLAW_AUTONOMOUS_MAX_TOOL_CALLS || ''), 10);
+    if (!Number.isFinite(raw) || raw <= 0) {
+      return AUTONOMOUS_BUILD_MAX_TOOL_CALLS;
+    }
+    return Math.max(AUTONOMOUS_BUILD_MAX_TOOL_CALLS, Math.min(TOOL_CALLS_HARD_CAP, raw));
+  }
+
   private resolveConversationWorkspace(conversation: Conversation): {
     projectId?: string;
     workspacePath?: string;
@@ -121,7 +146,10 @@ export class MessageService {
       return null;
     }
 
-    const projectState = this.repo.getConversationProjectState(conversation.id, conversation.userId);
+    const projectState = this.repo.getConversationProjectState(
+      conversation.id,
+      conversation.userId,
+    );
     if (!projectState.activeProjectId) {
       return null;
     }
@@ -146,7 +174,60 @@ export class MessageService {
     return this.resolveConversationWorkspace(conversation)?.workspacePath;
   }
 
-  private async maybeRequireProjectGuard(params: {
+  private getProjectClarificationKey(conversation: Conversation): string {
+    return `${conversation.id}::${conversation.userId}`;
+  }
+
+  private createAndActivateProjectForConversation(
+    conversation: Conversation,
+    requestedName: string,
+  ): {
+    id: string;
+    name: string;
+    slug: string;
+    workspacePath: string;
+  } | null {
+    if (!conversation.personaId) {
+      return null;
+    }
+    if (
+      typeof this.repo.createProject !== 'function' ||
+      typeof this.repo.setActiveProjectForConversation !== 'function'
+    ) {
+      return null;
+    }
+
+    const persona = getPersonaRepository().getPersona(conversation.personaId);
+    if (!persona?.slug) {
+      return null;
+    }
+
+    const projectName = String(requestedName || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .slice(0, 80);
+    if (!projectName) {
+      return null;
+    }
+
+    const workspace = createPersonaProjectWorkspace({
+      personaSlug: persona.slug,
+      task: projectName,
+      requestedName: projectName,
+    });
+
+    const project = this.repo.createProject({
+      userId: conversation.userId,
+      personaId: conversation.personaId,
+      name: projectName,
+      workspacePath: workspace.absolutePath,
+      workspaceRelativePath: workspace.relativePath,
+    });
+    this.repo.setActiveProjectForConversation(conversation.id, conversation.userId, project.id);
+    return project;
+  }
+
+  private async maybeRequestProjectClarification(params: {
     conversation: Conversation;
     platform: ChannelType;
     externalChatId: string;
@@ -164,39 +245,223 @@ export class MessageService {
       return null;
     }
 
-    const projectState = this.repo.getConversationProjectState(conversation.id, conversation.userId);
-    if (projectState.activeProjectId || projectState.guardApprovedWithoutProject) {
+    const projectState = this.repo.getConversationProjectState(
+      conversation.id,
+      conversation.userId,
+    );
+    if (projectState.activeProjectId) {
       return null;
     }
+
+    const clarificationKey = this.getProjectClarificationKey(conversation);
+    if (this.pendingProjectClarifications.has(clarificationKey)) {
+      return null;
+    }
+
+    this.pendingProjectClarifications.set(clarificationKey, {
+      requestedAt: new Date().toISOString(),
+      originalTask: String(content || '').trim(),
+      platform,
+      externalChatId,
+    });
 
     const projects = this.repo
       .listProjectsByPersona(conversation.personaId, conversation.userId)
       .slice(0, 5)
       .map((project) => ({ name: project.name, slug: project.slug }));
-    const pending = this.toolManager.createPendingApproval({
-      conversation,
-      platform,
-      externalChatId,
-      toolFunctionName: 'project_workspace_guard',
-      toolId: 'project-workspace-guard',
-      args: {
-        reason: 'missing_active_project',
-      },
+    const prompt = buildProjectClarificationPrompt({ projects });
+    return this.sendResponse(conversation, prompt, platform, externalChatId, {
+      ok: false,
+      runtime: 'project-workspace-clarification',
+      status: 'project_clarification_required',
     });
-    const prompt = buildProjectGuardPrompt({
-      approvalToken: pending.token,
-      projects,
+  }
+
+  private async maybeConsumeProjectClarificationReply(params: {
+    conversation: Conversation;
+    platform: ChannelType;
+    externalChatId: string;
+    content: string;
+  }): Promise<
+    | {
+        replayTaskInput: string;
+        projectName: string;
+      }
+    | {
+        message: StoredMessage;
+      }
+    | null
+  > {
+    const { conversation, platform, externalChatId, content } = params;
+    const clarificationKey = this.getProjectClarificationKey(conversation);
+    const pending = this.pendingProjectClarifications.get(clarificationKey);
+    if (!pending) {
+      return null;
+    }
+
+    const projectName = resolveProjectNameFromClarificationReply({
+      reply: content,
+      originalTask: pending.originalTask,
     });
-    return this.sendResponse(
-      conversation,
-      prompt,
-      platform,
-      externalChatId,
-      this.toolManager.buildApprovalMetadata(pending, prompt, {
-        ok: false,
-        runtime: 'project-workspace-guard',
-      }),
+    if (!projectName) {
+      return {
+        message: await this.sendResponse(
+          conversation,
+          'Bitte nenne den Projektnamen (z. B. `Notes`) oder antworte mit `auto`.',
+          platform,
+          externalChatId,
+          {
+            ok: false,
+            status: 'project_clarification_required',
+            runtime: 'project-workspace-clarification',
+          },
+        ),
+      };
+    }
+
+    const project = this.createAndActivateProjectForConversation(conversation, projectName);
+    if (!project) {
+      this.pendingProjectClarifications.delete(clarificationKey);
+      return {
+        message: await this.sendResponse(
+          conversation,
+          'Projekt konnte nicht erstellt werden. Bitte pruefe Persona/Projekt-Setup und versuche es erneut.',
+          platform,
+          externalChatId,
+          {
+            ok: false,
+            status: 'project_clarification_failed',
+            runtime: 'project-workspace-clarification',
+          },
+        ),
+      };
+    }
+
+    this.pendingProjectClarifications.delete(clarificationKey);
+    return {
+      replayTaskInput: pending.originalTask,
+      projectName: project.name,
+    };
+  }
+
+  private shouldAllowCodeInResponse(userInput: string, metadata: Record<string, unknown>): boolean {
+    const asksForCode =
+      /\b(code|source|snippet|beispielcode|zeige code|show code|codeblock|implementation details?)\b/i.test(
+        userInput,
+      );
+    if (asksForCode) return true;
+
+    if (metadata.ok === false) return true;
+    const status = String(metadata.status || '');
+    if (status.includes('error') || status.includes('failed')) return true;
+    return false;
+  }
+
+  private stripCodeBlocksIfNeeded(content: string, shouldAllowCode: boolean): string {
+    const text = String(content || '');
+    if (shouldAllowCode) return text;
+    if (!text.includes('```')) return text;
+    const stripped = text.replace(
+      /```[\s\S]*?```/g,
+      '[Code weggelassen. Umsetzung wurde im Projekt-Workspace ausgefuehrt.]',
     );
+    return stripped.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  private buildAutonomousExecutionDirective(params: {
+    workspaceCwd?: string;
+    buildIntent: boolean;
+    isAutonomousPersona?: boolean;
+  }): string | null {
+    if (!params.buildIntent && !params.isAutonomousPersona) return null;
+    const sharedAntiLoopDirectives = [
+      '- Tool-Calls silent ausfuehren — NICHT beschreiben was du tun wirst, einfach tun.',
+      '- Polling-Loops strikt verboten: ausreichend Timeout nutzen statt rapid-retry. Min. 5s Pause zwischen Wiederholungen.',
+      '- Bei 2+ identischen Tool-Calls mit gleichem Ergebnis: Strategie sofort wechseln, nicht weiter wiederholen.',
+      '- Bei Fehlern: Fehlerausgabe vollstaendig lesen und Root Cause verstehen BEVOR du retry machst.',
+    ];
+    const lines = params.isAutonomousPersona
+      ? [
+          'AUTONOMOUS AGENT MODE:',
+          '- Du bist ein autonomer Agent. Handele eigenstaendig end-to-end ohne Rueckfragen.',
+          '- Nutze alle verfuegbaren Tools aktiv: Shell, Filesystem, Browser, Python, HTTP, Web-Search, PDF.',
+          '- Erkenne und korrigiere Fehler proaktiv. Versuche alternative Strategien wenn ein Ansatz scheitert.',
+          '- Gib Zwischenstatus nach jedem wesentlichen Schritt in einem Satz aus.',
+          '- Antworte ohne ueberfluessige Codeblöcke; liefere Fakten, Ergebnisse, geaenderte Dateien.',
+          params.workspaceCwd ? `- Aktives Workspace-Verzeichnis: ${params.workspaceCwd}` : null,
+          ...sharedAntiLoopDirectives,
+        ]
+      : [
+          'AUTONOMOUS EXECUTION MODE (build task):',
+          '- Arbeite end-to-end im aktiven Projekt-Workspace statt nur Plantext zu geben.',
+          '- Nutze Tools aktiv fuer Inspektion, Umsetzung und Verifikation.',
+          '- Wenn die Aufgabe coding/build ist, fuehre reale Datei- und CLI-Schritte aus.',
+          '- Buendle Shell-Schritte in moeglichst wenige, robuste Befehle statt viele Mini-Calls.',
+          '- Antworte ohne Codebloeke; gib stattdessen Status, geaenderte Dateien, Verifikation und Startkommando.',
+          '- Nur bei Fehlern kurze, relevante Fehlersnippets zeigen.',
+          params.workspaceCwd ? `- Aktives Workspace-Verzeichnis: ${params.workspaceCwd}` : null,
+          ...sharedAntiLoopDirectives,
+        ];
+    return lines.filter(Boolean).join('\n');
+  }
+
+  private async runBuildWorkspacePreflight(params: {
+    conversation: Conversation;
+    platform: ChannelType;
+    externalChatId: string;
+    workspaceCwd: string;
+  }): Promise<
+    | {
+        kind: 'summary';
+        text: string;
+      }
+    | {
+        kind: 'approval_required';
+        message: StoredMessage;
+      }
+  > {
+    await this.toolManager.ensureShellSkillInstalled();
+    const toolContext = await this.toolManager.resolveToolContext();
+    const installedFunctions = new Set(toolContext.installedFunctionNames);
+    installedFunctions.add('shell_execute');
+
+    const command =
+      process.platform === 'win32'
+        ? 'Get-Location; Get-ChildItem -Force | Select-Object -First 30 Name,Mode,Length'
+        : 'pwd; ls -la | head -n 40';
+    const toolExecution = await this.toolManager.executeToolFunctionCall({
+      conversation: params.conversation,
+      platform: params.platform,
+      externalChatId: params.externalChatId,
+      functionName: 'shell_execute',
+      args: { command },
+      workspaceCwd: params.workspaceCwd,
+      installedFunctions,
+      toolId: toolContext.functionToSkillId.get('shell_execute') || 'shell-access',
+    });
+
+    if (toolExecution.kind === 'approval_required') {
+      return {
+        kind: 'approval_required',
+        message: await this.sendResponse(
+          params.conversation,
+          toolExecution.prompt,
+          params.platform,
+          params.externalChatId,
+          this.toolManager.buildApprovalMetadata(toolExecution.pending, toolExecution.prompt, {
+            ok: false,
+            runtime: 'build-workspace-preflight',
+          }),
+        ),
+      };
+    }
+
+    const summaryPrefix =
+      toolExecution.kind === 'ok' ? '[Workspace preflight result]' : '[Workspace preflight failed]';
+    return {
+      kind: 'summary',
+      text: `${summaryPrefix}\n${toolExecution.output}`,
+    };
   }
 
   private resolveChatModelRouting(conversation: Conversation): {
@@ -364,6 +629,11 @@ export class MessageService {
       }
 
       if (route.target === 'project-command') {
+        this.pendingProjectClarifications.delete(
+          this.getProjectClarificationKey(
+            applyChannelBindingPersona(this.repo, conversation, platform),
+          ),
+        );
         return {
           userMsg,
           agentMsg: await handleProjectCommand(
@@ -423,6 +693,22 @@ export class MessageService {
 
       // For external channels, auto-apply persona from channel binding
       const effectiveConversation = applyChannelBindingPersona(this.repo, conversation, platform);
+      let effectiveUserInput = content;
+      let projectCreatedFromClarification: string | null = null;
+
+      const consumedClarification = await this.maybeConsumeProjectClarificationReply({
+        conversation: effectiveConversation,
+        platform,
+        externalChatId,
+        content,
+      });
+      if (consumedClarification && 'message' in consumedClarification) {
+        return { userMsg, agentMsg: consumedClarification.message };
+      }
+      if (consumedClarification && 'replayTaskInput' in consumedClarification) {
+        effectiveUserInput = consumedClarification.replayTaskInput;
+        projectCreatedFromClarification = consumedClarification.projectName;
+      }
 
       // Try to learn from feedback
       void this.recallService.maybeLearnFromFeedback(effectiveConversation, content);
@@ -441,17 +727,17 @@ export class MessageService {
         return { userMsg, agentMsg: memorySaveResult.message };
       }
 
-      const projectGuardMessage = await this.maybeRequireProjectGuard({
+      const projectClarificationMessage = await this.maybeRequestProjectClarification({
         conversation: effectiveConversation,
         platform,
         externalChatId,
-        content,
+        content: effectiveUserInput,
       });
-      if (projectGuardMessage) {
-        return { userMsg, agentMsg: projectGuardMessage };
+      if (projectClarificationMessage) {
+        return { userMsg, agentMsg: projectClarificationMessage };
       }
 
-      const inferredShellCommand = inferShellCommandFromNaturalLanguage(content);
+      const inferredShellCommand = inferShellCommandFromNaturalLanguage(effectiveUserInput);
       if (inferredShellCommand) {
         return {
           userMsg,
@@ -459,13 +745,41 @@ export class MessageService {
             conversation: effectiveConversation,
             platform,
             externalChatId,
-            userInput: content,
+            userInput: effectiveUserInput,
             command: inferredShellCommand,
             onStreamDelta,
           }),
         };
       }
 
+      const activeWorkspaceCwd = this.resolveConversationWorkspaceCwd(effectiveConversation);
+      const buildIntent = isProjectRequiredIntent(effectiveUserInput);
+
+      // Load persona to check autonomous mode
+      const activePersona = effectiveConversation.personaId
+        ? getPersonaRepository().getPersona(effectiveConversation.personaId)
+        : null;
+      const isAutonomousPersona = Boolean(activePersona?.isAutonomous);
+
+      let dispatchUserInput = effectiveUserInput;
+      if (buildIntent && activeWorkspaceCwd) {
+        const preflight = await this.runBuildWorkspacePreflight({
+          conversation: effectiveConversation,
+          platform,
+          externalChatId,
+          workspaceCwd: activeWorkspaceCwd,
+        });
+        if (preflight.kind === 'approval_required') {
+          return { userMsg, agentMsg: preflight.message };
+        }
+        dispatchUserInput = `${effectiveUserInput}\n\n${preflight.text}`;
+      }
+
+      const autonomousExecutionDirective = this.buildAutonomousExecutionDirective({
+        workspaceCwd: activeWorkspaceCwd,
+        buildIntent,
+        isAutonomousPersona,
+      });
       const modelOutcome = await dispatchToAI(
         {
           contextBuilder: this.contextBuilder,
@@ -481,18 +795,36 @@ export class MessageService {
           conversation: effectiveConversation,
           platform,
           externalChatId,
-          userInput: content,
+          userInput: dispatchUserInput,
           onStreamDelta,
           turnSeq: userMsg.seq ?? undefined,
+          executionDirective: autonomousExecutionDirective || undefined,
+          maxToolCalls:
+            isAutonomousPersona && activePersona
+              ? activePersona.maxToolCalls
+              : buildIntent
+                ? this.resolveAutonomousBuildMaxToolCalls()
+                : undefined,
         },
       );
+      const normalizedOutput = this.stripCodeBlocksIfNeeded(
+        modelOutcome.content,
+        this.shouldAllowCodeInResponse(effectiveUserInput, modelOutcome.metadata),
+      );
+      const finalOutput = projectCreatedFromClarification
+        ? `Projekt automatisch erstellt und aktiviert: ${projectCreatedFromClarification}\n\n${normalizedOutput}`
+        : normalizedOutput;
 
       const agentMsg = await this.sendResponse(
         effectiveConversation,
-        modelOutcome.content,
+        finalOutput,
         platform,
         externalChatId,
-        modelOutcome.metadata,
+        {
+          ...modelOutcome.metadata,
+          ...(buildIntent ? { executionMode: 'autonomous' } : {}),
+          ...(activeWorkspaceCwd ? { workspaceCwd: activeWorkspaceCwd } : {}),
+        },
       );
 
       return { userMsg, agentMsg };
@@ -702,6 +1034,17 @@ export class MessageService {
     controller.abort();
     this.activeRequests.delete(conversationId);
     return true;
+  }
+
+  /**
+   * Abort all in-flight AI requests. Called during graceful server shutdown to
+   * ensure no requests hang open after the process receives SIGTERM.
+   */
+  abortAllActiveRequests(): void {
+    for (const controller of this.activeRequests.values()) {
+      controller.abort();
+    }
+    this.activeRequests.clear();
   }
 
   deleteConversation(conversationId: string, userId: string): boolean {

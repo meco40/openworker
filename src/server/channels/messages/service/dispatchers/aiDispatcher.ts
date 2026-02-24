@@ -8,7 +8,18 @@ import type { ToolManager } from '@/server/channels/messages/service/toolManager
 import {
   MODEL_HUB_GATEWAY_PREFIX_RE,
   MAX_TOOL_ROUNDS,
+  TOOL_CALLS_HARD_CAP,
+  MAX_REPEATED_FAILED_TOOL_CALLS,
 } from '@/server/channels/messages/service/types';
+import {
+  createLoopDetectorState,
+  buildArgsHash,
+  buildResultHash,
+  recordCall,
+  recordOutcome,
+  detectLoop,
+} from '@/server/channels/messages/service/toolLoopDetector';
+import { repairOrphanedToolCalls } from '@/server/channels/messages/service/transcriptRepair';
 
 export interface AIDispatcherDeps {
   contextBuilder: ContextBuilder;
@@ -33,6 +44,7 @@ export interface AIDispatcherDeps {
         installedFunctionNames: Set<string>;
         functionToSkillId: Map<string, string>;
       };
+      maxToolCalls?: number;
       abortSignal?: AbortSignal;
       onStreamDelta?: (delta: string) => void;
       auditContextExtras?: { turnSeq?: number; memoryContext?: string };
@@ -50,15 +62,26 @@ export async function dispatchToAI(
     userInput: string;
     onStreamDelta?: (delta: string) => void;
     turnSeq?: number;
+    executionDirective?: string;
+    maxToolCalls?: number;
   },
 ): Promise<{ content: string; metadata: Record<string, unknown> }> {
-  const { conversation, userInput, onStreamDelta } = params;
-  const messages = deps.contextBuilder.buildGatewayMessages(
+  const { conversation, userInput, onStreamDelta, executionDirective, maxToolCalls } = params;
+  let messages = deps.contextBuilder.buildGatewayMessages(
     conversation.id,
     conversation.userId,
     50,
     conversation.personaId,
   );
+  // Repair orphaned tool-call stubs before the model sees the transcript
+  messages = repairOrphanedToolCalls(messages);
+
+  if (executionDirective?.trim()) {
+    messages.unshift({
+      role: 'system',
+      content: executionDirective.trim(),
+    });
+  }
 
   const memoryContext = await deps.recallService.buildRecallContext(conversation, userInput);
   if (memoryContext) {
@@ -80,6 +103,10 @@ export async function dispatchToAI(
     });
   }
 
+  // Abort any existing in-flight request for this conversation before creating a new one.
+  // Without this, re-dispatching the same conversation leaks the old controller.
+  const existingController = deps.activeRequests.get(conversation.id);
+  if (existingController) existingController.abort();
   const abortController = new AbortController();
   deps.activeRequests.set(conversation.id, abortController);
 
@@ -95,6 +122,7 @@ export async function dispatchToAI(
       preferredModelId,
       workspaceCwd,
       toolContext,
+      maxToolCalls,
       abortSignal: abortController.signal,
       onStreamDelta,
       auditContextExtras: {
@@ -138,6 +166,7 @@ export async function runModelToolLoop(
       installedFunctionNames: Set<string>;
       functionToSkillId: Map<string, string>;
     };
+    maxToolCalls?: number;
     abortSignal?: AbortSignal;
     onStreamDelta?: (delta: string) => void;
     auditContextExtras?: { turnSeq?: number; memoryContext?: string };
@@ -145,8 +174,13 @@ export async function runModelToolLoop(
 ): Promise<{ content: string; metadata: Record<string, unknown> }> {
   const { conversation, messages, modelHubProfileId, preferredModelId, toolContext } = params;
   const encryptionKey = getModelHubEncryptionKey();
+  const maxToolCalls = normalizeMaxToolCalls(params.maxToolCalls);
 
-  for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
+  let executedToolCalls = 0;
+  let failedToolSignature: string | null = null;
+  let consecutiveFailedSameToolCalls = 0;
+  const loopState = createLoopDetectorState();
+  while (executedToolCalls <= maxToolCalls) {
     const result = await getModelHubService().dispatchWithFallback(
       modelHubProfileId,
       encryptionKey,
@@ -182,19 +216,53 @@ export async function runModelToolLoop(
     }
 
     const functionCall = result.functionCalls?.[0];
-    if (
-      functionCall &&
-      typeof functionCall.name === 'string' &&
-      functionCall.name.trim() &&
-      round < MAX_TOOL_ROUNDS
-    ) {
+    if (functionCall && typeof functionCall.name === 'string' && functionCall.name.trim()) {
+      if (executedToolCalls >= maxToolCalls) {
+        const functionName = functionCall.name.trim();
+        return {
+          content: `Tool loop stopped before completion: reached max tool calls (${maxToolCalls}) while model requested "${functionName}".`,
+          metadata: {
+            ok: false,
+            status: 'tool_limit_reached',
+            runtime: 'model-hub',
+            profileId: modelHubProfileId,
+            model: result.model || null,
+            provider: result.provider || null,
+            requestedTool: functionName,
+            maxToolCalls,
+            usage: result.usage || null,
+          },
+        };
+      }
+
       const functionName = functionCall.name.trim();
+      const toolArgs = (functionCall.args as Record<string, unknown>) || {};
+      const toolSignature = buildToolSignature(functionName, toolArgs);
+      const argsHash = buildArgsHash(functionName, toolArgs);
+      // Pre-call loop detection (circuit breaker only, no result hash yet)
+      recordCall(loopState, functionName, argsHash);
+      const preCheck = detectLoop(loopState, functionName, argsHash);
+      if (preCheck.level === 'critical') {
+        return {
+          content: preCheck.message,
+          metadata: {
+            ok: false,
+            status: 'loop_detected_critical',
+            runtime: 'model-hub',
+            profileId: modelHubProfileId,
+            model: null,
+            provider: null,
+          },
+        };
+      }
+      // Emit tool-call start signal (\x00tc: prefix, never shown as text)
+      params.onStreamDelta?.(`\x00tc:${functionName}`);
       const toolExecution = await toolManager.executeToolFunctionCall({
         conversation,
         platform: conversation.channelType,
         externalChatId: conversation.externalChatId || 'default',
         functionName,
-        args: (functionCall.args as Record<string, unknown>) || {},
+        args: toolArgs,
         workspaceCwd: params.workspaceCwd,
         installedFunctions: toolContext.installedFunctionNames,
         toolId: toolContext.functionToSkillId.get(functionName),
@@ -213,20 +281,90 @@ export async function runModelToolLoop(
         };
       }
 
+      if (toolExecution.kind !== 'ok') {
+        if (toolSignature === failedToolSignature) {
+          consecutiveFailedSameToolCalls += 1;
+        } else {
+          failedToolSignature = toolSignature;
+          consecutiveFailedSameToolCalls = 1;
+        }
+      } else {
+        failedToolSignature = null;
+        consecutiveFailedSameToolCalls = 0;
+      }
+
+      if (consecutiveFailedSameToolCalls >= MAX_REPEATED_FAILED_TOOL_CALLS) {
+        return {
+          content: `Tool loop stopped: "${functionName}" failed ${consecutiveFailedSameToolCalls} times in a row with the same arguments. I stopped to prevent an endless retry loop.`,
+          metadata: {
+            ok: false,
+            status: 'tool_stuck_repetition',
+            runtime: 'model-hub',
+            profileId: modelHubProfileId,
+            model: result.model || null,
+            provider: result.provider || null,
+            requestedTool: functionName,
+            repeatedFailedToolCalls: consecutiveFailedSameToolCalls,
+            usage: result.usage || null,
+          },
+        };
+      }
+
+      // Emit tool-call done signal
+      params.onStreamDelta?.('\x00tc:');
+      // Post-call loop detection (record outcome, then check for warning/critical)
+      const resultOutput =
+        toolExecution.kind === 'ok' ? toolExecution.output : toolExecution.output;
+      const resultHash = buildResultHash(resultOutput);
+      recordOutcome(loopState, functionName, argsHash, resultHash);
+      const postCheck = detectLoop(loopState, functionName, argsHash);
+      let loopWarningPrefix = '';
+      if (postCheck.level === 'critical') {
+        return {
+          content: postCheck.message,
+          metadata: {
+            ok: false,
+            status: 'loop_detected_critical',
+            runtime: 'model-hub',
+            profileId: modelHubProfileId,
+            model: null,
+            provider: null,
+          },
+        };
+      } else if (postCheck.level === 'warning') {
+        loopWarningPrefix = `${postCheck.message}\n\n`;
+      }
       const toolResultContent =
         toolExecution.kind === 'ok'
-          ? `Tool "${functionName}" result:\n${toolExecution.output}`
-          : `Tool "${functionName}" failed:\n${toolExecution.output}`;
+          ? `${loopWarningPrefix}Tool "${functionName}" result:\n${toolExecution.output}`
+          : `${loopWarningPrefix}Tool "${functionName}" failed:\n${toolExecution.output}`;
       messages.push({ role: 'assistant', content: `[Tool call: ${functionName}]` });
       messages.push({ role: 'user', content: toolResultContent });
+      executedToolCalls += 1;
       continue;
     }
 
     const normalized = String(result.text || '')
       .replace(MODEL_HUB_GATEWAY_PREFIX_RE, '')
       .trim();
+    if (!normalized) {
+      return {
+        content:
+          'Model returned no text output. Execution ended without a final narrative response. Please retry or continue with the latest task state.',
+        metadata: {
+          ok: false,
+          status: 'empty_model_response',
+          runtime: 'model-hub',
+          profileId: modelHubProfileId,
+          model: result.model || null,
+          provider: result.provider || null,
+          usage: result.usage || null,
+        },
+      };
+    }
+
     return {
-      content: normalized || '(empty response)',
+      content: normalized,
       metadata: {
         ok: true,
         runtime: 'model-hub',
@@ -239,12 +377,29 @@ export async function runModelToolLoop(
   }
 
   return {
-    content: 'Tool loop exceeded maximum rounds.',
+    content: `Tool loop exceeded maximum rounds (${maxToolCalls}).`,
     metadata: {
       ok: false,
       runtime: 'model-hub',
       profileId: modelHubProfileId,
-      error: 'Tool loop exceeded maximum rounds.',
+      error: `Tool loop exceeded maximum rounds (${maxToolCalls}).`,
     },
   };
+}
+
+function normalizeMaxToolCalls(requested?: number): number {
+  if (!Number.isFinite(requested)) return MAX_TOOL_ROUNDS;
+  const numeric = Math.floor(Number(requested));
+  if (numeric < MAX_TOOL_ROUNDS) return MAX_TOOL_ROUNDS;
+  return Math.min(numeric, TOOL_CALLS_HARD_CAP);
+}
+
+function buildToolSignature(functionName: string, args: Record<string, unknown>): string {
+  let serializedArgs = '{}';
+  try {
+    serializedArgs = JSON.stringify(args || {});
+  } catch {
+    serializedArgs = '[unserializable-args]';
+  }
+  return `${functionName}:${serializedArgs}`;
 }

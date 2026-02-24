@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '@/shared/domain/types';
 import { MessageService } from '@/server/channels/messages/service';
 import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
@@ -10,6 +10,9 @@ const dispatchWithFallbackMock = vi.hoisted(() =>
     provider: 'test-provider',
     model: 'test-model',
   })),
+);
+const dispatchSkillMock = vi.hoisted(() =>
+  vi.fn(async () => ({ stdout: 'ok', stderr: '', exitCode: 0 })),
 );
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
@@ -40,76 +43,90 @@ vi.mock('../../../src/server/personas/personaRepository', async () => {
   return {
     ...actual,
     getPersonaRepository: () => ({
-      listPersonas: () => [
-        {
-          id: 'persona-1',
-          name: 'Builder',
-          slug: 'builder',
-          emoji: 'B',
-          vibe: 'build',
-          preferredModelId: null,
-          modelHubProfileId: null,
-          memoryPersonaType: 'builder',
-          updatedAt: new Date().toISOString(),
-        },
-      ],
-      getPersona: (id: string) =>
-        id === 'persona-1'
-          ? {
-              id: 'persona-1',
-              name: 'Builder',
-              slug: 'builder',
-              emoji: 'B',
-              vibe: 'build',
-              preferredModelId: null,
-              modelHubProfileId: null,
-              memoryPersonaType: 'builder',
-              userId: 'user-1',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            }
-          : null,
+      listPersonas: () => [],
+      getPersona: () => null,
       getPersonaSystemInstruction: () => null,
     }),
   };
 });
 
+vi.mock('../../../src/server/skills/skillRepository', () => ({
+  getSkillRepository: async () => ({
+    listSkills: () => [
+      {
+        id: 'shell-access',
+        name: 'Safe Shell',
+        description: 'Shell skill',
+        category: 'Automation',
+        version: '1.0.0',
+        installed: true,
+        functionName: 'shell_execute',
+        source: 'built-in',
+        sourceUrl: null,
+      },
+    ],
+    getSkill: () => null,
+    setInstalled: () => true,
+  }),
+}));
+
+vi.mock('../../../src/server/skills/executeSkill', async () => {
+  const actual = await vi.importActual('../../../src/server/skills/executeSkill');
+  return {
+    ...actual,
+    dispatchSkill: dispatchSkillMock,
+  };
+});
+
+vi.mock('@/skills/definitions', () => ({
+  mapSkillsToTools: () => [
+    {
+      type: 'function',
+      function: {
+        name: 'shell_execute',
+        description: 'Execute shell command',
+        parameters: {
+          type: 'object',
+          properties: {
+            command: { type: 'string' },
+          },
+          required: ['command'],
+        },
+      },
+    },
+  ],
+}));
+
 describe('MessageService /approve and /deny command flow', () => {
   let repo: SqliteMessageRepository;
   let service: MessageService;
+  const previousApprovalsRequired = process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
 
   beforeEach(() => {
+    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'true';
     repo = new SqliteMessageRepository(':memory:');
     service = new MessageService(repo);
     dispatchWithFallbackMock.mockClear();
+    dispatchSkillMock.mockClear();
   });
 
-  function enablePersonaConversation() {
-    const conversation = repo.getOrCreateConversation(
-      ChannelType.WEBCHAT,
-      'default',
-      undefined,
-      'user-1',
-    );
-    repo.updatePersonaId(conversation.id, 'persona-1', 'user-1');
-    return repo.getConversation(conversation.id, 'user-1')!;
+  function getApprovalTokenFromMessage(metadataRaw: string | null): string {
+    const metadata = JSON.parse(String(metadataRaw || '{}')) as {
+      approvalToken?: string;
+    };
+    return String(metadata.approvalToken || '');
   }
 
-  it('approves project guard token via /approve <token>', async () => {
-    enablePersonaConversation();
-
+  it('approves a pending shell token via /approve <token>', async () => {
     const blocked = await service.handleInbound(
       ChannelType.WEBCHAT,
       'default',
-      'Erstelle mir eine Next.js App mit Login und Dashboard',
+      '/shell echo smoke',
       undefined,
       undefined,
       'user-1',
     );
-    const blockedMetadata = JSON.parse(String(blocked.agentMsg.metadata || '{}')) as {
-      approvalToken?: string;
-    };
-    const token = String(blockedMetadata.approvalToken || '');
+    const token = getApprovalTokenFromMessage(blocked.agentMsg.metadata);
     expect(token).not.toBe('');
 
     const approved = await service.handleInbound(
@@ -120,36 +137,25 @@ describe('MessageService /approve and /deny command flow', () => {
       undefined,
       'user-1',
     );
-    expect(String(approved.agentMsg.content).toLowerCase()).toContain('freigabe gespeichert');
-
-    dispatchWithFallbackMock.mockClear();
-    const allowed = await service.handleInbound(
-      ChannelType.WEBCHAT,
-      'default',
-      'Erstelle mir eine Next.js App mit Login und Dashboard',
-      undefined,
-      undefined,
-      'user-1',
+    expect(String(approved.agentMsg.content)).toContain('approval-command-model-response');
+    expect(dispatchSkillMock).toHaveBeenCalledWith(
+      'shell_execute',
+      { command: 'echo smoke' },
+      expect.objectContaining({ bypassApproval: true }),
     );
-    const metadata = JSON.parse(String(allowed.agentMsg.metadata || '{}')) as { status?: string };
-    expect(metadata.status).not.toBe('approval_required');
   });
 
-  it('denies project guard token via /deny <token>', async () => {
-    enablePersonaConversation();
-
+  it('denies a pending shell token via /deny <token>', async () => {
     const blocked = await service.handleInbound(
       ChannelType.WEBCHAT,
       'default',
-      'Bau mir eine React App mit Auth',
+      '/shell echo smoke',
       undefined,
       undefined,
       'user-1',
     );
-    const blockedMetadata = JSON.parse(String(blocked.agentMsg.metadata || '{}')) as {
-      approvalToken?: string;
-    };
-    const token = String(blockedMetadata.approvalToken || '');
+    const token = getApprovalTokenFromMessage(blocked.agentMsg.metadata);
+    expect(token).not.toBe('');
 
     const denied = await service.handleInbound(
       ChannelType.WEBCHAT,
@@ -160,23 +166,10 @@ describe('MessageService /approve and /deny command flow', () => {
       'user-1',
     );
     expect(String(denied.agentMsg.content).toLowerCase()).toContain('abgelehnt');
-
-    const blockedAgain = await service.handleInbound(
-      ChannelType.WEBCHAT,
-      'default',
-      'Bau mir eine React App mit Auth',
-      undefined,
-      undefined,
-      'user-1',
-    );
-    const blockedAgainMetadata = JSON.parse(String(blockedAgain.agentMsg.metadata || '{}')) as {
-      status?: string;
-    };
-    expect(blockedAgainMetadata.status).toBe('approval_required');
+    expect(dispatchSkillMock).not.toHaveBeenCalled();
   });
 
   it('returns token-not-found for unknown /approve tokens', async () => {
-    enablePersonaConversation();
     const result = await service.handleInbound(
       ChannelType.WEBCHAT,
       'default',
@@ -186,5 +179,13 @@ describe('MessageService /approve and /deny command flow', () => {
       'user-1',
     );
     expect(String(result.agentMsg.content).toLowerCase()).toContain('nicht gefunden');
+  });
+
+  afterEach(() => {
+    if (previousApprovalsRequired === undefined) {
+      delete process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+    } else {
+      process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = previousApprovalsRequired;
+    }
   });
 });

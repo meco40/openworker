@@ -53,6 +53,8 @@ export interface ChatStreamDebugState {
   transport: 'unknown' | 'live-delta' | 'final-only';
   message?: string;
   updatedAt: string;
+  /** Currently executing tool name, if any (set while agent runs a tool call) */
+  activeToolCall?: string | null;
 }
 
 export interface Conversation {

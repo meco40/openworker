@@ -29,6 +29,7 @@ type StreamHandler = (delta: string, done: boolean) => void;
 const DEFAULT_RECONNECT_BASE_MS = 1_000;
 const MAX_RECONNECT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 15_000;
+const STREAM_IDLE_TIMEOUT_MS = 120_000;
 const MAX_CONNECT_FAILURES = 3; // Stop reconnecting after N failures without ever opening
 
 // ─── Client ──────────────────────────────────────────────────
@@ -158,13 +159,23 @@ export class GatewayClient {
     frame.params = params;
 
     return new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pendingRequests.delete(id);
-        this.streamHandlers.delete(id);
-        reject(new Error(`Stream timeout: ${method}`));
-      }, 120_000); // Streams can take longer
+      const armStreamIdleTimer = (): ReturnType<typeof setTimeout> =>
+        setTimeout(() => {
+          this.pendingRequests.delete(id);
+          this.streamHandlers.delete(id);
+          reject(new Error(`Stream timeout: ${method}`));
+        }, STREAM_IDLE_TIMEOUT_MS);
+
+      let timer = armStreamIdleTimer();
+      const resetStreamIdleTimer = () => {
+        clearTimeout(timer);
+        timer = armStreamIdleTimer();
+        const pending = this.pendingRequests.get(id);
+        if (pending) pending.timer = timer;
+      };
 
       this.streamHandlers.set(id, (delta: string, done: boolean) => {
+        resetStreamIdleTimer();
         onChunk(delta);
         if (done) {
           clearTimeout(timer);

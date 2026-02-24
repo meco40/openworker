@@ -69,6 +69,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       preferredModelId?: string | null;
       modelHubProfileId?: string | null;
       memoryPersonaType?: string;
+      isAutonomous?: boolean;
+      maxToolCalls?: number;
     };
 
     const updates: {
@@ -78,6 +80,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       preferredModelId?: string | null;
       modelHubProfileId?: string | null;
       memoryPersonaType?: MemoryPersonaType;
+      isAutonomous?: boolean;
+      maxToolCalls?: number;
     } = {};
     if (body.name !== undefined) updates.name = body.name.trim();
     if (updates.name !== undefined && updates.name.length === 0) {
@@ -134,6 +138,19 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         );
       }
       updates.memoryPersonaType = body.memoryPersonaType as MemoryPersonaType;
+    }
+    if (body.isAutonomous !== undefined) {
+      updates.isAutonomous = Boolean(body.isAutonomous);
+    }
+    if (body.maxToolCalls !== undefined) {
+      const num = Math.floor(Number(body.maxToolCalls));
+      if (!Number.isFinite(num) || num < 3 || num > 500) {
+        return NextResponse.json(
+          { ok: false, error: 'maxToolCalls must be an integer between 3 and 500' },
+          { status: 400 },
+        );
+      }
+      updates.maxToolCalls = num;
     }
 
     if (Object.keys(updates).length === 0) {

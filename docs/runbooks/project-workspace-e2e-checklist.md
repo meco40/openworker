@@ -43,7 +43,7 @@ Validieren, dass Conversation-scope Projektverwaltung, Guard-Approval und Worksp
 
 ## Test C: Telegram Text-Approval (`/approve`, `/deny`)
 
-1. In Telegram dieselbe Conversation verwenden (oder per `/project use <id|slug>` verbinden).
+1. In Telegram dieselbe Conversation verwenden (oder per `/project use <id|slug|index>` verbinden).
 2. `/project clear` senden.
 3. Build/Code-Anfrage senden.
 4. Erwartung:

@@ -17,6 +17,11 @@ import multiToolUseParallel from '@/skills/multi-tool-use-parallel';
 import shell from '@/skills/shell-access';
 import sql from '@/skills/sql-bridge';
 import subagents from '@/skills/subagents';
+import webSearch from '@/skills/web-search';
+import webFetch from '@/skills/web-fetch';
+import httpRequest from '@/skills/http-request';
+import notifications from '@/skills/notifications';
+import pdfGenerate from '@/skills/pdf-generate';
 
 interface SkillModule {
   id: string;
@@ -34,6 +39,11 @@ const SKILL_MODULES: SkillModule[] = [
   shell,
   sql,
   subagents,
+  webSearch,
+  webFetch,
+  httpRequest,
+  notifications,
+  pdfGenerate,
 ];
 
 /**

@@ -224,6 +224,7 @@ describe('DeleteQueries', () => {
       args: ['conv-1'],
     });
     expect(runCalls.some((entry) => entry.sql.includes('conversation_context'))).toBe(true);
+    expect(runCalls.some((entry) => entry.sql.includes('conversation_project_state'))).toBe(true);
     expect(runCalls.some((entry) => entry.sql.includes('knowledge_episodes'))).toBe(true);
     expect(runCalls.some((entry) => entry.sql.includes('knowledge_meeting_ledger'))).toBe(true);
     expect(runCalls.some((entry) => entry.sql.includes('knowledge_retrieval_audit'))).toBe(true);

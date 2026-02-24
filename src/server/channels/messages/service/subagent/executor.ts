@@ -61,6 +61,12 @@ export async function runSubagent(
     await import('@/server/agents/subagentRegistry');
   attachSubagentRuntime(run.runId, { abortController });
 
+  // Auto-abort after 10 minutes to prevent runaway subagents
+  const SUBAGENT_TIMEOUT_MS = 10 * 60 * 1000;
+  const timeoutHandle = setTimeout(() => {
+    abortController.abort();
+  }, SUBAGENT_TIMEOUT_MS);
+
   try {
     const routing = deps.resolveChatModelRouting(conversation);
     const toolContext = deps.subagentManager.filterToolContextForSubagent(
@@ -71,7 +77,11 @@ export async function runSubagent(
       {
         role: 'system',
         content:
-          'You are a focused subagent. Solve only the delegated task and return concise, factual results.',
+          'You are a focused subagent. Solve only the delegated task and return concise, factual results.\n' +
+          'IMPORTANT constraints:\n' +
+          '- Do NOT spawn additional subagents — you are already a subagent.\n' +
+          '- Do NOT poll tools in loops waiting for state changes; act directly.\n' +
+          '- Complete your task within the tool calls available, then return a final answer.',
       },
       ...(run.workspacePath
         ? [
@@ -143,6 +153,7 @@ export async function runSubagent(
       );
     }
   } finally {
+    clearTimeout(timeoutHandle);
     detachSubagentRuntime(run.runId);
   }
 }

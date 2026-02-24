@@ -35,12 +35,24 @@ This enables:
   - Sets project active for the current conversation.
 - `/project list`
   - Lists projects for the current persona only.
-- `/project use <id|slug>`
+- `/project use <id|slug|index>`
   - Activates an existing project for the current conversation.
+- `/project delete <id|slug|index>`
+  - Deletes project record and recursively removes the project workspace folder.
+  - If deleted project was active in the conversation, active project state is cleared.
 - `/project clear`
   - Clears active project for the current conversation.
 - `/project` or `/project status`
   - Shows current project status.
+
+### 2.2 Build intent without active project (single clarification)
+
+When coding/build intent is detected and no active project exists:
+
+- Runtime asks exactly once for project name (`project_clarification_required`).
+- User replies with project name (or `auto`).
+- Runtime creates and activates project automatically.
+- Original task is replayed and executed in autonomous mode.
 
 ### 2.2 Approval commands (hybrid UI + chat)
 
@@ -55,21 +67,14 @@ These commands are required for text-only channels (for example Telegram) where 
 
 ## 3. No-Project Guard
 
-For coding/build intent messages:
+For coding/build intent messages without active project, runtime now prefers a
+single-shot clarification flow over approval-token guard:
 
-- If no active conversation project exists and no prior guard approval exists:
-  - Runtime returns `approval_required` metadata with token.
-  - Prompt offers:
-    - `/project new <name>`
-    - `/project use <id|slug>`
-    - `/approve <token>` (temporary continue without project)
-    - `/deny <token>`
+- Ask once for project name.
+- Auto-create project and continue execution.
+- Existing approval-token infrastructure is still used for tool-level approvals (for example shell command approval).
 
-Guard approval behavior:
-
-- Approval is stored in `conversation_project_state.guard_approved_without_project = 1`.
-- Approval is conversation-scoped.
-- Setting or switching a project resets this flag to `0`.
+Legacy `guard_approved_without_project` DB state remains backward compatible, but is no longer the primary UX path.
 
 ---
 
@@ -87,6 +92,21 @@ Execution safety:
 
 - Effective cwd must resolve inside persona workspace root.
 - Out-of-root cwd requests are rejected.
+
+For build intent with active project:
+
+- Runtime performs a workspace preflight shell probe before AI dispatch.
+- AI dispatch receives an autonomous execution directive to implement end-to-end
+  work and report concise status without code blocks by default.
+
+Tool loop reliability:
+
+- Empty final responses are replaced by structured statuses (`tool_limit_reached`, `empty_model_response`) instead of `(empty response)`.
+- Autonomous build mode uses a higher tool-call budget (default `120`, configurable via `OPENCLAW_AUTONOMOUS_MAX_TOOL_CALLS` up to hard cap `500`).
+- Repeated identical failed tool calls are short-circuited with `tool_stuck_repetition` to prevent infinite retry loops.
+- `shell_execute` runtime for build-heavy tasks is configurable via:
+  - `OPENCLAW_SHELL_TIMEOUT_MS` (default `600000`)
+  - `OPENCLAW_SHELL_MAX_BUFFER_BYTES` (default `10000000`)
 
 ---
 

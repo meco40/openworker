@@ -23,6 +23,59 @@ export function isProjectRequiredIntent(content: string): boolean {
   return false;
 }
 
+function sanitizeProjectName(value: string): string {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .slice(0, 80);
+}
+
+export function resolveProjectNameFromClarificationReply(params: {
+  reply: string;
+  originalTask: string;
+}): string | null {
+  const reply = sanitizeProjectName(params.reply);
+  if (!reply) return null;
+
+  const autoReplyRe = /^(auto|egal|ja|yes|ok|okay|weiter|mach|go)$/i;
+  if (autoReplyRe.test(reply)) {
+    const fallback = sanitizeProjectName(params.originalTask);
+    return fallback || 'Project';
+  }
+
+  return reply;
+}
+
+export function buildProjectClarificationPrompt(params: {
+  projects?: GuardProjectSuggestion[];
+}): string {
+  const lines: string[] = [
+    'Build/Code-Intent erkannt, aber es ist kein aktives Projekt gesetzt.',
+    '',
+    'Nenne bitte jetzt den Projektnamen (eine Antwort reicht).',
+    'Beispiel: `Notes`',
+    '',
+    'Danach erstelle ich das Projekt automatisch und setze die Aufgabe direkt end-to-end um.',
+    'Optional kannst du auch `auto` schreiben.',
+  ];
+
+  const projects = (params.projects || []).slice(0, 5);
+  if (projects.length > 0) {
+    lines.push('');
+    lines.push('Vorhandene Projekte:');
+    for (const project of projects) {
+      lines.push(`- ${project.name} (${project.slug})`);
+    }
+    lines.push('');
+    lines.push(
+      'Falls du eines davon nutzen willst, antworte mit dem genauen Namen oder nutze `/project use <id|slug|index>`.',
+    );
+  }
+
+  return lines.join('\n');
+}
+
 export function buildProjectGuardPrompt(params: {
   approvalToken: string;
   projects?: GuardProjectSuggestion[];
@@ -32,7 +85,7 @@ export function buildProjectGuardPrompt(params: {
     '',
     'Bitte waehle einen sicheren Ausfuehrungspfad:',
     '- `/project new <name>` fuer ein neues Projekt-Workspace',
-    '- `/project use <id|slug>` fuer ein bestehendes Projekt',
+    '- `/project use <id|slug|index>` fuer ein bestehendes Projekt',
   ];
 
   const projects = (params.projects || []).slice(0, 5);

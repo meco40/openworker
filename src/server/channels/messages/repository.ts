@@ -150,15 +150,17 @@ export interface MessageRepository {
     userId: string,
     idOrSlug: string,
   ): PersonaProjectRecord | null;
+  deleteProjectByIdOrSlug?(
+    personaId: string,
+    userId: string,
+    idOrSlug: string,
+  ): PersonaProjectRecord | null;
   setActiveProjectForConversation?(
     conversationId: string,
     userId: string,
     projectId: string | null,
   ): void;
-  getConversationProjectState?(
-    conversationId: string,
-    userId: string,
-  ): ConversationProjectState;
+  getConversationProjectState?(conversationId: string, userId: string): ConversationProjectState;
   setConversationProjectGuardApproved?(
     conversationId: string,
     userId: string,

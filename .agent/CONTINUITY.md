@@ -1,5 +1,7 @@
 [PLANS]
 
+- 2026-02-24T03:36:16+01:00 [USER] Implement both remaining items: user-friendly conversation-delete error messaging in WebUI and integration coverage for `/project delete` + conversation delete flow.
+- 2026-02-24T02:21:49Z [USER] Create `DISCRIPTION.MD` with simple-language WebApp description and a complete feature/function list.
 - 2026-02-23T16:54:13Z [TOOL] Stabilize Codex tool naming for OpenAI-compatible function schema by removing invalid dot in tool name while keeping backward compatibility.
 - 2026-02-23T20:38:29+01:00 [USER] Add an `Active Embedding Model` section under Gateway Control with add/select flow, and ensure selected embedding model is used for embedding dispatch.
 - 2026-02-23T20:48:28+01:00 [USER] Remove embedding fallback; embedding service must require configured embedding model and show explicit warning in Active Embedding Model section.
@@ -15,9 +17,14 @@
 - 2026-02-23T23:28:49+01:00 [USER] Rework project/workspace strategy via brainstorming: explicit `/project` control, conversation-scoped active project, hybrid no-project guard approval, no built-in worktree feature.
 - 2026-02-23T23:48:35+01:00 [USER] Apply Vitest speedup plan: keep E2E out of default `test` lane and use non-isolated execution only for unit tests.
 - 2026-02-24T00:13:30+01:00 [USER] Fix non-isolated Vitest flakiness introduced by `unit-fast` lane so full `vitest` run is stable again.
+- 2026-02-24T03:04:37+01:00 [USER] Add `/project` deletion capability so users can remove projects and fully delete the corresponding workspace directory.
+- 2026-02-24T03:10:02+01:00 [USER] `/project delete 1` in WebUI reports "Projekt nicht gefunden"; expected list index support aligned with `/project list` numbering.
+- 2026-02-24T03:25:39+01:00 [USER] WebUI conversation delete returns `500` after project deletions (`DELETE /api/channels/conversations?id=...`).
 
 [DECISIONS]
 
+- 2026-02-24T03:36:16+01:00 [CODE] Centralized conversation-delete error mapping in a dedicated frontend helper (`buildConversationDeleteErrorMessage`) and reused it in both AppShell conversation actions and Ops session deletion.
+- 2026-02-24T03:36:16+01:00 [CODE] Added an integration test that validates API-level flow end-to-end: create conversation with persona, `/project new`, `/project delete 1`, then `DELETE /api/channels/conversations` succeeds.
 - 2026-02-23T16:54:13Z [CODE] Canonicalized multi-tool skill function name to multi_tool_use_parallel (regex-safe for Codex/OpenAI tools).
 - 2026-02-23T16:54:13Z [CODE] Kept legacy alias multi_tool_use.parallel in dispatch/handler paths to avoid breaking existing calls/tests.
 - 2026-02-23T16:54:13Z [CODE] Added built-in skills sync in seed phase to update existing DB rows (function_name, tool_definition) for migrations without resetting installed flags.
@@ -49,9 +56,26 @@
 - 2026-02-23T23:54:31+01:00 [CODE] Added explicit `approval-command` routing (`/approve`, `/deny`) and integrated conversation-scoped project guard approvals via existing pending-approval token metadata.
 - 2026-02-23T23:54:31+01:00 [CODE] Standardized active-project workspace propagation by resolving conversation project cwd once in `MessageService` and reusing it for AI tool loops, `/shell`, inferred shell, and approval replay.
 - 2026-02-24T00:13:30+01:00 [CODE] Added dedicated `unit-isolated` Vitest project for `tests/unit/channels/message-service-*.test.ts` and `tests/unit/channels/telegram-*.test.ts`; excluded these globs from `unit-fast`.
+- 2026-02-24T01:41:17+01:00 [CODE] Replaced no-project approval-token guard as primary UX with single clarification flow (`project_clarification_required`) that creates/activates a project and replays original build task.
+- 2026-02-24T01:41:17+01:00 [CODE] Added autonomous build execution mode: optional workspace preflight via `shell_execute`, execution directive injection into AI dispatch, and response normalization to avoid code blocks by default.
+- 2026-02-24T01:41:17+01:00 [CODE] Hardened model tool-loop terminal behavior: explicit `tool_limit_reached` and `empty_model_response` statuses instead of silent `(empty response)` fallback.
+- 2026-02-24T01:52:09+01:00 [CODE] Made tool-loop budget configurable per request (`maxToolCalls`) and raised autonomous build execution budget to a higher capped limit (`AUTONOMOUS_BUILD_MAX_TOOL_CALLS = 12`) to avoid premature stops during real project generation.
+- 2026-02-24T02:00:14+01:00 [CODE] Increased autonomous build tool budget defaults again after live failure at 12 calls (`AUTONOMOUS_BUILD_MAX_TOOL_CALLS = 40`, `TOOL_CALLS_HARD_CAP = 120`).
+- 2026-02-24T02:13:02+01:00 [CODE] Chat streaming now uses idle-timeout semantics on WebUI client and gateway-side keepalive stream frames to prevent false `chat.stream` timeout during long tool execution phases.
+- 2026-02-24T02:30:00+01:00 [CODE] Raised autonomous build tool-call envelope to production defaults (`AUTONOMOUS_BUILD_MAX_TOOL_CALLS = 120`, `TOOL_CALLS_HARD_CAP = 500`) and added repeated-failure breaker (`MAX_REPEATED_FAILED_TOOL_CALLS = 4`) to stop infinite identical retries.
+- 2026-02-24T02:30:00+01:00 [CODE] `shell_execute` now uses production-safe runtime limits from env (`OPENCLAW_SHELL_TIMEOUT_MS`, `OPENCLAW_SHELL_MAX_BUFFER_BYTES`) with high defaults and hard clamps for long-running build commands.
+- 2026-02-24T03:04:37+01:00 [CODE] Added explicit `/project delete <id|slug>` command path (with `remove` alias) that deletes both DB project record and on-disk project workspace.
+- 2026-02-24T03:04:37+01:00 [CODE] Enforced safe project workspace deletion boundary: deletion target must resolve to a subdirectory under `personas/<persona-slug>/projects`, otherwise command aborts.
+- 2026-02-24T03:10:02+01:00 [CODE] Extended project identifier resolution so `/project use` and `/project delete` accept `index` values from `/project list` output in addition to `id|slug`.
+- 2026-02-24T03:12:05+01:00 [CODE] Aligned guard/help copy to the new identifier contract (`/project use <id|slug|index>`) in project guard prompt, approval denial hint, and docs/runbook references.
+- 2026-02-24T03:25:39+01:00 [CODE] Conversation delete flow now removes `conversation_project_state` rows before deleting `conversations` to satisfy SQLite foreign-key constraints.
 
 [PROGRESS]
 
+- 2026-02-24T03:36:16+01:00 [CODE] Added `src/modules/app-shell/conversationDeleteError.ts` and wired it into `src/modules/app-shell/useConversationActions.ts` to produce friendly delete-failure messages for 5xx/404/API errors.
+- 2026-02-24T03:36:16+01:00 [CODE] Updated `src/modules/ops/hooks/useOpsSessions.ts` delete path to apply the same conversation-delete error mapping for consistent UX in Ops sessions.
+- 2026-02-24T03:36:16+01:00 [CODE] Added tests `tests/unit/modules/app-shell/conversation-delete-error.test.ts` and `tests/integration/channels/project-delete-conversation-delete-flow.test.ts`.
+- 2026-02-24T02:21:49Z [CODE] Added root documentation file `DISCRIPTION.MD` with plain-language overview, UI feature inventory, chat command list, supported channels, and provider list.
 - 2026-02-23T16:54:13Z [CODE] Updated src/skills/multi-tool-use-parallel/index.ts to emit regex-safe function/tool name.
 - 2026-02-23T16:54:13Z [CODE] Updated src/server/skills/executeSkill.ts, src/server/skills/handlers/multiToolUseParallel.ts, and src/server/model-hub/runtime.ts for canonical+legacy support.
 - 2026-02-23T16:54:13Z [CODE] Updated src/server/skills/skillRepository.ts seed logic with built-in metadata sync.
@@ -101,9 +125,31 @@
 - 2026-02-24T00:08:18+01:00 [TOOL] Ran Vitest benchmark A/B using temporary baseline config `.tmp/bench/vitest.config.old.ts` (pre-change behavior) vs current `vitest.config.ts`; captured logs in `.tmp/bench/old-run.log` and `.tmp/bench/new-run.log`.
 - 2026-02-24T00:13:30+01:00 [CODE] Extended `tests/unit/testing/vitest-main-config-contract.test.ts` with RED/GREEN assertions for three-lane split (`unit-fast`, `unit-isolated`, `core-isolated`) and explicit include/exclude globs.
 - 2026-02-24T00:13:30+01:00 [CODE] Updated `vitest.config.ts` with new `unit-isolated` lane + `unit-fast` excludes to eliminate cross-file non-isolated interference.
+- 2026-02-24T01:41:17+01:00 [CODE] Updated `MessageService` flow to consume clarification replies, auto-create conversation project workspaces, run build preflight in workspace, and forward autonomous execution directive to dispatcher.
+- 2026-02-24T01:41:17+01:00 [CODE] Updated `aiDispatcher.runModelToolLoop` and `dispatchToAI` for directive injection plus explicit non-empty terminal responses (`tool_limit_reached` / `empty_model_response`).
+- 2026-02-24T01:41:17+01:00 [CODE] Added/updated coverage in `ai-dispatcher-tool-loop.test.ts`, `message-service-project-guard.test.ts`, and `message-service-project-approval-command.test.ts`; updated `docs/PROJECT_WORKSPACE_SYSTEM.md`.
+- 2026-02-24T01:52:09+01:00 [CODE] Added RED/GREEN regression test for longer tool chains with `maxToolCalls` override in `tests/unit/channels/ai-dispatcher-tool-loop.test.ts`.
+- 2026-02-24T01:52:09+01:00 [CODE] Propagated autonomous max-tool-call setting from `MessageService` to `dispatchToAI` and `runModelToolLoop`; documented `OPENCLAW_AUTONOMOUS_MAX_TOOL_CALLS`.
+- 2026-02-24T02:00:14+01:00 [CODE] Updated constants and docs for higher autonomous tool-call envelope (40 default, 120 cap) to reduce premature termination on multi-step app generation tasks.
+- 2026-02-24T02:13:02+01:00 [CODE] Updated `src/modules/gateway/ws-client.ts` stream timeout handling to reset timer on every stream frame (idle timer) and keep pending timer reference in sync.
+- 2026-02-24T02:13:02+01:00 [CODE] Updated `src/server/gateway/methods/chat.ts` to emit configurable keepalive stream frames (`OPENCLAW_CHAT_STREAM_KEEPALIVE_MS`, default 10s) during long-running `chat.stream` requests.
+- 2026-02-24T02:13:02+01:00 [CODE] Added RED/GREEN regression coverage for gateway keepalive (`tests/unit/gateway/chat-methods.test.ts`) and client idle-timeout reset (`tests/unit/modules/gateway/ws-client-stream-timeout.test.ts`).
+- 2026-02-24T02:30:00+01:00 [CODE] Updated `runModelToolLoop` with repeated identical failed-tool-call detection (`tool_stuck_repetition`) and added regression coverage in `tests/unit/channels/ai-dispatcher-tool-loop.test.ts`.
+- 2026-02-24T02:30:00+01:00 [CODE] Added `tests/unit/skills/shell-execute-runtime-config.test.ts` for shell timeout/buffer defaults and clamp behavior.
+- 2026-02-24T03:04:37+01:00 [CODE] Added `removePersonaProjectWorkspace` in `src/server/personas/personaProjectWorkspace.ts` and wired deletion into `/project` command handler.
+- 2026-02-24T03:04:37+01:00 [CODE] Added repository delete support (`deleteProjectByIdOrSlug`) in `ProjectQueries`, `MessageRepository`, and `SqliteMessageRepository`, including cleanup of `conversation_project_state.active_project_id` references.
+- 2026-02-24T03:04:37+01:00 [CODE] Added RED/GREEN coverage for project deletion flow in `tests/unit/channels/project-repository.test.ts`, `tests/unit/channels/message-service-project-command.test.ts`, and `tests/unit/personas/persona-project-workspace.test.ts`.
+- 2026-02-24T03:04:37+01:00 [CODE] Updated docs command contract in `docs/PROJECT_WORKSPACE_SYSTEM.md` to include `/project delete <id|slug>`.
+- 2026-02-24T03:10:02+01:00 [CODE] Added RED/GREEN command tests for index-based project operations in `tests/unit/channels/message-service-project-command.test.ts` (`/project use 1`, `/project delete 1`).
+- 2026-02-24T03:12:05+01:00 [CODE] Refactored command-level repo method usage into bound wrappers to preserve class-method `this` context while retaining TypeScript narrowing in `handleProjectCommand`.
+- 2026-02-24T03:25:39+01:00 [CODE] Added FK regression coverage in `tests/unit/channels/project-repository.test.ts` for deleting a conversation with active project state.
+- 2026-02-24T03:25:39+01:00 [CODE] Updated `tests/unit/channels/repository-query-modules.test.ts` to assert `conversation_project_state` cleanup as part of delete query sequence.
+
+- 2026-02-24T03:09:26+01:00 [CODE] Updated root README to current runtime facts: provider inventory/endpoints (14), corrected test/check command semantics, expanded active docs links, and replaced outdated provider env-key guidance with model-hub account-secret flow + relevant runtime env vars.
 
 [DISCOVERIES]
 
+- 2026-02-24T03:36:16+01:00 [TOOL] `DELETE /api/channels/conversations` route handler only requires `request.nextUrl.searchParams`, allowing focused integration coverage with a minimal `NextRequest`-compatible stub in tests.
 - 2026-02-23T16:54:13Z [TOOL] Root cause: Codex rejected tools[5].name because multi*tool_use.parallel violates ^[a-zA-Z0-9*-]+$.
 - 2026-02-23T17:02:11Z [CODE] Diagnostics polling executes both `/api/health` and `/api/doctor` every 60s; `/api/doctor` calls `runHealthCommand` internally, so health checks run twice per refresh cycle.
 - 2026-02-23T17:02:11Z [CODE] `core.memory_repository` health check counts nodes via `getMemoryService().snapshot()`; snapshot can read up to 200 pages x 200 entries into memory before counting.
@@ -126,9 +172,32 @@
 - 2026-02-24T00:08:18+01:00 [TOOL] Initial old-config benchmark attempt was invalid because alias resolution used config `__dirname` under `.tmp/bench`; corrected to `path.resolve(process.cwd(), 'src')`.
 - 2026-02-24T00:08:18+01:00 [TOOL] New split config benchmark run is faster but currently fails in `unit-fast` lane (non-isolated cross-test side effects), primarily Telegram/pairing and auto-session-memory assertions.
 - 2026-02-24T00:13:30+01:00 [TOOL] Failing `unit-fast` files pass individually (`message-service-knowledge-recall`, `telegram-inbound-callbacks`, `telegram-pairing-poll-route`), confirming order-dependent interference rather than deterministic logic bugs.
+- 2026-02-24T01:12:41+01:00 [TOOL] Reproduced the user-reported project case: conversation `afe7250a-d708-4195-88e7-b9918d02bfb8` has a created project folder at `.local/personas/next_js_dev/projects/20260223-235144-notes-0eb432db` with only `PROJECT.md`, matching the observed “plan-only” assistant reply.
+- 2026-02-24T01:12:41+01:00 [TOOL] Prompt-dispatch evidence confirms tools were injected in that turn (`tools` length 9 including `shell_execute`, `multi_tool_use_parallel`, `subagents`) while `tool_calls_json` remained `[]`, so no model function call was emitted despite tool availability.
+- 2026-02-24T01:12:41+01:00 [CODE] Persona system-instruction assembly currently excludes `TOOLS.md` for non-`Nexus` personas (`PERSONA_INSTRUCTION_FILES = SOUL/AGENTS/USER`; conditional `TOOLS.md` append only for `Nexus`), so `TOOLS.md` cannot steer routine personas unless code is changed.
+- 2026-02-24T01:12:41+01:00 [TOOL] Local workspace state shows `.local/personas/next_js_dev/{SOUL,AGENTS,USER,TOOLS}.md` all zero-byte, resulting in no persona system instruction prefix for that dispatch.
+- 2026-02-24T01:24:00+01:00 [TOOL] In second test (`2026-02-24T00:18:45Z` user turn), tools were actively called across four model dispatches (`shell_execute` each round), proving tool availability and invocation in practice.
+- 2026-02-24T01:24:00+01:00 [CODE] Root cause of `(empty response)` is tool-loop round-limit behavior: `MAX_TOOL_ROUNDS = 3` and function execution guard `round < MAX_TOOL_ROUNDS`; when round=3 still returns a function call, call is ignored and empty text path returns `(empty response)`.
+- 2026-02-24T01:24:00+01:00 [TOOL] First tool call in that sequence failed (`ls -la` invalid in PowerShell), consuming one of the limited rounds and increasing chance of hitting the round cap before final user-facing answer.
+- 2026-02-24T01:41:17+01:00 [TOOL] Local Vitest execution remains environment-blocked before test discovery with `Startup Error: Error: spawn EPERM` while loading `vitest.config.ts` (esbuild process spawn failure).
+- 2026-02-24T01:52:09+01:00 [USER] New live test surfaced `tool_limit_reached` in build flow (`reached max tool calls (3) while model requested shell_execute`), confirming default budget is too low for autonomous app-generation turns.
+- 2026-02-24T02:00:14+01:00 [USER] Follow-up live test still hit limit at 12 calls, confirming the first budget increase remained too conservative for some real build sessions.
+- 2026-02-24T02:13:02+01:00 [USER] New live failure switched from tool-limit to transport timeout (`Stream timeout: chat.stream`) during long autonomous build execution.
+- 2026-02-24T02:13:02+01:00 [CODE] Root cause: WebUI `requestStream` timeout was absolute 120s from request start (not idle-based), and gateway emitted no heartbeat frames when model produced no token deltas during tool-heavy phases.
+- 2026-02-24T02:30:00+01:00 [USER] Follow-up live failure still reached tool-call cap at 40 for full Next.js app generation prompt.
+- 2026-02-24T02:30:00+01:00 [CODE] Likely dominant trigger for excessive retries: `shell_execute` hard timeout (15s) was too short for package manager/bootstrap commands (`create-next-app`, install), causing repeated identical tool failures and runaway loops.
+- 2026-02-24T03:04:37+01:00 [TOOL] Fresh lint run reports 9 warnings / 0 errors; warnings remain in existing UI accessibility labeling areas plus one existing test-scope unicorn warning (no new lint errors introduced by project-delete changes).
+- 2026-02-24T03:10:02+01:00 [TOOL] Root cause confirmed: command parser previously resolved only exact `id|slug` while `/project list` UI output used ordinal numbering, causing `delete 1` mismatch.
+- 2026-02-24T03:12:05+01:00 [TOOL] Secondary regression discovered and fixed during hotfix: direct aliasing of repository methods caused `this` loss at runtime (`Cannot read properties of undefined (reading 'projectQueries')`), resolved via wrapper calls on `repo`.
+- 2026-02-24T03:25:39+01:00 [TOOL] Root cause confirmed for `DELETE /api/channels/conversations` 500: `DeleteQueries.deleteConversation` attempted deleting `conversations` while `conversation_project_state` still referenced `conversation_id` (FK failure).
+
+- 2026-02-24T03:04:39+01:00 [TOOL] Root README drift: metadata/version and provider facts are stale versus code (README.md says version 1.0.0 + 11 providers, while package.json is 0.0.0 and provider catalog/matrix list 14 including Ollama/LM Studio; Codex/Kimi endpoints changed).
+- 2026-02-24T03:04:39+01:00 [TOOL] Root README env section lists provider \*\_API_KEY variables that are no longer read from env in current model-hub flow; account secrets are supplied via /api/model-hub/accounts payload and encrypted with MODEL_HUB_ENCRYPTION_KEY.
 
 [OUTCOMES]
 
+- 2026-02-24T03:36:16+01:00 [TOOL] Verification passed for delete-UX + flow coverage: `pnpm vitest run tests/unit/modules/app-shell/conversation-delete-error.test.ts tests/integration/channels/project-delete-conversation-delete-flow.test.ts` (5/5), `pnpm typecheck` (pass), `pnpm lint` (9 warnings, 0 errors).
+- 2026-02-24T02:21:49Z [TOOL] Documentation request completed: `DISCRIPTION.MD` now exists in project root and describes the WebApp in simple language with comprehensive function listing.
 - 2026-02-23T16:54:13Z [TOOL] Verification passed: vitest targeted suites (13 tests) and tsc --noEmit.
 - 2026-02-23T16:54:13Z [TOOL] Result: Codex-facing tool schema now uses valid tool names; legacy invocations remain executable.
 - 2026-02-23T17:02:11Z [TOOL] Memory-pressure incident analysis completed with concrete mitigations; no code changes applied in this turn.
@@ -156,3 +225,15 @@
 - 2026-02-24T00:08:18+01:00 [TOOL] Benchmark result (wall clock): old config `48.11s` (exit 0) vs new config `32.58s` (exit 1), delta `-15.53s` (`32.28%` faster). Vitest-reported duration: `46.87s` old vs `31.15s` new.
 - 2026-02-24T00:13:30+01:00 [TOOL] Verification passed after lane split refinement: `pnpm vitest run tests/unit/testing/vitest-main-config-contract.test.ts tests/unit/testing/e2e-config-contract.test.ts --config vitest.config.ts` and full `pnpm vitest run --config vitest.config.ts` (328 files, 1458 tests passing).
 - 2026-02-24T00:13:30+01:00 [TOOL] Quality gates: `pnpm typecheck` passed; `pnpm lint` passed with existing 8 a11y warnings and 0 errors.
+- 2026-02-24T01:41:17+01:00 [TOOL] Verification for latest workspace/project orchestration update: `pnpm typecheck` passed; targeted `pnpm vitest run ...` is currently blocked in this environment by `spawn EPERM` at Vitest startup.
+- 2026-02-24T01:52:09+01:00 [TOOL] Verification for autonomous tool-budget fix: `pnpm typecheck` passed; targeted vitest remains blocked in this environment by `Startup Error: Error: spawn EPERM`.
+- 2026-02-24T02:00:14+01:00 [TOOL] Verification for expanded budget fix: `pnpm typecheck` passed; vitest execution remains blocked in this environment by `spawn EPERM`.
+- 2026-02-24T02:13:02+01:00 [TOOL] Verification for stream-timeout fix: `pnpm typecheck` passed; targeted vitest remains blocked in this environment by `failed to load config ... Error: spawn EPERM`.
+- 2026-02-24T02:30:00+01:00 [TOOL] Verification for production retry/timeout fix: `pnpm typecheck` passed after implementing higher shell runtime limits and repeated-failure loop breaker; vitest remains blocked in this environment by `spawn EPERM`.
+- 2026-02-24T03:04:37+01:00 [TOOL] Verification passed for project-delete implementation: `pnpm vitest run tests/unit/channels/project-repository.test.ts tests/unit/channels/message-service-project-command.test.ts tests/unit/personas/persona-project-workspace.test.ts` (13/13 passing) and `pnpm typecheck` (pass).
+- 2026-02-24T03:04:37+01:00 [TOOL] Quality gate status: `pnpm lint` completed with warnings only (9 warnings, 0 errors).
+- 2026-02-24T03:10:02+01:00 [TOOL] Verification passed for index-support hotfix: `pnpm vitest run tests/unit/channels/message-service-project-command.test.ts` (6/6), `pnpm vitest run tests/unit/channels/project-repository.test.ts tests/unit/channels/message-service-project-command.test.ts tests/unit/personas/persona-project-workspace.test.ts` (15/15), `pnpm typecheck` (pass), `pnpm lint` (9 warnings, 0 errors).
+- 2026-02-24T03:12:05+01:00 [TOOL] Post-fix verification passed after UX-copy and wrapper updates: `pnpm vitest run tests/unit/channels/message-service-project-command.test.ts tests/unit/channels/message-service-project-guard.test.ts tests/unit/channels/message-service-project-approval-command.test.ts` (12/12), `pnpm typecheck` (pass), `pnpm lint` (9 warnings, 0 errors).
+- 2026-02-24T03:25:39+01:00 [TOOL] Verification passed for conversation-delete FK fix: `pnpm vitest run tests/unit/channels/project-repository.test.ts tests/unit/channels/repository-query-modules.test.ts tests/unit/channels/message-service-delete-conversation.test.ts` (19/19), `pnpm typecheck` (pass), `pnpm lint` (9 warnings, 0 errors).
+- 2026-02-24T03:04:39+01:00 [TOOL] Root README audit completed (no code changes): update recommended for provider inventory/endpoints, version metadata, env variable guidance, and test/check wording.
+- 2026-02-24T03:09:26+01:00 [TOOL] README refresh completed and validated via targeted grep + git diff review; no runtime code changed.

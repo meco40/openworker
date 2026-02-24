@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { GatewayClient } from '@/server/gateway/client-registry';
 import type { RequestFrame } from '@/server/gateway/protocol';
@@ -31,6 +31,17 @@ function makeRequest(
 }
 
 describe('gateway chat methods', () => {
+  const previousKeepaliveMs = process.env.OPENCLAW_CHAT_STREAM_KEEPALIVE_MS;
+
+  afterEach(() => {
+    vi.useRealTimers();
+    if (previousKeepaliveMs === undefined) {
+      delete process.env.OPENCLAW_CHAT_STREAM_KEEPALIVE_MS;
+    } else {
+      process.env.OPENCLAW_CHAT_STREAM_KEEPALIVE_MS = previousKeepaliveMs;
+    }
+  });
+
   it('passes client.userId into chat.history repository lookup', async () => {
     vi.resetModules();
 
@@ -106,5 +117,65 @@ describe('gateway chat methods', () => {
     expect(listConversations).toHaveBeenNthCalledWith(2, 200, 'user-scoped');
     expect(listConversations).toHaveBeenNthCalledWith(3, 50, 'user-scoped');
     expect(sent).toHaveLength(3);
+  });
+
+  it('emits keepalive stream frames during long chat.stream handling', async () => {
+    vi.useFakeTimers();
+    vi.resetModules();
+    process.env.OPENCLAW_CHAT_STREAM_KEEPALIVE_MS = '1000';
+
+    const handleWebUIMessage = vi.fn(
+      async (
+        _conversationId: string,
+        _content: string,
+        _userId?: string,
+        _clientMessageId?: string,
+        _attachments?: unknown[],
+        _onStreamDelta?: (delta: string) => void,
+      ) => {
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        return {
+          userMsg: { id: 'msg-user-1' },
+          agentMsg: { id: 'msg-agent-1' },
+        };
+      },
+    );
+
+    vi.doMock('../../../src/server/channels/messages/runtime', () => ({
+      getMessageRepository: () => ({
+        listMessages: vi.fn(() => []),
+        listConversations: vi.fn(() => []),
+      }),
+      getMessageService: () => ({
+        getConversation: vi.fn(() => null),
+        setPersonaId: vi.fn(),
+        handleWebUIMessage,
+        abortGeneration: vi.fn(() => false),
+        respondToolApproval: vi.fn(),
+      }),
+    }));
+
+    const { dispatchMethod } = await import('@/server/gateway/method-router');
+    await import('@/server/gateway/methods/chat');
+
+    const sent: Array<Record<string, unknown>> = [];
+    const streamPromise = dispatchMethod(
+      makeRequest('chat.stream', { conversationId: 'conv-1', content: 'build' }, 'req-stream-1'),
+      makeClient('user-keepalive'),
+      (frame) => sent.push(frame as Record<string, unknown>),
+    );
+
+    await vi.advanceTimersByTimeAsync(2600);
+    await streamPromise;
+
+    const streamFrames = sent.filter((frame) => frame.type === 'stream');
+    expect(streamFrames.some((frame) => frame.done === false && frame.delta === '')).toBe(true);
+    expect(streamFrames.at(-1)).toMatchObject({
+      type: 'stream',
+      id: 'req-stream-1',
+      done: true,
+      delta: '',
+    });
+    expect(handleWebUIMessage).toHaveBeenCalledTimes(1);
   });
 });

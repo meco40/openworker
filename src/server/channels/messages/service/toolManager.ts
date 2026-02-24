@@ -49,7 +49,11 @@ export class ToolManager {
     }
 
     const omitted = trimmed.length - TOOL_OUTPUT_MAX_CHARS;
-    return `${trimmed.slice(0, TOOL_OUTPUT_MAX_CHARS)}\n...(truncated ${omitted} chars)`;
+    return (
+      trimmed.slice(0, TOOL_OUTPUT_MAX_CHARS) +
+      `\n\n⚠️ [Output truncated: ${omitted.toLocaleString()} chars omitted. ` +
+      `Use offset/limit params, grep, or file_read with line ranges for full content.]`
+    );
   }
 
   buildToolApprovalPrompt(command: string): string {

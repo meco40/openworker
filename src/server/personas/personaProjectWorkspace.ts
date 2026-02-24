@@ -69,7 +69,11 @@ export function createPersonaProjectWorkspace(input: {
     '- This folder is auto-created for a delegated task.',
     '- Subagents can use this as their default working directory.',
   ];
-  fs.writeFileSync(path.join(absolutePath, PROJECT_OVERVIEW_FILENAME), overviewLines.join('\n'), 'utf8');
+  fs.writeFileSync(
+    path.join(absolutePath, PROJECT_OVERVIEW_FILENAME),
+    overviewLines.join('\n'),
+    'utf8',
+  );
 
   return {
     projectId,
@@ -78,6 +82,32 @@ export function createPersonaProjectWorkspace(input: {
     relativePath: path.posix.join('personas', personaSlug, PROJECTS_DIR_NAME, projectId),
     createdAt,
   };
+}
+
+export function removePersonaProjectWorkspace(input: {
+  personaSlug: string;
+  workspacePath: string;
+}): void {
+  const personaSlug = String(input.personaSlug || '').trim();
+  assertSafePersonaSlug(personaSlug);
+  const targetWorkspacePath = String(input.workspacePath || '').trim();
+  if (!targetWorkspacePath) {
+    throw new Error('workspacePath is required');
+  }
+
+  const projectsDir = getPersonaProjectsDir(personaSlug);
+  const resolvedTargetPath = path.resolve(targetWorkspacePath);
+  const relativePath = path.relative(projectsDir, resolvedTargetPath);
+  if (
+    !relativePath ||
+    relativePath === '.' ||
+    relativePath.startsWith('..') ||
+    path.isAbsolute(relativePath)
+  ) {
+    throw new Error('Project workspace path is outside the persona projects directory.');
+  }
+
+  fs.rmSync(resolvedTargetPath, { recursive: true, force: true });
 }
 
 function inferProjectName(requestedName: string | undefined, task: string): string {

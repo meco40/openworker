@@ -30,6 +30,11 @@ export class DeleteQueries {
 
     // Delete context + knowledge artefacts + conversation
     this.db.prepare('DELETE FROM conversation_context WHERE conversation_id = ?').run(id);
+    try {
+      this.db.prepare('DELETE FROM conversation_project_state WHERE conversation_id = ?').run(id);
+    } catch {
+      /* table may not exist in legacy / isolated test DBs */
+    }
     for (const table of [
       'knowledge_ingestion_checkpoints',
       'knowledge_episodes',

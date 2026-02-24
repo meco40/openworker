@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChannelType } from '@/shared/domain/types';
 import type { OpsSessionsResponse } from '@/modules/ops/types';
+import { buildConversationDeleteErrorMessage } from '@/modules/app-shell/conversationDeleteError';
 
 interface ErrorPayload {
   ok?: boolean;
@@ -187,7 +188,21 @@ export function useOpsSessions(): UseOpsSessionsResult {
             method: 'DELETE',
           },
         );
-        await readJson<SessionMutationPayload>(response);
+        let payload: SessionMutationPayload = {};
+        try {
+          payload = (await response.json()) as SessionMutationPayload;
+        } catch {
+          payload = {};
+        }
+        if (!response.ok || payload.ok === false) {
+          throw new Error(
+            buildConversationDeleteErrorMessage({
+              status: response.status,
+              payloadError: payload.error,
+              fallback: 'Failed to delete session.',
+            }),
+          );
+        }
         await refresh();
       } catch (requestError) {
         setError(getErrorMessage(requestError, 'Failed to delete session.'));

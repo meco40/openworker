@@ -63,6 +63,8 @@ export interface PersonaProfile {
   preferredModelId: string | null;
   modelHubProfileId: string | null;
   memoryPersonaType: MemoryPersonaType;
+  isAutonomous: boolean;
+  maxToolCalls: number;
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -81,6 +83,8 @@ export interface PersonaSummary {
   preferredModelId: string | null;
   modelHubProfileId: string | null;
   memoryPersonaType: MemoryPersonaType;
+  isAutonomous: boolean;
+  maxToolCalls: number;
   updatedAt: string;
 }
 
@@ -92,5 +96,7 @@ export interface CreatePersonaInput {
   preferredModelId?: string | null;
   modelHubProfileId?: string | null;
   memoryPersonaType?: MemoryPersonaType;
+  isAutonomous?: boolean;
+  maxToolCalls?: number;
   files?: Partial<Record<PersonaFileName, string>>;
 }

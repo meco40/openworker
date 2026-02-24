@@ -140,6 +140,28 @@ Promise.resolve()
       clearInterval(tickInterval);
       stopAllPersonaBotPolling();
 
+      // Abort all in-flight AI generation requests so they don't hang.
+      try {
+        void import('./src/server/channels/messages/runtime.js')
+          .then(({ getMessageService }) => {
+            getMessageService().abortAllActiveRequests();
+          })
+          .catch(() => {});
+      } catch {
+        // runtime may not be initialised yet — safe to ignore
+      }
+
+      // Kill all managed background processes.
+      try {
+        void import('./src/server/skills/handlers/processManager.js')
+          .then(({ killAllManagedProcesses }) => {
+            killAllManagedProcesses();
+          })
+          .catch(() => {});
+      } catch {
+        // safe to ignore
+      }
+
       const registry = getClientRegistry();
       for (const client of registry.getAll()) {
         try {

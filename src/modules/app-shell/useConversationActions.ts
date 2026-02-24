@@ -6,6 +6,7 @@ import {
   removeConversationById,
   resolveActiveConversationAfterDeletion,
 } from '@/modules/app-shell/runtimeLogic';
+import { buildConversationDeleteErrorMessage } from '@/modules/app-shell/conversationDeleteError';
 
 interface UseConversationActionsArgs {
   activeConversationId: string | null;
@@ -67,9 +68,20 @@ export function useConversationActions({
           `/api/channels/conversations?id=${encodeURIComponent(conversationId)}`,
           { method: 'DELETE' },
         );
-        const data = (await response.json()) as { ok?: boolean; error?: string };
+        let data: { ok?: boolean; error?: string } = {};
+        try {
+          data = (await response.json()) as { ok?: boolean; error?: string };
+        } catch {
+          data = {};
+        }
         if (!response.ok || !data.ok) {
-          throw new Error(data.error || `HTTP ${response.status}`);
+          throw new Error(
+            buildConversationDeleteErrorMessage({
+              status: response.status,
+              payloadError: data.error,
+              fallback: 'Conversation konnte nicht gelöscht werden.',
+            }),
+          );
         }
 
         const remainingConversations = removeConversationById(conversations, conversationId);

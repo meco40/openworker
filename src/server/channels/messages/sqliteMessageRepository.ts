@@ -258,7 +258,15 @@ export class SqliteMessageRepository implements MessageRepository {
     return this.projectQueries.getProjectByIdOrSlug(personaId, userId, idOrSlug);
   }
 
-  setActiveProjectForConversation(conversationId: string, userId: string, projectId: string | null) {
+  deleteProjectByIdOrSlug(personaId: string, userId: string, idOrSlug: string) {
+    return this.projectQueries.deleteProjectByIdOrSlug(personaId, userId, idOrSlug);
+  }
+
+  setActiveProjectForConversation(
+    conversationId: string,
+    userId: string,
+    projectId: string | null,
+  ) {
     return this.projectQueries.setActiveProjectForConversation(conversationId, userId, projectId);
   }
 
@@ -267,7 +275,11 @@ export class SqliteMessageRepository implements MessageRepository {
   }
 
   setConversationProjectGuardApproved(conversationId: string, userId: string, approved: boolean) {
-    return this.projectQueries.setConversationProjectGuardApproved(conversationId, userId, approved);
+    return this.projectQueries.setConversationProjectGuardApproved(
+      conversationId,
+      userId,
+      approved,
+    );
   }
 
   close(): void {

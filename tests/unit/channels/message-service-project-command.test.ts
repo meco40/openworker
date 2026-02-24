@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '@/shared/domain/types';
 import { MessageService } from '@/server/channels/messages/service';
 import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
@@ -77,11 +79,25 @@ vi.mock('../../../src/server/personas/personaRepository', async () => {
 describe('MessageService /project command flow', () => {
   let repo: SqliteMessageRepository;
   let service: MessageService;
+  let personasRootPath = '';
 
   beforeEach(() => {
+    personasRootPath = path.resolve(
+      '.local',
+      `personas.project.command.${Date.now()}.${Math.random().toString(36).slice(2)}`,
+    );
+    process.env.PERSONAS_ROOT_PATH = personasRootPath;
     repo = new SqliteMessageRepository(':memory:');
     service = new MessageService(repo);
     dispatchWithFallbackMock.mockClear();
+  });
+
+  afterEach(() => {
+    delete process.env.PERSONAS_ROOT_PATH;
+    if (personasRootPath) {
+      fs.rmSync(personasRootPath, { recursive: true, force: true });
+      personasRootPath = '';
+    }
   });
 
   function activatePersona(): void {
@@ -159,5 +175,112 @@ describe('MessageService /project command flow', () => {
     );
 
     expect(String(response.agentMsg.content).toLowerCase()).toContain('persona');
+  });
+
+  it('deletes project and removes its workspace folder', async () => {
+    activatePersona();
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      '/project new Notes',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    const conversation = repo.getConversationByExternalChat(
+      ChannelType.WEBCHAT,
+      'default',
+      'user-1',
+    );
+    expect(conversation).not.toBeNull();
+    const stateBefore = repo.getConversationProjectState?.(String(conversation?.id), 'user-1');
+    const project = repo.getProjectByIdOrSlug?.(
+      'persona-1',
+      'user-1',
+      String(stateBefore?.activeProjectId || ''),
+    );
+    expect(project).not.toBeNull();
+    expect(fs.existsSync(String(project?.workspacePath || ''))).toBe(true);
+
+    const deleted = await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      `/project delete ${project?.slug}`,
+      undefined,
+      undefined,
+      'user-1',
+    );
+    expect(String(deleted.agentMsg.content).toLowerCase()).toContain('gel');
+
+    const stateAfter = repo.getConversationProjectState?.(String(conversation?.id), 'user-1');
+    expect(stateAfter?.activeProjectId).toBeNull();
+    expect(
+      repo.getProjectByIdOrSlug?.('persona-1', 'user-1', String(project?.id || '')),
+    ).toBeNull();
+    expect(fs.existsSync(String(project?.workspacePath || ''))).toBe(false);
+  });
+
+  it('allows selecting project by list index for /project use', async () => {
+    activatePersona();
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      '/project new Notes',
+      undefined,
+      undefined,
+      'user-1',
+    );
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      '/project new Docs',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    const useByIndex = await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      '/project use 1',
+      undefined,
+      undefined,
+      'user-1',
+    );
+    expect(String(useByIndex.agentMsg.content)).toContain('Docs');
+  });
+
+  it('allows deleting project by list index for /project delete', async () => {
+    activatePersona();
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      '/project new Notes',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    const listed = await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      '/project list',
+      undefined,
+      undefined,
+      'user-1',
+    );
+    expect(String(listed.agentMsg.content)).toContain('1. Notes');
+
+    const deleted = await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      '/project delete 1',
+      undefined,
+      undefined,
+      'user-1',
+    );
+    expect(String(deleted.agentMsg.content).toLowerCase()).toContain('projekt gelöscht');
   });
 });

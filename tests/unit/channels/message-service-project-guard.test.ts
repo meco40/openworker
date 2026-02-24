@@ -6,10 +6,13 @@ import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessag
 const dispatchWithFallbackMock = vi.hoisted(() =>
   vi.fn(async () => ({
     ok: true,
-    text: 'guard-bypassed-model-response',
+    text: 'build-task-completed',
     provider: 'test-provider',
     model: 'test-model',
   })),
+);
+const dispatchSkillMock = vi.hoisted(() =>
+  vi.fn(async () => ({ stdout: 'ok', stderr: '', exitCode: 0 })),
 );
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
@@ -74,7 +77,39 @@ vi.mock('../../../src/server/personas/personaRepository', async () => {
   };
 });
 
-describe('MessageService project guard', () => {
+vi.mock('../../../src/server/skills/skillRepository', () => ({
+  getSkillRepository: async () => ({
+    listSkills: () => [
+      {
+        id: 'shell-access',
+        name: 'Safe Shell',
+        description: 'Shell skill',
+        category: 'Automation',
+        version: '1.0.0',
+        installed: true,
+        functionName: 'shell_execute',
+        source: 'built-in',
+        sourceUrl: null,
+      },
+    ],
+    getSkill: () => null,
+    setInstalled: () => true,
+  }),
+}));
+
+vi.mock('../../../src/server/skills/executeSkill', async () => {
+  const actual = await vi.importActual('../../../src/server/skills/executeSkill');
+  return {
+    ...actual,
+    dispatchSkill: dispatchSkillMock,
+  };
+});
+
+vi.mock('@/skills/definitions', () => ({
+  mapSkillsToTools: () => [],
+}));
+
+describe('MessageService project clarification flow', () => {
   let repo: SqliteMessageRepository;
   let service: MessageService;
 
@@ -82,6 +117,7 @@ describe('MessageService project guard', () => {
     repo = new SqliteMessageRepository(':memory:');
     service = new MessageService(repo);
     dispatchWithFallbackMock.mockClear();
+    dispatchSkillMock.mockClear();
   });
 
   function enablePersonaConversation() {
@@ -95,7 +131,7 @@ describe('MessageService project guard', () => {
     return repo.getConversation(conversation.id, 'user-1')!;
   }
 
-  it('returns approval_required when build intent has no active project', async () => {
+  it('asks once for project name when build intent has no active project', async () => {
     enablePersonaConversation();
 
     const response = await service.handleInbound(
@@ -109,16 +145,45 @@ describe('MessageService project guard', () => {
 
     const metadata = JSON.parse(String(response.agentMsg.metadata || '{}')) as {
       status?: string;
-      approvalToken?: string;
-      approvalToolFunction?: string;
     };
-    expect(metadata.status).toBe('approval_required');
-    expect(metadata.approvalToolFunction).toBe('project_workspace_guard');
-    expect(typeof metadata.approvalToken).toBe('string');
+    expect(metadata.status).toBe('project_clarification_required');
     expect(dispatchWithFallbackMock).not.toHaveBeenCalled();
   });
 
-  it('bypasses guard for non-build intent', async () => {
+  it('creates and activates project after clarification reply, then runs original task', async () => {
+    const conversation = enablePersonaConversation();
+
+    const blocked = await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Erstelle mir eine React App mit Login',
+      undefined,
+      undefined,
+      'user-1',
+    );
+    const blockedMetadata = JSON.parse(String(blocked.agentMsg.metadata || '{}')) as {
+      status?: string;
+    };
+    expect(blockedMetadata.status).toBe('project_clarification_required');
+
+    const continued = await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Notes',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(continued.agentMsg.content).toContain('Projekt automatisch erstellt und aktiviert');
+    expect(continued.agentMsg.content).toContain('build-task-completed');
+    expect(dispatchWithFallbackMock).toHaveBeenCalledTimes(1);
+
+    const state = repo.getConversationProjectState?.(conversation.id, 'user-1');
+    expect(state?.activeProjectId).toBeTruthy();
+  });
+
+  it('bypasses clarification for non-build intent', async () => {
     enablePersonaConversation();
 
     const response = await service.handleInbound(
@@ -131,88 +196,6 @@ describe('MessageService project guard', () => {
     );
 
     const metadata = JSON.parse(String(response.agentMsg.metadata || '{}')) as { status?: string };
-    expect(metadata.status).not.toBe('approval_required');
-  });
-
-  it('allows subsequent build intent after project guard approval', async () => {
-    const conversation = enablePersonaConversation();
-
-    const blocked = await service.handleInbound(
-      ChannelType.WEBCHAT,
-      'default',
-      'Erstelle mir eine React App mit Login',
-      undefined,
-      undefined,
-      'user-1',
-    );
-    const blockedMetadata = JSON.parse(String(blocked.agentMsg.metadata || '{}')) as {
-      approvalToken?: string;
-    };
-    const approvalToken = String(blockedMetadata.approvalToken || '');
-    expect(approvalToken).not.toBe('');
-
-    const approval = await service.respondToolApproval({
-      conversationId: conversation.id,
-      userId: 'user-1',
-      approvalToken,
-      approved: true,
-      toolFunctionName: 'project_workspace_guard',
-    });
-    expect(approval.status).toBe('approved');
-
-    const state = repo.getConversationProjectState?.(conversation.id, 'user-1');
-    expect(state?.guardApprovedWithoutProject).toBe(true);
-
-    dispatchWithFallbackMock.mockClear();
-    const allowed = await service.handleInbound(
-      ChannelType.WEBCHAT,
-      'default',
-      'Erstelle mir eine React App mit Login',
-      undefined,
-      undefined,
-      'user-1',
-    );
-    const allowedMetadata = JSON.parse(String(allowed.agentMsg.metadata || '{}')) as {
-      status?: string;
-    };
-    expect(allowedMetadata.status).not.toBe('approval_required');
-  });
-
-  it('resets no-project guard approval after /project new', async () => {
-    const conversation = enablePersonaConversation();
-
-    const blocked = await service.handleInbound(
-      ChannelType.WEBCHAT,
-      'default',
-      'Erstelle ein neues API Projekt',
-      undefined,
-      undefined,
-      'user-1',
-    );
-    const blockedMetadata = JSON.parse(String(blocked.agentMsg.metadata || '{}')) as {
-      approvalToken?: string;
-    };
-    await service.respondToolApproval({
-      conversationId: conversation.id,
-      userId: 'user-1',
-      approvalToken: String(blockedMetadata.approvalToken || ''),
-      approved: true,
-      toolFunctionName: 'project_workspace_guard',
-    });
-
-    const before = repo.getConversationProjectState?.(conversation.id, 'user-1');
-    expect(before?.guardApprovedWithoutProject).toBe(true);
-
-    const createdProject = repo.createProject?.({
-      userId: 'user-1',
-      personaId: 'persona-1',
-      name: 'Notes',
-      workspacePath: 'D:/tmp/project-notes',
-    });
-    repo.setActiveProjectForConversation?.(conversation.id, 'user-1', createdProject?.id || null);
-
-    const after = repo.getConversationProjectState?.(conversation.id, 'user-1');
-    expect(after?.activeProjectId).toBeTruthy();
-    expect(after?.guardApprovedWithoutProject).toBe(false);
+    expect(metadata.status).not.toBe('project_clarification_required');
   });
 });

@@ -37,10 +37,17 @@ const PersonasView: React.FC = () => {
   const [memoryPersonaType, setMemoryPersonaType] = useState<MemoryPersonaType>('general');
   const [savingMemoryPersonaType, setSavingMemoryPersonaType] = useState(false);
 
+  // Autonomous agent state
+  const [isAutonomous, setIsAutonomous] = useState(false);
+  const [maxToolCalls, setMaxToolCalls] = useState(120);
+  const [savingAutonomous, setSavingAutonomous] = useState(false);
+
   // Sync memoryPersonaType when persona loads
   useEffect(() => {
     if (selectedPersona) {
       setMemoryPersonaType(selectedPersona.memoryPersonaType || 'general');
+      setIsAutonomous(Boolean(selectedPersona.isAutonomous));
+      setMaxToolCalls(selectedPersona.maxToolCalls ?? 120);
     }
   }, [selectedPersona]);
 
@@ -194,6 +201,31 @@ const PersonasView: React.FC = () => {
     [selectedId, refreshPersonas, loadPersona],
   );
 
+  // Save autonomous settings (called on toggle flip OR save button press)
+  const handleSaveAutonomous = useCallback(
+    async (newIsAutonomous: boolean) => {
+      if (!selectedId) return;
+      setIsAutonomous(newIsAutonomous);
+      setSavingAutonomous(true);
+      try {
+        const res = await fetch(`/api/personas/${selectedId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isAutonomous: newIsAutonomous, maxToolCalls }),
+        });
+        if (res.ok) {
+          await refreshPersonas();
+          await loadPersona(selectedId);
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        setSavingAutonomous(false);
+      }
+    },
+    [selectedId, maxToolCalls, refreshPersonas, loadPersona],
+  );
+
   return (
     <div className="animate-in fade-in flex h-full duration-500">
       <PersonasSidebar
@@ -278,6 +310,11 @@ const PersonasView: React.FC = () => {
             memoryPersonaType={memoryPersonaType}
             onMemoryPersonaTypeChange={handleSaveMemoryPersonaType}
             savingMemoryPersonaType={savingMemoryPersonaType}
+            isAutonomous={isAutonomous}
+            maxToolCalls={maxToolCalls}
+            onIsAutonomousChange={handleSaveAutonomous}
+            onMaxToolCallsChange={setMaxToolCalls}
+            savingAutonomous={savingAutonomous}
           />
         )}
       </div>

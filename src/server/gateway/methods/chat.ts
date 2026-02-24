@@ -12,6 +12,18 @@ interface RpcAttachmentInput {
   url?: string;
 }
 
+const DEFAULT_STREAM_KEEPALIVE_MS = 10_000;
+const MIN_STREAM_KEEPALIVE_MS = 1_000;
+const MAX_STREAM_KEEPALIVE_MS = 60_000;
+
+function resolveStreamKeepaliveMs(): number {
+  const raw = Number.parseInt(String(process.env.OPENCLAW_CHAT_STREAM_KEEPALIVE_MS || ''), 10);
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return DEFAULT_STREAM_KEEPALIVE_MS;
+  }
+  return Math.max(MIN_STREAM_KEEPALIVE_MS, Math.min(MAX_STREAM_KEEPALIVE_MS, raw));
+}
+
 function normalizeStringParam(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
@@ -157,22 +169,39 @@ registerMethod(
     const { service, conversationId, content, clientMessageId, attachments } =
       await resolveWebUiMessageInput(params, client.userId);
 
-    const result = await service.handleWebUIMessage(
-      conversationId,
-      content,
-      client.userId,
-      clientMessageId,
-      attachments,
-      (delta) => {
-        if (!delta) return;
-        ctx.sendRaw(makeStream(ctx.requestId, delta, false));
-      },
-    );
+    const keepaliveMs = resolveStreamKeepaliveMs();
+    let streamClosed = false;
+    const keepaliveTimer = setInterval(() => {
+      if (streamClosed) return;
+      try {
+        ctx.sendRaw(makeStream(ctx.requestId, '', false));
+      } catch {
+        // ignore send failures, upstream lifecycle handles disconnects
+      }
+    }, keepaliveMs);
+    keepaliveTimer.unref?.();
 
-    // Do not emit a synthetic fallback delta when no native stream arrived.
-    // Otherwise UI can render a duplicate bubble (persisted message + fallback delta draft).
-    void result;
-    ctx.sendRaw(makeStream(ctx.requestId, '', true));
+    try {
+      const result = await service.handleWebUIMessage(
+        conversationId,
+        content,
+        client.userId,
+        clientMessageId,
+        attachments,
+        (delta) => {
+          if (!delta) return;
+          ctx.sendRaw(makeStream(ctx.requestId, delta, false));
+        },
+      );
+
+      // Do not emit a synthetic fallback delta when no native stream arrived.
+      // Otherwise UI can render a duplicate bubble (persisted message + fallback delta draft).
+      void result;
+      streamClosed = true;
+      ctx.sendRaw(makeStream(ctx.requestId, '', true));
+    } finally {
+      clearInterval(keepaliveTimer);
+    }
   },
 );
 

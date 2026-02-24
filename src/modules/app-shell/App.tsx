@@ -166,6 +166,12 @@ const App: React.FC<AppProps> = ({ initialView }) => {
           },
           (delta) => {
             if (!delta) return;
+            // Tool-call progress signals (never rendered as text)
+            if (delta.startsWith('\x00tc:')) {
+              const toolName = delta.slice(4) || null;
+              setChatStreamDebug((prev) => ({ ...prev, activeToolCall: toolName }));
+              return;
+            }
             sawDelta = true;
             setIsServerResponding(false);
             setChatStreamDebug({
@@ -207,6 +213,7 @@ const App: React.FC<AppProps> = ({ initialView }) => {
         setChatStreamDebug({
           phase: 'done',
           transport: sawDelta ? 'live-delta' : 'final-only',
+          activeToolCall: null,
           updatedAt: new Date().toISOString(),
         });
       } catch (error) {
@@ -219,6 +226,7 @@ const App: React.FC<AppProps> = ({ initialView }) => {
           phase: 'error',
           transport: sawDelta ? 'live-delta' : 'unknown',
           message: error instanceof Error ? error.message : 'Message dispatch failed.',
+          activeToolCall: null,
           updatedAt: new Date().toISOString(),
         });
         addEventLog('SYS', error instanceof Error ? error.message : 'Message dispatch failed.');

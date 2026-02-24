@@ -98,7 +98,7 @@ export async function respondToolApproval(
     if (!params.approved) {
       await sendResponse(
         conversation,
-        'Freigabe ohne Projekt wurde abgelehnt. Nutze `/project new <name>` oder `/project use <id|slug>`.',
+        'Freigabe ohne Projekt wurde abgelehnt. Nutze `/project new <name>` oder `/project use <id|slug|index>`.',
         pending.platform,
         pending.externalChatId,
       );
