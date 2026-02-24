@@ -124,4 +124,30 @@ describe('Method Router', () => {
 
     expect(capturedParams).toEqual({});
   });
+
+  it('keeps v1 and v2 method registries isolated', async () => {
+    registerMethod(
+      'test.v2',
+      async (_params, _client, respond) => {
+        respond({ scope: 'v2' });
+      },
+      'v2',
+    );
+
+    const sentV1: unknown[] = [];
+    await dispatchMethod(makeFrame('test.v2'), makeClient(), (frame) => sentV1.push(frame), 'v1');
+    expect(sentV1[0]).toMatchObject({
+      type: 'res',
+      ok: false,
+      error: { code: 'INVALID_REQUEST' },
+    });
+
+    const sentV2: unknown[] = [];
+    await dispatchMethod(makeFrame('test.v2'), makeClient(), (frame) => sentV2.push(frame), 'v2');
+    expect(sentV2[0]).toMatchObject({
+      type: 'res',
+      ok: true,
+      payload: { scope: 'v2' },
+    });
+  });
 });

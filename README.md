@@ -55,7 +55,7 @@ npm run dev:scheduler
 - `MEMORY_PROVIDER=mem0`
 - `MEM0_BASE_URL=http://127.0.0.1:8010`
 - `MEM0_API_KEY=local-mem0-dev-token` (oder eigener Token)
-- `GEMINI_API_KEY=<dein-key>` (wird vom lokalen Mem0-Service benötigt)
+- `MODEL_HUB_ENCRYPTION_KEY=<32-byte-key>` (für Model-Hub-Secrets; empfohlen)
 
 ### Produktion
 
@@ -224,7 +224,7 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | `MEM0_TIMEOUT_MS`                    | Mem0 Request-Timeout                               |
 | `MEM0_MAX_RETRIES`                   | Mem0 Retry-Limit                                   |
 | `MEM0_RETRY_BASE_DELAY_MS`           | Mem0 Retry-Backoff-Basis                           |
-| `GEMINI_API_KEY`                     | Erforderlich für den lokalen Mem0-Container        |
+| `MEM0_LLM_PROVIDER`                  | Optionales Bootstrap-LLM für mem0-local (ohne Hardcode) |
 | `MODEL_HUB_ENCRYPTION_KEY`           | Secret-Encryption-Key (in Produktion erforderlich) |
 | `OPENAI_OAUTH_CLIENT_ID`             | Optional: eigene OpenAI Codex OAuth Client ID      |
 | `OPENAI_OAUTH_CLIENT_SECRET`         | Optional: Client Secret für eigenen OAuth-Client   |

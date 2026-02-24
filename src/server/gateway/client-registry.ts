@@ -9,6 +9,7 @@ export interface GatewayClient {
   socket: WebSocket;
   connId: string;
   userId: string;
+  protocol?: 'v1' | 'v2';
   connectedAt: number;
   /** Liveness flag for transport-level ping/pong keepalive. */
   isAlive?: boolean;

@@ -1,5 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+const mem0SyncMocks = vi.hoisted(() => ({
+  syncMem0LlmFromModelHub: vi.fn(),
+  syncMem0EmbedderFromModelHub: vi.fn(),
+}));
+
+vi.mock('@/server/memory/mem0EmbedderSync', () => ({
+  syncMem0LlmFromModelHub: mem0SyncMocks.syncMem0LlmFromModelHub,
+  syncMem0EmbedderFromModelHub: mem0SyncMocks.syncMem0EmbedderFromModelHub,
+}));
+
 import {
+  __resetMem0ModelHubSyncStateForTests,
   createMem0Client,
   createMem0ClientFromEnv,
   type Mem0ListMemoryResult,
@@ -8,6 +19,9 @@ import {
 
 describe('mem0Client', () => {
   afterEach(() => {
+    __resetMem0ModelHubSyncStateForTests();
+    mem0SyncMocks.syncMem0LlmFromModelHub.mockReset();
+    mem0SyncMocks.syncMem0EmbedderFromModelHub.mockReset();
     vi.restoreAllMocks();
   });
 
@@ -581,5 +595,46 @@ describe('mem0Client', () => {
         metadata: {},
       }),
     ).rejects.toThrow(/timeout|aborted/i);
+  });
+
+  it('auto-syncs mem0 config from model hub when runtime is unconfigured (503)', async () => {
+    mem0SyncMocks.syncMem0LlmFromModelHub.mockResolvedValue({ ok: true });
+    mem0SyncMocks.syncMem0EmbedderFromModelHub.mockResolvedValue({ ok: true });
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ detail: 'Mem0 runtime is not configured.' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ memories: [], total: 0, page: 1, page_size: 1 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+
+    const client = createMem0Client(
+      {
+        baseUrl: 'http://mem0.local',
+        apiPath: '/v1',
+        maxRetries: 0,
+      },
+      fetchMock as unknown as typeof fetch,
+    );
+
+    const result = await client.listMemories({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      page: 1,
+      pageSize: 10,
+    });
+
+    expect(result.total).toBe(0);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(mem0SyncMocks.syncMem0LlmFromModelHub).toHaveBeenCalledTimes(1);
+    expect(mem0SyncMocks.syncMem0EmbedderFromModelHub).toHaveBeenCalledTimes(1);
   });
 });

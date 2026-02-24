@@ -324,12 +324,53 @@ function normalizeText(value: string): string {
 const TRANSIENT_HTTP_CODES = new Set([429, 500, 502, 503]);
 const DEFAULT_MAX_RETRIES = 0;
 const DEFAULT_RETRY_BASE_DELAY_MS = 500;
+const MEM0_RUNTIME_UNCONFIGURED_MARKER = 'mem0 runtime is not configured';
+const MEM0_MODEL_HUB_SYNC_COOLDOWN_MS = 5000;
+
+let mem0ModelHubSyncInFlight: Promise<boolean> | null = null;
+let mem0ModelHubLastSyncAttemptMs = 0;
 
 function isTransientHttpError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   const statusMatch = /HTTP\s*(\d{3})/i.exec(message);
   if (!statusMatch) return false;
   return TRANSIENT_HTTP_CODES.has(Number(statusMatch[1]));
+}
+
+function isMem0RuntimeUnconfiguredError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /HTTP\s*503/i.test(message) && message.toLowerCase().includes(MEM0_RUNTIME_UNCONFIGURED_MARKER);
+}
+
+async function triggerMem0ModelHubSync(): Promise<boolean> {
+  const now = Date.now();
+  if (mem0ModelHubSyncInFlight) {
+    return mem0ModelHubSyncInFlight;
+  }
+  if (now - mem0ModelHubLastSyncAttemptMs < MEM0_MODEL_HUB_SYNC_COOLDOWN_MS) {
+    return false;
+  }
+  mem0ModelHubLastSyncAttemptMs = now;
+  mem0ModelHubSyncInFlight = (async () => {
+    try {
+      const syncModule = await import('@/server/memory/mem0EmbedderSync');
+      const [llmResult, embedderResult] = await Promise.all([
+        syncModule.syncMem0LlmFromModelHub(),
+        syncModule.syncMem0EmbedderFromModelHub(),
+      ]);
+      return llmResult.ok && embedderResult.ok;
+    } catch {
+      return false;
+    } finally {
+      mem0ModelHubSyncInFlight = null;
+    }
+  })();
+  return mem0ModelHubSyncInFlight;
+}
+
+export function __resetMem0ModelHubSyncStateForTests(): void {
+  mem0ModelHubSyncInFlight = null;
+  mem0ModelHubLastSyncAttemptMs = 0;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -570,13 +611,22 @@ class HttpMem0Client implements Mem0Client {
     },
   ): Promise<unknown> {
     let lastError: unknown;
-    const maxAttempts = 1 + this.maxRetries;
+    let maxAttempts = 1 + this.maxRetries;
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       try {
         return await this.requestOnce(apiPath, path, init);
       } catch (error) {
         lastError = error;
+        if (isMem0RuntimeUnconfiguredError(error)) {
+          const synced = await triggerMem0ModelHubSync();
+          if (synced) {
+            if (attempt + 1 >= maxAttempts) {
+              maxAttempts += 1;
+            }
+            continue;
+          }
+        }
         const retriesLeft = maxAttempts - attempt - 1;
         if (retriesLeft <= 0 || !isTransientHttpError(error)) {
           throw error;

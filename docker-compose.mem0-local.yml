@@ -34,13 +34,7 @@ services:
       POSTGRES_PASSWORD: mem0
       POSTGRES_COLLECTION_NAME: mem0
       MEM0_API_KEY: ${MEM0_API_KEY:-local-mem0-dev-token}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
       MEM0_ALLOW_ADMIN_ENDPOINTS: 'true'
-      MEM0_LLM_PROVIDER: gemini
-      MEM0_LLM_MODEL: gemini-2.0-flash
-      MEM0_EMBEDDER_PROVIDER: gemini
-      MEM0_EMBEDDER_MODEL: gemini-embedding-001
-      MEM0_EMBEDDING_DIMS: 768
       HISTORY_DB_PATH: /app/history/history.db
     volumes:
       - mem0-history-data:/app/history

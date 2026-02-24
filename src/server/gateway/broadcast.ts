@@ -5,20 +5,31 @@ import { getClientRegistry, type GatewayClient } from '@/server/gateway/client-r
 import { makeEvent } from '@/server/gateway/protocol';
 import { MAX_BUFFERED_BYTES } from '@/server/gateway/constants';
 
+interface BroadcastOptions {
+  protocol?: 'v1' | 'v2';
+}
+
 // ─── Broadcast Functions ─────────────────────────────────────
 
 /** Broadcast an event to all connected clients. */
-export function broadcast(event: string, payload?: unknown): void {
+export function broadcast(event: string, payload?: unknown, options?: BroadcastOptions): void {
   const registry = getClientRegistry();
   for (const client of registry.getAll()) {
+    if (options?.protocol && client.protocol !== options.protocol) continue;
     sendEventToClient(client, event, payload);
   }
 }
 
 /** Broadcast an event to all connections of a specific user. */
-export function broadcastToUser(userId: string, event: string, payload?: unknown): void {
+export function broadcastToUser(
+  userId: string,
+  event: string,
+  payload?: unknown,
+  options?: BroadcastOptions,
+): void {
   const registry = getClientRegistry();
   for (const client of registry.getByUserId(userId)) {
+    if (options?.protocol && client.protocol !== options.protocol) continue;
     sendEventToClient(client, event, payload);
   }
 }
@@ -28,21 +39,30 @@ export function broadcastToSubscribed(
   subscriptionKey: string,
   event: string,
   payload?: unknown,
+  options?: BroadcastOptions,
 ): void {
   const registry = getClientRegistry();
   for (const client of registry.getAll()) {
     if (client.subscriptions.has(subscriptionKey)) {
+      if (options?.protocol && client.protocol !== options.protocol) continue;
       sendEventToClient(client, event, payload);
     }
   }
 }
 
 /** Send raw pre-serialized data to specific connection IDs. */
-export function broadcastToConnIds(connIds: string[], event: string, payload?: unknown): void {
+export function broadcastToConnIds(
+  connIds: string[],
+  event: string,
+  payload?: unknown,
+  options?: BroadcastOptions,
+): void {
   const registry = getClientRegistry();
   for (const connId of connIds) {
     const client = registry.get(connId);
-    if (client) sendEventToClient(client, event, payload);
+    if (!client) continue;
+    if (options?.protocol && client.protocol !== options.protocol) continue;
+    sendEventToClient(client, event, payload);
   }
 }
 

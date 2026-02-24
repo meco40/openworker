@@ -67,10 +67,11 @@ Promise.resolve()
     server.on('upgrade', async (req, socket, head) => {
       const { pathname } = getRequestUrl(req);
 
-      if (pathname !== '/ws') {
+      if (pathname !== '/ws' && pathname !== '/ws-agent-v2') {
         // Let Next.js handle non-WS upgrades (e.g., HMR in dev)
         return;
       }
+      const protocol = pathname === '/ws-agent-v2' ? 'v2' : 'v1';
 
       try {
         // Authenticate via NextAuth JWT cookie (same origin, same port)
@@ -104,7 +105,7 @@ Promise.resolve()
 
         wss.handleUpgrade(req, socket, head, (ws) => {
           wss.emit('connection', ws, req);
-          handleConnection(ws, userId);
+          handleConnection(ws, userId, { protocol });
         });
       } catch (err) {
         console.error('[gateway] Upgrade auth error:', err);
@@ -187,6 +188,7 @@ Promise.resolve()
     server.listen(port, hostname, () => {
       console.log(`[gateway] Server ready on http://${hostname}:${port}`);
       console.log(`[gateway] WebSocket endpoint: ws://${hostname}:${port}/ws`);
+      console.log(`[gateway] WebSocket endpoint: ws://${hostname}:${port}/ws-agent-v2`);
     });
   })
   .catch((error: unknown) => {

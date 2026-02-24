@@ -396,4 +396,52 @@ describe('ModelHubService.dispatchEmbedding', () => {
 
     expect(result).toEqual({ embedding: { values: [0.11, 0.22, 0.33] } });
   });
+
+  it('forwards dimensions for openai-compatible embedding payloads', async () => {
+    const openrouterRecord = buildAccountRecord('openrouter');
+    const repository = createMockRepository({
+      listPipelineModels: vi.fn().mockReturnValue([
+        {
+          id: 'embed-or-dims',
+          profileId: 'p1-embeddings',
+          accountId: openrouterRecord.id,
+          providerId: 'openrouter',
+          modelName: 'qwen/qwen3-embedding-8b',
+          priority: 1,
+          status: 'active',
+          createdAt: '2026-02-23T00:00:00.000Z',
+          updatedAt: '2026-02-23T00:00:00.000Z',
+        },
+      ]),
+      getAccountRecordById: vi.fn().mockReturnValue(openrouterRecord),
+    });
+
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({
+        data: [{ embedding: [0.1, 0.2], index: 0 }],
+      }),
+      text: async () => '',
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { service } = await setupService({ repository });
+
+    const result = await service.dispatchEmbedding('enc-key', {
+      operation: 'embedContent',
+      payload: { contents: ['hello openrouter'], dimensions: 1536 },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const firstCall = fetchMock.mock.calls[0];
+    const init = (firstCall?.[1] ?? {}) as RequestInit;
+    expect(JSON.parse(String(init.body))).toEqual({
+      model: 'qwen/qwen3-embedding-8b',
+      input: ['hello openrouter'],
+      dimensions: 1536,
+    });
+    expect(result).toEqual({ embedding: { values: [0.1, 0.2] } });
+  });
 });

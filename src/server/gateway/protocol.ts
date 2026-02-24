@@ -43,7 +43,9 @@ export type ErrorCode =
   | 'UNAUTHORIZED'
   | 'NOT_FOUND'
   | 'UNAVAILABLE'
-  | 'RATE_LIMITED';
+  | 'RATE_LIMITED'
+  | 'BACKPRESSURE'
+  | 'REPLAY_WINDOW_EXPIRED';
 
 export interface ErrorShape {
   code: ErrorCode;

@@ -8,10 +8,17 @@ import { parseFrame, makeError, makeEvent } from '@/server/gateway/protocol';
 import { GatewayEvents, type HelloOkPayload } from '@/server/gateway/events';
 import { GATEWAY_VERSION, MAX_REQUESTS_PER_MINUTE } from '@/server/gateway/constants';
 import { dispatchMethod, getRegisteredMethods } from '@/server/gateway/method-router';
+import type { MethodNamespace } from '@/server/gateway/method-router';
 
 // ─── Connection Setup ────────────────────────────────────────
 
-export function handleConnection(socket: WebSocket, userId: string): void {
+export function handleConnection(
+  socket: WebSocket,
+  userId: string,
+  options?: { protocol?: MethodNamespace },
+): void {
+  const protocol = options?.protocol ?? 'v1';
+  const maxRequestsPerMinute = resolveMaxRequestsPerMinute(protocol);
   const connId = `ws-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const client: GatewayClient = {
@@ -24,6 +31,7 @@ export function handleConnection(socket: WebSocket, userId: string): void {
     requestCount: 0,
     requestWindowStart: Date.now(),
     seq: 0,
+    protocol,
   };
 
   const registry = getClientRegistry();
@@ -33,7 +41,7 @@ export function handleConnection(socket: WebSocket, userId: string): void {
   const helloPayload: HelloOkPayload = {
     server: { version: GATEWAY_VERSION },
     events: Object.values(GatewayEvents),
-    methods: getRegisteredMethods(),
+    methods: getRegisteredMethods(protocol),
   };
   send(socket, makeEvent(GatewayEvents.HELLO_OK, helloPayload));
 
@@ -63,7 +71,7 @@ export function handleConnection(socket: WebSocket, userId: string): void {
       }
       client.requestCount++;
 
-      if (client.requestCount > MAX_REQUESTS_PER_MINUTE) {
+      if (client.requestCount > maxRequestsPerMinute) {
         send(socket, makeError(frame.id, 'RATE_LIMITED', 'Too many requests'));
         return;
       }
@@ -74,7 +82,7 @@ export function handleConnection(socket: WebSocket, userId: string): void {
         }
       };
 
-      dispatchMethod(frame, client, sendRaw).catch((err) => {
+      dispatchMethod(frame, client, sendRaw, protocol).catch((err) => {
         console.error(`[gateway] Method error ${frame.method}:`, err);
         send(socket, makeError(frame.id, 'UNAVAILABLE', 'Internal server error'));
       });
@@ -108,7 +116,7 @@ export function handleConnection(socket: WebSocket, userId: string): void {
     client.isAlive = true;
   });
 
-  console.log(`[gateway] Client ${connId} connected (user: ${userId})`);
+  console.log(`[gateway] Client ${connId} connected (user: ${userId}, protocol: ${protocol})`);
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -121,4 +129,11 @@ function send(socket: WebSocket, data: unknown): void {
       // ignore send errors during close
     }
   }
+}
+
+function resolveMaxRequestsPerMinute(protocol: MethodNamespace): number {
+  if (protocol !== 'v2') return MAX_REQUESTS_PER_MINUTE;
+  const raw = Number.parseInt(String(process.env.AGENT_V2_MAX_REQUESTS_PER_MINUTE || ''), 10);
+  if (!Number.isFinite(raw) || raw <= 0) return MAX_REQUESTS_PER_MINUTE;
+  return Math.max(10, Math.min(raw, 10_000));
 }

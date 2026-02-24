@@ -121,6 +121,16 @@ export const GatewayEvents = {
   ROOM_RUN_STATUS: 'room.run.status',
   ROOM_INTERVENTION: 'room.intervention',
   ROOM_METRICS: 'room.metrics',
+  AGENT_V2_SESSION_UPDATED: 'agent.v2.session.updated',
+  AGENT_V2_COMMAND_QUEUED: 'agent.v2.command.queued',
+  AGENT_V2_COMMAND_STARTED: 'agent.v2.command.started',
+  AGENT_V2_COMMAND_COMPLETED: 'agent.v2.command.completed',
+  AGENT_V2_MODEL_DELTA: 'agent.v2.model.delta',
+  AGENT_V2_TOOL_STARTED: 'agent.v2.tool.started',
+  AGENT_V2_TOOL_COMPLETED: 'agent.v2.tool.completed',
+  AGENT_V2_APPROVAL_REQUIRED: 'agent.v2.approval.required',
+  AGENT_V2_SESSION_COMPLETED: 'agent.v2.session.completed',
+  AGENT_V2_ERROR: 'agent.v2.error',
   TICK: 'tick',
 } as const;
 

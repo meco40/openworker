@@ -61,7 +61,8 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "recharts": "^3.7.0",
-    "ws": "^8.19.0"
+    "ws": "^8.19.0",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.1.6",

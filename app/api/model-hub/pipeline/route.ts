@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getModelHubService } from '@/server/model-hub/runtime';
 import type { PipelineReasoningEffort } from '@/server/model-hub/repository';
+import {
+  syncMem0EmbedderFromModelHub,
+  syncMem0LlmFromModelHub,
+} from '@/server/memory/mem0EmbedderSync';
 import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
@@ -43,6 +47,7 @@ interface ReorderModelBody {
 }
 
 const DEFAULT_PROFILE = 'p1';
+const EMBEDDING_PROFILE_ID = 'p1-embeddings';
 const PIPELINE_REASONING_EFFORTS = new Set<PipelineReasoningEffort>([
   'off',
   'minimal',
@@ -149,8 +154,11 @@ export async function PUT(request: Request) {
         priority: m.priority ?? idx + 1,
       })),
     );
+    const mem0LlmSync = profileId === DEFAULT_PROFILE ? await syncMem0LlmFromModelHub() : undefined;
+    const mem0EmbedderSync =
+      profileId === EMBEDDING_PROFILE_ID ? await syncMem0EmbedderFromModelHub() : undefined;
 
-    return NextResponse.json({ ok: true, profileId, models: saved });
+    return NextResponse.json({ ok: true, profileId, models: saved, mem0LlmSync, mem0EmbedderSync });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to save pipeline.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
@@ -203,7 +211,10 @@ export async function POST(request: Request) {
         reasoningEffort: reasoningEffort.value,
         priority,
       });
-      return NextResponse.json({ ok: true, model: entry });
+      const mem0LlmSync = profileId === DEFAULT_PROFILE ? await syncMem0LlmFromModelHub() : undefined;
+      const mem0EmbedderSync =
+        profileId === EMBEDDING_PROFILE_ID ? await syncMem0EmbedderFromModelHub() : undefined;
+      return NextResponse.json({ ok: true, model: entry, mem0LlmSync, mem0EmbedderSync });
     }
 
     if (action === 'remove') {
@@ -211,8 +222,16 @@ export async function POST(request: Request) {
       if (!modelId) {
         return NextResponse.json({ ok: false, error: 'modelId is required.' }, { status: 400 });
       }
+      const shouldSyncMem0Llm = service.listPipeline(DEFAULT_PROFILE).some((model) => model.id === modelId);
+      const shouldSyncMem0Embedder = service
+        .listPipeline(EMBEDDING_PROFILE_ID)
+        .some((model) => model.id === modelId);
       const removed = service.removeModelFromPipeline(modelId);
-      return NextResponse.json({ ok: true, removed });
+      const mem0LlmSync = shouldSyncMem0Llm ? await syncMem0LlmFromModelHub() : undefined;
+      const mem0EmbedderSync = shouldSyncMem0Embedder
+        ? await syncMem0EmbedderFromModelHub()
+        : undefined;
+      return NextResponse.json({ ok: true, removed, mem0LlmSync, mem0EmbedderSync });
     }
 
     if (action === 'status') {
@@ -224,8 +243,16 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+      const shouldSyncMem0Llm = service.listPipeline(DEFAULT_PROFILE).some((model) => model.id === modelId);
+      const shouldSyncMem0Embedder = service
+        .listPipeline(EMBEDDING_PROFILE_ID)
+        .some((model) => model.id === modelId);
       service.updateModelStatus(modelId, status);
-      return NextResponse.json({ ok: true });
+      const mem0LlmSync = shouldSyncMem0Llm ? await syncMem0LlmFromModelHub() : undefined;
+      const mem0EmbedderSync = shouldSyncMem0Embedder
+        ? await syncMem0EmbedderFromModelHub()
+        : undefined;
+      return NextResponse.json({ ok: true, mem0LlmSync, mem0EmbedderSync });
     }
 
     if (action === 'reorder') {
@@ -246,7 +273,10 @@ export async function POST(request: Request) {
         );
       }
       const moved = service.movePipelineModel(profileId, modelId, direction);
-      return NextResponse.json({ ok: true, moved });
+      const mem0LlmSync = profileId === DEFAULT_PROFILE ? await syncMem0LlmFromModelHub() : undefined;
+      const mem0EmbedderSync =
+        profileId === EMBEDDING_PROFILE_ID ? await syncMem0EmbedderFromModelHub() : undefined;
+      return NextResponse.json({ ok: true, moved, mem0LlmSync, mem0EmbedderSync });
     }
 
     return NextResponse.json({ ok: false, error: `Unknown action: ${action}` }, { status: 400 });

@@ -1,8 +1,8 @@
 // ─── Gateway Method Router ───────────────────────────────────
 // Dispatches RPC requests to registered method handlers.
 
-import type { RequestFrame } from '@/server/gateway/protocol';
 import { makeResponse, makeError } from '@/server/gateway/protocol';
+import type { ErrorCode, RequestFrame } from '@/server/gateway/protocol';
 import type { GatewayClient } from '@/server/gateway/client-registry';
 
 // ─── Types ───────────────────────────────────────────────────
@@ -19,16 +19,25 @@ export type MethodHandler = (
   context: { requestId: string | number; sendRaw: SendRawFn },
 ) => Promise<void> | void;
 
+export type MethodNamespace = 'v1' | 'v2';
+
 // ─── Handler Registry ────────────────────────────────────────
 
-const handlers = new Map<string, MethodHandler>();
+const handlersByNamespace: Record<MethodNamespace, Map<string, MethodHandler>> = {
+  v1: new Map<string, MethodHandler>(),
+  v2: new Map<string, MethodHandler>(),
+};
 
-export function registerMethod(method: string, handler: MethodHandler): void {
-  handlers.set(method, handler);
+export function registerMethod(
+  method: string,
+  handler: MethodHandler,
+  namespace: MethodNamespace = 'v1',
+): void {
+  handlersByNamespace[namespace].set(method, handler);
 }
 
-export function getRegisteredMethods(): string[] {
-  return Array.from(handlers.keys());
+export function getRegisteredMethods(namespace: MethodNamespace = 'v1'): string[] {
+  return Array.from(handlersByNamespace[namespace].keys());
 }
 
 // ─── Dispatch ────────────────────────────────────────────────
@@ -37,8 +46,9 @@ export async function dispatchMethod(
   frame: RequestFrame,
   client: GatewayClient,
   sendRaw: SendRawFn,
+  namespace: MethodNamespace = 'v1',
 ): Promise<void> {
-  const handler = handlers.get(frame.method);
+  const handler = handlersByNamespace[namespace].get(frame.method);
 
   if (!handler) {
     sendRaw(makeError(frame.id, 'INVALID_REQUEST', `Unknown method: ${frame.method}`));
@@ -55,6 +65,18 @@ export async function dispatchMethod(
     await handler(params, client, respond, { requestId: frame.id, sendRaw });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    sendRaw(makeError(frame.id, 'UNAVAILABLE', message));
+    sendRaw(makeError(frame.id, toErrorCode(err), message));
   }
+}
+
+function toErrorCode(error: unknown): ErrorCode {
+  const code =
+    error && typeof error === 'object' && 'code' in error ? String((error as { code?: string }).code) : '';
+  if (code === 'INVALID_REQUEST') return 'INVALID_REQUEST';
+  if (code === 'UNAUTHORIZED') return 'UNAUTHORIZED';
+  if (code === 'NOT_FOUND') return 'NOT_FOUND';
+  if (code === 'RATE_LIMITED') return 'RATE_LIMITED';
+  if (code === 'BACKPRESSURE') return 'BACKPRESSURE';
+  if (code === 'REPLAY_WINDOW_EXPIRED') return 'REPLAY_WINDOW_EXPIRED';
+  return 'UNAVAILABLE';
 }

@@ -103,6 +103,36 @@ export async function dispatchToAI(
     });
   }
 
+  // Inject SKILL.md guidance bodies into the system prompt (server-only, dynamic import
+  // prevents this from being bundled into the browser client).
+  try {
+    const {
+      loadAllSkillMd,
+      filterEligibleSkills,
+      enrichBuiltInManifest,
+      buildSkillsPromptSection,
+    } = await import('@/server/skills/skillMd/index');
+    const { BUILT_IN_SKILLS } = await import('@/server/skills/builtInSkills');
+    const workspaceCwd = params.conversation.id
+      ? deps.resolveConversationWorkspaceCwd?.(params.conversation)
+      : undefined;
+    const allParsed = loadAllSkillMd({ workspaceCwd: workspaceCwd ?? undefined });
+    const eligible = filterEligibleSkills(allParsed);
+    const enriched = eligible
+      .filter((p) => p.tier === 'built-in')
+      .flatMap((p) => {
+        const seed = BUILT_IN_SKILLS.find((s) => s.manifest.id === p.frontmatter.id);
+        if (!seed) return [];
+        return [enrichBuiltInManifest(seed.manifest, p)];
+      });
+    const skillsSection = buildSkillsPromptSection(enriched);
+    if (skillsSection) {
+      messages.unshift({ role: 'system', content: skillsSection });
+    }
+  } catch {
+    // Non-fatal: if skill guidance fails to load, continue without it.
+  }
+
   // Abort any existing in-flight request for this conversation before creating a new one.
   // Without this, re-dispatching the same conversation leaks the old controller.
   const existingController = deps.activeRequests.get(conversation.id);

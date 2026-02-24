@@ -1,5 +1,24 @@
 [PLANS]
 
+- 2026-02-24T19:41:58+01:00 [USER] Remove `Search/Maps` toggles from Agent Room plan and remove native multimodal from plan scope.
+
+- 2026-02-24T19:36:41+01:00 [USER] Compare inserted frontpage code in `docs/plans/2026-02-24-multi-agent-spawn` against current Agent Room plan and integrate all missing functions into our plan.
+
+- 2026-02-24T19:23:53+01:00 [USER] Remove `Evaluation` from Agent Room swarm phase sequence.
+
+- 2026-02-24T19:20:34+01:00 [USER] Update Agent Room plan to match explicit `New Swarm -> Deploy Agents -> automated multi-phase swarm workflow` expectation.
+
+- 2026-02-24T19:02:04+01:00 [USER] Create Option-B implementation plan for new sidebar page `Agent Room`, minimizing code changes and reusing native Agent v2 runtime.
+
+- 2026-02-24T17:59:12Z [USER] Remove all hardcoded models for memory runtime; require Model Hub-driven model selection and independent Mem0 operation.
+
+- 2026-02-24T18:49:38+01:00 [USER] Analyze `docs/plans/2026-02-24-multi-agent-spawn` for a new "Agent Spawn" page and map implementation options against the current OpenClaw architecture.
+
+- 2026-02-24T17:25:46Z [USER] Verify that embedding switch from Gemini to Qwen is actually active and whether switching to a very different embedding model causes persistence issues.
+
+- 2026-02-24T14:48:22Z [USER] Compare OpenClaw with badlogic/pi-mono and extract actionable agent-harness learnings for potential adoption.
+
+- 2026-02-24T15:31:29+01:00 [USER] Analyze `docs/plans/2026-02-24-skillmd-system.md` against implementation; identify defects and evaluate whether SKILL.md should be converted to JSON integration.
 - 2026-02-24T03:36:16+01:00 [USER] Implement both remaining items: user-friendly conversation-delete error messaging in WebUI and integration coverage for `/project delete` + conversation delete flow.
 - 2026-02-24T02:21:49Z [USER] Create `DISCRIPTION.MD` with simple-language WebApp description and a complete feature/function list.
 - 2026-02-23T16:54:13Z [TOOL] Stabilize Codex tool naming for OpenAI-compatible function schema by removing invalid dot in tool name while keeping backward compatibility.
@@ -22,6 +41,14 @@
 - 2026-02-24T03:25:39+01:00 [USER] WebUI conversation delete returns `500` after project deletions (`DELETE /api/channels/conversations?id=...`).
 
 [DECISIONS]
+
+- 2026-02-24T19:41:58+01:00 [CODE] Agent Room plan scope is reduced by explicit user request: no Search/Maps grounding toggles and no native multimodal capabilities in MVP or deferred phase list.
+
+- 2026-02-24T19:36:41+01:00 [CODE] Agent Room plan is expanded to include frontpage parity features in MVP where possible (sidebar swarms, layout modes, tabs, SVG logic graph, artifact history, conflict radar, controls, export) while explicitly deferring backend-heavy items (workspace live preview, 3-pillar boards, multimodal runtime) to Phase 2.
+
+- 2026-02-24T17:59:12Z [CODE] Extended Mem0 sync surface to both profiles: `p1` syncs `/configure/llm`, `p1-embeddings` syncs `/configure/embedder`; pipeline mutations now trigger the relevant sync path(s).
+- 2026-02-24T17:59:12Z [CODE] Removed Gemini-hardcoded bootstrap in `docker/mem0-local/main.py`; runtime now starts unconfigured unless optional bootstrap env is provided, and exposes explicit readiness via config endpoints.
+- 2026-02-24T17:59:12Z [CODE] Added Mem0 client auto-heal: on `HTTP 503` unconfigured runtime errors, trigger one Model Hub sync attempt (`llm` + `embedder`) and retry the request.
 
 - 2026-02-24T03:36:16+01:00 [CODE] Centralized conversation-delete error mapping in a dedicated frontend helper (`buildConversationDeleteErrorMessage`) and reused it in both AppShell conversation actions and Ops session deletion.
 - 2026-02-24T03:36:16+01:00 [CODE] Added an integration test that validates API-level flow end-to-end: create conversation with persona, `/project new`, `/project delete 1`, then `DELETE /api/channels/conversations` succeeds.
@@ -71,6 +98,24 @@
 - 2026-02-24T03:25:39+01:00 [CODE] Conversation delete flow now removes `conversation_project_state` rows before deleting `conversations` to satisfy SQLite foreign-key constraints.
 
 [PROGRESS]
+
+- 2026-02-24T19:41:58+01:00 [CODE] Updated `docs/plans/2026-02-24-agent-room-option-b-v2-implementation.md` to remove all Search/Maps toggle references (delta analysis, target UX, prompt task, runtime controls task) and removed native multimodal from deferred scope.
+
+- 2026-02-24T19:36:41+01:00 [CODE] Rewrote `docs/plans/2026-02-24-agent-room-option-b-v2-implementation.md` with a delta-analysis section and new tasks covering missing frontpage functions, including explicit `Logic Graph (Mermaid->SVG)` implementation and lifecycle controls.
+
+- 2026-02-24T19:23:53+01:00 [CODE] Updated `docs/plans/2026-02-24-agent-room-option-b-v2-implementation.md` phase model to remove `Evaluation` from goal, UX phase list, `SWARM_PHASES` expectation, and phase-rail labels.
+
+- 2026-02-24T19:20:34+01:00 [CODE] Rewrote `docs/plans/2026-02-24-agent-room-option-b-v2-implementation.md` to swarm-first UX: form-driven deploy, deterministic phase state-machine, role-based phase prompts, and v2 event-driven sequencing.
+
+- 2026-02-24T19:02:04+01:00 [CODE] Added plan file `docs/plans/2026-02-24-agent-room-option-b-v2-implementation.md` with TDD-first task sequence for `View.AGENT_ROOM`, AppShell wiring, v2 websocket runtime hook, and Agent Room UI.
+
+- 2026-02-24T17:59:12Z [CODE] Updated `src/server/memory/mem0EmbedderSync.ts` with new `syncMem0LlmFromModelHub()` and shared admin-post helper; preserved embedder sync behavior with dynamic dims probing.
+- 2026-02-24T17:59:12Z [CODE] Updated `app/api/model-hub/pipeline/route.ts` responses to include `mem0LlmSync` and `mem0EmbedderSync` depending on affected profile/action.
+- 2026-02-24T17:59:12Z [CODE] Refactored `docker/mem0-local/main.py` to support `/configure/llm`, unconfigured startup mode, and guarded memory endpoints returning `503` until llm+embedder are present.
+- 2026-02-24T17:59:12Z [CODE] Updated local ops config/docs: `.env.local.example`, `docker-compose.mem0-local.yml`, and `README.md` to remove hard dependency on `GEMINI_API_KEY` for mem0-local startup.
+- 2026-02-24T17:59:12Z [CODE] Added/updated tests: `tests/unit/memory/mem0-embedder-sync.test.ts` (new llm sync coverage) and `tests/unit/memory/mem0-client.test.ts` (auto-sync on 503 recovery path).
+
+- 2026-02-24T18:49:38+01:00 [TOOL] Completed deep architecture scan via explorer for Agent Spawn feasibility across app-shell views, subagent command/runtime flow, gateway `agent.v2.session.*` methods, and current run/log persistence surfaces.
 
 - 2026-02-24T03:36:16+01:00 [CODE] Added `src/modules/app-shell/conversationDeleteError.ts` and wired it into `src/modules/app-shell/useConversationActions.ts` to produce friendly delete-failure messages for 5xx/404/API errors.
 - 2026-02-24T03:36:16+01:00 [CODE] Updated `src/modules/ops/hooks/useOpsSessions.ts` delete path to apply the same conversation-delete error mapping for consistent UX in Ops sessions.
@@ -149,6 +194,27 @@
 
 [DISCOVERIES]
 
+- 2026-02-24T18:26:28Z [TOOL] Live Mem0 endpoint on `http://127.0.0.1:8000` was an older runtime variant: `/configure/llm` and `/configure/embedder` returned `404`, and `/configure` returned `403` (admin disabled), so model-hub sync hooks could not apply runtime changes.
+- 2026-02-24T18:26:28Z [TOOL] After switching to `mem0:local` on `http://127.0.0.1:8010`, sync exposed compatibility issue: qwen/qwen3-embedding-8b returned `4096` dims and Mem0/pgvector failed with `column cannot have more than 2000 dimensions for hnsw index`.
+- 2026-02-24T18:26:28Z [CODE] Mitigation implemented: OpenAI-compatible embedding dispatch now forwards optional `dimensions`, and Mem0 embedder sync uses `MEM0_EMBEDDING_DIMS` as probe hint to down-project when provider supports it.
+
+- 2026-02-24T19:23:53+01:00 [TOOL] Swarm plan phase contract is now 5-step: `Analysis -> Ideation -> Critique -> Best Case -> Result` (supersedes previous 6-step variant that included `Evaluation`).
+
+- 2026-02-24T19:20:34+01:00 [TOOL] Best-fit MVP to mimic swarm behavior without heavy backend change is a client-side orchestrator over one v2 session: phase prompts enforce simulated multi-unit debate/evaluation/consensus while preserving existing runtime contracts.
+
+- 2026-02-24T19:02:04+01:00 [TOOL] Lowest-risk implementation path is frontend-first on existing `/ws-agent-v2` and `agent.v2.session.*` methods; no new mission API or backend persistence layer is required for MVP.
+
+- 2026-02-24T18:49:38+01:00 [TOOL] Existing subagent orchestration is command-centric (`/subagents`) with JSON-file run persistence (`.local/subagent-runs.json`), while the target Nexus-style Agent Spawn concept expects dedicated mission UI + richer structured mission artifacts.
+- 2026-02-24T18:49:38+01:00 [TOOL] Strongest low-risk integration path is a dedicated AppShell `View` backed by current SubagentManager + Agent-v2 session methods first, then optional SQLite `missions` migration and export/trace hardening.
+
+- 2026-02-24T17:25:46Z [TOOL] Runtime DB check (.local/model-hub.db) shows active p1-embeddings entry is openrouter / qwen/qwen3-embedding-8b (priority 1, status active).
+- 2026-02-24T17:25:46Z [TOOL] Live dispatch probe with mocked fetch confirmed dispatchEmbedding uses https://openrouter.ai/api/v1/embeddings and injects model qwen/qwen3-embedding-8b when payload omits model.
+- 2026-02-24T17:25:46Z [CODE] Memory write path (memory/runtime -> Mem0 client) does not persist app-side embedding vectors; storeMemory returns embedding as empty array, so model-hub embedding switch does not change local memory-node vector storage semantics.
+
+- 2026-02-24T14:48:22Z [TOOL] pi-mono coding-agent exposes a reusable harness surface (SDK + RPC + evented lifecycle + extension hooks + provider registration) that can be adopted incrementally without replacing OpenClaw control-plane architecture.
+
+- 2026-02-24T15:31:29+01:00 [TOOL] `aiDispatcher` currently filters SKILL.md parsing results to `tier === 'built-in'` before prompt enrichment, so Tier-2 user/workspace SKILL.md entries are not used at runtime (`userSkillToManifest` remains unused).
+- 2026-02-24T15:31:29+01:00 [TOOL] SkillMD test coverage currently verifies parser/filter/prompt only (16 tests total); loader priority/cache behavior and enricher Tier-2 manifest construction have no direct unit tests.
 - 2026-02-24T03:36:16+01:00 [TOOL] `DELETE /api/channels/conversations` route handler only requires `request.nextUrl.searchParams`, allowing focused integration coverage with a minimal `NextRequest`-compatible stub in tests.
 - 2026-02-23T16:54:13Z [TOOL] Root cause: Codex rejected tools[5].name because multi*tool_use.parallel violates ^[a-zA-Z0-9*-]+$.
 - 2026-02-23T17:02:11Z [CODE] Diagnostics polling executes both `/api/health` and `/api/doctor` every 60s; `/api/doctor` calls `runHealthCommand` internally, so health checks run twice per refresh cycle.
@@ -196,6 +262,30 @@
 
 [OUTCOMES]
 
+- 2026-02-24T19:41:58+01:00 [TOOL] Plan scope clean-up completed per user direction: Agent Room now focuses on swarm workflow + room controls without grounding toggles or multimodal feature track.
+
+- 2026-02-24T19:36:41+01:00 [TOOL] Planning gap closure completed: Agent Room plan now includes the previously missing frontpage capabilities in concrete TDD tasks with MVP vs Phase-2 boundaries.
+
+- 2026-02-24T18:26:28Z [TOOL] Runtime alignment done: `.env.local` now targets `MEM0_BASE_URL=http://127.0.0.1:8010`; `npm run mem0:local:up` stack is running and exposes `/configure`, `/configure/llm`, `/configure/embedder`.
+- 2026-02-24T18:26:28Z [TOOL] Live sync verification after fix: `syncMem0LlmFromModelHub()` => `ok:true` (`p1` xAI), `syncMem0EmbedderFromModelHub()` => `ok:true` (`p1-embeddings` qwen, `embeddingDims:1536`).
+- 2026-02-24T18:26:28Z [TOOL] Mem0 runtime probe succeeded after sync: `POST /memories` and `POST /search` returned `200` (no dimension/index failure in write path).
+
+- 2026-02-24T19:23:53+01:00 [TOOL] Agent Room implementation plan revised per user request: `Evaluation` step removed everywhere in active plan artifacts; phase/test references now align to 5-phase workflow.
+
+- 2026-02-24T19:20:34+01:00 [TOOL] Plan update completed: Agent Room now explicitly targets `New Swarm` + `Deploy Agents` automation with phased swarm rail (`Analysis/Ideation/Evaluation/Critique/Best Case/Result`) and clear MVP-vs-Phase2 boundaries.
+
+- 2026-02-24T19:02:04+01:00 [TOOL] Option-B planning deliverable completed: `Agent Room` plan finalized with phased MVP->hardening strategy, explicit v2 method usage, and minimal-change constraints.
+
+- 2026-02-24T17:59:12Z [TOOL] Verification passed: `pnpm vitest run tests/unit/memory/mem0-embedder-sync.test.ts tests/unit/memory/mem0-client.test.ts tests/integration/model-hub/pipeline-route.test.ts tests/unit/model-hub/service-embeddings.test.ts` (33/33), `pnpm typecheck` (pass), `python -m py_compile docker/mem0-local/main.py` (pass).
+- 2026-02-24T17:59:12Z [TOOL] `pnpm lint` remains failing due pre-existing unrelated rule violations (same baseline class, including `src/server/skills/skillMd/filter.ts` `no-require-imports`); no new lint error tied to this Mem0/model-hub change surfaced.
+
+- 2026-02-24T18:49:38+01:00 [TOOL] Multi-agent spawn plan analysis completed with concrete option matrix (panel vs dedicated view vs full Nexus-room rebuild), recommended phased path (MVP dedicated Agent Spawn view first), and identified dependencies (metrics route/source of truth, JSON->SQLite cutover strategy, workspace preview delivery).
+
+- 2026-02-24T17:25:46Z [TOOL] Verification passed: pnpm vitest run tests/unit/model-hub/service-embeddings.test.ts tests/unit/model-hub/model-fetcher.test.ts tests/unit/memory/sqlite-memory-repository.test.ts (26/26).
+
+- 2026-02-24T14:48:22Z [TOOL] Comparative analysis completed with concrete agent-harness adoption opportunities (event contract, queued steering/follow-up, extension lifecycle hooks, provider plugin registration, RPC bridge strategy).
+
+- 2026-02-24T15:31:29+01:00 [TOOL] SkillMD plan-vs-implementation review completed: one medium gap found (Tier-2 runtime path not wired), one low-risk testing gap found (missing loader/enricher tests), targeted SkillMD unit tests pass (`tests/unit/skillMd-*.test.ts`: 16/16).
 - 2026-02-24T03:36:16+01:00 [TOOL] Verification passed for delete-UX + flow coverage: `pnpm vitest run tests/unit/modules/app-shell/conversation-delete-error.test.ts tests/integration/channels/project-delete-conversation-delete-flow.test.ts` (5/5), `pnpm typecheck` (pass), `pnpm lint` (9 warnings, 0 errors).
 - 2026-02-24T02:21:49Z [TOOL] Documentation request completed: `DISCRIPTION.MD` now exists in project root and describes the WebApp in simple language with comprehensive function listing.
 - 2026-02-23T16:54:13Z [TOOL] Verification passed: vitest targeted suites (13 tests) and tsc --noEmit.
@@ -237,3 +327,15 @@
 - 2026-02-24T03:25:39+01:00 [TOOL] Verification passed for conversation-delete FK fix: `pnpm vitest run tests/unit/channels/project-repository.test.ts tests/unit/channels/repository-query-modules.test.ts tests/unit/channels/message-service-delete-conversation.test.ts` (19/19), `pnpm typecheck` (pass), `pnpm lint` (9 warnings, 0 errors).
 - 2026-02-24T03:04:39+01:00 [TOOL] Root README audit completed (no code changes): update recommended for provider inventory/endpoints, version metadata, env variable guidance, and test/check wording.
 - 2026-02-24T03:09:26+01:00 [TOOL] README refresh completed and validated via targeted grep + git diff review; no runtime code changed.
+
+- 2026-02-24T16:35:16+01:00 [USER] Requested direct implementation of Agent-Harness v2.1 hardening plan (points 1, 2, 3, 5) with production-ready posture.
+- 2026-02-24T16:35:16+01:00 [CODE] Implemented additive Agent v2 stack: `src/server/agent-v2/{types,errors,repository,sessionManager,runtime,extensions/*}` with queue-first command model, startup recovery, replay window enforcement, and lifecycle hook host.
+- 2026-02-24T16:35:16+01:00 [CODE] Added dedicated v2 RPC + transport wiring: `src/server/gateway/methods/agent-v2.ts`, method-router namespace split (`v1`/`v2`), protocol-aware connection handling, and `/ws-agent-v2` upgrade path.
+- 2026-02-24T16:35:16+01:00 [CODE] Added v2 client and runbook docs: `src/modules/gateway/ws-agent-v2-client.ts` and `docs/AGENT_V2_RUNBOOK.md`.
+- 2026-02-24T16:35:16+01:00 [TOOL] Verification: `pnpm typecheck` PASS; targeted vitest suites PASS (`tests/unit/agent-v2/repository.test.ts`, `tests/unit/gateway/agent-v2-methods.test.ts`, `tests/unit/gateway/method-router.test.ts`, `tests/unit/gateway/connection-handler.test.ts`, `tests/unit/gateway/chat-methods.test.ts`).
+- 2026-02-24T16:35:16+01:00 [TOOL] `pnpm lint` currently fails on pre-existing unrelated error in `src/server/skills/skillMd/filter.ts` (`no-require-imports`), while new Agent-v2 files are type-safe and test-validated.
+- 2026-02-24T18:04:45+01:00 [USER] Requested removal of v2 runtime fallback logic to reduce complexity ('either it works or not').
+- 2026-02-24T18:04:45+01:00 [CODE] Removed `AGENT_V2_RUNTIME_SELECTOR` fallback path in `server.ts`; `/ws-agent-v2` now always binds to protocol `v2`.
+- 2026-02-24T18:04:45+01:00 [CODE] Updated runbook to remove runtime-selector mention (`docs/AGENT_V2_RUNBOOK.md`).
+- 2026-02-24T18:04:45+01:00 [TOOL] Verification after fallback removal: `pnpm typecheck` PASS; `pnpm vitest run tests/unit/gateway/connection-handler.test.ts tests/unit/gateway/agent-v2-methods.test.ts` PASS (15/15).
+

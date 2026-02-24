@@ -11,12 +11,18 @@ import type { Skill } from '@/shared/domain/types';
 import browser from '@/skills/browser';
 import filesystem from '@/skills/filesystem';
 import github from '@/skills/github-manager';
+import httpRequest from '@/skills/http-request';
 import multiToolUseParallel from '@/skills/multi-tool-use-parallel';
+import notifications from '@/skills/notifications';
+import pdfGenerate from '@/skills/pdf-generate';
+import processManager from '@/skills/process-manager';
 import python from '@/skills/python-runtime';
 import shell from '@/skills/shell-access';
 import sql from '@/skills/sql-bridge';
 import subagents from '@/skills/subagents';
 import vision from '@/skills/vision';
+import webFetch from '@/skills/web-fetch';
+import webSearch from '@/skills/web-search';
 
 interface SkillModule {
   id: string;
@@ -35,12 +41,18 @@ for (const mod of [
   browser,
   filesystem,
   github,
+  httpRequest,
   multiToolUseParallel,
+  notifications,
+  pdfGenerate,
+  processManager,
   python,
   shell,
   sql,
   subagents,
   vision,
+  webFetch,
+  webSearch,
 ] as SkillModule[]) {
   FUNCTION_TO_SKILL[mod.functionName] = mod.id;
   MODULES[mod.id] = mod;
