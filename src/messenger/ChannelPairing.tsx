@@ -82,6 +82,9 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({
 
   const isBridgeTab = activeTab === 'whatsapp' || activeTab === 'imessage';
   const activeBridgeTab = isBridgeTab ? (activeTab as BridgeTab) : null;
+  const activeAccountSelectId = activeBridgeTab ? `${activeBridgeTab}-active-account` : '';
+  const newAccountInputId = activeBridgeTab ? `${activeBridgeTab}-new-account` : '';
+  const allowFromInputId = activeBridgeTab ? `${activeBridgeTab}-allow-from` : '';
 
   const selectedBridgeAccountMeta = useMemo(() => {
     if (!activeBridgeTab) return null;
@@ -493,8 +496,11 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({
               </h4>
               <div className="flex flex-wrap gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-zinc-500">Active</label>
+                  <label htmlFor={activeAccountSelectId} className="text-xs text-zinc-500">
+                    Active
+                  </label>
                   <select
+                    id={activeAccountSelectId}
                     value={selectedBridgeAccount[activeBridgeTab]}
                     onChange={(e) =>
                       setSelectedBridgeAccount((prev) => ({
@@ -512,9 +518,12 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({
                   </select>
                 </div>
                 <div className="flex min-w-40 flex-1 flex-col gap-1.5">
-                  <label className="text-xs text-zinc-500">Add Account</label>
+                  <label htmlFor={newAccountInputId} className="text-xs text-zinc-500">
+                    Add Account
+                  </label>
                   <div className="flex gap-2">
                     <input
+                      id={newAccountInputId}
                       value={newBridgeAccountDraft[activeBridgeTab]}
                       onChange={(e) =>
                         setNewBridgeAccountDraft((prev) => ({
@@ -538,7 +547,7 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({
               {activeTab === 'whatsapp' && (
                 <div className="mt-4 border-t border-zinc-800 pt-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs text-zinc-500">
+                    <label htmlFor={allowFromInputId} className="text-xs text-zinc-500">
                       Allow From{' '}
                       <span className="text-zinc-600">
                         — optional comma-separated sender filters
@@ -546,6 +555,7 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({
                     </label>
                     <div className="flex gap-2">
                       <input
+                        id={allowFromInputId}
                         value={allowFromInput}
                         onChange={(e) => setAllowFromInput(e.target.value)}
                         placeholder="+49123, +49888, sales-team"

@@ -124,7 +124,7 @@ export async function registerSubAgentSession(params: RegisterSubAgentParams): P
  * Mark a sub-agent session as completed
  * Updates the session status to 'completed' and sets ended_at timestamp
  */
-export async function completeSubAgentSession(sessionId: string, summary?: string): Promise<void> {
+export async function completeSubAgentSession(sessionId: string, _summary?: string): Promise<void> {
   try {
     const response = await fetch(`${MISSION_CONTROL_URL}/api/openclaw/sessions/${sessionId}`, {
       method: 'PATCH',

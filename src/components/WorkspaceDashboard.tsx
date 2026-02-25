@@ -199,14 +199,14 @@ function WorkspaceCard({
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setShowDeleteConfirm(false)}
-        >
-          <div
-            className="bg-mc-bg-secondary border-mc-border w-full max-w-md rounded-xl border p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <button
+            type="button"
+            aria-label="Close delete confirmation"
+            onClick={() => setShowDeleteConfirm(false)}
+            className="absolute inset-0"
+          />
+          <div className="bg-mc-bg-secondary border-mc-border relative w-full max-w-md rounded-xl border p-6">
             <div className="mb-4 flex items-center gap-3">
               <div className="bg-mc-accent-red/20 rounded-full p-3">
                 <AlertTriangle className="text-mc-accent-red h-6 w-6" />
@@ -299,7 +299,7 @@ function CreateWorkspaceModal({
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           {/* Icon selector */}
           <div>
-            <label className="mb-2 block text-sm font-medium">Icon</label>
+            <p className="mb-2 block text-sm font-medium">Icon</p>
             <div className="flex flex-wrap gap-2">
               {icons.map((i) => (
                 <button
@@ -320,14 +320,16 @@ function CreateWorkspaceModal({
 
           {/* Name input */}
           <div>
-            <label className="mb-2 block text-sm font-medium">Name</label>
+            <label htmlFor="workspace-name-input" className="mb-2 block text-sm font-medium">
+              Name
+            </label>
             <input
+              id="workspace-name-input"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Acme Corp"
               className="bg-mc-bg border-mc-border focus:border-mc-accent w-full rounded-lg border px-4 py-2 focus:outline-none"
-              autoFocus
             />
           </div>
 

@@ -17,9 +17,9 @@ import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
 import {
   SWARM_PHASES,
   type SwarmPhase,
+  type ResolvedSwarmUnit,
   getSwarmPhaseLabel,
 } from '@/modules/agent-room/swarmPhases';
-import type { ResolvedSwarmUnit } from '@/modules/agent-room/swarmPhases';
 import { parseAgentTurns, type ParsedAgentTurn } from '@/modules/agent-room/agentTurnParser';
 
 export interface SwarmMessage {

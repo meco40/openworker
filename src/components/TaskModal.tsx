@@ -103,21 +103,23 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
           // If planning mode is enabled, auto-generate questions and keep modal open
           if (usePlanningMode) {
             // Trigger question generation in background
-            fetch(`/api/tasks/${savedTask.id}/planning`, { method: 'POST' })
-              .then((res) => {
-                if (res.ok) {
+            void (async () => {
+              try {
+                const planningRes = await fetch(`/api/tasks/${savedTask.id}/planning`, {
+                  method: 'POST',
+                });
+                if (planningRes.ok) {
                   // Update our local task reference and switch to planning tab
                   updateTask({ ...savedTask, status: 'planning' });
                   setActiveTab('planning');
-                } else {
-                  return res.json().then((data) => {
-                    console.error('Failed to start planning:', data.error);
-                  });
+                  return;
                 }
-              })
-              .catch((error) => {
+                const data = await planningRes.json();
+                console.error('Failed to start planning:', data.error);
+              } catch (error) {
                 console.error('Failed to start planning:', error);
-              });
+              }
+            })();
           }
           onClose();
         }
@@ -202,8 +204,11 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Title */}
               <div>
-                <label className="mb-1 block text-sm font-medium">Title</label>
+                <label htmlFor="task-title" className="mb-1 block text-sm font-medium">
+                  Title
+                </label>
                 <input
+                  id="task-title"
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -215,8 +220,11 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
 
               {/* Description */}
               <div>
-                <label className="mb-1 block text-sm font-medium">Description</label>
+                <label htmlFor="task-description" className="mb-1 block text-sm font-medium">
+                  Description
+                </label>
                 <textarea
+                  id="task-description"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={3}
@@ -228,33 +236,40 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
               {/* Planning Mode Toggle - only for new tasks */}
               {!task && (
                 <div className="bg-mc-bg border-mc-border rounded-lg border p-3">
-                  <label className="flex cursor-pointer items-start gap-3">
+                  <div className="flex items-start gap-3">
                     <input
+                      id="task-planning-mode"
                       type="checkbox"
                       checked={usePlanningMode}
                       onChange={(e) => setUsePlanningMode(e.target.checked)}
                       className="border-mc-border mt-0.5 h-4 w-4 rounded"
                     />
                     <div>
-                      <span className="flex items-center gap-2 text-sm font-medium">
+                      <label
+                        htmlFor="task-planning-mode"
+                        className="flex cursor-pointer items-center gap-2 text-sm font-medium"
+                      >
                         <ClipboardList className="text-mc-accent h-4 w-4" />
                         Enable Planning Mode
-                      </span>
+                      </label>
                       <p className="text-mc-text-secondary mt-1 text-xs">
                         Best for complex projects that need detailed requirements. You&apos;ll
                         answer a few questions to define scope, goals, and constraints before work
                         begins. Skip this for quick, straightforward tasks.
                       </p>
                     </div>
-                  </label>
+                  </div>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-4">
                 {/* Status */}
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Status</label>
+                  <label htmlFor="task-status" className="mb-1 block text-sm font-medium">
+                    Status
+                  </label>
                   <select
+                    id="task-status"
                     value={form.status}
                     onChange={(e) => setForm({ ...form, status: e.target.value as TaskStatus })}
                     className="bg-mc-bg border-mc-border focus:border-mc-accent w-full rounded border px-3 py-2 text-sm focus:outline-none"
@@ -269,8 +284,11 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
 
                 {/* Priority */}
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Priority</label>
+                  <label htmlFor="task-priority" className="mb-1 block text-sm font-medium">
+                    Priority
+                  </label>
                   <select
+                    id="task-priority"
                     value={form.priority}
                     onChange={(e) => setForm({ ...form, priority: e.target.value as TaskPriority })}
                     className="bg-mc-bg border-mc-border focus:border-mc-accent w-full rounded border px-3 py-2 text-sm focus:outline-none"
@@ -286,8 +304,11 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
 
               {/* Assigned Agent */}
               <div>
-                <label className="mb-1 block text-sm font-medium">Assign to</label>
+                <label htmlFor="task-assigned-agent" className="mb-1 block text-sm font-medium">
+                  Assign to
+                </label>
                 <select
+                  id="task-assigned-agent"
                   value={form.assigned_agent_id}
                   onChange={(e) => {
                     if (e.target.value === '__add_new__') {
@@ -312,8 +333,11 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
 
               {/* Due Date */}
               <div>
-                <label className="mb-1 block text-sm font-medium">Due Date</label>
+                <label htmlFor="task-due-date" className="mb-1 block text-sm font-medium">
+                  Due Date
+                </label>
                 <input
+                  id="task-due-date"
                   type="datetime-local"
                   value={form.due_date}
                   onChange={(e) => setForm({ ...form, due_date: e.target.value })}

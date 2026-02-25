@@ -13,6 +13,23 @@ interface ActivityLogProps {
   taskId: string;
 }
 
+function getActivityIcon(type: string): string {
+  switch (type) {
+    case 'spawned':
+      return '🚀';
+    case 'updated':
+      return '✏️';
+    case 'completed':
+      return '✅';
+    case 'file_created':
+      return '📄';
+    case 'status_changed':
+      return '🔄';
+    default:
+      return '📝';
+  }
+}
+
 export function ActivityLog({ taskId }: ActivityLogProps) {
   const [activities, setActivities] = useState<TaskActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,23 +91,6 @@ export function ActivityLog({ taskId }: ActivityLogProps) {
       }
     };
   }, [taskId, pollForActivities]);
-
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'spawned':
-        return '🚀';
-      case 'updated':
-        return '✏️';
-      case 'completed':
-        return '✅';
-      case 'file_created':
-        return '📄';
-      case 'status_changed':
-        return '🔄';
-      default:
-        return '📝';
-    }
-  };
 
   if (loading) {
     return (

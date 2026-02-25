@@ -40,7 +40,7 @@ function stripMarkdown(text: string): string {
     .replace(/^#{1,6}\s+/gm, '') // headings
     .replace(/^[-*+]\s+/gm, '') // bullets
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
-    .replace(/[\[\]{}|#]/g, '') // stray brackets
+    .replace(/[[\]{}|#]/g, '') // stray brackets
     .replace(/\s+/g, ' ')
     .trim();
 }

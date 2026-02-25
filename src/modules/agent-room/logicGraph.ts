@@ -40,7 +40,7 @@ function stripMarkdown(text: string): string {
     .replace(/^#+\s*/gm, '')
     .replace(/^[-*]\s+/gm, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/[\[\](){}|]/g, '')
+    .replace(/[[\](){}|]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -91,7 +91,9 @@ function buildAutoFlowchart(
       .split(/\n\n---\n\n/)
       .map((s) => s.trim())
       .filter(Boolean);
-    if (sections.length === 0) return null;
+    // A single plain text block is not enough signal for a logic graph.
+    // Keep null behavior unless explicit phase metadata is available.
+    if (sections.length <= 1) return null;
     phasesToShow = sections.map((_, i) => SWARM_PHASES[i]).filter(Boolean) as SwarmPhase[];
   }
 

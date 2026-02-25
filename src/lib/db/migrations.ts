@@ -20,7 +20,7 @@ const migrations: Migration[] = [
   {
     id: '001',
     name: 'initial_schema',
-    up: (db) => {
+    up: (_db) => {
       // Core tables - these are created in schema.ts on fresh databases
       // This migration exists to mark the baseline for existing databases
       console.log('[Migration 001] Baseline schema marker');

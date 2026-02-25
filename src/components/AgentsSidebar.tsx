@@ -13,6 +13,15 @@ interface AgentsSidebarProps {
   workspaceId?: string;
 }
 
+function getStatusBadge(status: AgentStatus): string {
+  const styles = {
+    standby: 'status-standby',
+    working: 'status-working',
+    offline: 'status-offline',
+  };
+  return styles[status] || styles.standby;
+}
+
 export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
   const {
     agents,
@@ -111,15 +120,6 @@ export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
     if (filter === 'all') return true;
     return agent.status === filter;
   });
-
-  const getStatusBadge = (status: AgentStatus) => {
-    const styles = {
-      standby: 'status-standby',
-      working: 'status-working',
-      offline: 'status-offline',
-    };
-    return styles[status] || styles.standby;
-  };
 
   return (
     <aside

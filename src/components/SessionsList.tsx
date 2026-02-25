@@ -27,6 +27,46 @@ interface SessionsListProps {
   taskId: string;
 }
 
+function getStatusIcon(status: string) {
+  switch (status) {
+    case 'active':
+      return <Circle className="h-4 w-4 animate-pulse fill-current text-green-500" />;
+    case 'completed':
+      return <CheckCircle className="text-mc-accent h-4 w-4" />;
+    case 'failed':
+      return <XCircle className="h-4 w-4 text-red-500" />;
+    default:
+      return <Circle className="text-mc-text-secondary h-4 w-4" />;
+  }
+}
+
+function formatDuration(start: string, end?: string | null): string {
+  const startTime = new Date(start).getTime();
+  const endTime = end ? new Date(end).getTime() : Date.now();
+  const duration = endTime - startTime;
+
+  const seconds = Math.floor(duration / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+
+  if (hours > 0) {
+    return `${hours}h ${minutes % 60}m`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds % 60}s`;
+  }
+  return `${seconds}s`;
+}
+
+function formatTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 export function SessionsList({ taskId }: SessionsListProps) {
   const [sessions, setSessions] = useState<SessionWithAgent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,47 +88,6 @@ export function SessionsList({ taskId }: SessionsListProps) {
   useEffect(() => {
     loadSessions();
   }, [loadSessions]);
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Circle className="h-4 w-4 animate-pulse fill-current text-green-500" />;
-      case 'completed':
-        return <CheckCircle className="text-mc-accent h-4 w-4" />;
-      case 'failed':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return <Circle className="text-mc-text-secondary h-4 w-4" />;
-    }
-  };
-
-  const formatDuration = (start: string, end?: string | null) => {
-    const startTime = new Date(start).getTime();
-    const endTime = end ? new Date(end).getTime() : Date.now();
-    const duration = endTime - startTime;
-
-    const seconds = Math.floor(duration / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-
-    if (hours > 0) {
-      return `${hours}h ${minutes % 60}m`;
-    } else if (minutes > 0) {
-      return `${minutes}m ${seconds % 60}s`;
-    } else {
-      return `${seconds}s`;
-    }
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  };
 
   const handleMarkComplete = async (sessionId: string) => {
     try {

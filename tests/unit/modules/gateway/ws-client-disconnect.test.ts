@@ -52,8 +52,7 @@ describe('GatewayClient disconnect behavior', () => {
 
   afterEach(() => {
     if (originalWebSocket === undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (globalThis as any).WebSocket;
+      Reflect.deleteProperty(globalThis, 'WebSocket');
     } else {
       globalThis.WebSocket = originalWebSocket;
     }
@@ -76,4 +75,3 @@ describe('GatewayClient disconnect behavior', () => {
     expect(socket.closeCalls[0]).toEqual({ code: 1000, reason: 'client disconnect' });
   });
 });
-

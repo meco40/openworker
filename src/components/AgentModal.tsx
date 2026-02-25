@@ -15,7 +15,7 @@ interface AgentModalProps {
 const EMOJI_OPTIONS = ['🤖', '🦞', '💻', '🔍', '✍️', '🎨', '📊', '🧠', '⚡', '🚀', '🎯', '🔧'];
 
 export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: AgentModalProps) {
-  const { addAgent, updateAgent, agents } = useMissionControl();
+  const { addAgent, updateAgent } = useMissionControl();
   const [activeTab, setActiveTab] = useState<'info' | 'soul' | 'user' | 'agents'>('info');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
@@ -156,7 +156,7 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
             <div className="space-y-4">
               {/* Avatar Selection */}
               <div>
-                <label className="mb-2 block text-sm font-medium">Avatar</label>
+                <p className="mb-2 block text-sm font-medium">Avatar</p>
                 <div className="flex flex-wrap gap-2">
                   {EMOJI_OPTIONS.map((emoji) => (
                     <button
@@ -175,8 +175,11 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
 
               {/* Name */}
               <div>
-                <label className="mb-1 block text-sm font-medium">Name</label>
+                <label htmlFor="agent-name" className="mb-1 block text-sm font-medium">
+                  Name
+                </label>
                 <input
+                  id="agent-name"
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -188,8 +191,11 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
 
               {/* Role */}
               <div>
-                <label className="mb-1 block text-sm font-medium">Role</label>
+                <label htmlFor="agent-role" className="mb-1 block text-sm font-medium">
+                  Role
+                </label>
                 <input
+                  id="agent-role"
                   type="text"
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
@@ -201,8 +207,11 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
 
               {/* Description */}
               <div>
-                <label className="mb-1 block text-sm font-medium">Description</label>
+                <label htmlFor="agent-description" className="mb-1 block text-sm font-medium">
+                  Description
+                </label>
                 <textarea
+                  id="agent-description"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={2}
@@ -213,8 +222,11 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
 
               {/* Status */}
               <div>
-                <label className="mb-1 block text-sm font-medium">Status</label>
+                <label htmlFor="agent-status" className="mb-1 block text-sm font-medium">
+                  Status
+                </label>
                 <select
+                  id="agent-status"
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value as AgentStatus })}
                   className="bg-mc-bg border-mc-border focus:border-mc-accent w-full rounded border px-3 py-2 text-sm focus:outline-none"
@@ -241,7 +253,7 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
 
               {/* Model Selection */}
               <div>
-                <label className="mb-1 block text-sm font-medium">
+                <label htmlFor="agent-model" className="mb-1 block text-sm font-medium">
                   Model
                   {defaultModel && form.model === defaultModel && (
                     <span className="text-mc-text-secondary ml-2 text-xs">(Default)</span>
@@ -251,6 +263,7 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
                   <div className="text-mc-text-secondary text-sm">Loading available models...</div>
                 ) : (
                   <select
+                    id="agent-model"
                     value={form.model}
                     onChange={(e) => setForm({ ...form, model: e.target.value })}
                     className="bg-mc-bg border-mc-border focus:border-mc-accent w-full rounded border px-3 py-2 text-sm focus:outline-none"
@@ -273,10 +286,11 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
 
           {activeTab === 'soul' && (
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <label htmlFor="agent-soul-md" className="mb-2 block text-sm font-medium">
                 SOUL.md - Agent Personality & Identity
               </label>
               <textarea
+                id="agent-soul-md"
                 value={form.soul_md}
                 onChange={(e) => setForm({ ...form, soul_md: e.target.value })}
                 rows={15}
@@ -288,10 +302,11 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
 
           {activeTab === 'user' && (
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <label htmlFor="agent-user-md" className="mb-2 block text-sm font-medium">
                 USER.md - Context About the Human
               </label>
               <textarea
+                id="agent-user-md"
                 value={form.user_md}
                 onChange={(e) => setForm({ ...form, user_md: e.target.value })}
                 rows={15}
@@ -303,8 +318,11 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
 
           {activeTab === 'agents' && (
             <div>
-              <label className="mb-2 block text-sm font-medium">AGENTS.md - Team Awareness</label>
+              <label htmlFor="agent-agents-md" className="mb-2 block text-sm font-medium">
+                AGENTS.md - Team Awareness
+              </label>
               <textarea
+                id="agent-agents-md"
                 value={form.agents_md}
                 onChange={(e) => setForm({ ...form, agents_md: e.target.value })}
                 rows={15}

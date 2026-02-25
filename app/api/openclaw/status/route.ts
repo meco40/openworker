@@ -9,7 +9,7 @@ export async function GET() {
     if (!client.isConnected()) {
       try {
         await client.connect();
-      } catch (err) {
+      } catch (_err) {
         return NextResponse.json({
           connected: false,
           error: 'Failed to connect to OpenClaw Gateway',
@@ -27,7 +27,7 @@ export async function GET() {
         sessions: sessions,
         gateway_url: process.env.OPENCLAW_GATEWAY_URL || 'ws://127.0.0.1:18789',
       });
-    } catch (err) {
+    } catch (_err) {
       return NextResponse.json({
         connected: true,
         error: 'Connected but failed to list sessions',

@@ -36,7 +36,7 @@ export function DiscoverAgentsModal({ onClose, workspaceId }: DiscoverAgentsModa
       }
       const data = await res.json();
       setAgents(data.agents || []);
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to connect to the server');
     } finally {
       setLoading(false);
@@ -111,7 +111,7 @@ export function DiscoverAgentsModal({ onClose, workspaceId }: DiscoverAgentsModa
       // Refresh the discovery list
       await discover();
       setSelectedIds(new Set());
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to import agents');
     } finally {
       setImporting(false);
@@ -217,8 +217,10 @@ export function DiscoverAgentsModal({ onClose, workspaceId }: DiscoverAgentsModa
                   const isImported = agent.already_imported;
 
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={agent.id}
+                      disabled={isImported}
                       className={`flex items-center gap-3 rounded-lg border p-3 transition-colors ${
                         isImported
                           ? 'border-mc-border/50 bg-mc-bg/50 opacity-60'
@@ -226,7 +228,7 @@ export function DiscoverAgentsModal({ onClose, workspaceId }: DiscoverAgentsModa
                             ? 'border-mc-accent/50 bg-mc-accent/5'
                             : 'border-mc-border hover:border-mc-border/80 hover:bg-mc-bg-tertiary cursor-pointer'
                       }`}
-                      onClick={() => !isImported && toggleSelection(agent.id)}
+                      onClick={() => toggleSelection(agent.id)}
                     >
                       {/* Checkbox */}
                       <div
@@ -265,7 +267,7 @@ export function DiscoverAgentsModal({ onClose, workspaceId }: DiscoverAgentsModa
                           <span className="text-mc-text-secondary/60">ID: {agent.id}</span>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>

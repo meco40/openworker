@@ -15,19 +15,54 @@ function ensureOutputDir(dir: string): void {
   fs.mkdirSync(dir, { recursive: true });
 }
 
-function markdownToHtml(markdown: string): string {
-  // Basic markdown-to-HTML conversion (no external libraries)
-  return markdown
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+function formatInlineMarkdown(content: string): string {
+  return content
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code>$1</code>')
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>\n?)+/g, (match) => `<ul>${match}</ul>`)
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/^(?!<[hul]).+/gm, (line) => (line.trim() ? line : ''));
+    .replace(/`(.+?)`/g, '<code>$1</code>');
+}
+
+function markdownToHtml(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const output: string[] = [];
+  let listBuffer: string[] = [];
+
+  const flushList = () => {
+    if (listBuffer.length === 0) return;
+    output.push('<ul>', ...listBuffer, '</ul>');
+    listBuffer = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      flushList();
+      continue;
+    }
+
+    if (line.startsWith('- ')) {
+      listBuffer.push(`<li>${formatInlineMarkdown(line.slice(2))}</li>`);
+      continue;
+    }
+
+    flushList();
+    if (line.startsWith('### ')) {
+      output.push(`<h3>${formatInlineMarkdown(line.slice(4))}</h3>`);
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      output.push(`<h2>${formatInlineMarkdown(line.slice(3))}</h2>`);
+      continue;
+    }
+    if (line.startsWith('# ')) {
+      output.push(`<h1>${formatInlineMarkdown(line.slice(2))}</h1>`);
+      continue;
+    }
+    output.push(`<p>${formatInlineMarkdown(line)}</p>`);
+  }
+
+  flushList();
+  return output.join('\n');
 }
 
 function wrapInHtmlPage(content: string, title: string): string {

@@ -14,6 +14,29 @@ interface DeliverablesListProps {
   taskId: string;
 }
 
+function getDeliverableIcon(type: string) {
+  switch (type) {
+    case 'file':
+      return <FileText className="h-5 w-5" />;
+    case 'url':
+      return <LinkIcon className="h-5 w-5" />;
+    case 'artifact':
+      return <Package className="h-5 w-5" />;
+    default:
+      return <FileText className="h-5 w-5" />;
+  }
+}
+
+function formatTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 export function DeliverablesList({ taskId }: DeliverablesListProps) {
   const [deliverables, setDeliverables] = useState<TaskDeliverable[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,19 +58,6 @@ export function DeliverablesList({ taskId }: DeliverablesListProps) {
   useEffect(() => {
     loadDeliverables();
   }, [loadDeliverables]);
-
-  const getDeliverableIcon = (type: string) => {
-    switch (type) {
-      case 'file':
-        return <FileText className="h-5 w-5" />;
-      case 'url':
-        return <LinkIcon className="h-5 w-5" />;
-      case 'artifact':
-        return <Package className="h-5 w-5" />;
-      default:
-        return <FileText className="h-5 w-5" />;
-    }
-  };
 
   const handleOpen = async (deliverable: TaskDeliverable) => {
     // URLs open directly in new tab
@@ -101,16 +111,6 @@ export function DeliverablesList({ taskId }: DeliverablesListProps) {
       debug.file('Opening preview', { path: deliverable.path });
       window.open(`/api/files/preview?path=${encodeURIComponent(deliverable.path)}`, '_blank');
     }
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
   };
 
   if (loading) {

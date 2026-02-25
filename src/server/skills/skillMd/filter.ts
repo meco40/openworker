@@ -6,6 +6,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
+import { accessSync, constants } from 'node:fs';
 import path from 'node:path';
 
 import type { ParsedSkillMd } from './types';
@@ -105,7 +106,6 @@ function checkBin(bin: string): boolean {
   for (const dir of pathDirs) {
     for (const candidate of candidates) {
       try {
-        const { accessSync, constants } = require('node:fs') as typeof import('node:fs');
         accessSync(path.join(dir, candidate), constants.X_OK);
         return true;
       } catch {

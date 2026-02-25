@@ -83,6 +83,9 @@ export const GenericChannelHandler: React.FC<GenericChannelHandlerProps> = ({
 }) => {
   const c = accentClasses[accent];
   const hasTokenInput = typeof token === 'string' && typeof setToken === 'function';
+  const idPrefix = title.toLowerCase().replace(/\s+/g, '-');
+  const tokenInputId = `${idPrefix}-token`;
+  const simMessageInputId = `${idPrefix}-sim-message`;
 
   if (channel.status === 'idle') {
     return (
@@ -100,8 +103,14 @@ export const GenericChannelHandler: React.FC<GenericChannelHandlerProps> = ({
         </div>
         {hasTokenInput && (
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Bot Token</label>
+            <label
+              htmlFor={tokenInputId}
+              className="mb-1.5 block text-xs font-medium text-zinc-400"
+            >
+              Bot Token
+            </label>
             <input
+              id={tokenInputId}
               type="text"
               value={token}
               onChange={(e) => setToken!(e.target.value)}
@@ -181,11 +190,15 @@ export const GenericChannelHandler: React.FC<GenericChannelHandlerProps> = ({
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+        <label
+          htmlFor={simMessageInputId}
+          className="mb-1.5 block text-xs font-medium text-zinc-400"
+        >
           Test Inbound Message
         </label>
         <div className="flex gap-2">
           <input
+            id={simMessageInputId}
             value={simMessage}
             onChange={(e) => setSimMessage(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onSimulate()}

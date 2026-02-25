@@ -22,6 +22,11 @@ const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
   { id: 'done', label: 'DONE', color: 'border-t-mc-accent-green' },
 ];
 
+function handleDragOver(e: React.DragEvent): void {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
 export function MissionQueue({ workspaceId }: MissionQueueProps) {
   const { tasks, updateTaskStatus, addEvent } = useMissionControl();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -33,11 +38,6 @@ export function MissionQueue({ workspaceId }: MissionQueueProps) {
   const handleDragStart = (e: React.DragEvent, task: Task) => {
     setDraggedTask(task);
     e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
   };
 
   const handleDrop = async (e: React.DragEvent, targetStatus: TaskStatus) => {
@@ -190,7 +190,8 @@ function TaskCard({ task, onDragStart, onClick, isDragging }: TaskCardProps) {
   const isPlanning = task.status === 'planning';
 
   return (
-    <div
+    <button
+      type="button"
       draggable
       onDragStart={(e) => onDragStart(e, task)}
       onClick={onClick}
@@ -241,6 +242,6 @@ function TaskCard({ task, onDragStart, onClick, isDragging }: TaskCardProps) {
           </span>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

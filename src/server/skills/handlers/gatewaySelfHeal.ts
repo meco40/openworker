@@ -20,6 +20,7 @@ import type { SkillDispatchContext } from '@/server/skills/types';
 const DEFAULT_RESTART_DELAY_MS = 2_000;
 const MAX_RESTART_DELAY_MS = 30_000;
 const PROCESS_START_TIME = Date.now();
+const formatMegabytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
 function isOwnerUser(userId: string): boolean {
   const ownerEnv =
@@ -34,12 +35,11 @@ function isOwnerUser(userId: string): boolean {
 
 function getMemoryStats(): Record<string, string> {
   const m = process.memoryUsage();
-  const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   return {
-    rss: mb(m.rss),
-    heapUsed: mb(m.heapUsed),
-    heapTotal: mb(m.heapTotal),
-    external: mb(m.external),
+    rss: formatMegabytes(m.rss),
+    heapUsed: formatMegabytes(m.heapUsed),
+    heapTotal: formatMegabytes(m.heapTotal),
+    external: formatMegabytes(m.external),
   };
 }
 

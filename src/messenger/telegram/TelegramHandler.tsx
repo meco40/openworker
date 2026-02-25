@@ -30,6 +30,10 @@ export const TelegramHandler: React.FC<TelegramHandlerProps> = ({
   setSimMessage,
   onSimulate,
 }) => {
+  const tokenInputId = 'telegram-bot-token';
+  const pairingCodeInputId = 'telegram-pairing-code';
+  const simMessageInputId = 'telegram-sim-message';
+
   if (channel.status === 'idle') {
     return (
       <div className="animate-in fade-in flex flex-col gap-5 duration-300">
@@ -46,8 +50,11 @@ export const TelegramHandler: React.FC<TelegramHandlerProps> = ({
           </div>
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-zinc-400">Bot Token</label>
+          <label htmlFor={tokenInputId} className="mb-1.5 block text-xs font-medium text-zinc-400">
+            Bot Token
+          </label>
           <input
+            id={tokenInputId}
             type="text"
             value={token}
             onChange={(e) => setToken(e.target.value)}
@@ -108,8 +115,14 @@ export const TelegramHandler: React.FC<TelegramHandlerProps> = ({
           it below.
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-zinc-400">Pairing Code</label>
+          <label
+            htmlFor={pairingCodeInputId}
+            className="mb-1.5 block text-xs font-medium text-zinc-400"
+          >
+            Pairing Code
+          </label>
           <input
+            id={pairingCodeInputId}
             type="text"
             value={pairingCode}
             onChange={(e) => setPairingCode(e.target.value)}
@@ -177,11 +190,15 @@ export const TelegramHandler: React.FC<TelegramHandlerProps> = ({
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+        <label
+          htmlFor={simMessageInputId}
+          className="mb-1.5 block text-xs font-medium text-zinc-400"
+        >
           Test Inbound Message
         </label>
         <div className="flex gap-2">
           <input
+            id={simMessageInputId}
             value={simMessage}
             onChange={(e) => setSimMessage(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onSimulate()}

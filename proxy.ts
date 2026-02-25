@@ -49,13 +49,27 @@ function isSameOriginRequest(request: NextRequest): boolean {
   return false;
 }
 
+function constantTimeEqual(left: string, right: string): boolean {
+  const encoder = new TextEncoder();
+  const leftBytes = encoder.encode(left);
+  const rightBytes = encoder.encode(right);
+  const maxLength = Math.max(leftBytes.length, rightBytes.length);
+  let mismatch = leftBytes.length ^ rightBytes.length;
+
+  for (let i = 0; i < maxLength; i++) {
+    mismatch |= (leftBytes[i] ?? 0) ^ (rightBytes[i] ?? 0);
+  }
+
+  return mismatch === 0;
+}
+
 // Demo mode — read-only, blocks all mutations
 const DEMO_MODE = process.env.DEMO_MODE === 'true';
 if (DEMO_MODE) {
   console.log('[DEMO] Running in demo mode — all write operations are blocked');
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Only protect /api/* routes
@@ -97,7 +111,7 @@ export function middleware(request: NextRequest) {
   // Special case: /api/events/stream (SSE) - allow token as query param
   if (pathname === '/api/events/stream') {
     const queryToken = request.nextUrl.searchParams.get('token');
-    if (queryToken && queryToken === MC_API_TOKEN) {
+    if (queryToken && constantTimeEqual(queryToken, MC_API_TOKEN)) {
       return NextResponse.next();
     }
     // Fall through to header check below
@@ -112,7 +126,7 @@ export function middleware(request: NextRequest) {
 
   const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
-  if (token !== MC_API_TOKEN) {
+  if (!constantTimeEqual(token, MC_API_TOKEN)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

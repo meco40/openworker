@@ -176,8 +176,8 @@ export class OpenClawClient extends EventEmitter {
    * Stop the periodic cleanup timer if this is the last instance.
    */
   private stopPeriodicCleanup(): void {
-    // We don't stop the timer here since it's shared across instances
-    // The timer will continue running as long as any instance exists
+    // We don't stop the timer here since it's shared across instances.
+    // The timer keeps running while at least one instance exists.
     // This is safe because the cleanup function is lightweight
   }
 
@@ -195,7 +195,7 @@ export class OpenClawClient extends EventEmitter {
     // Create a new connection attempt
     this.connecting = new Promise((resolve, reject) => {
       try {
-        // Clean up any existing connection and handlers
+        // Clean up existing connection and handlers
         if (this.ws) {
           // Remove all tracked message handlers
           this.messageHandlers.clear();

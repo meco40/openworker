@@ -74,8 +74,6 @@ const SCREENSHOTS_DIR =
  * - FAIL -> moves to 'assigned' for agent to fix
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const startTime = Date.now();
-
   try {
     const { id: taskId } = await params;
 

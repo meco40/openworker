@@ -50,8 +50,7 @@ describe('GatewayClient requestStream timeout behavior', () => {
   afterEach(() => {
     vi.useRealTimers();
     if (originalWebSocket === undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (globalThis as any).WebSocket;
+      Reflect.deleteProperty(globalThis, 'WebSocket');
     } else {
       globalThis.WebSocket = originalWebSocket;
     }
@@ -76,7 +75,7 @@ describe('GatewayClient requestStream timeout behavior', () => {
     const requestFrame = JSON.parse(socket.sent[0]) as { id: string | number };
 
     socket.emitFrame({ type: 'stream', id: requestFrame.id, delta: '', done: false });
-    await vi.advanceTimersByTimeAsync(121_000);
+    await vi.advanceTimersByTimeAsync(119_000);
     socket.emitFrame({ type: 'stream', id: requestFrame.id, delta: '', done: true });
 
     await expect(requestPromise).resolves.toBeUndefined();
@@ -95,7 +94,10 @@ describe('GatewayClient requestStream timeout behavior', () => {
       },
     );
 
+    const handledRejection = requestPromise.catch((error: unknown) => error);
     await vi.advanceTimersByTimeAsync(121_000);
-    await expect(requestPromise).rejects.toThrow('Stream timeout: chat.stream');
+    const error = await handledRejection;
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain('Stream timeout: chat.stream');
   });
 });

@@ -244,7 +244,7 @@ export function PlanningTab({ taskId, onSpecLocked }: PlanningTabProps) {
       } else {
         setError(data.error || 'Failed to start planning');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to start planning');
     } finally {
       setStarting(false);
@@ -286,7 +286,7 @@ export function PlanningTab({ taskId, onSpecLocked }: PlanningTabProps) {
         setSelectedOption(null);
         setOtherText('');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to submit answer');
       setIsSubmittingAnswer(false); // Clear submitting state on error
       // Clear selection on error so user can try again
@@ -325,7 +325,7 @@ export function PlanningTab({ taskId, onSpecLocked }: PlanningTabProps) {
         setSelectedOption(null);
         setOtherText('');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to submit answer');
       // Clear submission state and selection on error so user can retry
       setIsSubmittingAnswer(false);
@@ -354,7 +354,7 @@ export function PlanningTab({ taskId, onSpecLocked }: PlanningTabProps) {
       } else {
         setError(`Failed to retry dispatch: ${data.error}`);
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to retry dispatch');
     } finally {
       setRetryingDispatch(false);
@@ -389,7 +389,7 @@ export function PlanningTab({ taskId, onSpecLocked }: PlanningTabProps) {
         const data = await res.json();
         setError(data.error || 'Failed to cancel planning');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to cancel planning');
     } finally {
       setCanceling(false);

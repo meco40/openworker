@@ -33,6 +33,14 @@ const REQUEST_TIMEOUT_MS = 15_000;
 const STREAM_IDLE_TIMEOUT_MS = 120_000;
 const MAX_CONNECT_FAILURES = 3; // Stop reconnecting after N failures without ever opening
 
+function wsOpenState(): number {
+  return typeof WebSocket.OPEN === 'number' ? WebSocket.OPEN : 1;
+}
+
+function wsConnectingState(): number {
+  return typeof WebSocket.CONNECTING === 'number' ? WebSocket.CONNECTING : 0;
+}
+
 // ─── Client ──────────────────────────────────────────────────
 
 export class GatewayClient {
@@ -71,7 +79,7 @@ export class GatewayClient {
   connect(): void {
     if (
       this.ws &&
-      (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)
+      (this.ws.readyState === wsConnectingState() || this.ws.readyState === wsOpenState())
     ) {
       return;
     }
@@ -85,7 +93,7 @@ export class GatewayClient {
     this.intentionalClose = true;
     this.clearReconnectTimer();
     if (this.ws) {
-      if (this.ws.readyState === WebSocket.CONNECTING) {
+      if (this.ws.readyState === wsConnectingState()) {
         const connectingSocket = this.ws;
         // Closing a CONNECTING socket triggers noisy browser errors in dev (StrictMode/HMR).
         // Defer the close until open and detach handlers to keep teardown quiet.
@@ -114,7 +122,7 @@ export class GatewayClient {
   async request<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
     await this.ensureSocketOpen();
     const ws = this.ws;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
+    if (!ws || ws.readyState !== wsOpenState()) {
       throw new Error('WebSocket not connected');
     }
 
@@ -167,7 +175,7 @@ export class GatewayClient {
   ): Promise<void> {
     await this.ensureSocketOpen();
     const ws = this.ws;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
+    if (!ws || ws.readyState !== wsOpenState()) {
       throw new Error('WebSocket not connected');
     }
 
@@ -401,7 +409,7 @@ export class GatewayClient {
   }
 
   private async ensureSocketOpen(timeoutMs = REQUEST_TIMEOUT_MS): Promise<void> {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    if (this.ws && this.ws.readyState === wsOpenState()) {
       return;
     }
 
@@ -423,18 +431,18 @@ export class GatewayClient {
       }, timeoutMs);
 
       const poll = setInterval(() => {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        if (this.ws && this.ws.readyState === wsOpenState()) {
           finish(resolve);
         }
       }, 50);
 
       const unsubscribe = this.onStateChange((state) => {
-        if (state === 'connected' || (this.ws && this.ws.readyState === WebSocket.OPEN)) {
+        if (state === 'connected' || (this.ws && this.ws.readyState === wsOpenState())) {
           finish(resolve);
         }
       });
 
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      if (this.ws && this.ws.readyState === wsOpenState()) {
         finish(resolve);
       }
     });

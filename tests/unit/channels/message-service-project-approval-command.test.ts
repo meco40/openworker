@@ -97,6 +97,13 @@ vi.mock('@/skills/definitions', () => ({
   ],
 }));
 
+function getApprovalTokenFromMessage(metadataRaw: string | null): string {
+  const metadata = JSON.parse(String(metadataRaw || '{}')) as {
+    approvalToken?: string;
+  };
+  return String(metadata.approvalToken || '');
+}
+
 describe('MessageService /approve and /deny command flow', () => {
   let repo: SqliteMessageRepository;
   let service: MessageService;
@@ -109,13 +116,6 @@ describe('MessageService /approve and /deny command flow', () => {
     dispatchWithFallbackMock.mockClear();
     dispatchSkillMock.mockClear();
   });
-
-  function getApprovalTokenFromMessage(metadataRaw: string | null): string {
-    const metadata = JSON.parse(String(metadataRaw || '{}')) as {
-      approvalToken?: string;
-    };
-    return String(metadata.approvalToken || '');
-  }
 
   it('approves a pending shell token via /approve <token>', async () => {
     const blocked = await service.handleInbound(

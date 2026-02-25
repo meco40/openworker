@@ -126,10 +126,14 @@ export default function SettingsPage() {
 
           <div className="space-y-4">
             <div>
-              <label className="text-mc-text mb-2 block text-sm font-medium">
+              <label
+                htmlFor="workspace-base-path"
+                className="text-mc-text mb-2 block text-sm font-medium"
+              >
                 Workspace Base Path
               </label>
               <input
+                id="workspace-base-path"
                 type="text"
                 value={config.workspaceBasePath}
                 onChange={(e) => handleChange('workspaceBasePath', e.target.value)}
@@ -142,8 +146,14 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="text-mc-text mb-2 block text-sm font-medium">Projects Path</label>
+              <label
+                htmlFor="projects-path"
+                className="text-mc-text mb-2 block text-sm font-medium"
+              >
+                Projects Path
+              </label>
               <input
+                id="projects-path"
                 type="text"
                 value={config.projectsPath}
                 onChange={(e) => handleChange('projectsPath', e.target.value)}
@@ -156,10 +166,14 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="text-mc-text mb-2 block text-sm font-medium">
+              <label
+                htmlFor="default-project-name"
+                className="text-mc-text mb-2 block text-sm font-medium"
+              >
                 Default Project Name
               </label>
               <input
+                id="default-project-name"
                 type="text"
                 value={config.defaultProjectName}
                 onChange={(e) => handleChange('defaultProjectName', e.target.value)}
@@ -185,10 +199,14 @@ export default function SettingsPage() {
 
           <div className="space-y-4">
             <div>
-              <label className="text-mc-text mb-2 block text-sm font-medium">
+              <label
+                htmlFor="mission-control-url"
+                className="text-mc-text mb-2 block text-sm font-medium"
+              >
                 Mission Control URL
               </label>
               <input
+                id="mission-control-url"
                 type="text"
                 value={config.missionControlUrl}
                 onChange={(e) => handleChange('missionControlUrl', e.target.value)}

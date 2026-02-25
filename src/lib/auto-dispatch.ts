@@ -13,7 +13,7 @@ interface AutoDispatchOptions {
 export async function triggerAutoDispatch(
   options: AutoDispatchOptions,
 ): Promise<{ success: boolean; error?: string }> {
-  const { taskId, taskTitle, agentId, agentName, workspaceId } = options;
+  const { taskId, taskTitle, agentId, agentName } = options;
 
   if (!agentId) {
     return { success: false, error: 'No agent ID provided for dispatch' };

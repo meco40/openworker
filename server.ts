@@ -154,22 +154,29 @@ Promise.resolve()
 
       // Abort all in-flight AI generation requests so they don't hang.
       try {
-        void import('./src/server/channels/messages/runtime.js')
-          .then(({ getMessageService }) => {
+        void (async () => {
+          try {
+            const { getMessageService } = await import('./src/server/channels/messages/runtime.js');
             getMessageService().abortAllActiveRequests();
-          })
-          .catch(() => {});
+          } catch {
+            // runtime may not be initialised yet — safe to ignore
+          }
+        })();
       } catch {
         // runtime may not be initialised yet — safe to ignore
       }
 
       // Kill all managed background processes.
       try {
-        void import('./src/server/skills/handlers/processManager.js')
-          .then(({ killAllManagedProcesses }) => {
+        void (async () => {
+          try {
+            const { killAllManagedProcesses } =
+              await import('./src/server/skills/handlers/processManager.js');
             killAllManagedProcesses();
-          })
-          .catch(() => {});
+          } catch {
+            // safe to ignore
+          }
+        })();
       } catch {
         // safe to ignore
       }
