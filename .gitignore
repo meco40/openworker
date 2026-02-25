@@ -28,6 +28,12 @@ dist-ssr
 *.sw?
 
 .worktrees/
+.tmp/
+.playwright-mcp/
+/mission-control.db
+/mission-control.db-shm
+/mission-control.db-wal
+/2600
 
 # Keep source code directories named "logs" tracked.
 !app/api/logs/

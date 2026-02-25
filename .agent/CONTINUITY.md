@@ -58,6 +58,9 @@
 
 [DECISIONS]
 
+- 2026-02-25T16:55:19+01:00 [USER] Requested that generated local runtime artifacts (`.playwright-mcp` and other current untracked files) must also be ignored in git.
+- 2026-02-25T16:55:19+01:00 [CODE] Extended `.gitignore` with `.playwright-mcp/`, `/mission-control.db`, `/mission-control.db-shm`, `/mission-control.db-wal`, and `/2600`.
+
 - 2026-02-25T16:44:59+01:00 [USER] Confirmed team standard: use Next.js `proxy` convention; `middleware` file usage is considered a bug.
 - 2026-02-25T16:44:59+01:00 [CODE] Renamed `middleware.ts` -> `proxy.ts`, switched handler export to `proxy`, and aligned SSE query-token auth to constant-time comparison.
 
@@ -153,6 +156,8 @@
 - 2026-02-24T03:25:39+01:00 [CODE] Conversation delete flow now removes `conversation_project_state` rows before deleting `conversations` to satisfy SQLite foreign-key constraints.
 
 [PROGRESS]
+
+- 2026-02-25T16:55:19+01:00 [TOOL] Verified ignore coverage via `git check-ignore -v` for `.tmp/lint.json`, `.playwright-mcp/*`, `mission-control.db*`, and `2600`; all now match `.gitignore`.
 
 - 2026-02-25T16:44:59+01:00 [TOOL] Fixed final residual stream-timeout test issue by pre-binding the rejection in `tests/unit/modules/gateway/ws-client-stream-timeout.test.ts`; targeted suite no longer reports unhandled rejections.
 - 2026-02-25T16:44:59+01:00 [TOOL] Completed fresh full quality gates: `pnpm lint` (0 warnings/0 errors), `pnpm typecheck` PASS, `pnpm test` PASS (367 files / 1583 tests), `pnpm build` PASS with no middleware deprecation warning.
@@ -431,6 +436,8 @@
 - 2026-02-25T00:00:00+01:00 [CODE] Fixed project guard intercepting agent-v2 swarm prompts (`src/server/channels/messages/service/index.ts`, `src/server/agent-v2/sessionManager.ts`): added `opts?: { skipProjectGuard?: boolean }` to `handleWebUIMessage` and `handleInbound`; `sessionManager.executeCommand` now passes `{ skipProjectGuard: true }` so swarm phase prompts bypass `maybeRequestProjectClarification` entirely.
 
 [OUTCOMES]
+
+- 2026-02-25T16:55:19+01:00 [TOOL] Git hygiene hardened for this workspace: transient Playwright artifacts and local SQLite/runtime residue are now ignored and no longer pollute `git status`.
 
 - 2026-02-25T16:44:59+01:00 [TOOL] Error-and-warning sweep closed successfully in current worktree: lint/typecheck/tests/build all pass; prior repo lint backlog and stream-timeout test residual were resolved.
 
