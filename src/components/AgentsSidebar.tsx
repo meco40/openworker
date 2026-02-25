@@ -40,7 +40,7 @@ export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
 
   const toggleMinimize = () => setIsMinimized(!isMinimized);
 
-  // Load OpenClaw session status for all agents on mount
+  // Load runtime session status for all agents on mount
   const loadOpenClawSessions = useCallback(async () => {
     for (const agent of agents) {
       try {
@@ -52,7 +52,7 @@ export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
           }
         }
       } catch (error) {
-        console.error(`Failed to load OpenClaw session for ${agent.name}:`, error);
+        console.error(`Failed to load runtime session for ${agent.name}:`, error);
       }
     }
   }, [agents, setAgentOpenClawSession]);
@@ -84,7 +84,7 @@ export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
     return () => clearInterval(interval);
   }, []);
 
-  const handleConnectToOpenClaw = async (agent: Agent, e: React.MouseEvent) => {
+  const handleConnectToRuntime = async (agent: Agent, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent selecting the agent
     setConnectingAgentId(agent.id);
 
@@ -105,12 +105,12 @@ export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
           setAgentOpenClawSession(agent.id, data.session as OpenClawSession);
         } else {
           const error = await res.json();
-          console.error('Failed to connect to OpenClaw:', error);
-          alert(`Failed to connect: ${error.error || 'Unknown error'}`);
+          console.error('Failed to link runtime session:', error);
+          alert(`Failed to link runtime session: ${error.error || 'Unknown error'}`);
         }
       }
     } catch (error) {
-      console.error('OpenClaw connection error:', error);
+      console.error('Runtime session link error:', error);
     } finally {
       setConnectingAgentId(null);
     }
@@ -264,7 +264,7 @@ export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
                     {agent.source === 'gateway' && (
                       <span
                         className="rounded bg-blue-500/20 px-1 py-0 text-[10px] text-blue-400"
-                        title="Imported from Gateway"
+                        title="Imported from Runtime Registry"
                       >
                         GW
                       </span>
@@ -282,11 +282,11 @@ export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
                 </span>
               </button>
 
-              {/* OpenClaw Connect Button - show for master agents */}
+              {/* Runtime link button - show for master agents */}
               {!!agent.is_master && (
                 <div className="px-2 pb-2">
                   <button
-                    onClick={(e) => handleConnectToOpenClaw(agent, e)}
+                    onClick={(e) => handleConnectToRuntime(agent, e)}
                     disabled={isConnecting}
                     className={`flex w-full items-center justify-center gap-2 rounded px-2 py-1 text-xs transition-colors ${
                       openclawSession
@@ -297,17 +297,17 @@ export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
                     {isConnecting ? (
                       <>
                         <Loader2 className="h-3 w-3 animate-spin" />
-                        <span>Connecting...</span>
+                        <span>Linking...</span>
                       </>
                     ) : openclawSession ? (
                       <>
                         <Zap className="h-3 w-3" />
-                        <span>OpenClaw Connected</span>
+                        <span>Runtime Linked</span>
                       </>
                     ) : (
                       <>
                         <ZapOff className="h-3 w-3" />
-                        <span>Connect to OpenClaw</span>
+                        <span>Link to Runtime</span>
                       </>
                     )}
                   </button>
@@ -333,7 +333,7 @@ export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
             className="flex w-full items-center justify-center gap-2 rounded border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-sm text-blue-400 transition-colors hover:bg-blue-500/20 hover:text-blue-300"
           >
             <Search className="h-4 w-4" />
-            Import from Gateway
+            Import from Runtime
           </button>
         </div>
       )}

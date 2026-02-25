@@ -4,7 +4,11 @@ import type {
   GatewayResponse,
   ProviderAdapter,
 } from '@/server/model-hub/Models/types';
-import { fetchJsonOk, fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
+import {
+  fetchJsonOk,
+  fetchWithTimeout,
+  resolveModelHubGatewayTimeoutMs,
+} from '@/server/model-hub/Models/shared/http';
 import {
   readStoredAttachmentAsDataUrl,
   readStoredAttachmentBuffer,
@@ -327,6 +331,9 @@ const xAIProviderAdapter: ProviderAdapter = {
   async dispatchGateway({ secret }, request, options): Promise<GatewayResponse> {
     try {
       const input = buildXAIInputMessages(request.messages);
+      const timeoutMs = resolveModelHubGatewayTimeoutMs({
+        hasTools: Array.isArray(request.tools) && request.tools.length > 0,
+      });
 
       if (input.length === 0) {
         return {
@@ -376,7 +383,7 @@ const xAIProviderAdapter: ProviderAdapter = {
           },
           body: JSON.stringify(body),
         },
-        60_000,
+        timeoutMs,
         options?.signal,
       );
 

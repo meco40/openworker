@@ -1,4 +1,30 @@
 export const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+const DEFAULT_GATEWAY_TIMEOUT_MS = 60_000;
+const DEFAULT_GATEWAY_EXEC_TIMEOUT_MS = 180_000;
+const MIN_TIMEOUT_MS = 5_000;
+const MAX_TIMEOUT_MS = 600_000;
+
+function parseTimeoutMs(value: string | undefined, fallbackMs: number): number {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  if (!Number.isFinite(parsed)) return fallbackMs;
+  return Math.min(MAX_TIMEOUT_MS, Math.max(MIN_TIMEOUT_MS, parsed));
+}
+
+export function resolveModelHubGatewayTimeoutMs(options?: { hasTools?: boolean }): number {
+  const baseTimeoutMs = parseTimeoutMs(
+    process.env.MODEL_HUB_GATEWAY_TIMEOUT_MS,
+    DEFAULT_GATEWAY_TIMEOUT_MS,
+  );
+  if (!options?.hasTools) {
+    return baseTimeoutMs;
+  }
+
+  const executionTimeoutMs = parseTimeoutMs(
+    process.env.MODEL_HUB_GATEWAY_EXEC_TIMEOUT_MS,
+    Math.max(baseTimeoutMs, DEFAULT_GATEWAY_EXEC_TIMEOUT_MS),
+  );
+  return Math.max(baseTimeoutMs, executionTimeoutMs);
+}
 
 export async function fetchWithTimeout(
   input: RequestInfo | URL,

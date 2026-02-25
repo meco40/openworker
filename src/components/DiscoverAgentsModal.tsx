@@ -128,10 +128,10 @@ export function DiscoverAgentsModal({ onClose, workspaceId }: DiscoverAgentsModa
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold">
               <Search className="text-mc-accent h-5 w-5" />
-              Discover Gateway Agents
+              Discover Runtime Agents
             </h2>
             <p className="text-mc-text-secondary mt-1 text-sm">
-              Import existing agents from the OpenClaw Gateway
+              Import registered agents from the integrated runtime
             </p>
           </div>
           <button onClick={onClose} className="hover:bg-mc-bg-tertiary rounded p-1">
@@ -144,7 +144,7 @@ export function DiscoverAgentsModal({ onClose, workspaceId }: DiscoverAgentsModa
           {loading && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="text-mc-accent mr-3 h-6 w-6 animate-spin" />
-              <span className="text-mc-text-secondary">Discovering agents from Gateway...</span>
+              <span className="text-mc-text-secondary">Discovering agents from runtime...</span>
             </div>
           )}
 
@@ -167,10 +167,8 @@ export function DiscoverAgentsModal({ onClose, workspaceId }: DiscoverAgentsModa
 
           {!loading && !error && agents.length === 0 && (
             <div className="text-mc-text-secondary py-12 text-center">
-              <p>No agents found in the Gateway.</p>
-              <p className="mt-2 text-sm">
-                Make sure the OpenClaw Gateway is running and has agents configured.
-              </p>
+              <p>No registered agents available.</p>
+              <p className="mt-2 text-sm">Create or link runtime agents, then refresh this list.</p>
             </div>
           )}
 

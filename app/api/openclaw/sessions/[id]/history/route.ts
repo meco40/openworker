@@ -5,7 +5,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/openclaw/sessions/[id]/history - Get conversation history
+// GET /api/openclaw/sessions/[id]/history - Get runtime session conversation history
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
@@ -16,7 +16,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         await client.connect();
       } catch {
         return NextResponse.json(
-          { error: 'Failed to connect to OpenClaw Gateway' },
+          { error: 'Failed to connect to Mission Control runtime' },
           { status: 503 },
         );
       }
@@ -25,7 +25,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const history = await client.getSessionHistory(id);
     return NextResponse.json({ history });
   } catch (error) {
-    console.error('Failed to get OpenClaw session history:', error);
+    console.error('Failed to get runtime session history:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

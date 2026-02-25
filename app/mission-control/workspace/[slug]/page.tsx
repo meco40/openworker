@@ -82,17 +82,17 @@ export default function WorkspacePage() {
       }
     }
 
-    // Check OpenClaw connection separately (non-blocking)
-    async function checkOpenClaw() {
+    // Check Mission Control runtime status separately (non-blocking)
+    async function checkRuntimeStatus() {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-        const openclawRes = await fetch('/api/openclaw/status', { signal: controller.signal });
+        const statusRes = await fetch('/api/mission-control/status', { signal: controller.signal });
         clearTimeout(timeoutId);
 
-        if (openclawRes.ok) {
-          const status = await openclawRes.json();
+        if (statusRes.ok) {
+          const status = await statusRes.json();
           setIsOnline(status.connected);
         }
       } catch {
@@ -101,7 +101,7 @@ export default function WorkspacePage() {
     }
 
     loadData();
-    checkOpenClaw();
+    checkRuntimeStatus();
 
     // SSE is the primary real-time mechanism - these are fallback polls with longer intervals
     // to reduce server load while providing redundancy
@@ -143,10 +143,10 @@ export default function WorkspacePage() {
       }
     }, 60000); // Increased from 10000 to 60000
 
-    // Check OpenClaw connection every 30 seconds (kept as-is for monitoring)
+    // Check runtime connection every 30 seconds (monitoring + fallback)
     const connectionCheck = setInterval(async () => {
       try {
-        const res = await fetch('/api/openclaw/status');
+        const res = await fetch('/api/mission-control/status');
         if (res.ok) {
           const status = await res.json();
           setIsOnline(status.connected);

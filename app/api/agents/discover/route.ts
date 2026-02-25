@@ -3,10 +3,10 @@ import { queryAll } from '@/lib/db';
 import { getOpenClawClient } from '@/lib/openclaw/client';
 import type { Agent, DiscoveredAgent } from '@/lib/types';
 
-// This route must always be dynamic - it queries live Gateway state + DB
+// This route must always be dynamic - it queries live runtime state + DB
 export const dynamic = 'force-dynamic';
 
-// Shape of an agent returned by the OpenClaw Gateway `agents.list` call
+// Shape of an agent returned by the integrated runtime `agents.list` call
 interface GatewayAgent {
   id?: string;
   name?: string;
@@ -17,7 +17,7 @@ interface GatewayAgent {
   [key: string]: unknown;
 }
 
-// GET /api/agents/discover - Discover existing agents from the OpenClaw Gateway
+// GET /api/agents/discover - Discover existing agents from the runtime registry
 export async function GET() {
   try {
     const client = getOpenClawClient();
@@ -27,7 +27,7 @@ export async function GET() {
         await client.connect();
       } catch {
         return NextResponse.json(
-          { error: 'Failed to connect to OpenClaw Gateway. Is it running?' },
+          { error: 'Failed to connect to Mission Control runtime' },
           { status: 503 },
         );
       }
@@ -37,21 +37,21 @@ export async function GET() {
     try {
       gatewayAgents = (await client.listAgents()) as GatewayAgent[];
     } catch (err) {
-      console.error('Failed to list agents from Gateway:', err);
+      console.error('Failed to list agents from runtime registry:', err);
       return NextResponse.json(
-        { error: 'Failed to list agents from OpenClaw Gateway' },
+        { error: 'Failed to list agents from runtime registry' },
         { status: 502 },
       );
     }
 
     if (!Array.isArray(gatewayAgents)) {
       return NextResponse.json(
-        { error: 'Unexpected response from Gateway agents.list' },
+        { error: 'Unexpected response from runtime agents.list' },
         { status: 502 },
       );
     }
 
-    // Get all agents already imported from the gateway
+    // Get all agents already imported from runtime registry
     const existingAgents = queryAll<Agent>(
       `SELECT * FROM agents WHERE gateway_agent_id IS NOT NULL`,
     );
@@ -80,6 +80,9 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Failed to discover agents:', error);
-    return NextResponse.json({ error: 'Failed to discover agents from Gateway' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to discover agents from runtime registry' },
+      { status: 500 },
+    );
   }
 }

@@ -35,7 +35,7 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
     model: agent?.model || '',
   });
 
-  // Load available models from OpenClaw config
+  // Load available models from integrated runtime config
   useEffect(() => {
     const loadModels = async () => {
       try {
@@ -278,7 +278,7 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
                   </select>
                 )}
                 <p className="text-mc-text-secondary mt-1 text-xs">
-                  AI model used by this agent. Leave empty to use OpenClaw default.
+                  AI model used by this agent. Leave empty to use the runtime default.
                 </p>
               </div>
             </div>

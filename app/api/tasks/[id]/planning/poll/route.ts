@@ -151,6 +151,17 @@ async function handlePlanningCompletion(
 
   // Trigger dispatch - use localhost since we're in the same process
   if (firstAgentId && !skipDispatch) {
+    // Persist assignment before dispatch so dispatch route has a valid assigned_agent_id.
+    run(
+      `
+      UPDATE tasks
+      SET assigned_agent_id = ?,
+          updated_at = datetime('now')
+      WHERE id = ?
+    `,
+      [firstAgentId, taskId],
+    );
+
     const dispatchUrl = `http://localhost:${process.env.PORT || 3000}/api/tasks/${taskId}/dispatch`;
     console.log(`[Planning Poll] Triggering dispatch: ${dispatchUrl}`);
 
@@ -187,13 +198,12 @@ async function handlePlanningCompletion(
       `,
       ).run(dispatchError, taskId);
     } else if (firstAgentId) {
-      // Success - mark complete and assign
+      // Success - mark planning as complete and keep the dispatch-derived task status.
       db.prepare(
         `
         UPDATE tasks
         SET planning_complete = 1,
             assigned_agent_id = ?,
-            status = 'inbox',
             planning_dispatch_error = NULL,
             updated_at = datetime('now')
         WHERE id = ?

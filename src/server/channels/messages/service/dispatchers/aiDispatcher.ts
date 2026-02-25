@@ -65,6 +65,8 @@ export async function dispatchToAI(
     turnSeq?: number;
     executionDirective?: string;
     maxToolCalls?: number;
+    skipSummaryRefresh?: boolean;
+    requireToolCall?: boolean;
   },
 ): Promise<{ content: string; metadata: Record<string, unknown> }> {
   const { conversation, userInput, onStreamDelta, executionDirective, maxToolCalls } = params;
@@ -177,7 +179,23 @@ export async function dispatchToAI(
     deps.activeRequests.delete(conversation.id);
   }
 
-  void deps.summaryService.maybeRefreshConversationSummary(conversation);
+  if (!params.skipSummaryRefresh) {
+    void deps.summaryService.maybeRefreshConversationSummary(conversation);
+  }
+  const executedToolCalls = Number(modelOutcome.metadata?.executedToolCalls ?? 0);
+  const status = String(modelOutcome.metadata?.status || '');
+  if (params.requireToolCall && executedToolCalls < 1 && status !== 'approval_required') {
+    return {
+      content:
+        'Execution failed: no real tool execution happened for this task. Retry dispatch with an execution-capable agent response.',
+      metadata: {
+        ...modelOutcome.metadata,
+        ok: false,
+        status: 'tool_execution_required_unmet',
+        executedToolCalls,
+      },
+    };
+  }
   return modelOutcome;
 }
 
@@ -203,6 +221,10 @@ export async function runModelToolLoop(
   const { conversation, messages, modelHubProfileId, preferredModelId, toolContext } = params;
   const encryptionKey = getModelHubEncryptionKey();
   const maxToolCalls = normalizeMaxToolCalls(params.maxToolCalls);
+  const withToolStats = <T extends Record<string, unknown>>(metadata: T) => ({
+    ...metadata,
+    executedToolCalls,
+  });
 
   let executedToolCalls = 0;
   let failedToolSignature: string | null = null;
@@ -232,14 +254,14 @@ export async function runModelToolLoop(
     if (!result.ok) {
       return {
         content: `AI dispatch failed: ${result.error || 'unknown error'}`,
-        metadata: {
+        metadata: withToolStats({
           ok: false,
           runtime: 'model-hub',
           profileId: modelHubProfileId,
           model: result.model || null,
           provider: result.provider || null,
           error: result.error || 'AI dispatch failed',
-        },
+        }),
       };
     }
 
@@ -249,7 +271,7 @@ export async function runModelToolLoop(
         const functionName = functionCall.name.trim();
         return {
           content: `Tool loop stopped before completion: reached max tool calls (${maxToolCalls}) while model requested "${functionName}".`,
-          metadata: {
+          metadata: withToolStats({
             ok: false,
             status: 'tool_limit_reached',
             runtime: 'model-hub',
@@ -259,7 +281,7 @@ export async function runModelToolLoop(
             requestedTool: functionName,
             maxToolCalls,
             usage: result.usage || null,
-          },
+          }),
         };
       }
 
@@ -299,13 +321,16 @@ export async function runModelToolLoop(
       if (toolExecution.kind === 'approval_required') {
         return {
           content: toolExecution.prompt,
-          metadata: toolManager.buildApprovalMetadata(toolExecution.pending, toolExecution.prompt, {
-            ok: false,
-            runtime: 'model-hub',
-            profileId: modelHubProfileId,
-            model: result.model || null,
-            provider: result.provider || null,
-          }),
+          metadata: withToolStats(
+            toolManager.buildApprovalMetadata(toolExecution.pending, toolExecution.prompt, {
+              ok: false,
+              status: 'approval_required',
+              runtime: 'model-hub',
+              profileId: modelHubProfileId,
+              model: result.model || null,
+              provider: result.provider || null,
+            }),
+          ),
         };
       }
 
@@ -324,7 +349,7 @@ export async function runModelToolLoop(
       if (consecutiveFailedSameToolCalls >= MAX_REPEATED_FAILED_TOOL_CALLS) {
         return {
           content: `Tool loop stopped: "${functionName}" failed ${consecutiveFailedSameToolCalls} times in a row with the same arguments. I stopped to prevent an endless retry loop.`,
-          metadata: {
+          metadata: withToolStats({
             ok: false,
             status: 'tool_stuck_repetition',
             runtime: 'model-hub',
@@ -334,7 +359,7 @@ export async function runModelToolLoop(
             requestedTool: functionName,
             repeatedFailedToolCalls: consecutiveFailedSameToolCalls,
             usage: result.usage || null,
-          },
+          }),
         };
       }
 
@@ -350,14 +375,14 @@ export async function runModelToolLoop(
       if (postCheck.level === 'critical') {
         return {
           content: postCheck.message,
-          metadata: {
+          metadata: withToolStats({
             ok: false,
             status: 'loop_detected_critical',
             runtime: 'model-hub',
             profileId: modelHubProfileId,
             model: null,
             provider: null,
-          },
+          }),
         };
       } else if (postCheck.level === 'warning') {
         loopWarningPrefix = `${postCheck.message}\n\n`;
@@ -379,7 +404,7 @@ export async function runModelToolLoop(
       return {
         content:
           'Model returned no text output. Execution ended without a final narrative response. Please retry or continue with the latest task state.',
-        metadata: {
+        metadata: withToolStats({
           ok: false,
           status: 'empty_model_response',
           runtime: 'model-hub',
@@ -387,31 +412,31 @@ export async function runModelToolLoop(
           model: result.model || null,
           provider: result.provider || null,
           usage: result.usage || null,
-        },
+        }),
       };
     }
 
     return {
       content: normalized,
-      metadata: {
+      metadata: withToolStats({
         ok: true,
         runtime: 'model-hub',
         profileId: modelHubProfileId,
         model: result.model,
         provider: result.provider,
         usage: result.usage || null,
-      },
+      }),
     };
   }
 
   return {
     content: `Tool loop exceeded maximum rounds (${maxToolCalls}).`,
-    metadata: {
+    metadata: withToolStats({
       ok: false,
       runtime: 'model-hub',
       profileId: modelHubProfileId,
       error: `Tool loop exceeded maximum rounds (${maxToolCalls}).`,
-    },
+    }),
   };
 }
 

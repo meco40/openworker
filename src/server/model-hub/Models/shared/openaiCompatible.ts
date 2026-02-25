@@ -4,13 +4,14 @@ import type {
   GatewayRequest,
   GatewayResponse,
 } from '@/server/model-hub/Models/types';
-import { fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
+import {
+  fetchWithTimeout,
+  resolveModelHubGatewayTimeoutMs,
+} from '@/server/model-hub/Models/shared/http';
 import {
   readStoredAttachmentAsDataUrl,
   readStoredAttachmentBuffer,
 } from '@/server/channels/messages/attachments';
-
-const GATEWAY_TIMEOUT_MS = 60_000;
 
 function normalizeBearerSecret(secret: string): string {
   let normalized = secret.trim();
@@ -204,6 +205,9 @@ export async function dispatchOpenAICompatibleChat(
 ): Promise<GatewayResponse> {
   const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
   const wantsStream = request.stream === true;
+  const timeoutMs = resolveModelHubGatewayTimeoutMs({
+    hasTools: Array.isArray(request.tools) && request.tools.length > 0,
+  });
   const body: Record<string, unknown> = {
     model: request.model,
     messages: buildOpenAICompatibleMessages(request.messages),
@@ -231,7 +235,7 @@ export async function dispatchOpenAICompatibleChat(
       headers,
       body: JSON.stringify(body),
     },
-    GATEWAY_TIMEOUT_MS,
+    timeoutMs,
     options.signal,
   );
 

@@ -14,7 +14,7 @@ interface ImportRequest {
   agents: ImportAgentRequest[];
 }
 
-// POST /api/agents/import - Import one or more agents from the OpenClaw Gateway
+// POST /api/agents/import - Import one or more agents from the runtime registry
 export async function POST(request: NextRequest) {
   try {
     const body: ImportRequest = await request.json();
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
             id,
             agentReq.name,
             'Imported Agent',
-            `Imported from OpenClaw Gateway (${agentReq.gateway_agent_id})`,
+            `Imported from runtime registry (${agentReq.gateway_agent_id})`,
             '🔗',
             0,
             workspaceId,
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         run(
           `INSERT INTO events (id, type, agent_id, message, created_at)
            VALUES (?, ?, ?, ?, ?)`,
-          [uuidv4(), 'agent_joined', id, `${agentReq.name} imported from OpenClaw Gateway`, now],
+          [uuidv4(), 'agent_joined', id, `${agentReq.name} imported from runtime registry`, now],
         );
 
         const agent = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [id]);

@@ -7,7 +7,13 @@ import type { Task } from '@/lib/types';
 // File system imports removed - using OpenClaw API instead
 
 // Planning session prefix for OpenClaw (must match agent:main: format)
-const PLANNING_SESSION_PREFIX = 'agent:main:planning:';
+const PLANNING_SESSION_PREFIX = 'agent:main:planning';
+
+function buildPlanningSessionKey(taskId: string): string {
+  const nonce = Date.now().toString(36);
+  const shortId = crypto.randomUUID().split('-')[0];
+  return `${PLANNING_SESSION_PREFIX}:${taskId}:${nonce}-${shortId}`;
+}
 
 // GET /api/tasks/[id]/planning - Get planning state
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -128,8 +134,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       ); // 409 Conflict
     }
 
-    // Create session key for this planning task
-    const sessionKey = `${PLANNING_SESSION_PREFIX}${taskId}`;
+    // Create a unique session key per planning run to avoid stale history bleed-through.
+    const sessionKey = buildPlanningSessionKey(taskId);
 
     // Build the initial planning prompt
     const planningPrompt = `PLANNING REQUEST

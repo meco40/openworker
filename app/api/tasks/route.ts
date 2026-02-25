@@ -5,6 +5,33 @@ import { broadcast } from '@/lib/events';
 import { CreateTaskSchema } from '@/lib/validation';
 import type { Task, CreateTaskRequest, Agent } from '@/lib/types';
 
+interface TaskRowWithJoins extends Task {
+  assigned_agent_name?: string | null;
+  assigned_agent_emoji?: string | null;
+  created_by_agent_name?: string | null;
+  created_by_agent_emoji?: string | null;
+}
+
+function hydrateTaskRelations(task: TaskRowWithJoins): Task {
+  return {
+    ...task,
+    assigned_agent: task.assigned_agent_id
+      ? {
+          id: task.assigned_agent_id,
+          name: task.assigned_agent_name ?? null,
+          avatar_emoji: task.assigned_agent_emoji ?? null,
+        }
+      : undefined,
+    created_by_agent: task.created_by_agent_id
+      ? {
+          id: task.created_by_agent_id,
+          name: task.created_by_agent_name ?? null,
+          avatar_emoji: task.created_by_agent_emoji ?? null,
+        }
+      : undefined,
+  };
+}
+
 // GET /api/tasks - List all tasks with optional filters
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +46,8 @@ export async function GET(request: NextRequest) {
         t.*,
         aa.name as assigned_agent_name,
         aa.avatar_emoji as assigned_agent_emoji,
-        ca.name as created_by_agent_name
+        ca.name as created_by_agent_name,
+        ca.avatar_emoji as created_by_agent_emoji
       FROM tasks t
       LEFT JOIN agents aa ON t.assigned_agent_id = aa.id
       LEFT JOIN agents ca ON t.created_by_agent_id = ca.id
@@ -56,25 +84,8 @@ export async function GET(request: NextRequest) {
 
     sql += ' ORDER BY t.created_at DESC';
 
-    const tasks = queryAll<
-      Task & {
-        assigned_agent_name?: string;
-        assigned_agent_emoji?: string;
-        created_by_agent_name?: string;
-      }
-    >(sql, params);
-
-    // Transform to include nested agent info
-    const transformedTasks = tasks.map((task) => ({
-      ...task,
-      assigned_agent: task.assigned_agent_id
-        ? {
-            id: task.assigned_agent_id,
-            name: task.assigned_agent_name,
-            avatar_emoji: task.assigned_agent_emoji,
-          }
-        : undefined,
-    }));
+    const tasks = queryAll<TaskRowWithJoins>(sql, params);
+    const transformedTasks = tasks.map(hydrateTaskRelations);
 
     return NextResponse.json(transformedTasks);
   } catch (error) {
@@ -143,7 +154,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Fetch created task with all joined fields
-    const task = queryOne<Task>(
+    const task = queryOne<TaskRowWithJoins>(
       `SELECT t.*,
         aa.name as assigned_agent_name,
         aa.avatar_emoji as assigned_agent_emoji,
@@ -155,16 +166,17 @@ export async function POST(request: NextRequest) {
        WHERE t.id = ?`,
       [id],
     );
+    const hydratedTask = task ? hydrateTaskRelations(task) : null;
 
     // Broadcast task creation via SSE
-    if (task) {
+    if (hydratedTask) {
       broadcast({
         type: 'task_created',
-        payload: task,
+        payload: hydratedTask,
       });
     }
 
-    return NextResponse.json(task, { status: 201 });
+    return NextResponse.json(hydratedTask, { status: 201 });
   } catch (error) {
     console.error('Failed to create task:', error);
     return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });

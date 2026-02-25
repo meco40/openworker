@@ -24,6 +24,7 @@ import { ContextBuilder } from '@/server/channels/messages/contextBuilder';
 import {
   AUTONOMOUS_BUILD_MAX_TOOL_CALLS,
   inferShellCommandFromNaturalLanguage,
+  isExplicitRecallCommand,
   SUBAGENT_MAX_ACTIVE_PER_CONVERSATION,
   TOOL_CALLS_HARD_CAP,
 } from './types';
@@ -555,7 +556,12 @@ export class MessageService {
     clientMessageId?: string,
     attachments?: StoredMessageAttachment[],
     onStreamDelta?: (delta: string) => void,
-    opts?: { skipProjectGuard?: boolean },
+    opts?: {
+      skipProjectGuard?: boolean;
+      executionDirective?: string;
+      maxToolCalls?: number;
+      requireToolCall?: boolean;
+    },
   ): Promise<{ userMsg: StoredMessage; agentMsg: StoredMessage; newConversationId?: string }> {
     const conversation = this.sessionManager.getOrCreateConversation(
       this.repo,
@@ -782,6 +788,7 @@ export class MessageService {
       const isAutonomousPersona = Boolean(activePersona?.isAutonomous);
 
       let dispatchUserInput = effectiveUserInput;
+      const explicitRecallCommand = isExplicitRecallCommand(effectiveUserInput);
       if (buildIntent && activeWorkspaceCwd) {
         const preflight = await this.runBuildWorkspacePreflight({
           conversation: effectiveConversation,
@@ -800,6 +807,9 @@ export class MessageService {
         buildIntent,
         isAutonomousPersona,
       });
+      const explicitExecutionDirective = String(opts?.executionDirective || '').trim();
+      const executionDirective =
+        explicitExecutionDirective || autonomousExecutionDirective || undefined;
       const modelOutcome = await dispatchToAI(
         {
           contextBuilder: this.contextBuilder,
@@ -818,13 +828,16 @@ export class MessageService {
           userInput: dispatchUserInput,
           onStreamDelta,
           turnSeq: userMsg.seq ?? undefined,
-          executionDirective: autonomousExecutionDirective || undefined,
+          executionDirective,
           maxToolCalls:
-            isAutonomousPersona && activePersona
+            opts?.maxToolCalls ??
+            (isAutonomousPersona && activePersona
               ? activePersona.maxToolCalls
               : buildIntent
                 ? this.resolveAutonomousBuildMaxToolCalls()
-                : undefined,
+                : undefined),
+          requireToolCall: opts?.requireToolCall,
+          skipSummaryRefresh: explicitRecallCommand,
         },
       );
       const normalizedOutput = this.stripCodeBlocksIfNeeded(
@@ -1023,7 +1036,12 @@ export class MessageService {
     clientMessageId?: string,
     attachments?: StoredMessageAttachment[],
     onStreamDelta?: (delta: string) => void,
-    opts?: { skipProjectGuard?: boolean },
+    opts?: {
+      skipProjectGuard?: boolean;
+      executionDirective?: string;
+      maxToolCalls?: number;
+      requireToolCall?: boolean;
+    },
   ): Promise<{ userMsg: StoredMessage; agentMsg: StoredMessage; newConversationId?: string }> {
     const conversation = this.sessionManager.resolveConversationForWebChat(
       this.repo,
@@ -1076,7 +1094,10 @@ export class MessageService {
   }
 
   deleteMessage(messageId: string, userId: string, conversationId?: string): boolean {
-    if (typeof this.repo.deleteMessage !== 'function' || typeof this.repo.getMessage !== 'function') {
+    if (
+      typeof this.repo.deleteMessage !== 'function' ||
+      typeof this.repo.getMessage !== 'function'
+    ) {
       return false;
     }
 

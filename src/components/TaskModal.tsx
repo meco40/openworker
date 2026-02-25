@@ -86,6 +86,19 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
 
             if (!result.success) {
               console.error('Auto-dispatch failed:', result.error);
+              updateTask({
+                ...savedTask,
+                status: 'pending_dispatch',
+              });
+              try {
+                await fetch(`/api/tasks/${savedTask.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'pending_dispatch' }),
+                });
+              } catch (persistErr) {
+                console.error('Failed to persist pending_dispatch status:', persistErr);
+              }
             }
           }
 
@@ -148,6 +161,7 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
   };
 
   const statuses: TaskStatus[] = [
+    'pending_dispatch',
     'planning',
     'inbox',
     'assigned',

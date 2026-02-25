@@ -20,8 +20,10 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     );
+    const resolveModelHubGatewayTimeoutMs = vi.fn(() => 180_000);
     vi.doMock('../../../src/server/model-hub/Models/shared/http', () => ({
       fetchWithTimeout,
+      resolveModelHubGatewayTimeoutMs,
     }));
 
     const { dispatchOpenAICompatibleChat } =
@@ -49,6 +51,8 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
         function: expect.objectContaining({ name: 'safe_files' }),
       }),
     ]);
+    expect(resolveModelHubGatewayTimeoutMs).toHaveBeenCalledWith({ hasTools: true });
+    expect(fetchWithTimeout.mock.calls[0]?.[2]).toBe(180_000);
   });
 
   it('maps tool_calls from response into functionCalls', async () => {
@@ -76,8 +80,10 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     );
+    const resolveModelHubGatewayTimeoutMs = vi.fn(() => 60_000);
     vi.doMock('../../../src/server/model-hub/Models/shared/http', () => ({
       fetchWithTimeout,
+      resolveModelHubGatewayTimeoutMs,
     }));
 
     const { dispatchOpenAICompatibleChat } =
@@ -97,5 +103,7 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
     expect(result.functionCalls).toEqual([
       { name: 'safe_files', args: { operation: 'read', path: 'README.md' } },
     ]);
+    expect(resolveModelHubGatewayTimeoutMs).toHaveBeenCalledWith({ hasTools: false });
+    expect(fetchWithTimeout.mock.calls[0]?.[2]).toBe(60_000);
   });
 });

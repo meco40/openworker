@@ -1,5 +1,19 @@
 [PLANS]
 
+- 2026-02-25T20:29:55+01:00 [USER] Reported that dispatched Mission Control agent stayed in `in_progress` and produced pseudo-command text without real artifact creation; requested full analysis and fix so agents execute tasks for real.
+
+- 2026-02-25T19:58:54+01:00 [USER] Reported Mission Control UI inconsistency: header showed `1` queued task while Mission Queue columns showed no task card; requested functional visibility fix.
+
+- 2026-02-25T19:34:42+01:00 [USER] Reported Mission Control planning flow failure where `POST /api/tasks/{id}/dispatch` returned `400` immediately after planning completion; requested functional fix.
+
+- 2026-02-25T19:20:23+01:00 [USER] Requested comprehensive best-case fixes for Mission Control integration issues, explicitly removing standalone OpenClaw assumptions and runtime/offline mismatches while keeping functionality aligned to existing system architecture.
+
+- 2026-02-25T19:01:37+01:00 [USER] Requested full analysis of Mission Control integration gaps: remove/replace OpenClaw-standalone assumptions, align settings and flows to in-app system architecture, and identify all error-prone references.
+
+- 2026-02-25T18:47:12+01:00 [USER] Reported repeated `GET /api/openclaw/models 404`; requested integrated Mission Control behavior without standalone OpenClaw config dependency.
+
+- 2026-02-25T18:37:34+01:00 [USER] Reported `POST /api/tasks` returns `400` for payload with `status='inbox'` and `assigned_agent_id: null`; requested functional fix in integrated Mission Control flow.
+
 - 2026-02-25T05:27:02+01:00 [USER] Requested WebUI capability to delete individual chat messages (WhatsApp-like) with real hard deletion from DB and other storage locations.
 
 - 2026-02-25T04:25:26+01:00 [USER] Reported Agent Room UI error `WebSocket not connected` while server logs showed quick disconnect/reconnect followed by successful orchestrator dispatch.
@@ -57,6 +71,32 @@
 - 2026-02-24T03:25:39+01:00 [USER] WebUI conversation delete returns `500` after project deletions (`DELETE /api/channels/conversations?id=...`).
 
 [DECISIONS]
+
+- 2026-02-25T23:20:58+01:00 [CODE] Increased Codex MCP startup budget for slow-to-initialize servers by setting `startup_timeout_sec = 45` for `[mcp_servers.context7]`, `[mcp_servers.chrome-devtools]`, and `[mcp_servers.github]` in `C:\Users\djm2k\.codex\config.toml`.
+
+- 2026-02-25T22:25:44+01:00 [CODE] Codex client configuration switched from Playwright MCP to CLI-first usage by removing `[mcp_servers.playwright]` from `C:\Users\djm2k\.codex\config.toml`; browser MCP servers retained are `chrome-devtools`, `github`, and `context7`.
+
+- 2026-02-25T20:44:44+01:00 [CODE] Planning sessions now use run-unique keys (`agent:main:planning:<taskId>:<nonce>-<id>`) instead of task-id-only keys to prevent stale assistant history from earlier planning attempts leaking into new runs.
+
+- 2026-02-25T20:29:55+01:00 [CODE] Mission Control dispatch now enforces real execution for `agent:main:mission-control-*` sessions by injecting a strict execution directive, increasing tool budget, and requiring at least one tool call; dispatch returns `502` instead of falsely succeeding when no tool call occurred.
+
+- 2026-02-25T19:58:54+01:00 [CODE] Promoted `pending_dispatch` to first-class task status in shared Mission Control contracts (`TaskStatus`, Zod validation, workspace taskCounts, TaskModal options, MissionQueue columns) so queue metrics and board rendering remain consistent.
+
+- 2026-02-25T19:34:42+01:00 [CODE] Planning completion now persists `assigned_agent_id` before invoking dispatch so `/api/tasks/{id}/dispatch` sees a valid assignment and does not fail with `Task has no assigned agent`.
+
+- 2026-02-25T19:20:23+01:00 [CODE] Added dedicated integrated runtime health endpoint GET /api/mission-control/status and switched Mission Control workspace online polling to this route instead of relying on /api/openclaw/status directly.
+
+- 2026-02-25T19:20:23+01:00 [CODE] Reframed Mission Control UI/API wording from standalone OpenClaw Gateway semantics to integrated runtime semantics across settings, agent linking, discovery/import dialogs, and related runtime-session error messages.
+
+- 2026-02-25T18:47:12+01:00 [CODE] `GET /api/openclaw/models` now resolves models from Model Hub pipeline (`p1`) with provider-catalog fallback and no longer returns 404 when `~/.openclaw/openclaw.json` is absent.
+
+- 2026-02-25T18:37:34+01:00 [CODE] `CreateTaskSchema` now accepts nullable agent IDs on create (`assigned_agent_id`, `created_by_agent_id`) to align with Mission Control UI payload semantics for unassigned inbox tasks.
+
+- 2026-02-25T18:18:31+01:00 [USER] Explizite Recall-Kommandos (`erinner...`/`remember`/`recall`) sollen lokal-deterministisch bleiben; dieser Turn darf keine indirekten Embedding-Provider-Aufrufe (z. B. OpenRouter) auslösen.
+- 2026-02-25T18:18:31+01:00 [CODE] Für explizite Recall-Kommandos wird Post-Turn-Summary-Refresh im AI-Dispatcher übersprungen (`skipSummaryRefresh`), um Mem0-Write/Knowledge-Ingestion-Folgepfade in diesem Turn zu verhindern.
+
+- 2026-02-25T18:05:09+01:00 [USER] Mission Control must run as first-class integration in the existing Next.js system (port `3000`) and must not depend on a standalone OpenClaw gateway on `127.0.0.1:18789` or token-based URL auth.
+- 2026-02-25T18:05:09+01:00 [CODE] Replaced `src/lib/openclaw/client.ts` standalone WebSocket handshake client with an integrated adapter mode that routes `chat.send`/`chat.history` into internal message runtime and `sessions.*` into Mission-Control DB-backed state; `OPENCLAW_GATEWAY_URL/TOKEN` now treated as optional diagnostics/external override metadata only.
 
 - 2026-02-25T16:55:19+01:00 [USER] Requested that generated local runtime artifacts (`.playwright-mcp` and other current untracked files) must also be ignored in git.
 - 2026-02-25T16:55:19+01:00 [CODE] Extended `.gitignore` with `.playwright-mcp/`, `/mission-control.db`, `/mission-control.db-shm`, `/mission-control.db-wal`, and `/2600`.
@@ -156,6 +196,53 @@
 - 2026-02-24T03:25:39+01:00 [CODE] Conversation delete flow now removes `conversation_project_state` rows before deleting `conversations` to satisfy SQLite foreign-key constraints.
 
 [PROGRESS]
+
+- 2026-02-25T22:26:25+01:00 [TOOL] Executed real (non-mocked) live Mission Control API flow against running app (`http://localhost:3000`): created task, started planning, answered planning question, planning completed and auto-dispatch triggered, then polled task status for 120 cycles to verify `review` transition.
+
+- 2026-02-25T22:12:53+01:00 [TOOL] Added end-to-end Mission Control integration regression `tests/integration/mission-control/full-planning-to-review-flow.test.ts` that reproduces the full user flow: `POST /api/tasks` (create), `POST /planning` (start), `GET /planning/poll` (question), `POST /planning/answer` (answer), `GET /planning/poll` (completion + dispatch), and automatic transition to `review` via dispatch-completion + auto-test chain.
+
+- 2026-02-25T21:57:16+01:00 [CODE] Integrated automatic testing trigger on all primary `testing` entry points: `app/api/tasks/[id]/dispatch/route.ts`, `app/api/webhooks/agent-completion/route.ts`, and `app/api/tasks/[id]/route.ts` now call `triggerAutomatedTaskTest(taskId)` when a task transitions into/through `testing` (except terminal `review/done` cases).
+- 2026-02-25T21:57:16+01:00 [CODE] Added centralized fallback deliverable registration in `src/server/tasks/autoTesting.ts` and wired it into dispatch/webhook/PATCH flows via `ensureTaskDeliverablesFromProjectDir(...)` so missing manual deliverable registration no longer blocks test execution when HTML artifacts exist in the task project folder.
+- 2026-02-25T21:57:16+01:00 [CODE] Added integration coverage for the new auto-testing flow: `tests/integration/mission-control/tasks-route-auto-testing.test.ts`, `tests/integration/mission-control/agent-completion-webhook-auto-testing.test.ts`, and extended `tests/integration/mission-control/dispatch-real-execution-required.test.ts` with fallback-deliverable + auto-test assertions.
+
+- 2026-02-25T21:37:37+01:00 [CODE] Hardened `POST /api/tasks/[id]/activities`: added task existence check and `agent_id` FK guard in `app/api/tasks/[id]/activities/route.ts` by validating provided `agent_id` and falling back to the task’s assigned agent when the supplied id does not exist.
+- 2026-02-25T21:37:37+01:00 [CODE] Added integration regression `tests/integration/mission-control/task-activities-route-fk-guard.test.ts` covering the previously failing path where activity payload includes a valid-but-unknown `agent_id` UUID.
+
+- 2026-02-25T21:18:31+01:00 [CODE] Extended integrated `chat.send` result payload to include `agentContent` in `src/lib/openclaw/client.ts`, so Mission Control dispatch can evaluate completion markers from the same turn.
+- 2026-02-25T21:18:31+01:00 [CODE] Updated `app/api/tasks/[id]/dispatch/route.ts` to parse `TASK_COMPLETE:` from agent response and immediately transition task to `testing`, set agent to `standby`, and log `task_completed` event/activity in the same dispatch request.
+- 2026-02-25T21:18:31+01:00 [CODE] Added integration regression `moves task to testing when agent reports TASK_COMPLETE` in `tests/integration/mission-control/dispatch-real-execution-required.test.ts`; preserved existing dispatch tests by mocking installed skills where required.
+
+- 2026-02-25T21:03:41+01:00 [CODE] Added dispatch preflight guard in `app/api/tasks/[id]/dispatch/route.ts`: route now returns `409 no_installed_tools` before runtime call when skill registry has zero installed tools.
+- 2026-02-25T21:03:41+01:00 [CODE] Hardened client auto-dispatch error handling in `src/lib/auto-dispatch.ts` to normalize `error|message|warning` fields and include HTTP status in logs instead of opaque `{}` payload output.
+- 2026-02-25T21:03:41+01:00 [CODE] Updated task-board and modal flows to persist `pending_dispatch` on auto-dispatch failure (`src/components/MissionQueue.tsx`, `src/components/TaskModal.tsx`) so failed execution is visible and retryable instead of appearing as active work.
+- 2026-02-25T21:03:41+01:00 [CODE] Extended integration coverage in `tests/integration/mission-control/dispatch-real-execution-required.test.ts` with explicit `no_installed_tools` case and adjusted dispatch-dependent tests to mock installed skills for deterministic behavior.
+
+- 2026-02-25T20:44:44+01:00 [CODE] Updated `app/api/tasks/[id]/planning/route.ts` with `buildPlanningSessionKey(taskId)` and switched planning start flow to per-run session keys; added integration regression coverage in `tests/integration/mission-control/planning-route-session-key.test.ts`.
+
+- 2026-02-25T20:29:55+01:00 [TOOL] Added RED integration test `tests/integration/mission-control/dispatch-real-execution-required.test.ts` reproducing false-positive dispatch success (`200`) when agent metadata indicated `tool_execution_required_unmet`; implemented GREEN fixes across dispatch gating and runtime metadata propagation.
+- 2026-02-25T20:29:55+01:00 [CODE] Extended message dispatch options (`executionDirective`, `maxToolCalls`, `requireToolCall`) in `MessageService.handleInbound`, added tool-call count metadata in AI dispatcher, passed Mission-Control-specific execution policy via integrated OpenClaw client, and blocked `/api/tasks/[id]/dispatch` success path when real execution requirement is unmet.
+
+- 2026-02-25T20:03:25+01:00 [TOOL] Added focused UI regression test `tests/unit/components/mission-queue-pending-dispatch.test.ts`; confirms `pending_dispatch` tasks render in Mission Queue column with visible task card and retry indicator.
+- 2026-02-25T20:03:25+01:00 [CODE] Completed status-contract alignment for the visibility bug across `src/lib/{types,validation}.ts`, `src/components/{MissionQueue,TaskModal}.tsx`, `app/api/workspaces/route.ts`, and retry-dispatch status handling to keep `pending_dispatch` tasks visible and semantically consistent.
+
+- 2026-02-25T19:34:42+01:00 [CODE] Added regression test `tests/integration/mission-control/planning-poll-dispatch-assignment.test.ts` (RED reproduced `Dispatch failed (400): {"error":"Task has no assigned agent"}`), then fixed `app/api/tasks/[id]/planning/poll/route.ts` assignment/dispatch ordering and removed post-dispatch status overwrite to `inbox`.
+
+- 2026-02-25T19:20:23+01:00 [CODE] Implemented app/api/mission-control/status/route.ts and updated app/mission-control/workspace/[slug]/page.tsx status checks and polling intervals to consume /api/mission-control/status.
+
+- 2026-02-25T19:20:23+01:00 [CODE] Updated compatibility behavior in app/api/openclaw/status/route.ts to return integrated runtime metadata (runtime_url, mode) and tolerate session-probe failures without forcing false offline state.
+
+- 2026-02-25T19:20:23+01:00 [CODE] Completed copy/error normalization in Mission Control-facing routes/components (app/api/agents/_, app/api/openclaw/sessions_, app/api/tasks/[id]/dispatch, src/components/{AgentsSidebar,DiscoverAgentsModal,AgentModal}.tsx, app/mission-control/settings/page.tsx).
+
+- 2026-02-25T19:01:37+01:00 [TOOL] Completed multi-agent explorer audit across Mission Control frontend/backend contracts and legacy naming assumptions; consolidated blockers, high-priority API/UI mismatches, and medium-priority branding/config drift for phased remediation.
+
+- 2026-02-25T18:47:12+01:00 [TOOL] TDD cycle complete for models route: added RED integration test `tests/integration/mission-control/openclaw-models-route.test.ts` (expected `200`, got `404`), then migrated `app/api/openclaw/models/route.ts` to integrated Model Hub source and stabilized Windows cleanup around sqlite file handles.
+
+- 2026-02-25T18:37:34+01:00 [TOOL] Added regression test `tests/integration/mission-control/tasks-route-create-null-assignee.test.ts`; RED observed (`POST /api/tasks` returned `400` for `assigned_agent_id: null`), GREEN after schema update (`201` + persisted null assignee).
+- 2026-02-25T18:37:34+01:00 [CODE] Updated request typing for create flow in `src/lib/types.ts` to permit nullable assignee/creator IDs, matching route validation and frontend payload shape.
+- 2026-02-25T18:37:34+01:00 [CODE] Cleaned lint warning in `tests/unit/channels/ai-dispatcher-summary-refresh.test.ts` (`no-useless-undefined`) to restore warning-free lint baseline.
+
+- 2026-02-25T18:05:09+01:00 [TOOL] TDD cycle for Mission-Control gateway integration: added `tests/integration/mission-control/openclaw-integration-routes.test.ts`; RED captured (`connected=false` + attempted `ws://127.0.0.1:18789`, and `POST /api/agents/[id]/openclaw` returned `503`), then GREEN after adapter migration (`2/2` passing).
+- 2026-02-25T18:05:09+01:00 [CODE] Updated integration defaults and UX consistency: `app/api/openclaw/status/route.ts` now reports adapter mode + resolved gateway URL; `src/lib/config.ts` server fallback switched from `http://localhost:4000` to `http://localhost:${PORT|3000}`; Mission Control settings placeholder/env hints updated to integrated-default wording.
 
 - 2026-02-25T16:55:19+01:00 [TOOL] Verified ignore coverage via `git check-ignore -v` for `.tmp/lint.json`, `.playwright-mcp/*`, `mission-control.db*`, and `2600`; all now match `.gitignore`.
 
@@ -323,6 +410,50 @@
 
 [DISCOVERIES]
 
+- 2026-02-25T22:26:25+01:00 [TOOL] Live run failure point is execution-stage model dispatch, not planning: planning reached `complete` with `autoDispatched=true`, but worker session history contains assistant error `AI dispatch failed: All models failed: grok-4-fast-reasoning@xai: This operation was aborted`, so task never emitted `TASK_COMPLETE`.
+- 2026-02-25T22:26:25+01:00 [TOOL] Because dispatch route currently treats non-`TASK_COMPLETE` assistant text as successful dispatch, failing execution responses can leave tasks stuck in `in_progress` with only a single `task_dispatched` event/activity and zero deliverables.
+
+- 2026-02-25T22:12:53+01:00 [TOOL] Full flow is stable in integration mode with controlled mocks: planning Q/A progression, agent dispatch completion parsing (`TASK_COMPLETE`), fallback deliverable discovery, automated `/test`, and final `review` transition all execute in one chain.
+
+- 2026-02-25T21:57:16+01:00 [TOOL] `POST /api/tasks/[id]/test` still hard-fails without deliverables (`400 No testable deliverables found`); auto-test triggering alone is insufficient unless deliverables are registered or inferred from task output directories.
+- 2026-02-25T21:57:16+01:00 [TOOL] Project-folder fallback discovery is effective for simple webpage tasks: when task title slug maps to an output folder containing `.html` files, auto-registration + auto-test allows immediate `testing -> review` progression without requiring explicit manual deliverable API calls.
+
+- 2026-02-25T21:37:37+01:00 [TOOL] `testing -> review` currently has no automatic trigger: status is set to `testing` in dispatch/completion flows, but `review` transition exists only inside `POST /api/tasks/[id]/test`; no caller invokes that endpoint automatically on `testing` entry.
+- 2026-02-25T21:37:37+01:00 [TOOL] Latest local task sample (`c2c9db3f-3e65-4a72-849f-1fbc7836e4ae`, `Web33`) is `testing` with `task_deliverables` count `0`; test endpoint would return `400` (`No testable deliverables found`) so automatic progression cannot happen even if trigger existed.
+
+- 2026-02-25T21:37:37+01:00 [TOOL] Root cause for `SqliteError: FOREIGN KEY constraint failed` in `POST /api/tasks/[id]/activities`: callers can send syntactically valid UUIDs for `agent_id` that pass Zod validation but do not exist in `agents`; SQLite then rejects insert on `task_activities.agent_id REFERENCES agents(id)`.
+
+- 2026-02-25T21:18:31+01:00 [TOOL] Latest user task `5c637dc8-5517-465d-b574-a502cff8c6e2` was genuinely executed: message transcript for `agent:main:mission-control-weber` contains `TASK_COMPLETE: Created simple HTML page...`, and artifact exists at `C:\\Users\\djm2k\\Documents\\Shared\\projects\\web42143\\index.html`; however Mission Control status remained `in_progress` because dispatch logic ignored completion text and only relied on explicit API/webhook updates.
+
+- 2026-02-25T21:03:41+01:00 [TOOL] Root cause for `Web44` dispatch failure is environment state, not task schema: dispatch route returns `502 tool_execution_required_unmet` with `executedToolCalls=0`, and `.local/skills.db` contains 18 built-in skills with `installed=0` for all entries (no executable tools available to satisfy required tool-call guard).
+
+- 2026-02-25T20:55:36+01:00 [TOOL] User task `1622d010-9efd-43fb-bb66-85bcdde41e68` (`Web44`) is stored with `status='inbox'` and assigned agent `e53c99c8-f539-4934-89ac-7cebdf907437`, but no dispatch records exist (`events`: only `task_created`, `task_activities`: none). Current frontend trigger logic only auto-dispatches on transition to `in_progress` and only in edit/drag flows, not immediately after task creation.
+
+- 2026-02-25T20:44:44+01:00 [TOOL] Root cause for mixed planning transcript (`AI dispatch failed` + valid next question) is session-key reuse (`agent:main:planning:<taskId>`): polling compares stored assistant count vs full shared conversation history, so prior run messages are replayed into new planning starts.
+
+- 2026-02-25T20:29:55+01:00 [TOOL] Root cause for “does not continue after dispatch”: integrated dispatch path treated any assistant text as success; there was no gate verifying tool execution, and completion webhook was never triggered because message-based `TASK_COMPLETE` text alone does not invoke `/api/webhooks/agent-completion`.
+
+- 2026-02-25T19:58:54+01:00 [TOOL] Root cause for "task count without visible card" was status-contract drift: DB and planning flow used `pending_dispatch`, but shared frontend/runtime status contracts did not include it, so existing tasks were excluded from rendered Mission Queue columns.
+
+- 2026-02-25T19:34:42+01:00 [TOOL] Root cause was ordering in `handlePlanningCompletion`: dispatch call happened before task assignment persistence; additionally, successful dispatch was followed by a planning completion update that reset task status back to `inbox`.
+
+- 2026-02-25T19:20:23+01:00 [TOOL] Mission Control UI online status was still bound to /api/openclaw/status; introducing an explicit integrated status endpoint removed gateway-specific coupling and eliminated misleading offline behavior in integrated mode.
+
+- 2026-02-25T19:20:23+01:00 [TOOL] Task list join query omitted created_by_agent avatar in GET /api/tasks; including ca.avatar_emoji restored consistent hydrated relation shape across list/get/create/update responses.
+
+- 2026-02-25T19:01:37+01:00 [TOOL] Key functional gaps are no longer missing routes but integration-contract drift: Mission Control UI still expresses external gateway semantics (`OPENCLAW_GATEWAY_*`, “Gateway running” messaging, connect/import wording) while runtime is integrated, and task create/update API responses omit nested `assigned_agent` object expected by UI for immediate render/dispatch.
+
+- 2026-02-25T18:47:12+01:00 [TOOL] Root cause for `/api/openclaw/models` error logs: route existed but explicitly returned HTTP `404` whenever `~/.openclaw/openclaw.json` was missing, which conflicts with integrated deployment where models come from Model Hub.
+
+- 2026-02-25T18:40:41+01:00 [TOOL] Re-validation with the original payload shape confirms the `400` was strictly schema-level (`assigned_agent_id: null`), not DB/business logic; once nullable IDs are accepted, the same create path persists task + emits `task_created`.
+
+- 2026-02-25T18:37:34+01:00 [TOOL] Root cause for the reported `POST /api/tasks 400`: `CreateTaskSchema` defined `assigned_agent_id` as `z.string().uuid().optional()` (no `nullable`), while UI sends `assigned_agent_id: null` for unassigned tasks; validation failed before DB insert.
+
+- 2026-02-25T18:18:31+01:00 [TOOL] Recall-Lesepfad für explizite Kommandos ist bereits lokal/lexikal (`includeSemantic=false`, `recallDetailed(..., { mode: 'lexical' })`), aber der danach unbedingte `summaryService.maybeRefreshConversationSummary(...)` kann asynchron Knowledge-Ingestion/Mem0-`store` triggern und so OpenRouter-Embedding-Calls erzeugen.
+
+- 2026-02-25T18:05:09+01:00 [TOOL] Root cause for Mission-Control `Gateway Offline`: previous `src/lib/openclaw/client.ts` implemented standalone OpenClaw challenge/token handshake semantics and defaulted to `ws://127.0.0.1:18789`; local system gateway (`server.ts`, `/ws`) exposes `hello-ok` event protocol without `connect.challenge`, so connect/list flows failed and status stayed offline.
+- 2026-02-25T18:05:09+01:00 [CODE] Additional protocol mismatch confirmed: Mission-Control routes called `sessions.list/sessions.send/sessions.history` methods that are not registered in local gateway method router (local APIs are `chat.*` + `sessions.delete/reset/patch`), requiring integration adapter mapping instead of raw standalone protocol passthrough.
+
 - 2026-02-25T05:56:07+01:00 [CODE] `knowledge_conversation_summaries.time_range_start` and `time_range_end` are schema-level `NOT NULL`; test fixtures using `null` for these fields fail before cascade logic executes.
 
 - 2026-02-25T05:38:36+01:00 [CODE] Prompt recall context is intentionally multi-source: `RecallService.buildRecallContext` fuses persona-scoped FTS chat hits, knowledge retrieval, and Mem0 memory, then `aiDispatcher` injects that fused block as a `system` message. Deleting Mem0 entries alone does not clear `[Chat History]` or `[Knowledge]` content from future prompts.
@@ -436,6 +567,54 @@
 - 2026-02-25T00:00:00+01:00 [CODE] Fixed project guard intercepting agent-v2 swarm prompts (`src/server/channels/messages/service/index.ts`, `src/server/agent-v2/sessionManager.ts`): added `opts?: { skipProjectGuard?: boolean }` to `handleWebUIMessage` and `handleInbound`; `sessionManager.executeCommand` now passes `{ skipProjectGuard: true }` so swarm phase prompts bypass `maybeRequestProjectClarification` entirely.
 
 [OUTCOMES]
+
+- 2026-02-25T22:38:59+01:00 [TOOL] Installed requested CLIs via winget: `jqlang.jq` (`jq 1.8.1`), `MikeFarah.yq` (`v4.52.4`), `sharkdp.fd` (`fd 10.3.0`), `BurntSushi.ripgrep.MSVC` (`ripgrep 15.1.0`). `winget list` confirms all four; command resolution works when a shell loads the updated User+Machine PATH.
+
+- 2026-02-25T22:26:25+01:00 [TOOL] Live Mission Control validation (real runtime, no mocks) did NOT reach `review`: task `bd3015f1-b9fc-45f4-8f9d-83c976a58712` remained `in_progress` after successful planning+dispatch due upstream model abort during worker execution (`grok-4-fast-reasoning@xai` aborted), with `deliverables=0` and no automated testing trigger.
+
+- 2026-02-25T22:25:44+01:00 [TOOL] Global Playwright CLI setup verified: `npm install -g playwright` succeeded; `Get-Command playwright` resolves to `C:\Users\djm2k\AppData\Roaming\npm\playwright.ps1`; `playwright --version` returns `1.58.2`; `where.exe playwright` lists PATH shims (`playwright`, `playwright.cmd`).
+
+- 2026-02-25T22:12:53+01:00 [TOOL] End-to-end verification PASS for requested Mission Control journey (`task create -> planning start -> user answer -> work dispatch -> review`) via `pnpm vitest run tests/integration/mission-control/full-planning-to-review-flow.test.ts` (1/1 passing).
+- 2026-02-25T22:12:53+01:00 [TOOL] Full Mission Control integration regression PASS: `pnpm vitest run tests/integration/mission-control` (12 files, 18 tests), `pnpm typecheck` PASS, `pnpm lint .` PASS (0 warnings/0 errors).
+
+- 2026-02-25T21:57:16+01:00 [TOOL] Verification PASS for automated `testing -> /test` flow and fallback deliverable path: `pnpm vitest run tests/integration/mission-control/dispatch-real-execution-required.test.ts tests/integration/mission-control/tasks-route-auto-testing.test.ts tests/integration/mission-control/agent-completion-webhook-auto-testing.test.ts` (3 files / 6 tests), `pnpm typecheck` PASS, `pnpm lint .` PASS (0 warnings/0 errors).
+
+- 2026-02-25T21:37:37+01:00 [TOOL] Verification PASS for activities FK guard fix: `pnpm vitest run tests/integration/mission-control/task-activities-route-fk-guard.test.ts`, `pnpm typecheck`, and `pnpm lint .` all passed.
+
+- 2026-02-25T21:18:31+01:00 [TOOL] Live validation on user task `5c637dc8-5517-465d-b574-a502cff8c6e2`: dispatch returned `completed=true` with parsed `TASK_COMPLETE` summary, task status advanced `in_progress -> testing`, agent `e53c99c8-f539-4934-89ac-7cebdf907437` moved to `standby`, and `task_completed` event was written.
+
+- 2026-02-25T21:18:31+01:00 [TOOL] Verification PASS for automatic completion propagation fix: `pnpm vitest run tests/integration/mission-control/dispatch-real-execution-required.test.ts tests/integration/mission-control/planning-poll-dispatch-assignment.test.ts`, `pnpm typecheck`, and `pnpm lint .` all passed.
+
+- 2026-02-25T21:03:41+01:00 [TOOL] Verification PASS for dispatch diagnostics/UX hardening: `pnpm vitest run tests/integration/mission-control/dispatch-real-execution-required.test.ts tests/integration/mission-control/planning-poll-dispatch-assignment.test.ts`, `pnpm typecheck`, and `pnpm lint .` all passed.
+
+- 2026-02-25T20:55:36+01:00 [TOOL] Runtime inspection outcome for "Task stays inbox": confirmed non-dispatched state is expected with current gate logic (`shouldTriggerAutoDispatch` requires transition to `in_progress`); the reported task does not show any dispatch attempt in DB history.
+
+- 2026-02-25T20:44:44+01:00 [TOOL] Verification PASS for planning-session isolation fix: `pnpm vitest run tests/integration/mission-control/planning-route-session-key.test.ts tests/integration/mission-control/planning-poll-dispatch-assignment.test.ts` (2/2), `pnpm typecheck` PASS, `pnpm lint .` PASS (0 warnings/0 errors).
+
+- 2026-02-25T20:29:55+01:00 [TOOL] Verification PASS for real-execution dispatch guard: `pnpm vitest run tests/integration/mission-control/dispatch-real-execution-required.test.ts` (1/1), `pnpm vitest run tests/integration/mission-control` (7 files, 10 tests), `pnpm typecheck` PASS, `pnpm lint` PASS (0 warnings/0 errors), `pnpm build` PASS.
+
+- 2026-02-25T20:03:25+01:00 [TOOL] Fresh post-fix verification PASS: `pnpm vitest run tests/unit/components/mission-queue-pending-dispatch.test.ts tests/unit/mission-control/task-status-contract.test.ts tests/integration/mission-control` (8 files, 12 tests), `pnpm typecheck` PASS, `pnpm lint` PASS (0 warnings/0 errors), `pnpm build` PASS.
+
+- 2026-02-25T19:58:54+01:00 [TOOL] Verification PASS for Mission Queue status visibility fix: `pnpm vitest run tests/unit/mission-control/task-status-contract.test.ts` (2/2), `pnpm vitest run tests/integration/mission-control` (9/9), `pnpm typecheck`, `pnpm lint` (0 warnings/0 errors), `pnpm build`.
+
+- 2026-02-25T19:34:42+01:00 [TOOL] Verification PASS after planning-dispatch fix: `pnpm vitest run tests/integration/mission-control/planning-poll-dispatch-assignment.test.ts`, `pnpm vitest run tests/integration/mission-control`, `pnpm typecheck`, `pnpm lint`, `pnpm build`.
+
+- 2026-02-25T19:20:23+01:00 [TOOL] Verification completed for Mission Control integration hardening: pnpm vitest run tests/integration/mission-control PASS (5 files, 8 tests), pnpm typecheck PASS, pnpm lint PASS (0 warnings, 0 errors), pnpm build PASS (Next.js production build successful with /api/mission-control/status).
+
+- 2026-02-25T19:24:35+01:00 [TOOL] Full repository regression sweep PASS: pnpm test completed successfully (373 test files, 1593 tests).
+
+- 2026-02-25T19:01:37+01:00 [TOOL] Produced prioritized Mission Control integration assessment (blocker/high/medium) with concrete file-level remediation targets for converting remaining OpenClaw-standalone semantics into system-native Mission Control behavior.
+
+- 2026-02-25T18:47:12+01:00 [TOOL] Models endpoint is now integration-ready: `pnpm vitest run tests/integration/mission-control/openclaw-models-route.test.ts tests/integration/mission-control/openclaw-integration-routes.test.ts` PASS (3/3), `pnpm typecheck` PASS, `pnpm lint` PASS (0 warnings/0 errors).
+
+- 2026-02-25T18:40:41+01:00 [TOOL] Fresh verification after user log replay context: `pnpm vitest run tests/integration/mission-control/tasks-route-create-null-assignee.test.ts` PASS (1/1), `pnpm typecheck` PASS, `pnpm lint` PASS (0 warnings/0 errors).
+
+- 2026-02-25T18:37:34+01:00 [TOOL] Task-creation regression fixed for inbox/unassigned workflow: payloads with `assigned_agent_id: null` now succeed. Verification evidence: `pnpm vitest run tests/integration/mission-control/tasks-route-create-null-assignee.test.ts` PASS, `pnpm typecheck` PASS, `pnpm lint` PASS (0 warnings/0 errors).
+
+- 2026-02-25T18:18:31+01:00 [TOOL] Recall/Provider-Fix verifiziert: `dispatchToAI` unterstützt `skipSummaryRefresh`; `MessageService` aktiviert diesen Schalter für explizite Recall-Kommandos. Tests PASS: `pnpm vitest run tests/unit/channels/ai-dispatcher-summary-refresh.test.ts tests/unit/channels/message-service-knowledge-recall.test.ts` (13/13), `pnpm typecheck` PASS.
+
+- 2026-02-25T18:05:09+01:00 [TOOL] Mission-Control gateway integration issue resolved: `/api/openclaw/status` now reports connected integrated mode by default (no implicit `18789` dependency), and agent-link route works without external gateway (`POST /api/agents/[id]/openclaw` success path validated).
+- 2026-02-25T18:05:09+01:00 [TOOL] Verification evidence for this change set: `pnpm vitest run tests/integration/mission-control/openclaw-integration-routes.test.ts` PASS (2/2), `pnpm typecheck` PASS, `pnpm lint` PASS (0 warnings/0 errors), `pnpm vitest run tests/unit/components/mission-control-shell-integration.test.ts` PASS (2/2).
 
 - 2026-02-25T16:55:19+01:00 [TOOL] Git hygiene hardened for this workspace: transient Playwright artifacts and local SQLite/runtime residue are now ignored and no longer pollute `git status`.
 
@@ -575,3 +754,9 @@
 - 2026-02-24T20:44:12+01:00 [USER] Explicit requirement reiterated: Agent Room must use existing SQLite storage only (no new database).
 - 2026-02-24T20:44:12+01:00 [TOOL] Re-verified code paths: Agent Room persistence uses `SqliteMessageRepository` + messages-repository migrations/queries (`agent_room_swarms`) and no dedicated Agent Room DB path/config exists.
 - 2026-02-24T20:44:12+01:00 [CODE] Added explicit implementation note to `docs/plans/2026-02-24-multi-agent-spawn` clarifying that imported `localStorage` snippets are reference-only and production plan uses existing `messages.db`.
+
+- 2026-02-25T23:11:29+01:00 [DISCOVERIES] [TOOL] Prompt dispatch log inspection showed recurring Mission Control failures with `error_message="This operation was aborted"` at ~`60000ms` latency, confirming hard gateway timeout on model dispatch during execution-mode turns.
+- 2026-02-25T23:11:29+01:00 [DISCOVERIES] [TOOL] Live model-hub state at failure time: profile `p1` had only one active model (`grok-4-fast-reasoning@xai`); other p1 candidates existed but were `offline`, so timeout on primary caused full dispatch failure.
+- 2026-02-25T23:11:29+01:00 [DECISIONS] [CODE] Added model-hub gateway timeout resolver (`MODEL_HUB_GATEWAY_TIMEOUT_MS` + `MODEL_HUB_GATEWAY_EXEC_TIMEOUT_MS`) and switched chat dispatch adapters (OpenAI-compatible + xAI) to tool-aware execution timeout selection.
+- 2026-02-25T23:11:29+01:00 [TOOL] Verification after timeout fix: `pnpm vitest run tests/unit/model-hub/openai-compatible-tools.test.ts tests/unit/model-hub/xai-models.test.ts` PASS (3/3) and `pnpm vitest run tests/integration/mission-control/dispatch-real-execution-required.test.ts` PASS (6/6).
+- 2026-02-25T23:11:29+01:00 [OUTCOMES] [TOOL] Two consecutive non-mocked live Mission Control runs (`create -> planning -> answer -> dispatch -> testing -> review`) completed successfully; latest task IDs: `0e560885-3227-4b3a-b514-e01bd8a4e70a` and `b1284ec1-de81-42d3-b540-dc5d7343961d`, both ending in `review` with deliverables and `test_passed` activity.

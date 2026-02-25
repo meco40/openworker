@@ -4,16 +4,99 @@ import { queryOne, queryAll, run } from '@/lib/db';
 import { getOpenClawClient } from '@/lib/openclaw/client';
 import { broadcast } from '@/lib/events';
 import { getProjectsPath, getMissionControlUrl } from '@/lib/config';
+import {
+  ensureTaskDeliverablesFromProjectDir,
+  triggerAutomatedTaskTest,
+} from '@/server/tasks/autoTesting';
 import type { Task, Agent, OpenClawSession } from '@/lib/types';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+interface DispatchChatSendResult {
+  userMsgId?: string;
+  agentMsgId?: string;
+  conversationId?: string;
+  agentContent?: string;
+  agentMetadata?: Record<string, unknown>;
+}
+
+interface DispatchFailure {
+  message: string;
+  retryable: boolean;
+  details?: Record<string, unknown>;
+}
+
+const MAX_DISPATCH_ATTEMPTS = 3;
+
+function extractTaskCompleteSummary(text: string | undefined): string | null {
+  const raw = String(text || '');
+  const match = raw.match(/TASK_COMPLETE:\s*(.+)/i);
+  if (!match) return null;
+  const summary = match[1].trim();
+  return summary.length > 0 ? summary : null;
+}
+
+function classifyDispatchFailure(
+  result: DispatchChatSendResult | null | undefined,
+): DispatchFailure | null {
+  const metadata = result?.agentMetadata ?? {};
+  const executionStatus = String(metadata.status || '')
+    .trim()
+    .toLowerCase();
+  const content = String(result?.agentContent || '').trim();
+  const contentLower = content.toLowerCase();
+
+  if (executionStatus === 'tool_execution_required_unmet') {
+    return {
+      message:
+        'Agent dispatch failed: no real execution was performed. Please retry dispatch after adjusting task instructions.',
+      retryable: false,
+      details: metadata,
+    };
+  }
+
+  if (contentLower.startsWith('ai dispatch failed:')) {
+    return {
+      message: `Agent dispatch failed: ${content}`,
+      retryable:
+        contentLower.includes('aborted') ||
+        contentLower.includes('all models failed') ||
+        contentLower.includes('timeout') ||
+        contentLower.includes('temporarily'),
+      details: metadata,
+    };
+  }
+
+  if (contentLower.startsWith('execution failed:')) {
+    return {
+      message: content || 'Agent execution failed.',
+      retryable: false,
+      details: metadata,
+    };
+  }
+
+  if (metadata.ok === false) {
+    const statusText = executionStatus || 'unknown_error';
+    return {
+      message: `Agent dispatch failed (${statusText}).`,
+      retryable:
+        statusText.includes('aborted') ||
+        statusText.includes('timeout') ||
+        statusText.includes('temporary') ||
+        statusText.includes('rate_limit'),
+      details: metadata,
+    };
+  }
+
+  return null;
+}
+
 /**
  * POST /api/tasks/[id]/dispatch
  *
- * Dispatches a task to its assigned agent's OpenClaw session.
+ * Dispatches a task to its assigned agent's runtime session.
  * Creates session if needed, sends task details to agent.
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
@@ -74,21 +157,37 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // Connect to OpenClaw Gateway
+    // Hard stop: execution dispatch cannot succeed when no skills/tools are installed.
+    // This avoids opaque `tool_execution_required_unmet` failures later in the pipeline.
+    const { getSkillRepository } = await import('@/server/skills/skillRepository');
+    const skillRepo = await getSkillRepository();
+    const installedSkillCount = skillRepo.listSkills().filter((skill) => skill.installed).length;
+    if (installedSkillCount < 1) {
+      return NextResponse.json(
+        {
+          error:
+            'Cannot dispatch task: no execution tools are installed. Enable at least one skill (e.g. Safe Shell) and retry.',
+          code: 'no_installed_tools',
+        },
+        { status: 409 },
+      );
+    }
+
+    // Connect to runtime
     const client = getOpenClawClient();
     if (!client.isConnected()) {
       try {
         await client.connect();
       } catch (err) {
-        console.error('Failed to connect to OpenClaw Gateway:', err);
+        console.error('Failed to connect to Mission Control runtime:', err);
         return NextResponse.json(
-          { error: 'Failed to connect to OpenClaw Gateway' },
+          { error: 'Failed to connect to Mission Control runtime' },
           { status: 503 },
         );
       }
     }
 
-    // Get or create OpenClaw session for this agent
+    // Get or create runtime session for this agent
     let session = queryOne<OpenClawSession>(
       'SELECT * FROM openclaw_sessions WHERE agent_id = ? AND status = ?',
       [agent.id, 'active'],
@@ -170,11 +269,125 @@ If you need help or clarification, ask the orchestrator.`;
       // Use sessionKey for routing to the agent's session
       // Format: agent:main:{openclaw_session_id}
       const sessionKey = `agent:main:${session.openclaw_session_id}`;
-      await client.call('chat.send', {
-        sessionKey,
-        message: taskMessage,
-        idempotencyKey: `dispatch-${task.id}-${Date.now()}`,
-      });
+      let sendResult: DispatchChatSendResult | null = null;
+
+      for (let attempt = 1; attempt <= MAX_DISPATCH_ATTEMPTS; attempt += 1) {
+        sendResult = await client.call<DispatchChatSendResult>('chat.send', {
+          sessionKey,
+          message: taskMessage,
+          idempotencyKey: `dispatch-${task.id}-${Date.now()}-${attempt}`,
+        });
+
+        const failure = classifyDispatchFailure(sendResult);
+        if (!failure) {
+          break;
+        }
+
+        const isLastAttempt = attempt >= MAX_DISPATCH_ATTEMPTS;
+        if (!failure.retryable || isLastAttempt) {
+          console.error(
+            `Dispatch failed for task ${task.id} on attempt ${attempt}/${MAX_DISPATCH_ATTEMPTS}`,
+            {
+              message: failure.message,
+              details: failure.details,
+              agentContent: sendResult?.agentContent,
+            },
+          );
+          return NextResponse.json(
+            {
+              error: failure.message,
+              details: failure.details ?? sendResult?.agentMetadata ?? null,
+            },
+            { status: 502 },
+          );
+        }
+
+        console.warn(
+          `Dispatch retry ${attempt}/${MAX_DISPATCH_ATTEMPTS} for task ${task.id}: ${failure.message}`,
+        );
+      }
+
+      const completionSummary = extractTaskCompleteSummary(sendResult?.agentContent);
+
+      if (completionSummary) {
+        const shouldAutoTest = task.status !== 'review' && task.status !== 'done';
+        if (task.status !== 'testing' && task.status !== 'review' && task.status !== 'done') {
+          run('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?', ['testing', now, id]);
+        }
+
+        if (shouldAutoTest) {
+          ensureTaskDeliverablesFromProjectDir({
+            taskId: task.id,
+            taskTitle: task.title,
+            projectDir: taskProjectDir,
+          });
+          triggerAutomatedTaskTest(task.id);
+        }
+
+        const updatedTask = queryOne<Task>('SELECT * FROM tasks WHERE id = ?', [id]);
+        if (updatedTask) {
+          broadcast({
+            type: 'task_updated',
+            payload: updatedTask,
+          });
+        }
+
+        run('UPDATE agents SET status = ?, updated_at = ? WHERE id = ?', [
+          'standby',
+          now,
+          agent.id,
+        ]);
+
+        run(
+          `INSERT INTO events (id, type, agent_id, task_id, message, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            uuidv4(),
+            'task_dispatched',
+            agent.id,
+            task.id,
+            `Task "${task.title}" dispatched to ${agent.name}`,
+            now,
+          ],
+        );
+
+        run(
+          `INSERT INTO events (id, type, agent_id, task_id, message, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            uuidv4(),
+            'task_completed',
+            agent.id,
+            task.id,
+            `${agent.name} completed: ${completionSummary}`,
+            now,
+          ],
+        );
+
+        run(
+          `INSERT INTO task_activities (id, task_id, agent_id, activity_type, message, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            crypto.randomUUID(),
+            task.id,
+            agent.id,
+            'completed',
+            `Agent reported completion: ${completionSummary}`,
+            now,
+          ],
+        );
+
+        return NextResponse.json({
+          success: true,
+          task_id: task.id,
+          agent_id: agent.id,
+          session_id: session.openclaw_session_id,
+          completed: true,
+          new_status: 'testing',
+          summary: completionSummary,
+          message: 'Task dispatched and completed by agent',
+        });
+      }
 
       // Update task status to in_progress
       run('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?', ['in_progress', now, id]);

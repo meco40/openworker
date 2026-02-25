@@ -3,19 +3,53 @@ import { v4 as uuidv4 } from 'uuid';
 import { queryOne, run } from '@/lib/db';
 import { broadcast } from '@/lib/events';
 import { getMissionControlUrl } from '@/lib/config';
+import {
+  ensureTaskDeliverablesFromProjectDir,
+  triggerAutomatedTaskTest,
+} from '@/server/tasks/autoTesting';
 import { UpdateTaskSchema } from '@/lib/validation';
 import type { Task, UpdateTaskRequest, Agent } from '@/lib/types';
+
+interface TaskRowWithJoins extends Task {
+  assigned_agent_name?: string | null;
+  assigned_agent_emoji?: string | null;
+  created_by_agent_name?: string | null;
+  created_by_agent_emoji?: string | null;
+}
+
+function hydrateTaskRelations(task: TaskRowWithJoins): Task {
+  return {
+    ...task,
+    assigned_agent: task.assigned_agent_id
+      ? {
+          id: task.assigned_agent_id,
+          name: task.assigned_agent_name ?? null,
+          avatar_emoji: task.assigned_agent_emoji ?? null,
+        }
+      : undefined,
+    created_by_agent: task.created_by_agent_id
+      ? {
+          id: task.created_by_agent_id,
+          name: task.created_by_agent_name ?? null,
+          avatar_emoji: task.created_by_agent_emoji ?? null,
+        }
+      : undefined,
+  };
+}
 
 // GET /api/tasks/[id] - Get a single task
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const task = queryOne<Task>(
+    const task = queryOne<TaskRowWithJoins>(
       `SELECT t.*,
         aa.name as assigned_agent_name,
-        aa.avatar_emoji as assigned_agent_emoji
+        aa.avatar_emoji as assigned_agent_emoji,
+        ca.name as created_by_agent_name,
+        ca.avatar_emoji as created_by_agent_emoji
        FROM tasks t
        LEFT JOIN agents aa ON t.assigned_agent_id = aa.id
+       LEFT JOIN agents ca ON t.created_by_agent_id = ca.id
        WHERE t.id = ?`,
       [id],
     );
@@ -24,7 +58,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    return NextResponse.json(task);
+    return NextResponse.json(hydrateTaskRelations(task));
   } catch (error) {
     console.error('Failed to fetch task:', error);
     return NextResponse.json({ error: 'Failed to fetch task' }, { status: 500 });
@@ -96,6 +130,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     // Track if we need to dispatch task
     let shouldDispatch = false;
+    let shouldAutoTest = false;
 
     // Handle status change
     if (validatedData.status !== undefined && validatedData.status !== existing.status) {
@@ -105,6 +140,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       // Auto-dispatch when moving to assigned
       if (validatedData.status === 'assigned' && existing.assigned_agent_id) {
         shouldDispatch = true;
+      }
+      if (validatedData.status === 'testing') {
+        shouldAutoTest = true;
       }
 
       // Log status change event
@@ -161,7 +199,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     run(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`, values);
 
     // Fetch updated task with all joined fields
-    const task = queryOne<Task>(
+    const task = queryOne<TaskRowWithJoins>(
       `SELECT t.*,
         aa.name as assigned_agent_name,
         aa.avatar_emoji as assigned_agent_emoji,
@@ -173,12 +211,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
        WHERE t.id = ?`,
       [id],
     );
+    const hydratedTask = task ? hydrateTaskRelations(task) : null;
 
     // Broadcast task update via SSE
-    if (task) {
+    if (hydratedTask) {
       broadcast({
         type: 'task_updated',
-        payload: task,
+        payload: hydratedTask,
       });
     }
 
@@ -194,7 +233,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       });
     }
 
-    return NextResponse.json(task);
+    if (shouldAutoTest) {
+      ensureTaskDeliverablesFromProjectDir({
+        taskId: id,
+        taskTitle: hydratedTask?.title || validatedData.title || existing.title,
+      });
+      triggerAutomatedTaskTest(id);
+    }
+
+    return NextResponse.json(hydratedTask);
   } catch (error) {
     console.error('Failed to update task:', error);
     return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });

@@ -65,12 +65,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const db = getDb();
     const transaction = db.transaction(() => {
       if (result.success) {
-        // Update task status on success
+        // Dispatch route already sets status (typically to in_progress), so keep it.
         run(
           `
           UPDATE tasks 
-          SET status = 'inbox',
-              planning_dispatch_error = NULL,
+          SET planning_dispatch_error = NULL,
               updated_at = datetime('now')
           WHERE id = ?
         `,

@@ -194,7 +194,7 @@ export default function SettingsPage() {
             <h2 className="text-mc-text text-xl font-semibold">API Configuration</h2>
           </div>
           <p className="text-mc-text-secondary mb-4 text-sm">
-            Configure Mission Control API URL for agent orchestration.
+            Configure Mission Control API URL for integrated agent orchestration.
           </p>
 
           <div className="space-y-4">
@@ -210,12 +210,12 @@ export default function SettingsPage() {
                 type="text"
                 value={config.missionControlUrl}
                 onChange={(e) => handleChange('missionControlUrl', e.target.value)}
-                placeholder="http://localhost:4000"
+                placeholder="http://localhost:3000"
                 className="bg-mc-bg border-mc-border text-mc-text focus:border-mc-accent w-full rounded border px-4 py-2 focus:outline-none"
               />
               <p className="text-mc-text-secondary mt-1 text-xs">
-                URL where Mission Control is running. Auto-detected by default. Change for remote
-                access.
+                URL where this Next.js Mission Control runtime is reachable. Auto-detected by
+                default. Change for remote access.
               </p>
             </div>
           </div>
@@ -238,14 +238,9 @@ export default function SettingsPage() {
             <li>
               <code>PROJECTS_PATH</code> - Projects directory
             </li>
-            <li>
-              <code>OPENCLAW_GATEWAY_URL</code> - Gateway WebSocket URL
-            </li>
-            <li>
-              <code>OPENCLAW_GATEWAY_TOKEN</code> - Gateway auth token
-            </li>
           </ul>
           <p className="mt-3 text-xs text-blue-400">
+            Integrated mode uses the in-app runtime by default and does not require a gateway token.
             Environment variables take precedence over UI settings for server-side operations.
           </p>
         </section>

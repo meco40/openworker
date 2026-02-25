@@ -3,7 +3,7 @@ import { getOpenClawClient } from '@/lib/openclaw/client';
 import { queryAll } from '@/lib/db';
 import type { OpenClawSession } from '@/lib/types';
 
-// GET /api/openclaw/sessions - List OpenClaw sessions
+// GET /api/openclaw/sessions - List runtime sessions
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(sessions);
     }
 
-    // Otherwise, query OpenClaw Gateway for live sessions
+    // Otherwise, query runtime for live sessions
     const client = getOpenClawClient();
 
     if (!client.isConnected()) {
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         await client.connect();
       } catch {
         return NextResponse.json(
-          { error: 'Failed to connect to OpenClaw Gateway' },
+          { error: 'Failed to connect to Mission Control runtime' },
           { status: 503 },
         );
       }
@@ -48,12 +48,12 @@ export async function GET(request: NextRequest) {
     const sessions = await client.listSessions();
     return NextResponse.json({ sessions });
   } catch (error) {
-    console.error('Failed to list OpenClaw sessions:', error);
+    console.error('Failed to list runtime sessions:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// POST /api/openclaw/sessions - Create a new OpenClaw session
+// POST /api/openclaw/sessions - Create a new runtime session
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         await client.connect();
       } catch {
         return NextResponse.json(
-          { error: 'Failed to connect to OpenClaw Gateway' },
+          { error: 'Failed to connect to Mission Control runtime' },
           { status: 503 },
         );
       }
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     const session = await client.createSession(channel, peer);
     return NextResponse.json({ session }, { status: 201 });
   } catch (error) {
-    console.error('Failed to create OpenClaw session:', error);
+    console.error('Failed to create runtime session:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

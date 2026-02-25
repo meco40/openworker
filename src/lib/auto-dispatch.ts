@@ -6,6 +6,37 @@ interface AutoDispatchOptions {
   workspaceId?: string;
 }
 
+type DispatchErrorPayload = {
+  error?: string;
+  message?: string;
+  warning?: string;
+  code?: string;
+  details?: Record<string, unknown>;
+};
+
+async function extractDispatchFailure(
+  response: Response,
+): Promise<{ message: string; payload?: DispatchErrorPayload }> {
+  let payload: DispatchErrorPayload | undefined;
+
+  try {
+    const parsed = (await response.json()) as DispatchErrorPayload;
+    if (parsed && typeof parsed === 'object') {
+      payload = parsed;
+    }
+  } catch {
+    // Non-JSON bodies are handled by status fallback below.
+  }
+
+  const message =
+    payload?.error ||
+    payload?.message ||
+    payload?.warning ||
+    `Dispatch failed (HTTP ${response.status})`;
+
+  return { message, payload };
+}
+
 /**
  * Shared utility function to trigger auto-dispatch for a task
  * Used in MissionQueue and TaskModal to eliminate duplication
@@ -28,9 +59,12 @@ export async function triggerAutoDispatch(
       console.log(`[Auto-Dispatch] Task "${taskTitle}" auto-dispatched to ${agentName}`);
       return { success: true };
     } else {
-      const errorData = await dispatchRes.json().catch(() => ({ error: 'Unknown error' }));
-      console.error(`[Auto-Dispatch] Failed for task "${taskTitle}":`, errorData);
-      return { success: false, error: errorData.error || 'Dispatch failed' };
+      const { message, payload } = await extractDispatchFailure(dispatchRes);
+      console.error(`[Auto-Dispatch] Failed for task "${taskTitle}" (HTTP ${dispatchRes.status})`, {
+        message,
+        payload: payload || null,
+      });
+      return { success: false, error: message };
     }
   } catch (dispatchError) {
     const errorMessage = dispatchError instanceof Error ? dispatchError.message : 'Unknown error';

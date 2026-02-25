@@ -19,7 +19,7 @@ interface AgentRow {
   role: string;
 }
 
-// GET /api/openclaw/sessions/[id] - Get session details
+// GET /api/openclaw/sessions/[id] - Get runtime session details
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
@@ -30,7 +30,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         await client.connect();
       } catch {
         return NextResponse.json(
-          { error: 'Failed to connect to OpenClaw Gateway' },
+          { error: 'Failed to connect to Mission Control runtime' },
           { status: 503 },
         );
       }
@@ -46,12 +46,12 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ session });
   } catch (error) {
-    console.error('Failed to get OpenClaw session:', error);
+    console.error('Failed to get runtime session:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// POST /api/openclaw/sessions/[id] - Send a message to the session
+// POST /api/openclaw/sessions/[id] - Send a message to a runtime session
 export async function POST(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
@@ -69,7 +69,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         await client.connect();
       } catch {
         return NextResponse.json(
-          { error: 'Failed to connect to OpenClaw Gateway' },
+          { error: 'Failed to connect to Mission Control runtime' },
           { status: 503 },
         );
       }
@@ -81,7 +81,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to send message to OpenClaw session:', error);
+    console.error('Failed to send message to runtime session:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -150,7 +150,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     return NextResponse.json(updatedSession);
   } catch (error) {
-    console.error('Failed to update OpenClaw session:', error);
+    console.error('Failed to update runtime session:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -209,7 +209,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ success: true, deleted: session.id });
   } catch (error) {
-    console.error('Failed to delete OpenClaw session:', error);
+    console.error('Failed to delete runtime session:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

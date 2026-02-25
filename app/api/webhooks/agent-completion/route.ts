@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { createHmac } from 'node:crypto';
 import { queryOne, queryAll, run } from '@/lib/db';
+import {
+  ensureTaskDeliverablesFromProjectDir,
+  triggerAutomatedTaskTest,
+} from '@/server/tasks/autoTesting';
 import type { Task, OpenClawSession } from '@/lib/types';
 
 /**
@@ -75,8 +79,16 @@ export async function POST(request: NextRequest) {
 
       // Only move to testing if not already in testing, review, or done
       // (Don't overwrite user's approval or testing results)
+      const shouldAutoTest = task.status !== 'review' && task.status !== 'done';
       if (task.status !== 'testing' && task.status !== 'review' && task.status !== 'done') {
         run('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?', ['testing', now, task.id]);
+      }
+      if (shouldAutoTest) {
+        ensureTaskDeliverablesFromProjectDir({
+          taskId: task.id,
+          taskTitle: task.title,
+        });
+        triggerAutomatedTaskTest(task.id);
       }
 
       // Log completion
@@ -151,8 +163,16 @@ export async function POST(request: NextRequest) {
 
       // Only move to testing if not already in testing, review, or done
       // (Don't overwrite user's approval or testing results)
+      const shouldAutoTest = task.status !== 'review' && task.status !== 'done';
       if (task.status !== 'testing' && task.status !== 'review' && task.status !== 'done') {
         run('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?', ['testing', now, task.id]);
+      }
+      if (shouldAutoTest) {
+        ensureTaskDeliverablesFromProjectDir({
+          taskId: task.id,
+          taskTitle: task.title,
+        });
+        triggerAutomatedTaskTest(task.id);
       }
 
       // Log completion with summary

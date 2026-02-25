@@ -103,6 +103,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const db = getDb();
     const id = crypto.randomUUID();
 
+    const task = db.prepare('SELECT id, assigned_agent_id FROM tasks WHERE id = ?').get(taskId) as
+      | { id: string; assigned_agent_id: string | null }
+      | undefined;
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    // Guard against FK violations when callers send a non-existent agent_id.
+    // If provided id is invalid, fall back to the task's assigned agent (if present).
+    let resolvedAgentId: string | null = null;
+    if (agent_id) {
+      const existingAgent = db.prepare('SELECT id FROM agents WHERE id = ?').get(agent_id) as
+        | { id: string }
+        | undefined;
+      resolvedAgentId = existingAgent?.id ?? task.assigned_agent_id ?? null;
+    }
+
     // Insert activity
     db.prepare(
       `
@@ -112,7 +129,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     ).run(
       id,
       taskId,
-      agent_id || null,
+      resolvedAgentId,
       activity_type,
       message,
       metadata ? JSON.stringify(metadata) : null,

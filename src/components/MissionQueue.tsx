@@ -13,6 +13,7 @@ interface MissionQueueProps {
 }
 
 const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
+  { id: 'pending_dispatch', label: '⏳ PENDING DISPATCH', color: 'border-t-mc-accent-red' },
   { id: 'planning', label: '📋 PLANNING', color: 'border-t-mc-accent-purple' },
   { id: 'inbox', label: 'INBOX', color: 'border-t-mc-accent-pink' },
   { id: 'assigned', label: 'ASSIGNED', color: 'border-t-mc-accent-yellow' },
@@ -82,7 +83,18 @@ export function MissionQueue({ workspaceId }: MissionQueueProps) {
 
           if (!result.success) {
             console.error('Auto-dispatch failed:', result.error);
-            // Optionally show error to user here if needed
+            // Keep queue state consistent: task was moved to in_progress,
+            // but execution did not start.
+            updateTaskStatus(draggedTask.id, 'pending_dispatch');
+            try {
+              await fetch(`/api/tasks/${draggedTask.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'pending_dispatch' }),
+              });
+            } catch (persistErr) {
+              console.error('Failed to persist pending_dispatch status:', persistErr);
+            }
           }
         }
       }
@@ -188,6 +200,7 @@ function TaskCard({ task, onDragStart, onClick, isDragging }: TaskCardProps) {
   };
 
   const isPlanning = task.status === 'planning';
+  const isPendingDispatch = task.status === 'pending_dispatch';
 
   return (
     <button
@@ -210,10 +223,12 @@ function TaskCard({ task, onDragStart, onClick, isDragging }: TaskCardProps) {
         <h4 className="mb-3 line-clamp-2 text-sm leading-snug font-medium">{task.title}</h4>
 
         {/* Planning mode indicator */}
-        {isPlanning && (
+        {(isPlanning || isPendingDispatch) && (
           <div className="mb-3 flex items-center gap-2 rounded-md border border-purple-500/20 bg-purple-500/10 px-3 py-2">
             <div className="h-2 w-2 flex-shrink-0 animate-pulse rounded-full bg-purple-500" />
-            <span className="text-xs font-medium text-purple-400">Continue planning</span>
+            <span className="text-xs font-medium text-purple-400">
+              {isPendingDispatch ? 'Retry dispatch needed' : 'Continue planning'}
+            </span>
           </div>
         )}
 

@@ -26,10 +26,12 @@ describe('xAI adapter tool mapping', () => {
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     );
+    const resolveModelHubGatewayTimeoutMs = vi.fn(() => 180_000);
 
     vi.doMock('../../../src/server/model-hub/Models/shared/http', () => ({
       fetchWithTimeout,
       fetchJsonOk: vi.fn(),
+      resolveModelHubGatewayTimeoutMs,
     }));
 
     const { default: adapter } = await import('@/server/model-hub/Models/xai');
@@ -76,5 +78,7 @@ describe('xAI adapter tool mapping', () => {
       }),
     ]);
     expect(body.tools?.[0]?.function).toBeUndefined();
+    expect(resolveModelHubGatewayTimeoutMs).toHaveBeenCalledWith({ hasTools: true });
+    expect(fetchWithTimeout.mock.calls[0]?.[2]).toBe(180_000);
   });
 });

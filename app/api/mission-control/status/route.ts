@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getOpenClawClient } from '@/lib/openclaw/client';
 
-// GET /api/openclaw/status - Compatibility status endpoint for Mission Control runtime
+/**
+ * GET /api/mission-control/status
+ *
+ * Reports integrated runtime health for Mission Control UI.
+ */
 export async function GET() {
   try {
     const client = getOpenClawClient();
@@ -17,7 +21,6 @@ export async function GET() {
             connected: false,
             error: 'Failed to initialize Mission Control runtime',
             runtime_url: runtimeUrl,
-            gateway_url: runtimeUrl,
             mode,
           },
           { status: 503 },
@@ -35,10 +38,9 @@ export async function GET() {
 
     return NextResponse.json({
       connected: true,
-      sessions_count: sessionsCount,
       runtime_url: runtimeUrl,
-      gateway_url: runtimeUrl,
       mode,
+      sessions_count: sessionsCount,
     });
   } catch (error) {
     console.error('Mission Control runtime status check failed:', error);

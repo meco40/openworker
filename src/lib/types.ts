@@ -3,6 +3,7 @@
 export type AgentStatus = 'standby' | 'working' | 'offline';
 
 export type TaskStatus =
+  | 'pending_dispatch'
   | 'planning'
   | 'inbox'
   | 'assigned'
@@ -48,7 +49,7 @@ export interface Agent {
   updated_at: string;
 }
 
-// Agent discovered from the OpenClaw Gateway (not yet imported)
+// Agent discovered from the runtime registry (not yet imported)
 export interface DiscoveredAgent {
   id: string;
   name: string;
@@ -58,6 +59,12 @@ export interface DiscoveredAgent {
   status?: string;
   already_imported: boolean;
   existing_agent_id?: string;
+}
+
+export interface TaskAgentSummary {
+  id: string;
+  name: string | null;
+  avatar_emoji: string | null;
 }
 
 export interface Task {
@@ -74,8 +81,8 @@ export interface Task {
   created_at: string;
   updated_at: string;
   // Joined fields
-  assigned_agent?: Agent;
-  created_by_agent?: Agent;
+  assigned_agent?: TaskAgentSummary;
+  created_by_agent?: TaskAgentSummary;
 }
 
 export interface Conversation {
@@ -138,6 +145,7 @@ export interface WorkspaceStats {
   slug: string;
   icon: string;
   taskCounts: {
+    pending_dispatch: number;
     planning: number;
     inbox: number;
     assigned: number;
@@ -261,8 +269,8 @@ export interface CreateTaskRequest {
   title: string;
   description?: string;
   priority?: TaskPriority;
-  assigned_agent_id?: string;
-  created_by_agent_id?: string;
+  assigned_agent_id?: string | null;
+  created_by_agent_id?: string | null;
   business_id?: string;
   due_date?: string;
 }
