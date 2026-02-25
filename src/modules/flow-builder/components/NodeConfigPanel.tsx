@@ -47,6 +47,7 @@ const NODE_FIELDS: Partial<Record<FlowNodeType, FieldDef[]>> = {
         { value: 'filesystem', label: '📁 Filesystem' },
         { value: 'github-manager', label: '🐙 GitHub Manager' },
         { value: 'shell-access', label: '💻 Shell Access' },
+        { value: 'playwright-cli', label: '🎭 Playwright CLI' },
         { value: 'sql-bridge', label: '🗄️ SQL Bridge' },
       ],
     },

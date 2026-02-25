@@ -5,6 +5,12 @@ import { resolveRequestUserContext } from '@/server/auth/userContext';
 
 export const runtime = 'nodejs';
 
+function normalizePersonaId(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
 export async function GET() {
   const userContext = await resolveRequestUserContext();
   if (!userContext) {
@@ -115,7 +121,21 @@ export async function PATCH(request: Request) {
     }
 
     if ('personaId' in body) {
-      service.setPersonaId(body.conversationId, body.personaId ?? null, userContext.userId);
+      const conversation = service.getConversation(body.conversationId, userContext.userId);
+      const currentPersonaId = normalizePersonaId(conversation?.personaId);
+      const requestedPersonaId = normalizePersonaId(body.personaId);
+
+      if (currentPersonaId && currentPersonaId !== requestedPersonaId) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: 'personaId mismatch: conversation is already bound to a different persona.',
+          },
+          { status: 409 },
+        );
+      }
+
+      service.setPersonaId(body.conversationId, requestedPersonaId, userContext.userId);
     }
 
     return NextResponse.json({ ok: true });

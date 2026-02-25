@@ -219,11 +219,10 @@ export class AgentV2Repository {
     `);
   }
 
-  createSession(input: {
-    userId: string;
-    conversationId: string;
-    status?: AgentV2SessionStatus;
-  }): { session: AgentSessionSnapshot; events: AgentV2EventEnvelope[] } {
+  createSession(input: { userId: string; conversationId: string; status?: AgentV2SessionStatus }): {
+    session: AgentSessionSnapshot;
+    events: AgentV2EventEnvelope[];
+  } {
     const id = `agent-session-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
     const sessionStatus: AgentV2SessionStatus = input.status ?? 'idle';
@@ -624,11 +623,17 @@ export class AgentV2Repository {
 
     const minSeq = Number(oldestAvailable?.min_seq ?? 0);
     if (session.last_seq > fromSeq && minSeq > 0 && fromSeq < minSeq - 1) {
-      throw new AgentV2Error('Replay window expired; use session.get snapshot and re-subscribe.', 'REPLAY_WINDOW_EXPIRED');
+      throw new AgentV2Error(
+        'Replay window expired; use session.get snapshot and re-subscribe.',
+        'REPLAY_WINDOW_EXPIRED',
+      );
     }
 
     if (session.last_seq > fromSeq && minSeq === 0) {
-      throw new AgentV2Error('Replay window expired; use session.get snapshot and re-subscribe.', 'REPLAY_WINDOW_EXPIRED');
+      throw new AgentV2Error(
+        'Replay window expired; use session.get snapshot and re-subscribe.',
+        'REPLAY_WINDOW_EXPIRED',
+      );
     }
 
     const rows = this.db
@@ -645,11 +650,26 @@ export class AgentV2Repository {
     return rows.map(toEventEnvelope);
   }
 
+  /**
+   * Directly look up the terminal event (completed or error) for a specific command.
+   * Bypasses the seq-based replay window, so it works even when lastSeq is stale.
+   * Returns null if the command hasn't finished yet.
+   */
+  getCommandResult(commandId: string, sessionId: string): AgentV2EventEnvelope | null {
+    const row = this.db
+      .prepare(
+        `SELECT * FROM agent_v2_events
+         WHERE command_id = ? AND session_id = ?
+           AND type IN ('agent.v2.command.completed', 'agent.v2.error')
+         ORDER BY seq DESC LIMIT 1`,
+      )
+      .get(commandId, sessionId) as EventRow | undefined;
+    return row ? toEventEnvelope(row) : null;
+  }
+
   pruneExpiredEvents(now = new Date()): number {
     const cutoff = new Date(now.getTime() - REPLAY_RETENTION_HOURS * 60 * 60 * 1000).toISOString();
-    const result = this.db
-      .prepare('DELETE FROM agent_v2_events WHERE emitted_at < ?')
-      .run(cutoff);
+    const result = this.db.prepare('DELETE FROM agent_v2_events WHERE emitted_at < ?').run(cutoff);
     return Number(result.changes || 0);
   }
 
@@ -744,15 +764,7 @@ export class AgentV2Repository {
           updated_at = excluded.updated_at
       `,
       )
-      .run(
-        manifest.id,
-        manifest.version,
-        manifest.digest,
-        serialized,
-        enabled ? 1 : 0,
-        now,
-        now,
-      );
+      .run(manifest.id, manifest.version, manifest.digest, serialized, enabled ? 1 : 0, now, now);
   }
 
   listEnabledExtensionManifests(): ExtensionManifestV1[] {

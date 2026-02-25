@@ -11,7 +11,11 @@ interface SidebarItem {
   id: View;
   label: string;
   icon: string;
+  hidden?: boolean;
 }
+
+const isAgentRoomEnabled =
+  String(process.env.NEXT_PUBLIC_AGENT_ROOM_ENABLED || 'true').toLowerCase() === 'true';
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: View.DASHBOARD, label: 'Control Plane', icon: 'M4 6h16M4 12h16M4 18h16' },
@@ -39,6 +43,12 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     id: View.PERSONAS,
     label: 'Agent Personas',
     icon: 'M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z',
+  },
+  {
+    id: View.AGENT_ROOM,
+    label: 'Agent Room',
+    icon: 'M3 7h18M6 4v6m12-6v6M5 12h14l-1 8H6l-1-8z',
+    hidden: !isAgentRoomEnabled,
   },
   {
     id: View.MEMORY,
@@ -130,7 +140,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
         </div>
 
         <nav className="space-y-1">
-          {SIDEBAR_ITEMS.map((item) => (
+          {SIDEBAR_ITEMS.filter((item) => !item.hidden).map((item) => (
             <button
               key={item.id}
               data-view={item.id}

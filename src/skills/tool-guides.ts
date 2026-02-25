@@ -65,6 +65,20 @@ const BUILT_IN_GUIDES: Record<string, BaseGuide> = {
       'Use short-running commands; long or destructive commands may fail or be blocked.',
     ],
   },
+  'playwright-cli': {
+    whatItIs:
+      'Playwright CLI runs browser automation commands directly (test runs, traces, reports, codegen).',
+    whatItCanDo: [
+      'Run deterministic browser tests from the workspace.',
+      'Open and inspect Playwright traces and HTML reports.',
+      'Generate scripted browser flows with codegen.',
+    ],
+    howToUse: [
+      'Activate the tool.',
+      'Use `playwright_cli` with explicit arguments (for example `["test","tests/e2e/login.spec.ts"]`).',
+      'Keep runs focused and provide target specs/projects for faster execution.',
+    ],
+  },
   'github-manager': {
     whatItIs: 'GitHub Connector calls GitHub APIs for repo metadata, issues, PRs, and code search.',
     whatItCanDo: [

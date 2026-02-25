@@ -15,6 +15,7 @@ import httpRequest from '@/skills/http-request';
 import multiToolUseParallel from '@/skills/multi-tool-use-parallel';
 import notifications from '@/skills/notifications';
 import pdfGenerate from '@/skills/pdf-generate';
+import playwrightCli from '@/skills/playwright-cli';
 import processManager from '@/skills/process-manager';
 import python from '@/skills/python-runtime';
 import search from '@/skills/search';
@@ -38,6 +39,7 @@ export const BUILT_IN_SKILLS: BuiltInSkillSeed[] = [
   // Automation & Code
   { manifest: python, installedByDefault: true },
   { manifest: shell, installedByDefault: true },
+  { manifest: playwrightCli, installedByDefault: true },
   { manifest: processManager, installedByDefault: true },
   { manifest: subagents, installedByDefault: true },
   { manifest: multiToolUseParallel, installedByDefault: true },

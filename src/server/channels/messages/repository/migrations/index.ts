@@ -137,6 +137,29 @@ export function runMigrations(db: BetterSqlite3.Database, helpers: MigrationHelp
     );
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS agent_room_swarms (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL,
+      session_id TEXT,
+      title TEXT NOT NULL,
+      task TEXT NOT NULL,
+      lead_persona_id TEXT NOT NULL,
+      units_json TEXT NOT NULL,
+      status TEXT NOT NULL,
+      current_phase TEXT NOT NULL,
+      consensus_score INTEGER NOT NULL DEFAULT 0,
+      hold_flag INTEGER NOT NULL DEFAULT 0,
+      artifact_json TEXT NOT NULL DEFAULT '',
+      artifact_history_json TEXT NOT NULL DEFAULT '[]',
+      friction_json TEXT NOT NULL DEFAULT '{}',
+      last_seq INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
   if (!hasColumn('conversations', 'user_id')) {
     db.exec(`ALTER TABLE conversations ADD COLUMN user_id TEXT`);
     db.prepare('UPDATE conversations SET user_id = ? WHERE user_id IS NULL OR user_id = ?').run(
@@ -207,6 +230,43 @@ export function runMigrations(db: BetterSqlite3.Database, helpers: MigrationHelp
     CREATE INDEX IF NOT EXISTS idx_conversation_project_state_user_updated
       ON conversation_project_state (user_id, updated_at DESC);
   `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_agent_room_swarms_user_updated
+      ON agent_room_swarms (user_id, updated_at DESC);
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_agent_room_swarms_conversation_updated
+      ON agent_room_swarms (conversation_id, updated_at DESC);
+  `);
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_room_swarms_session_unique
+      ON agent_room_swarms (session_id)
+      WHERE session_id IS NOT NULL;
+  `);
+
+  // ─── Additive migrations: agent_room_swarms v2 columns ───
+  if (!hasColumn('agent_room_swarms', 'current_deploy_command_id')) {
+    db.exec(`ALTER TABLE agent_room_swarms ADD COLUMN current_deploy_command_id TEXT`);
+  }
+  if (!hasColumn('agent_room_swarms', 'search_enabled')) {
+    db.exec(`ALTER TABLE agent_room_swarms ADD COLUMN search_enabled INTEGER NOT NULL DEFAULT 0`);
+  }
+  if (!hasColumn('agent_room_swarms', 'swarm_template')) {
+    db.exec(`ALTER TABLE agent_room_swarms ADD COLUMN swarm_template TEXT`);
+  }
+  if (!hasColumn('agent_room_swarms', 'pause_between_phases')) {
+    db.exec(
+      `ALTER TABLE agent_room_swarms ADD COLUMN pause_between_phases INTEGER NOT NULL DEFAULT 0`,
+    );
+  }
+  if (!hasColumn('agent_room_swarms', 'phase_buffer_json')) {
+    db.exec(
+      `ALTER TABLE agent_room_swarms ADD COLUMN phase_buffer_json TEXT NOT NULL DEFAULT '[]'`,
+    );
+  }
 
   // ─── FTS5 full-text search on messages ───────────────────
 

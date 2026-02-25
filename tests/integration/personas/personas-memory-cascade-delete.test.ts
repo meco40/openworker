@@ -39,6 +39,7 @@ describe('persona memory cascade delete', () => {
     vi.restoreAllMocks();
     vi.resetModules();
     delete process.env.PERSONAS_DB_PATH;
+    delete process.env.MESSAGES_DB_PATH;
     delete process.env.MEMORY_PROVIDER;
     delete process.env.MEM0_BASE_URL;
     delete process.env.MEM0_API_PATH;
@@ -46,6 +47,15 @@ describe('persona memory cascade delete', () => {
     (globalThis as { __memoryService?: unknown }).__memoryService = undefined;
     (globalThis as { __mem0Client?: unknown }).__mem0Client = undefined;
     (globalThis as { __modelHubService?: unknown }).__modelHubService = undefined;
+    (globalThis as { __messageRepository?: unknown }).__messageRepository = undefined;
+    (globalThis as { __messageService?: unknown }).__messageService = undefined;
+    (globalThis as { __knowledgeRepository?: unknown }).__knowledgeRepository = undefined;
+    (globalThis as { __knowledgeMessageRepository?: unknown }).__knowledgeMessageRepository = undefined;
+    (globalThis as { __knowledgeRuntimeLoop?: unknown }).__knowledgeRuntimeLoop = undefined;
+    (globalThis as { __knowledgeRetrievalService?: unknown }).__knowledgeRetrievalService = undefined;
+    (globalThis as { __knowledgeIngestionService?: unknown }).__knowledgeIngestionService = undefined;
+    (globalThis as { __knowledgeCursor?: unknown }).__knowledgeCursor = undefined;
+    (globalThis as { __knowledgeExtractor?: unknown }).__knowledgeExtractor = undefined;
     vi.unstubAllGlobals();
 
     for (const filePath of cleanupPaths.splice(0, cleanupPaths.length)) {
@@ -67,8 +77,14 @@ describe('persona memory cascade delete', () => {
       '.local',
       `personas.memory-cascade.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
-    cleanupPaths.push(personasDbPath);
+    const messagesDbPath = path.join(
+      process.cwd(),
+      '.local',
+      `messages.memory-cascade.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
+    );
+    cleanupPaths.push(personasDbPath, messagesDbPath);
     process.env.PERSONAS_DB_PATH = personasDbPath;
+    process.env.MESSAGES_DB_PATH = messagesDbPath;
     process.env.MEMORY_PROVIDER = 'mem0';
     process.env.MEM0_BASE_URL = 'http://mem0.local';
     process.env.MEM0_API_PATH = '/v1';
@@ -189,6 +205,121 @@ describe('persona memory cascade delete', () => {
     expect(beforeDeletePayload.ok).toBe(true);
     expect(beforeDeletePayload.nodes).toHaveLength(1);
 
+    const { ChannelType } = await import('@/shared/domain/types');
+    const { getMessageRepository } = await import('@/server/channels/messages/runtime');
+    const messageRepo = getMessageRepository();
+    const conversation = messageRepo.createConversation({
+      channelType: ChannelType.WEBCHAT,
+      title: 'Persona Scope',
+      userId: defaultUser,
+      personaId,
+    });
+    messageRepo.saveMessage({
+      conversationId: conversation.id,
+      role: 'user',
+      content: 'persona scoped chat',
+      platform: ChannelType.WEBCHAT,
+    });
+    messageRepo.upsertConversationContext(conversation.id, 'persona summary', 1, defaultUser);
+
+    const { getKnowledgeRepository } = await import('@/server/knowledge/runtime');
+    const knowledgeRepo = getKnowledgeRepository();
+    knowledgeRepo.upsertIngestionCheckpoint({
+      conversationId: conversation.id,
+      personaId,
+      lastSeq: 1,
+    });
+    knowledgeRepo.upsertEpisode({
+      userId: defaultUser,
+      personaId,
+      conversationId: conversation.id,
+      topicKey: 'topic-delete',
+      counterpart: null,
+      teaser: 'teaser',
+      episode: 'episode',
+      facts: ['fact'],
+      sourceSeqStart: 1,
+      sourceSeqEnd: 1,
+      sourceRefs: [],
+      eventAt: null,
+    });
+    knowledgeRepo.upsertMeetingLedger({
+      userId: defaultUser,
+      personaId,
+      conversationId: conversation.id,
+      topicKey: 'topic-delete',
+      counterpart: null,
+      eventAt: null,
+      participants: [],
+      decisions: [],
+      negotiatedTerms: [],
+      openPoints: [],
+      actionItems: [],
+      sourceRefs: [],
+      confidence: 0.8,
+    });
+    knowledgeRepo.insertRetrievalAudit({
+      userId: defaultUser,
+      personaId,
+      conversationId: conversation.id,
+      query: 'q',
+      stageStats: {},
+      tokenCount: 1,
+      hadError: false,
+    });
+    knowledgeRepo.upsertConversationSummary({
+      userId: defaultUser,
+      personaId,
+      conversationId: conversation.id,
+      summaryText: 'summary',
+      keyTopics: ['topic-delete'],
+      entitiesMentioned: ['Max'],
+      emotionalTone: null,
+      messageCount: 2,
+      timeRangeStart: '2026-02-15T09:00:00.000Z',
+      timeRangeEnd: '2026-02-15T09:10:00.000Z',
+    });
+    knowledgeRepo.upsertEvent({
+      id: 'evt-cascade-1',
+      userId: defaultUser,
+      personaId,
+      conversationId: conversation.id,
+      eventType: 'shared_sleep',
+      speakerRole: 'assistant',
+      speakerEntity: 'Nata',
+      subjectEntity: 'Nata',
+      counterpartEntity: 'Max',
+      relationLabel: 'Bruder',
+      startDate: '2026-02-15',
+      endDate: '2026-02-16',
+      dayCount: 2,
+      sourceSeqJson: '[1]',
+      sourceSummary: 'summary',
+      isConfirmation: false,
+      confidence: 0.9,
+    });
+    knowledgeRepo.upsertEntity({
+      id: 'ent-cascade-1',
+      userId: defaultUser,
+      personaId,
+      canonicalName: 'Max',
+      category: 'person',
+      owner: 'persona',
+      properties: {},
+    });
+
+    expect(messageRepo.getConversation(conversation.id, defaultUser)).not.toBeNull();
+    expect(messageRepo.getConversationContext(conversation.id, defaultUser)).not.toBeNull();
+    expect(knowledgeRepo.listEpisodes({ userId: defaultUser, personaId })).toHaveLength(1);
+    expect(knowledgeRepo.listMeetingLedger({ userId: defaultUser, personaId })).toHaveLength(1);
+    expect(knowledgeRepo.listRetrievalAudit({ userId: defaultUser, personaId })).toHaveLength(1);
+    expect(knowledgeRepo.listConversationSummaries({ userId: defaultUser, personaId })).toHaveLength(
+      1,
+    );
+    expect(knowledgeRepo.listEvents({ userId: defaultUser, personaId })).toHaveLength(1);
+    expect(knowledgeRepo.listEntities({ userId: defaultUser, personaId })).toHaveLength(1);
+    expect(knowledgeRepo.getIngestionCheckpoint(conversation.id, personaId)).not.toBeNull();
+
     const personaByIdRoute = await loadPersonaByIdRoute();
     const deleteResponse = await personaByIdRoute.DELETE(
       new Request(`http://localhost/api/personas/${personaId}`, { method: 'DELETE' }),
@@ -206,6 +337,18 @@ describe('persona memory cascade delete', () => {
     expect(afterDeleteResponse.status).toBe(200);
     expect(afterDeletePayload.ok).toBe(true);
     expect(afterDeletePayload.nodes).toHaveLength(0);
+    expect(messageRepo.getConversation(conversation.id, defaultUser)).toBeNull();
+    expect(messageRepo.listMessages(conversation.id, 50, undefined, defaultUser)).toHaveLength(0);
+    expect(messageRepo.getConversationContext(conversation.id, defaultUser)).toBeNull();
+    expect(knowledgeRepo.listEpisodes({ userId: defaultUser, personaId })).toHaveLength(0);
+    expect(knowledgeRepo.listMeetingLedger({ userId: defaultUser, personaId })).toHaveLength(0);
+    expect(knowledgeRepo.listRetrievalAudit({ userId: defaultUser, personaId })).toHaveLength(0);
+    expect(knowledgeRepo.listConversationSummaries({ userId: defaultUser, personaId })).toHaveLength(
+      0,
+    );
+    expect(knowledgeRepo.listEvents({ userId: defaultUser, personaId })).toHaveLength(0);
+    expect(knowledgeRepo.listEntities({ userId: defaultUser, personaId })).toHaveLength(0);
+    expect(knowledgeRepo.getIngestionCheckpoint(conversation.id, personaId)).toBeNull();
   }, 15_000);
 
   it('unpairs persona telegram bot when persona is deleted', async () => {

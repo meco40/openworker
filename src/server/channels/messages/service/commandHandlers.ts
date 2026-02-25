@@ -205,10 +205,7 @@ export async function handleShellCommand(
     );
   }
 
-  await deps.toolManager.ensureShellSkillInstalled();
   const toolContext = await deps.toolManager.resolveToolContext();
-  const installedFunctions = new Set(toolContext.installedFunctionNames);
-  installedFunctions.add('shell_execute');
 
   const toolExecution = await deps.toolManager.executeToolFunctionCall({
     conversation,
@@ -217,7 +214,7 @@ export async function handleShellCommand(
     functionName: 'shell_execute',
     args: { command },
     workspaceCwd: deps.resolveWorkspaceCwd?.(conversation),
-    installedFunctions,
+    installedFunctions: toolContext.installedFunctionNames,
     toolId: toolContext.functionToSkillId.get('shell_execute') || 'shell-access',
   });
 

@@ -299,6 +299,11 @@ describe('SqliteKnowledgeRepository', () => {
 
   it('deletes all scoped knowledge artifacts in one transaction', () => {
     const repo = new SqliteKnowledgeRepository(dbPath);
+    repo.upsertIngestionCheckpoint({
+      conversationId: 'conv-delete-checkpoint',
+      personaId: 'persona-1',
+      lastSeq: 1,
+    });
     repo.upsertEpisode({
       userId: 'user-1',
       personaId: 'persona-1',
@@ -337,11 +342,57 @@ describe('SqliteKnowledgeRepository', () => {
       tokenCount: 1,
       hadError: false,
     });
+    repo.upsertConversationSummary({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-delete-summary',
+      summaryText: 'summary',
+      keyTopics: ['topic-delete'],
+      entitiesMentioned: ['Max'],
+      emotionalTone: null,
+      messageCount: 2,
+      timeRangeStart: '2026-02-15T09:00:00.000Z',
+      timeRangeEnd: '2026-02-15T09:10:00.000Z',
+    });
+    repo.upsertEvent({
+      id: 'evt-delete-1',
+      userId: 'user-1',
+      personaId: 'persona-1',
+      conversationId: 'conv-delete-event',
+      eventType: 'shared_sleep',
+      speakerRole: 'assistant',
+      speakerEntity: 'Nata',
+      subjectEntity: 'Nata',
+      counterpartEntity: 'Max',
+      relationLabel: 'Bruder',
+      startDate: '2026-02-15',
+      endDate: '2026-02-16',
+      dayCount: 2,
+      sourceSeqJson: '[1]',
+      sourceSummary: 'summary',
+      isConfirmation: false,
+      confidence: 0.9,
+    });
+    repo.upsertEntity({
+      id: 'ent-delete-1',
+      userId: 'user-1',
+      personaId: 'persona-1',
+      canonicalName: 'Max',
+      category: 'person',
+      owner: 'persona',
+      properties: {},
+    });
 
     const removed = repo.deleteKnowledgeByScope('user-1', 'persona-1');
-    expect(removed).toBeGreaterThanOrEqual(3);
+    expect(removed).toBeGreaterThanOrEqual(7);
+    expect(repo.getIngestionCheckpoint('conv-delete-checkpoint', 'persona-1')).toBeNull();
     expect(repo.listEpisodes({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
     expect(repo.listMeetingLedger({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
     expect(repo.listRetrievalAudit({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
+    expect(repo.listConversationSummaries({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(
+      0,
+    );
+    expect(repo.listEvents({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
+    expect(repo.listEntities({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
   });
 });

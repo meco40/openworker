@@ -28,6 +28,12 @@ function normalizeStringParam(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
+function createInvalidRequestError(message: string): Error & { code: 'INVALID_REQUEST' } {
+  const error = new Error(message) as Error & { code: 'INVALID_REQUEST' };
+  error.code = 'INVALID_REQUEST';
+  return error;
+}
+
 function resolveConversationsListLimit(value: unknown): number {
   const defaultLimit = 50;
   const maxLimit = 200;
@@ -76,7 +82,13 @@ async function resolveWebUiMessageInput(
 
   if (personaId) {
     const conversation = service.getConversation(conversationId, userId);
-    if (conversation && !conversation.personaId) {
+    const boundPersonaId = normalizeStringParam(conversation?.personaId).trim();
+    if (conversation && boundPersonaId && boundPersonaId !== personaId) {
+      throw createInvalidRequestError(
+        'personaId mismatch: conversation is already bound to a different persona.',
+      );
+    }
+    if (conversation && !boundPersonaId) {
       service.setPersonaId(conversationId, personaId, userId);
     }
   }

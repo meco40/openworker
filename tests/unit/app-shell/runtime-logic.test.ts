@@ -3,6 +3,7 @@ import type { Conversation, Message, ScheduledTask } from '@/shared/domain/types
 import {
   appendMessageIfMissing,
   mapConversationApiMessage,
+  removeMessageById,
   removeConversationById,
   resolveActiveConversationAfterDeletion,
   STREAMING_DRAFT_ID_PREFIX,
@@ -233,6 +234,29 @@ describe('app-shell runtime logic', () => {
     const updated = removeConversationById(conversations, 'conv-1');
     expect(updated).toHaveLength(1);
     expect(updated[0].id).toBe('conv-2');
+  });
+
+  it('removes a deleted message by id', () => {
+    const messages: Message[] = [
+      {
+        id: 'msg-1',
+        role: 'user',
+        content: 'first',
+        timestamp: '10:00',
+        platform: 'WebChat' as never,
+      },
+      {
+        id: 'msg-2',
+        role: 'agent',
+        content: 'second',
+        timestamp: '10:01',
+        platform: 'WebChat' as never,
+      },
+    ];
+
+    const updated = removeMessageById(messages, 'msg-1');
+    expect(updated).toHaveLength(1);
+    expect(updated[0].id).toBe('msg-2');
   });
 
   it('selects next active conversation after deleting the active one', () => {

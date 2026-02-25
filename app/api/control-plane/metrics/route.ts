@@ -66,6 +66,8 @@ export async function GET() {
     const tokensToday = getTokenUsageRepository().getTotalTokens(from, to).totalTokens;
 
     const vectorNodeCount = await resolveVectorNodeCount(userContext?.userId);
+    const metricsUserId = userContext?.userId || LEGACY_LOCAL_USER_ID;
+    const agentRoomMetrics = getMessageRepository().getAgentRoomSwarmMetrics?.(metricsUserId) || null;
 
     let automationMetrics: {
       activeRules: number;
@@ -113,6 +115,7 @@ export async function GET() {
         tokensToday,
         vectorNodeCount,
         ramUsageBytes,
+        agentRoom: agentRoomMetrics,
         automation: automationMetrics,
         rooms: null,
         knowledge: knowledgeMetrics,

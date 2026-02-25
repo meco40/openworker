@@ -22,6 +22,7 @@ import webFetch from '@/skills/web-fetch';
 import httpRequest from '@/skills/http-request';
 import notifications from '@/skills/notifications';
 import pdfGenerate from '@/skills/pdf-generate';
+import playwrightCli from '@/skills/playwright-cli';
 
 interface SkillModule {
   id: string;
@@ -44,6 +45,7 @@ const SKILL_MODULES: SkillModule[] = [
   httpRequest,
   notifications,
   pdfGenerate,
+  playwrightCli,
 ];
 
 /**

@@ -85,6 +85,19 @@ describe('skills execute route requests', () => {
     fetchMock.mockRestore();
   });
 
+  it('handles playwright_cli request', async () => {
+    const response = await executeSkillPost(
+      makeRequest({ name: 'playwright_cli', args: { args: ['--version'] } }),
+    );
+    const json = await response.json();
+    expect(response.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(typeof json.result.exitCode).toBe('number');
+    expect(`${String(json.result.stdout || '')}\n${String(json.result.stderr || '')}`).toContain(
+      'Version',
+    );
+  });
+
   it('handles github_query request', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(

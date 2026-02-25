@@ -21,6 +21,11 @@ export interface ChatAbortedPayload {
   conversationId: string;
 }
 
+export interface ChatMessageDeletedPayload {
+  messageId: string;
+  conversationId: string | null;
+}
+
 export interface ConversationDeletedPayload {
   conversationId: string;
 }
@@ -98,6 +103,12 @@ export interface TickPayload {
   ts: number;
 }
 
+export interface AgentRoomSwarmPayload {
+  swarmId: string;
+  status: 'created' | 'updated' | 'deleted';
+  updatedAt: string;
+}
+
 export interface HelloOkPayload {
   server: { version: string };
   events: string[];
@@ -107,6 +118,7 @@ export interface HelloOkPayload {
 export const GatewayEvents = {
   HELLO_OK: 'hello-ok',
   CHAT_MESSAGE: 'chat.message',
+  CHAT_MESSAGE_DELETED: 'chat.message.deleted',
   CHAT_STREAM: 'chat.stream',
   CHAT_ABORTED: 'chat.aborted',
   CONVERSATION_DELETED: 'conversation.deleted',
@@ -131,6 +143,7 @@ export const GatewayEvents = {
   AGENT_V2_APPROVAL_REQUIRED: 'agent.v2.approval.required',
   AGENT_V2_SESSION_COMPLETED: 'agent.v2.session.completed',
   AGENT_V2_ERROR: 'agent.v2.error',
+  AGENT_ROOM_SWARM: 'agent.room.swarm',
   TICK: 'tick',
 } as const;
 

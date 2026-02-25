@@ -172,6 +172,7 @@ describe('MessageService memory recall gating', () => {
       'Wie haben wir meinen Kaffee besprochen?',
       10,
       'user-1',
+      { mode: 'semantic' },
     );
 
     const dispatchedMessages = getDispatchedMessages();

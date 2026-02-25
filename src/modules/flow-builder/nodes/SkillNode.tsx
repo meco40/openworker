@@ -12,6 +12,7 @@ const SKILL_ICONS: Record<string, string> = {
   filesystem: '📁',
   'github-manager': '🐙',
   'shell-access': '💻',
+  'playwright-cli': '🎭',
   'sql-bridge': '🗄️',
   subagents: '🤖',
 };

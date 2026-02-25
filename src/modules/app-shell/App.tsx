@@ -7,6 +7,7 @@ import {
   ChannelType,
   ChatStreamDebugState,
   CoupledChannel,
+  Message,
   MessageAttachment,
 } from '@/shared/domain/types';
 import Sidebar from '@/components/Sidebar';
@@ -57,7 +58,10 @@ const App: React.FC<AppProps> = ({ initialView }) => {
     useState<ChatStreamDebugState>(DEFAULT_CHAT_STREAM_DEBUG);
   const { activePersonaId, setDataEnabled } = usePersona();
   const shouldEnableChatData = currentView === View.CHAT;
-  const shouldEnableAgentRuntime = currentView === View.CHAT || currentView === View.CHANNELS;
+  const shouldEnableAgentRuntime =
+    currentView === View.CHAT ||
+    currentView === View.CHANNELS ||
+    currentView === View.AGENT_ROOM;
   const shouldEnablePersonaData = shouldEnableAgentRuntime || currentView === View.PERSONAS;
   const shouldLoadSkills = shouldEnableAgentRuntime || currentView === View.SKILLS;
   const { skills, setSkills } = useSkillsCatalog({ shouldLoadSkills });
@@ -237,6 +241,52 @@ const App: React.FC<AppProps> = ({ initialView }) => {
     [activeConversationId, activePersonaId, addEventLog, setMessages],
   );
 
+  const handleDeleteMessage = useCallback(
+    async (message: Message) => {
+      const conversationId = message.conversationId || activeConversationIdRef.current;
+      if (!conversationId) {
+        addEventLog('SYS', 'Nachricht konnte nicht geloescht werden (keine Conversation gefunden).');
+        return;
+      }
+
+      if (typeof window !== 'undefined') {
+        const confirmed = window.confirm(
+          'Nachricht wirklich loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden.',
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      try {
+        const query = new URLSearchParams({
+          messageId: message.id,
+          conversationId,
+        });
+        const response = await fetch(`/api/channels/messages?${query.toString()}`, {
+          method: 'DELETE',
+        });
+        let payload: { ok?: boolean; error?: string } = {};
+        try {
+          payload = (await response.json()) as { ok?: boolean; error?: string };
+        } catch {
+          payload = {};
+        }
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || 'Nachricht konnte nicht geloescht werden.');
+        }
+
+        setMessages((previous) => previous.filter((entry) => entry.id !== message.id));
+        addEventLog('SYS', 'Nachricht geloescht.');
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Nachricht konnte nicht geloescht werden.';
+        addEventLog('SYS', errorMessage);
+      }
+    },
+    [addEventLog, setMessages],
+  );
+
   const handleUpdateCoupling = useCallback((id: string, update: Partial<CoupledChannel>) => {
     setCoupledChannels((previous) => ({ ...previous, [id]: { ...previous[id], ...update } }));
   }, []);
@@ -273,6 +323,7 @@ const App: React.FC<AppProps> = ({ initialView }) => {
           onSelectConversation={setActiveConversationId}
           onNewConversation={handleNewConversation}
           onDeleteConversation={handleDeleteConversation}
+          onDeleteMessage={handleDeleteMessage}
           coupledChannels={coupledChannels}
           onUpdateCoupling={handleUpdateCoupling}
           onSimulateIncoming={(content, platform) => routeMessage(content, platform, 'user')}

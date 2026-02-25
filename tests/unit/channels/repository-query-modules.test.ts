@@ -317,4 +317,51 @@ describe('DeleteQueries', () => {
       'DELETE FROM conversations WHERE id = ? AND user_id = ?',
     );
   });
+
+  it('returns false when message is not found for user scope', () => {
+    const db = makeDb(() => ({ run: vi.fn() }));
+    const normalizeUserId = vi.fn((userId?: string) => `normalized:${userId ?? ''}`);
+    const queries = new DeleteQueries(db as never, normalizeUserId);
+
+    const deleted = queries.deleteMessage('msg-1', 'user-a', () => null);
+
+    expect(deleted).toBe(false);
+    expect(normalizeUserId).toHaveBeenCalledWith('user-a');
+    expect(db.prepare).not.toHaveBeenCalled();
+  });
+
+  it('deletes one message and invalidates derived conversation data', () => {
+    const runCalls: Array<{ sql: string; args: unknown[] }> = [];
+    const db = makeDb((sql) => ({
+      run: vi.fn((...args: unknown[]) => {
+        runCalls.push({ sql, args });
+        if (sql.includes('DELETE FROM messages')) {
+          return { changes: 1 };
+        }
+        return { changes: 0 };
+      }),
+    }));
+    const normalizeUserId = vi.fn((userId?: string) => `normalized:${userId ?? ''}`);
+    const queries = new DeleteQueries(db as never, normalizeUserId);
+
+    const deleted = queries.deleteMessage(
+      'msg-1',
+      'user-a',
+      () =>
+        ({
+          id: 'msg-1',
+          conversationId: 'conv-1',
+        }) as never,
+    );
+
+    expect(deleted).toBe(true);
+    expect(runCalls.some((entry) => entry.sql.includes('DELETE FROM messages'))).toBe(true);
+    expect(runCalls.some((entry) => entry.sql.includes('conversation_context'))).toBe(true);
+    expect(runCalls.some((entry) => entry.sql.includes('knowledge_episodes'))).toBe(true);
+    expect(runCalls.some((entry) => entry.sql.includes('knowledge_meeting_ledger'))).toBe(true);
+    expect(runCalls.some((entry) => entry.sql.includes('knowledge_retrieval_audit'))).toBe(true);
+    expect(runCalls.some((entry) => entry.sql.includes('UPDATE conversations SET updated_at = ?'))).toBe(
+      true,
+    );
+  });
 });

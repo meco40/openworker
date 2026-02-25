@@ -21,6 +21,18 @@ import {
   type SubagentDispatchContext,
   type ResolvedToolContext,
 } from './types';
+import {
+  listSubagentAgentProfiles,
+  resolveSubagentAgentProfile,
+} from '@/server/channels/messages/service/subagent/agentProfiles';
+
+function resolveToolFunctionName(tool: unknown): string {
+  if (!tool || typeof tool !== 'object') return '';
+  const entry = tool as { function?: { name?: unknown }; name?: unknown };
+  if (typeof entry.function?.name === 'string') return entry.function.name;
+  if (typeof entry.name === 'string') return entry.name;
+  return '';
+}
 
 export class SubagentManager {
   constructor(
@@ -63,7 +75,8 @@ export class SubagentManager {
       first === 'steer' ||
       first === 'log' ||
       first === 'info' ||
-      first === 'help'
+      first === 'help' ||
+      first === 'profiles'
     ) {
       return { action: first as SubagentAction, args };
     }
@@ -134,16 +147,21 @@ export class SubagentManager {
     return { run: null, error: `Unknown target ${target}.` };
   }
 
-  filterToolContextForSubagent(toolContext: ResolvedToolContext): ResolvedToolContext {
+  filterToolContextForSubagent(
+    toolContext: ResolvedToolContext,
+    allowedFunctionNames?: string[],
+  ): ResolvedToolContext {
+    const allowedSet =
+      Array.isArray(allowedFunctionNames) && allowedFunctionNames.length > 0
+        ? new Set(
+            allowedFunctionNames
+              .map((value) => String(value || '').trim())
+              .filter((value) => value.length > 0),
+          )
+        : null;
+
     const filteredTools = toolContext.tools.filter((tool) => {
-      if (!tool || typeof tool !== 'object') return true;
-      const entry = tool as { function?: { name?: unknown }; name?: unknown };
-      const functionName =
-        typeof entry.function?.name === 'string'
-          ? entry.function.name
-          : typeof entry.name === 'string'
-            ? entry.name
-            : '';
+      const functionName = resolveToolFunctionName(tool);
       return functionName !== 'subagents';
     });
 
@@ -153,10 +171,28 @@ export class SubagentManager {
     const functionToSkillId = new Map(toolContext.functionToSkillId);
     functionToSkillId.delete('subagents');
 
+    if (!allowedSet || allowedSet.size === 0) {
+      return {
+        tools: filteredTools,
+        installedFunctionNames,
+        functionToSkillId,
+      };
+    }
+
+    const toolsByAllowList = filteredTools.filter((tool) =>
+      allowedSet.has(resolveToolFunctionName(tool)),
+    );
+    const installedByAllowList = new Set(
+      [...installedFunctionNames].filter((functionName) => allowedSet.has(functionName)),
+    );
+    const functionMapByAllowList = new Map(
+      [...functionToSkillId.entries()].filter(([functionName]) => allowedSet.has(functionName)),
+    );
+
     return {
-      tools: filteredTools,
-      installedFunctionNames,
-      functionToSkillId,
+      tools: toolsByAllowList,
+      installedFunctionNames: installedByAllowList,
+      functionToSkillId: functionMapByAllowList,
     };
   }
 
@@ -197,6 +233,20 @@ export class SubagentManager {
     return { agentId, task, modelOverride };
   }
 
+  formatSubagentProfiles(): string {
+    const lines = ['Subagent profiles', ''];
+    for (const profile of listSubagentAgentProfiles()) {
+      const tools =
+        profile.toolFunctionNames.length > 0 ? profile.toolFunctionNames.join(', ') : '(all)';
+      const skills = profile.skillIds.length > 0 ? profile.skillIds.join(', ') : '(all)';
+      const aliases = profile.aliases.length > 0 ? ` aliases: ${profile.aliases.join(', ')}` : '';
+      lines.push(`- ${profile.id}: ${profile.description}`);
+      lines.push(`  tools: ${tools}`);
+      lines.push(`  skills: ${skills}${aliases}`);
+    }
+    return lines.join('\n');
+  }
+
   async startSubagentRun(params: {
     conversation: Conversation;
     platform: ChannelType;
@@ -216,17 +266,26 @@ export class SubagentManager {
     const projectId = workspace?.projectId;
     const workspacePath = workspace?.workspacePath;
     const workspaceRelativePath = workspace?.workspaceRelativePath;
+    const profile = resolveSubagentAgentProfile(params.agentId);
+    const mergedGuidance = [profile?.defaultGuidance, params.guidance]
+      .map((entry) => String(entry || '').trim())
+      .filter(Boolean)
+      .join('\n\n');
 
     const run = createSubagentRun({
       requesterConversationId: params.conversation.id,
       requesterUserId: params.conversation.userId,
       agentId: params.agentId,
       task: params.task,
-      guidance: params.guidance,
+      guidance: mergedGuidance || undefined,
       modelOverride: params.modelOverride,
       projectId,
       workspacePath,
       workspaceRelativePath,
+      profileId: profile?.id,
+      profileName: profile?.name,
+      skillIds: profile?.skillIds,
+      toolFunctionNames: profile?.toolFunctionNames,
     });
 
     return run;
@@ -269,13 +328,27 @@ export class SubagentManager {
           'Subagent commands:',
           '- /subagents list',
           '- /subagents spawn <agentId> <task> [--model <model>]',
+          '- /subagents profiles',
           '- /subagents kill <id|#|all>',
           '- /subagents steer <id|#> <message>',
           '- /subagents info <id|#>',
           '- /subagents log <id|#>',
           '- /kill <id|#|all>',
           '- /steer <id|#> <message>',
+          '',
+          this.formatSubagentProfiles(),
         ].join('\n'),
+      };
+    }
+
+    if (action === 'profiles') {
+      return {
+        text: this.formatSubagentProfiles(),
+        payload: {
+          status: 'ok',
+          action: 'profiles',
+          profiles: listSubagentAgentProfiles(),
+        },
       };
     }
 
@@ -328,6 +401,10 @@ export class SubagentManager {
           action: 'spawn',
           runId: run.runId,
           agentId: run.agentId,
+          profileId: run.profileId || null,
+          profileName: run.profileName || null,
+          skillIds: run.skillIds || [],
+          toolFunctionNames: run.toolFunctionNames || [],
           projectId: run.projectId || null,
           workspacePath: run.workspacePath || null,
           workspaceRelativePath: run.workspaceRelativePath || null,
@@ -497,6 +574,12 @@ export class SubagentManager {
           : [
               `runId: ${run.runId}`,
               `agentId: ${run.agentId}`,
+              run.profileId ? `profileId: ${run.profileId}` : null,
+              run.profileName ? `profile: ${run.profileName}` : null,
+              run.toolFunctionNames?.length
+                ? `tools: ${run.toolFunctionNames.join(', ')}`
+                : null,
+              run.skillIds?.length ? `skills: ${run.skillIds.join(', ')}` : null,
               `status: ${run.status}`,
               `startedAt: ${run.startedAt}`,
               `endedAt: ${run.endedAt || '-'}`,

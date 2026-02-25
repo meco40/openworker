@@ -12,6 +12,8 @@ import { createPersonaProjectWorkspace } from '@/server/personas/personaProjectW
 import { applyChannelBindingPersona } from '@/server/channels/messages/channelBindingPersona';
 import {
   buildMessageAttachmentMetadata,
+  deleteStoredAttachmentFile,
+  extractStoredAttachmentsFromMetadata,
   type StoredMessageAttachment,
 } from '@/server/channels/messages/attachments';
 import { getServerEventBus } from '@/server/events/runtime';
@@ -100,7 +102,10 @@ export class MessageService {
       () => this.requiresInteractiveToolApproval(),
       this.invokeSubagentToolCall.bind(this),
     );
-    this.recallService = new RecallService();
+    this.recallService = new RecallService((query, options) => {
+      if (typeof this.repo.searchMessages !== 'function') return [];
+      return this.repo.searchMessages(query, options);
+    });
     this.summaryService = new SummaryService(repo);
     this.summaryRefreshInFlight = (
       this.summaryService as unknown as { summaryRefreshInFlight: Set<string> }
@@ -420,10 +425,7 @@ export class MessageService {
         message: StoredMessage;
       }
   > {
-    await this.toolManager.ensureShellSkillInstalled();
     const toolContext = await this.toolManager.resolveToolContext();
-    const installedFunctions = new Set(toolContext.installedFunctionNames);
-    installedFunctions.add('shell_execute');
 
     const command =
       process.platform === 'win32'
@@ -436,7 +438,7 @@ export class MessageService {
       functionName: 'shell_execute',
       args: { command },
       workspaceCwd: params.workspaceCwd,
-      installedFunctions,
+      installedFunctions: toolContext.installedFunctionNames,
       toolId: toolContext.functionToSkillId.get('shell_execute') || 'shell-access',
     });
 
@@ -553,6 +555,7 @@ export class MessageService {
     clientMessageId?: string,
     attachments?: StoredMessageAttachment[],
     onStreamDelta?: (delta: string) => void,
+    opts?: { skipProjectGuard?: boolean },
   ): Promise<{ userMsg: StoredMessage; agentMsg: StoredMessage; newConversationId?: string }> {
     const conversation = this.sessionManager.getOrCreateConversation(
       this.repo,
@@ -727,12 +730,14 @@ export class MessageService {
         return { userMsg, agentMsg: memorySaveResult.message };
       }
 
-      const projectClarificationMessage = await this.maybeRequestProjectClarification({
-        conversation: effectiveConversation,
-        platform,
-        externalChatId,
-        content: effectiveUserInput,
-      });
+      const projectClarificationMessage = opts?.skipProjectGuard
+        ? null
+        : await this.maybeRequestProjectClarification({
+            conversation: effectiveConversation,
+            platform,
+            externalChatId,
+            content: effectiveUserInput,
+          });
       if (projectClarificationMessage) {
         return { userMsg, agentMsg: projectClarificationMessage };
       }
@@ -750,6 +755,21 @@ export class MessageService {
             onStreamDelta,
           }),
         };
+      }
+
+      const strictRecall = await this.recallService.buildStrictEvidenceReply(
+        effectiveConversation,
+        effectiveUserInput,
+      );
+      if (strictRecall) {
+        const agentMsg = await this.sendResponse(
+          effectiveConversation,
+          strictRecall.content,
+          platform,
+          externalChatId,
+          strictRecall.metadata,
+        );
+        return { userMsg, agentMsg };
       }
 
       const activeWorkspaceCwd = this.resolveConversationWorkspaceCwd(effectiveConversation);
@@ -843,10 +863,7 @@ export class MessageService {
   }): Promise<StoredMessage> {
     const { conversation, platform, externalChatId, userInput, command, onStreamDelta } = params;
     const workspaceCwd = this.resolveConversationWorkspaceCwd(conversation);
-    await this.toolManager.ensureShellSkillInstalled();
     const toolContext = await this.toolManager.resolveToolContext();
-    const installedFunctions = new Set(toolContext.installedFunctionNames);
-    installedFunctions.add('shell_execute');
 
     const toolExecution = await this.toolManager.executeToolFunctionCall({
       conversation,
@@ -855,7 +872,7 @@ export class MessageService {
       functionName: 'shell_execute',
       args: { command },
       workspaceCwd,
-      installedFunctions,
+      installedFunctions: toolContext.installedFunctionNames,
       toolId: toolContext.functionToSkillId.get('shell_execute') || 'shell-access',
     });
 
@@ -1006,6 +1023,7 @@ export class MessageService {
     clientMessageId?: string,
     attachments?: StoredMessageAttachment[],
     onStreamDelta?: (delta: string) => void,
+    opts?: { skipProjectGuard?: boolean },
   ): Promise<{ userMsg: StoredMessage; agentMsg: StoredMessage; newConversationId?: string }> {
     const conversation = this.sessionManager.resolveConversationForWebChat(
       this.repo,
@@ -1023,6 +1041,7 @@ export class MessageService {
       clientMessageId,
       attachments,
       onStreamDelta,
+      opts,
     );
   }
 
@@ -1054,6 +1073,35 @@ export class MessageService {
     this.summaryService.clearInFlight(conversationId);
     this.recallService.clearConversationState(conversationId);
     return this.repo.deleteConversation(conversationId, userId);
+  }
+
+  deleteMessage(messageId: string, userId: string, conversationId?: string): boolean {
+    if (typeof this.repo.deleteMessage !== 'function' || typeof this.repo.getMessage !== 'function') {
+      return false;
+    }
+
+    const normalizedUserId = this.sessionManager.resolveUserId(userId);
+    const message = this.repo.getMessage(messageId, normalizedUserId);
+    if (!message) {
+      return false;
+    }
+    if (conversationId && message.conversationId !== conversationId) {
+      return false;
+    }
+
+    const deleted = this.repo.deleteMessage(messageId, normalizedUserId);
+    if (!deleted) {
+      return false;
+    }
+
+    for (const attachment of extractStoredAttachmentsFromMetadata(message.metadata)) {
+      deleteStoredAttachmentFile(attachment);
+    }
+
+    this.summaryRefreshInFlight.delete(message.conversationId);
+    this.summaryService.clearInFlight(message.conversationId);
+    this.recallService.clearConversationState(message.conversationId);
+    return true;
   }
 
   async maybeRefreshConversationSummary(conversation: Conversation): Promise<void> {

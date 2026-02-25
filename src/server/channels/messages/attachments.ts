@@ -204,6 +204,15 @@ export function readStoredAttachmentAsDataUrl(attachment: StoredMessageAttachmen
   }
 }
 
+export function deleteStoredAttachmentFile(attachment: StoredMessageAttachment): void {
+  try {
+    const resolvedPath = resolveStoredAttachmentPath(attachment.storagePath);
+    fs.rmSync(resolvedPath, { force: true });
+  } catch {
+    // Best-effort cleanup: message deletion must not fail because a file is already missing.
+  }
+}
+
 export function persistIncomingAttachment(input: {
   userId: string;
   conversationId: string;

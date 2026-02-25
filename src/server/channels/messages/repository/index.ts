@@ -15,4 +15,10 @@ export type {
   ConversationContextState,
   PersonaProjectRecord,
   ConversationProjectState,
+  AgentRoomSwarmStatus,
+  AgentRoomSwarmPhase,
+  AgentRoomSwarmUnit,
+  AgentRoomSwarmFriction,
+  AgentRoomSwarmRecord,
+  AgentRoomSwarmMetrics,
 } from '@/server/channels/messages/repository/types';

@@ -13,6 +13,7 @@ import { webFetchHandler } from '@/server/skills/handlers/webFetch';
 import { httpRequestHandler } from '@/server/skills/handlers/httpRequest';
 import { notificationsHandler } from '@/server/skills/handlers/notifications';
 import { pdfGenerateHandler } from '@/server/skills/handlers/pdfGenerate';
+import { playwrightCliHandler } from '@/server/skills/handlers/playwrightCli';
 import { processManagerHandler } from '@/server/skills/handlers/processManager';
 import { gatewaySelfHealHandler } from '@/server/skills/handlers/gatewaySelfHeal';
 import type { SkillDispatchContext, SkillHandler } from '@/server/skills/types';
@@ -36,6 +37,7 @@ const SKILL_HANDLERS: Record<string, SkillHandler> = {
   http_request: httpRequestHandler,
   notifications: notificationsHandler,
   pdf_generate: pdfGenerateHandler,
+  playwright_cli: playwrightCliHandler,
   process_manager: processManagerHandler,
   gateway_self_heal: gatewaySelfHealHandler,
 };

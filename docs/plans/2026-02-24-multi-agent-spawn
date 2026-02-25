@@ -1,5 +1,7 @@
 # Multi-Persona AI Rooms: Technical Architecture & Feature Guide
 
+> **Implementation note for our system (OpenClaw v2):** This document contains imported reference code from another app (including `localStorage` examples like `nexus_rooms_v5`). For our implementation, Agent Room persistence is **not** localStorage-based and uses the existing SQLite `messages.db` via `agent_room_swarms` in the messages repository. No separate Agent Room database is introduced.
+
 ## 1. The Vision & Goal
 
 The primary goal of the **Nexus Orchestrator** is to move beyond simple "Chat-with-AI" interfaces toward **Autonomous Problem Solving**.

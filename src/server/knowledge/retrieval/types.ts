@@ -14,6 +14,7 @@ export interface MemoryRecallLike {
     query: string,
     limit?: number,
     userId?: string,
+    options?: { mode?: 'semantic' | 'lexical' },
   ) => Promise<{ context: string; matches: Array<{ node: { id: string; content?: string } }> }>;
 }
 
@@ -47,6 +48,8 @@ export interface KnowledgeRetrievalInput {
   personaId: string;
   conversationId?: string;
   query: string;
+  /** Disable Mem0 semantic retrieval for this query (e.g., explicit lexical recall commands). */
+  includeSemantic?: boolean;
 }
 
 export interface KnowledgeRecallProbeInput {

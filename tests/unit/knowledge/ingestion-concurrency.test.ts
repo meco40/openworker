@@ -147,13 +147,67 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
     });
 
     // The window-level processing should succeed even when individual stores fail.
-    // After the first Mem0 failure, remaining stores are skipped (fast-fail)
-    // to avoid blocking on repeated HTTP timeouts.
+    // A single transient Mem0 failure must not suppress all remaining facts in this window.
     const result = await service.runOnce();
 
-    // Only 2 store calls: first succeeds, second fails, third is skipped (fast-fail)
-    expect(store).toHaveBeenCalledTimes(2);
+    expect(store).toHaveBeenCalledTimes(3);
     // processWindow does not throw on individual store failures, so no errors
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('opens mem0 circuit only after repeated consecutive failures within one window', async () => {
+    const window: IngestionWindow = {
+      conversationId: 'conv-circuit',
+      userId: 'user-1',
+      personaId: 'persona-1',
+      fromSeqExclusive: 0,
+      toSeqInclusive: 2,
+      messages: [
+        createMessage(1, 'conv-circuit', 'Fakt A vereinbart'),
+        createMessage(2, 'conv-circuit', 'Fakt B offen'),
+      ],
+    };
+
+    const store = vi.fn(async () => {
+      throw new Error('Mem0 request timeout after 5000ms.');
+    });
+
+    const extraction: KnowledgeExtractionResult = {
+      facts: ['Fakt A vereinbart', 'Fakt B offen', 'Fakt C beschlossen'],
+      teaser: Array.from({ length: 90 }, (_, idx) => `t${idx + 1}`).join(' '),
+      episode: Array.from({ length: 450 }, (_, idx) => `e${idx + 1}`).join(' '),
+      entities: [],
+      events: [],
+      meetingLedger: {
+        topicKey: 'general',
+        counterpart: null,
+        participants: ['Ich'],
+        decisions: [],
+        negotiatedTerms: [],
+        openPoints: [],
+        actionItems: [],
+        sourceRefs: [],
+        confidence: 0.5,
+      },
+    };
+
+    const service = new KnowledgeIngestionService({
+      cursor: {
+        getPendingWindows: vi.fn(() => [window]),
+        markWindowProcessed: vi.fn(),
+      },
+      extractor: { extract: vi.fn(async () => extraction) },
+      knowledgeRepository: {
+        upsertEpisode: vi.fn(),
+        upsertMeetingLedger: vi.fn(),
+      },
+      memoryService: { store },
+    });
+
+    const result = await service.runOnce();
+
+    // Two failures in a row open the circuit; third fact is skipped in this window.
+    expect(store).toHaveBeenCalledTimes(2);
     expect(result.errors).toHaveLength(0);
   });
 });

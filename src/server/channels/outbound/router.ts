@@ -14,6 +14,8 @@ function toChannelKey(platform: ChannelType): ChannelKey | null {
   switch (platform) {
     case ChannelType.WEBCHAT:
       return 'webchat';
+    case ChannelType.AGENT_ROOM:
+      return 'agent_room';
     case ChannelType.TELEGRAM:
       return 'telegram';
     case ChannelType.WHATSAPP:
@@ -91,6 +93,11 @@ export async function deliverOutbound(
 
   if (channel === 'webchat') {
     // WebChat relies on WS broadcast, no external delivery needed.
+    return;
+  }
+
+  if (channel === 'agent_room') {
+    // Agent Room is fully isolated; WS streaming handles all output.
     return;
   }
 

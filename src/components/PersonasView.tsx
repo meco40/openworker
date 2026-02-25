@@ -3,11 +3,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePersona } from '@/modules/personas/PersonaContext';
 import type { PersonaTabName, MemoryPersonaType } from '@/server/personas/personaTypes';
-import { RoomDetailPanel } from '@/modules/rooms/components/RoomDetailPanel';
-import { CreateRoomModal } from '@/modules/rooms/components/CreateRoomModal';
 import { PersonasSidebar } from '@/components/personas/PersonasSidebar';
 import { PersonaEditorPane } from '@/components/personas/PersonaEditorPane';
-import { useRoomSync } from '@/modules/rooms/useRoomSync';
 import {
   usePersonaSelection,
   usePersonaEditor,
@@ -15,7 +12,6 @@ import {
   usePersonaTemplates,
   usePersonaCRUD,
   usePipelineModels,
-  useRoomManagement,
   useKeyboardShortcuts,
 } from '@/components/personas/hooks';
 
@@ -95,50 +91,6 @@ const PersonasView: React.FC = () => {
   const { pipelineModels, loadPipelineModels, savingPreferredModel, savePreferredModel } =
     usePipelineModels();
 
-  // Room management
-  const handleRoomSelect = useCallback(() => {
-    setSelectedId(null);
-    setEditingMeta(false);
-  }, [setSelectedId, setEditingMeta]);
-
-  const {
-    rooms,
-    roomsLoading,
-    roomCreating,
-    selectedRoomId,
-    selectedRoomState,
-    selectedRoomMembers,
-    selectedRoomMessages,
-    initialRoomMemberStatus,
-    activeRoomCountsByPersona,
-    refreshRooms,
-    loadRoomDetail,
-    handleCreateRoom,
-    startSelectedRoom,
-    stopSelectedRoom,
-    addMemberToSelectedRoom,
-    deleteSelectedRoom,
-    removeMemberFromSelectedRoom,
-    toggleMemberPauseInSelectedRoom,
-    sendMessageToSelectedRoom,
-    showCreateRoomModal,
-    setShowCreateRoomModal,
-  } = useRoomManagement(handleRoomSelect);
-
-  const selectedRoom = selectedRoomId
-    ? rooms.find((room) => room.id === selectedRoomId) || null
-    : null;
-
-  const {
-    messages: liveRoomMessages,
-    memberStatus: liveMemberStatus,
-    runStatus: liveRunStatus,
-    interventions: liveInterventions,
-    metrics: liveMetrics,
-  } = useRoomSync(selectedRoomId, selectedRoomMessages);
-
-  const mergedMemberStatus = { ...initialRoomMemberStatus, ...liveMemberStatus };
-
   // Selection handlers
   const selectPersona = useCallback(
     (id: string) => {
@@ -152,16 +104,8 @@ const PersonasView: React.FC = () => {
 
   // Effects
   useEffect(() => {
-    refreshRooms();
     loadPipelineModels();
-  }, [refreshRooms, loadPipelineModels]);
-
-  useEffect(() => {
-    if (!selectedRoomId) {
-      return;
-    }
-    loadRoomDetail(selectedRoomId);
-  }, [selectedRoomId, loadRoomDetail]);
+  }, [loadPipelineModels]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({ dirty, selectedId, activeTab, onSave: saveFile });
@@ -243,33 +187,7 @@ const PersonasView: React.FC = () => {
 
       {/* ── Right Panel: Editor ───────────────────────────── */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {selectedRoomId ? (
-          <RoomDetailPanel
-            room={selectedRoom}
-            state={selectedRoomState}
-            members={selectedRoomMembers}
-            messages={liveRoomMessages}
-            memberStatus={mergedMemberStatus}
-            activeRoomCountsByPersona={activeRoomCountsByPersona}
-            liveRunStatus={liveRunStatus}
-            interventions={liveInterventions}
-            metrics={liveMetrics}
-            personas={personas}
-            loading={roomsLoading}
-            onStart={startSelectedRoom}
-            onStop={stopSelectedRoom}
-            onRefresh={async () => {
-              if (selectedRoomId) {
-                await Promise.all([loadRoomDetail(selectedRoomId), refreshRooms()]);
-              }
-            }}
-            onDelete={deleteSelectedRoom}
-            onAddMember={addMemberToSelectedRoom}
-            onRemoveMember={removeMemberFromSelectedRoom}
-            onToggleMemberPause={toggleMemberPauseInSelectedRoom}
-            onSendMessage={sendMessageToSelectedRoom}
-          />
-        ) : !selectedPersona ? (
+        {!selectedPersona ? (
           <div className="flex flex-1 items-center justify-center text-zinc-600">
             <div className="space-y-2 text-center">
               <div className="text-4xl">🎭</div>
@@ -318,13 +236,6 @@ const PersonasView: React.FC = () => {
           />
         )}
       </div>
-
-      <CreateRoomModal
-        open={showCreateRoomModal}
-        creating={roomCreating}
-        onClose={() => setShowCreateRoomModal(false)}
-        onCreate={handleCreateRoom}
-      />
     </div>
   );
 };

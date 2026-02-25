@@ -28,6 +28,7 @@ import { ChannelBindingQueries } from '@/server/channels/messages/repository/que
 import { SearchQueries } from '@/server/channels/messages/repository/queries/search';
 import { DeleteQueries } from '@/server/channels/messages/repository/queries/delete';
 import { ProjectQueries } from '@/server/channels/messages/repository/queries/projects';
+import { AgentRoomQueries } from '@/server/channels/messages/repository/queries/agentRoom';
 import { openSqliteDatabase } from '@/server/db/sqlite';
 
 // ─── FTS5 search options ─────────────────────────────────────
@@ -53,6 +54,7 @@ export class SqliteMessageRepository implements MessageRepository {
   private readonly searchQueries: SearchQueries;
   private readonly deleteQueries: DeleteQueries;
   private readonly projectQueries: ProjectQueries;
+  private readonly agentRoomQueries: AgentRoomQueries;
 
   constructor(dbPath = process.env.MESSAGES_DB_PATH || '.local/messages.db') {
     this.db = openSqliteDatabase({ dbPath });
@@ -66,6 +68,7 @@ export class SqliteMessageRepository implements MessageRepository {
     this.searchQueries = new SearchQueries(this.db);
     this.deleteQueries = new DeleteQueries(this.db, normalizeUserId);
     this.projectQueries = new ProjectQueries(this.db, normalizeUserId);
+    this.agentRoomQueries = new AgentRoomQueries(this.db, normalizeUserId);
 
     this.migrate();
   }
@@ -118,6 +121,10 @@ export class SqliteMessageRepository implements MessageRepository {
 
   listConversations(limit = 50, userId?: string): Conversation[] {
     return this.conversationQueries.listConversations(limit, userId);
+  }
+
+  listConversationsByPersona(personaId: string, userId: string, limit = 10_000): Conversation[] {
+    return this.conversationQueries.listConversationsByPersona(personaId, userId, limit);
   }
 
   updateConversationTitle(id: string, title: string): void {
@@ -188,6 +195,14 @@ export class SqliteMessageRepository implements MessageRepository {
       id,
       userId,
       this.getConversation.bind(this) as (id: string, userId?: string) => Conversation | null,
+    );
+  }
+
+  deleteMessage(id: string, userId: string): boolean {
+    return this.deleteQueries.deleteMessage(
+      id,
+      userId,
+      this.getMessage.bind(this) as (id: string, userId?: string) => StoredMessage | null,
     );
   }
 
@@ -280,6 +295,88 @@ export class SqliteMessageRepository implements MessageRepository {
       userId,
       approved,
     );
+  }
+
+  createAgentRoomSwarm(input: {
+    conversationId: string;
+    userId: string;
+    title: string;
+    task: string;
+    leadPersonaId: string;
+    units: Array<{ personaId: string; role: string }>;
+    sessionId?: string | null;
+    status?: 'idle' | 'running' | 'hold' | 'completed' | 'aborted' | 'error';
+    currentPhase?: 'analysis' | 'ideation' | 'critique' | 'best_case' | 'result';
+    consensusScore?: number;
+    holdFlag?: boolean;
+    artifact?: string;
+    artifactHistory?: string[];
+    friction?: {
+      level: 'low' | 'medium' | 'high';
+      confidence: number;
+      hold: boolean;
+      reasons: string[];
+      updatedAt: string;
+    };
+    lastSeq?: number;
+    searchEnabled?: boolean;
+    swarmTemplate?: string | null;
+    pauseBetweenPhases?: boolean;
+  }) {
+    return this.agentRoomQueries.createAgentRoomSwarm(input);
+  }
+
+  listAgentRoomSwarms(userId: string, limit?: number) {
+    return this.agentRoomQueries.listAgentRoomSwarms(userId, limit);
+  }
+
+  listRunningSwarms(limit?: number) {
+    return this.agentRoomQueries.listRunningSwarms(limit);
+  }
+
+  getAgentRoomSwarm(id: string, userId: string) {
+    return this.agentRoomQueries.getAgentRoomSwarm(id, userId);
+  }
+
+  updateAgentRoomSwarm(
+    id: string,
+    userId: string,
+    patch: {
+      sessionId?: string | null;
+      title?: string;
+      task?: string;
+      leadPersonaId?: string;
+      units?: Array<{ personaId: string; role: string }>;
+      status?: 'idle' | 'running' | 'hold' | 'completed' | 'aborted' | 'error';
+      currentPhase?: 'analysis' | 'ideation' | 'critique' | 'best_case' | 'result';
+      consensusScore?: number;
+      holdFlag?: boolean;
+      artifact?: string;
+      artifactHistory?: string[];
+      friction?: {
+        level: 'low' | 'medium' | 'high';
+        confidence: number;
+        hold: boolean;
+        reasons: string[];
+        updatedAt: string;
+      };
+      lastSeq?: number;
+      currentDeployCommandId?: string | null;
+      searchEnabled?: boolean;
+      swarmTemplate?: string | null;
+      pauseBetweenPhases?: boolean;
+      phaseBuffer?: string[];
+    },
+  ) {
+    return this.agentRoomQueries.updateAgentRoomSwarm(id, userId, patch);
+  }
+
+  deleteAgentRoomSwarm(id: string, userId: string) {
+    return this.agentRoomQueries.deleteAgentRoomSwarm(id, userId);
+  }
+
+  getAgentRoomSwarmMetrics(userId: string) {
+    return this.agentRoomQueries.getAgentRoomSwarmMetrics(userId);
   }
 
   close(): void {

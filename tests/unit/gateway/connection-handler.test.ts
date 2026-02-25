@@ -150,6 +150,35 @@ describe('gateway connection handler', () => {
     });
   });
 
+  it('uses higher default request budget for v2 protocol connections', async () => {
+    const original = process.env.AGENT_V2_MAX_REQUESTS_PER_MINUTE;
+    delete process.env.AGENT_V2_MAX_REQUESTS_PER_MINUTE;
+
+    const { handleConnection, dispatchMethod } = await setupHandler();
+    const socket = new MockSocket();
+    handleConnection(socket as never, 'user-a', { protocol: 'v2' });
+
+    const attempts = MAX_REQUESTS_PER_MINUTE + 20;
+    for (let i = 1; i <= attempts; i++) {
+      socket.emit('message', makeReq(`v2-req-${i}`) as MessagePayload);
+    }
+
+    expect(dispatchMethod).toHaveBeenCalledTimes(attempts);
+    const last = parseSendCall(socket, socket.send.mock.calls.length - 1);
+    expect(last).not.toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: { code: 'RATE_LIMITED', message: 'Too many requests' },
+      }),
+    );
+
+    if (original === undefined) {
+      delete process.env.AGENT_V2_MAX_REQUESTS_PER_MINUTE;
+    } else {
+      process.env.AGENT_V2_MAX_REQUESTS_PER_MINUTE = original;
+    }
+  });
+
   it('resets rate-limit window after 60 seconds', async () => {
     const now = vi.spyOn(Date, 'now').mockReturnValue(100_000);
     const { handleConnection, dispatchMethod } = await setupHandler();

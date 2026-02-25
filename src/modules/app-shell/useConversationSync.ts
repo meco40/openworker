@@ -3,6 +3,7 @@ import type { Conversation, Message } from '@/shared/domain/types';
 import {
   mapConversationApiMessage,
   mapConversationStreamMessage,
+  removeMessageById,
   upsertMessageReplacingStreamingDraft,
   upsertConversationActivity,
 } from '@/modules/app-shell/runtimeLogic';
@@ -143,6 +144,18 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
     const unsubAborted = client.on('chat.aborted', () => {
       // No special UI action needed — the aborted message arrives via chat.message
     });
+    const unsubMessageDeleted = client.on('chat.message.deleted', (payload) => {
+      const { messageId, conversationId } = payload as {
+        messageId?: string;
+        conversationId?: string | null;
+      };
+      const normalizedMessageId = String(messageId || '').trim();
+      if (!normalizedMessageId) return;
+      if (conversationId && conversationId !== activeConversationRef.current) {
+        return;
+      }
+      setMessages((previous) => removeMessageById(previous, normalizedMessageId));
+    });
     const unsubState = client.onStateChange((state) => {
       if (state !== 'connected') return;
       void loadConversations();
@@ -157,6 +170,7 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
       unsubDeleted();
       unsubReset();
       unsubAborted();
+      unsubMessageDeleted();
       unsubState();
     };
   }, [enabled, loadConversations, loadMessages]);

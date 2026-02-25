@@ -20,6 +20,7 @@ import {
   detectLoop,
 } from '@/server/channels/messages/service/toolLoopDetector';
 import { repairOrphanedToolCalls } from '@/server/channels/messages/service/transcriptRepair';
+import { buildActiveSkillsPromptSection } from '@/server/channels/messages/service/dispatchers/skillsPrompt';
 
 export interface AIDispatcherDeps {
   contextBuilder: ContextBuilder;
@@ -106,26 +107,23 @@ export async function dispatchToAI(
   // Inject SKILL.md guidance bodies into the system prompt (server-only, dynamic import
   // prevents this from being bundled into the browser client).
   try {
-    const {
-      loadAllSkillMd,
-      filterEligibleSkills,
-      enrichBuiltInManifest,
-      buildSkillsPromptSection,
-    } = await import('@/server/skills/skillMd/index');
-    const { BUILT_IN_SKILLS } = await import('@/server/skills/builtInSkills');
+    const { loadAllSkillMd, filterEligibleSkills } = await import('@/server/skills/skillMd/index');
+    const [{ BUILT_IN_SKILLS }, { getSkillRepository }] = await Promise.all([
+      import('@/server/skills/builtInSkills'),
+      import('@/server/skills/skillRepository'),
+    ]);
+    const skillRepo = await getSkillRepository();
+    const installedSkills = skillRepo.listSkills().filter((skill) => skill.installed);
     const workspaceCwd = params.conversation.id
       ? deps.resolveConversationWorkspaceCwd?.(params.conversation)
       : undefined;
     const allParsed = loadAllSkillMd({ workspaceCwd: workspaceCwd ?? undefined });
     const eligible = filterEligibleSkills(allParsed);
-    const enriched = eligible
-      .filter((p) => p.tier === 'built-in')
-      .flatMap((p) => {
-        const seed = BUILT_IN_SKILLS.find((s) => s.manifest.id === p.frontmatter.id);
-        if (!seed) return [];
-        return [enrichBuiltInManifest(seed.manifest, p)];
-      });
-    const skillsSection = buildSkillsPromptSection(enriched);
+    const skillsSection = buildActiveSkillsPromptSection({
+      installedSkills,
+      eligibleParsedSkills: eligible,
+      builtInSeeds: BUILT_IN_SKILLS,
+    });
     if (skillsSection) {
       messages.unshift({ role: 'system', content: skillsSection });
     }

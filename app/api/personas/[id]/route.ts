@@ -3,6 +3,8 @@ import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getMemoryService } from '@/server/memory/runtime';
 import { getModelHubService } from '@/server/model-hub/runtime';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
+import { getMessageRepository, getMessageService } from '@/server/channels/messages/runtime';
+import { getKnowledgeRepository } from '@/server/knowledge/runtime';
 import { MEMORY_PERSONA_TYPES, type MemoryPersonaType } from '@/server/personas/personaTypes';
 import { unpairPersonaTelegram } from '@/server/telegram/personaTelegramPairing';
 
@@ -186,6 +188,19 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
     }
 
+    const messageService = getMessageService();
+    const messageRepository = getMessageRepository();
+    const personaConversations =
+      typeof messageRepository.listConversationsByPersona === 'function'
+        ? messageRepository.listConversationsByPersona(id, userContext.userId, 10_000)
+        : messageService
+            .listConversations(userContext.userId, 10_000)
+            .filter((conversation) => conversation.personaId === id);
+    for (const conversation of personaConversations) {
+      messageService.deleteConversation(conversation.id, userContext.userId);
+    }
+
+    getKnowledgeRepository().deleteKnowledgeByScope(userContext.userId, id);
     await unpairPersonaTelegram(id);
     await getMemoryService().deleteByPersona(id, userContext.userId);
     repo.deletePersona(id);

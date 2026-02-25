@@ -18,11 +18,11 @@ const manifest: SkillManifest = {
         action: {
           type: 'string',
           description: 'Operation to execute.',
-          enum: ['list', 'spawn', 'kill', 'steer', 'info', 'log', 'help'],
+          enum: ['list', 'spawn', 'kill', 'steer', 'info', 'log', 'help', 'profiles'],
         },
         agentId: {
           type: 'string',
-          description: 'Logical helper id for spawn (example: researcher).',
+          description: 'Logical helper id/profile for spawn (example: researcher or qa).',
         },
         task: {
           type: 'string',

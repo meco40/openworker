@@ -15,6 +15,7 @@ import httpRequest from '@/skills/http-request';
 import multiToolUseParallel from '@/skills/multi-tool-use-parallel';
 import notifications from '@/skills/notifications';
 import pdfGenerate from '@/skills/pdf-generate';
+import playwrightCli from '@/skills/playwright-cli';
 import processManager from '@/skills/process-manager';
 import python from '@/skills/python-runtime';
 import shell from '@/skills/shell-access';
@@ -45,6 +46,7 @@ for (const mod of [
   multiToolUseParallel,
   notifications,
   pdfGenerate,
+  playwrightCli,
   processManager,
   python,
   shell,

@@ -87,13 +87,28 @@ export class ConversationQueries {
 
   listConversations(limit = 50, userId?: string): Conversation[] {
     const normalizedUserId = userId ? this.normalizeUserId(userId) : null;
+    // Exclude internal agent-room conversations – they must not appear in the regular chat UI.
     const rows = normalizedUserId
       ? (this.db
-          .prepare('SELECT * FROM conversations WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?')
+          .prepare(
+            "SELECT * FROM conversations WHERE user_id = ? AND channel_type != 'AgentRoom' ORDER BY updated_at DESC LIMIT ?",
+          )
           .all(normalizedUserId, limit) as Array<Record<string, unknown>>)
       : (this.db
-          .prepare('SELECT * FROM conversations ORDER BY updated_at DESC LIMIT ?')
+          .prepare(
+            "SELECT * FROM conversations WHERE channel_type != 'AgentRoom' ORDER BY updated_at DESC LIMIT ?",
+          )
           .all(limit) as Array<Record<string, unknown>>);
+    return rows.map(toConversation);
+  }
+
+  listConversationsByPersona(personaId: string, userId: string, limit = 10_000): Conversation[] {
+    const normalizedUserId = this.normalizeUserId(userId);
+    const rows = this.db
+      .prepare(
+        'SELECT * FROM conversations WHERE user_id = ? AND persona_id = ? ORDER BY updated_at DESC LIMIT ?',
+      )
+      .all(normalizedUserId, personaId, limit) as Array<Record<string, unknown>>;
     return rows.map(toConversation);
   }
 

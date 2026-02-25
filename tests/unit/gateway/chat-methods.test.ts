@@ -119,6 +119,50 @@ describe('gateway chat methods', () => {
     expect(sent).toHaveLength(3);
   });
 
+  it('rejects chat.send when requested persona mismatches bound conversation persona', async () => {
+    vi.resetModules();
+
+    const setPersonaId = vi.fn();
+    const handleWebUIMessage = vi.fn();
+    vi.doMock('../../../src/server/channels/messages/runtime', () => ({
+      getMessageRepository: () => ({
+        listMessages: vi.fn(() => []),
+        listConversations: vi.fn(() => []),
+      }),
+      getMessageService: () => ({
+        getConversation: vi.fn(() => ({
+          id: 'conv-1',
+          personaId: 'persona-a',
+        })),
+        setPersonaId,
+        handleWebUIMessage,
+        abortGeneration: vi.fn(() => false),
+        respondToolApproval: vi.fn(),
+      }),
+    }));
+
+    const { dispatchMethod } = await import('@/server/gateway/method-router');
+    await import('@/server/gateway/methods/chat');
+
+    const sent: Array<{ ok?: boolean; error?: { code?: string; message?: string } }> = [];
+    await dispatchMethod(
+      makeRequest('chat.send', {
+        conversationId: 'conv-1',
+        content: 'try mismatch',
+        personaId: 'persona-b',
+      }),
+      makeClient('user-scoped'),
+      (frame) => sent.push(frame as { ok?: boolean; error?: { code?: string; message?: string } }),
+    );
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0].ok).toBe(false);
+    expect(sent[0].error?.code).toBe('INVALID_REQUEST');
+    expect(String(sent[0].error?.message || '')).toMatch(/persona/i);
+    expect(setPersonaId).not.toHaveBeenCalled();
+    expect(handleWebUIMessage).not.toHaveBeenCalled();
+  });
+
   it('emits keepalive stream frames during long chat.stream handling', async () => {
     vi.useFakeTimers();
     vi.resetModules();

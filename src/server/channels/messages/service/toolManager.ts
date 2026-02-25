@@ -4,6 +4,11 @@ import type { Conversation } from '@/server/channels/messages/repository';
 import { approveCommand, isCommandApproved } from '@/server/gateway/exec-approval-manager';
 import { evaluateNodeCommandPolicy } from '@/server/gateway/node-command-policy';
 import { getSkillRepository } from '@/server/skills/skillRepository';
+import {
+  assertPlaywrightSubcommandAllowed,
+  buildPlaywrightCliCommand,
+  resolvePlaywrightCliTokens,
+} from '@/server/skills/handlers/playwrightCliCommand';
 import { mapSkillsToTools } from '@/skills/definitions';
 import {
   TOOL_APPROVAL_TTL_MS,
@@ -110,28 +115,7 @@ export class ToolManager {
     return pending;
   }
 
-  async ensureShellSkillInstalled(): Promise<void> {
-    const skillRepo = await getSkillRepository();
-    const repoLike = skillRepo as Partial<{
-      getSkill: (id: string) => { id: string; installed: boolean } | null;
-      setInstalled: (id: string, installed: boolean) => boolean;
-    }>;
-
-    if (typeof repoLike.getSkill !== 'function' || typeof repoLike.setInstalled !== 'function') {
-      return;
-    }
-
-    const requiredSkills = ['shell-access', 'subagents'];
-    for (const skillId of requiredSkills) {
-      const skill = repoLike.getSkill.call(skillRepo, skillId);
-      if (skill && !skill.installed) {
-        repoLike.setInstalled.call(skillRepo, skill.id, true);
-      }
-    }
-  }
-
   async resolveToolContext(): Promise<ResolvedToolContext> {
-    await this.ensureShellSkillInstalled();
     const skillRepo = await getSkillRepository();
     const skillRows = skillRepo.listSkills();
     const installedRows = skillRows.filter((row) => row.installed);
@@ -182,10 +166,33 @@ export class ToolManager {
       };
     }
 
-    if (functionName === 'shell_execute') {
-      const command = String(args.command || '').trim();
+    if (functionName === 'shell_execute' || functionName === 'playwright_cli') {
+      let command = '';
+      try {
+        command =
+          functionName === 'shell_execute'
+            ? String(args.command || '').trim()
+            : buildPlaywrightCliCommand(
+                (() => {
+                  const tokens = resolvePlaywrightCliTokens(args);
+                  assertPlaywrightSubcommandAllowed(tokens);
+                  return tokens;
+                })(),
+              );
+      } catch (error) {
+        return {
+          kind: 'error',
+          output: error instanceof Error ? error.message : String(error),
+        };
+      }
       if (!command) {
-        return { kind: 'error', output: 'shell_execute requires command.' };
+        return {
+          kind: 'error',
+          output:
+            functionName === 'shell_execute'
+              ? 'shell_execute requires command.'
+              : 'playwright_cli requires args or command.',
+        };
       }
 
       const policy = evaluateNodeCommandPolicy(command);
@@ -221,7 +228,9 @@ export class ToolManager {
     try {
       const { dispatchSkill, normalizeSkillArgs } = await import('@/server/skills/executeSkill');
       const result = await dispatchSkill(functionName, normalizeSkillArgs(args), {
-        bypassApproval: functionName === 'shell_execute' && Boolean(params.skipApprovalCheck),
+        bypassApproval:
+          (functionName === 'shell_execute' || functionName === 'playwright_cli') &&
+          Boolean(params.skipApprovalCheck),
         workspaceCwd: params.workspaceCwd,
         conversationId: params.conversation.id,
         userId: params.conversation.userId,

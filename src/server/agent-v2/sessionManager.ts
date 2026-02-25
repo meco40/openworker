@@ -14,6 +14,7 @@ import type {
 import { AgentV2ExtensionHost } from '@/server/agent-v2/extensions/host';
 import { getMessageService } from '@/server/channels/messages/runtime';
 import { broadcastToUser } from '@/server/gateway/broadcast';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
 
 const QUEUE_PRIORITY = {
   abort: 500,
@@ -45,22 +46,47 @@ export class AgentV2SessionManager {
   async startSession(input: {
     userId: string;
     title?: string;
+    personaId?: string;
+    conversationId?: string;
   }): Promise<{ session: AgentSessionSnapshot; events: AgentV2EventEnvelope[] }> {
     const now = new Date().toISOString();
-    const externalChatId = `agent-v2-${crypto.randomUUID()}`;
     const messageService = getMessageService();
-    const conversation = messageService.getOrCreateConversation(
-      ChannelType.WEBCHAT,
-      externalChatId,
-      input.title || 'Agent Session',
-      input.userId,
-    );
+    const requestedPersonaId = String(input.personaId || '').trim() || null;
+
+    let conversation = input.conversationId
+      ? messageService.getConversation(input.conversationId, input.userId)
+      : null;
+    if (input.conversationId && !conversation) {
+      throw new AgentV2Error('Conversation not found.', 'NOT_FOUND');
+    }
+    if (!conversation) {
+      const externalChatId = `agent-v2-${crypto.randomUUID()}`;
+      conversation = messageService.getOrCreateConversation(
+        ChannelType.WEBCHAT,
+        externalChatId,
+        input.title || 'Agent Session',
+        input.userId,
+      );
+    }
+
+    if (requestedPersonaId) {
+      const persona = getPersonaRepository().getPersona(requestedPersonaId);
+      if (!persona) {
+        throw new AgentV2Error('Persona not found.', 'INVALID_REQUEST');
+      }
+      messageService.setPersonaId(conversation.id, requestedPersonaId, input.userId);
+      conversation = messageService.getConversation(conversation.id, input.userId) || conversation;
+    }
 
     await this.runHooks('session.before_start', {
       session: buildPendingSessionSnapshot(input.userId, conversation.id, now),
       command: null,
       stage: 'session.before_start',
-      payload: { title: input.title || null },
+      payload: {
+        title: input.title || null,
+        personaId: requestedPersonaId,
+        conversationId: conversation.id,
+      },
     });
 
     const created = this.repository.createSession({
@@ -79,7 +105,11 @@ export class AgentV2SessionManager {
       session: created.session,
       command: null,
       stage: 'session.after_start',
-      payload: { title: input.title || null },
+      payload: {
+        title: input.title || null,
+        personaId: requestedPersonaId,
+        conversationId: conversation.id,
+      },
     });
 
     this.emitPersistedEvents(input.userId, created.events);
@@ -198,6 +228,14 @@ export class AgentV2SessionManager {
     return this.repository.replayEvents(input);
   }
 
+  /**
+   * Directly look up the terminal event (completed or error) for a specific command.
+   * Bypasses seq-based replay, works even when lastSeq is stale (e.g. after hold/resume).
+   */
+  getCommandResult(commandId: string, sessionId: string): AgentV2EventEnvelope | null {
+    return this.repository.getCommandResult(commandId, sessionId);
+  }
+
   close(): void {
     this.extensionHost.stopAll();
     this.repository.close();
@@ -272,7 +310,10 @@ export class AgentV2SessionManager {
 
         try {
           const execution = await this.executeCommand(started.command, userId);
-          resultPayload = execution.metadata || { message: execution.message };
+          resultPayload = {
+            message: execution.message,
+            ...(execution.metadata || {}),
+          };
           if (execution.status !== 'ok') {
             completionStatus = 'failed_recoverable';
             errorCode = 'COMMAND_EXECUTION_FAILED';
@@ -456,6 +497,10 @@ export class AgentV2SessionManager {
           payload: { delta },
         });
       },
+      // Agent-v2 programmatic sessions must not trigger the project clarification
+      // guard — swarm phase prompts may contain build-intent keywords without any
+      // user project context being relevant.
+      { skipProjectGuard: true },
     );
 
     await this.runHooks('model.after_dispatch', {
@@ -553,10 +598,7 @@ export class AgentV2SessionManager {
     const current = this.repository.countQueuedCommands(sessionId, userId);
     const maxQueue = resolveMaxQueueLength();
     if (current >= maxQueue) {
-      throw new AgentV2Error(
-        `Session command queue is full (${maxQueue}).`,
-        'BACKPRESSURE',
-      );
+      throw new AgentV2Error(`Session command queue is full (${maxQueue}).`, 'BACKPRESSURE');
     }
   }
 }

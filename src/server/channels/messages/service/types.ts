@@ -55,6 +55,7 @@ export type KnowledgeRetrievalServiceLike = {
     personaId: string;
     conversationId?: string;
     query: string;
+    includeSemantic?: boolean;
   }) => Promise<{ context: string }>;
   shouldTriggerRecall?: (input: {
     userId: string;
@@ -63,7 +64,15 @@ export type KnowledgeRetrievalServiceLike = {
   }) => Promise<boolean> | boolean;
 };
 
-export type SubagentAction = 'list' | 'spawn' | 'kill' | 'steer' | 'log' | 'info' | 'help';
+export type SubagentAction =
+  | 'list'
+  | 'spawn'
+  | 'kill'
+  | 'steer'
+  | 'log'
+  | 'info'
+  | 'help'
+  | 'profiles';
 
 export type SubagentDispatchContext = {
   conversation: Conversation;
@@ -118,14 +127,32 @@ export function shouldRecallMemoryForInput(content: string): boolean {
     /\b(erinner|erinnerst|erinnern|remember|recall|schon mal|damals|frueher|früher|letzte|letzten|gestern|vorgestern|besprochen|gesagt|vereinbart|ausgehandelt|waren wir|haben wir)\b/i.test(
       normalized,
     );
+  const hasExplicitRecallCommand = isExplicitRecallCommand(normalized);
   const hasDirectiveRecallCue =
     /\b(nenne|sag|sage|zeige|zeig|liste|list|fass|fasse|summarize|tell)\b/i.test(normalized);
 
+  if (hasExplicitRecallCommand) return true;
   if (hasRulesCue && (hasQuestionSignal || hasDirectiveRecallCue)) return true;
   if (hasQuestionSignal && hasRecallCue) return true;
   if (hasDirectiveRecallCue && hasRecallCue) return true;
 
   return false;
+}
+
+export function isExplicitRecallCommand(content: string): boolean {
+  const normalized = content.trim().toLowerCase();
+  if (!normalized) return false;
+  return /\b(erinner(?:e)?\s+dich|remember|recall)\b/i.test(normalized);
+}
+
+export function isStrictEvidenceRecallEnabled(
+  env: Record<string, string | undefined> = process.env as Record<string, string | undefined>,
+): boolean {
+  const normalized = String(env.RECALL_STRICT_EVIDENCE || '')
+    .trim()
+    .toLowerCase();
+  if (!normalized) return false;
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 }
 
 export function normalizeMemoryContext(context: string): string | null {

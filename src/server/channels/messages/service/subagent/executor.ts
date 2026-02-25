@@ -71,6 +71,7 @@ export async function runSubagent(
     const routing = deps.resolveChatModelRouting(conversation);
     const toolContext = deps.subagentManager.filterToolContextForSubagent(
       await deps.toolManager.resolveToolContext(),
+      run.toolFunctionNames,
     );
     const preferredModelId = run.modelOverride || routing.preferredModelId;
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
@@ -81,7 +82,12 @@ export async function runSubagent(
           'IMPORTANT constraints:\n' +
           '- Do NOT spawn additional subagents — you are already a subagent.\n' +
           '- Do NOT poll tools in loops waiting for state changes; act directly.\n' +
-          '- Complete your task within the tool calls available, then return a final answer.',
+          '- Complete your task within the tool calls available, then return a final answer.\n' +
+          (run.profileName ? `- Agent profile: ${run.profileName} (${run.profileId || run.agentId}).\n` : '') +
+          (run.toolFunctionNames?.length
+            ? `- Allowed tools: ${run.toolFunctionNames.join(', ')}.\n`
+            : '- Allowed tools: all installed tools except subagents.\n') +
+          (run.skillIds?.length ? `- Preferred skills: ${run.skillIds.join(', ')}.` : ''),
       },
       ...(run.workspacePath
         ? [
@@ -182,7 +188,16 @@ export async function invokeSubagentToolCall(
   const actionRaw = String(params.args.action || 'list')
     .trim()
     .toLowerCase();
-  const validActions = ['spawn', 'kill', 'steer', 'log', 'info', 'help', 'list'] as const;
+  const validActions = [
+    'spawn',
+    'kill',
+    'steer',
+    'log',
+    'info',
+    'help',
+    'list',
+    'profiles',
+  ] as const;
   const action = validActions.includes(actionRaw as (typeof validActions)[number])
     ? (actionRaw as (typeof validActions)[number])
     : 'list';

@@ -63,8 +63,9 @@ export class MemoryService {
     query: string,
     limit = 3,
     userId?: string,
+    options?: { mode?: 'semantic' | 'lexical' },
   ): Promise<MemoryRecallResult> {
-    return recallDetailed(this.mem0Client, { personaId, query, limit, userId });
+    return recallDetailed(this.mem0Client, { personaId, query, limit, userId, ...options });
   }
 
   async recall(personaId: string, query: string, limit = 3, userId?: string): Promise<string> {

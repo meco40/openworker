@@ -7,6 +7,8 @@ export enum ChannelType {
   SIGNAL = 'Signal',
   TEAMS = 'Teams',
   IMESSAGE = 'iMessage',
+  /** Internal – Agent Room swarm sessions. Never shown in the regular chat UI. */
+  AGENT_ROOM = 'AgentRoom',
 }
 
 export interface Peer {
@@ -105,6 +107,11 @@ export interface ControlPlaneMetrics {
   tokensToday: number;
   vectorNodeCount: number;
   ramUsageBytes?: number;
+  agentRoom?: {
+    runningSwarms: number;
+    holdSwarms: number;
+    lastErrorAt: string | null;
+  } | null;
   rooms?: {
     totalRooms: number;
     runningRooms: number;
@@ -157,6 +164,7 @@ export enum View {
   NODES = 'nodes',
   AGENTS = 'agents',
   DEBUGGER = 'debugger',
+  AGENT_ROOM = 'agent-room',
 }
 
 export interface DebugConversationSummary {

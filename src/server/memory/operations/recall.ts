@@ -12,6 +12,7 @@ export interface RecallOptions {
   query: string;
   limit?: number;
   userId?: string;
+  mode?: 'semantic' | 'lexical';
 }
 
 /**
@@ -67,9 +68,48 @@ export async function recallDetailed(
   client: Mem0Client,
   options: RecallOptions,
 ): Promise<MemoryRecallResult> {
-  const { personaId, query, limit = 3, userId } = options;
+  const { personaId, query, limit = 3, userId, mode = 'semantic' } = options;
   const scopedUserId = resolveUserId(userId);
   const safeLimit = Math.max(1, limit);
+  const lowered = query.trim().toLowerCase();
+  const rulesLikeQuery = isRulesLikeQuery(lowered);
+
+  if (mode === 'lexical') {
+    const listed = await client.listMemories({
+      userId: scopedUserId,
+      personaId,
+      page: 1,
+      pageSize: Math.max(25, safeLimit * 4),
+      query: query.trim() || undefined,
+    });
+
+    const queryVariants = expandSelfReferenceQuery(query)
+      .split('|')
+      .map((variant) => variant.trim().toLowerCase())
+      .filter((variant) => variant.length > 0);
+
+    const lexicalMatches = listed.memories
+      .map((record) => toMemoryNode(record))
+      .filter((node) => {
+        const content = node.content.toLowerCase();
+        if (!lowered) return true;
+        if (queryVariants.some((variant) => content.includes(variant))) return true;
+        if (rulesLikeQuery && containsRulesWord(node.content)) return true;
+        return false;
+      })
+      .slice(0, safeLimit)
+      .map((node) => ({
+        node,
+        similarity: MEM0_SCORE_THRESHOLD,
+        score: MEM0_SCORE_THRESHOLD,
+      }));
+
+    const context = lexicalMatches.map((result) => formatRecallContextLine(result.node)).join('\n');
+    return {
+      context: context || 'No relevant memories found.',
+      matches: lexicalMatches,
+    };
+  }
 
   // Expand query for self-reference matching
   const expandedQuery = expandSelfReferenceQuery(query);
@@ -94,8 +134,6 @@ export async function recallDetailed(
     .sort((a, b) => b.score - a.score)
     .slice(0, safeLimit);
 
-  const lowered = query.trim().toLowerCase();
-  const rulesLikeQuery = isRulesLikeQuery(lowered);
   const hasRulesFocusedMatch = matches.some((entry) => containsRulesWord(entry.node.content));
 
   if (matches.length === 0 || (rulesLikeQuery && !hasRulesFocusedMatch)) {

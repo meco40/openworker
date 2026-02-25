@@ -504,7 +504,8 @@ export class KnowledgeRetrievalService {
       stageStats.episodes = episodes.length;
       stageStats.topicFallback = usedTopicFallback ? 1 : 0;
 
-      const semantic = this.options.memoryService
+      const includeSemantic = input.includeSemantic !== false;
+      const semantic = includeSemantic && this.options.memoryService
         ? await this.options.memoryService.recallDetailed(
             input.personaId,
             input.query,

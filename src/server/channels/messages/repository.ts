@@ -73,6 +73,50 @@ export interface ConversationProjectState {
   updatedAt: string | null;
 }
 
+export type AgentRoomSwarmStatus = 'idle' | 'running' | 'hold' | 'completed' | 'aborted' | 'error';
+
+export type AgentRoomSwarmPhase = 'analysis' | 'ideation' | 'critique' | 'best_case' | 'result';
+
+export interface AgentRoomSwarmUnit {
+  personaId: string;
+  role: string;
+}
+
+export interface AgentRoomSwarmFriction {
+  level: 'low' | 'medium' | 'high';
+  confidence: number;
+  hold: boolean;
+  reasons: string[];
+  updatedAt: string;
+}
+
+export interface AgentRoomSwarmRecord {
+  id: string;
+  conversationId: string;
+  userId: string;
+  sessionId: string | null;
+  title: string;
+  task: string;
+  leadPersonaId: string;
+  units: AgentRoomSwarmUnit[];
+  status: AgentRoomSwarmStatus;
+  currentPhase: AgentRoomSwarmPhase;
+  consensusScore: number;
+  holdFlag: boolean;
+  artifact: string;
+  artifactHistory: string[];
+  friction: AgentRoomSwarmFriction;
+  lastSeq: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentRoomSwarmMetrics {
+  runningSwarms: number;
+  holdSwarms: number;
+  lastErrorAt: string | null;
+}
+
 // ─── Repository Interface ────────────────────────────────────
 
 export interface MessageRepository {
@@ -91,6 +135,7 @@ export interface MessageRepository {
     userId?: string,
   ): Conversation;
   listConversations(limit?: number, userId?: string): Conversation[];
+  listConversationsByPersona?(personaId: string, userId: string, limit?: number): Conversation[];
   updateConversationTitle(id: string, title: string): void;
 
   saveMessage(input: SaveMessageInput): StoredMessage;
@@ -110,6 +155,7 @@ export interface MessageRepository {
   getDefaultWebChatConversation(userId?: string): Conversation;
 
   deleteConversation(id: string, userId: string): boolean;
+  deleteMessage?(id: string, userId: string): boolean;
   updateModelOverride(id: string, modelOverride: string | null, userId: string): void;
   updatePersonaId(id: string, personaId: string | null, userId: string): void;
   findMessageByClientId(conversationId: string, clientMessageId: string): StoredMessage | null;
@@ -166,4 +212,54 @@ export interface MessageRepository {
     userId: string,
     approved: boolean,
   ): void;
+
+  createAgentRoomSwarm?(input: {
+    conversationId: string;
+    userId: string;
+    title: string;
+    task: string;
+    leadPersonaId: string;
+    units: AgentRoomSwarmUnit[];
+    sessionId?: string | null;
+    status?: AgentRoomSwarmStatus;
+    currentPhase?: AgentRoomSwarmPhase;
+    consensusScore?: number;
+    holdFlag?: boolean;
+    artifact?: string;
+    artifactHistory?: string[];
+    friction?: AgentRoomSwarmFriction;
+    lastSeq?: number;
+    searchEnabled?: boolean;
+    swarmTemplate?: string | null;
+    pauseBetweenPhases?: boolean;
+  }): AgentRoomSwarmRecord;
+  listAgentRoomSwarms?(userId: string, limit?: number): AgentRoomSwarmRecord[];
+  listRunningSwarms?(limit?: number): AgentRoomSwarmRecord[];
+  getAgentRoomSwarm?(id: string, userId: string): AgentRoomSwarmRecord | null;
+  updateAgentRoomSwarm?(
+    id: string,
+    userId: string,
+    patch: {
+      sessionId?: string | null;
+      title?: string;
+      task?: string;
+      leadPersonaId?: string;
+      units?: AgentRoomSwarmUnit[];
+      status?: AgentRoomSwarmStatus;
+      currentPhase?: AgentRoomSwarmPhase;
+      consensusScore?: number;
+      holdFlag?: boolean;
+      artifact?: string;
+      artifactHistory?: string[];
+      friction?: AgentRoomSwarmFriction;
+      lastSeq?: number;
+      currentDeployCommandId?: string | null;
+      searchEnabled?: boolean;
+      swarmTemplate?: string | null;
+      pauseBetweenPhases?: boolean;
+      phaseBuffer?: string[];
+    },
+  ): AgentRoomSwarmRecord | null;
+  deleteAgentRoomSwarm?(id: string, userId: string): boolean;
+  getAgentRoomSwarmMetrics?(userId: string): AgentRoomSwarmMetrics;
 }

@@ -16,6 +16,15 @@ const AGENT_V2_EVENT_TYPES: AgentV2EventType[] = [
 
 export type AgentV2EventHandler = (event: AgentV2EventEnvelope) => void;
 
+function isTransientSocketError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || '');
+  return (
+    /websocket not connected/i.test(message) ||
+    /client disconnected/i.test(message) ||
+    /failed to connect/i.test(message)
+  );
+}
+
 export class AgentV2GatewayClient {
   private readonly client: GatewayClient;
   private readonly lastSeqBySession = new Map<string, number>();
@@ -46,8 +55,64 @@ export class AgentV2GatewayClient {
     return await this.client.request<Record<string, unknown>>('agent.v2.session.start', { title });
   }
 
+  async startSessionWithOptions(input: {
+    title?: string;
+    personaId?: string;
+    conversationId?: string;
+  }): Promise<Record<string, unknown>> {
+    return await this.client.request<Record<string, unknown>>('agent.v2.session.start', input);
+  }
+
+  async getSession(sessionId: string): Promise<Record<string, unknown>> {
+    return await this.client.request<Record<string, unknown>>('agent.v2.session.get', {
+      sessionId,
+    });
+  }
+
+  async replaySession(
+    sessionId: string,
+    fromSeq: number,
+    limit?: number,
+  ): Promise<{ events: AgentV2EventEnvelope[]; nextSeq: number }> {
+    return await this.client.request<{ events: AgentV2EventEnvelope[]; nextSeq: number }>(
+      'agent.v2.session.replay',
+      {
+        sessionId,
+        fromSeq,
+        limit,
+      },
+    );
+  }
+
+  setReplayCursor(sessionId: string, seq: number): void {
+    if (!Number.isFinite(seq) || seq < 0) return;
+    this.lastSeqBySession.set(sessionId, Math.floor(seq));
+  }
+
+  getReplayCursor(sessionId: string): number {
+    return this.lastSeqBySession.get(sessionId) ?? 0;
+  }
+
   async request(method: string, params?: Record<string, unknown>): Promise<unknown> {
-    return await this.client.request(method, params);
+    try {
+      return await this.client.request(method, params);
+    } catch (error) {
+      if (!isTransientSocketError(error)) {
+        throw error;
+      }
+      // Retry once after re-issuing connect to absorb reconnect races.
+      this.client.connect();
+      return await this.client.request(method, params);
+    }
+  }
+
+  /**
+   * Subscribe to server-push `agent.room.swarm` status events.
+   * These are NOT typed AgentV2EventEnvelopes (no sessionId/seq), so they
+   * bypass normalizeEnvelope and are delivered raw.
+   */
+  onSwarmEvent(handler: (payload: unknown) => void): () => void {
+    return this.client.on('agent.room.swarm', handler);
   }
 
   private bindEventBridge(): void {

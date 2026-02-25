@@ -9,6 +9,10 @@ export interface SubagentRunRecord {
   requesterConversationId: string;
   requesterUserId: string;
   agentId: string;
+  profileId?: string;
+  profileName?: string;
+  skillIds?: string[];
+  toolFunctionNames?: string[];
   task: string;
   guidance?: string;
   modelOverride?: string;
@@ -37,6 +41,10 @@ interface CreateSubagentRunInput {
   requesterConversationId: string;
   requesterUserId: string;
   agentId: string;
+  profileId?: string;
+  profileName?: string;
+  skillIds?: string[];
+  toolFunctionNames?: string[];
   task: string;
   guidance?: string;
   modelOverride?: string;
@@ -176,6 +184,10 @@ export function createSubagentRun(input: CreateSubagentRunInput): SubagentRunRec
     requesterConversationId: input.requesterConversationId,
     requesterUserId: input.requesterUserId,
     agentId: input.agentId,
+    profileId: input.profileId,
+    profileName: input.profileName,
+    skillIds: input.skillIds,
+    toolFunctionNames: input.toolFunctionNames,
     task: input.task,
     guidance: input.guidance,
     modelOverride: input.modelOverride,

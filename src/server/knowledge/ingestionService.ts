@@ -452,6 +452,9 @@ export class KnowledgeIngestionService {
     });
 
     let mem0FailCount = 0;
+    let mem0SkippedCount = 0;
+    let mem0ConsecutiveFailCount = 0;
+    const MEM0_MAX_CONSECUTIVE_FAILURES_PER_WINDOW = 2;
     for (let factIdx = 0; factIdx < facts.length; factIdx++) {
       const fact = facts[factIdx];
 
@@ -530,9 +533,13 @@ export class KnowledgeIngestionService {
       }
       metadata.lifecycleStatus = lifecycleStatus;
 
-      // Skip Mem0 storage after first failure in this window (fast-fail to avoid
-      // blocking on repeated HTTP timeouts when Mem0 connection pool is exhausted)
-      if (this.deps.memoryService && mem0FailCount === 0) {
+      // Tolerate one transient failure per window; open a short-lived circuit only
+      // after repeated consecutive failures to avoid dropping all remaining facts.
+      if (this.deps.memoryService) {
+        if (mem0ConsecutiveFailCount >= MEM0_MAX_CONSECUTIVE_FAILURES_PER_WINDOW) {
+          mem0SkippedCount++;
+          continue;
+        }
         try {
           // Rate-limit Mem0 calls to avoid connection pool exhaustion
           if (factIdx > 0) {
@@ -546,20 +553,28 @@ export class KnowledgeIngestionService {
             window.userId,
             metadata,
           );
+          mem0ConsecutiveFailCount = 0;
         } catch (storeError) {
           mem0FailCount++;
-          console.warn(
-            '[KnowledgeIngestion] Mem0 store failed, skipping remaining Mem0 calls for this window:',
-            storeError instanceof Error ? storeError.message : String(storeError),
-          );
+          mem0ConsecutiveFailCount++;
+          const errorText = storeError instanceof Error ? storeError.message : String(storeError);
+          if (mem0ConsecutiveFailCount >= MEM0_MAX_CONSECUTIVE_FAILURES_PER_WINDOW) {
+            console.warn(
+              '[KnowledgeIngestion] Mem0 store failed, opening circuit for remaining facts in this window:',
+              errorText,
+            );
+          } else {
+            console.warn(
+              '[KnowledgeIngestion] Mem0 store failed, continuing with next fact in this window:',
+              errorText,
+            );
+          }
         }
-      } else {
-        mem0FailCount++;
       }
     }
-    if (mem0FailCount > 0) {
+    if (mem0FailCount > 0 || mem0SkippedCount > 0) {
       console.warn(
-        `[KnowledgeIngestion] ${mem0FailCount}/${facts.length} Mem0 stores failed for window ${window.personaId} seq=${inferSourceStart(window)}-${inferSourceEnd(window)}`,
+        `[KnowledgeIngestion] Mem0 store summary for window ${window.personaId} seq=${inferSourceStart(window)}-${inferSourceEnd(window)}: failed=${mem0FailCount}, skipped_after_circuit=${mem0SkippedCount}, total_facts=${facts.length}`,
       );
     }
 
@@ -586,7 +601,11 @@ export class KnowledgeIngestionService {
       for (const msg of window.messages) {
         if (msg.role !== 'user') continue;
         const completionMatch = detectTaskCompletion(String(msg.content || ''), openTasks);
-        if (completionMatch && this.deps.memoryService && mem0FailCount === 0) {
+        if (
+          completionMatch &&
+          this.deps.memoryService &&
+          mem0ConsecutiveFailCount < MEM0_MAX_CONSECUTIVE_FAILURES_PER_WINDOW
+        ) {
           try {
             await new Promise((resolve) => setTimeout(resolve, 100));
             await this.deps.memoryService.store(

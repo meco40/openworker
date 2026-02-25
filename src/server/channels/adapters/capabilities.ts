@@ -7,6 +7,12 @@ export const CHANNEL_CAPABILITIES: Record<ChannelKey, ChannelCapabilities> = {
     supportsPairing: false,
     supportsStreaming: true,
   },
+  agent_room: {
+    supportsInbound: true,
+    supportsOutbound: false,
+    supportsPairing: false,
+    supportsStreaming: true,
+  },
   telegram: {
     supportsInbound: true,
     supportsOutbound: true,

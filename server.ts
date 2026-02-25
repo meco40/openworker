@@ -20,6 +20,10 @@ import {
   stopAllPersonaBotPolling,
 } from './src/server/telegram/personaTelegramPoller.js';
 import { bootstrapMessageRuntime } from './src/server/channels/messages/runtime.js';
+import {
+  startSwarmOrchestratorRuntime,
+  stopSwarmOrchestratorRuntime,
+} from './src/server/agent-room/swarmRuntime.js';
 
 const require = createRequire(import.meta.url);
 const { loadEnvConfig } = require('@next/env') as {
@@ -135,11 +139,18 @@ Promise.resolve()
     }
     void startPersonaBotPollers();
 
+    // ─── Swarm Orchestrator ────────────────────────────────────
+    const swarmRunner = process.env.SWARM_RUNNER || 'server';
+    if (swarmRunner !== 'scheduler') {
+      startSwarmOrchestratorRuntime('server-main');
+    }
+
     // ─── Graceful Shutdown ─────────────────────────────────────
     function shutdown() {
       console.log('[gateway] Shutting down...');
       clearInterval(tickInterval);
       stopAllPersonaBotPolling();
+      stopSwarmOrchestratorRuntime();
 
       // Abort all in-flight AI generation requests so they don't hang.
       try {

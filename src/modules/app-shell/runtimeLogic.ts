@@ -83,6 +83,10 @@ export function upsertMessageReplacingStreamingDraft(
   return [...messages, incoming];
 }
 
+export function removeMessageById(messages: Message[], messageId: string): Message[] {
+  return messages.filter((message) => message.id !== messageId);
+}
+
 export function upsertConversationActivity(
   conversations: Conversation[],
   conversationId: string,

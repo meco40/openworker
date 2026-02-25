@@ -296,6 +296,31 @@ describe('MessageService subagents commands and tool calls', () => {
     expect(String(listed.text || '')).toContain('Subagents');
   });
 
+  it('attaches agent profile tools/skills metadata for qa agents', async () => {
+    dispatchWithFallbackMock.mockResolvedValue({
+      ok: true,
+      text: 'qa done',
+      provider: 'test-provider',
+      model: 'test-model',
+    });
+
+    const service = new MessageService(buildRepository({ personaId: 'persona-1' }));
+    const spawned = await service.invokeSubagentToolCall({
+      args: { action: 'spawn', agentId: 'qa', task: 'run browser regression checks' },
+      conversationId: 'conv-1',
+      userId: 'user-1',
+      platform: ChannelType.WEBCHAT,
+      externalChatId: 'default',
+    });
+
+    expect(spawned.status).toBe('accepted');
+    expect(spawned.profileId).toBe('qa');
+    expect(Array.isArray(spawned.toolFunctionNames)).toBe(true);
+    expect((spawned.toolFunctionNames as string[]).includes('playwright_cli')).toBe(true);
+    expect(Array.isArray(spawned.skillIds)).toBe(true);
+    expect((spawned.skillIds as string[]).includes('playwright-cli')).toBe(true);
+  });
+
   it('inherits active project workspace when conversation project is set', async () => {
     const workspacePath = path.join(
       String(process.env.PERSONAS_ROOT_PATH || ''),

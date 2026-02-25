@@ -1,4 +1,11 @@
-export type ChannelKey = 'webchat' | 'telegram' | 'whatsapp' | 'discord' | 'imessage' | 'slack';
+export type ChannelKey =
+  | 'webchat'
+  | 'agent_room'
+  | 'telegram'
+  | 'whatsapp'
+  | 'discord'
+  | 'imessage'
+  | 'slack';
 
 export interface ChannelCapabilities {
   supportsInbound: boolean;

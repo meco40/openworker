@@ -3,6 +3,12 @@ import { ChannelType } from '@/shared/domain/types';
 import type { Conversation } from '@/shared/domain/types';
 import type { MessageRepository, StoredMessage } from '@/server/channels/messages/repository';
 
+type RecallMatch = {
+  node: { id: string; type?: string; content: string; timestamp?: string };
+  similarity: number;
+  score: number;
+};
+
 const dispatchWithFallbackMock = vi.hoisted(() =>
   vi.fn(async () => ({
     ok: true,
@@ -32,7 +38,7 @@ const ensureKnowledgeIngestedForConversationMock = vi.hoisted(() => vi.fn(async 
 const memoryRecallDetailedMock = vi.hoisted(() =>
   vi.fn(async () => ({
     context: 'Mem0 fallback context',
-    matches: [],
+    matches: [] as RecallMatch[],
   })),
 );
 
@@ -80,7 +86,11 @@ vi.mock('../../../src/server/knowledge/runtime', () => ({
 
 import { MessageService } from '@/server/channels/messages/service';
 
-function buildRepository(personaId: string | null, userId = 'user-1'): MessageRepository {
+function buildRepository(
+  personaId: string | null,
+  userId = 'user-1',
+  options: { searchHits?: StoredMessage[] } = {},
+): MessageRepository {
   let seq = 0;
   const messages: StoredMessage[] = [];
   const conversation: Conversation = {
@@ -127,6 +137,7 @@ function buildRepository(personaId: string | null, userId = 'user-1'): MessageRe
       return msg;
     },
     listMessages: () => messages,
+    searchMessages: () => options.searchHits ?? [],
     getDefaultWebChatConversation: () => conversation,
     deleteConversation: () => true,
     updateModelOverride: () => {},
@@ -158,6 +169,7 @@ describe('MessageService knowledge recall integration', () => {
     knowledgeShouldTriggerRecallMock.mockResolvedValue(false);
     ensureKnowledgeIngestedForConversationMock.mockClear();
     memoryRecallDetailedMock.mockClear();
+    delete process.env.RECALL_STRICT_EVIDENCE;
   });
 
   it('injects knowledge context for retrospective sauna prompt before mem0 fallback', async () => {
@@ -281,6 +293,86 @@ describe('MessageService knowledge recall integration', () => {
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
   });
 
+  it('triggers recall for explicit imperative memory command without question mark', async () => {
+    const service = new MessageService(buildRepository('persona-1'));
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Erinner dich an dein Reflex',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
+    expect(ensureKnowledgeIngestedForConversationMock).not.toHaveBeenCalled();
+    expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(1);
+    expect(memoryRecallDetailedMock).toHaveBeenCalledWith(
+      'persona-1',
+      'Erinner dich an dein Reflex',
+      10,
+      'user-1',
+      { mode: 'lexical' },
+    );
+  });
+
+  it('handles "erinner dich welche uebung du heute nochmal machen willst" via lexical recall path', async () => {
+    const service = new MessageService(buildRepository('persona-1'));
+    knowledgeRetrieveMock.mockResolvedValueOnce({
+      context: 'Knowledge: Du wolltest heute nochmal die Uebung Kniebeugen machen.',
+      sections: {
+        answerDraft: '',
+        keyDecisions: '',
+        openPoints: '',
+        evidence: '',
+      },
+      references: [],
+      tokenCount: 21,
+    });
+    memoryRecallDetailedMock.mockResolvedValueOnce({
+      context: '[User] Du willst heute nochmal Kniebeugen (3x12) machen.',
+      matches: [
+        {
+          node: { id: 'mem-uebung', type: 'fact', content: 'Kniebeugen 3x12 heute' },
+          similarity: 0.88,
+          score: 0.88,
+        },
+      ],
+    });
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'erinner dich welche uebung du heute nochmal machen willst',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
+    expect(ensureKnowledgeIngestedForConversationMock).not.toHaveBeenCalled();
+    expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(1);
+    expect(memoryRecallDetailedMock).toHaveBeenCalledWith(
+      'persona-1',
+      'erinner dich welche uebung du heute nochmal machen willst',
+      10,
+      'user-1',
+      { mode: 'lexical' },
+    );
+
+    const dispatchedMessages = getDispatchedMessages();
+    const recallSystemMessage = dispatchedMessages.find(
+      (message) =>
+        message.role === 'system' &&
+        message.content.includes('Relevant memory context') &&
+        message.content.includes('[Knowledge]') &&
+        message.content.includes('[Memory]'),
+    );
+    expect(recallSystemMessage).toBeDefined();
+    expect(recallSystemMessage?.content).toContain('Kniebeugen');
+  });
+
   it('uses unified legacy scope for telegram in single-user mode (no channel-scoped fallback)', async () => {
     const service = new MessageService(buildRepository('persona-1', 'legacy-local-user'));
     knowledgeRetrieveMock.mockImplementation(async () => {
@@ -341,5 +433,64 @@ describe('MessageService knowledge recall integration', () => {
     );
 
     expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns strict evidence-based fallback when recall topic is missing in conflicting evening statements', async () => {
+    process.env.RECALL_STRICT_EVIDENCE = 'true';
+    const searchHits: StoredMessage[] = [
+      {
+        id: 'hit-1',
+        conversationId: 'conv-1',
+        seq: 10,
+        role: 'user',
+        content: 'ich werde heute abend zu hause film gucken',
+        platform: ChannelType.WEBCHAT,
+        externalMsgId: null,
+        senderName: null,
+        metadata: null,
+        createdAt: '2026-02-25T18:00:00.000Z',
+      },
+      {
+        id: 'hit-2',
+        conversationId: 'conv-1',
+        seq: 11,
+        role: 'user',
+        content: 'heute abend gehe ich nach hause.',
+        platform: ChannelType.WEBCHAT,
+        externalMsgId: null,
+        senderName: null,
+        metadata: null,
+        createdAt: '2026-02-25T18:05:00.000Z',
+      },
+      {
+        id: 'hit-3',
+        conversationId: 'conv-1',
+        seq: 12,
+        role: 'user',
+        content: 'heute abend gehe ich früh schlafen.',
+        platform: ChannelType.WEBCHAT,
+        externalMsgId: null,
+        senderName: null,
+        metadata: null,
+        createdAt: '2026-02-25T18:10:00.000Z',
+      },
+    ];
+    const service = new MessageService(buildRepository('persona-1', 'user-1', { searchHits }));
+
+    const result = await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'erinner dich welche uebung du heute nochmal machen willst?',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(result.agentMsg.content).toContain(
+      'Ich finde keine belastbare Erinnerung dazu, welche Übung du heute nochmal machen willst.',
+    );
+    expect(result.agentMsg.content).toContain('film gucken');
+    expect(result.agentMsg.content).toContain('früh schlafen');
+    expect(dispatchWithFallbackMock).not.toHaveBeenCalled();
   });
 });

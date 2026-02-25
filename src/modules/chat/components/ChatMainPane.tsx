@@ -15,6 +15,7 @@ interface ChatMainPaneProps {
   messages: Message[];
   isTyping?: boolean;
   chatStreamDebug: ChatStreamDebugState;
+  onDeleteMessage: (message: Message) => void;
   onRespondApproval: (
     message: Message,
     approvalRequest: MessageApprovalRequest,
@@ -28,6 +29,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
   messages,
   isTyping,
   chatStreamDebug,
+  onDeleteMessage,
   onRespondApproval,
   scrollRef,
 }) => {
@@ -229,7 +231,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                   )}
 
                   <div
-                    className={`transition-all duration-300 ${
+                    className={`group relative transition-all duration-300 ${
                       message.role === 'agent'
                         ? 'rounded-2xl rounded-tl-none border border-zinc-800 bg-zinc-900 p-4 shadow-xl'
                         : message.role === 'system'
@@ -237,6 +239,29 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                           : `${meta.bg} rounded-2xl rounded-tr-none p-4 text-white shadow-lg`
                     }`}
                   >
+                    {!message.streaming && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteMessage(message)}
+                        title="Nachricht loeschen"
+                        className="absolute top-2 right-2 inline-flex h-6 w-6 items-center justify-center rounded-md border border-zinc-700/70 bg-zinc-950/70 text-zinc-400 opacity-0 transition hover:border-rose-500/60 hover:text-rose-300 group-hover:opacity-100"
+                        aria-label="Nachricht loeschen"
+                      >
+                        <svg
+                          className="h-3.5 w-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 7h12m-9 0V5h6v2m-7 0l1 12h6l1-12"
+                          />
+                        </svg>
+                      </button>
+                    )}
                     <div
                       className={`text-sm leading-relaxed whitespace-pre-wrap ${
                         message.role === 'user' ? 'font-medium' : 'font-normal'

@@ -15,13 +15,6 @@ const dispatchSkillMock = vi.hoisted(() =>
   vi.fn(async () => ({ stdout: 'ok', stderr: '', exitCode: 0 })),
 );
 const isCommandApprovedMock = vi.hoisted(() => vi.fn(() => false));
-const setInstalledMock = vi.hoisted(() =>
-  vi.fn((id: string, installed: boolean) => {
-    void id;
-    void installed;
-    return true;
-  }),
-);
 
 let shellInstalled = false;
 
@@ -85,13 +78,7 @@ vi.mock('../../../src/server/skills/skillRepository', () => ({
             updatedAt: new Date().toISOString(),
           }
         : null,
-    setInstalled: (id: string, installed: boolean) => {
-      setInstalledMock(id, installed);
-      if (id === 'shell-access') {
-        shellInstalled = installed;
-      }
-      return true;
-    },
+    setInstalled: () => true,
   }),
 }));
 
@@ -194,14 +181,13 @@ describe('MessageService shell-command route', () => {
   beforeEach(() => {
     dispatchWithFallbackMock.mockClear();
     dispatchSkillMock.mockClear();
-    setInstalledMock.mockClear();
     isCommandApprovedMock.mockReset();
     isCommandApprovedMock.mockReturnValue(false);
-    shellInstalled = false;
+    shellInstalled = true;
     process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'false';
   });
 
-  it('executes /shell directly and auto-installs shell skill', async () => {
+  it('executes /shell directly when shell skill is installed', async () => {
     const service = new MessageService(buildRepository());
     const result = await service.handleInbound(
       ChannelType.WEBCHAT,
@@ -212,7 +198,6 @@ describe('MessageService shell-command route', () => {
       'user-1',
     );
 
-    expect(setInstalledMock).toHaveBeenCalledWith('shell-access', true);
     expect(dispatchSkillMock).toHaveBeenCalledWith(
       'shell_execute',
       { command: 'echo smoke' },
@@ -220,6 +205,23 @@ describe('MessageService shell-command route', () => {
     );
     expect(dispatchWithFallbackMock).not.toHaveBeenCalled();
     expect(result.agentMsg.content).toContain('CLI command completed');
+  });
+
+  it('returns not-installed error for /shell when shell skill is deactivated', async () => {
+    shellInstalled = false;
+    const service = new MessageService(buildRepository());
+    const result = await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      '/shell echo smoke',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(dispatchSkillMock).not.toHaveBeenCalled();
+    expect(dispatchWithFallbackMock).not.toHaveBeenCalled();
+    expect(result.agentMsg.content).toContain('ist nicht installiert');
   });
 
   it('returns approval_required metadata for /shell when approvals are required', async () => {

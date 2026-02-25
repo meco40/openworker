@@ -21,6 +21,7 @@ interface ChatInterfaceProps {
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
+  onDeleteMessage: (message: Message) => void;
   messages: Message[];
   onSendMessage: (
     content: string,
@@ -45,6 +46,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  onDeleteMessage,
   messages,
   onSendMessage,
   onRespondApproval,
@@ -116,6 +118,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           messages={messages}
           isTyping={isTyping}
           chatStreamDebug={chatStreamDebug}
+          onDeleteMessage={onDeleteMessage}
           onRespondApproval={onRespondApproval}
           scrollRef={scrollRef}
         />

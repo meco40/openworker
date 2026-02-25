@@ -23,6 +23,7 @@ type PendingRequest = {
 type EventHandler = (payload: unknown, seq?: number) => void;
 type StateHandler = (state: ConnectionState) => void;
 type StreamHandler = (delta: string, done: boolean) => void;
+export type GatewayClientRequestError = Error & { code?: string };
 
 // ─── Constants ───────────────────────────────────────────────
 
@@ -84,7 +85,23 @@ export class GatewayClient {
     this.intentionalClose = true;
     this.clearReconnectTimer();
     if (this.ws) {
-      this.ws.close(1000, 'client disconnect');
+      if (this.ws.readyState === WebSocket.CONNECTING) {
+        const connectingSocket = this.ws;
+        // Closing a CONNECTING socket triggers noisy browser errors in dev (StrictMode/HMR).
+        // Defer the close until open and detach handlers to keep teardown quiet.
+        connectingSocket.onmessage = null;
+        connectingSocket.onerror = null;
+        connectingSocket.onclose = null;
+        connectingSocket.onopen = () => {
+          try {
+            connectingSocket.close(1000, 'client disconnect');
+          } catch {
+            // ignore
+          }
+        };
+      } else {
+        this.ws.close(1000, 'client disconnect');
+      }
       this.ws = null;
     }
     this.setState('disconnected');
@@ -301,7 +318,11 @@ export class GatewayClient {
         if (frame.ok) {
           pending.resolve(frame.payload);
         } else {
-          pending.reject(new Error(frame.error?.message ?? 'Unknown error'));
+          const requestError = new Error(
+            frame.error?.message ?? 'Unknown error',
+          ) as GatewayClientRequestError;
+          requestError.code = frame.error?.code;
+          pending.reject(requestError);
         }
         break;
       }

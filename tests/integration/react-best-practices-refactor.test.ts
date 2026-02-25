@@ -55,11 +55,12 @@ describe('react/next best-practices refactor', () => {
     expect(runtime).toContain('Promise.all(');
   });
 
-  it('parallelizes independent room refresh actions in PersonasView', () => {
+  it('keeps PersonasView decoupled from deprecated rooms runtime', () => {
     const personasView = read('src/components/PersonasView.tsx');
-    expect(personasView).toContain(
-      'await Promise.all([loadRoomDetail(selectedRoomId), refreshRooms()]);',
-    );
+    expect(personasView).not.toContain('useRoomManagement');
+    expect(personasView).not.toContain('useRoomSync');
+    expect(personasView).not.toContain('RoomDetailPanel');
+    expect(personasView).not.toContain('CreateRoomModal');
   });
 
   it('parallelizes independent async work in skill and metrics routes', () => {

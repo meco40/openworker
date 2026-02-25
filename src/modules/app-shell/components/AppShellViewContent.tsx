@@ -93,6 +93,12 @@ const ConversationDebuggerView = dynamic(
   () => import('@/modules/conversation-debugger/ConversationDebuggerView'),
   { loading: loading('Conversation Debugger') },
 );
+const AgentRoomView = dynamic(() => import('@/modules/agent-room/components/AgentRoomView'), {
+  loading: loading('Agent Room'),
+});
+
+const isAgentRoomEnabled =
+  String(process.env.NEXT_PUBLIC_AGENT_ROOM_ENABLED || 'true').toLowerCase() === 'true';
 
 interface AppShellViewContentProps {
   currentView: View;
@@ -122,6 +128,7 @@ interface AppShellViewContentProps {
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
+  onDeleteMessage: (message: Message) => void;
   coupledChannels: Record<string, CoupledChannel>;
   onUpdateCoupling: (id: string, update: Partial<CoupledChannel>) => void;
   onSimulateIncoming: (content: string, platform: ChannelType) => void;
@@ -145,6 +152,7 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  onDeleteMessage,
   coupledChannels,
   onUpdateCoupling,
   onSimulateIncoming,
@@ -178,6 +186,7 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
             onSelectConversation={onSelectConversation}
             onNewConversation={onNewConversation}
             onDeleteConversation={onDeleteConversation}
+            onDeleteMessage={onDeleteMessage}
           />
         </ViewErrorBoundary>
       )}
@@ -273,6 +282,11 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
       {currentView === View.DEBUGGER && (
         <ViewErrorBoundary label="Conversation Debugger">
           <ConversationDebuggerView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.AGENT_ROOM && isAgentRoomEnabled && (
+        <ViewErrorBoundary label="Agent Room">
+          <AgentRoomView />
         </ViewErrorBoundary>
       )}
     </div>

@@ -4,6 +4,7 @@ import { dbQueryHandler } from '@/server/skills/handlers/dbQuery';
 import { fileReadHandler } from '@/server/skills/handlers/fileRead';
 import { githubQueryHandler } from '@/server/skills/handlers/githubQuery';
 import { pythonExecuteHandler } from '@/server/skills/handlers/pythonExecute';
+import { playwrightCliHandler } from '@/server/skills/handlers/playwrightCli';
 import { shellExecuteHandler } from '@/server/skills/handlers/shellExecute';
 import { subagentsHandler } from '@/server/skills/handlers/subagents';
 import { visionAnalyzeHandler } from '@/server/skills/handlers/visionAnalyze';
@@ -26,6 +27,7 @@ const SUPPORTED_PARALLEL_HANDLERS: Record<
   shell_execute: shellExecuteHandler,
   file_read: fileReadHandler,
   python_execute: pythonExecuteHandler,
+  playwright_cli: playwrightCliHandler,
   browser_snapshot: browserSnapshotHandler,
   vision_analyze: visionAnalyzeHandler,
   db_query: dbQueryHandler,
