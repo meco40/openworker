@@ -57,7 +57,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   },
   {
     id: View.KNOWLEDGE,
-    label: 'Knowledge',
+    label: 'Graph',
     icon: 'M7 8h10M7 12h10M7 16h6M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
   },
   {

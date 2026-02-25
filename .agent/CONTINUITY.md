@@ -766,3 +766,5 @@
 - 2026-02-25T23:38:58+01:00 [PROGRESS] [CODE] Updated `src/components/PlanningTab.tsx` polling flow to finalize on `isComplete` without `hasUpdates`, merge completion payloads safely, clear submit/wait states, and stop polling deterministically for complete/dispatch-error events.
 - 2026-02-25T23:38:58+01:00 [PROGRESS] [CODE] Added regression coverage `tests/integration/mission-control/planning-route-dispatch-error-state.test.ts` to ensure GET planning returns `{ isComplete: true, dispatchError }` for persisted `planning_dispatch_error` tasks.
 - 2026-02-25T23:38:58+01:00 [TOOL] Verification PASS: `pnpm vitest run tests/integration/mission-control/planning-route-dispatch-error-state.test.ts tests/integration/mission-control/planning-poll-dispatch-assignment.test.ts tests/integration/mission-control/planning-route-session-key.test.ts` (3/3) and `pnpm typecheck` PASS.
+- 2026-02-26T00:02:29+01:00 [PROGRESS] [USER] Requested renaming the sidebar label from `Knowledge` to `Graph`.
+- 2026-02-26T00:02:29+01:00 [OUTCOMES] [CODE] Updated `src/components/Sidebar.tsx` so `View.KNOWLEDGE` now renders the label `Graph`; navigation ID/route remains unchanged.
