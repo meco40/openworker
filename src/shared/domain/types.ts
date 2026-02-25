@@ -158,6 +158,7 @@ export enum View {
   PERSONAS = 'personas',
   MEMORY = 'memory',
   KNOWLEDGE = 'knowledge',
+  MISSION_CONTROL = 'mission_control',
   CRON = 'cron',
   INSTANCES = 'instances',
   SESSIONS = 'sessions',

@@ -74,6 +74,12 @@ const MemoryView = dynamic(() => import('@/components/MemoryView'), {
 const KnowledgeView = dynamic(() => import('@/components/KnowledgeView'), {
   loading: loading('Knowledge'),
 });
+const MissionControlView = dynamic(
+  () => import('@/modules/mission-control/components/MissionControlView'),
+  {
+    loading: loading('Mission Control'),
+  },
+);
 const CronView = dynamic(() => import('@/modules/cron/components/CronView'), {
   loading: loading('Cron'),
 });
@@ -277,6 +283,11 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
       {currentView === View.KNOWLEDGE && (
         <ViewErrorBoundary label="Knowledge">
           <KnowledgeView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.MISSION_CONTROL && (
+        <ViewErrorBoundary label="Mission Control">
+          <MissionControlView />
         </ViewErrorBoundary>
       )}
       {currentView === View.DEBUGGER && (
