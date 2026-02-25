@@ -66,7 +66,7 @@ export function PlanningTab({ taskId, onSpecLocked }: PlanningTabProps) {
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isPollingRef = useRef(false);
   const lastSubmissionRef = useRef<{ answer: string; otherText?: string } | null>(null);
-  const currentQuestionRef = useRef<string | undefined>();
+  const currentQuestionRef = useRef<string | null>(null);
 
   // Load planning state (initial load only)
   const loadState = useCallback(async () => {
@@ -75,7 +75,7 @@ export function PlanningTab({ taskId, onSpecLocked }: PlanningTabProps) {
       if (res.ok) {
         const data = await res.json();
         setState(data);
-        currentQuestionRef.current = data.currentQuestion?.question;
+        currentQuestionRef.current = data.currentQuestion?.question ?? null;
         // Don't call onSpecLocked on initial load - only when planning completes actively
       }
     } catch (err) {
@@ -131,7 +131,7 @@ export function PlanningTab({ taskId, onSpecLocked }: PlanningTabProps) {
           }
 
           if (questionChanged) {
-            currentQuestionRef.current = newQuestion;
+            currentQuestionRef.current = newQuestion ?? null;
             setSelectedOption(null);
             setOtherText('');
             setIsSubmittingAnswer(false);
