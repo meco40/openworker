@@ -108,6 +108,33 @@ export function PlanningTab({ taskId, onSpecLocked }: PlanningTabProps) {
       const res = await fetch(`/api/tasks/${taskId}/planning/poll`);
       if (res.ok) {
         const data = await res.json();
+        const pollSignalsCompletion = Boolean(
+          data.complete || data.isComplete || data.dispatchError,
+        );
+
+        if (!data.hasUpdates && data.isComplete) {
+          // Completion may already be persisted when no incremental assistant message is returned.
+          const freshRes = await fetch(`/api/tasks/${taskId}/planning`);
+          if (freshRes.ok) {
+            const freshData = await freshRes.json();
+            setState({
+              ...freshData,
+              isComplete: true,
+            });
+          }
+
+          setSubmitting(false);
+          setIsSubmittingAnswer(false);
+          setSelectedOption(null);
+          setOtherText('');
+          setIsWaitingForResponse(false);
+          stopPolling();
+
+          if (onSpecLocked) {
+            onSpecLocked();
+          }
+          return;
+        }
 
         if (data.hasUpdates) {
           const newQuestion = data.currentQuestion?.question;
@@ -117,7 +144,18 @@ export function PlanningTab({ taskId, onSpecLocked }: PlanningTabProps) {
           const freshRes = await fetch(`/api/tasks/${taskId}/planning`);
           if (freshRes.ok) {
             const freshData = await freshRes.json();
-            setState(freshData);
+            setState({
+              ...freshData,
+              // Treat dispatch-error and complete payloads as end-of-planning UI state.
+              isComplete: Boolean(freshData.isComplete || data.complete || data.dispatchError),
+              dispatchError: data.dispatchError ?? freshData.dispatchError,
+              spec: data.spec ?? freshData.spec,
+              agents: data.agents ?? freshData.agents,
+              messages: data.messages ?? freshData.messages,
+              currentQuestion:
+                data.currentQuestion ??
+                (pollSignalsCompletion ? undefined : freshData.currentQuestion),
+            });
           } else {
             setState((prev) => ({
               ...prev!,
@@ -147,12 +185,18 @@ export function PlanningTab({ taskId, onSpecLocked }: PlanningTabProps) {
             setError(`Planning completed but dispatch failed: ${data.dispatchError}`);
           }
 
-          if (data.complete && onSpecLocked) {
+          if ((data.complete || data.isComplete) && !data.dispatchError && onSpecLocked) {
             onSpecLocked();
           }
 
-          // Only stop polling when we actually have a question or completion
-          if (data.currentQuestion || data.complete || data.dispatchError) {
+          // Stop polling when we have a question or completion signal.
+          if (data.currentQuestion || pollSignalsCompletion) {
+            setSubmitting(false);
+            setIsSubmittingAnswer(false);
+            if (pollSignalsCompletion) {
+              setSelectedOption(null);
+              setOtherText('');
+            }
             setIsWaitingForResponse(false);
             stopPolling();
           }

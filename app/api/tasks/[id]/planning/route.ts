@@ -30,6 +30,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           planning_session_key?: string;
           planning_messages?: string;
           planning_complete?: number;
+          planning_dispatch_error?: string | null;
           planning_spec?: string;
           planning_agents?: string;
         }
@@ -56,12 +57,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
     }
 
+    const dispatchError = task.planning_dispatch_error || undefined;
+    const isComplete = Boolean(task.planning_complete || dispatchError);
+
     return NextResponse.json({
       taskId,
       sessionKey: task.planning_session_key,
       messages,
-      currentQuestion,
-      isComplete: !!task.planning_complete,
+      currentQuestion: isComplete ? null : currentQuestion,
+      isComplete,
+      dispatchError,
       spec: task.planning_spec ? JSON.parse(task.planning_spec) : null,
       agents: task.planning_agents ? JSON.parse(task.planning_agents) : null,
       isStarted: messages.length > 0,

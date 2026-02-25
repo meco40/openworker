@@ -255,13 +255,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     if (task.planning_complete) {
-      return NextResponse.json({ hasUpdates: false, isComplete: true });
+      return NextResponse.json({ hasUpdates: false, complete: true, isComplete: true });
     }
 
     // Return dispatch error if present (allows user to see/ retry failed dispatch)
     if (task.planning_dispatch_error) {
       return NextResponse.json({
         hasUpdates: true,
+        complete: true,
+        isComplete: true,
         dispatchError: task.planning_dispatch_error,
       });
     }
