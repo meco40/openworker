@@ -1,5 +1,9 @@
 [PLANS]
 
+- 2026-02-25T06:42:16+01:00 [USER] Requested formal review of the new Mission Control implementation plan for completeness and production-readiness, then update the plan to close any gaps.
+
+- 2026-02-25T06:32:52+01:00 [USER] Requested a full production-ready implementation plan for `crshdn/mission-control` adapted to this system, including a new sidebar page/menu item `Mission Control`, full feature parity, and git worktree usage.
+
 - 2026-02-24T19:41:58+01:00 [USER] Remove `Search/Maps` toggles from Agent Room plan and remove native multimodal from plan scope.
 
 - 2026-02-24T19:36:41+01:00 [USER] Compare inserted frontpage code in `docs/plans/2026-02-24-multi-agent-spawn` against current Agent Room plan and integrate all missing functions into our plan.
@@ -41,6 +45,14 @@
 - 2026-02-24T03:25:39+01:00 [USER] WebUI conversation delete returns `500` after project deletions (`DELETE /api/channels/conversations?id=...`).
 
 [DECISIONS]
+
+- 2026-02-25T07:10:47+01:00 [CODE] Mission Control is integrated as a dedicated route namespace (`/mission-control/*`) and exposed in AppShell via new `View.MISSION_CONTROL` sidebar entry rendering an embedded Mission Control surface.
+- 2026-02-25T07:10:47+01:00 [CODE] Security middleware matcher was constrained to Mission Control API families (`/api/tasks|agents|openclaw|events|files|workspaces|webhooks`) to avoid broad side-effects on unrelated APIs.
+
+- 2026-02-25T06:42:16+01:00 [CODE] Elevated production-readiness baseline for Mission Control plan: mandatory rollback-safe migrations, tenant-isolation tests, observability/SLO tasks, load-resilience coverage, and canary/rollback rollout drill.
+
+- 2026-02-25T06:32:52+01:00 [USER] Ignore uncommitted workspace changes and continue only in a dedicated git worktree.
+- 2026-02-25T06:32:52+01:00 [CODE] Worktree created at `C:\Users\djm2k\.config\superpowers\worktrees\clawtest\mission-control-parity-2026-02-25` on branch `plan/mission-control-parity-2026-02-25`.
 
 - 2026-02-24T19:41:58+01:00 [CODE] Agent Room plan scope is reduced by explicit user request: no Search/Maps grounding toggles and no native multimodal capabilities in MVP or deferred phase list.
 
@@ -98,6 +110,16 @@
 - 2026-02-24T03:25:39+01:00 [CODE] Conversation delete flow now removes `conversation_project_state` rows before deleting `conversations` to satisfy SQLite foreign-key constraints.
 
 [PROGRESS]
+
+- 2026-02-25T07:10:47+01:00 [CODE] Completed Mission Control feature import/adaptation: added `app/api/{tasks,agents,openclaw,events,files,workspaces,webhooks}`, `app/mission-control/*`, `src/lib/*` mission modules, mission UI components, SSE hook, and AppShell integration (`Sidebar`, `AppShellViewContent`, `MissionControlView`).
+- 2026-02-25T07:10:47+01:00 [CODE] Fixed Next.js 16 handler compatibility for mission routes by converting affected route contexts to `params: Promise<{ id: string }>` and awaiting params in handlers.
+- 2026-02-25T07:10:47+01:00 [TOOL] Verification run in worktree: `pnpm typecheck` PASS, `pnpm vitest run tests/unit/components/mission-control-shell-integration.test.ts` PASS (2/2), `pnpm build` PASS; `pnpm exec oxlint . --quiet` still FAILS on pre-existing repo issue `src/server/skills/skillMd/filter.ts` (`no-require-imports`).
+
+- 2026-02-25T06:42:16+01:00 [TOOL] Reviewed `docs/plans/2026-02-25-mission-control-full-parity-implementation.md` with severity-ranked findings; key gaps were migration rollback safety, tenant isolation enforcement, missing SLO/alerting tasks, missing load/failure-mode validation, and absent rollout strategy.
+- 2026-02-25T06:42:16+01:00 [CODE] Updated plan file with hardened scope: expanded Task 2/5/8/12 controls, upgraded Task 14 to include failure-path verification, and added Task 15 (observability/SLO), Task 16 (load/resilience), Task 17 (canary rollout + rollback drill).
+
+- 2026-02-25T06:32:52+01:00 [TOOL] Upstream `crshdn/mission-control` analyzed at commit `5ccc27a4d65baab169db4a423155f093255fc046` (commit date `2026-02-19T00:43:14-07:00`) and compared to current committed architecture.
+- 2026-02-25T06:32:52+01:00 [CODE] Added plan artifact `docs/plans/2026-02-25-mission-control-full-parity-implementation.md` with TDD task breakdown, file-level implementation map, parity scope, and production-hardening gates.
 
 - 2026-02-24T19:45:21+01:00 [TOOL] Full workspace gate run before release: `pnpm check` failed (lint), `pnpm test` failed (3 tests), `pnpm build` passed; then `git add -A` + commit required `--no-verify` because pre-commit lint blocked on `src/server/skills/skillMd/filter.ts` (`no-require-imports`).
 
@@ -196,6 +218,9 @@
 
 [DISCOVERIES]
 
+- 2026-02-25T07:10:47+01:00 [TOOL] Next.js 16 route validator rejects legacy App Router signatures using `{ params: { id: string } }`; mission handlers must use promise-based context params (`{ params: Promise<{ id: string }> }`).
+- 2026-02-25T07:10:47+01:00 [CODE] Mission Control UI classes (`bg-mc-*`, `text-mc-*`, `border-mc-*`) require Tailwind v4 `@theme` color tokens in `app/globals.css`; without those tokens styles do not resolve.
+
 - 2026-02-24T18:26:28Z [TOOL] Live Mem0 endpoint on `http://127.0.0.1:8000` was an older runtime variant: `/configure/llm` and `/configure/embedder` returned `404`, and `/configure` returned `403` (admin disabled), so model-hub sync hooks could not apply runtime changes.
 - 2026-02-24T18:26:28Z [TOOL] After switching to `mem0:local` on `http://127.0.0.1:8010`, sync exposed compatibility issue: qwen/qwen3-embedding-8b returned `4096` dims and Mem0/pgvector failed with `column cannot have more than 2000 dimensions for hnsw index`.
 - 2026-02-24T18:26:28Z [CODE] Mitigation implemented: OpenAI-compatible embedding dispatch now forwards optional `dimensions`, and Mem0 embedder sync uses `MEM0_EMBEDDING_DIMS` as probe hint to down-project when provider supports it.
@@ -263,6 +288,13 @@
 - 2026-02-24T03:04:39+01:00 [TOOL] Root README env section lists provider \*\_API_KEY variables that are no longer read from env in current model-hub flow; account secrets are supplied via /api/model-hub/accounts payload and encrypted with MODEL_HUB_ENCRYPTION_KEY.
 
 [OUTCOMES]
+
+- 2026-02-25T07:10:47+01:00 [CODE] Mission Control is now available in the main app via sidebar entry `Mission Control` and via dedicated pages `/mission-control`, `/mission-control/workspace/[slug]`, `/mission-control/settings`, with compile/build verification completed in the isolated worktree branch.
+- 2026-02-25T07:10:47+01:00 [TOOL] Remaining quality gap is unchanged baseline lint debt outside this task: oxlint hard-fails on `src/server/skills/skillMd/filter.ts` (`require` import style). Mission Control implementation itself compiles and builds.
+
+- 2026-02-25T06:42:16+01:00 [TOOL] Mission Control plan revalidated and hardened for production-readiness; `docs/plans/2026-02-25-mission-control-full-parity-implementation.md` now includes explicit reliability/rollout/operations gates beyond functional parity.
+
+- 2026-02-25T06:32:52+01:00 [TOOL] Delivered a complete Mission Control full-parity implementation plan in isolated worktree at `docs/plans/2026-02-25-mission-control-full-parity-implementation.md`.
 
 - 2026-02-24T19:45:21+01:00 [TOOL] Released current workspace state as commit `fb3fd6adf21ba54c2ee03d1a04ba6ddfab2c7dc4` on `origin/main`; GitHub Actions for that SHA: `CI` failed at lint (`src/server/skills/skillMd/filter.ts` `no-require-imports`), `E2E Browser` failed during webServer startup (`no such table: messages` migration path + missing `.next` build), and `.github/workflows/e2e-live.yml` run failed immediately with workflow-file issue (0 jobs created).
 
