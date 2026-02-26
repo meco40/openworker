@@ -85,7 +85,7 @@ function buildTestModeService(): ModelHubService {
       }
 
       if (lastUserMessage.includes('E2E_ABORT_WAIT')) {
-        await delayWithAbort(2_000, options?.signal);
+        await delayWithAbort(5_000, options?.signal);
       }
 
       if (options?.onStreamDelta) {

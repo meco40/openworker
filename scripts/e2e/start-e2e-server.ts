@@ -1,4 +1,7 @@
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
+import { mkdtempSync, rmSync } from 'node:fs';
 
 function sendJson(res: ServerResponse, status: number, payload: unknown): void {
   res.statusCode = status;
@@ -76,6 +79,7 @@ function startMem0Mock(port: number): http.Server {
 async function main(): Promise<void> {
   const appPort = Number(process.env.PORT || 3000);
   const mem0Port = Number(process.env.MEM0_MOCK_PORT || 18010);
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), 'openworker-browser-e2e-'));
   const env = process.env as Record<string, string | undefined>;
 
   env.NODE_ENV = env.NODE_ENV || 'production';
@@ -89,14 +93,30 @@ async function main(): Promise<void> {
   env.MEM0_BASE_URL = `http://127.0.0.1:${mem0Port}`;
   env.MEM0_API_KEY = env.MEM0_API_KEY || 'test-mem0-key';
   env.MEM0_API_PATH = '/v1';
+  env.MESSAGES_DB_PATH = path.join(tempDir, 'messages.db');
+  env.PERSONAS_DB_PATH = path.join(tempDir, 'personas.db');
+  env.MEMORY_DB_PATH = path.join(tempDir, 'memory.db');
+  env.PROACTIVE_DB_PATH = path.join(tempDir, 'proactive.db');
+  env.KNOWLEDGE_DB_PATH = path.join(tempDir, 'knowledge.db');
 
   const mem0Server = startMem0Mock(mem0Port);
+  const cleanup = () => {
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // ignore cleanup failures for temp dirs
+    }
+  };
 
   const shutdown = () => {
-    mem0Server.close(() => process.exit(0));
+    mem0Server.close(() => {
+      cleanup();
+      process.exit(0);
+    });
   };
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
+  process.on('exit', cleanup);
 
   await import('../../server.ts');
 }

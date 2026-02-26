@@ -1,5 +1,8 @@
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import net from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { waitForHealth } from './waitForHealth';
 
@@ -103,11 +106,13 @@ export class ManagedServer {
   private port = 0;
   private mem0Port = 0;
   private mem0Mock: http.Server | null = null;
+  private tempDir: string | null = null;
 
   async start(): Promise<void> {
     this.port = await findFreePort();
     this.mem0Port = await findFreePort();
     this.mem0Mock = await startMem0MockServer(this.mem0Port);
+    this.tempDir = await mkdtemp(path.join(os.tmpdir(), 'openworker-e2e-'));
 
     const env = {
       ...process.env,
@@ -121,6 +126,11 @@ export class ManagedServer {
       MEM0_API_PATH: '/v1',
       MODEL_HUB_TEST_MODE: '1',
       OPENCLAW_EXEC_APPROVALS_REQUIRED: 'false',
+      MESSAGES_DB_PATH: path.join(this.tempDir, 'messages.db'),
+      PERSONAS_DB_PATH: path.join(this.tempDir, 'personas.db'),
+      MEMORY_DB_PATH: path.join(this.tempDir, 'memory.db'),
+      PROACTIVE_DB_PATH: path.join(this.tempDir, 'proactive.db'),
+      KNOWLEDGE_DB_PATH: path.join(this.tempDir, 'knowledge.db'),
     } as NodeJS.ProcessEnv;
 
     this.child = spawn('node', ['--import', 'tsx', 'server.ts'], {
@@ -188,6 +198,12 @@ export class ManagedServer {
       const server = this.mem0Mock;
       this.mem0Mock = null;
       await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+
+    if (this.tempDir) {
+      const dir = this.tempDir;
+      this.tempDir = null;
+      await rm(dir, { recursive: true, force: true }).catch(() => {});
     }
   }
 

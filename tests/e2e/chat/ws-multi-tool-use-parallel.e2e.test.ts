@@ -24,13 +24,17 @@ describe('ws multi_tool_use.parallel e2e', () => {
       personaId: 'persona-nexus',
     });
 
-    const history = await client.request('chat.history', { conversationId, limit: 20 });
-    const messages = history.payload as Array<{ role?: string; content?: string }>;
-    expect(
-      messages.some(
+    let hasParallelMessage = false;
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const history = await client.request('chat.history', { conversationId, limit: 20 });
+      const messages = history.payload as Array<{ role?: string; content?: string }>;
+      hasParallelMessage = messages.some(
         (msg) => msg.role === 'agent' && String(msg.content || '').includes('parallel'),
-      ),
-    ).toBe(true);
+      );
+      if (hasParallelMessage) break;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    expect(hasParallelMessage).toBe(true);
 
     await client.close();
   });
