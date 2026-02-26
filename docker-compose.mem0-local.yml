@@ -36,6 +36,13 @@ services:
       MEM0_API_KEY: ${MEM0_API_KEY:-local-mem0-dev-token}
       MEM0_ALLOW_ADMIN_ENDPOINTS: 'true'
       HISTORY_DB_PATH: /app/history/history.db
+      # Bootstrap configuration (prevents "unconfigured" state)
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      MEM0_LLM_PROVIDER: gemini
+      MEM0_LLM_MODEL: gemini-1.5-flash
+      MEM0_EMBEDDER_PROVIDER: gemini
+      MEM0_EMBEDDER_MODEL: models/text-embedding-004
+      MEM0_EMBEDDING_DIMS: 1536
     volumes:
       - mem0-history-data:/app/history
     ports:

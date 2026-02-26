@@ -31,10 +31,10 @@ describe('react/next best-practices refactor', () => {
     expect(viewContent).toContain("dynamic(() => import('@/components/ModelHub')");
     expect(viewContent).toContain("dynamic(() => import('@/components/Dashboard')");
     expect(viewContent).toContain("dynamic(() => import('@/components/ChatInterface')");
-    expect(viewContent).toContain("dynamic(() => import('@/messenger/ChannelPairing')");
+    expect(viewContent).toContain("dynamic(() => import('@/messenger/channel-pairing/ChannelPairing')");
     expect(viewContent).not.toContain("import Dashboard from '@/components/Dashboard';");
     expect(viewContent).not.toContain("import ChatInterface from '@/components/ChatInterface';");
-    expect(viewContent).not.toContain("import ChannelPairing from '@/messenger/ChannelPairing';");
+    expect(viewContent).not.toContain("import ChannelPairing from '@/messenger/channel-pairing/ChannelPairing';");
   });
 
   it('loads fonts via next/font self-hosting instead of Google stylesheet links', () => {
@@ -114,7 +114,7 @@ describe('react/next best-practices refactor', () => {
     const appShell = read('src/modules/app-shell/AppShell.tsx');
 
     expect(app).not.toContain("fetch('/api/config'");
-    expect(page).toContain("import { loadGatewayConfig } from '@/server/config/gatewayConfig';");
+    expect(page).toContain("import { loadGatewayConfig } from '@/server/config/gateway/gatewayConfig';");
     expect(page).toContain(
       "import { resolveDefaultViewFromConfig } from '@/server/config/uiRuntimeConfig';",
     );
@@ -138,3 +138,4 @@ describe('react/next best-practices refactor', () => {
     expect(personaContext).toContain('const [dataEnabled, setDataEnabled] = useState(false);');
   });
 });
+

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { StoredMessage } from '@/server/channels/messages/repository';
 import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
 import type { IngestionWindow } from '@/server/knowledge/ingestionCursor';
-import { KnowledgeIngestionService } from '@/server/knowledge/ingestionService';
+import { KnowledgeIngestionService } from '@/server/knowledge/ingestion/service';
 
 function createMessage(seq: number, conversationId: string, content: string): StoredMessage {
   return {
@@ -211,3 +211,4 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
     expect(result.errors).toHaveLength(0);
   });
 });
+

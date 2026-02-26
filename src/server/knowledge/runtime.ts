@@ -5,7 +5,7 @@ import { getMemoryService } from '@/server/memory/runtime';
 import { getKnowledgeConfig } from '@/server/knowledge/config';
 import { KnowledgeExtractor } from '@/server/knowledge/extractor';
 import { KnowledgeIngestionCursor } from '@/server/knowledge/ingestionCursor';
-import { KnowledgeIngestionService } from '@/server/knowledge/ingestionService';
+import { KnowledgeIngestionService } from '@/server/knowledge/ingestion/service';
 import { KnowledgeRetrievalService } from '@/server/knowledge/retrievalService';
 import type { KnowledgeRepository } from '@/server/knowledge/repository';
 import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
@@ -262,3 +262,4 @@ export function resetKnowledgeRuntimeForTests(): void {
   globalThis.__knowledgeExtractor = undefined;
   globalThis.__knowledgeRepository = undefined;
 }
+

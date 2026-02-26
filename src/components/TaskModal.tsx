@@ -7,7 +7,7 @@ import { triggerAutoDispatch, shouldTriggerAutoDispatch } from '@/lib/auto-dispa
 import { ActivityLog } from './ActivityLog';
 import { DeliverablesList } from './DeliverablesList';
 import { SessionsList } from './SessionsList';
-import { PlanningTab } from './PlanningTab';
+import { PlanningTab } from './planning/PlanningTab';
 import { AgentModal } from './AgentModal';
 import type { Task, TaskPriority, TaskStatus } from '@/lib/types';
 
@@ -429,3 +429,4 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
     </div>
   );
 }
+

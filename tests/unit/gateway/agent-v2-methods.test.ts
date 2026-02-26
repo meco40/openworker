@@ -71,7 +71,7 @@ describe('gateway agent v2 methods', () => {
     }));
 
     const { dispatchMethod } = await import('@/server/gateway/method-router');
-    await import('@/server/gateway/methods/agent-v2');
+    await import('@/server/gateway/methods/agent-v2/registerMethods');
 
     const sent: unknown[] = [];
     await dispatchMethod(
@@ -178,7 +178,7 @@ describe('gateway agent v2 methods', () => {
     }));
 
     const { dispatchMethod } = await import('@/server/gateway/method-router');
-    await import('@/server/gateway/methods/agent-v2');
+    await import('@/server/gateway/methods/agent-v2/registerMethods');
 
     const createFrames: unknown[] = [];
     await dispatchMethod(
@@ -270,7 +270,7 @@ describe('gateway agent v2 methods', () => {
       broadcastToUser: vi.fn(),
     }));
 
-    await import('@/server/gateway/methods/agent-v2');
+    await import('@/server/gateway/methods/agent-v2/registerMethods');
     const { dispatchMethod } = await import('@/server/gateway/method-router');
     const sent: unknown[] = [];
 
@@ -288,3 +288,4 @@ describe('gateway agent v2 methods', () => {
     });
   });
 });
+

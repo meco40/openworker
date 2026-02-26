@@ -8,7 +8,7 @@ import './methods/logs';
 import './methods/presence';
 import './methods/sessions';
 import './methods/channels';
-import './methods/agent-v2';
+import './methods/agent-v2/registerMethods';
 
 // Re-export for use in server.ts
 export { handleConnection } from '@/server/gateway/connection-handler';

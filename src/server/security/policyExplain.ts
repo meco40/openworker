@@ -1,4 +1,4 @@
-import { loadGatewayConfig } from '@/server/config/gatewayConfig';
+import { loadGatewayConfig } from '@/server/config/gateway/gatewayConfig';
 
 export interface EffectivePolicyExplainSnapshot {
   generatedAt: string;
@@ -74,3 +74,4 @@ export async function buildEffectivePolicyExplainSnapshot(): Promise<EffectivePo
     },
   };
 }
+

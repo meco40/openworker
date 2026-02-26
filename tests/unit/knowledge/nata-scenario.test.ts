@@ -11,7 +11,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { existsSync, mkdirSync } from 'node:fs';
 import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
-import { KnowledgeIngestionService } from '@/server/knowledge/ingestionService';
+import { KnowledgeIngestionService } from '@/server/knowledge/ingestion/service';
 import { computeEventAnswer } from '@/server/knowledge/eventAnswerComputer';
 import { planKnowledgeQuery } from '@/server/knowledge/queryPlanner';
 import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
@@ -238,3 +238,4 @@ describe('Nata reference scenario: 3 days total', () => {
     expect(answer).toContain('Max');
   });
 });
+

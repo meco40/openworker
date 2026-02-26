@@ -14,8 +14,8 @@ describe('recharts animation guard', () => {
   });
 
   it('disables Bar animation in StatsView to avoid strict-mode update loops', () => {
-    const statsView = read('src/components/StatsView.tsx');
-    expect(statsView).toContain('<Bar');
-    expect(statsView).toContain('isAnimationActive={false}');
+    const overviewTab = read('src/components/stats/OverviewTabContent.tsx');
+    expect(overviewTab).toContain('<Bar');
+    expect(overviewTab).toContain('isAnimationActive={false}');
   });
 });

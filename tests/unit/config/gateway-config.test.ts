@@ -81,7 +81,7 @@ describe('gatewayConfig service', () => {
   });
 
   it('rejects schema-invalid gateway.port', async () => {
-    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gateway/gatewayConfig');
     const broken = validConfig();
     (broken.gateway as { port: unknown }).port = '8080';
 
@@ -104,7 +104,7 @@ describe('gatewayConfig service', () => {
       }),
     );
 
-    const { loadGatewayConfig } = await import('@/server/config/gatewayConfig');
+    const { loadGatewayConfig } = await import('@/server/config/gateway/gatewayConfig');
     const loaded = await loadGatewayConfig();
     const gateway = loaded.config.gateway as { host?: string; bind?: string };
 
@@ -116,7 +116,7 @@ describe('gatewayConfig service', () => {
   });
 
   it('normalizes legacy bind-only config on save and emits warnings', async () => {
-    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gateway/gatewayConfig');
     const loaded = await loadGatewayConfig();
 
     const saved = await saveGatewayConfig(
@@ -148,7 +148,7 @@ describe('gatewayConfig service', () => {
       }),
     );
 
-    const { loadGatewayConfig } = await import('@/server/config/gatewayConfig');
+    const { loadGatewayConfig } = await import('@/server/config/gateway/gatewayConfig');
     const loaded = await loadGatewayConfig();
     const ui = loaded.config.ui as { density?: string; timeFormat?: string };
 
@@ -160,7 +160,7 @@ describe('gatewayConfig service', () => {
   });
 
   it('accepts valid ui settings', async () => {
-    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gateway/gatewayConfig');
     const loaded = await loadGatewayConfig();
 
     const saved = await saveGatewayConfig(
@@ -183,7 +183,7 @@ describe('gatewayConfig service', () => {
   });
 
   it('rejects invalid ui.timeFormat on save', async () => {
-    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gateway/gatewayConfig');
     const loaded = await loadGatewayConfig();
 
     await expect(
@@ -200,7 +200,7 @@ describe('gatewayConfig service', () => {
   });
 
   it('rejects invalid ui.defaultView on save', async () => {
-    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gateway/gatewayConfig');
     const loaded = await loadGatewayConfig();
 
     await expect(
@@ -217,7 +217,7 @@ describe('gatewayConfig service', () => {
   });
 
   it('writes atomically via temporary file and rename', async () => {
-    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gateway/gatewayConfig');
     const loaded = await loadGatewayConfig();
 
     await saveGatewayConfig(validConfig(), { expectedRevision: loaded.revision });
@@ -251,7 +251,7 @@ describe('gatewayConfig service', () => {
       return 'existing-raw-json';
     });
 
-    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gateway/gatewayConfig');
     const loaded = await loadGatewayConfig();
 
     await saveGatewayConfig(validConfig(), { expectedRevision: loaded.revision });
@@ -275,7 +275,7 @@ describe('gatewayConfig service', () => {
       return currentConfigRaw;
     });
 
-    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gateway/gatewayConfig');
     const loaded = await loadGatewayConfig();
     const saved = await saveGatewayConfig(
       {
@@ -289,3 +289,4 @@ describe('gatewayConfig service', () => {
     expect(telegram?.token).toBe('REAL_TOKEN');
   });
 });
+

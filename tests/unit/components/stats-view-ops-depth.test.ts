@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import StatsView from '@/components/StatsView';
+import StatsView from '@/components/stats/StatsView';
 
 describe('StatsView ops depth', () => {
   it('renders sessions tab affordance for session-oriented usage analysis', () => {
@@ -13,3 +13,4 @@ describe('StatsView ops depth', () => {
     expect(html).toContain('Sessions');
   });
 });
+

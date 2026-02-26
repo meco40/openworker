@@ -383,6 +383,18 @@ describe('persona memory cascade delete', () => {
           return new Response(JSON.stringify({ deleted: 0 }), { status: 200 });
         }
 
+        if (method === 'POST' && parsed.pathname.endsWith('/v2/memories')) {
+          return new Response(
+            JSON.stringify({
+              memories: [],
+              total: 0,
+              page: 1,
+              page_size: 25,
+            }),
+            { status: 200 },
+          );
+        }
+
         return new Response(JSON.stringify({ error: `Unhandled ${method} ${parsed.pathname}` }), {
           status: 500,
         });

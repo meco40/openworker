@@ -35,7 +35,7 @@ const Dashboard = dynamic(() => import('@/components/Dashboard'), {
 const ChatInterface = dynamic(() => import('@/components/ChatInterface'), {
   loading: loading('Multi-Channel Inbox'),
 });
-const ChannelPairing = dynamic(() => import('@/messenger/ChannelPairing'), {
+const ChannelPairing = dynamic(() => import('@/messenger/channel-pairing/ChannelPairing'), {
   loading: loading('Messenger Coupling'),
 });
 const ModelHub = dynamic(() => import('@/components/ModelHub'), {
@@ -62,7 +62,7 @@ const ProfileView = dynamic(() => import('@/components/ProfileView'), {
 const ExposureManager = dynamic(() => import('@/modules/exposure/components/ExposureManager'), {
   loading: loading('Remote Exposure'),
 });
-const StatsView = dynamic(() => import('@/components/StatsView'), {
+const StatsView = dynamic(() => import('@/components/stats/StatsView'), {
   loading: loading('Usage Stats'),
 });
 const PersonasView = dynamic(() => import('@/components/PersonasView'), {
@@ -305,3 +305,4 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
 };
 
 export default AppShellViewContent;
+

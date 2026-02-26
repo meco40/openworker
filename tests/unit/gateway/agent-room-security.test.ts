@@ -67,7 +67,7 @@ describe('agent room security guards', () => {
       broadcastToUser: vi.fn(),
     }));
 
-    await import('@/server/gateway/methods/agent-v2');
+    await import('@/server/gateway/methods/agent-v2/registerMethods');
     const { dispatchMethod } = await import('@/server/gateway/method-router');
     const sent: unknown[] = [];
 
@@ -124,7 +124,7 @@ describe('agent room security guards', () => {
       broadcastToUser: vi.fn(),
     }));
 
-    await import('@/server/gateway/methods/agent-v2');
+    await import('@/server/gateway/methods/agent-v2/registerMethods');
     const { dispatchMethod } = await import('@/server/gateway/method-router');
     const sent: unknown[] = [];
     const hugeTask = 'x'.repeat(8_100);
@@ -188,7 +188,7 @@ describe('agent room security guards', () => {
       broadcastToUser: vi.fn(),
     }));
 
-    await import('@/server/gateway/methods/agent-v2');
+    await import('@/server/gateway/methods/agent-v2/registerMethods');
     const { dispatchMethod } = await import('@/server/gateway/method-router');
     const sent: unknown[] = [];
 
@@ -212,3 +212,4 @@ describe('agent room security guards', () => {
     });
   });
 });
+

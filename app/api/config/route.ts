@@ -7,7 +7,7 @@ import {
   redactGatewayConfigSecrets,
   saveGatewayConfig,
   toGatewayConfigDisplayPath,
-} from '@/server/config/gatewayConfig';
+} from '@/server/config/gateway/gatewayConfig';
 import {
   logConfigLoadFailed,
   logConfigLoadSuccess,

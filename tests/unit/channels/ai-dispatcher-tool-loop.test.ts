@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '@/shared/domain/types';
-import { runModelToolLoop } from '@/server/channels/messages/service/dispatchers/aiDispatcher';
 import { MAX_TOOL_ROUNDS } from '@/server/channels/messages/service/types';
 
 const dispatchWithFallbackMock = vi.hoisted(() => vi.fn());
@@ -11,6 +10,8 @@ vi.mock('../../../src/server/model-hub/runtime', () => ({
   }),
   getModelHubEncryptionKey: () => 'test-key',
 }));
+
+import { runModelToolLoop } from '@/server/channels/messages/service/dispatchers/aiDispatcher';
 
 describe('runModelToolLoop', () => {
   const conversation = {

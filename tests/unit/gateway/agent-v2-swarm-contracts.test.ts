@@ -131,7 +131,7 @@ function setupMocks(overrides?: {
 
 async function loadDispatcher() {
   const { dispatchMethod } = await import('@/server/gateway/method-router');
-  await import('@/server/gateway/methods/agent-v2');
+  await import('@/server/gateway/methods/agent-v2/registerMethods');
   return dispatchMethod;
 }
 
@@ -423,3 +423,4 @@ describe('gateway swarm contract — swarm.deploy', () => {
     });
   });
 });
+

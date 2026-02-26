@@ -476,6 +476,57 @@ def reset_memory(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class V2ListRequest(BaseModel):
+    filters: Optional[Dict[str, Any]] = None
+    page: Optional[int] = 1
+    page_size: Optional[int] = 50
+    query: Optional[str] = None
+
+
+@app.post("/v2/memories", summary="List memories (V2 API compatibility)")
+def v2_list_memories(req: V2ListRequest, _: None = Depends(require_api_key)):
+    """V2 API compatibility endpoint - maps to v1 get_all with pagination."""
+    try:
+        memory = _require_memory_instance()
+        filters = req.filters or {}
+        user_id = filters.get("user_id") if isinstance(filters, dict) else None
+        agent_id = filters.get("agent_id") if isinstance(filters, dict) else None
+        run_id = filters.get("run_id") if isinstance(filters, dict) else None
+
+        if not any([user_id, agent_id, run_id]):
+            raise HTTPException(status_code=400, detail="At least one identifier is required in filters.")
+
+        params = {k: v for k, v in {"user_id": user_id, "run_id": run_id, "agent_id": agent_id}.items() if v is not None}
+        results = memory.get_all(**params)
+
+        # Normalize to list
+        if isinstance(results, dict):
+            memories = results.get("memories", [])
+        elif isinstance(results, list):
+            memories = results
+        else:
+            memories = []
+
+        # Apply simple pagination
+        page = max(1, req.page or 1)
+        page_size = max(1, min(100, req.page_size or 50))
+        start = (page - 1) * page_size
+        end = start + page_size
+        paged_memories = memories[start:end]
+
+        return {
+            "memories": paged_memories,
+            "total": len(memories),
+            "page": page,
+            "page_size": page_size,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Error in v2_list_memories:")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/", summary="Redirect to OpenAPI docs", include_in_schema=False)
 def home():
     return RedirectResponse(url="/docs")

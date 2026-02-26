@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import StatsView from '@/components/StatsView';
+import StatsView from '@/components/stats/StatsView';
 
 describe('StatsView tabs', () => {
   it('renders overview and logs tab buttons', () => {
@@ -12,3 +12,4 @@ describe('StatsView tabs', () => {
     expect(html).toContain('Logs');
   });
 });
+

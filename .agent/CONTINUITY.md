@@ -171,3 +171,38 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-02-26T20:15:00Z [TOOL] Verifikation vollständig erfolgreich: `npm run lint` (0 Warnungen/0 Fehler), `npm run typecheck` (ok), `npm run format:check` (ok), `npm test` (394/394 Dateien, 1791/1791 Tests), `npm run build` (ok).
+
+- 2026-02-26T20:24:52Z [PLANS] Wave-3-Modularisierung für 6 Rest-Monolithen gestartet: zuerst Backup, dann Auslagerung in Modulpfade, danach Verifikation (`typecheck`, `lint`, `build`, fokussierte Tests).
+- 2026-02-26T20:24:52Z [DECISIONS] Keine doppelte Implementierung beibehalten: Originaldateien wurden als schlanke Entrypoints belassen, vollständige Logik liegt jeweils nur in neuen Moduldateien.
+- 2026-02-26T20:24:52Z [PROGRESS] Dateien ausgelagert: `knowledge/ingestionService.ts` -> `knowledge/ingestion/service.ts`, `gateway/methods/agent-v2.ts` -> `gateway/methods/agent-v2/registerMethods.ts`, `components/PlanningTab.tsx` -> `components/planning/PlanningTab.tsx`, `components/StatsView.tsx` -> `components/stats/StatsView.tsx`, `messenger/ChannelPairing.tsx` -> `messenger/channel-pairing/ChannelPairing.tsx`, `server/config/gatewayConfig.ts` -> `server/config/gateway/gatewayConfig.ts`.
+- 2026-02-26T20:24:52Z [PROGRESS] Backup erstellt unter `backups/modularization-wave3-20260226-212001/` mit allen 6 Originaldateien.
+- 2026-02-26T20:24:52Z [OUTCOMES] Verifikation nach Auslagerung erfolgreich: `npm run typecheck`, `npm run lint`, `npm run build`, `npm test -- tests/unit/agent-room/agent-session-service.test.ts tests/unit/agent-room/artifact-phase-markers.test.ts`.
+- 2026-02-26T21:01:48Z [DECISIONS] Echte interne Modularisierung statt nur Pfad-Verschiebung: große Implementierungen in fachliche Teilmodule zerlegt (Controller/View, Session/Swarm-Registrierung, Config-Normalisierung/Secrets/Paths).
+- 2026-02-26T21:01:48Z [PROGRESS] `src/server/knowledge/ingestion/service.ts` auf Orchestrator reduziert; Fachlogik nutzt bestehende Module unter `src/server/knowledge/ingestion/*`.
+- 2026-02-26T21:01:48Z [PROGRESS] `src/server/gateway/methods/agent-v2` aufgeteilt in `helpers.ts`, `registerSessionMethods.ts`, `registerSwarmMethods.ts`; `registerMethods.ts` ist nur noch Side-Effect-Entrypoint.
+- 2026-02-26T21:01:48Z [PROGRESS] `src/server/config/gateway` aufgeteilt in `types.ts`, `constants.ts`, `normalize.ts`, `paths.ts`, `secrets.ts`; `gatewayConfig.ts` enthält nur noch Load/Save-Orchestrierung.
+- 2026-02-26T21:01:48Z [PROGRESS] Frontend modularisiert: `PlanningTab.tsx` -> `usePlanningTabController.ts` + `PlanningTabView.tsx`; `StatsView.tsx` in mehrere UI-Teilkomponenten; `ChannelPairing.tsx` in Hook + UI-Teilkomponenten gesplittet.
+- 2026-02-26T21:01:48Z [OUTCOMES] Finale Verifikation grün nach Wave-3: `npm run typecheck`, `npm run lint`, `npm run build`, plus fokussierte Tests (`knowledge/ingestion*`, `agent-room/*`) alle bestanden.
+- 2026-02-26T21:01:48Z [DECISIONS] Backward-Compat-Entrypoints entfernt (User-Vorgabe): alle internen Imports/Test-Imports auf neue Modulpfade umgestellt, Wrapper-Dateien gelöscht.
+- 2026-02-26T21:01:48Z [DISCOVERIES] Verschobene Datei `src/server/config/gateway/constants.ts` hatte zunächst falsches `WORKSPACE_ROOT` (`../../../`), wodurch Pfadauflösung in File-Backend-Tests abwich; auf `../../../../` korrigiert.
+- 2026-02-26T21:01:48Z [OUTCOMES] Nach Wrapper-Entfernung + Pfadfix erneut vollständig verifiziert: `npm run typecheck`, `npm run lint`, `npm run build`; fokussierte Tests grün (`gateway-config*`, `agent-v2*`, `agent-room*`, `knowledge/ingestion*`).
+- 2026-02-26T21:27:50Z [PLANS] Wave-4 gestartet für verbleibende große Entrypoints: `messages/service/index.ts` und `knowledge/retrieval/service/index.ts` mit Fokus auf saubere Modul-Entrypoints.
+- 2026-02-26T21:27:50Z [PROGRESS] `src/server/channels/messages/service/index.ts` auf Export-Entrypoint reduziert; Implementierung in `messageService.ts` verschoben.
+- 2026-02-26T21:27:50Z [PROGRESS] `src/server/knowledge/retrieval/service/index.ts` auf Export-Entrypoint reduziert; Implementierung in `knowledgeRetrievalService.ts` verschoben.
+- 2026-02-26T21:27:50Z [PROGRESS] Backup für beide Ursprungsdateien erstellt unter `backups/modularization-wave4-20260226-222217/`.
+- 2026-02-26T21:27:50Z [OUTCOMES] Verifikation erfolgreich nach Wave-4: `npm run typecheck`, `npm run lint`, `npm run build`, `npm test -- tests/unit/channels/message-service-modules.test.ts tests/unit/knowledge/retrieval-service.test.ts tests/unit/knowledge/retrieval-entity.test.ts`.
+- 2026-02-26T21:41:55Z [DECISIONS] Wave-4 vertieft: nicht nur Entrypoint-Split, sondern echte interne Modultrennung für `messageService.ts` und `knowledgeRetrievalService.ts`.
+- 2026-02-26T21:41:55Z [PROGRESS] `messageService.ts` in fachliche Module zerlegt (`inbound/handleInbound.ts`, `conversation/operations.ts`, `maintenance/operations.ts`, `orchestration/subagentToolApproval.ts`), Hauptdatei stark reduziert.
+- 2026-02-26T21:41:55Z [PROGRESS] `knowledgeRetrievalService.ts` in Pipeline-Module zerlegt (`counterpartCache.ts`, `queryPlanning.ts`, `ruleEvidenceCollector.ts`, `retrievalExecution.ts`), Hauptdatei stark reduziert.
+- 2026-02-26T21:41:55Z [OUTCOMES] Erweiterte Regression erfolgreich: `npm run typecheck`, `npm run lint`, `npm run build`, Retrieval-Tests (`retrieval-service`, `retrieval-entity`) und MessageService-Tests (`message-service-modules`, `message-service-knowledge-recall`, `message-service-tool-approval`, `message-service-subagents`) alle grün.
+- 2026-02-26T21:36:21Z [PLANS] Retrieval-Service-Feinmodularisierung gestartet: `knowledgeRetrievalService.ts` auf Orchestrator reduzieren und Pipeline-Stufen in neue Module unter `src/server/knowledge/retrieval/service/` extrahieren, ohne API/Exports-Verhalten zu ändern.
+- 2026-02-26T21:36:21Z [DECISIONS] Verantwortung strikt getrennt in vier neue Module: Counterpart-Cache/Recall-Probe, Query-Plan-Helfer (Rules-Intent/Entity-Context/Count-Answer), Rule-Evidence-Collector, Retrieval-Execution (Stage-Orchestrierung + Audit/Budget/Formatting).
+- 2026-02-26T21:36:21Z [PROGRESS] Neue Dateien ergänzt: `counterpartCache.ts`, `queryPlanning.ts`, `ruleEvidenceCollector.ts`, `retrievalExecution.ts`; `knowledgeRetrievalService.ts` auf delegierende Klasse reduziert (Constructor + `shouldTriggerRecall` + `retrieve`).
+- 2026-02-26T21:36:21Z [OUTCOMES] Verifikation grün nach Modularisierung: `npm run typecheck` erfolgreich; fokussierte Tests `tests/unit/knowledge/retrieval-service.test.ts` und `tests/unit/knowledge/retrieval-entity.test.ts` mit 15/15 Tests bestanden.
+
+- 2026-02-26T23:16:00Z [DISCOVERIES] Root-Cause der 6 Testfehler nach Refactor lag testseitig: SUT-Import vor i.mock (Mock nicht aktiv), Recharts-Guard mit altem Dateipfad, Mem0-Stub ohne POST /v2/memories im Persona-Delete-Flow. [TOOL]
+- 2026-02-26T23:16:00Z [PROGRESS] Minimalfixes in 3 Tests umgesetzt: Import-Reihenfolge korrigiert (i-dispatcher-tool-loop), Guard auf OverviewTabContent.tsx aktualisiert, Mem0-Search-Stub ergänzt (personas-memory-cascade-delete). [CODE]
+- 2026-02-26T23:16:00Z [OUTCOMES] Vollverifikation grün: 
+pm run lint (0 Warnungen/0 Fehler), 
+pm run typecheck (ok), 
+pm test (394/394 Dateien, 1791/1791 Tests). [TOOL]

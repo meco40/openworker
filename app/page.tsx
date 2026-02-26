@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { isAuthRequired } from '@/server/auth/userContext';
 import { View } from '@/shared/domain/types';
-import { loadGatewayConfig } from '@/server/config/gatewayConfig';
+import { loadGatewayConfig } from '@/server/config/gateway/gatewayConfig';
 import { resolveDefaultViewFromConfig } from '@/server/config/uiRuntimeConfig';
 
 export default async function HomePage() {

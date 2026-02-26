@@ -4,7 +4,7 @@ import type { StoredMessage } from '@/server/channels/messages/repository';
 import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
 import type { EntityLookupResult, KnowledgeEntity } from '@/server/knowledge/entityGraph';
 import type { IngestionWindow } from '@/server/knowledge/ingestionCursor';
-import { KnowledgeIngestionService } from '@/server/knowledge/ingestionService';
+import { KnowledgeIngestionService } from '@/server/knowledge/ingestion/service';
 
 function createMessage(
   seq: number,
@@ -397,3 +397,4 @@ describe('KnowledgeIngestionService branch coverage', () => {
     expect(taskMetadata?.artifactType).toBe('task_status');
   });
 });
+
