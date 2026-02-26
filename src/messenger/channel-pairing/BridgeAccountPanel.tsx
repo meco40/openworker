@@ -84,7 +84,8 @@ export function BridgeAccountPanel({
         <div className="mt-4 border-t border-zinc-800 pt-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor={allowFromInputId} className="text-xs text-zinc-500">
-              Allow From <span className="text-zinc-600">- optional comma-separated sender filters</span>
+              Allow From{' '}
+              <span className="text-zinc-600">- optional comma-separated sender filters</span>
             </label>
             <div className="flex gap-2">
               <input

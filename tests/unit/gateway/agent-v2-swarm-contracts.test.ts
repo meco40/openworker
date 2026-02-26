@@ -423,4 +423,3 @@ describe('gateway swarm contract — swarm.deploy', () => {
     });
   });
 });
-

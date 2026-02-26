@@ -397,4 +397,3 @@ describe('KnowledgeIngestionService branch coverage', () => {
     expect(taskMetadata?.artifactType).toBe('task_status');
   });
 });
-

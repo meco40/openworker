@@ -3,7 +3,10 @@ import { fileURLToPath } from 'node:url';
 import type { GatewayConfig } from './types';
 
 export const REDACTED_SECRET_VALUE = '__REDACTED__';
-export const WORKSPACE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../');
+export const WORKSPACE_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../../../',
+);
 export const GATEWAY_CONFIG_DB_ROW_ID = 1;
 export const GATEWAY_CONFIG_DB_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS gateway_config_state (

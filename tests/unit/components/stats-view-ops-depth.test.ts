@@ -13,4 +13,3 @@ describe('StatsView ops depth', () => {
     expect(html).toContain('Sessions');
   });
 });
-

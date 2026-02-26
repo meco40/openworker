@@ -262,4 +262,3 @@ export function resetKnowledgeRuntimeForTests(): void {
   globalThis.__knowledgeExtractor = undefined;
   globalThis.__knowledgeRepository = undefined;
 }
-

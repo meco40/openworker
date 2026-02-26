@@ -191,8 +191,10 @@ registerMethod(
     }
     if (params.holdFlag !== undefined) patch.holdFlag = Boolean(params.holdFlag);
     if (params.searchEnabled !== undefined) patch.searchEnabled = Boolean(params.searchEnabled);
-    if (params.swarmTemplate !== undefined) patch.swarmTemplate = optionalString(params, 'swarmTemplate') ?? null;
-    if (params.pauseBetweenPhases !== undefined) patch.pauseBetweenPhases = Boolean(params.pauseBetweenPhases);
+    if (params.swarmTemplate !== undefined)
+      patch.swarmTemplate = optionalString(params, 'swarmTemplate') ?? null;
+    if (params.pauseBetweenPhases !== undefined)
+      patch.pauseBetweenPhases = Boolean(params.pauseBetweenPhases);
 
     const speakerOverride = optionalString(params, 'speakerOverride');
     if (speakerOverride) {
@@ -280,7 +282,13 @@ registerMethod(
       holdFlag: false,
       artifact: source.artifact,
       artifactHistory: [...source.artifactHistory],
-      friction: { level: 'low', confidence: 0, hold: false, reasons: [], updatedAt: new Date().toISOString() },
+      friction: {
+        level: 'low',
+        confidence: 0,
+        hold: false,
+        reasons: [],
+        updatedAt: new Date().toISOString(),
+      },
       lastSeq: 0,
       searchEnabled: source.searchEnabled,
       swarmTemplate: source.swarmTemplate,
@@ -290,7 +298,12 @@ registerMethod(
     broadcastToUser(
       client.userId,
       GatewayEvents.AGENT_ROOM_SWARM,
-      { swarmId: forkedSwarm.id, status: 'created', swarm: forkedSwarm, updatedAt: forkedSwarm.updatedAt },
+      {
+        swarmId: forkedSwarm.id,
+        status: 'created',
+        swarm: forkedSwarm,
+        updatedAt: forkedSwarm.updatedAt,
+      },
       { protocol: 'v2' },
     );
     respond({ swarm: forkedSwarm, forkedFrom: sourceId });
@@ -309,7 +322,8 @@ registerMethod(
     if (!source) throw new AgentV2Error('Source swarm not found.', 'NOT_FOUND');
 
     const newTask = requiredBoundedString(params, 'task', MAX_TASK_CHARS);
-    const chainTitle = optionalBoundedString(params, 'title', MAX_TITLE_CHARS) ?? `${source.title} → Chain`;
+    const chainTitle =
+      optionalBoundedString(params, 'title', MAX_TITLE_CHARS) ?? `${source.title} → Chain`;
     const contextBlock = source.artifact
       ? `\n\n--- Context from previous swarm "${source.title}" ---\n${source.artifact.slice(0, 8000)}\n--- End context ---\n`
       : '';
@@ -348,7 +362,13 @@ registerMethod(
       holdFlag: false,
       artifact: '',
       artifactHistory: [],
-      friction: { level: 'low', confidence: 0, hold: false, reasons: [], updatedAt: new Date().toISOString() },
+      friction: {
+        level: 'low',
+        confidence: 0,
+        hold: false,
+        reasons: [],
+        updatedAt: new Date().toISOString(),
+      },
       lastSeq: 0,
       searchEnabled: source.searchEnabled,
       swarmTemplate: source.swarmTemplate,
@@ -358,7 +378,12 @@ registerMethod(
     broadcastToUser(
       client.userId,
       GatewayEvents.AGENT_ROOM_SWARM,
-      { swarmId: chainedSwarm.id, status: 'created', swarm: chainedSwarm, updatedAt: chainedSwarm.updatedAt },
+      {
+        swarmId: chainedSwarm.id,
+        status: 'created',
+        swarm: chainedSwarm,
+        updatedAt: chainedSwarm.updatedAt,
+      },
       { protocol: 'v2' },
     );
     respond({ swarm: chainedSwarm, chainedFrom: sourceId });

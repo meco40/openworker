@@ -47,4 +47,3 @@ export function restoreRedactedSecrets(nextConfig: unknown, currentConfig: Gatew
   }
   return restored;
 }
-

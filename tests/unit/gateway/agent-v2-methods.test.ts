@@ -288,4 +288,3 @@ describe('gateway agent v2 methods', () => {
     });
   });
 });
-

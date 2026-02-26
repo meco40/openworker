@@ -27,6 +27,8 @@ export type WhatsAppAccountsResponse = {
 export interface ChannelPairingProps {
   coupledChannels: Record<string, CoupledChannel>;
   onUpdateCoupling: (id: string, update: Partial<CoupledChannel>) => void;
-  onSimulateIncoming?: (content: string, platform: import('@/shared/domain/types').ChannelType) => void;
+  onSimulateIncoming?: (
+    content: string,
+    platform: import('@/shared/domain/types').ChannelType,
+  ) => void;
 }
-

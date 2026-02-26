@@ -202,7 +202,7 @@ Files >300 lines identified for potential future modularization:
 
 - 2026-02-26T23:16:00Z [DISCOVERIES] Root-Cause der 6 Testfehler nach Refactor lag testseitig: SUT-Import vor i.mock (Mock nicht aktiv), Recharts-Guard mit altem Dateipfad, Mem0-Stub ohne POST /v2/memories im Persona-Delete-Flow. [TOOL]
 - 2026-02-26T23:16:00Z [PROGRESS] Minimalfixes in 3 Tests umgesetzt: Import-Reihenfolge korrigiert (i-dispatcher-tool-loop), Guard auf OverviewTabContent.tsx aktualisiert, Mem0-Search-Stub ergänzt (personas-memory-cascade-delete). [CODE]
-- 2026-02-26T23:16:00Z [OUTCOMES] Vollverifikation grün: 
-pm run lint (0 Warnungen/0 Fehler), 
-pm run typecheck (ok), 
-pm test (394/394 Dateien, 1791/1791 Tests). [TOOL]
+- 2026-02-26T23:16:00Z [OUTCOMES] Vollverifikation grün:
+  pm run lint (0 Warnungen/0 Fehler),
+  pm run typecheck (ok),
+  pm test (394/394 Dateien, 1791/1791 Tests). [TOOL]

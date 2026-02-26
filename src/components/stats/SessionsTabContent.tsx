@@ -20,13 +20,17 @@ const SessionsTabContent: React.FC<SessionsTabContentProps> = ({ sessionLens }) 
         </div>
       </div>
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 shadow-lg">
-        <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">Channels</div>
+        <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+          Channels
+        </div>
         <div className="mt-2 text-3xl font-black text-white">
           {formatNumber(sessionLens?.byChannel.length ?? 0)}
         </div>
       </div>
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 shadow-lg">
-        <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">Top Sessions</div>
+        <div className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+          Top Sessions
+        </div>
         <div className="mt-2 text-3xl font-black text-white">
           {formatNumber(sessionLens?.topSessions.length ?? 0)}
         </div>
@@ -42,7 +46,9 @@ const SessionsTabContent: React.FC<SessionsTabContentProps> = ({ sessionLens }) 
     {sessionLens && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 shadow-lg">
-          <div className="mb-4 text-xs font-black tracking-widest text-white uppercase">Top Sessions</div>
+          <div className="mb-4 text-xs font-black tracking-widest text-white uppercase">
+            Top Sessions
+          </div>
           {sessionLens.topSessions.length === 0 ? (
             <div className="text-[10px] font-black text-zinc-600 uppercase">No sessions found.</div>
           ) : (
@@ -84,12 +90,16 @@ const SessionsTabContent: React.FC<SessionsTabContentProps> = ({ sessionLens }) 
             Channel Distribution
           </div>
           {sessionLens.byChannel.length === 0 ? (
-            <div className="text-[10px] font-black text-zinc-600 uppercase">No channel data found.</div>
+            <div className="text-[10px] font-black text-zinc-600 uppercase">
+              No channel data found.
+            </div>
           ) : (
             <div className="space-y-2">
               {sessionLens.byChannel.map((entry) => {
                 const width =
-                  sessionLens.totalSessions > 0 ? (entry.count / sessionLens.totalSessions) * 100 : 0;
+                  sessionLens.totalSessions > 0
+                    ? (entry.count / sessionLens.totalSessions) * 100
+                    : 0;
                 return (
                   <div
                     key={entry.channelType}

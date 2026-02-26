@@ -1,7 +1,11 @@
 /** MessageService facade over modular operations. */
 
 import { ChannelType } from '@/shared/domain/types';
-import type { Conversation, MessageRepository, StoredMessage } from '@/server/channels/messages/repository';
+import type {
+  Conversation,
+  MessageRepository,
+  StoredMessage,
+} from '@/server/channels/messages/repository';
 import { SessionManager } from '@/server/channels/messages/sessionManager';
 import { HistoryManager } from '@/server/channels/messages/historyManager';
 import { ContextBuilder } from '@/server/channels/messages/contextBuilder';
@@ -12,9 +16,15 @@ import { ToolManager } from './toolManager';
 import { RecallService } from './recallService';
 import { SummaryService } from './summaryService';
 import { createSendResponse } from './utils/responseHelper';
-import { getSubagentMaxActivePerConversation, requiresInteractiveToolApproval } from './core/configuration';
+import {
+  getSubagentMaxActivePerConversation,
+  requiresInteractiveToolApproval,
+} from './core/configuration';
 import type { ServiceState } from './core/types';
-import { resolveConversationWorkspace, resolveConversationWorkspaceCwd } from './core/projectManagement';
+import {
+  resolveConversationWorkspace,
+  resolveConversationWorkspaceCwd,
+} from './core/projectManagement';
 import { resolveChatModelRouting, isMemoryEnabledForConversation } from './routing/modelRouting';
 import {
   listConversations,
@@ -66,7 +76,10 @@ export class MessageService {
       this.invokeSubagentToolCall.bind(this),
     );
     this.recallService = new RecallService(
-      (query, options) => (typeof this.repo.searchMessages === 'function' ? this.repo.searchMessages(query, options) : []),
+      (query, options) =>
+        typeof this.repo.searchMessages === 'function'
+          ? this.repo.searchMessages(query, options)
+          : [],
       (conversation) => this.isMemoryEnabledWithRepo(conversation),
     );
     this.summaryService = new SummaryService(repo);
@@ -90,10 +103,19 @@ export class MessageService {
   }
 
   listConversations(userId?: string, limit?: number): Conversation[] {
-    return listConversations({ repo: this.repo, sessionManager: this.sessionManager }, userId, limit);
+    return listConversations(
+      { repo: this.repo, sessionManager: this.sessionManager },
+      userId,
+      limit,
+    );
   }
 
-  getOrCreateConversation(channelType: ChannelType, externalChatId: string, title?: string, userId?: string): Conversation {
+  getOrCreateConversation(
+    channelType: ChannelType,
+    externalChatId: string,
+    title?: string,
+    userId?: string,
+  ): Conversation {
     return getOrCreateConversation(
       { repo: this.repo, sessionManager: this.sessionManager },
       channelType,
@@ -104,19 +126,41 @@ export class MessageService {
   }
 
   getDefaultWebChatConversation(userId?: string): Conversation {
-    return getDefaultWebChatConversation({ repo: this.repo, sessionManager: this.sessionManager }, userId);
+    return getDefaultWebChatConversation(
+      { repo: this.repo, sessionManager: this.sessionManager },
+      userId,
+    );
   }
 
   getConversation(conversationId: string, userId?: string): Conversation | null {
-    return getConversation({ repo: this.repo, sessionManager: this.sessionManager }, conversationId, userId);
+    return getConversation(
+      { repo: this.repo, sessionManager: this.sessionManager },
+      conversationId,
+      userId,
+    );
   }
 
   isAgentRoomConversation(conversationId: string, userId?: string): boolean {
-    return isAgentRoomConversation({ repo: this.repo, sessionManager: this.sessionManager }, conversationId, userId);
+    return isAgentRoomConversation(
+      { repo: this.repo, sessionManager: this.sessionManager },
+      conversationId,
+      userId,
+    );
   }
 
-  listMessages(conversationId: string, userId?: string, limit?: number, before?: string): StoredMessage[] {
-    return listMessages({ repo: this.repo, sessionManager: this.sessionManager }, conversationId, userId, limit, before);
+  listMessages(
+    conversationId: string,
+    userId?: string,
+    limit?: number,
+    before?: string,
+  ): StoredMessage[] {
+    return listMessages(
+      { repo: this.repo, sessionManager: this.sessionManager },
+      conversationId,
+      userId,
+      limit,
+      before,
+    );
   }
 
   getMessage(messageId: string, userId?: string): StoredMessage | null {
@@ -133,7 +177,12 @@ export class MessageService {
     clientMessageId?: string,
     attachments?: StoredMessageAttachment[],
     onStreamDelta?: (delta: string) => void,
-    opts?: { skipProjectGuard?: boolean; executionDirective?: string; maxToolCalls?: number; requireToolCall?: boolean },
+    opts?: {
+      skipProjectGuard?: boolean;
+      executionDirective?: string;
+      maxToolCalls?: number;
+      requireToolCall?: boolean;
+    },
   ): Promise<{ userMsg: StoredMessage; agentMsg: StoredMessage; newConversationId?: string }> {
     return handleInboundMessage(
       {
@@ -150,7 +199,18 @@ export class MessageService {
         respondToolApproval: this.respondToolApproval.bind(this),
         resolveChatModelRouting: this.resolveChatModelRouting,
       },
-      { platform, externalChatId, content, senderName, externalMsgId, userId, clientMessageId, attachments, onStreamDelta, opts },
+      {
+        platform,
+        externalChatId,
+        content,
+        senderName,
+        externalMsgId,
+        userId,
+        clientMessageId,
+        attachments,
+        onStreamDelta,
+        opts,
+      },
     );
   }
 
@@ -198,7 +258,11 @@ export class MessageService {
     approveAlways?: boolean;
     toolId?: string;
     toolFunctionName?: string;
-  }): Promise<{ ok: boolean; status: 'approved' | 'denied' | 'not_found' | 'approval_required'; policyUpdated: boolean }> {
+  }): Promise<{
+    ok: boolean;
+    status: 'approved' | 'denied' | 'not_found' | 'approval_required';
+    policyUpdated: boolean;
+  }> {
     return respondToolApprovalOperation(
       {
         sessionManager: this.sessionManager,
@@ -208,7 +272,8 @@ export class MessageService {
         getConversation: this.getConversation.bind(this),
         setConversationProjectGuardApproved: (conversationId, userId, approved) =>
           this.repo.setConversationProjectGuardApproved?.(conversationId, userId, approved),
-        resolveConversationWorkspaceCwd: (conversation) => resolveConversationWorkspaceCwd(conversation, this.repo),
+        resolveConversationWorkspaceCwd: (conversation) =>
+          resolveConversationWorkspaceCwd(conversation, this.repo),
         resolveChatModelRouting: this.resolveChatModelRouting,
         sendResponse: this.sendResponse,
       },
@@ -222,7 +287,8 @@ export class MessageService {
         subagentManager: this.subagentManager,
         toolManager: this.toolManager,
         historyManager: this.historyManager,
-        resolveConversationWorkspaceCwd: (conversation) => resolveConversationWorkspaceCwd(conversation, this.repo),
+        resolveConversationWorkspaceCwd: (conversation) =>
+          resolveConversationWorkspaceCwd(conversation, this.repo),
         sendResponse: this.sendResponse,
       },
       this.runSubagent.bind(this),
@@ -236,7 +302,12 @@ export class MessageService {
     clientMessageId?: string,
     attachments?: StoredMessageAttachment[],
     onStreamDelta?: (delta: string) => void,
-    opts?: { skipProjectGuard?: boolean; executionDirective?: string; maxToolCalls?: number; requireToolCall?: boolean },
+    opts?: {
+      skipProjectGuard?: boolean;
+      executionDirective?: string;
+      maxToolCalls?: number;
+      requireToolCall?: boolean;
+    },
   ): Promise<{ userMsg: StoredMessage; agentMsg: StoredMessage; newConversationId?: string }> {
     return handleWebUIMessage(
       { sessionManager: this.sessionManager, repo: this.repo },
@@ -304,7 +375,10 @@ export class MessageService {
     userId?: string,
     metadata?: Record<string, unknown>,
   ): StoredMessage {
-    return saveDirectMessage({ repo: this.repo, sessionManager: this.sessionManager }, { conversationId, role, content, platform, userId, metadata });
+    return saveDirectMessage(
+      { repo: this.repo, sessionManager: this.sessionManager },
+      { conversationId, role, content, platform, userId, metadata },
+    );
   }
 
   private resolveChatModelRouting = resolveChatModelRouting;

@@ -338,7 +338,9 @@ describe('/api/config route', () => {
   it('sanitizes unexpected internal errors and avoids path leaks', async () => {
     mockUserContext({ userId: 'legacy-local-user', authenticated: false });
     vi.doMock('../../../src/server/config/gateway/gatewayConfig', async () => {
-      const actual = await vi.importActual<object>('../../../src/server/config/gateway/gatewayConfig');
+      const actual = await vi.importActual<object>(
+        '../../../src/server/config/gateway/gatewayConfig',
+      );
       return {
         ...actual,
         loadGatewayConfig: vi.fn().mockRejectedValue(new Error(`EACCES: ${configPath}`)),

@@ -238,4 +238,3 @@ describe('Nata reference scenario: 3 days total', () => {
     expect(answer).toContain('Max');
   });
 });
-

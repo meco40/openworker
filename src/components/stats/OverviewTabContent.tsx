@@ -175,7 +175,9 @@ const OverviewTabContent: React.FC<OverviewTabContentProps> = ({ data }) => (
 
         {data.tokenUsage.byModel.length === 0 ? (
           <div className="flex h-64 items-center justify-center">
-            <span className="text-[10px] font-black text-zinc-600 uppercase">No data available.</span>
+            <span className="text-[10px] font-black text-zinc-600 uppercase">
+              No data available.
+            </span>
           </div>
         ) : (
           <div className="scrollbar-hide max-h-[280px] overflow-y-auto">
@@ -287,7 +289,9 @@ const OverviewTabContent: React.FC<OverviewTabContentProps> = ({ data }) => (
           </div>
         </div>
         <div className="text-center">
-          <div className="mb-1 text-[10px] font-black tracking-widest text-zinc-500 uppercase">Gesamt</div>
+          <div className="mb-1 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+            Gesamt
+          </div>
           <div className="font-mono text-2xl font-black text-white">
             {formatNumber(data.tokenUsage.total.total)}
           </div>

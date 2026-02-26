@@ -6,7 +6,10 @@ import type { SubagentManager } from '@/server/channels/messages/service/subagen
 import type { ToolManager } from '@/server/channels/messages/service/toolManager';
 import type { SummaryService } from '@/server/channels/messages/service/summaryService';
 import type { HistoryManager } from '@/server/channels/messages/historyManager';
-import { runSubagent, invokeSubagentToolCall } from '@/server/channels/messages/service/execution/subagentExecution';
+import {
+  runSubagent,
+  invokeSubagentToolCall,
+} from '@/server/channels/messages/service/execution/subagentExecution';
 import { respondToolApproval } from '@/server/channels/messages/service/execution/toolApproval';
 import type { CommandHandlerDeps } from '@/server/channels/messages/service/commands';
 import type { ModelRoutingConfig } from '@/server/channels/messages/service/routing/modelRouting';
@@ -63,7 +66,10 @@ export function buildCommandHandlerDeps(
 }
 
 export async function runSubagentOperation(
-  deps: Pick<SubagentToolApprovalDeps, 'subagentManager' | 'toolManager' | 'resolveChatModelRouting' | 'sendResponse'>,
+  deps: Pick<
+    SubagentToolApprovalDeps,
+    'subagentManager' | 'toolManager' | 'resolveChatModelRouting' | 'sendResponse'
+  >,
   params: {
     conversation: Conversation;
     platform: ChannelType;

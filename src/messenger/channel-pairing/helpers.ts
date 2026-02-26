@@ -4,7 +4,9 @@ import type { BridgeTab } from './types';
 export const BRIDGE_TABS: BridgeTab[] = ['whatsapp', 'imessage'];
 export const ACCOUNT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,62}$/;
 
-export function mapBridgeStatusToUiStatus(status: string | null | undefined): CoupledChannel['status'] {
+export function mapBridgeStatusToUiStatus(
+  status: string | null | undefined,
+): CoupledChannel['status'] {
   if (status === 'connected') return 'connected';
   if (status === 'awaiting_code') return 'awaiting_code';
   if (status === 'pairing') return 'pairing';
@@ -14,4 +16,3 @@ export function mapBridgeStatusToUiStatus(status: string | null | undefined): Co
 export function normalizeAccountId(input: string): string {
   return input.trim().toLowerCase();
 }
-

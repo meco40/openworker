@@ -6,7 +6,10 @@ import {
 } from '@/server/knowledge/retrieval/query/intentDetector';
 
 import { formatProjectGraph } from './formatters';
-import type { KnowledgeRecallProbeInput, RetrievalKnowledgeRepository } from '@/server/knowledge/retrieval/types';
+import type {
+  KnowledgeRecallProbeInput,
+  RetrievalKnowledgeRepository,
+} from '@/server/knowledge/retrieval/types';
 
 export function isRulesIntent(query: string): boolean {
   return /\b(regel|regeln|rule|rules|richtlinie|richtlinien|policy|policies|vorgabe|vorgaben)\b/i.test(

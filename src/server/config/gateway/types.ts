@@ -27,4 +27,3 @@ export class GatewayConfigConflictError extends Error {
 
 export type JsonObject = Record<string, unknown>;
 export type NormalizeMode = 'load' | 'save';
-

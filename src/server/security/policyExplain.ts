@@ -74,4 +74,3 @@ export async function buildEffectivePolicyExplainSnapshot(): Promise<EffectivePo
     },
   };
 }
-

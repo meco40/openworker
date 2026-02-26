@@ -12,4 +12,3 @@ describe('StatsView tabs', () => {
     expect(html).toContain('Logs');
   });
 });
-

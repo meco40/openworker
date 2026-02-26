@@ -1,3 +1,2 @@
 import './registerSessionMethods';
 import './registerSwarmMethods';
-

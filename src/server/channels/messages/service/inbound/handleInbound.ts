@@ -31,7 +31,10 @@ import {
 } from '@/server/channels/messages/service/commands';
 import { handleMemorySave } from '@/server/channels/messages/service/handlers/memoryHandler';
 import { handleInferredShellQuestion } from '@/server/channels/messages/service/handlers/shellInference';
-import { dispatchToAI, runModelToolLoop } from '@/server/channels/messages/service/dispatchers/aiDispatcher';
+import {
+  dispatchToAI,
+  runModelToolLoop,
+} from '@/server/channels/messages/service/dispatchers/aiDispatcher';
 import { isProjectRequiredIntent } from '@/server/channels/messages/service/projectGuard';
 import {
   shouldAllowCodeInResponse,
@@ -388,7 +391,8 @@ export async function handleInboundMessage(
       isAutonomousPersona,
     });
     const explicitExecutionDirective = String(opts?.executionDirective || '').trim();
-    const executionDirective = explicitExecutionDirective || autonomousExecutionDirective || undefined;
+    const executionDirective =
+      explicitExecutionDirective || autonomousExecutionDirective || undefined;
 
     const modelOutcome = await dispatchToAI(
       {
@@ -430,11 +434,17 @@ export async function handleInboundMessage(
       ? `Projekt automatisch erstellt und aktiviert: ${projectCreatedFromClarification}\n\n${normalizedOutput}`
       : normalizedOutput;
 
-    const agentMsg = await deps.sendResponse(effectiveConversation, finalOutput, platform, externalChatId, {
-      ...modelOutcome.metadata,
-      ...(buildIntent ? { executionMode: 'autonomous' } : {}),
-      ...(activeWorkspaceCwd ? { workspaceCwd: activeWorkspaceCwd } : {}),
-    });
+    const agentMsg = await deps.sendResponse(
+      effectiveConversation,
+      finalOutput,
+      platform,
+      externalChatId,
+      {
+        ...modelOutcome.metadata,
+        ...(buildIntent ? { executionMode: 'autonomous' } : {}),
+        ...(activeWorkspaceCwd ? { workspaceCwd: activeWorkspaceCwd } : {}),
+      },
+    );
 
     return { userMsg, agentMsg };
   } finally {

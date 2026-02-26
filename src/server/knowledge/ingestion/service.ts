@@ -98,7 +98,12 @@ export class KnowledgeIngestionService {
   }
 }
 
-export type { IngestionWindow, KnowledgeIngestionCursor, KnowledgeExtractor, ExtractionPersonaContext };
+export type {
+  IngestionWindow,
+  KnowledgeIngestionCursor,
+  KnowledgeExtractor,
+  ExtractionPersonaContext,
+};
 export type {
   IngestionCursorLike,
   KnowledgeExtractorLike,

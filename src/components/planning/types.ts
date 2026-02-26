@@ -42,4 +42,3 @@ export interface PlanningTabProps {
   taskId: string;
   onSpecLocked?: () => void;
 }
-

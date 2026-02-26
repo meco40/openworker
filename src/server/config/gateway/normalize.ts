@@ -83,9 +83,14 @@ function normalizeUiConfig(
   if (ui.defaultView !== undefined) {
     const rawDefaultView = typeof ui.defaultView === 'string' ? ui.defaultView.trim() : '';
     if (!rawDefaultView) {
-      if (mode === 'save') throw new GatewayConfigValidationError('ui.defaultView must be a non-empty string.');
+      if (mode === 'save')
+        throw new GatewayConfigValidationError('ui.defaultView must be a non-empty string.');
       ui.defaultView = 'dashboard';
-      withWarning(warnings, 'ui.defaultView.defaulted_from_invalid', 'ui.defaultView was invalid. Defaulted to dashboard.');
+      withWarning(
+        warnings,
+        'ui.defaultView.defaulted_from_invalid',
+        'ui.defaultView was invalid. Defaulted to dashboard.',
+      );
     } else if (!isAllowedUiDefaultView(rawDefaultView)) {
       if (mode === 'save') {
         throw new GatewayConfigValidationError(
@@ -106,7 +111,8 @@ function normalizeUiConfig(
   if (ui.density !== undefined) {
     const density = typeof ui.density === 'string' ? ui.density.trim() : '';
     if (!density || !isAllowedUiDensity(density)) {
-      if (mode === 'save') throw new GatewayConfigValidationError('ui.density must be one of: comfortable, compact.');
+      if (mode === 'save')
+        throw new GatewayConfigValidationError('ui.density must be one of: comfortable, compact.');
       ui.density = 'comfortable';
       withWarning(
         warnings,
@@ -120,9 +126,14 @@ function normalizeUiConfig(
 
   if (ui.language !== undefined) {
     if (typeof ui.language !== 'string' || ui.language.trim().length === 0) {
-      if (mode === 'save') throw new GatewayConfigValidationError('ui.language must be a non-empty string.');
+      if (mode === 'save')
+        throw new GatewayConfigValidationError('ui.language must be a non-empty string.');
       ui.language = 'de-DE';
-      withWarning(warnings, 'ui.language.defaulted_from_invalid', 'ui.language was invalid. Defaulted to de-DE.');
+      withWarning(
+        warnings,
+        'ui.language.defaulted_from_invalid',
+        'ui.language was invalid. Defaulted to de-DE.',
+      );
     } else {
       ui.language = ui.language.trim();
     }
@@ -131,16 +142,22 @@ function normalizeUiConfig(
   if (ui.timeFormat !== undefined) {
     const timeFormat = typeof ui.timeFormat === 'string' ? ui.timeFormat.trim() : '';
     if (!timeFormat || !isAllowedUiTimeFormat(timeFormat)) {
-      if (mode === 'save') throw new GatewayConfigValidationError('ui.timeFormat must be one of: 12h, 24h.');
+      if (mode === 'save')
+        throw new GatewayConfigValidationError('ui.timeFormat must be one of: 12h, 24h.');
       ui.timeFormat = '24h';
-      withWarning(warnings, 'ui.timeFormat.defaulted_from_invalid', 'ui.timeFormat was invalid. Defaulted to 24h.');
+      withWarning(
+        warnings,
+        'ui.timeFormat.defaulted_from_invalid',
+        'ui.timeFormat was invalid. Defaulted to 24h.',
+      );
     } else {
       ui.timeFormat = timeFormat;
     }
   }
 
   if (ui.showAdvancedDebug !== undefined && typeof ui.showAdvancedDebug !== 'boolean') {
-    if (mode === 'save') throw new GatewayConfigValidationError('ui.showAdvancedDebug must be a boolean.');
+    if (mode === 'save')
+      throw new GatewayConfigValidationError('ui.showAdvancedDebug must be a boolean.');
     ui.showAdvancedDebug = false;
     withWarning(
       warnings,
@@ -170,11 +187,19 @@ export function normalizeGatewayConfig(
 
   if (host && !bind) {
     bind = normalizeBindFromHost(host);
-    withWarning(warnings, 'gateway.bind.derived_from_host', `gateway.bind was missing. Derived from gateway.host (${host}) => ${bind}.`);
+    withWarning(
+      warnings,
+      'gateway.bind.derived_from_host',
+      `gateway.bind was missing. Derived from gateway.host (${host}) => ${bind}.`,
+    );
   }
   if (!host && bind) {
     host = normalizeHostFromBind(bind);
-    withWarning(warnings, 'gateway.host.derived_from_bind', `gateway.host was missing. Derived from gateway.bind (${bind}) => ${host}.`);
+    withWarning(
+      warnings,
+      'gateway.host.derived_from_bind',
+      `gateway.host was missing. Derived from gateway.bind (${bind}) => ${host}.`,
+    );
   }
   if (!host && !bind) {
     host = '127.0.0.1';
@@ -192,7 +217,11 @@ export function normalizeGatewayConfig(
   const logLevel =
     typeof logLevelRaw === 'string' && logLevelRaw.trim().length > 0 ? logLevelRaw.trim() : 'info';
   if (logLevelRaw === undefined) {
-    withWarning(warnings, 'gateway.logLevel.defaulted', 'gateway.logLevel was missing. Defaulted to info.');
+    withWarning(
+      warnings,
+      'gateway.logLevel.defaulted',
+      'gateway.logLevel was missing. Defaulted to info.',
+    );
   }
   if (!new Set(['debug', 'info', 'warn', 'error']).has(logLevel)) {
     throw new GatewayConfigValidationError(
@@ -210,13 +239,21 @@ export function normalizeGatewayConfig(
 
   if (root.channels !== undefined) {
     const channels = ensureObject(root.channels, 'channels');
-    if (channels.webchat !== undefined) ensureBoolean(ensureObject(channels.webchat, 'channels.webchat').enabled, 'channels.webchat.enabled');
+    if (channels.webchat !== undefined)
+      ensureBoolean(
+        ensureObject(channels.webchat, 'channels.webchat').enabled,
+        'channels.webchat.enabled',
+      );
     if (channels.telegram !== undefined) {
       const telegram = ensureObject(channels.telegram, 'channels.telegram');
       ensureBoolean(telegram.enabled, 'channels.telegram.enabled');
       ensureOptionalString(telegram.token, 'channels.telegram.token');
     }
-    if (channels.slack !== undefined) ensureBoolean(ensureObject(channels.slack, 'channels.slack').enabled, 'channels.slack.enabled');
+    if (channels.slack !== undefined)
+      ensureBoolean(
+        ensureObject(channels.slack, 'channels.slack').enabled,
+        'channels.slack.enabled',
+      );
   }
 
   if (root.tools !== undefined) {
@@ -243,9 +280,9 @@ export function normalizeGatewayConfig(
   if (gateway.tailscale !== undefined) {
     const tailscale = ensureObject(gateway.tailscale, 'gateway.tailscale');
     ensureString(tailscale.mode, 'gateway.tailscale.mode');
-    if (tailscale.resetOnExit !== undefined) ensureBoolean(tailscale.resetOnExit, 'gateway.tailscale.resetOnExit');
+    if (tailscale.resetOnExit !== undefined)
+      ensureBoolean(tailscale.resetOnExit, 'gateway.tailscale.resetOnExit');
   }
 
   return { config: root as GatewayConfig, warnings };
 }
-

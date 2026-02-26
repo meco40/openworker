@@ -144,9 +144,13 @@ registerMethod(
     }
     const rawLimit = Number(params.limit);
     const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.floor(rawLimit)) : undefined;
-    const events = manager.replaySessionEvents({ sessionId, userId: client.userId, fromSeq, limit });
+    const events = manager.replaySessionEvents({
+      sessionId,
+      userId: client.userId,
+      fromSeq,
+      limit,
+    });
     respond({ events, nextSeq: events.length > 0 ? events[events.length - 1].seq : fromSeq });
   },
   'v2',
 );
-

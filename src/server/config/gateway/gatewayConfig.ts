@@ -2,10 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { openSqliteDatabase } from '@/server/db/sqlite';
-import {
-  GATEWAY_CONFIG_DB_ROW_ID,
-  GATEWAY_CONFIG_DB_TABLE_SQL,
-} from './constants';
+import { GATEWAY_CONFIG_DB_ROW_ID, GATEWAY_CONFIG_DB_TABLE_SQL } from './constants';
 import { cloneDefaultConfig, normalizeGatewayConfig } from './normalize';
 import {
   resolveGatewayConfigBackend,
@@ -216,10 +213,4 @@ export {
   redactGatewayConfigSecrets,
   toGatewayConfigDisplayPath,
 };
-export type {
-  GatewayConfig,
-  GatewayConfigSource,
-  GatewayConfigState,
-  GatewayConfigWarning,
-};
-
+export type { GatewayConfig, GatewayConfigSource, GatewayConfigState, GatewayConfigWarning };

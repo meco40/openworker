@@ -211,4 +211,3 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
     expect(result.errors).toHaveLength(0);
   });
 });
-

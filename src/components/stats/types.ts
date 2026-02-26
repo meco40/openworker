@@ -45,4 +45,3 @@ export interface StatsResponse {
 
 export type Preset = 'today' | 'week' | 'month' | 'custom';
 export type StatsTab = 'overview' | 'logs' | 'sessions';
-

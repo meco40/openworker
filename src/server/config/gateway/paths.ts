@@ -66,4 +66,3 @@ export function resolveGatewayConfigDbPath(): string {
   }
   return path.resolve('.local/gateway-config.db');
 }
-

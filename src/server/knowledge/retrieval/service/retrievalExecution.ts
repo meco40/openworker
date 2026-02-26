@@ -50,7 +50,9 @@ export async function executeKnowledgeRetrieval({
       plan.resolvedEntityName = entityMatch.entity.canonicalName;
       const aliasNames = [entityMatch.entity.canonicalName];
       if (options.knowledgeRepository.getEntityWithRelations) {
-        const { aliases } = options.knowledgeRepository.getEntityWithRelations(entityMatch.entity.id);
+        const { aliases } = options.knowledgeRepository.getEntityWithRelations(
+          entityMatch.entity.id,
+        );
         for (const a of aliases) {
           aliasNames.push(a.alias);
         }
@@ -119,8 +121,12 @@ export async function executeKnowledgeRetrieval({
       ]);
       const mentionedCounterpart = detectMentionedCounterpart(input.query, counterpartCandidates);
       if (mentionedCounterpart) {
-        ledgerRows = ledgerRows.filter((row) => isCounterpartMatch(row.counterpart, mentionedCounterpart));
-        episodes = episodes.filter((row) => isCounterpartMatch(row.counterpart, mentionedCounterpart));
+        ledgerRows = ledgerRows.filter((row) =>
+          isCounterpartMatch(row.counterpart, mentionedCounterpart),
+        );
+        episodes = episodes.filter((row) =>
+          isCounterpartMatch(row.counterpart, mentionedCounterpart),
+        );
       }
     }
 

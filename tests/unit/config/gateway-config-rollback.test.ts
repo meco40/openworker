@@ -33,7 +33,8 @@ describe('gateway config rollback safety', () => {
     fsMock.rename.mockRejectedValueOnce(new Error('rename failed'));
     fsMock.rm.mockImplementation(async () => {});
 
-    const { loadGatewayConfig, saveGatewayConfig } = await import('@/server/config/gateway/gatewayConfig');
+    const { loadGatewayConfig, saveGatewayConfig } =
+      await import('@/server/config/gateway/gatewayConfig');
     const loaded = await loadGatewayConfig();
 
     await expect(
@@ -50,4 +51,3 @@ describe('gateway config rollback safety', () => {
     delete process.env.OPENCLAW_CONFIG_BACKEND;
   });
 });
-

@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ACCOUNT_ID_PATTERN, BRIDGE_TABS, mapBridgeStatusToUiStatus, normalizeAccountId } from './helpers';
+import {
+  ACCOUNT_ID_PATTERN,
+  BRIDGE_TABS,
+  mapBridgeStatusToUiStatus,
+  normalizeAccountId,
+} from './helpers';
 import type {
   ActiveTab,
   BridgeAccount,
@@ -194,7 +199,9 @@ export function useChannelPairingController({
         }
       } else {
         const suffix = payload.accountId ? ` [${payload.accountId}]` : '';
-        addLog(`Success! ${activeTab.toUpperCase()} bridge established${suffix} (${payload.peerName}).`);
+        addLog(
+          `Success! ${activeTab.toUpperCase()} bridge established${suffix} (${payload.peerName}).`,
+        );
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';

@@ -13,6 +13,7 @@
 ### Task 1: Snapshot backups before edits
 
 **Files:**
+
 - Create: `backups/modularization-wave3-<timestamp>/...` (6 mirrored files)
 
 1. Copy each target file into backup folder with original relative path.
@@ -21,6 +22,7 @@
 ### Task 2: Extract server modules
 
 **Files:**
+
 - Create: `src/server/knowledge/ingestion/service.ts`
 - Modify: `src/server/knowledge/ingestionService.ts`
 - Create: `src/server/gateway/methods/agent-v2/registerMethods.ts`
@@ -35,6 +37,7 @@
 ### Task 3: Extract frontend modules
 
 **Files:**
+
 - Create: `src/components/planning/PlanningTab.tsx`
 - Modify: `src/components/PlanningTab.tsx`
 - Create: `src/components/stats/StatsView.tsx`
@@ -49,6 +52,7 @@
 ### Task 4: Verification
 
 **Files:**
+
 - Update if needed: `.agent/CONTINUITY.md`
 
 1. Run `npm run typecheck`.

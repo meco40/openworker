@@ -401,4 +401,3 @@ describe('KnowledgeIngestionService', () => {
     expect(upsertCheckpoint).not.toHaveBeenCalled();
   });
 });
-

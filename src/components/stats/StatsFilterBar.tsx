@@ -29,7 +29,9 @@ const StatsFilterBar: React.FC<StatsFilterBarProps> = ({
 }) => (
   <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
     <div className="flex flex-wrap items-center space-x-2 gap-y-2">
-      <span className="mr-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">Filter</span>
+      <span className="mr-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+        Filter
+      </span>
       {(['today', 'week', 'month'] as const).map((presetOption) => (
         <button
           key={presetOption}
