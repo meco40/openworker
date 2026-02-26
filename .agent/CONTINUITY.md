@@ -17,6 +17,8 @@
 - 2026-02-26T09:38:31+01:00 [USER] Requested end-to-end cleanup: fix all errors/warnings, commit+push, and verify GitHub Actions.
 - 2026-02-26T09:38:31+01:00 [CODE] Resolved TS/lint warnings in new Agent Room tests/hooks; committed+pushed `d5886b4` to `main`.
 - 2026-02-26T09:38:31+01:00 [CODE] Patched CI workflows (`ci.yml`, `e2e-browser.yml`) to run `npm run build` before E2E steps; updated E2E WS helper/test for persona-mismatch stream error handling.
+- 2026-02-26T10:05:51+01:00 [CODE] Hardened `tests/unit/model-hub/service-reasoning-effort.test.ts`: switched gateway mock to alias import path, used valid 32-byte encryption key, and replaced dummy encrypted payload with `encryptSecret(...)`.
+- 2026-02-26T10:05:51+01:00 [CODE] Stabilized `tests/e2e/browser/chat-queue-and-persona.spec.ts` by waiting for active generation (`Generation abbrechen`) before queuing second message and asserting queued item count via polling.
 
 [DISCOVERIES]
 
@@ -28,6 +30,8 @@
 - 2026-02-26T09:38:31+01:00 [TOOL] CI run `22433410949` failed at e2e smoke because `.next` was missing in workflow; browser run `22433410955` failed for same reason before Playwright tests could proceed.
 - 2026-02-26T09:38:31+01:00 [TOOL] Root cause for `ws-persona-stickiness` timeout: second `chat.stream` returns `res` error (`personaId mismatch`) and stream helper ignored non-stream frames, causing hang until test timeout.
 - 2026-02-26T09:38:31+01:00 [TOOL] Current local verification: `npm run check` PASS, `npm run test:e2e:smoke` PASS (7 files/8 tests), `npm run test:e2e:browser` PASS (2 tests), `npm run build` PASS.
+- 2026-02-26T10:05:51+01:00 [TOOL] CI unit failure in `service-reasoning-effort` came from test setup drift: key `'encryption-key'` violated crypto key requirements (32 UTF-8 bytes / 64 hex), causing decrypt path to throw before assertion.
+- 2026-02-26T10:05:51+01:00 [TOOL] Browser E2E queue assertion was timing-sensitive when second send happened before stable generating state; gating on abort-button visibility removed that race locally.
 
 [OUTCOMES]
 
@@ -36,3 +40,4 @@
 - 2026-02-26T07:19:33+01:00 [CODE] Repository state is ready for commit/push with no remaining lint warnings or check failures.
 - 2026-02-26T07:23:40+01:00 [CODE] Workflow file updated to a validation-safe pattern; local `npm run check` remains green after the CI config change.
 - 2026-02-26T09:38:31+01:00 [CODE] One push to `main` is completed (`d5886b4`); follow-up workflow/test hardening changes are prepared locally and pending commit/push.
+- 2026-02-26T10:05:51+01:00 [TOOL] Verification after latest fixes: `npm run check` PASS, `npm run test -- tests/unit/model-hub/service-reasoning-effort.test.ts` PASS, `npm run test:e2e:browser -- tests/e2e/browser/chat-queue-and-persona.spec.ts` PASS.

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ModelHubRepository } from '@/server/model-hub/repository';
+import { encryptSecret } from '@/server/model-hub/crypto';
 
-vi.mock('../../../src/server/model-hub/gateway', () => ({
+vi.mock('@/server/model-hub/gateway', () => ({
   dispatchGatewayRequest: vi.fn(async () => ({
     ok: true,
     text: 'ok',
@@ -32,6 +33,7 @@ describe('ModelHubService reasoning effort dispatch', () => {
   it('maps xhigh pipeline reasoning effort to high for provider request payload', async () => {
     const { dispatchGatewayRequest } = await import('@/server/model-hub/gateway');
     const dispatchMock = vi.mocked(dispatchGatewayRequest);
+    const encryptionKey = '0123456789abcdef0123456789abcdef';
 
     const now = new Date().toISOString();
     const account = {
@@ -45,7 +47,7 @@ describe('ModelHubService reasoning effort dispatch', () => {
       updatedAt: now,
       lastCheckAt: null,
       lastCheckOk: null,
-      encryptedSecret: { iv: 'iv', ciphertext: 'cipher', tag: 'tag' },
+      encryptedSecret: encryptSecret('access-token', encryptionKey),
       encryptedRefreshToken: null,
     };
 
@@ -70,7 +72,7 @@ describe('ModelHubService reasoning effort dispatch', () => {
     const { ModelHubService } = await import('@/server/model-hub/service');
     const service = new ModelHubService(repo);
 
-    const result = await service.dispatchWithFallback('p1', 'encryption-key', {
+    const result = await service.dispatchWithFallback('p1', encryptionKey, {
       messages: [{ role: 'user', content: 'hello' }],
     });
 
