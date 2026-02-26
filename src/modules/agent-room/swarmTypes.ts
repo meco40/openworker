@@ -1,19 +1,14 @@
 import { SWARM_PHASES, type SwarmPhase } from '@/modules/agent-room/swarmPhases';
 
-export type SwarmStatus = 'idle' | 'running' | 'hold' | 'completed' | 'aborted' | 'error';
-
-export interface SwarmUnit {
-  personaId: string;
-  role: string;
-}
-
-export interface SwarmFriction {
-  level: 'low' | 'medium' | 'high';
-  confidence: number;
-  hold: boolean;
-  reasons: string[];
-  updatedAt: string;
-}
+// Re-export canonical types from shared
+export type {
+  SwarmStatus,
+  SwarmUnit,
+  SwarmFriction,
+  SwarmVote,
+  TurnVote,
+} from '@/shared/domain/agentRoom.types';
+import type { SwarmStatus, SwarmUnit, SwarmFriction } from '@/shared/domain/agentRoom.types';
 
 export interface SwarmRecord {
   id: string;

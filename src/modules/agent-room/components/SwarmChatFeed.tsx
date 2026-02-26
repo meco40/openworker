@@ -7,12 +7,17 @@
  * operator messages, and a pulsing "thinking" indicator while streaming.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { SwarmMessage } from '@/modules/agent-room/hooks/useSwarmMessages';
+import { InlineMarkdown } from './InlineMarkdown';
+
+export type VoteDirection = 'up' | 'down';
 
 interface SwarmChatFeedProps {
   messages: SwarmMessage[];
   className?: string;
+  /** Called when user votes on a turn. Undefined disables voting UI. */
+  onVote?: (messageId: string, personaName: string, direction: VoteDirection) => void;
 }
 
 /** Deterministic pastel colour per persona ID */
@@ -69,8 +74,22 @@ function stripDirectives(text: string): string {
     .trim();
 }
 
-function AgentBubble({ message }: { message: SwarmMessage }) {
+function AgentBubble({
+  message,
+  onVote,
+}: {
+  message: SwarmMessage;
+  onVote?: (messageId: string, personaName: string, direction: VoteDirection) => void;
+}) {
   const color = personaColor(message.personaId);
+  const [voted, setVoted] = useState<VoteDirection | null>(null);
+
+  function handleVote(dir: VoteDirection) {
+    if (voted === dir) return; // already voted same direction
+    setVoted(dir);
+    onVote?.(message.id, message.personaName, dir);
+  }
+
   return (
     <div className="group flex items-start gap-2.5 rounded px-3 py-1.5 hover:bg-(--hover)">
       {/* Avatar */}
@@ -95,10 +114,51 @@ function AgentBubble({ message }: { message: SwarmMessage }) {
             })}
           </span>
         </div>
-        <p className="mt-0.5 text-sm leading-relaxed wrap-break-word whitespace-pre-wrap text-(--foreground)">
-          {stripDirectives(message.content) || ' '}
+        <InlineMarkdown
+          text={stripDirectives(message.content) || ' '}
+          className="mt-0.5 text-(--foreground)"
+        >
           {message.isStreaming && <ThinkingDots />}
-        </p>
+        </InlineMarkdown>
+
+        {/* Vote buttons — visible on hover or after voting */}
+        {onVote && !message.isStreaming && (
+          <div
+            className={`mt-1 flex items-center gap-1 transition-opacity ${
+              voted ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => handleVote('up')}
+              className={`rounded px-1.5 py-0.5 text-[11px] transition-colors ${
+                voted === 'up'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-zinc-500 hover:bg-zinc-800 hover:text-emerald-400'
+              }`}
+              title="Upvote this contribution"
+            >
+              👍
+            </button>
+            <button
+              type="button"
+              onClick={() => handleVote('down')}
+              className={`rounded px-1.5 py-0.5 text-[11px] transition-colors ${
+                voted === 'down'
+                  ? 'bg-rose-500/20 text-rose-400'
+                  : 'text-zinc-500 hover:bg-zinc-800 hover:text-rose-400'
+              }`}
+              title="Downvote this contribution"
+            >
+              👎
+            </button>
+            {voted && (
+              <span className="ml-1 text-[10px] text-zinc-500">
+                {voted === 'up' ? 'Upvoted' : 'Downvoted'}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -120,15 +180,13 @@ function OperatorBubble({ message }: { message: SwarmMessage }) {
             })}
           </span>
         </div>
-        <p className="mt-0.5 text-sm leading-relaxed wrap-break-word whitespace-pre-wrap text-(--foreground)">
-          {message.content}
-        </p>
+        <InlineMarkdown text={message.content} className="mt-0.5 text-(--foreground)" />
       </div>
     </div>
   );
 }
 
-export function SwarmChatFeed({ messages, className = '' }: SwarmChatFeedProps) {
+export function SwarmChatFeed({ messages, className = '', onVote }: SwarmChatFeedProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -167,7 +225,7 @@ export function SwarmChatFeed({ messages, className = '' }: SwarmChatFeedProps) 
         if (msg.kind === 'operator') {
           return <OperatorBubble key={msg.id} message={msg} />;
         }
-        return <AgentBubble key={msg.id} message={msg} />;
+        return <AgentBubble key={msg.id} message={msg} onVote={onVote} />;
       })}
       <div ref={bottomRef} />
     </div>

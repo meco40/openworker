@@ -10,6 +10,7 @@
  */
 
 import { runOrchestratorOnce } from '@/server/agent-room/orchestrator';
+import { getMessageRepository } from '@/server/channels/messages/runtime';
 
 const DEFAULT_TICK_MS = 5_000;
 
@@ -29,6 +30,17 @@ class SwarmOrchestratorRuntime {
 
   start(): void {
     if (this.timer) return;
+
+    // Recover any swarms that were running before server restart
+    try {
+      const repo = getMessageRepository();
+      const recovered = repo.recoverRunningSwarms();
+      if (recovered > 0) {
+        console.log(`[swarm-runtime] recovered ${recovered} running swarm(s) → hold`);
+      }
+    } catch (err) {
+      console.error('[swarm-runtime] recovery failed:', err);
+    }
 
     // Run immediately on start
     void this.tick();

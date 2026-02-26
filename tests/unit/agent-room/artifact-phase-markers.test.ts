@@ -193,7 +193,7 @@ describe('artifact phase markers', () => {
 
   describe('countStructuredTurns is not affected by phase markers', () => {
     it('does not count phase markers as turns', async () => {
-      const { countStructuredTurns } = await import('@/server/agent-room/simpleLoop');
+      const { countStructuredTurns } = await import('@/server/agent-room/prompt');
       const artifact = [
         '--- Analysis ---',
         '',

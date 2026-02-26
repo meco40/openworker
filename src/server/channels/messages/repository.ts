@@ -236,6 +236,7 @@ export interface MessageRepository {
   }): AgentRoomSwarmRecord;
   listAgentRoomSwarms?(userId: string, limit?: number): AgentRoomSwarmRecord[];
   listRunningSwarms?(limit?: number): AgentRoomSwarmRecord[];
+  recoverRunningSwarms?(): number;
   getAgentRoomSwarm?(id: string, userId: string): AgentRoomSwarmRecord | null;
   isAgentRoomConversation?(conversationId: string, userId?: string): boolean;
   updateAgentRoomSwarm?(

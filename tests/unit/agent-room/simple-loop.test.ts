@@ -12,7 +12,7 @@ import {
   shouldCompleteSwarmAfterTurnWithTurnCount,
   stripLeadingSpeakerPrefix,
   stripTrailingOtherSpeakerTurns,
-} from '@/server/agent-room/simpleLoop';
+} from '@/server/agent-room/prompt';
 import type { SwarmPhase } from '@/modules/agent-room/swarmPhases';
 
 describe('agent room simple loop', () => {

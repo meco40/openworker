@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import type { SwarmRecord, SwarmStatus } from '@/modules/agent-room/swarmTypes';
 import { getSwarmPhaseLabel } from '@/modules/agent-room/swarmPhases';
 
@@ -18,6 +19,9 @@ interface SwarmSidebarProps {
   onForceComplete: (swarmId: string) => void;
   onDelete: (swarmId: string) => void;
   onExport: (swarmId: string) => void;
+  onExportMarkdown?: (swarmId: string) => void;
+  onFork?: (swarmId: string) => void;
+  onChain?: (swarmId: string) => void;
 }
 
 function StatusDot({ status }: { status: SwarmStatus }) {
@@ -49,7 +53,19 @@ export function SwarmSidebar({
   onForceComplete,
   onDelete,
   onExport,
+  onExportMarkdown,
+  onFork,
+  onChain,
 }: SwarmSidebarProps) {
+  const [confirmAction, setConfirmAction] = React.useState<'delete' | 'abort' | null>(null);
+
+  const handleConfirmedAction = React.useCallback(() => {
+    if (!selectedSwarm) return;
+    if (confirmAction === 'delete') onDelete(selectedSwarm.id);
+    if (confirmAction === 'abort') onAbort(selectedSwarm.id);
+    setConfirmAction(null);
+  }, [confirmAction, selectedSwarm, onDelete, onAbort]);
+
   return (
     <aside className="flex w-60 shrink-0 flex-col rounded-xl border border-zinc-800 bg-[#060d20] p-3">
       <div className="mb-2 flex items-center justify-between">
@@ -86,6 +102,17 @@ export function SwarmSidebar({
               </div>
               <div className="mt-0.5 truncate text-[10px] text-zinc-500">
                 {swarm.status.toUpperCase()} · {getSwarmPhaseLabel(swarm.currentPhase)}
+              </div>
+              <div className="mt-0.5 flex gap-2 text-[9px] text-zinc-600">
+                <span>{swarm.units.length} agents</span>
+                <span>·</span>
+                <span>{swarm.lastSeq} turns</span>
+                {swarm.consensusScore > 0 && (
+                  <>
+                    <span>·</span>
+                    <span>{swarm.consensusScore}%</span>
+                  </>
+                )}
               </div>
             </button>
           );
@@ -126,7 +153,7 @@ export function SwarmSidebar({
               Skip Phase
             </button>
             <button
-              onClick={() => onAbort(selectedSwarm.id)}
+              onClick={() => setConfirmAction('abort')}
               className="rounded border border-amber-500/40 px-2 py-1 text-[10px] text-amber-300 hover:bg-amber-500/10 disabled:opacity-50"
             >
               Abort
@@ -141,16 +168,64 @@ export function SwarmSidebar({
               onClick={() => onExport(selectedSwarm.id)}
               className="rounded border border-zinc-700 px-2 py-1 text-[10px] text-zinc-300 hover:bg-zinc-800"
             >
-              Export
+              JSON
             </button>
+            {onExportMarkdown && (
+              <button
+                onClick={() => onExportMarkdown(selectedSwarm.id)}
+                className="rounded border border-zinc-700 px-2 py-1 text-[10px] text-zinc-300 hover:bg-zinc-800"
+              >
+                MD
+              </button>
+            )}
+            {onFork && (
+              <button
+                onClick={() => onFork(selectedSwarm.id)}
+                className="rounded border border-teal-500/40 px-2 py-1 text-[10px] text-teal-300 hover:bg-teal-500/10"
+                title="Fork this swarm to explore an alternative path"
+              >
+                Fork
+              </button>
+            )}
+            {onChain && selectedSwarm.status === 'completed' && (
+              <button
+                onClick={() => onChain(selectedSwarm.id)}
+                className="rounded border border-indigo-500/40 px-2 py-1 text-[10px] text-indigo-300 hover:bg-indigo-500/10"
+                title="Chain a new swarm from this swarm's output"
+              >
+                Chain
+              </button>
+            )}
           </div>
 
           <button
-            onClick={() => onDelete(selectedSwarm.id)}
+            onClick={() => setConfirmAction('delete')}
             className="w-full rounded border border-rose-500/30 px-2 py-1 text-[10px] text-rose-400 transition-colors hover:bg-rose-500/10"
           >
             Delete Swarm
           </button>
+
+          {confirmAction && (
+            <div className="mt-1.5 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-center">
+              <p className="mb-1.5 text-[10px] text-amber-200">
+                {confirmAction === 'delete' ? 'Delete this swarm?' : 'Abort this swarm?'}
+              </p>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={handleConfirmedAction}
+                  className="flex-1 rounded border border-rose-500/50 bg-rose-500/20 px-2 py-1 text-[10px] font-semibold text-rose-200 hover:bg-rose-500/30"
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={() => setConfirmAction(null)}
+                  className="flex-1 rounded border border-zinc-700 px-2 py-1 text-[10px] text-zinc-300 hover:bg-zinc-800"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {error && <p className="mt-1 text-center text-[10px] text-rose-400">{error}</p>}
         </div>

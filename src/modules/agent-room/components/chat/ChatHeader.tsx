@@ -3,6 +3,7 @@
 import {
   SWARM_PHASES,
   getSwarmPhaseLabel,
+  getPhaseRounds,
   type SwarmPhase,
 } from '@/modules/agent-room/swarmPhases';
 import type { SwarmRecord } from '@/modules/agent-room/swarmTypes';
@@ -52,6 +53,12 @@ export function ChatHeader({ swarm, onToggleCanvas, canvasOpen }: ChatHeaderProp
           <span className="ml-1 text-[10px] text-zinc-500">
             {getSwarmPhaseLabel(swarm.currentPhase as SwarmPhase)}
           </span>
+          {swarm.status === 'running' && (
+            <span className="ml-2 text-[10px] text-cyan-400/70 tabular-nums">
+              Turn {swarm.lastSeq} ·{' '}
+              {getPhaseRounds(swarm.currentPhase as SwarmPhase) * swarm.units.length} per phase
+            </span>
+          )}
         </div>
       </div>
       <button

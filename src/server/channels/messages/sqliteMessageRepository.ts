@@ -335,6 +335,10 @@ export class SqliteMessageRepository implements MessageRepository {
     return this.agentRoomQueries.listRunningSwarms(limit);
   }
 
+  recoverRunningSwarms(): number {
+    return this.agentRoomQueries.recoverRunningSwarms();
+  }
+
   getAgentRoomSwarm(id: string, userId: string) {
     return this.agentRoomQueries.getAgentRoomSwarm(id, userId);
   }

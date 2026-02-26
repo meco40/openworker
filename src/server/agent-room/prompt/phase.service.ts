@@ -1,8 +1,4 @@
-import {
-  getNextSwarmPhase,
-  getPhaseRounds,
-  type SwarmPhase,
-} from '@/modules/agent-room/swarmPhases';
+import { getNextSwarmPhase, getPhaseRounds, type SwarmPhase } from '@/shared/domain/swarmPhases';
 import { countTurnsInCurrentPhase } from './text.utils';
 import type { PhaseAdvanceResult } from '@/server/agent-room/types';
 

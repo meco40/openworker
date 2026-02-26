@@ -70,7 +70,7 @@ export default function AgentRoomView() {
       }
       swarmMessages.handleAgentEvent(event);
     };
-  });
+  }, [runtime, swarmMessages, personas]);
 
   // Reset chat feed when selected swarm changes
   const selectedSwarm = runtime.selectedSwarm;
@@ -132,6 +132,21 @@ export default function AgentRoomView() {
     [runtime],
   );
 
+  const handleExportMarkdown = useCallback(
+    (swarmId: string) => {
+      const md = runtime.exportRunMarkdown(swarmId);
+      if (!md) return;
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${runtime.selectedSwarm?.title.replace(/\s+/g, '_').toLowerCase()}-run.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    [runtime],
+  );
+
   if (!runtime.enabled) {
     return (
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
@@ -160,6 +175,16 @@ export default function AgentRoomView() {
         onForceComplete={runtime.forceComplete}
         onDelete={runtime.deleteSwarm}
         onExport={handleExport}
+        onExportMarkdown={handleExportMarkdown}
+        onFork={(swarmId) => void runtime.forkSwarm(swarmId)}
+        onChain={(swarmId) => {
+          const task = window.prompt('Task for the chained swarm:');
+          if (task?.trim()) {
+            void runtime.chainSwarm(swarmId, task.trim()).then((chained) => {
+              if (chained) void runtime.deploySwarm(chained.id);
+            });
+          }
+        }}
       />
 
       <section className="flex min-w-0 flex-1 flex-col rounded-xl border border-zinc-800 bg-[#050b19]">
@@ -190,7 +215,11 @@ export default function AgentRoomView() {
         creating={runtime.deployState === 'deploying'}
         onClose={() => setShowCreateModal(false)}
         onCreate={async (input) => {
-          await runtime.createSwarm(input);
+          const created = await runtime.createSwarm(input);
+          if (created?.id) {
+            await runtime.deploySwarm(created.id);
+          }
+          return created;
         }}
       />
     </div>

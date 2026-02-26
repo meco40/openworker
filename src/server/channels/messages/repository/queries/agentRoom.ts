@@ -393,6 +393,20 @@ export class AgentRoomQueries {
     return rows.map(toRecord);
   }
 
+  /**
+   * Admin recovery — sets all running swarms to 'hold' on server restart.
+   * Returns the number of swarms affected.
+   */
+  recoverRunningSwarms(): number {
+    const now = new Date().toISOString();
+    const result = this.db
+      .prepare(
+        `UPDATE agent_room_swarms SET status = 'hold', hold_flag = 1, updated_at = ? WHERE status = 'running'`,
+      )
+      .run(now);
+    return Number(result.changes || 0);
+  }
+
   deleteAgentRoomSwarm(id: string, userId: string): boolean {
     const normalizedUserId = this.normalizeUserId(userId);
     const result = this.db

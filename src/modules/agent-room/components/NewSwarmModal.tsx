@@ -14,10 +14,15 @@ interface NewSwarmModalProps {
     task: string;
     leadPersonaId: string;
     units: SwarmUnit[];
-    searchEnabled: boolean;
+    searchEnabled?: boolean;
     pauseBetweenPhases: boolean;
     swarmTemplate: string | null;
-  }) => Promise<void>;
+  }) => Promise<{ id: string } | null | void>;
+}
+
+interface SuggestedRole {
+  role: string;
+  description: string;
 }
 
 const SWARM_TEMPLATES: Array<{
@@ -26,6 +31,7 @@ const SWARM_TEMPLATES: Array<{
   icon: string;
   title: string;
   task: string;
+  suggestedRoles: SuggestedRole[];
 }> = [
   {
     id: 'product_discovery',
@@ -33,6 +39,12 @@ const SWARM_TEMPLATES: Array<{
     icon: '🔍',
     title: 'Product Discovery Sprint',
     task: 'Conduct a comprehensive product discovery session. Define the problem space, identify user pain points, map the competitive landscape, and propose 3 prioritised solution directions with success metrics.',
+    suggestedRoles: [
+      { role: 'lead', description: 'Facilitates the discovery session and synthesises findings' },
+      { role: 'user-researcher', description: 'Identifies pain points and user needs' },
+      { role: 'market-analyst', description: 'Maps the competitive landscape' },
+      { role: 'strategist', description: 'Proposes solution directions and metrics' },
+    ],
   },
   {
     id: 'code_review',
@@ -40,6 +52,12 @@ const SWARM_TEMPLATES: Array<{
     icon: '🔧',
     title: 'In-Depth Code Review',
     task: 'Perform a thorough architectural and code quality review. Identify security vulnerabilities, performance bottlenecks, test coverage gaps, and maintainability issues. Produce a prioritised remediation plan.',
+    suggestedRoles: [
+      { role: 'lead', description: 'Coordinates the review and produces the remediation plan' },
+      { role: 'security-auditor', description: 'Focuses on vulnerabilities and threat vectors' },
+      { role: 'performance-engineer', description: 'Analyses bottlenecks and resource usage' },
+      { role: 'test-engineer', description: 'Evaluates test coverage and quality' },
+    ],
   },
   {
     id: 'research_deep_dive',
@@ -47,6 +65,11 @@ const SWARM_TEMPLATES: Array<{
     icon: '📚',
     title: 'Research Deep-Dive',
     task: 'Conduct an exhaustive research analysis. Synthesise primary and secondary sources, map the evidence landscape, identify knowledge gaps, and formulate evidence-backed conclusions with confidence ratings.',
+    suggestedRoles: [
+      { role: 'lead', description: 'Directs research scope and synthesises conclusions' },
+      { role: 'domain-expert', description: 'Provides deep subject-matter knowledge' },
+      { role: 'critic', description: 'Challenges assumptions and identifies gaps' },
+    ],
   },
   {
     id: 'risk_analysis',
@@ -54,6 +77,12 @@ const SWARM_TEMPLATES: Array<{
     icon: '⚠️',
     title: 'Risk & Impact Analysis',
     task: 'Perform a structured risk assessment. Categorise risks by likelihood and impact, propose mitigation strategies for each, and output a risk register with recommended controls and contingency triggers.',
+    suggestedRoles: [
+      { role: 'lead', description: 'Structures the risk register and final output' },
+      { role: 'risk-assessor', description: 'Categorises risks by likelihood and impact' },
+      { role: 'mitigation-planner', description: 'Designs controls and contingency triggers' },
+      { role: 'devil-advocate', description: 'Challenges risk ratings and finds blind spots' },
+    ],
   },
   {
     id: 'creative_writing',
@@ -61,6 +90,11 @@ const SWARM_TEMPLATES: Array<{
     icon: '✍️',
     title: 'Creative Writing Project',
     task: 'Collaborate on a creative writing project. Establish tone, voice, narrative arc and character motivations. Draft the opening, develop key scenes, refine prose style, and produce a final cohesive piece.',
+    suggestedRoles: [
+      { role: 'lead', description: 'Establishes vision, narrative arc, and cohesion' },
+      { role: 'storyteller', description: 'Drafts scenes and develops characters' },
+      { role: 'editor', description: 'Refines prose style, voice, and pacing' },
+    ],
   },
 ];
 
@@ -80,7 +114,6 @@ export default function NewSwarmModal({
   const [task, setTask] = useState('');
   const [leadPersonaId, setLeadPersonaId] = useState('');
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([]);
-  const [searchEnabled, setSearchEnabled] = useState(false);
   const [pauseBetweenPhases, setPauseBetweenPhases] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +158,7 @@ export default function NewSwarmModal({
       task: task.trim(),
       leadPersonaId,
       units,
-      searchEnabled,
+      searchEnabled: false,
       pauseBetweenPhases,
       swarmTemplate: selectedTemplate,
     });
@@ -133,7 +166,6 @@ export default function NewSwarmModal({
     setTask('');
     setLeadPersonaId('');
     setSelectedUnitIds([]);
-    setSearchEnabled(false);
     setPauseBetweenPhases(false);
     setSelectedTemplate(null);
     onClose();
@@ -195,6 +227,30 @@ export default function NewSwarmModal({
             ))}
           </div>
         </div>
+
+        {/* Suggested roles for selected template */}
+        {selectedTemplate &&
+          (() => {
+            const tpl = SWARM_TEMPLATES.find((t) => t.id === selectedTemplate);
+            if (!tpl?.suggestedRoles.length) return null;
+            return (
+              <div className="mb-4 rounded border border-cyan-900/40 bg-cyan-950/20 p-3">
+                <div className="mb-1.5 text-[10px] font-semibold text-cyan-400/80 uppercase">
+                  Suggested Roles for {tpl.label}
+                </div>
+                <div className="space-y-1">
+                  {tpl.suggestedRoles.map((sr) => (
+                    <div key={sr.role} className="flex items-baseline gap-2 text-[11px]">
+                      <span className="shrink-0 rounded bg-cyan-500/15 px-1.5 py-0.5 font-mono text-cyan-300">
+                        {sr.role}
+                      </span>
+                      <span className="text-zinc-400">{sr.description}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
         <label className="mb-3 block text-xs font-semibold text-zinc-400 uppercase">
           Title
@@ -283,15 +339,6 @@ export default function NewSwarmModal({
 
         {/* Options toggles */}
         <div className="mb-4 flex flex-wrap gap-4">
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-            <input
-              type="checkbox"
-              checked={searchEnabled}
-              onChange={(e) => setSearchEnabled(e.target.checked)}
-              className="rounded"
-            />
-            <span>🔎 Web Search</span>
-          </label>
           <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
             <input
               type="checkbox"

@@ -474,6 +474,19 @@ registerMethod(
     if (params.pauseBetweenPhases !== undefined) {
       patch.pauseBetweenPhases = Boolean(params.pauseBetweenPhases);
     }
+    // C2: Targeted Agent Steering — set speaker override for next turn
+    const speakerOverride = optionalString(params, 'speakerOverride');
+    if (speakerOverride) {
+      ensurePersonaExists(speakerOverride);
+      const existing = repo.getAgentRoomSwarm?.(id, client.userId);
+      if (existing) {
+        const currentBuffer = existing.phaseBuffer ?? [];
+        patch.phaseBuffer = [
+          ...currentBuffer.filter((e) => e.type !== 'speakerOverride'),
+          { type: 'speakerOverride' as const, personaId: speakerOverride },
+        ];
+      }
+    }
     if (params.lastSeq !== undefined) {
       const lastSeq = Number(params.lastSeq);
       if (!Number.isFinite(lastSeq) || lastSeq < 0) {
@@ -514,6 +527,173 @@ registerMethod(
       { protocol: 'v2' },
     );
     respond({ deleted: true });
+  },
+  'v2',
+);
+
+/**
+ * agent.v2.swarm.fork
+ *
+ * Creates a new swarm as a fork of an existing one.
+ * The fork inherits the parent's artifact, units, and task,
+ * but starts as a fresh idle swarm from the fork point phase.
+ */
+registerMethod(
+  'agent.v2.swarm.fork',
+  async (params: Record<string, unknown>, client: GatewayClient, respond: RespondFn) => {
+    assertAgentRoomEnabled();
+    const repo = getSwarmRepository();
+    const messageService = getMessageService();
+
+    const sourceId = requiredString(params, 'id');
+    const source = repo.getAgentRoomSwarm!(sourceId, client.userId);
+    if (!source) {
+      throw new AgentV2Error('Source swarm not found.', 'NOT_FOUND');
+    }
+
+    const forkTitle =
+      optionalBoundedString(params, 'title', MAX_TITLE_CHARS) ?? `${source.title} (Fork)`;
+
+    // Create a new conversation for the fork
+    const conversation = messageService.getOrCreateConversation(
+      ChannelType.AGENT_ROOM,
+      `agent-room-${crypto.randomUUID()}`,
+      forkTitle,
+      client.userId,
+    );
+    messageService.setPersonaId(conversation.id, source.leadPersonaId, client.userId);
+
+    const forkedSwarm = repo.createAgentRoomSwarm!({
+      conversationId: conversation.id,
+      userId: client.userId,
+      title: forkTitle,
+      task: source.task,
+      leadPersonaId: source.leadPersonaId,
+      units: source.units.map((u) => ({ personaId: u.personaId, role: u.role })),
+      currentPhase: source.currentPhase,
+      status: 'idle',
+      consensusScore: 0,
+      holdFlag: false,
+      artifact: source.artifact,
+      artifactHistory: [...source.artifactHistory],
+      friction: {
+        level: 'low',
+        confidence: 0,
+        hold: false,
+        reasons: [],
+        updatedAt: new Date().toISOString(),
+      },
+      lastSeq: 0,
+      searchEnabled: source.searchEnabled,
+      swarmTemplate: source.swarmTemplate,
+      pauseBetweenPhases: source.pauseBetweenPhases,
+    });
+
+    broadcastToUser(
+      client.userId,
+      GatewayEvents.AGENT_ROOM_SWARM,
+      {
+        swarmId: forkedSwarm.id,
+        status: 'created',
+        swarm: forkedSwarm,
+        updatedAt: forkedSwarm.updatedAt,
+      },
+      { protocol: 'v2' },
+    );
+    respond({ swarm: forkedSwarm, forkedFrom: sourceId });
+  },
+  'v2',
+);
+
+/**
+ * agent.v2.swarm.chain
+ *
+ * Creates a new swarm that continues from a completed swarm's output.
+ * The parent swarm's artifact is injected as context into the new task.
+ * Enables multi-swarm pipelines (Swarm-of-Swarms).
+ */
+registerMethod(
+  'agent.v2.swarm.chain',
+  async (params: Record<string, unknown>, client: GatewayClient, respond: RespondFn) => {
+    assertAgentRoomEnabled();
+    const repo = getSwarmRepository();
+    const messageService = getMessageService();
+
+    const sourceId = requiredString(params, 'sourceSwarmId');
+    const source = repo.getAgentRoomSwarm!(sourceId, client.userId);
+    if (!source) {
+      throw new AgentV2Error('Source swarm not found.', 'NOT_FOUND');
+    }
+
+    const newTask = requiredBoundedString(params, 'task', MAX_TASK_CHARS);
+    const chainTitle =
+      optionalBoundedString(params, 'title', MAX_TITLE_CHARS) ?? `${source.title} → Chain`;
+
+    // Build contextualised task with parent artifact
+    const contextBlock = source.artifact
+      ? `\n\n--- Context from previous swarm "${source.title}" ---\n${source.artifact.slice(0, 8000)}\n--- End context ---\n`
+      : '';
+    const fullTask = `${newTask}${contextBlock}`;
+
+    // Resolve units: use provided or inherit from parent
+    let units: Array<{ personaId: string; role: string }>;
+    let leadPersonaId: string;
+    if (params.units !== undefined) {
+      units = parseUnits(params, 'units');
+      leadPersonaId = requiredString(params, 'leadPersonaId');
+      units.forEach((u) => ensurePersonaExists(u.personaId));
+    } else {
+      units = source.units.map((u) => ({ personaId: u.personaId, role: u.role }));
+      leadPersonaId = source.leadPersonaId;
+    }
+    ensurePersonaExists(leadPersonaId);
+
+    const conversation = messageService.getOrCreateConversation(
+      ChannelType.AGENT_ROOM,
+      `agent-room-${crypto.randomUUID()}`,
+      chainTitle,
+      client.userId,
+    );
+    messageService.setPersonaId(conversation.id, leadPersonaId, client.userId);
+
+    const chainedSwarm = repo.createAgentRoomSwarm!({
+      conversationId: conversation.id,
+      userId: client.userId,
+      title: chainTitle,
+      task: fullTask,
+      leadPersonaId,
+      units,
+      currentPhase: 'analysis',
+      status: 'idle',
+      consensusScore: 0,
+      holdFlag: false,
+      artifact: '',
+      artifactHistory: [],
+      friction: {
+        level: 'low',
+        confidence: 0,
+        hold: false,
+        reasons: [],
+        updatedAt: new Date().toISOString(),
+      },
+      lastSeq: 0,
+      searchEnabled: source.searchEnabled,
+      swarmTemplate: source.swarmTemplate,
+      pauseBetweenPhases: source.pauseBetweenPhases,
+    });
+
+    broadcastToUser(
+      client.userId,
+      GatewayEvents.AGENT_ROOM_SWARM,
+      {
+        swarmId: chainedSwarm.id,
+        status: 'created',
+        swarm: chainedSwarm,
+        updatedAt: chainedSwarm.updatedAt,
+      },
+      { protocol: 'v2' },
+    );
+    respond({ swarm: chainedSwarm, chainedFrom: sourceId });
   },
   'v2',
 );

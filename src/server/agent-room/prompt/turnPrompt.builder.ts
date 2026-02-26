@@ -1,8 +1,4 @@
-import {
-  getSwarmPhaseLabel,
-  getPhaseRounds,
-  type SwarmPhase,
-} from '@/modules/agent-room/swarmPhases';
+import { getSwarmPhaseLabel, getPhaseRounds, type SwarmPhase } from '@/shared/domain/swarmPhases';
 import type { TurnPromptParams } from '@/server/agent-room/types';
 
 function buildPhaseGuidance(phase: SwarmPhase, round: number): string {
@@ -31,13 +27,15 @@ function buildPhaseGuidance(phase: SwarmPhase, round: number): string {
 export function buildSimpleTurnPrompt(params: TurnPromptParams): string {
   const participants = params.units.map((unit) => `- ${unit.name} (${unit.role})`).join('\n');
 
-  const phaseLabel = getSwarmPhaseLabel(params.phase);
+  const phaseLabel = getSwarmPhaseLabel(
+    params.phase as import('@/shared/domain/swarmPhases').SwarmPhase,
+  );
   const roundInfo =
     params.phaseRound && params.phaseRoundsTotal && params.phaseRoundsTotal > 1
       ? ` (Round ${params.phaseRound} of ${params.phaseRoundsTotal})`
       : '';
 
-  const phaseGuidance = buildPhaseGuidance(params.phase, params.phaseRound ?? 1);
+  const phaseGuidance = buildPhaseGuidance(params.phase as SwarmPhase, params.phaseRound ?? 1);
 
   const lines = [
     `You are ${params.speaker.name} (${params.speaker.role}) in a multi-persona swarm.`,

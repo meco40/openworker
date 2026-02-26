@@ -3,6 +3,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { SwarmRecord } from '@/modules/agent-room/swarmTypes';
 
+export interface SwarmCatalogActions {
+  upsertSwarm: (swarm: SwarmRecord) => void;
+  removeSwarm: (swarmId: string) => void;
+}
+
 export function useSwarmCatalogState(initialCatalog: SwarmRecord[] = []) {
   const [swarms, setSwarms] = useState<SwarmRecord[]>(initialCatalog);
   const [selectedSwarmId, setSelectedSwarmId] = useState<string | null>(null);

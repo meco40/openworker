@@ -1,5 +1,5 @@
-import type { SwarmPhase } from '@/modules/agent-room/swarmPhases';
-import { getSwarmPhaseLabel } from '@/modules/agent-room/swarmPhases';
+import type { SwarmPhase } from '@/shared/domain/swarmPhases';
+import { getSwarmPhaseLabel } from '@/shared/domain/swarmPhases';
 
 const ARTIFACT_MAX_CHARS = 20_000;
 const ARTIFACT_HISTORY_LIMIT = 24;

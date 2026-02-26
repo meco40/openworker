@@ -1,4 +1,4 @@
-import type { SwarmPhase } from '@/modules/agent-room/swarmPhases';
+import type { SwarmPhase } from '@/shared/domain/swarmPhases';
 import type { TurnDirectiveResult } from '@/server/agent-room/types';
 
 const VOTE_UP_DELTA = 8;
