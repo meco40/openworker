@@ -125,6 +125,7 @@ export class ManagedServer {
       MEM0_API_KEY: 'test-mem0-key',
       MEM0_API_PATH: '/v1',
       MODEL_HUB_TEST_MODE: '1',
+      MODEL_HUB_ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef',
       OPENCLAW_EXEC_APPROVALS_REQUIRED: 'false',
       MESSAGES_DB_PATH: path.join(this.tempDir, 'messages.db'),
       PERSONAS_DB_PATH: path.join(this.tempDir, 'personas.db'),

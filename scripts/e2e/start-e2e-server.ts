@@ -93,6 +93,7 @@ async function main(): Promise<void> {
   env.MEM0_BASE_URL = `http://127.0.0.1:${mem0Port}`;
   env.MEM0_API_KEY = env.MEM0_API_KEY || 'test-mem0-key';
   env.MEM0_API_PATH = '/v1';
+  env.MODEL_HUB_ENCRYPTION_KEY = env.MODEL_HUB_ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef';
   env.MESSAGES_DB_PATH = path.join(tempDir, 'messages.db');
   env.PERSONAS_DB_PATH = path.join(tempDir, 'personas.db');
   env.MEMORY_DB_PATH = path.join(tempDir, 'memory.db');

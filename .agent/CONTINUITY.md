@@ -19,6 +19,7 @@
 - 2026-02-26T09:38:31+01:00 [CODE] Patched CI workflows (`ci.yml`, `e2e-browser.yml`) to run `npm run build` before E2E steps; updated E2E WS helper/test for persona-mismatch stream error handling.
 - 2026-02-26T10:05:51+01:00 [CODE] Hardened `tests/unit/model-hub/service-reasoning-effort.test.ts`: switched gateway mock to alias import path, used valid 32-byte encryption key, and replaced dummy encrypted payload with `encryptSecret(...)`.
 - 2026-02-26T10:05:51+01:00 [CODE] Stabilized `tests/e2e/browser/chat-queue-and-persona.spec.ts` by waiting for active generation (`Generation abbrechen`) before queuing second message and asserting queued item count via polling.
+- 2026-02-26T10:34:31+01:00 [CODE] Added explicit `MODEL_HUB_ENCRYPTION_KEY` in both E2E server launchers (`tests/e2e/_shared/managedServer.ts`, `scripts/e2e/start-e2e-server.ts`) to keep production-mode E2E runs deterministic.
 
 [DISCOVERIES]
 
@@ -32,6 +33,7 @@
 - 2026-02-26T09:38:31+01:00 [TOOL] Current local verification: `npm run check` PASS, `npm run test:e2e:smoke` PASS (7 files/8 tests), `npm run test:e2e:browser` PASS (2 tests), `npm run build` PASS.
 - 2026-02-26T10:05:51+01:00 [TOOL] CI unit failure in `service-reasoning-effort` came from test setup drift: key `'encryption-key'` violated crypto key requirements (32 UTF-8 bytes / 64 hex), causing decrypt path to throw before assertion.
 - 2026-02-26T10:05:51+01:00 [TOOL] Browser E2E queue assertion was timing-sensitive when second send happened before stable generating state; gating on abort-button visibility removed that race locally.
+- 2026-02-26T10:34:31+01:00 [TOOL] CI run `22435448476` failed only in deterministic smoke E2E (`ws-chat-stream-core`, `ws-chat-abort`, `ws-multi-tool-use-parallel`) with `expected false to be true`; common cause was missing model-hub encryption key under `NODE_ENV=production` test server env.
 
 [OUTCOMES]
 
@@ -41,3 +43,4 @@
 - 2026-02-26T07:23:40+01:00 [CODE] Workflow file updated to a validation-safe pattern; local `npm run check` remains green after the CI config change.
 - 2026-02-26T09:38:31+01:00 [CODE] One push to `main` is completed (`d5886b4`); follow-up workflow/test hardening changes are prepared locally and pending commit/push.
 - 2026-02-26T10:05:51+01:00 [TOOL] Verification after latest fixes: `npm run check` PASS, `npm run test -- tests/unit/model-hub/service-reasoning-effort.test.ts` PASS, `npm run test:e2e:browser -- tests/e2e/browser/chat-queue-and-persona.spec.ts` PASS.
+- 2026-02-26T10:34:31+01:00 [TOOL] Verification after E2E env-key fix: `npm run check` PASS, targeted smoke trio PASS, and browser queue/persona spec PASS.
