@@ -21,6 +21,7 @@ vi.mock('@/modules/gateway/ws-client', () => {
 describe('AgentV2GatewayClient request retry', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
   });
 
   it('retries once after transient websocket disconnect errors', async () => {
