@@ -11,36 +11,46 @@ permissions:
 jobs:
   live:
     name: Live Mem0 E2E
-    if: ${{ secrets.MEM0_BASE_URL != '' && secrets.MEM0_API_KEY != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
-    env:
-      MEM0_E2E: '1'
-      MEM0_BASE_URL: ${{ secrets.MEM0_BASE_URL }}
-      MEM0_API_KEY: ${{ secrets.MEM0_API_KEY }}
-      MEM0_API_PATH: ${{ secrets.MEM0_API_PATH }}
-
     steps:
+      - name: Preflight secrets
+        id: preflight
+        env:
+          MEM0_BASE_URL: ${{ secrets.MEM0_BASE_URL }}
+          MEM0_API_KEY: ${{ secrets.MEM0_API_KEY }}
+        run: |
+          if [ -z "$MEM0_BASE_URL" ] || [ -z "$MEM0_API_KEY" ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Explain skip
+        if: steps.preflight.outputs.should_run != 'true'
+        run: echo "Skipping live E2E because MEM0_BASE_URL or MEM0_API_KEY is not configured."
+
       - name: Checkout
+        if: steps.preflight.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node.js
+        if: steps.preflight.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
+        if: steps.preflight.outputs.should_run == 'true'
         run: npm ci
 
       - name: Run live e2e
+        if: steps.preflight.outputs.should_run == 'true'
+        env:
+          MEM0_E2E: '1'
+          MEM0_BASE_URL: ${{ secrets.MEM0_BASE_URL }}
+          MEM0_API_KEY: ${{ secrets.MEM0_API_KEY }}
+          MEM0_API_PATH: ${{ secrets.MEM0_API_PATH }}
         run: npm run test:e2e:live
-
-  skipped:
-    name: Live E2E skipped (missing secrets)
-    if: ${{ !(secrets.MEM0_BASE_URL != '' && secrets.MEM0_API_KEY != '') }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Explain skip
-        run: echo "Skipping live E2E because MEM0_BASE_URL or MEM0_API_KEY is not configured."
