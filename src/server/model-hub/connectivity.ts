@@ -1,4 +1,5 @@
 import { getProviderAdapter } from '@/server/model-hub/Models';
+import type { ConnectivityResult } from '@/server/model-hub/Models/types';
 import { testOpenAICompatibleModelsEndpoint } from '@/server/model-hub/Models/shared/openaiCompatible';
 import { decryptSecret } from '@/server/model-hub/crypto';
 import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
@@ -12,7 +13,7 @@ export async function testProviderAccountConnectivity(
   account: ProviderAccountRecord,
   encryptionKey: string,
   options: { model?: string } = {},
-): Promise<{ ok: boolean; message: string }> {
+): Promise<ConnectivityResult> {
   const provider = findProvider(account.providerId);
   if (!provider) {
     return { ok: false, message: `Unknown provider: ${account.providerId}` };

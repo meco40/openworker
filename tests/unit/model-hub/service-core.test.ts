@@ -305,13 +305,14 @@ describe('ModelHubService core flows', () => {
     expect(result).toEqual([{ id: 'gpt-4.1', name: 'gpt-4.1', provider: 'openai' }]);
   });
 
-  it('dispatchWithFallback returns override-not-found error when preferred model is absent', async () => {
+  it('dispatchWithFallback falls back to active pipeline when preferred model is absent', async () => {
     const now = new Date().toISOString();
+    const account = buildAccountRecord('openai');
     const pipeline: PipelineModelEntry[] = [
       {
         id: 'p1',
         profileId: 'profile-1',
-        accountId: 'acc-openai',
+        accountId: account.id,
         providerId: 'openai',
         modelName: 'gpt-4.1',
         priority: 1,
@@ -322,6 +323,7 @@ describe('ModelHubService core flows', () => {
     ];
     const repository = createMockRepository({
       listPipelineModels: vi.fn(() => pipeline),
+      getAccountRecordById: vi.fn((id: string) => (id === account.id ? account : null)),
     });
     const { service } = await setupService({ repository });
 
@@ -332,8 +334,9 @@ describe('ModelHubService core flows', () => {
       { modelOverride: 'missing-model' },
     );
 
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain('not found in active pipeline');
+    expect(result.ok).toBe(true);
+    expect(result.model).toBe('m');
+    expect(result.provider).toBe('p');
   });
 
   it('returns Aborted before dispatching fallback models when signal is already aborted', async () => {

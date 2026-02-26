@@ -7,6 +7,16 @@ export interface ParsedAgentTurn {
   content: string;
 }
 
+function isLikelyCommandMarker(name: string): boolean {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(name)) {
+    return true;
+  }
+  if (/^(?:cmd|command)[-_][a-z0-9-]{8,}$/i.test(name)) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * Parses a raw AI response into per-agent turns.
  * Looks for **[Name]:** markers in the text and splits on them.
@@ -30,30 +40,60 @@ export function parseAgentTurns(
   const nameMap = new Map<string, ResolvedSwarmUnit>();
   for (const unit of units) {
     nameMap.set(unit.name.toLowerCase(), unit);
+    const personaId = String(unit.personaId || '')
+      .trim()
+      .toLowerCase();
+    if (personaId) {
+      nameMap.set(personaId, unit);
+    }
   }
+  const fallbackUnit =
+    units.find((u) => u.personaId === fallbackPersonaId) ??
+    units.find((u) => u.role === 'lead') ??
+    units[0];
 
-  // Split on **[Name]:** pattern
-  // Matches: **[Name]:** or **Name:** at the start of a segment
-  const markerPattern = /\*\*\[?([^\]\n*]+?)\]?\*\*\s*:/g;
-  const segments: Array<{ start: number; end: number; name: string }> = [];
+  // Split on speaker marker patterns.
+  // Matches:
+  // - **[Name]:** (primary format in swarm artifacts)
+  // - **Name:**
+  // - **[Name]**: (legacy)
+  const markerPattern = /\*\*\[?([^\]\n*]+?)\]?(?::\*\*|\*\*\s*:)/g;
+  const rawSegments: Array<{ start: number; end: number; name: string }> = [];
 
   let match: RegExpExecArray | null;
   while ((match = markerPattern.exec(text)) !== null) {
-    segments.push({
+    rawSegments.push({
       start: match.index,
       end: match.index + match[0].length,
       name: match[1].trim(),
     });
   }
 
+  // Some model outputs prefix a turn with an inline command id marker:
+  // **[Persona]:** **[<command-id>]:** actual content
+  // Merge these metadata markers into the preceding speaker marker so content
+  // remains attributed to the declared persona.
+  const segments: Array<{ start: number; end: number; name: string }> = [];
+  for (const segment of rawSegments) {
+    const previous = segments[segments.length - 1];
+    if (
+      previous &&
+      isLikelyCommandMarker(segment.name) &&
+      text.slice(previous.end, segment.start).trim().length === 0
+    ) {
+      previous.end = segment.end;
+      continue;
+    }
+    segments.push(segment);
+  }
+
   if (segments.length === 0) {
-    // No markers found — assign to lead
-    const lead = units.find((u) => u.role === 'lead') ?? units[0];
+    // No markers found — assign to command fallback persona first
     return [
       {
-        personaId: lead.personaId,
-        personaName: lead.name,
-        personaEmoji: lead.emoji,
+        personaId: fallbackUnit.personaId,
+        personaName: fallbackUnit.name,
+        personaEmoji: fallbackUnit.emoji,
         content: text,
       },
     ];
@@ -75,12 +115,11 @@ export function parseAgentTurns(
         content,
       });
     } else {
-      // Unknown name — use lead as fallback
-      const lead = units.find((u) => u.role === 'lead') ?? units[0];
+      // Unknown name — use command fallback persona
       turns.push({
-        personaId: lead.personaId,
-        personaName: seg.name,
-        personaEmoji: lead.emoji,
+        personaId: fallbackUnit.personaId,
+        personaName: fallbackUnit.name,
+        personaEmoji: fallbackUnit.emoji,
         content,
       });
     }

@@ -1,4 +1,5 @@
 import { getCredentialStore } from '@/server/channels/credentials';
+import { stopTelegramPolling } from '@/server/channels/pairing/telegramPolling';
 import {
   listBridgeAccountIds,
   normalizeBridgeAccountId,
@@ -35,6 +36,8 @@ export async function unpairChannel(channel: UnpairChannelType, accountId?: stri
 }
 
 async function unpairTelegram(store: ReturnType<typeof getCredentialStore>): Promise<void> {
+  stopTelegramPolling();
+
   const token = store.getCredential('telegram', 'bot_token') || process.env.TELEGRAM_BOT_TOKEN;
 
   // Call Telegram deleteWebhook API if token available
@@ -48,6 +51,11 @@ async function unpairTelegram(store: ReturnType<typeof getCredentialStore>): Pro
 
   // Clear credentials
   store.deleteCredentials('telegram');
+  const hasTokenAfterDelete = Boolean(store.getCredential('telegram', 'bot_token'));
+  const hasResidualCredentials = store.listCredentials('telegram').length > 0;
+  if (hasTokenAfterDelete || hasResidualCredentials) {
+    throw new Error('Telegram disconnect incomplete: bot token still present in credential store.');
+  }
   delete process.env.TELEGRAM_BOT_TOKEN;
   delete process.env.TELEGRAM_WEBHOOK_SECRET;
 }

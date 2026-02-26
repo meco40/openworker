@@ -297,17 +297,17 @@ const ChannelPairing: React.FC<ChannelPairingProps> = ({
           ? `${activeTab.toUpperCase()} bridge dismantled for account [${accountId}].`
           : `${activeTab.toUpperCase()} bridge dismantled successfully.`,
       );
+      onUpdateCoupling(activeTab, { status: 'idle', peerName: undefined, connectedAt: undefined });
+      setInputToken('');
+      setPairingCode('');
+      setIsConfirmingCode(false);
+      if (activeTab === 'telegram') {
+        setTelegramTransport(null);
+      }
       await refreshBridgeAccounts();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      addLog(`Disconnect warning: ${message} (local state cleared anyway)`);
-    }
-    onUpdateCoupling(activeTab, { status: 'idle', peerName: undefined, connectedAt: undefined });
-    setInputToken('');
-    setPairingCode('');
-    setIsConfirmingCode(false);
-    if (activeTab === 'telegram') {
-      setTelegramTransport(null);
+      addLog(`Disconnect failed: ${message}`);
     }
   };
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { testProviderAccountConnectivity } from '@/server/model-hub/connectivity';
+import type { RateLimitSnapshot } from '@/server/model-hub/Models/types';
 import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
 import { resolveRequestUserContext } from '@/server/auth/userContext';
 
@@ -15,6 +16,7 @@ interface ConnectivityResultItem {
   label: string;
   ok: boolean;
   message: string;
+  rateLimits?: RateLimitSnapshot;
 }
 
 export async function POST(request: Request) {
@@ -49,6 +51,7 @@ export async function POST(request: Request) {
         label: account.label,
         ok: connectivity.ok,
         message: connectivity.message,
+        rateLimits: connectivity.rateLimits,
       });
     }
 

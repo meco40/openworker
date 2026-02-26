@@ -9,6 +9,7 @@ import {
   type ResolvedSwarmUnit,
 } from '@/modules/agent-room/swarmPhases';
 import { parseAgentTurns } from '@/modules/agent-room/agentTurnParser';
+import { extractCommandCompletionText } from '@/modules/agent-room/completionText';
 import { useAgentRoomRuntime } from '@/modules/agent-room/hooks/useAgentRoomRuntime';
 import { useSwarmMessages } from '@/modules/agent-room/hooks/useSwarmMessages';
 import LogicGraphPanel from '@/modules/agent-room/components/LogicGraphPanel';
@@ -82,8 +83,12 @@ export default function AgentRoomView() {
       if (event.type === 'agent.v2.command.completed' && event.commandId) {
         const swarm = runtime.lookupSwarmBySessionId(event.sessionId);
         if (swarm) {
-          const rawText = swarmMessages.getStreamingContent(event.commandId);
-          if (rawText !== null) {
+          const streamingText = swarmMessages.getStreamingContent(event.commandId);
+          if (streamingText !== null) {
+            const commandInfo = runtime.getCommandInfo(event.commandId);
+            const fallbackPersonaId = commandInfo?.personaId || swarm.leadPersonaId;
+            const completionText = extractCommandCompletionText(event);
+            const rawText = streamingText.trim() ? streamingText : completionText;
             const resolvedUnits: ResolvedSwarmUnit[] = swarm.units.map((unit) => {
               const persona = personas.find((p) => p.id === unit.personaId);
               return {
@@ -93,7 +98,7 @@ export default function AgentRoomView() {
                 emoji: persona?.emoji ?? '\uD83E\uDD16',
               };
             });
-            const parsedTurns = parseAgentTurns(rawText, resolvedUnits, swarm.leadPersonaId);
+            const parsedTurns = parseAgentTurns(rawText, resolvedUnits, fallbackPersonaId);
             swarmMessages.replaceStreamingWithTurns(event.commandId, parsedTurns);
           }
         }

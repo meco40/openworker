@@ -37,6 +37,19 @@ export interface PipelineModel {
   updatedAt: string;
 }
 
+export interface RateLimitWindow {
+  window: string;
+  limit?: number;
+  remaining?: number;
+  usedPercent?: number;
+  remainingPercent?: number;
+  reset?: string;
+}
+
+export interface RateLimitSnapshot {
+  windows: RateLimitWindow[];
+}
+
 export type CodexThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
 
 export interface FetchedModel {

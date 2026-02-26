@@ -205,7 +205,35 @@ describe('model-hub connectivity adapters', () => {
 
   it('calls ChatGPT Codex responses endpoint for openai-codex provider', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes('/wham/usage')) {
+        return new Response(
+          JSON.stringify({
+            plan_type: 'pro',
+            rate_limit: {
+              allowed: true,
+              limit_reached: false,
+              primary_window: {
+                used_percent: 80,
+                limit_window_seconds: 18000,
+                reset_after_seconds: 1500,
+                reset_at: 1772067505,
+              },
+              secondary_window: {
+                used_percent: 60,
+                limit_window_seconds: 432000,
+                reset_after_seconds: 50000,
+                reset_at: 1772579246,
+              },
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
+      }
       const sse = [
         'data: {"type":"response.output_text.delta","delta":"pong"}',
         '',
@@ -224,11 +252,15 @@ describe('model-hub connectivity adapters', () => {
       KEY,
     );
     expect(result.ok).toBe(true);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     const firstCallUrl = String(
       (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0],
     );
     expect(firstCallUrl).toContain('chatgpt.com/backend-api/codex/responses');
+    const secondCallUrl = String(
+      (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[1]?.[0],
+    );
+    expect(secondCallUrl).toContain('chatgpt.com/backend-api/wham/usage');
     const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock
       .calls[0]?.[1] as {
       headers?: Record<string, string>;
@@ -245,6 +277,78 @@ describe('model-hub connectivity adapters', () => {
     expect(firstCallBody.instructions?.length).toBeGreaterThan(0);
     expect(firstCallBody.max_output_tokens).toBeUndefined();
     expect(firstCallBody.temperature).toBeUndefined();
+    expect(result.rateLimits?.windows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          window: '5h',
+          usedPercent: 80,
+          remainingPercent: 20,
+        }),
+        expect.objectContaining({
+          window: '5d',
+          usedPercent: 60,
+          remainingPercent: 40,
+        }),
+      ]),
+    );
+
+    global.fetch = originalFetch;
+  });
+
+  it('extracts codex 5h and 5d rate limits from connectivity response headers', async () => {
+    const originalFetch = global.fetch;
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes('/wham/usage')) {
+        return new Response(JSON.stringify({ plan_type: 'pro', rate_limit: null }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      const sse = [
+        'data: {"type":"response.output_text.delta","delta":"pong"}',
+        '',
+        'data: {"type":"response.completed","response":{"status":"completed","model":"gpt-5.3-codex"}}',
+        '',
+      ].join('\n');
+      return new Response(sse, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'x-ratelimit-limit-5h': '300',
+          'x-ratelimit-remaining-5h': '129',
+          'x-ratelimit-reset-5h': '1740603600',
+          'x-ratelimit-limit-5d': '3000',
+          'x-ratelimit-remaining-5d': '2701',
+          'x-ratelimit-reset-5d': '1740952800',
+        },
+      });
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await testProviderAccountConnectivity(
+      buildAccount('openai-codex', buildCodexAccessToken('acct_limits')),
+      KEY,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.rateLimits?.windows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          window: '5h',
+          limit: 300,
+          remaining: 129,
+          reset: '1740603600',
+        }),
+        expect.objectContaining({
+          window: '5d',
+          limit: 3000,
+          remaining: 2701,
+          reset: '1740952800',
+        }),
+      ]),
+    );
 
     global.fetch = originalFetch;
   });

@@ -12,6 +12,7 @@ import type {
   PipelineModel,
   ProviderAccount,
   ProviderCatalogEntry,
+  RateLimitSnapshot,
   SessionStats,
 } from '@/components/model-hub/types';
 import { filterLiveModels, getDefaultActiveModel } from '@/components/model-hub/utils';
@@ -59,6 +60,9 @@ const ModelHub: React.FC = () => {
   const [probeResult, setProbeResult] = useState<string | null>(null);
   const [isTestingAll, setIsTestingAll] = useState(false);
   const [bulkProbeSummary, setBulkProbeSummary] = useState<string | null>(null);
+  const [probeRateLimitsByAccountId, setProbeRateLimitsByAccountId] = useState<
+    Record<string, RateLimitSnapshot | null>
+  >({});
 
   const [isAddModelOpen, setIsAddModelOpen] = useState(false);
   const [addModelMode, setAddModelMode] = useState<'pipeline' | 'embedding'>('pipeline');
@@ -358,11 +362,17 @@ const ModelHub: React.FC = () => {
         body: JSON.stringify({ model: defaultModel.modelName }),
       });
       const data = (await response.json()) as ApiResponse & {
-        connectivity?: { ok: boolean; message: string };
+        connectivity?: { ok: boolean; message: string; rateLimits?: RateLimitSnapshot };
       };
       if (!response.ok || !data.ok || !data.connectivity)
         throw new Error(data.error || `HTTP ${response.status}`);
       setProbeResult(data.connectivity.message);
+      if (data.connectivity.rateLimits) {
+        setProbeRateLimitsByAccountId((prev) => ({
+          ...prev,
+          [defaultModel.accountId]: data.connectivity?.rateLimits ?? null,
+        }));
+      }
       setSessionStats((prev) => ({
         ...prev,
         requests: prev.requests + 1,
@@ -380,6 +390,7 @@ const ModelHub: React.FC = () => {
   async function runAllConnectionProbes() {
     if (providerAccounts.length === 0) {
       setBulkProbeSummary('Keine Provider-Accounts vorhanden.');
+      setProbeRateLimitsByAccountId({});
       return;
     }
     const modelByAccountId: Record<string, string> = {};
@@ -399,15 +410,31 @@ const ModelHub: React.FC = () => {
         successCount?: number;
         failureCount?: number;
         total?: number;
+        results?: Array<{
+          accountId: string;
+          providerId: string;
+          label: string;
+          ok: boolean;
+          message: string;
+          rateLimits?: RateLimitSnapshot;
+        }>;
       };
       if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
       setBulkProbeSummary(`${data.successCount}/${data.total} OK, ${data.failureCount} FAILED`);
+      const nextRateLimitsByAccountId: Record<string, RateLimitSnapshot | null> = {};
+      for (const result of data.results ?? []) {
+        if (result.rateLimits && result.rateLimits.windows.length > 0) {
+          nextRateLimitsByAccountId[result.accountId] = result.rateLimits;
+        }
+      }
+      setProbeRateLimitsByAccountId(nextRateLimitsByAccountId);
       setSessionStats((prev) => ({ ...prev, requests: prev.requests + (data.total ?? 0) }));
       await loadAccounts();
     } catch (error) {
       setBulkProbeSummary(
         `FEHLER: ${error instanceof Error ? error.message : 'Bulk probe failed'}`,
       );
+      setProbeRateLimitsByAccountId({});
     } finally {
       setIsTestingAll(false);
     }
@@ -581,6 +608,7 @@ const ModelHub: React.FC = () => {
           deletingAccountId={deletingAccountId}
           onSetDeletingAccountId={setDeletingAccountId}
           onDeleteAccount={deleteAccount}
+          probeRateLimitsByAccountId={probeRateLimitsByAccountId}
         />
 
         <SidebarSection

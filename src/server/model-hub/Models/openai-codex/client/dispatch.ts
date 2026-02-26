@@ -4,6 +4,7 @@ import { CODEX_REQUEST_TIMEOUT_MS } from '../constants';
 import { buildCodexRequestBody } from '../mappers/requestMapper';
 import { parseCodexSseResponse } from '../parsers/sseParser';
 import { parseCodexHttpError } from '../parsers/errorParser';
+import { parseCodexRateLimitsFromHeaders } from '../parsers/rateLimitParser';
 import { buildCodexHeaders, resolveCodexEndpoint } from './config';
 
 export async function dispatchCodexResponses(
@@ -55,14 +56,18 @@ export async function dispatchCodexResponses(
 
   if (!response.ok) {
     const rawError = await response.text().catch(() => '');
+    const rateLimits = parseCodexRateLimitsFromHeaders(response.headers);
     return {
       ok: false,
       text: '',
       model: request.model,
       provider: 'openai-codex',
+      rateLimits,
       error: parseCodexHttpError(rawError, response.status),
     };
   }
+
+  const rateLimits = parseCodexRateLimitsFromHeaders(response.headers);
 
   try {
     const parsed = await parseCodexSseResponse(response, options?.onStreamDelta);
@@ -73,6 +78,7 @@ export async function dispatchCodexResponses(
       provider: 'openai-codex',
       usage: parsed.usage,
       functionCalls: parsed.functionCalls,
+      rateLimits,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'OpenAI Codex stream parse failed.';
@@ -81,6 +87,7 @@ export async function dispatchCodexResponses(
       text: '',
       model: request.model,
       provider: 'openai-codex',
+      rateLimits,
       error: message,
     };
   }

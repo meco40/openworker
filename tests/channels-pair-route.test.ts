@@ -17,6 +17,14 @@ function makeRequest(body: Record<string, unknown>) {
   });
 }
 
+function makeDeleteRequest(body: Record<string, unknown>) {
+  return new Request('http://localhost/api/channels/pair', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
 describe('channel pair route requests', () => {
   let previousMessagesDbPath: string | undefined;
   let previousAppUrl: string | undefined;
@@ -193,6 +201,33 @@ describe('channel pair route requests', () => {
     expect(json.ok).toBe(true);
     expect(json.peerName).toBe('imessage-bridge');
     expect(getCredentialStore().getCredential('imessage', 'pairing_status')).toBe('connected');
+    fetchMock.mockRestore();
+  });
+
+  it('disconnects telegram and removes bot token from credential store', async () => {
+    const { DELETE: unpairDelete } = await import('../app/api/channels/pair/route');
+    const { getCredentialStore } = await import('@/server/channels/credentials');
+
+    const store = getCredentialStore();
+    store.setCredential('telegram', 'bot_token', 'tg-to-delete');
+    store.setCredential('telegram', 'webhook_secret', 'secret-to-delete');
+    store.setCredential('telegram', 'update_transport', 'webhook');
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true, result: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const response = await unpairDelete(makeDeleteRequest({ channel: 'telegram' }));
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(json.status).toBe('disconnected');
+    expect(store.getCredential('telegram', 'bot_token')).toBeNull();
+    expect(store.listCredentials('telegram')).toEqual([]);
     fetchMock.mockRestore();
   });
 });

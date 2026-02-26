@@ -497,55 +497,49 @@ export class ModelHubService {
     if (options?.modelOverride) {
       const preferredTarget = activeModels.find((m) => m.modelName === options.modelOverride);
       if (!preferredTarget) {
-        return {
-          ok: false,
-          text: '',
-          model: options.modelOverride,
-          provider: '',
-          error: `Override model "${options.modelOverride}" not found in active pipeline.`,
-        };
-      }
-
-      const preferredAccount = this.repository.getAccountRecordById(preferredTarget.accountId);
-      if (preferredAccount) {
-        const usablePreferredAccount = await this.maybeRefreshOpenAICodexAccount(
-          preferredAccount,
-          encryptionKey,
-        );
-        const preferredReasoningEffort = mapPipelineReasoningEffort(
-          preferredTarget.reasoningEffort,
-        );
-        const preferredResult = await dispatchGatewayRequest(
-          usablePreferredAccount,
-          encryptionKey,
-          {
-            ...request,
-            model: preferredTarget.modelName,
-            reasoning_effort: preferredReasoningEffort ?? request.reasoning_effort,
-          },
-          { signal: options?.signal, onStreamDelta: options?.onStreamDelta },
-        );
-
-        if (preferredResult.ok) {
-          return preferredResult;
-        }
-
-        // Preferred model failed - record error and mark as rate-limited if needed
-        errors.push(
-          `${preferredTarget.modelName}@${preferredTarget.providerId}: ${preferredResult.error}`,
-        );
-        attemptedModels.add(preferredTarget.modelName);
-
-        if (
-          preferredResult.error?.includes('429') ||
-          preferredResult.error?.toLowerCase().includes('rate')
-        ) {
-          this.repository.updatePipelineModelStatus(preferredTarget.id, 'rate-limited');
-        }
+        errors.push(`Override model "${options.modelOverride}" not found in active pipeline.`);
       } else {
-        errors.push(
-          `${preferredTarget.modelName}@${preferredTarget.providerId}: Account not found`,
-        );
+        const preferredAccount = this.repository.getAccountRecordById(preferredTarget.accountId);
+        if (preferredAccount) {
+          const usablePreferredAccount = await this.maybeRefreshOpenAICodexAccount(
+            preferredAccount,
+            encryptionKey,
+          );
+          const preferredReasoningEffort = mapPipelineReasoningEffort(
+            preferredTarget.reasoningEffort,
+          );
+          const preferredResult = await dispatchGatewayRequest(
+            usablePreferredAccount,
+            encryptionKey,
+            {
+              ...request,
+              model: preferredTarget.modelName,
+              reasoning_effort: preferredReasoningEffort ?? request.reasoning_effort,
+            },
+            { signal: options?.signal, onStreamDelta: options?.onStreamDelta },
+          );
+
+          if (preferredResult.ok) {
+            return preferredResult;
+          }
+
+          // Preferred model failed - record error and mark as rate-limited if needed
+          errors.push(
+            `${preferredTarget.modelName}@${preferredTarget.providerId}: ${preferredResult.error}`,
+          );
+          attemptedModels.add(preferredTarget.modelName);
+
+          if (
+            preferredResult.error?.includes('429') ||
+            preferredResult.error?.toLowerCase().includes('rate')
+          ) {
+            this.repository.updatePipelineModelStatus(preferredTarget.id, 'rate-limited');
+          }
+        } else {
+          errors.push(
+            `${preferredTarget.modelName}@${preferredTarget.providerId}: Account not found`,
+          );
+        }
       }
     }
 

@@ -1,6 +1,6 @@
 # OpenClaw Gateway Control Plane
 
-**Stand:** 2026-02-24  
+**Stand:** 2026-02-26  
 **Version:** 0.0.0
 
 ---
@@ -210,43 +210,46 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | [docs/DEPLOYMENT_OPERATIONS.md](docs/DEPLOYMENT_OPERATIONS.md)           | Deployment & Betrieb               |
 | [docs/WORKER_SYSTEM.md](docs/WORKER_SYSTEM.md)                           | Legacy-Status (Worker entfernt)    |
 | [docs/WORKER_ORCHESTRA_SYSTEM.md](docs/WORKER_ORCHESTRA_SYSTEM.md)       | Legacy-Status (Orchestra entfernt) |
+| [docs/MISSION_CONTROL_RUNBOOK.md](docs/MISSION_CONTROL_RUNBOOK.md)       | Mission Control Integration        |
 
 ---
 
 ## Wichtige Umgebungsvariablen
 
-| Variable                             | Beschreibung                                       |
-| ------------------------------------ | -------------------------------------------------- |
-| `MEMORY_PROVIDER`                    | Memory-Provider (`mem0`)                           |
-| `MEM0_BASE_URL`                      | Mem0 Base URL                                      |
-| `MEM0_API_KEY`                       | Mem0 API Key                                       |
-| `MEM0_API_PATH`                      | Mem0 API Pfad (Default `/`)                        |
-| `MEM0_TIMEOUT_MS`                    | Mem0 Request-Timeout                               |
-| `MEM0_MAX_RETRIES`                   | Mem0 Retry-Limit                                   |
-| `MEM0_RETRY_BASE_DELAY_MS`           | Mem0 Retry-Backoff-Basis                           |
-| `MEM0_LLM_PROVIDER`                  | Optionales Bootstrap-LLM für mem0-local (ohne Hardcode) |
-| `MODEL_HUB_ENCRYPTION_KEY`           | Secret-Encryption-Key (in Produktion erforderlich) |
-| `OPENAI_OAUTH_CLIENT_ID`             | Optional: eigene OpenAI Codex OAuth Client ID      |
-| `OPENAI_OAUTH_CLIENT_SECRET`         | Optional: Client Secret für eigenen OAuth-Client   |
-| `OPENAI_OAUTH_REDIRECT_URI`          | Optional: Redirect URI für Codex OAuth             |
-| `OPENAI_OAUTH_SCOPE`                 | Optional: OAuth Scope Override                     |
-| `OPENAI_OAUTH_AUDIENCE`              | Optional: OAuth Audience Override                  |
-| `OPENAI_OAUTH_AUTHORIZE_URL`         | Optional: OAuth Authorize URL Override             |
-| `OPENAI_OAUTH_TOKEN_URL`             | Optional: OAuth Token URL Override                 |
-| `MESSAGES_DB_PATH`                   | Pfad zur Message-SQLite                            |
-| `MEMORY_DB_PATH`                     | Pfad zur Memory-SQLite                             |
-| `PERSONAS_DB_PATH`                   | Pfad zur Persona-SQLite                            |
-| `PERSONAS_ROOT_PATH`                 | Root für Persona-Dateisystemdaten                  |
-| `SKILLS_DB_PATH`                     | Pfad zur Skills-SQLite                             |
-| `WHATSAPP_BRIDGE_URL`                | WhatsApp Bridge URL                                |
-| `IMESSAGE_BRIDGE_URL`                | iMessage Bridge URL                                |
-| `APP_URL`                            | Öffentliche App-URL (z. B. für Telegram Webhooks)  |
-| `OPENCLAW_AUTONOMOUS_MAX_TOOL_CALLS` | Tool-Budget für autonome Build-Ausführung          |
-| `OPENCLAW_CHAT_STREAM_KEEPALIVE_MS`  | Keepalive-Intervall für `chat.stream`              |
-| `OPENCLAW_SHELL_TIMEOUT_MS`          | Laufzeitlimit für `shell_execute`                  |
-| `OPENCLAW_SHELL_MAX_BUFFER_BYTES`    | Output-Buffer-Limit für `shell_execute`            |
+| Variable                             | Beschreibung                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------ |
+| `MEMORY_PROVIDER`                    | Memory-Provider (`mem0`)                                                       |
+| `MEM0_BASE_URL`                      | Mem0 Base URL                                                                  |
+| `MEM0_API_KEY`                       | Mem0 API Key                                                                   |
+| `MEM0_API_PATH`                      | Mem0 API Pfad (Default `/`)                                                    |
+| `MEM0_TIMEOUT_MS`                    | Mem0 Request-Timeout                                                           |
+| `MEM0_MAX_RETRIES`                   | Mem0 Retry-Limit                                                               |
+| `MEM0_RETRY_BASE_DELAY_MS`           | Mem0 Retry-Backoff-Basis                                                       |
+| `MEM0_LLM_PROVIDER`                  | Optionales Bootstrap-LLM für mem0-local (ohne Hardcode)                        |
+| `MODEL_HUB_ENCRYPTION_KEY`           | Secret-Encryption-Key (in Produktion erforderlich)                             |
+| `OPENAI_OAUTH_CLIENT_ID`             | Optional: eigene OpenAI Codex OAuth Client ID                                  |
+| `OPENAI_OAUTH_CLIENT_SECRET`         | Optional: Client Secret für eigenen OAuth-Client                               |
+| `OPENAI_OAUTH_REDIRECT_URI`          | Optional: Redirect URI für Codex OAuth                                         |
+| `OPENAI_OAUTH_SCOPE`                 | Optional: OAuth Scope Override                                                 |
+| `OPENAI_OAUTH_AUDIENCE`              | Optional: OAuth Audience Override                                              |
+| `OPENAI_OAUTH_AUTHORIZE_URL`         | Optional: OAuth Authorize URL Override                                         |
+| `OPENAI_OAUTH_TOKEN_URL`             | Optional: OAuth Token URL Override                                             |
+| `MC_API_TOKEN`                       | Optional: Bearer Token für externe Mission Control API Calls                   |
+| `WEBHOOK_SECRET`                     | Optional: HMAC Secret für Agent-Completion Webhooks (empfohlen für Production) |
+| `MESSAGES_DB_PATH`                   | Pfad zur Message-SQLite                                                        |
+| `MEMORY_DB_PATH`                     | Pfad zur Memory-SQLite                                                         |
+| `PERSONAS_DB_PATH`                   | Pfad zur Persona-SQLite                                                        |
+| `PERSONAS_ROOT_PATH`                 | Root für Persona-Dateisystemdaten                                              |
+| `SKILLS_DB_PATH`                     | Pfad zur Skills-SQLite                                                         |
+| `WHATSAPP_BRIDGE_URL`                | WhatsApp Bridge URL                                                            |
+| `IMESSAGE_BRIDGE_URL`                | iMessage Bridge URL                                                            |
+| `APP_URL`                            | Öffentliche App-URL (z. B. für Telegram Webhooks)                              |
+| `OPENCLAW_AUTONOMOUS_MAX_TOOL_CALLS` | Tool-Budget für autonome Build-Ausführung                                      |
+| `OPENCLAW_CHAT_STREAM_KEEPALIVE_MS`  | Keepalive-Intervall für `chat.stream`                                          |
+| `OPENCLAW_SHELL_TIMEOUT_MS`          | Laufzeitlimit für `shell_execute`                                              |
+| `OPENCLAW_SHELL_MAX_BUFFER_BYTES`    | Output-Buffer-Limit für `shell_execute`                                        |
 
-Hinweis: Provider-Secrets (z. B. OpenAI, Anthropic, OpenRouter) werden im aktuellen Model-Hub-Flow als Account-Secrets über UI/API hinterlegt und verschlüsselt gespeichert, nicht als globale `*_API_KEY`-Environment-Variablen.
+Hinweis: Provider-Secrets (z. B. OpenAI, Anthropic, OpenRouter) werden im aktuellen Model-Hub-Flow als Account-Secrets über UI/API hinterlegt und verschlüsselt gespeichert (`MODEL_HUB_ENCRYPTION_KEY` erforderlich), nicht als globale `*_API_KEY`-Environment-Variablen. Legacy `*_API_KEY`-Env-Vars werden nicht mehr gelesen.
 
 ---
 

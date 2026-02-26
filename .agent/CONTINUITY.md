@@ -1,5 +1,7 @@
 [PLANS]
 
+- 2026-02-26T01:33:55+01:00 [USER] Requested Messenger Coupling disconnect via button to fully disconnect Telegram and remove stored token from DB.
+
 - 2026-02-25T20:29:55+01:00 [USER] Reported that dispatched Mission Control agent stayed in `in_progress` and produced pseudo-command text without real artifact creation; requested full analysis and fix so agents execute tasks for real.
 
 - 2026-02-25T19:58:54+01:00 [USER] Reported Mission Control UI inconsistency: header showed `1` queued task while Mission Queue columns showed no task card; requested functional visibility fix.
@@ -71,6 +73,8 @@
 - 2026-02-24T03:25:39+01:00 [USER] WebUI conversation delete returns `500` after project deletions (`DELETE /api/channels/conversations?id=...`).
 
 [DECISIONS]
+
+- 2026-02-26T01:33:55+01:00 [CODE] Telegram unpair flow now enforces hard disconnect semantics: stop polling first, delete credentials, and fail the operation if Telegram credentials remain in the credential store after deletion.
 
 - 2026-02-25T23:20:58+01:00 [CODE] Increased Codex MCP startup budget for slow-to-initialize servers by setting `startup_timeout_sec = 45` for `[mcp_servers.context7]`, `[mcp_servers.chrome-devtools]`, and `[mcp_servers.github]` in `C:\Users\djm2k\.codex\config.toml`.
 
@@ -196,6 +200,10 @@
 - 2026-02-24T03:25:39+01:00 [CODE] Conversation delete flow now removes `conversation_project_state` rows before deleting `conversations` to satisfy SQLite foreign-key constraints.
 
 [PROGRESS]
+
+- 2026-02-26T01:33:55+01:00 [CODE] Updated `src/server/channels/pairing/unpair.ts` to call `stopTelegramPolling()` during Telegram disconnect and throw `Telegram disconnect incomplete...` when post-delete credential checks still show Telegram entries.
+- 2026-02-26T01:33:55+01:00 [CODE] Updated `src/messenger/ChannelPairing.tsx` disconnect handler to stop optimistic local clearing on failure; UI now resets local channel state only after a successful server disconnect response.
+- 2026-02-26T01:33:55+01:00 [CODE] Added regression tests `tests/unit/channels/unpair-telegram-hard-disconnect.test.ts` and expanded `tests/channels-pair-route.test.ts` with a DELETE route case asserting Telegram token removal from credential store.
 
 - 2026-02-25T22:26:25+01:00 [TOOL] Executed real (non-mocked) live Mission Control API flow against running app (`http://localhost:3000`): created task, started planning, answered planning question, planning completed and auto-dispatch triggered, then polled task status for 120 cycles to verify `review` transition.
 
@@ -568,6 +576,8 @@
 
 [OUTCOMES]
 
+- 2026-02-26T01:33:55+01:00 [TOOL] Verification PASS: `pnpm vitest run tests/channels-pair-route.test.ts tests/unit/channels/unpair-telegram-hard-disconnect.test.ts tests/unit/channels/unpair.test.ts` (11/11), `pnpm typecheck` PASS, `pnpm lint` PASS (0 warnings, 0 errors).
+
 - 2026-02-25T22:38:59+01:00 [TOOL] Installed requested CLIs via winget: `jqlang.jq` (`jq 1.8.1`), `MikeFarah.yq` (`v4.52.4`), `sharkdp.fd` (`fd 10.3.0`), `BurntSushi.ripgrep.MSVC` (`ripgrep 15.1.0`). `winget list` confirms all four; command resolution works when a shell loads the updated User+Machine PATH.
 
 - 2026-02-25T22:26:25+01:00 [TOOL] Live Mission Control validation (real runtime, no mocks) did NOT reach `review`: task `bd3015f1-b9fc-45f4-8f9d-83c976a58712` remained `in_progress` after successful planning+dispatch due upstream model abort during worker execution (`grok-4-fast-reasoning@xai` aborted), with `deliverables=0` and no automated testing trigger.
@@ -768,3 +778,21 @@
 - 2026-02-25T23:38:58+01:00 [TOOL] Verification PASS: `pnpm vitest run tests/integration/mission-control/planning-route-dispatch-error-state.test.ts tests/integration/mission-control/planning-poll-dispatch-assignment.test.ts tests/integration/mission-control/planning-route-session-key.test.ts` (3/3) and `pnpm typecheck` PASS.
 - 2026-02-26T00:02:29+01:00 [PROGRESS] [USER] Requested renaming the sidebar label from `Knowledge` to `Graph`.
 - 2026-02-26T00:02:29+01:00 [OUTCOMES] [CODE] Updated `src/components/Sidebar.tsx` so `View.KNOWLEDGE` now renders the label `Graph`; navigation ID/route remains unchanged.
+
+- 2026-02-26T00:13:31+01:00 [USER] Requested brainstorming analysis on which app area should be improved next ('Welchen Teil der App sollten wir verbessern').
+- 2026-02-26T00:13:31+01:00 [TOOL] Repo health scan (typecheck/lint PASS), churn inspection, and complexity/test-gap analysis indicate highest ROI in Mission Control planning UX contract hardening: src/components/PlanningTab.tsx has high async state complexity and zero direct tests while related backend planning routes are heavily exercised.
+- 2026-02-26T01:05:33+01:00 [USER] Requested continuation of Agent Room fix because multi-agent discussion still appeared broken in live usage.
+- 2026-02-26T01:05:33+01:00 [DISCOVERIES] [TOOL] Live DB/UI comparison showed persisted swarm artifacts can contain speaker markers as persona IDs (UUID format), e.g. `**[326e3a5b-bdcb-41b2-b851-e425ab1b3223]:**`, which were not mapped to persona display names in the chat parser.
+- 2026-02-26T01:05:33+01:00 [DISCOVERIES] [CODE] Parser fallback path used lead persona for unknown markers, causing specialist turns to collapse visually to a single visible agent when marker name was not matched.
+- 2026-02-26T01:05:33+01:00 [DECISIONS] [CODE] Extended `parseAgentTurns` to map both persona name and `personaId` aliases, keep inline metadata-marker collapsing, and route unknown/no-marker segments to `fallbackPersonaId` instead of always the lead persona.
+- 2026-02-26T01:05:33+01:00 [PROGRESS] [CODE] Added regression coverage in `tests/unit/agent-room/agent-turn-parser.test.ts` for inline UUID marker handling, command-id-only fallback handling, and personaId-marker mapping.
+- 2026-02-26T01:05:33+01:00 [TOOL] Verification PASS: `npm run test -- tests/unit/agent-room tests/unit/modules/agent-room tests/unit/components/agent-room-speaker-fallback.test.ts tests/unit/agent-room/completion-text.test.ts` (42 tests), `npm run typecheck`, `npm run lint`.
+- 2026-02-26T01:05:33+01:00 [OUTCOMES] [TOOL] Live Agent Room check after reload shows multi-agent visibility restored for completed swarm `swarm-efb44e40-787e-4243-b30b-cc840613eb30`: chat now renders distinct `Nata` and `Next.js Dev` turns from artifact content instead of a single-agent view.
+- 2026-02-26T00:22:49Z [USER] Requested that `Probe All` explicitly surfaces OpenAI Codex rate limits (5h/5d and remaining) inside the `gpt-5.3-codex` pipeline card, positioned near the `Audio` capability chip.
+- 2026-02-26T00:22:49Z [DECISIONS] [CODE] Extended model-hub connectivity payloads to carry optional `rateLimits` snapshots (window/limit/remaining/reset), populated for OpenAI Codex by parsing `ratelimit` response headers.
+- 2026-02-26T00:22:49Z [PROGRESS] [CODE] Wired `runAllConnectionProbes` to persist per-account probe rate-limit snapshots in `ModelHub` state and render Codex `5H`/`5D` badges in `PipelineSection` capability row for `openai-codex` models.
+- 2026-02-26T00:22:49Z [TOOL] Verification PASS: `pnpm vitest run tests/unit/model-hub/connectivity.test.ts tests/unit/components/pipeline-section-accounts-layout.test.ts` (15/15), `pnpm vitest run tests/integration/model-hub/accounts-test-all-route.test.ts` (1/1), `pnpm typecheck`, `pnpm lint`.
+- 2026-02-26T01:34:00Z [DISCOVERIES] [TOOL] Live Codex probe against `https://chatgpt.com/backend-api/codex/responses` returned `x-codex-*` headers but no `x-ratelimit-*` 5h/5d counters on successful requests; this explained why pipeline badges stayed empty after `Probe All`.
+- 2026-02-26T01:34:00Z [DECISIONS] [CODE] Added OpenAI Codex usage fallback via `GET /backend-api/wham/usage` (same bearer/account headers) and merged it with response-header parsing so rate-limit windows are available even when response headers omit 5h/5d counters.
+- 2026-02-26T01:34:00Z [PROGRESS] [CODE] Extended rate-limit model with percent fields and updated `PipelineSection` badge rendering to show either absolute `remaining/limit` or fallback `% remaining`, preferring `5H`/`5D` windows and falling back to available hour/day windows.
+- 2026-02-26T01:34:00Z [TOOL] Verification PASS: `pnpm vitest run tests/unit/model-hub/connectivity.test.ts tests/unit/components/pipeline-section-accounts-layout.test.ts` (16/16), `pnpm vitest run tests/integration/model-hub/accounts-test-all-route.test.ts` (1/1), `pnpm typecheck`, `pnpm lint`.

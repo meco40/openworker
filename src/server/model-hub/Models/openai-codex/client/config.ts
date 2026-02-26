@@ -20,6 +20,22 @@ export function resolveCodexEndpoint(baseUrl = CODEX_BASE_URL): string {
   return `${normalized}${CODEX_RESPONSES_PATH}`;
 }
 
+export function resolveCodexUsageEndpoint(baseUrl = CODEX_BASE_URL): string {
+  const normalized = (baseUrl || CODEX_BASE_URL).trim().replace(/\/+$/, '');
+  const backendApiIndex = normalized.indexOf('/backend-api');
+  if (backendApiIndex >= 0) {
+    const backendBase = normalized.slice(0, backendApiIndex + '/backend-api'.length);
+    return `${backendBase}/wham/usage`;
+  }
+  if (normalized.endsWith('/codex/responses')) {
+    return `${normalized.slice(0, -'/codex/responses'.length)}/wham/usage`;
+  }
+  if (normalized.endsWith('/codex')) {
+    return `${normalized.slice(0, -'/codex'.length)}/wham/usage`;
+  }
+  return `${normalized}/wham/usage`;
+}
+
 export function buildCodexHeaders(secret: string): Record<string, string> {
   const accountId = extractCodexAccountId(secret);
   if (!accountId) {
@@ -35,6 +51,24 @@ export function buildCodexHeaders(secret: string): Record<string, string> {
     originator: 'pi',
     Accept: 'text/event-stream',
     'Content-Type': 'application/json',
+    'User-Agent': 'clawtest-model-hub',
+  };
+}
+
+export function buildCodexUsageHeaders(secret: string): Record<string, string> {
+  const accountId = extractCodexAccountId(secret);
+  if (!accountId) {
+    throw new Error(
+      `OpenAI Codex access token is missing ${OPENAI_CODEX_AUTH_CLAIM_HINT} in JWT claims.`,
+    );
+  }
+
+  return {
+    Authorization: `Bearer ${secret}`,
+    'chatgpt-account-id': accountId,
+    'OpenAI-Beta': 'responses=experimental',
+    originator: 'pi',
+    Accept: 'application/json',
     'User-Agent': 'clawtest-model-hub',
   };
 }

@@ -13,6 +13,20 @@ export interface FetchedModel {
 export interface ConnectivityResult {
   ok: boolean;
   message: string;
+  rateLimits?: RateLimitSnapshot;
+}
+
+export interface RateLimitWindow {
+  window: string;
+  limit?: number;
+  remaining?: number;
+  usedPercent?: number;
+  remainingPercent?: number;
+  reset?: string;
+}
+
+export interface RateLimitSnapshot {
+  windows: RateLimitWindow[];
 }
 
 export interface GatewayMessage {
@@ -75,6 +89,7 @@ export interface GatewayResponse {
     total_tokens: number;
   };
   functionCalls?: Array<{ name: string; args?: unknown }>;
+  rateLimits?: RateLimitSnapshot;
   error?: string;
 }
 

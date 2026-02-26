@@ -4,6 +4,7 @@ import type {
   ProviderAccount,
   ProviderCatalogEntry,
   PipelineModel,
+  RateLimitSnapshot,
 } from '@/components/model-hub/types';
 
 interface PipelineSectionProps {
@@ -25,6 +26,27 @@ interface PipelineSectionProps {
   deletingAccountId: string | null;
   onSetDeletingAccountId: (accountId: string | null) => void;
   onDeleteAccount: (accountId: string) => void;
+  probeRateLimitsByAccountId?: Record<string, RateLimitSnapshot | null>;
+}
+
+function formatCodexRateLimitLabel(
+  windowLabel: string,
+  window?: { limit?: number; remaining?: number; remainingPercent?: number },
+) {
+  if (!window) return windowLabel;
+  if (typeof window.remaining === 'number' && typeof window.limit === 'number') {
+    return `${windowLabel} ${window.remaining}/${window.limit}`;
+  }
+  if (typeof window.remainingPercent === 'number') {
+    return `${windowLabel} ${window.remainingPercent}%`;
+  }
+  if (typeof window.remaining === 'number') {
+    return `${windowLabel} ${window.remaining}`;
+  }
+  if (typeof window.limit === 'number') {
+    return `${windowLabel} ${window.limit}`;
+  }
+  return windowLabel;
 }
 
 const PipelineSection: React.FC<PipelineSectionProps> = ({
@@ -46,6 +68,7 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
   deletingAccountId,
   onSetDeletingAccountId,
   onDeleteAccount,
+  probeRateLimitsByAccountId,
 }) => {
   const hasEmbeddingCapableAccount = providerAccounts.some((account) =>
     providerLookup.get(account.providerId)?.capabilities.includes('embeddings'),
@@ -92,6 +115,27 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
     return models.map((model, idx) => {
       const provider = providerLookup.get(model.providerId);
       const account = providerAccounts.find((entry) => entry.id === model.accountId);
+      const codexRateLimits =
+        model.providerId === 'openai-codex'
+          ? (probeRateLimitsByAccountId?.[model.accountId] ?? null)
+          : null;
+      const codexRateLimitWindows = new Map(
+        (codexRateLimits?.windows ?? []).map((window) => [window.window.toLowerCase(), window]),
+      );
+      const codexShortWindowKey = codexRateLimitWindows.has('5h')
+        ? '5h'
+        : (Array.from(codexRateLimitWindows.keys()).find((key) => key.endsWith('h')) ?? null);
+      const codexLongWindowKey = codexRateLimitWindows.has('5d')
+        ? '5d'
+        : (Array.from(codexRateLimitWindows.keys()).find(
+            (key) => key.endsWith('d') && key !== codexShortWindowKey,
+          ) ?? null);
+      const codexShortWindow = codexShortWindowKey
+        ? codexRateLimitWindows.get(codexShortWindowKey)
+        : undefined;
+      const codexLongWindow = codexLongWindowKey
+        ? codexRateLimitWindows.get(codexLongWindowKey)
+        : undefined;
       const isFirst = idx === 0;
       const isLast = idx === models.length - 1;
 
@@ -160,6 +204,22 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
                     {CAPABILITY_LABELS[capability] || capability}
                   </span>
                 ))}
+                {codexShortWindow && (
+                  <span className="rounded border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-0.5 font-mono text-[8px] text-indigo-300">
+                    {formatCodexRateLimitLabel(
+                      (codexShortWindow.window || '5h').toUpperCase(),
+                      codexShortWindow,
+                    )}
+                  </span>
+                )}
+                {codexLongWindow && (
+                  <span className="rounded border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-0.5 font-mono text-[8px] text-indigo-300">
+                    {formatCodexRateLimitLabel(
+                      (codexLongWindow.window || '5d').toUpperCase(),
+                      codexLongWindow,
+                    )}
+                  </span>
+                )}
               </div>
             )}
           </div>
