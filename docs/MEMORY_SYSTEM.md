@@ -97,7 +97,10 @@ Diese Namen sind **Operationsnamen**, nicht Memory-Typen.
 | `MEM0_API_PATH`            | API Prefix                           | `/v1`    |
 | `MEM0_API_KEY`             | Mem0 API Key                         | -        |
 | `MEM0_TIMEOUT_MS`          | Request Timeout                      | `5000`   |
+| `MEM0_READ_TIMEOUT_MS`     | Timeout fuer Mem0-Read-Operationen   | `5000`   |
+| `MEM0_WRITE_TIMEOUT_MS`    | Timeout fuer Mem0-Schreiboperationen | `15000`  |
 | `MEM0_MAX_RETRIES`         | Retries bei transienten HTTP-Fehlern | `3`      |
+| `MEM0_WRITE_MAX_RETRIES`   | Retries bei Mem0-Write-Timeouts      | `1`      |
 | `MEM0_RETRY_BASE_DELAY_MS` | Exponential Backoff Basis (ms)       | `500`    |
 
 ---

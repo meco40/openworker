@@ -10,10 +10,6 @@ interface LogicGraphPanelProps {
   swarmStatus?: string;
 }
 
-const ZOOM_STEP = 0.25;
-const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 3;
-
 export default function LogicGraphPanel({
   artifact,
   currentPhase,
@@ -35,12 +31,20 @@ export default function LogicGraphPanel({
   );
   const [svg, setSvg] = useState<string>('');
   const [renderError, setRenderError] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
   const svgContainerRef = useRef<HTMLDivElement>(null);
 
-  const zoomIn = useCallback(() => setZoom((z) => Math.min(z + ZOOM_STEP, ZOOM_MAX)), []);
-  const zoomOut = useCallback(() => setZoom((z) => Math.max(z - ZOOM_STEP, ZOOM_MIN)), []);
-  const zoomReset = useCallback(() => setZoom(1), []);
+  const downloadSvg = useCallback(() => {
+    if (!svg) return;
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'swarm-diagram.svg';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, [svg]);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,38 +104,13 @@ export default function LogicGraphPanel({
         </h4>
         <div className="flex items-center gap-1.5">
           {svg && (
-            <>
-              <button
-                onClick={zoomOut}
-                disabled={zoom <= ZOOM_MIN}
-                className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30"
-                title="Zoom out"
-              >
-                −
-              </button>
-              <button
-                onClick={zoomReset}
-                className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-                title="Reset zoom"
-              >
-                {Math.round(zoom * 100)}%
-              </button>
-              <button
-                onClick={zoomIn}
-                disabled={zoom >= ZOOM_MAX}
-                className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30"
-                title="Zoom in"
-              >
-                +
-              </button>
-              <button
-                onClick={zoomIn}
-                className="ml-1 rounded border border-indigo-500/40 px-1.5 py-0.5 text-[10px] text-indigo-300 hover:bg-indigo-500/10"
-                title="Magnify"
-              >
-                🔍
-              </button>
-            </>
+            <button
+              onClick={downloadSvg}
+              className="rounded border border-indigo-500/40 px-2 py-0.5 text-[10px] text-indigo-300 hover:bg-indigo-500/10"
+              title="Download SVG"
+            >
+              Download SVG
+            </button>
           )}
           <span className="rounded border border-indigo-500/40 px-2 py-0.5 text-[10px] text-indigo-300">
             {source?.startsWith('flowchart') ? 'Auto-generated' : 'AI-generated'}
@@ -143,10 +122,6 @@ export default function LogicGraphPanel({
           <div
             ref={svgContainerRef}
             className="flex min-h-[38rem] justify-center overflow-auto [&_svg]:max-w-none"
-            style={{
-              transform: `scale(${zoom})`,
-              transformOrigin: 'top center',
-            }}
           />
         ) : (
           <div className="flex min-h-[38rem] items-center justify-center text-xs text-zinc-500">

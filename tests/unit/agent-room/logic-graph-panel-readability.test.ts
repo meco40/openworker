@@ -14,4 +14,14 @@ describe('logic graph panel readability', () => {
     expect(source).toContain('min-h-[38rem]');
     expect(source).not.toContain('max-h-[28rem]');
   });
+
+  it('offers svg download instead of zoom controls', () => {
+    const source = read('src/modules/agent-room/components/LogicGraphPanel.tsx');
+    expect(source).toContain('Download SVG');
+    expect(source).toContain('image/svg+xml;charset=utf-8');
+    expect(source).toContain('URL.createObjectURL');
+    expect(source).not.toContain('Zoom in');
+    expect(source).not.toContain('Zoom out');
+    expect(source).not.toContain('Reset zoom');
+  });
 });

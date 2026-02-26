@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { computeLineDiff, type DiffLine } from '@/shared/lib/lineDiff';
+import { InlineMarkdown } from '@/modules/agent-room/components/InlineMarkdown';
 
 interface HistoryTabProps {
   artifactHistory: string[];
@@ -19,8 +20,16 @@ const DIFF_PREFIX: Record<DiffLine['kind'], string> = {
   same: ' ',
 };
 
+/**
+ * Strip leading **[Name]:** or **Name:** speaker marker so inline headings
+ * (e.g. `### Title`) at the start of a turn render as proper headings.
+ */
+function stripLeadingSpeaker(text: string): string {
+  return text.replace(/^\*\*\[?[^\]\n*]+?\]?\s*(?::\*\*|\*\*\s*:)\s*/, '');
+}
+
 export function HistoryTab({ artifactHistory }: HistoryTabProps) {
-  const [showDiff, setShowDiff] = useState(true);
+  const [viewMode, setViewMode] = useState<'rendered' | 'diff' | 'raw'>('rendered');
 
   if (!artifactHistory?.length) {
     return <p className="pt-6 text-center text-xs text-zinc-600">No history yet.</p>;
@@ -28,15 +37,22 @@ export function HistoryTab({ artifactHistory }: HistoryTabProps) {
 
   return (
     <div className="space-y-2">
-      {/* Toggle between diff and raw view */}
-      <div className="flex items-center justify-end gap-2 px-1">
-        <button
-          type="button"
-          onClick={() => setShowDiff((v) => !v)}
-          className="rounded px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
-        >
-          {showDiff ? '◉ Diff' : '○ Raw'}
-        </button>
+      {/* View mode toggle */}
+      <div className="flex items-center justify-end gap-1 px-1">
+        {(['rendered', 'diff', 'raw'] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => setViewMode(mode)}
+            className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+              viewMode === mode
+                ? 'bg-indigo-500/30 text-indigo-200'
+                : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+            }`}
+          >
+            {mode === 'rendered' ? 'Rendered' : mode === 'diff' ? 'Diff' : 'Raw'}
+          </button>
+        ))}
       </div>
 
       {artifactHistory.map((entry, i, arr) => {
@@ -55,10 +71,17 @@ export function HistoryTab({ artifactHistory }: HistoryTabProps) {
               {label}
             </summary>
 
-            {showDiff && i > 0 ? (
+            {viewMode === 'diff' && i > 0 ? (
               <DiffView oldText={prev} newText={entry} />
+            ) : viewMode === 'rendered' ? (
+              <div className="border-t border-zinc-800/50 px-2 py-1.5">
+                <InlineMarkdown
+                  text={stripLeadingSpeaker(delta) || '(empty)'}
+                  className="text-[11px] leading-relaxed text-zinc-300"
+                />
+              </div>
             ) : (
-              <div className="border-t border-zinc-800/50 px-2 py-1.5 text-[11px] whitespace-pre-wrap text-zinc-400">
+              <div className="border-t border-zinc-800/50 px-2 py-1.5 font-mono text-[11px] whitespace-pre-wrap text-zinc-400">
                 {delta || '(empty)'}
               </div>
             )}

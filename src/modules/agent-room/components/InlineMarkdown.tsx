@@ -4,7 +4,8 @@ import React, { useMemo } from 'react';
 
 /**
  * Lightweight inline Markdown renderer for the Agent Room chat feed.
- * Supports: bold, italic, inline code, code blocks, bullet/numbered lists, and line breaks.
+ * Supports: headings, bold, italic, inline code, code blocks,
+ * bullet/numbered lists, horizontal rules, and line breaks.
  * No external dependencies required.
  */
 
@@ -15,9 +16,20 @@ interface InlineMarkdownProps {
 }
 
 interface MarkdownNode {
-  type: 'text' | 'bold' | 'italic' | 'code' | 'codeblock' | 'list' | 'orderedlist';
+  type:
+    | 'text'
+    | 'bold'
+    | 'italic'
+    | 'code'
+    | 'codeblock'
+    | 'list'
+    | 'orderedlist'
+    | 'heading'
+    | 'hr';
   content: string;
   language?: string;
+  /** Heading level 1-6 */
+  level?: number;
 }
 
 function parseBlocks(text: string): MarkdownNode[] {
@@ -33,7 +45,6 @@ function parseBlocks(text: string): MarkdownNode[] {
       const code = newlineIdx > 0 ? inner.slice(newlineIdx + 1) : inner;
       nodes.push({ type: 'codeblock', content: code.trimEnd(), language });
     } else if (part.trim()) {
-      // Check for bullet/numbered lists
       const lines = part.split('\n');
       let buffer: string[] = [];
       let listBuffer: string[] = [];
@@ -41,7 +52,10 @@ function parseBlocks(text: string): MarkdownNode[] {
 
       const flushText = () => {
         if (buffer.length > 0) {
-          nodes.push({ type: 'text', content: buffer.join('\n') });
+          const joined = buffer.join('\n');
+          if (joined.trim()) {
+            nodes.push({ type: 'text', content: joined });
+          }
           buffer = [];
         }
       };
@@ -55,10 +69,26 @@ function parseBlocks(text: string): MarkdownNode[] {
       };
 
       for (const line of lines) {
+        const headingMatch = /^(#{1,6})\s+(.+)/.exec(line);
+        const hrMatch = /^(\s*[-*_]\s*){3,}$/.exec(line.trim());
         const bulletMatch = /^[\s]*[-*+]\s+(.+)/.exec(line);
         const orderedMatch = /^[\s]*\d+[.)]\s+(.+)/.exec(line);
+        // Solo dash/double-dash on its own line → treat as separator (common in LLM output)
+        const soloDash = /^-{1,2}$/.test(line.trim());
 
-        if (bulletMatch) {
+        if (headingMatch) {
+          flushList();
+          flushText();
+          nodes.push({
+            type: 'heading',
+            content: headingMatch[2],
+            level: headingMatch[1].length,
+          });
+        } else if ((hrMatch && !bulletMatch) || soloDash) {
+          flushList();
+          flushText();
+          nodes.push({ type: 'hr', content: '' });
+        } else if (bulletMatch) {
           if (listType === 'orderedlist') flushList();
           flushText();
           listType = 'list';
@@ -109,7 +139,7 @@ function renderInlineFormatting(text: string): React.ReactNode[] {
       (token.startsWith('__') && token.endsWith('__'))
     ) {
       parts.push(
-        <strong key={match.index} className="font-semibold">
+        <strong key={match.index} className="font-semibold text-zinc-100">
           {token.slice(2, -2)}
         </strong>,
       );
@@ -130,8 +160,27 @@ function renderInlineFormatting(text: string): React.ReactNode[] {
   return parts;
 }
 
+const HEADING_CLASSES: Record<number, string> = {
+  1: 'text-lg font-bold text-zinc-100 mt-3 mb-1.5',
+  2: 'text-base font-bold text-zinc-100 mt-2.5 mb-1',
+  3: 'text-sm font-semibold text-zinc-200 mt-2 mb-1',
+  4: 'text-sm font-semibold text-zinc-300 mt-1.5 mb-0.5',
+  5: 'text-xs font-semibold text-zinc-300 mt-1 mb-0.5',
+  6: 'text-xs font-medium text-zinc-400 mt-1 mb-0.5',
+};
+
 function MarkdownBlock({ node }: { node: MarkdownNode }) {
   switch (node.type) {
+    case 'heading': {
+      const level = Math.min(Math.max(node.level ?? 3, 1), 6);
+      const Tag = `h${level}` as keyof Pick<
+        React.JSX.IntrinsicElements,
+        'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+      >;
+      return <Tag className={HEADING_CLASSES[level]}>{renderInlineFormatting(node.content)}</Tag>;
+    }
+    case 'hr':
+      return <hr className="my-2 border-zinc-700" />;
     case 'codeblock':
       return (
         <div className="my-1.5 overflow-x-auto rounded border border-zinc-700 bg-zinc-900/80">

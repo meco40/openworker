@@ -123,4 +123,76 @@ describe('mem0Client retry', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it('retries one timed-out write request and succeeds on the next attempt', async () => {
+    let attempts = 0;
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      attempts += 1;
+      if (attempts === 1) {
+        const signal = init?.signal;
+        return await new Promise<Response>((_resolve, reject) => {
+          const onAbort = () =>
+            reject(new DOMException('The operation was aborted.', 'AbortError'));
+          signal?.addEventListener('abort', onAbort, { once: true });
+        });
+      }
+      return okResponse([{ id: 'mem-timeout-1', memory: 'ok', score: null, metadata: {} }]);
+    });
+
+    const client = createMem0Client(
+      {
+        baseUrl: 'http://mem0.local',
+        apiPath: '/v1',
+        timeoutMs: 5_000,
+        writeTimeoutMs: 50,
+        maxRetries: 0,
+        writeMaxRetries: 1,
+        retryBaseDelayMs: 1,
+      },
+      fetchMock as unknown as typeof fetch,
+    );
+
+    const result = await client.addMemory({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      content: 'write timeout retry',
+      metadata: {},
+    });
+
+    expect(result.id).toBe('mem-timeout-1');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry timed-out read requests', async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const signal = init?.signal;
+      return await new Promise<Response>((_resolve, reject) => {
+        const onAbort = () => reject(new DOMException('The operation was aborted.', 'AbortError'));
+        signal?.addEventListener('abort', onAbort, { once: true });
+      });
+    });
+
+    const client = createMem0Client(
+      {
+        baseUrl: 'http://mem0.local',
+        apiPath: '/v1',
+        timeoutMs: 50,
+        maxRetries: 3,
+        writeTimeoutMs: 5_000,
+        writeMaxRetries: 1,
+        retryBaseDelayMs: 1,
+      },
+      fetchMock as unknown as typeof fetch,
+    );
+
+    await expect(
+      client.listMemories({
+        userId: 'user-1',
+        personaId: 'persona-1',
+        page: 1,
+        pageSize: 5,
+      }),
+    ).rejects.toThrow(/timeout/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
