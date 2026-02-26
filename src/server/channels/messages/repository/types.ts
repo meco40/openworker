@@ -1,6 +1,7 @@
 // ─── Data shapes ─────────────────────────────────────────────
 
 import type { ChannelType, Conversation } from '@/shared/domain/types';
+import type { PhaseBufferEntry } from '@/server/agent-room/types';
 
 export type { Conversation };
 
@@ -103,7 +104,7 @@ export interface AgentRoomSwarmRecord {
   swarmTemplate: string | null;
   pauseBetweenPhases: boolean;
   /** Per-agent responses collected so far in the current phase (sequential execution) */
-  phaseBuffer: string[];
+  phaseBuffer: PhaseBufferEntry[];
   createdAt: string;
   updatedAt: string;
 }

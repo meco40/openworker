@@ -4,10 +4,7 @@ import { AgentV2Error } from '@/server/agent-v2/errors';
 import { getAgentV2SessionManager } from '@/server/agent-v2/runtime';
 import { registerMethod, type RespondFn } from '@/server/gateway/method-router';
 import type { GatewayClient } from '@/server/gateway/client-registry';
-import type {
-  AgentRoomSwarmFriction,
-  AgentRoomSwarmUnit,
-} from '@/server/channels/messages/repository';
+import type { AgentRoomSwarmUnit } from '@/server/channels/messages/repository';
 import { getMessageRepository, getMessageService } from '@/server/channels/messages/runtime';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
 import { broadcastToUser } from '@/server/gateway/broadcast';
@@ -92,31 +89,6 @@ function distinctPersonaIds(units: AgentRoomSwarmUnit[]): string[] {
   return Array.from(
     new Set(units.map((unit) => String(unit.personaId || '').trim()).filter(Boolean)),
   );
-}
-
-function parseFriction(
-  params: Record<string, unknown>,
-  key: string,
-): AgentRoomSwarmFriction | undefined {
-  const value = params[key];
-  if (value === undefined || value === null) return undefined;
-  if (!value || typeof value !== 'object') {
-    throw new AgentV2Error(`${key} must be an object`, 'INVALID_REQUEST');
-  }
-  const raw = value as Record<string, unknown>;
-  const level = String(raw.level || '').trim();
-  if (level !== 'low' && level !== 'medium' && level !== 'high') {
-    throw new AgentV2Error(`${key}.level is invalid`, 'INVALID_REQUEST');
-  }
-  return {
-    level,
-    confidence: Number.isFinite(Number(raw.confidence)) ? Number(raw.confidence) : 0,
-    hold: Boolean(raw.hold),
-    reasons: Array.isArray(raw.reasons)
-      ? raw.reasons.map((reason) => String(reason || '').trim()).filter(Boolean)
-      : [],
-    updatedAt: String(raw.updatedAt || '').trim() || new Date().toISOString(),
-  };
 }
 
 function ensurePersonaExists(personaId: string): void {
@@ -386,7 +358,7 @@ registerMethod(
     broadcastToUser(
       client.userId,
       GatewayEvents.AGENT_ROOM_SWARM,
-      { swarmId: swarm.id, status: 'created', updatedAt: swarm.updatedAt },
+      { swarmId: swarm.id, status: 'created', swarm, updatedAt: swarm.updatedAt },
       { protocol: 'v2' },
     );
     respond({ swarm });
@@ -428,6 +400,17 @@ registerMethod(
     const repo = getSwarmRepository();
     const id = requiredString(params, 'id');
     const patch: Parameters<NonNullable<typeof repo.updateAgentRoomSwarm>>[2] = {};
+
+    // ── Server-managed fields — reject if client tries to set them ──
+    const serverOnlyFields = ['artifact', 'artifactHistory', 'friction'] as const;
+    for (const field of serverOnlyFields) {
+      if (params[field] !== undefined) {
+        throw new AgentV2Error(
+          `'${field}' is managed by the orchestrator and cannot be set via swarm.update.`,
+          'INVALID_REQUEST',
+        );
+      }
+    }
 
     const sessionId = optionalString(params, 'sessionId');
     if (sessionId !== undefined) patch.sessionId = sessionId;
@@ -482,23 +465,6 @@ registerMethod(
     if (params.holdFlag !== undefined) {
       patch.holdFlag = Boolean(params.holdFlag);
     }
-    if (params.artifact !== undefined) {
-      patch.artifact = requiredBoundedString(params, 'artifact', MAX_TASK_CHARS);
-    }
-    if (params.artifactHistory !== undefined) {
-      if (!Array.isArray(params.artifactHistory)) {
-        throw new AgentV2Error('artifactHistory must be an array.', 'INVALID_REQUEST');
-      }
-      const history = params.artifactHistory.map((entry) => String(entry || ''));
-      if (JSON.stringify(history).length > MAX_TASK_CHARS * 4) {
-        throw new AgentV2Error('artifactHistory payload is too large.', 'INVALID_REQUEST');
-      }
-      patch.artifactHistory = history;
-    }
-    const friction = parseFriction(params, 'friction');
-    if (friction !== undefined) {
-      patch.friction = friction;
-    }
     if (params.searchEnabled !== undefined) {
       patch.searchEnabled = Boolean(params.searchEnabled);
     }
@@ -523,7 +489,7 @@ registerMethod(
     broadcastToUser(
       client.userId,
       GatewayEvents.AGENT_ROOM_SWARM,
-      { swarmId: updated.id, status: 'updated', updatedAt: updated.updatedAt },
+      { swarmId: updated.id, status: 'updated', swarm: updated, updatedAt: updated.updatedAt },
       { protocol: 'v2' },
     );
     respond({ swarm: updated });
@@ -603,7 +569,7 @@ registerMethod(
     broadcastToUser(
       client.userId,
       GatewayEvents.AGENT_ROOM_SWARM,
-      { swarmId: id, status: 'updated', updatedAt: new Date().toISOString() },
+      { swarmId: id, status: 'updated', swarm: updated, updatedAt: new Date().toISOString() },
       { protocol: 'v2' },
     );
 

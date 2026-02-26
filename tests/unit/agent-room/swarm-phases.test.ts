@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   SWARM_PHASES,
   buildPhasePrompt,
+  getPhaseRounds,
   getNextSwarmPhase,
   getSwarmPhaseLabel,
 } from '@/modules/agent-room/swarmPhases';
@@ -15,6 +16,14 @@ describe('swarm phases', () => {
     expect(getNextSwarmPhase('analysis')).toBe('ideation');
     expect(getNextSwarmPhase('best_case')).toBe('result');
     expect(getNextSwarmPhase('result')).toBeNull();
+  });
+
+  it('exposes deterministic phase round configuration', () => {
+    expect(getPhaseRounds('analysis')).toBe(1);
+    expect(getPhaseRounds('ideation')).toBe(2);
+    expect(getPhaseRounds('critique')).toBe(3);
+    expect(getPhaseRounds('best_case')).toBe(1);
+    expect(getPhaseRounds('result')).toBe(1);
   });
 
   it('builds phase prompt with label and task', () => {

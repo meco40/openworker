@@ -18,6 +18,18 @@ const PHASE_PROMPTS: Record<SwarmPhase, string> = {
   result: 'Liefert ein finales, umsetzbares Ergebnis inkl. kurzer Begründung.',
 };
 
+const PHASE_ROUNDS: Record<SwarmPhase, number> = {
+  analysis: 1,
+  ideation: 2,
+  critique: 3,
+  best_case: 1,
+  result: 1,
+};
+
+export function getPhaseRounds(phase: SwarmPhase): number {
+  return PHASE_ROUNDS[phase] || 1;
+}
+
 export function isSwarmPhase(value: string): value is SwarmPhase {
   return (SWARM_PHASES as readonly string[]).includes(value);
 }
@@ -115,41 +127,6 @@ export function buildAgentTurnPrompt(params: {
     priorContext,
     `AUFGABE: ${task}`,
     `ANWEISUNGEN:\n${instructions}`,
-  ]
-    .filter(Boolean)
-    .join('\n\n');
-}
-
-/**
- * Builds a phase prompt that includes resolved persona names and emojis.
- * @deprecated Use buildAgentTurnPrompt for sequential per-agent execution.
- */
-export function buildPhasePromptWithNames(params: {
-  task: string;
-  phase: SwarmPhase;
-  units: ResolvedSwarmUnit[];
-}): string {
-  const task = String(params.task || '').trim();
-  const phaseText = PHASE_PROMPTS[params.phase];
-  const unitLines = params.units.map((u) => `- ${u.emoji} **${u.name}** (${u.role})`).join('\n');
-  const names = params.units.map((u) => u.name).join(', ');
-
-  const formatInstruction =
-    params.units.length > 0
-      ? `Du bist ein Swarm aus ${params.units.length} KI-Agenten (${names}). ` +
-        `Führe eine strukturierte Diskussion mit MINDESTENS 2 Runden.\n` +
-        `In Runde 1 gibt jede Persona ihre Einschätzung. In Runde 2 reagiert jede Persona auf die anderen, widerspricht oder baut darauf auf.\n` +
-        `Formatiere JEDE Antwort GENAU so (mit eckigen Klammern):\n` +
-        `**[Name]:** <Antwort der Persona>\n\n` +
-        `Personas im Swarm:\n${unitLines}\n\n` +
-        `Wichtig: Alle Personas müssen in JEDER Runde antworten. Zeige echte Meinungsverschiedenheiten und Debatte.`
-      : '';
-
-  return [
-    `SWARM PHASE: ${getSwarmPhaseLabel(params.phase)}`,
-    formatInstruction,
-    phaseText,
-    `AUFGABE: ${task}`,
   ]
     .filter(Boolean)
     .join('\n\n');

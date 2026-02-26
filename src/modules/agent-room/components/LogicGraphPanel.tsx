@@ -80,6 +80,18 @@ export default function LogicGraphPanel({
     };
   }, [source]);
 
+  // Inject SVG into DOM via ref instead of dangerouslySetInnerHTML
+  useEffect(() => {
+    const container = svgContainerRef.current;
+    if (!container) return;
+    container.innerHTML = '';
+    if (svg) {
+      const template = document.createElement('template');
+      template.innerHTML = svg;
+      container.appendChild(template.content);
+    }
+  }, [svg]);
+
   return (
     <div className="rounded-xl border border-zinc-800 bg-[#060b18] p-4">
       <div className="mb-3 flex items-center justify-between">
@@ -135,11 +147,10 @@ export default function LogicGraphPanel({
               transform: `scale(${zoom})`,
               transformOrigin: 'top center',
             }}
-            dangerouslySetInnerHTML={{ __html: svg }}
           />
         ) : (
           <div className="flex min-h-[38rem] items-center justify-center text-xs text-zinc-500">
-            {renderError || 'Kein Diagramm verfügbar. Wird nach der Result-Phase generiert.'}
+            {renderError || 'No diagram available yet. Will be generated during the swarm run.'}
           </div>
         )}
       </div>

@@ -7,13 +7,15 @@ function read(relativePath: string): string {
 }
 
 describe('agent room split layout', () => {
-  it('keeps chat and canvas panel in an equal-width split when canvas is open', () => {
+  it('chat section uses flex-1 for equal-width split', () => {
     const source = read('src/modules/agent-room/components/AgentRoomView.tsx');
-    expect(source).toContain(
-      'className="flex min-w-0 flex-1 flex-col rounded-xl border border-zinc-800 bg-[#050b19]"',
-    );
-    expect(source).toContain(
-      'className="flex min-w-0 flex-1 flex-col rounded-xl border border-zinc-800 bg-[#060d20]"',
-    );
+    // Chat section must be flex-1 so it shares space equally with canvas
+    expect(source).toContain('flex min-w-0 flex-1 flex-col');
+  });
+
+  it('canvas panel uses flex-1 for equal-width split', () => {
+    const source = read('src/modules/agent-room/components/canvas/CanvasPanel.tsx');
+    // Canvas aside must also be flex-1 for equal split
+    expect(source).toContain('flex min-w-0 flex-1 flex-col');
   });
 });

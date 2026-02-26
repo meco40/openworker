@@ -8,6 +8,7 @@ import type {
   StoredMessage,
 } from '@/server/channels/messages/repository';
 import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
+import type { PhaseBufferEntry } from '@/server/agent-room/types';
 import type {
   ChannelBinding,
   ChannelBindingStatus,
@@ -370,7 +371,7 @@ export class SqliteMessageRepository implements MessageRepository {
       searchEnabled?: boolean;
       swarmTemplate?: string | null;
       pauseBetweenPhases?: boolean;
-      phaseBuffer?: string[];
+      phaseBuffer?: PhaseBufferEntry[];
     },
   ) {
     return this.agentRoomQueries.updateAgentRoomSwarm(id, userId, patch);

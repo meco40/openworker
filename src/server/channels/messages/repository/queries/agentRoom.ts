@@ -8,6 +8,7 @@ import type {
   AgentRoomSwarmStatus,
   AgentRoomSwarmUnit,
 } from '@/server/channels/messages/repository/types';
+import type { PhaseBufferEntry } from '@/server/agent-room/types';
 
 const DEFAULT_FRICTION: AgentRoomSwarmFriction = {
   level: 'low',
@@ -26,6 +27,41 @@ function safeJsonParse<T>(value: unknown, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+/**
+ * Parse phaseBuffer from SQLite, handling both legacy string format
+ * (e.g. "agentsession:pid:sid:seq") and new typed object format.
+ */
+function parsePhaseBuffer(value: unknown): PhaseBufferEntry[] {
+  const raw = safeJsonParse<unknown[]>(value, []);
+  if (!Array.isArray(raw)) return [];
+  const entries: PhaseBufferEntry[] = [];
+  for (const item of raw) {
+    if (typeof item === 'object' && item !== null && 'type' in item) {
+      // New typed format
+      entries.push(item as PhaseBufferEntry);
+    } else if (typeof item === 'string') {
+      // Legacy colon-delimited string format — migrate on read
+      if (item.startsWith('agentsession:')) {
+        const parts = item.slice('agentsession:'.length).split(':');
+        if (parts.length >= 3) {
+          entries.push({
+            type: 'agentsession',
+            personaId: parts[0],
+            sessionId: parts[1],
+            lastSeq: Number(parts[2]) || 0,
+          });
+        }
+      } else if (item.startsWith('speaker:')) {
+        const personaId = item.slice('speaker:'.length).trim();
+        if (personaId) {
+          entries.push({ type: 'speaker', personaId });
+        }
+      }
+    }
+  }
+  return entries;
 }
 
 function normalizePhase(value: string): AgentRoomSwarmPhase {
@@ -79,7 +115,7 @@ function toRecord(row: Record<string, unknown>): AgentRoomSwarmRecord {
     searchEnabled: Number(row.search_enabled || 0) === 1,
     swarmTemplate: row.swarm_template ? String(row.swarm_template) : null,
     pauseBetweenPhases: Number(row.pause_between_phases || 0) === 1,
-    phaseBuffer: safeJsonParse<string[]>(row.phase_buffer_json, []),
+    phaseBuffer: parsePhaseBuffer(row.phase_buffer_json),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
@@ -247,7 +283,7 @@ export class AgentRoomQueries {
       searchEnabled?: boolean;
       swarmTemplate?: string | null;
       pauseBetweenPhases?: boolean;
-      phaseBuffer?: string[];
+      phaseBuffer?: PhaseBufferEntry[];
     },
   ): AgentRoomSwarmRecord | null {
     const normalizedUserId = this.normalizeUserId(userId);

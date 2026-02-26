@@ -5,6 +5,7 @@ import type {
   ChannelBindingStatus,
   UpsertChannelBindingInput,
 } from '@/server/channels/messages/channelBindings';
+import type { PhaseBufferEntry } from '@/server/agent-room/types';
 
 // Re-export SearchMessagesOptions from the queries module to maintain backward compatibility
 export type { SearchMessagesOptions } from '@/server/channels/messages/repository/queries/search';
@@ -258,7 +259,7 @@ export interface MessageRepository {
       searchEnabled?: boolean;
       swarmTemplate?: string | null;
       pauseBetweenPhases?: boolean;
-      phaseBuffer?: string[];
+      phaseBuffer?: PhaseBufferEntry[];
     },
   ): AgentRoomSwarmRecord | null;
   deleteAgentRoomSwarm?(id: string, userId: string): boolean;

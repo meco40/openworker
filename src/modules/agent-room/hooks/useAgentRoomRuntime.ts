@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AgentV2GatewayClient } from '@/modules/gateway/ws-agent-v2-client';
 import { useSwarmCatalogState } from '@/modules/agent-room/hooks/useSwarmCatalogState';
-import { getNextSwarmPhase, type SwarmPhase } from '@/modules/agent-room/swarmPhases';
+import { getNextSwarmPhase } from '@/modules/agent-room/swarmPhases';
 import type {
   CreateSwarmInput,
   SwarmRecord,
@@ -12,14 +12,33 @@ import type {
   UpdateSwarmInput,
 } from '@/modules/agent-room/swarmTypes';
 import { parseSwarmRecord } from '@/modules/agent-room/swarmTypes';
-
 import { usePersona } from '@/modules/personas/PersonaContext';
 import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
+import {
+  clampArtifactForPersistence,
+  trimArtifactHistoryForPayload,
+  consumeReplayForCommand,
+  shouldFallbackToSessionSnapshot,
+  isRateLimitedGatewayError,
+  isTransientGatewayConnectionError,
+  buildPhaseIdempotencyKey,
+  getPhaseCommandMethod,
+} from '@/modules/agent-room/utils';
+
+// Re-export utilities for backward compatibility
+export {
+  clampArtifactForPersistence,
+  trimArtifactHistoryForPayload,
+  consumeReplayForCommand,
+  shouldFallbackToSessionSnapshot,
+  isRateLimitedGatewayError,
+  isTransientGatewayConnectionError,
+  buildPhaseIdempotencyKey,
+  getPhaseCommandMethod,
+};
 
 const isAgentRoomEnabled =
   String(process.env.NEXT_PUBLIC_AGENT_ROOM_ENABLED || 'true').toLowerCase() === 'true';
-const MAX_ARTIFACT_CHARS = 20_000;
-const MAX_ARTIFACT_HISTORY_JSON_CHARS = 28_000;
 
 type AgentRoomDeployState = 'idle' | 'deploying';
 
@@ -34,114 +53,6 @@ interface SwarmResponse {
 interface ReplayResponse {
   events: AgentV2EventEnvelope[];
   nextSeq: number;
-}
-
-interface ReplayCommandState {
-  nextSeq: number;
-  text: string;
-  completed: boolean;
-  failed: boolean;
-  errorMessage: string | null;
-}
-
-export function clampArtifactForPersistence(value: string, maxChars = MAX_ARTIFACT_CHARS): string {
-  const normalized = String(value || '').trim();
-  if (!normalized) return '';
-  if (normalized.length <= maxChars) return normalized;
-  return normalized.slice(normalized.length - maxChars);
-}
-
-export function trimArtifactHistoryForPayload(
-  history: string[],
-  maxJsonChars = MAX_ARTIFACT_HISTORY_JSON_CHARS,
-): string[] {
-  if (!Array.isArray(history) || history.length === 0) return [];
-  const next = history.filter((entry) => String(entry || '').trim().length > 0);
-  while (next.length > 0 && JSON.stringify(next).length > maxJsonChars) {
-    next.shift();
-  }
-  return next;
-}
-
-export function consumeReplayForCommand(params: {
-  events: AgentV2EventEnvelope[];
-  commandId: string;
-  fromSeq: number;
-  text: string;
-}): ReplayCommandState {
-  const commandId = String(params.commandId || '').trim();
-  let nextSeq = Math.max(0, Math.floor(params.fromSeq || 0));
-  let text = String(params.text || '');
-  let completed = false;
-  let failed = false;
-  let errorMessage: string | null = null;
-
-  for (const event of params.events) {
-    if (!event || typeof event.seq !== 'number') continue;
-    if (event.seq > nextSeq) nextSeq = event.seq;
-    if (event.commandId !== commandId) continue;
-
-    if (event.type === 'agent.v2.model.delta') {
-      const delta = String((event.payload as { delta?: unknown })?.delta || '');
-      if (delta) text += delta;
-      continue;
-    }
-
-    if (event.type === 'agent.v2.error') {
-      failed = true;
-      const message = String((event.payload as { message?: unknown })?.message || '').trim();
-      errorMessage = message || 'Phase command failed.';
-      continue;
-    }
-
-    if (event.type === 'agent.v2.command.completed') {
-      const status = String((event.payload as { status?: unknown })?.status || '').trim();
-      if (status === 'failed' || status === 'failed_recoverable' || status === 'aborted') {
-        failed = true;
-        errorMessage = `Phase command ended with status: ${status}`;
-      } else {
-        const resultMessage = String(
-          ((event.payload as { result?: { message?: unknown } })?.result?.message as string) || '',
-        ).trim();
-        if (!text.trim() && resultMessage) {
-          text = resultMessage;
-        }
-        completed = true;
-      }
-    }
-  }
-
-  return { nextSeq, text, completed, failed, errorMessage };
-}
-
-export function buildPhaseIdempotencyKey(swarmId: string, phase: SwarmPhase): string {
-  return `${swarmId}:${phase}`;
-}
-
-export function getPhaseCommandMethod(
-  phase: SwarmPhase,
-): 'agent.v2.session.input' | 'agent.v2.session.follow_up' {
-  return phase === 'analysis' ? 'agent.v2.session.input' : 'agent.v2.session.follow_up';
-}
-
-export function shouldFallbackToSessionSnapshot(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error || '');
-  return /REPLAY_WINDOW_EXPIRED|Replay window expired/i.test(message);
-}
-
-export function isRateLimitedGatewayError(error: unknown): boolean {
-  const code =
-    error && typeof error === 'object' && 'code' in error
-      ? String((error as { code?: unknown }).code || '').trim()
-      : '';
-  if (code === 'RATE_LIMITED') return true;
-  const message = error instanceof Error ? error.message : String(error || '');
-  return /too many requests/i.test(message);
-}
-
-export function isTransientGatewayConnectionError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error || '');
-  return /websocket not connected|client disconnected|failed to connect/i.test(message);
 }
 
 function normalizeSwarmList(payload: unknown): SwarmRecord[] {
@@ -201,10 +112,8 @@ export function useAgentRoomRuntime() {
   const [deployState, setDeployState] = useState<AgentRoomDeployState>('idle');
   const clientRef = useRef<AgentV2GatewayClient | null>(null);
   const sessionToSwarmRef = useRef<Map<string, string>>(new Map());
-  /** Maps commandId → { personaId, phase } — populated synchronously on swarm broadcast */
   const commandToInfoRef = useRef<Map<string, { personaId: string; phase: string }>>(new Map());
   const swarmsRef = useRef<SwarmRecord[]>([]);
-  /** External subscriber for agent events (e.g. SwarmChatFeed delta streaming) */
   const onAgentEventRef = useRef<((event: AgentV2EventEnvelope) => void) | null>(null);
   const {
     swarms,
@@ -346,8 +255,6 @@ export function useAgentRoomRuntime() {
       setDeployState('deploying');
       setError(null);
       try {
-        // Server-side orchestration: just signal the swarm as running.
-        // SwarmOrchestratorRuntime picks it up on the next tick.
         const result = (await client.request('agent.v2.swarm.deploy', {
           id: swarmId,
         })) as { swarm?: unknown };
@@ -376,8 +283,6 @@ export function useAgentRoomRuntime() {
       const swarm = swarms.find((item) => item.id === swarmId);
       if (!swarm?.sessionId) return;
       try {
-        // Send guidance as a follow_up (not steer) so it doesn't interrupt the
-        // current AI command and does NOT corrupt the artifact.
         await client.request('agent.v2.session.follow_up', {
           sessionId: swarm.sessionId,
           content: `[OPERATOR GUIDANCE]\n${guidance}`,
@@ -485,7 +390,6 @@ export function useAgentRoomRuntime() {
       const swarm = swarms.find((item) => item.id === swarmId);
       if (!swarm) return null;
 
-      // Resolve persona names for participants
       const participants = swarm.units.map((unit) => {
         const persona = personas.find((p) => p.id === unit.personaId);
         return {
@@ -495,7 +399,6 @@ export function useAgentRoomRuntime() {
         };
       });
 
-      // Parse structured turns from the artifact text
       const turnPattern = /\*\*\[([^\]]+)\]:\*\*\s*([\s\S]*?)(?=\*\*\[[^\]]+\]:\*\*|$)/g;
       const turns: Array<{ speaker: string; content: string }> = [];
       let tm: RegExpExecArray | null;
@@ -527,21 +430,12 @@ export function useAgentRoomRuntime() {
     [swarms, personas],
   );
 
-  /**
-   * Synchronous ref-based swarm lookup by sessionId.
-   * Never stale — uses refs, not React state — safe to call inside event handlers
-   * that fire before React re-renders have flushed.
-   */
   const lookupSwarmBySessionId = useCallback((sessionId: string): SwarmRecord | undefined => {
     const swarmId = sessionToSwarmRef.current.get(sessionId);
     if (!swarmId) return undefined;
     return swarmsRef.current.find((s) => s.id === swarmId);
   }, []);
 
-  /**
-   * Look up the persona ID and phase registered for a commandId.
-   * Returns null if unknown (e.g. legacy swarms or dispatch broadcast not yet received).
-   */
   const getCommandInfo = useCallback(
     (commandId: string): { personaId: string; phase: string } | null =>
       commandToInfoRef.current.get(commandId) ?? null,
@@ -583,7 +477,6 @@ export function useAgentRoomRuntime() {
         patch.currentPhase = 'result';
       }
       updateSwarmLocal(swarmId, patch);
-      // Forward to external subscriber (e.g. SwarmChatFeed for delta streaming)
       onAgentEventRef.current?.(event);
     },
     [updateSwarmLocal],
@@ -593,18 +486,15 @@ export function useAgentRoomRuntime() {
     if (!isAgentRoomEnabled) return;
     const client = new AgentV2GatewayClient();
     const sessionToSwarmMap = sessionToSwarmRef.current;
-    const swarmFetchTimestamps = new Map<string, number>();
     clientRef.current = client;
     client.connect();
     const unsubscribe = client.onEvent(handleAgentEvent);
 
-    // Subscribe to server-push swarm state updates.
-    // Fixes: (1) stale swarm status/phase/artifact in UI after orchestrator ticks,
-    // (2) sessionToSwarmRef stays empty when session is created lazily — without
-    // this, every agent.v2.model.delta/command.completed event gets dropped.
     const unsubscribeSwarm = client.onSwarmEvent((raw) => {
       const payload = raw as {
         swarmId?: string;
+        status?: string;
+        swarm?: unknown;
         sessionId?: string;
         commandId?: string;
         currentPhase?: string;
@@ -614,17 +504,16 @@ export function useAgentRoomRuntime() {
       const swarmId = payload?.swarmId;
       if (!swarmId) return;
 
-      // Synchronously register sessionId → swarmId BEFORE any async work.
-      // This ensures agent.v2.command.started events are not dropped due to
-      // the mapping being absent when the event arrives milliseconds later.
-      if (payload.sessionId) {
-        sessionToSwarmRef.current.set(payload.sessionId, swarmId);
-        // Also patch the in-memory React state so ref-based lookups resolve correctly.
-        updateSwarmLocal(swarmId, { sessionId: payload.sessionId });
+      // Handle deletion events
+      if (payload.status === 'deleted') {
+        removeSwarm(swarmId);
+        return;
       }
 
-      // Synchronously register commandId → { personaId, phase } so that
-      // agent.v2.command.started handlers can identify which persona is streaming.
+      if (payload.sessionId) {
+        sessionToSwarmRef.current.set(payload.sessionId, swarmId);
+      }
+
       if (payload.commandId && payload.agentPersonaId) {
         commandToInfoRef.current.set(payload.commandId, {
           personaId: String(payload.agentPersonaId),
@@ -632,14 +521,20 @@ export function useAgentRoomRuntime() {
         });
       }
 
-      // Async: fetch full swarm record (artifact, phase, etc.) to update all state.
-      // Debounce: skip if we fetched this swarm less than 5 seconds ago.
-      // 5s matches the orchestrator tick interval — one fetch per tick max.
-      const now = Date.now();
-      const lastFetch = swarmFetchTimestamps.get(swarmId) ?? 0;
-      if (now - lastFetch < 5000) return;
-      swarmFetchTimestamps.set(swarmId, now);
+      // If the broadcast includes the full swarm record, use it directly
+      // instead of making a round-trip swarm.get request
+      if (payload.swarm) {
+        const parsed = parseSwarmRecord(payload.swarm);
+        if (parsed) {
+          upsertSwarm(parsed);
+          if (parsed.sessionId) {
+            sessionToSwarmRef.current.set(parsed.sessionId, parsed.id);
+          }
+          return;
+        }
+      }
 
+      // Fallback: fetch from server (backward compat with older server versions)
       void (async () => {
         try {
           const res = await client.request('agent.v2.swarm.get', { id: swarmId });
@@ -664,7 +559,7 @@ export function useAgentRoomRuntime() {
       clientRef.current = null;
       sessionToSwarmMap.clear();
     };
-  }, [handleAgentEvent, loadCatalog, updateSwarmLocal, upsertSwarm]);
+  }, [handleAgentEvent, loadCatalog, removeSwarm, updateSwarmLocal, upsertSwarm]);
 
   useEffect(() => {
     if (!selectedSwarm || !selectedSwarm.sessionId) return;
