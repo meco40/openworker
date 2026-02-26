@@ -94,4 +94,43 @@ describe('GET /api/channels/inbox', () => {
     expect(responseWhenFlagOff.status).toBe(401);
     expect(responseWhenFlagOn.status).toBe(401);
   });
+
+  it('excludes conversations that are linked to Agent Room swarms', async () => {
+    const linkedConversation = repo.getOrCreateConversation(
+      ChannelType.WEBCHAT,
+      'chat-linked-1',
+      'Linked Chat',
+    );
+    repo.saveMessage({
+      conversationId: linkedConversation.id,
+      role: 'user',
+      content: 'should stay out of inbox',
+      platform: ChannelType.WEBCHAT,
+    });
+
+    repo.createAgentRoomSwarm?.({
+      conversationId: linkedConversation.id,
+      userId: linkedConversation.userId,
+      title: 'Swarm Link',
+      task: 'Link this conversation to a swarm',
+      leadPersonaId: 'persona-1',
+      units: [
+        { personaId: 'persona-1', role: 'lead' },
+        { personaId: 'persona-2', role: 'specialist' },
+      ],
+    });
+
+    const { GET } = await import('../../../app/api/channels/inbox/route');
+    const response = await GET(new Request('http://localhost/api/channels/inbox'));
+    const json = (await response.json()) as {
+      ok: boolean;
+      items: Array<{
+        conversationId: string;
+      }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(json.items.some((item) => item.conversationId === linkedConversation.id)).toBe(false);
+  });
 });

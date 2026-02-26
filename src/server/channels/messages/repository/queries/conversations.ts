@@ -87,16 +87,40 @@ export class ConversationQueries {
 
   listConversations(limit = 50, userId?: string): Conversation[] {
     const normalizedUserId = userId ? this.normalizeUserId(userId) : null;
-    // Exclude internal agent-room conversations – they must not appear in the regular chat UI.
+    // Exclude Agent Room conversations (including legacy variants) and any
+    // conversation linked to an Agent Room swarm.
     const rows = normalizedUserId
       ? (this.db
           .prepare(
-            "SELECT * FROM conversations WHERE user_id = ? AND channel_type != 'AgentRoom' ORDER BY updated_at DESC LIMIT ?",
+            `
+            SELECT c.*
+            FROM conversations c
+            WHERE c.user_id = ?
+              AND LOWER(TRIM(c.channel_type)) NOT IN ('agentroom', 'agent-room', 'agent_room')
+              AND NOT EXISTS (
+                SELECT 1
+                FROM agent_room_swarms s
+                WHERE s.conversation_id = c.id AND s.user_id = c.user_id
+              )
+            ORDER BY c.updated_at DESC
+            LIMIT ?
+          `,
           )
           .all(normalizedUserId, limit) as Array<Record<string, unknown>>)
       : (this.db
           .prepare(
-            "SELECT * FROM conversations WHERE channel_type != 'AgentRoom' ORDER BY updated_at DESC LIMIT ?",
+            `
+            SELECT c.*
+            FROM conversations c
+            WHERE LOWER(TRIM(c.channel_type)) NOT IN ('agentroom', 'agent-room', 'agent_room')
+              AND NOT EXISTS (
+                SELECT 1
+                FROM agent_room_swarms s
+                WHERE s.conversation_id = c.id
+              )
+            ORDER BY c.updated_at DESC
+            LIMIT ?
+          `,
           )
           .all(limit) as Array<Record<string, unknown>>);
     return rows.map(toConversation);

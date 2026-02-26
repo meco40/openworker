@@ -1,5 +1,6 @@
 import type { Conversation, StoredMessage } from '@/server/channels/messages/repository';
 import type { SearchMessagesOptions } from '@/server/channels/messages/sqliteMessageRepository';
+import { ChannelType } from '@/shared/domain/types';
 import { getMemoryService } from '@/server/memory/runtime';
 import { resolveKnowledgeConfig } from '@/server/knowledge/config';
 import {
@@ -91,7 +92,15 @@ export class RecallService {
       query: string,
       options: SearchMessagesOptions,
     ) => StoredMessage[] | Promise<StoredMessage[]>,
+    private readonly isMemoryEnabledForConversation?: (conversation: Conversation) => boolean,
   ) {}
+
+  private isMemoryEnabled(conversation: Conversation): boolean {
+    if (typeof this.isMemoryEnabledForConversation === 'function') {
+      return this.isMemoryEnabledForConversation(conversation);
+    }
+    return conversation.channelType !== ChannelType.AGENT_ROOM;
+  }
 
   private getMem0ScopeKey(personaId: string, userId: string): string {
     return `${personaId}::${userId}`;
@@ -119,6 +128,10 @@ export class RecallService {
   }
 
   async buildRecallContext(conversation: Conversation, userInput: string): Promise<string | null> {
+    if (!this.isMemoryEnabled(conversation)) {
+      this.lastRecallByConversation.delete(conversation.id);
+      return null;
+    }
     if (!conversation.personaId) {
       this.lastRecallByConversation.delete(conversation.id);
       return null;
@@ -167,6 +180,7 @@ export class RecallService {
     conversation: Conversation,
     userInput: string,
   ): Promise<{ content: string; metadata: Record<string, unknown> } | null> {
+    if (!this.isMemoryEnabled(conversation)) return null;
     if (!conversation.personaId) return null;
     if (!isStrictEvidenceRecallEnabled()) return null;
     if (!isExplicitRecallCommand(userInput)) return null;
@@ -270,7 +284,9 @@ export class RecallService {
     const runnerUp = sortedRelevant[1];
     const hasConflict = Boolean(runnerUp && Math.abs(winner.score - runnerUp.score) < 0.8);
 
-    const evidenceLines = (hasConflict ? sortedRelevant.slice(0, 3) : sortedRelevant.slice(0, 2)).map(
+    const evidenceLines = (
+      hasConflict ? sortedRelevant.slice(0, 3) : sortedRelevant.slice(0, 2)
+    ).map(
       (candidate, index) =>
         `${index + 1}. [${candidate.source}/${candidate.role}] ${candidate.text}${candidate.createdAt ? ` (${candidate.createdAt})` : ''}`,
     );
@@ -464,6 +480,10 @@ export class RecallService {
   }
 
   async maybeLearnFromFeedback(conversation: Conversation, userInput: string): Promise<void> {
+    if (!this.isMemoryEnabled(conversation)) {
+      this.lastRecallByConversation.delete(conversation.id);
+      return;
+    }
     if (!conversation.personaId) return;
 
     const feedback = detectMemoryFeedbackSignal(userInput);
@@ -525,7 +545,12 @@ function normalizeForMatch(value: string): string {
 }
 
 function tokenizeNormalized(value: string): string[] {
-  return value.match(/[\p{L}\p{N}]+/gu)?.map((token) => token.trim()).filter(Boolean) || [];
+  return (
+    value
+      .match(/[\p{L}\p{N}]+/gu)
+      ?.map((token) => token.trim())
+      .filter(Boolean) || []
+  );
 }
 
 function countHits(text: string, tokens: string[]): number {

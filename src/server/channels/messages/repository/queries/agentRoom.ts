@@ -194,6 +194,38 @@ export class AgentRoomQueries {
     return row ? toRecord(row) : null;
   }
 
+  isAgentRoomConversation(conversationId: string, userId?: string): boolean {
+    const normalizedConversationId = String(conversationId || '').trim();
+    if (!normalizedConversationId) return false;
+
+    if (userId) {
+      const normalizedUserId = this.normalizeUserId(userId);
+      const row = this.db
+        .prepare(
+          `
+          SELECT 1
+          FROM agent_room_swarms
+          WHERE conversation_id = ? AND user_id = ?
+          LIMIT 1
+        `,
+        )
+        .get(normalizedConversationId, normalizedUserId) as { 1?: number } | undefined;
+      return Boolean(row);
+    }
+
+    const row = this.db
+      .prepare(
+        `
+        SELECT 1
+        FROM agent_room_swarms
+        WHERE conversation_id = ?
+        LIMIT 1
+      `,
+      )
+      .get(normalizedConversationId) as { 1?: number } | undefined;
+    return Boolean(row);
+  }
+
   updateAgentRoomSwarm(
     id: string,
     userId: string,

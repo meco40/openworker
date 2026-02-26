@@ -54,14 +54,17 @@ vi.mock('@/server/memory/runtime', () => ({
 
 import { MessageService } from '@/server/channels/messages/service';
 
-function buildRepository(personaId: string | null): MessageRepository {
+function buildRepository(
+  personaId: string | null,
+  overrides?: Partial<Pick<Conversation, 'channelType' | 'externalChatId' | 'userId'>>,
+): MessageRepository {
   let seq = 0;
   const messages: StoredMessage[] = [];
   const conversation: Conversation = {
     id: 'conv-1',
-    channelType: ChannelType.WEBCHAT,
-    externalChatId: 'default',
-    userId: 'user-1',
+    channelType: overrides?.channelType ?? ChannelType.WEBCHAT,
+    externalChatId: overrides?.externalChatId ?? 'default',
+    userId: overrides?.userId ?? 'user-1',
     title: 'Test Chat',
     modelOverride: null,
     personaId,
@@ -255,5 +258,30 @@ describe('MessageService memory recall gating', () => {
         sourceType: 'feedback_correction',
       }),
     );
+  });
+
+  it('skips memory recall for Agent Room conversations', async () => {
+    const service = new MessageService(
+      buildRepository('persona-1', {
+        channelType: ChannelType.AGENT_ROOM,
+        externalChatId: 'agent-room-1',
+      }),
+    );
+
+    await service.handleInbound(
+      ChannelType.AGENT_ROOM,
+      'agent-room-1',
+      'Wie haben wir meinen Kaffee besprochen?',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(0);
+    const dispatchedMessages = getDispatchedMessages();
+    const memorySystemMessage = dispatchedMessages.find(
+      (message) => message.role === 'system' && message.content.includes('Relevant memory context'),
+    );
+    expect(memorySystemMessage).toBeUndefined();
   });
 });

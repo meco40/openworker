@@ -228,4 +228,26 @@ describe('MessageService memory trigger', () => {
       }),
     );
   });
+
+  it('does not store memory for Agent Room conversations', async () => {
+    const service = new MessageService(
+      buildRepository('persona-1', {
+        channelType: ChannelType.AGENT_ROOM,
+        externalChatId: 'agent-room-1',
+      }),
+    );
+
+    const result = await service.handleInbound(
+      ChannelType.AGENT_ROOM,
+      'agent-room-1',
+      'Speichere ab: Nur Test',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(memoryStoreMock).not.toHaveBeenCalled();
+    expect(dispatchWithFallbackMock).not.toHaveBeenCalled();
+    expect(result.agentMsg.content.toLowerCase()).toContain('agent room');
+  });
 });

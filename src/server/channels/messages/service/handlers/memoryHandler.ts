@@ -9,6 +9,7 @@ export async function handleMemorySave(
     content: string;
     platform: ChannelType;
     externalChatId: string;
+    memoryEnabled?: boolean;
   },
   sendResponse: (
     conversation: Conversation,
@@ -19,10 +20,23 @@ export async function handleMemorySave(
   ) => Promise<StoredMessage>,
 ): Promise<{ saved: boolean; message?: StoredMessage }> {
   const { conversation, content, platform, externalChatId } = params;
+  const memoryEnabled = params.memoryEnabled ?? true;
   const memoryContent = extractMemorySaveContent(content);
 
   if (memoryContent === null) {
     return { saved: false };
+  }
+
+  if (!memoryEnabled) {
+    return {
+      saved: false,
+      message: await sendResponse(
+        conversation,
+        'Agent Room ist ein isolierter Brainstorm-Bereich: Memory-Speicherung ist hier deaktiviert.',
+        platform,
+        externalChatId,
+      ),
+    };
   }
 
   if (!memoryContent) {

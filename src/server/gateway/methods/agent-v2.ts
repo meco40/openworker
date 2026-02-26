@@ -89,7 +89,9 @@ function parseUnits(params: Record<string, unknown>, key: string): AgentRoomSwar
 }
 
 function distinctPersonaIds(units: AgentRoomSwarmUnit[]): string[] {
-  return Array.from(new Set(units.map((unit) => String(unit.personaId || '').trim()).filter(Boolean)));
+  return Array.from(
+    new Set(units.map((unit) => String(unit.personaId || '').trim()).filter(Boolean)),
+  );
 }
 
 function parseFriction(
@@ -333,6 +335,16 @@ registerMethod(
       const conversation = messageService.getConversation(requestedConversationId, client.userId);
       if (!conversation) {
         throw new AgentV2Error('Conversation not found.', 'NOT_FOUND');
+      }
+      const isAgentRoomConversation = messageService.isAgentRoomConversation(
+        requestedConversationId,
+        client.userId,
+      );
+      if (!isAgentRoomConversation) {
+        throw new AgentV2Error(
+          'Conversation must be dedicated to Agent Room sessions.',
+          'INVALID_REQUEST',
+        );
       }
       conversationId = conversation.id;
     } else {

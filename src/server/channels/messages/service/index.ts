@@ -1,4 +1,4 @@
-import type { ChannelType } from '@/shared/domain/types';
+import { ChannelType } from '@/shared/domain/types';
 import type {
   MessageRepository,
   StoredMessage,
@@ -103,10 +103,13 @@ export class MessageService {
       () => this.requiresInteractiveToolApproval(),
       this.invokeSubagentToolCall.bind(this),
     );
-    this.recallService = new RecallService((query, options) => {
-      if (typeof this.repo.searchMessages !== 'function') return [];
-      return this.repo.searchMessages(query, options);
-    });
+    this.recallService = new RecallService(
+      (query, options) => {
+        if (typeof this.repo.searchMessages !== 'function') return [];
+        return this.repo.searchMessages(query, options);
+      },
+      (conversation) => this.isMemoryEnabledForConversation(conversation),
+    );
     this.summaryService = new SummaryService(repo);
     this.summaryRefreshInFlight = (
       this.summaryService as unknown as { summaryRefreshInFlight: Set<string> }
@@ -494,6 +497,18 @@ export class MessageService {
     };
   }
 
+  private isAgentRoomConversationRecord(conversation: Conversation): boolean {
+    if (conversation.channelType === ChannelType.AGENT_ROOM) return true;
+    if (typeof this.repo.isAgentRoomConversation === 'function') {
+      return this.repo.isAgentRoomConversation(conversation.id, conversation.userId);
+    }
+    return false;
+  }
+
+  private isMemoryEnabledForConversation(conversation: Conversation): boolean {
+    return !this.isAgentRoomConversationRecord(conversation);
+  }
+
   // --- Conversation Management --------------------------------
 
   listConversations(userId?: string, limit?: number): Conversation[] {
@@ -524,6 +539,12 @@ export class MessageService {
   getConversation(conversationId: string, userId?: string): Conversation | null {
     const resolvedUserId = this.sessionManager.resolveUserId(userId);
     return this.repo.getConversation(conversationId, resolvedUserId);
+  }
+
+  isAgentRoomConversation(conversationId: string, userId?: string): boolean {
+    const conversation = this.getConversation(conversationId, userId);
+    if (!conversation) return false;
+    return this.isAgentRoomConversationRecord(conversation);
   }
 
   listMessages(
@@ -702,6 +723,8 @@ export class MessageService {
 
       // For external channels, auto-apply persona from channel binding
       const effectiveConversation = applyChannelBindingPersona(this.repo, conversation, platform);
+      const memoryEnabledForConversation =
+        this.isMemoryEnabledForConversation(effectiveConversation);
       let effectiveUserInput = content;
       let projectCreatedFromClarification: string | null = null;
 
@@ -720,7 +743,9 @@ export class MessageService {
       }
 
       // Try to learn from feedback
-      void this.recallService.maybeLearnFromFeedback(effectiveConversation, content);
+      if (memoryEnabledForConversation) {
+        void this.recallService.maybeLearnFromFeedback(effectiveConversation, content);
+      }
 
       // Handle memory save
       const memorySaveResult = await handleMemorySave(
@@ -729,6 +754,7 @@ export class MessageService {
           content,
           platform,
           externalChatId,
+          memoryEnabled: memoryEnabledForConversation,
         },
         this.sendResponse.bind(this),
       );
@@ -763,10 +789,12 @@ export class MessageService {
         };
       }
 
-      const strictRecall = await this.recallService.buildStrictEvidenceReply(
-        effectiveConversation,
-        effectiveUserInput,
-      );
+      const strictRecall = memoryEnabledForConversation
+        ? await this.recallService.buildStrictEvidenceReply(
+            effectiveConversation,
+            effectiveUserInput,
+          )
+        : null;
       if (strictRecall) {
         const agentMsg = await this.sendResponse(
           effectiveConversation,

@@ -1,4 +1,5 @@
 import type { Conversation, StoredMessage } from '@/server/channels/messages/repository';
+import { ChannelType } from '@/shared/domain/types';
 import { getModelHubService, getModelHubEncryptionKey } from '@/server/model-hub/runtime';
 import { buildFallbackSummary, isAiSummaryEnabled } from '@/server/channels/messages/summary';
 import { resolveMemoryScopedUserId } from '@/server/memory/userScope';
@@ -30,8 +31,17 @@ export class SummaryService {
         uptoSeq: number,
         userId: string,
       ) => void;
+      isAgentRoomConversation?: (conversationId: string, userId?: string) => boolean;
     },
   ) {}
+
+  private isAgentRoomConversation(conversation: Conversation): boolean {
+    if (conversation.channelType === ChannelType.AGENT_ROOM) return true;
+    if (typeof this.repo.isAgentRoomConversation === 'function') {
+      return this.repo.isAgentRoomConversation(conversation.id, conversation.userId);
+    }
+    return false;
+  }
 
   isInFlight(conversationId: string): boolean {
     return this.summaryRefreshInFlight.has(conversationId);
@@ -115,6 +125,7 @@ export class SummaryService {
     conversation: Conversation,
     messages: StoredMessage[],
   ): Promise<void> {
+    if (this.isAgentRoomConversation(conversation)) return;
     if (!conversation.personaId) return;
     if (!isAutoSessionMemoryEnabled()) return;
 
@@ -151,6 +162,7 @@ export class SummaryService {
     messages: StoredMessage[],
     mergedSummary: string,
   ): Promise<void> {
+    if (this.isAgentRoomConversation(conversation)) return;
     if (!conversation.personaId) return;
     if (messages.length === 0) return;
 

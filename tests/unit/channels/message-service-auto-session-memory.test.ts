@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ChannelType } from '@/shared/domain/types';
 import type { Conversation } from '@/shared/domain/types';
 import type { MessageRepository } from '@/server/channels/messages/repository';
 
@@ -130,5 +131,27 @@ describe('MessageService auto session memory', () => {
         return String(args[2] ?? '').includes('Kaffee');
       }),
     ).toBe(true);
+  });
+
+  it('does not store auto-session memory for Agent Room conversations', async () => {
+    const service = new MessageService(buildRepository());
+    const conversation: Conversation = {
+      id: 'c-1',
+      channelType: ChannelType.AGENT_ROOM,
+      externalChatId: 'agent-room-1',
+      userId: 'user-1',
+      title: 'Agent Room Summary Test',
+      modelOverride: null,
+      personaId: 'persona-1',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await (
+      service as unknown as { maybeRefreshConversationSummary: (c: Conversation) => Promise<void> }
+    ).maybeRefreshConversationSummary(conversation);
+
+    expect(dispatchWithFallbackMock).toHaveBeenCalledTimes(1);
+    expect(memoryStoreMock).not.toHaveBeenCalled();
   });
 });

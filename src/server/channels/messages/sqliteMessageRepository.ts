@@ -338,6 +338,11 @@ export class SqliteMessageRepository implements MessageRepository {
     return this.agentRoomQueries.getAgentRoomSwarm(id, userId);
   }
 
+  isAgentRoomConversation(conversationId: string, userId?: string): boolean {
+    const normalizedUserId = userId ? this.normalizeUserId(userId) : undefined;
+    return this.agentRoomQueries.isAgentRoomConversation(conversationId, normalizedUserId);
+  }
+
   updateAgentRoomSwarm(
     id: string,
     userId: string,
