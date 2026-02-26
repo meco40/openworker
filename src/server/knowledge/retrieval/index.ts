@@ -1,5 +1,5 @@
 // Main exports from the retrieval module
-export { KnowledgeRetrievalService } from './service';
+export { KnowledgeRetrievalService } from './service/index';
 
 export type {
   KnowledgeRetrievalInput,

@@ -32,6 +32,13 @@ interface MarkdownNode {
   level?: number;
 }
 
+function isHorizontalRuleLine(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed.length < 3) return false;
+  if (!/^[\s*_-]+$/.test(trimmed)) return false;
+  return trimmed.replace(/\s/g, '').length >= 3;
+}
+
 function parseBlocks(text: string): MarkdownNode[] {
   const nodes: MarkdownNode[] = [];
   // Split by code fences first
@@ -70,7 +77,7 @@ function parseBlocks(text: string): MarkdownNode[] {
 
       for (const line of lines) {
         const headingMatch = /^(#{1,6})\s+(.+)/.exec(line);
-        const hrMatch = /^(\s*[-*_]\s*){3,}$/.exec(line.trim());
+        const hrMatch = isHorizontalRuleLine(line);
         const bulletMatch = /^[\s]*[-*+]\s+(.+)/.exec(line);
         const orderedMatch = /^[\s]*\d+[.)]\s+(.+)/.exec(line);
         // Solo dash/double-dash on its own line → treat as separator (common in LLM output)
