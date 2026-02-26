@@ -24,11 +24,13 @@ describe('ws persona stickiness e2e', () => {
       personaId: 'persona-nexus',
     });
 
-    await client.stream('chat.stream', {
-      conversationId,
-      content: 'try switch persona',
-      personaId: 'persona-other',
-    });
+    await expect(
+      client.stream('chat.stream', {
+        conversationId,
+        content: 'try switch persona',
+        personaId: 'persona-other',
+      }),
+    ).rejects.toThrow(/personaId mismatch/i);
 
     const conversations = await client.request('chat.conversations.list', { limit: 20 });
     const list = conversations.payload as Array<{ id: string; personaId?: string | null }>;

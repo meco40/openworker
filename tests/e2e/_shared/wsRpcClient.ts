@@ -83,7 +83,22 @@ export async function createWsRpcClient(url: string): Promise<WsRpcClient> {
 
         const onMessage = (raw: RawData) => {
           const incoming = parseIncoming(raw);
-          if (!incoming || incoming.type !== 'stream' || incoming.id !== id) {
+          if (!incoming || incoming.type === 'event' || incoming.id !== id) {
+            return;
+          }
+
+          if (incoming.type === 'res') {
+            socket.off('message', onMessage);
+            if (!incoming.ok) {
+              const message = incoming.error?.message || 'Stream request failed';
+              reject(new Error(message));
+              return;
+            }
+            resolve(chunks);
+            return;
+          }
+
+          if (incoming.type !== 'stream') {
             return;
           }
 

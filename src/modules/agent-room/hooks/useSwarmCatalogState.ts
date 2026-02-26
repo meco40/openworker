@@ -23,6 +23,20 @@ export function useSwarmCatalogState(initialCatalog: SwarmRecord[] = []) {
       if (index < 0) {
         return [nextSwarm, ...previous];
       }
+      const existing = previous[index];
+      // Bail out when key fields are identical to avoid unnecessary re-renders
+      if (
+        existing.status === nextSwarm.status &&
+        existing.currentPhase === nextSwarm.currentPhase &&
+        existing.artifact === nextSwarm.artifact &&
+        existing.consensusScore === nextSwarm.consensusScore &&
+        existing.holdFlag === nextSwarm.holdFlag &&
+        existing.sessionId === nextSwarm.sessionId &&
+        existing.lastSeq === nextSwarm.lastSeq &&
+        existing.updatedAt === nextSwarm.updatedAt
+      ) {
+        return previous;
+      }
       const next = [...previous];
       next[index] = nextSwarm;
       return next;

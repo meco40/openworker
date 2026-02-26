@@ -15,7 +15,17 @@ import NewSwarmModal from './NewSwarmModal';
 export default function AgentRoomView() {
   const { personas } = usePersona();
   const runtime = useAgentRoomRuntime();
-  const swarmMessages = useSwarmMessages();
+  const {
+    messages: chatMessages,
+    resetForSwarm,
+    hydrateFromArtifact,
+    addPhaseDivider,
+    addOperatorMessage,
+    startAgentTurn,
+    handleAgentEvent: handleMessageEvent,
+    getStreamingContent,
+    replaceStreamingWithTurns,
+  } = useSwarmMessages();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [canvasOpen, setCanvasOpen] = useState(true);
   const lastDividerPhaseRef = useRef<Map<string, SwarmPhase | null>>(new Map());
@@ -32,10 +42,10 @@ export default function AgentRoomView() {
           const speakerPersona = personas.find((p) => p.id === speakerPersonaId);
           const lastDividerPhase = lastDividerPhaseRef.current.get(swarm.id) || null;
           if (lastDividerPhase !== phase) {
-            swarmMessages.addPhaseDivider(phase);
+            addPhaseDivider(phase);
             lastDividerPhaseRef.current.set(swarm.id, phase);
           }
-          swarmMessages.startAgentTurn({
+          startAgentTurn({
             commandId: event.commandId,
             personaId: speakerPersonaId,
             personaName: speakerPersona?.name ?? 'Agent',
@@ -47,7 +57,7 @@ export default function AgentRoomView() {
       if (event.type === 'agent.v2.command.completed' && event.commandId) {
         const swarm = runtime.lookupSwarmBySessionId(event.sessionId);
         if (swarm) {
-          const streamingText = swarmMessages.getStreamingContent(event.commandId);
+          const streamingText = getStreamingContent(event.commandId);
           if (streamingText !== null) {
             const commandInfo = runtime.getCommandInfo(event.commandId);
             const fallbackPersonaId = commandInfo?.personaId || swarm.leadPersonaId;
@@ -63,14 +73,22 @@ export default function AgentRoomView() {
               };
             });
             const parsedTurns = parseAgentTurns(rawText, resolvedUnits, fallbackPersonaId);
-            swarmMessages.replaceStreamingWithTurns(event.commandId, parsedTurns);
+            replaceStreamingWithTurns(event.commandId, parsedTurns);
             return;
           }
         }
       }
-      swarmMessages.handleAgentEvent(event);
+      handleMessageEvent(event);
     };
-  }, [runtime, swarmMessages, personas]);
+  }, [
+    runtime,
+    personas,
+    addPhaseDivider,
+    startAgentTurn,
+    getStreamingContent,
+    replaceStreamingWithTurns,
+    handleMessageEvent,
+  ]);
 
   // Reset chat feed when selected swarm changes
   const selectedSwarm = runtime.selectedSwarm;
@@ -78,7 +96,7 @@ export default function AgentRoomView() {
   useEffect(() => {
     const swarm = selectedSwarm;
     if (!swarm) return;
-    swarmMessages.resetForSwarm(swarm.id);
+    resetForSwarm(swarm.id);
     lastDividerPhaseRef.current.delete(swarm.id);
 
     if (swarm.artifact) {
@@ -91,9 +109,9 @@ export default function AgentRoomView() {
           emoji: persona?.emoji ?? '🤖',
         };
       });
-      swarmMessages.hydrateFromArtifact(swarm.artifact, resolvedUnits, swarm.leadPersonaId);
+      hydrateFromArtifact(swarm.artifact, resolvedUnits, swarm.leadPersonaId);
     }
-  }, [selectedSwarm, swarmMessages, personas]);
+  }, [selectedSwarm, resetForSwarm, hydrateFromArtifact, personas]);
 
   const handleOperatorSend = useCallback(
     (content: string, mentionedPersonaId?: string) => {
@@ -106,9 +124,9 @@ export default function AgentRoomView() {
         }
       }
       void runtime.steerSwarm(runtime.selectedSwarm.id, guidance);
-      swarmMessages.addOperatorMessage(content);
+      addOperatorMessage(content);
     },
-    [runtime, swarmMessages, personas],
+    [runtime, addOperatorMessage, personas],
   );
 
   const swarmPersonas = useMemo(() => {
@@ -193,7 +211,7 @@ export default function AgentRoomView() {
           onToggleCanvas={() => setCanvasOpen((v) => !v)}
           canvasOpen={canvasOpen}
         />
-        <SwarmChatFeed messages={swarmMessages.messages} className="min-h-0 flex-1" />
+        <SwarmChatFeed messages={chatMessages} className="min-h-0 flex-1" />
         <div className="shrink-0 border-t border-zinc-800 p-3">
           <UserChatInput
             onSend={handleOperatorSend}

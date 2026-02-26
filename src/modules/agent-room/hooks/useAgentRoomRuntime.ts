@@ -132,9 +132,11 @@ export function useAgentRoomRuntime() {
   // ── Rehydrate on swarm selection ──
 
   useEffect(() => {
-    if (!selectedSwarm || !selectedSwarm.sessionId) return;
-    void rehydrateSwarm(selectedSwarm);
-  }, [rehydrateSwarm, selectedSwarm]);
+    if (!selectedSwarmId) return;
+    const swarm = swarmsRef.current.find((s) => s.id === selectedSwarmId);
+    if (!swarm || !swarm.sessionId) return;
+    void rehydrateSwarm(swarm);
+  }, [rehydrateSwarm, selectedSwarmId]);
 
   // ── Export ──
 

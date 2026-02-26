@@ -45,5 +45,8 @@ jobs:
       - name: Run tests
         run: npm run test
 
+      - name: Build Next.js app for e2e smoke
+        run: npm run build
+
       - name: Run deterministic e2e smoke
         run: npm run test:e2e:smoke
