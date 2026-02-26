@@ -137,6 +137,8 @@ function resolveHookTimeoutMs(manifestTimeoutMs?: number): number {
 }
 
 function resolveExtensionsEnabledFlag(): boolean {
-  const raw = String(process.env.AGENT_V2_EXTENSIONS_ENABLED || 'true').trim().toLowerCase();
+  const raw = String(process.env.AGENT_V2_EXTENSIONS_ENABLED || 'true')
+    .trim()
+    .toLowerCase();
   return raw !== '0' && raw !== 'false' && raw !== 'off';
 }

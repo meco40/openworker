@@ -67,7 +67,8 @@ export async function GET() {
 
     const vectorNodeCount = await resolveVectorNodeCount(userContext?.userId);
     const metricsUserId = userContext?.userId || LEGACY_LOCAL_USER_ID;
-    const agentRoomMetrics = getMessageRepository().getAgentRoomSwarmMetrics?.(metricsUserId) || null;
+    const agentRoomMetrics =
+      getMessageRepository().getAgentRoomSwarmMetrics?.(metricsUserId) || null;
 
     let automationMetrics: {
       activeRules: number;

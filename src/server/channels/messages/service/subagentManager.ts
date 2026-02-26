@@ -576,9 +576,7 @@ export class SubagentManager {
               `agentId: ${run.agentId}`,
               run.profileId ? `profileId: ${run.profileId}` : null,
               run.profileName ? `profile: ${run.profileName}` : null,
-              run.toolFunctionNames?.length
-                ? `tools: ${run.toolFunctionNames.join(', ')}`
-                : null,
+              run.toolFunctionNames?.length ? `tools: ${run.toolFunctionNames.join(', ')}` : null,
               run.skillIds?.length ? `skills: ${run.skillIds.join(', ')}` : null,
               `status: ${run.status}`,
               `startedAt: ${run.startedAt}`,

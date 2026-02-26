@@ -259,7 +259,11 @@ export async function syncMem0LlmFromModelHub(
     };
   }
 
-  const accountWithSecret = await resolveAccountWithSecret(service, llmHead.accountId, encryptionKey);
+  const accountWithSecret = await resolveAccountWithSecret(
+    service,
+    llmHead.accountId,
+    encryptionKey,
+  );
   if (!accountWithSecret) {
     return {
       ok: false,

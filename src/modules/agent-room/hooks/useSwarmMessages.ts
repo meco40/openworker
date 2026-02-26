@@ -75,48 +75,103 @@ export function useSwarmMessages() {
       if (!artifact.trim()) return;
       streamingRef.current.clear();
 
-      const sections = artifact
-        .split(/\n\n---\n\n/)
-        .map((s) => s.trim())
-        .filter(Boolean);
       const now = new Date().toISOString();
       const rebuilt: SwarmMessage[] = [];
 
-      sections.forEach((section, i) => {
-        const phase = SWARM_PHASES[i] as SwarmPhase | undefined;
-        if (!phase) return;
+      // Build reverse lookup: phase label (lowercase) → SwarmPhase
+      const labelToPhase = new Map<string, SwarmPhase>();
+      for (const phase of SWARM_PHASES) {
+        labelToPhase.set(getSwarmPhaseLabel(phase).toLowerCase(), phase);
+      }
 
-        // Phase divider
-        rebuilt.push({
-          id: uid(),
-          personaId: null,
-          personaName: 'System',
-          personaEmoji: '⚡',
-          content: getSwarmPhaseLabel(phase),
-          phase,
-          timestamp: now,
-          isStreaming: false,
-          isOperator: false,
-          kind: 'phase-divider',
+      // Find all phase markers: --- Phase Label ---
+      const phaseMarkerPattern = /^---\s*(.+?)\s*---$/gm;
+      const markers: Array<{ label: string; index: number; end: number }> = [];
+      let match: RegExpExecArray | null;
+      while ((match = phaseMarkerPattern.exec(artifact)) !== null) {
+        markers.push({
+          label: match[1].trim(),
+          index: match.index,
+          end: match.index + match[0].length,
         });
+      }
 
-        // Per-persona turns
-        const turns = parseAgentTurns(section, units, leadPersonaId);
-        for (const turn of turns) {
+      if (markers.length === 0) {
+        // Legacy artifact without phase markers — treat everything as analysis
+        const turns = parseAgentTurns(artifact, units, leadPersonaId);
+        if (turns.length > 0) {
           rebuilt.push({
             id: uid(),
-            personaId: turn.personaId,
-            personaName: turn.personaName,
-            personaEmoji: turn.personaEmoji,
-            content: turn.content,
+            personaId: null,
+            personaName: 'System',
+            personaEmoji: '⚡',
+            content: getSwarmPhaseLabel('analysis'),
+            phase: 'analysis' as SwarmPhase,
+            timestamp: now,
+            isStreaming: false,
+            isOperator: false,
+            kind: 'phase-divider',
+          });
+          for (const turn of turns) {
+            rebuilt.push({
+              id: uid(),
+              personaId: turn.personaId,
+              personaName: turn.personaName,
+              personaEmoji: turn.personaEmoji,
+              content: turn.content,
+              phase: 'analysis' as SwarmPhase,
+              timestamp: now,
+              isStreaming: false,
+              isOperator: false,
+              kind: 'agent',
+            });
+          }
+        }
+      } else {
+        // Parse sections between phase markers
+        for (let i = 0; i < markers.length; i++) {
+          const marker = markers[i];
+          const nextMarker = markers[i + 1];
+          const sectionText = artifact
+            .slice(marker.end, nextMarker ? nextMarker.index : undefined)
+            .trim();
+          const phase: SwarmPhase =
+            labelToPhase.get(marker.label.toLowerCase()) ?? SWARM_PHASES[i] ?? 'analysis';
+
+          // Phase divider
+          rebuilt.push({
+            id: uid(),
+            personaId: null,
+            personaName: 'System',
+            personaEmoji: '⚡',
+            content: getSwarmPhaseLabel(phase),
             phase,
             timestamp: now,
             isStreaming: false,
             isOperator: false,
-            kind: 'agent',
+            kind: 'phase-divider',
           });
+
+          // Per-persona turns in this section
+          if (sectionText) {
+            const turns = parseAgentTurns(sectionText, units, leadPersonaId);
+            for (const turn of turns) {
+              rebuilt.push({
+                id: uid(),
+                personaId: turn.personaId,
+                personaName: turn.personaName,
+                personaEmoji: turn.personaEmoji,
+                content: turn.content,
+                phase,
+                timestamp: now,
+                isStreaming: false,
+                isOperator: false,
+                kind: 'agent',
+              });
+            }
+          }
         }
-      });
+      }
 
       if (rebuilt.length > 0) {
         setMessages(rebuilt);

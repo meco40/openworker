@@ -360,8 +360,8 @@ describe('DeleteQueries', () => {
     expect(runCalls.some((entry) => entry.sql.includes('knowledge_episodes'))).toBe(true);
     expect(runCalls.some((entry) => entry.sql.includes('knowledge_meeting_ledger'))).toBe(true);
     expect(runCalls.some((entry) => entry.sql.includes('knowledge_retrieval_audit'))).toBe(true);
-    expect(runCalls.some((entry) => entry.sql.includes('UPDATE conversations SET updated_at = ?'))).toBe(
-      true,
-    );
+    expect(
+      runCalls.some((entry) => entry.sql.includes('UPDATE conversations SET updated_at = ?')),
+    ).toBe(true);
   });
 });

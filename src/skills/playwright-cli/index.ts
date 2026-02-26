@@ -38,4 +38,3 @@ const playwrightCliSkill = {
 };
 
 export default playwrightCliSkill;
-

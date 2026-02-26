@@ -61,6 +61,14 @@ function ThinkingDots() {
   );
 }
 
+/** Strip swarm control directives that leak into streamed text */
+function stripDirectives(text: string): string {
+  return text
+    .replace(/\[VOTE:UP\]|\[VOTE:DOWN\]/gi, '')
+    .replace(/\[CHANGE_PHASE:[^\]]+\]/gi, '')
+    .trim();
+}
+
 function AgentBubble({ message }: { message: SwarmMessage }) {
   const color = personaColor(message.personaId);
   return (
@@ -88,7 +96,7 @@ function AgentBubble({ message }: { message: SwarmMessage }) {
           </span>
         </div>
         <p className="mt-0.5 text-sm leading-relaxed wrap-break-word whitespace-pre-wrap text-(--foreground)">
-          {message.content || ' '}
+          {stripDirectives(message.content) || ' '}
           {message.isStreaming && <ThinkingDots />}
         </p>
       </div>

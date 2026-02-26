@@ -389,9 +389,9 @@ describe('SqliteKnowledgeRepository', () => {
     expect(repo.listEpisodes({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
     expect(repo.listMeetingLedger({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
     expect(repo.listRetrievalAudit({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
-    expect(repo.listConversationSummaries({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(
-      0,
-    );
+    expect(
+      repo.listConversationSummaries({ userId: 'user-1', personaId: 'persona-1' }),
+    ).toHaveLength(0);
     expect(repo.listEvents({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
     expect(repo.listEntities({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
   });

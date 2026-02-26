@@ -48,4 +48,3 @@ describe('NewSwarmModal', () => {
     expect(html).toContain('Deploy Agents');
   });
 });
-

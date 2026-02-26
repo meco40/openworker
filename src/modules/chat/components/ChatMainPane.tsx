@@ -244,7 +244,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                         type="button"
                         onClick={() => onDeleteMessage(message)}
                         title="Nachricht loeschen"
-                        className="absolute top-2 right-2 inline-flex h-6 w-6 items-center justify-center rounded-md border border-zinc-700/70 bg-zinc-950/70 text-zinc-400 opacity-0 transition hover:border-rose-500/60 hover:text-rose-300 group-hover:opacity-100"
+                        className="absolute top-2 right-2 inline-flex h-6 w-6 items-center justify-center rounded-md border border-zinc-700/70 bg-zinc-950/70 text-zinc-400 opacity-0 transition group-hover:opacity-100 hover:border-rose-500/60 hover:text-rose-300"
                         aria-label="Nachricht loeschen"
                       >
                         <svg

@@ -50,10 +50,13 @@ describe('persona memory cascade delete', () => {
     (globalThis as { __messageRepository?: unknown }).__messageRepository = undefined;
     (globalThis as { __messageService?: unknown }).__messageService = undefined;
     (globalThis as { __knowledgeRepository?: unknown }).__knowledgeRepository = undefined;
-    (globalThis as { __knowledgeMessageRepository?: unknown }).__knowledgeMessageRepository = undefined;
+    (globalThis as { __knowledgeMessageRepository?: unknown }).__knowledgeMessageRepository =
+      undefined;
     (globalThis as { __knowledgeRuntimeLoop?: unknown }).__knowledgeRuntimeLoop = undefined;
-    (globalThis as { __knowledgeRetrievalService?: unknown }).__knowledgeRetrievalService = undefined;
-    (globalThis as { __knowledgeIngestionService?: unknown }).__knowledgeIngestionService = undefined;
+    (globalThis as { __knowledgeRetrievalService?: unknown }).__knowledgeRetrievalService =
+      undefined;
+    (globalThis as { __knowledgeIngestionService?: unknown }).__knowledgeIngestionService =
+      undefined;
     (globalThis as { __knowledgeCursor?: unknown }).__knowledgeCursor = undefined;
     (globalThis as { __knowledgeExtractor?: unknown }).__knowledgeExtractor = undefined;
     vi.unstubAllGlobals();
@@ -313,9 +316,9 @@ describe('persona memory cascade delete', () => {
     expect(knowledgeRepo.listEpisodes({ userId: defaultUser, personaId })).toHaveLength(1);
     expect(knowledgeRepo.listMeetingLedger({ userId: defaultUser, personaId })).toHaveLength(1);
     expect(knowledgeRepo.listRetrievalAudit({ userId: defaultUser, personaId })).toHaveLength(1);
-    expect(knowledgeRepo.listConversationSummaries({ userId: defaultUser, personaId })).toHaveLength(
-      1,
-    );
+    expect(
+      knowledgeRepo.listConversationSummaries({ userId: defaultUser, personaId }),
+    ).toHaveLength(1);
     expect(knowledgeRepo.listEvents({ userId: defaultUser, personaId })).toHaveLength(1);
     expect(knowledgeRepo.listEntities({ userId: defaultUser, personaId })).toHaveLength(1);
     expect(knowledgeRepo.getIngestionCheckpoint(conversation.id, personaId)).not.toBeNull();
@@ -343,9 +346,9 @@ describe('persona memory cascade delete', () => {
     expect(knowledgeRepo.listEpisodes({ userId: defaultUser, personaId })).toHaveLength(0);
     expect(knowledgeRepo.listMeetingLedger({ userId: defaultUser, personaId })).toHaveLength(0);
     expect(knowledgeRepo.listRetrievalAudit({ userId: defaultUser, personaId })).toHaveLength(0);
-    expect(knowledgeRepo.listConversationSummaries({ userId: defaultUser, personaId })).toHaveLength(
-      0,
-    );
+    expect(
+      knowledgeRepo.listConversationSummaries({ userId: defaultUser, personaId }),
+    ).toHaveLength(0);
     expect(knowledgeRepo.listEvents({ userId: defaultUser, personaId })).toHaveLength(0);
     expect(knowledgeRepo.listEntities({ userId: defaultUser, personaId })).toHaveLength(0);
     expect(knowledgeRepo.getIngestionCheckpoint(conversation.id, personaId)).toBeNull();

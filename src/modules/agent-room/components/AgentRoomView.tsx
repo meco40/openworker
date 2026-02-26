@@ -13,19 +13,16 @@ import { extractCommandCompletionText } from '@/modules/agent-room/completionTex
 import { useAgentRoomRuntime } from '@/modules/agent-room/hooks/useAgentRoomRuntime';
 import { useSwarmMessages } from '@/modules/agent-room/hooks/useSwarmMessages';
 import LogicGraphPanel from '@/modules/agent-room/components/LogicGraphPanel';
-import { MindmapPanel } from '@/modules/agent-room/components/MindmapPanel';
 import { SwarmChatFeed } from '@/modules/agent-room/components/SwarmChatFeed';
 import { UserChatInput } from '@/modules/agent-room/components/UserChatInput';
 import NewSwarmModal from '@/modules/agent-room/components/NewSwarmModal';
 
-type CanvasTab = 'logic_graph' | 'mindmap' | 'artifact' | 'history' | 'conflict';
+type CanvasTab = 'logic_graph' | 'artifact' | 'history' | 'conflict';
 
 function canvasTabLabel(tab: CanvasTab): string {
   switch (tab) {
     case 'logic_graph':
       return 'Logic Graph';
-    case 'mindmap':
-      return 'Mindmap';
     case 'artifact':
       return 'Artifact';
     case 'history':
@@ -100,6 +97,10 @@ export default function AgentRoomView() {
             });
             const parsedTurns = parseAgentTurns(rawText, resolvedUnits, fallbackPersonaId);
             swarmMessages.replaceStreamingWithTurns(event.commandId, parsedTurns);
+            // Skip handleAgentEvent for completed commands — replaceStreamingWithTurns
+            // already cleaned up the streaming entry. Calling finalizeAgentTurn again
+            // would be a no-op but is fragile if ordering ever changes.
+            return;
           }
         }
       }
@@ -367,21 +368,19 @@ export default function AgentRoomView() {
         <aside className="flex min-w-0 flex-1 flex-col rounded-xl border border-zinc-800 bg-[#060d20]">
           {/* Canvas tab bar */}
           <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-zinc-800 px-3 py-2">
-            {(['logic_graph', 'mindmap', 'artifact', 'history', 'conflict'] as CanvasTab[]).map(
-              (tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setCanvasTab(tab)}
-                  className={`rounded px-2 py-1 text-[10px] whitespace-nowrap transition-colors ${
-                    canvasTab === tab
-                      ? 'bg-indigo-500/30 text-indigo-100'
-                      : 'text-zinc-500 hover:text-zinc-300'
-                  }`}
-                >
-                  {canvasTabLabel(tab)}
-                </button>
-              ),
-            )}
+            {(['logic_graph', 'artifact', 'history', 'conflict'] as CanvasTab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setCanvasTab(tab)}
+                className={`rounded px-2 py-1 text-[10px] whitespace-nowrap transition-colors ${
+                  canvasTab === tab
+                    ? 'bg-indigo-500/30 text-indigo-100'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                {canvasTabLabel(tab)}
+              </button>
+            ))}
           </div>
 
           {/* Canvas content */}
@@ -393,12 +392,6 @@ export default function AgentRoomView() {
                 swarmStatus={runtime.selectedSwarm?.status}
               />
             )}
-            {canvasTab === 'mindmap' && (
-              <MindmapPanel
-                artifact={runtime.selectedSwarm?.artifact || ''}
-                swarmTitle={runtime.selectedSwarm?.title || 'Swarm'}
-              />
-            )}
             {canvasTab === 'artifact' && (
               <pre className="text-[11px] leading-relaxed wrap-break-word whitespace-pre-wrap text-zinc-300">
                 {runtime.selectedSwarm?.artifact || 'No artifact yet.'}
@@ -406,14 +399,33 @@ export default function AgentRoomView() {
             )}
             {canvasTab === 'history' && (
               <div className="space-y-2">
-                {(runtime.selectedSwarm?.artifactHistory ?? []).map((entry, i) => (
-                  <div
-                    key={`${i}-${entry.slice(0, 12)}`}
-                    className="rounded border border-zinc-800 bg-zinc-950/40 p-2 text-[11px] text-zinc-400"
-                  >
-                    {entry}
-                  </div>
-                ))}
+                {(runtime.selectedSwarm?.artifactHistory ?? []).map((entry, i, arr) => {
+                  // Show only the delta (new content) for each snapshot, not the
+                  // full accumulated artifact which duplicates all previous turns.
+                  const prev = i > 0 ? arr[i - 1] : '';
+                  const delta = entry.startsWith(prev)
+                    ? entry.slice(prev.length).trim()
+                    : entry.trim();
+                  // Extract the speaker name from the delta for the label
+                  const speakerMatch = delta.match(/^\*\*\[([^\]]+)\]:\*\*/);
+                  const label = speakerMatch
+                    ? `Turn ${i + 1} — ${speakerMatch[1]}`
+                    : `Turn ${i + 1}`;
+                  return (
+                    <details
+                      key={`${i}-${entry.slice(0, 12)}`}
+                      className="rounded border border-zinc-800 bg-zinc-950/40"
+                      open={i >= arr.length - 3}
+                    >
+                      <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-semibold text-zinc-300 select-none hover:text-zinc-100">
+                        {label}
+                      </summary>
+                      <div className="border-t border-zinc-800/50 px-2 py-1.5 text-[11px] whitespace-pre-wrap text-zinc-400">
+                        {delta || '(empty)'}
+                      </div>
+                    </details>
+                  );
+                })}
                 {!runtime.selectedSwarm?.artifactHistory?.length && (
                   <p className="pt-6 text-center text-xs text-zinc-600">No history yet.</p>
                 )}
@@ -422,31 +434,43 @@ export default function AgentRoomView() {
             {canvasTab === 'conflict' && (
               <div className="space-y-2 text-xs text-zinc-400">
                 <div className="flex items-center justify-between rounded border border-zinc-800 bg-zinc-950/40 p-2">
-                  <span>Level</span>
-                  <span className="font-semibold text-zinc-200">
-                    {runtime.selectedSwarm?.friction.level ?? 'low'}
+                  <span>Friction Level</span>
+                  <span
+                    className={`font-semibold ${
+                      runtime.selectedSwarm?.friction.level === 'high'
+                        ? 'text-rose-400'
+                        : runtime.selectedSwarm?.friction.level === 'medium'
+                          ? 'text-amber-400'
+                          : 'text-emerald-400'
+                    }`}
+                  >
+                    {(runtime.selectedSwarm?.friction.level ?? 'low').toUpperCase()}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded border border-zinc-800 bg-zinc-950/40 p-2">
-                  <span>Confidence</span>
+                  <span>Severity Score</span>
                   <span className="font-semibold text-zinc-200">
-                    {runtime.selectedSwarm?.friction.confidence ?? 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded border border-zinc-800 bg-zinc-950/40 p-2">
-                  <span>Hold</span>
-                  <span className="font-semibold text-zinc-200">
-                    {(runtime.selectedSwarm?.friction.hold ?? false) ? 'yes' : 'no'}
+                    {runtime.selectedSwarm?.friction.confidence ?? 0}/100
                   </span>
                 </div>
                 {(runtime.selectedSwarm?.friction.reasons ?? []).length > 0 && (
                   <div className="rounded border border-zinc-800 bg-zinc-950/40 p-2">
-                    <div className="mb-1 font-semibold text-zinc-300">Reasons</div>
-                    <ul className="list-inside list-disc space-y-1">
+                    <div className="mb-1.5 font-semibold text-zinc-300">Detected Signals</div>
+                    <ul className="space-y-1.5">
                       {(runtime.selectedSwarm?.friction.reasons ?? []).map((reason, i) => (
-                        <li key={i}>{reason}</li>
+                        <li
+                          key={i}
+                          className="rounded border border-zinc-800/50 bg-zinc-900/40 px-2 py-1 text-[11px] leading-relaxed text-zinc-400"
+                        >
+                          {reason}
+                        </li>
                       ))}
                     </ul>
+                  </div>
+                )}
+                {(runtime.selectedSwarm?.friction.reasons ?? []).length === 0 && (
+                  <div className="rounded border border-zinc-800 bg-zinc-950/40 p-3 text-center text-zinc-500">
+                    No conflict signals detected in the current phase.
                   </div>
                 )}
                 {!runtime.selectedSwarm && (

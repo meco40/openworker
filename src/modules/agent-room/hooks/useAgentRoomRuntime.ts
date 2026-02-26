@@ -484,9 +484,47 @@ export function useAgentRoomRuntime() {
     (swarmId: string): string | null => {
       const swarm = swarms.find((item) => item.id === swarmId);
       if (!swarm) return null;
-      return JSON.stringify(swarm, null, 2);
+
+      // Resolve persona names for participants
+      const participants = swarm.units.map((unit) => {
+        const persona = personas.find((p) => p.id === unit.personaId);
+        return {
+          personaId: unit.personaId,
+          name: persona?.name ?? 'Unknown',
+          role: unit.role,
+        };
+      });
+
+      // Parse structured turns from the artifact text
+      const turnPattern = /\*\*\[([^\]]+)\]:\*\*\s*([\s\S]*?)(?=\*\*\[[^\]]+\]:\*\*|$)/g;
+      const turns: Array<{ speaker: string; content: string }> = [];
+      let tm: RegExpExecArray | null;
+      const artifactText = swarm.artifact || '';
+      while ((tm = turnPattern.exec(artifactText))) {
+        turns.push({ speaker: tm[1].trim(), content: tm[2].trim() });
+      }
+
+      const leadPersona = personas.find((p) => p.id === swarm.leadPersonaId);
+      const exportData = {
+        id: swarm.id,
+        title: swarm.title,
+        task: swarm.task,
+        status: swarm.status,
+        currentPhase: swarm.currentPhase,
+        consensusScore: swarm.consensusScore,
+        leadPersona: leadPersona
+          ? { id: leadPersona.id, name: leadPersona.name }
+          : { id: swarm.leadPersonaId, name: 'Unknown' },
+        participants,
+        artifact: swarm.artifact,
+        turns,
+        friction: swarm.friction,
+        createdAt: swarm.createdAt,
+        updatedAt: swarm.updatedAt,
+      };
+      return JSON.stringify(exportData, null, 2);
     },
-    [swarms],
+    [swarms, personas],
   );
 
   /**
@@ -555,6 +593,7 @@ export function useAgentRoomRuntime() {
     if (!isAgentRoomEnabled) return;
     const client = new AgentV2GatewayClient();
     const sessionToSwarmMap = sessionToSwarmRef.current;
+    const swarmFetchTimestamps = new Map<string, number>();
     clientRef.current = client;
     client.connect();
     const unsubscribe = client.onEvent(handleAgentEvent);
@@ -594,6 +633,13 @@ export function useAgentRoomRuntime() {
       }
 
       // Async: fetch full swarm record (artifact, phase, etc.) to update all state.
+      // Debounce: skip if we fetched this swarm less than 5 seconds ago.
+      // 5s matches the orchestrator tick interval — one fetch per tick max.
+      const now = Date.now();
+      const lastFetch = swarmFetchTimestamps.get(swarmId) ?? 0;
+      if (now - lastFetch < 5000) return;
+      swarmFetchTimestamps.set(swarmId, now);
+
       void (async () => {
         try {
           const res = await client.request('agent.v2.swarm.get', { id: swarmId });

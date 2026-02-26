@@ -16,4 +16,3 @@ describe('Agent Room view routing', () => {
     expect(source).toContain('label="Agent Room"');
   });
 });
-

@@ -16,4 +16,3 @@ export function isSwarmLayoutMode(value: string): value is SwarmLayoutMode {
 export function isSwarmOutputTab(value: string): value is SwarmOutputTab {
   return (SWARM_OUTPUT_TABS as readonly string[]).includes(value);
 }
-

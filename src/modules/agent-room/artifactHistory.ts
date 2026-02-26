@@ -24,4 +24,3 @@ export function restoreArtifactSnapshot(
   const artifact = String(history[normalizedIndex] || '');
   return { artifact, history: [...history] };
 }
-

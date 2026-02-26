@@ -13,4 +13,3 @@ describe('swarm rehydrate fallback', () => {
     expect(shouldFallbackToSessionSnapshot(new Error('network timeout'))).toBe(false);
   });
 });
-

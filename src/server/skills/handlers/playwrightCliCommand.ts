@@ -56,13 +56,10 @@ export function assertPlaywrightSubcommandAllowed(tokens: string[]): void {
   }
   if (!ALLOWED_SUBCOMMANDS.has(first)) {
     const allowed = [...ALLOWED_SUBCOMMANDS].sort().join(', ');
-    throw new Error(
-      `Unsupported Playwright CLI subcommand "${first}". Allowed: ${allowed}.`,
-    );
+    throw new Error(`Unsupported Playwright CLI subcommand "${first}". Allowed: ${allowed}.`);
   }
 }
 
 export function buildPlaywrightCliCommand(tokens: string[]): string {
   return `npx playwright ${tokens.join(' ')}`.trim();
 }
-

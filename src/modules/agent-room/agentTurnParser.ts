@@ -22,12 +22,20 @@ function isLikelyCommandMarker(name: string): boolean {
  * Looks for **[Name]:** markers in the text and splits on them.
  * Falls back to assigning the entire text to the lead persona.
  */
+/** Strip swarm control directives that leak into streamed/completed text. */
+function stripSwarmDirectives(text: string): string {
+  return text
+    .replace(/\[VOTE:UP\]|\[VOTE:DOWN\]/gi, '')
+    .replace(/\[CHANGE_PHASE:[^\]]+\]/gi, '')
+    .trim();
+}
+
 export function parseAgentTurns(
   rawText: string,
   units: ResolvedSwarmUnit[],
   fallbackPersonaId: string,
 ): ParsedAgentTurn[] {
-  const text = String(rawText || '').trim();
+  const text = stripSwarmDirectives(String(rawText || ''));
   if (!text) return [];
 
   if (units.length === 0) {

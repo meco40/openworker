@@ -132,6 +132,7 @@ export class AgentV2SessionManager {
     userId: string;
     content: string;
     idempotencyKey?: string;
+    commandId?: string;
   }): Promise<{ command: AgentCommand; session: AgentSessionSnapshot }> {
     return await this.enqueueCommand({
       sessionId: input.sessionId,
@@ -140,6 +141,7 @@ export class AgentV2SessionManager {
       payload: { content: input.content },
       idempotencyKey: input.idempotencyKey,
       priority: QUEUE_PRIORITY.input,
+      commandId: input.commandId,
     });
   }
 
@@ -164,6 +166,7 @@ export class AgentV2SessionManager {
     userId: string;
     content: string;
     idempotencyKey?: string;
+    commandId?: string;
   }): Promise<{ command: AgentCommand; session: AgentSessionSnapshot }> {
     return await this.enqueueCommand({
       sessionId: input.sessionId,
@@ -172,6 +175,7 @@ export class AgentV2SessionManager {
       payload: { content: input.content },
       idempotencyKey: input.idempotencyKey,
       priority: QUEUE_PRIORITY.follow_up,
+      commandId: input.commandId,
     });
   }
 
@@ -248,6 +252,7 @@ export class AgentV2SessionManager {
     payload: Record<string, unknown>;
     priority: number;
     idempotencyKey?: string;
+    commandId?: string;
   }): Promise<{ command: AgentCommand; session: AgentSessionSnapshot }> {
     const current = this.getSession(input.sessionId, input.userId);
     await this.ensureQueueCapacity(input.sessionId, input.userId);
@@ -268,6 +273,7 @@ export class AgentV2SessionManager {
       payload: input.payload,
       priority: input.priority,
       idempotencyKey: input.idempotencyKey,
+      commandId: input.commandId,
     });
 
     this.emitPersistedEvents(input.userId, enqueue.events);

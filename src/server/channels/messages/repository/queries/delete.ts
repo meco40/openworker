@@ -59,7 +59,9 @@ export class DeleteQueries {
   }
 
   private clearConversationDerivedState(conversationId: string): void {
-    this.db.prepare('DELETE FROM conversation_context WHERE conversation_id = ?').run(conversationId);
+    this.db
+      .prepare('DELETE FROM conversation_context WHERE conversation_id = ?')
+      .run(conversationId);
     for (const table of [
       'knowledge_ingestion_checkpoints',
       'knowledge_episodes',

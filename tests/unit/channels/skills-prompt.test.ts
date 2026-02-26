@@ -55,7 +55,9 @@ function makeBuiltInSeed(id: string, name: string, functionName: string): BuiltI
 
 describe('buildActiveSkillsPromptSection', () => {
   it('includes only installed skills and excludes disabled built-ins', () => {
-    const installedSkills: SkillRow[] = [makeSkillRow('browser', 'Managed Browser', 'browser_snapshot')];
+    const installedSkills: SkillRow[] = [
+      makeSkillRow('browser', 'Managed Browser', 'browser_snapshot'),
+    ];
     const eligibleParsedSkills: ParsedSkillMd[] = [
       {
         tier: 'built-in',

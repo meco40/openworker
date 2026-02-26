@@ -25,4 +25,3 @@ describe('agent room output tabs', () => {
     expect(source).toContain("runtime.activeTab === 'conflict_radar'");
   });
 });
-

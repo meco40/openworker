@@ -162,6 +162,7 @@ describe('gateway agent v2 methods', () => {
           id: 'conv-1',
           personaId: null,
         })),
+        isAgentRoomConversation: vi.fn(() => true),
         getOrCreateConversation: vi.fn(() => ({
           id: 'conv-1',
           personaId: null,

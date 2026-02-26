@@ -15,7 +15,9 @@ describe('logic graph utilities', () => {
   });
 
   it('sanitizes risky directives and html tags', () => {
-    const source = sanitizeMermaidSource('%%{init:{securityLevel:"loose"}}%%\n<script>bad()</script>\ngraph LR\nA-->B');
+    const source = sanitizeMermaidSource(
+      '%%{init:{securityLevel:"loose"}}%%\n<script>bad()</script>\ngraph LR\nA-->B',
+    );
     expect(source).toContain('graph LR');
     expect(source).not.toContain('script');
     expect(source).not.toContain('init');
@@ -25,4 +27,3 @@ describe('logic graph utilities', () => {
     expect(buildLogicGraphSource('No graph here')).toBeNull();
   });
 });
-

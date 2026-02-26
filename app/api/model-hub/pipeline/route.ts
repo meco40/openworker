@@ -211,7 +211,8 @@ export async function POST(request: Request) {
         reasoningEffort: reasoningEffort.value,
         priority,
       });
-      const mem0LlmSync = profileId === DEFAULT_PROFILE ? await syncMem0LlmFromModelHub() : undefined;
+      const mem0LlmSync =
+        profileId === DEFAULT_PROFILE ? await syncMem0LlmFromModelHub() : undefined;
       const mem0EmbedderSync =
         profileId === EMBEDDING_PROFILE_ID ? await syncMem0EmbedderFromModelHub() : undefined;
       return NextResponse.json({ ok: true, model: entry, mem0LlmSync, mem0EmbedderSync });
@@ -222,7 +223,9 @@ export async function POST(request: Request) {
       if (!modelId) {
         return NextResponse.json({ ok: false, error: 'modelId is required.' }, { status: 400 });
       }
-      const shouldSyncMem0Llm = service.listPipeline(DEFAULT_PROFILE).some((model) => model.id === modelId);
+      const shouldSyncMem0Llm = service
+        .listPipeline(DEFAULT_PROFILE)
+        .some((model) => model.id === modelId);
       const shouldSyncMem0Embedder = service
         .listPipeline(EMBEDDING_PROFILE_ID)
         .some((model) => model.id === modelId);
@@ -243,7 +246,9 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      const shouldSyncMem0Llm = service.listPipeline(DEFAULT_PROFILE).some((model) => model.id === modelId);
+      const shouldSyncMem0Llm = service
+        .listPipeline(DEFAULT_PROFILE)
+        .some((model) => model.id === modelId);
       const shouldSyncMem0Embedder = service
         .listPipeline(EMBEDDING_PROFILE_ID)
         .some((model) => model.id === modelId);
@@ -273,7 +278,8 @@ export async function POST(request: Request) {
         );
       }
       const moved = service.movePipelineModel(profileId, modelId, direction);
-      const mem0LlmSync = profileId === DEFAULT_PROFILE ? await syncMem0LlmFromModelHub() : undefined;
+      const mem0LlmSync =
+        profileId === DEFAULT_PROFILE ? await syncMem0LlmFromModelHub() : undefined;
       const mem0EmbedderSync =
         profileId === EMBEDDING_PROFILE_ID ? await syncMem0EmbedderFromModelHub() : undefined;
       return NextResponse.json({ ok: true, moved, mem0LlmSync, mem0EmbedderSync });

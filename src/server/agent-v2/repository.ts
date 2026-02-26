@@ -74,6 +74,8 @@ export interface EnqueueAgentCommandInput {
   priority: number;
   payload: Record<string, unknown>;
   idempotencyKey?: string;
+  /** Pre-generated command ID — used when the caller must know the ID before enqueue. */
+  commandId?: string;
 }
 
 export interface EnqueueAgentCommandResult {
@@ -338,7 +340,7 @@ export class AgentV2Repository {
         }
       }
 
-      const commandId = `agent-command-${crypto.randomUUID()}`;
+      const commandId = input.commandId || `agent-command-${crypto.randomUUID()}`;
       const now = new Date().toISOString();
 
       this.db

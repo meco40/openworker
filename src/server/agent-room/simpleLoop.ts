@@ -1,6 +1,6 @@
 import {
+  getNextSwarmPhase,
   getSwarmPhaseLabel,
-  isSwarmPhase,
   type ResolvedSwarmUnit,
   type SwarmPhase,
 } from '@/modules/agent-room/swarmPhases';
@@ -8,9 +8,73 @@ import type { AgentRoomSwarmUnit } from '@/server/channels/messages/repository/t
 
 const VOTE_UP_DELTA = 8;
 const VOTE_DOWN_DELTA = -12;
-const DEFAULT_SIMPLE_SWARM_MAX_TURNS = 8;
-const MIN_SIMPLE_SWARM_MAX_TURNS = 2;
-const MAX_SIMPLE_SWARM_MAX_TURNS = 40;
+const DEFAULT_SIMPLE_SWARM_MAX_TURNS = 40;
+
+/**
+ * Number of full rounds (every agent speaks once = 1 round) per phase.
+ * Critique gets 3 rounds for thorough debate; other phases get 1 round.
+ */
+const PHASE_ROUNDS: Record<SwarmPhase, number> = {
+  analysis: 1,
+  ideation: 2,
+  critique: 3,
+  best_case: 1,
+  result: 1,
+};
+
+export function getPhaseRounds(phase: SwarmPhase): number {
+  return PHASE_ROUNDS[phase] || 1;
+}
+
+/** Turns required before auto-advancing a phase = rounds × agents. */
+export function getTurnsRequiredForPhase(phase: SwarmPhase, numAgents: number): number {
+  return getPhaseRounds(phase) * Math.max(1, numAgents);
+}
+
+/**
+ * Count `**[Name]:**` turns that appear AFTER the last `--- Phase ---` marker.
+ * This gives the turn count within the current phase.
+ */
+export function countTurnsInCurrentPhase(artifact: string): number {
+  const text = String(artifact || '').trim();
+  if (!text) return 0;
+  const phaseMarkerRegex = /^---\s+.+?\s+---$/gm;
+  let lastMarkerEnd = 0;
+  let m: RegExpExecArray | null;
+  while ((m = phaseMarkerRegex.exec(text))) {
+    lastMarkerEnd = m.index + m[0].length;
+  }
+  const textAfterMarker = text.slice(lastMarkerEnd);
+  const turns = textAfterMarker.match(/^\s*\*\*\[[^\]\n*]+?\]:\*\*/gm);
+  return turns ? turns.length : 0;
+}
+
+/**
+ * Determine the next phase after a turn completes, based on
+ * server-side turn counting — NOT on AI model directives.
+ * Returns { nextPhase, phaseComplete } where `phaseComplete` means
+ * the current phase just finished and a phase marker should be inserted.
+ */
+export function computeNextPhaseAfterTurn(params: {
+  currentPhase: SwarmPhase;
+  artifactAfterTurn: string;
+  numAgents: number;
+}): { nextPhase: SwarmPhase; phaseComplete: boolean; swarmComplete: boolean } {
+  const turnsInPhase = countTurnsInCurrentPhase(params.artifactAfterTurn);
+  const required = getTurnsRequiredForPhase(params.currentPhase, params.numAgents);
+
+  if (turnsInPhase >= required) {
+    const next = getNextSwarmPhase(params.currentPhase);
+    if (!next) {
+      // We're at 'result' and have completed the required turns
+      return { nextPhase: params.currentPhase, phaseComplete: true, swarmComplete: true };
+    }
+    return { nextPhase: next, phaseComplete: true, swarmComplete: false };
+  }
+  return { nextPhase: params.currentPhase, phaseComplete: false, swarmComplete: false };
+}
+const MIN_SIMPLE_SWARM_MAX_TURNS = 4;
+const MAX_SIMPLE_SWARM_MAX_TURNS = 60;
 
 function buildSpeakerPrefixes(
   speakerName: string,
@@ -30,9 +94,9 @@ function buildSpeakerPrefixes(
 }
 
 export function getSimpleSwarmMaxTurns(): number {
-  const raw = Number(
-    process.env.AGENT_ROOM_SIMPLE_MAX_TURNS ?? process.env.AGENT_ROOM_MAX_TURNS ?? '',
-  );
+  const envVal = process.env.AGENT_ROOM_SIMPLE_MAX_TURNS ?? process.env.AGENT_ROOM_MAX_TURNS;
+  if (!envVal) return DEFAULT_SIMPLE_SWARM_MAX_TURNS;
+  const raw = Number(envVal);
   if (!Number.isFinite(raw)) return DEFAULT_SIMPLE_SWARM_MAX_TURNS;
   return Math.max(
     MIN_SIMPLE_SWARM_MAX_TURNS,
@@ -90,32 +154,63 @@ export function buildSimpleTurnPrompt(params: {
   leadPersonaId: string;
   recentHistory: string;
   units: ResolvedSwarmUnit[];
+  phaseRound?: number;
+  phaseRoundsTotal?: number;
 }): string {
-  const isLead = params.speaker.personaId === params.leadPersonaId;
-  const participants = params.units
-    .map((unit) => `- ${unit.name} (${unit.role})`)
-    .join('\n');
+  const participants = params.units.map((unit) => `- ${unit.name} (${unit.role})`).join('\n');
+
+  const phaseLabel = getSwarmPhaseLabel(params.phase);
+  const roundInfo =
+    params.phaseRound && params.phaseRoundsTotal && params.phaseRoundsTotal > 1
+      ? ` (Round ${params.phaseRound} of ${params.phaseRoundsTotal})`
+      : '';
+
+  const phaseGuidance = buildPhaseGuidance(params.phase, params.phaseRound ?? 1);
 
   const lines = [
     `You are ${params.speaker.name} (${params.speaker.role}) in a multi-persona swarm.`,
     `ROOM: ${params.swarmTitle}`,
     `GOAL: ${params.task}`,
-    `PHASE: ${getSwarmPhaseLabel(params.phase)}`,
+    `PHASE: ${phaseLabel}${roundInfo}`,
     `PARTICIPANTS:\n${participants}`,
-    params.recentHistory ? `RECENT HISTORY:\n${params.recentHistory}` : '',
+    params.recentHistory ? `RECENT CONVERSATION:\n${params.recentHistory}` : '',
+    phaseGuidance ? `PHASE GUIDANCE: ${phaseGuidance}` : '',
     'RULES:',
     `1) Start exactly with **[${params.speaker.name}]:**`,
     `2) Speak only as ${params.speaker.name}.`,
-    '3) Keep it concise and concrete.',
-    '4) You may include [VOTE:UP] or [VOTE:DOWN].',
+    '3) Respond directly to what the other participants said — this is a live discussion.',
+    '4) Keep it concise and concrete.',
     '5) Do not output another participant label (for example **[Other Agent]:**).',
-    isLead
-      ? '6) As orchestrator, you may change phase with [CHANGE_PHASE:analysis|ideation|critique|best_case|result].'
-      : '6) Do not change phase.',
-    '7) If useful, include a mermaid code block for flow/architecture.',
+    '6) Do not change phase — phases are managed automatically.',
+    params.phase === 'result'
+      ? '7) Include a mermaid code block summarizing the final decision as a diagram.'
+      : '7) If useful, include a mermaid code block for flow/architecture.',
   ];
 
   return lines.filter(Boolean).join('\n\n');
+}
+
+function buildPhaseGuidance(phase: SwarmPhase, round: number): string {
+  switch (phase) {
+    case 'analysis':
+      return 'Identify key assumptions, risks, constraints, and open questions about the task.';
+    case 'ideation':
+      if (round === 1)
+        return 'Propose your concrete solution approach with clear trade-offs. Be creative and specific.';
+      return "Respond to the other participant's ideas. Build on strengths, challenge weaknesses, and refine the approach together.";
+    case 'critique':
+      if (round === 1)
+        return 'Critically examine the proposed ideas. Find weaknesses, gaps, and contradictions.';
+      if (round === 2)
+        return 'Respond to the first round of critique. Defend, refine, or withdraw ideas based on the feedback.';
+      return 'Final critique round. Converge on the strongest approach. Identify remaining risks.';
+    case 'best_case':
+      return 'Agree on the single best solution with clear justification. Resolve any remaining disagreements.';
+    case 'result':
+      return 'Deliver the final, actionable result with a concise rationale and a summary diagram.';
+    default:
+      return '';
+  }
 }
 
 export function parseTurnDirectives(params: {
@@ -132,14 +227,9 @@ export function parseTurnDirectives(params: {
     consensusDelta = VOTE_UP_DELTA;
   }
 
-  let nextPhase = params.currentPhase;
-  if (String(params.speakerPersonaId || '').trim() === String(params.leadPersonaId || '').trim()) {
-    const phaseMatch = rawText.match(/\[CHANGE_PHASE:([a-z_]+)\]/i);
-    const candidate = String(phaseMatch?.[1] || '').trim().toLowerCase();
-    if (candidate && isSwarmPhase(candidate)) {
-      nextPhase = candidate;
-    }
-  }
+  // Phase transitions are server-controlled (automatic based on turn counts).
+  // Strip any [CHANGE_PHASE:] the model might still emit, but do NOT act on it.
+  const nextPhase = params.currentPhase;
 
   const cleanText = rawText
     .replace(/\[VOTE:UP\]|\[VOTE:DOWN\]/gi, '')
@@ -163,7 +253,8 @@ export function shouldCompleteSwarmAfterTurnWithTurnCount(
   maxTurns = getSimpleSwarmMaxTurns(),
 ): boolean {
   const safeTurnCount = Number.isFinite(nextTurnCount) ? Math.max(0, Math.floor(nextTurnCount)) : 0;
-  return nextPhase === 'result' || safeTurnCount >= maxTurns;
+  // Only hard-cap on maxTurns. Phase-based completion is handled by computeNextPhaseAfterTurn.
+  return safeTurnCount >= maxTurns;
 }
 
 export function stripLeadingSpeakerPrefix(text: string, speakerName: string): string {
@@ -189,7 +280,9 @@ export function stripTrailingOtherSpeakerTurns(
   const raw = String(text || '').trim();
   if (!raw) return '';
 
-  const active = String(activeSpeakerName || '').trim().toLowerCase();
+  const active = String(activeSpeakerName || '')
+    .trim()
+    .toLowerCase();
   const otherNames = Array.from(
     new Set(
       participantNames

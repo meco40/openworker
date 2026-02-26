@@ -1,7 +1,11 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
-import type { ExtensionManifestV1, LifecycleHookContext, LifecycleHookStage } from '@/server/agent-v2/types';
+import type {
+  ExtensionManifestV1,
+  LifecycleHookContext,
+  LifecycleHookStage,
+} from '@/server/agent-v2/types';
 
 export interface ExtensionHookExecutionResult {
   ok: boolean;
@@ -90,13 +94,16 @@ export class ExtensionWorkerHost {
 
     const requestId = `hook-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     return await new Promise<ExtensionHookExecutionResult>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pending.delete(requestId);
-        resolve({
-          ok: false,
-          error: `Extension hook timeout after ${timeoutMs}ms.`,
-        });
-      }, Math.max(1, timeoutMs));
+      const timeout = setTimeout(
+        () => {
+          this.pending.delete(requestId);
+          resolve({
+            ok: false,
+            error: `Extension hook timeout after ${timeoutMs}ms.`,
+          });
+        },
+        Math.max(1, timeoutMs),
+      );
 
       this.pending.set(requestId, { resolve, reject, timeout });
       this.worker?.postMessage({

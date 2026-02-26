@@ -17,4 +17,3 @@ describe('agent room lifecycle controls', () => {
     expect(source).toContain('Delete Swarm');
   });
 });
-

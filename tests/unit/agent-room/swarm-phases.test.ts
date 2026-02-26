@@ -23,4 +23,3 @@ describe('swarm phases', () => {
     expect(prompt).toContain('Build reliable architecture');
   });
 });
-

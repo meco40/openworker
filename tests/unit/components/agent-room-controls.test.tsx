@@ -15,4 +15,3 @@ describe('agent room operator controls', () => {
     expect(source).toContain('Add Persona');
   });
 });
-

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { buildLogicGraphSource } from '@/modules/agent-room/logicGraph';
 import type { SwarmPhase } from '@/modules/agent-room/swarmPhases';
 
@@ -9,6 +9,10 @@ interface LogicGraphPanelProps {
   currentPhase?: SwarmPhase;
   swarmStatus?: string;
 }
+
+const ZOOM_STEP = 0.25;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 3;
 
 export default function LogicGraphPanel({
   artifact,
@@ -31,6 +35,12 @@ export default function LogicGraphPanel({
   );
   const [svg, setSvg] = useState<string>('');
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const svgContainerRef = useRef<HTMLDivElement>(null);
+
+  const zoomIn = useCallback(() => setZoom((z) => Math.min(z + ZOOM_STEP, ZOOM_MAX)), []);
+  const zoomOut = useCallback(() => setZoom((z) => Math.max(z - ZOOM_STEP, ZOOM_MIN)), []);
+  const zoomReset = useCallback(() => setZoom(1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,14 +86,55 @@ export default function LogicGraphPanel({
         <h4 className="text-xs font-semibold tracking-widest text-cyan-200 uppercase">
           Swarm Diagram
         </h4>
-        <span className="rounded border border-indigo-500/40 px-2 py-0.5 text-[10px] text-indigo-300">
-          {source?.startsWith('flowchart') ? 'Auto-generated' : 'AI-generated'}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {svg && (
+            <>
+              <button
+                onClick={zoomOut}
+                disabled={zoom <= ZOOM_MIN}
+                className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30"
+                title="Zoom out"
+              >
+                −
+              </button>
+              <button
+                onClick={zoomReset}
+                className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                title="Reset zoom"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                onClick={zoomIn}
+                disabled={zoom >= ZOOM_MAX}
+                className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30"
+                title="Zoom in"
+              >
+                +
+              </button>
+              <button
+                onClick={zoomIn}
+                className="ml-1 rounded border border-indigo-500/40 px-1.5 py-0.5 text-[10px] text-indigo-300 hover:bg-indigo-500/10"
+                title="Magnify"
+              >
+                🔍
+              </button>
+            </>
+          )}
+          <span className="rounded border border-indigo-500/40 px-2 py-0.5 text-[10px] text-indigo-300">
+            {source?.startsWith('flowchart') ? 'Auto-generated' : 'AI-generated'}
+          </span>
+        </div>
       </div>
       <div className="min-h-[42rem] rounded-lg border border-zinc-800 bg-[#020611] p-3">
         {svg ? (
           <div
-            className="flex min-h-[38rem] justify-center overflow-auto [&_svg]:h-full [&_svg]:w-full [&_svg]:max-w-none"
+            ref={svgContainerRef}
+            className="flex min-h-[38rem] justify-center overflow-auto [&_svg]:max-w-none"
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top center',
+            }}
             dangerouslySetInnerHTML={{ __html: svg }}
           />
         ) : (

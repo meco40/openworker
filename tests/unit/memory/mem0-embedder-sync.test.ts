@@ -22,7 +22,9 @@ vi.mock('@/server/model-hub/crypto', () => ({
   decryptSecret: mocks.decryptSecret,
 }));
 
-function buildEmbeddingPipelineEntry(overrides: Partial<PipelineModelEntry> = {}): PipelineModelEntry {
+function buildEmbeddingPipelineEntry(
+  overrides: Partial<PipelineModelEntry> = {},
+): PipelineModelEntry {
   return {
     id: 'embed-1',
     profileId: 'p1-embeddings',

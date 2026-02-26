@@ -23,4 +23,3 @@ describe('agent room feature flag', () => {
     expect(html).not.toContain('Agent Room');
   });
 });
-

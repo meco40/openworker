@@ -16,4 +16,3 @@ export function buildSwarmProjectionPatch(
     holdFlag: Boolean(state.friction.hold),
   };
 }
-

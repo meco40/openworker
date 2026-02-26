@@ -39,4 +39,3 @@ export function useSwarmCatalogState(initialCatalog: SwarmRecord[] = []) {
     removeSwarm,
   };
 }
-

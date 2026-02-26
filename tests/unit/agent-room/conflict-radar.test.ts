@@ -15,4 +15,3 @@ describe('conflict radar projection', () => {
     expect(friction.confidence).toBeGreaterThanOrEqual(65);
   });
 });
-

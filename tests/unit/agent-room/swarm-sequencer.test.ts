@@ -17,4 +17,3 @@ describe('swarm sequencer contract', () => {
     expect(keys[keys.length - 1]).toBe('swarm-123:result');
   });
 });
-

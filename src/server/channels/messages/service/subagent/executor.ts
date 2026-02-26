@@ -83,7 +83,9 @@ export async function runSubagent(
           '- Do NOT spawn additional subagents — you are already a subagent.\n' +
           '- Do NOT poll tools in loops waiting for state changes; act directly.\n' +
           '- Complete your task within the tool calls available, then return a final answer.\n' +
-          (run.profileName ? `- Agent profile: ${run.profileName} (${run.profileId || run.agentId}).\n` : '') +
+          (run.profileName
+            ? `- Agent profile: ${run.profileName} (${run.profileId || run.agentId}).\n`
+            : '') +
           (run.toolFunctionNames?.length
             ? `- Allowed tools: ${run.toolFunctionNames.join(', ')}.\n`
             : '- Allowed tools: all installed tools except subagents.\n') +

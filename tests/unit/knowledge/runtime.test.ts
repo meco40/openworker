@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type RuntimeGlobals = typeof globalThis & {
   __messageRepository?: unknown;
@@ -50,6 +50,11 @@ function mockKnowledgeConfig(overrides: Record<string, unknown> = {}): void {
 }
 
 describe('knowledge runtime', () => {
+  beforeEach(() => {
+    resetRuntimeGlobals();
+    vi.resetModules();
+  });
+
   afterEach(() => {
     resetRuntimeGlobals();
     vi.restoreAllMocks();

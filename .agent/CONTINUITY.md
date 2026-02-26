@@ -1,5 +1,13 @@
 [PLANS]
 
+- 2026-02-28T06:00:00+01:00 [USER] Reported 4 new Agent Room bugs: (1) "Too many requests" still appearing despite prior fixes. (2) Swarm Diagram must update per turn, show Result node at completion, and have zoom/magnify controls. (3) Mindmap tab has no value — remove. (4) Export JSON content broken/meaningless.
+
+- 2026-02-28T05:30:00+01:00 [USER] Reported 4 Agent Room issues: (1) "Too many requests" from Gemini — agents must use ModelHub, not hardcoded Gemini. (2) History tab shows different data than Chat. (3) All messages show fat "VOTE UP" text. (4) Conflicts parameter must be more logical. User instruction: "Fixe das alles. Prüfe auf Fehler. Mach Live Test. Fixe falls es immer noch fehler gibt."
+
+- 2026-02-27T14:00:00+01:00 [USER] Reported Agent Room persona attribution bug: "Das Problem ist sehr wahrscheinlich, dass der Orchestrar nur am schreiben ist" — chat always shows lead persona name first then changes mid-stream; user believes it's a simulation with only one real agent. Requested investigation and fix.
+
+- 2026-02-26T04:15:00+01:00 [USER] Reported Agent Room chat display bug: hydrated chat does not correctly show multi-phase agent conversation. Requested full analysis, fix, live test, and error correction.
+
 - 2026-02-26T01:33:55+01:00 [USER] Requested Messenger Coupling disconnect via button to fully disconnect Telegram and remove stored token from DB.
 
 - 2026-02-25T20:29:55+01:00 [USER] Reported that dispatched Mission Control agent stayed in `in_progress` and produced pseudo-command text without real artifact creation; requested full analysis and fix so agents execute tasks for real.
@@ -73,6 +81,35 @@
 - 2026-02-24T03:25:39+01:00 [USER] WebUI conversation delete returns `500` after project deletions (`DELETE /api/channels/conversations?id=...`).
 
 [DECISIONS]
+
+- 2026-02-28T06:00:00+01:00 [CODE] Rate limit root cause: `handleIncomingEvent()` in `ws-agent-v2-client.ts` called `this.client.request()` directly for replay+session.get — bypassed retry wrapper. Fixed: routed through `this.request()` with 3-retry exponential backoff. Also increased swarm.get debounce 2s→5s to match orchestrator tick interval.
+- 2026-02-28T06:00:00+01:00 [CODE] LogicGraphPanel: added zoom controls (−/+/reset/%/🔍 magnify) with CSS transform-scale (0.5×–3×). logicGraph.ts: added `✅ Result` terminal node when `status==='completed'||currentPhase==='result'`, styled green with thick border.
+- 2026-02-28T06:00:00+01:00 [CODE] Removed MindmapPanel.tsx (236 lines deleted) and all references from AgentRoomView.tsx (import, CanvasTab type, label case, tab array, render block). Canvas tabs now: Logic Graph, Artifact, History, Conflicts.
+- 2026-02-28T06:00:00+01:00 [CODE] Export JSON rewritten: curated payload with id, title, task, status, currentPhase, consensusScore, leadPersona (resolved name), participants (resolved names+roles), artifact, structured turns (parsed speaker+content), friction, timestamps. Dropped: artifactHistory, holdFlag, lastSeq, currentDeployCommandId, searchEnabled, swarmTemplate, pauseBetweenPhases, sessionId, conversationId, userId.
+
+- 2026-02-28T05:30:00+01:00 [CODE] Confirmed Gemini NOT hardcoded in Agent Room: swarm dispatch uses `resolveChatModelRouting()` → `dispatchWithFallback()` via ModelHub `p1` profile. "Too many requests" was gateway WebSocket rate limit (600/min), not Gemini API.
+- 2026-02-28T05:30:00+01:00 [CODE] Removed `[VOTE:UP]`/`[VOTE:DOWN]` directive from swarm prompt (`simpleLoop.ts` rule 5 removed). Added `stripSwarmDirectives()` in `agentTurnParser.ts` and `stripDirectives()` in `SwarmChatFeed.tsx` for three-layer defense.
+- 2026-02-28T05:30:00+01:00 [CODE] History tab now shows per-turn deltas instead of cumulative snapshots. Each entry is collapsible `<details>` with "Turn N — Speaker Name" labels, last 3 open by default.
+- 2026-02-28T05:30:00+01:00 [CODE] Conflict radar completely rewritten: phase-scoped analysis (text after last `---` marker), named signal patterns with sentence excerpts, color-coded friction level (green/amber/red), severity score /100. Both client (`conflictRadar.ts`) and server (`orchestrator.ts deriveConflictRadar()`) implementations aligned.
+- 2026-02-28T05:30:00+01:00 [CODE] Added client-side rate limit retry in `AgentV2GatewayClient.request()`: 3 retries with exponential backoff (1s/2s/4s) for `RATE_LIMITED` errors, plus existing 1-retry for transient socket errors.
+- 2026-02-28T05:30:00+01:00 [CODE] Server-side orchestrator now treats AI provider 429/rate-limit errors as transient — logs warning and keeps swarm `running` for next-tick retry instead of immediately setting `status: 'error' + holdFlag: true`.
+- 2026-02-28T05:30:00+01:00 [CODE] Debounced `swarm.get` fetches in `onSwarmEvent` handler — skips redundant fetches within 2-second windows to reduce gateway request count.
+- 2026-02-28T05:30:00+01:00 [CODE] Fixed pre-existing test failure in `agent-v2-methods.test.ts` — added missing `isAgentRoomConversation` mock.
+
+- 2026-02-27T14:00:00+01:00 [CODE] Fixed guaranteed WebSocket event ordering race condition in swarm persona attribution: `agent.v2.command.started` was ALWAYS emitted before `AGENT_ROOM_SWARM` broadcast because `processQueue()` in `sessionManager.ts` runs synchronously until first `await`, calling `emitPersistedEvents()` which fires `command.started` inside `enqueueInput()` before it returns. Frontend fell back to `swarm.leadPersonaId` for ALL streaming turns when `commandToInfoRef` had no entry yet.
+- 2026-02-27T14:00:00+01:00 [CODE] Fix pattern: pre-generate `commandId` in orchestrator before enqueue, broadcast `AGENT_ROOM_SWARM` event with `{ commandId, agentPersonaId }` FIRST, then call `enqueueInput/enqueueFollowUp` with pre-generated `commandId`. Three files changed: `repository.ts` (optional `commandId` in `EnqueueAgentCommandInput`), `sessionManager.ts` (plumbed optional `commandId` through `enqueueInput/enqueueFollowUp/enqueueCommand`), `orchestrator.ts` (pre-generate + broadcast-first + pass to enqueue).
+- 2026-02-27T14:00:00+01:00 [CODE] Confirmed both swarm agents are independently real: separate sessionIds, separate system prompts (via personaId → SOUL.md/AGENTS.md), separate AI API calls through `handleWebUIMessage → dispatchToAI`. Database artifact shows 16 turns with perfect alternation. Shared `conversationId` is intentional for debate context.
+
+- 2026-02-27T03:50:00+01:00 [CODE] Agent Room phase transitions are now fully server-driven: `PHASE_ROUNDS` config enforces analysis=1, ideation=1, critique=3, best_case=1, result=1 rounds per phase. `computeNextPhaseAfterTurn()` counts turns after last phase marker and auto-advances. AI model `[CHANGE_PHASE:]` directives are stripped from text but completely ignored for phase progression.
+- 2026-02-27T03:50:00+01:00 [CODE] Removed `processSwarmTick()` early exit that immediately completed swarm when `currentPhase === 'result'` without letting result-phase agents speak. Result phase now dispatches normal turns like any other phase.
+- 2026-02-27T03:50:00+01:00 [CODE] `buildAutoFlowchart()` in `logicGraph.ts` rewritten: now parses artifact into phase sections with `parseArtifactSections()`, builds `flowchart TD` with subgraphs per phase showing agent names + first-sentence contribution summaries, instead of showing phase names as a linear pipeline.
+- 2026-02-27T03:50:00+01:00 [CODE] `buildSimpleTurnPrompt()` now receives `phaseRound`/`phaseRoundsTotal` context and injects per-phase guidance text via `buildPhaseGuidance()` helper. Phase-specific prompts guide agents to analyze, ideate, critique constructively, evaluate best case, or summarize results.
+- 2026-02-27T03:50:00+01:00 [CODE] Default max turns raised from 8→40, min from 2→4, max from 40→60 to accommodate server-driven phases (e.g., 2 agents = 14 turns total: 2+2+6+2+2).
+
+- 2026-02-26T04:15:00+01:00 [CODE] Server-side orchestrator (`orchestrator.ts`) now inserts `--- <Phase Label> ---` markers into swarm artifact on first turn and on phase transitions so phase structure is preserved in persistent artifact text.
+- 2026-02-26T04:15:00+01:00 [CODE] Client-side `hydrateFromArtifact()` (`useSwarmMessages.ts`) rewritten to parse `--- Phase Label ---` markers via regex, build `labelToPhase` reverse lookup, and reconstruct phase dividers + agent turns per section; legacy artifacts without markers fall back to single `analysis` phase.
+- 2026-02-26T04:15:00+01:00 [CODE] `AgentRoomView.tsx` `onAgentEventRef` handler now returns early after `replaceStreamingWithTurns()` for `command.completed` events to prevent redundant `finalizeAgentTurn` on already-deleted streaming entry.
+- 2026-02-26T04:15:00+01:00 [CODE] Added 8-test suite `artifact-phase-markers.test.ts` covering marker format, multi-phase splitting, label-to-phase mapping, legacy fallback, artifact construction simulation, and `countStructuredTurns` compatibility.
 
 - 2026-02-26T01:33:55+01:00 [CODE] Telegram unpair flow now enforces hard disconnect semantics: stop polling first, delete credentials, and fail the operation if Telegram credentials remain in the credential store after deletion.
 
@@ -200,6 +237,11 @@
 - 2026-02-24T03:25:39+01:00 [CODE] Conversation delete flow now removes `conversation_project_state` rows before deleting `conversations` to satisfy SQLite foreign-key constraints.
 
 [PROGRESS]
+
+- 2026-02-27T14:00:00+01:00 [CODE] Investigated backend orchestrator, sessionManager, repository — confirmed both agents get independent sessions, system prompts, and AI API calls. Database query of completed 16-turn swarm showed perfect alternation between "Next.js Dev" and "Code Reviewer".
+- 2026-02-27T14:00:00+01:00 [CODE] Traced event timing through `enqueueInput → processQueue → emitPersistedEvents → command.started` path; identified guaranteed race condition where `command.started` fires synchronously before `broadcastToUser(AGENT_ROOM_SWARM)`.
+- 2026-02-27T14:00:00+01:00 [CODE] Applied 3-file fix: `repository.ts` (optional `commandId`), `sessionManager.ts` (plumbed `commandId` through enqueue chain), `orchestrator.ts` (pre-generate + broadcast-first). All 21 unit tests pass; 3 pre-existing test failures unchanged.
+- 2026-02-27T14:00:00+01:00 [TOOL] Live verification via Playwright: created "Name Display Test" swarm with Next.js Dev + Code Reviewer. Two snapshots confirmed correct persona names from streaming start — no more "name change" visual artifact. 8 turns visible through Analysis + Ideation with correct alternation.
 
 - 2026-02-26T01:33:55+01:00 [CODE] Updated `src/server/channels/pairing/unpair.ts` to call `stopTelegramPolling()` during Telegram disconnect and throw `Telegram disconnect incomplete...` when post-delete credential checks still show Telegram entries.
 - 2026-02-26T01:33:55+01:00 [CODE] Updated `src/messenger/ChannelPairing.tsx` disconnect handler to stop optimistic local clearing on failure; UI now resets local channel state only after a successful server disconnect response.
@@ -417,6 +459,9 @@
 - 2026-02-24T03:09:26+01:00 [CODE] Updated root README to current runtime facts: provider inventory/endpoints (14), corrected test/check command semantics, expanded active docs links, and replaced outdated provider env-key guidance with model-hub account-secret flow + relevant runtime env vars.
 
 [DISCOVERIES]
+
+- 2026-02-27T14:00:00+01:00 [CODE] Guaranteed race condition pattern in sessionManager: `void this.processQueue()` in `enqueueCommand()` runs `startNextQueuedCommand() → emitPersistedEvents()` synchronously before the first `await`. This means any WebSocket event emitted inside `emitPersistedEvents` (like `agent.v2.command.started`) reaches the client BEFORE the calling code can execute its next statement after `enqueueInput()` returns. This is a structural timing hazard for any code that broadcasts supplementary data after calling enqueue.
+- 2026-02-27T14:00:00+01:00 [CODE] Frontend fallback in `AgentRoomView.tsx` (`commandInfo?.personaId || swarm.leadPersonaId`) masks the race by silently using the wrong persona. The fix pattern (pre-generate ID + broadcast-first) avoids the race entirely rather than adding client-side retry/debounce.
 
 - 2026-02-25T22:26:25+01:00 [TOOL] Live run failure point is execution-stage model dispatch, not planning: planning reached `complete` with `autoDispatched=true`, but worker session history contains assistant error `AI dispatch failed: All models failed: grok-4-fast-reasoning@xai: This operation was aborted`, so task never emitted `TASK_COMPLETE`.
 - 2026-02-25T22:26:25+01:00 [TOOL] Because dispatch route currently treats non-`TASK_COMPLETE` assistant text as successful dispatch, failing execution responses can leave tasks stuck in `in_progress` with only a single `task_dispatched` event/activity and zero deliverables.
@@ -801,3 +846,6 @@
 - 2026-02-26T02:32:34+01:00 [DECISIONS] [CODE] Enforced Agent Room isolation using conversation-link semantics (not only `channel_type`): conversation listing now excludes rows referenced by `agent_room_swarms`, and memory pipelines are gated off when conversation is Agent Room by type or swarm-link.
 - 2026-02-26T02:32:34+01:00 [PROGRESS] [CODE] Added repository/API support `isAgentRoomConversation(conversationId,userId?)`; wired this into `MessageService`, `RecallService`, `SummaryService`, and `agent.v2.swarm.create` guard to block non-isolated conversation usage.
 - 2026-02-26T02:32:34+01:00 [OUTCOMES] [TOOL] Verification PASS: `npm run test -- tests/integration/channels/inbox-route.test.ts tests/unit/channels/message-service-memory-trigger.test.ts tests/unit/channels/message-service-memory-recall.test.ts tests/unit/channels/message-service-auto-session-memory.test.ts` (16/16), plus `npm run typecheck` PASS and `npm run lint` PASS (0 warnings, 0 errors).
+- 2026-02-26T06:22:43+01:00 [USER] Requested: "mach git commit und push. prüfe auf fehler. fixe alle fehler und warnungen".
+- 2026-02-26T06:22:43+01:00 [CODE] Cleared current lint/test regressions by consolidating duplicate imports, removing unused symbols, converting `scripts/check-swarm.cjs` to ESM (`scripts/check-swarm.mjs`), updating stale sidebar-label assertion (`Graph`), and hardening `tests/unit/knowledge/runtime.test.ts` isolation with `beforeEach` resets.
+- 2026-02-26T06:22:43+01:00 [TOOL] Verification PASS: `npm run check` (typecheck+lint+format all green), `npm run test` (388 files / 1646 tests passing), and `npm run build` (Next.js production build successful).

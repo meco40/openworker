@@ -23,4 +23,3 @@ describe('Agent Room navigation', () => {
     expect(navLabels).toContain('Agent Room');
   });
 });
-

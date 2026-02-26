@@ -59,9 +59,7 @@ const App: React.FC<AppProps> = ({ initialView }) => {
   const { activePersonaId, setDataEnabled } = usePersona();
   const shouldEnableChatData = currentView === View.CHAT;
   const shouldEnableAgentRuntime =
-    currentView === View.CHAT ||
-    currentView === View.CHANNELS ||
-    currentView === View.AGENT_ROOM;
+    currentView === View.CHAT || currentView === View.CHANNELS || currentView === View.AGENT_ROOM;
   const shouldEnablePersonaData = shouldEnableAgentRuntime || currentView === View.PERSONAS;
   const shouldLoadSkills = shouldEnableAgentRuntime || currentView === View.SKILLS;
   const { skills, setSkills } = useSkillsCatalog({ shouldLoadSkills });
@@ -245,7 +243,10 @@ const App: React.FC<AppProps> = ({ initialView }) => {
     async (message: Message) => {
       const conversationId = message.conversationId || activeConversationIdRef.current;
       if (!conversationId) {
-        addEventLog('SYS', 'Nachricht konnte nicht geloescht werden (keine Conversation gefunden).');
+        addEventLog(
+          'SYS',
+          'Nachricht konnte nicht geloescht werden (keine Conversation gefunden).',
+        );
         return;
       }
 

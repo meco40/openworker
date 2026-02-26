@@ -87,4 +87,3 @@ describe('persona isolation routes', () => {
     expect(unchanged?.personaId).toBe('persona-a');
   });
 });
-

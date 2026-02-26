@@ -15,4 +15,3 @@ describe('Agent Room view gating', () => {
     expect(source).toContain('shouldLoadSkills');
   });
 });
-

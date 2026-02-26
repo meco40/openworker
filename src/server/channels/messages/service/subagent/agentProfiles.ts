@@ -46,7 +46,9 @@ const PROFILES: SubagentAgentProfile[] = [
 ];
 
 function normalizeAgentId(value: string): string {
-  return String(value || '').trim().toLowerCase();
+  return String(value || '')
+    .trim()
+    .toLowerCase();
 }
 
 export function listSubagentAgentProfiles(): SubagentAgentProfile[] {

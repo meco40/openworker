@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { pushArtifactSnapshot, restoreArtifactSnapshot } from '@/modules/agent-room/artifactHistory';
+import {
+  pushArtifactSnapshot,
+  restoreArtifactSnapshot,
+} from '@/modules/agent-room/artifactHistory';
 
 describe('artifact history projection', () => {
   it('keeps bounded history and avoids duplicate snapshots', () => {
@@ -18,4 +21,3 @@ describe('artifact history projection', () => {
     expect(restored.history).toEqual(['v1', 'v2', 'v3']);
   });
 });
-

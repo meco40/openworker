@@ -43,4 +43,3 @@ describe('swarm types', () => {
     expect(parsed?.sessionId).toBe('session-1');
   });
 });
-

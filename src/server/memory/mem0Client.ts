@@ -339,7 +339,9 @@ function isTransientHttpError(error: unknown): boolean {
 
 function isMem0RuntimeUnconfiguredError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /HTTP\s*503/i.test(message) && message.toLowerCase().includes(MEM0_RUNTIME_UNCONFIGURED_MARKER);
+  return (
+    /HTTP\s*503/i.test(message) && message.toLowerCase().includes(MEM0_RUNTIME_UNCONFIGURED_MARKER)
+  );
 }
 
 async function triggerMem0ModelHubSync(): Promise<boolean> {

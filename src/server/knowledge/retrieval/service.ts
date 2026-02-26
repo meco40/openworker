@@ -505,14 +505,15 @@ export class KnowledgeRetrievalService {
       stageStats.topicFallback = usedTopicFallback ? 1 : 0;
 
       const includeSemantic = input.includeSemantic !== false;
-      const semantic = includeSemantic && this.options.memoryService
-        ? await this.options.memoryService.recallDetailed(
-            input.personaId,
-            input.query,
-            3,
-            input.userId,
-          )
-        : { context: '', matches: [] };
+      const semantic =
+        includeSemantic && this.options.memoryService
+          ? await this.options.memoryService.recallDetailed(
+              input.personaId,
+              input.query,
+              3,
+              input.userId,
+            )
+          : { context: '', matches: [] };
       stageStats.semantic = Math.max(0, semantic.matches.length);
       const semanticContext = buildSemanticContextForQuery(input.query, semantic);
 

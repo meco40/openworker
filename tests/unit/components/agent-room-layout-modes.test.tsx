@@ -18,4 +18,3 @@ describe('agent room layout modes', () => {
     expect(source).toContain('layoutLabel(mode)');
   });
 });
-

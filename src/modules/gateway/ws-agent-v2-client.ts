@@ -25,6 +25,18 @@ function isTransientSocketError(error: unknown): boolean {
   );
 }
 
+function isRateLimitError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'code' in error) {
+    if (String((error as { code?: unknown }).code || '') === 'RATE_LIMITED') return true;
+  }
+  const message = error instanceof Error ? error.message : String(error || '');
+  return /too many requests/i.test(message);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class AgentV2GatewayClient {
   private readonly client: GatewayClient;
   private readonly lastSeqBySession = new Map<string, number>();
@@ -94,16 +106,28 @@ export class AgentV2GatewayClient {
   }
 
   async request(method: string, params?: Record<string, unknown>): Promise<unknown> {
-    try {
-      return await this.client.request(method, params);
-    } catch (error) {
-      if (!isTransientSocketError(error)) {
+    const MAX_RATE_LIMIT_RETRIES = 3;
+    const BASE_DELAY_MS = 1000;
+
+    for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt++) {
+      try {
+        return await this.client.request(method, params);
+      } catch (error) {
+        // Rate-limited: retry with exponential backoff (1s, 2s, 4s)
+        if (isRateLimitError(error) && attempt < MAX_RATE_LIMIT_RETRIES) {
+          await sleep(BASE_DELAY_MS * 2 ** attempt);
+          continue;
+        }
+        // Transient socket error: retry once after reconnect
+        if (isTransientSocketError(error) && attempt === 0) {
+          this.client.connect();
+          continue;
+        }
         throw error;
       }
-      // Retry once after re-issuing connect to absorb reconnect races.
-      this.client.connect();
-      return await this.client.request(method, params);
     }
+    // Unreachable, but satisfies TypeScript
+    throw new Error('Request failed after retries');
   }
 
   /**
@@ -131,21 +155,16 @@ export class AgentV2GatewayClient {
     const lastSeq = this.lastSeqBySession.get(envelope.sessionId) ?? 0;
     if (lastSeq > 0 && envelope.seq > lastSeq + 1) {
       try {
-        const replay = (await this.client.request<{
-          events: AgentV2EventEnvelope[];
-        }>('agent.v2.session.replay', {
+        const replay = ((await this.request('agent.v2.session.replay', {
           sessionId: envelope.sessionId,
           fromSeq: lastSeq,
-        })) || { events: [] };
+        })) || { events: [] }) as { events: AgentV2EventEnvelope[] };
         for (const event of replay.events) {
           this.lastSeqBySession.set(event.sessionId, event.seq);
           this.emit(event);
         }
       } catch {
-        const snapshot = await this.client.request('agent.v2.session.get', {
-          sessionId: envelope.sessionId,
-        });
-        void snapshot;
+        // Replay failed — silently drop; next event will retry
       }
     }
 

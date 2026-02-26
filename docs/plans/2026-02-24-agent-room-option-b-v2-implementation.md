@@ -38,6 +38,7 @@
 Add one additive table in messages repository migrations:
 
 `agent_room_swarms`
+
 - `id TEXT PRIMARY KEY`
 - `conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE`
 - `user_id TEXT NOT NULL`
@@ -57,11 +58,13 @@ Add one additive table in messages repository migrations:
 - `updated_at TEXT NOT NULL`
 
 Indexes:
+
 - `(user_id, updated_at DESC)`
 - `(conversation_id, updated_at DESC)`
 - optional unique partial `(session_id)` where not null
 
 Rationale:
+
 - Execution truth stays in `agent_v2_sessions/commands/events`.
 - Room projection/state is persisted in the same DB and survives client loss.
 
@@ -98,6 +101,7 @@ Rationale:
 ### Task 1: Navigation + Runtime/Persona Gating For Agent Room
 
 **Files:**
+
 - Modify: `src/shared/domain/types.ts`
 - Modify: `src/components/Sidebar.tsx`
 - Modify: `src/modules/app-shell/components/AppShellViewContent.tsx`
@@ -109,6 +113,7 @@ Rationale:
 **Step 1: Write failing tests**
 
 Assert:
+
 - `View.AGENT_ROOM === 'agent-room'`
 - sidebar item exists
 - view routing resolves to `AgentRoomView`
@@ -147,6 +152,7 @@ git commit -m "feat(agent-room): add navigation and app runtime gating"
 ### Task 2: Define Swarm Domain Contracts (Persona-First + Persisted IDs)
 
 **Files:**
+
 - Create: `src/modules/agent-room/swarmTypes.ts`
 - Create: `src/modules/agent-room/swarmPhases.ts`
 - Create: `src/modules/agent-room/swarmViewState.ts`
@@ -156,6 +162,7 @@ git commit -m "feat(agent-room): add navigation and app runtime gating"
 **Step 1: Write failing tests**
 
 Cover:
+
 - phase order contract
 - tab/view mode constants
 - required fields include `leadPersonaId`, `units[{ personaId, role }]`, `sessionId`
@@ -189,6 +196,7 @@ git commit -m "feat(agent-room): add persona-first swarm contracts"
 ### Task 3: Add SQLite Migration + Query Module For `agent_room_swarms`
 
 **Files:**
+
 - Modify: `src/server/channels/messages/repository/migrations/index.ts`
 - Create: `src/server/channels/messages/repository/queries/agentRoom.ts`
 - Modify: `src/server/channels/messages/repository/types.ts`
@@ -198,6 +206,7 @@ git commit -m "feat(agent-room): add persona-first swarm contracts"
 **Step 1: Write failing tests**
 
 Cover:
+
 - create/list/get/update/delete swarm rows
 - FK cascade by conversation delete
 - user scoping (`user_id`)
@@ -236,12 +245,14 @@ git commit -m "feat(agent-room): add persisted swarm storage in messages db"
 ### Task 4: Add Gateway Methods `agent.v2.swarm.*` (Thin Persistence API)
 
 **Files:**
+
 - Modify: `src/server/gateway/methods/agent-v2.ts`
 - Test: `tests/unit/gateway/agent-v2-methods.test.ts`
 
 **Step 1: Write failing tests**
 
 Cover new methods:
+
 - `agent.v2.swarm.create`
 - `agent.v2.swarm.list`
 - `agent.v2.swarm.get`
@@ -278,6 +289,7 @@ git commit -m "feat(agent-room): add agent.v2.swarm persistence methods"
 ### Task 5: Persona-Aware Session Start (Use Our Personas End-to-End)
 
 **Files:**
+
 - Modify: `src/server/agent-v2/sessionManager.ts`
 - Modify: `src/server/gateway/methods/agent-v2.ts`
 - Test: `tests/unit/agent-v2/session-manager-persona.test.ts`
@@ -285,6 +297,7 @@ git commit -m "feat(agent-room): add agent.v2.swarm persistence methods"
 **Step 1: Write failing tests**
 
 Cover:
+
 - `agent.v2.session.start` accepts `personaId` and optional `conversationId`
 - conversation persona is set (`setPersonaId`) before first command
 - invalid persona => request error
@@ -319,6 +332,7 @@ git commit -m "feat(agent-room): bind agent v2 sessions to selected personas"
 ### Task 6: Runtime Hook With Backend-Backed Catalog (No localStorage Truth)
 
 **Files:**
+
 - Create: `src/modules/agent-room/hooks/useAgentRoomRuntime.ts`
 - Create: `src/modules/agent-room/hooks/useSwarmCatalogState.ts`
 - Test: `tests/unit/modules/agent-room/use-agent-room-runtime-contract.test.ts`
@@ -326,6 +340,7 @@ git commit -m "feat(agent-room): bind agent v2 sessions to selected personas"
 **Step 1: Write failing tests**
 
 Cover:
+
 - catalog loaded via `agent.v2.swarm.list`
 - deploy updates persisted swarm row
 - runtime holds `sessionId` and `lastSeq` for replay recovery
@@ -360,6 +375,7 @@ git commit -m "feat(agent-room): use backend-backed swarm catalog and replay met
 ### Task 7: New Swarm Modal Uses Real Persona Registry
 
 **Files:**
+
 - Create: `src/modules/agent-room/components/NewSwarmModal.tsx`
 - Modify: `src/modules/agent-room/components/AgentRoomView.tsx`
 - Test: `tests/unit/components/new-swarm-modal.test.tsx`
@@ -367,6 +383,7 @@ git commit -m "feat(agent-room): use backend-backed swarm catalog and replay met
 **Step 1: Write failing tests**
 
 Cover:
+
 - persona list comes from `usePersona().personas`
 - lead persona required
 - units are selected from existing personas only
@@ -401,12 +418,14 @@ git commit -m "feat(agent-room): wire new swarm modal to persona registry"
 ### Task 8: Deploy Sequencer + Idempotent Phase Queueing
 
 **Files:**
+
 - Modify: `src/modules/agent-room/hooks/useAgentRoomRuntime.ts`
 - Create: `tests/unit/agent-room/swarm-sequencer.test.ts`
 
 **Step 1: Write failing tests**
 
 Cover:
+
 - `start -> input -> follow_up` sequence
 - idempotency keys per phase
 - abort path
@@ -442,6 +461,7 @@ git commit -m "feat(agent-room): add idempotent phased deploy sequencer"
 ### Task 9: Recovery On Reload (List/Get/Replay Rehydrate)
 
 **Files:**
+
 - Modify: `src/modules/agent-room/hooks/useAgentRoomRuntime.ts`
 - Modify: `src/modules/gateway/ws-agent-v2-client.ts`
 - Test: `tests/unit/modules/agent-room/swarm-rehydrate.test.ts`
@@ -449,6 +469,7 @@ git commit -m "feat(agent-room): add idempotent phased deploy sequencer"
 **Step 1: Write failing tests**
 
 Cover:
+
 - load swarm + session snapshot from backend
 - replay from persisted `lastSeq`
 - gracefully handle replay window expiry by fallback to `session.get`
@@ -482,6 +503,7 @@ git commit -m "fix(agent-room): recover active swarms via persisted session repl
 ### Task 10: Output Shell + Layout Modes + Tabs
 
 **Files:**
+
 - Modify: `src/modules/agent-room/components/AgentRoomView.tsx`
 - Test: `tests/unit/components/agent-room-layout-modes.test.tsx`
 - Test: `tests/unit/components/agent-room-output-tabs.test.tsx`
@@ -489,6 +511,7 @@ git commit -m "fix(agent-room): recover active swarms via persisted session repl
 **Step 1: Write failing tests**
 
 Cover:
+
 - split/chat/board modes
 - 4 output tabs and stable switching
 
@@ -521,6 +544,7 @@ git commit -m "feat(agent-room): add layout modes and output tab shell"
 ### Task 11: Logic Graph Canvas (Mermaid, Client-Safe)
 
 **Files:**
+
 - Modify: `package.json`
 - Create: `src/modules/agent-room/logicGraph.ts`
 - Create: `src/modules/agent-room/components/LogicGraphPanel.tsx`
@@ -530,6 +554,7 @@ git commit -m "feat(agent-room): add layout modes and output tab shell"
 **Step 1: Write failing tests**
 
 Cover:
+
 - mermaid block extraction/sanitization
 - invalid graph fallback behavior
 
@@ -563,6 +588,7 @@ git commit -m "feat(agent-room): add client-safe mermaid logic graph panel"
 ### Task 12: Artifact History + Conflict Radar Persisted Projection
 
 **Files:**
+
 - Create: `src/modules/agent-room/artifactHistory.ts`
 - Create: `src/modules/agent-room/conflictRadar.ts`
 - Modify: `src/modules/agent-room/swarmOrchestratorState.ts`
@@ -573,6 +599,7 @@ git commit -m "feat(agent-room): add client-safe mermaid logic graph panel"
 **Step 1: Write failing tests**
 
 Cover:
+
 - bounded artifact history with restore
 - friction/confidence/HOLD transitions
 - projection persisted by swarm update method
@@ -606,6 +633,7 @@ git commit -m "feat(agent-room): persist artifact history and conflict radar pro
 ### Task 13: Runtime Controls + Lifecycle Controls
 
 **Files:**
+
 - Modify: `src/modules/agent-room/components/AgentRoomView.tsx`
 - Modify: `src/modules/agent-room/hooks/useAgentRoomRuntime.ts`
 - Test: `tests/unit/components/agent-room-controls.test.tsx`
@@ -614,6 +642,7 @@ git commit -m "feat(agent-room): persist artifact history and conflict radar pro
 **Step 1: Write failing tests**
 
 Cover:
+
 - add persona unit
 - send guidance (`session.steer`)
 - force next phase
@@ -648,6 +677,7 @@ git commit -m "feat(agent-room): add runtime and lifecycle controls"
 ### Task 14: Security Hardening (Validation + Limits + Abuse Guards)
 
 **Files:**
+
 - Modify: `src/server/gateway/methods/agent-v2.ts`
 - Modify: `src/modules/agent-room/hooks/useAgentRoomRuntime.ts`
 - Test: `tests/unit/gateway/agent-room-security.test.ts`
@@ -655,6 +685,7 @@ git commit -m "feat(agent-room): add runtime and lifecycle controls"
 **Step 1: Write failing tests**
 
 Cover:
+
 - reject empty/oversized task or guidance payloads
 - reject invalid persona IDs and malformed units JSON
 - enforce user ownership on swarm/session operations
@@ -688,6 +719,7 @@ git commit -m "hardening(agent-room): add validation and ownership guards"
 ### Task 15: Observability + Control-Plane Signals
 
 **Files:**
+
 - Modify: `src/server/gateway/events.ts`
 - Modify: `src/server/gateway/broadcast.ts`
 - Modify: `app/api/control-plane/metrics/route.ts`
@@ -697,6 +729,7 @@ git commit -m "hardening(agent-room): add validation and ownership guards"
 **Step 1: Write failing tests**
 
 Cover:
+
 - metrics payload includes minimal Agent Room counters:
   - running swarms
   - swarms in hold
@@ -731,6 +764,7 @@ git commit -m "feat(agent-room): add control-plane observability metrics"
 ### Task 16: Rollout Safety (Feature Flag + Kill Switch)
 
 **Files:**
+
 - Modify: `src/components/Sidebar.tsx`
 - Modify: `src/modules/app-shell/components/AppShellViewContent.tsx`
 - Modify: `src/server/gateway/methods/agent-v2.ts`
@@ -740,6 +774,7 @@ git commit -m "feat(agent-room): add control-plane observability metrics"
 **Step 1: Write failing tests**
 
 Cover:
+
 - `NEXT_PUBLIC_AGENT_ROOM_ENABLED=false` hides UI entrypoint
 - `AGENT_ROOM_ENABLED=false` rejects `agent.v2.swarm.*` with explicit error
 
@@ -772,6 +807,7 @@ git commit -m "feat(agent-room): add rollout flag and server kill switch"
 ### Task 17: Runbook + Verification + Continuity
 
 **Files:**
+
 - Modify: `docs/AGENT_V2_RUNBOOK.md`
 - Modify: `docs/plans/2026-02-24-agent-room-option-b-v2-implementation.md`
 - Modify: `.agent/CONTINUITY.md`
@@ -779,6 +815,7 @@ git commit -m "feat(agent-room): add rollout flag and server kill switch"
 **Step 1: Update docs**
 
 Include:
+
 - architecture and storage layout
 - persona binding contract
 - failure/recovery procedures

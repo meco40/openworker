@@ -71,7 +71,9 @@ export async function dispatchMethod(
 
 function toErrorCode(error: unknown): ErrorCode {
   const code =
-    error && typeof error === 'object' && 'code' in error ? String((error as { code?: string }).code) : '';
+    error && typeof error === 'object' && 'code' in error
+      ? String((error as { code?: string }).code)
+      : '';
   if (code === 'INVALID_REQUEST') return 'INVALID_REQUEST';
   if (code === 'UNAUTHORIZED') return 'UNAUTHORIZED';
   if (code === 'NOT_FOUND') return 'NOT_FOUND';

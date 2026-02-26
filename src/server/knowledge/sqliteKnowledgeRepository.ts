@@ -166,9 +166,8 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
   deleteKnowledgeByScope(userId: string, personaId: string): number {
     const tx = this.db.transaction((uid: string, pid: string) => {
       const checkpointDeleted = Number(
-        this.db
-          .prepare('DELETE FROM knowledge_ingestion_checkpoints WHERE persona_id = ?')
-          .run(pid).changes || 0,
+        this.db.prepare('DELETE FROM knowledge_ingestion_checkpoints WHERE persona_id = ?').run(pid)
+          .changes || 0,
       );
       const episodeDeleted = Number(
         this.db
@@ -187,7 +186,9 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
       );
       const summaryDeleted = Number(
         this.db
-          .prepare('DELETE FROM knowledge_conversation_summaries WHERE user_id = ? AND persona_id = ?')
+          .prepare(
+            'DELETE FROM knowledge_conversation_summaries WHERE user_id = ? AND persona_id = ?',
+          )
           .run(uid, pid).changes || 0,
       );
       const eventDeleted = Number(

@@ -46,83 +46,173 @@ function stripMarkdown(text: string): string {
 }
 
 /**
- * Derive the first meaningful sentence (≤ 55 chars) from a text block.
+ * Derive the first meaningful sentence (≤ maxLen chars) from a text block.
  * Used as a short label in the auto-generated flowchart.
  */
-function firstSentence(text: string, maxLen = 55): string {
+function firstSentence(text: string, maxLen = 60): string {
   const clean = stripMarkdown(text).replace(/\n/g, ' ');
   const sentence = clean.split(/[.!?]/)[0].trim();
   if (!sentence) return clean.slice(0, maxLen);
   return sentence.length > maxLen ? sentence.slice(0, maxLen - 1) + '…' : sentence;
 }
 
+/** Safe Mermaid node ID from agent name */
+function nodeId(agentName: string, index: number): string {
+  return `n${index}_${agentName.replace(/[^a-zA-Z0-9]/g, '')}`;
+}
+
+interface ArtifactSection {
+  phase: SwarmPhase;
+  turns: Array<{ agentName: string; content: string }>;
+}
+
 /**
- * Auto-generate a Mermaid LR flowchart from the swarm artifact + phase rail.
+ * Parse artifact into phase sections with agent turns.
+ * Uses `--- Phase Label ---` markers and `**[Name]:**` turn markers.
+ */
+function parseArtifactSections(artifact: string): ArtifactSection[] {
+  const text = String(artifact || '').trim();
+  if (!text) return [];
+
+  // Build label→phase lookup
+  const labelToPhase = new Map<string, SwarmPhase>();
+  for (const phase of SWARM_PHASES) {
+    labelToPhase.set(getSwarmPhaseLabel(phase).toLowerCase(), phase);
+  }
+
+  // Find phase markers
+  const markerPattern = /^---\s*(.+?)\s*---$/gm;
+  const markers: Array<{ phase: SwarmPhase; end: number }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = markerPattern.exec(text))) {
+    const label = m[1].trim().toLowerCase();
+    const phase = labelToPhase.get(label) ?? 'analysis';
+    markers.push({ phase, end: m.index + m[0].length });
+  }
+
+  // Extract sections between markers
+  const sections: ArtifactSection[] = [];
+  const turnPattern = /\*\*\[([^\]]+)\]:\*\*\s*([\s\S]*?)(?=\*\*\[[^\]]+\]:\*\*|$)/g;
+
+  if (markers.length === 0) {
+    // Legacy: treat entire artifact as analysis
+    const turns: Array<{ agentName: string; content: string }> = [];
+    let tm: RegExpExecArray | null;
+    while ((tm = turnPattern.exec(text))) {
+      turns.push({ agentName: tm[1].trim(), content: tm[2].trim() });
+    }
+    if (turns.length > 0) sections.push({ phase: 'analysis', turns });
+    return sections;
+  }
+
+  for (let i = 0; i < markers.length; i++) {
+    const sectionEnd =
+      i + 1 < markers.length ? text.lastIndexOf('---', markers[i + 1].end) : text.length;
+    const sectionText = text.slice(markers[i].end, sectionEnd).trim();
+    const turns: Array<{ agentName: string; content: string }> = [];
+    // Reset regex state
+    turnPattern.lastIndex = 0;
+    let tm: RegExpExecArray | null;
+    while ((tm = turnPattern.exec(sectionText))) {
+      turns.push({ agentName: tm[1].trim(), content: tm[2].trim() });
+    }
+    sections.push({ phase: markers[i].phase, turns });
+  }
+  return sections;
+}
+
+/**
+ * Auto-generate a Mermaid TD (top-down) flowchart from the swarm artifact.
  *
- * When `activePhases` is provided, use the phase rail to determine WHICH nodes
- * to render (at minimum all phases up to + including `currentPhase`). This
- * ensures the Logic Graph always shows the full phase progression even when the
- * artifact has been clamped or is missing the final phase.
- *
- * Artifact sections (split by ---) are used as label sources in order; when a
- * phase has no matching artifact section the phase label is used as the fallback.
+ * Instead of showing phase names as a pipeline, this diagram shows the
+ * actual discussion content: each agent's key contribution per phase,
+ * grouped under phase subgraphs with connections showing the discussion flow.
  */
 function buildAutoFlowchart(
   artifact: string,
   activePhases?: { phase: SwarmPhase; currentPhase: SwarmPhase; status: string },
 ): string | null {
-  const raw = String(artifact || '').trim();
+  const sections = parseArtifactSections(artifact);
+  if (sections.length === 0) return null;
 
-  // Determine which phases to show
-  let phasesToShow: SwarmPhase[];
-  if (activePhases) {
-    const currentIdx = SWARM_PHASES.indexOf(activePhases.currentPhase);
-    const endIdx =
-      activePhases.status === 'completed'
-        ? SWARM_PHASES.length - 1
-        : currentIdx < 0
-          ? 0
-          : currentIdx;
-    phasesToShow = SWARM_PHASES.slice(0, endIdx + 1);
-  } else {
-    // Fallback: derive from artifact sections
-    if (!raw) return null;
-    const sections = raw
-      .split(/\n\n---\n\n/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    // A single plain text block is not enough signal for a logic graph.
-    // Keep null behavior unless explicit phase metadata is available.
-    if (sections.length <= 1) return null;
-    phasesToShow = sections.map((_, i) => SWARM_PHASES[i]).filter(Boolean) as SwarmPhase[];
+  // If there's only 1 section with 1 turn and no real content, skip
+  const totalTurns = sections.reduce((sum, s) => sum + s.turns.length, 0);
+  if (totalTurns === 0) return null;
+
+  const lines: string[] = ['flowchart TD'];
+  let nodeCounter = 0;
+  const phaseLastNodes: string[] = [];
+
+  for (const section of sections) {
+    const phaseLabel = getSwarmPhaseLabel(section.phase);
+    const subgraphId = `sg_${section.phase}`;
+    lines.push(`  subgraph ${subgraphId}["${phaseLabel}"]`);
+
+    const sectionNodeIds: string[] = [];
+    for (const turn of section.turns) {
+      const nid = nodeId(turn.agentName, nodeCounter++);
+      const summary = firstSentence(turn.content, 50);
+      const escapedName = turn.agentName.replace(/"/g, "'");
+      const escapedSummary = summary.replace(/"/g, "'");
+      if (escapedSummary) {
+        lines.push(`    ${nid}["**${escapedName}**<br/>${escapedSummary}"]`);
+      } else {
+        lines.push(`    ${nid}["**${escapedName}**"]`);
+      }
+      sectionNodeIds.push(nid);
+    }
+
+    // Connect turns within the same phase sequentially
+    for (let i = 1; i < sectionNodeIds.length; i++) {
+      lines.push(`    ${sectionNodeIds[i - 1]} --> ${sectionNodeIds[i]}`);
+    }
+
+    lines.push('  end');
+
+    // Connect phases: last node of prev phase → first node of this phase
+    if (phaseLastNodes.length > 0 && sectionNodeIds.length > 0) {
+      const prevLast = phaseLastNodes[phaseLastNodes.length - 1];
+      lines.push(`  ${prevLast} --> ${sectionNodeIds[0]}`);
+    }
+
+    if (sectionNodeIds.length > 0) {
+      phaseLastNodes.push(sectionNodeIds[sectionNodeIds.length - 1]);
+    }
   }
 
-  if (phasesToShow.length === 0) return null;
+  // Show upcoming phases as empty nodes (if known from activePhases)
+  if (activePhases && activePhases.status === 'running') {
+    const currentIdx = SWARM_PHASES.indexOf(activePhases.currentPhase);
+    const lastShownPhaseIdx =
+      sections.length > 0 ? SWARM_PHASES.indexOf(sections[sections.length - 1].phase) : -1;
+    for (let i = lastShownPhaseIdx + 1; i <= currentIdx; i++) {
+      const upcomingPhase = SWARM_PHASES[i];
+      if (upcomingPhase) {
+        const nid = `upcoming_${upcomingPhase}`;
+        const upcomingLabel = getSwarmPhaseLabel(upcomingPhase);
+        lines.push(`  ${nid}(["⏳ ${upcomingLabel}"]):::upcoming`);
+        if (phaseLastNodes.length > 0) {
+          lines.push(`  ${phaseLastNodes[phaseLastNodes.length - 1]} -.-> ${nid}`);
+          phaseLastNodes.push(nid);
+        }
+      }
+    }
+    lines.push(
+      '  classDef upcoming fill:#1a1a2e,stroke:#4a4a6a,stroke-dasharray: 5 5,color:#6a6a8a',
+    );
+  }
 
-  // Build artifact-section lookup (by index, best effort)
-  const artifactSections = raw
-    ? raw
-        .split(/\n\n---\n\n/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : [];
-
-  const lines: string[] = ['flowchart LR'];
-  const nodeIds: string[] = [];
-
-  phasesToShow.forEach((phase, i) => {
-    const label = getSwarmPhaseLabel(phase);
-    const section = artifactSections[i];
-    const summary = section ? firstSentence(section) : '';
-    // Escape double quotes inside label
-    const escapedSummary = summary ? summary.replace(/"/g, "'") : '';
-    const nodeContent = escapedSummary ? `"**${label}**\n${escapedSummary}"` : `"**${label}**"`;
-    lines.push(`  ${phase}[${nodeContent}]`);
-    nodeIds.push(phase);
-  });
-
-  for (let i = 1; i < nodeIds.length; i++) {
-    lines.push(`  ${nodeIds[i - 1]} --> ${nodeIds[i]}`);
+  // Show ✅ Result terminal node when the swarm has completed
+  if (
+    activePhases &&
+    (activePhases.status === 'completed' || activePhases.currentPhase === 'result')
+  ) {
+    const resultNid = 'result_done';
+    lines.push(`  ${resultNid}(["✅ Result"]):::resultNode`);
+    if (phaseLastNodes.length > 0) {
+      lines.push(`  ${phaseLastNodes[phaseLastNodes.length - 1]} ==> ${resultNid}`);
+    }
+    lines.push('  classDef resultNode fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#a7f3d0');
   }
 
   return lines.join('\n');

@@ -105,4 +105,3 @@ describe('agent room query module', () => {
     expect(repo.getAgentRoomSwarm!(created.id, 'user-cascade')).toBeNull();
   });
 });
-

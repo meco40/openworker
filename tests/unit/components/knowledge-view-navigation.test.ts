@@ -15,7 +15,7 @@ describe('Knowledge view integration', () => {
     expect(View.KNOWLEDGE).toBe('knowledge');
   });
 
-  it('shows Knowledge in sidebar navigation', () => {
+  it('shows Graph in sidebar navigation', () => {
     const html = renderToStaticMarkup(
       createElement(Sidebar, {
         activeView: View.DASHBOARD,
@@ -26,7 +26,7 @@ describe('Knowledge view integration', () => {
       html.matchAll(/<span class="font-medium">([^<]+)<\/span>/g),
       ([, label]) => label,
     );
-    expect(navLabels).toContain('Knowledge');
+    expect(navLabels).toContain('Graph');
   });
 
   it('routes knowledge view in app shell content', () => {
