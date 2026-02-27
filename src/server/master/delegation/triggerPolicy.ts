@@ -17,7 +17,7 @@ const lastCapabilityTriggerAt = new Map<string, number>();
 
 export function evaluateTriggerPolicy(input: TriggerPolicyInput): TriggerPolicyResult {
   const lastAt = lastCapabilityTriggerAt.get(input.capability) ?? 0;
-  if (input.now - lastAt < input.cooldownMs) {
+  if (input.now > lastAt && input.now - lastAt < input.cooldownMs) {
     return { allowed: false, reason: 'cooldown_active' };
   }
   if (

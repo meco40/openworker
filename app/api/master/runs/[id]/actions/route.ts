@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getMasterRepository } from '@/server/master/runtime';
+import { getMasterExecutionRuntime, getMasterRepository } from '@/server/master/runtime';
 import { resolveMasterUserId, resolveScopeFromRequest } from '@/server/master/http';
 import type { ApprovalDecision } from '@/server/master/types';
 
@@ -24,6 +24,15 @@ function isApprovalDecision(value: string | undefined): value is ApprovalDecisio
   return value === 'approve_once' || value === 'approve_always' || value === 'deny';
 }
 
+function isRunControlAction(actionType: string): boolean {
+  return (
+    actionType === 'run.start' ||
+    actionType === 'run.tick' ||
+    actionType === 'run.cancel' ||
+    actionType === 'run.export'
+  );
+}
+
 export async function POST(request: Request, { params }: { params: Promise<Params> }) {
   const userId = await resolveMasterUserId();
   if (!userId) {
@@ -46,6 +55,33 @@ export async function POST(request: Request, { params }: { params: Promise<Param
     const run = repo.getRun(scope, id);
     if (!run) {
       return NextResponse.json({ ok: false, error: 'Run not found' }, { status: 404 });
+    }
+
+    if (isRunControlAction(actionType)) {
+      const runtime = getMasterExecutionRuntime();
+      if (actionType === 'run.start') {
+        const started = runtime.startBackground(scope, id);
+        const updated = repo.getRun(scope, id);
+        return NextResponse.json({
+          ok: true,
+          started,
+          run: updated,
+        });
+      }
+      if (actionType === 'run.tick') {
+        const updated = await runtime.executeNow(scope, id);
+        return NextResponse.json({ ok: true, run: updated });
+      }
+      if (actionType === 'run.cancel') {
+        const patched = repo.updateRun(scope, id, {
+          status: 'FAILED',
+          pausedForApproval: false,
+          lastError: 'Run cancelled by operator.',
+        });
+        return NextResponse.json({ ok: true, run: patched });
+      }
+      const exportBundle = runtime.buildExportBundle(scope, id);
+      return NextResponse.json({ ok: true, exportBundle });
     }
 
     const fingerprint = String(body.fingerprint || `${actionType}:${stepId}`).trim();

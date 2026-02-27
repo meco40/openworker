@@ -46,6 +46,7 @@ describe('master connector secret lifecycle', () => {
     const stored = repo.getConnectorSecret(scope, 'gmail', 'default');
     expect(stored).not.toBeNull();
     expect(stored?.encryptedPayload).not.toBe('token-1');
+    expect(stored?.encryptedPayload.startsWith('enc:v2:')).toBe(true);
     expect(decryptConnectorSecret(stored!.encryptedPayload)).toBe('token-1');
 
     rotateConnectorSecret(repo, scope, {
@@ -59,6 +60,10 @@ describe('master connector secret lifecycle', () => {
     revokeConnectorSecret(repo, scope, { provider: 'gmail', keyRef: 'default' });
     const revoked = repo.getConnectorSecret(scope, 'gmail', 'default');
     expect(revoked?.revokedAt).not.toBeNull();
+    const audit = repo.listAuditEvents(scope);
+    expect(audit.some((event) => event.action === 'store')).toBe(true);
+    expect(audit.some((event) => event.action === 'rotate')).toBe(true);
+    expect(audit.some((event) => event.action === 'revoke')).toBe(true);
 
     repo.close();
   });

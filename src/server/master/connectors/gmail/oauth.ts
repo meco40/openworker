@@ -16,6 +16,14 @@ export function loadGmailOAuthState(
 ): GmailOAuthState | null {
   const secret = repo.getConnectorSecret(scope, 'gmail', keyRef);
   if (!secret || secret.revokedAt) return null;
+  repo.appendAuditEvent(scope, {
+    category: 'connector_secret',
+    action: 'read',
+    metadata: JSON.stringify({
+      provider: 'gmail',
+      keyRef,
+    }),
+  });
   return {
     accessToken: decryptConnectorSecret(secret.encryptedPayload),
     issuedAt: secret.issuedAt,

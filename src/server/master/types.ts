@@ -183,6 +183,16 @@ export interface MasterConnectorSecret {
   updatedAt: string;
 }
 
+export interface MasterAuditEvent {
+  id: string;
+  userId: string;
+  workspaceId: string;
+  category: string;
+  action: string;
+  metadata: string;
+  createdAt: string;
+}
+
 export interface MasterRunCreateInput {
   userId: string;
   workspaceId: string;

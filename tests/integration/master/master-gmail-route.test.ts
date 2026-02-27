@@ -119,4 +119,54 @@ describe('master gmail route', () => {
     );
     expect(approved.status).toBe(200);
   });
+
+  it('supports connector bootstrap and revoke flow', async () => {
+    const { getPersonaRepository } = await import('@/server/personas/personaRepository');
+    const { getMasterRepository } = await import('@/server/master/runtime');
+    const route = await import('../../../app/api/master/gmail/route');
+    const persona = getPersonaRepository().createPersona({
+      userId: 'legacy-local-user',
+      name: 'Mail Bootstrap Persona',
+      emoji: 'B',
+      vibe: 'precise',
+    });
+
+    const connect = await route.POST(
+      new Request('http://localhost/api/master/gmail', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          personaId: persona.id,
+          workspaceId: 'w2',
+          action: 'connect',
+          accessToken: 'access-token',
+          keyRef: 'default',
+        }),
+      }),
+    );
+    expect(connect.status).toBe(200);
+
+    const scope = {
+      userId: 'legacy-local-user',
+      workspaceId: `persona:${persona.id}:w2`,
+    };
+    const stored = getMasterRepository().getConnectorSecret(scope, 'gmail', 'default');
+    expect(stored).not.toBeNull();
+
+    const revoke = await route.POST(
+      new Request('http://localhost/api/master/gmail', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          personaId: persona.id,
+          workspaceId: 'w2',
+          action: 'revoke',
+          keyRef: 'default',
+        }),
+      }),
+    );
+    expect(revoke.status).toBe(200);
+    const revoked = getMasterRepository().getConnectorSecret(scope, 'gmail', 'default');
+    expect(revoked?.revokedAt).not.toBeNull();
+  });
 });

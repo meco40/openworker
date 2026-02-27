@@ -11,7 +11,7 @@ import {
   extractStoredAttachmentsFromMetadata,
   resolveStoredAttachmentPath,
 } from '@/server/channels/messages/attachments';
-import { getPersonaRepository } from '@/server/personas/personaRepository';
+import { PersonaRepository } from '@/server/personas/personaRepository';
 
 const LEGACY_CHAT_UPLOADS_ROOT = path.resolve('.local/uploads/chat');
 
@@ -24,7 +24,7 @@ export function migrateLegacyAttachmentsToPersonaWorkspaces(): {
     return { migratedFiles: 0, touchedMessages: 0 };
   }
 
-  const personaRepo = getPersonaRepository();
+  const personaRepo = new PersonaRepository(process.env.PERSONAS_DB_PATH || '.local/personas.db');
   const personas = personaRepo.listAllPersonas();
   for (const persona of personas) {
     ensurePersonaWorkspace(persona.slug);
@@ -55,7 +55,7 @@ export function migrateLegacyAttachmentsToPersonaWorkspaces(): {
     }>;
 
     const updateMetadata = db.prepare('UPDATE messages SET metadata = ? WHERE id = ?');
-    const getPersonaById = (id: string) => getPersonaRepository().getPersona(id);
+    const getPersonaById = (id: string) => personaRepo.getPersona(id);
 
     for (const row of rows) {
       const parsedMetadata = parseMetadataObject(row.metadata);
@@ -110,6 +110,7 @@ export function migrateLegacyAttachmentsToPersonaWorkspaces(): {
     }
   } finally {
     db.close();
+    personaRepo.close();
   }
 
   fs.mkdirSync(path.dirname(markerPath), { recursive: true });

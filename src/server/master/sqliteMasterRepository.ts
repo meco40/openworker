@@ -9,6 +9,7 @@ import type {
   MasterCapabilityProposal,
   MasterCapabilityScore,
   MasterConnectorSecret,
+  MasterAuditEvent,
   MasterDelegationEvent,
   MasterDelegationJob,
   MasterFeedback,
@@ -886,6 +887,31 @@ export class SqliteMasterRepository implements MasterRepository {
     }));
   }
 
+  listGlobalToolForgeArtifacts(limit = 200): MasterToolForgeArtifact[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM master_toolforge_artifacts
+         WHERE published_globally = 1 AND status = 'published'
+         ORDER BY updated_at DESC
+         LIMIT ?`,
+      )
+      .all(limit) as Array<Record<string, unknown>>;
+    return rows.map((row) => ({
+      id: String(row.id),
+      userId: String(row.user_id),
+      workspaceId: String(row.workspace_id),
+      name: String(row.name),
+      spec: String(row.spec),
+      manifest: String(row.manifest),
+      testSummary: String(row.test_summary),
+      riskReport: String(row.risk_report),
+      status: row.status as MasterToolForgeArtifact['status'],
+      publishedGlobally: toBool(row.published_globally),
+      createdAt: String(row.created_at),
+      updatedAt: String(row.updated_at),
+    }));
+  }
+
   upsertConnectorSecret(
     scope: WorkspaceScope,
     secret: Omit<
@@ -950,6 +976,77 @@ export class SqliteMasterRepository implements MasterRepository {
       createdAt: String(row.created_at),
       updatedAt: String(row.updated_at),
     };
+  }
+
+  appendAuditEvent(
+    scope: WorkspaceScope,
+    input: Omit<MasterAuditEvent, 'id' | 'userId' | 'workspaceId' | 'createdAt'>,
+  ): MasterAuditEvent {
+    const id = crypto.randomUUID();
+    const createdAt = nowIso();
+    this.db
+      .prepare(
+        `INSERT INTO master_audit_events (
+           id, user_id, workspace_id, category, action, metadata, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        scope.userId,
+        scope.workspaceId,
+        input.category,
+        input.action,
+        input.metadata,
+        createdAt,
+      );
+    return {
+      id,
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      category: input.category,
+      action: input.action,
+      metadata: input.metadata,
+      createdAt,
+    };
+  }
+
+  listAuditEvents(scope: WorkspaceScope, limit = 200): MasterAuditEvent[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM master_audit_events
+         WHERE user_id = ? AND workspace_id = ?
+         ORDER BY created_at DESC
+         LIMIT ?`,
+      )
+      .all(scope.userId, scope.workspaceId, limit) as Array<Record<string, unknown>>;
+    return rows.map((row) => ({
+      id: String(row.id),
+      userId: String(row.user_id),
+      workspaceId: String(row.workspace_id),
+      category: String(row.category),
+      action: String(row.action),
+      metadata: String(row.metadata || '{}'),
+      createdAt: String(row.created_at),
+    }));
+  }
+
+  listKnownScopes(limit = 500): WorkspaceScope[] {
+    const rows = this.db
+      .prepare(
+        `SELECT user_id, workspace_id FROM (
+           SELECT user_id, workspace_id, updated_at AS ts FROM master_runs
+           UNION ALL
+           SELECT user_id, workspace_id, updated_at AS ts FROM master_capability_scores
+         )
+         GROUP BY user_id, workspace_id
+         ORDER BY MAX(ts) DESC
+         LIMIT ?`,
+      )
+      .all(limit) as Array<{ user_id: string; workspace_id: string }>;
+    return rows.map((row) => ({
+      userId: String(row.user_id),
+      workspaceId: String(row.workspace_id),
+    }));
   }
 
   close(): void {

@@ -189,5 +189,18 @@ export function runMasterMigrations(db: ReturnType<typeof BetterSqlite3>): void 
       updated_at TEXT NOT NULL,
       UNIQUE (user_id, workspace_id, provider, key_ref)
     );
+
+    CREATE TABLE IF NOT EXISTS master_audit_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      category TEXT NOT NULL,
+      action TEXT NOT NULL,
+      metadata TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_master_audit_scope
+      ON master_audit_events (user_id, workspace_id, created_at DESC);
   `);
 }

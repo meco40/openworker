@@ -23,8 +23,12 @@ export async function GET(request: Request) {
   }
   try {
     const scope = resolveScopeFromRequest(request, userId);
-    const artifacts = getMasterRepository().listToolForgeArtifacts(scope);
-    return NextResponse.json({ ok: true, artifacts });
+    const url = new URL(request.url);
+    const includeGlobal = url.searchParams.get('global') === '1';
+    const repo = getMasterRepository();
+    const artifacts = repo.listToolForgeArtifacts(scope);
+    const globalArtifacts = includeGlobal ? repo.listGlobalToolForgeArtifacts() : [];
+    return NextResponse.json({ ok: true, artifacts, globalArtifacts });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to list toolforge artifacts';
     return NextResponse.json({ ok: false, error: message }, { status: 400 });

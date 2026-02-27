@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getMasterRepository } from '@/server/master/runtime';
 import { resolveMasterUserId, resolveScopeFromRequest } from '@/server/master/http';
 import { executeGmailAction } from '@/server/master/connectors/gmail/actions';
+import { storeConnectorSecret } from '@/server/master/connectors/secretStore';
+import { revokeConnectorSecret } from '@/server/master/connectors/secretPolicies';
 import type { ApprovalDecision } from '@/server/master/types';
 
 export const runtime = 'nodejs';
@@ -13,11 +15,14 @@ interface GmailBody {
   workspaceCwd?: string;
   runId?: string;
   stepId?: string;
-  action?: 'read' | 'search' | 'draft' | 'send';
+  action?: 'read' | 'search' | 'draft' | 'send' | 'connect' | 'revoke';
   query?: string;
   draft?: { to: string; subject: string; body: string };
   decision?: ApprovalDecision;
   fingerprint?: string;
+  accessToken?: string;
+  expiresAt?: string | null;
+  keyRef?: string;
 }
 
 export async function POST(request: Request) {
@@ -27,13 +32,39 @@ export async function POST(request: Request) {
   }
   try {
     const body = (await request.json()) as GmailBody;
-    if (!body.action || !body.runId || !body.stepId) {
+    if (!body.action) {
+      return NextResponse.json({ ok: false, error: 'action is required' }, { status: 400 });
+    }
+    const scope = resolveScopeFromRequest(request, userId, body);
+
+    if (body.action === 'connect') {
+      const accessToken = String(body.accessToken || '').trim();
+      if (!accessToken) {
+        return NextResponse.json({ ok: false, error: 'accessToken is required' }, { status: 400 });
+      }
+      storeConnectorSecret(getMasterRepository(), scope, {
+        provider: 'gmail',
+        keyRef: body.keyRef || 'default',
+        plainText: accessToken,
+        expiresAt: body.expiresAt ?? null,
+      });
+      return NextResponse.json({ ok: true, connected: true }, { status: 200 });
+    }
+
+    if (body.action === 'revoke') {
+      revokeConnectorSecret(getMasterRepository(), scope, {
+        provider: 'gmail',
+        keyRef: body.keyRef || 'default',
+      });
+      return NextResponse.json({ ok: true, revoked: true }, { status: 200 });
+    }
+
+    if (!body.runId || !body.stepId) {
       return NextResponse.json(
         { ok: false, error: 'action, runId and stepId are required' },
         { status: 400 },
       );
     }
-    const scope = resolveScopeFromRequest(request, userId, body);
     const result = await executeGmailAction(getMasterRepository(), {
       scope,
       runId: body.runId,

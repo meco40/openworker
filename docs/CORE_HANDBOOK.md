@@ -31,7 +31,10 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 - Workspace isolation for Master requests is enforced via persona-scoped workspace binding.
 - New APIs available:
   - `/api/master/runs`, `/api/master/runs/[id]`, `/api/master/runs/[id]/actions`, `/api/master/runs/[id]/delegations`
-  - `/api/master/notes`, `/api/master/reminders`, `/api/master/gmail`, `/api/master/toolforge`, `/api/master/capabilities`
+  - `/api/master/notes`, `/api/master/reminders`, `/api/master/gmail`, `/api/master/toolforge`, `/api/master/capabilities`, `/api/master/metrics`
+- `/api/master/runs/[id]/actions` supports run control actions (`run.start`, `run.tick`, `run.cancel`, `run.export`) in addition to approval decisions.
+- Master runtime includes a non-blocking execution runtime and maintenance tick (`03:00` UTC window, once per day per scope, active-run preemption).
+- Master secret storage upgraded to `enc:v2` AES-256-GCM with audit trail entries in `master_audit_events`.
 - Authoritative subsystem doc added: `docs/MASTER_AGENT_SYSTEM.md`.
 
 ---

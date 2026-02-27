@@ -13,6 +13,15 @@ export function rotateConnectorSecret(
     plainText: input.nextPlainText,
     expiresAt: input.expiresAt ?? null,
   });
+  repo.appendAuditEvent(scope, {
+    category: 'connector_secret',
+    action: 'rotate',
+    metadata: JSON.stringify({
+      provider: input.provider,
+      keyRef: input.keyRef,
+      expiresAt: input.expiresAt ?? null,
+    }),
+  });
 }
 
 export function revokeConnectorSecret(
@@ -29,5 +38,13 @@ export function revokeConnectorSecret(
     issuedAt: existing.issuedAt,
     expiresAt: existing.expiresAt,
     revokedAt: new Date().toISOString(),
+  });
+  repo.appendAuditEvent(scope, {
+    category: 'connector_secret',
+    action: 'revoke',
+    metadata: JSON.stringify({
+      provider: input.provider,
+      keyRef: input.keyRef,
+    }),
   });
 }

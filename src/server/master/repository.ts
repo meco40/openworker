@@ -6,6 +6,7 @@ import type {
   MasterConnectorSecret,
   MasterDelegationEvent,
   MasterDelegationJob,
+  MasterAuditEvent,
   MasterFeedback,
   MasterNote,
   MasterReminder,
@@ -132,6 +133,7 @@ export interface MasterRepository {
     patch: Partial<MasterToolForgeArtifact>,
   ): MasterToolForgeArtifact | null;
   listToolForgeArtifacts(scope: WorkspaceScope): MasterToolForgeArtifact[];
+  listGlobalToolForgeArtifacts(limit?: number): MasterToolForgeArtifact[];
 
   upsertConnectorSecret(
     scope: WorkspaceScope,
@@ -145,6 +147,14 @@ export interface MasterRepository {
     provider: string,
     keyRef: string,
   ): MasterConnectorSecret | null;
+
+  appendAuditEvent(
+    scope: WorkspaceScope,
+    input: Omit<MasterAuditEvent, 'id' | 'userId' | 'workspaceId' | 'createdAt'>,
+  ): MasterAuditEvent;
+  listAuditEvents(scope: WorkspaceScope, limit?: number): MasterAuditEvent[];
+
+  listKnownScopes(limit?: number): WorkspaceScope[];
 
   close(): void;
 }

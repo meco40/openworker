@@ -29,14 +29,14 @@ export async function executeGmailAction(
   const mailboxKey = `${input.scope.userId}:${input.scope.workspaceId}`;
 
   if (input.action === 'read') {
-    return { ok: true, result: client.listMessages(mailboxKey) };
+    return { ok: true, result: await client.listMessages(mailboxKey) };
   }
   if (input.action === 'search') {
-    return { ok: true, result: client.searchMessages(mailboxKey, input.query || '') };
+    return { ok: true, result: await client.searchMessages(mailboxKey, input.query || '') };
   }
   if (input.action === 'draft') {
     if (!input.draft) return { ok: false, error: 'draft payload is required' };
-    return { ok: true, result: client.createDraft(input.draft) };
+    return { ok: true, result: await client.createDraft(input.draft) };
   }
 
   // send is always approval-gated
