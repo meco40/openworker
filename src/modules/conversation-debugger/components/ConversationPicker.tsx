@@ -1,5 +1,6 @@
 import React from 'react';
 import type { DebugConversationSummary } from '../types';
+import { Spinner, EmptyState, ErrorBanner, Badge, formatRelativeTime } from './ui-helpers';
 
 interface ConversationPickerProps {
   conversations: DebugConversationSummary[];
@@ -10,15 +11,88 @@ interface ConversationPickerProps {
   onRefresh: () => void;
 }
 
-function formatRelativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${String(mins)}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${String(hours)}h ago`;
-  return `${String(Math.floor(hours / 24))}d ago`;
+// ─── Conversation Card ────────────────────────────────────────────────────────
+
+interface ConversationCardProps {
+  conv: DebugConversationSummary;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
 }
+
+const ConversationCard: React.FC<ConversationCardProps> = ({ conv, isSelected, onSelect }) => {
+  const shortId = conv.conversationId.slice(0, 8);
+  const restId = conv.conversationId.slice(8, 20);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(conv.conversationId)}
+      aria-pressed={isSelected}
+      aria-label={`Debug conversation ${conv.conversationId}`}
+      className={`group w-full rounded-lg border px-3 py-2.5 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+        isSelected
+          ? 'border-blue-600/60 bg-blue-950/30 shadow-sm shadow-blue-900/20'
+          : 'border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-800/40'
+      }`}
+    >
+      {/* Row 1: ID + time */}
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="font-mono text-xs leading-none">
+          <span className={isSelected ? 'text-blue-300' : 'text-zinc-300'}>{shortId}</span>
+          <span className="text-zinc-600">{restId}</span>
+          {conv.conversationId.length > 20 && <span className="text-zinc-700">…</span>}
+        </span>
+        <span
+          className="shrink-0 text-[10px] text-zinc-600"
+          title={conv.lastActivity}
+        >
+          {formatRelativeTime(conv.lastActivity)}
+        </span>
+      </div>
+
+      {/* Row 2: model badge */}
+      {conv.modelName && (
+        <div className="mb-2">
+          <Badge variant="zinc" className="max-w-full truncate">
+            {conv.modelName}
+          </Badge>
+        </div>
+      )}
+
+      {/* Row 3: metrics */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+        <span className="flex items-center gap-1">
+          <span className="text-zinc-700" aria-hidden="true">↕</span>
+          <span>{conv.turnCount} turn{conv.turnCount === 1 ? '' : 's'}</span>
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="text-zinc-700" aria-hidden="true">◈</span>
+          <span>{conv.totalTokens.toLocaleString()} tok</span>
+        </span>
+        {conv.totalCostUsd != null && (
+          <span className="flex items-center gap-1">
+            <span className="text-zinc-700" aria-hidden="true">$</span>
+            <span>{conv.totalCostUsd.toFixed(4)}</span>
+          </span>
+        )}
+
+        {/* Debug CTA — only visible on hover/selected */}
+        <span
+          className={`ml-auto text-[10px] font-medium transition-opacity ${
+            isSelected
+              ? 'text-blue-400 opacity-100'
+              : 'text-zinc-600 opacity-0 group-hover:opacity-100'
+          }`}
+          aria-hidden="true"
+        >
+          {isSelected ? '● Debugging' : 'Debug →'}
+        </span>
+      </div>
+    </button>
+  );
+};
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 const ConversationPicker: React.FC<ConversationPickerProps> = ({
   conversations,
@@ -30,88 +104,66 @@ const ConversationPicker: React.FC<ConversationPickerProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12 text-sm text-zinc-500">
-        Loading conversations…
+      <div className="flex flex-col items-center justify-center gap-3 py-16">
+        <Spinner size="md" />
+        <span className="text-xs text-zinc-600">Loading conversations…</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-800 bg-red-950/30 p-4 text-sm text-red-400">
-        {error}
-        <button onClick={onRefresh} className="ml-3 underline hover:text-red-200" type="button">
-          Retry
-        </button>
+      <div className="p-4">
+        <ErrorBanner message={error} onRetry={onRefresh} />
       </div>
     );
   }
 
   if (conversations.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-12 text-zinc-500">
-        <span className="text-sm">No conversations logged yet.</span>
-        <p className="max-w-xs text-center text-xs text-zinc-600">
-          Conversations appear here after the first AI dispatch with a linked conversation ID.
-        </p>
-        <button onClick={onRefresh} className="text-xs text-zinc-400 underline" type="button">
-          Refresh
-        </button>
-      </div>
+      <EmptyState
+        icon={
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="h-10 w-10"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"
+            />
+          </svg>
+        }
+        title="No conversations yet"
+        description="Conversations appear here after the first AI dispatch with a linked conversation ID."
+        action={
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            Refresh
+          </button>
+        }
+      />
     );
   }
 
   return (
-    <div className="overflow-auto">
-      <table className="w-full text-left text-xs">
-        <thead>
-          <tr className="border-b border-zinc-800 text-zinc-500">
-            <th className="py-2 pr-3 font-medium">Conversation</th>
-            <th className="py-2 pr-3 text-right font-medium">Turns</th>
-            <th className="py-2 pr-3 text-right font-medium">Tokens</th>
-            <th className="py-2 pr-3 text-right font-medium">Cost</th>
-            <th className="py-2 pr-3 font-medium">Last Activity</th>
-            <th className="py-2 pr-3 font-medium">Model</th>
-            <th className="py-2" />
-          </tr>
-        </thead>
-        <tbody>
-          {conversations.map((conv) => (
-            <tr
-              key={conv.conversationId}
-              className={`border-b border-zinc-800/50 transition-colors hover:bg-zinc-800/30 ${
-                selectedId === conv.conversationId ? 'bg-zinc-800/50' : ''
-              }`}
-            >
-              <td className="max-w-[140px] overflow-hidden py-2 pr-3 font-mono text-ellipsis whitespace-nowrap text-zinc-300">
-                <span title={conv.conversationId}>{conv.conversationId.slice(0, 18)}…</span>
-              </td>
-              <td className="py-2 pr-3 text-right text-zinc-400">{conv.turnCount}</td>
-              <td className="py-2 pr-3 text-right text-zinc-400">
-                {conv.totalTokens.toLocaleString()}
-              </td>
-              <td className="py-2 pr-3 text-right text-zinc-400">
-                {conv.totalCostUsd != null ? `$${conv.totalCostUsd.toFixed(4)}` : '—'}
-              </td>
-              <td className="py-2 pr-3 text-zinc-500" title={conv.lastActivity}>
-                {formatRelativeTime(conv.lastActivity)}
-              </td>
-              <td className="max-w-[120px] overflow-hidden py-2 pr-3 text-ellipsis whitespace-nowrap text-zinc-500">
-                {conv.modelName || '—'}
-              </td>
-              <td className="py-2">
-                <button
-                  onClick={() => onSelect(conv.conversationId)}
-                  className="rounded bg-zinc-700 px-2 py-0.5 text-xs text-zinc-200 transition-colors hover:bg-zinc-600"
-                  type="button"
-                >
-                  Debug →
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="flex flex-col gap-1.5 p-2" role="list" aria-label="Conversations">
+      {conversations.map((conv) => (
+        <div key={conv.conversationId} role="listitem">
+          <ConversationCard
+            conv={conv}
+            isSelected={selectedId === conv.conversationId}
+            onSelect={onSelect}
+          />
+        </div>
+      ))}
     </div>
   );
 };
