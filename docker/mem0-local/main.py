@@ -96,8 +96,12 @@ def _build_bootstrap_component(
     if not provider or not model:
         return None
 
+    normalized_model = model.strip()
+    if provider == "gemini" and normalized_model.lower().startswith("models/"):
+        normalized_model = normalized_model.split("/", 1)[1].strip()
+
     api_key = explicit_api_key or (GEMINI_API_KEY if provider == "gemini" else "")
-    config: Dict[str, Any] = {"model": model}
+    config: Dict[str, Any] = {"model": normalized_model}
     if api_key:
         config["api_key"] = api_key
     if base_url:
@@ -106,6 +110,14 @@ def _build_bootstrap_component(
         config["temperature"] = 0.2
 
     return {"provider": provider, "config": config}
+
+
+def _normalize_runtime_component_model(provider: str, config_obj: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(config_obj or {})
+    model = str(normalized.get("model", "")).strip()
+    if provider == "gemini" and model.lower().startswith("models/"):
+        normalized["model"] = model.split("/", 1)[1].strip()
+    return normalized
 
 
 def _build_bootstrap_config() -> Dict[str, Any]:
@@ -245,11 +257,12 @@ def set_llm_config(
     config_obj = payload.llm.get("config")
     if config_obj is not None and not isinstance(config_obj, dict):
         raise HTTPException(status_code=400, detail="llm.config must be an object when provided.")
+    normalized_config = _normalize_runtime_component_model(provider, config_obj or {})
 
     next_config = copy.deepcopy(CURRENT_CONFIG)
     next_config["llm"] = {
         "provider": provider,
-        "config": config_obj or {},
+        "config": normalized_config,
     }
 
     try:
@@ -281,11 +294,12 @@ def set_embedder_config(
     config_obj = payload.embedder.get("config")
     if config_obj is not None and not isinstance(config_obj, dict):
         raise HTTPException(status_code=400, detail="embedder.config must be an object when provided.")
+    normalized_config = _normalize_runtime_component_model(provider, config_obj or {})
 
     next_config = copy.deepcopy(CURRENT_CONFIG)
     next_config["embedder"] = {
         "provider": provider,
-        "config": config_obj or {},
+        "config": normalized_config,
     }
     if payload.embedding_model_dims is not None:
         if payload.embedding_model_dims <= 0:

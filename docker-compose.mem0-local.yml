@@ -41,7 +41,7 @@ services:
       MEM0_LLM_PROVIDER: gemini
       MEM0_LLM_MODEL: gemini-1.5-flash
       MEM0_EMBEDDER_PROVIDER: gemini
-      MEM0_EMBEDDER_MODEL: models/text-embedding-004
+      MEM0_EMBEDDER_MODEL: text-embedding-004
       MEM0_EMBEDDING_DIMS: 1536
     volumes:
       - mem0-history-data:/app/history

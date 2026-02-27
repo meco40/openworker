@@ -61,6 +61,7 @@ export {
   isV2UnavailableError,
   isLegacyDeleteFilterError,
   isMem0RuntimeUnconfiguredError,
+  isMem0InvalidModelConfigError,
   sleep,
 } from './utils/http';
 

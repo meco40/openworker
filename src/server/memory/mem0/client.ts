@@ -24,6 +24,7 @@ import {
   isTransientHttpError,
   isTimeoutError,
   isMem0RuntimeUnconfiguredError,
+  isMem0InvalidModelConfigError,
   sleep,
 } from './utils/http';
 import { triggerMem0ModelHubSync } from './sync';
@@ -150,7 +151,7 @@ class HttpMem0Client implements Mem0Client {
         return await this.requestOnce(apiPath, path, init, timeoutMs);
       } catch (error) {
         lastError = error;
-        if (isMem0RuntimeUnconfiguredError(error)) {
+        if (isMem0RuntimeUnconfiguredError(error) || isMem0InvalidModelConfigError(error)) {
           const synced = await triggerMem0ModelHubSync();
           if (synced) {
             if (attempt + 1 >= maxAttempts) {

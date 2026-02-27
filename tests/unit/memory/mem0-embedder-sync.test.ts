@@ -208,6 +208,59 @@ describe('syncMem0EmbedderFromModelHub', () => {
     });
   });
 
+  it('normalizes Gemini embedding model names before probing and syncing mem0', async () => {
+    mocks.listPipeline.mockReturnValue([
+      buildEmbeddingPipelineEntry({
+        providerId: 'gemini',
+        modelName: 'models/text-embedding-004',
+      }),
+    ]);
+    mocks.getUsableAccountById.mockResolvedValue(
+      buildAccount({
+        providerId: 'gemini',
+      }),
+    );
+    mocks.decryptSecret.mockReturnValue('gemini-secret');
+    mocks.dispatchEmbedding.mockResolvedValue({
+      embedding: { values: Array.from({ length: 768 }, () => 0.1) },
+    });
+
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const result = await syncMem0EmbedderFromModelHub();
+
+    expect(result.ok).toBe(true);
+    expect(result.providerId).toBe('gemini');
+    expect(result.modelName).toBe('text-embedding-004');
+    expect(mocks.dispatchEmbedding).toHaveBeenCalledWith('enc-key', {
+      operation: 'embedContent',
+      payload: {
+        model: 'text-embedding-004',
+        input: ['mem0-dimension-probe'],
+      },
+    });
+
+    const firstCall = fetchMock.mock.calls[0];
+    const init = (firstCall?.[1] ?? {}) as RequestInit;
+    expect(JSON.parse(String(init.body))).toEqual({
+      embedder: {
+        provider: 'gemini',
+        config: {
+          api_key: 'gemini-secret',
+          model: 'text-embedding-004',
+        },
+      },
+      embedding_model_dims: 768,
+    });
+  });
+
   it('syncs openrouter llm selection to mem0 openai llm config', async () => {
     mocks.listPipeline.mockImplementation((profileId: string) => {
       if (profileId === 'p1') return [buildLlmPipelineEntry()];

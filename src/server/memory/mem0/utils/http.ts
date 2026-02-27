@@ -80,6 +80,22 @@ export function isMem0RuntimeUnconfiguredError(error: unknown): boolean {
 }
 
 /**
+ * Check if error indicates an invalid upstream model configuration (e.g. deprecated/missing model).
+ * These errors should trigger Mem0 model-hub re-sync attempts.
+ */
+export function isMem0InvalidModelConfigError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+  const hasHttpStatus = /HTTP\s*(400|404|422|500|503)/i.test(message);
+  const hasModelNotFoundSignal =
+    normalized.includes('is not found for api version') ||
+    (normalized.includes('not_found') && normalized.includes('model'));
+  const hasModelMethodSignal =
+    normalized.includes('embedcontent') || normalized.includes('generatecontent');
+  return hasHttpStatus && hasModelNotFoundSignal && hasModelMethodSignal;
+}
+
+/**
  * Sleep for specified milliseconds
  */
 export function sleep(ms: number): Promise<void> {

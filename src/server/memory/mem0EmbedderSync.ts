@@ -44,6 +44,20 @@ function normalizeBearerSecret(secret: string): string {
   return normalized;
 }
 
+function normalizeGeminiModelName(modelName: string): string {
+  return String(modelName || '')
+    .trim()
+    .replace(/^models\//i, '')
+    .trim();
+}
+
+function normalizeProviderModelName(providerId: string, modelName: string): string {
+  if (providerId === 'gemini') {
+    return normalizeGeminiModelName(modelName);
+  }
+  return String(modelName || '').trim();
+}
+
 function asPositiveInteger(value: string | undefined): number | null {
   const parsed = Number.parseInt(String(value || '').trim(), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
@@ -66,11 +80,12 @@ function buildMem0LlmPayload(
   if (!catalogProvider) return null;
 
   if (catalogProvider.id === 'gemini') {
+    const normalizedModel = normalizeGeminiModelName(modelName);
     return {
       provider: 'gemini',
       config: {
         api_key: decryptedSecret,
-        model: modelName,
+        model: normalizedModel,
         temperature: 0.2,
       },
     };
@@ -100,11 +115,12 @@ function buildMem0EmbedderPayload(
   if (!catalogProvider) return null;
 
   if (catalogProvider.id === 'gemini') {
+    const normalizedModel = normalizeGeminiModelName(modelName);
     return {
       provider: 'gemini',
       config: {
         api_key: decryptedSecret,
-        model: modelName,
+        model: normalizedModel,
       },
     };
   }
@@ -259,6 +275,17 @@ export async function syncMem0LlmFromModelHub(
     };
   }
 
+  const normalizedModelName = normalizeProviderModelName(llmHead.providerId, llmHead.modelName);
+  if (!normalizedModelName) {
+    return {
+      ok: false,
+      error: 'No llm model name configured in p1.',
+      profileId: CHAT_PROFILE_ID,
+      providerId: llmHead.providerId,
+      modelName: llmHead.modelName,
+    };
+  }
+
   const accountWithSecret = await resolveAccountWithSecret(
     service,
     llmHead.accountId,
@@ -276,7 +303,7 @@ export async function syncMem0LlmFromModelHub(
 
   const llm = buildMem0LlmPayload(
     accountWithSecret.account,
-    llmHead.modelName,
+    normalizedModelName,
     accountWithSecret.secret,
   );
   if (!llm) {
@@ -285,7 +312,7 @@ export async function syncMem0LlmFromModelHub(
       error: `LLM provider "${llmHead.providerId}" is not supported for Mem0 sync.`,
       profileId: CHAT_PROFILE_ID,
       providerId: llmHead.providerId,
-      modelName: llmHead.modelName,
+      modelName: normalizedModelName,
     };
   }
 
@@ -296,7 +323,7 @@ export async function syncMem0LlmFromModelHub(
       error: syncResponse.error,
       profileId: CHAT_PROFILE_ID,
       providerId: llmHead.providerId,
-      modelName: llmHead.modelName,
+      modelName: normalizedModelName,
     };
   }
 
@@ -304,7 +331,7 @@ export async function syncMem0LlmFromModelHub(
     ok: true,
     profileId: CHAT_PROFILE_ID,
     providerId: llmHead.providerId,
-    modelName: llmHead.modelName,
+    modelName: normalizedModelName,
   };
 }
 
@@ -331,6 +358,20 @@ export async function syncMem0EmbedderFromModelHub(
     };
   }
 
+  const normalizedModelName = normalizeProviderModelName(
+    embeddingHead.providerId,
+    embeddingHead.modelName,
+  );
+  if (!normalizedModelName) {
+    return {
+      ok: false,
+      error: 'No embedding model name configured in p1-embeddings.',
+      profileId: EMBEDDING_PROFILE_ID,
+      providerId: embeddingHead.providerId,
+      modelName: embeddingHead.modelName,
+    };
+  }
+
   const accountWithSecret = await resolveAccountWithSecret(
     service,
     embeddingHead.accountId,
@@ -348,7 +389,7 @@ export async function syncMem0EmbedderFromModelHub(
 
   const embedder = buildMem0EmbedderPayload(
     accountWithSecret.account,
-    embeddingHead.modelName,
+    normalizedModelName,
     accountWithSecret.secret,
   );
   if (!embedder) {
@@ -357,13 +398,13 @@ export async function syncMem0EmbedderFromModelHub(
       error: `Embedding provider "${embeddingHead.providerId}" is not supported for Mem0 sync.`,
       profileId: EMBEDDING_PROFILE_ID,
       providerId: embeddingHead.providerId,
-      modelName: embeddingHead.modelName,
+      modelName: normalizedModelName,
     };
   }
 
   const requestedDims = asPositiveInteger(env.MEM0_EMBEDDING_DIMS);
   const measuredDims = await probeEmbeddingDims(
-    embeddingHead.modelName,
+    normalizedModelName,
     encryptionKey,
     requestedDims ?? undefined,
   );
@@ -374,7 +415,7 @@ export async function syncMem0EmbedderFromModelHub(
       error: 'Unable to determine embedding dimensions for Mem0 vector store.',
       profileId: EMBEDDING_PROFILE_ID,
       providerId: embeddingHead.providerId,
-      modelName: embeddingHead.modelName,
+      modelName: normalizedModelName,
     };
   }
   if (embeddingDims > MEM0_PGVECTOR_HNSW_MAX_DIMS) {
@@ -386,7 +427,7 @@ export async function syncMem0EmbedderFromModelHub(
         'for providers that support down-projection, or switch to a smaller embedding model.',
       profileId: EMBEDDING_PROFILE_ID,
       providerId: embeddingHead.providerId,
-      modelName: embeddingHead.modelName,
+      modelName: normalizedModelName,
       embeddingDims,
     };
   }
@@ -405,7 +446,7 @@ export async function syncMem0EmbedderFromModelHub(
       error: syncResponse.error,
       profileId: EMBEDDING_PROFILE_ID,
       providerId: embeddingHead.providerId,
-      modelName: embeddingHead.modelName,
+      modelName: normalizedModelName,
       embeddingDims,
     };
   }
@@ -414,7 +455,7 @@ export async function syncMem0EmbedderFromModelHub(
     ok: true,
     profileId: EMBEDDING_PROFILE_ID,
     providerId: embeddingHead.providerId,
-    modelName: embeddingHead.modelName,
+    modelName: normalizedModelName,
     embeddingDims,
   };
 }
