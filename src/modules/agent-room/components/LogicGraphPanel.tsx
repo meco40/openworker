@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { buildLogicGraphSource } from '@/modules/agent-room/logicGraph';
+import { buildAutoLogicGraphSource, buildLogicGraphSource } from '@/modules/agent-room/logicGraph';
 import type { SwarmPhase } from '@/modules/agent-room/swarmPhases';
 
 interface LogicGraphPanelProps {
@@ -10,25 +10,38 @@ interface LogicGraphPanelProps {
   swarmStatus?: string;
 }
 
+function isMermaidErrorSvg(markup: string): boolean {
+  const text = String(markup || '');
+  return /(syntax error in text|parse error|lexical error)/i.test(text);
+}
+
 export default function LogicGraphPanel({
   artifact,
   currentPhase,
   swarmStatus,
 }: LogicGraphPanelProps) {
-  const source = useMemo(
+  const activePhases = useMemo(
     () =>
-      buildLogicGraphSource(
-        artifact,
-        currentPhase
-          ? {
-              phase: currentPhase,
-              currentPhase,
-              status: swarmStatus ?? 'running',
-            }
-          : undefined,
-      ),
-    [artifact, currentPhase, swarmStatus],
+      currentPhase
+        ? {
+            phase: currentPhase,
+            currentPhase,
+            status: swarmStatus ?? 'running',
+          }
+        : undefined,
+    [currentPhase, swarmStatus],
   );
+
+  const source = useMemo(
+    () => buildLogicGraphSource(artifact, activePhases),
+    [artifact, activePhases],
+  );
+
+  const fallbackSource = useMemo(
+    () => buildAutoLogicGraphSource(artifact, activePhases),
+    [artifact, activePhases],
+  );
+
   const [svg, setSvg] = useState<string>('');
   const [renderError, setRenderError] = useState<string | null>(null);
   const svgContainerRef = useRef<HTMLDivElement>(null);
@@ -65,13 +78,56 @@ export default function LogicGraphPanel({
             fontSize: '18px',
           },
         });
-        const id = `agent-room-graph-${Math.random().toString(36).slice(2, 10)}`;
-        const result = await mermaid.render(id, source);
+        const renderOnce = async (candidate: string) => {
+          const id = `agent-room-graph-${Math.random().toString(36).slice(2, 10)}`;
+          return mermaid.render(id, candidate);
+        };
+
+        let result = await renderOnce(source);
+
+        // Mermaid may return an error SVG instead of throwing.
+        // In that case, recover by falling back to the auto-generated graph.
+        if (isMermaidErrorSvg(result.svg) && fallbackSource && fallbackSource !== source) {
+          const fallbackResult = await renderOnce(fallbackSource);
+          if (!isMermaidErrorSvg(fallbackResult.svg)) {
+            result = fallbackResult;
+          }
+        }
+
+        if (isMermaidErrorSvg(result.svg)) {
+          throw new Error('Diagram syntax error in AI-generated Mermaid source.');
+        }
+
         if (!cancelled) {
           setSvg(result.svg);
           setRenderError(null);
         }
       } catch (error) {
+        // If Mermaid throws on invalid AI source, try the auto-generated fallback graph.
+        if (!cancelled && fallbackSource && fallbackSource !== source) {
+          try {
+            const mermaidModule = await import('mermaid');
+            const mermaid = mermaidModule.default;
+            mermaid.initialize({
+              startOnLoad: false,
+              securityLevel: 'strict',
+              theme: 'dark',
+              themeVariables: {
+                fontSize: '18px',
+              },
+            });
+            const fallbackId = `agent-room-graph-fallback-${Math.random().toString(36).slice(2, 10)}`;
+            const fallbackResult = await mermaid.render(fallbackId, fallbackSource);
+            if (!isMermaidErrorSvg(fallbackResult.svg)) {
+              setSvg(fallbackResult.svg);
+              setRenderError(null);
+              return;
+            }
+          } catch {
+            // ignore and surface original render failure below
+          }
+        }
+
         if (!cancelled) {
           setSvg('');
           setRenderError(error instanceof Error ? error.message : 'Graph rendering failed.');
@@ -82,7 +138,7 @@ export default function LogicGraphPanel({
     return () => {
       cancelled = true;
     };
-  }, [source]);
+  }, [source, fallbackSource]);
 
   // Inject SVG into DOM via ref instead of dangerouslySetInnerHTML
   useEffect(() => {

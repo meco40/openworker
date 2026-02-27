@@ -158,7 +158,7 @@ export default function NewSwarmModal({
       task: task.trim(),
       leadPersonaId,
       units,
-      searchEnabled: false,
+      searchEnabled: true,
       pauseBetweenPhases,
       swarmTemplate: selectedTemplate,
     });

@@ -8,8 +8,10 @@ import type { AgentRoomSwarmRecord } from '@/server/channels/messages/repository
 import {
   buildSimpleTurnPrompt,
   chooseNextSpeakerPersonaId,
+  countTurnsInCurrentPhase,
   countStructuredTurns,
   extractRecentTurnHistory,
+  getPhaseRounds,
   getSimpleSwarmMaxTurns,
 } from '@/server/agent-room/prompt';
 import { getSwarmPhaseLabel } from '@/shared/domain/swarmPhases';
@@ -84,6 +86,12 @@ export async function dispatchNextTurn(swarm: AgentRoomSwarmRecord): Promise<voi
 
   const recentHistory = extractRecentTurnHistory(swarm.artifact, 8);
   const currentPhase = swarm.currentPhase as SwarmPhase;
+  const phaseRoundsTotal = getPhaseRounds(currentPhase);
+  const turnsInCurrentPhase = countTurnsInCurrentPhase(swarm.artifact);
+  const phaseRound = Math.max(
+    1,
+    Math.min(phaseRoundsTotal, Math.floor(turnsInCurrentPhase / Math.max(1, units.length)) + 1),
+  );
 
   // C3: If this is a summary turn, build a summary-specific prompt
   let prompt: string;
@@ -107,10 +115,13 @@ export async function dispatchNextTurn(swarm: AgentRoomSwarmRecord): Promise<voi
       swarmTitle: swarm.title,
       task: swarm.task,
       phase: currentPhase,
+      phaseRound,
+      phaseRoundsTotal,
       speaker,
       leadPersonaId: swarm.leadPersonaId,
       recentHistory,
       units,
+      searchEnabled: true,
     });
   }
 

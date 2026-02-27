@@ -1,0 +1,63 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { SkillDispatchContext } from '@/server/skills/types';
+
+const callMock = vi.hoisted(() => vi.fn());
+const deleteMessageMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/lib/openclaw/client', () => ({
+  getOpenClawClient: () => ({ call: callMock }),
+}));
+
+vi.mock('@/server/channels/messages/runtime', () => ({
+  getMessageService: () => ({ deleteMessage: deleteMessageMock }),
+}));
+
+import { messageCompatHandler } from '@/server/skills/handlers/messageCompat';
+
+describe('message compat handler', () => {
+  it('supports send/read/delete actions', async () => {
+    callMock.mockReset();
+    deleteMessageMock.mockReset();
+
+    callMock.mockImplementation(async (method: string) => {
+      if (method === 'chat.send') return { ok: true, conversationId: 'conv-1' };
+      if (method === 'chat.history')
+        return { messages: [{ role: 'assistant', content: [{ type: 'text', text: 'pong' }] }] };
+      return { ok: true };
+    });
+    deleteMessageMock.mockReturnValue(true);
+
+    const send = await messageCompatHandler({
+      action: 'send',
+      to: 'agent:main:s-1',
+      content: 'ping',
+    });
+    expect((send as { ok: boolean }).ok).toBe(true);
+
+    const read = (await messageCompatHandler({
+      action: 'read',
+      sessionKey: 'agent:main:s-1',
+      limit: 5,
+    })) as {
+      messages: unknown[];
+    };
+    expect(Array.isArray(read.messages)).toBe(true);
+
+    const context: SkillDispatchContext = { userId: 'user-1' };
+    const deleted = (await messageCompatHandler(
+      { action: 'delete', messageId: 'm-1', conversationId: 'conv-1' },
+      context,
+    )) as { deleted: boolean };
+    expect(deleted.deleted).toBe(true);
+
+    expect(callMock).toHaveBeenCalledWith('chat.send', {
+      sessionKey: 'agent:main:s-1',
+      message: 'ping',
+    });
+    expect(callMock).toHaveBeenCalledWith('chat.history', {
+      sessionKey: 'agent:main:s-1',
+      limit: 5,
+    });
+    expect(deleteMessageMock).toHaveBeenCalledWith('m-1', 'user-1', 'conv-1');
+  });
+});

@@ -325,6 +325,24 @@ export function useSwarmActions(input: SwarmActionsInput) {
     [clientRef, swarms, syncSwarm],
   );
 
+  const pauseSwarm = useCallback(
+    async (swarmId: string): Promise<void> => {
+      const swarm = swarms.find((item) => item.id === swarmId);
+      if (!swarm) return;
+      try {
+        if (swarm.status === 'hold') {
+          await deploySwarm(swarmId);
+          return;
+        }
+        if (swarm.status !== 'running') return;
+        await syncSwarm(swarmId, { status: 'hold', holdFlag: true, currentDeployCommandId: null });
+      } catch (pauseError) {
+        setError(pauseError instanceof Error ? pauseError.message : 'Failed to pause swarm.');
+      }
+    },
+    [swarms, deploySwarm, syncSwarm],
+  );
+
   const forceNextPhase = useCallback(
     async (swarmId: string): Promise<void> => {
       const swarm = swarms.find((item) => item.id === swarmId);
@@ -470,6 +488,7 @@ export function useSwarmActions(input: SwarmActionsInput) {
     deploySwarm,
     steerSwarm,
     addSwarmUnit,
+    pauseSwarm,
     abortSwarm,
     forceNextPhase,
     forceComplete,

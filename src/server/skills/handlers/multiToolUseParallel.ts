@@ -1,10 +1,28 @@
 import { normalizeArgs } from '@/shared/normalizeArgs';
 import { browserSnapshotHandler } from '@/server/skills/handlers/browserSnapshot';
+import { browserToolHandler } from '@/server/skills/handlers/browserTool';
+import {
+  applyPatchCompatHandler,
+  editCompatHandler,
+  readCompatHandler,
+  writeCompatHandler,
+} from '@/server/skills/handlers/codingCompat';
 import { dbQueryHandler } from '@/server/skills/handlers/dbQuery';
 import { fileReadHandler } from '@/server/skills/handlers/fileRead';
 import { githubQueryHandler } from '@/server/skills/handlers/githubQuery';
+import { memoryGetHandler, memorySearchHandler } from '@/server/skills/handlers/memoryCompat';
+import { messageCompatHandler } from '@/server/skills/handlers/messageCompat';
 import { pythonExecuteHandler } from '@/server/skills/handlers/pythonExecute';
 import { playwrightCliHandler } from '@/server/skills/handlers/playwrightCli';
+import { processManagerHandler } from '@/server/skills/handlers/processManager';
+import {
+  agentsListHandler,
+  sessionStatusHandler,
+  sessionsHistoryHandler,
+  sessionsListHandler,
+  sessionsSendHandler,
+  sessionsSpawnHandler,
+} from '@/server/skills/handlers/sessionCompat';
 import { shellExecuteHandler } from '@/server/skills/handlers/shellExecute';
 import { subagentsHandler } from '@/server/skills/handlers/subagents';
 import { visionAnalyzeHandler } from '@/server/skills/handlers/visionAnalyze';
@@ -25,14 +43,31 @@ const SUPPORTED_PARALLEL_HANDLERS: Record<
   (args: Record<string, unknown>, context?: SkillDispatchContext) => Promise<unknown>
 > = {
   shell_execute: shellExecuteHandler,
+  exec: shellExecuteHandler,
   file_read: fileReadHandler,
+  read: readCompatHandler,
+  write: writeCompatHandler,
+  edit: editCompatHandler,
+  apply_patch: applyPatchCompatHandler,
   python_execute: pythonExecuteHandler,
   playwright_cli: playwrightCliHandler,
   browser_snapshot: browserSnapshotHandler,
+  browser: browserToolHandler,
   vision_analyze: visionAnalyzeHandler,
   db_query: dbQueryHandler,
   github_query: githubQueryHandler,
   subagents: subagentsHandler,
+  agents_list: agentsListHandler,
+  sessions_list: sessionsListHandler,
+  sessions_history: sessionsHistoryHandler,
+  sessions_send: sessionsSendHandler,
+  sessions_spawn: sessionsSpawnHandler,
+  session_status: sessionStatusHandler,
+  message: messageCompatHandler,
+  memory_search: memorySearchHandler,
+  memory_get: memoryGetHandler,
+  process_manager: processManagerHandler,
+  process: processManagerHandler,
 };
 
 function normalizeCallName(input: ParallelToolCallInput): string {

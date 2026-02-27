@@ -7,9 +7,7 @@ import { parseAgentTurns } from '@/modules/agent-room/agentTurnParser';
 import { extractCommandCompletionText } from '@/modules/agent-room/completionText';
 import { useAgentRoomRuntime } from '@/modules/agent-room/hooks/useAgentRoomRuntime';
 import { useSwarmMessages } from '@/modules/agent-room/hooks/useSwarmMessages';
-import { SwarmSidebar } from './sidebar';
-import { ChatHeader, SwarmChatFeed, UserChatInput } from './chat';
-import { CanvasPanel } from './canvas';
+import { AgentRoomDetailPage, AgentRoomEntryPage } from './layout';
 import NewSwarmModal from './NewSwarmModal';
 
 export default function AgentRoomView() {
@@ -27,7 +25,8 @@ export default function AgentRoomView() {
     replaceStreamingWithTurns,
   } = useSwarmMessages();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [canvasOpen, setCanvasOpen] = useState(true);
+  const [pageMode, setPageMode] = useState<'entry' | 'detail'>('entry');
+  const [notice, setNotice] = useState<string | null>(null);
   const lastDividerPhaseRef = useRef<Map<string, SwarmPhase | null>>(new Map());
 
   // Wire runtime event dispatcher to message hook
@@ -135,21 +134,6 @@ export default function AgentRoomView() {
     return personas.filter((p) => unitIds.has(p.id));
   }, [personas, runtime.selectedSwarm]);
 
-  const handleExport = useCallback(
-    (swarmId: string) => {
-      const json = runtime.exportRunJson(swarmId);
-      if (!json) return;
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${runtime.selectedSwarm?.title.replace(/\s+/g, '_').toLowerCase()}-run.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    },
-    [runtime],
-  );
-
   const handleExportMarkdown = useCallback(
     (swarmId: string) => {
       const md = runtime.exportRunMarkdown(swarmId);
@@ -158,12 +142,85 @@ export default function AgentRoomView() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${runtime.selectedSwarm?.title.replace(/\s+/g, '_').toLowerCase()}-run.md`;
+      const title = runtime.selectedSwarm?.title || 'swarm';
+      a.download = `${title.replace(/\s+/g, '_').toLowerCase()}-run.md`;
       a.click();
       URL.revokeObjectURL(url);
     },
     [runtime],
   );
+
+  const handleOpenSwarm = useCallback(
+    (swarmId: string) => {
+      runtime.setSelectedSwarmId(swarmId);
+      setPageMode('detail');
+      setNotice(null);
+    },
+    [runtime],
+  );
+
+  const handleBackToEntry = useCallback(() => {
+    setPageMode('entry');
+  }, []);
+
+  const handleDeleteSwarm = useCallback(
+    (swarmId: string) => {
+      const swarm = runtime.swarms.find((item) => item.id === swarmId);
+      if (!swarm) return;
+      if (swarm.status === 'running' || swarm.status === 'hold') {
+        return;
+      }
+      const shouldDelete =
+        typeof window === 'undefined' ? true : window.confirm('Delete this task permanently?');
+      if (!shouldDelete) return;
+      void runtime.deleteSwarm(swarmId);
+      if (runtime.selectedSwarmId === swarmId) {
+        setPageMode('entry');
+      }
+    },
+    [runtime],
+  );
+
+  const handlePauseSwarm = useCallback(
+    (swarmId: string) => {
+      void runtime.pauseSwarm(swarmId);
+    },
+    [runtime],
+  );
+
+  const handleStopSwarm = useCallback(
+    (swarmId: string) => {
+      const shouldStop =
+        typeof window === 'undefined' ? true : window.confirm('Stop this task and abort it?');
+      if (!shouldStop) return;
+      void runtime.abortSwarm(swarmId).then(() => {
+        setPageMode('entry');
+      });
+    },
+    [runtime],
+  );
+
+  const handleFinishSwarm = useCallback(
+    (swarmId: string) => {
+      const shouldFinish =
+        typeof window === 'undefined' ? true : window.confirm('Mark this task as finished?');
+      if (!shouldFinish) return;
+      void runtime.forceComplete(swarmId);
+    },
+    [runtime],
+  );
+
+  useEffect(() => {
+    if (pageMode !== 'detail') return;
+    if (!runtime.selectedSwarmId) {
+      setPageMode('entry');
+      return;
+    }
+    if (!runtime.selectedSwarm) {
+      setPageMode('entry');
+      setNotice('The selected task no longer exists.');
+    }
+  }, [pageMode, runtime.selectedSwarm, runtime.selectedSwarmId]);
 
   if (!runtime.enabled) {
     return (
@@ -177,55 +234,32 @@ export default function AgentRoomView() {
   }
 
   return (
-    <div className="flex h-full min-h-160 gap-3">
-      <SwarmSidebar
-        swarms={runtime.swarms}
-        selectedSwarmId={runtime.selectedSwarmId}
-        selectedSwarm={runtime.selectedSwarm}
-        loading={runtime.loading}
-        error={runtime.error}
-        deployState={runtime.deployState}
-        onSelectSwarm={runtime.setSelectedSwarmId}
-        onCreateClick={() => setShowCreateModal(true)}
-        onDeploy={runtime.deploySwarm}
-        onAbort={runtime.abortSwarm}
-        onForceNextPhase={runtime.forceNextPhase}
-        onForceComplete={runtime.forceComplete}
-        onDelete={runtime.deleteSwarm}
-        onExport={handleExport}
-        onExportMarkdown={handleExportMarkdown}
-        onFork={(swarmId) => void runtime.forkSwarm(swarmId)}
-        onChain={(swarmId) => {
-          const task = window.prompt('Task for the chained swarm:');
-          if (task?.trim()) {
-            void runtime.chainSwarm(swarmId, task.trim()).then((chained) => {
-              if (chained) void runtime.deploySwarm(chained.id);
-            });
-          }
-        }}
-      />
-
-      <section className="flex min-w-0 flex-1 flex-col rounded-xl border border-zinc-800 bg-[#050b19]">
-        <ChatHeader
-          swarm={runtime.selectedSwarm}
-          onToggleCanvas={() => setCanvasOpen((v) => !v)}
-          canvasOpen={canvasOpen}
+    <div className="h-full">
+      {pageMode === 'entry' ? (
+        <AgentRoomEntryPage
+          swarms={runtime.swarms}
+          selectedSwarmId={runtime.selectedSwarmId}
+          loading={runtime.loading}
+          error={runtime.error}
+          notice={notice}
+          onCreateClick={() => setShowCreateModal(true)}
+          onOpenSwarm={handleOpenSwarm}
+          onDeleteSwarm={handleDeleteSwarm}
         />
-        <SwarmChatFeed messages={chatMessages} className="min-h-0 flex-1" />
-        <div className="shrink-0 border-t border-zinc-800 p-3">
-          <UserChatInput
-            onSend={handleOperatorSend}
-            personas={swarmPersonas}
-            disabled={
-              !runtime.selectedSwarm ||
-              runtime.selectedSwarm.status === 'completed' ||
-              runtime.selectedSwarm.status === 'aborted'
-            }
-          />
-        </div>
-      </section>
-
-      {canvasOpen && <CanvasPanel swarm={runtime.selectedSwarm} />}
+      ) : (
+        <AgentRoomDetailPage
+          swarm={runtime.selectedSwarm}
+          messages={chatMessages}
+          error={runtime.error}
+          swarmPersonas={swarmPersonas}
+          onBack={handleBackToEntry}
+          onExportMarkdown={handleExportMarkdown}
+          onPause={handlePauseSwarm}
+          onStop={handleStopSwarm}
+          onFinish={handleFinishSwarm}
+          onSendMessage={handleOperatorSend}
+        />
+      )}
 
       <NewSwarmModal
         open={showCreateModal}
@@ -236,6 +270,9 @@ export default function AgentRoomView() {
           const created = await runtime.createSwarm(input);
           if (created?.id) {
             await runtime.deploySwarm(created.id);
+            runtime.setSelectedSwarmId(created.id);
+            setPageMode('detail');
+            setNotice(null);
           }
           return created;
         }}

@@ -12,9 +12,10 @@ describe('agent room layout modes', () => {
     expect(SWARM_LAYOUT_MODES).toEqual(['split', 'chat', 'board']);
   });
 
-  it('renders layout mode controls in AgentRoomView', () => {
+  it('routes AgentRoomView between entry and detail pages', () => {
     const source = read('src/modules/agent-room/components/AgentRoomView.tsx');
-    expect(source).toContain('SWARM_LAYOUT_MODES.map');
-    expect(source).toContain('layoutLabel(mode)');
+    expect(source).toContain("const [pageMode, setPageMode] = useState<'entry' | 'detail'>");
+    expect(source).toContain('AgentRoomEntryPage');
+    expect(source).toContain('AgentRoomDetailPage');
   });
 });

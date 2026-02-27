@@ -7,13 +7,19 @@ import type { Skill } from '@/shared/domain/types';
 import type { SkillToolDefinition } from '@/shared/toolSchema';
 import { convertTools } from '@/shared/toolConverters';
 
+import agentsList from '@/skills/agents-list';
+import applyPatch from '@/skills/apply-patch';
 import browser from '@/skills/browser';
+import browserTool from '@/skills/browser-tool';
+import edit from '@/skills/edit';
+import exec from '@/skills/exec';
 import python from '@/skills/python-runtime';
 import search from '@/skills/search';
 import vision from '@/skills/vision';
 import filesystem from '@/skills/filesystem';
 import github from '@/skills/github-manager';
 import multiToolUseParallel from '@/skills/multi-tool-use-parallel';
+import process from '@/skills/process';
 import shell from '@/skills/shell-access';
 import sql from '@/skills/sql-bridge';
 import subagents from '@/skills/subagents';
@@ -23,6 +29,16 @@ import httpRequest from '@/skills/http-request';
 import notifications from '@/skills/notifications';
 import pdfGenerate from '@/skills/pdf-generate';
 import playwrightCli from '@/skills/playwright-cli';
+import read from '@/skills/read';
+import write from '@/skills/write';
+import memorySearch from '@/skills/memory-search';
+import memoryGet from '@/skills/memory-get';
+import sessionsList from '@/skills/sessions-list';
+import sessionsHistory from '@/skills/sessions-history';
+import sessionsSend from '@/skills/sessions-send';
+import sessionsSpawn from '@/skills/sessions-spawn';
+import sessionStatus from '@/skills/session-status';
+import message from '@/skills/message';
 
 interface SkillModule {
   id: string;
@@ -31,15 +47,31 @@ interface SkillModule {
 
 const SKILL_MODULES: SkillModule[] = [
   browser,
+  browserTool,
   python,
   search,
   vision,
   filesystem,
+  read,
+  write,
+  edit,
+  applyPatch,
   github,
   multiToolUseParallel,
   shell,
+  exec,
+  process,
   sql,
   subagents,
+  memorySearch,
+  memoryGet,
+  agentsList,
+  sessionsList,
+  sessionsHistory,
+  sessionsSend,
+  sessionsSpawn,
+  sessionStatus,
+  message,
   webSearch,
   webFetch,
   httpRequest,

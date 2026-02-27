@@ -5,6 +5,8 @@ function buildPhaseGuidance(phase: SwarmPhase, round: number): string {
   switch (phase) {
     case 'analysis':
       return 'Identify key assumptions, risks, constraints, and open questions about the task.';
+    case 'research':
+      return 'Research factual evidence from external sources. Use web search to collect up-to-date references and cite concrete URLs.';
     case 'ideation':
       if (round === 1)
         return 'Propose your concrete solution approach with clear trade-offs. Be creative and specific.';
@@ -52,9 +54,12 @@ export function buildSimpleTurnPrompt(params: TurnPromptParams): string {
     '4) Keep it concise and concrete.',
     '5) Do not output another participant label (for example **[Other Agent]:**).',
     '6) Do not change phase — phases are managed automatically.',
+    params.phase === 'research'
+      ? '7) In this phase, actively use the "web_search" tool for internet research and include source URLs in your answer.'
+      : '',
     params.phase === 'result'
-      ? '7) Include a mermaid code block summarizing the final decision as a diagram.'
-      : '7) If useful, include a mermaid code block for flow/architecture.',
+      ? '8) Include a mermaid code block summarizing the final decision as a diagram.'
+      : '8) If useful, include a mermaid code block for flow/architecture.',
   ];
 
   return lines.filter(Boolean).join('\n\n');

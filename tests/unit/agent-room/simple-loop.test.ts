@@ -157,14 +157,14 @@ describe('agent room simple loop', () => {
       expect(result.swarmComplete).toBe(false);
     });
 
-    it('advances from analysis to ideation when all agents spoke', () => {
+    it('advances from analysis to research when all agents spoke', () => {
       const artifact = '--- Analysis ---\n\n**[A]:** first\n\n**[B]:** second';
       const result = computeNextPhaseAfterTurn({
         currentPhase: 'analysis',
         artifactAfterTurn: artifact,
         numAgents: 2,
       });
-      expect(result.nextPhase).toBe('ideation');
+      expect(result.nextPhase).toBe('research');
       expect(result.phaseComplete).toBe(true);
       expect(result.swarmComplete).toBe(false);
     });

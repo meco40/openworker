@@ -81,6 +81,7 @@ export interface TurnPromptParams {
   }>;
   phaseRound?: number;
   phaseRoundsTotal?: number;
+  searchEnabled?: boolean;
 }
 
 // ── Vote ─────────────────────────────────────────────────────────────

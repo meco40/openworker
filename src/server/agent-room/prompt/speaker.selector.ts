@@ -7,6 +7,7 @@ import type { SpeakerSelectionParams } from '@/server/agent-room/types';
  */
 const ROLE_PHASE_WEIGHTS: Record<string, Record<string, number>> = {
   analysis: { analyst: 3, researcher: 3, architect: 2, lead: 1 },
+  research: { researcher: 4, analyst: 2, investigator: 3, lead: 1 },
   ideation: { creative: 3, innovator: 3, designer: 2, lead: 1 },
   critique: { critic: 3, reviewer: 3, 'quality assurance': 2, tester: 2, lead: 1 },
   best_case: { architect: 3, strategist: 2, lead: 2, optimizer: 2 },

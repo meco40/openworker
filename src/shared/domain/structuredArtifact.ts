@@ -168,6 +168,7 @@ export function appendTurnToStructured(
 
 const PHASE_LABEL_MAP: Record<string, string> = {
   analysis: 'Analysis',
+  research: 'Research',
   ideation: 'Ideation',
   critique: 'Critique',
   best_case: 'Best Case',

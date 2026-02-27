@@ -5,12 +5,20 @@
  * Server code must import from `@/shared/domain/swarmPhases` — never from `src/modules/`.
  */
 
-export const SWARM_PHASES = ['analysis', 'ideation', 'critique', 'best_case', 'result'] as const;
+export const SWARM_PHASES = [
+  'analysis',
+  'research',
+  'ideation',
+  'critique',
+  'best_case',
+  'result',
+] as const;
 
 export type SwarmPhase = (typeof SWARM_PHASES)[number];
 
 const PHASE_LABELS: Record<SwarmPhase, string> = {
   analysis: 'Analysis',
+  research: 'Research',
   ideation: 'Ideation',
   critique: 'Critique',
   best_case: 'Best Case',
@@ -19,6 +27,7 @@ const PHASE_LABELS: Record<SwarmPhase, string> = {
 
 const PHASE_PROMPTS: Record<SwarmPhase, string> = {
   analysis: 'Analysiert die Aufgabe und benennt Kernannahmen, Risiken und Randbedingungen.',
+  research: 'Recherchiert belastbare externe Quellen und sammelt faktenbasierte Evidenz.',
   ideation: 'Erstellt mehrere Lösungswege mit klaren Trade-offs.',
   critique: 'Prüft die Ideen kritisch, sucht Schwächen und Widersprüche.',
   best_case: 'Einigt euch auf die bestmögliche Lösung mit klarer Begründung.',
@@ -27,6 +36,7 @@ const PHASE_PROMPTS: Record<SwarmPhase, string> = {
 
 const PHASE_ROUNDS: Record<SwarmPhase, number> = {
   analysis: 1,
+  research: 1,
   ideation: 2,
   critique: 3,
   best_case: 1,

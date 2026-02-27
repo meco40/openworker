@@ -7,9 +7,8 @@ function read(relativePath: string): string {
 }
 
 describe('agent room split layout', () => {
-  it('chat section uses flex-1 for equal-width split', () => {
-    const source = read('src/modules/agent-room/components/AgentRoomView.tsx');
-    // Chat section must be flex-1 so it shares space equally with canvas
+  it('detail page chat section uses flex-1 for equal-width split', () => {
+    const source = read('src/modules/agent-room/components/layout/AgentRoomDetailPage.tsx');
     expect(source).toContain('flex min-w-0 flex-1 flex-col');
   });
 

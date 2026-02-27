@@ -158,6 +158,16 @@ export class ToolManager {
     skipApprovalCheck?: boolean;
   }): Promise<ToolExecutionResult> {
     const { functionName, args, installedFunctions } = params;
+    const normalizedFunctionName =
+      functionName === 'exec'
+        ? 'shell_execute'
+        : functionName === 'process'
+          ? 'process_manager'
+          : functionName;
+    const commandApprovalTool =
+      normalizedFunctionName === 'shell_execute' ||
+      normalizedFunctionName === 'playwright_cli' ||
+      normalizedFunctionName === 'process_manager';
 
     if (!installedFunctions.has(functionName)) {
       return {
@@ -166,71 +176,96 @@ export class ToolManager {
       };
     }
 
-    if (functionName === 'shell_execute' || functionName === 'playwright_cli') {
+    if (commandApprovalTool) {
       let command = '';
       try {
-        command =
-          functionName === 'shell_execute'
-            ? String(args.command || '').trim()
-            : buildPlaywrightCliCommand(
-                (() => {
-                  const tokens = resolvePlaywrightCliTokens(args);
-                  assertPlaywrightSubcommandAllowed(tokens);
-                  return tokens;
-                })(),
-              );
+        if (normalizedFunctionName === 'shell_execute') {
+          command = String(args.command || '').trim();
+        } else if (normalizedFunctionName === 'playwright_cli') {
+          command = buildPlaywrightCliCommand(
+            (() => {
+              const tokens = resolvePlaywrightCliTokens(args);
+              assertPlaywrightSubcommandAllowed(tokens);
+              return tokens;
+            })(),
+          );
+        } else if (
+          String(args.action || '')
+            .trim()
+            .toLowerCase() === 'start'
+        ) {
+          command = String(args.command || '').trim();
+        }
       } catch (error) {
         return {
           kind: 'error',
           output: error instanceof Error ? error.message : String(error),
         };
       }
-      if (!command) {
+
+      if (
+        normalizedFunctionName === 'process_manager' &&
+        String(args.action || '')
+          .trim()
+          .toLowerCase() === 'start' &&
+        !command
+      ) {
+        return {
+          kind: 'error',
+          output: 'process_manager action=start requires command.',
+        };
+      }
+
+      if (
+        (normalizedFunctionName === 'shell_execute' ||
+          normalizedFunctionName === 'playwright_cli') &&
+        !command
+      ) {
         return {
           kind: 'error',
           output:
-            functionName === 'shell_execute'
+            normalizedFunctionName === 'shell_execute'
               ? 'shell_execute requires command.'
               : 'playwright_cli requires args or command.',
         };
       }
 
-      const policy = evaluateNodeCommandPolicy(command);
-      if (!policy.allowed) {
-        return {
-          kind: 'error',
-          output: policy.reason || 'Command blocked by security policy.',
-        };
-      }
+      if (command) {
+        const policy = evaluateNodeCommandPolicy(command);
+        if (!policy.allowed) {
+          return {
+            kind: 'error',
+            output: policy.reason || 'Command blocked by security policy.',
+          };
+        }
 
-      if (
-        this.requiresInteractiveToolApproval() &&
-        !params.skipApprovalCheck &&
-        !isCommandApproved(policy.normalizedCommand)
-      ) {
-        const pending = this.createPendingApproval({
-          conversation: params.conversation,
-          platform: params.platform,
-          externalChatId: params.externalChatId,
-          toolFunctionName: functionName,
-          toolId: params.toolId,
-          args,
-          command: policy.normalizedCommand,
-        });
-        return {
-          kind: 'approval_required',
-          prompt: this.buildToolApprovalPrompt(policy.normalizedCommand),
-          pending,
-        };
+        if (
+          this.requiresInteractiveToolApproval() &&
+          !params.skipApprovalCheck &&
+          !isCommandApproved(policy.normalizedCommand)
+        ) {
+          const pending = this.createPendingApproval({
+            conversation: params.conversation,
+            platform: params.platform,
+            externalChatId: params.externalChatId,
+            toolFunctionName: functionName,
+            toolId: params.toolId,
+            args,
+            command: policy.normalizedCommand,
+          });
+          return {
+            kind: 'approval_required',
+            prompt: this.buildToolApprovalPrompt(policy.normalizedCommand),
+            pending,
+          };
+        }
       }
     }
 
     try {
       const { dispatchSkill, normalizeSkillArgs } = await import('@/server/skills/executeSkill');
       const result = await dispatchSkill(functionName, normalizeSkillArgs(args), {
-        bypassApproval:
-          (functionName === 'shell_execute' || functionName === 'playwright_cli') &&
-          Boolean(params.skipApprovalCheck),
+        bypassApproval: commandApprovalTool && Boolean(params.skipApprovalCheck),
         workspaceCwd: params.workspaceCwd,
         conversationId: params.conversation.id,
         userId: params.conversation.userId,

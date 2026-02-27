@@ -176,7 +176,14 @@ registerMethod(
     }
     const currentPhase = optionalString(params, 'currentPhase');
     if (currentPhase !== undefined) {
-      const allowedPhases = ['analysis', 'ideation', 'critique', 'best_case', 'result'] as const;
+      const allowedPhases = [
+        'analysis',
+        'research',
+        'ideation',
+        'critique',
+        'best_case',
+        'result',
+      ] as const;
       if (!allowedPhases.includes(currentPhase as (typeof allowedPhases)[number])) {
         throw new AgentV2Error('Invalid swarm phase.', 'INVALID_REQUEST');
       }

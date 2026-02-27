@@ -17,8 +17,17 @@
  *   log     — alias for poll
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
+import { isCommandApproved } from '@/server/gateway/exec-approval-manager';
+import {
+  commandFingerprint,
+  evaluateNodeCommandPolicy,
+  normalizeCommand,
+} from '@/server/gateway/node-command-policy';
+import { resolveSkillExecutionCwd } from '@/server/skills/handlers/executionCwd';
 import type { SkillDispatchContext } from '@/server/skills/types';
 
 const MAX_BUFFER_BYTES = 200_000; // per-process stdout+stderr combined
@@ -58,6 +67,33 @@ function trimmedTail(text: string, bytes: number): string {
   return `[...truncated, showing last ${bytes} chars]\n` + text.slice(-bytes);
 }
 
+function normalizePathForCompare(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function isWithinRoot(candidate: string, root: string): boolean {
+  const normalizedCandidate = normalizePathForCompare(candidate);
+  const normalizedRoot = normalizePathForCompare(root);
+  if (normalizedCandidate === normalizedRoot) return true;
+  return normalizedCandidate.startsWith(`${normalizedRoot}${path.sep}`);
+}
+
+function resolveProcessCwd(args: Record<string, unknown>, context?: SkillDispatchContext): string {
+  const workspaceRoot = resolveSkillExecutionCwd(context);
+  const requestedCwd = String(args['cwd'] || '').trim();
+  if (!requestedCwd) {
+    return workspaceRoot;
+  }
+
+  const resolvedRequestedCwd = path.resolve(workspaceRoot, requestedCwd);
+  if (!isWithinRoot(resolvedRequestedCwd, workspaceRoot)) {
+    throw new Error('cwd must stay within workspace root.');
+  }
+  fs.mkdirSync(resolvedRequestedCwd, { recursive: true });
+  return resolvedRequestedCwd;
+}
+
 /** Kill all managed processes. Called on server shutdown. */
 export function killAllManagedProcesses(): void {
   for (const { entry, child } of processes.values()) {
@@ -78,7 +114,7 @@ export function killAllManagedProcesses(): void {
 
 export async function processManagerHandler(
   args: Record<string, unknown>,
-  _context?: SkillDispatchContext,
+  context?: SkillDispatchContext,
 ): Promise<{ ok: boolean; result?: string; error?: string }> {
   const action = String(args['action'] || '');
 
@@ -87,8 +123,41 @@ export async function processManagerHandler(
     const command = String(args['command'] || '').trim();
     if (!command) return { ok: false, error: 'action=start requires a non-empty command.' };
 
+    const policy = evaluateNodeCommandPolicy(command);
+    if (!policy.allowed) {
+      return {
+        ok: false,
+        error: policy.reason || 'Command blocked by security policy.',
+      };
+    }
+
+    const requiresApproval =
+      String(process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
+    if (
+      requiresApproval &&
+      !context?.bypassApproval &&
+      !isCommandApproved(normalizeCommand(command))
+    ) {
+      return {
+        ok: false,
+        error: [
+          'Command requires approval.',
+          `Fingerprint: ${commandFingerprint(command)}`,
+          'Approve via CLI: npm run cli -- node approve --command "<command>"',
+        ].join(' '),
+      };
+    }
+
     const label = String(args['label'] || command).slice(0, 80);
-    const cwd = String(args['cwd'] || process.cwd());
+    let cwd: string;
+    try {
+      cwd = resolveProcessCwd(args, context);
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
     const timeoutMs = Number(args['start_timeout_ms'] ?? DEFAULT_START_TIMEOUT_MS);
 
     const id = generateId();

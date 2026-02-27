@@ -67,7 +67,13 @@ export interface ConversationProjectState {
 
 export type AgentRoomSwarmStatus = 'idle' | 'running' | 'hold' | 'completed' | 'aborted' | 'error';
 
-export type AgentRoomSwarmPhase = 'analysis' | 'ideation' | 'critique' | 'best_case' | 'result';
+export type AgentRoomSwarmPhase =
+  | 'analysis'
+  | 'research'
+  | 'ideation'
+  | 'critique'
+  | 'best_case'
+  | 'result';
 
 export interface AgentRoomSwarmUnit {
   personaId: string;

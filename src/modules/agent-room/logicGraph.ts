@@ -5,6 +5,7 @@ import {
 } from '@/modules/agent-room/swarmPhases';
 
 const MERMAID_BLOCK_REGEX = /```mermaid\s*([\s\S]*?)```/gi;
+const UNQUOTED_SQUARE_NODE_REGEX = /\b([A-Za-z][A-Za-z0-9_-]*)\[(?!")([^\]\n]+)\]/g;
 
 export function extractMermaidBlocks(text: string): string[] {
   const source = String(text || '');
@@ -22,10 +23,41 @@ export function extractMermaidBlocks(text: string): string[] {
 export function sanitizeMermaidSource(source: string): string {
   const text = String(source || '')
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
-    .replace(/<[^>]+>/g, '')
-    .trim();
+    .replace(/<br\s*\/?>/gi, '\\n')
+    .replace(/<[^>]+>/g, '');
   // Mermaid init directives can change rendering security defaults, strip them.
-  return text.replace(/%%\{init:[\s\S]*?\}%%/gi, '').trim();
+  const withoutInit = text.replace(/%%\{init:[\s\S]*?\}%%/gi, '').trim();
+  return quoteUnsafeSquareNodeLabels(withoutInit);
+}
+
+function sanitizeNodeLabelText(label: string): string {
+  return String(label || '')
+    .replace(/<br\s*\/?>/gi, '\\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/"/g, "'")
+    .replace(/\s*\\n\s*/g, '\\n')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function quoteUnsafeSquareNodeLabels(source: string): string {
+  return source
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trimStart();
+      if (trimmed.startsWith('subgraph ')) {
+        return line;
+      }
+      return line.replace(UNQUOTED_SQUARE_NODE_REGEX, (_match, nodeId: string, label: string) => {
+        const safeLabel = sanitizeNodeLabelText(label);
+        if (!safeLabel) {
+          return `${nodeId}["Node"]`;
+        }
+        return `${nodeId}["${safeLabel}"]`;
+      });
+    })
+    .join('\n')
+    .trim();
 }
 
 /**
@@ -216,6 +248,13 @@ function buildAutoFlowchart(
   }
 
   return lines.join('\n');
+}
+
+export function buildAutoLogicGraphSource(
+  artifact: string,
+  activePhases?: { phase: SwarmPhase; currentPhase: SwarmPhase; status: string },
+): string | null {
+  return buildAutoFlowchart(artifact, activePhases);
 }
 
 export function buildLogicGraphSource(

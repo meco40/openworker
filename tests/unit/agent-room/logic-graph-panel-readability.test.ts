@@ -24,4 +24,16 @@ describe('logic graph panel readability', () => {
     expect(source).not.toContain('Zoom out');
     expect(source).not.toContain('Reset zoom');
   });
+
+  it('falls back to auto-generated graph when ai mermaid returns syntax-error svg', () => {
+    const source = read('src/modules/agent-room/components/LogicGraphPanel.tsx');
+    expect(source).toContain('buildAutoLogicGraphSource');
+    expect(source).toContain('isMermaidErrorSvg');
+    expect(source).toContain('fallbackSource &&');
+    expect(source).toContain('fallbackSource !== source');
+    expect(source).toContain(
+      'If Mermaid throws on invalid AI source, try the auto-generated fallback graph.',
+    );
+    expect(source).toContain('fallbackResult = await mermaid.render');
+  });
 });

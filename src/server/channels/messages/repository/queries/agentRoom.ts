@@ -67,6 +67,7 @@ function parsePhaseBuffer(value: unknown): PhaseBufferEntry[] {
 function normalizePhase(value: string): AgentRoomSwarmPhase {
   if (
     value === 'analysis' ||
+    value === 'research' ||
     value === 'ideation' ||
     value === 'critique' ||
     value === 'best_case' ||

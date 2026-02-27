@@ -307,7 +307,7 @@ export class SqliteMessageRepository implements MessageRepository {
     units: Array<{ personaId: string; role: string }>;
     sessionId?: string | null;
     status?: 'idle' | 'running' | 'hold' | 'completed' | 'aborted' | 'error';
-    currentPhase?: 'analysis' | 'ideation' | 'critique' | 'best_case' | 'result';
+    currentPhase?: 'analysis' | 'research' | 'ideation' | 'critique' | 'best_case' | 'result';
     consensusScore?: number;
     holdFlag?: boolean;
     artifact?: string;
@@ -358,7 +358,7 @@ export class SqliteMessageRepository implements MessageRepository {
       leadPersonaId?: string;
       units?: Array<{ personaId: string; role: string }>;
       status?: 'idle' | 'running' | 'hold' | 'completed' | 'aborted' | 'error';
-      currentPhase?: 'analysis' | 'ideation' | 'critique' | 'best_case' | 'result';
+      currentPhase?: 'analysis' | 'research' | 'ideation' | 'critique' | 'best_case' | 'result';
       consensusScore?: number;
       holdFlag?: boolean;
       artifact?: string;
