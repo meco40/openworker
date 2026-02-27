@@ -45,6 +45,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: 'M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z',
   },
   {
+    id: View.MASTER,
+    label: 'Master',
+    icon: 'M12 3l7 4v6c0 5-3.5 9.7-7 11-3.5-1.3-7-6-7-11V7l7-4zm0 5v5m0 0l3 3m-3-3l-3 3',
+  },
+  {
     id: View.AGENT_ROOM,
     label: 'Agent Room',
     icon: 'M3 7h18M6 4v6m12-6v6M5 12h14l-1 8H6l-1-8z',

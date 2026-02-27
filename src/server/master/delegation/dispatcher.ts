@@ -1,0 +1,64 @@
+import type { MasterRepository } from '@/server/master/repository';
+import type { WorkspaceScope } from '@/server/master/types';
+import { DelegationInbox } from '@/server/master/delegation/inbox';
+import { DelegationResourceGovernor } from '@/server/master/delegation/resourceGovernor';
+import { evaluateTriggerPolicy } from '@/server/master/delegation/triggerPolicy';
+import { SubagentPool } from '@/server/master/delegation/subagentPool';
+
+export class DelegationDispatcher {
+  private readonly inbox: DelegationInbox;
+  private readonly pool: SubagentPool;
+  private readonly governor: DelegationResourceGovernor;
+
+  constructor(
+    private readonly repo: MasterRepository,
+    options?: { maxConcurrent?: number },
+  ) {
+    this.inbox = new DelegationInbox(repo);
+    this.pool = new SubagentPool(repo, this.inbox);
+    this.governor = new DelegationResourceGovernor(options?.maxConcurrent ?? 4);
+  }
+
+  async dispatch(input: {
+    scope: WorkspaceScope;
+    runId: string;
+    capability: string;
+    payload: string;
+    timeoutMs?: number;
+    task: () => Promise<{ output: string; confidence?: number }>;
+  }): Promise<{ jobId: string; accepted: boolean; reason?: string }> {
+    const timeoutMs = input.timeoutMs ?? 120_000;
+    const policy = evaluateTriggerPolicy({
+      capability: input.capability,
+      now: Date.now(),
+      timeoutMs,
+      cooldownMs: 250,
+      maxConcurrent: 4,
+      activeForCapability: this.governor.getActiveForCapability(input.capability),
+      activeGlobal: this.governor.getActiveGlobal(),
+    });
+    if (!policy.allowed) {
+      return { jobId: '', accepted: false, reason: policy.reason };
+    }
+    if (!this.governor.tryAcquire(input.capability)) {
+      return { jobId: '', accepted: false, reason: 'capacity_exhausted' };
+    }
+
+    const job = this.repo.createDelegationJob(input.scope, {
+      runId: input.runId,
+      capability: input.capability,
+      payload: input.payload,
+      status: 'queued',
+      priority: 'medium',
+      maxAttempts: 3,
+      timeoutMs,
+    });
+
+    try {
+      await this.pool.execute(input.scope, input.runId, job.id, input.task);
+      return { jobId: job.id, accepted: true };
+    } finally {
+      this.governor.release(input.capability);
+    }
+  }
+}

@@ -165,6 +165,7 @@ export enum View {
   NODES = 'nodes',
   AGENTS = 'agents',
   DEBUGGER = 'debugger',
+  MASTER = 'master',
   AGENT_ROOM = 'agent-room',
 }
 

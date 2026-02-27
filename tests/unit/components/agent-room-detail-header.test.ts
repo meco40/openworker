@@ -15,6 +15,7 @@ describe('agent room detail header', () => {
     expect(source).toContain('Pause');
     expect(source).toContain('Stop');
     expect(source).toContain('Finish');
+    expect(source).not.toContain('Master');
   });
 
   it('keeps split detail layout with chat on left and infos on right', () => {

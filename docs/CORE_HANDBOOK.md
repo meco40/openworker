@@ -20,6 +20,20 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 - Proactive coupling was replaced by typed internal events (`chat.message.persisted`, `chat.summary.refreshed`) via `src/server/events/*` and `src/server/proactive/subscribers.ts`.
 - If any deeper section in this handbook still references active Rooms runtime behavior, treat that section as historical until full handbook refresh.
 
+## 2026-02-27 Master Agent Runtime Delta
+
+- Dedicated Master vertical slice is active:
+  - UI: `View.MASTER` + `src/modules/master/components/*`
+  - API: `app/api/master/*`
+  - Backend domain/runtime: `src/server/master/*`
+- Agent Room remains chat-only (no Master orchestration logic moved into Agent Room views).
+- Master supports approval decisions `approve_once`, `approve_always`, `deny` with deterministic `AWAITING_APPROVAL` pause semantics.
+- Workspace isolation for Master requests is enforced via persona-scoped workspace binding.
+- New APIs available:
+  - `/api/master/runs`, `/api/master/runs/[id]`, `/api/master/runs/[id]/actions`, `/api/master/runs/[id]/delegations`
+  - `/api/master/notes`, `/api/master/reminders`, `/api/master/gmail`, `/api/master/toolforge`, `/api/master/capabilities`
+- Authoritative subsystem doc added: `docs/MASTER_AGENT_SYSTEM.md`.
+
 ---
 
 ## ASCII Architecture Diagram
@@ -855,6 +869,7 @@ describe('myService', () => {
 
 | Document                           | Purpose                 | Key Topics                               |
 | ---------------------------------- | ----------------------- | ---------------------------------------- |
+| `docs/MASTER_AGENT_SYSTEM.md`      | Master agent subsystem  | Master page, lifecycle, approvals, APIs  |
 | `docs/SKILLS_SYSTEM.md`            | Skill framework         | Built-in skills, custom skills           |
 | `docs/WORKER_SYSTEM.md`            | Worker replacement docs | Current status, Ops/Rooms replacements   |
 | `docs/WORKER_ORCHESTRA_SYSTEM.md`  | Orchestra replacement   | Rooms-based orchestration                |

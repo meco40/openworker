@@ -102,6 +102,9 @@ const ConversationDebuggerView = dynamic(
 const AgentRoomView = dynamic(() => import('@/modules/agent-room/components/AgentRoomView'), {
   loading: loading('Agent Room'),
 });
+const MasterView = dynamic(() => import('@/modules/master/components/MasterView'), {
+  loading: loading('Master'),
+});
 
 const isAgentRoomEnabled =
   String(process.env.NEXT_PUBLIC_AGENT_ROOM_ENABLED || 'true').toLowerCase() === 'true';
@@ -298,6 +301,11 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
       {currentView === View.AGENT_ROOM && isAgentRoomEnabled && (
         <ViewErrorBoundary label="Agent Room">
           <AgentRoomView />
+        </ViewErrorBoundary>
+      )}
+      {currentView === View.MASTER && (
+        <ViewErrorBoundary label="Master">
+          <MasterView />
         </ViewErrorBoundary>
       )}
     </div>
