@@ -307,3 +307,12 @@ Files >300 lines identified for potential future modularization:
 - 2026-02-27T21:38:43Z [DISCOVERIES] [TOOL] Volltest-Regressionen nach Runtime-Erweiterung: (1) Trigger-Policy abhängig von globalem Zeitstempelzustand bei kleineren `now`-Werten, (2) Persona-Workspace-Migration anfällig für Singleton-Drift (`getPersonaRepository`) über Testgrenzen.
 - 2026-02-27T21:38:43Z [PROGRESS] [CODE] Regressionen behoben: Trigger-Cooldown nur bei monotonem Zeitfortschritt (`input.now > lastAt`), Persona-Migration auf explizites Repository-Instance-Handling pro `PERSONAS_DB_PATH` umgestellt.
 - 2026-02-27T21:38:43Z [OUTCOMES] [TOOL] Endverifikation vollständig grün: `npm run typecheck` (ok), `npm run lint` (0 Warnungen/0 Fehler), `npm run build` (ok), `npm test` (431/431 Dateien, 1850/1850 Tests).
+- 2026-02-27T21:49:15Z [PLANS] [USER] Wunsch bestätigt: Remote-Commit `08e1aff` aus Kilo Code Cloud in den lokalen `main`-Stand übernehmen (download + implement).
+- 2026-02-27T21:49:15Z [DISCOVERIES] [TOOL] `git cherry-pick 08e1aff...` lieferte `modify/delete`-Konflikt auf `WorkerView.tsx` (in `HEAD` gelöscht, im Commit geändert); Konfliktdatei wurde im Arbeitsbaum bereitgestellt.
+- 2026-02-27T21:49:15Z [OUTCOMES] [TOOL] Konflikt aufgelöst durch Übernahme von `WorkerView.tsx`, Cherry-Pick erfolgreich abgeschlossen als `342491f` auf `main` (`main...origin/main [ahead 1]`); vorhandene lokale Änderungen in `next-env.d.ts`, `tsconfig.tsbuildinfo` und `src/modules/master/components/MasterView.tsx` blieben unverändert erhalten.
+- 2026-02-27T21:54:24Z [PLANS] [USER] Nach Validierung angefordert: fälschlich übernommene Datei `WorkerView.tsx` wieder entfernen.
+- 2026-02-27T21:54:24Z [OUTCOMES] [TOOL] `WorkerView.tsx` per `git rm` gelöscht und als Deletion im Arbeitsbaum vorgemerkt (`D  WorkerView.tsx`); keine weiteren Dateien für diesen Schritt geändert.
+- 2026-02-27T22:58:17+01:00 [DISCOVERIES] [CODE] Root Cause für API-Spam auf Master-Seite: Polling-`useEffect` in `MasterView` lief permanent (Intervall 2500 ms), unabhängig davon, ob aktive Runs vorhanden waren.
+- 2026-02-27T22:58:17+01:00 [PROGRESS] [CODE] `MasterView`-Polling auf aktiven-Run-Gate umgestellt (`hasActiveRuns`) und Intervall auf 5000 ms erhöht; einmaliges Refresh bei Scope-Wechsel bleibt erhalten.
+- 2026-02-27T22:58:17+01:00 [DECISIONS] [USER] Anweisung bestätigt: `WorkerView.tsx` gelöscht beibehalten und Änderungen committen/pushen.
+- 2026-02-27T22:58:17+01:00 [OUTCOMES] [TOOL] Finale Verifikation im Zielzustand: `npm run typecheck` erfolgreich (`tsc --noEmit`, Exit 0).

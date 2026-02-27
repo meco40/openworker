@@ -47,6 +47,16 @@ interface StatusMessage {
   text: string;
 }
 
+const ACTIVE_RUN_STATUSES: MasterRunStatus[] = [
+  'ANALYZING',
+  'PLANNING',
+  'DELEGATING',
+  'EXECUTING',
+  'VERIFYING',
+  'REFINING',
+  'AWAITING_APPROVAL',
+];
+
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
@@ -72,6 +82,10 @@ const MasterView: React.FC = () => {
   const selectedRun = useMemo(
     () => runs.find((entry) => entry.id === selectedRunId) || null,
     [runs, selectedRunId],
+  );
+  const hasActiveRuns = useMemo(
+    () => runs.some((entry) => ACTIVE_RUN_STATUSES.includes(entry.status)),
+    [runs],
   );
 
   const withScopeQuery = useCallback(
@@ -280,11 +294,15 @@ const MasterView: React.FC = () => {
   useEffect(() => {
     if (!selectedPersonaId || !workspaceId) return;
     void refreshAll();
+  }, [refreshAll, selectedPersonaId, workspaceId]);
+
+  useEffect(() => {
+    if (!selectedPersonaId || !workspaceId || !hasActiveRuns) return;
     const interval = setInterval(() => {
       void refreshAll();
-    }, 2500);
+    }, 5000);
     return () => clearInterval(interval);
-  }, [refreshAll, selectedPersonaId, workspaceId]);
+  }, [hasActiveRuns, refreshAll, selectedPersonaId, workspaceId]);
 
   return (
     <section className="space-y-4">
