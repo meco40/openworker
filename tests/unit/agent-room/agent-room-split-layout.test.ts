@@ -10,6 +10,25 @@ import type { SwarmRecord } from '@/modules/agent-room/swarmTypes';
 import type { SwarmStatus } from '@/shared/domain/agentRoom.types';
 import { SWARM_PHASES, getSwarmPhaseLabel } from '@/modules/agent-room/swarmPhases';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function statusBadgeClasses(status: SwarmStatus): string {
+  switch (status) {
+    case 'running':
+      return 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30';
+    case 'hold':
+      return 'bg-amber-500/20 text-amber-200 border-amber-500/30';
+    case 'completed':
+      return 'bg-indigo-500/20 text-indigo-200 border-indigo-500/30';
+    case 'aborted':
+      return 'bg-zinc-700/40 text-zinc-200 border-zinc-600';
+    case 'error':
+      return 'bg-rose-500/20 text-rose-200 border-rose-500/30';
+    default:
+      return 'bg-cyan-500/20 text-cyan-200 border-cyan-500/30';
+  }
+}
+
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 function makeSwarm(overrides: Partial<SwarmRecord> = {}): SwarmRecord {
@@ -132,23 +151,6 @@ describe('Split layout – status badge classes', () => {
     { status: 'error', expectedClass: 'rose' },
     { status: 'idle', expectedClass: 'cyan' },
   ];
-
-  function statusBadgeClasses(status: SwarmStatus): string {
-    switch (status) {
-      case 'running':
-        return 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30';
-      case 'hold':
-        return 'bg-amber-500/20 text-amber-200 border-amber-500/30';
-      case 'completed':
-        return 'bg-indigo-500/20 text-indigo-200 border-indigo-500/30';
-      case 'aborted':
-        return 'bg-zinc-700/40 text-zinc-200 border-zinc-600';
-      case 'error':
-        return 'bg-rose-500/20 text-rose-200 border-rose-500/30';
-      default:
-        return 'bg-cyan-500/20 text-cyan-200 border-cyan-500/30';
-    }
-  }
 
   it.each(statusCases)(
     'status "$status" uses $expectedClass color',
