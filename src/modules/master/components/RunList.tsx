@@ -1,44 +1,150 @@
-import React, { useCallback } from 'react';
-import type { MasterRun } from '@/modules/master/types';
+import React, { useCallback, useMemo, useState } from 'react';
+import type { MasterRun, MasterRunStatus } from '@/modules/master/types';
 import { RunStatusBadge } from './RunStatusBadge';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const ACTIVE_STATUSES = new Set<MasterRunStatus>([
+  'ANALYZING',
+  'PLANNING',
+  'DELEGATING',
+  'EXECUTING',
+  'VERIFYING',
+  'REFINING',
+  'AWAITING_APPROVAL',
+]);
+
+const ITEMS_PER_PAGE = 10;
+
+type StatusFilter = 'all' | 'active' | 'done' | 'failed';
+
+interface FilterChip {
+  id: StatusFilter;
+  label: string;
+  count: number;
+  baseStyle: string;
+  activeStyle: string;
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface RunListProps {
   runs: MasterRun[];
   selectedRunId: string | null;
-  runsPage: number;
-  totalRunPages: number;
   onSelectRun: (id: string) => void;
-  onPageChange: (page: number) => void;
 }
 
-export const RunList: React.FC<RunListProps> = ({
-  runs,
-  selectedRunId,
-  runsPage,
-  totalRunPages,
-  onSelectRun,
-  onPageChange,
-}) => {
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export const RunList: React.FC<RunListProps> = ({ runs, selectedRunId, onSelectRun }) => {
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [page, setPage] = useState(0);
+
+  // ── Derived counts for chips ────────────────────────────────────────────────
+
+  const counts = useMemo(
+    () => ({
+      active: runs.filter((r) => ACTIVE_STATUSES.has(r.status)).length,
+      done: runs.filter((r) => r.status === 'COMPLETED').length,
+      failed: runs.filter((r) => r.status === 'FAILED').length,
+    }),
+    [runs],
+  );
+
+  const FILTER_CHIPS: FilterChip[] = [
+    {
+      id: 'all',
+      label: 'All',
+      count: runs.length,
+      baseStyle:
+        'border-zinc-800 bg-zinc-950/60 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300',
+      activeStyle: 'border-zinc-600 bg-zinc-800 text-zinc-200',
+    },
+    {
+      id: 'active',
+      label: 'Active',
+      count: counts.active,
+      baseStyle:
+        'border-emerald-900/60 bg-emerald-950/30 text-emerald-600 hover:border-emerald-700/50 hover:text-emerald-400',
+      activeStyle: 'border-emerald-500/50 bg-emerald-900/20 text-emerald-300',
+    },
+    {
+      id: 'done',
+      label: 'Done',
+      count: counts.done,
+      baseStyle:
+        'border-indigo-900/60 bg-indigo-950/30 text-indigo-500/70 hover:border-indigo-700/50 hover:text-indigo-300',
+      activeStyle: 'border-indigo-500/50 bg-indigo-900/20 text-indigo-300',
+    },
+    {
+      id: 'failed',
+      label: 'Failed',
+      count: counts.failed,
+      baseStyle:
+        'border-rose-900/60 bg-rose-950/30 text-rose-500/60 hover:border-rose-700/50 hover:text-rose-300',
+      activeStyle: 'border-rose-500/50 bg-rose-900/20 text-rose-300',
+    },
+  ];
+
+  // ── Filtering + pagination ──────────────────────────────────────────────────
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return runs.filter((r) => {
+      const matchesSearch = q ? r.title.toLowerCase().includes(q) : true;
+      const matchesStatus =
+        statusFilter === 'all'
+          ? true
+          : statusFilter === 'active'
+            ? ACTIVE_STATUSES.has(r.status)
+            : statusFilter === 'done'
+              ? r.status === 'COMPLETED'
+              : r.status === 'FAILED';
+      return matchesSearch && matchesStatus;
+    });
+  }, [runs, search, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paginated = filtered.slice(safePage * ITEMS_PER_PAGE, (safePage + 1) * ITEMS_PER_PAGE);
+
+  const handleFilterChange = (f: StatusFilter) => {
+    setStatusFilter(f);
+    setPage(0);
+  };
+
+  const handleSearch = (q: string) => {
+    setSearch(q);
+    setPage(0);
+  };
+
+  // ── Keyboard navigation ────────────────────────────────────────────────────
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
-      if (runs.length === 0) return;
-      const currentIndex = runs.findIndex((r) => r.id === selectedRunId);
+      if (paginated.length === 0) return;
+      const currentIndex = paginated.findIndex((r) => r.id === selectedRunId);
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        const next = Math.min(currentIndex + 1, runs.length - 1);
-        onSelectRun(runs[next].id);
+        const next = Math.min(currentIndex + 1, paginated.length - 1);
+        onSelectRun(paginated[next].id);
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         const prev = Math.max(currentIndex - 1, 0);
-        onSelectRun(runs[prev].id);
+        onSelectRun(paginated[prev].id);
       }
     },
-    [runs, selectedRunId, onSelectRun],
+    [paginated, selectedRunId, onSelectRun],
   );
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  const isFiltered = search.trim() !== '' || statusFilter !== 'all';
 
   return (
     <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 shadow-xl">
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="border-b border-zinc-800/80 bg-zinc-950/40 px-6 py-4">
         <div className="flex items-center gap-2">
           <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/15">
@@ -61,11 +167,98 @@ export const RunList: React.FC<RunListProps> = ({
           <span className="ml-1 rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-zinc-500">
             {runs.length}
           </span>
+          {isFiltered && filtered.length !== runs.length && (
+            <span className="rounded-md border border-indigo-800/60 bg-indigo-950/40 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-indigo-400">
+              {filtered.length} shown
+            </span>
+          )}
         </div>
       </div>
 
+      {/* ── Search + Filter bar (only when there are runs) ── */}
+      {runs.length > 0 && (
+        <div className="space-y-2.5 border-b border-zinc-800/60 bg-zinc-950/20 px-4 py-3">
+          {/* Search input */}
+          <div className="relative">
+            <svg
+              className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-zinc-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder="Search contracts…"
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 py-1.5 pr-3 pl-7 text-xs text-zinc-200 placeholder-zinc-600 transition-colors outline-none focus:border-zinc-600 focus:ring-0"
+              aria-label="Search runs by title"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => handleSearch('')}
+                className="absolute top-1/2 right-2 -translate-y-1/2 text-zinc-600 transition-colors hover:text-zinc-400"
+                aria-label="Clear search"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Status filter chips */}
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by status">
+            {FILTER_CHIPS.map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={() => handleFilterChange(chip.id)}
+                aria-pressed={statusFilter === chip.id}
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase transition-all ${
+                  statusFilter === chip.id ? chip.activeStyle : chip.baseStyle
+                }`}
+              >
+                {chip.id === 'active' && chip.count > 0 && statusFilter === chip.id && (
+                  <span
+                    className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400"
+                    aria-hidden="true"
+                  />
+                )}
+                {chip.label}
+                <span
+                  className={`rounded-md px-1 py-0.5 font-mono text-[9px] ${
+                    statusFilter === chip.id
+                      ? 'bg-white/10 text-current'
+                      : 'bg-zinc-800/80 text-zinc-600'
+                  }`}
+                >
+                  {chip.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── List body ── */}
       <div className="p-4">
         {runs.length === 0 ? (
+          // Global empty state (no runs at all)
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-950/40 px-4 py-10 text-center">
             <svg
               className="mb-3 h-10 w-10 text-zinc-700"
@@ -84,6 +277,36 @@ export const RunList: React.FC<RunListProps> = ({
             <p className="text-sm font-medium text-zinc-600">No runs yet</p>
             <p className="mt-1 text-xs text-zinc-700">Create your first Master Run above.</p>
           </div>
+        ) : filtered.length === 0 ? (
+          // Filter/search empty state
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800/60 bg-zinc-950/20 px-4 py-8 text-center">
+            <svg
+              className="mb-3 h-8 w-8 text-zinc-700"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <p className="text-sm font-medium text-zinc-600">No matches</p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('all');
+                setPage(0);
+              }}
+              className="mt-2 text-xs text-indigo-400 underline-offset-2 hover:underline"
+            >
+              Clear filters
+            </button>
+          </div>
         ) : (
           <>
             <div
@@ -92,7 +315,7 @@ export const RunList: React.FC<RunListProps> = ({
               className="space-y-2"
               onKeyDown={handleKeyDown}
             >
-              {runs.map((run, index) => (
+              {paginated.map((run, index) => (
                 <button
                   key={run.id}
                   type="button"
@@ -150,24 +373,24 @@ export const RunList: React.FC<RunListProps> = ({
               ))}
             </div>
 
-            {/* Pagination */}
-            {totalRunPages > 1 && (
+            {/* ── Pagination ── */}
+            {totalPages > 1 && (
               <div className="mt-4 flex items-center justify-between gap-2">
                 <button
                   type="button"
-                  onClick={() => onPageChange(Math.max(0, runsPage - 1))}
-                  disabled={runsPage === 0}
+                  onClick={() => setPage(Math.max(0, safePage - 1))}
+                  disabled={safePage === 0}
                   className="rounded-lg border border-zinc-700 px-3 py-1.5 text-[10px] font-bold tracking-wide text-zinc-400 uppercase transition-all hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   ← Prev
                 </button>
                 <span className="font-mono text-[10px] text-zinc-500">
-                  {runsPage + 1} / {totalRunPages}
+                  {safePage + 1} / {totalPages}
                 </span>
                 <button
                   type="button"
-                  onClick={() => onPageChange(Math.min(totalRunPages - 1, runsPage + 1))}
-                  disabled={runsPage >= totalRunPages - 1}
+                  onClick={() => setPage(Math.min(totalPages - 1, safePage + 1))}
+                  disabled={safePage >= totalPages - 1}
                   className="rounded-lg border border-zinc-700 px-3 py-1.5 text-[10px] font-bold tracking-wide text-zinc-400 uppercase transition-all hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Next →

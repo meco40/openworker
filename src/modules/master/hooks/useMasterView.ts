@@ -367,18 +367,30 @@ export function useMasterView(): UseMasterViewResult {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Initial data load when persona or workspace changes.
+  // Uses stable loadRuns/loadMetrics (both have [] deps) instead of refreshAll
+  // to avoid the identity-change loop: refreshAll calling setLoadingAction →
+  // re-render → new refreshAll reference → effect fires again immediately.
   useEffect(() => {
     if (!selectedPersonaId || !workspaceId) return;
-    void refreshAll();
-  }, [refreshAll, selectedPersonaId, workspaceId]);
+    void loadRuns(selectedPersonaId, workspaceId);
+    void loadMetrics(selectedPersonaId, workspaceId);
+  }, [selectedPersonaId, workspaceId, loadRuns, loadMetrics]);
+
+  // Keep a stable ref to refreshAll so the polling interval never needs to
+  // be recreated when refreshAll's identity changes.
+  const refreshAllRef = useRef(refreshAll);
+  useEffect(() => {
+    refreshAllRef.current = refreshAll;
+  });
 
   useEffect(() => {
     if (!selectedPersonaId || !workspaceId || !hasActiveRuns) return;
     const interval = setInterval(() => {
-      void refreshAll();
+      void refreshAllRef.current();
     }, AUTO_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [hasActiveRuns, refreshAll, selectedPersonaId, workspaceId]);
+  }, [hasActiveRuns, selectedPersonaId, workspaceId]);
 
   // Load run detail when selectedRunId changes
   useEffect(() => {

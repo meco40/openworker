@@ -111,10 +111,7 @@ describe('RunList', () => {
       createElement(RunList, {
         runs: [],
         selectedRunId: null,
-        runsPage: 0,
-        totalRunPages: 1,
         onSelectRun: () => {},
-        onPageChange: () => {},
       }),
     );
     expect(html).toContain('No runs yet');
@@ -129,41 +126,32 @@ describe('RunList', () => {
       createElement(RunList, {
         runs,
         selectedRunId: null,
-        runsPage: 0,
-        totalRunPages: 1,
         onSelectRun: () => {},
-        onPageChange: () => {},
       }),
     );
     expect(html).toContain('Alpha Run');
     expect(html).toContain('Beta Run');
   });
 
-  it('shows pagination when totalRunPages > 1', () => {
-    const runs = [makeRun()];
+  it('shows pagination when runs exceed page size', () => {
+    const runs = Array.from({ length: 11 }, (_, i) => makeRun({ id: `r${i}`, title: `Run ${i}` }));
     const html = renderToStaticMarkup(
       createElement(RunList, {
         runs,
         selectedRunId: null,
-        runsPage: 0,
-        totalRunPages: 3,
         onSelectRun: () => {},
-        onPageChange: () => {},
       }),
     );
-    expect(html).toContain('1 / 3');
+    expect(html).toContain('1 / 2');
   });
 
-  it('does not show pagination when totalRunPages === 1', () => {
+  it('does not show pagination when runs fit on one page', () => {
     const runs = [makeRun()];
     const html = renderToStaticMarkup(
       createElement(RunList, {
         runs,
         selectedRunId: null,
-        runsPage: 0,
-        totalRunPages: 1,
         onSelectRun: () => {},
-        onPageChange: () => {},
       }),
     );
     expect(html).not.toContain('Prev');

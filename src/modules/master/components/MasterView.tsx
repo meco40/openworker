@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useMasterView } from '@/modules/master/hooks/useMasterView';
 import ViewErrorBoundary from '@/components/ViewErrorBoundary';
+import MasterEntryPage from './MasterEntryPage';
 import { CreateRunForm } from './CreateRunForm';
 import { RunList } from './RunList';
 import { RunControls } from './RunControls';
@@ -120,6 +121,7 @@ function StatusBanner({
 const MasterView: React.FC = () => {
   const view = useMasterView();
   const [activeTab, setActiveTab] = useState<Tab>('new');
+  const [showEntry, setShowEntry] = useState(true);
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: string | number }[] = [
     {
@@ -179,6 +181,16 @@ const MasterView: React.FC = () => {
       ),
     },
   ];
+
+  if (showEntry) {
+    return (
+      <MasterEntryPage
+        onEnterDashboard={() => setShowEntry(false)}
+        personaId={view.selectedPersonaId}
+        workspaceId={view.workspaceId}
+      />
+    );
+  }
 
   return (
     <section className="space-y-6">
@@ -318,12 +330,9 @@ const MasterView: React.FC = () => {
           <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
             <ViewErrorBoundary label="Run List">
               <RunList
-                runs={view.paginatedRuns}
+                runs={view.runs}
                 selectedRunId={view.selectedRunId}
-                runsPage={view.runsPage}
-                totalRunPages={view.totalRunPages}
                 onSelectRun={view.setSelectedRunId}
-                onPageChange={view.setRunsPage}
               />
             </ViewErrorBoundary>
             <ViewErrorBoundary label="Run Controls">
