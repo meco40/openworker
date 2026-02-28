@@ -4,14 +4,18 @@ import { MAX_TOOL_ROUNDS } from '@/server/channels/messages/service/types';
 
 const dispatchWithFallbackMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/server/model-hub/runtime', () => ({
-  getModelHubService: () => ({
-    dispatchWithFallback: dispatchWithFallbackMock,
-  }),
-  getModelHubEncryptionKey: () => 'test-key',
-}));
-
-import { runModelToolLoop } from '@/server/channels/messages/service/dispatchers/aiDispatcher';
+async function loadRunModelToolLoop() {
+  vi.resetModules();
+  vi.doMock('@/server/model-hub/runtime', () => ({
+    getModelHubService: () => ({
+      dispatchWithFallback: dispatchWithFallbackMock,
+    }),
+    getModelHubEncryptionKey: () => 'test-key',
+  }));
+  const aiDispatcherModule =
+    await import('@/server/channels/messages/service/dispatchers/aiDispatcher');
+  return aiDispatcherModule.runModelToolLoop;
+}
 
 describe('runModelToolLoop', () => {
   const conversation = {
@@ -43,6 +47,7 @@ describe('runModelToolLoop', () => {
   });
 
   it('returns tool_limit_reached instead of empty response when model keeps requesting tools', async () => {
+    const runModelToolLoop = await loadRunModelToolLoop();
     dispatchWithFallbackMock.mockImplementation(async () => ({
       ok: true,
       text: '',
@@ -65,6 +70,7 @@ describe('runModelToolLoop', () => {
   });
 
   it('returns empty_model_response when provider returns no text and no tool calls', async () => {
+    const runModelToolLoop = await loadRunModelToolLoop();
     dispatchWithFallbackMock.mockResolvedValue({
       ok: true,
       text: '',
@@ -85,6 +91,7 @@ describe('runModelToolLoop', () => {
   });
 
   it('honors maxToolCalls override for longer autonomous execution loops', async () => {
+    const runModelToolLoop = await loadRunModelToolLoop();
     let round = 0;
     dispatchWithFallbackMock.mockImplementation(async () => {
       round += 1;
@@ -119,6 +126,7 @@ describe('runModelToolLoop', () => {
   });
 
   it('stops early when identical failing tool calls repeat without progress', async () => {
+    const runModelToolLoop = await loadRunModelToolLoop();
     dispatchWithFallbackMock.mockImplementation(async () => ({
       ok: true,
       text: '',
