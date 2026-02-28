@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import { useMasterView } from '@/modules/master/hooks/useMasterView';
 import ViewErrorBoundary from '@/components/ViewErrorBoundary';
 import { CreateRunForm } from './CreateRunForm';
@@ -8,6 +8,8 @@ import { RunList } from './RunList';
 import { RunControls } from './RunControls';
 import { MetricsPanel } from './MetricsPanel';
 import { ExportBundlePanel } from './ExportBundlePanel';
+import { RunDetailPanel } from './RunDetailPanel';
+import { RunFeedbackPanel } from './RunFeedbackPanel';
 import MasterLearningPanel from './MasterLearningPanel';
 
 // ─── Status banner ────────────────────────────────────────────────────────────
@@ -49,14 +51,6 @@ function StatusBanner({
 
 const MasterView: React.FC = () => {
   const view = useMasterView();
-  const [exportDismissed, setExportDismissed] = useState(false);
-
-  const handleExportDismiss = useCallback(() => {
-    setExportDismissed(true);
-  }, []);
-
-  // Reset dismiss when a new export is generated
-  const showExport = view.exportBundle !== null && !exportDismissed;
 
   return (
     <section className="space-y-5">
@@ -99,6 +93,7 @@ const MasterView: React.FC = () => {
         <ViewErrorBoundary label="Create Run Form">
           <CreateRunForm
             personas={view.personas}
+            workspaces={view.workspaces}
             selectedPersonaId={view.selectedPersonaId}
             workspaceId={view.workspaceId}
             runTitle={view.runTitle}
@@ -132,13 +127,9 @@ const MasterView: React.FC = () => {
         <ViewErrorBoundary label="Run Controls">
           <RunControls
             selectedRun={view.selectedRun}
-            runSteps={view.selectedRunDetail?.steps ?? []}
             loading={view.loading}
             onStartRun={(id) => void view.startRun(id)}
-            onExportRun={(id) => {
-              setExportDismissed(false);
-              void view.exportRun(id);
-            }}
+            onExportRun={(id) => void view.exportRun(id)}
             onCancelRun={(id) => void view.cancelRun(id)}
             onSubmitDecision={(actionType, decision) =>
               void view.submitDecision(actionType, decision)
@@ -147,9 +138,31 @@ const MasterView: React.FC = () => {
         </ViewErrorBoundary>
       </div>
 
+      {/* ── Run detail (steps) ── */}
+      {view.selectedRunDetail && view.selectedRunDetail.steps.length > 0 && (
+        <ViewErrorBoundary label="Run Detail">
+          <RunDetailPanel steps={view.selectedRunDetail.steps} />
+        </ViewErrorBoundary>
+      )}
+
+      {/* ── Feedback – only for completed runs ── */}
+      {view.selectedRun?.status === 'COMPLETED' && (
+        <ViewErrorBoundary label="Run Feedback">
+          <RunFeedbackPanel
+            runId={view.selectedRun.id}
+            loading={view.loadingAction === 'submitting-feedback'}
+            onSubmit={(input) => void view.submitFeedback(input)}
+          />
+        </ViewErrorBoundary>
+      )}
+
       {/* ── Export bundle ── */}
-      {showExport && view.exportBundle && (
-        <ExportBundlePanel exportBundle={view.exportBundle} onDismiss={handleExportDismiss} />
+      {view.exportBundle && (
+        <ExportBundlePanel
+          exportBundle={view.exportBundle.data}
+          runId={view.exportBundle.runId}
+          onDismiss={view.dismissExportBundle}
+        />
       )}
 
       {/* ── Learning loop ── */}

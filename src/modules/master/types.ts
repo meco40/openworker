@@ -14,6 +14,14 @@ export type {
   MasterStep,
 } from '@/server/master/types';
 
+// ─── Workspace summary ───────────────────────────────────────────────────────
+
+export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 // ─── Persona summary (minimal shape needed by the UI) ─────────────────────────
 
 export interface MasterPersonaSummary {

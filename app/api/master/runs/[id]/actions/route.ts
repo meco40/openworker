@@ -95,7 +95,11 @@ export async function POST(request: Request, { params }: { params: Promise<Param
       : storedRule || undefined;
 
     if (!effectiveDecision) {
-      repo.updateRun(scope, id, { status: 'AWAITING_APPROVAL', pausedForApproval: true });
+      repo.updateRun(scope, id, {
+        status: 'AWAITING_APPROVAL',
+        pausedForApproval: true,
+        pendingApprovalActionType: actionType,
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -119,6 +123,7 @@ export async function POST(request: Request, { params }: { params: Promise<Param
       const patched = repo.updateRun(scope, id, {
         status: 'REFINING',
         pausedForApproval: false,
+        pendingApprovalActionType: null,
         lastError: `Action denied: ${actionType}`,
       });
       return NextResponse.json({ ok: true, decision: effectiveDecision, run: patched });
@@ -127,6 +132,7 @@ export async function POST(request: Request, { params }: { params: Promise<Param
     const patched = repo.updateRun(scope, id, {
       status: 'EXECUTING',
       pausedForApproval: false,
+      pendingApprovalActionType: null,
       lastError: null,
     });
     const resumed = runtime.startBackground(scope, id);

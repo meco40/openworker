@@ -1,26 +1,36 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 
 interface ExportBundlePanelProps {
   exportBundle: string;
+  runId: string;
   onDismiss: () => void;
 }
 
 export const ExportBundlePanel: React.FC<ExportBundlePanelProps> = ({
   exportBundle,
+  runId,
   onDismiss,
 }) => {
+  const [copied, setCopied] = useState(false);
+
   const handleDownload = useCallback(() => {
     const blob = new Blob([exportBundle], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `master-export-${Date.now()}.json`;
+    a.download = `master-export-${runId}-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [exportBundle]);
+  }, [exportBundle, runId]);
 
-  const handleCopy = useCallback(() => {
-    void navigator.clipboard.writeText(exportBundle);
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(exportBundle);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard unavailable — silently ignore
+    }
   }, [exportBundle]);
 
   return (
@@ -32,10 +42,10 @@ export const ExportBundlePanel: React.FC<ExportBundlePanelProps> = ({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={handleCopy}
+            onClick={() => void handleCopy()}
             className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-[10px] font-bold text-zinc-300 transition-all hover:bg-zinc-800 active:scale-95"
           >
-            Copy
+            {copied ? 'Copied✓' : 'Copy'}
           </button>
           <button
             type="button"

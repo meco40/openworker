@@ -366,3 +366,7 @@ Files >300 lines identified for potential future modularization:
 - 2026-02-28T10:07:08+01:00 [PLANS] [USER] Vollprüfung angefordert: kompletter Testlauf und Behebung aller Warnungen/Fehler.
 - 2026-02-28T10:07:08+01:00 [OUTCOMES] [TOOL] Vollprüfung ohne neue Fixes erfolgreich: `npm run lint` (0 Warnungen/0 Fehler), `npm test` (436/436 Dateien, 2016/2016 Tests), `npm run build` (ok, Next.js 16.1.6).
 - 2026-02-28T10:07:08+01:00 [DISCOVERIES] [TOOL] Test-Logs enthalten erwartete stderr-Ausgaben aus Negativ-/Guard-Szenarien (z. B. fehlendes `APP_URL` in Testumgebung), aber keine fehlschlagenden Assertions.
+
+- 2026-02-28T18:44:35Z [PLANS] [USER] Anforderung: desloppify vollständig deinstallieren und alle lokalen Artefakte aus dem Workspace entfernen.
+- 2026-02-28T18:44:35Z [PROGRESS] [TOOL] Lokale Desloppify-Artefakte entfernt (.desloppify/, .venv-desloppify/, desloppify/, scorecard.png) und .gitignore-Sondereinträge zu Desloppify bereinigt.
+- 2026-02-28T18:44:35Z [OUTCOMES] [TOOL] Verifikation: keine Artefaktpfade mehr vorhanden (Test-Path für alle vier Ziele = False), desloppify nicht als globales Kommando/Python-Paket im aktuellen Environment gefunden.

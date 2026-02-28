@@ -13,17 +13,22 @@ import type {
   MasterPersonaSummary,
   StatusMessage,
   ApprovalDecision,
+  WorkspaceSummary,
 } from '@/modules/master/types';
 import {
   fetchPersonas,
+  fetchWorkspaces,
   fetchRuns,
   fetchMetrics,
   fetchRunDetail,
   cancelRun as apiCancelRun,
   createRun as apiCreateRun,
   postRunAction,
+  submitFeedback as apiSubmitFeedback,
   type RunDetail,
+  type SubmitFeedbackInput,
 } from '@/modules/master/api';
+import { toErrorMessage } from '@/shared/lib/errors';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -43,9 +48,20 @@ const STATUS_DISMISS_DELAY_MS = 5_000;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type LoadingAction =
+  | 'creating'
+  | 'starting'
+  | 'exporting'
+  | 'cancelling'
+  | 'deciding'
+  | 'submitting-feedback'
+  | 'refreshing'
+  | null;
+
 export interface UseMasterViewResult {
   // Data
   personas: MasterPersonaSummary[];
+  workspaces: WorkspaceSummary[];
   runs: MasterRun[];
   paginatedRuns: MasterRun[];
   runsPage: number;
@@ -53,9 +69,10 @@ export interface UseMasterViewResult {
   selectedRun: MasterRun | null;
   selectedRunDetail: RunDetail | null;
   metrics: MasterMetrics | null;
-  exportBundle: string | null;
+  exportBundle: { data: string; runId: string } | null;
   // UI state
   loading: boolean;
+  loadingAction: LoadingAction;
   statusMessage: StatusMessage | null;
   hasActiveRuns: boolean;
   // Form state
@@ -77,17 +94,16 @@ export interface UseMasterViewResult {
   exportRun: (runId: string) => Promise<void>;
   cancelRun: (runId: string) => Promise<void>;
   submitDecision: (actionType: string, decision: ApprovalDecision) => Promise<void>;
+  submitFeedback: (input: Omit<SubmitFeedbackInput, 'personaId' | 'workspaceId'>) => Promise<void>;
+  dismissExportBundle: () => void;
   refreshAll: () => Promise<void>;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 export function useMasterView(): UseMasterViewResult {
   const [personas, setPersonas] = useState<MasterPersonaSummary[]>([]);
+  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
   const [selectedPersonaId, setSelectedPersonaId] = useState('');
   const [workspaceId, setWorkspaceId] = useState('main');
   const [runTitle, setRunTitle] = useState('New Master Contract');
@@ -95,12 +111,23 @@ export function useMasterView(): UseMasterViewResult {
   const [runs, setRuns] = useState<MasterRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<MasterMetrics | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<LoadingAction>(null);
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
-  const [exportBundle, setExportBundle] = useState<string | null>(null);
+  const [exportBundle, setExportBundle] = useState<{ data: string; runId: string } | null>(null);
   const [runsPage, setRunsPage] = useState(0);
   const [selectedRunDetail, setSelectedRunDetail] = useState<RunDetail | null>(null);
+
+  // Ref to avoid stale closure over selectedRunId in refreshAll
+  const selectedRunIdRef = useRef<string | null>(null);
   const refreshInFlightRef = useRef(false);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    selectedRunIdRef.current = selectedRunId;
+  }, [selectedRunId]);
+
+  // Derived boolean for convenience
+  const loading = loadingAction !== null;
 
   // Auto-dismiss status message after 5s
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -113,6 +140,10 @@ export function useMasterView(): UseMasterViewResult {
   const dismissStatus = useCallback(() => {
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
     setStatusMessage(null);
+  }, []);
+
+  const dismissExportBundle = useCallback(() => {
+    setExportBundle(null);
   }, []);
 
   // Cleanup timer on unmount
@@ -155,17 +186,23 @@ export function useMasterView(): UseMasterViewResult {
     if (!selectedPersonaId || !workspaceId) return;
     if (refreshInFlightRef.current) return;
     refreshInFlightRef.current = true;
-    setLoading(true);
+    setLoadingAction('refreshing');
     try {
       await Promise.all([
         loadRuns(selectedPersonaId, workspaceId),
         loadMetrics(selectedPersonaId, workspaceId),
       ]);
+      // Refresh selected run detail (uses ref to avoid stale closure)
+      const currentRunId = selectedRunIdRef.current;
+      if (currentRunId) {
+        const detail = await fetchRunDetail(currentRunId, selectedPersonaId, workspaceId);
+        setSelectedRunDetail(detail);
+      }
     } catch (error) {
       showStatus({ tone: 'error', text: toErrorMessage(error) });
     } finally {
       refreshInFlightRef.current = false;
-      setLoading(false);
+      setLoadingAction(null);
     }
   }, [loadMetrics, loadRuns, selectedPersonaId, workspaceId, showStatus]);
 
@@ -180,7 +217,7 @@ export function useMasterView(): UseMasterViewResult {
       showStatus({ tone: 'error', text: 'Contract is required.' });
       return;
     }
-    setLoading(true);
+    setLoadingAction('creating');
     try {
       const run = await apiCreateRun({
         title: runTitle.trim() || 'Master Contract',
@@ -195,13 +232,13 @@ export function useMasterView(): UseMasterViewResult {
     } catch (error) {
       showStatus({ tone: 'error', text: toErrorMessage(error) });
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
     }
   }, [runContract, runTitle, selectedPersonaId, workspaceId, refreshAll, showStatus]);
 
   const startRun = useCallback(
     async (runId: string) => {
-      setLoading(true);
+      setLoadingAction('starting');
       try {
         await postRunAction(runId, {
           actionType: 'run.start',
@@ -209,12 +246,12 @@ export function useMasterView(): UseMasterViewResult {
           personaId: selectedPersonaId,
           workspaceId,
         });
-        showStatus({ tone: 'info', text: 'Run started in background.' });
+        showStatus({ tone: 'success', text: 'Run started in background.' });
         await refreshAll();
       } catch (error) {
         showStatus({ tone: 'error', text: toErrorMessage(error) });
       } finally {
-        setLoading(false);
+        setLoadingAction(null);
       }
     },
     [refreshAll, selectedPersonaId, workspaceId, showStatus],
@@ -222,7 +259,7 @@ export function useMasterView(): UseMasterViewResult {
 
   const exportRun = useCallback(
     async (runId: string) => {
-      setLoading(true);
+      setLoadingAction('exporting');
       try {
         const result = await postRunAction(runId, {
           actionType: 'run.export',
@@ -230,12 +267,15 @@ export function useMasterView(): UseMasterViewResult {
           personaId: selectedPersonaId,
           workspaceId,
         });
-        setExportBundle(JSON.stringify(result.exportBundle ?? {}, null, 2));
+        setExportBundle({
+          data: JSON.stringify(result.exportBundle ?? {}, null, 2),
+          runId,
+        });
         showStatus({ tone: 'success', text: 'Result bundle exported.' });
       } catch (error) {
         showStatus({ tone: 'error', text: toErrorMessage(error) });
       } finally {
-        setLoading(false);
+        setLoadingAction(null);
       }
     },
     [selectedPersonaId, workspaceId, showStatus],
@@ -243,7 +283,7 @@ export function useMasterView(): UseMasterViewResult {
 
   const cancelRun = useCallback(
     async (runId: string) => {
-      setLoading(true);
+      setLoadingAction('cancelling');
       try {
         await apiCancelRun(runId, selectedPersonaId, workspaceId);
         showStatus({ tone: 'info', text: 'Run cancelled.' });
@@ -251,7 +291,7 @@ export function useMasterView(): UseMasterViewResult {
       } catch (error) {
         showStatus({ tone: 'error', text: toErrorMessage(error) });
       } finally {
-        setLoading(false);
+        setLoadingAction(null);
       }
     },
     [refreshAll, selectedPersonaId, workspaceId, showStatus],
@@ -263,7 +303,7 @@ export function useMasterView(): UseMasterViewResult {
         showStatus({ tone: 'error', text: 'Select a run first.' });
         return;
       }
-      setLoading(true);
+      setLoadingAction('deciding');
       try {
         await postRunAction(selectedRunId, {
           actionType,
@@ -277,18 +317,38 @@ export function useMasterView(): UseMasterViewResult {
       } catch (error) {
         showStatus({ tone: 'error', text: toErrorMessage(error) });
       } finally {
-        setLoading(false);
+        setLoadingAction(null);
       }
     },
     [selectedRunId, refreshAll, selectedPersonaId, workspaceId, showStatus],
   );
 
+  const submitFeedback = useCallback(
+    async (input: Omit<SubmitFeedbackInput, 'personaId' | 'workspaceId'>) => {
+      setLoadingAction('submitting-feedback');
+      try {
+        await apiSubmitFeedback({
+          ...input,
+          personaId: selectedPersonaId,
+          workspaceId,
+        });
+        showStatus({ tone: 'success', text: 'Feedback submitted.' });
+      } catch (error) {
+        showStatus({ tone: 'error', text: toErrorMessage(error) });
+      } finally {
+        setLoadingAction(null);
+      }
+    },
+    [selectedPersonaId, workspaceId, showStatus],
+  );
+
   // ── Effects ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    fetchPersonas()
-      .then((nextPersonas) => {
+    Promise.all([fetchPersonas(), fetchWorkspaces()])
+      .then(([nextPersonas, nextWorkspaces]) => {
         setPersonas(nextPersonas);
+        setWorkspaces(nextWorkspaces);
         if (!selectedPersonaId && nextPersonas.length > 0) {
           setSelectedPersonaId(nextPersonas[0].id);
         }
@@ -325,6 +385,7 @@ export function useMasterView(): UseMasterViewResult {
 
   return {
     personas,
+    workspaces,
     runs,
     paginatedRuns,
     runsPage,
@@ -334,6 +395,7 @@ export function useMasterView(): UseMasterViewResult {
     metrics,
     exportBundle,
     loading,
+    loadingAction,
     statusMessage,
     hasActiveRuns,
     selectedPersonaId,
@@ -348,11 +410,13 @@ export function useMasterView(): UseMasterViewResult {
     setSelectedRunId,
     setRunsPage,
     dismissStatus,
+    dismissExportBundle,
     createRun,
     startRun,
     exportRun,
     cancelRun,
     submitDecision,
+    submitFeedback,
     refreshAll,
   };
 }

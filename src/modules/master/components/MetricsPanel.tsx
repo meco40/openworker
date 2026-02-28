@@ -33,6 +33,19 @@ interface MetricsPanelProps {
 }
 
 export const MetricsPanel: React.FC<MetricsPanelProps> = ({ metrics }) => {
+  if (!metrics) {
+    return (
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <h3 className="mb-4 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
+          Metrics
+        </h3>
+        <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950/40 px-4 py-6 text-center text-sm text-zinc-600">
+          Select a persona to view metrics
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
       <h3 className="mb-4 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">

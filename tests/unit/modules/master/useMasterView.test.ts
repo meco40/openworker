@@ -13,8 +13,10 @@ vi.mock('@/modules/master/api', () => ({
     { id: 'p1', name: 'Nexus', slug: 'nexus', emoji: '🤖' },
     { id: 'p2', name: 'Atlas', slug: 'atlas', emoji: '🌍' },
   ]),
+  fetchWorkspaces: vi.fn(async () => [{ id: 'main', name: 'Main', slug: 'main' }]),
   fetchRuns: vi.fn(async () => []),
   fetchMetrics: vi.fn(async () => null),
+  fetchRunDetail: vi.fn(async () => null),
   createRun: vi.fn(async (input: { title: string; contract: string }) => ({
     id: 'run-new',
     userId: 'u1',
@@ -29,10 +31,13 @@ vi.mock('@/modules/master/api', () => ({
     updatedAt: new Date().toISOString(),
     lastError: null,
     pausedForApproval: false,
+    pendingApprovalActionType: null,
     cancelledAt: null,
     cancelReason: null,
   })),
   postRunAction: vi.fn(async () => ({ exportBundle: { result: 'ok' } })),
+  cancelRun: vi.fn(async () => {}),
+  submitFeedback: vi.fn(async () => {}),
 }));
 
 import type { MasterRun } from '@/modules/master/types';
@@ -54,6 +59,7 @@ function makeRun(overrides: Partial<MasterRun> = {}): MasterRun {
     updatedAt: new Date().toISOString(),
     lastError: null,
     pausedForApproval: false,
+    pendingApprovalActionType: null,
     cancelledAt: null,
     cancelReason: null,
     ...overrides,

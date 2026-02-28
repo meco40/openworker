@@ -1,8 +1,9 @@
 import React from 'react';
-import type { MasterPersonaSummary } from '@/modules/master/types';
+import type { MasterPersonaSummary, WorkspaceSummary } from '@/modules/master/types';
 
 interface CreateRunFormProps {
   personas: MasterPersonaSummary[];
+  workspaces: WorkspaceSummary[];
   selectedPersonaId: string;
   workspaceId: string;
   runTitle: string;
@@ -18,6 +19,7 @@ interface CreateRunFormProps {
 
 export const CreateRunForm: React.FC<CreateRunFormProps> = ({
   personas,
+  workspaces,
   selectedPersonaId,
   workspaceId,
   runTitle,
@@ -55,12 +57,26 @@ export const CreateRunForm: React.FC<CreateRunFormProps> = ({
 
         <label className="space-y-1.5 text-xs text-zinc-400">
           <span>Workspace ID</span>
-          <input
-            value={workspaceId}
-            onChange={(e) => onWorkspaceChange(e.target.value)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
-            placeholder="main"
-          />
+          {workspaces.length > 0 ? (
+            <select
+              value={workspaceId}
+              onChange={(e) => onWorkspaceChange(e.target.value)}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
+            >
+              {workspaces.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              value={workspaceId}
+              onChange={(e) => onWorkspaceChange(e.target.value)}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
+              placeholder="main"
+            />
+          )}
         </label>
       </div>
 

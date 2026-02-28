@@ -1,18 +1,25 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { ApprovalDecision } from '@/modules/master/types';
 import { KNOWN_ACTION_TYPES } from '@/modules/master/types';
 
 interface ApprovalDecisionFormProps {
   loading: boolean;
+  pendingActionType?: string | null;
   onSubmit: (actionType: string, decision: ApprovalDecision) => void;
 }
 
 export const ApprovalDecisionForm: React.FC<ApprovalDecisionFormProps> = ({
   loading,
+  pendingActionType,
   onSubmit,
 }) => {
-  const [actionType, setActionType] = useState<string>(KNOWN_ACTION_TYPES[0]);
+  const [actionType, setActionType] = useState<string>(pendingActionType ?? KNOWN_ACTION_TYPES[0]);
   const [decision, setDecision] = useState<ApprovalDecision>('approve_once');
+
+  // Sync actionType if parent provides a new pendingActionType
+  useEffect(() => {
+    if (pendingActionType) setActionType(pendingActionType);
+  }, [pendingActionType]);
 
   return (
     <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
@@ -39,17 +46,23 @@ export const ApprovalDecisionForm: React.FC<ApprovalDecisionFormProps> = ({
       <div className="space-y-3">
         <label className="block space-y-1.5 text-xs text-zinc-400">
           <span>Action Type</span>
-          <select
-            value={actionType}
-            onChange={(e) => setActionType(e.target.value)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500 focus:outline-none"
-          >
-            {KNOWN_ACTION_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+          {pendingActionType ? (
+            <div className="w-full rounded-lg border border-zinc-700 bg-zinc-950/60 px-3 py-2 font-mono text-sm text-amber-300">
+              {pendingActionType}
+            </div>
+          ) : (
+            <select
+              value={actionType}
+              onChange={(e) => setActionType(e.target.value)}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500 focus:outline-none"
+            >
+              {KNOWN_ACTION_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          )}
         </label>
 
         <label className="block space-y-1.5 text-xs text-zinc-400">

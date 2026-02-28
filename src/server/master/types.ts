@@ -27,6 +27,7 @@ export interface MasterRun {
   updatedAt: string;
   lastError: string | null;
   pausedForApproval: boolean;
+  pendingApprovalActionType: string | null;
   cancelledAt: string | null;
   cancelReason: string | null;
 }

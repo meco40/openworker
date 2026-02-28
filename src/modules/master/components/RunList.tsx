@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import type { MasterRun } from '@/modules/master/types';
 import { RunStatusBadge } from './RunStatusBadge';
 
@@ -19,6 +19,23 @@ export const RunList: React.FC<RunListProps> = ({
   onSelectRun,
   onPageChange,
 }) => {
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (runs.length === 0) return;
+      const currentIndex = runs.findIndex((r) => r.id === selectedRunId);
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = Math.min(currentIndex + 1, runs.length - 1);
+        onSelectRun(runs[next].id);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prev = Math.max(currentIndex - 1, 0);
+        onSelectRun(runs[prev].id);
+      }
+    },
+    [runs, selectedRunId, onSelectRun],
+  );
+
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
       <h3 className="mb-3 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
@@ -34,11 +51,21 @@ export const RunList: React.FC<RunListProps> = ({
         </div>
       ) : (
         <>
-          <div className="space-y-2">
-            {runs.map((run) => (
+          <div
+            role="listbox"
+            aria-label="Master runs"
+            className="space-y-2"
+            onKeyDown={handleKeyDown}
+          >
+            {runs.map((run, index) => (
               <button
                 key={run.id}
                 type="button"
+                role="option"
+                aria-selected={selectedRunId === run.id}
+                tabIndex={
+                  selectedRunId === run.id || (selectedRunId === null && index === 0) ? 0 : -1
+                }
                 onClick={() => onSelectRun(run.id)}
                 className={`w-full rounded-xl border p-3 text-left transition-all ${
                   selectedRunId === run.id

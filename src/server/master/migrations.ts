@@ -222,4 +222,5 @@ export function runMasterMigrations(db: ReturnType<typeof BetterSqlite3>): void 
 
   ensureColumn(db, 'master_runs', 'cancelled_at', 'TEXT');
   ensureColumn(db, 'master_runs', 'cancel_reason', 'TEXT');
+  ensureColumn(db, 'master_runs', 'pending_approval_action_type', 'TEXT');
 }

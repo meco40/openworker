@@ -30,6 +30,7 @@ function makeRun(overrides: Partial<MasterRun> = {}): MasterRun {
     updatedAt: new Date().toISOString(),
     lastError: null,
     pausedForApproval: false,
+    pendingApprovalActionType: null,
     cancelledAt: null,
     cancelReason: null,
     ...overrides,
@@ -218,9 +219,9 @@ describe('MetricsPanel', () => {
     expect(typeof MetricsPanel).toBe('function');
   });
 
-  it('renders n/a when metrics is null', () => {
+  it('renders empty state when metrics is null', () => {
     const html = renderToStaticMarkup(createElement(MetricsPanel, { metrics: null }));
-    expect(html).toContain('n/a');
+    expect(html).toContain('Select a persona to view metrics');
   });
 
   it('renders formatted percentages', () => {
@@ -237,7 +238,13 @@ describe('MetricsPanel', () => {
   });
 
   it('renders metric labels', () => {
-    const html = renderToStaticMarkup(createElement(MetricsPanel, { metrics: null }));
+    const metrics: MasterMetrics = {
+      run_completion_rate: 0.5,
+      verify_pass_rate: 0.5,
+      delegation_success_rate: 0.5,
+      generated_at: new Date().toISOString(),
+    };
+    const html = renderToStaticMarkup(createElement(MetricsPanel, { metrics }));
     expect(html).toContain('Completion');
     expect(html).toContain('Verify Pass');
     expect(html).toContain('Delegation');

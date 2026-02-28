@@ -57,6 +57,9 @@ function toRun(row: Record<string, unknown>): MasterRun {
     updatedAt: String(row.updated_at),
     lastError: row.last_error ? String(row.last_error) : null,
     pausedForApproval: toBool(row.paused_for_approval),
+    pendingApprovalActionType: row.pending_approval_action_type
+      ? String(row.pending_approval_action_type)
+      : null,
     cancelledAt: row.cancelled_at ? String(row.cancelled_at) : null,
     cancelReason: row.cancel_reason ? String(row.cancel_reason) : null,
   };
@@ -175,6 +178,7 @@ export class SqliteMasterRepository implements MasterRepository {
       resultBundle: 'result_bundle',
       lastError: 'last_error',
       pausedForApproval: 'paused_for_approval',
+      pendingApprovalActionType: 'pending_approval_action_type',
       cancelledAt: 'cancelled_at',
       cancelReason: 'cancel_reason',
     };

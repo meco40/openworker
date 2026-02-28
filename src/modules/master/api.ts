@@ -11,6 +11,7 @@ import type {
   MasterMetrics,
   MasterPersonaSummary,
   ApprovalDecision,
+  WorkspaceSummary,
 } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -28,6 +29,22 @@ async function parseOkJson<T>(response: Response): Promise<T> {
     throw new Error(payload.error ?? `HTTP ${response.status}`);
   }
   return payload;
+}
+
+// ─── Workspaces ───────────────────────────────────────────────────────────────
+
+const FALLBACK_WORKSPACE: WorkspaceSummary = { id: 'main', name: 'Main', slug: 'main' };
+
+export async function fetchWorkspaces(): Promise<WorkspaceSummary[]> {
+  try {
+    const response = await fetch('/api/workspaces', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = (await response.json()) as Array<{ id: string; name: string; slug: string }>;
+    if (!Array.isArray(data) || data.length === 0) return [FALLBACK_WORKSPACE];
+    return data.map((w) => ({ id: w.id, name: w.name, slug: w.slug }));
+  } catch {
+    return [FALLBACK_WORKSPACE];
+  }
 }
 
 // ─── Personas ─────────────────────────────────────────────────────────────────
@@ -153,4 +170,31 @@ export async function cancelRun(
     personaId,
     workspaceId,
   });
+}
+
+// ─── Feedback ─────────────────────────────────────────────────────────────────
+
+export interface SubmitFeedbackInput {
+  runId: string;
+  personaId: string;
+  workspaceId: string;
+  rating: number;
+  policy: 'safe' | 'balanced' | 'fast';
+  comment?: string;
+}
+
+export async function submitFeedback(input: SubmitFeedbackInput): Promise<void> {
+  await parseOkJson<Record<string, unknown>>(
+    await fetch(`/api/master/runs/${input.runId}/feedback`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        personaId: input.personaId,
+        workspaceId: input.workspaceId,
+        rating: input.rating,
+        policy: input.policy,
+        comment: input.comment,
+      }),
+    }),
+  );
 }
