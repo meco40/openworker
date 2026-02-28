@@ -1,6 +1,6 @@
 # OpenClaw Gateway Control Plane
 
-**Stand:** 2026-02-26  
+**Stand:** 2026-02-27  
 **Version:** 0.0.0
 
 ---
