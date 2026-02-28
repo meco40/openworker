@@ -7,7 +7,12 @@
 
 // ─── Re-exports from server ───────────────────────────────────────────────────
 
-export type { MasterRun, MasterRunStatus, ApprovalDecision } from '@/server/master/types';
+export type {
+  MasterRun,
+  MasterRunStatus,
+  ApprovalDecision,
+  MasterStep,
+} from '@/server/master/types';
 
 // ─── Persona summary (minimal shape needed by the UI) ─────────────────────────
 
@@ -15,6 +20,7 @@ export interface MasterPersonaSummary {
   id: string;
   name: string;
   slug: string;
+  emoji?: string;
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────

@@ -5,7 +5,13 @@
  * never build URLs or parse responses directly.
  */
 
-import type { MasterRun, MasterMetrics, MasterPersonaSummary, ApprovalDecision } from './types';
+import type {
+  MasterRun,
+  MasterStep,
+  MasterMetrics,
+  MasterPersonaSummary,
+  ApprovalDecision,
+} from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -27,10 +33,15 @@ async function parseOkJson<T>(response: Response): Promise<T> {
 // ─── Personas ─────────────────────────────────────────────────────────────────
 
 export async function fetchPersonas(): Promise<MasterPersonaSummary[]> {
-  const payload = await parseOkJson<{ personas?: MasterPersonaSummary[] }>(
-    await fetch('/api/personas', { cache: 'no-store' }),
-  );
-  return payload.personas ?? [];
+  const payload = await parseOkJson<{
+    personas?: Array<{ id: string; name: string; slug: string; emoji?: string }>;
+  }>(await fetch('/api/personas', { cache: 'no-store' }));
+  return (payload.personas ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    emoji: p.emoji,
+  }));
 }
 
 // ─── Runs ─────────────────────────────────────────────────────────────────────
@@ -107,4 +118,40 @@ export async function fetchMetrics(
     await fetch(`/api/master/metrics?${params.toString()}`, { cache: 'no-store' }),
   );
   return payload.metrics ?? null;
+}
+
+// ─── Run detail ───────────────────────────────────────────────────────────────
+
+export interface RunDetail {
+  run: MasterRun;
+  steps: MasterStep[];
+}
+
+export async function fetchRunDetail(
+  runId: string,
+  personaId: string,
+  workspaceId: string,
+): Promise<RunDetail | null> {
+  const params = buildScopeParams(personaId, workspaceId);
+  const payload = await parseOkJson<{ run?: MasterRun; steps?: MasterStep[] }>(
+    await fetch(`/api/master/runs/${runId}?${params.toString()}`, { cache: 'no-store' }),
+  );
+  if (!payload.run) return null;
+  return { run: payload.run, steps: payload.steps ?? [] };
+}
+
+// ─── Cancel run ───────────────────────────────────────────────────────────────
+
+export async function cancelRun(
+  runId: string,
+  personaId: string,
+  workspaceId: string,
+): Promise<void> {
+  await parseOkJson<{ run?: MasterRun }>(
+    await fetch(`/api/master/runs/${runId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ personaId, workspaceId, status: 'FAILED' }),
+    }),
+  );
 }

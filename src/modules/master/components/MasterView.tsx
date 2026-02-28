@@ -2,6 +2,7 @@
 
 import React, { useCallback, useState } from 'react';
 import { useMasterView } from '@/modules/master/hooks/useMasterView';
+import ViewErrorBoundary from '@/components/ViewErrorBoundary';
 import { CreateRunForm } from './CreateRunForm';
 import { RunList } from './RunList';
 import { RunControls } from './RunControls';
@@ -95,45 +96,55 @@ const MasterView: React.FC = () => {
 
       {/* ── Create + Metrics ── */}
       <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-        <CreateRunForm
-          personas={view.personas}
-          selectedPersonaId={view.selectedPersonaId}
-          workspaceId={view.workspaceId}
-          runTitle={view.runTitle}
-          runContract={view.runContract}
-          loading={view.loading}
-          onPersonaChange={view.setSelectedPersonaId}
-          onWorkspaceChange={view.setWorkspaceId}
-          onTitleChange={view.setRunTitle}
-          onContractChange={view.setRunContract}
-          onCreateRun={() => void view.createRun()}
-          onRefresh={() => void view.refreshAll()}
-        />
-        <MetricsPanel metrics={view.metrics} />
+        <ViewErrorBoundary label="Create Run Form">
+          <CreateRunForm
+            personas={view.personas}
+            selectedPersonaId={view.selectedPersonaId}
+            workspaceId={view.workspaceId}
+            runTitle={view.runTitle}
+            runContract={view.runContract}
+            loading={view.loading}
+            onPersonaChange={view.setSelectedPersonaId}
+            onWorkspaceChange={view.setWorkspaceId}
+            onTitleChange={view.setRunTitle}
+            onContractChange={view.setRunContract}
+            onCreateRun={() => void view.createRun()}
+            onRefresh={() => void view.refreshAll()}
+          />
+        </ViewErrorBoundary>
+        <ViewErrorBoundary label="Metrics Panel">
+          <MetricsPanel metrics={view.metrics} />
+        </ViewErrorBoundary>
       </div>
 
       {/* ── Runs + Controls ── */}
       <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-        <RunList
-          runs={view.paginatedRuns}
-          selectedRunId={view.selectedRunId}
-          runsPage={view.runsPage}
-          totalRunPages={view.totalRunPages}
-          onSelectRun={view.setSelectedRunId}
-          onPageChange={view.setRunsPage}
-        />
-        <RunControls
-          selectedRun={view.selectedRun}
-          loading={view.loading}
-          onStartRun={(id) => void view.startRun(id)}
-          onExportRun={(id) => {
-            setExportDismissed(false);
-            void view.exportRun(id);
-          }}
-          onSubmitDecision={(actionType, decision) =>
-            void view.submitDecision(actionType, decision)
-          }
-        />
+        <ViewErrorBoundary label="Run List">
+          <RunList
+            runs={view.paginatedRuns}
+            selectedRunId={view.selectedRunId}
+            runsPage={view.runsPage}
+            totalRunPages={view.totalRunPages}
+            onSelectRun={view.setSelectedRunId}
+            onPageChange={view.setRunsPage}
+          />
+        </ViewErrorBoundary>
+        <ViewErrorBoundary label="Run Controls">
+          <RunControls
+            selectedRun={view.selectedRun}
+            runSteps={view.selectedRunDetail?.steps ?? []}
+            loading={view.loading}
+            onStartRun={(id) => void view.startRun(id)}
+            onExportRun={(id) => {
+              setExportDismissed(false);
+              void view.exportRun(id);
+            }}
+            onCancelRun={(id) => void view.cancelRun(id)}
+            onSubmitDecision={(actionType, decision) =>
+              void view.submitDecision(actionType, decision)
+            }
+          />
+        </ViewErrorBoundary>
       </div>
 
       {/* ── Export bundle ── */}
@@ -142,7 +153,9 @@ const MasterView: React.FC = () => {
       )}
 
       {/* ── Learning loop ── */}
-      <MasterLearningPanel metrics={view.metrics} />
+      <ViewErrorBoundary label="Learning Loop">
+        <MasterLearningPanel metrics={view.metrics} />
+      </ViewErrorBoundary>
     </section>
   );
 };

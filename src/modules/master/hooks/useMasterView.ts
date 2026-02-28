@@ -18,8 +18,11 @@ import {
   fetchPersonas,
   fetchRuns,
   fetchMetrics,
+  fetchRunDetail,
+  cancelRun as apiCancelRun,
   createRun as apiCreateRun,
   postRunAction,
+  type RunDetail,
 } from '@/modules/master/api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -48,6 +51,7 @@ export interface UseMasterViewResult {
   runsPage: number;
   totalRunPages: number;
   selectedRun: MasterRun | null;
+  selectedRunDetail: RunDetail | null;
   metrics: MasterMetrics | null;
   exportBundle: string | null;
   // UI state
@@ -71,6 +75,7 @@ export interface UseMasterViewResult {
   createRun: () => Promise<void>;
   startRun: (runId: string) => Promise<void>;
   exportRun: (runId: string) => Promise<void>;
+  cancelRun: (runId: string) => Promise<void>;
   submitDecision: (actionType: string, decision: ApprovalDecision) => Promise<void>;
   refreshAll: () => Promise<void>;
 }
@@ -94,6 +99,7 @@ export function useMasterView(): UseMasterViewResult {
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
   const [exportBundle, setExportBundle] = useState<string | null>(null);
   const [runsPage, setRunsPage] = useState(0);
+  const [selectedRunDetail, setSelectedRunDetail] = useState<RunDetail | null>(null);
 
   // Auto-dismiss status message after 5s
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -232,6 +238,22 @@ export function useMasterView(): UseMasterViewResult {
     [selectedPersonaId, workspaceId, showStatus],
   );
 
+  const cancelRun = useCallback(
+    async (runId: string) => {
+      setLoading(true);
+      try {
+        await apiCancelRun(runId, selectedPersonaId, workspaceId);
+        showStatus({ tone: 'info', text: 'Run cancelled.' });
+        await refreshAll();
+      } catch (error) {
+        showStatus({ tone: 'error', text: toErrorMessage(error) });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [refreshAll, selectedPersonaId, workspaceId, showStatus],
+  );
+
   const submitDecision = useCallback(
     async (actionType: string, decision: ApprovalDecision) => {
       if (!selectedRunId) {
@@ -287,6 +309,17 @@ export function useMasterView(): UseMasterViewResult {
     return () => clearInterval(interval);
   }, [hasActiveRuns, refreshAll, selectedPersonaId, workspaceId]);
 
+  // Load run detail when selectedRunId changes
+  useEffect(() => {
+    if (!selectedRunId || !selectedPersonaId || !workspaceId) {
+      setSelectedRunDetail(null);
+      return;
+    }
+    fetchRunDetail(selectedRunId, selectedPersonaId, workspaceId)
+      .then((detail) => setSelectedRunDetail(detail))
+      .catch(() => setSelectedRunDetail(null));
+  }, [selectedRunId, selectedPersonaId, workspaceId]);
+
   return {
     personas,
     runs,
@@ -294,6 +327,7 @@ export function useMasterView(): UseMasterViewResult {
     runsPage,
     totalRunPages,
     selectedRun,
+    selectedRunDetail,
     metrics,
     exportBundle,
     loading,
@@ -314,6 +348,7 @@ export function useMasterView(): UseMasterViewResult {
     createRun,
     startRun,
     exportRun,
+    cancelRun,
     submitDecision,
     refreshAll,
   };

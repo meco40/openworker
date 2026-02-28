@@ -1,23 +1,33 @@
 import React from 'react';
-import type { MasterRun, ApprovalDecision } from '@/modules/master/types';
+import type { MasterRun, MasterStep, ApprovalDecision } from '@/modules/master/types';
 import { RunStatusBadge } from './RunStatusBadge';
 import { ApprovalDecisionForm } from './ApprovalDecisionForm';
+import { RunDetailPanel } from './RunDetailPanel';
 
 interface RunControlsProps {
   selectedRun: MasterRun | null;
+  runSteps: MasterStep[];
   loading: boolean;
   onStartRun: (runId: string) => void;
   onExportRun: (runId: string) => void;
+  onCancelRun: (runId: string) => void;
   onSubmitDecision: (actionType: string, decision: ApprovalDecision) => void;
 }
 
 export const RunControls: React.FC<RunControlsProps> = ({
   selectedRun,
+  runSteps,
   loading,
   onStartRun,
   onExportRun,
+  onCancelRun,
   onSubmitDecision,
 }) => {
+  const isFinished =
+    selectedRun?.status === 'COMPLETED' ||
+    selectedRun?.status === 'FAILED' ||
+    selectedRun?.status === 'IDLE';
+
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
       <h3 className="mb-3 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
@@ -73,12 +83,26 @@ export const RunControls: React.FC<RunControlsProps> = ({
             >
               Export Bundle
             </button>
+            {/* Cancel – only for non-finished runs */}
+            {!isFinished && (
+              <button
+                type="button"
+                onClick={() => onCancelRun(selectedRun.id)}
+                disabled={loading}
+                className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel Run
+              </button>
+            )}
           </div>
 
           {/* Approval form – only when paused for approval */}
           {selectedRun.pausedForApproval && (
             <ApprovalDecisionForm loading={loading} onSubmit={onSubmitDecision} />
           )}
+
+          {/* Run detail panel */}
+          <RunDetailPanel steps={runSteps} />
         </div>
       )}
     </section>

@@ -47,7 +47,7 @@ export const CreateRunForm: React.FC<CreateRunFormProps> = ({
             <option value="">Select persona</option>
             {personas.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name}
+                {p.emoji ? `${p.emoji} ${p.name}` : p.name}
               </option>
             ))}
           </select>
