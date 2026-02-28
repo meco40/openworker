@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { MasterRun, ApprovalDecision } from '@/modules/master/types';
 import { RunStatusBadge } from './RunStatusBadge';
 import { ApprovalDecisionForm } from './ApprovalDecisionForm';
@@ -21,6 +21,11 @@ export const RunControls: React.FC<RunControlsProps> = ({
   onSubmitDecision,
 }) => {
   const [cancelPending, setCancelPending] = useState(false);
+
+  // Reset confirm dialog when the selected run changes
+  useEffect(() => {
+    setCancelPending(false);
+  }, [selectedRun?.id]);
 
   const isFinished =
     selectedRun?.status === 'COMPLETED' ||

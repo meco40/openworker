@@ -147,7 +147,7 @@ const MasterView: React.FC = () => {
 
       {/* ── Feedback – only for completed runs ── */}
       {view.selectedRun?.status === 'COMPLETED' && (
-        <ViewErrorBoundary label="Run Feedback">
+        <ViewErrorBoundary key={view.selectedRun.id} label="Run Feedback">
           <RunFeedbackPanel
             runId={view.selectedRun.id}
             loading={view.loadingAction === 'submitting-feedback'}

@@ -10,8 +10,6 @@ interface Params {
 }
 
 interface FeedbackBody {
-  personaId?: string;
-  workspaceId?: string;
   rating?: unknown;
   policy?: unknown;
   comment?: unknown;
@@ -46,7 +44,8 @@ export async function POST(request: Request, { params }: { params: Promise<Param
     const comment =
       body.comment !== undefined && body.comment !== null ? String(body.comment).trim() : null;
 
-    const scope = resolveScopeFromRequest(request, userId, body);
+    // Scope comes from URL query params (personaId, workspaceId), not from the POST body
+    const scope = resolveScopeFromRequest(request, userId);
     const repo = getMasterRepository();
 
     const run = repo.getRun(scope, id);

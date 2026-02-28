@@ -223,4 +223,10 @@ export function runMasterMigrations(db: ReturnType<typeof BetterSqlite3>): void 
   ensureColumn(db, 'master_runs', 'cancelled_at', 'TEXT');
   ensureColumn(db, 'master_runs', 'cancel_reason', 'TEXT');
   ensureColumn(db, 'master_runs', 'pending_approval_action_type', 'TEXT');
+
+  // Idempotency: one feedback record per (run, user) — upsert-safe
+  db.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_master_feedback_run_user
+     ON master_feedback (run_id, user_id)`,
+  );
 }

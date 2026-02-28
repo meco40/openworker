@@ -256,7 +256,7 @@ export class SqliteMasterRepository implements MasterRepository {
     const createdAt = nowIso();
     this.db
       .prepare(
-        `INSERT INTO master_feedback (id, run_id, user_id, workspace_id, rating, policy, comment, created_at)
+        `INSERT OR REPLACE INTO master_feedback (id, run_id, user_id, workspace_id, rating, policy, comment, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(

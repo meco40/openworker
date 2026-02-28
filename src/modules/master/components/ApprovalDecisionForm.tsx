@@ -16,9 +16,9 @@ export const ApprovalDecisionForm: React.FC<ApprovalDecisionFormProps> = ({
   const [actionType, setActionType] = useState<string>(pendingActionType ?? KNOWN_ACTION_TYPES[0]);
   const [decision, setDecision] = useState<ApprovalDecision>('approve_once');
 
-  // Sync actionType if parent provides a new pendingActionType
+  // Sync actionType whenever pendingActionType changes (including reset to default when cleared)
   useEffect(() => {
-    if (pendingActionType) setActionType(pendingActionType);
+    setActionType(pendingActionType ?? KNOWN_ACTION_TYPES[0]);
   }, [pendingActionType]);
 
   return (

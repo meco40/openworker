@@ -94,7 +94,7 @@ export interface UseMasterViewResult {
   exportRun: (runId: string) => Promise<void>;
   cancelRun: (runId: string) => Promise<void>;
   submitDecision: (actionType: string, decision: ApprovalDecision) => Promise<void>;
-  submitFeedback: (input: Omit<SubmitFeedbackInput, 'personaId' | 'workspaceId'>) => Promise<void>;
+  submitFeedback: (input: SubmitFeedbackInput) => Promise<void>;
   dismissExportBundle: () => void;
   refreshAll: () => Promise<void>;
 }
@@ -238,6 +238,8 @@ export function useMasterView(): UseMasterViewResult {
 
   const startRun = useCallback(
     async (runId: string) => {
+      // Optimistic update – show EXECUTING immediately
+      setRuns((prev) => prev.map((r) => (r.id === runId ? { ...r, status: 'EXECUTING' } : r)));
       setLoadingAction('starting');
       try {
         await postRunAction(runId, {
@@ -250,6 +252,8 @@ export function useMasterView(): UseMasterViewResult {
         await refreshAll();
       } catch (error) {
         showStatus({ tone: 'error', text: toErrorMessage(error) });
+        // Revert optimistic update on failure
+        await refreshAll();
       } finally {
         setLoadingAction(null);
       }
@@ -283,6 +287,12 @@ export function useMasterView(): UseMasterViewResult {
 
   const cancelRun = useCallback(
     async (runId: string) => {
+      // Optimistic update – show CANCELLED immediately
+      setRuns((prev) =>
+        prev.map((r) =>
+          r.id === runId ? { ...r, status: 'CANCELLED', pausedForApproval: false } : r,
+        ),
+      );
       setLoadingAction('cancelling');
       try {
         await apiCancelRun(runId, selectedPersonaId, workspaceId);
@@ -290,6 +300,8 @@ export function useMasterView(): UseMasterViewResult {
         await refreshAll();
       } catch (error) {
         showStatus({ tone: 'error', text: toErrorMessage(error) });
+        // Revert optimistic update on failure
+        await refreshAll();
       } finally {
         setLoadingAction(null);
       }
@@ -324,14 +336,10 @@ export function useMasterView(): UseMasterViewResult {
   );
 
   const submitFeedback = useCallback(
-    async (input: Omit<SubmitFeedbackInput, 'personaId' | 'workspaceId'>) => {
+    async (input: SubmitFeedbackInput) => {
       setLoadingAction('submitting-feedback');
       try {
-        await apiSubmitFeedback({
-          ...input,
-          personaId: selectedPersonaId,
-          workspaceId,
-        });
+        await apiSubmitFeedback(input, selectedPersonaId, workspaceId);
         showStatus({ tone: 'success', text: 'Feedback submitted.' });
       } catch (error) {
         showStatus({ tone: 'error', text: toErrorMessage(error) });

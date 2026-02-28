@@ -101,17 +101,18 @@ describe('master feedback route', () => {
 
     // Attempt feedback on non-completed run → 422
     const feedbackRes = await feedbackRoute.POST(
-      new Request(`http://localhost/api/master/runs/${runId}/feedback`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          personaId: persona.id,
-          workspaceId: 'w1',
-          rating: 4,
-          policy: 'balanced',
-          comment: 'Good job',
-        }),
-      }),
+      new Request(
+        `http://localhost/api/master/runs/${runId}/feedback?personaId=${persona.id}&workspaceId=w1`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            rating: 4,
+            policy: 'balanced',
+            comment: 'Good job',
+          }),
+        },
+      ),
       { params: Promise.resolve({ id: runId }) },
     );
 
@@ -163,17 +164,18 @@ describe('master feedback route', () => {
 
     // Submit feedback
     const feedbackRes = await feedbackRoute.POST(
-      new Request(`http://localhost/api/master/runs/${runId}/feedback`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          personaId: persona.id,
-          workspaceId: 'w1',
-          rating: 5,
-          policy: 'safe',
-          comment: 'Excellent!',
-        }),
-      }),
+      new Request(
+        `http://localhost/api/master/runs/${runId}/feedback?personaId=${persona.id}&workspaceId=w1`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            rating: 5,
+            policy: 'safe',
+            comment: 'Excellent!',
+          }),
+        },
+      ),
       { params: Promise.resolve({ id: runId }) },
     );
 
@@ -192,12 +194,10 @@ describe('master feedback route', () => {
     const feedbackRoute = await import('../../../app/api/master/runs/[id]/feedback/route');
 
     const feedbackRes = await feedbackRoute.POST(
-      new Request('http://localhost/api/master/runs/fake-id/feedback', {
+      new Request('http://localhost/api/master/runs/fake-id/feedback?personaId=p1&workspaceId=w1', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          personaId: 'p1',
-          workspaceId: 'w1',
           rating: 6,
           policy: 'balanced',
         }),

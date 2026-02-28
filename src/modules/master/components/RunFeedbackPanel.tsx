@@ -4,7 +4,7 @@ import type { SubmitFeedbackInput } from '@/modules/master/api';
 interface RunFeedbackPanelProps {
   runId: string;
   loading: boolean;
-  onSubmit: (input: Omit<SubmitFeedbackInput, 'personaId' | 'workspaceId'>) => void;
+  onSubmit: (input: SubmitFeedbackInput) => void;
 }
 
 type PolicyOption = 'safe' | 'balanced' | 'fast';

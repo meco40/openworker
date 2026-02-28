@@ -176,21 +176,22 @@ export async function cancelRun(
 
 export interface SubmitFeedbackInput {
   runId: string;
-  personaId: string;
-  workspaceId: string;
   rating: number;
   policy: 'safe' | 'balanced' | 'fast';
   comment?: string;
 }
 
-export async function submitFeedback(input: SubmitFeedbackInput): Promise<void> {
+export async function submitFeedback(
+  input: SubmitFeedbackInput,
+  personaId: string,
+  workspaceId: string,
+): Promise<void> {
+  const params = buildScopeParams(personaId, workspaceId);
   await parseOkJson<Record<string, unknown>>(
-    await fetch(`/api/master/runs/${input.runId}/feedback`, {
+    await fetch(`/api/master/runs/${input.runId}/feedback?${params.toString()}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        personaId: input.personaId,
-        workspaceId: input.workspaceId,
         rating: input.rating,
         policy: input.policy,
         comment: input.comment,
