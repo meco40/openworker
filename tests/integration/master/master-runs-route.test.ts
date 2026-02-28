@@ -212,6 +212,28 @@ describe('master routes', () => {
       }),
     );
     expect(reminderCreateResponse.status).toBe(201);
+
+    const cancelResponse = await actionsRoute.POST(
+      new Request(`http://localhost/api/master/runs/${runId}/actions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          personaId: persona.id,
+          workspaceId: 'w1',
+          stepId: 'step-cancel',
+          actionType: 'run.cancel',
+        }),
+      }),
+      { params: Promise.resolve({ id: runId }) },
+    );
+    expect(cancelResponse.status).toBe(200);
+    const cancelPayload = (await cancelResponse.json()) as {
+      ok: boolean;
+      run: { status: string; lastError: string | null };
+    };
+    expect(cancelPayload.ok).toBe(true);
+    expect(cancelPayload.run.status).toBe('CANCELLED');
+    expect(String(cancelPayload.run.lastError || '')).toContain('cancelled');
   });
 
   it('blocks cross-workspace access for same persona', async () => {

@@ -5,6 +5,7 @@ import {
   evaluateTriggerPolicy,
   resetTriggerPolicyState,
 } from '@/server/master/delegation/triggerPolicy';
+import { DelegationDispatcher } from '@/server/master/delegation/dispatcher';
 import { DelegationResourceGovernor } from '@/server/master/delegation/resourceGovernor';
 import { recoverDelegationQueue } from '@/server/master/delegation/recovery';
 import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
@@ -37,6 +38,7 @@ describe('master delegation policy', () => {
     expect(governor.tryAcquire('web_search')).toBe(false);
 
     const first = evaluateTriggerPolicy({
+      scopeKey: 'user-1::ws-1',
       capability: 'web_search',
       now: 1000,
       timeoutMs: 1000,
@@ -48,6 +50,7 @@ describe('master delegation policy', () => {
     expect(first.allowed).toBe(true);
 
     const cooldownBlocked = evaluateTriggerPolicy({
+      scopeKey: 'user-1::ws-1',
       capability: 'web_search',
       now: 1100,
       timeoutMs: 1000,
@@ -60,6 +63,7 @@ describe('master delegation policy', () => {
     expect(cooldownBlocked.reason).toBe('cooldown_active');
 
     const capacityBlocked = evaluateTriggerPolicy({
+      scopeKey: 'user-1::ws-1',
       capability: 'code',
       now: 2000,
       timeoutMs: 1000,
@@ -96,6 +100,48 @@ describe('master delegation policy', () => {
     expect(recovered).toBe(1);
     const jobs = repo.listDelegationJobs(scope, run.id);
     expect(jobs.find((entry) => entry.id === job.id)?.status).toBe('queued');
+
+    repo.close();
+  });
+
+  it('does not share cooldown across different workspace scopes', async () => {
+    const dbPath = uniqueDbPath();
+    cleanupFiles.push(dbPath);
+    const repo = new SqliteMasterRepository(dbPath);
+    const dispatcher = new DelegationDispatcher(repo);
+
+    const scopeA = { userId: 'user-1', workspaceId: 'ws-a' };
+    const scopeB = { userId: 'user-1', workspaceId: 'ws-b' };
+    const runA = repo.createRun({
+      userId: scopeA.userId,
+      workspaceId: scopeA.workspaceId,
+      title: 'run-a',
+      contract: 'contract-a',
+    });
+    const runB = repo.createRun({
+      userId: scopeB.userId,
+      workspaceId: scopeB.workspaceId,
+      title: 'run-b',
+      contract: 'contract-b',
+    });
+
+    const first = await dispatcher.dispatch({
+      scope: scopeA,
+      runId: runA.id,
+      capability: 'web_search',
+      payload: '{}',
+      task: async () => ({ output: 'ok-a', confidence: 0.9 }),
+    });
+    const second = await dispatcher.dispatch({
+      scope: scopeB,
+      runId: runB.id,
+      capability: 'web_search',
+      payload: '{}',
+      task: async () => ({ output: 'ok-b', confidence: 0.9 }),
+    });
+
+    expect(first.accepted).toBe(true);
+    expect(second.accepted).toBe(true);
 
     repo.close();
   });

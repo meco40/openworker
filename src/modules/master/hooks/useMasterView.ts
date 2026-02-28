@@ -100,6 +100,7 @@ export function useMasterView(): UseMasterViewResult {
   const [exportBundle, setExportBundle] = useState<string | null>(null);
   const [runsPage, setRunsPage] = useState(0);
   const [selectedRunDetail, setSelectedRunDetail] = useState<RunDetail | null>(null);
+  const refreshInFlightRef = useRef(false);
 
   // Auto-dismiss status message after 5s
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -139,29 +140,31 @@ export function useMasterView(): UseMasterViewResult {
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
-  const loadRuns = useCallback(async () => {
-    if (!selectedPersonaId || !workspaceId) return;
-    const nextRuns = await fetchRuns(selectedPersonaId, workspaceId);
+  const loadRuns = useCallback(async (personaId: string, workspace: string) => {
+    const nextRuns = await fetchRuns(personaId, workspace);
     setRuns(nextRuns);
-    if (!selectedRunId && nextRuns.length > 0) {
-      setSelectedRunId(nextRuns[0].id);
-    }
-  }, [selectedPersonaId, workspaceId, selectedRunId]);
+    setSelectedRunId((prev) => prev || nextRuns[0]?.id || null);
+  }, []);
 
-  const loadMetrics = useCallback(async () => {
-    if (!selectedPersonaId || !workspaceId) return;
-    const nextMetrics = await fetchMetrics(selectedPersonaId, workspaceId);
+  const loadMetrics = useCallback(async (personaId: string, workspace: string) => {
+    const nextMetrics = await fetchMetrics(personaId, workspace);
     setMetrics(nextMetrics);
-  }, [selectedPersonaId, workspaceId]);
+  }, []);
 
   const refreshAll = useCallback(async () => {
     if (!selectedPersonaId || !workspaceId) return;
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
     setLoading(true);
     try {
-      await Promise.all([loadRuns(), loadMetrics()]);
+      await Promise.all([
+        loadRuns(selectedPersonaId, workspaceId),
+        loadMetrics(selectedPersonaId, workspaceId),
+      ]);
     } catch (error) {
       showStatus({ tone: 'error', text: toErrorMessage(error) });
     } finally {
+      refreshInFlightRef.current = false;
       setLoading(false);
     }
   }, [loadMetrics, loadRuns, selectedPersonaId, workspaceId, showStatus]);

@@ -49,6 +49,11 @@ const STATUS_CONFIG: Record<MasterRunStatus, StatusConfig> = {
     className: 'bg-indigo-500/15 text-indigo-200 border-indigo-500/30',
     pulse: false,
   },
+  CANCELLED: {
+    label: 'Cancelled',
+    className: 'bg-zinc-500/15 text-zinc-300 border-zinc-500/30',
+    pulse: false,
+  },
   FAILED: {
     label: 'Failed',
     className: 'bg-rose-500/15 text-rose-200 border-rose-500/30',

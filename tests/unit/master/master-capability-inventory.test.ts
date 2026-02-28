@@ -26,7 +26,7 @@ describe('master capability inventory', () => {
     }
   });
 
-  it('builds inventory and updates confidence during 03:00 cycle', () => {
+  it('builds inventory and updates confidence during 03:00 cycle', async () => {
     const dbPath = uniqueDbPath();
     cleanupFiles.push(dbPath);
     const repo = new SqliteMasterRepository(dbPath);
@@ -36,7 +36,7 @@ describe('master capability inventory', () => {
     expect(inventory.length).toBeGreaterThan(3);
 
     const before = repo.listCapabilityScores(scope).map((entry) => entry.confidence);
-    const cycle = runCapabilityUnderstandingCycle(
+    const cycle = await runCapabilityUnderstandingCycle(
       repo,
       scope,
       new Date('2026-02-27T03:00:00.000Z'),

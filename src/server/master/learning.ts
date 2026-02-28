@@ -16,12 +16,12 @@ export function recommendLearningPolicy(input: {
   return 'balanced';
 }
 
-export function runDailyLearningLoop(
+export async function runDailyLearningLoop(
   repo: MasterRepository,
   scope: WorkspaceScope,
   now = new Date(),
-): { executed: boolean; updated: number; scheduledAt: string } {
-  const cycle = runCapabilityUnderstandingCycle(repo, scope, now);
+): Promise<{ executed: boolean; updated: number; scheduledAt: string }> {
+  const cycle = await runCapabilityUnderstandingCycle(repo, scope, now);
   return {
     executed: cycle.executed,
     updated: cycle.updated,

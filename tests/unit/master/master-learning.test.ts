@@ -30,7 +30,7 @@ describe('master learning', () => {
     }
   });
 
-  it('runs one cycle at 03:00 and returns policy recommendation', () => {
+  it('runs one cycle at 03:00 and returns policy recommendation', async () => {
     const dbPath = uniqueDbPath();
     cleanupFiles.push(dbPath);
     const repo = new SqliteMasterRepository(dbPath);
@@ -40,7 +40,7 @@ describe('master learning', () => {
     expect(isLearningWindow(new Date('2026-02-27T03:00:00.000Z'))).toBe(true);
     expect(isLearningWindow(new Date('2026-02-27T02:59:00.000Z'))).toBe(false);
 
-    const cycle = runDailyLearningLoop(repo, scope, new Date('2026-02-27T03:00:00.000Z'));
+    const cycle = await runDailyLearningLoop(repo, scope, new Date('2026-02-27T03:00:00.000Z'));
     expect(cycle.executed).toBe(true);
     expect(cycle.updated).toBeGreaterThan(0);
 

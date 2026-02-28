@@ -67,10 +67,10 @@ function buildScopeKey(scope: { userId: string; workspaceId: string }): string {
   return `${scope.userId}::${scope.workspaceId}`;
 }
 
-export function runMasterMaintenanceTick(
+export async function runMasterMaintenanceTick(
   repo: MasterRepository,
   now = new Date(),
-): { executedScopes: number; skippedScopes: number; dateKey: string } {
+): Promise<{ executedScopes: number; skippedScopes: number; dateKey: string }> {
   const dateKey = currentDayKey(now);
   const tracker = ensureMaintenanceState();
   const scopes = repo.listKnownScopes();
@@ -86,15 +86,21 @@ export function runMasterMaintenanceTick(
     const hasActiveRuns = repo
       .listRuns(scope, 200)
       .some((run) =>
-        ['ANALYZING', 'PLANNING', 'DELEGATING', 'EXECUTING', 'VERIFYING', 'REFINING'].includes(
-          run.status,
-        ),
+        [
+          'ANALYZING',
+          'PLANNING',
+          'DELEGATING',
+          'EXECUTING',
+          'VERIFYING',
+          'REFINING',
+          'AWAITING_APPROVAL',
+        ].includes(run.status),
       );
     if (hasActiveRuns) {
       skippedScopes += 1;
       continue;
     }
-    const cycle = runDailyLearningLoop(repo, scope, now);
+    const cycle = await runDailyLearningLoop(repo, scope, now);
     if (cycle.executed) {
       tracker.set(scopeKey, dateKey);
       executedScopes += 1;
@@ -111,11 +117,9 @@ function ensureMasterMaintenanceScheduler(): void {
     return;
   }
   const timer = setInterval(() => {
-    try {
-      runMasterMaintenanceTick(getMasterRepository(), new Date());
-    } catch {
+    void runMasterMaintenanceTick(getMasterRepository(), new Date()).catch(() => {
       // swallow scheduler errors; operational monitoring is handled by metrics endpoint
-    }
+    });
   }, 60_000);
   timer.unref?.();
   globalThis.__masterMaintenanceInterval = timer;

@@ -30,6 +30,8 @@ function makeRun(overrides: Partial<MasterRun> = {}): MasterRun {
     updatedAt: new Date().toISOString(),
     lastError: null,
     pausedForApproval: false,
+    cancelledAt: null,
+    cancelReason: null,
     ...overrides,
   };
 }
@@ -52,6 +54,7 @@ describe('RunStatusBadge', () => {
     'REFINING',
     'AWAITING_APPROVAL',
     'COMPLETED',
+    'CANCELLED',
     'FAILED',
   ];
 

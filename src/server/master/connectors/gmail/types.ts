@@ -4,6 +4,9 @@ export interface GmailMessage {
   to: string;
   subject: string;
   body: string;
+  bodyText?: string;
+  snippet?: string;
+  warnings?: string[];
   createdAt: string;
 }
 

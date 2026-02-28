@@ -8,6 +8,7 @@ export type MasterRunStatus =
   | 'REFINING'
   | 'AWAITING_APPROVAL'
   | 'COMPLETED'
+  | 'CANCELLED'
   | 'FAILED';
 
 export type ApprovalDecision = 'approve_once' | 'approve_always' | 'deny';
@@ -26,6 +27,8 @@ export interface MasterRun {
   updatedAt: string;
   lastError: string | null;
   pausedForApproval: boolean;
+  cancelledAt: string | null;
+  cancelReason: string | null;
 }
 
 export interface MasterStep {

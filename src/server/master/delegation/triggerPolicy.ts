@@ -1,4 +1,5 @@
 export interface TriggerPolicyInput {
+  scopeKey: string;
   capability: string;
   now: number;
   timeoutMs: number;
@@ -15,8 +16,13 @@ export interface TriggerPolicyResult {
 
 const lastCapabilityTriggerAt = new Map<string, number>();
 
+function triggerKey(scopeKey: string, capability: string): string {
+  return `${scopeKey}::${capability}`;
+}
+
 export function evaluateTriggerPolicy(input: TriggerPolicyInput): TriggerPolicyResult {
-  const lastAt = lastCapabilityTriggerAt.get(input.capability) ?? 0;
+  const key = triggerKey(input.scopeKey, input.capability);
+  const lastAt = lastCapabilityTriggerAt.get(key) ?? 0;
   if (input.now > lastAt && input.now - lastAt < input.cooldownMs) {
     return { allowed: false, reason: 'cooldown_active' };
   }
@@ -29,7 +35,7 @@ export function evaluateTriggerPolicy(input: TriggerPolicyInput): TriggerPolicyR
   if (input.timeoutMs <= 0) {
     return { allowed: false, reason: 'budget_exceeded' };
   }
-  lastCapabilityTriggerAt.set(input.capability, input.now);
+  lastCapabilityTriggerAt.set(key, input.now);
   return { allowed: true };
 }
 

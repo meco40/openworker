@@ -338,3 +338,31 @@ Files >300 lines identified for potential future modularization:
 - 2026-02-28T03:24:32Z [DISCOVERIES] [TOOL] Initiale Vollsuite zeigte 1 Fail in `tests/unit/master/master-view-utility.test.ts` (veraltete String-Assertions nach Master-View-Modularisierung) und nach erstem Fix zusätzlich 4 Flaky-Fails in `tests/unit/channels/ai-dispatcher-tool-loop.test.ts` durch Mock-Isolation bei `unit-fast` mit `isolate:false`.
 - 2026-02-28T03:24:32Z [PROGRESS] [CODE] `master-view-utility.test.ts` auf modulübergreifende Contracts angepasst (`CreateRunForm.tsx`, `api.ts`, `useMasterView.ts`, `ApprovalDecisionForm.tsx`); `ai-dispatcher-tool-loop.test.ts` auf robustes `vi.resetModules()` + `vi.doMock()` + dynamischen SUT-Import umgestellt; Prettier/Lint-Fixes angewendet.
 - 2026-02-28T03:24:32Z [OUTCOMES] [TOOL] Endverifikation grün: `npm run check` (typecheck+lint 0/0+format:check), `npm test` (433/433 Dateien, 2007/2007 Tests), `npm run build` (Next.js build erfolgreich, Exit 0).
+
+- 2026-02-28T07:06:03Z [PLANS] [USER] Komplette Prüfung mit
+  pm run lint,
+  pm test,
+  pm run build für aktuellen main-Stand angefordert.
+- 2026-02-28T07:06:03Z [OUTCOMES] [TOOL] Ergebnis:
+  pm run lint erfolgreich (0 Warnungen/0 Fehler),
+  pm test fehlgeschlagen mit 2 Tests ( ests/unit/components/agent-room-navigation.test.ts, ests/unit/model-hub/service-reasoning-effort.test.ts),
+  pm run build erfolgreich (Next.js 16.1.6/Turbopack).
+- 2026-02-28T07:06:03Z [DISCOVERIES] [TOOL] Nach Test/Build bleibt Arbeitsbaum nicht ganz sauber:
+  ext-env.d.ts wurde geändert (git status: M next-env.d.ts).
+
+- 2026-02-28T08:07:48Z [PLANS] [USER] Code-Audit der Master-Runtime-Befunde angefordert (Lifecycle, ExecutionRuntime, Delegation, Approval, Safety, Gmail, Hook-Refresh).
+- 2026-02-28T08:07:48Z [DISCOVERIES] [CODE] Audit bestätigt: xecutionRuntime.ts nutzt regex-basierten Plan (uildExecutionPlan), erzwingt web_search und begrenzt auf 2 Capabilities; code_generation schreibt statisches Markdown-Template; Verifikation ist some(trim().length > 0); Tool-Context setzt ypassApproval: true; riggerPolicy-Cooldown ist global pro Capability über Modul-Map; cancelRun setzt Run-Status auf FAILED; Gmail-Real-Mode liefert nur Message-IDs mit leerem Body.
+- 2026-02-28T08:07:48Z [DISCOVERIES] [CODE] Präzisierung: Lifecycle-Übergang PLANNING -> DELEGATING wird über orchestrator.advanceRun() persistiert (
+  epo.updateRun), kein in-memory-only Sprung; zweiter Übergang nach EXECUTING erfolgt später im Ablauf.
+- 2026-02-28T08:07:48Z [OUTCOMES] [TOOL] Punktweiser Faktenabgleich gegen Quellcode abgeschlossen; Befundliste für User mit Validierung/Abweichungen vorbereitet.
+- 2026-02-28T09:46:00+01:00 [PLANS] [USER] Umsetzung des Production-Ready-Plans „Master Runtime Hardening + AI Runtime V2" angefordert (Lifecycle/CANCELLED, Unified Approval, Safety-Gate, AI-Planning/Codegen, Verify-V2, Delegation-Scope, Gmail-Details, Hook-Stabilität, Learning-V2).
+- 2026-02-28T09:46:00+01:00 [DECISIONS] [CODE] V2-Härtung als additive, kompatible Erweiterung umgesetzt: bestehende Routenpfade bleiben; neue Status/Bundle-Felder und Runtime-Gates sind backward-kompatibel mit Fallbacks.
+- 2026-02-28T09:46:00+01:00 [PROGRESS] [CODE] Implementiert: `CANCELLED`-Lifecycle + Cancel-Metadaten + DB-Migration; Runtime ohne globales Approval-Bypass; zentraler Runtime-Approval-Resolver; Safety-Brücke für `system_ops`; modellgestützter Planer/Codegen mit deterministischem Fallback; Verify-V2-Modul mit `passed|failed|needs_refinement`; Delegation-Cooldown scope-isoliert + env-konfigurierbar; Gmail-Real-Mode mit Detailabruf (`format=full`) inkl. Header/Body/Snippet; `useMasterView` gegen Refresh-Overlaps stabilisiert; optionaler AI-Schritt im Understanding-Loop.
+- 2026-02-28T09:46:00+01:00 [DISCOVERIES] [CODE] `next-env.d.ts` und `tsconfig.tsbuildinfo` sind im Arbeitsbaum modifiziert (bestehende/automatisch generierte Drift, UNCONFIRMED bzgl. fachlicher Relevanz); keine destruktive Bereinigung vorgenommen.
+- 2026-02-28T09:46:00+01:00 [OUTCOMES] [TOOL] Vollverifikation nach V2-Umsetzung grün: `npm run typecheck`, `npm run lint`, `npm run build`, `npm test -- tests/unit/master tests/integration/master tests/unit/modules/master` (27 Dateien / 89 Tests), `npm test` (436 Dateien / 2016 Tests).
+- 2026-02-28T09:55:25+01:00 [PROGRESS] [CODE] Rollout-Flags ergänzt: `MASTER_UNIFIED_APPROVALS` (Runtime-Approval-Resolver on/off), `MASTER_VERIFY_GATE_V2` (Verify-V2 vs. Legacy-Non-Empty-Gate), `MASTER_GMAIL_FETCH_DETAILS` (Real-Mode-Detailabruf vs. Metadata-Fallback).
+- 2026-02-28T09:55:25+01:00 [DISCOVERIES] [TOOL] `npm test` zeigte einmalig 1 Fail in `tests/unit/model-hub/service-reasoning-effort.test.ts`; isolierter Rerun war grün, anschließender Full-Rerun ebenfalls vollständig grün (flaky Verhalten, UNCONFIRMED Root Cause).
+- 2026-02-28T09:55:25+01:00 [OUTCOMES] [TOOL] Finale Verifikation nach Flag-Erweiterung grün: `npm run typecheck`, `npm run lint`, `npm run build`, `npm test -- tests/unit/master tests/integration/master tests/unit/modules/master` (27/27, 89/89), `npm test` (436/436, 2016/2016).
+- 2026-02-28T10:07:08+01:00 [PLANS] [USER] Vollprüfung angefordert: kompletter Testlauf und Behebung aller Warnungen/Fehler.
+- 2026-02-28T10:07:08+01:00 [OUTCOMES] [TOOL] Vollprüfung ohne neue Fixes erfolgreich: `npm run lint` (0 Warnungen/0 Fehler), `npm test` (436/436 Dateien, 2016/2016 Tests), `npm run build` (ok, Next.js 16.1.6).
+- 2026-02-28T10:07:08+01:00 [DISCOVERIES] [TOOL] Test-Logs enthalten erwartete stderr-Ausgaben aus Negativ-/Guard-Szenarien (z. B. fehlendes `APP_URL` in Testumgebung), aber keine fehlschlagenden Assertions.

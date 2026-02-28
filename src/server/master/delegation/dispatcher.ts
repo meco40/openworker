@@ -28,11 +28,14 @@ export class DelegationDispatcher {
     task: () => Promise<{ output: string; confidence?: number }>;
   }): Promise<{ jobId: string; accepted: boolean; reason?: string }> {
     const timeoutMs = input.timeoutMs ?? 120_000;
+    const cooldownMsRaw = Number(process.env.MASTER_DELEGATION_COOLDOWN_MS || 1500);
+    const cooldownMs = Number.isFinite(cooldownMsRaw) && cooldownMsRaw >= 0 ? cooldownMsRaw : 1500;
     const policy = evaluateTriggerPolicy({
+      scopeKey: `${input.scope.userId}::${input.scope.workspaceId}`,
       capability: input.capability,
       now: Date.now(),
       timeoutMs,
-      cooldownMs: 250,
+      cooldownMs,
       maxConcurrent: 4,
       activeForCapability: this.governor.getActiveForCapability(input.capability),
       activeGlobal: this.governor.getActiveGlobal(),

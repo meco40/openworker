@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type { GmailDraftInput, GmailMessage } from '@/server/master/connectors/gmail/types';
 
 const mailbox = new Map<string, GmailMessage[]>();
+const MAX_BODY_CHARS = 4000;
 
 function isMockMode(accessToken: string): boolean {
   const mode = String(process.env.OPENCLAW_MASTER_GMAIL_MODE || 'auto').toLowerCase();
@@ -10,6 +11,14 @@ function isMockMode(accessToken: string): boolean {
   if (accessToken.startsWith('mock:')) return true;
   if (accessToken === 'access-token') return true;
   return accessToken.startsWith('test-');
+}
+
+function isDetailFetchEnabled(): boolean {
+  const normalized = String(process.env.MASTER_GMAIL_FETCH_DETAILS ?? '1')
+    .trim()
+    .toLowerCase();
+  if (!normalized) return true;
+  return normalized !== '0' && normalized !== 'false' && normalized !== 'off';
 }
 
 function toRawMime(draft: GmailDraftInput): string {
@@ -43,6 +52,124 @@ async function gmailApiFetch<T>(
   return (await response.json()) as T;
 }
 
+function decodeBase64Url(value: string): string {
+  if (!value) return '';
+  try {
+    return Buffer.from(value, 'base64url').toString('utf8');
+  } catch {
+    return '';
+  }
+}
+
+function stripHtml(value: string): string {
+  return value
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+interface GmailHeaderRow {
+  name?: string;
+  value?: string;
+}
+
+interface GmailPayload {
+  mimeType?: string;
+  filename?: string;
+  body?: { data?: string; size?: number };
+  headers?: GmailHeaderRow[];
+  parts?: GmailPayload[];
+}
+
+interface GmailMessageApi {
+  id: string;
+  snippet?: string;
+  internalDate?: string;
+  payload?: GmailPayload;
+}
+
+function headerValue(headers: GmailHeaderRow[] | undefined, name: string): string {
+  const row = (headers || []).find((entry) => String(entry.name || '').toLowerCase() === name);
+  return String(row?.value || '').trim();
+}
+
+function firstBodyText(payload: GmailPayload | undefined): string {
+  if (!payload) return '';
+  const mime = String(payload.mimeType || '').toLowerCase();
+  const bodyData = decodeBase64Url(String(payload.body?.data || ''));
+  if (mime.includes('text/plain') && bodyData) {
+    return bodyData;
+  }
+  if (mime.includes('text/html') && bodyData) {
+    return stripHtml(bodyData);
+  }
+  for (const part of payload.parts || []) {
+    const nested = firstBodyText(part);
+    if (nested) return nested;
+  }
+  return '';
+}
+
+function mapGmailApiMessageToDomain(input: GmailMessageApi, warning?: string): GmailMessage {
+  const headers = input.payload?.headers || [];
+  const bodyText = firstBodyText(input.payload).slice(0, MAX_BODY_CHARS);
+  const parsedDate = Number(input.internalDate || 0);
+  return {
+    id: input.id,
+    from: headerValue(headers, 'from') || 'unknown',
+    to: headerValue(headers, 'to') || 'me',
+    subject: headerValue(headers, 'subject') || '(metadata unavailable)',
+    body: bodyText,
+    bodyText,
+    snippet: String(input.snippet || '').trim(),
+    warnings: warning ? [warning] : undefined,
+    createdAt:
+      Number.isFinite(parsedDate) && parsedDate > 0
+        ? new Date(parsedDate).toISOString()
+        : new Date().toISOString(),
+  };
+}
+
+async function fetchMessageDetails(
+  accessToken: string,
+  id: string,
+): Promise<{ message: GmailMessage; warning?: string }> {
+  try {
+    const detail = await gmailApiFetch<GmailMessageApi>(accessToken, `messages/${id}?format=full`);
+    return { message: mapGmailApiMessageToDomain(detail) };
+  } catch {
+    return {
+      message: {
+        id,
+        from: 'unknown',
+        to: 'me',
+        subject: '(metadata unavailable)',
+        body: '',
+        bodyText: '',
+        snippet: '',
+        warnings: ['Failed to fetch full message payload.'],
+        createdAt: new Date().toISOString(),
+      },
+      warning: id,
+    };
+  }
+}
+
+function mapMetadataMessage(id: string): GmailMessage {
+  return {
+    id,
+    from: 'unknown',
+    to: 'me',
+    subject: '(metadata unavailable)',
+    body: '',
+    bodyText: '',
+    snippet: '',
+    createdAt: new Date().toISOString(),
+  };
+}
+
 function fromMockDraft(prefix: string, input: GmailDraftInput): GmailMessage {
   return {
     id: `${prefix}-${crypto.randomUUID()}`,
@@ -73,14 +200,13 @@ export class GmailClient {
       'messages?maxResults=20',
     );
     const messages = data.messages || [];
-    return messages.map((entry) => ({
-      id: entry.id,
-      from: 'unknown',
-      to: 'me',
-      subject: '(metadata unavailable)',
-      body: '',
-      createdAt: new Date().toISOString(),
-    }));
+    if (!isDetailFetchEnabled()) {
+      return messages.map((entry) => mapMetadataMessage(entry.id));
+    }
+    const results = await Promise.all(
+      messages.map((entry) => fetchMessageDetails(this.accessToken, entry.id)),
+    );
+    return results.map((entry) => entry.message);
   }
 
   async searchMessages(key: string, query: string): Promise<GmailMessage[]> {
@@ -95,13 +221,15 @@ export class GmailClient {
       `messages?maxResults=20&q=${encodeURIComponent(query)}`,
     );
     const messages = data.messages || [];
-    return messages.map((entry) => ({
-      id: entry.id,
-      from: 'unknown',
-      to: 'me',
-      subject: `Search match for: ${query}`,
-      body: '',
-      createdAt: new Date().toISOString(),
+    if (!isDetailFetchEnabled()) {
+      return messages.map((entry) => mapMetadataMessage(entry.id));
+    }
+    const results = await Promise.all(
+      messages.map((entry) => fetchMessageDetails(this.accessToken, entry.id)),
+    );
+    return results.map((entry) => ({
+      ...entry.message,
+      subject: entry.message.subject || `Search match for: ${query}`,
     }));
   }
 

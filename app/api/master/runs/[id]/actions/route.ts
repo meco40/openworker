@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getMasterExecutionRuntime, getMasterRepository } from '@/server/master/runtime';
 import { resolveMasterUserId, resolveScopeFromRequest } from '@/server/master/http';
 import type { ApprovalDecision } from '@/server/master/types';
+import { registerOneTimeApproval } from '@/server/master/execution/approvalPolicy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -74,9 +75,11 @@ export async function POST(request: Request, { params }: { params: Promise<Param
       }
       if (actionType === 'run.cancel') {
         const patched = repo.updateRun(scope, id, {
-          status: 'FAILED',
+          status: 'CANCELLED',
           pausedForApproval: false,
           lastError: 'Run cancelled by operator.',
+          cancelledAt: new Date().toISOString(),
+          cancelReason: 'operator_cancel',
         });
         return NextResponse.json({ ok: true, run: patched });
       }
@@ -84,7 +87,8 @@ export async function POST(request: Request, { params }: { params: Promise<Param
       return NextResponse.json({ ok: true, exportBundle });
     }
 
-    const fingerprint = String(body.fingerprint || `${actionType}:${stepId}`).trim();
+    const runtime = getMasterExecutionRuntime();
+    const fingerprint = String(body.fingerprint || actionType).trim() || actionType;
     const storedRule = repo.getApprovalRule(scope, actionType, fingerprint);
     const effectiveDecision = isApprovalDecision(body.decision)
       ? body.decision
@@ -107,6 +111,9 @@ export async function POST(request: Request, { params }: { params: Promise<Param
     if (effectiveDecision === 'approve_always') {
       repo.upsertApprovalRule(scope, actionType, fingerprint, 'approve_always');
     }
+    if (effectiveDecision === 'approve_once') {
+      registerOneTimeApproval(scope, actionType, fingerprint);
+    }
 
     if (effectiveDecision === 'deny') {
       const patched = repo.updateRun(scope, id, {
@@ -122,7 +129,8 @@ export async function POST(request: Request, { params }: { params: Promise<Param
       pausedForApproval: false,
       lastError: null,
     });
-    return NextResponse.json({ ok: true, decision: effectiveDecision, run: patched });
+    const resumed = runtime.startBackground(scope, id);
+    return NextResponse.json({ ok: true, decision: effectiveDecision, resumed, run: patched });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to apply action decision';
     return NextResponse.json({ ok: false, error: message }, { status: 400 });

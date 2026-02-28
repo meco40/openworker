@@ -57,6 +57,8 @@ function toRun(row: Record<string, unknown>): MasterRun {
     updatedAt: String(row.updated_at),
     lastError: row.last_error ? String(row.last_error) : null,
     pausedForApproval: toBool(row.paused_for_approval),
+    cancelledAt: row.cancelled_at ? String(row.cancelled_at) : null,
+    cancelReason: row.cancel_reason ? String(row.cancel_reason) : null,
   };
 }
 
@@ -138,8 +140,8 @@ export class SqliteMasterRepository implements MasterRepository {
       .prepare(
         `INSERT INTO master_runs (
            id, user_id, workspace_id, title, contract, status, progress, verification_passed,
-           result_bundle, last_error, paused_for_approval, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, 'ANALYZING', 0, 0, NULL, NULL, 0, ?, ?)`,
+           result_bundle, last_error, paused_for_approval, cancelled_at, cancel_reason, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, 'ANALYZING', 0, 0, NULL, NULL, 0, NULL, NULL, ?, ?)`,
       )
       .run(id, input.userId, input.workspaceId, input.title, input.contract, now, now);
     return this.getRun({ userId: input.userId, workspaceId: input.workspaceId }, id)!;
@@ -173,6 +175,8 @@ export class SqliteMasterRepository implements MasterRepository {
       resultBundle: 'result_bundle',
       lastError: 'last_error',
       pausedForApproval: 'paused_for_approval',
+      cancelledAt: 'cancelled_at',
+      cancelReason: 'cancel_reason',
     };
     for (const [key, column] of Object.entries(map)) {
       if (!(key in patch)) continue;

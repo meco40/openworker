@@ -29,6 +29,8 @@ vi.mock('@/modules/master/api', () => ({
     updatedAt: new Date().toISOString(),
     lastError: null,
     pausedForApproval: false,
+    cancelledAt: null,
+    cancelReason: null,
   })),
   postRunAction: vi.fn(async () => ({ exportBundle: { result: 'ok' } })),
 }));
@@ -52,6 +54,8 @@ function makeRun(overrides: Partial<MasterRun> = {}): MasterRun {
     updatedAt: new Date().toISOString(),
     lastError: null,
     pausedForApproval: false,
+    cancelledAt: null,
+    cancelReason: null,
     ...overrides,
   };
 }

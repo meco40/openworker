@@ -25,6 +25,7 @@ export const RunControls: React.FC<RunControlsProps> = ({
 }) => {
   const isFinished =
     selectedRun?.status === 'COMPLETED' ||
+    selectedRun?.status === 'CANCELLED' ||
     selectedRun?.status === 'FAILED' ||
     selectedRun?.status === 'IDLE';
 

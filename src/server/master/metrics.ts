@@ -24,7 +24,7 @@ export function collectMasterMetrics(
   const runs = repo.listRuns(scope, 1000);
   const totalRuns = runs.length;
   const completedRuns = runs.filter((run) => run.status === 'COMPLETED');
-  const failedRuns = runs.filter((run) => run.status === 'FAILED');
+  const failedRuns = runs.filter((run) => run.status === 'FAILED' || run.status === 'CANCELLED');
   const verifyPassedRuns = runs.filter((run) => run.verificationPassed);
   const activeRuns = runs.filter((run) =>
     ['ANALYZING', 'PLANNING', 'DELEGATING', 'EXECUTING', 'VERIFYING', 'REFINING'].includes(

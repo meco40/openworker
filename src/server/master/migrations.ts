@@ -1,5 +1,18 @@
 import type BetterSqlite3 from 'better-sqlite3';
 
+function ensureColumn(
+  db: ReturnType<typeof BetterSqlite3>,
+  table: string,
+  column: string,
+  definition: string,
+): void {
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name?: string }>;
+  const hasColumn = rows.some((row) => String(row.name || '') === column);
+  if (!hasColumn) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
 export function runMasterMigrations(db: ReturnType<typeof BetterSqlite3>): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS master_runs (
@@ -14,11 +27,14 @@ export function runMasterMigrations(db: ReturnType<typeof BetterSqlite3>): void 
       result_bundle TEXT,
       last_error TEXT,
       paused_for_approval INTEGER NOT NULL DEFAULT 0,
+      cancelled_at TEXT,
+      cancel_reason TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_master_runs_scope ON master_runs (user_id, workspace_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_master_runs_scope_status ON master_runs (user_id, workspace_id, status, updated_at DESC);
 
     CREATE TABLE IF NOT EXISTS master_steps (
       id TEXT PRIMARY KEY,
@@ -203,4 +219,7 @@ export function runMasterMigrations(db: ReturnType<typeof BetterSqlite3>): void 
     CREATE INDEX IF NOT EXISTS idx_master_audit_scope
       ON master_audit_events (user_id, workspace_id, created_at DESC);
   `);
+
+  ensureColumn(db, 'master_runs', 'cancelled_at', 'TEXT');
+  ensureColumn(db, 'master_runs', 'cancel_reason', 'TEXT');
 }

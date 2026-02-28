@@ -26,23 +26,23 @@ describe('master maintenance loop', () => {
     }
   });
 
-  it('runs learning at 03:00 only once per day per scope', () => {
+  it('runs learning at 03:00 only once per day per scope', async () => {
     const dbPath = uniqueDbPath();
     cleanupFiles.push(dbPath);
     const repo = new SqliteMasterRepository(dbPath);
     const scope = { userId: 'user-maint', workspaceId: 'ws-maint' };
     buildCapabilityInventory(repo, scope);
 
-    const firstTick = runMasterMaintenanceTick(repo, new Date('2026-02-27T03:00:00.000Z'));
+    const firstTick = await runMasterMaintenanceTick(repo, new Date('2026-02-27T03:00:00.000Z'));
     expect(firstTick.executedScopes).toBeGreaterThan(0);
 
-    const secondTickSameMinute = runMasterMaintenanceTick(
+    const secondTickSameMinute = await runMasterMaintenanceTick(
       repo,
       new Date('2026-02-27T03:00:30.000Z'),
     );
     expect(secondTickSameMinute.executedScopes).toBe(0);
 
-    const nextDayTick = runMasterMaintenanceTick(repo, new Date('2026-02-28T03:00:00.000Z'));
+    const nextDayTick = await runMasterMaintenanceTick(repo, new Date('2026-02-28T03:00:00.000Z'));
     expect(nextDayTick.executedScopes).toBeGreaterThan(0);
 
     repo.close();

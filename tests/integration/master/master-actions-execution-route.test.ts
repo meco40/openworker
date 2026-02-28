@@ -106,45 +106,35 @@ describe('master run execution actions route', () => {
         body: JSON.stringify({
           personaId: persona.id,
           workspaceId: 'w-exec',
-          stepId: 'step-start',
-          actionType: 'run.start',
+          stepId: 'step-tick',
+          actionType: 'run.tick',
         }),
       }),
       { params: Promise.resolve({ id: runId }) },
     );
     expect(startResponse.status).toBe(200);
-    const startPayload = (await startResponse.json()) as { ok: boolean; run: { status: string } };
+    const startPayload = (await startResponse.json()) as {
+      ok: boolean;
+      run: { status: string; resultBundle: string | null };
+    };
     expect(startPayload.ok).toBe(true);
-    expect(startPayload.run.status === 'PLANNING' || startPayload.run.status === 'DELEGATING').toBe(
-      true,
+    expect(['COMPLETED', 'REFINING']).toContain(startPayload.run.status);
+    expect(Boolean(startPayload.run.resultBundle)).toBe(true);
+
+    const runResponse = await runRoute.GET(
+      new Request(
+        `http://localhost/api/master/runs/${runId}?personaId=${encodeURIComponent(persona.id)}&workspaceId=w-exec`,
+      ),
+      { params: Promise.resolve({ id: runId }) },
     );
-
-    let settled = false;
-    let finalRunStatus = '';
-    for (let index = 0; index < 30; index += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const runResponse = await runRoute.GET(
-        new Request(
-          `http://localhost/api/master/runs/${runId}?personaId=${encodeURIComponent(persona.id)}&workspaceId=w-exec`,
-        ),
-        { params: Promise.resolve({ id: runId }) },
-      );
-      expect(runResponse.status).toBe(200);
-      const runPayload = (await runResponse.json()) as {
-        ok: boolean;
-        run: { status: string; resultBundle: string | null };
-      };
-      finalRunStatus = runPayload.run.status;
-      if (runPayload.run.status === 'COMPLETED' && runPayload.run.resultBundle) {
-        settled = true;
-        break;
-      }
-      if (runPayload.run.status === 'FAILED') {
-        break;
-      }
-    }
-
-    expect(settled).toBe(true);
+    expect(runResponse.status).toBe(200);
+    const runPayload = (await runResponse.json()) as {
+      ok: boolean;
+      run: { status: string; resultBundle: string | null };
+    };
+    const finalRunStatus = runPayload.run.status;
+    expect(['COMPLETED', 'REFINING']).toContain(finalRunStatus);
+    expect(Boolean(runPayload.run.resultBundle)).toBe(true);
 
     const exportResponse = await actionsRoute.POST(
       new Request(`http://localhost/api/master/runs/${runId}/actions`, {
@@ -168,5 +158,66 @@ describe('master run execution actions route', () => {
     expect(exportPayload.exportBundle.runId).toBe(runId);
     expect(exportPayload.exportBundle.status).toBe(finalRunStatus);
     expect(exportPayload.exportBundle.steps.length).toBeGreaterThan(0);
+  });
+
+  it('pauses run in awaiting approval when runtime requests shell approval', async () => {
+    const prevApprovals = process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'true';
+    try {
+      const { getPersonaRepository } = await import('@/server/personas/personaRepository');
+      const persona = getPersonaRepository().createPersona({
+        userId: 'legacy-local-user',
+        name: 'Master Approval Persona',
+        emoji: 'A',
+        vibe: 'strict',
+      });
+
+      const runsRoute = await import('../../../app/api/master/runs/route');
+      const actionsRoute = await import('../../../app/api/master/runs/[id]/actions/route');
+
+      const createResponse = await runsRoute.POST(
+        new Request('http://localhost/api/master/runs', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            title: 'Shell task',
+            contract: 'Open terminal and run one shell command to inspect environment.',
+            personaId: persona.id,
+            workspaceId: 'w-approval',
+          }),
+        }),
+      );
+      expect(createResponse.status).toBe(201);
+      const createPayload = (await createResponse.json()) as { run: { id: string } };
+      const runId = createPayload.run.id;
+
+      const tickResponse = await actionsRoute.POST(
+        new Request(`http://localhost/api/master/runs/${runId}/actions`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            personaId: persona.id,
+            workspaceId: 'w-approval',
+            stepId: 'step-tick',
+            actionType: 'run.tick',
+          }),
+        }),
+        { params: Promise.resolve({ id: runId }) },
+      );
+      expect(tickResponse.status).toBe(200);
+      const tickPayload = (await tickResponse.json()) as {
+        ok: boolean;
+        run: { status: string; pausedForApproval: boolean };
+      };
+      expect(tickPayload.ok).toBe(true);
+      expect(tickPayload.run.status).toBe('AWAITING_APPROVAL');
+      expect(tickPayload.run.pausedForApproval).toBe(true);
+    } finally {
+      if (prevApprovals === undefined) {
+        delete process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+      } else {
+        process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = prevApprovals;
+      }
+    }
   });
 });

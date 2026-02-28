@@ -68,9 +68,11 @@ export const RunList: React.FC<RunListProps> = ({
                       className={`h-full rounded-full transition-all duration-500 ${
                         run.status === 'FAILED'
                           ? 'bg-rose-500'
-                          : run.status === 'COMPLETED'
-                            ? 'bg-indigo-500'
-                            : 'bg-emerald-500'
+                          : run.status === 'CANCELLED'
+                            ? 'bg-zinc-500'
+                            : run.status === 'COMPLETED'
+                              ? 'bg-indigo-500'
+                              : 'bg-emerald-500'
                       }`}
                       style={{ width: `${run.progress}%` }}
                     />

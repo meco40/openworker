@@ -147,11 +147,10 @@ export async function cancelRun(
   personaId: string,
   workspaceId: string,
 ): Promise<void> {
-  await parseOkJson<{ run?: MasterRun }>(
-    await fetch(`/api/master/runs/${runId}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ personaId, workspaceId, status: 'FAILED' }),
-    }),
-  );
+  await postRunAction(runId, {
+    actionType: 'run.cancel',
+    stepId: `run-cancel-${Date.now()}`,
+    personaId,
+    workspaceId,
+  });
 }
