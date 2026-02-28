@@ -14,6 +14,10 @@ dist-ssr
 .next
 .next/
 .local
+.desloppify/
+scorecard.png
+.venv-desloppify/
+desloppify/
 
 # Editor directories and files
 .vscode/*
