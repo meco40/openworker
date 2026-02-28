@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useMasterView } from '@/modules/master/hooks/useMasterView';
 import ViewErrorBoundary from '@/components/ViewErrorBoundary';
 import { CreateRunForm } from './CreateRunForm';
@@ -11,6 +11,10 @@ import { ExportBundlePanel } from './ExportBundlePanel';
 import { RunDetailPanel } from './RunDetailPanel';
 import { RunFeedbackPanel } from './RunFeedbackPanel';
 import MasterLearningPanel from './MasterLearningPanel';
+
+// ─── Tab types ────────────────────────────────────────────────────────────────
+
+type Tab = 'new' | 'runs' | 'analytics';
 
 // ─── Status banner ────────────────────────────────────────────────────────────
 
@@ -115,6 +119,66 @@ function StatusBanner({
 
 const MasterView: React.FC = () => {
   const view = useMasterView();
+  const [activeTab, setActiveTab] = useState<Tab>('new');
+
+  const tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: string | number }[] = [
+    {
+      id: 'new',
+      label: 'New Run',
+      icon: (
+        <svg
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+      ),
+    },
+    {
+      id: 'runs',
+      label: 'Runs',
+      badge: view.runs.length > 0 ? view.runs.length : undefined,
+      icon: (
+        <svg
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 6h16M4 10h16M4 14h16M4 18h7"
+          />
+        </svg>
+      ),
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics',
+      icon: (
+        <svg
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+          />
+        </svg>
+      ),
+    },
+  ];
 
   return (
     <section className="space-y-6">
@@ -187,8 +251,45 @@ const MasterView: React.FC = () => {
         />
       )}
 
-      {/* ── Create + Metrics ── */}
-      <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
+      {/* ── Tab bar ── */}
+      <div className="flex items-center gap-1 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-1.5">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`relative flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold tracking-wide transition-all ${
+                isActive
+                  ? 'bg-zinc-800 text-white shadow-sm'
+                  : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300'
+              }`}
+              aria-selected={isActive}
+              role="tab"
+            >
+              <span className={isActive ? 'text-indigo-400' : 'text-current'}>{tab.icon}</span>
+              <span>{tab.label}</span>
+              {tab.badge !== undefined && (
+                <span
+                  className={`rounded-md px-1.5 py-0.5 font-mono text-[9px] font-semibold ${
+                    isActive ? 'bg-indigo-500/20 text-indigo-300' : 'bg-zinc-800 text-zinc-500'
+                  }`}
+                >
+                  {tab.badge}
+                </span>
+              )}
+              {/* active underline accent */}
+              {isActive && (
+                <span className="absolute bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-indigo-500" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Tab: New Run ── */}
+      {activeTab === 'new' && (
         <ViewErrorBoundary label="Create Run Form">
           <CreateRunForm
             personas={view.personas}
@@ -202,72 +303,83 @@ const MasterView: React.FC = () => {
             onWorkspaceChange={view.setWorkspaceId}
             onTitleChange={view.setRunTitle}
             onContractChange={view.setRunContract}
-            onCreateRun={() => void view.createRun()}
+            onCreateRun={() => {
+              void view.createRun();
+              setActiveTab('runs');
+            }}
             onRefresh={() => void view.refreshAll()}
           />
         </ViewErrorBoundary>
-        <ViewErrorBoundary label="Metrics Panel">
-          <MetricsPanel metrics={view.metrics} />
-        </ViewErrorBoundary>
-      </div>
-
-      {/* ── Runs + Controls ── */}
-      <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-        <ViewErrorBoundary label="Run List">
-          <RunList
-            runs={view.paginatedRuns}
-            selectedRunId={view.selectedRunId}
-            runsPage={view.runsPage}
-            totalRunPages={view.totalRunPages}
-            onSelectRun={view.setSelectedRunId}
-            onPageChange={view.setRunsPage}
-          />
-        </ViewErrorBoundary>
-        <ViewErrorBoundary label="Run Controls">
-          <RunControls
-            selectedRun={view.selectedRun}
-            loading={view.loading}
-            onStartRun={(id) => void view.startRun(id)}
-            onExportRun={(id) => void view.exportRun(id)}
-            onCancelRun={(id) => void view.cancelRun(id)}
-            onSubmitDecision={(actionType, decision) =>
-              void view.submitDecision(actionType, decision)
-            }
-          />
-        </ViewErrorBoundary>
-      </div>
-
-      {/* ── Run detail (steps) ── */}
-      {view.selectedRunDetail && view.selectedRunDetail.steps.length > 0 && (
-        <ViewErrorBoundary label="Run Detail">
-          <RunDetailPanel steps={view.selectedRunDetail.steps} />
-        </ViewErrorBoundary>
       )}
 
-      {/* ── Feedback – only for completed runs ── */}
-      {view.selectedRun?.status === 'COMPLETED' && (
-        <ViewErrorBoundary key={view.selectedRun.id} label="Run Feedback">
-          <RunFeedbackPanel
-            runId={view.selectedRun.id}
-            loading={view.loadingAction === 'submitting-feedback'}
-            onSubmit={(input) => void view.submitFeedback(input)}
-          />
-        </ViewErrorBoundary>
+      {/* ── Tab: Runs ── */}
+      {activeTab === 'runs' && (
+        <div className="space-y-5">
+          <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
+            <ViewErrorBoundary label="Run List">
+              <RunList
+                runs={view.paginatedRuns}
+                selectedRunId={view.selectedRunId}
+                runsPage={view.runsPage}
+                totalRunPages={view.totalRunPages}
+                onSelectRun={view.setSelectedRunId}
+                onPageChange={view.setRunsPage}
+              />
+            </ViewErrorBoundary>
+            <ViewErrorBoundary label="Run Controls">
+              <RunControls
+                selectedRun={view.selectedRun}
+                loading={view.loading}
+                onStartRun={(id) => void view.startRun(id)}
+                onExportRun={(id) => void view.exportRun(id)}
+                onCancelRun={(id) => void view.cancelRun(id)}
+                onSubmitDecision={(actionType, decision) =>
+                  void view.submitDecision(actionType, decision)
+                }
+              />
+            </ViewErrorBoundary>
+          </div>
+
+          {/* Run detail steps */}
+          {view.selectedRunDetail && view.selectedRunDetail.steps.length > 0 && (
+            <ViewErrorBoundary label="Run Detail">
+              <RunDetailPanel steps={view.selectedRunDetail.steps} />
+            </ViewErrorBoundary>
+          )}
+
+          {/* Feedback – only for completed runs */}
+          {view.selectedRun?.status === 'COMPLETED' && (
+            <ViewErrorBoundary key={view.selectedRun.id} label="Run Feedback">
+              <RunFeedbackPanel
+                runId={view.selectedRun.id}
+                loading={view.loadingAction === 'submitting-feedback'}
+                onSubmit={(input) => void view.submitFeedback(input)}
+              />
+            </ViewErrorBoundary>
+          )}
+
+          {/* Export bundle */}
+          {view.exportBundle && (
+            <ExportBundlePanel
+              exportBundle={view.exportBundle.data}
+              runId={view.exportBundle.runId}
+              onDismiss={view.dismissExportBundle}
+            />
+          )}
+        </div>
       )}
 
-      {/* ── Export bundle ── */}
-      {view.exportBundle && (
-        <ExportBundlePanel
-          exportBundle={view.exportBundle.data}
-          runId={view.exportBundle.runId}
-          onDismiss={view.dismissExportBundle}
-        />
+      {/* ── Tab: Analytics ── */}
+      {activeTab === 'analytics' && (
+        <div className="space-y-5">
+          <ViewErrorBoundary label="Metrics Panel">
+            <MetricsPanel metrics={view.metrics} />
+          </ViewErrorBoundary>
+          <ViewErrorBoundary label="Learning Loop">
+            <MasterLearningPanel metrics={view.metrics} />
+          </ViewErrorBoundary>
+        </div>
       )}
-
-      {/* ── Learning loop ── */}
-      <ViewErrorBoundary label="Learning Loop">
-        <MasterLearningPanel metrics={view.metrics} />
-      </ViewErrorBoundary>
     </section>
   );
 };
