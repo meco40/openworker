@@ -1,15 +1,23 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ModelHubRepository } from '@/server/model-hub/repository';
 import { encryptSecret } from '@/server/model-hub/crypto';
 
-vi.mock('@/server/model-hub/gateway', () => ({
-  dispatchGatewayRequest: vi.fn(async () => ({
+const dispatchMock = vi.fn();
+
+beforeEach(() => {
+  vi.resetModules();
+  dispatchMock.mockReset();
+  dispatchMock.mockImplementation(async () => ({
     ok: true,
     text: 'ok',
     model: 'gpt-5.3-codex',
     provider: 'openai-codex',
-  })),
-}));
+  }));
+
+  vi.doMock('@/server/model-hub/gateway', () => ({
+    dispatchGatewayRequest: dispatchMock,
+  }));
+});
 
 function createMockRepository(overrides: Partial<ModelHubRepository> = {}): ModelHubRepository {
   return {
@@ -31,8 +39,6 @@ function createMockRepository(overrides: Partial<ModelHubRepository> = {}): Mode
 
 describe('ModelHubService reasoning effort dispatch', () => {
   it('maps xhigh pipeline reasoning effort to high for provider request payload', async () => {
-    const { dispatchGatewayRequest } = await import('@/server/model-hub/gateway');
-    const dispatchMock = vi.mocked(dispatchGatewayRequest);
     const encryptionKey = '0123456789abcdef0123456789abcdef';
 
     const now = new Date().toISOString();

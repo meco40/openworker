@@ -1,23 +1,26 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SkillDispatchContext } from '@/server/skills/types';
 
-const callMock = vi.hoisted(() => vi.fn());
-const deleteMessageMock = vi.hoisted(() => vi.fn());
+const callMock = vi.fn();
+const deleteMessageMock = vi.fn();
 
-vi.mock('@/lib/openclaw/client', () => ({
-  getOpenClawClient: () => ({ call: callMock }),
-}));
+beforeEach(() => {
+  vi.resetModules();
+  callMock.mockReset();
+  deleteMessageMock.mockReset();
 
-vi.mock('@/server/channels/messages/runtime', () => ({
-  getMessageService: () => ({ deleteMessage: deleteMessageMock }),
-}));
+  vi.doMock('@/lib/openclaw/client', () => ({
+    getOpenClawClient: () => ({ call: callMock }),
+  }));
 
-import { messageCompatHandler } from '@/server/skills/handlers/messageCompat';
+  vi.doMock('@/server/channels/messages/runtime', () => ({
+    getMessageService: () => ({ deleteMessage: deleteMessageMock }),
+  }));
+});
 
 describe('message compat handler', () => {
   it('supports send/read/delete actions', async () => {
-    callMock.mockReset();
-    deleteMessageMock.mockReset();
+    const { messageCompatHandler } = await import('@/server/skills/handlers/messageCompat');
 
     callMock.mockImplementation(async (method: string) => {
       if (method === 'chat.send') return { ok: true, conversationId: 'conv-1' };
