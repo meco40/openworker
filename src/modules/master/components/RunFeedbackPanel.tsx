@@ -30,23 +30,28 @@ export const RunFeedbackPanel: React.FC<RunFeedbackPanelProps> = ({ runId, loadi
 
   if (submitted) {
     return (
-      <section className="rounded-xl border border-emerald-800/40 bg-emerald-900/10 p-4">
-        <div className="flex items-center gap-2 text-emerald-300">
-          <svg
-            className="h-4 w-4 shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <span className="text-xs font-semibold">Feedback submitted — thank you!</span>
+      <section className="overflow-hidden rounded-2xl border border-emerald-800/40 bg-emerald-900/10 shadow-xl">
+        <div className="flex items-center gap-3 px-6 py-5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15">
+            <svg
+              className="h-4 w-4 text-emerald-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-emerald-300">Feedback submitted</p>
+            <p className="text-xs text-emerald-500/70">Thank you for helping improve Master.</p>
+          </div>
         </div>
       </section>
     );
@@ -55,16 +60,39 @@ export const RunFeedbackPanel: React.FC<RunFeedbackPanelProps> = ({ runId, loadi
   const displayRating = hoverRating || rating;
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-      <h3 className="mb-4 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
-        Rate This Run
-      </h3>
+    <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 shadow-xl">
+      {/* Header */}
+      <div className="border-b border-zinc-800/80 bg-zinc-950/40 px-6 py-4">
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-500/15">
+            <svg
+              className="h-3.5 w-3.5 text-amber-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
+            Rate This Run
+          </h3>
+        </div>
+      </div>
 
-      <div className="space-y-4">
+      <div className="space-y-5 p-6">
         {/* Star rating */}
-        <div>
-          <div className="mb-1.5 text-xs text-zinc-400">Rating</div>
-          <div className="flex gap-1.5" role="group" aria-label="Star rating">
+        <div className="space-y-2">
+          <div className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+            Rating
+          </div>
+          <div className="flex gap-2" role="group" aria-label="Star rating">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
@@ -73,23 +101,30 @@ export const RunFeedbackPanel: React.FC<RunFeedbackPanelProps> = ({ runId, loadi
                 onClick={() => setRating(star)}
                 onMouseEnter={() => setHoverRating(star)}
                 onMouseLeave={() => setHoverRating(0)}
-                className={`text-xl transition-colors ${
-                  star <= displayRating ? 'text-amber-400' : 'text-zinc-700'
-                } hover:text-amber-400`}
+                className={`text-2xl transition-all ${
+                  star <= displayRating
+                    ? 'scale-110 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]'
+                    : 'text-zinc-700 hover:text-amber-600'
+                }`}
               >
-                ★
+                &#9733;
               </button>
             ))}
           </div>
+          {rating === 0 && (
+            <p className="text-[10px] text-zinc-600">Select a star rating to submit feedback.</p>
+          )}
         </div>
 
         {/* Policy */}
-        <label className="block space-y-1.5 text-xs text-zinc-400">
-          <span>Preferred Policy</span>
+        <label className="block space-y-1.5">
+          <span className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+            Preferred Policy
+          </span>
           <select
             value={policy}
             onChange={(e) => setPolicy(e.target.value as PolicyOption)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
+            className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
           >
             {(Object.keys(POLICY_LABELS) as PolicyOption[]).map((p) => (
               <option key={p} value={p}>
@@ -100,13 +135,15 @@ export const RunFeedbackPanel: React.FC<RunFeedbackPanelProps> = ({ runId, loadi
         </label>
 
         {/* Comment */}
-        <label className="block space-y-1.5 text-xs text-zinc-400">
-          <span>Comment (optional)</span>
+        <label className="block space-y-1.5">
+          <span className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+            Comment (optional)
+          </span>
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={3}
-            className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
+            className="w-full resize-none rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm leading-relaxed text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
             placeholder="What went well? What could improve?"
           />
         </label>
@@ -115,9 +152,35 @@ export const RunFeedbackPanel: React.FC<RunFeedbackPanelProps> = ({ runId, loadi
           type="button"
           onClick={handleSubmit}
           disabled={loading || rating === 0}
-          className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/20 transition-all hover:bg-indigo-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-black tracking-widest text-white uppercase shadow-lg shadow-indigo-600/25 transition-all hover:bg-indigo-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? 'Submitting…' : 'Submit Feedback'}
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <svg
+                className="h-3 w-3 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              Submitting…
+            </span>
+          ) : (
+            'Submit Feedback'
+          )}
         </button>
       </div>
     </section>

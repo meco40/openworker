@@ -33,90 +33,147 @@ export const CreateRunForm: React.FC<CreateRunFormProps> = ({
   onRefresh,
 }) => {
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-      <h3 className="mb-4 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
-        Create Master Run
-      </h3>
-
-      <div className="grid gap-3 md:grid-cols-2">
-        <label className="space-y-1.5 text-xs text-zinc-400">
-          <span>Persona</span>
-          <select
-            value={selectedPersonaId}
-            onChange={(e) => onPersonaChange(e.target.value)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
-          >
-            <option value="">Select persona</option>
-            {personas.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.emoji ? `${p.emoji} ${p.name}` : p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="space-y-1.5 text-xs text-zinc-400">
-          <span>Workspace ID</span>
-          {workspaces.length > 0 ? (
-            <select
-              value={workspaceId}
-              onChange={(e) => onWorkspaceChange(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
+    <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 shadow-xl">
+      {/* Section header */}
+      <div className="border-b border-zinc-800/80 bg-zinc-950/40 px-6 py-4">
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-500/15">
+            <svg
+              className="h-3.5 w-3.5 text-indigo-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
             >
-              {workspaces.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          </div>
+          <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
+            Create Master Run
+          </h3>
+        </div>
+      </div>
+
+      <div className="p-6">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+              Persona
+            </label>
+            <select
+              value={selectedPersonaId}
+              onChange={(e) => onPersonaChange(e.target.value)}
+              className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
+            >
+              <option value="">Select persona</option>
+              {personas.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.emoji ? `${p.emoji} ${p.name}` : p.name}
                 </option>
               ))}
             </select>
-          ) : (
-            <input
-              value={workspaceId}
-              onChange={(e) => onWorkspaceChange(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
-              placeholder="main"
-            />
-          )}
-        </label>
-      </div>
+          </div>
 
-      <label className="mt-3 block space-y-1.5 text-xs text-zinc-400">
-        <span>Title</span>
-        <input
-          value={runTitle}
-          onChange={(e) => onTitleChange(e.target.value)}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
-        />
-      </label>
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+              Workspace
+            </label>
+            {workspaces.length > 0 ? (
+              <select
+                value={workspaceId}
+                onChange={(e) => onWorkspaceChange(e.target.value)}
+                className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
+              >
+                {workspaces.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={workspaceId}
+                onChange={(e) => onWorkspaceChange(e.target.value)}
+                className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
+                placeholder="Default Workspace"
+              />
+            )}
+          </div>
+        </div>
 
-      <label className="mt-3 block space-y-1.5 text-xs text-zinc-400">
-        <span>Contract</span>
-        <textarea
-          value={runContract}
-          onChange={(e) => onContractChange(e.target.value)}
-          rows={4}
-          className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
-          placeholder="Describe what Master should complete end-to-end."
-        />
-      </label>
+        <div className="mt-4 space-y-1.5">
+          <label className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+            Title
+          </label>
+          <input
+            value={runTitle}
+            onChange={(e) => onTitleChange(e.target.value)}
+            className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
+          />
+        </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onCreateRun}
-          disabled={loading || !runContract.trim()}
-          className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/20 transition-all hover:bg-indigo-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading ? 'Working…' : 'Create Master Run'}
-        </button>
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={loading}
-          className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-xs font-bold text-zinc-200 transition-all hover:bg-zinc-800 active:scale-95 disabled:opacity-50"
-        >
-          Refresh
-        </button>
+        <div className="mt-4 space-y-1.5">
+          <label className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+            Contract
+          </label>
+          <textarea
+            value={runContract}
+            onChange={(e) => onContractChange(e.target.value)}
+            rows={4}
+            className="w-full resize-none rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm leading-relaxed text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
+            placeholder="Describe what Master should complete end-to-end."
+          />
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={onCreateRun}
+            disabled={loading || !runContract.trim()}
+            className="rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-black tracking-widest text-white uppercase shadow-lg shadow-indigo-600/25 transition-all hover:bg-indigo-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg
+                  className="h-3 w-3 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                Working…
+              </span>
+            ) : (
+              'Create Master Run'
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            className="rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-xs font-black tracking-widest text-zinc-300 uppercase transition-all hover:bg-zinc-800 hover:text-white active:scale-95 disabled:opacity-50"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
     </section>
   );

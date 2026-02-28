@@ -28,20 +28,84 @@ function StatusBanner({
       ? 'border-emerald-700/60 bg-emerald-900/20 text-emerald-200'
       : tone === 'error'
         ? 'border-rose-700/60 bg-rose-900/20 text-rose-200'
-        : 'border-zinc-700 bg-zinc-900 text-zinc-200';
+        : 'border-indigo-700/40 bg-indigo-900/10 text-indigo-200';
+
+  const icon =
+    tone === 'success' ? (
+      <svg
+        className="h-4 w-4 shrink-0"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+    ) : tone === 'error' ? (
+      <svg
+        className="h-4 w-4 shrink-0"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 9v3.75m9.303 3.376c.866 1.5-.217 3.374-1.948 3.374H4.645c-1.73 0-2.813-1.874-1.948-3.374L10.05 3.378c.866-1.5 3.032-1.5 3.898 0l5.355 9.748zM12 15.75h.008v.008H12v-.008z"
+        />
+      </svg>
+    ) : (
+      <svg
+        className="h-4 w-4 shrink-0"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+    );
 
   return (
     <div
-      className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm ${cls}`}
+      className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${cls}`}
     >
-      <span>{text}</span>
+      <div className="flex items-center gap-2.5">
+        {icon}
+        <span className="font-medium">{text}</span>
+      </div>
       <button
         type="button"
         onClick={onDismiss}
-        className="shrink-0 text-current opacity-60 transition-opacity hover:opacity-100"
+        className="shrink-0 rounded-lg p-1 text-current opacity-50 transition-all hover:bg-white/10 hover:opacity-100"
         aria-label="Dismiss"
       >
-        ✕
+        <svg
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2.5}
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
       </button>
     </div>
   );
@@ -53,29 +117,64 @@ const MasterView: React.FC = () => {
   const view = useMasterView();
 
   return (
-    <section className="space-y-5">
+    <section className="space-y-6">
       {/* ── Hero header ── */}
-      <header className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6 shadow-2xl">
-        <div className="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-indigo-600/8 blur-3xl" />
-        <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="mb-1.5 flex items-center gap-3">
-              <h2 className="text-3xl font-black tracking-tight text-white uppercase">Master</h2>
-              <div className="flex items-center gap-1.5 rounded border border-zinc-800 bg-zinc-950 px-2 py-1">
-                <span
-                  className={`h-2 w-2 rounded-full ${view.hasActiveRuns ? 'animate-pulse bg-emerald-500' : 'bg-zinc-600'}`}
-                  aria-hidden="true"
-                />
-                <span className="font-mono text-[10px] text-zinc-400">
-                  {view.hasActiveRuns ? 'ACTIVE' : `${view.runs.length} RUNS`}
-                </span>
-              </div>
+      <header className="group relative flex flex-col justify-between gap-6 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40 p-8 shadow-2xl md:flex-row md:items-center">
+        {/* decorative glow blobs */}
+        <div className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full bg-indigo-600/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-violet-600/8 blur-3xl" />
+
+        <div className="relative z-10">
+          <div className="mb-2 flex items-center gap-3">
+            <h2 className="text-3xl font-black tracking-tight text-white uppercase">Master</h2>
+            <div className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 py-1">
+              <span
+                className={`h-2 w-2 rounded-full ${view.hasActiveRuns ? 'animate-pulse bg-emerald-400' : 'bg-zinc-600'}`}
+                aria-hidden="true"
+              />
+              <span className="font-mono text-[10px] font-semibold tracking-wider text-zinc-400">
+                {view.hasActiveRuns ? '1 RING' : `${view.runs.length} RUNS`}
+              </span>
             </div>
-            <p className="max-w-lg text-sm leading-relaxed text-zinc-500">
-              Create Master Run contracts, execute autonomously, review approvals, and export
-              verified bundles.
-            </p>
           </div>
+          <p className="max-w-lg text-sm leading-relaxed text-zinc-500">
+            Create Master Run contracts, execute autonomously, review approvals, and export verified
+            bundles.
+          </p>
+        </div>
+
+        {/* right-side quick stats */}
+        <div className="relative z-10 flex shrink-0 items-center gap-4">
+          {view.metrics && (
+            <>
+              <div className="text-center">
+                <div className="font-mono text-xl font-black text-white tabular-nums">
+                  {Math.round((view.metrics.run_completion_rate ?? 0) * 100)}%
+                </div>
+                <div className="font-mono text-[9px] tracking-widest text-zinc-600 uppercase">
+                  Done
+                </div>
+              </div>
+              <div className="h-8 w-px bg-zinc-800" />
+              <div className="text-center">
+                <div className="font-mono text-xl font-black text-white tabular-nums">
+                  {Math.round((view.metrics.verify_pass_rate ?? 0) * 100)}%
+                </div>
+                <div className="font-mono text-[9px] tracking-widest text-zinc-600 uppercase">
+                  Pass
+                </div>
+              </div>
+              <div className="h-8 w-px bg-zinc-800" />
+              <div className="text-center">
+                <div className="font-mono text-xl font-black text-white tabular-nums">
+                  {Math.round((view.metrics.delegation_success_rate ?? 0) * 100)}%
+                </div>
+                <div className="font-mono text-[9px] tracking-widest text-zinc-600 uppercase">
+                  Delegated
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </header>
 
@@ -89,7 +188,7 @@ const MasterView: React.FC = () => {
       )}
 
       {/* ── Create + Metrics ── */}
-      <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
+      <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
         <ViewErrorBoundary label="Create Run Form">
           <CreateRunForm
             personas={view.personas}
@@ -113,7 +212,7 @@ const MasterView: React.FC = () => {
       </div>
 
       {/* ── Runs + Controls ── */}
-      <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+      <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
         <ViewErrorBoundary label="Run List">
           <RunList
             runs={view.paginatedRuns}
