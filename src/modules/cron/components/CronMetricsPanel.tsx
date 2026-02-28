@@ -29,8 +29,8 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon, accent = 'd
   const accentClass = ACCENT_CLASSES[accent];
   return (
     <div className="relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/70 p-4 transition-all hover:border-zinc-700">
-      <div className="absolute right-3 top-3 text-lg opacity-30">{icon}</div>
-      <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{label}</div>
+      <div className="absolute top-3 right-3 text-lg opacity-30">{icon}</div>
+      <div className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">{label}</div>
       <div className={`mt-2 text-2xl font-black ${accentClass}`}>{value}</div>
     </div>
   );

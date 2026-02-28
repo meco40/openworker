@@ -37,7 +37,11 @@ const Spinner: React.FC = () => (
     aria-hidden="true"
   >
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+    />
   </svg>
 );
 
@@ -51,18 +55,11 @@ interface PersonaCardProps {
 
 const PersonaCard: React.FC<PersonaCardProps> = ({ persona, isSelected, onSelect }) => {
   return (
-    <article
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       aria-pressed={isSelected}
       aria-label={`Agent: ${persona.name}`}
       onClick={() => onSelect(persona.id)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSelect(persona.id);
-        }
-      }}
       className={`group cursor-pointer rounded-xl border p-4 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
         isSelected
           ? 'border-blue-600/60 bg-blue-950/25 shadow-sm shadow-blue-900/20'
@@ -79,7 +76,7 @@ const PersonaCard: React.FC<PersonaCardProps> = ({ persona, isSelected, onSelect
         </span>
         <div className="min-w-0 flex-1">
           <p
-            className={`truncate text-sm font-semibold leading-snug ${
+            className={`truncate text-sm leading-snug font-semibold ${
               isSelected ? 'text-blue-200' : 'text-zinc-100'
             }`}
           >
@@ -90,9 +87,7 @@ const PersonaCard: React.FC<PersonaCardProps> = ({ persona, isSelected, onSelect
               {persona.vibe}
             </p>
           )}
-          {!persona.vibe && (
-            <p className="mt-0.5 text-xs italic text-zinc-700">No vibe set</p>
-          )}
+          {!persona.vibe && <p className="mt-0.5 text-xs text-zinc-700 italic">No vibe set</p>}
         </div>
       </div>
 
@@ -115,7 +110,7 @@ const PersonaCard: React.FC<PersonaCardProps> = ({ persona, isSelected, onSelect
           {isSelected ? '● Selected' : 'View →'}
         </span>
       </div>
-    </article>
+    </button>
   );
 };
 
@@ -148,12 +143,15 @@ const PersonaDetailPanel: React.FC<PersonaDetailPanelProps> = ({ persona, onClos
     <div className="flex-1 overflow-auto px-4 py-4">
       {/* Avatar + name */}
       <div className="mb-4 flex items-center gap-3">
-        <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-800 text-2xl" aria-hidden="true">
+        <span
+          className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-800 text-2xl"
+          aria-hidden="true"
+        >
           {persona.emoji || '🤖'}
         </span>
         <div>
           <p className="text-sm font-semibold text-zinc-100">{persona.name}</p>
-          <p className="text-[11px] font-mono text-zinc-600">{persona.id.slice(0, 12)}…</p>
+          <p className="font-mono text-[11px] text-zinc-600">{persona.id.slice(0, 12)}…</p>
         </div>
       </div>
 
@@ -245,9 +243,21 @@ const AgentsView: React.FC = () => {
         {/* Search */}
         {personas.length > 0 && (
           <div className="relative flex-1 sm:max-w-xs">
-            <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-zinc-600" aria-hidden="true">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
+            <span
+              className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-zinc-600"
+              aria-hidden="true"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="h-3.5 w-3.5"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
+                  clipRule="evenodd"
+                />
               </svg>
             </span>
             <input
@@ -256,14 +266,17 @@ const AgentsView: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search agents"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 py-1.5 pl-8 pr-3 text-xs text-zinc-200 placeholder-zinc-600 focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 py-1.5 pr-3 pl-8 text-xs text-zinc-200 placeholder-zinc-600 focus:border-blue-500 focus:outline-none"
             />
           </div>
         )}
 
         {/* Generated at */}
         {generatedAt && (
-          <span className="hidden text-[10px] text-zinc-700 sm:block" title={formatDateTime(generatedAt)}>
+          <span
+            className="hidden text-[10px] text-zinc-700 sm:block"
+            title={formatDateTime(generatedAt)}
+          >
             Snapshot: {formatRelativeTime(generatedAt)}
           </span>
         )}
@@ -283,7 +296,11 @@ const AgentsView: React.FC = () => {
             className={`h-3.5 w-3.5 ${state.refreshing ? 'animate-spin' : ''}`}
             aria-hidden="true"
           >
-            <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clipRule="evenodd" />
+            <path
+              fillRule="evenodd"
+              d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z"
+              clipRule="evenodd"
+            />
           </svg>
           {state.refreshing ? 'Refreshing…' : 'Refresh'}
         </button>
@@ -300,8 +317,18 @@ const AgentsView: React.FC = () => {
                 role="alert"
                 className="flex items-start gap-2 rounded-lg border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-400"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="mt-px h-4 w-4 shrink-0 text-red-500" aria-hidden="true">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="mt-px h-4 w-4 shrink-0 text-red-500"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
+                    clipRule="evenodd"
+                  />
                 </svg>
                 <span className="flex-1">{state.error}</span>
                 <button
@@ -326,7 +353,9 @@ const AgentsView: React.FC = () => {
           {/* Empty */}
           {!state.loading && !state.error && personas.length === 0 && (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-              <span className="text-4xl" aria-hidden="true">🤖</span>
+              <span className="text-4xl" aria-hidden="true">
+                🤖
+              </span>
               <p className="text-sm font-medium text-zinc-500">No personas found for this user.</p>
               <p className="max-w-xs text-xs text-zinc-700">
                 No persona snapshots are available. Create a persona to get started.
@@ -335,18 +364,21 @@ const AgentsView: React.FC = () => {
           )}
 
           {/* Filtered empty */}
-          {!state.loading && !state.error && personas.length > 0 && filteredPersonas.length === 0 && (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
-              <p className="text-sm font-medium text-zinc-500">No agents match your search</p>
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                className="text-xs text-zinc-600 underline hover:text-zinc-400"
-              >
-                Clear search
-              </button>
-            </div>
-          )}
+          {!state.loading &&
+            !state.error &&
+            personas.length > 0 &&
+            filteredPersonas.length === 0 && (
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+                <p className="text-sm font-medium text-zinc-500">No agents match your search</p>
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="text-xs text-zinc-600 underline hover:text-zinc-400"
+                >
+                  Clear search
+                </button>
+              </div>
+            )}
 
           {/* Agent grid */}
           {!state.loading && filteredPersonas.length > 0 && (
@@ -372,10 +404,7 @@ const AgentsView: React.FC = () => {
 
         {/* Detail panel */}
         {selectedPersona && (
-          <PersonaDetailPanel
-            persona={selectedPersona}
-            onClose={() => setSelectedId(null)}
-          />
+          <PersonaDetailPanel persona={selectedPersona} onClose={() => setSelectedId(null)} />
         )}
       </div>
     </div>

@@ -57,19 +57,19 @@ export const CronRuleTable: React.FC<CronRuleTableProps> = ({
       <table className="w-full min-w-[720px] text-left text-xs">
         <thead>
           <tr className="border-b border-zinc-800 bg-zinc-950/60">
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <th className="px-4 py-3 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
               Name
             </th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <th className="px-4 py-3 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
               Schedule
             </th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <th className="px-4 py-3 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
               Timezone
             </th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <th className="px-4 py-3 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
               Status
             </th>
-            <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <th className="px-4 py-3 text-right text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
               Actions
             </th>
           </tr>
@@ -84,7 +84,7 @@ export const CronRuleTable: React.FC<CronRuleTableProps> = ({
                 onClick={() => onSelectRule(rule.id)}
                 className={`cursor-pointer border-b border-zinc-800/60 transition-colors ${
                   isSelected
-                    ? 'bg-indigo-950/30 ring-1 ring-inset ring-indigo-700/30'
+                    ? 'bg-indigo-950/30 ring-1 ring-indigo-700/30 ring-inset'
                     : 'hover:bg-zinc-800/20'
                 } ${isPending ? 'opacity-60' : ''}`}
               >

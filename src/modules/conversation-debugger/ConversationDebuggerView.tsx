@@ -134,7 +134,7 @@ const ConversationDebuggerView: React.FC<ConversationDebuggerViewProps> = ({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Filter conversations"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 py-1.5 pl-8 pr-3 text-xs text-zinc-200 placeholder-zinc-600 transition-colors focus:border-blue-500 focus:bg-zinc-800 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 py-1.5 pr-3 pl-8 text-xs text-zinc-200 placeholder-zinc-600 transition-colors focus:border-blue-500 focus:bg-zinc-800 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
           />
           {search && (
             <button

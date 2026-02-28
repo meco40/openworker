@@ -51,18 +51,18 @@ const ToolCallCard: React.FC<ToolCallCardProps> = ({ name, args, index }) => {
 
 interface ContentBlockProps {
   content: string;
-  role: 'user' | 'assistant' | 'memory';
+  variant: 'user' | 'assistant' | 'memory';
 }
 
-const ROLE_STYLES: Record<ContentBlockProps['role'], string> = {
+const ROLE_STYLES: Record<ContentBlockProps['variant'], string> = {
   user: 'border-zinc-700/50 bg-zinc-800/30 text-zinc-300',
   assistant: 'border-blue-900/40 bg-blue-950/20 text-zinc-300',
   memory: 'border-teal-900/40 bg-teal-950/20 text-zinc-400',
 };
 
-const ContentBlock: React.FC<ContentBlockProps> = ({ content, role }) => (
+const ContentBlock: React.FC<ContentBlockProps> = ({ content, variant }) => (
   <div
-    className={`rounded-lg border px-3 py-2.5 font-mono text-[11px] leading-relaxed break-words whitespace-pre-wrap ${ROLE_STYLES[role]}`}
+    className={`rounded-lg border px-3 py-2.5 font-mono text-[11px] leading-relaxed break-words whitespace-pre-wrap ${ROLE_STYLES[variant]}`}
   >
     {content}
   </div>
@@ -154,7 +154,7 @@ const TurnDetailPanel: React.FC<TurnDetailPanelProps> = ({ turn, onReplayFrom })
       {turn.userPreview && (
         <div className="mb-4">
           <CollapsibleSection title="User Message">
-            <ContentBlock content={turn.userPreview} role="user" />
+            <ContentBlock content={turn.userPreview} variant="user" />
           </CollapsibleSection>
         </div>
       )}
@@ -163,7 +163,7 @@ const TurnDetailPanel: React.FC<TurnDetailPanelProps> = ({ turn, onReplayFrom })
       {turn.assistantPreview && (
         <div className="mb-4">
           <CollapsibleSection title="Assistant Response">
-            <ContentBlock content={turn.assistantPreview} role="assistant" />
+            <ContentBlock content={turn.assistantPreview} variant="assistant" />
           </CollapsibleSection>
         </div>
       )}
@@ -173,9 +173,7 @@ const TurnDetailPanel: React.FC<TurnDetailPanelProps> = ({ turn, onReplayFrom })
         <div className="mb-4">
           <CollapsibleSection
             title="Tool Calls"
-            badge={
-              <Badge variant="violet">{turn.toolCalls.length}</Badge>
-            }
+            badge={<Badge variant="violet">{turn.toolCalls.length}</Badge>}
           >
             <div className="flex flex-col gap-1.5">
               {turn.toolCalls.map((tc, i) => (
@@ -190,7 +188,7 @@ const TurnDetailPanel: React.FC<TurnDetailPanelProps> = ({ turn, onReplayFrom })
       {turn.memoryContext && (
         <div className="mb-4">
           <CollapsibleSection title="Memory Context" defaultOpen={false}>
-            <ContentBlock content={turn.memoryContext} role="memory" />
+            <ContentBlock content={turn.memoryContext} variant="memory" />
           </CollapsibleSection>
         </div>
       )}

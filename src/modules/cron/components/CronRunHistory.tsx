@@ -64,7 +64,10 @@ export const CronRunHistory: React.FC<CronRunHistoryProps> = ({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="cron-history-depth" className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+          <label
+            htmlFor="cron-history-depth"
+            className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+          >
             Run history depth
           </label>
           <select
@@ -131,12 +134,12 @@ const RunCard: React.FC<RunCardProps> = ({ run }) => {
         <div className="flex items-center gap-2">
           <RunStatusBadge status={run.status} />
           {run.triggerSource === 'manual' && (
-            <span className="rounded border border-zinc-700/40 bg-zinc-800/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+            <span className="rounded border border-zinc-700/40 bg-zinc-800/60 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-zinc-500 uppercase">
               Manual
             </span>
           )}
           {run.attempt > 1 && (
-            <span className="rounded border border-amber-700/30 bg-amber-900/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
+            <span className="rounded border border-amber-700/30 bg-amber-900/20 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-amber-400 uppercase">
               Attempt {run.attempt}
             </span>
           )}

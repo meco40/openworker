@@ -29,7 +29,7 @@ export const CronTemplateSelector: React.FC<CronTemplateSelectorProps> = ({ onAp
       >
         <div className="flex items-center gap-2">
           <span className="text-base">⚡</span>
-          <span className="text-xs font-bold uppercase tracking-widest text-zinc-300">
+          <span className="text-xs font-bold tracking-widest text-zinc-300 uppercase">
             Quick Templates
           </span>
           <span className="rounded bg-indigo-900/40 px-1.5 py-0.5 text-[10px] font-bold text-indigo-400">

@@ -37,11 +37,11 @@ const CronView: React.FC<CronViewProps> = ({ state }) => {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="animate-in fade-in space-y-6 duration-500">
       {/* ── Page Header ──────────────────────────────────────────────────── */}
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black uppercase tracking-tight text-white">Cron</h2>
+          <h2 className="text-2xl font-black tracking-tight text-white uppercase">Cron</h2>
           <p className="mt-1 text-sm text-zinc-400">
             Manage automation schedules, trigger manual runs, and inspect execution history.
           </p>
@@ -51,7 +51,7 @@ const CronView: React.FC<CronViewProps> = ({ state }) => {
             type="button"
             onClick={() => void cron.actions.refreshAll()}
             disabled={cron.loading || cron.refreshing}
-            className="rounded-lg border border-zinc-700 px-3 py-2 text-xs font-bold uppercase tracking-wide text-zinc-300 transition-all hover:bg-zinc-800 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg border border-zinc-700 px-3 py-2 text-xs font-bold tracking-wide text-zinc-300 uppercase transition-all hover:bg-zinc-800 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {cron.refreshing ? (
               <span className="flex items-center gap-1.5">
@@ -65,7 +65,7 @@ const CronView: React.FC<CronViewProps> = ({ state }) => {
           <button
             type="button"
             onClick={cron.actions.startCreate}
-            className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white transition-all hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold tracking-wide text-white uppercase transition-all hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
             + New Cron Job
           </button>
@@ -109,7 +109,7 @@ const CronView: React.FC<CronViewProps> = ({ state }) => {
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 lg:col-span-3">
             <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
               <h3 className="text-sm font-bold text-zinc-100">Rules</h3>
-              <span className="rounded bg-zinc-800/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+              <span className="rounded bg-zinc-800/60 px-2 py-0.5 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
                 {cron.rules.length} total
               </span>
             </div>

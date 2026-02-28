@@ -42,7 +42,7 @@ export const ConfigHeader: React.FC<ConfigHeaderProps> = ({
         </span>
         <div>
           <h2 className="text-sm font-semibold text-zinc-100">Gateway Config</h2>
-          <p className="text-xs text-zinc-500">Tabbed setup with advanced JSON editing.</p>
+          <p className="text-xs text-zinc-500">Simple tabbed setup with advanced JSON editing.</p>
         </div>
       </div>
 
@@ -64,7 +64,7 @@ export const ConfigHeader: React.FC<ConfigHeaderProps> = ({
       <div className="ml-auto flex items-center gap-2">
         <button
           type="button"
-          aria-label="Reload config from disk"
+          aria-label="Reload config"
           disabled={isLoading || isSaving}
           onClick={onReload}
           className="flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
@@ -87,7 +87,7 @@ export const ConfigHeader: React.FC<ConfigHeaderProps> = ({
 
         <button
           type="button"
-          aria-label="Preview and apply config changes"
+          aria-label="Open apply preview"
           disabled={!canApply}
           onClick={onOpenDiffPreview}
           className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${

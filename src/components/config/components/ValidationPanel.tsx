@@ -36,10 +36,7 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
   }
 
   return (
-    <div
-      role="alert"
-      className="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-3"
-    >
+    <div role="alert" className="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-3">
       <div className="mb-1 flex items-center gap-2">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -62,9 +59,7 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
         )}
       </div>
       <p className="font-mono text-xs text-red-400">{validationError}</p>
-      {fieldMeta?.helper && (
-        <p className="mt-1.5 text-[11px] text-red-600">{fieldMeta.helper}</p>
-      )}
+      {fieldMeta?.helper && <p className="mt-1.5 text-[11px] text-red-600">{fieldMeta.helper}</p>}
     </div>
   );
 };

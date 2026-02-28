@@ -1,15 +1,11 @@
 'use client';
 
 import React from 'react';
-import type { CronRunStatus } from '@/modules/cron/types';
-import type { CronRule } from '@/modules/cron/types';
+import type { CronRunStatus, CronRule } from '@/modules/cron/types';
 
 // ─── Run Status Badge ────────────────────────────────────────────────────────
 
-const RUN_STATUS_META: Record<
-  CronRunStatus,
-  { label: string; className: string; dot: string }
-> = {
+const RUN_STATUS_META: Record<CronRunStatus, { label: string; className: string; dot: string }> = {
   queued: {
     label: 'Queued',
     className: 'text-amber-300 bg-amber-900/30 border-amber-700/40',
@@ -50,7 +46,7 @@ export const RunStatusBadge: React.FC<RunStatusBadgeProps> = ({ status }) => {
   const meta = RUN_STATUS_META[status];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${meta.className}`}
+      className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase ${meta.className}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
       {meta.label}
@@ -67,7 +63,7 @@ interface RuleStatusBadgeProps {
 export const RuleStatusBadge: React.FC<RuleStatusBadgeProps> = ({ rule }) => {
   if (!rule.enabled) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded border border-zinc-700/40 bg-zinc-800/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+      <span className="inline-flex items-center gap-1.5 rounded border border-zinc-700/40 bg-zinc-800/60 px-2 py-0.5 text-[10px] font-bold tracking-wider text-zinc-400 uppercase">
         <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" />
         Paused
       </span>
@@ -75,14 +71,14 @@ export const RuleStatusBadge: React.FC<RuleStatusBadgeProps> = ({ rule }) => {
   }
   if (rule.consecutiveFailures > 0 || rule.lastError) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded border border-amber-700/40 bg-amber-900/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+      <span className="inline-flex items-center gap-1.5 rounded border border-amber-700/40 bg-amber-900/20 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-300 uppercase">
         <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
         Degraded
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded border border-emerald-700/40 bg-emerald-900/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+    <span className="inline-flex items-center gap-1.5 rounded border border-emerald-700/40 bg-emerald-900/20 px-2 py-0.5 text-[10px] font-bold tracking-wider text-emerald-300 uppercase">
       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
       Active
     </span>

@@ -42,10 +42,7 @@ const ConversationCard: React.FC<ConversationCardProps> = ({ conv, isSelected, o
           <span className="text-zinc-600">{restId}</span>
           {conv.conversationId.length > 20 && <span className="text-zinc-700">…</span>}
         </span>
-        <span
-          className="shrink-0 text-[10px] text-zinc-600"
-          title={conv.lastActivity}
-        >
+        <span className="shrink-0 text-[10px] text-zinc-600" title={conv.lastActivity}>
           {formatRelativeTime(conv.lastActivity)}
         </span>
       </div>
@@ -62,16 +59,24 @@ const ConversationCard: React.FC<ConversationCardProps> = ({ conv, isSelected, o
       {/* Row 3: metrics */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
         <span className="flex items-center gap-1">
-          <span className="text-zinc-700" aria-hidden="true">↕</span>
-          <span>{conv.turnCount} turn{conv.turnCount === 1 ? '' : 's'}</span>
+          <span className="text-zinc-700" aria-hidden="true">
+            ↕
+          </span>
+          <span>
+            {conv.turnCount} turn{conv.turnCount === 1 ? '' : 's'}
+          </span>
         </span>
         <span className="flex items-center gap-1">
-          <span className="text-zinc-700" aria-hidden="true">◈</span>
+          <span className="text-zinc-700" aria-hidden="true">
+            ◈
+          </span>
           <span>{conv.totalTokens.toLocaleString()} tok</span>
         </span>
         {conv.totalCostUsd != null && (
           <span className="flex items-center gap-1">
-            <span className="text-zinc-700" aria-hidden="true">$</span>
+            <span className="text-zinc-700" aria-hidden="true">
+              $
+            </span>
             <span>{conv.totalCostUsd.toFixed(4)}</span>
           </span>
         )}

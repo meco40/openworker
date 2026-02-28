@@ -66,9 +66,7 @@ export const RuntimeTab: React.FC<ConfigTabProps> = ({
               </option>
             ))}
           </select>
-          {logLevelError && (
-            <p className="mt-1 text-[11px] text-red-400">{logLevelError}</p>
-          )}
+          {logLevelError && <p className="mt-1 text-[11px] text-red-400">{logLevelError}</p>}
           {!logLevelError && (
             <p className="mt-1 text-[11px] text-zinc-600">
               {LOG_LEVEL_DESCRIPTIONS[currentLevel] ?? getFieldMetadata('gateway.logLevel')?.helper}

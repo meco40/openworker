@@ -36,10 +36,7 @@ export const ConfigInfoBar: React.FC<ConfigInfoBarProps> = ({
             clipRule="evenodd"
           />
         </svg>
-        <span
-          className="truncate font-mono text-[10px] text-zinc-500"
-          title={configPath}
-        >
+        <span className="truncate font-mono text-[10px] text-zinc-500" title={configPath}>
           {configPath}
         </span>
       </div>

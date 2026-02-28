@@ -29,12 +29,7 @@ const FieldGroup: React.FC<FieldGroupProps> = ({ label, htmlFor, helper, childre
   </div>
 );
 
-const selectClass = (disabled: boolean) =>
-  `w-full rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-200 transition-colors focus:border-indigo-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 ${
-    disabled ? 'cursor-not-allowed opacity-50' : ''
-  }`;
-
-const inputClass = (disabled: boolean) =>
+const fieldClass = (disabled: boolean) =>
   `w-full rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-200 transition-colors focus:border-indigo-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 ${
     disabled ? 'cursor-not-allowed opacity-50' : ''
   }`;
@@ -68,7 +63,7 @@ export const UITab: React.FC<ConfigTabProps> = ({
                   getOrCreateObject(draft, 'ui').defaultView = event.target.value;
                 });
               }}
-              className={selectClass(simpleModeDisabled)}
+              className={fieldClass(simpleModeDisabled)}
             >
               {ALLOWED_UI_DEFAULT_VIEWS.map((value) => (
                 <option key={value} value={value}>
@@ -94,7 +89,7 @@ export const UITab: React.FC<ConfigTabProps> = ({
                   getOrCreateObject(draft, 'ui').density = event.target.value;
                 });
               }}
-              className={selectClass(simpleModeDisabled)}
+              className={fieldClass(simpleModeDisabled)}
             >
               {ALLOWED_UI_DENSITIES.map((value) => (
                 <option key={value} value={value}>
@@ -121,7 +116,7 @@ export const UITab: React.FC<ConfigTabProps> = ({
                   getOrCreateObject(draft, 'ui').language = event.target.value;
                 });
               }}
-              className={inputClass(simpleModeDisabled)}
+              className={fieldClass(simpleModeDisabled)}
             />
           </FieldGroup>
 
@@ -137,7 +132,7 @@ export const UITab: React.FC<ConfigTabProps> = ({
                   getOrCreateObject(draft, 'ui').timeFormat = event.target.value;
                 });
               }}
-              className={selectClass(simpleModeDisabled)}
+              className={fieldClass(simpleModeDisabled)}
             >
               {ALLOWED_UI_TIME_FORMATS.map((value) => (
                 <option key={value} value={value}>

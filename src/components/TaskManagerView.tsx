@@ -67,6 +67,13 @@ const PRIORITY_LABELS: Record<TaskPriority, string> = {
   low: '🔵 Low',
 };
 
+const PRIORITY_ORDER: Record<TaskPriority, number> = {
+  urgent: 0,
+  high: 1,
+  normal: 2,
+  low: 3,
+};
+
 // ─── Small UI Helpers ─────────────────────────────────────────────────────────
 
 const Spinner: React.FC<{ size?: 'sm' | 'md' }> = ({ size = 'md' }) => (
@@ -78,7 +85,11 @@ const Spinner: React.FC<{ size?: 'sm' | 'md' }> = ({ size = 'md' }) => (
     aria-hidden="true"
   >
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+    />
   </svg>
 );
 
@@ -151,7 +162,11 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ open, onClose, onCrea
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), description: description.trim() || undefined, priority }),
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim() || undefined,
+          priority,
+        }),
       });
       const data = (await res.json()) as Task & { error?: string };
       if (!res.ok) throw new Error(data.error ?? 'Failed to create task');
@@ -170,12 +185,20 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ open, onClose, onCrea
       aria-modal="true"
       aria-labelledby="create-task-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
     >
-      <div aria-hidden="true" className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative z-10 w-full max-w-md rounded-xl border border-zinc-700/60 bg-zinc-900 shadow-2xl">
         <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-          <h2 id="create-task-title" className="text-sm font-semibold text-zinc-100">New Task</h2>
+          <h2 id="create-task-title" className="text-sm font-semibold text-zinc-100">
+            New Task
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -187,7 +210,9 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ open, onClose, onCrea
         </div>
         <form onSubmit={handleSubmit} className="px-5 py-4">
           <label className="mb-3 block">
-            <span className="mb-1 block text-xs font-medium text-zinc-400">Title <span className="text-red-500">*</span></span>
+            <span className="mb-1 block text-xs font-medium text-zinc-400">
+              Title <span className="text-red-500">*</span>
+            </span>
             <input
               ref={titleRef}
               type="text"
@@ -216,12 +241,17 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ open, onClose, onCrea
               className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:border-blue-500 focus:outline-none"
             >
               {ALL_PRIORITIES.map((p) => (
-                <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>
+                <option key={p} value={p}>
+                  {PRIORITY_LABELS[p]}
+                </option>
               ))}
             </select>
           </label>
           {error && (
-            <div className="mb-3 rounded-lg border border-red-800/60 bg-red-950/30 px-3 py-2 text-xs text-red-400" role="alert">
+            <div
+              className="mb-3 rounded-lg border border-red-800/60 bg-red-950/30 px-3 py-2 text-xs text-red-400"
+              role="alert"
+            >
               {error}
             </div>
           )}
@@ -283,7 +313,9 @@ const TaskRow: React.FC<TaskRowProps> = ({
           onClick={() => onSelect(task.id)}
           className="group text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
         >
-          <p className={`text-sm font-medium leading-snug ${isSelected ? 'text-blue-300' : 'text-zinc-200 group-hover:text-zinc-100'}`}>
+          <p
+            className={`text-sm leading-snug font-medium ${isSelected ? 'text-blue-300' : 'text-zinc-200 group-hover:text-zinc-100'}`}
+          >
             {task.title}
           </p>
           {task.description && (
@@ -302,7 +334,9 @@ const TaskRow: React.FC<TaskRowProps> = ({
           className="rounded-full border-0 bg-transparent p-0 text-[10px] focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:cursor-not-allowed"
         >
           {ALL_STATUSES.map((s) => (
-            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+            <option key={s} value={s}>
+              {STATUS_LABELS[s]}
+            </option>
           ))}
         </select>
         <div className="mt-0.5">
@@ -322,7 +356,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
             <span className="text-base leading-none" aria-hidden="true">
               {task.assigned_agent.avatar_emoji ?? '🤖'}
             </span>
-            <span className="truncate max-w-[100px]">{task.assigned_agent.name ?? 'Agent'}</span>
+            <span className="max-w-[100px] truncate">{task.assigned_agent.name ?? 'Agent'}</span>
           </span>
         ) : (
           <span className="text-xs text-zinc-700">—</span>
@@ -360,8 +394,18 @@ const TaskRow: React.FC<TaskRowProps> = ({
               title="Mark done"
               className="rounded p-1 text-zinc-600 transition-colors hover:bg-emerald-900/30 hover:text-emerald-400 focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
-                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                  clipRule="evenodd"
+                />
               </svg>
             </button>
           )}
@@ -373,8 +417,18 @@ const TaskRow: React.FC<TaskRowProps> = ({
             title="Delete task"
             className="rounded p-1 text-zinc-700 transition-colors hover:bg-red-900/30 hover:text-red-400 focus:outline-none focus-visible:ring-1 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
-              <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z"
+                clipRule="evenodd"
+              />
             </svg>
           </button>
         </div>
@@ -406,7 +460,9 @@ const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
       className="flex w-80 shrink-0 flex-col overflow-hidden border-l border-zinc-800 bg-zinc-900/80"
     >
       <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-        <span className="text-[11px] font-semibold tracking-widest text-zinc-500 uppercase">Task Detail</span>
+        <span className="text-[11px] font-semibold tracking-widest text-zinc-500 uppercase">
+          Task Detail
+        </span>
         <button
           type="button"
           onClick={onClose}
@@ -419,7 +475,7 @@ const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
 
       <div className="flex-1 overflow-auto px-4 py-4">
         {/* Title */}
-        <h3 className="mb-3 text-sm font-semibold leading-snug text-zinc-100">{task.title}</h3>
+        <h3 className="mb-3 text-sm leading-snug font-semibold text-zinc-100">{task.title}</h3>
 
         {/* Badges */}
         <div className="mb-4 flex flex-wrap gap-2">
@@ -430,8 +486,12 @@ const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
         {/* Description */}
         {task.description && (
           <div className="mb-4">
-            <p className="mb-1 text-[10px] font-semibold tracking-wider text-zinc-600 uppercase">Description</p>
-            <p className="text-xs leading-relaxed text-zinc-400 whitespace-pre-wrap">{task.description}</p>
+            <p className="mb-1 text-[10px] font-semibold tracking-wider text-zinc-600 uppercase">
+              Description
+            </p>
+            <p className="text-xs leading-relaxed whitespace-pre-wrap text-zinc-400">
+              {task.description}
+            </p>
           </div>
         )}
 
@@ -470,7 +530,9 @@ const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
 
         {/* Status change */}
         <div className="mb-4">
-          <p className="mb-1.5 text-[10px] font-semibold tracking-wider text-zinc-600 uppercase">Move to</p>
+          <p className="mb-1.5 text-[10px] font-semibold tracking-wider text-zinc-600 uppercase">
+            Move to
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {ALL_STATUSES.filter((s) => s !== task.status).map((s) => (
               <button
@@ -531,60 +593,63 @@ const TaskManagerView: React.FC = () => {
     void loadTasks();
   }, [loadTasks]);
 
-  const handleStatusChange = useCallback(async (id: string, status: TaskStatus) => {
-    setPendingActions((prev) => ({ ...prev, [id]: 'status' }));
-    try {
-      const res = await fetch(`/api/tasks/${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? 'Failed to update task');
+  const handleStatusChange = useCallback(
+    async (id: string, status: TaskStatus) => {
+      setPendingActions((prev) => ({ ...prev, [id]: 'status' }));
+      try {
+        const res = await fetch(`/api/tasks/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        });
+        if (!res.ok) {
+          const data = (await res.json()) as { error?: string };
+          throw new Error(data.error ?? 'Failed to update task');
+        }
+        const updated = (await res.json()) as Task;
+        setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+      } catch {
+        // Silently reload on error
+        void loadTasks();
+      } finally {
+        setPendingActions((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
       }
-      const updated = (await res.json()) as Task;
-      setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
-    } catch {
-      // Silently reload on error
-      void loadTasks();
-    } finally {
-      setPendingActions((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-    }
-  }, [loadTasks]);
+    },
+    [loadTasks],
+  );
 
-  const handleDelete = useCallback(async (id: string) => {
-    if (!confirm('Delete this task? This cannot be undone.')) return;
-    setPendingActions((prev) => ({ ...prev, [id]: 'delete' }));
-    try {
-      const res = await fetch(`/api/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? 'Failed to delete task');
+  const handleDelete = useCallback(
+    async (id: string) => {
+      if (!confirm('Delete this task? This cannot be undone.')) return;
+      setPendingActions((prev) => ({ ...prev, [id]: 'delete' }));
+      try {
+        const res = await fetch(`/api/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const data = (await res.json()) as { error?: string };
+          throw new Error(data.error ?? 'Failed to delete task');
+        }
+        setTasks((prev) => prev.filter((t) => t.id !== id));
+        if (selectedId === id) setSelectedId(null);
+      } catch {
+        void loadTasks();
+      } finally {
+        setPendingActions((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
       }
-      setTasks((prev) => prev.filter((t) => t.id !== id));
-      if (selectedId === id) setSelectedId(null);
-    } catch {
-      void loadTasks();
-    } finally {
-      setPendingActions((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-    }
-  }, [loadTasks, selectedId]);
+    },
+    [loadTasks, selectedId],
+  );
 
   const handleCreated = useCallback((task: Task) => {
     setTasks((prev) => [task, ...prev]);
   }, []);
-
-  // Priority sort order
-  const PRIORITY_ORDER: Record<TaskPriority, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
 
   const filteredTasks = useMemo(() => {
     let result = tasks;
@@ -600,7 +665,8 @@ const TaskManagerView: React.FC = () => {
     }
     return [...result].sort((a, b) => {
       if (sortBy === 'priority') return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-      if (sortBy === 'created_at') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (sortBy === 'created_at')
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
     });
   }, [tasks, filterPriority, search, sortBy]);
@@ -622,8 +688,16 @@ const TaskManagerView: React.FC = () => {
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-zinc-800 px-5 py-3">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-900/40 text-violet-400" aria-hidden="true">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+          <span
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-900/40 text-violet-400"
+            aria-hidden="true"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-4 w-4"
+            >
               <path d="M2 4.5A2.5 2.5 0 014.5 2h11A2.5 2.5 0 0118 4.5v11a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 012 15.5v-11zm2.5-.5a.5.5 0 00-.5.5v11a.5.5 0 00.5.5h11a.5.5 0 00.5-.5v-11a.5.5 0 00-.5-.5h-11zM6 7.75A.75.75 0 016.75 7h6.5a.75.75 0 010 1.5h-6.5A.75.75 0 016 7.75zm0 3.5A.75.75 0 016.75 10.5h6.5a.75.75 0 010 1.5h-6.5A.75.75 0 016 11.25zm0 3.5A.75.75 0 016.75 14h4a.75.75 0 010 1.5h-4A.75.75 0 016 14.75z" />
             </svg>
           </span>
@@ -633,15 +707,28 @@ const TaskManagerView: React.FC = () => {
         {/* Task count */}
         {!loading && (
           <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-500">
-            {filteredTasks.length}{filteredTasks.length !== tasks.length ? ` / ${String(tasks.length)}` : ''}
+            {filteredTasks.length}
+            {filteredTasks.length !== tasks.length ? ` / ${String(tasks.length)}` : ''}
           </span>
         )}
 
         {/* Search */}
         <div className="relative flex-1 sm:max-w-xs">
-          <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-zinc-600" aria-hidden="true">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-              <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
+          <span
+            className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-zinc-600"
+            aria-hidden="true"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-3.5 w-3.5"
+            >
+              <path
+                fillRule="evenodd"
+                d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
+                clipRule="evenodd"
+              />
             </svg>
           </span>
           <input
@@ -650,7 +737,7 @@ const TaskManagerView: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Search tasks"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 py-1.5 pl-8 pr-3 text-xs text-zinc-200 placeholder-zinc-600 focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 py-1.5 pr-3 pl-8 text-xs text-zinc-200 placeholder-zinc-600 focus:border-blue-500 focus:outline-none"
           />
         </div>
 
@@ -664,7 +751,8 @@ const TaskManagerView: React.FC = () => {
           <option value="">All statuses</option>
           {ALL_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {STATUS_LABELS[s]}{statusCounts[s] ? ` (${String(statusCounts[s])})` : ''}
+              {STATUS_LABELS[s]}
+              {statusCounts[s] ? ` (${String(statusCounts[s])})` : ''}
             </option>
           ))}
         </select>
@@ -677,7 +765,9 @@ const TaskManagerView: React.FC = () => {
         >
           <option value="">All priorities</option>
           {ALL_PRIORITIES.map((p) => (
-            <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>
+            <option key={p} value={p}>
+              {PRIORITY_LABELS[p]}
+            </option>
           ))}
         </select>
 
@@ -701,8 +791,18 @@ const TaskManagerView: React.FC = () => {
             aria-label="Refresh tasks"
             className="flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true">
-              <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clipRule="evenodd" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z"
+                clipRule="evenodd"
+              />
             </svg>
             Refresh
           </button>
@@ -711,7 +811,13 @@ const TaskManagerView: React.FC = () => {
             onClick={() => setCreateOpen(true)}
             className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-3.5 w-3.5"
+              aria-hidden="true"
+            >
               <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
             </svg>
             New Task
@@ -734,8 +840,13 @@ const TaskManagerView: React.FC = () => {
           {/* Error */}
           {error && !loading && (
             <div className="m-4">
-              <div className="flex items-start gap-2 rounded-lg border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-400" role="alert">
-                <span className="mt-px shrink-0 text-red-500" aria-hidden="true">⚠</span>
+              <div
+                className="flex items-start gap-2 rounded-lg border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-400"
+                role="alert"
+              >
+                <span className="mt-px shrink-0 text-red-500" aria-hidden="true">
+                  ⚠
+                </span>
                 <span className="flex-1">{error}</span>
                 <button
                   type="button"
@@ -751,7 +862,9 @@ const TaskManagerView: React.FC = () => {
           {/* Empty state */}
           {!loading && !error && filteredTasks.length === 0 && (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-              <span className="text-4xl" aria-hidden="true">📋</span>
+              <span className="text-4xl" aria-hidden="true">
+                📋
+              </span>
               <p className="text-sm font-medium text-zinc-500">
                 {tasks.length === 0 ? 'No tasks yet' : 'No tasks match your filters'}
               </p>
@@ -778,13 +891,27 @@ const TaskManagerView: React.FC = () => {
               <table className="w-full text-left">
                 <thead className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950">
                   <tr>
-                    <th className="px-4 py-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">Task</th>
-                    <th className="px-4 py-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">Status</th>
-                    <th className="px-4 py-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">Priority</th>
-                    <th className="px-4 py-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">Assigned</th>
-                    <th className="px-4 py-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">Due</th>
-                    <th className="px-4 py-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">Updated</th>
-                    <th className="px-4 py-2.5 text-right text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">Actions</th>
+                    <th className="px-4 py-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
+                      Task
+                    </th>
+                    <th className="px-4 py-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
+                      Status
+                    </th>
+                    <th className="px-4 py-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
+                      Priority
+                    </th>
+                    <th className="px-4 py-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
+                      Assigned
+                    </th>
+                    <th className="px-4 py-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
+                      Due
+                    </th>
+                    <th className="px-4 py-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
+                      Updated
+                    </th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

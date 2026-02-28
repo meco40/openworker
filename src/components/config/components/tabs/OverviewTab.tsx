@@ -36,9 +36,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         {/* Pending changes */}
         <div
           className={`rounded-xl border p-4 ${
-            hasChanges
-              ? 'border-amber-800/50 bg-amber-950/20'
-              : 'border-zinc-800 bg-zinc-900/60'
+            hasChanges ? 'border-amber-800/50 bg-amber-950/20' : 'border-zinc-800 bg-zinc-900/60'
           }`}
         >
           <p className="mb-1 text-[10px] font-semibold tracking-wider text-zinc-600 uppercase">

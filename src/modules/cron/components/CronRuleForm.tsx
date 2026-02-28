@@ -40,7 +40,7 @@ export const CronRuleForm: React.FC<CronRuleFormProps> = ({
           </p>
         </div>
         {isEdit && (
-          <span className="rounded border border-indigo-700/40 bg-indigo-900/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+          <span className="rounded border border-indigo-700/40 bg-indigo-900/20 px-2 py-0.5 text-[10px] font-bold tracking-wider text-indigo-400 uppercase">
             Editing
           </span>
         )}
@@ -139,33 +139,34 @@ export const CronRuleForm: React.FC<CronRuleFormProps> = ({
           </FormField>
 
           {/* Enabled toggle */}
-          <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950/40 px-3 py-2.5 transition-colors hover:bg-zinc-800/30">
-            <div className="relative">
-              <input
-                type="checkbox"
-                id="cron-enabled"
-                checked={draft.enabled}
-                onChange={(e) => onUpdateDraft({ enabled: e.target.checked })}
-                className="sr-only"
-              />
-              <div
-                className={`h-5 w-9 rounded-full transition-colors ${draft.enabled ? 'bg-indigo-600' : 'bg-zinc-700'}`}
-              />
-              <div
-                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${draft.enabled ? 'translate-x-4' : 'translate-x-0.5'}`}
-              />
-            </div>
-            <div>
-              <span className="text-xs font-semibold text-zinc-200">
-                {draft.enabled ? 'Enabled' : 'Disabled'}
-              </span>
-              <p className="text-[10px] text-zinc-500">
-                {draft.enabled
-                  ? 'Rule will fire on schedule.'
-                  : 'Rule is paused and will not fire.'}
-              </p>
-            </div>
-          </label>
+          <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 px-3 py-2.5 transition-colors hover:bg-zinc-800/30">
+            <button
+              type="button"
+              aria-pressed={draft.enabled}
+              aria-label="Toggle rule enabled state"
+              onClick={() => onUpdateDraft({ enabled: !draft.enabled })}
+              className="flex w-full cursor-pointer items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            >
+              <div className="relative" aria-hidden="true">
+                <div
+                  className={`h-5 w-9 rounded-full transition-colors ${draft.enabled ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+                />
+                <div
+                  className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${draft.enabled ? 'translate-x-4' : 'translate-x-0.5'}`}
+                />
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-zinc-200">
+                  {draft.enabled ? 'Enabled' : 'Disabled'}
+                </span>
+                <p className="text-[10px] text-zinc-500">
+                  {draft.enabled
+                    ? 'Rule will fire on schedule.'
+                    : 'Rule is paused and will not fire.'}
+                </p>
+              </div>
+            </button>
+          </div>
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
@@ -212,9 +213,19 @@ interface FormFieldProps {
   children: React.ReactNode;
 }
 
-const FormField: React.FC<FormFieldProps> = ({ label, htmlFor, hint, error, required, children }) => (
+const FormField: React.FC<FormFieldProps> = ({
+  label,
+  htmlFor,
+  hint,
+  error,
+  required,
+  children,
+}) => (
   <div className="space-y-1">
-    <label htmlFor={htmlFor} className="flex items-center gap-1 text-xs font-semibold text-zinc-400">
+    <label
+      htmlFor={htmlFor}
+      className="flex items-center gap-1 text-xs font-semibold text-zinc-400"
+    >
       {label}
       {required && <span className="text-rose-400">*</span>}
     </label>

@@ -90,10 +90,7 @@ const ReplayModal: React.FC<ReplayModalProps> = ({
         {/* Header */}
         <div className="flex items-start justify-between border-b border-zinc-800 px-5 py-4">
           <div>
-            <h2
-              id="replay-modal-title"
-              className="text-sm font-semibold text-zinc-100"
-            >
+            <h2 id="replay-modal-title" className="text-sm font-semibold text-zinc-100">
               Replay from Turn {fromSeq}
             </h2>
             <p id="replay-modal-desc" className="mt-0.5 text-xs text-zinc-500">
@@ -125,8 +122,7 @@ const ReplayModal: React.FC<ReplayModalProps> = ({
           {/* Model selector */}
           <label className="mb-4 block">
             <span className="mb-1.5 block text-xs font-medium text-zinc-400">
-              Model override{' '}
-              <span className="font-normal text-zinc-600">(optional)</span>
+              Model override <span className="font-normal text-zinc-600">(optional)</span>
             </span>
             <select
               value={selectedModel}
@@ -169,7 +165,7 @@ const ReplayModal: React.FC<ReplayModalProps> = ({
                 </svg>
                 New conversation created
               </div>
-              <p className="mb-3 font-mono text-[10px] text-emerald-600 break-all">
+              <p className="mb-3 font-mono text-[10px] break-all text-emerald-600">
                 {lastReplayConversationId}
               </p>
               <button

@@ -42,9 +42,7 @@ const TurnCard: React.FC<TurnCardProps> = ({ turn, isSelected, onSelect }) => {
       <span
         className="absolute top-0 bottom-0 left-0 w-0.5 rounded-full"
         style={{
-          background: isSelected
-            ? 'rgb(37 99 235 / 0.6)'
-            : 'rgb(63 63 70 / 0.4)',
+          background: isSelected ? 'rgb(37 99 235 / 0.6)' : 'rgb(63 63 70 / 0.4)',
         }}
         aria-hidden="true"
       />
@@ -52,7 +50,7 @@ const TurnCard: React.FC<TurnCardProps> = ({ turn, isSelected, onSelect }) => {
       {/* Row 1: seq badge + risk dot + badges */}
       <div className="mb-1.5 flex items-center gap-1.5">
         <span
-          className={`inline-flex h-5 min-w-[1.5rem] items-center justify-center rounded px-1 font-mono text-[10px] font-bold leading-none ${
+          className={`inline-flex h-5 min-w-[1.5rem] items-center justify-center rounded px-1 font-mono text-[10px] leading-none font-bold ${
             isSelected ? 'bg-blue-800/80 text-blue-100' : 'bg-zinc-800 text-zinc-400'
           }`}
         >
@@ -89,15 +87,11 @@ const TurnCard: React.FC<TurnCardProps> = ({ turn, isSelected, onSelect }) => {
 
       {/* Row 2: user preview */}
       {turn.userPreview && (
-        <p className="mb-0.5 truncate text-[11px] leading-snug text-zinc-400">
-          {turn.userPreview}
-        </p>
+        <p className="mb-0.5 truncate text-[11px] leading-snug text-zinc-400">{turn.userPreview}</p>
       )}
 
       {/* Row 3: model name */}
-      {turn.modelName && (
-        <p className="truncate text-[10px] text-zinc-700">{turn.modelName}</p>
-      )}
+      {turn.modelName && <p className="truncate text-[10px] text-zinc-700">{turn.modelName}</p>}
     </button>
   );
 };
@@ -125,10 +119,7 @@ const TurnTimeline: React.FC<TurnTimelineProps> = ({
 
   if (turns.length === 0 && !error) {
     return (
-      <EmptyState
-        title="No turns found"
-        description="This conversation has no recorded turns."
-      />
+      <EmptyState title="No turns found" description="This conversation has no recorded turns." />
     );
   }
 
@@ -143,11 +134,7 @@ const TurnTimeline: React.FC<TurnTimelineProps> = ({
 
       {turns.map((turn) => (
         <div key={turn.seq} role="listitem">
-          <TurnCard
-            turn={turn}
-            isSelected={selectedSeq === turn.seq}
-            onSelect={onSelect}
-          />
+          <TurnCard turn={turn} isSelected={selectedSeq === turn.seq} onSelect={onSelect} />
         </div>
       ))}
 

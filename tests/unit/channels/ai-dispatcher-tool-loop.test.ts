@@ -4,7 +4,7 @@ import { MAX_TOOL_ROUNDS } from '@/server/channels/messages/service/types';
 
 const dispatchWithFallbackMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../src/server/model-hub/runtime', () => ({
+vi.mock('@/server/model-hub/runtime', () => ({
   getModelHubService: () => ({
     dispatchWithFallback: dispatchWithFallbackMock,
   }),
