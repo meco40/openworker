@@ -26,7 +26,7 @@ interface SwarmSection {
 // ─── Empty section placeholder ────────────────────────────────────────────────
 
 const EmptySectionPlaceholder: React.FC = () => (
-  <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950/40 p-4 text-sm text-zinc-600">
+  <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/40 px-5 py-4 text-sm text-zinc-600">
     No tasks in this section yet.
   </div>
 );
@@ -88,51 +88,42 @@ export function AgentRoomEntryPage({
   const activeCount = sections[0].items.length;
 
   return (
-    <div className="animate-in fade-in flex h-full min-h-160 flex-col gap-4 duration-300">
-      {/* ── Page header ── */}
-      <section className="rounded-2xl border border-zinc-800 bg-[#060d20] p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="animate-in fade-in flex h-full min-h-160 flex-col gap-5 duration-300">
+      {/* ── Hero header (Model Hub style) ── */}
+      <section className="group relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40 p-7 shadow-2xl">
+        {/* Ambient glow */}
+        <div className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full bg-cyan-600/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-indigo-600/8 blur-3xl" />
+
+        <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold tracking-tight text-white">Agent Team</h2>
-              <span className="rounded-full bg-zinc-800 px-2.5 py-0.5 text-xs font-semibold text-zinc-300">
-                {swarms.length} task{swarms.length !== 1 ? 's' : ''}
-              </span>
-              {activeCount > 0 && (
-                <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
-                  <span
-                    className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400"
-                    aria-hidden="true"
-                  />
-                  {activeCount} active
+            <div className="mb-2 flex flex-wrap items-center gap-3">
+              <h2 className="text-3xl font-black tracking-tight text-white uppercase">
+                Agent Team
+              </h2>
+              {/* Task count chip */}
+              <div className="flex items-center gap-1.5 rounded border border-zinc-800 bg-zinc-950 px-2 py-1">
+                <span
+                  className={`h-2 w-2 rounded-full ${activeCount > 0 ? 'animate-pulse bg-emerald-500' : 'bg-zinc-600'}`}
+                  aria-hidden="true"
+                />
+                <span className="font-mono text-[10px] text-zinc-400">
+                  {activeCount > 0 ? `${activeCount} ACTIVE` : `${swarms.length} TASKS`}
                 </span>
-              )}
+              </div>
             </div>
-            <p className="mt-1 text-sm text-zinc-400">
-              Create tasks and let your agent team collaborate on solutions.
+            <p className="max-w-lg text-sm leading-relaxed text-zinc-500">
+              Create tasks and let your agent team collaborate on solutions. Each swarm runs
+              autonomously through structured phases.
             </p>
           </div>
 
           <button
             type="button"
             onClick={onCreateClick}
-            className="flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-4 py-2 text-sm font-semibold text-cyan-100 transition-colors hover:border-cyan-500/60 hover:bg-cyan-500/25"
+            className="rounded-2xl bg-indigo-600 px-6 py-3.5 text-[10px] font-black tracking-widest text-white uppercase shadow-2xl shadow-indigo-600/30 transition-all hover:bg-indigo-500 active:scale-95"
           >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            New Task
+            + New Task
           </button>
         </div>
       </section>
@@ -140,7 +131,7 @@ export function AgentRoomEntryPage({
       {/* ── Status messages ── */}
       {loading && <LoadingIndicator />}
       {notice && (
-        <div className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5">
+        <div className="flex items-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
           <svg
             className="h-4 w-4 shrink-0 text-amber-400"
             fill="none"
@@ -159,7 +150,7 @@ export function AgentRoomEntryPage({
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-2.5">
+        <div className="flex items-center gap-2 rounded-2xl border border-rose-500/20 bg-rose-500/5 px-4 py-3">
           <svg
             className="h-4 w-4 shrink-0 text-rose-400"
             fill="none"
@@ -179,15 +170,15 @@ export function AgentRoomEntryPage({
       )}
 
       {/* ── Sections ── */}
-      <div className="space-y-6 pb-8">
+      <div className="space-y-7 pb-8">
         {sections.map((section) => (
           <section key={section.key} aria-label={section.title}>
             {/* Section header */}
-            <div className="mb-3 flex items-center gap-2">
-              <h3 className="text-xs font-bold tracking-widest text-zinc-400 uppercase">
+            <div className="mb-3 flex items-center gap-2.5">
+              <h3 className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">
                 {section.title}
               </h3>
-              <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">
+              <span className="rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 font-mono text-[9px] text-zinc-500">
                 {section.items.length}
               </span>
               {section.key === 'running_hold' && section.items.length > 0 && (

@@ -47,7 +47,7 @@ function statusBadgeClasses(status: SwarmStatus): string {
   }
 }
 
-// ─── Phase progress bar ───────────────────────────────────────────────────────
+// ─── Phase progress ───────────────────────────────────────────────────────────
 
 interface PhaseProgressProps {
   currentPhase: SwarmPhase;
@@ -65,12 +65,12 @@ const PhaseProgress: React.FC<PhaseProgressProps> = ({ currentPhase }) => {
           <span
             key={phase}
             role="listitem"
-            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
+            className={`rounded border px-2 py-0.5 font-mono text-[9px] font-black tracking-widest uppercase transition-colors ${
               active
-                ? 'bg-emerald-500/25 text-emerald-200 ring-1 ring-emerald-500/40'
+                ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'
                 : done
-                  ? 'bg-indigo-500/20 text-indigo-300'
-                  : 'bg-zinc-800 text-zinc-500'
+                  ? 'border-indigo-500/20 bg-indigo-500/10 text-indigo-400'
+                  : 'border-zinc-800 bg-zinc-950 text-zinc-600'
             }`}
           >
             {getSwarmPhaseLabel(phase)}
@@ -108,19 +108,24 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
     swarm.status === 'completed' || swarm.status === 'aborted' || swarm.status === 'error';
 
   return (
-    <header className="shrink-0 border-b border-zinc-800/60 bg-[#050b19]/80 px-5 py-3 backdrop-blur-sm">
+    <header className="relative shrink-0 overflow-hidden border-b border-zinc-800/60 bg-zinc-900/60 px-5 py-4 backdrop-blur-sm">
+      {/* Ambient glow for running tasks */}
+      {isRunning && (
+        <div className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-emerald-500/8 blur-3xl" />
+      )}
+
       {/* ── Top row: back + title + status + export ── */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="relative z-10 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           {/* Back button */}
           <button
             type="button"
             onClick={onBack}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-1.5 font-mono text-[9px] font-black tracking-widest text-zinc-300 uppercase transition-all hover:border-zinc-600 hover:bg-zinc-800 hover:text-white active:scale-95"
             aria-label="Back to task list"
           >
             <svg
-              className="h-3.5 w-3.5"
+              className="h-3 w-3"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -129,7 +134,7 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
+                strokeWidth={2.5}
                 d="M15 19l-7-7 7-7"
               />
             </svg>
@@ -137,11 +142,11 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
           </button>
 
           {/* Title */}
-          <h2 className="truncate text-lg font-bold text-white">{swarm.title}</h2>
+          <h2 className="truncate text-lg font-black tracking-tight text-white">{swarm.title}</h2>
 
           {/* Status badge */}
           <span
-            className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase ${statusBadgeClasses(swarm.status)}`}
+            className={`shrink-0 rounded-full border px-2.5 py-0.5 font-mono text-[9px] font-black tracking-widest uppercase ${statusBadgeClasses(swarm.status)}`}
           >
             {swarm.status}
           </span>
@@ -151,11 +156,11 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
         <button
           type="button"
           onClick={() => onExportMarkdown(swarm.id)}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+          className="flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-1.5 font-mono text-[9px] font-black tracking-widest text-zinc-300 uppercase transition-all hover:border-zinc-600 hover:bg-zinc-800 hover:text-white active:scale-95"
           aria-label="Export as Markdown"
         >
           <svg
-            className="h-3.5 w-3.5"
+            className="h-3 w-3"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -173,38 +178,32 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
       </div>
 
       {/* ── Task description ── */}
-      <p className="mt-1.5 truncate text-sm text-zinc-400">{swarm.task}</p>
+      <p className="relative z-10 mt-1.5 truncate text-sm text-zinc-400">{swarm.task}</p>
 
       {/* ── Action buttons ── */}
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="relative z-10 mt-3 flex flex-wrap gap-2">
         {/* Pause / Resume */}
         <button
           type="button"
           onClick={() => onPause(swarm.id)}
           disabled={!isActive}
-          className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition-colors hover:border-amber-500/60 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-transparent disabled:text-zinc-500"
+          className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-mono text-[9px] font-black tracking-widest uppercase transition-all active:scale-95 ${
+            isActive
+              ? 'border border-amber-500/40 bg-amber-500/10 text-amber-200 hover:border-amber-500/60 hover:bg-amber-500/20'
+              : 'cursor-not-allowed border border-zinc-700 bg-transparent text-zinc-500'
+          }`}
           aria-label={isHold ? 'Resume task' : 'Pause task'}
         >
           {isHold ? (
             <>
-              <svg
-                className="h-3.5 w-3.5"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 5v14l11-7z" />
               </svg>
               Resume
             </>
           ) : (
             <>
-              <svg
-                className="h-3.5 w-3.5"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
               </svg>
               Pause
@@ -217,10 +216,14 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
           type="button"
           onClick={() => onStop(swarm.id)}
           disabled={isFinished}
-          className="flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-200 transition-colors hover:border-rose-500/60 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-transparent disabled:text-zinc-500"
+          className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-mono text-[9px] font-black tracking-widest uppercase transition-all active:scale-95 ${
+            !isFinished
+              ? 'border border-rose-500/40 bg-rose-500/10 text-rose-200 hover:border-rose-500/60 hover:bg-rose-500/20'
+              : 'cursor-not-allowed border border-zinc-700 bg-transparent text-zinc-500'
+          }`}
           aria-label="Stop task"
         >
-          <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <rect x="6" y="6" width="12" height="12" rx="1" />
           </svg>
           Stop
@@ -231,36 +234,48 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
           type="button"
           onClick={() => onFinish(swarm.id)}
           disabled={isFinished}
-          className="flex items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-200 transition-colors hover:border-indigo-500/60 hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-transparent disabled:text-zinc-500"
+          className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-mono text-[9px] font-black tracking-widest uppercase transition-all active:scale-95 ${
+            !isFinished
+              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500'
+              : 'cursor-not-allowed border border-zinc-700 bg-transparent text-zinc-500'
+          }`}
           aria-label="Finish task"
         >
           <svg
-            className="h-3.5 w-3.5"
+            className="h-3 w-3"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
             aria-hidden="true"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2.5}
+              d="M5 13l4 4L19 7"
+            />
           </svg>
           Finish
         </button>
       </div>
 
       {/* ── Phase progress ── */}
-      <div className="mt-3">
+      <div className="relative z-10 mt-3">
         <PhaseProgress currentPhase={currentPhase} />
       </div>
 
       {/* ── Turn info ── */}
-      <p className="mt-2 text-xs text-zinc-500">
-        Phase: <span className="font-medium text-zinc-400">{getSwarmPhaseLabel(currentPhase)}</span>
-        {' · '}Turn <span className="font-medium text-zinc-400">{swarm.lastSeq}</span>
-        {' · '}
-        <span className="text-zinc-600">
+      <div className="relative z-10 mt-2 flex flex-wrap items-center gap-3">
+        <span className="rounded border border-zinc-800 bg-zinc-950 px-2 py-0.5 font-mono text-[9px] text-zinc-400">
+          Phase: {getSwarmPhaseLabel(currentPhase)}
+        </span>
+        <span className="rounded border border-zinc-800 bg-zinc-950 px-2 py-0.5 font-mono text-[9px] text-zinc-500">
+          Turn {swarm.lastSeq}
+        </span>
+        <span className="rounded border border-zinc-800 bg-zinc-950 px-2 py-0.5 font-mono text-[9px] text-zinc-600">
           {getPhaseRounds(currentPhase) * swarm.units.length} turns/phase
         </span>
-      </p>
+      </div>
     </header>
   );
 };
@@ -281,14 +296,14 @@ export function AgentRoomDetailPage({
 }: AgentRoomDetailPageProps) {
   if (!swarm) {
     return (
-      <section className="rounded-2xl border border-zinc-800 bg-[#060d20] p-5">
+      <section className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:bg-zinc-800"
+          className="flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-1.5 font-mono text-[9px] font-black tracking-widest text-zinc-300 uppercase transition-all hover:border-zinc-600 hover:bg-zinc-800 hover:text-white active:scale-95"
         >
           <svg
-            className="h-3.5 w-3.5"
+            className="h-3 w-3"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -297,7 +312,7 @@ export function AgentRoomDetailPage({
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
+              strokeWidth={2.5}
               d="M15 19l-7-7 7-7"
             />
           </svg>
@@ -313,7 +328,7 @@ export function AgentRoomDetailPage({
   return (
     <div className="animate-in fade-in flex h-full min-h-160 flex-col gap-3 duration-200 xl:flex-row">
       {/* ── Main chat section ── */}
-      <section className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-[#050b19]">
+      <section className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40">
         {/* Header */}
         <DetailHeader
           swarm={swarm}

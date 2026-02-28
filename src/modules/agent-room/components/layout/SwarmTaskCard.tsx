@@ -87,16 +87,21 @@ export function SwarmTaskCard({ swarm, selected, onOpen, onDelete }: SwarmTaskCa
 
   return (
     <article
-      className={`group relative flex flex-col gap-3 rounded-2xl border p-4 transition-all duration-200 ${
+      className={`group relative flex flex-col gap-3 overflow-hidden rounded-3xl border p-5 transition-all duration-200 ${
         selected
           ? 'border-cyan-500/60 bg-cyan-500/10 shadow-lg shadow-cyan-950/20'
           : isActive
-            ? 'border-emerald-500/25 bg-[#060d20] shadow-md shadow-emerald-950/10 hover:border-emerald-500/40'
-            : 'border-zinc-800 bg-[#060d20] hover:border-zinc-700 hover:bg-zinc-900/40'
+            ? 'border-emerald-500/25 bg-zinc-900/40 shadow-lg shadow-emerald-950/10 hover:border-emerald-500/40 hover:bg-zinc-900/60'
+            : 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/60'
       }`}
     >
+      {/* Ambient glow for active tasks */}
+      {isActive && (
+        <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-emerald-500/8 blur-2xl" />
+      )}
+
       {/* ── Header row ── */}
-      <div className="flex items-start justify-between gap-2">
+      <div className="relative z-10 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           {/* Status dot */}
           <span
@@ -104,42 +109,44 @@ export function SwarmTaskCard({ swarm, selected, onOpen, onDelete }: SwarmTaskCa
             aria-hidden="true"
           />
           {/* Title */}
-          <h3 className="truncate text-base leading-snug font-semibold text-white">
-            {swarm.title}
-          </h3>
+          <h3 className="truncate text-base leading-snug font-bold text-white">{swarm.title}</h3>
         </div>
 
         {/* Status badge */}
         <span
-          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${cfg.badgeClass}`}
+          className={`shrink-0 rounded-full border px-2 py-0.5 font-mono text-[9px] font-black tracking-widest uppercase ${cfg.badgeClass}`}
         >
           {cfg.label}
         </span>
       </div>
 
       {/* ── Task description ── */}
-      <p className="line-clamp-2 text-sm leading-relaxed text-zinc-400">{swarm.task}</p>
+      <p className="relative z-10 line-clamp-2 text-sm leading-relaxed text-zinc-400">
+        {swarm.task}
+      </p>
 
-      {/* ── Meta row ── */}
-      <div className="flex flex-wrap items-center gap-3 text-[11px] text-zinc-500">
-        <span className="font-medium text-zinc-400">{getSwarmPhaseLabel(swarm.currentPhase)}</span>
-        <span className="text-zinc-600">·</span>
-        <span>
+      {/* ── Meta chips ── */}
+      <div className="relative z-10 flex flex-wrap items-center gap-2">
+        <span className="rounded border border-zinc-800 bg-zinc-950 px-2 py-0.5 font-mono text-[9px] text-zinc-400">
+          {getSwarmPhaseLabel(swarm.currentPhase)}
+        </span>
+        <span className="rounded border border-zinc-800 bg-zinc-950 px-2 py-0.5 font-mono text-[9px] text-zinc-500">
           {swarm.units.length} agent{swarm.units.length !== 1 ? 's' : ''}
         </span>
-        <span className="text-zinc-600">·</span>
-        <span>Turn {swarm.lastSeq}</span>
+        <span className="rounded border border-zinc-800 bg-zinc-950 px-2 py-0.5 font-mono text-[9px] text-zinc-500">
+          Turn {swarm.lastSeq}
+        </span>
       </div>
 
       {/* ── Footer row ── */}
-      <div className="flex items-center justify-between gap-2 border-t border-zinc-800/60 pt-1">
-        <span className="font-mono text-[10px] text-zinc-600">{formattedDate}</span>
+      <div className="relative z-10 flex items-center justify-between gap-2 border-t border-zinc-800/60 pt-2">
+        <span className="font-mono text-[9px] text-zinc-600">{formattedDate}</span>
 
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => onOpen(swarm.id)}
-            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-100 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
+            className="rounded-xl bg-indigo-600 px-3 py-1.5 text-[10px] font-black tracking-widest text-white uppercase shadow-lg shadow-indigo-600/20 transition-all hover:bg-indigo-500 active:scale-95"
           >
             Open
           </button>
@@ -148,7 +155,7 @@ export function SwarmTaskCard({ swarm, selected, onOpen, onDelete }: SwarmTaskCa
             onClick={() => onDelete(swarm.id)}
             disabled={!deletable}
             title={!deletable ? 'Stop this task before deleting.' : 'Delete task'}
-            className="rounded-lg border border-rose-500/40 px-3 py-1.5 text-xs font-semibold text-rose-300 transition-colors hover:border-rose-500/60 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:text-zinc-500"
+            className="rounded-xl border border-rose-500/40 px-3 py-1.5 text-[10px] font-black tracking-widest text-rose-300 uppercase transition-all hover:border-rose-500/60 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:text-zinc-500"
           >
             Delete
           </button>
