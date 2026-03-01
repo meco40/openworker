@@ -25,9 +25,10 @@ const PersonasView: React.FC = () => {
     selectedPersona,
     setSelectedId,
     loadPersona,
+    patchSelectedPersonaFile,
     preferredModelId,
     setPreferredModelId,
-  } = usePersonaSelection({ activeTab });
+  } = usePersonaSelection();
 
   // Memory persona type state
   const [memoryPersonaType, setMemoryPersonaType] = useState<MemoryPersonaType>('general');
@@ -52,6 +53,7 @@ const PersonasView: React.FC = () => {
     selectedId,
     selectedPersona,
     activeTab,
+    onSavedFile: patchSelectedPersonaFile,
   });
 
   // Metadata editing

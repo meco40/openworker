@@ -1,12 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { PersonaTabName, PersonaWithFiles } from '@/server/personas/personaTypes';
+import type {
+  PersonaFileName,
+  PersonaTabName,
+  PersonaWithFiles,
+} from '@/server/personas/personaTypes';
 
 interface UsePersonaEditorOptions {
   selectedId: string | null;
   selectedPersona: PersonaWithFiles | null;
   activeTab: PersonaTabName;
+  onSavedFile?: (filename: PersonaFileName, content: string) => void;
 }
 
 interface UsePersonaEditorReturn {
@@ -19,7 +24,7 @@ interface UsePersonaEditorReturn {
 }
 
 export function usePersonaEditor(options: UsePersonaEditorOptions): UsePersonaEditorReturn {
-  const { selectedId, selectedPersona, activeTab } = options;
+  const { selectedId, selectedPersona, activeTab, onSavedFile } = options;
   const [editorContent, setEditorContent] = useState('');
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -45,12 +50,13 @@ export function usePersonaEditor(options: UsePersonaEditorOptions): UsePersonaEd
         throw new Error(`Failed to save persona file (${response.status})`);
       }
       setDirty(false);
+      onSavedFile?.(activeTab as PersonaFileName, editorContent);
     } catch {
       /* ignore */
     } finally {
       setSaving(false);
     }
-  }, [selectedId, activeTab, editorContent]);
+  }, [selectedId, activeTab, editorContent, onSavedFile]);
 
   return {
     editorContent,
