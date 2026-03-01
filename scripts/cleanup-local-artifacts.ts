@@ -3,6 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const REMOVABLE_PREFIXES = [
+  'test-event-answer-',
   'test-dedup-',
   'test-entity-graph-',
   'test-nata-scenario-',
@@ -12,15 +13,24 @@ const REMOVABLE_PREFIXES = [
 ] as const;
 
 const STABLE_DATABASE_NAMES = new Set([
+  'automation.db',
   'messages.db',
+  'messages.recovered.db',
   'stats.db',
   'personas.db',
   'auth.db',
+  'credentials.db',
+  'gateway-config.db',
+  'master.db',
   'model-hub.db',
+  'openclaw.db',
   'skills.db',
   'clawhub.db',
   'logs.db',
 ]);
+
+const PROTECTED_TOP_LEVEL_DIRS = new Set(['personas', 'test-artifacts']);
+const TIMESTAMPED_DATABASE_PATTERN = /\.\d{8,}.*\.db(?:-(?:wal|shm))?$/;
 
 export interface LocalArtifactCandidate {
   name: string;
@@ -41,27 +51,51 @@ export interface CleanupResult {
 
 export function shouldCleanupLocalFile(name: string): boolean {
   if (STABLE_DATABASE_NAMES.has(name)) return false;
+  if (TIMESTAMPED_DATABASE_PATTERN.test(name)) return true;
   return REMOVABLE_PREFIXES.some((prefix) => name.startsWith(prefix));
 }
 
 export function collectCandidatesFromDir(dir: string): LocalArtifactCandidate[] {
-  const entries = readdirSync(dir, { withFileTypes: true });
+  const root = path.resolve(dir);
+  const dirsToScan = [root];
   const candidates: LocalArtifactCandidate[] = [];
 
-  for (const entry of entries) {
-    if (!entry.isFile()) continue;
-    if (!shouldCleanupLocalFile(entry.name)) continue;
+  while (dirsToScan.length > 0) {
+    const currentDir = dirsToScan.pop() ?? root;
+    const entries = readdirSync(currentDir, { withFileTypes: true });
 
-    const fullPath = path.join(dir, entry.name);
-    const stats = statSync(fullPath);
-    candidates.push({
-      name: entry.name,
-      path: fullPath,
-      sizeBytes: stats.size,
-    });
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name);
+
+      if (entry.isDirectory()) {
+        if (isProtectedSubtree(root, fullPath)) continue;
+        dirsToScan.push(fullPath);
+        continue;
+      }
+
+      if (!entry.isFile()) continue;
+      if (!shouldCleanupLocalFile(entry.name)) continue;
+
+      const stats = statSync(fullPath);
+      candidates.push({
+        name: entry.name,
+        path: fullPath,
+        sizeBytes: stats.size,
+      });
+    }
   }
 
   return candidates.sort((left, right) => right.sizeBytes - left.sizeBytes);
+}
+
+function isProtectedSubtree(root: string, candidateDir: string): boolean {
+  const relative = path.relative(root, candidateDir);
+  if (!relative || relative.startsWith('..')) {
+    return false;
+  }
+
+  const firstSegment = relative.split(path.sep)[0];
+  return PROTECTED_TOP_LEVEL_DIRS.has(firstSegment);
 }
 
 export function cleanupCandidates(

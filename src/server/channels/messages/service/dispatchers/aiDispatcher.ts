@@ -67,6 +67,7 @@ export async function dispatchToAI(
     maxToolCalls?: number;
     skipSummaryRefresh?: boolean;
     requireToolCall?: boolean;
+    toolsDisabled?: boolean;
   },
 ): Promise<{ content: string; metadata: Record<string, unknown> }> {
   const { conversation, userInput, onStreamDelta, executionDirective, maxToolCalls } = params;
@@ -108,29 +109,33 @@ export async function dispatchToAI(
 
   // Inject SKILL.md guidance bodies into the system prompt (server-only, dynamic import
   // prevents this from being bundled into the browser client).
-  try {
-    const { loadAllSkillMd, filterEligibleSkills } = await import('@/server/skills/skillMd/index');
-    const [{ BUILT_IN_SKILLS }, { getSkillRepository }] = await Promise.all([
-      import('@/server/skills/builtInSkills'),
-      import('@/server/skills/skillRepository'),
-    ]);
-    const skillRepo = await getSkillRepository();
-    const installedSkills = skillRepo.listSkills().filter((skill) => skill.installed);
-    const workspaceCwd = params.conversation.id
-      ? deps.resolveConversationWorkspaceCwd?.(params.conversation)
-      : undefined;
-    const allParsed = loadAllSkillMd({ workspaceCwd: workspaceCwd ?? undefined });
-    const eligible = filterEligibleSkills(allParsed);
-    const skillsSection = buildActiveSkillsPromptSection({
-      installedSkills,
-      eligibleParsedSkills: eligible,
-      builtInSeeds: BUILT_IN_SKILLS,
-    });
-    if (skillsSection) {
-      messages.unshift({ role: 'system', content: skillsSection });
+  // Roleplay personas force a strict no-tools mode, so skip skill/tool guidance in that case.
+  if (!params.toolsDisabled) {
+    try {
+      const { loadAllSkillMd, filterEligibleSkills } =
+        await import('@/server/skills/skillMd/index');
+      const [{ BUILT_IN_SKILLS }, { getSkillRepository }] = await Promise.all([
+        import('@/server/skills/builtInSkills'),
+        import('@/server/skills/skillRepository'),
+      ]);
+      const skillRepo = await getSkillRepository();
+      const installedSkills = skillRepo.listSkills().filter((skill) => skill.installed);
+      const workspaceCwd = params.conversation.id
+        ? deps.resolveConversationWorkspaceCwd?.(params.conversation)
+        : undefined;
+      const allParsed = loadAllSkillMd({ workspaceCwd: workspaceCwd ?? undefined });
+      const eligible = filterEligibleSkills(allParsed);
+      const skillsSection = buildActiveSkillsPromptSection({
+        installedSkills,
+        eligibleParsedSkills: eligible,
+        builtInSeeds: BUILT_IN_SKILLS,
+      });
+      if (skillsSection) {
+        messages.unshift({ role: 'system', content: skillsSection });
+      }
+    } catch {
+      // Non-fatal: if skill guidance fails to load, continue without it.
     }
-  } catch {
-    // Non-fatal: if skill guidance fails to load, continue without it.
   }
 
   // Abort any existing in-flight request for this conversation before creating a new one.
@@ -144,7 +149,13 @@ export async function dispatchToAI(
   try {
     const { preferredModelId, modelHubProfileId } = deps.resolveChatModelRouting(conversation);
     const workspaceCwd = deps.resolveConversationWorkspaceCwd?.(conversation);
-    const toolContext = await deps.toolManager.resolveToolContext();
+    const toolContext = params.toolsDisabled
+      ? {
+          tools: [],
+          installedFunctionNames: new Set<string>(),
+          functionToSkillId: new Map<string, string>(),
+        }
+      : await deps.toolManager.resolveToolContext();
     modelOutcome = await deps.runModelToolLoop(deps.toolManager, {
       conversation,
       messages,

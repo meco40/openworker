@@ -40,6 +40,10 @@ import {
   shouldAllowCodeInResponse,
   stripCodeBlocksIfNeeded,
 } from '@/server/channels/messages/service/core/configuration';
+import {
+  areToolsDisabledForPersona,
+  ROLEPLAY_TOOLS_DISABLED_MESSAGE,
+} from '@/server/channels/messages/service/core/toolPolicy';
 import type { ServiceState } from '@/server/channels/messages/service/core/types';
 import {
   resolveConversationWorkspaceCwd,
@@ -156,6 +160,12 @@ export async function handleInboundMessage(
     });
     broadcastToUser(conversation.userId, GatewayEvents.CHAT_MESSAGE, userMsg);
 
+    const effectiveConversation = applyChannelBindingPersona(deps.repo, conversation, platform);
+    const activePersona = effectiveConversation.personaId
+      ? getPersonaRepository().getPersona(effectiveConversation.personaId)
+      : null;
+    const toolsDisabledForPersona = areToolsDisabledForPersona(activePersona);
+
     const route = routeMessage(content);
 
     if (route.target === 'session-command') {
@@ -166,7 +176,7 @@ export async function handleInboundMessage(
         userId: conversation.userId,
       });
       const agentMsg = await deps.sendResponse(
-        conversation,
+        effectiveConversation,
         '✨ Neue Konversation erstellt.',
         platform,
         externalChatId,
@@ -178,7 +188,7 @@ export async function handleInboundMessage(
       return {
         userMsg,
         agentMsg: await handleAutomationCommand(
-          conversation,
+          effectiveConversation,
           route.payload,
           platform,
           externalChatId,
@@ -191,7 +201,7 @@ export async function handleInboundMessage(
       return {
         userMsg,
         agentMsg: await handlePersonaCommand(
-          conversation,
+          effectiveConversation,
           route.payload,
           platform,
           externalChatId,
@@ -203,12 +213,12 @@ export async function handleInboundMessage(
 
     if (route.target === 'project-command') {
       deps.state.pendingProjectClarifications.delete(
-        getProjectClarificationKey(applyChannelBindingPersona(deps.repo, conversation, platform)),
+        getProjectClarificationKey(effectiveConversation),
       );
       return {
         userMsg,
         agentMsg: await handleProjectCommand(
-          conversation,
+          effectiveConversation,
           route.payload,
           platform,
           externalChatId,
@@ -222,7 +232,7 @@ export async function handleInboundMessage(
       return {
         userMsg,
         agentMsg: await handleApprovalCommand(
-          conversation,
+          effectiveConversation,
           route.payload,
           route.command,
           platform,
@@ -234,10 +244,25 @@ export async function handleInboundMessage(
     }
 
     if (route.target === 'shell-command') {
+      if (toolsDisabledForPersona) {
+        return {
+          userMsg,
+          agentMsg: await deps.sendResponse(
+            effectiveConversation,
+            ROLEPLAY_TOOLS_DISABLED_MESSAGE,
+            platform,
+            externalChatId,
+            {
+              ok: false,
+              status: 'tools_disabled_for_roleplay',
+            },
+          ),
+        };
+      }
       return {
         userMsg,
         agentMsg: await handleShellCommand(
-          conversation,
+          effectiveConversation,
           route.payload,
           platform,
           externalChatId,
@@ -247,11 +272,26 @@ export async function handleInboundMessage(
     }
 
     if (route.target === 'subagent-command') {
+      if (toolsDisabledForPersona) {
+        return {
+          userMsg,
+          agentMsg: await deps.sendResponse(
+            effectiveConversation,
+            ROLEPLAY_TOOLS_DISABLED_MESSAGE,
+            platform,
+            externalChatId,
+            {
+              ok: false,
+              status: 'tools_disabled_for_roleplay',
+            },
+          ),
+        };
+      }
       return {
         userMsg,
         agentMsg: await handleSubagentCommand(
           {
-            conversation,
+            conversation: effectiveConversation,
             platform,
             externalChatId,
           },
@@ -262,7 +302,6 @@ export async function handleInboundMessage(
       };
     }
 
-    const effectiveConversation = applyChannelBindingPersona(deps.repo, conversation, platform);
     const memoryEnabledForConversation = isMemoryEnabledForConversation(
       effectiveConversation,
       deps.repo,
@@ -323,7 +362,7 @@ export async function handleInboundMessage(
     }
 
     const inferredShellCommand = inferShellCommandFromNaturalLanguage(effectiveUserInput);
-    if (inferredShellCommand) {
+    if (inferredShellCommand && !toolsDisabledForPersona) {
       return {
         userMsg,
         agentMsg: await handleInferredShellQuestion(
@@ -363,14 +402,11 @@ export async function handleInboundMessage(
 
     const activeWorkspaceCwd = resolveConversationWorkspaceCwd(effectiveConversation, deps.repo);
     const buildIntent = isProjectRequiredIntent(effectiveUserInput);
-    const activePersona = effectiveConversation.personaId
-      ? getPersonaRepository().getPersona(effectiveConversation.personaId)
-      : null;
     const isAutonomousPersona = Boolean(activePersona?.isAutonomous);
 
     let dispatchUserInput = effectiveUserInput;
     const explicitRecallCommand = isExplicitRecallCommand(effectiveUserInput);
-    if (buildIntent && activeWorkspaceCwd) {
+    if (buildIntent && activeWorkspaceCwd && !toolsDisabledForPersona) {
       const preflight = await runBuildWorkspacePreflight({
         conversation: effectiveConversation,
         platform,
@@ -387,12 +423,19 @@ export async function handleInboundMessage(
 
     const autonomousExecutionDirective = buildAutonomousExecutionDirective({
       workspaceCwd: activeWorkspaceCwd,
-      buildIntent,
-      isAutonomousPersona,
+      buildIntent: toolsDisabledForPersona ? false : buildIntent,
+      isAutonomousPersona: toolsDisabledForPersona ? false : isAutonomousPersona,
     });
     const explicitExecutionDirective = String(opts?.executionDirective || '').trim();
+    const roleplayToolDirective = toolsDisabledForPersona
+      ? 'TOOL POLICY: Fuer diese Roleplay-Persona sind alle Tool-Calls deaktiviert.'
+      : '';
+    const combinedExecutionDirective = [roleplayToolDirective]
+      .concat(explicitExecutionDirective || autonomousExecutionDirective || '')
+      .filter((entry) => entry.trim().length > 0)
+      .join('\n\n');
     const executionDirective =
-      explicitExecutionDirective || autonomousExecutionDirective || undefined;
+      combinedExecutionDirective.trim().length > 0 ? combinedExecutionDirective : undefined;
 
     const modelOutcome = await dispatchToAI(
       {
@@ -422,6 +465,7 @@ export async function handleInboundMessage(
         }),
         requireToolCall: opts?.requireToolCall,
         skipSummaryRefresh: explicitRecallCommand,
+        toolsDisabled: toolsDisabledForPersona,
       },
     );
 
@@ -441,7 +485,7 @@ export async function handleInboundMessage(
       externalChatId,
       {
         ...modelOutcome.metadata,
-        ...(buildIntent ? { executionMode: 'autonomous' } : {}),
+        ...(buildIntent && !toolsDisabledForPersona ? { executionMode: 'autonomous' } : {}),
         ...(activeWorkspaceCwd ? { workspaceCwd: activeWorkspaceCwd } : {}),
       },
     );

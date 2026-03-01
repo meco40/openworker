@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    globalSetup: ['tests/setup/test-artifacts.global-setup.ts'],
     setupFiles: ['tests/setup/test-artifacts.setup.ts'],
     testTimeout: 20_000,
     hookTimeout: 20_000,

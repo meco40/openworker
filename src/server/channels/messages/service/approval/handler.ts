@@ -3,6 +3,11 @@ import type { SessionManager } from '@/server/channels/messages/sessionManager';
 import type { ContextBuilder } from '@/server/channels/messages/contextBuilder';
 import type { ToolManager } from '@/server/channels/messages/service/toolManager';
 import type { SummaryService } from '@/server/channels/messages/service/summaryService';
+import { getPersonaRepository } from '@/server/personas/personaRepository';
+import {
+  areToolsDisabledForPersona,
+  ROLEPLAY_TOOLS_DISABLED_MESSAGE,
+} from '@/server/channels/messages/service/core/toolPolicy';
 
 export interface ApprovalHandlerDeps {
   sessionManager: SessionManager;
@@ -121,6 +126,23 @@ export async function respondToolApproval(
       'Befehl wurde abgelehnt. Ich fuehre diesen Tool-Aufruf nicht aus.',
       pending.platform,
       pending.externalChatId,
+    );
+    return { ok: true, status: 'denied', policyUpdated: false };
+  }
+
+  const activePersona = conversation.personaId
+    ? getPersonaRepository().getPersona(conversation.personaId)
+    : null;
+  if (areToolsDisabledForPersona(activePersona)) {
+    await sendResponse(
+      conversation,
+      ROLEPLAY_TOOLS_DISABLED_MESSAGE,
+      pending.platform,
+      pending.externalChatId,
+      {
+        ok: false,
+        status: 'tools_disabled_for_roleplay',
+      },
     );
     return { ok: true, status: 'denied', policyUpdated: false };
   }
