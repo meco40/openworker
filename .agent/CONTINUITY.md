@@ -497,3 +497,37 @@ Files >300 lines identified for potential future modularization:
 - 2026-03-01T06:12:36+01:00 [PROGRESS] [CODE] Regressionstest ergänzt/angepasst in `tests/unit/server/tasks/taskWorkspace.test.ts` (`uses deterministic workspace root in production mode`) und TypeScript-kompatibel über `Record<string, string | undefined>` für Env-Manipulation umgesetzt.
 - 2026-03-01T06:12:36+01:00 [DISCOVERIES] [TOOL] Build-Warnung war nicht durch Lint erfassbar; reproduzierbar nur über `next build` (Turbopack: broad file pattern in `taskWorkspace.ts` an den früheren `path.join(rootPath, entry.name)`-Stellen).
 - 2026-03-01T06:12:36+01:00 [OUTCOMES] [TOOL] Finale Verifikation grün: `npm run check` (typecheck/lint/format ohne Warnungen/Fehler), `npm test` (445 Dateien/2044 Tests), `npm run build` (erfolgreich, keine Turbopack-Warnungen mehr zu `taskWorkspace.ts`).
+
+[PLANS]
+
+- 2026-03-01T06:34:30+01:00 [USER] Umsetzung angefordert: Testartefakte zentral unter `.local/test-artifacts` laufen lassen, Cleanup vereinfachen, Plan dokumentieren und sauber verifizieren.
+
+[DECISIONS]
+
+- 2026-03-01T06:34:30+01:00 [CODE] Persona-Datenlogik bleibt unveraendert (`personas/<slug>/...`); nur Test-Roots werden per Env/Helper auf `.local/test-artifacts` zentralisiert.
+
+[PROGRESS]
+
+- 2026-03-01T06:34:30+01:00 [CODE] Plan angelegt: `docs/plans/2026-03-01-test-artifacts-centralization-implementation.md`.
+- 2026-03-01T06:34:30+01:00 [CODE] Restfehler in Persona-Suites behoben durch env-root-basierte Pfadassertions in `tests/unit/personas/persona-workspace.test.ts` und `tests/integration/personas/personas-files-route-filesystem.test.ts`.
+- 2026-03-01T06:34:30+01:00 [CODE] Weitere harte `.local`-Testpfade zentralisiert in `tests/unit/channels/attachments.test.ts`, `tests/unit/channels/attachment-consistency.test.ts`, `tests/unit/channels/whatsapp-webhook-route.test.ts`.
+
+[DISCOVERIES]
+
+- 2026-03-01T06:34:30+01:00 [TOOL] Hauptursache der verbleibenden Failures war nicht Produktivlogik, sondern Testannahmen auf feste `.local/*`-Pfade trotz globaler Test-Setup-Umleitung auf `.local/test-artifacts`.
+
+[OUTCOMES]
+
+- 2026-03-01T06:34:30+01:00 [TOOL] Verifikation gruen: `npm run typecheck` erfolgreich; fokussierter Regressionlauf mit 10 Dateien / 28 Tests bestanden (u. a. helpers/scripts/persona/channel/skills-Suites).
+- 2026-03-01T06:35:55+01:00 [OUTCOMES] [TOOL] Vollverifikation nach Test-Artefakt-Zentralisierung gruen: `npm test` erfolgreich mit 447/447 Dateien und 2049/2049 Tests.
+- 2026-03-01T06:49:55+01:00 [PLANS] [USER] Abschlusspruefung angefordert: verifizieren, dass Test-Artefakt-Zentralisierung vollständig sauber ist.
+- 2026-03-01T06:49:55+01:00 [DISCOVERIES] [TOOL] `npm run check` war initial nur wegen Formatabweichungen in 12 geaenderten Dateien rot; nach gezieltem Prettier-Lauf wurde `check` gruen.
+- 2026-03-01T06:49:55+01:00 [DISCOVERIES] [TOOL] Volltestlauf zeigte einmalig einen intermittierenden Ausreisser in `tests/unit/components/agent-room-navigation.test.ts` (fehlendes Label `Agent Room`), isolierter Re-Run derselben Datei jedoch gruen; anschliessender kompletter Re-Run ebenfalls gruen.
+- 2026-03-01T06:49:55+01:00 [OUTCOMES] [TOOL] Finale Qualitaetspruefung gruen: `npm run check` (typecheck/lint/format), `npm run build`, sowie voller `npm test`-Re-Run (447/447 Dateien, 2049/2049 Tests).
+- 2026-03-01T06:49:55+01:00 [DISCOVERIES] [TOOL] `.local` enthaelt weiterhin historische Alt-Artefakte ausserhalb von `.local/test-artifacts` (Top-Level: 5 Verzeichnisse, 8750 Dateien); neues Cleanup-Skript arbeitet bewusst nur unter `.local/test-artifacts`.
+- 2026-03-01T06:58:17+01:00 [PLANS] [USER] Beide Hardening-Punkte angefordert: Agent-Room-Nav-Flake absichern und Cleanup-Skript gegen falsche Zielpfade haerten.
+- 2026-03-01T06:58:17+01:00 [PROGRESS] [CODE] `src/components/Sidebar.tsx` umgestellt: Agent-Room-Feature-Flag wird nun pro Render ausgewertet (`isAgentRoomEnabled()`), statt als beim Modul-Load eingefrorener Konstantwert.
+- 2026-03-01T06:58:17+01:00 [PROGRESS] [CODE] `tests/unit/components/agent-room-navigation.test.ts` erweitert um Runtime-Flag-Change-Contract (false -> true ohne Modul-Reload).
+- 2026-03-01T06:58:17+01:00 [PROGRESS] [CODE] `scripts/cleanup-test-artifacts.ts` gehaertet: Standard-Guard blockiert Cleanup ausserhalb `.local/test-artifacts`; expliziter Override via `allowAnyDir`/CLI-Flag `--force-any-dir`.
+- 2026-03-01T06:58:17+01:00 [PROGRESS] [CODE] `tests/unit/scripts/cleanup-test-artifacts.test.ts` erweitert: Outside-Root muss ohne Force werfen, mit Force erlaubt sein.
+- 2026-03-01T06:58:17+01:00 [OUTCOMES] [TOOL] Verifikation gruen: `npm run check` (typecheck/lint/format), `npm test -- tests/unit/components/agent-room-navigation.test.ts tests/unit/scripts/cleanup-test-artifacts.test.ts`.

@@ -11,11 +11,12 @@ interface SidebarItem {
   id: View;
   label: string;
   icon: string;
-  hidden?: boolean;
+  requiresAgentRoomEnabled?: boolean;
 }
 
-const isAgentRoomEnabled =
-  String(process.env.NEXT_PUBLIC_AGENT_ROOM_ENABLED || 'true').toLowerCase() === 'true';
+function isAgentRoomEnabled(): boolean {
+  return String(process.env.NEXT_PUBLIC_AGENT_ROOM_ENABLED || 'true').toLowerCase() === 'true';
+}
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: View.DASHBOARD, label: 'Control Plane', icon: 'M4 6h16M4 12h16M4 18h16' },
@@ -53,7 +54,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     id: View.AGENT_ROOM,
     label: 'Agent Room',
     icon: 'M3 7h18M6 4v6m12-6v6M5 12h14l-1 8H6l-1-8z',
-    hidden: !isAgentRoomEnabled,
+    requiresAgentRoomEnabled: true,
   },
   {
     id: View.MEMORY,
@@ -129,6 +130,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
+  const agentRoomEnabled = isAgentRoomEnabled();
   const handleViewChange = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       const nextView = event.currentTarget.dataset.view as View | undefined;
@@ -150,23 +152,30 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
         </div>
 
         <nav className="space-y-1">
-          {SIDEBAR_ITEMS.filter((item) => !item.hidden).map((item) => (
-            <button
-              key={item.id}
-              data-view={item.id}
-              onClick={handleViewChange}
-              className={`flex w-full items-center space-x-3 rounded-md px-3 py-2.5 text-sm transition-all duration-200 ${
-                activeView === item.id
-                  ? 'bg-zinc-800 text-white shadow-lg'
-                  : 'text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300'
-              }`}
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
-              </svg>
-              <span className="font-medium">{item.label}</span>
-            </button>
-          ))}
+          {SIDEBAR_ITEMS.filter((item) => !item.requiresAgentRoomEnabled || agentRoomEnabled).map(
+            (item) => (
+              <button
+                key={item.id}
+                data-view={item.id}
+                onClick={handleViewChange}
+                className={`flex w-full items-center space-x-3 rounded-md px-3 py-2.5 text-sm transition-all duration-200 ${
+                  activeView === item.id
+                    ? 'bg-zinc-800 text-white shadow-lg'
+                    : 'text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300'
+                }`}
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d={item.icon}
+                  />
+                </svg>
+                <span className="font-medium">{item.label}</span>
+              </button>
+            ),
+          )}
         </nav>
 
         <div className="mt-8">

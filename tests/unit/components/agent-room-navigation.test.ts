@@ -1,9 +1,14 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { View } from '@/shared/domain/types';
 
 describe('Agent Room navigation', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
   it('registers Agent Room view enum', () => {
     expect(View.AGENT_ROOM).toBe('agent-room');
   });
@@ -31,5 +36,27 @@ describe('Agent Room navigation', () => {
         process.env.NEXT_PUBLIC_AGENT_ROOM_ENABLED = previous;
       }
     }
+  });
+
+  it('reflects runtime flag changes without requiring module reload', async () => {
+    vi.stubEnv('NEXT_PUBLIC_AGENT_ROOM_ENABLED', 'false');
+    const { default: Sidebar } = await import('@/components/Sidebar');
+
+    const htmlWhenDisabled = renderToStaticMarkup(
+      createElement(Sidebar, {
+        activeView: View.DASHBOARD,
+        onViewChange: () => {},
+      }),
+    );
+    expect(htmlWhenDisabled).not.toContain('Agent Room');
+
+    vi.stubEnv('NEXT_PUBLIC_AGENT_ROOM_ENABLED', 'true');
+    const htmlWhenEnabled = renderToStaticMarkup(
+      createElement(Sidebar, {
+        activeView: View.DASHBOARD,
+        onViewChange: () => {},
+      }),
+    );
+    expect(htmlWhenEnabled).toContain('Agent Room');
   });
 });
