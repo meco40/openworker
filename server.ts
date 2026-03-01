@@ -24,6 +24,7 @@ import {
   startSwarmOrchestratorRuntime,
   stopSwarmOrchestratorRuntime,
 } from './src/server/agent-room/swarmRuntime.js';
+import { startTaskWorkspaceCleanupRuntime } from './src/server/tasks/workspaceCleanupRuntime.js';
 
 const require = createRequire(import.meta.url);
 const { loadEnvConfig } = require('@next/env') as {
@@ -144,6 +145,7 @@ Promise.resolve()
     if (swarmRunner !== 'scheduler') {
       startSwarmOrchestratorRuntime('server-main');
     }
+    const taskWorkspaceCleanupRuntime = startTaskWorkspaceCleanupRuntime();
 
     // ─── Graceful Shutdown ─────────────────────────────────────
     function shutdown() {
@@ -151,6 +153,7 @@ Promise.resolve()
       clearInterval(tickInterval);
       stopAllPersonaBotPolling();
       stopSwarmOrchestratorRuntime();
+      taskWorkspaceCleanupRuntime.stop();
 
       // Abort all in-flight AI generation requests so they don't hang.
       try {

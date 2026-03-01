@@ -18,6 +18,12 @@
 }
 
 :root {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
   --mc-bg: #0d1117;
   --mc-bg-secondary: #161b22;
   --mc-bg-tertiary: #21262d;

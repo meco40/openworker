@@ -37,6 +37,8 @@ function runCli(): void {
   console.log(`  scanned: ${report.scanned}`);
   console.log(`  removed: ${report.removed}`);
   console.log(`  kept: ${report.kept}`);
+  console.log(`  skipped: ${report.skipped}`);
+  console.log(`  reasonCounts: ${JSON.stringify(report.reasonCounts)}`);
 }
 
 const invokedPath = process.argv[1] ? pathToFileURL(process.argv[1]).href : '';

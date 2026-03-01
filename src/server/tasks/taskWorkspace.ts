@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const WORKSPACE_METADATA_FILENAME = '.workspace.json';
+const DEFAULT_CLEANUP_MAX_REMOVALS = 200;
 
 interface TaskWorkspaceMetadata {
   taskId: string;
@@ -10,10 +11,21 @@ interface TaskWorkspaceMetadata {
   version: number;
 }
 
+export interface TaskWorkspaceCleanupReasonCounts {
+  activeTask: number;
+  missingMetadata: number;
+  invalidMetadata: number;
+  protected: number;
+  limitReached: number;
+  removeFailed: number;
+}
+
 export interface TaskWorkspaceCleanupReport {
   scanned: number;
   removed: number;
   kept: number;
+  skipped: number;
+  reasonCounts: TaskWorkspaceCleanupReasonCounts;
 }
 
 function resolveTaskWorkspacesRoot(): string {
@@ -42,18 +54,53 @@ function isWithinRoot(candidatePath: string, rootPath: string): boolean {
   return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
 }
 
-function readWorkspaceTaskId(dirPath: string): string | null {
+type WorkspaceMetadataReadResult =
+  | { status: 'ok'; metadata: TaskWorkspaceMetadata }
+  | { status: 'missing' }
+  | { status: 'invalid' };
+
+function isValidIsoTimestamp(value: string): boolean {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed);
+}
+
+function normalizeTaskWorkspaceMetadata(
+  raw: Partial<TaskWorkspaceMetadata>,
+): TaskWorkspaceMetadata | null {
+  const taskId = String(raw.taskId || '').trim();
+  if (taskId.length < 1) return null;
+
+  const type = String(raw.type || '').trim() || 'general';
+  const createdAtRaw = String(raw.createdAt || '').trim();
+  const createdAt = isValidIsoTimestamp(createdAtRaw) ? createdAtRaw : new Date().toISOString();
+
+  return {
+    taskId,
+    type,
+    createdAt,
+    version: Number(raw.version) === 1 ? 1 : 1,
+  };
+}
+
+function readWorkspaceMetadata(dirPath: string): WorkspaceMetadataReadResult {
   const metadataPath = path.join(dirPath, WORKSPACE_METADATA_FILENAME);
-  if (!fs.existsSync(metadataPath)) return null;
+  if (!fs.existsSync(metadataPath)) return { status: 'missing' };
 
   try {
     const raw = fs.readFileSync(metadataPath, 'utf8');
-    const parsed = JSON.parse(raw) as Partial<TaskWorkspaceMetadata>;
-    const taskId = String(parsed.taskId || '').trim();
-    return taskId.length > 0 ? taskId : null;
+    const parsed = normalizeTaskWorkspaceMetadata(
+      JSON.parse(raw) as Partial<TaskWorkspaceMetadata>,
+    );
+    if (!parsed) return { status: 'invalid' };
+    return { status: 'ok', metadata: parsed };
   } catch {
-    return null;
+    return { status: 'invalid' };
   }
+}
+
+function readWorkspaceTaskId(dirPath: string): string | null {
+  const result = readWorkspaceMetadata(dirPath);
+  return result.status === 'ok' ? result.metadata.taskId : null;
 }
 
 function resolveTaskWorkspaceDirectory(taskId: string): string {
@@ -79,8 +126,14 @@ export function ensureTaskWorkspace(taskId: string, type = 'general'): string {
   fs.mkdirSync(path.join(workspaceDir, 'logs'), { recursive: true });
 
   const metadataPath = path.join(workspaceDir, WORKSPACE_METADATA_FILENAME);
-  const existingTaskId = readWorkspaceTaskId(workspaceDir);
-  const createdAt = new Date().toISOString();
+  const existingMetadata = readWorkspaceMetadata(workspaceDir);
+  const existingTaskId = existingMetadata.status === 'ok' ? existingMetadata.metadata.taskId : null;
+  const existingCreatedAt =
+    existingMetadata.status === 'ok' ? existingMetadata.metadata.createdAt : null;
+  const createdAt =
+    existingCreatedAt && isValidIsoTimestamp(existingCreatedAt)
+      ? existingCreatedAt
+      : new Date().toISOString();
   const metadata: TaskWorkspaceMetadata = {
     taskId: existingTaskId ?? taskId,
     type,
@@ -116,12 +169,33 @@ export function deleteTaskWorkspace(taskId: string): void {
   }
 }
 
+function resolveCleanupMaxRemovalsPerRun(): number {
+  const configured = Number(process.env.TASK_WORKSPACES_CLEANUP_MAX_REMOVALS_PER_RUN);
+  if (Number.isFinite(configured) && configured >= 0) {
+    return Math.floor(configured);
+  }
+  return DEFAULT_CLEANUP_MAX_REMOVALS;
+}
+
 export function cleanupOrphanTaskWorkspaces(
   activeTaskIds: Iterable<string>,
 ): TaskWorkspaceCleanupReport {
   const rootPath = resolveTaskWorkspacesRoot();
   if (!fs.existsSync(rootPath)) {
-    return { scanned: 0, removed: 0, kept: 0 };
+    return {
+      scanned: 0,
+      removed: 0,
+      kept: 0,
+      skipped: 0,
+      reasonCounts: {
+        activeTask: 0,
+        missingMetadata: 0,
+        invalidMetadata: 0,
+        protected: 0,
+        limitReached: 0,
+        removeFailed: 0,
+      },
+    };
   }
 
   const activeIds = new Set<string>();
@@ -136,22 +210,67 @@ export function cleanupOrphanTaskWorkspaces(
   let scanned = 0;
   let removed = 0;
   let kept = 0;
+  let skipped = 0;
+  const reasonCounts: TaskWorkspaceCleanupReasonCounts = {
+    activeTask: 0,
+    missingMetadata: 0,
+    invalidMetadata: 0,
+    protected: 0,
+    limitReached: 0,
+    removeFailed: 0,
+  };
+  const maxRemovals = resolveCleanupMaxRemovalsPerRun();
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     scanned += 1;
-    const dirPath = path.join(rootPath, entry.name);
-    const metadataTaskId = readWorkspaceTaskId(dirPath);
-    const taskId = metadataTaskId ?? entry.name;
 
-    if (activeIds.has(taskId)) {
-      kept += 1;
+    if (entry.name.startsWith('.')) {
+      skipped += 1;
+      reasonCounts.protected += 1;
       continue;
     }
 
-    fs.rmSync(dirPath, { recursive: true, force: true });
-    removed += 1;
+    const dirPath = path.join(rootPath, entry.name);
+    const metadataResult = readWorkspaceMetadata(dirPath);
+    if (metadataResult.status === 'missing') {
+      skipped += 1;
+      reasonCounts.missingMetadata += 1;
+      continue;
+    }
+    if (metadataResult.status === 'invalid') {
+      skipped += 1;
+      reasonCounts.invalidMetadata += 1;
+      continue;
+    }
+    const taskId = metadataResult.metadata.taskId;
+
+    if (activeIds.has(taskId)) {
+      kept += 1;
+      reasonCounts.activeTask += 1;
+      continue;
+    }
+
+    if (removed >= maxRemovals) {
+      skipped += 1;
+      reasonCounts.limitReached += 1;
+      continue;
+    }
+
+    try {
+      fs.rmSync(dirPath, { recursive: true, force: true });
+      removed += 1;
+    } catch {
+      skipped += 1;
+      reasonCounts.removeFailed += 1;
+    }
   }
 
-  return { scanned, removed, kept };
+  return {
+    scanned,
+    removed,
+    kept,
+    skipped,
+    reasonCounts,
+  };
 }

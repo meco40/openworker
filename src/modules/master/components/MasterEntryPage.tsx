@@ -251,9 +251,9 @@ export default function MasterEntryPage({
   const statusLabel = STATUS_LABELS[voice.status] ?? 'Ready';
 
   return (
-    <div className="relative flex min-h-full flex-col items-center justify-center overflow-hidden bg-[#020408] px-4 py-8 select-none">
+    <div className="relative flex min-h-full flex-col items-center justify-center overflow-hidden bg-[#071a46] px-4 py-8 select-none">
       {/* ── Connection badge (top-right) ─────────────────────────────────── */}
-      <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[10px] backdrop-blur-sm">
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-cyan-950/35 px-2.5 py-1 text-[10px] backdrop-blur-sm">
         <span
           className={[
             'h-1.5 w-1.5 rounded-full transition-colors duration-500',
@@ -273,7 +273,7 @@ export default function MasterEntryPage({
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse 70% 60% at 50% 40%, rgba(14,26,50,0.95) 0%, #020408 100%)',
+            'radial-gradient(ellipse 70% 60% at 50% 40%, rgba(26,56,120,0.82) 0%, rgba(8,25,78,0.92) 65%, rgba(7,26,70,0.98) 100%)',
         }}
       />
 

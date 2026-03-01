@@ -131,4 +131,18 @@ describe('Mission Control task workspace lifecycle', () => {
     expect(queryOne<{ id: string }>('SELECT id FROM tasks WHERE id = ?', [taskId])).toBeUndefined();
     expect(fs.existsSync(taskWorkspaceDir)).toBe(false);
   });
+
+  it('removes orphaned task workspaces via runtime cleanup', async () => {
+    const { ensureTaskWorkspace } = await import('@/server/tasks/taskWorkspace');
+    const { runTaskWorkspaceCleanupOnce } = await import('@/server/tasks/workspaceCleanupRuntime');
+
+    const orphanTaskId = 'task-orphan-cleanup-runtime';
+    const orphanWorkspaceDir = ensureTaskWorkspace(orphanTaskId);
+    expect(fs.existsSync(orphanWorkspaceDir)).toBe(true);
+
+    const report = runTaskWorkspaceCleanupOnce('integration-test');
+    expect(report.removed).toBe(1);
+    expect(report.scanned).toBe(1);
+    expect(fs.existsSync(orphanWorkspaceDir)).toBe(false);
+  });
 });
