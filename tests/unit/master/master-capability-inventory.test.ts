@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
+import { SqliteMasterRepository } from '@/server/master/repository/sqliteMasterRepository';
 import { buildCapabilityInventory } from '@/server/master/capabilities/inventory';
 import { runCapabilityUnderstandingCycle } from '@/server/master/capabilities/understandingLoop';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';

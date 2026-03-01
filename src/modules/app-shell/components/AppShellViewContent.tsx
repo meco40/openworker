@@ -44,7 +44,7 @@ const ModelHub = dynamic(() => import('@/components/ModelHub'), {
 const SkillsRegistry = dynamic(() => import('@/skills/SkillsRegistry'), {
   loading: loading('Skill Registry'),
 });
-const TaskManagerView = dynamic(() => import('@/modules/tasks/components/TaskManagerView'), {
+const TaskManagerView = dynamic(() => import('@/modules/tasks/task-manager/TaskManagerView'), {
   loading: loading('Task Monitor'),
 });
 const LogsView = dynamic(() => import('@/modules/telemetry/components/LogsView'), {

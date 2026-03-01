@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
+import { SqliteMasterRepository } from '@/server/master/repository/sqliteMasterRepository';
 import { MasterNotesService } from '@/server/master/notes';
 import { MasterRemindersService } from '@/server/master/reminders';
 import { MasterCronBridge } from '@/server/master/cronBridge';

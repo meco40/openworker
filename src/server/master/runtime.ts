@@ -1,7 +1,7 @@
-import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
+import { SqliteMasterRepository } from '@/server/master/repository/sqliteMasterRepository';
 import { MasterOrchestrator } from '@/server/master/orchestrator';
 import { runDailyLearningLoop } from '@/server/master/learning';
-import { MasterExecutionRuntime } from '@/server/master/executionRuntime';
+import { MasterExecutionRuntime } from '@/server/master/execution/runtime/masterExecutionRuntime';
 import type { MasterRepository } from '@/server/master/repository';
 
 declare global {

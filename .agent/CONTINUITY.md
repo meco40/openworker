@@ -570,3 +570,27 @@ Files >300 lines identified for potential future modularization:
 - 2026-03-01T08:05:08+01:00 [PROGRESS] [CODE] Neuer Regressionstest `tests/unit/channels/ai-dispatcher-tools-disabled.test.ts` hinzugefuegt (RED->GREEN): verifiziert kein `buildActiveSkillsPromptSection`-Call, kein Skills-Block in Messages, leerer Tool-Context.
 - 2026-03-01T08:05:08+01:00 [OUTCOMES] [TOOL] Verifikation gruen: `npm test -- tests/unit/channels/ai-dispatcher-tools-disabled.test.ts tests/unit/channels/message-service-roleplay-tools-disabled.test.ts tests/unit/channels/ai-dispatcher-summary-refresh.test.ts`, `npm run typecheck`, `npm run lint`.
 - 2026-03-01T08:06:59+01:00 [OUTCOMES] [TOOL] Zusatzverifikation erfolgreich: `npm run build` (Next.js/Turbopack Production Build) gruen.
+- 2026-03-01T23:13:48+01:00 [PLANS] [USER] Terminal-Start in VS Code reparieren, ohne Code-Implementierung im Projekt.
+- 2026-03-01T23:13:48+01:00 [DISCOVERIES] [TOOL] Root-Cause: Conda-Hook in PowerShell-Profilen blockierte Shell-Start (conda.exe shell.powershell hook hing >120s) in ...\PowerShell\profile.ps1 und ...\WindowsPowerShell\profile.ps1.
+- 2026-03-01T23:13:48+01:00 [PROGRESS] [CODE] Beide Profil-Dateien mit Backup versehen und Conda-Init per Env-Guard (ENABLE_CONDA_PROFILE_HOOK=1) standardmäßig deaktiviert.
+- 2026-03-01T23:13:48+01:00 [OUTCOMES] [TOOL] Verifikation grün: pwsh -Command "Write-Output ok" ~509ms, powershell -Command "Write-Output ok" ~334ms; Terminal blockiert nicht mehr.
+
+[PLANS]
+
+- 2026-03-02T00:11:43+01:00 [USER] Wave-1-Umsetzung angefordert: Top-3 Monolithen (`sqliteMasterRepository.ts`, `executionRuntime.ts`, `TaskManagerView.tsx`) modularisieren, Pfade bereinigen, Tests splitten und vollständig verifizieren.
+
+[DECISIONS]
+
+- 2026-03-02T00:11:43+01:00 [CODE] Keine Backward-Compat-Wrapper beibehalten: alte Pfade `@/server/master/sqliteMasterRepository`, `@/server/master/executionRuntime` und `@/modules/tasks/components/TaskManagerView` entfernt; alle Callsites direkt auf neue Modulpfade migriert.
+- 2026-03-02T00:11:43+01:00 [CODE] Runtime-Refactor als Orchestrator+Flow+Capability-Module umgesetzt (`masterExecutionRuntime.ts` + `executionFlow.ts` + dedizierte Helper/Planner/Executor-Dateien), damit die Hauptklasse unter 350 LOC bleibt.
+
+[PROGRESS]
+
+- 2026-03-02T00:11:43+01:00 [CODE] Repository auf fachliche Stores aufgeteilt unter `src/server/master/repository/` (`runs`, `notes`, `reminders`, `delegation`, `governance`, `toolforge`, `secrets`, `audit`, `scopes`) plus `db.ts`, `helpers.ts`, `mappers.ts`; neue Facade `repository/sqliteMasterRepository.ts` erstellt; alte Monolith-Datei gelöscht.
+- 2026-03-02T00:11:43+01:00 [CODE] Task-Manager in `src/modules/tasks/task-manager/` zerlegt (`TaskManagerView`, `useTaskCatalog`, `constants`, `dateFormat`, UI-Komponenten) und alte Komponentenpfade entfernt.
+- 2026-03-02T00:11:43+01:00 [CODE] Tests modularisiert: `tests/unit/master/master-repository.test.ts` auf Cases/Harness-Split umgestellt; neue Runtime- und Task-Manager-Modularisierungs-Suiten ergänzt.
+
+[OUTCOMES]
+
+- 2026-03-02T00:11:43+01:00 [TOOL] Verifikation erfolgreich: `npm run check` grün; fokussierte Regressionen grün; voller Lauf `npm test` grün (453/453 Dateien, 2064/2064 Tests); `npm run build` grün.
+- 2026-03-02T00:11:43+01:00 [TOOL] Discovery: ein einmaliger Timeout-Ausreißer in `tests/skills-route-requests.test.ts` trat im ersten Volltestlauf auf, war im gezielten Re-Run sowie anschließendem kompletten Re-Run nicht reproduzierbar (UNCONFIRMED Flake).

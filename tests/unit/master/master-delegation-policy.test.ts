@@ -8,7 +8,7 @@ import {
 import { DelegationDispatcher } from '@/server/master/delegation/dispatcher';
 import { DelegationResourceGovernor } from '@/server/master/delegation/resourceGovernor';
 import { recoverDelegationQueue } from '@/server/master/delegation/recovery';
-import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
+import { SqliteMasterRepository } from '@/server/master/repository/sqliteMasterRepository';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function uniqueDbPath(): string {

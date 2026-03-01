@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
+import { SqliteMasterRepository } from '@/server/master/repository/sqliteMasterRepository';
 import { MasterOrchestrator } from '@/server/master/orchestrator';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 

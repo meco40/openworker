@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
+import { SqliteMasterRepository } from '@/server/master/repository/sqliteMasterRepository';
 import {
   clearOneTimeApprovalsForTests,
   registerOneTimeApproval,
