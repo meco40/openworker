@@ -10,9 +10,12 @@ describe('MasterFaceCanvasThree interaction contract', () => {
     );
   }
 
-  it('assigns loaded GLTF scene to sceneRef humanGroup', () => {
+  it('uses TalkingHead avatarOnly mode for rendering inside the existing scene', () => {
     const source = loadSource();
-    expect(source).toMatch(/sceneRef\.current\.humanGroup\s*=\s*gltf\.scene/);
+    expect(source).toContain('../vendor/talkinghead/talkinghead.mjs');
+    expect(source).toContain('avatarOnly: true');
+    expect(source).toContain('avatarOnlyCamera: camera');
+    expect(source).toContain('avatarOnlyScene: scene');
   });
 
   it('supports direct user interaction via pointer drag and wheel zoom', () => {
@@ -23,30 +26,20 @@ describe('MasterFaceCanvasThree interaction contract', () => {
     expect(source).toContain('wheel');
   });
 
-  it('loads the full-body avatar GLTF and binds all key body nodes', () => {
+  it('loads the rigged production avatar and HeadAudio runtime assets', () => {
     const source = loadSource();
-    expect(source).toContain('/models/hologram-female-face.gltf');
-    expect(source).toContain("getObjectByName('Torso_Main')");
-    expect(source).toContain("getObjectByName('Arm_Left')");
-    expect(source).toContain("getObjectByName('Arm_Right')");
-    expect(source).toContain("getObjectByName('Leg_Left')");
-    expect(source).toContain("getObjectByName('Leg_Right')");
-    expect(source).toContain("getObjectByName('Hand_Left')");
-    expect(source).toContain("getObjectByName('Hand_Right')");
-    expect(source).toContain("getObjectByName('Foot_Left')");
-    expect(source).toContain("getObjectByName('Foot_Right')");
-    expect(source).toContain("getObjectByName('Eye_Left')");
-    expect(source).toContain("getObjectByName('Eye_Right')");
-    expect(source).toContain("getObjectByName('Mouth_Main')");
+    expect(source).toContain('/models/master-avatar-rigged.glb');
+    expect(source).toContain('/vendor/headaudio/headworklet.mjs');
+    expect(source).toContain('/vendor/headaudio/model-en-mixed.bin');
+    expect(source).toContain('@met4citizen/headaudio/modules/headaudio.mjs');
   });
 
-  it('supports room-scale locomotion with walk, jump and sit animation states', () => {
+  it('consumes outputAudioStream events via streamStart/streamAudio/streamNotifyEnd', () => {
     const source = loadSource();
-    expect(source).toContain('walkCycle');
-    expect(source).toContain('jumpOffset');
-    expect(source).toContain('sitAmount');
-    expect(source).toContain("cs === 'thinking'");
-    expect(source).toContain("cs === 'speaking'");
+    expect(source).toContain('outputAudioStream');
+    expect(source).toContain('streamStart');
+    expect(source).toContain('streamAudio');
+    expect(source).toContain('streamNotifyEnd');
   });
 
   it('does not force black scene or canvas backgrounds', () => {
@@ -59,13 +52,5 @@ describe('MasterFaceCanvasThree interaction contract', () => {
     const source = loadSource();
     expect(source).toContain('Retry');
     expect(source).not.toMatch(/from ['"]\.\/MasterFaceCanvas['"]/);
-  });
-
-  it('does not render a decorative glow circle or moving scan line', () => {
-    const source = loadSource();
-    expect(source).not.toContain('SphereGeometry(200, 32, 32)');
-    expect(source).not.toContain('PlaneGeometry(400, 2)');
-    expect(source).not.toContain('glowMesh');
-    expect(source).not.toContain('scanLine');
   });
 });

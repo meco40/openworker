@@ -40,6 +40,8 @@
     "knowledge:ingest": "node --import tsx scripts/trigger-knowledge-ingestion.ts",
     "attachments:consistency": "node --import tsx scripts/attachments-consistency.ts",
     "smoke:chat-cli-approval": "node --import tsx scripts/smoke-chat-cli-approval.ts",
+    "avatar:sync-headaudio": "node scripts/avatar/sync-headaudio-assets.mjs",
+    "avatar:validate": "node scripts/avatar/validate-master-avatar.mjs",
     "mem0:local:up": "docker compose --env-file .env.local -f docker-compose.mem0-local.yml up -d --build",
     "mem0:local:down": "docker compose --env-file .env.local -f docker-compose.mem0-local.yml down",
     "mem0:local:logs": "docker compose --env-file .env.local -f docker-compose.mem0-local.yml logs -f mem0-local mem0-postgres",
@@ -49,9 +51,12 @@
     "speckit:new": "pwsh -File .specify/scripts/powershell/create-new-feature.ps1",
     "speckit:plan:init": "pwsh -File .specify/scripts/powershell/setup-plan.ps1 -Json",
     "speckit:agent:update": "pwsh -File .specify/scripts/powershell/update-agent-context.ps1 -AgentType codex",
+    "postinstall": "npm run avatar:sync-headaudio",
     "prepare": "husky"
   },
   "dependencies": {
+    "@met4citizen/headaudio": "0.1.0",
+    "@met4citizen/talkinghead": "1.7.0",
     "@google/genai": "^1.42.0",
     "@next/env": "^16.1.6",
     "@types/three": "^0.183.1",

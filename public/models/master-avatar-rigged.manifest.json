@@ -1,0 +1,62 @@
+{
+  "name": "master-avatar-rigged",
+  "version": "1.0.0",
+  "source": {
+    "blend": "assets/avatar/master-avatar.blend",
+    "sourceGlb": "assets/avatar/master-avatar-source.glb",
+    "upstream": "https://github.com/met4citizen/TalkingHead/blob/main/avatars/brunette.glb"
+  },
+  "export": {
+    "path": "public/models/master-avatar-rigged.glb",
+    "generatedAt": "2026-03-01T00:00:00Z",
+    "format": "glb"
+  },
+  "requirements": {
+    "skeleton": "Mixamo-compatible",
+    "visemeSet": "Oculus",
+    "blendshapeSet": "ARKit-near"
+  },
+  "requiredBones": [
+    "Armature",
+    "Hips",
+    "Spine",
+    "Spine1",
+    "Spine2",
+    "Neck",
+    "Head",
+    "LeftShoulder",
+    "LeftArm",
+    "LeftForeArm",
+    "LeftHand",
+    "RightShoulder",
+    "RightArm",
+    "RightForeArm",
+    "RightHand",
+    "LeftUpLeg",
+    "LeftLeg",
+    "LeftFoot",
+    "RightUpLeg",
+    "RightLeg",
+    "RightFoot"
+  ],
+  "requiredBlendshapes": [
+    "viseme_aa",
+    "viseme_E",
+    "viseme_I",
+    "viseme_O",
+    "viseme_U",
+    "viseme_PP",
+    "viseme_SS",
+    "viseme_TH",
+    "viseme_DD",
+    "viseme_FF",
+    "viseme_kk",
+    "viseme_nn",
+    "viseme_RR",
+    "viseme_CH",
+    "viseme_sil",
+    "jawOpen",
+    "eyeBlinkLeft",
+    "eyeBlinkRight"
+  ]
+}

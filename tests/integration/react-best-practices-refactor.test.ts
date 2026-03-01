@@ -41,15 +41,15 @@ describe('react/next best-practices refactor', () => {
     );
   });
 
-  it('loads fonts via next/font self-hosting instead of Google stylesheet links', () => {
+  it('uses local system font stacks and avoids Google font runtime dependencies', () => {
     const layout = read('app/layout.tsx');
     const globalsCss = read('app/globals.css');
 
-    expect(layout).toContain("from 'next/font/google'");
-    expect(layout).toContain('Inter(');
-    expect(layout).toContain('Fira_Code(');
+    expect(layout).not.toContain("from 'next/font/google'");
     expect(layout).not.toContain('fonts.googleapis.com');
     expect(layout).not.toContain('fonts.gstatic.com');
+    expect(globalsCss).toContain('--font-sans:');
+    expect(globalsCss).toContain('--font-mono:');
     expect(globalsCss).toContain('var(--font-sans)');
     expect(globalsCss).toContain('var(--font-mono)');
   });

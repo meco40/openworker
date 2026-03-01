@@ -1,5 +1,13 @@
 # Verbesserungsplan: Weiblicher GLTF-Full-Body-Avatar (ohne 2D-Fallback)
 
+## Update 2026-03-01: TalkingHead Big-Bang umgesetzt
+
+- [x] Engine-Migration auf `@met4citizen/talkinghead` (`avatarOnly`) in `MasterFaceCanvasThree.tsx`.
+- [x] Audio-getriebener Lip-Sync über `@met4citizen/headaudio` angebunden.
+- [x] Voice-Output-Event-Stream aus `useGrokVoiceAgent` eingeführt (`subscribeOutputAudio`).
+- [x] Neues Runtime-Asset eingeführt: `public/models/master-avatar-rigged.glb` inkl. Manifest.
+- [x] Validierungs-/Sync-Skripte ergänzt: `scripts/avatar/validate-master-avatar.mjs`, `scripts/avatar/sync-headaudio-assets.mjs`.
+
 ## Ziel
 
 Ein neues GLTF-basiertes weibliches Full-Body-Avatar-Modell im Master-Entry anzeigen (Kopf, Augen, Mund, Torso, Arme/Hände, Beine/Füße), mit prozeduralen Animationen für Gehen, Springen und Hinsetzen plus Gesichtsanimationen; weiterhin ohne schwarzen Hintergrund, ohne sichtbare Kasten-Umrandung, ohne hellblauen Kreis und ohne bewegte Scan-Linie sowie ohne Wechsel auf 2D-Fallback.

@@ -8,16 +8,17 @@
  * Flow:
  *   1. Fetch ephemeral token from /api/master/voice-session (server holds API key)
  *   2. Open WebSocket to wss://api.x.ai/v1/realtime via ephemeral token subprotocol
- *   3. Mic → getUserMedia → ScriptProcessor → downsample → PCM16 base64 → WS append
- *   4. xAI server VAD detects speech boundaries automatically
- *   5. Response audio chunks (PCM16 base64) → collect → AudioBuffer → play
- *   6. AnalyserNode measures RMS during playback → amplitude → drives MasterFaceCanvas
- *
- * Drop-in replacement for useVoiceAgent — same return shape.
+ *   3. Mic -> getUserMedia -> ScriptProcessor -> downsample -> PCM16 base64 -> WS append
+ *   4. Realtime output audio deltas are emitted as stream events for the avatar engine
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FaceState } from '../components/MasterFaceCanvas';
+import type {
+  MasterAvatarAudioChunkEvent,
+  MasterAvatarAudioEvent,
+  MasterAvatarAudioListener,
+} from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ export interface UseGrokVoiceAgentResult {
   cancel: () => void;
   submitText: (text: string) => Promise<void>;
   replay: () => void;
+  subscribeOutputAudio: (listener: MasterAvatarAudioListener) => () => void;
 }
 
 // ─── Module-level constants ───────────────────────────────────────────────────
@@ -94,6 +96,30 @@ function float32ToInt16Downsampled(
   return out;
 }
 
+function pcm16Rms(chunk: Int16Array): number {
+  if (chunk.length === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < chunk.length; i++) {
+    const normalized = chunk[i] / 32768;
+    sum += normalized * normalized;
+  }
+  return Math.sqrt(sum / chunk.length);
+}
+
+function cloneOutputEvent(event: MasterAvatarAudioEvent): MasterAvatarAudioEvent {
+  if (event.type !== 'chunk') {
+    return { ...event };
+  }
+  return {
+    ...event,
+    pcm16: new Int16Array(event.pcm16),
+  } as MasterAvatarAudioChunkEvent;
+}
+
+function createTurnId(): string {
+  return `turn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useGrokVoiceAgent({
@@ -110,20 +136,21 @@ export function useGrokVoiceAgent({
   const statusRef = useRef<VoiceAgentStatus>('idle');
   const wsRef = useRef<WebSocket | null>(null);
   const micCtxRef = useRef<AudioContext | null>(null);
-  const playCtxRef = useRef<AudioContext | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const micAnalyserRef = useRef<AnalyserNode | null>(null);
-  const playAnalyserRef = useRef<AnalyserNode | null>(null);
   const ampRafRef = useRef<number>(0);
-  const audioChunksRef = useRef<Int16Array[]>([]);
-  const lastAudioBufferRef = useRef<AudioBuffer | null>(null);
-  const playSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectCountRef = useRef(0);
   const connectPromiseRef = useRef<Promise<WebSocket> | null>(null);
+  const autoDisconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shouldReconnectRef = useRef(false);
   const unmountedRef = useRef(false);
+  const currentTurnIdRef = useRef<string | null>(null);
+
+  const outputAudioListenersRef = useRef<Set<MasterAvatarAudioListener>>(new Set());
+  const lastOutputAudioEventsRef = useRef<MasterAvatarAudioEvent[]>([]);
+  const replayTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Stable setter that also updates ref and fires callback
   const setStatus = useCallback(
@@ -135,7 +162,26 @@ export function useGrokVoiceAgent({
     [onStatusChange],
   );
 
-  // ── Amplitude loop ────────────────────────────────────────────────────────
+  const broadcastOutputAudio = useCallback((event: MasterAvatarAudioEvent) => {
+    const listeners = outputAudioListenersRef.current;
+    if (listeners.size === 0) return;
+    for (const listener of listeners) {
+      listener(event);
+    }
+  }, []);
+
+  const pushOutputAudioEvent = useCallback(
+    (event: MasterAvatarAudioEvent, record: boolean) => {
+      const cloned = cloneOutputEvent(event);
+      if (record) {
+        lastOutputAudioEventsRef.current.push(cloned);
+      }
+      broadcastOutputAudio(cloned);
+    },
+    [broadcastOutputAudio],
+  );
+
+  // ── Amplitude loop for microphone input ──────────────────────────────────
 
   const stopAmplitudeLoop = useCallback(() => {
     cancelAnimationFrame(ampRafRef.current);
@@ -175,62 +221,56 @@ export function useGrokVoiceAgent({
     micCtxRef.current = null;
   }, [stopAmplitudeLoop]);
 
-  // ── Audio playback ────────────────────────────────────────────────────────
+  const clearReplayTimers = useCallback(() => {
+    replayTimersRef.current.forEach((timer) => clearTimeout(timer));
+    replayTimersRef.current = [];
+  }, []);
 
-  const playCollectedChunks = useCallback(() => {
-    const chunks = audioChunksRef.current;
-    if (chunks.length === 0) {
-      if (statusRef.current === 'speaking') setStatus('idle');
-      return;
+  const clearAutoDisconnectTimer = useCallback(() => {
+    if (autoDisconnectTimerRef.current) {
+      clearTimeout(autoDisconnectTimerRef.current);
+      autoDisconnectTimerRef.current = null;
     }
+  }, []);
 
-    // Merge all Int16 chunks into one
-    const totalLen = chunks.reduce((n, c) => n + c.length, 0);
-    const merged = new Int16Array(totalLen);
-    let offset = 0;
-    for (const c of chunks) {
-      merged.set(c, offset);
-      offset += c.length;
-    }
-
-    // Convert to Float32
-    const float32 = new Float32Array(merged.length);
-    for (let i = 0; i < merged.length; i++) {
-      float32[i] = merged[i] / 32768.0;
-    }
-
-    // Create/reuse playback AudioContext
-    if (!playCtxRef.current || playCtxRef.current.state === 'closed') {
-      playCtxRef.current = new AudioContext({ sampleRate: OUTPUT_SAMPLE_RATE });
-    }
-    const ctx = playCtxRef.current;
-
-    const audioBuffer = ctx.createBuffer(1, float32.length, OUTPUT_SAMPLE_RATE);
-    audioBuffer.copyToChannel(float32, 0);
-    lastAudioBufferRef.current = audioBuffer;
-
-    // Connect source → analyser → destination
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
-    playAnalyserRef.current = analyser;
-
-    const source = ctx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(analyser);
-    analyser.connect(ctx.destination);
-    playSourceRef.current = source;
-
-    source.onended = () => {
-      stopAmplitudeLoop();
-      playAnalyserRef.current = null;
-      if (!unmountedRef.current && statusRef.current === 'speaking') {
-        setStatus('idle');
+  const disconnectRealtimeSession = useCallback(
+    (options?: { stopMic?: boolean; keepStatus?: boolean }) => {
+      clearAutoDisconnectTimer();
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
       }
-    };
+      shouldReconnectRef.current = false;
+      reconnectCountRef.current = 0;
 
-    source.start();
-    startAmplitudeLoop(analyser);
-  }, [setStatus, startAmplitudeLoop, stopAmplitudeLoop]);
+      if (options?.stopMic !== false) {
+        stopMic();
+      }
+
+      const ws = wsRef.current;
+      wsRef.current = null;
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        ws.close();
+      }
+
+      if (!unmountedRef.current) {
+        setConnected(false);
+        if (!options?.keepStatus && statusRef.current !== 'error') {
+          setStatus('idle');
+        }
+        setAmplitude(0);
+      }
+    },
+    [clearAutoDisconnectTimer, setStatus, stopMic],
+  );
+
+  const scheduleAutoDisconnectAfterTurn = useCallback(() => {
+    clearAutoDisconnectTimer();
+    autoDisconnectTimerRef.current = setTimeout(() => {
+      if (unmountedRef.current) return;
+      disconnectRealtimeSession();
+    }, 200);
+  }, [clearAutoDisconnectTimer, disconnectRealtimeSession]);
 
   // ── WebSocket connect ─────────────────────────────────────────────────────
 
@@ -314,22 +354,57 @@ export function useGrokVoiceAgent({
 
               switch (type) {
                 case 'input_audio_buffer.speech_started':
-                  audioChunksRef.current = [];
                   setTranscript('');
                   setAiResponse('');
                   setStatus('listening');
                   break;
 
-                case 'response.created':
+                case 'response.created': {
+                  clearAutoDisconnectTimer();
+                  currentTurnIdRef.current = createTurnId();
+                  lastOutputAudioEventsRef.current = [];
+                  pushOutputAudioEvent(
+                    {
+                      type: 'start',
+                      turnId: currentTurnIdRef.current,
+                      at: performance.now(),
+                      sampleRate: OUTPUT_SAMPLE_RATE,
+                    },
+                    true,
+                  );
                   setStatus('thinking');
                   break;
+                }
 
                 case 'response.output_audio.delta': {
                   const delta = data.delta as string | undefined;
-                  if (delta) {
-                    audioChunksRef.current.push(base64ToInt16(delta));
-                    setStatus('speaking');
+                  if (!delta) break;
+                  if (!currentTurnIdRef.current) {
+                    currentTurnIdRef.current = createTurnId();
+                    lastOutputAudioEventsRef.current = [];
+                    pushOutputAudioEvent(
+                      {
+                        type: 'start',
+                        turnId: currentTurnIdRef.current,
+                        at: performance.now(),
+                        sampleRate: OUTPUT_SAMPLE_RATE,
+                      },
+                      true,
+                    );
                   }
+                  const pcm16 = base64ToInt16(delta);
+                  pushOutputAudioEvent(
+                    {
+                      type: 'chunk',
+                      turnId: currentTurnIdRef.current,
+                      at: performance.now(),
+                      sampleRate: OUTPUT_SAMPLE_RATE,
+                      pcm16,
+                    },
+                    true,
+                  );
+                  setStatus('speaking');
+                  setAmplitude(Math.min(1, pcm16Rms(pcm16) * 5));
                   break;
                 }
 
@@ -345,18 +420,37 @@ export function useGrokVoiceAgent({
                   break;
                 }
 
-                case 'response.output_audio.done':
-                  playCollectedChunks();
+                case 'response.output_audio.done': {
+                  if (currentTurnIdRef.current) {
+                    pushOutputAudioEvent(
+                      {
+                        type: 'end',
+                        turnId: currentTurnIdRef.current,
+                        at: performance.now(),
+                        sampleRate: OUTPUT_SAMPLE_RATE,
+                      },
+                      true,
+                    );
+                    currentTurnIdRef.current = null;
+                  }
+                  scheduleAutoDisconnectAfterTurn();
                   break;
+                }
 
                 case 'response.done':
-                  // No audio was generated (text-only turn)
-                  if (
-                    audioChunksRef.current.length === 0 &&
-                    (statusRef.current === 'thinking' || statusRef.current === 'listening')
-                  ) {
-                    setStatus('idle');
+                  if (currentTurnIdRef.current) {
+                    pushOutputAudioEvent(
+                      {
+                        type: 'end',
+                        turnId: currentTurnIdRef.current,
+                        at: performance.now(),
+                        sampleRate: OUTPUT_SAMPLE_RATE,
+                      },
+                      true,
+                    );
+                    currentTurnIdRef.current = null;
                   }
+                  scheduleAutoDisconnectAfterTurn();
                   break;
 
                 default:
@@ -368,6 +462,18 @@ export function useGrokVoiceAgent({
               if (unmountedRef.current) return;
               setConnected(false);
               setError('Voice connection error');
+              if (currentTurnIdRef.current) {
+                pushOutputAudioEvent(
+                  {
+                    type: 'error',
+                    turnId: currentTurnIdRef.current,
+                    at: performance.now(),
+                    sampleRate: OUTPUT_SAMPLE_RATE,
+                    message: 'Voice connection error',
+                  },
+                  true,
+                );
+              }
               if (!opened) {
                 reject(new Error('Voice connection error'));
               }
@@ -377,6 +483,19 @@ export function useGrokVoiceAgent({
               if (unmountedRef.current) return;
               setConnected(false);
               wsRef.current = null;
+              if (currentTurnIdRef.current) {
+                pushOutputAudioEvent(
+                  {
+                    type: 'error',
+                    turnId: currentTurnIdRef.current,
+                    at: performance.now(),
+                    sampleRate: OUTPUT_SAMPLE_RATE,
+                    message: 'Voice connection closed',
+                  },
+                  true,
+                );
+                currentTurnIdRef.current = null;
+              }
               // Attempt one reconnect after 3 s
               if (shouldReconnectRef.current && reconnectCountRef.current < 1) {
                 reconnectCountRef.current++;
@@ -404,7 +523,7 @@ export function useGrokVoiceAgent({
       });
     connectPromiseRef.current = connectPromise;
     return connectPromise;
-  }, [setStatus, playCollectedChunks]);
+  }, [clearAutoDisconnectTimer, pushOutputAudioEvent, scheduleAutoDisconnectAfterTurn, setStatus]);
 
   // Keep connectRef up-to-date
   useEffect(() => {
@@ -415,15 +534,14 @@ export function useGrokVoiceAgent({
 
   useEffect(() => {
     unmountedRef.current = false;
+    const outputAudioListeners = outputAudioListenersRef.current;
     return () => {
       unmountedRef.current = true;
       shouldReconnectRef.current = false;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      wsRef.current?.close();
-      stopMic();
-      stopAmplitudeLoop();
-      playSourceRef.current?.stop();
-      playCtxRef.current?.close().catch(() => {});
+      clearReplayTimers();
+      disconnectRealtimeSession({ stopMic: true, keepStatus: true });
+      outputAudioListeners.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -434,6 +552,7 @@ export function useGrokVoiceAgent({
     if (statusRef.current === 'listening') return;
 
     setError(null);
+    clearAutoDisconnectTimer();
     try {
       await connect();
     } catch {
@@ -462,7 +581,7 @@ export function useGrokVoiceAgent({
         micAnalyserRef.current = analyser;
         source.connect(analyser);
 
-        // ScriptProcessor for raw PCM → downsample → send to xAI
+        // ScriptProcessor for raw PCM -> downsample -> send to xAI
         const processor = ctx.createScriptProcessor(4096, 1, 1);
         processorRef.current = processor;
         source.connect(processor);
@@ -490,14 +609,13 @@ export function useGrokVoiceAgent({
         setError(msg);
         setStatus('error');
       });
-  }, [connect, setStatus, startAmplitudeLoop]);
+  }, [clearAutoDisconnectTimer, connect, setStatus, startAmplitudeLoop]);
 
   // ── stopListening ─────────────────────────────────────────────────────────
 
   const stopListening = useCallback(() => {
-    stopMic();
-    if (statusRef.current === 'listening') setStatus('idle');
-  }, [stopMic, setStatus]);
+    disconnectRealtimeSession({ stopMic: true });
+  }, [disconnectRealtimeSession]);
 
   // ── submitText ────────────────────────────────────────────────────────────
 
@@ -506,6 +624,7 @@ export function useGrokVoiceAgent({
       if (statusRef.current === 'thinking' || statusRef.current === 'speaking') return;
 
       setError(null);
+      clearAutoDisconnectTimer();
       let ws: WebSocket;
       try {
         ws = await connect();
@@ -515,7 +634,6 @@ export function useGrokVoiceAgent({
       }
       setTranscript(text);
       setAiResponse('');
-      audioChunksRef.current = [];
       setStatus('thinking');
 
       ws.send(
@@ -530,48 +648,69 @@ export function useGrokVoiceAgent({
       );
       ws.send(JSON.stringify({ type: 'response.create' }));
     },
-    [connect, setStatus],
+    [clearAutoDisconnectTimer, connect, setStatus],
   );
+
+  // ── subscribeOutputAudio ─────────────────────────────────────────────────
+
+  const subscribeOutputAudio = useCallback((listener: MasterAvatarAudioListener): (() => void) => {
+    outputAudioListenersRef.current.add(listener);
+    return () => {
+      outputAudioListenersRef.current.delete(listener);
+    };
+  }, []);
 
   // ── cancel ────────────────────────────────────────────────────────────────
 
   const cancel = useCallback(() => {
-    stopMic();
-    playSourceRef.current?.stop();
-    playSourceRef.current = null;
-    stopAmplitudeLoop();
-    setStatus('idle');
-  }, [stopMic, stopAmplitudeLoop, setStatus]);
+    clearReplayTimers();
+    disconnectRealtimeSession({ stopMic: true });
+    if (currentTurnIdRef.current) {
+      pushOutputAudioEvent(
+        {
+          type: 'cancel',
+          turnId: currentTurnIdRef.current,
+          at: performance.now(),
+          sampleRate: OUTPUT_SAMPLE_RATE,
+        },
+        true,
+      );
+      currentTurnIdRef.current = null;
+    }
+  }, [clearReplayTimers, disconnectRealtimeSession, pushOutputAudioEvent]);
 
   // ── replay ────────────────────────────────────────────────────────────────
 
   const replay = useCallback(() => {
-    const buf = lastAudioBufferRef.current;
-    if (!buf) return;
+    const events = lastOutputAudioEventsRef.current.map(cloneOutputEvent);
+    if (events.length === 0) return;
 
-    if (!playCtxRef.current || playCtxRef.current.state === 'closed') {
-      playCtxRef.current = new AudioContext({ sampleRate: OUTPUT_SAMPLE_RATE });
-    }
-    const ctx = playCtxRef.current;
-
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
-    playAnalyserRef.current = analyser;
-
-    const source = ctx.createBufferSource();
-    source.buffer = buf;
-    source.connect(analyser);
-    analyser.connect(ctx.destination);
-    playSourceRef.current = source;
-
+    clearReplayTimers();
     setStatus('speaking');
-    source.onended = () => {
-      stopAmplitudeLoop();
-      if (statusRef.current === 'speaking') setStatus('idle');
-    };
-    source.start();
-    startAmplitudeLoop(analyser);
-  }, [setStatus, startAmplitudeLoop, stopAmplitudeLoop]);
+
+    const startAt = events[0].at;
+    for (const event of events) {
+      const timer = setTimeout(
+        () => {
+          broadcastOutputAudio(cloneOutputEvent(event));
+          if (event.type === 'chunk') {
+            setAmplitude(Math.min(1, pcm16Rms(event.pcm16) * 5));
+          }
+        },
+        Math.max(0, Math.round(event.at - startAt)),
+      );
+      replayTimersRef.current.push(timer);
+    }
+
+    const endOffset = Math.max(0, Math.round(events[events.length - 1].at - startAt)) + 160;
+    const endTimer = setTimeout(() => {
+      if (!unmountedRef.current && statusRef.current === 'speaking') {
+        setStatus('idle');
+      }
+      setAmplitude(0);
+    }, endOffset);
+    replayTimersRef.current.push(endTimer);
+  }, [broadcastOutputAudio, clearReplayTimers, setStatus]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
 
@@ -599,5 +738,6 @@ export function useGrokVoiceAgent({
     cancel,
     submitText,
     replay,
+    subscribeOutputAudio,
   };
 }

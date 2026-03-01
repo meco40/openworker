@@ -449,3 +449,51 @@ Files >300 lines identified for potential future modularization:
 - 2026-03-01T04:08:00+01:00 [PROGRESS] [CODE] `src/modules/master/components/MasterFaceCanvasThree.tsx` erweitert: Body-Node-Bindings (`getObjectByName(...)`) und Locomotion-Parameter `walkCycle`, `jumpOffset`, `sitAmount`; Raumbewegung über X/Z-Roaming, state-abhängiges Springen (`speaking`) und Sitzen (`thinking`) sowie Arm-/Bein-/Hand-/Fuß-Swing.
 - 2026-03-01T04:08:00+01:00 [PROGRESS] [CODE] TDD-Contracts erweitert: `tests/unit/modules/master/master-hologram-female-face-model.test.ts` (Full-Body-Node-Set) und `tests/unit/modules/master/master-face-canvas-three-interaction-contract.test.ts` (Body-Node-Bindings + walk/jump/sit-Keywords).
 - 2026-03-01T04:08:00+01:00 [OUTCOMES] [TOOL] Verifikation grün: `npm test -- tests/unit/modules/master/master-hologram-female-face-model.test.ts tests/unit/modules/master/master-face-canvas-three-interaction-contract.test.ts tests/unit/modules/master/master-entry-page-visual-contract.test.ts` (10/10), `npm run typecheck` (ok), `npm run lint` (0 errors; 6 vorbestehende A11y-Warnungen), `npm run build` (ok; vorbestehende Turbopack-Warnungen in `taskWorkspace.ts`), `prettier --check` auf geänderten Dateien (ok).
+- 2026-03-01T04:40:45+01:00 [PLANS] [USER] Entscheidungsvorbereitung angefordert: `TalkingHead` als Zielbibliothek für Master-Entry evaluieren, mit Fokus auf vollständige Integration in bestehendes Canvas/Feature-Set und "lebendiges" Avatar-Verhalten.
+- 2026-03-01T04:40:45+01:00 [DECISIONS] [ASSUMPTION] Empfohlener Integrationspfad ist `TalkingHead` im `avatarOnly`-Modus, damit bestehende Master-Scene/Canvas-Logik und aktuelle Voice-/UI-Funktionen erhalten bleiben und nur die Avatar-Engine ersetzt wird.
+- 2026-03-01T04:40:45+01:00 [DISCOVERIES] [TOOL] Offizielle `TalkingHead`-Doku bestätigt: `avatarOnly`-Mode, Streaming-API (`streamStart/streamAudio/...`), Gesten/Moods/Dynamic-Bones; Voraussetzung für hochwertige Lip-Sync ist ein rigged GLB mit Mixamo-kompatiblem Rig + ARKit/Oculus-Visemes. README-Hinweis: Ready Player Me Services laut Projekttext bis 2026-01-31 eingestellt (Auswirkung auf Asset-Quelle, nicht auf Bibliothekskern).
+- 2026-03-01T04:40:45+01:00 [OUTCOMES] [TOOL] Machbarkeitsantwort vorbereitet: vollständige Integration ist realistisch mit mittlerem Integrationsaufwand; keine Produktivdateien geändert.
+- 2026-03-01T04:41:25+01:00 [PLANS] [USER] Analyseauftrag gestartet: Entstehung und Notwendigkeit der `.local`-Ordner bewerten, mit harter Nebenbedingung, dass Persona-Ordner vollständig erhalten bleiben.
+- 2026-03-01T04:41:25+01:00 [DISCOVERIES] [TOOL] `.local` enthält aktuell nur 5 Top-Level-Ordner (`personas`, `master.actions.personas.root.*`, `test`, `test-attachments`, `uploads`), aber 8.455 Dateien und ~886,68 MB; Belegung entsteht überwiegend durch top-level SQLite-Testartefakte (`knowledge.repo*`, `automation.routes*`, `knowledge-events*`, `test-event-answer*`) statt durch große Ordner.
+- 2026-03-01T04:41:25+01:00 [DISCOVERIES] [CODE] Persona-Ordner unter `.local/personas` sind Produktivpfad: `resolvePersonasRootDir()` defaultet auf `.local/personas`, `ensurePersonaWorkspace()` erzeugt pro Persona feste Unterstruktur (`uploads`, `projects`, `knowledge`, `memory`, `logs`, `exports`, `tmp`, `config`), und Repository-/Migrationspfade sichern diese Struktur bei Create/Backfill/Migration.
+- 2026-03-01T04:41:25+01:00 [DISCOVERIES] [CODE] Nicht-Persona-Ordner sind überwiegend Testartefakte: `master.actions.personas.root.*` wird in Master-Integrationstests als temporärer `PERSONAS_ROOT_PATH` erzeugt; `.local/test-attachments` wird in WhatsApp-Route-Tests per `CHAT_ATTACHMENTS_DIR='.local/test-attachments'` befüllt; `.local/test` dient Skill-Repository-Tests als Temp-DB-Verzeichnis.
+- 2026-03-01T04:41:25+01:00 [DISCOVERIES] [CODE] Bestehendes Cleanup (`scripts/cleanup-local-artifacts.ts`) deckt nur 6 Prefixe ab und matched per Dry-Run 717 Artefakte; große Blöcke wie `knowledge-events*`, `knowledge.repo*`, `test-event-answer*` bleiben unberührt (UNCONFIRMED ob bewusst out-of-scope oder veraltet).
+- 2026-03-01T04:41:25+01:00 [OUTCOMES] [TOOL] Entscheidungsgrundlage erstellt: Persona-Ordner vollständig behalten; Testordner (`master.actions.personas.root.*`, `test`, `test-attachments`) sind löschbar, `uploads` ist Legacy-/Fallback-Pfad und leer (löschbar, wird bei Bedarf rekursiv neu erstellt).
+
+[PLANS]
+
+- 2026-03-01T05:18:45+01:00 [USER] Big-Bang-Implementierung angefordert: komplette Master-Avatar-Engine auf TalkingHead+HeadAudio umstellen (3D-only, kein Legacy-Fallback), inkl. Stream-Output aus `useGrokVoiceAgent`, rigged Asset-Pipeline, Validator, Tests und Doku.
+
+[DECISIONS]
+
+- 2026-03-01T05:18:45+01:00 [CODE] Turbopack-kompatibler Pfad gewählt: TalkingHead lokal unter `src/modules/master/vendor/talkinghead/` vendort und dynamische `import(moduleName)`-LipSync-Auflösung durch statische Modulzuordnung ersetzt.
+- 2026-03-01T05:18:45+01:00 [CODE] Vendor-Code von Projekt-Lint ausgenommen (`.oxlintrc.json` `ignorePatterns: src/modules/master/vendor/**`), um Upstream-Code nicht projektseitig umzuschreiben.
+
+[PROGRESS]
+
+- 2026-03-01T05:18:45+01:00 [CODE] Dependencies/Skripte ergänzt (`@met4citizen/talkinghead@1.7.0`, `@met4citizen/headaudio@0.1.0`, `avatar:sync-headaudio`, `avatar:validate`, `postinstall` sync), Runtime-Artefakte unter `public/vendor/headaudio/*` und `public/models/master-avatar-rigged.*` integriert.
+- 2026-03-01T05:18:45+01:00 [CODE] Master-Module refaktoriert: `MasterFaceCanvasThree` auf TalkingHead avatarOnly + HeadAudio + Audio-Stream-Consumption umgestellt; `useGrokVoiceAgent` um `subscribeOutputAudio`/Event-Replay erweitert; `MasterEntryPage` auf neuen Stream verdrahtet; neue Avatar- und Stream-Typen ergänzt.
+- 2026-03-01T05:18:45+01:00 [CODE] Tests/Doku ergänzt: neue Stream-Contract-Tests, angepasste Canvas/Model-Contracts, Implementierungs- und Pipeline-Dokumente unter `docs/plans/2026-03-01-master-talkinghead-bigbang-implementation.md` und `docs/avatar/master-avatar-pipeline.md`.
+
+[DISCOVERIES]
+
+- 2026-03-01T05:18:45+01:00 [TOOL] Typkonflikt zwischen lokaler TalkingHead-Konstruktor-Signatur und deklarierter Package-Typdefinition blockierte `tsc`; gelöst über gezielten `unknown`-Cast an der dynamischen Importstelle.
+- 2026-03-01T05:18:45+01:00 [TOOL] Build-Blocker im vendorten TalkingHead: `lipsync-fr-old.mjs` exportiert `LipsyncFr` statt `LipsyncFrOld`; behoben via Alias-Import.
+
+[OUTCOMES]
+
+- 2026-03-01T05:18:45+01:00 [TOOL] Verifikation erfolgreich: `npm run avatar:validate` (ok), `npm test -- tests/unit/modules/master` (7 Dateien/62 Tests grün), `npm run typecheck` (ok), `npm run build` (ok).
+- 2026-03-01T05:18:45+01:00 [TOOL] `npm run lint` bleibt mit bestehenden Warnungen (a11y-Labels in Master-Form-Komponenten), jedoch 0 Errors; zusätzliche Vendor-Warnungen wurden durch Lint-Ignore für vendorten Upstream-Code eliminiert.
+- 2026-03-01T05:32:20+01:00 [PROGRESS] [CODE] Avatar-Framing in `MasterFaceCanvasThree.tsx` nach User-Feedback neu kalibriert: `AVATAR_BASE_Y` angehoben und Kamera-Basis/LookAt über Konstanten (`CAMERA_BASE_Y`, `CAMERA_LOOK_AT_Y`) vereinheitlicht, um das Modell im Canvas besser zu zentrieren.
+- 2026-03-01T05:32:20+01:00 [OUTCOMES] [TOOL] Schnellverifikation erfolgreich: `npm run typecheck` (ok), `npm test -- tests/unit/modules/master/master-face-canvas-three-interaction-contract.test.ts` (6/6).
+- 2026-03-01T05:34:50+01:00 [PROGRESS] [CODE] Weitere Centering-Kalibrierung nach User-Feedback: `AVATAR_BASE_Y` in `MasterFaceCanvasThree.tsx` von `-0.95` auf `-0.75` angehoben (Modell deutlich höher im Canvas).
+- 2026-03-01T05:34:50+01:00 [OUTCOMES] [TOOL] Re-Check grün nach Feintuning: `npm run typecheck` (ok), `npm test -- tests/unit/modules/master/master-face-canvas-three-interaction-contract.test.ts` (6/6).
+- 2026-03-01T05:44:10+01:00 [PLANS] [USER] Tokenverbrauch reduzieren: nach abgeschlossener Agent-Antwort auf Master-Entry soll die Grok-Realtime-Verbindung automatisch getrennt werden (auch nach Voice-Interaktion).
+- 2026-03-01T05:44:10+01:00 [DECISIONS] [CODE] Session-Policy auf "one turn per connection" umgestellt: WebSocket + Mic werden nach `response.output_audio.done`/`response.done` automatisch beendet; Reconnect bleibt nur für unerwartete Abbrüche aktiv.
+- 2026-03-01T05:44:10+01:00 [PROGRESS] [CODE] `useGrokVoiceAgent.ts` erweitert um `autoDisconnectTimerRef`, `disconnectRealtimeSession(...)`, `scheduleAutoDisconnectAfterTurn()`, Timer-Cleanup und manuelles Disconnect in `stopListening`/`cancel`.
+- 2026-03-01T05:44:10+01:00 [OUTCOMES] [TOOL] Verifikation grün: `npm run typecheck` (ok), `npm test -- tests/unit/modules/master/grok-voice-agent-lazy-connect.test.ts tests/unit/modules/master/grok-voice-agent-output-stream-contract.test.ts` (5/5), `npm test -- tests/unit/modules/master` (7 Dateien/63 Tests grün).
+- 2026-03-01T06:12:36+01:00 [PLANS] [USER] Vollständige Qualitätsrunde angefordert: alle Fehler/Warnungen bereinigen, vollständige Verifikation ausführen und anschließend Commit+Push.
+- 2026-03-01T06:12:36+01:00 [DECISIONS] [CODE] Turbopack-FS-Warnungen in `src/server/tasks/taskWorkspace.ts` durch deterministischen Production-Root + Verzicht auf `path.join(rootPath, entry.name)` in Scan-Loops beseitigt; `TASK_WORKSPACES_ROOT`-Override bleibt für Nicht-Production (`NODE_ENV !== 'production'`) aktiv.
+- 2026-03-01T06:12:36+01:00 [PROGRESS] [CODE] Regressionstest ergänzt/angepasst in `tests/unit/server/tasks/taskWorkspace.test.ts` (`uses deterministic workspace root in production mode`) und TypeScript-kompatibel über `Record<string, string | undefined>` für Env-Manipulation umgesetzt.
+- 2026-03-01T06:12:36+01:00 [DISCOVERIES] [TOOL] Build-Warnung war nicht durch Lint erfassbar; reproduzierbar nur über `next build` (Turbopack: broad file pattern in `taskWorkspace.ts` an den früheren `path.join(rootPath, entry.name)`-Stellen).
+- 2026-03-01T06:12:36+01:00 [OUTCOMES] [TOOL] Finale Verifikation grün: `npm run check` (typecheck/lint/format ohne Warnungen/Fehler), `npm test` (445 Dateien/2044 Tests), `npm run build` (erfolgreich, keine Turbopack-Warnungen mehr zu `taskWorkspace.ts`).

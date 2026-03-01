@@ -111,4 +111,37 @@ describe('taskWorkspace', () => {
     expect(report.reasonCounts.limitReached).toBe(2);
     expect(remainingDirs.length).toBe(2);
   });
+
+  it('uses deterministic workspace root in production mode', () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousCwd = process.cwd();
+    const env = process.env as Record<string, string | undefined>;
+    const isolatedCwd = fs.mkdtempSync(path.join(tempDir, 'cwd-'));
+    const overrideRoot = path.join(tempDir, 'override-workspaces');
+
+    try {
+      process.chdir(isolatedCwd);
+      env.NODE_ENV = 'production';
+      env.TASK_WORKSPACES_ROOT = overrideRoot;
+
+      const workspaceDir = ensureTaskWorkspace('task-prod-root');
+      const expectedWorkspaceDir = path.join(previousCwd, 'workspaces', 'task-prod-root');
+
+      expect(workspaceDir).toBe(expectedWorkspaceDir);
+      expect(fs.existsSync(expectedWorkspaceDir)).toBe(true);
+      expect(fs.existsSync(path.join(overrideRoot, 'task-prod-root'))).toBe(false);
+    } finally {
+      process.chdir(previousCwd);
+      if (previousNodeEnv === undefined) {
+        delete env.NODE_ENV;
+      } else {
+        env.NODE_ENV = previousNodeEnv;
+      }
+      fs.rmSync(path.join(previousCwd, 'workspaces', 'task-prod-root'), {
+        recursive: true,
+        force: true,
+      });
+      fs.rmSync(isolatedCwd, { recursive: true, force: true });
+    }
+  });
 });

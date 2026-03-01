@@ -13,6 +13,10 @@ export const ApprovalDecisionForm: React.FC<ApprovalDecisionFormProps> = ({
   pendingActionType,
   onSubmit,
 }) => {
+  const actionTypeControlId = pendingActionType
+    ? 'approval-action-type-readonly'
+    : 'approval-action-type-select';
+  const decisionControlId = 'approval-decision-select';
   const [actionType, setActionType] = useState<string>(pendingActionType ?? KNOWN_ACTION_TYPES[0]);
   const [decision, setDecision] = useState<ApprovalDecision>('approve_once');
 
@@ -52,15 +56,22 @@ export const ApprovalDecisionForm: React.FC<ApprovalDecisionFormProps> = ({
 
       <div className="space-y-3 p-4">
         <div className="space-y-1.5">
-          <label className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+          <label
+            htmlFor={actionTypeControlId}
+            className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase"
+          >
             Action Type
           </label>
           {pendingActionType ? (
-            <div className="w-full rounded-xl border border-amber-500/20 bg-zinc-950/60 px-3 py-2.5 font-mono text-sm font-semibold text-amber-300">
-              {pendingActionType}
-            </div>
+            <input
+              id={actionTypeControlId}
+              value={pendingActionType}
+              readOnly
+              className="w-full rounded-xl border border-amber-500/20 bg-zinc-950/60 px-3 py-2.5 font-mono text-sm font-semibold text-amber-300"
+            />
           ) : (
             <select
+              id={actionTypeControlId}
               value={actionType}
               onChange={(e) => setActionType(e.target.value)}
               className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/20 focus:outline-none"
@@ -75,10 +86,14 @@ export const ApprovalDecisionForm: React.FC<ApprovalDecisionFormProps> = ({
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+          <label
+            htmlFor={decisionControlId}
+            className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase"
+          >
             Decision
           </label>
           <select
+            id={decisionControlId}
             value={decision}
             onChange={(e) => setDecision(e.target.value as ApprovalDecision)}
             className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/20 focus:outline-none"

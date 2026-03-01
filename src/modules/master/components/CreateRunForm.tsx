@@ -32,6 +32,12 @@ export const CreateRunForm: React.FC<CreateRunFormProps> = ({
   onCreateRun,
   onRefresh,
 }) => {
+  const personaSelectId = 'create-run-persona-select';
+  const workspaceControlId =
+    workspaces.length > 0 ? 'create-run-workspace-select' : 'create-run-workspace-input';
+  const titleInputId = 'create-run-title-input';
+  const contractTextareaId = 'create-run-contract-textarea';
+
   return (
     <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 shadow-xl">
       {/* Section header */}
@@ -62,10 +68,14 @@ export const CreateRunForm: React.FC<CreateRunFormProps> = ({
       <div className="p-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+            <label
+              htmlFor={personaSelectId}
+              className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase"
+            >
               Persona
             </label>
             <select
+              id={personaSelectId}
               value={selectedPersonaId}
               onChange={(e) => onPersonaChange(e.target.value)}
               className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
@@ -80,11 +90,15 @@ export const CreateRunForm: React.FC<CreateRunFormProps> = ({
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+            <label
+              htmlFor={workspaceControlId}
+              className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase"
+            >
               Workspace
             </label>
             {workspaces.length > 0 ? (
               <select
+                id={workspaceControlId}
                 value={workspaceId}
                 onChange={(e) => onWorkspaceChange(e.target.value)}
                 className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
@@ -97,6 +111,7 @@ export const CreateRunForm: React.FC<CreateRunFormProps> = ({
               </select>
             ) : (
               <input
+                id={workspaceControlId}
                 value={workspaceId}
                 onChange={(e) => onWorkspaceChange(e.target.value)}
                 className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
@@ -107,10 +122,14 @@ export const CreateRunForm: React.FC<CreateRunFormProps> = ({
         </div>
 
         <div className="mt-4 space-y-1.5">
-          <label className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+          <label
+            htmlFor={titleInputId}
+            className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase"
+          >
             Title
           </label>
           <input
+            id={titleInputId}
             value={runTitle}
             onChange={(e) => onTitleChange(e.target.value)}
             className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
@@ -118,10 +137,14 @@ export const CreateRunForm: React.FC<CreateRunFormProps> = ({
         </div>
 
         <div className="mt-4 space-y-1.5">
-          <label className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+          <label
+            htmlFor={contractTextareaId}
+            className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase"
+          >
             Contract
           </label>
           <textarea
+            id={contractTextareaId}
             value={runContract}
             onChange={(e) => onContractChange(e.target.value)}
             rows={4}

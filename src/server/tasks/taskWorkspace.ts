@@ -3,6 +3,7 @@ import path from 'node:path';
 
 const WORKSPACE_METADATA_FILENAME = '.workspace.json';
 const DEFAULT_CLEANUP_MAX_REMOVALS = 200;
+const DEFAULT_TASK_WORKSPACES_ROOT = path.resolve(process.cwd(), 'workspaces');
 
 interface TaskWorkspaceMetadata {
   taskId: string;
@@ -29,11 +30,14 @@ export interface TaskWorkspaceCleanupReport {
 }
 
 function resolveTaskWorkspacesRoot(): string {
-  const configuredRoot = process.env.TASK_WORKSPACES_ROOT;
-  if (configuredRoot && configuredRoot.trim().length > 0) {
-    return path.resolve(configuredRoot);
+  // Keep a deterministic root for production builds so output tracing stays narrow.
+  if (process.env.NODE_ENV !== 'production') {
+    const configuredRoot = process.env.TASK_WORKSPACES_ROOT;
+    if (configuredRoot && configuredRoot.trim().length > 0) {
+      return path.resolve(configuredRoot);
+    }
   }
-  return path.resolve(process.cwd(), 'workspaces');
+  return DEFAULT_TASK_WORKSPACES_ROOT;
 }
 
 function sanitizeTaskWorkspaceDirectoryName(taskId: string): string {
@@ -156,7 +160,7 @@ export function deleteTaskWorkspace(taskId: string): void {
   const entries = fs.readdirSync(rootPath, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const dirPath = path.join(rootPath, entry.name);
+    const dirPath = `${rootPath}${path.sep}${entry.name}`;
     const metadataTaskId = readWorkspaceTaskId(dirPath);
     if (metadataTaskId === taskId) {
       candidateDirs.add(dirPath);
@@ -231,7 +235,7 @@ export function cleanupOrphanTaskWorkspaces(
       continue;
     }
 
-    const dirPath = path.join(rootPath, entry.name);
+    const dirPath = `${rootPath}${path.sep}${entry.name}`;
     const metadataResult = readWorkspaceMetadata(dirPath);
     if (metadataResult.status === 'missing') {
       skipped += 1;

@@ -49,6 +49,51 @@ export interface StatusMessage {
   text: string;
 }
 
+// ─── Avatar audio stream types ───────────────────────────────────────────────
+
+export type MasterAvatarRuntimeState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'error';
+
+interface MasterAvatarAudioEventBase {
+  turnId: string;
+  at: number;
+  sampleRate: number;
+}
+
+export interface MasterAvatarAudioStartEvent extends MasterAvatarAudioEventBase {
+  type: 'start';
+}
+
+export interface MasterAvatarAudioChunkEvent extends MasterAvatarAudioEventBase {
+  type: 'chunk';
+  pcm16: Int16Array;
+}
+
+export interface MasterAvatarAudioEndEvent extends MasterAvatarAudioEventBase {
+  type: 'end';
+}
+
+export interface MasterAvatarAudioCancelEvent extends MasterAvatarAudioEventBase {
+  type: 'cancel';
+}
+
+export interface MasterAvatarAudioErrorEvent extends MasterAvatarAudioEventBase {
+  type: 'error';
+  message: string;
+}
+
+export type MasterAvatarAudioEvent =
+  | MasterAvatarAudioStartEvent
+  | MasterAvatarAudioChunkEvent
+  | MasterAvatarAudioEndEvent
+  | MasterAvatarAudioCancelEvent
+  | MasterAvatarAudioErrorEvent;
+
+export type MasterAvatarAudioListener = (event: MasterAvatarAudioEvent) => void;
+
+export interface MasterAvatarAudioStream {
+  subscribe: (listener: MasterAvatarAudioListener) => () => void;
+}
+
 // ─── Known action types for approval decisions ────────────────────────────────
 
 export const KNOWN_ACTION_TYPES = [

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import MasterFaceCanvas from './MasterFaceCanvasThree';
 import { useGrokVoiceAgent } from '../hooks/useGrokVoiceAgent';
 
@@ -240,6 +240,10 @@ export default function MasterEntryPage({
   workspaceId,
 }: MasterEntryPageProps) {
   const voice = useGrokVoiceAgent({ personaId, workspaceId });
+  const outputAudioStream = useMemo(
+    () => ({ subscribe: voice.subscribeOutputAudio }),
+    [voice.subscribeOutputAudio],
+  );
 
   // animated subtitle ticker
   const [subtitleVisible, setSubtitleVisible] = useState(true);
@@ -287,6 +291,7 @@ export default function MasterEntryPage({
         <MasterFaceCanvas
           state={voice.faceState}
           amplitude={voice.amplitude}
+          outputAudioStream={outputAudioStream}
           width={340}
           height={442}
         />

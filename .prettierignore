@@ -5,6 +5,11 @@ dist
 coverage
 node_modules
 package-lock.json
+pnpm-lock.yaml
 .tmp
 workspaces
 next-env.d.ts
+public/vendor
+src/modules/master/vendor
+public/models/*.gltf
+public/models/*.glb
