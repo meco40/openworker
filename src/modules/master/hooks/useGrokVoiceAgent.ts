@@ -121,6 +121,8 @@ export function useGrokVoiceAgent({
   const playSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectCountRef = useRef(0);
+  const connectPromiseRef = useRef<Promise<WebSocket> | null>(null);
+  const shouldReconnectRef = useRef(false);
   const unmountedRef = useRef(false);
 
   // Stable setter that also updates ref and fires callback
@@ -232,12 +234,24 @@ export function useGrokVoiceAgent({
 
   // ── WebSocket connect ─────────────────────────────────────────────────────
 
-  const connectRef = useRef<(() => void) | null>(null);
+  const connectRef = useRef<(() => Promise<WebSocket>) | null>(null);
 
-  const connect = useCallback(() => {
-    if (unmountedRef.current) return;
+  const connect = useCallback((): Promise<WebSocket> => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      return Promise.resolve(wsRef.current);
+    }
 
-    fetch('/api/master/voice-session')
+    if (connectPromiseRef.current) {
+      return connectPromiseRef.current;
+    }
+
+    if (unmountedRef.current) {
+      return Promise.reject(new Error('Voice hook unmounted'));
+    }
+
+    shouldReconnectRef.current = true;
+
+    const connectPromise = fetch('/api/master/voice-session')
       .then(async (res) => {
         if (!res.ok) {
           let body: Record<string, unknown> = {};
@@ -250,125 +264,146 @@ export function useGrokVoiceAgent({
         }
         return res.json() as Promise<{ token: string; voice: string }>;
       })
-      .then(({ token, voice }) => {
-        if (unmountedRef.current) return;
+      .then(
+        ({ token, voice }) =>
+          new Promise<WebSocket>((resolve, reject) => {
+            if (unmountedRef.current) {
+              reject(new Error('Voice hook unmounted'));
+              return;
+            }
 
-        const ws = new WebSocket(GROK_WS_URL, [`xai-client-secret.${token}`]);
-        wsRef.current = ws;
+            const ws = new WebSocket(GROK_WS_URL, [`xai-client-secret.${token}`]);
+            wsRef.current = ws;
+            let opened = false;
 
-        ws.onopen = () => {
-          if (unmountedRef.current) return;
-          setConnected(true);
-          reconnectCountRef.current = 0;
-          setError(null);
+            ws.onopen = () => {
+              if (unmountedRef.current) return;
+              opened = true;
+              setConnected(true);
+              reconnectCountRef.current = 0;
+              setError(null);
 
-          ws.send(
-            JSON.stringify({
-              type: 'session.update',
-              session: {
-                voice: voice ?? 'Ara',
-                instructions:
-                  'Du bist OpenClaw Master Agent — ein hochentwickelter KI-Assistent. Antworte präzise und hilfreich, bevorzugt auf Deutsch, außer der Nutzer spricht eine andere Sprache.',
-                turn_detection: { type: 'server_vad' },
-                audio: {
-                  input: { format: { type: 'audio/pcm', rate: INPUT_SAMPLE_RATE } },
-                  output: { format: { type: 'audio/pcm', rate: OUTPUT_SAMPLE_RATE } },
-                },
-              },
-            }),
-          );
-        };
+              ws.send(
+                JSON.stringify({
+                  type: 'session.update',
+                  session: {
+                    voice: voice ?? 'Ara',
+                    instructions:
+                      'Du bist OpenClaw Master Agent — ein hochentwickelter KI-Assistent. Antworte präzise und hilfreich, bevorzugt auf Deutsch, außer der Nutzer spricht eine andere Sprache.',
+                    turn_detection: { type: 'server_vad' },
+                    audio: {
+                      input: { format: { type: 'audio/pcm', rate: INPUT_SAMPLE_RATE } },
+                      output: { format: { type: 'audio/pcm', rate: OUTPUT_SAMPLE_RATE } },
+                    },
+                  },
+                }),
+              );
+              resolve(ws);
+            };
 
-        ws.onmessage = (event) => {
-          if (unmountedRef.current) return;
-          let data: Record<string, unknown>;
-          try {
-            data = JSON.parse(event.data as string) as Record<string, unknown>;
-          } catch {
-            return;
-          }
-
-          const type = data.type as string;
-
-          switch (type) {
-            case 'input_audio_buffer.speech_started':
-              audioChunksRef.current = [];
-              setTranscript('');
-              setAiResponse('');
-              setStatus('listening');
-              break;
-
-            case 'response.created':
-              setStatus('thinking');
-              break;
-
-            case 'response.output_audio.delta': {
-              const delta = data.delta as string | undefined;
-              if (delta) {
-                audioChunksRef.current.push(base64ToInt16(delta));
-                setStatus('speaking');
+            ws.onmessage = (event) => {
+              if (unmountedRef.current) return;
+              let data: Record<string, unknown>;
+              try {
+                data = JSON.parse(event.data as string) as Record<string, unknown>;
+              } catch {
+                return;
               }
-              break;
-            }
 
-            case 'response.output_audio_transcript.delta': {
-              const delta = data.delta as string | undefined;
-              if (delta) setAiResponse((prev) => prev + delta);
-              break;
-            }
+              const type = data.type as string;
 
-            case 'conversation.item.input_audio_transcription.completed': {
-              const t = data.transcript as string | undefined;
-              if (t) setTranscript(t);
-              break;
-            }
+              switch (type) {
+                case 'input_audio_buffer.speech_started':
+                  audioChunksRef.current = [];
+                  setTranscript('');
+                  setAiResponse('');
+                  setStatus('listening');
+                  break;
 
-            case 'response.output_audio.done':
-              playCollectedChunks();
-              break;
+                case 'response.created':
+                  setStatus('thinking');
+                  break;
 
-            case 'response.done':
-              // No audio was generated (text-only turn)
-              if (
-                audioChunksRef.current.length === 0 &&
-                (statusRef.current === 'thinking' || statusRef.current === 'listening')
-              ) {
-                setStatus('idle');
+                case 'response.output_audio.delta': {
+                  const delta = data.delta as string | undefined;
+                  if (delta) {
+                    audioChunksRef.current.push(base64ToInt16(delta));
+                    setStatus('speaking');
+                  }
+                  break;
+                }
+
+                case 'response.output_audio_transcript.delta': {
+                  const delta = data.delta as string | undefined;
+                  if (delta) setAiResponse((prev) => prev + delta);
+                  break;
+                }
+
+                case 'conversation.item.input_audio_transcription.completed': {
+                  const t = data.transcript as string | undefined;
+                  if (t) setTranscript(t);
+                  break;
+                }
+
+                case 'response.output_audio.done':
+                  playCollectedChunks();
+                  break;
+
+                case 'response.done':
+                  // No audio was generated (text-only turn)
+                  if (
+                    audioChunksRef.current.length === 0 &&
+                    (statusRef.current === 'thinking' || statusRef.current === 'listening')
+                  ) {
+                    setStatus('idle');
+                  }
+                  break;
+
+                default:
+                  break;
               }
-              break;
+            };
 
-            default:
-              break;
-          }
-        };
+            ws.onerror = () => {
+              if (unmountedRef.current) return;
+              setConnected(false);
+              setError('Voice connection error');
+              if (!opened) {
+                reject(new Error('Voice connection error'));
+              }
+            };
 
-        ws.onerror = () => {
-          if (unmountedRef.current) return;
-          setConnected(false);
-          setError('Voice connection error');
-        };
-
-        ws.onclose = () => {
-          if (unmountedRef.current) return;
-          setConnected(false);
-          wsRef.current = null;
-          // Attempt one reconnect after 3 s
-          if (reconnectCountRef.current < 1) {
-            reconnectCountRef.current++;
-            reconnectTimerRef.current = setTimeout(() => {
-              connectRef.current?.();
-            }, 3_000);
-          } else {
-            setError('Voice connection lost. Please reload.');
-          }
-        };
-      })
+            ws.onclose = () => {
+              if (unmountedRef.current) return;
+              setConnected(false);
+              wsRef.current = null;
+              // Attempt one reconnect after 3 s
+              if (shouldReconnectRef.current && reconnectCountRef.current < 1) {
+                reconnectCountRef.current++;
+                reconnectTimerRef.current = setTimeout(() => {
+                  void connectRef.current?.();
+                }, 3_000);
+              } else if (shouldReconnectRef.current) {
+                setError('Voice connection lost. Please reload.');
+              }
+              if (!opened) {
+                reject(new Error('Voice connection closed'));
+              }
+            };
+          }),
+      )
       .catch((err: unknown) => {
-        if (unmountedRef.current) return;
+        if (unmountedRef.current) throw err;
         const msg = err instanceof Error ? err.message : 'Failed to connect';
         setError(msg);
         setStatus('error');
+        throw err;
+      })
+      .finally(() => {
+        connectPromiseRef.current = null;
       });
+    connectPromiseRef.current = connectPromise;
+    return connectPromise;
   }, [setStatus, playCollectedChunks]);
 
   // Keep connectRef up-to-date
@@ -380,9 +415,9 @@ export function useGrokVoiceAgent({
 
   useEffect(() => {
     unmountedRef.current = false;
-    connect();
     return () => {
       unmountedRef.current = true;
+      shouldReconnectRef.current = false;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       wsRef.current?.close();
       stopMic();
@@ -395,14 +430,16 @@ export function useGrokVoiceAgent({
 
   // ── startListening ────────────────────────────────────────────────────────
 
-  const startListening = useCallback(() => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      setError('Voice service not connected');
-      return;
-    }
+  const startListening = useCallback(async () => {
     if (statusRef.current === 'listening') return;
 
     setError(null);
+    try {
+      await connect();
+    } catch {
+      setError('Voice service not connected');
+      return;
+    }
     setStatus('listening');
 
     navigator.mediaDevices
@@ -453,7 +490,7 @@ export function useGrokVoiceAgent({
         setError(msg);
         setStatus('error');
       });
-  }, [setStatus, startAmplitudeLoop]);
+  }, [connect, setStatus, startAmplitudeLoop]);
 
   // ── stopListening ─────────────────────────────────────────────────────────
 
@@ -466,14 +503,16 @@ export function useGrokVoiceAgent({
 
   const submitText = useCallback(
     async (text: string): Promise<void> => {
-      const ws = wsRef.current;
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        setError('Voice service not connected');
-        return;
-      }
       if (statusRef.current === 'thinking' || statusRef.current === 'speaking') return;
 
       setError(null);
+      let ws: WebSocket;
+      try {
+        ws = await connect();
+      } catch {
+        setError('Voice service not connected');
+        return;
+      }
       setTranscript(text);
       setAiResponse('');
       audioChunksRef.current = [];
@@ -491,7 +530,7 @@ export function useGrokVoiceAgent({
       );
       ws.send(JSON.stringify({ type: 'response.create' }));
     },
-    [setStatus],
+    [connect, setStatus],
   );
 
   // ── cancel ────────────────────────────────────────────────────────────────

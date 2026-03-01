@@ -42,6 +42,17 @@ const ACTIVE_RUN_STATUSES = new Set([
   'AWAITING_APPROVAL',
 ]);
 
+// Statuses that are truly transitioning (exclude AWAITING_APPROVAL which
+// blocks indefinitely on user input and does not need background polling).
+const TRANSITIONING_RUN_STATUSES = new Set([
+  'ANALYZING',
+  'PLANNING',
+  'DELEGATING',
+  'EXECUTING',
+  'VERIFYING',
+  'REFINING',
+]);
+
 const RUNS_PER_PAGE = 10;
 const AUTO_REFRESH_INTERVAL_MS = 5_000;
 const STATUS_DISMISS_DELAY_MS = 5_000;
@@ -161,6 +172,10 @@ export function useMasterView(): UseMasterViewResult {
   );
 
   const hasActiveRuns = useMemo(() => runs.some((r) => ACTIVE_RUN_STATUSES.has(r.status)), [runs]);
+  const hasTransitioningRuns = useMemo(
+    () => runs.some((r) => TRANSITIONING_RUN_STATUSES.has(r.status)),
+    [runs],
+  );
 
   const totalRunPages = Math.max(1, Math.ceil(runs.length / RUNS_PER_PAGE));
 
@@ -368,9 +383,8 @@ export function useMasterView(): UseMasterViewResult {
   }, []);
 
   // Initial data load when persona or workspace changes.
-  // Uses stable loadRuns/loadMetrics (both have [] deps) instead of refreshAll
-  // to avoid the identity-change loop: refreshAll calling setLoadingAction →
-  // re-render → new refreshAll reference → effect fires again immediately.
+  // Uses stable loadRuns/loadMetrics (both have [] deps) to avoid the
+  // identity-change loop that refreshAll's setLoadingAction calls would cause.
   useEffect(() => {
     if (!selectedPersonaId || !workspaceId) return;
     void loadRuns(selectedPersonaId, workspaceId);
@@ -384,13 +398,16 @@ export function useMasterView(): UseMasterViewResult {
     refreshAllRef.current = refreshAll;
   });
 
+  // Auto-poll only while there are truly transitioning runs (not AWAITING_APPROVAL
+  // which blocks indefinitely on user input). Uses a ref-stable callback so the
+  // timer is never cleared/restarted due to refreshAll identity changes.
   useEffect(() => {
-    if (!selectedPersonaId || !workspaceId || !hasActiveRuns) return;
+    if (!selectedPersonaId || !workspaceId || !hasTransitioningRuns) return;
     const interval = setInterval(() => {
       void refreshAllRef.current();
     }, AUTO_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [hasActiveRuns, selectedPersonaId, workspaceId]);
+  }, [hasTransitioningRuns, selectedPersonaId, workspaceId]);
 
   // Load run detail when selectedRunId changes
   useEffect(() => {

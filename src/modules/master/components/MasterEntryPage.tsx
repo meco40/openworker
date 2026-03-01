@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import MasterFaceCanvas from './MasterFaceCanvas';
+import MasterFaceCanvas from './MasterFaceCanvasThree';
 import { useGrokVoiceAgent } from '../hooks/useGrokVoiceAgent';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -263,7 +263,7 @@ export default function MasterEntryPage({
           ].join(' ')}
         />
         <span className={voice.connected ? 'text-emerald-300/70' : 'text-white/25'}>
-          {voice.connected ? 'Grok Live' : 'Verbindet…'}
+          {voice.connected ? 'Grok Live' : 'Nicht verbunden'}
         </span>
       </div>
 
@@ -288,7 +288,7 @@ export default function MasterEntryPage({
           state={voice.faceState}
           amplitude={voice.amplitude}
           width={340}
-          height={420}
+          height={442}
         />
 
         {/* Speaking wave overlay */}
