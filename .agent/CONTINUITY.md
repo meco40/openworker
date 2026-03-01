@@ -551,3 +551,5 @@ Files >300 lines identified for potential future modularization:
 - 2026-03-01T07:38:02+01:00 [DECISIONS] [CODE] Fix-Strategie: optimistische lokale Datei-Synchronisierung nach erfolgreichem PUT + Persona-Reloads ohne Cache; unnötige tab-getriebene Reloads entfernt.
 - 2026-03-01T07:38:02+01:00 [PROGRESS] [CODE] Implementiert in `src/components/personas/hooks/usePersonaSelection.ts`, `src/components/personas/hooks/usePersonaEditor.ts`, `src/components/PersonasView.tsx`; neuer Regressionstest `tests/unit/components/persona-selection-file-patch.test.ts` ergänzt.
 - 2026-03-01T07:38:02+01:00 [OUTCOMES] [TOOL] Verifikation grün: `npm test -- tests/unit/components/persona-selection-file-patch.test.ts`, `npm run typecheck`, `npx oxlint ...` (0 errors), `npx prettier --check ...` (ok).
+- 2026-03-01T07:47:59+01:00 [OUTCOMES] [TOOL] Änderungen committed (`45427bc`, `fix(personas): preserve saved file state in editor`) und nach `origin/main` gepusht.
+- 2026-03-01T07:47:59+01:00 [OUTCOMES] [TOOL] GitHub Actions für Commit `45427bc` vollständig grün: `CI` Run `22537887096` success, `E2E Browser` Run `22537887092` success.
