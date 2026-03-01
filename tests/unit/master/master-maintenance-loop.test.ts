@@ -4,11 +4,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
 import { buildCapabilityInventory } from '@/server/master/capabilities/inventory';
 import { runMasterMaintenanceTick } from '@/server/master/runtime';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function uniqueDbPath(): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `master.maintenance.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

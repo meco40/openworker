@@ -8,11 +8,11 @@ import {
   writeCompatHandler,
 } from '@/server/skills/handlers/codingCompat';
 import type { SkillDispatchContext } from '@/server/skills/types';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function createWorkspace(): string {
   const dir = path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     'personas',
     'tool-compat-tests',
     `ws-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,

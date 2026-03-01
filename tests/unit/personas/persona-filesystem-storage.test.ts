@@ -3,6 +3,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { openSqliteDatabase } from '@/server/db/sqlite';
 import { PersonaRepository } from '@/server/personas/personaRepository';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 describe('persona filesystem storage', () => {
   const cleanupFiles: string[] = [];
@@ -10,7 +11,7 @@ describe('persona filesystem storage', () => {
 
   function createTestPersonasRootPath(): string {
     const rootPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.test.fs.${Date.now()}.${Math.random().toString(36).slice(2)}`,
     );
     cleanupDirs.push(rootPath);
@@ -44,7 +45,7 @@ describe('persona filesystem storage', () => {
   it('writes and reads persona files from filesystem without persisting persona_files rows', () => {
     const personasRootPath = createTestPersonasRootPath();
     const personasDbPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.fs.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     cleanupFiles.push(personasDbPath);
@@ -89,7 +90,7 @@ describe('persona filesystem storage', () => {
   it('migrates legacy persona_files content into missing filesystem files', () => {
     const personasRootPath = createTestPersonasRootPath();
     const personasDbPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.fs.migrate.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     cleanupFiles.push(personasDbPath);
@@ -137,7 +138,7 @@ describe('persona filesystem storage', () => {
   it('migrates legacy persona_files content into existing empty filesystem files', () => {
     const personasRootPath = createTestPersonasRootPath();
     const personasDbPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.fs.migrate-empty.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     cleanupFiles.push(personasDbPath);

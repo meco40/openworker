@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
@@ -56,8 +57,7 @@ describe('personas model binding route', () => {
 
   it('creates and updates personas with model binding fields', async () => {
     const dbPath = path.join(
-      process.cwd(),
-      '.local',
+      getTestArtifactsRoot(),
       `personas.model.binding.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     cleanupPaths.push(dbPath);

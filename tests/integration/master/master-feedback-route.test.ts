@@ -1,3 +1,4 @@
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 /**
  * Integration test: POST /api/master/runs/[id]/feedback
  */
@@ -22,15 +23,15 @@ describe('master feedback route', () => {
     prevPersonasRoot = process.env.PERSONAS_ROOT_PATH;
 
     const masterDb = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `master.feedback.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     const personasDb = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `master.feedback.personas.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     const personasRoot = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `master.feedback.root.${Date.now()}.${Math.random().toString(36).slice(2)}`,
     );
 

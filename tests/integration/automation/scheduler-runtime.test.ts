@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,8 +10,7 @@ import { AutomationRuntime } from '@/server/automation/runtime';
 
 function uniqueDbPath(name: string): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `${name}.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

@@ -1,9 +1,12 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CredentialStore } from '@/server/channels/credentials/credentialStore';
 import {
   scopeBridgeExternalChatId,
   upsertBridgeAccount,
 } from '@/server/channels/pairing/bridgeAccounts';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 type TestGlobals = typeof globalThis & {
   __credentialStore?: CredentialStore;
@@ -11,6 +14,7 @@ type TestGlobals = typeof globalThis & {
 
 describe('whatsapp webhook route', () => {
   let store: CredentialStore;
+  let tempAttachmentsDir: string | null = null;
   const previousMessagesDbPath = process.env.MESSAGES_DB_PATH;
   const previousAttachmentsDir = process.env.CHAT_ATTACHMENTS_DIR;
   const previousAllowFrom = process.env.WHATSAPP_ALLOW_FROM;
@@ -20,7 +24,8 @@ describe('whatsapp webhook route', () => {
     store = new CredentialStore(':memory:');
     (globalThis as TestGlobals).__credentialStore = store;
     process.env.MESSAGES_DB_PATH = ':memory:';
-    process.env.CHAT_ATTACHMENTS_DIR = '.local/test-attachments';
+    tempAttachmentsDir = fs.mkdtempSync(path.join(getTestArtifactsRoot(), 'whatsapp.attachments.'));
+    process.env.CHAT_ATTACHMENTS_DIR = tempAttachmentsDir;
     delete process.env.WHATSAPP_ALLOW_FROM;
   });
 
@@ -34,6 +39,10 @@ describe('whatsapp webhook route', () => {
     else process.env.CHAT_ATTACHMENTS_DIR = previousAttachmentsDir;
     if (previousAllowFrom === undefined) delete process.env.WHATSAPP_ALLOW_FROM;
     else process.env.WHATSAPP_ALLOW_FROM = previousAllowFrom;
+    if (tempAttachmentsDir) {
+      fs.rmSync(tempAttachmentsDir, { recursive: true, force: true });
+      tempAttachmentsDir = null;
+    }
   });
 
   it('accepts account-scoped secrets and forwards scoped chat ids to message service', async () => {

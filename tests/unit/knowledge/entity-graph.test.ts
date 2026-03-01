@@ -1,3 +1,4 @@
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 /**
  * Tests for Entity Graph repository methods:
  * CRUD, alias resolution, relation traversal, owner isolation.
@@ -8,7 +9,7 @@ import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRep
 import type { EntityGraphFilter } from '@/server/knowledge/entityGraph';
 import { cleanupSqliteArtifacts } from '../../helpers/sqliteTestArtifacts';
 
-const TEST_DB_DIR = '.local';
+const TEST_DB_DIR = getTestArtifactsRoot();
 let dbPath: string;
 let repo: SqliteKnowledgeRepository;
 

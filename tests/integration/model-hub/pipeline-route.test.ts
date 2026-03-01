@@ -6,6 +6,7 @@ import {
   GET as getPipeline,
   POST as mutatePipeline,
 } from '../../../app/api/model-hub/pipeline/route';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function buildJsonRequest(body: Record<string, unknown>) {
   return new Request('http://localhost/api/model-hub/pipeline', {
@@ -18,7 +19,7 @@ function buildJsonRequest(body: Record<string, unknown>) {
 describe('model-hub pipeline route reorder', () => {
   it('reorders models while preserving status', async () => {
     process.env.MODEL_HUB_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
-    const dbPath = path.join(process.cwd(), '.local', 'model-hub.pipeline-route.db');
+    const dbPath = path.join(getTestArtifactsRoot(), 'model-hub.pipeline-route.db');
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     process.env.MODEL_HUB_DB_PATH = dbPath;
     (globalThis as { __modelHubRepository?: unknown }).__modelHubRepository = undefined;
@@ -103,7 +104,7 @@ describe('model-hub pipeline route reorder', () => {
 
   it('stores reasoningEffort for codex pipeline entries', async () => {
     process.env.MODEL_HUB_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
-    const dbPath = path.join(process.cwd(), '.local', 'model-hub.pipeline-route.reasoning.db');
+    const dbPath = path.join(getTestArtifactsRoot(), 'model-hub.pipeline-route.reasoning.db');
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     process.env.MODEL_HUB_DB_PATH = dbPath;
     (globalThis as { __modelHubRepository?: unknown }).__modelHubRepository = undefined;

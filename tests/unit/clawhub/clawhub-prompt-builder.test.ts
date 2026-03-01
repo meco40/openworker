@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -8,8 +9,7 @@ import { buildClawHubPromptBlock } from '@/server/clawhub/clawhubPromptBuilder';
 
 function uniqueDir(name: string): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `${name}.${Date.now()}.${Math.random().toString(36).slice(2)}`,
   );
 }

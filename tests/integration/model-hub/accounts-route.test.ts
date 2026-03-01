@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GET, POST } from '../../../app/api/model-hub/accounts/route';
 import fs from 'node:fs';
 import path from 'node:path';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function buildRequest(body: Record<string, unknown>) {
   return new Request('http://localhost/api/model-hub/accounts', {
@@ -14,7 +15,7 @@ function buildRequest(body: Record<string, unknown>) {
 describe('model-hub accounts route', () => {
   it('creates and lists provider accounts', async () => {
     process.env.MODEL_HUB_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
-    const dbPath = path.join(process.cwd(), '.local', 'model-hub.accounts-route.db');
+    const dbPath = path.join(getTestArtifactsRoot(), 'model-hub.accounts-route.db');
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     process.env.MODEL_HUB_DB_PATH = dbPath;
 
@@ -40,7 +41,7 @@ describe('model-hub accounts route', () => {
 
   it('creates local provider account without secret when authMethod is none', async () => {
     process.env.MODEL_HUB_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
-    const dbPath = path.join(process.cwd(), '.local', 'model-hub.accounts-route.local.db');
+    const dbPath = path.join(getTestArtifactsRoot(), 'model-hub.accounts-route.local.db');
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     process.env.MODEL_HUB_DB_PATH = dbPath;
 

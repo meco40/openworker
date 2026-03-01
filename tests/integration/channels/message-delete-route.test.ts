@@ -7,6 +7,7 @@ import {
   persistIncomingAttachment,
   resolveStoredAttachmentPath,
 } from '@/server/channels/messages/attachments';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 type MockUserContext = { userId: string; authenticated: boolean } | null;
 
@@ -23,7 +24,7 @@ describe('message delete route', () => {
   beforeEach(() => {
     vi.resetModules();
     uploadRoot = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `uploads.integration.${Date.now()}.${Math.random().toString(36).slice(2)}`,
     );
     process.env.CHAT_ATTACHMENTS_DIR = uploadRoot;

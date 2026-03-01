@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 type MasterGlobals = typeof globalThis & {
   __masterRepository?: unknown;
@@ -20,15 +21,15 @@ describe('master run execution actions route', () => {
     prevPersonasRoot = process.env.PERSONAS_ROOT_PATH;
 
     const masterDb = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `master.actions.execute.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     const personasDb = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `master.actions.personas.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     const personasRoot = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `master.actions.personas.root.${Date.now()}.${Math.random().toString(36).slice(2)}`,
     );
 

@@ -3,6 +3,7 @@ import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { POST as executeSkillPost } from '../app/api/skills/execute/route';
+import { getTestArtifactsRoot } from './helpers/testArtifacts';
 
 function makeRequest(body: Record<string, unknown>) {
   return new Request('http://localhost/api/skills/execute', {
@@ -14,10 +15,10 @@ function makeRequest(body: Record<string, unknown>) {
 
 describe('skills execute route requests', () => {
   beforeAll(() => {
-    const localDir = path.join(process.cwd(), '.local');
+    const localDir = getTestArtifactsRoot();
     fs.mkdirSync(localDir, { recursive: true });
     const dbPath = path.join(localDir, 'skills.db');
-    process.env.SQLITE_DB_PATH = '.local/skills.db';
+    process.env.SQLITE_DB_PATH = dbPath;
 
     const db = new BetterSqlite3(dbPath);
     db.exec(

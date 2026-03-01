@@ -8,11 +8,11 @@ import {
   recommendLearningPolicy,
   runDailyLearningLoop,
 } from '@/server/master/learning';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function uniqueDbPath(): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `master.learning.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

@@ -3,11 +3,11 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { memoryGetHandler, memorySearchHandler } from '@/server/skills/handlers/memoryCompat';
 import type { SkillDispatchContext } from '@/server/skills/types';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function createWorkspace(): string {
   const dir = path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     'personas',
     'tool-compat-tests',
     `memory-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,

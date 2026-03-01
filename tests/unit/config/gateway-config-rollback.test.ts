@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 const fsMock = vi.hoisted(() => ({
   mkdir: vi.fn(),
@@ -13,9 +14,12 @@ vi.mock('node:fs/promises', () => fsMock);
 
 describe('gateway config rollback safety', () => {
   it('cleans temp file when rename fails and keeps previous file', async () => {
-    process.env.OPENCLAW_CONFIG_PATH = '.local/gateway-rollback-test.json';
+    process.env.OPENCLAW_CONFIG_PATH = path.join(
+      getTestArtifactsRoot(),
+      'gateway-rollback-test.json',
+    );
     process.env.OPENCLAW_CONFIG_BACKEND = 'file';
-    const expectedPath = path.resolve(process.cwd(), '.local/gateway-rollback-test.json');
+    const expectedPath = path.resolve(getTestArtifactsRoot(), 'gateway-rollback-test.json');
     let configReadCount = 0;
 
     fsMock.mkdir.mockImplementation(async () => {});

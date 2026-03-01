@@ -6,6 +6,7 @@ import {
 import { POST as testAccount } from '../../../app/api/model-hub/accounts/[accountId]/test/route';
 import fs from 'node:fs';
 import path from 'node:path';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function buildCreateRequest(body: Record<string, unknown>) {
   return new Request('http://localhost/api/model-hub/accounts', {
@@ -37,7 +38,7 @@ function buildCodexAccessToken(accountId = 'acct_test'): string {
 describe('model-hub account test route', () => {
   it('tests a created account and persists connectivity failure message', async () => {
     process.env.MODEL_HUB_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
-    const dbPath = path.join(process.cwd(), '.local', 'model-hub.account-test-route.db');
+    const dbPath = path.join(getTestArtifactsRoot(), 'model-hub.account-test-route.db');
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     process.env.MODEL_HUB_DB_PATH = dbPath;
     (globalThis as { __modelHubRepository?: unknown }).__modelHubRepository = undefined;

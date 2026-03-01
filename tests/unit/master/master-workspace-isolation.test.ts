@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 describe('master workspace isolation', () => {
   const cleanupPaths: string[] = [];
@@ -13,11 +14,11 @@ describe('master workspace isolation', () => {
     previousPersonasRootPath = process.env.PERSONAS_ROOT_PATH;
 
     const personasRoot = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `master.scope.personas.${Date.now()}.${Math.random().toString(36).slice(2)}`,
     );
     const personasDbPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `master.scope.personas.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     process.env.PERSONAS_ROOT_PATH = personasRoot;

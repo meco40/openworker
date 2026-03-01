@@ -10,11 +10,11 @@ import {
   revokeConnectorSecret,
   rotateConnectorSecret,
 } from '@/server/master/connectors/secretPolicies';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function uniqueDbPath(): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `master.secret.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

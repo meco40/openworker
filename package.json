@@ -35,6 +35,8 @@
     "memory:backfill-channel-scope": "node --import tsx scripts/memory-backfill-channel-scope.ts",
     "local:cleanup": "node --import tsx scripts/cleanup-local-artifacts.ts --apply",
     "local:cleanup:dry": "node --import tsx scripts/cleanup-local-artifacts.ts --dry-run",
+    "test:artifacts:clean": "node --import tsx scripts/cleanup-test-artifacts.ts --apply",
+    "test:artifacts:clean:dry": "node --import tsx scripts/cleanup-test-artifacts.ts --dry-run",
     "workspaces:cleanup": "node --import tsx scripts/cleanup-task-workspaces.ts",
     "workspaces:cleanup:json": "node --import tsx scripts/cleanup-task-workspaces.ts --json",
     "knowledge:ingest": "node --import tsx scripts/trigger-knowledge-ingestion.ts",

@@ -9,11 +9,11 @@ import { DelegationDispatcher } from '@/server/master/delegation/dispatcher';
 import { DelegationResourceGovernor } from '@/server/master/delegation/resourceGovernor';
 import { recoverDelegationQueue } from '@/server/master/delegation/recovery';
 import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function uniqueDbPath(): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `master.policy.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

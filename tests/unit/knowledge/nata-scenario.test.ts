@@ -1,3 +1,4 @@
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 /**
  * Integration test for the Nata reference scenario:
  *
@@ -18,7 +19,7 @@ import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
 import type { StoredMessage } from '@/server/channels/messages/repository';
 import { cleanupSqliteArtifacts } from '../../helpers/sqliteTestArtifacts';
 
-const TEST_DB_DIR = '.local';
+const TEST_DB_DIR = getTestArtifactsRoot();
 let dbPath: string;
 let repo: SqliteKnowledgeRepository;
 

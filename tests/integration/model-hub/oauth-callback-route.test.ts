@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GET as startOAuth } from '../../../app/api/model-hub/oauth/start/route';
 import { GET as callbackOAuth } from '../../../app/api/model-hub/oauth/callback/route';
 import { GET as listAccounts } from '../../../app/api/model-hub/accounts/route';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -21,7 +22,7 @@ afterEach(() => {
 describe('model-hub oauth callback route', () => {
   it('exchanges OpenRouter code and creates an oauth account', async () => {
     process.env.MODEL_HUB_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
-    const dbPath = path.join(process.cwd(), '.local', 'model-hub.oauth-callback-route.db');
+    const dbPath = path.join(getTestArtifactsRoot(), 'model-hub.oauth-callback-route.db');
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     process.env.MODEL_HUB_DB_PATH = dbPath;
     resetSingletons();
@@ -72,8 +73,7 @@ describe('model-hub oauth callback route', () => {
     process.env.CODEX_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-home-empty-'));
 
     const dbPath = path.join(
-      process.cwd(),
-      '.local',
+      getTestArtifactsRoot(),
       'model-hub.oauth-callback-openai-codex-route.db',
     );
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);

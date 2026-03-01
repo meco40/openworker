@@ -3,8 +3,9 @@ import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
 import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
 import type { UpsertKnowledgeEventInput } from '@/server/knowledge/eventTypes';
 import { computeEventAnswer, type EventAnswerScope } from '@/server/knowledge/eventAnswerComputer';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
-const TEST_DB_DIR = '.local';
+const TEST_DB_DIR = getTestArtifactsRoot();
 let dbPath: string;
 let repo: SqliteKnowledgeRepository;
 

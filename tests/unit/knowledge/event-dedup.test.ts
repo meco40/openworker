@@ -5,8 +5,9 @@ import type { UpsertKnowledgeEventInput } from '@/server/knowledge/eventTypes';
 import type { ExtractedEvent } from '@/server/knowledge/eventExtractor';
 import { deduplicateEvent } from '@/server/knowledge/eventDedup';
 import { cleanupSqliteArtifacts } from '../../helpers/sqliteTestArtifacts';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
-const TEST_DB_DIR = '.local';
+const TEST_DB_DIR = getTestArtifactsRoot();
 let dbPath: string;
 let repo: SqliteKnowledgeRepository;
 

@@ -3,11 +3,11 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
 import { executeToolForgePipeline } from '@/server/master/toolforge/pipeline';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function uniqueDbPath(): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `master.toolforge.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

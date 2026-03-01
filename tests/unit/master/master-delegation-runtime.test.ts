@@ -4,11 +4,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
 import { MasterOrchestrator } from '@/server/master/orchestrator';
 import { aggregateDelegationResult } from '@/server/master/delegation/aggregator';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function uniqueDbPath(): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `master.delegation.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

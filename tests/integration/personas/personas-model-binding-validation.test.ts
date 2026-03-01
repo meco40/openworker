@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
@@ -56,8 +57,7 @@ describe('personas model binding validation', () => {
 
   it('rejects unavailable models and enforces user scope on update', async () => {
     const dbPath = path.join(
-      process.cwd(),
-      '.local',
+      getTestArtifactsRoot(),
       `personas.model.validation.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     cleanupPaths.push(dbPath);
@@ -116,8 +116,7 @@ describe('personas model binding validation', () => {
 
   it('rejects invalid modelHubProfileId values', async () => {
     const dbPath = path.join(
-      process.cwd(),
-      '.local',
+      getTestArtifactsRoot(),
       `personas.model.profile.validation.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     cleanupPaths.push(dbPath);

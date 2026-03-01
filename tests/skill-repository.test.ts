@@ -4,8 +4,9 @@ import path from 'node:path';
 import { SkillRepository } from '@/server/skills/skillRepository';
 import type { BuiltInSkillSeed } from '@/server/skills/builtInSkills';
 import type { SkillManifest } from '@/shared/toolSchema';
+import { getTestArtifactsRoot } from './helpers/testArtifacts';
 
-const TEST_DB_DIR = path.join(process.cwd(), '.local', 'test');
+const TEST_DB_DIR = path.join(getTestArtifactsRoot(), 'test');
 
 const sampleManifest: SkillManifest = {
   id: 'test-skill',

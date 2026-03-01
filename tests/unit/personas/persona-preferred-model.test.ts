@@ -2,13 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PersonaRepository } from '@/server/personas/personaRepository';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 describe('persona model binding persistence', () => {
   const cleanupDirs: string[] = [];
 
   function createTestPersonasRootPath(): string {
     const rootPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.test.preferred.${Date.now()}.${Math.random().toString(36).slice(2)}`,
     );
     cleanupDirs.push(rootPath);

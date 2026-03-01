@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
@@ -33,8 +34,7 @@ describe('/api/config route', () => {
 
   beforeEach(() => {
     configPath = path.join(
-      process.cwd(),
-      '.local',
+      getTestArtifactsRoot(),
       `gateway-config.${Date.now()}.${Math.random().toString(36).slice(2)}.json`,
     );
     if (fs.existsSync(configPath)) {

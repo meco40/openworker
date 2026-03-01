@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '@/shared/domain/types';
+import { getTestArtifactsRoot } from '../helpers/testArtifacts';
 
 type GlobalSingletons = typeof globalThis & {
   __tokenUsageRepository?: unknown;
@@ -13,8 +14,7 @@ type GlobalSingletons = typeof globalThis & {
 
 function uniqueDbPath(name: string): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `${name}.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

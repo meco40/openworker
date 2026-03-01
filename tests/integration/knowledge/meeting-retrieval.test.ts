@@ -4,11 +4,11 @@ import { describe, expect, it } from 'vitest';
 import type { StoredMessage } from '@/server/channels/messages/repository';
 import { KnowledgeRetrievalService } from '@/server/knowledge/retrievalService';
 import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function createDbPath(): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `knowledge.integration.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

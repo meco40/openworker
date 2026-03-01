@@ -5,11 +5,11 @@ import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
 import { MasterNotesService } from '@/server/master/notes';
 import { MasterRemindersService } from '@/server/master/reminders';
 import { MasterCronBridge } from '@/server/master/cronBridge';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function uniqueDbPath(): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `master.notes.reminders.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

@@ -7,13 +7,14 @@ import {
   removePersonaProjectWorkspace,
   slugifyProjectName,
 } from '@/server/personas/personaProjectWorkspace';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 describe('persona project workspace', () => {
   const cleanupDirs: string[] = [];
 
   function createIsolatedPersonasRoot(): string {
     const rootPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.project.workspace.${Date.now()}.${Math.random().toString(36).slice(2)}`,
     );
     cleanupDirs.push(rootPath);

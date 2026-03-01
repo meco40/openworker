@@ -3,11 +3,11 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
 import type { UpsertKnowledgeEventInput } from '@/server/knowledge/eventTypes';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function createDbPath(): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `knowledge-events.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

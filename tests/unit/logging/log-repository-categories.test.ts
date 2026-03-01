@@ -2,13 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 import { LogRepository } from '@/logging/logRepository';
 
 function uniqueDbPath(name: string): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `${name}.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

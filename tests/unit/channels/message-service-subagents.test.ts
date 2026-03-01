@@ -9,6 +9,7 @@ import type {
   StoredMessage,
 } from '@/server/channels/messages/repository';
 import { resetSubagentRegistryForTests } from '@/server/agents/subagentRegistry';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 const dispatchWithFallbackMock = vi.hoisted(() => vi.fn());
 
@@ -203,7 +204,7 @@ describe('MessageService subagents commands and tool calls', () => {
     resetSubagentRegistryForTests();
     dispatchWithFallbackMock.mockReset();
     process.env.PERSONAS_ROOT_PATH = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.subagent.test.${Date.now()}.${Math.random().toString(36).slice(2)}`,
     );
   });

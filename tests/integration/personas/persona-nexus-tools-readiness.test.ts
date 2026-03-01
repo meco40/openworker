@@ -4,6 +4,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType, type Conversation } from '@/shared/domain/types';
 import { ToolManager } from '@/server/channels/messages/service/toolManager';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 const generateContentMock = vi.hoisted(() => vi.fn(async () => ({ text: 'vision-ok' })));
 
@@ -36,7 +37,7 @@ describe('Persona Nexus tool readiness', () => {
   const previousApprovalsRequired = process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
 
   beforeAll(() => {
-    const localDir = path.join(process.cwd(), '.local');
+    const localDir = getTestArtifactsRoot();
     fs.mkdirSync(localDir, { recursive: true });
     const dbPath = path.join(localDir, 'nexus-tools-readiness.db');
     const db = new BetterSqlite3(dbPath);
@@ -45,7 +46,7 @@ describe('Persona Nexus tool readiness', () => {
     );
     db.close();
 
-    process.env.SQLITE_DB_PATH = '.local/nexus-tools-readiness.db';
+    process.env.SQLITE_DB_PATH = dbPath;
     process.env.GEMINI_API_KEY = 'test-gemini-key';
     process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'false';
   });

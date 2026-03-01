@@ -3,6 +3,7 @@ import path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { MemoryNode } from '@/core/memory/types';
 import { SqliteMemoryRepository } from '@/server/memory/sqliteMemoryRepository';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function createNode(overrides: Partial<MemoryNode> = {}): MemoryNode {
   return {
@@ -25,8 +26,7 @@ describe('SqliteMemoryRepository', () => {
 
   beforeEach(() => {
     dbPath = path.join(
-      process.cwd(),
-      '.local',
+      getTestArtifactsRoot(),
       `memory.sqlite-repository.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);

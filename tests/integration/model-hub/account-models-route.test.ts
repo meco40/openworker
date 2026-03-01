@@ -3,6 +3,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { POST as createAccount } from '../../../app/api/model-hub/accounts/route';
 import { GET as listModels } from '../../../app/api/model-hub/accounts/[accountId]/models/route';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -27,7 +28,7 @@ afterEach(() => {
 describe('model-hub account models route', () => {
   it('returns codex default models when provider model lookup is empty', async () => {
     process.env.MODEL_HUB_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
-    const dbPath = path.join(process.cwd(), '.local', 'model-hub.account-models-route.db');
+    const dbPath = path.join(getTestArtifactsRoot(), 'model-hub.account-models-route.db');
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     process.env.MODEL_HUB_DB_PATH = dbPath;
     resetSingletons();

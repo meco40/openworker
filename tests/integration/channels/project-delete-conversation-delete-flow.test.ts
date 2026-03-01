@@ -3,6 +3,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '@/shared/domain/types';
 import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 type MockUserContext = { userId: string; authenticated: boolean } | null;
 
@@ -20,7 +21,7 @@ describe('project delete + conversation delete flow', () => {
     vi.resetModules();
 
     personasRootPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.integration.${Date.now()}.${Math.random().toString(36).slice(2)}`,
     );
     process.env.PERSONAS_ROOT_PATH = personasRootPath;

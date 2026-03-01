@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function createDbPath(): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `knowledge.repo.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

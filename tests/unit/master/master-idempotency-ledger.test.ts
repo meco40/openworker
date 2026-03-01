@@ -3,11 +3,11 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
 import { MasterOrchestrator } from '@/server/master/orchestrator';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function uniqueDbPath(): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `master.idempotency.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

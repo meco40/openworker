@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '@/shared/domain/types';
 import { MessageService } from '@/server/channels/messages/service';
 import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
   vi.fn(async () => ({
@@ -83,7 +84,7 @@ describe('MessageService /project command flow', () => {
 
   beforeEach(() => {
     personasRootPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.project.command.${Date.now()}.${Math.random().toString(36).slice(2)}`,
     );
     process.env.PERSONAS_ROOT_PATH = personasRootPath;

@@ -6,10 +6,14 @@ import { runAttachmentConsistencyAudit } from '@/server/channels/messages/attach
 import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
 import { PersonaRepository } from '@/server/personas/personaRepository';
 import { resolvePersonaScopedStoragePath } from '@/server/personas/personaWorkspace';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 describe('attachment consistency audit', () => {
   const cleanupFiles: string[] = [];
   const cleanupDirs: string[] = [];
+  const personasRootPath = path.resolve(
+    String(process.env.PERSONAS_ROOT_PATH || '.local/personas'),
+  );
 
   afterEach(() => {
     delete process.env.PERSONAS_DB_PATH;
@@ -34,11 +38,11 @@ describe('attachment consistency audit', () => {
 
   it('reports and prunes missing attachment references', () => {
     const personasDbPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.attach-consistency.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     const messagesDbPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `messages.attach-consistency.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     cleanupFiles.push(personasDbPath, messagesDbPath);
@@ -52,7 +56,7 @@ describe('attachment consistency audit', () => {
       emoji: '🤖',
       vibe: '',
     });
-    cleanupDirs.push(path.resolve(`.local/personas/${persona.slug}`));
+    cleanupDirs.push(path.resolve(personasRootPath, persona.slug));
 
     const messageRepo = new SqliteMessageRepository(messagesDbPath);
     const conversation = messageRepo.createConversation({
@@ -98,11 +102,11 @@ describe('attachment consistency audit', () => {
 
   it('normalizes persona bucket from docs to images for image mime types', () => {
     const personasDbPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.attach-bucket.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     const messagesDbPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `messages.attach-bucket.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     cleanupFiles.push(personasDbPath, messagesDbPath);
@@ -116,7 +120,7 @@ describe('attachment consistency audit', () => {
       emoji: '🤖',
       vibe: '',
     });
-    cleanupDirs.push(path.resolve(`.local/personas/${persona.slug}`));
+    cleanupDirs.push(path.resolve(personasRootPath, persona.slug));
 
     const messageRepo = new SqliteMessageRepository(messagesDbPath);
     const conversation = messageRepo.createConversation({

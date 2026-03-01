@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { stopExternalSkillHost } from '@/server/skills/externalSkillHost';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 const listSkillsMock = vi.hoisted(() => vi.fn());
 
@@ -14,7 +15,7 @@ vi.mock('@/server/skills/skillRepository', () => ({
 import { dispatchSkill } from '@/server/skills/executeSkill';
 
 describe('dispatchSkill external handlers', () => {
-  const tempDir = path.join(process.cwd(), '.local', 'test');
+  const tempDir = path.join(getTestArtifactsRoot(), 'test');
   let handlerPath = '';
 
   beforeEach(() => {

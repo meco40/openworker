@@ -14,6 +14,9 @@ describe('message attachments storage', () => {
   const previousDir = process.env.CHAT_ATTACHMENTS_DIR;
   let tempDir: string | null = null;
   const cleanupPaths: string[] = [];
+  const personasRootPath = path.resolve(
+    String(process.env.PERSONAS_ROOT_PATH || '.local/personas'),
+  );
 
   afterEach(() => {
     process.env.CHAT_ATTACHMENTS_DIR = previousDir;
@@ -82,7 +85,7 @@ describe('message attachments storage', () => {
     ).toThrow(/not allowed/i);
   });
 
-  it('stores persona-scoped attachments under .local/personas/<slug>/uploads', () => {
+  it('stores persona-scoped attachments under personas/<slug>/uploads', () => {
     const dataUrl = 'data:text/plain;base64,aGVsbG8=';
 
     const stored = persistIncomingAttachment({
@@ -99,7 +102,7 @@ describe('message attachments storage', () => {
 
     expect(stored.storagePath.startsWith('personas/nata_girl/uploads/docs/')).toBe(true);
     const absolutePath = resolveStoredAttachmentPath(stored.storagePath);
-    cleanupPaths.push(path.resolve('.local/personas/nata_girl'));
+    cleanupPaths.push(path.resolve(personasRootPath, 'nata_girl'));
     expect(fs.existsSync(absolutePath)).toBe(true);
   });
 
@@ -120,6 +123,6 @@ describe('message attachments storage', () => {
     });
 
     expect(stored.storagePath.startsWith('personas/nata_girl/uploads/images/')).toBe(true);
-    cleanupPaths.push(path.resolve('.local/personas/nata_girl'));
+    cleanupPaths.push(path.resolve(personasRootPath, 'nata_girl'));
   });
 });

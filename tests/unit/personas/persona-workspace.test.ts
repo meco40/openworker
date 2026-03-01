@@ -5,14 +5,16 @@ import { ChannelType } from '@/shared/domain/types';
 import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
 import { PersonaRepository } from '@/server/personas/personaRepository';
 import { migrateLegacyAttachmentsToPersonaWorkspaces } from '@/server/personas/personaWorkspaceMigration';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 describe('persona workspace lifecycle', () => {
   const cleanupFiles: string[] = [];
   const cleanupDirs: string[] = [];
+  const previousAttachmentsDir = process.env.CHAT_ATTACHMENTS_DIR;
 
   function createTestPersonasRootPath(): string {
     const rootPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.test.workspace.${Date.now()}.${Math.random().toString(36).slice(2)}`,
     );
     cleanupDirs.push(rootPath);
@@ -24,6 +26,11 @@ describe('persona workspace lifecycle', () => {
     delete process.env.PERSONAS_DB_PATH;
     delete process.env.MESSAGES_DB_PATH;
     delete process.env.PERSONAS_ROOT_PATH;
+    if (previousAttachmentsDir === undefined) {
+      delete process.env.CHAT_ATTACHMENTS_DIR;
+    } else {
+      process.env.CHAT_ATTACHMENTS_DIR = previousAttachmentsDir;
+    }
     for (const dirPath of cleanupDirs.splice(0, cleanupDirs.length)) {
       try {
         fs.rmSync(dirPath, { recursive: true, force: true });
@@ -41,7 +48,10 @@ describe('persona workspace lifecycle', () => {
       }
     }
     try {
-      fs.rmSync(path.resolve('.local/uploads/chat'), { recursive: true, force: true });
+      const attachmentRoot = path.resolve(
+        String(process.env.CHAT_ATTACHMENTS_DIR || '.local/uploads/chat'),
+      );
+      fs.rmSync(attachmentRoot, { recursive: true, force: true });
     } catch {
       // ignore in tests
     }
@@ -100,11 +110,11 @@ describe('persona workspace lifecycle', () => {
   it('migrates legacy chat uploads into persona workspace and rewrites metadata paths', () => {
     const personasRootPath = createTestPersonasRootPath();
     const personasDbPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `personas.workspace.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     const messagesDbPath = path.resolve(
-      '.local',
+      getTestArtifactsRoot(),
       `messages.workspace.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     cleanupFiles.push(personasDbPath, messagesDbPath);
@@ -129,7 +139,10 @@ describe('persona workspace lifecycle', () => {
     });
 
     const legacyRelative = 'u1/c1/legacy-note.txt';
-    const legacyAbsolute = path.resolve('.local/uploads/chat', legacyRelative);
+    const attachmentRoot = path.resolve(
+      String(process.env.CHAT_ATTACHMENTS_DIR || '.local/uploads/chat'),
+    );
+    const legacyAbsolute = path.resolve(attachmentRoot, legacyRelative);
     fs.mkdirSync(path.dirname(legacyAbsolute), { recursive: true });
     fs.writeFileSync(legacyAbsolute, Buffer.from('legacy', 'utf8'));
 
@@ -160,7 +173,7 @@ describe('persona workspace lifecycle', () => {
     };
     const rewrittenPath = String(metadata.attachments?.[0]?.storagePath || '');
     expect(rewrittenPath.startsWith('personas/nata_girl/uploads/docs/')).toBe(true);
-    expect(fs.existsSync(path.resolve('.local/uploads/chat', legacyRelative))).toBe(false);
+    expect(fs.existsSync(path.resolve(attachmentRoot, legacyRelative))).toBe(false);
     expect(fs.existsSync(path.join(personasRootPath, '.migration-v1.done'))).toBe(true);
 
     messageRepo.close();

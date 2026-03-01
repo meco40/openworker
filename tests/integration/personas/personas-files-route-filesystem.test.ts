@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PersonaRepository } from '@/server/personas/personaRepository';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
@@ -15,11 +16,18 @@ async function loadPersonaFileRoute() {
 
 describe('personas files route (filesystem-backed)', () => {
   const cleanupPaths: string[] = [];
+  const cleanupDirs: string[] = [];
+  const previousPersonasRootPath = process.env.PERSONAS_ROOT_PATH;
 
   afterEach(() => {
     vi.restoreAllMocks();
     vi.resetModules();
     delete process.env.PERSONAS_DB_PATH;
+    if (previousPersonasRootPath === undefined) {
+      delete process.env.PERSONAS_ROOT_PATH;
+    } else {
+      process.env.PERSONAS_ROOT_PATH = previousPersonasRootPath;
+    }
 
     for (const filePath of cleanupPaths.splice(0, cleanupPaths.length)) {
       for (const candidate of [filePath, `${filePath}-wal`, `${filePath}-shm`]) {
@@ -33,17 +41,25 @@ describe('personas files route (filesystem-backed)', () => {
       }
     }
 
-    try {
-      fs.rmSync(path.resolve('.local/personas'), { recursive: true, force: true });
-    } catch {
-      // ignore
+    for (const dirPath of cleanupDirs.splice(0, cleanupDirs.length)) {
+      try {
+        fs.rmSync(dirPath, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
     }
   });
 
   it('keeps persona files editable through API while persisting to filesystem', async () => {
+    const personasRootPath = path.join(
+      getTestArtifactsRoot(),
+      `personas.files.route.${Date.now()}.${Math.random().toString(36).slice(2)}`,
+    );
+    cleanupDirs.push(personasRootPath);
+    process.env.PERSONAS_ROOT_PATH = personasRootPath;
+
     const dbPath = path.join(
-      process.cwd(),
-      '.local',
+      getTestArtifactsRoot(),
       `personas.files.route.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     cleanupPaths.push(dbPath);
@@ -80,7 +96,7 @@ describe('personas files route (filesystem-backed)', () => {
     expect(payload.ok).toBe(true);
     expect(payload.content).toBe('Filesystem route content');
 
-    const soulPath = path.resolve(`.local/personas/${persona.slug}/SOUL.md`);
+    const soulPath = path.resolve(personasRootPath, persona.slug, 'SOUL.md');
     expect(fs.existsSync(soulPath)).toBe(true);
     expect(fs.readFileSync(soulPath, 'utf8')).toBe('Filesystem route content');
   });

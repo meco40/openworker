@@ -5,11 +5,11 @@ import { SqliteMasterRepository } from '@/server/master/sqliteMasterRepository';
 import { storeConnectorSecret } from '@/server/master/connectors/secretStore';
 import { executeGmailAction } from '@/server/master/connectors/gmail/actions';
 import { resetGmailClientState } from '@/server/master/connectors/gmail/client';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function uniqueDbPath(): string {
   return path.join(
-    process.cwd(),
-    '.local',
+    getTestArtifactsRoot(),
     `master.gmail.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
   );
 }

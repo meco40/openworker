@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
@@ -76,13 +77,11 @@ describe('persona memory cascade delete', () => {
 
   it('deletes memory entries when persona is deleted', async () => {
     const personasDbPath = path.join(
-      process.cwd(),
-      '.local',
+      getTestArtifactsRoot(),
       `personas.memory-cascade.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     const messagesDbPath = path.join(
-      process.cwd(),
-      '.local',
+      getTestArtifactsRoot(),
       `messages.memory-cascade.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     cleanupPaths.push(personasDbPath, messagesDbPath);
@@ -356,8 +355,7 @@ describe('persona memory cascade delete', () => {
 
   it('unpairs persona telegram bot when persona is deleted', async () => {
     const personasDbPath = path.join(
-      process.cwd(),
-      '.local',
+      getTestArtifactsRoot(),
       `personas.telegram-unpair.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
     );
     cleanupPaths.push(personasDbPath);
