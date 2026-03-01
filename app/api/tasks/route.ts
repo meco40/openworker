@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { queryAll, queryOne, run } from '@/lib/db';
+import { queryAll, queryOne, run, transaction } from '@/lib/db';
 import { broadcast } from '@/lib/events';
 import { CreateTaskSchema } from '@/lib/validation';
 import type { Task, CreateTaskRequest, Agent } from '@/lib/types';
+import { deleteTaskWorkspace, ensureTaskWorkspace } from '@/server/tasks/taskWorkspace';
 
 interface TaskRowWithJoins extends Task {
   assigned_agent_name?: string | null;
@@ -96,6 +97,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/tasks - Create a new task
 export async function POST(request: NextRequest) {
+  let taskId: string | null = null;
+  let workspaceCreated = false;
+
   try {
     const body: CreateTaskRequest = await request.json();
     console.log('[POST /api/tasks] Received body:', JSON.stringify(body));
@@ -112,29 +116,14 @@ export async function POST(request: NextRequest) {
     const validatedData = validation.data;
 
     const id = uuidv4();
+    taskId = id;
     const now = new Date().toISOString();
 
     const workspaceId = validatedData.workspace_id || 'default';
     const status = validatedData.status || 'inbox';
 
-    run(
-      `INSERT INTO tasks (id, title, description, status, priority, assigned_agent_id, created_by_agent_id, workspace_id, business_id, due_date, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        validatedData.title,
-        validatedData.description || null,
-        status,
-        validatedData.priority || 'normal',
-        validatedData.assigned_agent_id || null,
-        validatedData.created_by_agent_id || null,
-        workspaceId,
-        validatedData.business_id || 'default',
-        validatedData.due_date || null,
-        now,
-        now,
-      ],
-    );
+    ensureTaskWorkspace(id);
+    workspaceCreated = true;
 
     // Log event
     let eventMessage = `New task: ${validatedData.title}`;
@@ -147,11 +136,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    run(
-      `INSERT INTO events (id, type, agent_id, task_id, message, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [uuidv4(), 'task_created', body.created_by_agent_id || null, id, eventMessage, now],
-    );
+    transaction(() => {
+      run(
+        `INSERT INTO tasks (id, title, description, status, priority, assigned_agent_id, created_by_agent_id, workspace_id, business_id, due_date, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          validatedData.title,
+          validatedData.description || null,
+          status,
+          validatedData.priority || 'normal',
+          validatedData.assigned_agent_id || null,
+          validatedData.created_by_agent_id || null,
+          workspaceId,
+          validatedData.business_id || 'default',
+          validatedData.due_date || null,
+          now,
+          now,
+        ],
+      );
+
+      run(
+        `INSERT INTO events (id, type, agent_id, task_id, message, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [uuidv4(), 'task_created', body.created_by_agent_id || null, id, eventMessage, now],
+      );
+    });
 
     // Fetch created task with all joined fields
     const task = queryOne<TaskRowWithJoins>(
@@ -178,6 +188,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(hydratedTask, { status: 201 });
   } catch (error) {
+    if (workspaceCreated && taskId) {
+      try {
+        deleteTaskWorkspace(taskId);
+      } catch (cleanupError) {
+        console.error('Failed to rollback task workspace after create error:', cleanupError);
+      }
+    }
     console.error('Failed to create task:', error);
     return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
   }

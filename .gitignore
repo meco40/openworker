@@ -14,6 +14,8 @@ dist-ssr
 .next
 .next/
 .local
+/workspaces/*
+!/workspaces/.gitkeep
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

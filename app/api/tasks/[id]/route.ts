@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { queryOne, run } from '@/lib/db';
+import { queryOne, run, transaction } from '@/lib/db';
 import { broadcast } from '@/lib/events';
 import { getMissionControlUrl } from '@/lib/config';
 import {
   ensureTaskDeliverablesFromProjectDir,
   triggerAutomatedTaskTest,
 } from '@/server/tasks/autoTesting';
+import { deleteTaskWorkspace } from '@/server/tasks/taskWorkspace';
 import { UpdateTaskSchema } from '@/lib/validation';
 import type { Task, UpdateTaskRequest, Agent } from '@/lib/types';
 
@@ -261,15 +262,20 @@ export async function DELETE(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    // Delete or nullify related records first (foreign key constraints)
-    // Note: task_activities and task_deliverables have ON DELETE CASCADE
-    run('DELETE FROM openclaw_sessions WHERE task_id = ?', [id]);
-    run('DELETE FROM events WHERE task_id = ?', [id]);
-    // Conversations reference tasks - nullify or delete
-    run('UPDATE conversations SET task_id = NULL WHERE task_id = ?', [id]);
+    transaction(() => {
+      // Delete or nullify related records first (foreign key constraints)
+      // Note: task_activities and task_deliverables have ON DELETE CASCADE
+      run('DELETE FROM openclaw_sessions WHERE task_id = ?', [id]);
+      run('DELETE FROM events WHERE task_id = ?', [id]);
+      // Conversations reference tasks - nullify or delete
+      run('UPDATE conversations SET task_id = NULL WHERE task_id = ?', [id]);
 
-    // Now delete the task (cascades to task_activities and task_deliverables)
-    run('DELETE FROM tasks WHERE id = ?', [id]);
+      // Now delete the task (cascades to task_activities and task_deliverables)
+      run('DELETE FROM tasks WHERE id = ?', [id]);
+
+      // Keep task lifecycle and workspace lifecycle in sync.
+      deleteTaskWorkspace(id);
+    });
 
     // Broadcast deletion via SSE
     broadcast({
