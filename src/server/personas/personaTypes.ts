@@ -6,6 +6,9 @@ export const MAX_PERSONA_INSTRUCTION_CHARS = 4000;
 /** Memory strategy persona types — controls how knowledge extraction/recall is weighted */
 export type MemoryPersonaType = 'roleplay' | 'builder' | 'assistant' | 'general';
 
+/** Alias used by knowledge subsystem */
+export type PersonaType = MemoryPersonaType;
+
 export const MEMORY_PERSONA_TYPES: readonly MemoryPersonaType[] = [
   'general',
   'roleplay',

@@ -15,6 +15,5 @@ describe('persistent chat session v2 contract', () => {
     expect(app).toContain('requestStream(');
     expect(app).toContain("'chat.stream'");
     expect(app).toContain('setIsServerResponding(true)');
-    expect(app).toContain('isPersistentSessionV2Enabled');
   });
 });

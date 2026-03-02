@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, run } from '@/lib/db';
 import type { Agent, CreateAgentRequest } from '@/lib/types';
 
@@ -37,7 +36,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name and role are required' }, { status: 400 });
     }
 
-    const id = uuidv4();
+    const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
     run(
@@ -64,7 +63,7 @@ export async function POST(request: NextRequest) {
     run(
       `INSERT INTO events (id, type, agent_id, message, created_at)
        VALUES (?, ?, ?, ?, ?)`,
-      [uuidv4(), 'agent_joined', id, `${body.name} joined the team`, now],
+      [crypto.randomUUID(), 'agent_joined', id, `${body.name} joined the team`, now],
     );
 
     const agent = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [id]);

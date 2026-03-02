@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { createHmac } from 'node:crypto';
 import { queryOne, queryAll, run } from '@/lib/db';
 import {
@@ -96,7 +95,7 @@ export async function POST(request: NextRequest) {
         `INSERT INTO events (id, type, agent_id, task_id, message, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [
-          uuidv4(),
+          crypto.randomUUID(),
           'task_completed',
           task.assigned_agent_id,
           task.id,
@@ -180,7 +179,7 @@ export async function POST(request: NextRequest) {
         `INSERT INTO events (id, type, agent_id, task_id, message, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [
-          uuidv4(),
+          crypto.randomUUID(),
           'task_completed',
           session.agent_id,
           task.id,

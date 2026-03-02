@@ -4,6 +4,8 @@
  * Pure functions for chronological formatting, week grouping, and budget truncation.
  */
 
+import { formatDateDE } from '@/shared/lib/text';
+
 export interface ConversationSummary {
   id: string;
   userId: string;
@@ -64,14 +66,6 @@ export function groupByWeek(summaries: ConversationSummary[]): ConversationSumma
 }
 
 /**
- * Format a date as DD.MM.YYYY.
- */
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
-}
-
-/**
  * Truncate a string to a maximum length, adding "..." at the end if needed.
  */
 function truncate(text: string, maxLength: number): string {
@@ -103,8 +97,8 @@ export function buildHistorySummary(
 
   const weeks = groupByWeek(summaries);
   const weekLines = weeks.map((week) => {
-    const startDate = formatDate(week[0].timeRangeStart);
-    const endDate = formatDate(week[week.length - 1].timeRangeStart);
+    const startDate = formatDateDE(week[0].timeRangeStart);
+    const endDate = formatDateDE(week[week.length - 1].timeRangeStart);
     const dateRange = startDate === endDate ? startDate : `${startDate}-${endDate}`;
     const topics = week.flatMap((s) => s.keyTopics).filter(unique);
     const summaryTexts = week.map((s) => s.summaryText).join(' ');

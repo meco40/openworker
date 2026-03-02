@@ -1109,3 +1109,77 @@ Files >300 lines identified for potential future modularization:
 - 2026-03-02T14:15:28Z [TOOL] Ziel-Regressionen grün: `model-hub/pipeline-route`, `pipeline-route-mem0-sync-parallel.contract`, `react-best-practices-refactor`, `prompt-logs-tab`, `dependency-hygiene`, `messages-runtime`, `message-service-summary` (7 Dateien, 22 Tests).
 - 2026-03-02T14:15:28Z [TOOL] Qualitäts-Gates vollständig grün: `npm run check` (typecheck/lint/format-check) und `npm run build` erfolgreich.
 - 2026-03-02T14:15:28Z [TOOL] Restpunkt-Matrix geschlossen: die zuvor offenen/teilweisen Items 5/8/9/11/12 sind im aktuellen IST umgesetzt.
+
+---
+
+## Refactoring Audit — Wave 1: Dead Code Cleanup
+
+**Date:** 2026-07-22T16:00Z
+**Status:** ✅ Complete
+
+[PLANS]
+
+- 2026-07-22T16:00Z [USER] Approved 4-wave refactoring plan (22 tasks): Wave 1 Dead Code, Wave 2 Duplicate Consolidation, Wave 3 State/Effects, Wave 4 Data Fetching.
+
+[DECISIONS]
+
+- 2026-07-22T16:00Z [CODE] `toErrorMessage` (shared/lib/errors.ts) NOT inlined — has 8+ call sites in useMasterView.ts. Original audit overcounted.
+- 2026-07-22T16:00Z [CODE] `computeLineDiff` (shared/lib/lineDiff.ts) NOT moved — already correctly located in shared/lib with own tests.
+- 2026-07-22T16:00Z [CODE] Deleted contract test `persistent-chat-session-v2.contract.test.ts` assertion for removed flag.
+- 2026-07-22T16:00Z [CODE] Deleted `agent-room-feature-flag.test.ts` (tested removed flag).
+- 2026-07-22T16:00Z [CODE] Simplified `agent-room-navigation.test.ts` — removed flag-toggling tests, kept enum + sidebar presence tests.
+
+[PROGRESS]
+
+- 2026-07-22T16:00Z [TOOL] Deleted root artifacts: `2600`, `undefined`, `undefined-shm`, `undefined-wal`
+- 2026-07-22T16:00Z [TOOL] Deleted `backups/` directory (6 subdirectories of prior modularization backups)
+- 2026-07-22T16:00Z [TOOL] Deleted `src/services/audio.ts` + `tests/audio.test.ts` (0 production importers)
+- 2026-07-22T16:00Z [TOOL] Removed `isPersistentSessionV2Enabled` flag from `App.tsx` — simplified `onSendMessage` prop
+- 2026-07-22T16:00Z [TOOL] Removed `isAgentRoomEnabled` flag: deleted `src/modules/agent-room/featureFlags.ts`, cleaned 3 consumers (Sidebar.tsx, AppShellViewContent.tsx, useAgentRoomRuntime.ts)
+- 2026-07-22T16:00Z [TOOL] Removed master feature flags: deleted `src/server/master/execution/runtime/featureFlags.ts`, removed `buildLegacyVerificationReport` from executionPlan.ts, inlined v2 paths in executionFlow.ts
+
+[OUTCOMES]
+
+- 2026-07-22T16:00Z [TOOL] All 469 test files pass (2088 tests), 0 failures. Verified after all Wave 1 changes.
+- 2026-07-22T16:00Z [TOOL] Files deleted: 7 source files, 1 test file, 4 root artifacts, 1 directory tree
+- 2026-07-22T16:00Z [TOOL] Files modified: App.tsx, Sidebar.tsx, AppShellViewContent.tsx, useAgentRoomRuntime.ts, executionFlow.ts, executionPlan.ts, persistent-chat-session-v2.contract.test.ts, agent-room-navigation.test.ts
+
+---
+
+## Refactoring Audit — Waves 2–4
+
+**Date:** 2026-03-02T17:10Z
+**Status:** ✅ Complete
+
+[PLANS]
+
+- 2026-03-02T17:10Z [CODE] Wave 2: PersonaType dedup, truncateText dedup, uuid→crypto.randomUUID, formatDate consolidation
+- 2026-03-02T17:10Z [CODE] Wave 3: NodesView useMemo→constant, CronStatusBadge 'use client' removal
+- 2026-03-02T17:10Z [CODE] Wave 4: Three.js named imports, toErrorMessage dedup
+
+[DECISIONS]
+
+- 2026-03-02T17:10Z [CODE] 4A MissionControlView SSR — SKIPPED: component is an iframe wrapper, no fetch pattern to convert.
+- 2026-03-02T17:10Z [CODE] 4B master/api persona-fetch — SKIPPED: different return shapes, cross-module coupling would be anti-pattern.
+- 2026-03-02T17:10Z [CODE] 3B isGenerating sync — SKIPPED: works correctly; refactor risk exceeds benefit.
+- 2026-03-02T17:10Z [CODE] 3C CronTemplateSelector — SKIPPED: uses useState, 'use client' is required.
+- 2026-03-02T17:10Z [CODE] 2D formatDate — only DD.MM.YYYY variants consolidated; timeResolver uses YYYY-MM-DD with Date input (different purpose), left unchanged.
+- 2026-03-02T17:10Z [CODE] toErrorMessage dedup — shared version returns String(error) for non-Error types instead of 'Unknown TalkingHead error'. Acceptable for error UX context.
+
+[PROGRESS]
+
+- 2026-03-02T17:10Z [TOOL] 2A: Added `PersonaType` alias in personaTypes.ts, re-exported from personaTypeDetector.ts + personaStrategies.ts, updated 5 consumers + 1 test to import from canonical source.
+- 2026-03-02T17:10Z [TOOL] 2B: Created `src/shared/lib/text.ts` with `truncateText()` + `formatDateDE()`. Replaced local copies in rulesExtractor.ts + contextFormatter.ts.
+- 2026-03-02T17:10Z [TOOL] 2C: Migrated 12 files (30 call sites) from `uuid.v4()` to `crypto.randomUUID()`. Removed `uuid` from package.json dependencies.
+- 2026-03-02T17:10Z [TOOL] 2D: Replaced local `formatDate` in historySummarizer.ts + recallFusion.ts with `formatDateDE` from shared/lib/text.
+- 2026-03-02T17:10Z [TOOL] 3A: Extracted `useMemo(() => new Set([...]), [])` to module-level `BRIDGE_CHANNELS` constant in NodesView.tsx, removed useMemo import.
+- 2026-03-02T17:10Z [TOOL] 3C: Removed `'use client'` from CronStatusBadge.tsx (pure presentational, no hooks).
+- 2026-03-02T17:10Z [TOOL] 4C: Replaced `import * as THREE from 'three'` with named imports (7 symbols) in useMasterFaceThreeRuntime.ts, updated 13 references.
+- 2026-03-02T17:10Z [TOOL] 4D: Removed local `toErrorMessage` from constants.ts, switched import to `@/shared/lib/errors` in useMasterFaceThreeRuntime.ts.
+
+[OUTCOMES]
+
+- 2026-03-02T17:10Z [TOOL] All 469 test files pass (2088 tests), 0 failures after all Waves 2–4 changes.
+- 2026-03-02T17:10Z [TOOL] New file: `src/shared/lib/text.ts` (truncateText + formatDateDE)
+- 2026-03-02T17:10Z [TOOL] Dependency removed: `uuid` (^13.0.0) from package.json
+- 2026-03-02T17:10Z [TOOL] Total files modified across Waves 2–4: 22 source files, 1 test file, 1 new shared utility

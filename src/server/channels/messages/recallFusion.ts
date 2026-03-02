@@ -4,6 +4,7 @@
  */
 
 import type { StoredMessage } from '@/server/channels/messages/repository';
+import { formatDateDE } from '@/shared/lib/text';
 
 // ── Budget configuration ─────────────────────────────────────
 
@@ -52,7 +53,7 @@ export function fuseRecallSources(sources: RecallSources): string | null {
   // ── Chat History (FTS5) — high-signal for direct recall ──
   if (sources.chatHits.length > 0) {
     const chatLines = sources.chatHits.map((msg) => {
-      const dateStr = formatDate(msg.createdAt);
+      const dateStr = formatDateDE(msg.createdAt);
       return `- "${truncate(msg.content, 400)}" — ${dateStr}`;
     });
     const chatBlock = chatLines.join('\n');
@@ -77,22 +78,7 @@ export function fuseRecallSources(sources: RecallSources): string | null {
   return truncate(fused, RECALL_FUSION_TOTAL_BUDGET);
 }
 
-// ── Helpers ──────────────────────────────────────────────────
-
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength - 1) + '…';
-}
-
-function formatDate(isoString: string): string {
-  try {
-    const d = new Date(isoString);
-    if (Number.isNaN(d.getTime())) return isoString;
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}.${month}.${year}`;
-  } catch {
-    return isoString;
-  }
 }

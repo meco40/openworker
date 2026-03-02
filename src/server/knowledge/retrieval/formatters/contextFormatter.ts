@@ -2,14 +2,7 @@ import type { MemoryRecallLike } from '../types';
 import { isRulesIntentQuery } from '../query/intentDetector';
 import { extractRuleFragments } from '../query/rulesExtractor';
 import { uniqueStrings } from '../utils/arrayUtils';
-
-function truncateText(value: string, maxChars: number): string {
-  const normalized = String(value || '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (normalized.length <= maxChars) return normalized;
-  return `${normalized.slice(0, Math.max(1, maxChars - 3)).trimEnd()}...`;
-}
+import { truncateText } from '@/shared/lib/text';
 
 export function buildSemanticContextForQuery(
   query: string,

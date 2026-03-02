@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, run } from '@/lib/db';
 import { getMissionControlUrl, getProjectsPath } from '@/lib/config';
 import { getOpenClawClient } from '@/lib/openclaw/client';
@@ -125,7 +124,7 @@ export async function prepareDispatch(taskId: string): Promise<DispatchPreparati
   );
 
   if (!session) {
-    const sessionId = uuidv4();
+    const sessionId = crypto.randomUUID();
     const openclawSessionId = `mission-control-${agent.name.toLowerCase().replace(/\s+/g, '-')}`;
 
     run(
@@ -141,7 +140,7 @@ export async function prepareDispatch(taskId: string): Promise<DispatchPreparati
     run(
       `INSERT INTO events (id, type, agent_id, message, created_at)
        VALUES (?, ?, ?, ?, ?)`,
-      [uuidv4(), 'agent_status_changed', agent.id, `${agent.name} session created`, now],
+      [crypto.randomUUID(), 'agent_status_changed', agent.id, `${agent.name} session created`, now],
     );
   }
 

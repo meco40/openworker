@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import type { CronRunStatus, CronRule } from '@/modules/cron/types';
 

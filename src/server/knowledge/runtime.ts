@@ -17,7 +17,7 @@ import {
 } from '@/server/knowledge/cleanupDetector';
 import { detectOrphans } from '@/server/knowledge/reconciliation';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
-import type { PersonaType } from '@/server/knowledge/personaStrategies';
+import type { PersonaType } from '@/server/personas/personaTypes';
 
 declare global {
   var __knowledgeMessageRepository: MessageRepository | undefined;

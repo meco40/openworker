@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getSummaryPrompt, SUMMARY_PROMPTS } from '@/server/knowledge/conversationSummaryPrompts';
-import type { PersonaType } from '@/server/knowledge/personaTypeDetector';
+import type { PersonaType } from '@/server/personas/personaTypes';
 
 describe('conversationSummaryPrompts', () => {
   it('has prompts for all persona types', () => {

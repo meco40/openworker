@@ -1,5 +1,5 @@
 import { planKnowledgeQuery } from '@/server/knowledge/queryPlanner';
-import type { PersonaType } from '@/server/knowledge/personaStrategies';
+import type { PersonaType } from '@/server/personas/personaTypes';
 import type {
   KnowledgeRetrievalInput,
   KnowledgeRetrievalResult,

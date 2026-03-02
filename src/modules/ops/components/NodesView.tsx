@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useOpsNodes } from '@/modules/ops/hooks/useOpsNodes';
+
+const BRIDGE_CHANNELS = new Set(['whatsapp', 'imessage']);
 
 function formatLeaseAge(value: number | null): string {
   if (value === null) return 'n/a';
@@ -38,8 +40,6 @@ const NodesView: React.FC = () => {
   const hasPendingAction = Boolean(state.pendingAction);
   const personas = data?.personas || [];
   const approvals = data?.execApprovals.items || [];
-
-  const bridgeChannels = useMemo(() => new Set(['whatsapp', 'imessage']), []);
 
   return (
     <div className="space-y-5">
@@ -317,7 +317,7 @@ const NodesView: React.FC = () => {
                           >
                             Disconnect
                           </button>
-                          {bridgeChannels.has(channel.channel) && (
+                          {BRIDGE_CHANNELS.has(channel.channel) && (
                             <button
                               type="button"
                               disabled={hasPendingAction}

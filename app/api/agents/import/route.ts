@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { queryOne, queryAll, run, transaction } from '@/lib/db';
 import type { Agent } from '@/lib/types';
 
@@ -61,7 +60,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        const id = uuidv4();
+        const id = crypto.randomUUID();
         const workspaceId = agentReq.workspace_id || 'default';
 
         run(
@@ -87,7 +86,13 @@ export async function POST(request: NextRequest) {
         run(
           `INSERT INTO events (id, type, agent_id, message, created_at)
            VALUES (?, ?, ?, ?, ?)`,
-          [uuidv4(), 'agent_joined', id, `${agentReq.name} imported from runtime registry`, now],
+          [
+            crypto.randomUUID(),
+            'agent_joined',
+            id,
+            `${agentReq.name} imported from runtime registry`,
+            now,
+          ],
         );
 
         const agent = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [id]);

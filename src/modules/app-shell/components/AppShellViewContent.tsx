@@ -16,7 +16,6 @@ import {
   View,
 } from '@/shared/domain/types';
 import ViewErrorBoundary from '@/components/ViewErrorBoundary';
-import { isAgentRoomEnabled } from '@/modules/agent-room/featureFlags';
 
 const ViewLoadingFallback: React.FC<{ label: string }> = ({ label }) => (
   <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-xs font-semibold tracking-wide text-zinc-400">
@@ -296,7 +295,7 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
           <ConversationDebuggerView />
         </ViewErrorBoundary>
       )}
-      {currentView === View.AGENT_ROOM && isAgentRoomEnabled() && (
+      {currentView === View.AGENT_ROOM && (
         <ViewErrorBoundary label="Agent Room">
           <AgentRoomView />
         </ViewErrorBoundary>

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { queryAll, run } from '@/lib/db';
 import type { Event } from '@/lib/types';
 
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Type and message are required' }, { status: 400 });
     }
 
-    const id = uuidv4();
+    const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
     run(

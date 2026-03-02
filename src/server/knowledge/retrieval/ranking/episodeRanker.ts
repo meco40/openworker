@@ -1,7 +1,7 @@
 import type { KnowledgeEpisode } from '@/server/knowledge/repository';
 import { adjustRecallScore } from '@/server/knowledge/recallScoring';
 import { adjustScoreByStrategy } from '@/server/knowledge/personaStrategies';
-import type { PersonaType } from '@/server/knowledge/personaStrategies';
+import type { PersonaType } from '@/server/personas/personaTypes';
 import { tokenizeQueryForRanking } from '../query/queryParser';
 import { computeTokenOverlapScore, detectEmotionalToneInText } from './scoring';
 

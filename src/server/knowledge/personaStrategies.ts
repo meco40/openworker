@@ -8,7 +8,8 @@
  * - General: Balanced approach
  */
 
-export type PersonaType = 'roleplay' | 'builder' | 'assistant' | 'general';
+import type { PersonaType } from '@/server/personas/personaTypes';
+export type { PersonaType };
 
 export interface PersonaMemoryStrategy {
   personaType: PersonaType;

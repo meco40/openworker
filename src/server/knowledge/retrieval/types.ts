@@ -6,7 +6,7 @@ import type {
   KnowledgeEntity,
 } from '@/server/knowledge/entityGraph';
 import type { KnowledgeEventFilter } from '@/server/knowledge/eventTypes';
-import type { PersonaType } from '@/server/knowledge/personaStrategies';
+import type { PersonaType } from '@/server/personas/personaTypes';
 
 export interface MemoryRecallLike {
   recallDetailed: (

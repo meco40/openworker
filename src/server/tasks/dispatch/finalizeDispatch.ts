@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
 import { queryOne, run } from '@/lib/db';
 import { broadcast } from '@/lib/events';
 import type { Task } from '@/lib/types';
@@ -60,7 +59,7 @@ export function finalizeDispatch(
       `INSERT INTO events (id, type, agent_id, task_id, message, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
-        uuidv4(),
+        crypto.randomUUID(),
         'task_dispatched',
         agent.id,
         task.id,
@@ -73,7 +72,7 @@ export function finalizeDispatch(
       `INSERT INTO events (id, type, agent_id, task_id, message, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
-        uuidv4(),
+        crypto.randomUUID(),
         'task_completed',
         agent.id,
         task.id,
@@ -126,7 +125,7 @@ export function finalizeDispatch(
     `INSERT INTO events (id, type, agent_id, task_id, message, created_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
     [
-      uuidv4(),
+      crypto.randomUUID(),
       'task_dispatched',
       agent.id,
       task.id,

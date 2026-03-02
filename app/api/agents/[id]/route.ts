@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { queryOne, run } from '@/lib/db';
 import type { Agent, UpdateAgentRequest } from '@/lib/types';
 
@@ -59,7 +58,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       run(
         `INSERT INTO events (id, type, agent_id, message, created_at)
          VALUES (?, ?, ?, ?, ?)`,
-        [uuidv4(), 'agent_status_changed', id, `${existing.name} is now ${body.status}`, now],
+        [
+          crypto.randomUUID(),
+          'agent_status_changed',
+          id,
+          `${existing.name} is now ${body.status}`,
+          now,
+        ],
       );
     }
     if (body.is_master !== undefined) {

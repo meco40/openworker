@@ -17,7 +17,6 @@ import { useSwarmActions } from '@/modules/agent-room/hooks/useSwarmActions';
 import { useSwarmConnection } from '@/modules/agent-room/hooks/useSwarmConnection';
 import { useSwarmExport } from '@/modules/agent-room/hooks/useSwarmExport';
 import type { SwarmRecord } from '@/modules/agent-room/swarmTypes';
-import { isAgentRoomEnabled } from '@/modules/agent-room/featureFlags';
 import { usePersona } from '@/modules/personas/PersonaContext';
 import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
 import {
@@ -119,7 +118,7 @@ export function useAgentRoomRuntime() {
   const catalogActions = useMemo(() => ({ upsertSwarm, removeSwarm }), [upsertSwarm, removeSwarm]);
 
   useSwarmConnection({
-    enabled: isAgentRoomEnabled(),
+    enabled: true,
     clientRef,
     sessionToSwarmRef,
     commandToInfoRef,
@@ -156,7 +155,7 @@ export function useAgentRoomRuntime() {
   );
 
   return {
-    enabled: isAgentRoomEnabled(),
+    enabled: true,
     swarms,
     selectedSwarmId,
     selectedSwarm,

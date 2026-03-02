@@ -1,7 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
+import {
+  Scene,
+  PerspectiveCamera,
+  WebGLRenderer,
+  Clock,
+  AmbientLight,
+  DirectionalLight,
+  SRGBColorSpace,
+} from 'three';
 import type { HeadAudio } from '@met4citizen/headaudio';
 import type { TalkingHead } from '@met4citizen/talkinghead';
 import type { MasterAvatarAudioEvent } from '../../types';
@@ -18,8 +26,8 @@ import {
   ZOOM_SENSITIVITY,
   clamp,
   getMoodByState,
-  toErrorMessage,
 } from './constants';
+import { toErrorMessage } from '@/shared/lib/errors';
 import type { MasterFaceCanvasThreeProps, FaceState } from './types';
 
 type HeadAudioCtor = typeof HeadAudio;
@@ -74,10 +82,10 @@ export function useMasterFaceThreeRuntime({
     basePitch: 0,
   });
   const sceneRef = useRef<{
-    scene: THREE.Scene;
-    camera: THREE.PerspectiveCamera;
-    renderer: THREE.WebGLRenderer;
-    clock: THREE.Clock;
+    scene: Scene;
+    camera: PerspectiveCamera;
+    renderer: WebGLRenderer;
+    clock: Clock;
   } | null>(null);
   const runtimeRef = useRef<AvatarRuntime>({
     head: null,
@@ -121,39 +129,39 @@ export function useMasterFaceThreeRuntime({
       basePitch: 0,
     };
 
-    const scene = new THREE.Scene();
+    const scene = new Scene();
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
+    const ambientLight = new AmbientLight(0xffffff, 1.1);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0x9fdfff, 2.6);
+    const keyLight = new DirectionalLight(0x9fdfff, 2.6);
     keyLight.position.set(2.8, 4.2, 2.8);
     scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0x4667ff, 1.3);
+    const fillLight = new DirectionalLight(0x4667ff, 1.3);
     fillLight.position.set(-2.6, 2.0, 1.8);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0x80ffff, 0.8);
+    const rimLight = new DirectionalLight(0x80ffff, 0.8);
     rimLight.position.set(0.4, 1.7, -2.8);
     scene.add(rimLight);
 
-    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+    const camera = new PerspectiveCamera(42, width / height, 0.1, 100);
     camera.position.set(0, CAMERA_BASE_Y, interactionRef.current.zoom);
     camera.lookAt(0, CAMERA_LOOK_AT_Y, 0);
 
-    const renderer = new THREE.WebGLRenderer({
+    const renderer = new WebGLRenderer({
       antialias: true,
       alpha: true,
       powerPreference: 'high-performance',
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.outputColorSpace = SRGBColorSpace;
     container.appendChild(renderer.domElement);
     renderer.domElement.style.touchAction = 'none';
 
-    const clock = new THREE.Clock();
+    const clock = new Clock();
 
     const onPointerDown = (event: PointerEvent) => {
       pointerStateRef.current.active = true;

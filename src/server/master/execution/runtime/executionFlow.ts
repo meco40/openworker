@@ -4,11 +4,7 @@ import { resolveRuntimeApproval } from '@/server/master/execution/approvalPolicy
 import { buildCapabilityControl } from '@/server/master/execution/runtime/capabilityControl';
 import { normalizeCapabilityOutput } from '@/server/master/execution/runtime/capabilityOutput';
 import { executeCapabilityTask } from '@/server/master/execution/runtime/capabilityExecutor';
-import {
-  buildExecutionPlanWithModel,
-  buildLegacyVerificationReport,
-} from '@/server/master/execution/runtime/executionPlan';
-import { isFeatureEnabled } from '@/server/master/execution/runtime/featureFlags';
+import { buildExecutionPlanWithModel } from '@/server/master/execution/runtime/executionPlan';
 import { parseJsonObject } from '@/server/master/execution/runtime/jsonParsing';
 import type { RuntimeMode } from '@/server/master/execution/runtime/types';
 import type { MasterOrchestrator } from '@/server/master/orchestrator';
@@ -67,8 +63,6 @@ export async function executeMasterRunFlow(input: {
   const mergedOutputs: string[] = [];
   const modeSet = new Set<RuntimeMode>([plan.source]);
   let degradedMode = false;
-  const unifiedApprovalsEnabled = isFeatureEnabled('MASTER_UNIFIED_APPROVALS', true);
-  const verificationV2Enabled = isFeatureEnabled('MASTER_VERIFY_GATE_V2', true);
 
   for (const capability of plan.capabilities) {
     const latest = repo.getRun(scope, runId);
@@ -77,20 +71,13 @@ export async function executeMasterRunFlow(input: {
     }
 
     const control = buildCapabilityControl(capability, latest);
-    const approval = unifiedApprovalsEnabled
-      ? resolveRuntimeApproval({
-          repo,
-          scope,
-          actionType: control.actionType,
-          fingerprint: control.fingerprint,
-          requiresApproval: control.requiresApproval,
-        })
-      : {
-          decision: 'allowed' as const,
-          actionType: control.actionType,
-          fingerprint: control.fingerprint,
-          reason: 'Unified approvals disabled by feature flag.',
-        };
+    const approval = resolveRuntimeApproval({
+      repo,
+      scope,
+      actionType: control.actionType,
+      fingerprint: control.fingerprint,
+      requiresApproval: control.requiresApproval,
+    });
 
     if (approval.decision === 'awaiting_approval') {
       repo.updateRun(scope, runId, {
@@ -243,13 +230,11 @@ export async function executeMasterRunFlow(input: {
   }
 
   const steps = repo.listSteps(scope, runId);
-  const verificationReport = verificationV2Enabled
-    ? verifyExecutionResult({
-        outputs: mergedOutputs,
-        steps,
-        expectedCapabilities: plan.capabilities,
-      })
-    : buildLegacyVerificationReport(mergedOutputs);
+  const verificationReport = verifyExecutionResult({
+    outputs: mergedOutputs,
+    steps,
+    expectedCapabilities: plan.capabilities,
+  });
   const verificationPassed = verificationReport.status === 'passed';
   const executionMode: RuntimeMode = modeSet.has('model') && !degradedMode ? 'model' : 'fallback';
   const resultBundle = JSON.stringify(

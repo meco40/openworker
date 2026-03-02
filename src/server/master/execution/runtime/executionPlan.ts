@@ -1,25 +1,6 @@
 import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
-import type { VerificationReport } from '@/server/master/verification';
 import { extractJsonObjectFromText } from '@/server/master/execution/runtime/jsonParsing';
 import type { Capability, ExecutionPlan } from '@/server/master/execution/runtime/types';
-
-export function buildLegacyVerificationReport(outputs: string[]): VerificationReport {
-  const hasOutput = outputs.some((entry) => String(entry || '').trim().length > 0);
-  if (hasOutput) {
-    return {
-      status: 'passed',
-      score: 100,
-      summary: 'Legacy verification passed (non-empty output detected).',
-      checks: [{ name: 'legacy_non_empty_output', passed: true, detail: 'Output is non-empty.' }],
-    };
-  }
-  return {
-    status: 'failed',
-    score: 0,
-    summary: 'Legacy verification failed (all outputs empty).',
-    checks: [{ name: 'legacy_non_empty_output', passed: false, detail: 'All outputs are empty.' }],
-  };
-}
 
 function normalizeCapabilities(input: unknown): Capability[] {
   const raw = Array.isArray(input) ? input : [];

@@ -1,6 +1,5 @@
 // Database seed script - creates initial data including the master orchestrator agent
 
-import { v4 as uuidv4 } from 'uuid';
 import { getDb, closeDb } from './index';
 
 const ORCHESTRATOR_SOUL_MD = `# Mission Control Orchestrator
@@ -101,7 +100,7 @@ async function seed() {
   ).run(businessId, 'Mission Control HQ', 'Default workspace for all operations', now);
 
   // Create master orchestrator agent
-  const orchestratorId = uuidv4();
+  const orchestratorId = crypto.randomUUID();
   db.prepare(
     `INSERT INTO agents (id, name, role, description, avatar_emoji, status, is_master, soul_md, user_md, agents_md, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -151,7 +150,7 @@ async function seed() {
   const agentIds: string[] = [orchestratorId];
 
   for (const agent of agents) {
-    const agentId = uuidv4();
+    const agentId = crypto.randomUUID();
     agentIds.push(agentId);
     db.prepare(
       `INSERT INTO agents (id, name, role, description, avatar_emoji, status, is_master, created_at, updated_at)
@@ -160,7 +159,7 @@ async function seed() {
   }
 
   // Create a team conversation
-  const teamConvoId = uuidv4();
+  const teamConvoId = crypto.randomUUID();
   db.prepare(
     `INSERT INTO conversations (id, title, type, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?)`,
@@ -183,7 +182,7 @@ async function seed() {
   ];
 
   for (let i = 0; i < tasks.length; i++) {
-    const taskId = uuidv4();
+    const taskId = crypto.randomUUID();
     const task = tasks[i];
     const assignedTo = task.status !== 'inbox' ? agentIds[i % agentIds.length] : null;
 
@@ -214,7 +213,7 @@ async function seed() {
     db.prepare(
       `INSERT INTO events (id, type, agent_id, message, created_at)
        VALUES (?, ?, ?, ?, ?)`,
-    ).run(uuidv4(), event.type, event.agentId || null, event.message, now);
+    ).run(crypto.randomUUID(), event.type, event.agentId || null, event.message, now);
   }
 
   // Add a welcome message from the orchestrator
@@ -222,7 +221,7 @@ async function seed() {
     `INSERT INTO messages (id, conversation_id, sender_agent_id, content, message_type, created_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(
-    uuidv4(),
+    crypto.randomUUID(),
     teamConvoId,
     orchestratorId,
     "Welcome to Mission Control, team! 🦞 I'm your orchestrator. Let's get to work.",

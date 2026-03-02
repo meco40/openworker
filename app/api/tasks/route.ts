@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, run, transaction } from '@/lib/db';
 import { broadcast } from '@/lib/events';
 import { CreateTaskSchema } from '@/lib/validation';
@@ -89,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     const validatedData = validation.data;
 
-    const id = uuidv4();
+    const id = crypto.randomUUID();
     taskId = id;
     const now = new Date().toISOString();
 
@@ -133,7 +132,14 @@ export async function POST(request: NextRequest) {
       run(
         `INSERT INTO events (id, type, agent_id, task_id, message, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [uuidv4(), 'task_created', body.created_by_agent_id || null, id, eventMessage, now],
+        [
+          crypto.randomUUID(),
+          'task_created',
+          body.created_by_agent_id || null,
+          id,
+          eventMessage,
+          now,
+        ],
       );
     });
 

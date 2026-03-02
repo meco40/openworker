@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { queryOne, run, transaction } from '@/lib/db';
 import { broadcast } from '@/lib/events';
 import { getMissionControlUrl } from '@/lib/config';
@@ -125,7 +124,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       run(
         `INSERT INTO events (id, type, task_id, message, created_at)
          VALUES (?, ?, ?, ?, ?)`,
-        [uuidv4(), eventType, id, `Task "${existing.title}" moved to ${validatedData.status}`, now],
+        [
+          crypto.randomUUID(),
+          eventType,
+          id,
+          `Task "${existing.title}" moved to ${validatedData.status}`,
+          now,
+        ],
       );
     }
 
@@ -146,7 +151,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             `INSERT INTO events (id, type, agent_id, task_id, message, created_at)
              VALUES (?, ?, ?, ?, ?, ?)`,
             [
-              uuidv4(),
+              crypto.randomUUID(),
               'task_assigned',
               validatedData.assigned_agent_id,
               id,

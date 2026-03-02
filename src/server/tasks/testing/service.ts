@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { chromium } from 'playwright';
-import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, run } from '@/lib/db';
 import type { Task, TaskDeliverable } from '@/lib/types';
 import { ensureScreenshotsDirExists, testDeliverable } from './deliverableTester';
@@ -102,7 +101,7 @@ function getActiveTaskTestJob(taskId: string): TaskTestJob | null {
 function createTaskTestJob(taskId: string): TaskTestJob {
   ensureTaskTestJobsTable();
   const now = new Date().toISOString();
-  const jobId = uuidv4();
+  const jobId = crypto.randomUUID();
   run(
     `INSERT INTO ${TASK_TEST_JOBS_TABLE} (
       id, task_id, status, requested_at, started_at, finished_at, http_status, error_message, result_json
@@ -293,7 +292,7 @@ async function runTaskTestsNow(taskId: string): Promise<NextResponse> {
       `INSERT INTO task_activities (id, task_id, activity_type, message, metadata, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
-        uuidv4(),
+        crypto.randomUUID(),
         taskId,
         passed ? 'test_passed' : 'test_failed',
         activityMessage,
@@ -323,7 +322,7 @@ async function runTaskTestsNow(taskId: string): Promise<NextResponse> {
         `INSERT INTO task_activities (id, task_id, activity_type, message, created_at)
          VALUES (?, ?, ?, ?, ?)`,
         [
-          uuidv4(),
+          crypto.randomUUID(),
           taskId,
           'status_changed',
           'Task moved to REVIEW - automated tests passed, awaiting human approval',
@@ -338,7 +337,7 @@ async function runTaskTestsNow(taskId: string): Promise<NextResponse> {
         `INSERT INTO task_activities (id, task_id, activity_type, message, created_at)
          VALUES (?, ?, ?, ?, ?)`,
         [
-          uuidv4(),
+          crypto.randomUUID(),
           taskId,
           'status_changed',
           'Task moved back to ASSIGNED due to failed automated tests - agent needs to fix issues',

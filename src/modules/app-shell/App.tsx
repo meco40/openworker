@@ -32,9 +32,6 @@ import AppShellViewContent from '@/modules/app-shell/components/AppShellViewCont
 import { usePersona } from '@/modules/personas/PersonaContext';
 import { getGatewayClient } from '@/modules/gateway/ws-client';
 
-const isPersistentSessionV2Enabled =
-  String(process.env.NEXT_PUBLIC_CHAT_PERSISTENT_SESSION_V2 || 'true').toLowerCase() === 'true';
-
 const DEFAULT_CHAT_STREAM_DEBUG: ChatStreamDebugState = {
   phase: 'idle',
   transport: 'unknown',
@@ -307,12 +304,7 @@ const App: React.FC<AppProps> = ({ initialView }) => {
           activePersonaId={activePersonaId}
           isAgentTyping={isServerResponding || isRuntimeAgentTyping}
           chatStreamDebug={chatStreamDebug}
-          onSendMessage={
-            isPersistentSessionV2Enabled
-              ? sendChatMessage
-              : (content, platform, attachment, _conversationId, _personaId) =>
-                  routeMessage(content, platform, 'user', attachment)
-          }
+          onSendMessage={sendChatMessage}
           onSelectConversation={setActiveConversationId}
           onNewConversation={handleNewConversation}
           onDeleteConversation={handleDeleteConversation}
