@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import MasterFaceCanvas from './MasterFaceCanvasThree';
-import { useGrokVoiceAgent } from '../hooks/useGrokVoiceAgent';
+import { useGrokVoiceAgent } from '../voice/grok/useGrokVoiceAgent';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 

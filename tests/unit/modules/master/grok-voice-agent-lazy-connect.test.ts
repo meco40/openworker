@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 describe('useGrokVoiceAgent lazy connect contract', () => {
   it('does not auto-connect on mount and connects on user actions', () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), 'src/modules/master/hooks/useGrokVoiceAgent.ts'),
+      path.join(process.cwd(), 'src/modules/master/voice/grok/useGrokVoiceAgent.ts'),
       'utf8',
     );
 
@@ -13,7 +13,7 @@ describe('useGrokVoiceAgent lazy connect contract', () => {
     expect(source).not.toMatch(/unmountedRef\.current = false;\r?\n\s*connect\(\);/);
 
     // Connection is established on demand for mic and text submit.
-    const connectCalls = source.match(/await connect\(\);/g) ?? [];
+    const connectCalls = source.match(/await realtime\.connect\(\);/g) ?? [];
     expect(connectCalls.length).toBeGreaterThanOrEqual(2);
   });
 });

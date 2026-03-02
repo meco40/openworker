@@ -594,3 +594,27 @@ Files >300 lines identified for potential future modularization:
 
 - 2026-03-02T00:11:43+01:00 [TOOL] Verifikation erfolgreich: `npm run check` grün; fokussierte Regressionen grün; voller Lauf `npm test` grün (453/453 Dateien, 2064/2064 Tests); `npm run build` grün.
 - 2026-03-02T00:11:43+01:00 [TOOL] Discovery: ein einmaliger Timeout-Ausreißer in `tests/skills-route-requests.test.ts` trat im ersten Volltestlauf auf, war im gezielten Re-Run sowie anschließendem kompletten Re-Run nicht reproduzierbar (UNCONFIRMED Flake).
+
+[PLANS]
+
+- 2026-03-02T01:58:57+01:00 [USER] Wave-2F-Umsetzung angefordert: verbleibende >500-Zeilen-Dateien modularisieren (`useGrokVoiceAgent.ts`, `entity-graph.test.ts`) inkl. Pfadbereinigung und Vollverifikation.
+
+[DECISIONS]
+
+- 2026-03-02T01:58:57+01:00 [CODE] Keine Compat-Reexports fuer den alten Hook-Pfad beibehalten; produktive Callsites und Tests auf `src/modules/master/voice/grok/useGrokVoiceAgent.ts` migriert.
+- 2026-03-02T01:58:57+01:00 [CODE] Entity-Graph-Testmonolith ersetzt durch modulare Suite unter `tests/unit/knowledge/entity-graph/*.test.ts` mit gemeinsamem Harness/Fixtures.
+
+[PROGRESS]
+
+- 2026-03-02T01:58:57+01:00 [CODE] Neues Voice-Modulpaket erstellt: `types.ts`, `constants.ts`, `audioCodec.ts`, `outputAudioBus.ts`, `realtimeSession.ts`, `microphone.ts`, `useGrokVoiceAgent.ts`; Altdatei `src/modules/master/hooks/useGrokVoiceAgent.ts` geloescht.
+- 2026-03-02T01:58:57+01:00 [CODE] Importmigration umgesetzt in `src/modules/master/components/MasterEntryPage.tsx` sowie Voice-Contract-Tests (`grok-voice-agent-*`).
+- 2026-03-02T01:58:57+01:00 [CODE] Testsplit umgesetzt: `tests/unit/knowledge/entity-graph.test.ts` geloescht; neue Dateien `harness.ts`, `fixtures.ts`, `entity-graph.{crud,resolve,relations,edge-branches}.test.ts` angelegt.
+
+[DISCOVERIES]
+
+- 2026-03-02T01:58:57+01:00 [TOOL] Nach Testsplit trat in parallelem Lauf einmalig `SqliteError: database is locked` auf; Ursache war kollisionsanfaellige DB-Dateinamen nur mit `Date.now()`.
+- 2026-03-02T01:58:57+01:00 [CODE] Harness auf randomisierten DB-Suffix erweitert (`Date.now()+Math.random`) und damit lock-Kollision im Verzeichnislauf beseitigt.
+
+[OUTCOMES]
+
+- 2026-03-02T01:58:57+01:00 [TOOL] Verifikation komplett gruen: `npm run check`, `npm test -- tests/unit/modules/master/grok-voice-agent-lazy-connect.test.ts tests/unit/modules/master/grok-voice-agent-output-stream-contract.test.ts`, `npm test -- tests/unit/knowledge/entity-graph`, `npm test` (456/456 Dateien, 2064/2064 Tests), `npm run build`.
