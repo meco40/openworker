@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import {
   getExternalSkillHostStatus,
   stopExternalSkillHost,
 } from '@/server/skills/externalSkillHost';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -11,31 +11,17 @@ interface ExternalHostActionBody {
   action?: unknown;
 }
 
-function isAuthorized(userContext: { userId: string; authenticated: boolean } | null): boolean {
-  return Boolean(userContext);
-}
-
-export async function GET() {
+export const GET = withUserContext(async () => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!isAuthorized(userContext)) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     return NextResponse.json({ ok: true, status: getExternalSkillHostStatus() });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to read external host status.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withUserContext(async ({ request }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!isAuthorized(userContext)) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = (await request.json()) as ExternalHostActionBody;
     const action = String(body.action || '')
       .trim()
@@ -55,4 +41,4 @@ export async function POST(request: Request) {
       error instanceof Error ? error.message : 'Unable to execute external host action.';
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
-}
+});

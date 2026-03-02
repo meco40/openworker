@@ -1,14 +1,9 @@
-export interface ProviderCatalogEntry {
-  id: string;
-  name: string;
-  icon: string;
-  authMethods: Array<'none' | 'api_key' | 'oauth'>;
-  oauthConfigured?: boolean;
-  capabilities: string[];
-  defaultModels: string[];
-  docsUrl?: string;
-  endpointType: string;
-}
+export type {
+  ProviderAuthMethod,
+  ProviderCapability,
+  ProviderCatalogEntry,
+  ProviderEndpointType,
+} from '@/shared/contracts/modelHub';
 
 export interface ProviderAccount {
   id: string;

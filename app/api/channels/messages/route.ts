@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getMessageService } from '@/server/channels/messages/runtime';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
 import {
   persistIncomingAttachment,
   type IncomingMessageAttachmentPayload,
   type StoredMessageAttachment,
 } from '@/server/channels/messages/attachments';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -16,12 +16,7 @@ function normalizePersonaId(value: unknown): string | null {
   return trimmed ? trimmed : null;
 }
 
-export async function GET(request: Request) {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withUserContext(async ({ request, userContext }) => {
   const { searchParams } = new URL(request.url);
   const conversationId = searchParams.get('conversationId');
   const limit = parseInt(searchParams.get('limit') || '100', 10);
@@ -38,9 +33,9 @@ export async function GET(request: Request) {
 
   const messages = service.listMessages(conversationId, userContext.userId, limit, before);
   return NextResponse.json({ ok: true, conversationId, messages });
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withUserContext(async ({ request, userContext }) => {
   try {
     const body = (await request.json()) as {
       conversationId?: string;
@@ -54,11 +49,6 @@ export async function POST(request: Request) {
         url?: string;
       };
     };
-
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
 
     const service = getMessageService();
     const conversationId =
@@ -140,15 +130,10 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(request: Request) {
+export const DELETE = withUserContext(async ({ request, userContext }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const messageId = searchParams.get('messageId')?.trim() || '';
     const conversationId = searchParams.get('conversationId')?.trim() || undefined;
@@ -174,4 +159,4 @@ export async function DELETE(request: Request) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

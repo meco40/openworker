@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { confirmTelegramPairingCode } from '@/server/channels/pairing/telegramCodePairing';
 import { getMessageRepository } from '@/server/channels/messages/runtime';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getCredentialStore } from '@/server/channels/credentials';
+import { withResolvedUserContext } from '../../../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -10,7 +10,7 @@ interface ConfirmRequest {
   code?: string;
 }
 
-export async function POST(request: Request) {
+export const POST = withResolvedUserContext(async ({ request, userContext }) => {
   try {
     const body = (await request.json()) as ConfirmRequest;
     if (!body.code?.trim()) {
@@ -25,7 +25,6 @@ export async function POST(request: Request) {
     const connectedAt = new Date().toISOString();
 
     // Persist binding so /api/channels/state reflects 'connected' on refresh
-    const userContext = await resolveRequestUserContext();
     if (userContext) {
       const store = getCredentialStore();
       const transport = store.getCredential('telegram', 'update_transport') || 'webhook';
@@ -50,4 +49,4 @@ export async function POST(request: Request) {
       error instanceof Error ? error.message : 'Unknown Telegram pairing confirmation error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

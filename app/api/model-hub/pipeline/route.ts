@@ -5,7 +5,7 @@ import {
   syncMem0EmbedderFromModelHub,
   syncMem0LlmFromModelHub,
 } from '@/server/memory/mem0EmbedderSync';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -45,6 +45,13 @@ interface ReorderModelBody {
   modelId?: string;
   direction?: 'up' | 'down';
 }
+
+type PostBody = AddModelBody &
+  RemoveModelBody &
+  ReorderModelBody &
+  UpdateStatusBody & { action?: string };
+
+type ModelHubService = ReturnType<typeof getModelHubService>;
 
 const DEFAULT_PROFILE = 'p1';
 const EMBEDDING_PROFILE_ID = 'p1-embeddings';
@@ -91,13 +98,108 @@ function parseReasoningEffort(
   return { ok: true, value: normalized as PipelineReasoningEffort };
 }
 
-export async function GET(request: Request) {
-  try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
+function badRequest(error: string): Response {
+  return NextResponse.json({ ok: false, error }, { status: 400 });
+}
 
+function getMem0SyncFlagsForModel(service: ModelHubService, modelId: string) {
+  const syncLlm = service.listPipeline(DEFAULT_PROFILE).some((model) => model.id === modelId);
+  const syncEmbedder = service
+    .listPipeline(EMBEDDING_PROFILE_ID)
+    .some((model) => model.id === modelId);
+  return { syncLlm, syncEmbedder };
+}
+
+type ActionHandlerContext = {
+  body: PostBody;
+  service: ModelHubService;
+};
+
+async function handleAddAction({ body, service }: ActionHandlerContext): Promise<Response> {
+  const profileId = body.profileId?.trim() || DEFAULT_PROFILE;
+  const accountId = body.accountId?.trim();
+  const providerId = body.providerId?.trim();
+  const modelName = body.modelName?.trim();
+  const priority = body.priority ?? 1;
+  const reasoningEffort = parseReasoningEffort(body.reasoningEffort);
+
+  if (!accountId || !providerId || !modelName) {
+    return badRequest('accountId, providerId, modelName are required.');
+  }
+  if (!reasoningEffort.ok) {
+    return badRequest('reasoningEffort must be one of: off, minimal, low, medium, high, xhigh.');
+  }
+
+  const entry = service.addModelToPipeline({
+    profileId,
+    accountId,
+    providerId,
+    modelName,
+    reasoningEffort: reasoningEffort.value,
+    priority,
+  });
+  const { mem0LlmSync, mem0EmbedderSync } = await runMem0Syncs({
+    syncLlm: profileId === DEFAULT_PROFILE,
+    syncEmbedder: profileId === EMBEDDING_PROFILE_ID,
+  });
+  return NextResponse.json({ ok: true, model: entry, mem0LlmSync, mem0EmbedderSync });
+}
+
+async function handleRemoveAction({ body, service }: ActionHandlerContext): Promise<Response> {
+  const modelId = body.modelId?.trim();
+  if (!modelId) {
+    return badRequest('modelId is required.');
+  }
+
+  const removed = service.removeModelFromPipeline(modelId);
+  const { mem0LlmSync, mem0EmbedderSync } = await runMem0Syncs(
+    getMem0SyncFlagsForModel(service, modelId),
+  );
+  return NextResponse.json({ ok: true, removed, mem0LlmSync, mem0EmbedderSync });
+}
+
+async function handleStatusAction({ body, service }: ActionHandlerContext): Promise<Response> {
+  const modelId = body.modelId?.trim();
+  const status = body.status;
+  if (!modelId || !status) {
+    return badRequest('modelId and status are required.');
+  }
+
+  service.updateModelStatus(modelId, status);
+  const { mem0LlmSync, mem0EmbedderSync } = await runMem0Syncs(
+    getMem0SyncFlagsForModel(service, modelId),
+  );
+  return NextResponse.json({ ok: true, mem0LlmSync, mem0EmbedderSync });
+}
+
+async function handleReorderAction({ body, service }: ActionHandlerContext): Promise<Response> {
+  const profileId = body.profileId?.trim() || DEFAULT_PROFILE;
+  const modelId = body.modelId?.trim();
+  const direction = body.direction;
+  if (!modelId || !direction) {
+    return badRequest('modelId and direction are required.');
+  }
+  if (direction !== 'up' && direction !== 'down') {
+    return badRequest('direction must be "up" or "down".');
+  }
+
+  const moved = service.movePipelineModel(profileId, modelId, direction);
+  const { mem0LlmSync, mem0EmbedderSync } = await runMem0Syncs({
+    syncLlm: profileId === DEFAULT_PROFILE,
+    syncEmbedder: profileId === EMBEDDING_PROFILE_ID,
+  });
+  return NextResponse.json({ ok: true, moved, mem0LlmSync, mem0EmbedderSync });
+}
+
+const actionHandlers: Record<string, (context: ActionHandlerContext) => Promise<Response>> = {
+  add: handleAddAction,
+  remove: handleRemoveAction,
+  reorder: handleReorderAction,
+  status: handleStatusAction,
+};
+
+export const GET = withUserContext(async ({ request }) => {
+  try {
     const url = new URL(request.url);
     const profileId = url.searchParams.get('profileId')?.trim() || DEFAULT_PROFILE;
 
@@ -109,15 +211,10 @@ export async function GET(request: Request) {
     const message = error instanceof Error ? error.message : 'Unable to list pipeline.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
-export async function PUT(request: Request) {
+export const PUT = withUserContext(async ({ request }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = (await request.json()) as SavePipelineBody;
     const profileId = body.profileId?.trim() || DEFAULT_PROFILE;
     const models = body.models;
@@ -182,131 +279,22 @@ export async function PUT(request: Request) {
     const message = error instanceof Error ? error.message : 'Unable to save pipeline.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withUserContext(async ({ request }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = (await request.json()) as AddModelBody &
-      RemoveModelBody &
-      UpdateStatusBody & { action?: string };
+    const body = (await request.json()) as PostBody;
     const action = body.action || 'add';
 
     const service = getModelHubService();
-
-    if (action === 'add') {
-      const profileId = body.profileId?.trim() || DEFAULT_PROFILE;
-      const accountId = body.accountId?.trim();
-      const providerId = body.providerId?.trim();
-      const modelName = body.modelName?.trim();
-      const priority = body.priority ?? 1;
-      const reasoningEffort = parseReasoningEffort(body.reasoningEffort);
-
-      if (!accountId || !providerId || !modelName) {
-        return NextResponse.json(
-          { ok: false, error: 'accountId, providerId, modelName are required.' },
-          { status: 400 },
-        );
-      }
-      if (!reasoningEffort.ok) {
-        return NextResponse.json(
-          {
-            ok: false,
-            error: 'reasoningEffort must be one of: off, minimal, low, medium, high, xhigh.',
-          },
-          { status: 400 },
-        );
-      }
-
-      const entry = service.addModelToPipeline({
-        profileId,
-        accountId,
-        providerId,
-        modelName,
-        reasoningEffort: reasoningEffort.value,
-        priority,
-      });
-      const { mem0LlmSync, mem0EmbedderSync } = await runMem0Syncs({
-        syncLlm: profileId === DEFAULT_PROFILE,
-        syncEmbedder: profileId === EMBEDDING_PROFILE_ID,
-      });
-      return NextResponse.json({ ok: true, model: entry, mem0LlmSync, mem0EmbedderSync });
+    const handler = actionHandlers[action];
+    if (!handler) {
+      return badRequest(`Unknown action: ${action}`);
     }
 
-    if (action === 'remove') {
-      const modelId = body.modelId?.trim();
-      if (!modelId) {
-        return NextResponse.json({ ok: false, error: 'modelId is required.' }, { status: 400 });
-      }
-      const shouldSyncMem0Llm = service
-        .listPipeline(DEFAULT_PROFILE)
-        .some((model) => model.id === modelId);
-      const shouldSyncMem0Embedder = service
-        .listPipeline(EMBEDDING_PROFILE_ID)
-        .some((model) => model.id === modelId);
-      const removed = service.removeModelFromPipeline(modelId);
-      const { mem0LlmSync, mem0EmbedderSync } = await runMem0Syncs({
-        syncLlm: shouldSyncMem0Llm,
-        syncEmbedder: shouldSyncMem0Embedder,
-      });
-      return NextResponse.json({ ok: true, removed, mem0LlmSync, mem0EmbedderSync });
-    }
-
-    if (action === 'status') {
-      const modelId = body.modelId?.trim();
-      const status = body.status;
-      if (!modelId || !status) {
-        return NextResponse.json(
-          { ok: false, error: 'modelId and status are required.' },
-          { status: 400 },
-        );
-      }
-      const shouldSyncMem0Llm = service
-        .listPipeline(DEFAULT_PROFILE)
-        .some((model) => model.id === modelId);
-      const shouldSyncMem0Embedder = service
-        .listPipeline(EMBEDDING_PROFILE_ID)
-        .some((model) => model.id === modelId);
-      service.updateModelStatus(modelId, status);
-      const { mem0LlmSync, mem0EmbedderSync } = await runMem0Syncs({
-        syncLlm: shouldSyncMem0Llm,
-        syncEmbedder: shouldSyncMem0Embedder,
-      });
-      return NextResponse.json({ ok: true, mem0LlmSync, mem0EmbedderSync });
-    }
-
-    if (action === 'reorder') {
-      const reorderBody = body as ReorderModelBody;
-      const profileId = reorderBody.profileId?.trim() || DEFAULT_PROFILE;
-      const modelId = reorderBody.modelId?.trim();
-      const direction = reorderBody.direction;
-      if (!modelId || !direction) {
-        return NextResponse.json(
-          { ok: false, error: 'modelId and direction are required.' },
-          { status: 400 },
-        );
-      }
-      if (direction !== 'up' && direction !== 'down') {
-        return NextResponse.json(
-          { ok: false, error: 'direction must be "up" or "down".' },
-          { status: 400 },
-        );
-      }
-      const moved = service.movePipelineModel(profileId, modelId, direction);
-      const { mem0LlmSync, mem0EmbedderSync } = await runMem0Syncs({
-        syncLlm: profileId === DEFAULT_PROFILE,
-        syncEmbedder: profileId === EMBEDDING_PROFILE_ID,
-      });
-      return NextResponse.json({ ok: true, moved, mem0LlmSync, mem0EmbedderSync });
-    }
-
-    return NextResponse.json({ ok: false, error: `Unknown action: ${action}` }, { status: 400 });
+    return handler({ body, service });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Pipeline operation failed.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

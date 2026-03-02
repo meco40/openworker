@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
 import type { OpsSessionSummary, OpsSessionsResponse } from '@/modules/ops/types';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getMessageService } from '@/server/channels/messages/runtime';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -84,12 +84,7 @@ function includesSearchHit(session: OpsSessionSummary, query: string): boolean {
     .some((value) => value.includes(normalizedQuery));
 }
 
-export async function GET(request: Request) {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withUserContext(async ({ request, userContext }) => {
   const limit = parseLimit(request);
   const query = parseQuery(request);
   const activeMinutes = parseActiveMinutes(request);
@@ -152,4 +147,4 @@ export async function GET(request: Request) {
   };
 
   return NextResponse.json(payload);
-}
+});

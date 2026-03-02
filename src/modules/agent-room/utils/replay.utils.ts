@@ -1,5 +1,3 @@
-'use client';
-
 import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
 
 /**

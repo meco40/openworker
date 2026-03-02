@@ -1,18 +1,14 @@
 import { NextResponse } from 'next/server';
 
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getMessageRepository } from '@/server/channels/messages/runtime';
 import { CHANNEL_CAPABILITIES } from '@/server/channels/adapters/capabilities';
 import type { ChannelKey } from '@/server/channels/adapters/types';
 import { listBridgeAccounts } from '@/server/channels/pairing/bridgeAccounts';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
+export const GET = withUserContext(async ({ userContext }) => {
   const userId = userContext.userId;
 
   const repo = getMessageRepository();
@@ -40,4 +36,4 @@ export async function GET() {
     channels,
     generatedAt: new Date().toISOString(),
   });
-}
+});

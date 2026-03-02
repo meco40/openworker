@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Artifact utilities for swarm content management.
  * Pure functions for clamping, trimming, and normalizing artifact data.

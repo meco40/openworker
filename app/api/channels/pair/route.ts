@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isPairChannelType, pairChannel, unpairChannel } from '@/server/channels/pairing';
 import { getMessageRepository } from '@/server/channels/messages/runtime';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withResolvedUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -11,7 +11,7 @@ interface PairRequest {
   accountId?: string;
 }
 
-export async function POST(request: Request) {
+export const POST = withResolvedUserContext(async ({ request, userContext }) => {
   try {
     const body = (await request.json()) as PairRequest;
     if (!body.channel) {
@@ -48,7 +48,6 @@ export async function POST(request: Request) {
     const connectedAt = new Date().toISOString();
 
     // Persist binding so /api/channels/state reflects the real status on refresh
-    const userContext = await resolveRequestUserContext();
     if (userContext) {
       const repo = getMessageRepository();
       repo.upsertChannelBinding?.({
@@ -78,14 +77,14 @@ export async function POST(request: Request) {
     const status = message.startsWith('Unsupported channel:') ? 400 : 500;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
-}
+});
 
 interface UnpairRequest {
   channel?: string;
   accountId?: string;
 }
 
-export async function DELETE(request: Request) {
+export const DELETE = withResolvedUserContext(async ({ request, userContext }) => {
   try {
     const body = (await request.json()) as UnpairRequest;
     if (!body.channel) {
@@ -98,7 +97,6 @@ export async function DELETE(request: Request) {
     await unpairChannel(body.channel, body.accountId);
 
     // Clear binding in the DB so state route reflects 'idle' on refresh
-    const userContext = await resolveRequestUserContext();
     if (userContext) {
       const repo = getMessageRepository();
       repo.upsertChannelBinding?.({
@@ -119,4 +117,4 @@ export async function DELETE(request: Request) {
     const message = error instanceof Error ? error.message : 'Unknown channel unpair error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getMessageService } from '@/server/channels/messages/runtime';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -23,11 +23,7 @@ function normalizeText(value: string): string {
   return value.trim().toLowerCase();
 }
 
-export async function GET(request: Request) {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
+export const GET = withUserContext(async ({ request, userContext }) => {
   const userId = userContext.userId;
 
   const { searchParams } = new URL(request.url);
@@ -72,4 +68,4 @@ export async function GET(request: Request) {
     total: items.length,
     nextCursor: null,
   });
-}
+});

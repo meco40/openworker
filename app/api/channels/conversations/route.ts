@@ -1,7 +1,7 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getMessageService } from '@/server/channels/messages/runtime';
 import type { ChannelType } from '@/shared/domain/types';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -11,12 +11,7 @@ function normalizePersonaId(value: unknown): string | null {
   return trimmed ? trimmed : null;
 }
 
-export async function GET() {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withUserContext(async ({ userContext }) => {
   const service = getMessageService();
 
   // Ensure a default WebChat conversation always exists so the UI input is never disabled
@@ -24,9 +19,9 @@ export async function GET() {
 
   const conversations = service.listConversations(userContext.userId);
   return NextResponse.json({ ok: true, conversations });
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withUserContext(async ({ request, userContext }) => {
   try {
     const body = (await request.json()) as {
       channelType?: ChannelType;
@@ -36,11 +31,6 @@ export async function POST(request: Request) {
 
     if (!body.channelType) {
       return NextResponse.json({ ok: false, error: 'channelType is required' }, { status: 400 });
-    }
-
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const service = getMessageService();
@@ -62,19 +52,14 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
 // ─── DELETE /api/channels/conversations?id=<conversationId> ──
-export async function DELETE(request: NextRequest) {
+export const DELETE = withUserContext(async ({ request, userContext }) => {
   try {
-    const conversationId = request.nextUrl.searchParams.get('id');
+    const conversationId = new URL(request.url).searchParams.get('id');
     if (!conversationId) {
       return NextResponse.json({ ok: false, error: 'id query param is required' }, { status: 400 });
-    }
-
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const service = getMessageService();
@@ -93,11 +78,11 @@ export async function DELETE(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
 // ─── PATCH /api/channels/conversations ───────────────────────
 // Body: { conversationId, modelOverride?: string | null, personaId?: string | null }
-export async function PATCH(request: Request) {
+export const PATCH = withUserContext(async ({ request, userContext }) => {
   try {
     const body = (await request.json()) as {
       conversationId?: string;
@@ -107,11 +92,6 @@ export async function PATCH(request: Request) {
 
     if (!body.conversationId) {
       return NextResponse.json({ ok: false, error: 'conversationId is required' }, { status: 400 });
-    }
-
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const service = getMessageService();
@@ -143,4 +123,4 @@ export async function PATCH(request: Request) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

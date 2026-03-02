@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { PlanningState, PlanningTabProps } from './types';
+import type { PlanningSessionState, PlanningTabProps } from './types';
 
 interface PlanningSubmission {
   answer: string;
@@ -7,7 +7,7 @@ interface PlanningSubmission {
 }
 
 export interface PlanningTabController {
-  state: PlanningState | null;
+  state: PlanningSessionState | null;
   loading: boolean;
   starting: boolean;
   submitting: boolean;
@@ -32,7 +32,7 @@ export function usePlanningTabController({
   taskId,
   onSpecLocked,
 }: PlanningTabProps): PlanningTabController {
-  const [state, setState] = useState<PlanningState | null>(null);
+  const [state, setState] = useState<PlanningSessionState | null>(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -249,12 +249,46 @@ export function usePlanningTabController({
     }
   };
 
-  const submitAnswer = async () => {
-    if (!selectedOption) return;
-
+  const submitPlanningAnswer = async (submission: PlanningSubmission): Promise<boolean> => {
     setSubmitting(true);
     setIsSubmittingAnswer(true);
     setError(null);
+    let accepted = false;
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/planning/answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submission),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        startPolling();
+        accepted = true;
+        return true;
+      }
+      setError(data.error || 'Failed to submit answer');
+      return false;
+    } catch {
+      setError('Failed to submit answer');
+      return false;
+    } finally {
+      if (!accepted) {
+        setSubmitting(false);
+        setIsSubmittingAnswer(false);
+      }
+    }
+  };
+
+  const resetAnswerControls = useCallback(() => {
+    setIsSubmittingAnswer(false);
+    setSelectedOption(null);
+    setOtherText('');
+  }, []);
+
+  const submitAnswer = async () => {
+    if (!selectedOption) return;
 
     const submission: PlanningSubmission = {
       answer: selectedOption?.toLowerCase() === 'other' ? 'other' : selectedOption,
@@ -262,28 +296,9 @@ export function usePlanningTabController({
     };
     lastSubmissionRef.current = submission;
 
-    try {
-      const res = await fetch(`/api/tasks/${taskId}/planning/answer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submission),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        startPolling();
-      } else {
-        setError(data.error || 'Failed to submit answer');
-        setIsSubmittingAnswer(false);
-        setSelectedOption(null);
-        setOtherText('');
-      }
-    } catch {
-      setError('Failed to submit answer');
-      setIsSubmittingAnswer(false);
-      setSelectedOption(null);
-      setOtherText('');
+    const success = await submitPlanningAnswer(submission);
+    if (!success) {
+      resetAnswerControls();
     }
   };
 
@@ -291,34 +306,9 @@ export function usePlanningTabController({
     const submission = lastSubmissionRef.current;
     if (!submission) return;
 
-    setSubmitting(true);
-    setIsSubmittingAnswer(true);
-    setError(null);
-
-    try {
-      const res = await fetch(`/api/tasks/${taskId}/planning/answer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submission),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        startPolling();
-      } else {
-        setError(data.error || 'Failed to submit answer');
-        setIsSubmittingAnswer(false);
-        setSelectedOption(null);
-        setOtherText('');
-      }
-    } catch {
-      setError('Failed to submit answer');
-      setIsSubmittingAnswer(false);
-      setSelectedOption(null);
-      setOtherText('');
-    } finally {
-      setSubmitting(false);
+    const success = await submitPlanningAnswer(submission);
+    if (!success) {
+      resetAnswerControls();
     }
   };
 

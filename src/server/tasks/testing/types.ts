@@ -37,3 +37,17 @@ export interface TestResponse {
   testedAt: string;
   newStatus?: string;
 }
+
+export type TaskTestJobStatus = 'queued' | 'running' | 'completed' | 'failed';
+
+export interface TaskTestJob {
+  id: string;
+  taskId: string;
+  status: TaskTestJobStatus;
+  requestedAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  httpStatus: number | null;
+  errorMessage: string | null;
+  result: TestResponse | { error: string } | null;
+}

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { testProviderAccountConnectivity } from '@/server/model-hub/connectivity';
 import type { RateLimitSnapshot } from '@/server/model-hub/Models/types';
 import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withUserContext } from '../../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -19,13 +19,8 @@ interface ConnectivityResultItem {
   rateLimits?: RateLimitSnapshot;
 }
 
-export async function POST(request: Request) {
+export const POST = withUserContext(async ({ request }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = (await request.json().catch(() => ({}))) as TestAllRequestBody;
     const modelByAccountId = body.modelByAccountId || {};
 
@@ -67,4 +62,4 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Bulk connectivity test failed.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

@@ -1,4 +1,3 @@
-'use client';
 import { parsePositiveInt } from '@/components/shared/number';
 
 export function createLocalUuid(): string {

@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server';
 import { runHealthCommand } from '@/commands/healthCommand';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { parseMemoryDiagnosticsEnabled } from '@/server/http/memoryDiagnostics';
-import { unauthorizedResponse } from '@/server/http/unauthorized';
+import { withUserContext } from '../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return unauthorizedResponse();
-  }
-
+export const GET = withUserContext(async ({ request }) => {
   try {
     const report = await runHealthCommand({
       memoryDiagnosticsEnabled: parseMemoryDiagnosticsEnabled(request),
@@ -23,4 +17,4 @@ export async function GET(request: Request) {
       error instanceof Error ? error.message : 'Failed to collect health diagnostics.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

@@ -1,190 +1,40 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CronLeaseState, CronMetrics, CronRule, CronRun } from '@/modules/cron/types';
+import type { CronMetrics, CronRule, CronRun } from '@/modules/cron/types';
+import {
+  clampHistoryLimit,
+  fetchMetrics,
+  fetchRules,
+  fetchRuns,
+  getErrorMessage,
+  readCronPayload,
+} from '@/modules/cron/hooks/use-cron-rules/api';
+import {
+  clearDraftValidationErrors,
+  createCronRuleDraft,
+  validateCronRuleDraft,
+} from '@/modules/cron/hooks/use-cron-rules/form';
+import {
+  DEFAULT_HISTORY_LIMIT,
+  type CronRuleDraft,
+  type CronRulePayload,
+  type CronRunPayload,
+  type CronStatusMessage,
+  type CronValidationErrors,
+  type OkPayload,
+  type UseCronRulesResult,
+} from '@/modules/cron/hooks/use-cron-rules/types';
 
-const RULE_LIMIT = 200;
-const DEFAULT_HISTORY_LIMIT = 20;
-const MIN_HISTORY_LIMIT = 1;
-const MAX_HISTORY_LIMIT = 500;
-
-type EditableCronField = 'name' | 'cronExpression' | 'prompt';
-
-interface OkPayload {
-  ok?: boolean;
-  error?: string;
-}
-
-interface CronRulesPayload extends OkPayload {
-  rules?: CronRule[];
-}
-
-interface CronRulePayload extends OkPayload {
-  rule?: CronRule;
-}
-
-interface CronRunsPayload extends OkPayload {
-  runs?: CronRun[];
-}
-
-interface CronRunPayload extends OkPayload {
-  run?: CronRun;
-}
-
-interface CronMetricsPayload extends OkPayload {
-  metrics?: Partial<CronMetrics>;
-  lease?: Partial<CronLeaseState> | null;
-  leaseState?: Partial<CronLeaseState> | null;
-}
-
-export interface CronRuleDraft {
-  name: string;
-  cronExpression: string;
-  timezone: string;
-  prompt: string;
-  enabled: boolean;
-}
-
-export type CronValidationErrors = Partial<Record<EditableCronField, string>>;
-
-export interface CronStatusMessage {
-  tone: 'success' | 'error' | 'info';
-  text: string;
-}
-
-export interface UseCronRulesResult {
-  rules: CronRule[];
-  selectedRuleId: string | null;
-  runs: CronRun[];
-  historyLimit: number;
-  metrics: CronMetrics | null;
-  loading: boolean;
-  refreshing: boolean;
-  error: string | null;
-  statusMessage: CronStatusMessage | null;
-  historyLoading: boolean;
-  historyError: string | null;
-  formMode: 'create' | 'edit' | null;
-  draft: CronRuleDraft;
-  validationErrors: CronValidationErrors;
-  submitting: boolean;
-  pendingRuleId: string | null;
-  actions: {
-    selectRule: (ruleId: string) => void;
-    startCreate: () => void;
-    startEdit: (rule: CronRule) => void;
-    cancelForm: () => void;
-    updateDraft: (patch: Partial<CronRuleDraft>) => void;
-    submitForm: () => Promise<void>;
-    deleteRule: (ruleId: string) => Promise<void>;
-    toggleRule: (ruleId: string, enabled: boolean) => Promise<void>;
-    runNow: (ruleId: string) => Promise<void>;
-    setHistoryLimit: (value: number) => void;
-    refreshAll: () => Promise<void>;
-  };
-}
-
-function clampHistoryLimit(value: number): number {
-  if (!Number.isFinite(value)) {
-    return DEFAULT_HISTORY_LIMIT;
-  }
-  return Math.min(MAX_HISTORY_LIMIT, Math.max(MIN_HISTORY_LIMIT, Math.floor(value)));
-}
-
-export function createCronRuleDraft(rule?: CronRule | null): CronRuleDraft {
-  if (!rule) {
-    return {
-      name: '',
-      cronExpression: '',
-      timezone: 'UTC',
-      prompt: '',
-      enabled: true,
-    };
-  }
-
-  return {
-    name: rule.name,
-    cronExpression: rule.cronExpression,
-    timezone: rule.timezone,
-    prompt: rule.prompt,
-    enabled: rule.enabled,
-  };
-}
-
-export function validateCronRuleDraft(draft: CronRuleDraft): CronValidationErrors {
-  const errors: CronValidationErrors = {};
-  if (!draft.name.trim()) {
-    errors.name = 'Name is required.';
-  }
-  if (!draft.cronExpression.trim()) {
-    errors.cronExpression = 'Cron expression is required.';
-  }
-  if (!draft.prompt.trim()) {
-    errors.prompt = 'Prompt is required.';
-  }
-  return errors;
-}
-
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
-
-function resolveLeaseAgeSeconds(
-  lease: Partial<CronLeaseState> | null | undefined,
-  metrics: Partial<CronMetrics> | undefined,
-): number | null {
-  if (typeof metrics?.leaseAgeSeconds === 'number') {
-    return Math.max(0, Math.round(metrics.leaseAgeSeconds));
-  }
-
-  const leaseTimestamp = lease?.heartbeatAt ?? lease?.updatedAt;
-  if (!leaseTimestamp) {
-    return null;
-  }
-
-  const ageMs = Date.now() - Date.parse(leaseTimestamp);
-  if (!Number.isFinite(ageMs)) {
-    return null;
-  }
-  return Math.max(0, Math.round(ageMs / 1000));
-}
-
-async function readJson<T extends OkPayload>(response: Response): Promise<T> {
-  const payload = (await response.json()) as T;
-  if (!response.ok || payload.ok === false) {
-    throw new Error(payload.error || `HTTP ${response.status}`);
-  }
-  return payload;
-}
-
-async function fetchRules(): Promise<CronRule[]> {
-  const response = await fetch(`/api/automations?limit=${RULE_LIMIT}`, { cache: 'no-store' });
-  const payload = await readJson<CronRulesPayload>(response);
-  return Array.isArray(payload.rules) ? payload.rules : [];
-}
-
-async function fetchMetrics(): Promise<CronMetrics> {
-  const response = await fetch('/api/automations/metrics', { cache: 'no-store' });
-  const payload = await readJson<CronMetricsPayload>(response);
-  const metrics = payload.metrics || {};
-  const lease = payload.leaseState ?? payload.lease;
-  return {
-    activeRules: typeof metrics.activeRules === 'number' ? metrics.activeRules : 0,
-    queuedRuns: typeof metrics.queuedRuns === 'number' ? metrics.queuedRuns : 0,
-    runningRuns: typeof metrics.runningRuns === 'number' ? metrics.runningRuns : 0,
-    deadLetterRuns: typeof metrics.deadLetterRuns === 'number' ? metrics.deadLetterRuns : 0,
-    leaseAgeSeconds: resolveLeaseAgeSeconds(lease, payload.metrics),
-  };
-}
-
-async function fetchRuns(ruleId: string, limit: number): Promise<CronRun[]> {
-  const response = await fetch(
-    `/api/automations/${encodeURIComponent(ruleId)}/runs?limit=${clampHistoryLimit(limit)}`,
-    {
-      cache: 'no-store',
-    },
-  );
-  const payload = await readJson<CronRunsPayload>(response);
-  return Array.isArray(payload.runs) ? payload.runs : [];
-}
+export type {
+  CronRuleDraft,
+  CronStatusMessage,
+  CronValidationErrors,
+  UseCronRulesResult,
+} from '@/modules/cron/hooks/use-cron-rules/types';
+export {
+  createCronRuleDraft,
+  validateCronRuleDraft,
+  clearDraftValidationErrors,
+} from '@/modules/cron/hooks/use-cron-rules/form';
 
 export function useCronRules(): UseCronRulesResult {
   const [rules, setRules] = useState<CronRule[]>([]);
@@ -294,18 +144,7 @@ export function useCronRules(): UseCronRulesResult {
 
   const updateDraft = useCallback((patch: Partial<CronRuleDraft>) => {
     setDraft((previous) => ({ ...previous, ...patch }));
-    setValidationErrors((previous) => {
-      if (!Object.keys(previous).length) {
-        return previous;
-      }
-      const next = { ...previous };
-      for (const key of Object.keys(patch)) {
-        if (key === 'name' || key === 'cronExpression' || key === 'prompt') {
-          delete next[key];
-        }
-      }
-      return next;
-    });
+    setValidationErrors((previous) => clearDraftValidationErrors(previous, patch));
   }, []);
 
   const submitForm = useCallback(async () => {
@@ -326,7 +165,7 @@ export function useCronRules(): UseCronRulesResult {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(draft),
         });
-        const payload = await readJson<CronRulePayload>(response);
+        const payload = await readCronPayload<CronRulePayload>(response);
         if (payload.rule) {
           setSelectedRuleId(payload.rule.id);
         }
@@ -337,7 +176,7 @@ export function useCronRules(): UseCronRulesResult {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(draft),
         });
-        const payload = await readJson<CronRulePayload>(response);
+        const payload = await readCronPayload<CronRulePayload>(response);
         if (payload.rule) {
           setSelectedRuleId(payload.rule.id);
         }
@@ -375,7 +214,7 @@ export function useCronRules(): UseCronRulesResult {
         const response = await fetch(`/api/automations/${encodeURIComponent(ruleId)}`, {
           method: 'DELETE',
         });
-        await readJson<OkPayload>(response);
+        await readCronPayload<OkPayload>(response);
         setStatusMessage({ tone: 'success', text: 'Cron job deleted.' });
         await refreshAll();
       } catch (deleteError) {
@@ -400,7 +239,7 @@ export function useCronRules(): UseCronRulesResult {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ enabled }),
         });
-        await readJson<CronRulePayload>(response);
+        await readCronPayload<CronRulePayload>(response);
         setStatusMessage({
           tone: 'success',
           text: enabled ? 'Cron job enabled.' : 'Cron job paused.',
@@ -426,7 +265,7 @@ export function useCronRules(): UseCronRulesResult {
         const response = await fetch(`/api/automations/${encodeURIComponent(ruleId)}/run`, {
           method: 'POST',
         });
-        await readJson<CronRunPayload>(response);
+        await readCronPayload<CronRunPayload>(response);
         setStatusMessage({ tone: 'success', text: 'Manual run queued.' });
         await refreshAll();
         if (selectedRuleId === ruleId) {

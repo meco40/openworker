@@ -1,8 +1,8 @@
 import { AlertCircle, CheckCircle, Loader2, Lock, X } from 'lucide-react';
-import type { PlanningState } from './types';
+import type { PlanningSessionState } from './types';
 
 interface PlanningTabViewProps {
-  state: PlanningState | null;
+  state: PlanningSessionState | null;
   loading: boolean;
   starting: boolean;
   submitting: boolean;

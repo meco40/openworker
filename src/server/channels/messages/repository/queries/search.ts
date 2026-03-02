@@ -1,14 +1,8 @@
 import type BetterSqlite3 from 'better-sqlite3';
-import type { StoredMessage } from '@/server/channels/messages/repository/types';
-
-// Define locally to avoid circular dependency with the main repository file
-export interface SearchMessagesOptions {
-  userId?: string;
-  conversationId?: string;
-  personaId?: string;
-  role?: 'user' | 'agent' | 'system';
-  limit?: number;
-}
+import type {
+  SearchMessagesOptions,
+  StoredMessage,
+} from '@/server/channels/messages/repository/types';
 import { toMessage } from '@/server/channels/messages/messageRowMappers';
 import { buildFtsQuery } from '@/server/channels/messages/repository/utils/ftsHelpers';
 

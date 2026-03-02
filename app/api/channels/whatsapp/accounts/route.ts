@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import {
   listBridgeAccounts,
   normalizeBridgeAccountId,
   upsertBridgeAccount,
   writeBridgeAccountAllowFrom,
 } from '@/server/channels/pairing/bridgeAccounts';
+import { withUserContext } from '../../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -22,26 +22,16 @@ function parseAllowFromInput(value: unknown): string[] {
   return [];
 }
 
-export async function GET() {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withUserContext(async () => {
   return NextResponse.json({
     ok: true,
     accounts: listBridgeAccounts('whatsapp'),
     generatedAt: new Date().toISOString(),
   });
-}
+});
 
-export async function PUT(request: Request) {
+export const PUT = withUserContext(async ({ request }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = (await request.json()) as {
       accountId?: string;
       allowFrom?: string[] | string;
@@ -66,4 +56,4 @@ export async function PUT(request: Request) {
     const message = error instanceof Error ? error.message : 'Invalid request.';
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
-}
+});

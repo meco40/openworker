@@ -1,9 +1,9 @@
 import { getTokenUsageRepository } from '@/server/stats/tokenUsageRepository';
 import { getMemoryService } from '@/server/memory/runtime';
 import { getClientRegistry } from '@/server/gateway/client-registry';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 import { getMessageRepository } from '@/server/channels/messages/runtime';
+import { withResolvedUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,9 +54,8 @@ async function resolveVectorNodeCount(userId?: string): Promise<number> {
   return new Set(nodes.map((node) => node.id)).size;
 }
 
-export async function GET() {
+export const GET = withResolvedUserContext(async ({ userContext }) => {
   try {
-    const userContext = await resolveRequestUserContext();
     const uptimeSeconds = Math.floor(process.uptime());
     const ramUsageBytes = process.memoryUsage().rss;
 
@@ -128,4 +127,4 @@ export async function GET() {
       error instanceof Error ? error.message : 'Failed to collect control-plane metrics.';
     return Response.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

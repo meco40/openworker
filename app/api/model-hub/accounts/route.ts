@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
 import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -42,28 +42,18 @@ function validateCreateInput(body: CreateAccountRequest) {
   };
 }
 
-export async function GET() {
+export const GET = withUserContext(async () => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const service = getModelHubService();
     return NextResponse.json({ ok: true, accounts: service.listAccounts() });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to list accounts.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withUserContext(async ({ request }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const payload = (await request.json()) as CreateAccountRequest;
     const input = validateCreateInput(payload);
     const service = getModelHubService();
@@ -82,4 +72,4 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Unable to create account.';
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
-}
+});

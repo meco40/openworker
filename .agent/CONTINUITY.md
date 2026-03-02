@@ -946,3 +946,70 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-02T10:56:14.5260947+01:00 [TOOL] Audit als statische Read-only-Analyse durchgeführt; keine Produktivcode-Änderungen und keine erneuten Build/Test-Läufe innerhalb dieses Analyseauftrags.
+
+[PLANS]
+
+- 2026-03-02T11:06:16.4819283+01:00 [USER] Nachvalidierung angefordert: prüfen, ob die zuletzt gemeldeten Overengineering-Findings weiterhin reale IST-Findings sind.
+
+[DISCOVERIES]
+
+- 2026-03-02T11:06:16.4819283+01:00 [TOOL] Kernmetriken unverändert bestätigt: `useCronRules.ts` 443 logical LOC, `PipelineSection.tsx` 439, `aiDispatcher.ts` 436, `promptDispatchRepository.ts` 447, `sqliteAutomationRepository.ts` 423.
+- 2026-03-02T11:06:16.4819283+01:00 [TOOL] API-Boilerplate weiterhin vorhanden: 31/113 `app/api/**/route.ts` nutzen direkte `resolveRequestUserContext`-Guards.
+- 2026-03-02T11:06:16.4819283+01:00 [CODE] DTO-/Type-Duplikate weiter vorhanden (u. a. `SearchMessagesOptions` in 3 Message-Repository-Pfaden, `PlanningState`/`PlanningQuestion` in UI+`lib/types`, `ProviderCatalogEntry` in Client+Server).
+- 2026-03-02T11:06:16.4819283+01:00 [CODE] Unnötige `'use client'`-Direktiven in reinen Utility-/Constants-Dateien weiter vorhanden (`agent-room/utils/*`, `profileHelpers.ts`, `prompt-logs/constants.ts`, `prompt-logs/hooks/index.ts`).
+
+[OUTCOMES]
+
+- 2026-03-02T11:06:16.4819283+01:00 [TOOL] Re-Check abgeschlossen: alle priorisierten Audit-Findings bleiben im IST grundsätzlich gültig (teils mit aktualisierten Zählwerten), keine Produktivcode-Änderungen vorgenommen.
+
+[PLANS]
+
+- 2026-03-02T12:04:04.6442713+01:00 [USER] Vollumsetzung des 13-Findings-Refactor-Plans angefordert (Best-Case, ohne Funktionsverlust, ohne unnötigen Zusatzcode).
+
+[DECISIONS]
+
+- 2026-03-02T12:04:04.6442713+01:00 [CODE] API-Auth-Boilerplate nur dort auf `withUserContext` migriert, wo bisher explizite 401-Guards vorhanden waren; bewusst ausgenommen: optionale User-Context-Routen (`channels/pair`, `channels/telegram/pairing/confirm`, `control-plane/metrics`) und OAuth-Popup-Flows mit HTML-Unauthorized-Antwort (`model-hub/oauth/*`).
+- 2026-03-02T12:04:04.6442713+01:00 [CODE] Große Refactor-Kandidaten verhaltensneutral auf modulare Teilbausteine gesplittet: `PipelineSection`, `useCronRules`, `aiDispatcher`.
+
+[PROGRESS]
+
+- 2026-03-02T12:04:04.6442713+01:00 [CODE] `useCronRules` aufgeteilt in `use-cron-rules/{types,form,api}.ts`; neue Helper-Exports (`clearDraftValidationErrors`) und bestehende Public-Exports in `useCronRules.ts` kompatibel gehalten.
+- 2026-03-02T12:04:04.6442713+01:00 [CODE] `PipelineSection.tsx` in Unterkomponenten extrahiert (`pipeline/{PipelineCards,PipelineModelCard,ProviderAccountsPanel,rateLimits,types}.ts[x]`), Hauptdatei auf Container/Komposition reduziert.
+- 2026-03-02T12:04:04.6442713+01:00 [CODE] `aiDispatcher.ts` in `dispatchers/ai/{types,prepareDispatchMessages,runModelToolLoop}.ts` aufgeteilt; `dispatchToAI` bleibt öffentlicher Orchestrator, `runModelToolLoop` weiter exportiert.
+- 2026-03-02T12:04:04.6442713+01:00 [CODE] Zusätzliche `withUserContext`-Migration in 17 API-Routen umgesetzt (u. a. `config`, `channels/{messages,conversations,inbox,state,whatsapp/accounts}`, `ops/{agents,instances,sessions}`, `skills/{execute,external-host,runtime-config}`, `model-hub/accounts/*`, `personas/[id]/files/[filename]`).
+
+[DISCOVERIES]
+
+- 2026-03-02T12:04:04.6442713+01:00 [TOOL] Vor Migration: 22 `app/api/**/route.ts` mit direkter `resolveRequestUserContext`-Nutzung; nach Migration verbleiben 5 bewusst ausgenommene Spezialfälle.
+- 2026-03-02T12:04:04.6442713+01:00 [TOOL] Vitest-Teardown-Flake (`EPERM` auf `.local/test-artifacts`) reproduzierbar; gleiche Suite mit `TEST_ARTIFACTS_KEEP=true` stabil grün.
+
+[OUTCOMES]
+
+- 2026-03-02T12:04:04.6442713+01:00 [TOOL] Ziel-Regressionen grün: Cron-Form-Helper, PipelineSection-Layout, AI-Dispatcher (Tool-Loop/Summary/Tools-Disabled), `with-user-context`, `privileged-routes-auth` (7 Dateien, 18 Tests).
+- 2026-03-02T12:04:04.6442713+01:00 [TOOL] Qualitäts-Gates final grün: `npm run check` (typecheck/lint/format-check) und `npm run build` erfolgreich.
+
+[PLANS]
+
+- 2026-03-02T12:35:24.1744422+01:00 [USER] Restpunkte umsetzen: verbliebene Auth-Boilerplate-Routen migrieren, synchronen Task-Test-Flow auf Queue/Job umstellen, zwei große Repository-Monolithen entschärfen.
+
+[DECISIONS]
+
+- 2026-03-02T12:35:24.1744422+01:00 [CODE] Auth-Migration vollständig auf Wrapper-Basis abgeschlossen: `withResolvedUserContext` ergänzt für optionale UserContext-Flows; `withUserContext` um `onUnauthorized` erweitert, damit OAuth-Popup-Routen weiterhin HTML-401 liefern.
+- 2026-03-02T12:35:24.1744422+01:00 [CODE] Task-Test-Route auf asynchrones Job-Modell umgestellt (`queued/running/completed/failed`) bei unverändertem API-Einstieg (`runTaskTests`, `getTaskTestInfo`) und zusätzlicher Job-Abfrage per `jobId`.
+- 2026-03-02T12:35:24.1744422+01:00 [CODE] Große Repository-Dateien in Teilmodule gesplittet (Migration/Helper/Domain-Operationen), Public-APIs bleiben erhalten.
+
+[PROGRESS]
+
+- 2026-03-02T12:35:24.1744422+01:00 [CODE] Letzte 5 `app/api/**`-Routen ohne direkten `resolveRequestUserContext` refaktoriert: `control-plane/metrics`, `channels/pair`, `channels/telegram/pairing/confirm`, `model-hub/oauth/start`, `model-hub/oauth/callback`.
+- 2026-03-02T12:35:24.1744422+01:00 [CODE] Task-Testing erweitert: `task_test_jobs`-Table, In-Process-Queue-Drain, deduplizierte aktive Jobs, Job-Status-Persistenz, `getTaskTestJobInfo`, GET-Route mit `?jobId=...`.
+- 2026-03-02T12:35:24.1744422+01:00 [CODE] `promptDispatchRepository.ts` in Module unter `src/server/stats/prompt-dispatch-repository/*` aufgeteilt; Hauptdatei auf orchestrierende Repository-Methoden reduziert.
+- 2026-03-02T12:35:24.1744422+01:00 [CODE] `sqliteAutomationRepository.ts` in Module unter `src/server/automation/sqlite-automation-repository/*` aufgeteilt (`migration`, `rules`, `runs`, `lease`); Hauptdatei auf delegierenden Adapter reduziert.
+
+[DISCOVERIES]
+
+- 2026-03-02T12:35:24.1744422+01:00 [TOOL] Vor Umsetzung existierten noch genau 5 direkte `resolveRequestUserContext`-Treffer in `app/api/**`; nach Refactor kein Treffer mehr.
+- 2026-03-02T12:35:24.1744422+01:00 [TOOL] LOC-Reduktion der betroffenen Monolith-Entrypoints: `promptDispatchRepository.ts` ~453 -> ~229 logical LOC, `sqliteAutomationRepository.ts` ~423 -> ~154 logical LOC.
+
+[OUTCOMES]
+
+- 2026-03-02T12:35:24.1744422+01:00 [TOOL] Statische Verifikation erfolgreich (ohne zusätzliche Testläufe): `npm run typecheck` (ok), `npm run lint` (0 Warnungen/0 Fehler), `npm run format:check` (ok).

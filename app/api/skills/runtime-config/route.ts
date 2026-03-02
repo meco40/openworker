@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import {
   getSkillRuntimeConfigStore,
   resolveSkillRuntimeConfigStatus,
 } from '@/server/skills/runtimeConfig';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -23,28 +23,18 @@ function resolveConfigId(request: Request, body?: { id?: string }): string {
   throw new Error('id is required.');
 }
 
-export async function GET() {
+export const GET = withUserContext(async () => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const configs = resolveSkillRuntimeConfigStatus(getSkillRuntimeConfigStore());
     return NextResponse.json({ ok: true, configs });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to load runtime config.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
-export async function PUT(request: Request) {
+export const PUT = withUserContext(async ({ request }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = (await request.json()) as PutBody;
     const id = resolveConfigId(request, body);
     const value = String(body.value || '').trim();
@@ -62,15 +52,10 @@ export async function PUT(request: Request) {
     const message = error instanceof Error ? error.message : 'Unable to save runtime config.';
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
-}
+});
 
-export async function DELETE(request: Request) {
+export const DELETE = withUserContext(async ({ request }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     let body: { id?: string } | undefined;
     try {
       body = (await request.json()) as { id?: string };
@@ -88,4 +73,4 @@ export async function DELETE(request: Request) {
     const message = error instanceof Error ? error.message : 'Unable to clear runtime config.';
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
-}
+});

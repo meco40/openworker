@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import {
   GatewayConfigConflictError,
   GatewayConfigValidationError,
@@ -15,6 +14,7 @@ import {
   logConfigSaveFailed,
   logConfigSaveSuccess,
 } from '@/server/telemetry/configEvents';
+import { withUserContext } from '../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -72,14 +72,9 @@ function toSafeErrorPayload(
   };
 }
 
-export async function GET() {
+export const GET = withUserContext(async ({ userContext }) => {
   let userId = 'unknown';
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     userId = userContext.userId;
     const loaded = await loadGatewayConfig();
     logConfigLoadSuccess({
@@ -103,16 +98,11 @@ export async function GET() {
     logConfigLoadFailed({ userId, status: safe.status, reason: safe.payload.code });
     return NextResponse.json(safe.payload, { status: safe.status });
   }
-}
+});
 
-export async function PUT(request: Request) {
+export const PUT = withUserContext(async ({ request, userContext }) => {
   let userId = 'unknown';
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     userId = userContext.userId;
 
     let rawBody: unknown;
@@ -183,4 +173,4 @@ export async function PUT(request: Request) {
     logConfigSaveFailed({ userId, status: safe.status, reason: safe.payload.code });
     return NextResponse.json(safe.payload, { status: safe.status });
   }
-}
+});

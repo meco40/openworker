@@ -1,26 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getModelHubService } from '@/server/model-hub/runtime';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withUserContext } from '../../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
-type RouteContext = {
-  params: Promise<{ accountId: string }>;
-};
-
-async function resolveAccountId(context: RouteContext): Promise<string> {
-  const params = await context.params;
-  return String(params.accountId || '').trim();
-}
-
-export async function DELETE(_request: Request, context: RouteContext) {
+export const DELETE = withUserContext<{ accountId: string }>(async ({ params }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const accountId = await resolveAccountId(context);
+    const accountId = String(params.accountId || '').trim();
     if (!accountId) {
       return NextResponse.json({ ok: false, error: 'Missing accountId.' }, { status: 400 });
     }
@@ -36,4 +22,4 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const message = error instanceof Error ? error.message : 'Unable to delete account.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

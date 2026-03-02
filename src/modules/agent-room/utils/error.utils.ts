@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Error detection utilities for gateway and connection handling.
  */

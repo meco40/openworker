@@ -3,7 +3,7 @@ export interface PlanningOption {
   label: string;
 }
 
-export interface PlanningQuestion {
+export interface PlanningChoiceQuestion {
   question: string;
   options: PlanningOption[];
 }
@@ -14,11 +14,11 @@ export interface PlanningMessage {
   timestamp: number;
 }
 
-export interface PlanningState {
+export interface PlanningSessionState {
   taskId: string;
   sessionKey?: string;
   messages: PlanningMessage[];
-  currentQuestion?: PlanningQuestion;
+  currentQuestion?: PlanningChoiceQuestion;
   isComplete: boolean;
   dispatchError?: string;
   spec?: {

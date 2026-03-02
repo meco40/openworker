@@ -1,31 +1,17 @@
 import { NextResponse } from 'next/server';
 import { testProviderAccountConnectivity } from '@/server/model-hub/connectivity';
 import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withUserContext } from '../../../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
-
-type RouteContext = {
-  params: Promise<{ accountId: string }>;
-};
 
 interface ConnectivityRequestBody {
   model?: string;
 }
 
-async function resolveAccountId(context: RouteContext): Promise<string> {
-  const params = await context.params;
-  return String(params.accountId || '').trim();
-}
-
-export async function POST(request: Request, context: RouteContext) {
+export const POST = withUserContext<{ accountId: string }>(async ({ request, params }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const accountId = await resolveAccountId(context);
+    const accountId = String(params.accountId || '').trim();
     if (!accountId) {
       return NextResponse.json({ ok: false, error: 'Missing accountId.' }, { status: 400 });
     }
@@ -53,4 +39,4 @@ export async function POST(request: Request, context: RouteContext) {
     const message = error instanceof Error ? error.message : 'Connectivity test failed.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

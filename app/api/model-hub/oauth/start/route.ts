@@ -10,7 +10,7 @@ import {
 } from '@/server/model-hub/codexAuth';
 import { ensureCodexLocalCallbackBridge } from '@/server/model-hub/codexLocalCallbackBridge';
 import { buildModelHubCallbackUrl, normalizeBrowserOrigin } from '@/server/model-hub/urlOrigin';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withUserContext } from '../../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -59,117 +59,121 @@ function buildOpenRouterAuthorizeUrl(
   return authUrl.toString();
 }
 
-export async function GET(request: Request) {
-  try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return popupResult(false, 'Unauthorized', 401);
-    }
+export const GET = withUserContext(
+  async ({ request }) => {
+    try {
+      const url = new URL(request.url);
+      const providerId = String(url.searchParams.get('providerId') || '').trim();
+      const label = String(url.searchParams.get('label') || '').trim();
+      const callbackUrl = buildModelHubCallbackUrl(request.url);
 
-    const url = new URL(request.url);
-    const providerId = String(url.searchParams.get('providerId') || '').trim();
-    const label = String(url.searchParams.get('label') || '').trim();
-    const callbackUrl = buildModelHubCallbackUrl(request.url);
+      if (!providerId) {
+        return popupResult(false, 'providerId is required.', 400);
+      }
 
-    if (!providerId) {
-      return popupResult(false, 'providerId is required.', 400);
-    }
+      const provider = findProvider(providerId);
+      if (!provider) {
+        return popupResult(false, `Unknown provider: ${providerId}`, 400);
+      }
+      if (!provider.authMethods.includes('oauth')) {
+        return popupResult(false, `${provider.name} does not support OAuth.`, 400);
+      }
 
-    const provider = findProvider(providerId);
-    if (!provider) {
-      return popupResult(false, `Unknown provider: ${providerId}`, 400);
-    }
-    if (!provider.authMethods.includes('oauth')) {
-      return popupResult(false, `${provider.name} does not support OAuth.`, 400);
-    }
+      const signingKey = getModelHubEncryptionKey();
+      const oauthStateBase = {
+        providerId,
+        label: label || `${provider.name} OAuth`,
+        createdAt: Date.now(),
+        nonce: createOAuthNonce(),
+      };
 
-    const signingKey = getModelHubEncryptionKey();
-    const oauthStateBase = {
-      providerId,
-      label: label || `${provider.name} OAuth`,
-      createdAt: Date.now(),
-      nonce: createOAuthNonce(),
-    };
-
-    if (providerId === 'openrouter') {
-      const { codeVerifier, codeChallenge } = createPkcePair();
-      const state = createOAuthState({ ...oauthStateBase, codeVerifier }, signingKey);
-      return NextResponse.redirect(buildOpenRouterAuthorizeUrl(state, callbackUrl, codeChallenge), {
-        status: 302,
-      });
-    }
-
-    const state = createOAuthState(oauthStateBase, signingKey);
-
-    if (providerId === 'github-copilot') {
-      const clientId = process.env.GITHUB_OAUTH_CLIENT_ID?.trim();
-      if (!clientId) {
-        return popupResult(
-          false,
-          'GitHub OAuth ist nicht konfiguriert. Bitte GITHUB_OAUTH_CLIENT_ID und GITHUB_OAUTH_CLIENT_SECRET in .env.local setzen. Verwende stattdessen einen API Key (Personal Access Token).',
-          500,
+      if (providerId === 'openrouter') {
+        const { codeVerifier, codeChallenge } = createPkcePair();
+        const state = createOAuthState({ ...oauthStateBase, codeVerifier }, signingKey);
+        return NextResponse.redirect(
+          buildOpenRouterAuthorizeUrl(state, callbackUrl, codeChallenge),
+          {
+            status: 302,
+          },
         );
       }
 
-      const authUrl = new URL('https://github.com/login/oauth/authorize');
-      authUrl.searchParams.set('client_id', clientId);
-      authUrl.searchParams.set('redirect_uri', callbackUrl);
-      authUrl.searchParams.set('scope', 'read:user user:email');
-      authUrl.searchParams.set('state', state);
-      return NextResponse.redirect(authUrl.toString(), { status: 302 });
-    }
+      const state = createOAuthState(oauthStateBase, signingKey);
 
-    if (providerId === 'openai-codex') {
-      const customClientId = process.env.OPENAI_OAUTH_CLIENT_ID?.trim();
-      const clientId = getOpenAICodexClientId();
-      const configuredRedirectUri = process.env.OPENAI_OAUTH_REDIRECT_URI?.trim();
-      const usePublicClient = !customClientId;
-      const redirectUri =
-        configuredRedirectUri || (usePublicClient ? OPENAI_CODEX_LOCAL_REDIRECT_URI : callbackUrl);
+      if (providerId === 'github-copilot') {
+        const clientId = process.env.GITHUB_OAUTH_CLIENT_ID?.trim();
+        if (!clientId) {
+          return popupResult(
+            false,
+            'GitHub OAuth ist nicht konfiguriert. Bitte GITHUB_OAUTH_CLIENT_ID und GITHUB_OAUTH_CLIENT_SECRET in .env.local setzen. Verwende stattdessen einen API Key (Personal Access Token).',
+            500,
+          );
+        }
 
-      if (usePublicClient && !configuredRedirectUri) {
-        await ensureCodexLocalCallbackBridge(normalizeBrowserOrigin(url.origin));
+        const authUrl = new URL('https://github.com/login/oauth/authorize');
+        authUrl.searchParams.set('client_id', clientId);
+        authUrl.searchParams.set('redirect_uri', callbackUrl);
+        authUrl.searchParams.set('scope', 'read:user user:email');
+        authUrl.searchParams.set('state', state);
+        return NextResponse.redirect(authUrl.toString(), { status: 302 });
       }
 
-      if (!clientId) {
-        return popupResult(
-          false,
-          'OpenAI Codex OAuth konnte nicht gestartet werden (fehlende Client-ID).',
-          500,
+      if (providerId === 'openai-codex') {
+        const customClientId = process.env.OPENAI_OAUTH_CLIENT_ID?.trim();
+        const clientId = getOpenAICodexClientId();
+        const configuredRedirectUri = process.env.OPENAI_OAUTH_REDIRECT_URI?.trim();
+        const usePublicClient = !customClientId;
+        const redirectUri =
+          configuredRedirectUri ||
+          (usePublicClient ? OPENAI_CODEX_LOCAL_REDIRECT_URI : callbackUrl);
+
+        if (usePublicClient && !configuredRedirectUri) {
+          await ensureCodexLocalCallbackBridge(normalizeBrowserOrigin(url.origin));
+        }
+
+        if (!clientId) {
+          return popupResult(
+            false,
+            'OpenAI Codex OAuth konnte nicht gestartet werden (fehlende Client-ID).',
+            500,
+          );
+        }
+
+        // OpenAI Codex uses OAuth with PKCE (S256). Client-ID defaults to Codex public app.
+        const { codeVerifier, codeChallenge } = createPkcePair();
+        const pkceState = createOAuthState(
+          { ...oauthStateBase, codeVerifier, oauthRedirectUri: redirectUri },
+          signingKey,
         );
+        const scope = process.env.OPENAI_OAUTH_SCOPE?.trim() || OPENAI_CODEX_SCOPE;
+        const audience = process.env.OPENAI_OAUTH_AUDIENCE?.trim();
+        const authorizeUrl =
+          process.env.OPENAI_OAUTH_AUTHORIZE_URL?.trim() || OPENAI_CODEX_AUTHORIZE_URL;
+        const originator = process.env.OPENAI_OAUTH_ORIGINATOR?.trim() || 'pi';
+        const authUrl = new URL(authorizeUrl);
+        authUrl.searchParams.set('response_type', 'code');
+        authUrl.searchParams.set('client_id', clientId);
+        authUrl.searchParams.set('redirect_uri', redirectUri);
+        authUrl.searchParams.set('scope', scope);
+        if (audience) {
+          authUrl.searchParams.set('audience', audience);
+        }
+        authUrl.searchParams.set('state', pkceState);
+        authUrl.searchParams.set('code_challenge', codeChallenge);
+        authUrl.searchParams.set('code_challenge_method', 'S256');
+        authUrl.searchParams.set('id_token_add_organizations', 'true');
+        authUrl.searchParams.set('codex_cli_simplified_flow', 'true');
+        authUrl.searchParams.set('originator', originator);
+        return NextResponse.redirect(authUrl.toString(), { status: 302 });
       }
 
-      // OpenAI Codex uses OAuth with PKCE (S256). Client-ID defaults to Codex public app.
-      const { codeVerifier, codeChallenge } = createPkcePair();
-      const pkceState = createOAuthState(
-        { ...oauthStateBase, codeVerifier, oauthRedirectUri: redirectUri },
-        signingKey,
-      );
-      const scope = process.env.OPENAI_OAUTH_SCOPE?.trim() || OPENAI_CODEX_SCOPE;
-      const audience = process.env.OPENAI_OAUTH_AUDIENCE?.trim();
-      const authorizeUrl =
-        process.env.OPENAI_OAUTH_AUTHORIZE_URL?.trim() || OPENAI_CODEX_AUTHORIZE_URL;
-      const originator = process.env.OPENAI_OAUTH_ORIGINATOR?.trim() || 'pi';
-      const authUrl = new URL(authorizeUrl);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('client_id', clientId);
-      authUrl.searchParams.set('redirect_uri', redirectUri);
-      authUrl.searchParams.set('scope', scope);
-      if (audience) {
-        authUrl.searchParams.set('audience', audience);
-      }
-      authUrl.searchParams.set('state', pkceState);
-      authUrl.searchParams.set('code_challenge', codeChallenge);
-      authUrl.searchParams.set('code_challenge_method', 'S256');
-      authUrl.searchParams.set('id_token_add_organizations', 'true');
-      authUrl.searchParams.set('codex_cli_simplified_flow', 'true');
-      authUrl.searchParams.set('originator', originator);
-      return NextResponse.redirect(authUrl.toString(), { status: 302 });
+      return popupResult(false, `OAuth flow for ${provider.name} is not configured.`, 400);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'OAuth start failed.';
+      return popupResult(false, message, 500);
     }
-
-    return popupResult(false, `OAuth flow for ${provider.name} is not configured.`, 400);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'OAuth start failed.';
-    return popupResult(false, message, 500);
-  }
-}
+  },
+  {
+    onUnauthorized: () => popupResult(false, 'Unauthorized', 401),
+  },
+);

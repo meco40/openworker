@@ -5,124 +5,42 @@ import type {
   ChannelBindingStatus,
   UpsertChannelBindingInput,
 } from '@/server/channels/messages/channelBindings';
+import type {
+  AgentRoomSwarmFriction,
+  AgentRoomSwarmMetrics,
+  AgentRoomSwarmPhase,
+  AgentRoomSwarmRecord,
+  AgentRoomSwarmStatus,
+  AgentRoomSwarmUnit,
+  ConversationContextState,
+  ConversationProjectState,
+  CreateConversationInput,
+  PersonaProjectRecord,
+  SaveMessageInput,
+  SearchMessagesOptions,
+  StoredMessage,
+} from '@/server/channels/messages/repository/types';
 import type { PhaseBufferEntry } from '@/server/agent-room/types';
 
-// Re-export SearchMessagesOptions from the queries module to maintain backward compatibility
-export type { SearchMessagesOptions } from '@/server/channels/messages/repository/queries/search';
+export type {
+  AgentRoomSwarmFriction,
+  AgentRoomSwarmMetrics,
+  AgentRoomSwarmPhase,
+  AgentRoomSwarmRecord,
+  AgentRoomSwarmStatus,
+  AgentRoomSwarmUnit,
+  ConversationContextState,
+  ConversationProjectState,
+  CreateConversationInput,
+  PersonaProjectRecord,
+  SaveMessageInput,
+  SearchMessagesOptions,
+  StoredMessage,
+} from '@/server/channels/messages/repository/types';
 
 // ─── Data shapes ─────────────────────────────────────────────
 
 export type { Conversation };
-
-export interface StoredMessage {
-  id: string;
-  conversationId: string;
-  seq?: number | null;
-  role: 'user' | 'agent' | 'system';
-  content: string;
-  platform: ChannelType;
-  externalMsgId: string | null;
-  senderName: string | null;
-  metadata: string | null; // JSON
-  createdAt: string;
-}
-
-// ─── Inputs ──────────────────────────────────────────────────
-
-export interface CreateConversationInput {
-  channelType: ChannelType;
-  externalChatId?: string;
-  title?: string;
-  userId?: string;
-  personaId?: string;
-}
-
-export interface SaveMessageInput {
-  conversationId: string;
-  role: 'user' | 'agent' | 'system';
-  content: string;
-  platform: ChannelType;
-  externalMsgId?: string;
-  senderName?: string;
-  metadata?: Record<string, unknown>;
-  clientMessageId?: string;
-}
-
-export interface ConversationContextState {
-  conversationId: string;
-  summaryText: string;
-  summaryUptoSeq: number;
-  updatedAt: string;
-}
-
-export interface PersonaProjectRecord {
-  id: string;
-  userId: string;
-  personaId: string;
-  name: string;
-  slug: string;
-  workspacePath: string;
-  workspaceRelativePath: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ConversationProjectState {
-  conversationId: string;
-  activeProjectId: string | null;
-  guardApprovedWithoutProject: boolean;
-  updatedAt: string | null;
-}
-
-export type AgentRoomSwarmStatus = 'idle' | 'running' | 'hold' | 'completed' | 'aborted' | 'error';
-
-export type AgentRoomSwarmPhase =
-  | 'analysis'
-  | 'research'
-  | 'ideation'
-  | 'critique'
-  | 'best_case'
-  | 'result';
-
-export interface AgentRoomSwarmUnit {
-  personaId: string;
-  role: string;
-}
-
-export interface AgentRoomSwarmFriction {
-  level: 'low' | 'medium' | 'high';
-  confidence: number;
-  hold: boolean;
-  reasons: string[];
-  updatedAt: string;
-}
-
-export interface AgentRoomSwarmRecord {
-  id: string;
-  conversationId: string;
-  userId: string;
-  sessionId: string | null;
-  title: string;
-  task: string;
-  leadPersonaId: string;
-  units: AgentRoomSwarmUnit[];
-  status: AgentRoomSwarmStatus;
-  currentPhase: AgentRoomSwarmPhase;
-  consensusScore: number;
-  holdFlag: boolean;
-  artifact: string;
-  artifactHistory: string[];
-  friction: AgentRoomSwarmFriction;
-  lastSeq: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AgentRoomSwarmMetrics {
-  runningSwarms: number;
-  holdSwarms: number;
-  lastErrorAt: string | null;
-}
 
 // ─── Repository Interface ────────────────────────────────────
 
@@ -168,7 +86,7 @@ export interface MessageRepository {
   findMessageByClientId(conversationId: string, clientMessageId: string): StoredMessage | null;
   searchMessages?(
     query: string,
-    opts?: import('@/server/channels/messages/repository/queries/search').SearchMessagesOptions,
+    opts?: SearchMessagesOptions,
   ): Promise<StoredMessage[]> | StoredMessage[];
 
   getConversationContext(conversationId: string, userId?: string): ConversationContextState | null;

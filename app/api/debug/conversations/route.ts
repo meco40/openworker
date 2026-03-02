@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getPromptDispatchRepository } from '@/server/stats/promptDispatchRepository';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  const user = await resolveRequestUserContext();
-  if (!user) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withUserContext(async () => {
   try {
     const conversations = getPromptDispatchRepository().listConversationSummaries();
     return NextResponse.json({ ok: true, conversations });
@@ -18,4 +13,4 @@ export async function GET() {
     const message = error instanceof Error ? error.message : 'Internal error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

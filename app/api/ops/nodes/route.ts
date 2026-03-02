@@ -4,7 +4,6 @@ import { NextResponse } from 'next/server';
 import { runDoctorCommand } from '@/commands/doctorCommand';
 import { runHealthCommand } from '@/commands/healthCommand';
 import type { OpsNodeChannelSummary, OpsNodesResponse } from '@/modules/ops/types';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { CHANNEL_CAPABILITIES } from '@/server/channels/adapters/capabilities';
 import type { ChannelKey } from '@/server/channels/adapters/types';
 import { getMessageRepository } from '@/server/channels/messages/runtime';
@@ -26,6 +25,7 @@ import {
   revokeCommand,
 } from '@/server/gateway/exec-approval-manager';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -186,6 +186,130 @@ async function buildNodesPayload(
   };
 }
 
+type MutationHandler = (
+  userId: string,
+  body: NodesMutationRequest,
+) => Promise<OpsNodesResponse['mutation']>;
+
+const handleExecApprove: MutationHandler = async (_userId, body) => {
+  const command = parseString(body.command, 'command');
+  approveCommand(command as string);
+  return { action: 'exec.approve', command };
+};
+
+const handleExecRevoke: MutationHandler = async (_userId, body) => {
+  const command = parseString(body.command, 'command');
+  return {
+    action: 'exec.revoke',
+    command,
+    revoked: revokeCommand(command as string),
+  };
+};
+
+const handleExecClear: MutationHandler = async () => {
+  clearApprovedCommands();
+  return { action: 'exec.clear', cleared: true };
+};
+
+const handleBindingsSetPersona: MutationHandler = async (userId, body) => {
+  const channel = parseChannelKey(body.channel);
+  const rawPersonaId = typeof body.personaId === 'string' ? body.personaId.trim() : '';
+  const personaId = rawPersonaId || null;
+
+  if (personaId) {
+    const personas = getPersonaRepository().listPersonas(userId);
+    if (!personas.some((persona) => persona.id === personaId)) {
+      throw new NodesActionError('Unknown personaId.');
+    }
+  }
+
+  const repo = getMessageRepository();
+  if (!repo.updateChannelBindingPersona) {
+    throw new NodesActionError('Channel binding persona updates are unavailable.');
+  }
+  repo.updateChannelBindingPersona(userId, channel, personaId);
+  return { action: 'bindings.setPersona', channel, personaId };
+};
+
+const handleChannelsConnect: MutationHandler = async (_userId, body) => {
+  const channel = parseString(body.channel, 'channel');
+  if (!channel || !isPairChannelType(channel)) {
+    throw new NodesActionError('Unsupported channel for pairing.');
+  }
+  const token = typeof body.token === 'string' ? body.token : '';
+  const accountId = parseString(body.accountId, 'accountId', { required: false });
+  const paired = await pairChannel(channel, token, accountId || undefined);
+
+  const status =
+    paired && typeof paired === 'object' && 'status' in paired && typeof paired.status === 'string'
+      ? paired.status
+      : 'connected';
+
+  return {
+    action: 'channels.connect',
+    channel,
+    status,
+    accountId: accountId || undefined,
+  };
+};
+
+const handleChannelsDisconnect: MutationHandler = async (_userId, body) => {
+  const channel = parseString(body.channel, 'channel');
+  if (!channel || !isPairChannelType(channel)) {
+    throw new NodesActionError('Unsupported channel for unpair.');
+  }
+  const accountId = parseString(body.accountId, 'accountId', { required: false });
+  await unpairChannel(channel, accountId || undefined);
+  return {
+    action: 'channels.disconnect',
+    channel,
+    accountId: accountId || 'default',
+  };
+};
+
+const handleChannelsRotateSecret: MutationHandler = async (_userId, body) => {
+  const channel = parseString(body.channel, 'channel');
+  if (channel !== 'whatsapp' && channel !== 'imessage') {
+    throw new NodesActionError('Secret rotation is only supported for bridge channels.');
+  }
+  const accountId = normalizeBridgeAccountId(
+    parseString(body.accountId, 'accountId', { required: false }),
+  );
+  const newSecret = randomBytes(24).toString('base64url');
+
+  upsertBridgeAccount(channel, {
+    accountId,
+    webhookSecret: newSecret,
+    pairingStatus: 'connected',
+    touchLastSeen: true,
+  });
+
+  return {
+    action: 'channels.rotateSecret',
+    channel,
+    accountId,
+    rotatedAt: new Date().toISOString(),
+  };
+};
+
+const handleTelegramRejectPending: MutationHandler = async () => {
+  return {
+    action: 'telegram.rejectPending',
+    rejected: rejectTelegramPendingPairingRequest(),
+  };
+};
+
+const mutationHandlers: Record<string, MutationHandler> = {
+  'bindings.setPersona': handleBindingsSetPersona,
+  'channels.connect': handleChannelsConnect,
+  'channels.disconnect': handleChannelsDisconnect,
+  'channels.rotateSecret': handleChannelsRotateSecret,
+  'exec.approve': handleExecApprove,
+  'exec.clear': handleExecClear,
+  'exec.revoke': handleExecRevoke,
+  'telegram.rejectPending': handleTelegramRejectPending,
+};
+
 async function applyMutation(
   userId: string,
   body: NodesMutationRequest,
@@ -195,140 +319,23 @@ async function applyMutation(
     throw new NodesActionError('action is required.');
   }
 
-  if (action === 'exec.approve') {
-    const command = parseString(body.command, 'command');
-    approveCommand(command as string);
-    return { action, command };
+  const handler = mutationHandlers[action];
+  if (!handler) {
+    throw new NodesActionError('Unsupported action.');
   }
-
-  if (action === 'exec.revoke') {
-    const command = parseString(body.command, 'command');
-    return {
-      action,
-      command,
-      revoked: revokeCommand(command as string),
-    };
-  }
-
-  if (action === 'exec.clear') {
-    clearApprovedCommands();
-    return { action, cleared: true };
-  }
-
-  if (action === 'bindings.setPersona') {
-    const channel = parseChannelKey(body.channel);
-    const rawPersonaId = typeof body.personaId === 'string' ? body.personaId.trim() : '';
-    const personaId = rawPersonaId || null;
-
-    if (personaId) {
-      const personas = getPersonaRepository().listPersonas(userId);
-      if (!personas.some((persona) => persona.id === personaId)) {
-        throw new NodesActionError('Unknown personaId.');
-      }
-    }
-
-    const repo = getMessageRepository();
-    if (!repo.updateChannelBindingPersona) {
-      throw new NodesActionError('Channel binding persona updates are unavailable.');
-    }
-    repo.updateChannelBindingPersona(userId, channel, personaId);
-    return { action, channel, personaId };
-  }
-
-  if (action === 'channels.connect') {
-    const channel = parseString(body.channel, 'channel');
-    if (!channel || !isPairChannelType(channel)) {
-      throw new NodesActionError('Unsupported channel for pairing.');
-    }
-    const token = typeof body.token === 'string' ? body.token : '';
-    const accountId = parseString(body.accountId, 'accountId', { required: false });
-    const paired = await pairChannel(channel, token, accountId || undefined);
-
-    const status =
-      paired &&
-      typeof paired === 'object' &&
-      'status' in paired &&
-      typeof paired.status === 'string'
-        ? paired.status
-        : 'connected';
-
-    return {
-      action,
-      channel,
-      status,
-      accountId: accountId || undefined,
-    };
-  }
-
-  if (action === 'channels.disconnect') {
-    const channel = parseString(body.channel, 'channel');
-    if (!channel || !isPairChannelType(channel)) {
-      throw new NodesActionError('Unsupported channel for unpair.');
-    }
-    const accountId = parseString(body.accountId, 'accountId', { required: false });
-    await unpairChannel(channel, accountId || undefined);
-    return {
-      action,
-      channel,
-      accountId: accountId || 'default',
-    };
-  }
-
-  if (action === 'channels.rotateSecret') {
-    const channel = parseString(body.channel, 'channel');
-    if (channel !== 'whatsapp' && channel !== 'imessage') {
-      throw new NodesActionError('Secret rotation is only supported for bridge channels.');
-    }
-    const accountId = normalizeBridgeAccountId(
-      parseString(body.accountId, 'accountId', { required: false }),
-    );
-    const newSecret = randomBytes(24).toString('base64url');
-
-    upsertBridgeAccount(channel, {
-      accountId,
-      webhookSecret: newSecret,
-      pairingStatus: 'connected',
-      touchLastSeen: true,
-    });
-
-    return {
-      action,
-      channel,
-      accountId,
-      rotatedAt: new Date().toISOString(),
-    };
-  }
-
-  if (action === 'telegram.rejectPending') {
-    return {
-      action,
-      rejected: rejectTelegramPendingPairingRequest(),
-    };
-  }
-
-  throw new NodesActionError('Unsupported action.');
+  return handler(userId, body);
 }
 
-export async function GET(request: Request) {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withUserContext(async ({ request, userContext }) => {
   const payload = await buildNodesPayload(userContext.userId, {
     memoryDiagnosticsEnabled: parseMemoryDiagnosticsEnabled(request),
     channelLimit: parseChannelLimit(request),
   });
 
   return NextResponse.json(payload);
-}
+});
 
-export async function POST(request: Request) {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const POST = withUserContext(async ({ request, userContext }) => {
   try {
     const body = (await request.json()) as NodesMutationRequest;
     const mutation = await applyMutation(userContext.userId, body);
@@ -345,4 +352,4 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Failed to apply nodes action.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

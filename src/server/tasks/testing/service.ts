@@ -4,11 +4,236 @@ import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, run } from '@/lib/db';
 import type { Task, TaskDeliverable } from '@/lib/types';
 import { ensureScreenshotsDirExists, testDeliverable } from './deliverableTester';
-import type { TestResponse, TestResult } from './types';
+import type { TaskTestJob, TaskTestJobStatus, TestResponse, TestResult } from './types';
 
-export async function runTaskTests(taskId: string): Promise<NextResponse> {
+const TASK_TEST_JOBS_TABLE = 'task_test_jobs';
+const pendingTaskTestJobIds: string[] = [];
+let drainingTaskTestQueue = false;
+
+function ensureTaskTestJobsTable(): void {
+  run(`
+    CREATE TABLE IF NOT EXISTS ${TASK_TEST_JOBS_TABLE} (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      requested_at TEXT NOT NULL,
+      started_at TEXT,
+      finished_at TEXT,
+      http_status INTEGER,
+      error_message TEXT,
+      result_json TEXT
+    )
+  `);
+  run(`
+    CREATE INDEX IF NOT EXISTS idx_task_test_jobs_task_requested
+      ON ${TASK_TEST_JOBS_TABLE}(task_id, requested_at DESC)
+  `);
+  run(`
+    CREATE INDEX IF NOT EXISTS idx_task_test_jobs_status_requested
+      ON ${TASK_TEST_JOBS_TABLE}(status, requested_at ASC)
+  `);
+}
+
+function toTaskTestJob(row: Record<string, unknown>): TaskTestJob {
+  let parsedResult: TaskTestJob['result'] = null;
+  if (typeof row.result_json === 'string' && row.result_json.trim()) {
+    try {
+      parsedResult = JSON.parse(row.result_json) as TaskTestJob['result'];
+    } catch {
+      parsedResult = null;
+    }
+  }
+
+  return {
+    id: String(row.id),
+    taskId: String(row.task_id),
+    status: String(row.status) as TaskTestJobStatus,
+    requestedAt: String(row.requested_at),
+    startedAt: row.started_at ? String(row.started_at) : null,
+    finishedAt: row.finished_at ? String(row.finished_at) : null,
+    httpStatus: row.http_status != null ? Number(row.http_status) : null,
+    errorMessage: row.error_message ? String(row.error_message) : null,
+    result: parsedResult,
+  };
+}
+
+function getTaskById(taskId: string): Task | null {
+  return queryOne<Task>('SELECT * FROM tasks WHERE id = ?', [taskId]) ?? null;
+}
+
+function getTaskTestJobById(jobId: string): TaskTestJob | null {
+  ensureTaskTestJobsTable();
+  const row = queryOne<Record<string, unknown>>(
+    `SELECT * FROM ${TASK_TEST_JOBS_TABLE} WHERE id = ?`,
+    [jobId],
+  );
+  return row ? toTaskTestJob(row) : null;
+}
+
+function getTaskTestJob(taskId: string, jobId: string): TaskTestJob | null {
+  ensureTaskTestJobsTable();
+  const row = queryOne<Record<string, unknown>>(
+    `SELECT * FROM ${TASK_TEST_JOBS_TABLE} WHERE id = ? AND task_id = ?`,
+    [jobId, taskId],
+  );
+  return row ? toTaskTestJob(row) : null;
+}
+
+function getLatestTaskTestJob(taskId: string): TaskTestJob | null {
+  ensureTaskTestJobsTable();
+  const row = queryOne<Record<string, unknown>>(
+    `SELECT * FROM ${TASK_TEST_JOBS_TABLE} WHERE task_id = ? ORDER BY requested_at DESC LIMIT 1`,
+    [taskId],
+  );
+  return row ? toTaskTestJob(row) : null;
+}
+
+function getActiveTaskTestJob(taskId: string): TaskTestJob | null {
+  ensureTaskTestJobsTable();
+  const row = queryOne<Record<string, unknown>>(
+    `SELECT * FROM ${TASK_TEST_JOBS_TABLE}
+     WHERE task_id = ? AND status IN ('queued', 'running')
+     ORDER BY requested_at DESC LIMIT 1`,
+    [taskId],
+  );
+  return row ? toTaskTestJob(row) : null;
+}
+
+function createTaskTestJob(taskId: string): TaskTestJob {
+  ensureTaskTestJobsTable();
+  const now = new Date().toISOString();
+  const jobId = uuidv4();
+  run(
+    `INSERT INTO ${TASK_TEST_JOBS_TABLE} (
+      id, task_id, status, requested_at, started_at, finished_at, http_status, error_message, result_json
+    ) VALUES (?, ?, 'queued', ?, NULL, NULL, NULL, NULL, NULL)`,
+    [jobId, taskId, now],
+  );
+  const job = getTaskTestJobById(jobId);
+  if (!job) {
+    throw new Error('Failed to create task test job.');
+  }
+  return job;
+}
+
+function markTaskTestJobRunning(jobId: string): void {
+  run(`UPDATE ${TASK_TEST_JOBS_TABLE} SET status = 'running', started_at = ? WHERE id = ?`, [
+    new Date().toISOString(),
+    jobId,
+  ]);
+}
+
+function markTaskTestJobTerminal(params: {
+  jobId: string;
+  status: 'completed' | 'failed';
+  httpStatus: number;
+  result: TaskTestJob['result'];
+  errorMessage?: string | null;
+}): void {
+  run(
+    `UPDATE ${TASK_TEST_JOBS_TABLE}
+     SET status = ?, finished_at = ?, http_status = ?, error_message = ?, result_json = ?
+     WHERE id = ?`,
+    [
+      params.status,
+      new Date().toISOString(),
+      params.httpStatus,
+      params.errorMessage || null,
+      params.result ? JSON.stringify(params.result) : null,
+      params.jobId,
+    ],
+  );
+}
+
+async function readResponsePayload(
+  response: NextResponse,
+): Promise<TestResponse | { error: string } | null> {
   try {
-    const task = queryOne<Task>('SELECT * FROM tasks WHERE id = ?', [taskId]);
+    return (await response.clone().json()) as TestResponse | { error: string };
+  } catch {
+    try {
+      const text = await response.clone().text();
+      return text ? { error: text } : null;
+    } catch {
+      return null;
+    }
+  }
+}
+
+function deriveErrorMessage(
+  payload: TestResponse | { error: string } | null,
+  fallback: string,
+): string {
+  if (payload && typeof payload === 'object' && 'error' in payload) {
+    const message = String(payload.error || '').trim();
+    if (message) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
+function enqueueTaskTestJob(jobId: string): void {
+  pendingTaskTestJobIds.push(jobId);
+  void drainTaskTestQueue();
+}
+
+async function drainTaskTestQueue(): Promise<void> {
+  if (drainingTaskTestQueue) {
+    return;
+  }
+  drainingTaskTestQueue = true;
+
+  try {
+    while (pendingTaskTestJobIds.length > 0) {
+      const jobId = pendingTaskTestJobIds.shift();
+      if (!jobId) {
+        continue;
+      }
+
+      const job = getTaskTestJobById(jobId);
+      if (!job || job.status !== 'queued') {
+        continue;
+      }
+
+      markTaskTestJobRunning(jobId);
+      try {
+        const response = await runTaskTestsNow(job.taskId);
+        const payload = await readResponsePayload(response);
+        const status = response.ok ? 'completed' : 'failed';
+        const errorMessage = response.ok
+          ? null
+          : deriveErrorMessage(payload, `Task test job failed with HTTP ${response.status}`);
+        markTaskTestJobTerminal({
+          jobId,
+          status,
+          httpStatus: response.status,
+          result: payload,
+          errorMessage,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Task test execution failed unexpectedly.';
+        markTaskTestJobTerminal({
+          jobId,
+          status: 'failed',
+          httpStatus: 500,
+          result: { error: message },
+          errorMessage: message,
+        });
+      }
+    }
+  } finally {
+    drainingTaskTestQueue = false;
+    if (pendingTaskTestJobIds.length > 0) {
+      void drainTaskTestQueue();
+    }
+  }
+}
+
+async function runTaskTestsNow(taskId: string): Promise<NextResponse> {
+  try {
+    const task = getTaskById(taskId);
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
@@ -139,8 +364,56 @@ export async function runTaskTests(taskId: string): Promise<NextResponse> {
   }
 }
 
+export async function runTaskTests(taskId: string): Promise<NextResponse> {
+  const task = getTaskById(taskId);
+  if (!task) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+  }
+
+  const activeJob = getActiveTaskTestJob(taskId);
+  if (activeJob) {
+    return NextResponse.json({
+      ok: true,
+      queued: true,
+      deduplicated: true,
+      job: activeJob,
+    });
+  }
+
+  const job = createTaskTestJob(taskId);
+  enqueueTaskTestJob(job.id);
+
+  return NextResponse.json(
+    {
+      ok: true,
+      queued: true,
+      job,
+    },
+    { status: 202 },
+  );
+}
+
+export function getTaskTestJobInfo(taskId: string, jobId: string): NextResponse {
+  const task = getTaskById(taskId);
+  if (!task) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+  }
+
+  const job = getTaskTestJob(taskId, jobId);
+  if (!job) {
+    return NextResponse.json({ error: 'Task test job not found' }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    taskId,
+    taskTitle: task.title,
+    job,
+  });
+}
+
 export function getTaskTestInfo(taskId: string): NextResponse {
-  const task = queryOne<Task>('SELECT * FROM tasks WHERE id = ?', [taskId]);
+  const task = getTaskById(taskId);
   if (!task) {
     return NextResponse.json({ error: 'Task not found' }, { status: 404 });
   }
@@ -156,6 +429,9 @@ export function getTaskTestInfo(taskId: string): NextResponse {
   const urlDeliverables = deliverables.filter(
     (deliverable) => deliverable.deliverable_type === 'url',
   );
+
+  const latestJob = getLatestTaskTestJob(taskId);
+  const activeJob = getActiveTaskTestJob(taskId);
 
   return NextResponse.json({
     taskId,
@@ -176,6 +452,10 @@ export function getTaskTestInfo(taskId: string): NextResponse {
       title: deliverable.title,
       path: deliverable.path,
     })),
+    queue: {
+      activeJob,
+      latestJob,
+    },
     validations: [
       'JavaScript console error detection',
       'CSS syntax validation (via css-tree)',
@@ -188,10 +468,20 @@ export function getTaskTestInfo(taskId: string): NextResponse {
       onFail: 'Moves to assigned for agent to fix issues',
     },
     usage: {
-      method: 'POST',
-      description: 'Run automated browser tests on all HTML/URL deliverables',
-      returns:
-        'Test results with pass/fail, console errors, CSS errors, resource errors, and screenshots',
+      post: {
+        method: 'POST',
+        description: 'Queue automated browser tests for all HTML/URL deliverables',
+        returns: 'Accepted job payload with status=queued',
+      },
+      get: {
+        method: 'GET',
+        description: 'Read endpoint info and latest/active queue state',
+      },
+      getJob: {
+        method: 'GET',
+        query: { jobId: 'task-test-job-id' },
+        description: 'Read a specific queued/running/completed test job',
+      },
     },
   });
 }

@@ -1,5 +1,3 @@
-'use client';
-
 import { PromptLogSummary, PromptLogDiagnostics } from './types';
 
 export const PAGE_SIZE = 100;

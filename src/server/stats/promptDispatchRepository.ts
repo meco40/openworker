@@ -8,199 +8,30 @@
 import crypto from 'node:crypto';
 import type BetterSqlite3 from 'better-sqlite3';
 import { openSqliteDatabase } from '@/server/db/sqlite';
-import type { DebugConversationSummary } from '@/shared/domain/types';
+import {
+  buildWhere,
+  toEntry,
+  toPositiveInt,
+} from '@/server/stats/prompt-dispatch-repository/helpers';
+import { migratePromptDispatchRepository } from '@/server/stats/prompt-dispatch-repository/migration';
+import type {
+  PromptDispatchConversationSummary,
+  PromptDispatchEntry,
+  PromptDispatchFilter,
+  PromptDispatchSummary,
+  RecordPromptDispatchInput,
+} from '@/server/stats/prompt-dispatch-repository/types';
 
-export type PromptDispatchKind =
-  | 'chat'
-  | 'summary'
-  | 'worker_planner'
-  | 'worker_executor'
-  | 'api_gateway'
-  | 'orchestra_routing'
-  | 'room'
-  | 'knowledge-extraction';
-
-export type PromptTokensSource = 'exact' | 'estimated';
-export type PromptDispatchStatus = 'success' | 'error';
-export type PromptDispatchRiskLevel = 'low' | 'medium' | 'high';
-
-export interface PromptDispatchEntry {
-  id: string;
-  providerId: string;
-  modelName: string;
-  accountId: string | null;
-  dispatchKind: PromptDispatchKind;
-  promptTokens: number;
-  promptTokensSource: PromptTokensSource;
-  completionTokens: number;
-  totalTokens: number;
-  status: PromptDispatchStatus;
-  errorMessage: string | null;
-  riskLevel: PromptDispatchRiskLevel;
-  riskScore: number;
-  riskReasons: string[];
-  promptPreview: string;
-  promptPayloadJson: string;
-  promptCostUsd: number | null;
-  completionCostUsd: number | null;
-  totalCostUsd: number | null;
-  createdAt: string;
-  // Conversation linkage
-  conversationId: string | null;
-  turnSeq: number | null;
-  latencyMs: number | null;
-  toolCallsJson: string;
-  memoryContextJson: string | null;
-}
-
-export interface PromptDispatchFilter {
-  from?: string;
-  to?: string;
-  search?: string;
-  provider?: string;
-  model?: string;
-  risk?: PromptDispatchRiskLevel | 'flagged';
-  limit?: number;
-  before?: string;
-  beforeTurnSeq?: number;
-  conversationId?: string;
-}
-
-export interface PromptDispatchSummary {
-  totalEntries: number;
-  flaggedEntries: number;
-  promptTokensTotal: number;
-  promptTokensExactCount: number;
-  promptTokensEstimatedCount: number;
-  totalCostUsd: number;
-}
-
-export interface RecordPromptDispatchInput {
-  providerId: string;
-  modelName: string;
-  accountId: string | null;
-  dispatchKind: PromptDispatchKind;
-  promptTokens: number;
-  promptTokensSource: PromptTokensSource;
-  completionTokens: number;
-  totalTokens: number;
-  status: PromptDispatchStatus;
-  errorMessage: string | null;
-  riskLevel: PromptDispatchRiskLevel;
-  riskScore: number;
-  riskReasons: string[];
-  promptPreview: string;
-  promptPayloadJson: string;
-  promptCostUsd?: number | null;
-  completionCostUsd?: number | null;
-  totalCostUsd?: number | null;
-  createdAt?: string;
-  // Conversation linkage
-  conversationId?: string | null;
-  turnSeq?: number | null;
-  latencyMs?: number | null;
-  toolCallsJson?: string;
-  memoryContextJson?: string | null;
-}
-
-function toPositiveInt(input: string | undefined, fallback: number): number {
-  const parsed = Number.parseInt(input || '', 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-  return parsed;
-}
-
-function toNullableNumber(value: unknown): number | null {
-  return value === null || value === undefined ? null : Number(value);
-}
-
-function toEntry(row: Record<string, unknown>): PromptDispatchEntry {
-  return {
-    id: String(row.id),
-    providerId: String(row.provider_id),
-    modelName: String(row.model_name),
-    accountId: row.account_id ? String(row.account_id) : null,
-    dispatchKind: String(row.dispatch_kind) as PromptDispatchKind,
-    promptTokens: Number(row.prompt_tokens),
-    promptTokensSource: String(row.prompt_tokens_source) as PromptTokensSource,
-    completionTokens: Number(row.completion_tokens),
-    totalTokens: Number(row.total_tokens),
-    status: String(row.status) as PromptDispatchStatus,
-    errorMessage: row.error_message ? String(row.error_message) : null,
-    riskLevel: String(row.risk_level) as PromptDispatchRiskLevel,
-    riskScore: Number(row.risk_score),
-    riskReasons: row.risk_reasons_json
-      ? (JSON.parse(String(row.risk_reasons_json)) as string[])
-      : [],
-    promptPreview: String(row.prompt_preview),
-    promptPayloadJson: String(row.prompt_payload_json),
-    promptCostUsd: toNullableNumber(row.prompt_cost_usd),
-    completionCostUsd: toNullableNumber(row.completion_cost_usd),
-    totalCostUsd: toNullableNumber(row.total_cost_usd),
-    createdAt: String(row.created_at),
-    conversationId: row.conversation_id ? String(row.conversation_id) : null,
-    turnSeq: row.turn_seq != null ? Number(row.turn_seq) : null,
-    latencyMs: row.latency_ms != null ? Number(row.latency_ms) : null,
-    toolCallsJson: String(row.tool_calls_json ?? '[]'),
-    memoryContextJson: row.memory_context_json ? String(row.memory_context_json) : null,
-  };
-}
-
-function buildWhere(filter: PromptDispatchFilter): {
-  where: string;
-  params: Array<string | number>;
-} {
-  const conditions: string[] = [];
-  const params: Array<string | number> = [];
-
-  if (filter.from) {
-    conditions.push('created_at >= ?');
-    params.push(filter.from);
-  }
-  if (filter.to) {
-    conditions.push('created_at <= ?');
-    params.push(filter.to);
-  }
-  if (filter.before) {
-    conditions.push('created_at < ?');
-    params.push(filter.before);
-  }
-  if (filter.beforeTurnSeq != null && Number.isFinite(filter.beforeTurnSeq)) {
-    conditions.push('turn_seq < ?');
-    params.push(Math.floor(filter.beforeTurnSeq));
-  }
-  if (filter.provider) {
-    conditions.push('provider_id = ?');
-    params.push(filter.provider);
-  }
-  if (filter.model) {
-    conditions.push('model_name = ?');
-    params.push(filter.model);
-  }
-  if (filter.risk) {
-    if (filter.risk === 'flagged') {
-      conditions.push("risk_level IN ('medium', 'high')");
-    } else {
-      conditions.push('risk_level = ?');
-      params.push(filter.risk);
-    }
-  }
-  if (filter.search) {
-    conditions.push(
-      "(prompt_preview LIKE ? OR prompt_payload_json LIKE ? OR COALESCE(error_message, '') LIKE ?)",
-    );
-    const like = `%${filter.search}%`;
-    params.push(like, like, like);
-  }
-  if (filter.conversationId) {
-    conditions.push('conversation_id = ?');
-    params.push(filter.conversationId);
-  }
-
-  return {
-    where: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '',
-    params,
-  };
-}
+export type {
+  PromptDispatchEntry,
+  PromptDispatchFilter,
+  PromptDispatchKind,
+  PromptDispatchRiskLevel,
+  PromptDispatchStatus,
+  PromptDispatchSummary,
+  PromptTokensSource,
+  RecordPromptDispatchInput,
+} from '@/server/stats/prompt-dispatch-repository/types';
 
 export class PromptDispatchRepository {
   private readonly db: ReturnType<typeof BetterSqlite3>;
@@ -208,80 +39,7 @@ export class PromptDispatchRepository {
 
   constructor(dbPath = process.env.STATS_DB_PATH || '.local/stats.db') {
     this.db = openSqliteDatabase({ dbPath });
-    this.migrate();
-  }
-
-  private migrate(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS prompt_dispatch_logs (
-        id TEXT PRIMARY KEY,
-        provider_id TEXT NOT NULL,
-        model_name TEXT NOT NULL,
-        account_id TEXT,
-        dispatch_kind TEXT NOT NULL,
-        prompt_tokens INTEGER NOT NULL DEFAULT 0,
-        prompt_tokens_source TEXT NOT NULL,
-        completion_tokens INTEGER NOT NULL DEFAULT 0,
-        total_tokens INTEGER NOT NULL DEFAULT 0,
-        status TEXT NOT NULL,
-        error_message TEXT,
-        risk_level TEXT NOT NULL,
-        risk_score INTEGER NOT NULL DEFAULT 0,
-        risk_reasons_json TEXT NOT NULL DEFAULT '[]',
-        prompt_preview TEXT NOT NULL,
-        prompt_payload_json TEXT NOT NULL,
-        prompt_cost_usd REAL,
-        completion_cost_usd REAL,
-        total_cost_usd REAL,
-        created_at TEXT NOT NULL
-      );
-    `);
-
-    this.ensureColumnExists('prompt_dispatch_logs', 'prompt_cost_usd', 'REAL');
-    this.ensureColumnExists('prompt_dispatch_logs', 'completion_cost_usd', 'REAL');
-    this.ensureColumnExists('prompt_dispatch_logs', 'total_cost_usd', 'REAL');
-    this.ensureColumnExists('prompt_dispatch_logs', 'conversation_id', 'TEXT');
-    this.ensureColumnExists('prompt_dispatch_logs', 'turn_seq', 'INTEGER');
-    this.ensureColumnExists('prompt_dispatch_logs', 'latency_ms', 'INTEGER');
-    this.ensureColumnExists(
-      'prompt_dispatch_logs',
-      'tool_calls_json',
-      "TEXT NOT NULL DEFAULT '[]'",
-    );
-    this.ensureColumnExists('prompt_dispatch_logs', 'memory_context_json', 'TEXT');
-
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_prompt_dispatch_logs_conversation
-        ON prompt_dispatch_logs (conversation_id)
-        WHERE conversation_id IS NOT NULL;
-    `);
-
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_prompt_dispatch_logs_created
-        ON prompt_dispatch_logs (created_at DESC);
-    `);
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_prompt_dispatch_logs_provider
-        ON prompt_dispatch_logs (provider_id);
-    `);
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_prompt_dispatch_logs_model
-        ON prompt_dispatch_logs (model_name);
-    `);
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_prompt_dispatch_logs_risk
-        ON prompt_dispatch_logs (risk_level);
-    `);
-  }
-
-  private ensureColumnExists(table: string, column: string, type: string): void {
-    const rows = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<
-      Record<string, unknown>
-    >;
-    const hasColumn = rows.some((row) => String(row.name) === column);
-    if (!hasColumn) {
-      this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
-    }
+    migratePromptDispatchRepository(this.db);
   }
 
   recordDispatch(input: RecordPromptDispatchInput): PromptDispatchEntry {
@@ -358,7 +116,7 @@ export class PromptDispatchRepository {
     };
   }
 
-  listConversationSummaries(): DebugConversationSummary[] {
+  listConversationSummaries(): PromptDispatchConversationSummary[] {
     const rows = this.db
       .prepare(
         `SELECT
@@ -379,6 +137,7 @@ export class PromptDispatchRepository {
         LIMIT 100`,
       )
       .all() as Array<Record<string, unknown>>;
+
     return rows.map((row) => ({
       conversationId: String(row.conversation_id),
       turnCount: Number(row.turn_count),
@@ -459,13 +218,13 @@ export class PromptDispatchRepository {
       .run(overflow);
   }
 
-  close(): void {
-    this.db.close();
-  }
-
   clearDispatches(): number {
     const result = this.db.prepare('DELETE FROM prompt_dispatch_logs').run() as { changes: number };
     return result.changes;
+  }
+
+  close(): void {
+    this.db.close();
   }
 
   private maybePrune(): void {
@@ -483,6 +242,7 @@ export class PromptDispatchRepository {
 }
 
 declare global {
+  // eslint-disable-next-line no-var
   var __promptDispatchRepository: PromptDispatchRepository | undefined;
 }
 

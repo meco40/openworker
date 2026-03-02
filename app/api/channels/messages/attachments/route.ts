@@ -1,20 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getMessageService } from '@/server/channels/messages/runtime';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import {
   extractStoredAttachmentsFromMetadata,
   readStoredAttachmentBuffer,
 } from '@/server/channels/messages/attachments';
+import { withUserContext } from '../../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
-export async function GET(request: Request) {
+export const GET = withUserContext(async ({ request, userContext }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const url = new URL(request.url);
     const messageId = url.searchParams.get('messageId')?.trim() || '';
     const conversationId = url.searchParams.get('conversationId')?.trim() || '';
@@ -67,4 +62,4 @@ export async function GET(request: Request) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

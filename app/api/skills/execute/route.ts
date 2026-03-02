@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { dispatchSkill, normalizeSkillArgs } from '@/server/skills/executeSkill';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import type { SkillDispatchContext } from '@/server/skills/types';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -53,13 +53,8 @@ function resolveSkillDispatchContext(body: SkillRequest, userId: string): SkillD
   };
 }
 
-export async function POST(request: Request) {
+export const POST = withUserContext(async ({ request, userContext }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = (await request.json()) as SkillRequest;
     const context = resolveSkillDispatchContext(body, userContext.userId);
     const result = await dispatchSkill(body.name, normalizeSkillArgs(body.args), context);
@@ -69,4 +64,4 @@ export async function POST(request: Request) {
     const status = String(message).startsWith('Unsupported skill:') ? 400 : 500;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
-}
+});

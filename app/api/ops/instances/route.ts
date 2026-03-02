@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
 import type { OpsInstancesResponse } from '@/modules/ops/types';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getClientRegistry } from '@/server/gateway/client-registry';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,12 +30,7 @@ function toIsoTimestamp(value: number): string {
   return new Date(safeValue).toISOString();
 }
 
-export async function GET(request: Request) {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withUserContext(async ({ request, userContext }) => {
   const registry = getClientRegistry();
   const limit = parseLimit(request);
   const clients = registry.getByUserId(userContext.userId);
@@ -62,4 +57,4 @@ export async function GET(request: Request) {
   };
 
   return NextResponse.json(payload);
-}
+});

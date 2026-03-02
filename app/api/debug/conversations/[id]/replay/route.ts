@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getReplayService } from '@/server/debug/replayService';
+import { withUserContext } from '../../../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await resolveRequestUserContext();
-  if (!user) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const POST = withUserContext<{ id: string }>(async ({ request, params }) => {
   const { id } = await params;
 
   let body: { fromSeq?: unknown; modelOverride?: unknown };
@@ -38,4 +33,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const status = message.includes('not found') ? 404 : 500;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
-}
+});

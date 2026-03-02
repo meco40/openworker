@@ -12,7 +12,7 @@
  */
 
 import type { Conversation, StoredMessage } from '@/server/channels/messages/repository';
-import type { SearchMessagesOptions } from '@/server/channels/messages/sqliteMessageRepository';
+import type { SearchMessagesOptions } from '@/server/channels/messages/repository/types';
 import { ChannelType } from '@/shared/domain/types';
 import { getMemoryService } from '@/server/memory/runtime';
 import { resolveKnowledgeConfig } from '@/server/knowledge/config';

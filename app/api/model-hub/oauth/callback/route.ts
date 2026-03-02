@@ -4,7 +4,7 @@ import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
 import { getOpenAICodexClientId, OPENAI_CODEX_TOKEN_URL } from '@/server/model-hub/codexAuth';
 import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
 import { buildModelHubCallbackUrl } from '@/server/model-hub/urlOrigin';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withUserContext } from '../../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -158,63 +158,63 @@ async function exchangeOpenAICode(
   };
 }
 
-export async function GET(request: Request) {
-  try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return htmlResult(false, 'Unauthorized', 401);
-    }
-
-    const url = new URL(request.url);
-    const error = String(url.searchParams.get('error') || '').trim();
-    const code = String(url.searchParams.get('code') || '').trim();
-    const stateParam = String(url.searchParams.get('state') || '').trim();
-    if (error) {
-      return htmlResult(false, `OAuth canceled: ${error}`);
-    }
-    if (!code || !stateParam) {
-      return htmlResult(false, 'Missing OAuth callback parameters.');
-    }
-
-    const signingKey = getModelHubEncryptionKey();
-    const state = parseOAuthState(stateParam, signingKey);
-    const provider = findProvider(state.providerId);
-    if (!provider) {
-      return htmlResult(false, `Unknown provider: ${state.providerId}`);
-    }
-
-    const callbackUrl = buildModelHubCallbackUrl(request.url);
-    let exchanged: OauthExchangeResult;
-    if (state.providerId === 'openrouter') {
-      if (!state.codeVerifier) {
-        return htmlResult(false, 'OpenRouter callback missing PKCE verifier.');
+export const GET = withUserContext(
+  async ({ request }) => {
+    try {
+      const url = new URL(request.url);
+      const error = String(url.searchParams.get('error') || '').trim();
+      const code = String(url.searchParams.get('code') || '').trim();
+      const stateParam = String(url.searchParams.get('state') || '').trim();
+      if (error) {
+        return htmlResult(false, `OAuth canceled: ${error}`);
       }
-      exchanged = await exchangeOpenRouterCode(code, state.codeVerifier, callbackUrl);
-    } else if (state.providerId === 'github-copilot') {
-      exchanged = await exchangeGitHubCode(code, callbackUrl);
-    } else if (state.providerId === 'openai-codex') {
-      if (!state.codeVerifier) {
-        return htmlResult(false, 'OpenAI Codex callback missing PKCE verifier.');
+      if (!code || !stateParam) {
+        return htmlResult(false, 'Missing OAuth callback parameters.');
       }
-      const exchangeRedirectUri = state.oauthRedirectUri?.trim() || callbackUrl;
-      exchanged = await exchangeOpenAICode(code, state.codeVerifier, exchangeRedirectUri);
-    } else {
-      return htmlResult(false, `OAuth callback for ${provider.name} is not implemented.`);
+
+      const signingKey = getModelHubEncryptionKey();
+      const state = parseOAuthState(stateParam, signingKey);
+      const provider = findProvider(state.providerId);
+      if (!provider) {
+        return htmlResult(false, `Unknown provider: ${state.providerId}`);
+      }
+
+      const callbackUrl = buildModelHubCallbackUrl(request.url);
+      let exchanged: OauthExchangeResult;
+      if (state.providerId === 'openrouter') {
+        if (!state.codeVerifier) {
+          return htmlResult(false, 'OpenRouter callback missing PKCE verifier.');
+        }
+        exchanged = await exchangeOpenRouterCode(code, state.codeVerifier, callbackUrl);
+      } else if (state.providerId === 'github-copilot') {
+        exchanged = await exchangeGitHubCode(code, callbackUrl);
+      } else if (state.providerId === 'openai-codex') {
+        if (!state.codeVerifier) {
+          return htmlResult(false, 'OpenAI Codex callback missing PKCE verifier.');
+        }
+        const exchangeRedirectUri = state.oauthRedirectUri?.trim() || callbackUrl;
+        exchanged = await exchangeOpenAICode(code, state.codeVerifier, exchangeRedirectUri);
+      } else {
+        return htmlResult(false, `OAuth callback for ${provider.name} is not implemented.`);
+      }
+
+      const service = getModelHubService();
+      service.connectAccount({
+        providerId: state.providerId,
+        label: state.label,
+        authMethod: 'oauth',
+        secret: exchanged.accessToken,
+        refreshToken: exchanged.refreshToken,
+        encryptionKey: signingKey,
+      });
+
+      return htmlResult(true, `${provider.name} OAuth verbunden.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'OAuth callback failed.';
+      return htmlResult(false, message);
     }
-
-    const service = getModelHubService();
-    service.connectAccount({
-      providerId: state.providerId,
-      label: state.label,
-      authMethod: 'oauth',
-      secret: exchanged.accessToken,
-      refreshToken: exchanged.refreshToken,
-      encryptionKey: signingKey,
-    });
-
-    return htmlResult(true, `${provider.name} OAuth verbunden.`);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'OAuth callback failed.';
-    return htmlResult(false, message);
-  }
-}
+  },
+  {
+    onUnauthorized: () => htmlResult(false, 'Unauthorized', 401),
+  },
+);

@@ -1,5 +1,3 @@
-'use client';
-
 import type { SwarmPhase } from '@/modules/agent-room/swarmPhases';
 
 /**

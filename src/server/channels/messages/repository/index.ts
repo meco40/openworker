@@ -2,10 +2,7 @@
 // This file re-exports from the main sqliteMessageRepository.ts for backward compatibility
 // and provides a cleaner import path for new code.
 
-export {
-  SqliteMessageRepository,
-  type SearchMessagesOptions,
-} from '@/server/channels/messages/sqliteMessageRepository';
+export { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
 
 // Re-export types from the types module
 export type {
@@ -21,4 +18,5 @@ export type {
   AgentRoomSwarmFriction,
   AgentRoomSwarmRecord,
   AgentRoomSwarmMetrics,
+  SearchMessagesOptions,
 } from '@/server/channels/messages/repository/types';

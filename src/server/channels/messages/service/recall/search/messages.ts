@@ -3,7 +3,7 @@
  */
 
 import type { Conversation, StoredMessage } from '@/server/channels/messages/repository';
-import type { SearchMessagesOptions } from '@/server/channels/messages/sqliteMessageRepository';
+import type { SearchMessagesOptions } from '@/server/channels/messages/repository/types';
 
 /**
  * Search messages in chat history using FTS5

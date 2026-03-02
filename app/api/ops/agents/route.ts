@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
 import type { OpsAgentsResponse } from '@/modules/ops/types';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,12 +25,7 @@ function parseLimit(request: Request): number {
   return Math.min(Math.max(parsed, MIN_LIMIT), MAX_LIMIT);
 }
 
-export async function GET(request: Request) {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withUserContext(async ({ request, userContext }) => {
   const limit = parseLimit(request);
   const userId = userContext.userId;
   const personas = getPersonaRepository()
@@ -53,4 +48,4 @@ export async function GET(request: Request) {
   };
 
   return NextResponse.json(payload);
-}
+});

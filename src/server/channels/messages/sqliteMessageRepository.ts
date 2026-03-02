@@ -5,6 +5,7 @@ import type {
   CreateConversationInput,
   MessageRepository,
   SaveMessageInput,
+  SearchMessagesOptions,
   StoredMessage,
 } from '@/server/channels/messages/repository';
 import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
@@ -31,16 +32,6 @@ import { DeleteQueries } from '@/server/channels/messages/repository/queries/del
 import { ProjectQueries } from '@/server/channels/messages/repository/queries/projects';
 import { AgentRoomQueries } from '@/server/channels/messages/repository/queries/agentRoom';
 import { openSqliteDatabase } from '@/server/db/sqlite';
-
-// ─── FTS5 search options ─────────────────────────────────────
-
-export interface SearchMessagesOptions {
-  userId?: string;
-  conversationId?: string;
-  personaId?: string;
-  role?: 'user' | 'agent' | 'system';
-  limit?: number;
-}
 
 // ─── SQLite Implementation ───────────────────────────────────
 
