@@ -1,5 +1,4 @@
 import { ChannelType } from '@/shared/domain/types';
-import type { PipelineModelEntry } from '@/server/model-hub/repository';
 import { getModelHubService } from '@/server/model-hub/runtime';
 import {
   answerTelegramCallbackQuery,
@@ -345,12 +344,6 @@ export async function processTelegramModelCallback(
     default:
       return false;
   }
-}
-
-export function resolveActivePipelineEntries(profileId = resolveProfileId()): PipelineModelEntry[] {
-  return getModelHubService()
-    .listPipeline(profileId)
-    .filter((entry) => entry.status === 'active');
 }
 
 function resolveCallbackConversationExternalChatId(

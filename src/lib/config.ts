@@ -102,19 +102,6 @@ export function resetConfig(): void {
 }
 
 /**
- * Expand tilde in paths (for display purposes)
- * Note: Actual path resolution happens server-side
- */
-export function expandPath(path: string): string {
-  if (typeof window === 'undefined') {
-    return path;
-  }
-
-  // This is client-side only - server will handle actual expansion
-  return path.replace(/^~/, process.env.HOME || '/Users/user');
-}
-
-/**
  * Get Mission Control URL for API calls
  * Used by orchestration module and other server-side modules
  */
@@ -129,19 +116,6 @@ export function getMissionControlUrl(): string {
 }
 
 /**
- * Get workspace base path
- * Server-side only - returns configured path or default
- */
-export function getWorkspaceBasePath(): string {
-  if (typeof window !== 'undefined') {
-    return getConfig().workspaceBasePath;
-  }
-
-  // Server-side: check env var first, then default
-  return process.env.WORKSPACE_BASE_PATH || '~/Documents/Shared';
-}
-
-/**
  * Get projects path
  * Server-side only - returns configured path or default
  */
@@ -152,15 +126,4 @@ export function getProjectsPath(): string {
 
   // Server-side: check env var first, then default
   return process.env.PROJECTS_PATH || '~/Documents/Shared/projects';
-}
-
-/**
- * Build project-specific path
- * @param projectName - Name of the project
- * @param subpath - Optional subpath within project (e.g., 'deliverables')
- */
-export function getProjectPath(projectName: string, subpath?: string): string {
-  const projectsPath = getProjectsPath();
-  const base = `${projectsPath}/${projectName}`;
-  return subpath ? `${base}/${subpath}` : base;
 }

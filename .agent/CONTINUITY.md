@@ -1216,3 +1216,63 @@ Files >300 lines identified for potential future modularization:
 
 - 2026-03-02T22:20:23.9960799+01:00 [TOOL] Vollsuite erfolgreich: `npm test` = 469/469 Testdateien, 2088/2088 Tests, 0 Fehler.
 - 2026-03-02T22:20:23.9960799+01:00 [TOOL] Production-Build erfolgreich: `npm run build` (Next.js 16.1.6), Build/TypeScript/Static-Generation grün.
+
+[PLANS]
+
+- 2026-03-02T22:50:15.6795071+01:00 [USER] Anforderung: aktuellen Arbeitsstand committen/pushen und GitHub Actions pruefen.
+
+[PROGRESS]
+
+- 2026-03-02T22:50:15.6795071+01:00 [TOOL] Commit `c043736` auf `main` erstellt/pushed (Delete-first Umsetzung), danach CI-Lauf geprueft.
+- 2026-03-02T22:50:15.6795071+01:00 [CODE] CI-Lint-Fix umgesetzt via Restore der benoetigten Oxlint JS-Plugins in `package.json`/`package-lock.json`; Commit `8d30d2b` gepushed.
+- 2026-03-02T22:50:15.6795071+01:00 [CODE] CI-Test-Stabilisierung fuer Unpair-Flow umgesetzt (`src/server/channels/pairing/unpair.ts`, `tests/unit/channels/unpair.test.ts`), Commit `4ec49e2` gepushed.
+- 2026-03-02T22:50:15.6795071+01:00 [CODE] Regression-Fix fuer unsupported-unpair (`lazy` Credential-Store-Aufloesung im Switch) in `src/server/channels/pairing/unpair.ts`; Commit `a164be3` gepushed.
+
+[DISCOVERIES]
+
+- 2026-03-02T22:50:15.6795071+01:00 [TOOL] CI-Run `22596467290` (Commit `c043736`) scheiterte in Lint wegen fehlendem `eslint-plugin-security` in Oxlint JS-Plugin-Config.
+- 2026-03-02T22:50:15.6795071+01:00 [TOOL] Nach Dependency-Fix scheiterte CI-Run `22596683136` (Commit `8d30d2b`) im Test `tests/unit/channels/unpair.test.ts` (Credential-Store-Zustand).
+- 2026-03-02T22:50:15.6795071+01:00 [TOOL] Nach erster Stabilisierung scheiterte CI-Run `22596919974` (Commit `4ec49e2`) im Test `tests/unit/channels/unpair-unsupported.test.ts` wegen zu fruehem Store-Zugriff.
+
+[OUTCOMES]
+
+- 2026-03-02T22:50:15.6795071+01:00 [TOOL] Finaler Stand auf `main`: HEAD `a164be3`, Arbeitsverzeichnis clean.
+- 2026-03-02T22:50:15.6795071+01:00 [TOOL] GitHub Actions fuer `a164be3` vollständig gruen: `CI` Run `22597103352` success, `E2E Browser` Run `22597100883` success.
+
+[PLANS]
+
+- 2026-03-02T23:18:26.7129483+01:00 [USER] Findings aus dem Next.js Delete-First Audit als Plan-Markdown im Repo speichern.
+
+[PROGRESS]
+
+- 2026-03-02T23:18:26.7129483+01:00 [CODE] Plan-Datei angelegt: `docs/plans/2026-03-02-nextjs-delete-first-audit-plan.md` mit Kern-Flows, Delete-List, SSOT-Dupes, priorisierten Simplification-Items und Top-5-Patches.
+- 2026-03-02T23:18:26.7129483+01:00 [CODE] Plan-Index aktualisiert: `docs/plans/README.md` um neuen offenen Plan ergänzt und Datum aktualisiert.
+
+[OUTCOMES]
+
+- 2026-03-02T23:18:26.7129483+01:00 [TOOL] Dokumentations-Deliverable abgeschlossen: Findings sind als ausführbarer Plan unter `docs/plans/2026-03-02-nextjs-delete-first-audit-plan.md` persistiert.
+
+[PLANS]
+
+- 2026-03-02T23:30:34.9123654+01:00 [USER] Korrekturauftrag fuer den Plan `docs/plans/2026-03-02-nextjs-delete-first-audit-plan.md` erteilt (Soll-Ist-Abgleich der Analyse).
+
+[PROGRESS]
+
+- 2026-03-02T23:30:34.9123654+01:00 [CODE] Planinhalt korrigiert: `logFromSystemEvent` aus Dead-Code-Loeschkandidaten ausgenommen (produktive Nutzung), DTO-Dupe-Verweis auf konkreten Hook-Pfad `src/components/personas/hooks/usePipelineModels.ts` praezisiert, Tabellen-/Item-Formulierungen auf validierte Kandidatenlage angepasst.
+
+[OUTCOMES]
+
+- 2026-03-02T23:30:34.9123654+01:00 [TOOL] Plan ist jetzt mit dem validierten Ist-Stand konsistent; die zuvor festgestellten sachlichen Analysefehler sind dokumentiert und bereinigt.
+
+[PLANS]
+
+- 2026-03-03T00:05:46.0933827+01:00 [USER] Umsetzung des Plans `docs/plans/2026-03-02-nextjs-delete-first-audit-plan.md` explizit angefordert ("Implement the plan").
+
+[PROGRESS]
+
+- 2026-03-03T00:05:46.0933827+01:00 [CODE] Alle 10 Simplification-Items umgesetzt: Dead Exports entfernt, Wrapper-Dateien gelöscht, Ops-HTTP-Dupe + Refresh-Flow konsolidiert, Date-Formatter zentralisiert, Persona-Update-Flow dedupliziert, Mission-Control-Page auf Server-Component umgestellt.
+- 2026-03-03T00:05:46.0933827+01:00 [CODE] Plan-Doku auf IST aktualisiert (`docs/plans/2026-03-02-nextjs-delete-first-audit-plan.md`, `docs/plans/README.md`) inklusive Abschlussstatus und Evidenzmatrix.
+
+[OUTCOMES]
+
+- 2026-03-03T00:05:46.0933827+01:00 [TOOL] Verifikation vollständig grün: `npm run check` erfolgreich (Typecheck/Lint/Format; Lint mit 1432 bekannten Warnungen, 0 Fehler), `npm test` erfolgreich (471/471 Dateien, 2094/2094 Tests), `npm run build` erfolgreich.

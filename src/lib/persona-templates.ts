@@ -311,7 +311,3 @@ Du bist ein kreativer Sparringspartner für Brainstorming und kreatives Schreibe
     },
   },
 ];
-
-export function getPersonaTemplate(templateId: string): PersonaTemplate | undefined {
-  return PERSONA_TEMPLATES.find((t) => t.id === templateId);
-}

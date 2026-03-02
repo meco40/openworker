@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useOpsNodes } from '@/modules/ops/hooks/useOpsNodes';
+import { formatDateTime } from '@/shared/lib/dateFormat';
 
 const BRIDGE_CHANNELS = new Set(['whatsapp', 'imessage']);
 
@@ -10,13 +11,6 @@ function formatLeaseAge(value: number | null): string {
   if (value < 60) return `${value}s`;
   if (value < 3600) return `${Math.floor(value / 60)}m`;
   return `${Math.floor(value / 3600)}h`;
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) return 'n/a';
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) return value;
-  return new Date(parsed).toLocaleString();
 }
 
 function MetricCard({ label, value }: { label: string; value: string | number }) {

@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { usePersona } from '@/modules/personas/PersonaContext';
 import type { PersonaTabName, MemoryPersonaType } from '@/server/personas/personaTypes';
 import { PersonasSidebar } from '@/components/personas/PersonasSidebar';
-import { PersonaEditorPane } from '@/components/personas/PersonaEditorPane';
+import { PersonaEditorPane } from '@/components/personas/editor/PersonaEditorPane';
 import {
   usePersonaSelection,
   usePersonaEditor,
@@ -98,8 +98,8 @@ const PersonasView: React.FC = () => {
   });
 
   // Pipeline models
-  const { pipelineModels, loadPipelineModels, savingPreferredModel, savePreferredModel } =
-    usePipelineModels();
+  const { pipelineModels, loadPipelineModels } = usePipelineModels();
+  const [savingPreferredModel, setSavingPreferredModel] = useState(false);
 
   // Selection handlers
   const selectPersona = useCallback(
@@ -120,14 +120,43 @@ const PersonasView: React.FC = () => {
   // Keyboard shortcuts
   useKeyboardShortcuts({ dirty, selectedId, activeTab, onSave: saveFile });
 
+  const updatePersonaSetting = useCallback(
+    async (patch: Record<string, unknown>): Promise<boolean> => {
+      if (!selectedId) return false;
+      try {
+        const res = await fetch(`/api/personas/${selectedId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patch),
+        });
+        if (!res.ok) {
+          return false;
+        }
+        await refreshPersonas();
+        await loadPersona(selectedId);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [selectedId, refreshPersonas, loadPersona],
+  );
+
   // Save preferred model wrapper
   const handleSavePreferredModel = useCallback(
     async (modelId: string | null) => {
       if (!selectedId) return;
-      await savePreferredModel(selectedId, modelId, refreshPersonas, loadPersona);
-      setPreferredModelId(modelId);
+      setSavingPreferredModel(true);
+      try {
+        const updated = await updatePersonaSetting({ preferredModelId: modelId });
+        if (updated) {
+          setPreferredModelId(modelId);
+        }
+      } finally {
+        setSavingPreferredModel(false);
+      }
     },
-    [selectedId, savePreferredModel, refreshPersonas, loadPersona, setPreferredModelId],
+    [selectedId, updatePersonaSetting, setPreferredModelId],
   );
 
   // Save memory persona type
@@ -137,22 +166,12 @@ const PersonasView: React.FC = () => {
       setMemoryPersonaType(type);
       setSavingMemoryPersonaType(true);
       try {
-        const res = await fetch(`/api/personas/${selectedId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ memoryPersonaType: type }),
-        });
-        if (res.ok) {
-          await refreshPersonas();
-          await loadPersona(selectedId);
-        }
-      } catch {
-        /* ignore */
+        await updatePersonaSetting({ memoryPersonaType: type });
       } finally {
         setSavingMemoryPersonaType(false);
       }
     },
-    [selectedId, refreshPersonas, loadPersona],
+    [selectedId, updatePersonaSetting],
   );
 
   // Save autonomous settings (called on toggle flip OR save button press)
@@ -162,22 +181,12 @@ const PersonasView: React.FC = () => {
       setIsAutonomous(newIsAutonomous);
       setSavingAutonomous(true);
       try {
-        const res = await fetch(`/api/personas/${selectedId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isAutonomous: newIsAutonomous, maxToolCalls }),
-        });
-        if (res.ok) {
-          await refreshPersonas();
-          await loadPersona(selectedId);
-        }
-      } catch {
-        /* ignore */
+        await updatePersonaSetting({ isAutonomous: newIsAutonomous, maxToolCalls });
       } finally {
         setSavingAutonomous(false);
       }
     },
-    [selectedId, maxToolCalls, refreshPersonas, loadPersona],
+    [selectedId, maxToolCalls, updatePersonaSetting],
   );
 
   return (

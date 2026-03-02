@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useOpsAgents } from '@/modules/ops/hooks/useOpsAgents';
 import type { OpsAgentPersonaSummary } from '@/modules/ops/types';
+import { formatDateTime } from '@/shared/lib/dateFormat';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -17,13 +18,6 @@ function formatRelativeTime(value: string | null): string {
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${String(hours)}h ago`;
   return `${String(Math.floor(hours / 24))}d ago`;
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) return 'n/a';
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) return value;
-  return new Date(parsed).toLocaleString();
 }
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────

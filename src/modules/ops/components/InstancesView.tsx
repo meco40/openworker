@@ -3,21 +3,9 @@
 import React from 'react';
 import { useOpsInstances } from '@/modules/ops/hooks/useOpsInstances';
 import type { OpsInstancesConnectionSummary } from '@/modules/ops/types';
+import { formatDateTime, formatNumber } from '@/shared/lib/dateFormat';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatDateTime(value: string): string {
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) return value;
-  return new Date(parsed).toLocaleString([], {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
 
 function formatRelativeTime(value: string): string {
   const parsed = Date.parse(value);
@@ -86,7 +74,18 @@ function ConnectionRow({ connection }: { connection: OpsInstancesConnectionSumma
       {/* Connected at */}
       <td className="px-4 py-3">
         <div className="space-y-0.5">
-          <div className="text-xs text-zinc-300">{formatDateTime(connection.connectedAt)}</div>
+          <div className="text-xs text-zinc-300">
+            {formatDateTime(connection.connectedAt, {
+              format: {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              },
+            })}
+          </div>
           <div className="text-[10px] text-zinc-600">
             {formatRelativeTime(connection.connectedAt)}
           </div>
@@ -109,7 +108,7 @@ function ConnectionRow({ connection }: { connection: OpsInstancesConnectionSumma
       {/* Requests */}
       <td className="px-4 py-3">
         <span className="font-mono text-xs text-zinc-300 tabular-nums">
-          {connection.requestCount.toLocaleString()}
+          {formatNumber(connection.requestCount)}
         </span>
       </td>
 
@@ -193,7 +192,17 @@ const InstancesView: React.FC = () => {
           </p>
           {generatedAt && (
             <p className="mt-1 font-mono text-[10px] text-zinc-600">
-              Last updated: {formatDateTime(generatedAt)}
+              Last updated:{' '}
+              {formatDateTime(generatedAt, {
+                format: {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                },
+              })}
             </p>
           )}
         </div>

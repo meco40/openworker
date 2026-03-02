@@ -25,6 +25,7 @@ import {
   revokeCommand,
 } from '@/server/gateway/exec-approval-manager';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
+import { parseClampedInt } from '../_shared/query';
 import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
@@ -50,20 +51,6 @@ class NodesActionError extends Error {
     super(message);
     this.status = status;
   }
-}
-
-function parseChannelLimit(request: Request): number {
-  const raw = new URL(request.url).searchParams.get('limit');
-  if (raw === null) {
-    return DEFAULT_CHANNEL_LIMIT;
-  }
-
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed)) {
-    return DEFAULT_CHANNEL_LIMIT;
-  }
-
-  return Math.min(Math.max(parsed, MIN_CHANNEL_LIMIT), MAX_CHANNEL_LIMIT);
 }
 
 function parseMemoryDiagnosticsEnabled(request: Request): boolean {
@@ -329,7 +316,13 @@ async function applyMutation(
 export const GET = withUserContext(async ({ request, userContext }) => {
   const payload = await buildNodesPayload(userContext.userId, {
     memoryDiagnosticsEnabled: parseMemoryDiagnosticsEnabled(request),
-    channelLimit: parseChannelLimit(request),
+    channelLimit: parseClampedInt(
+      request,
+      'limit',
+      DEFAULT_CHANNEL_LIMIT,
+      MIN_CHANNEL_LIMIT,
+      MAX_CHANNEL_LIMIT,
+    ),
   });
 
   return NextResponse.json(payload);

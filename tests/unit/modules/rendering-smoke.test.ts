@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import TelemetryLogsView from '@/modules/telemetry/components/LogsView';
+import TelemetryLogsView from '@/components/LogsView';
 import TasksManagerView from '@/modules/tasks/task-manager/TaskManagerView';
-import ConfigEditor from '@/modules/config/components/ConfigEditor';
-import ExposureManager from '@/modules/exposure/components/ExposureManager';
+import ConfigEditor from '@/components/ConfigEditor';
+import ExposureManager from '@/components/ExposureManager';
 
 describe('module rendering smoke', () => {
   it('resolves feature modules', () => {

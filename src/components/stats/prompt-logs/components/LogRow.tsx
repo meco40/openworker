@@ -2,6 +2,10 @@
 
 import React from 'react';
 import { PromptLogEntry } from '../types';
+import {
+  formatDateTime as formatDateTimeShared,
+  formatNumber as formatNumberShared,
+} from '@/shared/lib/dateFormat';
 
 interface LogRowProps {
   entry: PromptLogEntry;
@@ -10,16 +14,19 @@ interface LogRowProps {
 }
 
 function formatNumber(n: number): string {
-  return n.toLocaleString('de-DE');
+  return formatNumberShared(n, 'de-DE');
 }
 
 function formatTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString('de-DE', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    day: '2-digit',
-    month: '2-digit',
+  return formatDateTimeShared(iso, {
+    locale: 'de-DE',
+    format: {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+    },
   });
 }
 

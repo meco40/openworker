@@ -1,12 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { OpsNodesResponse } from '@/modules/ops/types';
-
-interface ErrorPayload {
-  ok?: boolean;
-  error?: string;
-}
+import { getErrorMessage, readJsonOrThrow } from './http';
 
 export interface UseOpsNodesResult {
   loading: boolean;
@@ -28,19 +24,6 @@ export interface UseOpsNodesResult {
     rejectTelegramPending: () => Promise<void>;
     clearMutationNotice: () => void;
   };
-}
-
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
-
-async function readJson(response: Response): Promise<OpsNodesResponse> {
-  const payload = (await response.json()) as OpsNodesResponse | ErrorPayload;
-  if (!response.ok || payload.ok === false) {
-    const errorMessage = 'error' in payload ? payload.error : undefined;
-    throw new Error(errorMessage || `HTTP ${response.status}`);
-  }
-  return payload as OpsNodesResponse;
 }
 
 function buildMutationNotice(payload: OpsNodesResponse): string | null {
@@ -67,9 +50,10 @@ export function useOpsNodes(): UseOpsNodesResult {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [mutationNotice, setMutationNotice] = useState<string | null>(null);
+  const initialLoadRef = useRef(true);
 
   const refresh = useCallback(async () => {
-    if (loading) {
+    if (initialLoadRef.current) {
       setLoading(true);
     } else {
       setRefreshing(true);
@@ -77,15 +61,16 @@ export function useOpsNodes(): UseOpsNodesResult {
     setError(null);
     try {
       const response = await fetch('/api/ops/nodes', { cache: 'no-store' });
-      const payload = await readJson(response);
+      const payload = await readJsonOrThrow<OpsNodesResponse>(response);
       setData(payload);
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Failed to load node diagnostics.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
+      initialLoadRef.current = false;
     }
-  }, [loading]);
+  }, []);
 
   const runMutation = useCallback(async (payload: Record<string, unknown>) => {
     const action = typeof payload.action === 'string' ? payload.action : 'nodes.action';
@@ -99,7 +84,7 @@ export function useOpsNodes(): UseOpsNodesResult {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const body = await readJson(response);
+      const body = await readJsonOrThrow<OpsNodesResponse>(response);
       setData(body);
       setMutationNotice(buildMutationNotice(body));
     } catch (mutationRequestError) {

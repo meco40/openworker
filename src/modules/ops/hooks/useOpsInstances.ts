@@ -1,12 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { OpsInstancesResponse } from '@/modules/ops/types';
-
-interface ErrorPayload {
-  ok?: boolean;
-  error?: string;
-}
+import { getErrorMessage, readJsonOrThrow } from './http';
 
 export interface UseOpsInstancesResult {
   loading: boolean;
@@ -16,27 +12,15 @@ export interface UseOpsInstancesResult {
   refresh: () => Promise<void>;
 }
 
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
-
-async function readJson(response: Response): Promise<OpsInstancesResponse> {
-  const payload = (await response.json()) as OpsInstancesResponse | ErrorPayload;
-  if (!response.ok || payload.ok === false) {
-    const errorMessage = 'error' in payload ? payload.error : undefined;
-    throw new Error(errorMessage || `HTTP ${response.status}`);
-  }
-  return payload as OpsInstancesResponse;
-}
-
 export function useOpsInstances(): UseOpsInstancesResult {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<OpsInstancesResponse | null>(null);
+  const initialLoadRef = useRef(true);
 
   const refresh = useCallback(async () => {
-    if (loading) {
+    if (initialLoadRef.current) {
       setLoading(true);
     } else {
       setRefreshing(true);
@@ -44,15 +28,16 @@ export function useOpsInstances(): UseOpsInstancesResult {
     setError(null);
     try {
       const response = await fetch('/api/ops/instances', { cache: 'no-store' });
-      const payload = await readJson(response);
+      const payload = await readJsonOrThrow<OpsInstancesResponse>(response);
       setData(payload);
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Failed to load instances.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
+      initialLoadRef.current = false;
     }
-  }, [loading]);
+  }, []);
 
   useEffect(() => {
     void refresh();

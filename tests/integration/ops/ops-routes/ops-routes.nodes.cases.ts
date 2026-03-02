@@ -131,6 +131,85 @@ describe('ops routes', () => {
     expect(listApprovedCommands).toHaveBeenCalledTimes(1);
   });
 
+  it('clamps channel limit query values via shared parser', async () => {
+    mockUserContext({ userId: 'ops-user', authenticated: true });
+
+    vi.doMock('../../../../src/commands/healthCommand', () => ({
+      runHealthCommand: vi.fn().mockResolvedValue({
+        status: 'ok',
+        checks: [],
+        summary: { ok: 0, warning: 0, critical: 0, skipped: 0 },
+        generatedAt: '2026-02-20T10:00:00.000Z',
+      }),
+    }));
+    vi.doMock('../../../../src/commands/doctorCommand', () => ({
+      runDoctorCommand: vi.fn().mockResolvedValue({
+        status: 'ok',
+        checks: [],
+        findings: [],
+        recommendations: [],
+        generatedAt: '2026-02-20T10:00:00.000Z',
+      }),
+    }));
+    vi.doMock('../../../../src/server/gateway/exec-approval-manager', () => ({
+      listApprovedCommands: vi.fn().mockReturnValue([]),
+    }));
+    vi.doMock('../../../../src/server/personas/personaRepository', () => ({
+      getPersonaRepository: () => ({
+        listPersonas: () => [],
+      }),
+    }));
+    vi.doMock('../../../../src/server/channels/pairing/telegramCodePairing', () => ({
+      getTelegramPairingSnapshot: () => ({
+        status: 'idle',
+        pendingChatId: null,
+        pendingExpiresAt: null,
+        hasPending: false,
+      }),
+      rejectTelegramPendingPairingRequest: vi.fn().mockReturnValue(false),
+    }));
+    vi.doMock('../../../../src/server/channels/messages/runtime', () => ({
+      getMessageRepository: () => ({
+        listChannelBindings: () => [],
+      }),
+    }));
+    vi.doMock('../../../../src/server/automation/runtime', () => ({
+      getAutomationService: () => ({
+        getMetrics: () => ({
+          activeRules: 0,
+          queuedRuns: 0,
+          runningRuns: 0,
+          deadLetterRuns: 0,
+          leaseAgeSeconds: null,
+        }),
+      }),
+    }));
+
+    const route = await import('../../../../app/api/ops/nodes/route');
+
+    async function getChannelCount(url: string): Promise<number> {
+      const response = await route.GET(new Request(url));
+      const payload = (await response.json()) as {
+        ok: boolean;
+        nodes: { channels: unknown[] };
+      };
+      expect(response.status).toBe(200);
+      expect(payload.ok).toBe(true);
+      return payload.nodes.channels.length;
+    }
+
+    const defaultCount = await getChannelCount('http://localhost/api/ops/nodes');
+    const invalidCount = await getChannelCount('http://localhost/api/ops/nodes?limit=invalid');
+    const lowCount = await getChannelCount('http://localhost/api/ops/nodes?limit=0');
+    const oneCount = await getChannelCount('http://localhost/api/ops/nodes?limit=1');
+    const highCount = await getChannelCount('http://localhost/api/ops/nodes?limit=999999');
+
+    expect(invalidCount).toBe(defaultCount);
+    expect(lowCount).toBe(oneCount);
+    expect(oneCount).toBe(1);
+    expect(highCount).toBe(defaultCount);
+  });
+
   it('applies nodes mutation actions and returns updated snapshots', async () => {
     mockUserContext({ userId: 'ops-user', authenticated: true });
 

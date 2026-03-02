@@ -1,12 +1,16 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { PromptLogsTabProps } from './types';
 import { usePromptLogs } from './hooks';
 import { Filters, LogsTable, Pagination } from './components';
+import {
+  formatDateTime as formatDateTimeShared,
+  formatNumber as formatNumberShared,
+} from '@/shared/lib/dateFormat';
 
 function formatNumber(n: number): string {
-  return n.toLocaleString('de-DE');
+  return formatNumberShared(n, 'de-DE');
 }
 
 function formatUsd(value: number | null): string {
@@ -16,13 +20,15 @@ function formatUsd(value: number | null): string {
 }
 
 function formatDateTime(value: string | null): string {
-  if (!value) return 'n/a';
-  return new Date(value).toLocaleString('de-DE', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    day: '2-digit',
-    month: '2-digit',
+  return formatDateTimeShared(value, {
+    locale: 'de-DE',
+    format: {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+    },
   });
 }
 
@@ -57,8 +63,8 @@ const PromptLogsTab: React.FC<PromptLogsTabProps> = ({
     reloadKey,
   });
 
-  const totalPromptTokens = useMemo(() => summary?.promptTokensTotal ?? 0, [summary]);
-  const totalCostsUsd = useMemo(() => summary?.totalCostUsd ?? 0, [summary]);
+  const totalPromptTokens = summary?.promptTokensTotal ?? 0;
+  const totalCostsUsd = summary?.totalCostUsd ?? 0;
 
   const handleToggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);

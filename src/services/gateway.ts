@@ -39,7 +39,6 @@ interface GatewayApiError {
 
 // ─── Constants ────────────────────────────────────────────────
 
-export const LIVE_MODE_SUPPORTED = false;
 const GATEWAY_PATH = '/api/model-hub/gateway';
 
 // ─── Helpers ──────────────────────────────────────────────────
@@ -235,6 +234,3 @@ PROAKTIVES LERNEN & SCHEDULING:
 
 Dein Ziel ist es, Termine nie zu vergessen und den Nutzer proaktiv zu unterstützen.`;
 }
-
-/** @deprecated Use getSystemInstruction() for a fresh timestamp each call */
-export const SYSTEM_INSTRUCTION = getSystemInstruction();

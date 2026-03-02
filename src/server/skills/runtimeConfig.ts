@@ -166,10 +166,6 @@ export function getSkillRuntimeConfigStore(): SkillRuntimeConfigStore {
   return globalThis.__skillRuntimeConfigStore;
 }
 
-export function getRuntimeConfigCatalog(): SkillRuntimeConfigField[] {
-  return SKILL_RUNTIME_CONFIG_FIELDS.map((field) => ({ ...field }));
-}
-
 export function getRuntimeConfigValue(
   id: string,
   options?: {

@@ -44,10 +44,3 @@ export function broadcast(event: SSEEvent): void {
 
   console.log(`[SSE] Broadcast ${event.type} to ${clients.size} client(s)`);
 }
-
-/**
- * Get the number of active SSE connections
- */
-export function getActiveConnectionCount(): number {
-  return clients.size;
-}

@@ -47,19 +47,19 @@ const SkillsRegistry = dynamic(() => import('@/skills/SkillsRegistry'), {
 const TaskManagerView = dynamic(() => import('@/modules/tasks/task-manager/TaskManagerView'), {
   loading: loading('Task Monitor'),
 });
-const LogsView = dynamic(() => import('@/modules/telemetry/components/LogsView'), {
+const LogsView = dynamic(() => import('@/components/LogsView'), {
   loading: loading('System Logs'),
 });
 const SecurityView = dynamic(() => import('@/components/SecurityView'), {
   loading: loading('Security Panel'),
 });
-const ConfigEditor = dynamic(() => import('@/modules/config/components/ConfigEditor'), {
+const ConfigEditor = dynamic(() => import('@/components/ConfigEditor'), {
   loading: loading('Gateway Config'),
 });
 const ProfileView = dynamic(() => import('@/components/ProfileView'), {
   loading: loading('Operator Profile'),
 });
-const ExposureManager = dynamic(() => import('@/modules/exposure/components/ExposureManager'), {
+const ExposureManager = dynamic(() => import('@/components/ExposureManager'), {
   loading: loading('Remote Exposure'),
 });
 const StatsView = dynamic(() => import('@/components/stats/StatsView'), {

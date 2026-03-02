@@ -2,12 +2,7 @@
 
 import React from 'react';
 import { useOpsSessions } from '@/modules/ops/hooks/useOpsSessions';
-
-function formatDateTime(value: string): string {
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) return value;
-  return new Date(parsed).toLocaleString();
-}
+import { formatDateTime } from '@/shared/lib/dateFormat';
 
 const SessionsView: React.FC = () => {
   const state = useOpsSessions();

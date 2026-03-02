@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChannelType } from '@/shared/domain/types';
 import type { OpsSessionsResponse } from '@/modules/ops/types';
 import { buildConversationDeleteErrorMessage } from '@/modules/app-shell/conversationDeleteError';
+import { getErrorMessage, readJsonOrThrow } from './http';
 
 interface ErrorPayload {
   ok?: boolean;
@@ -44,18 +45,6 @@ export interface UseOpsSessionsResult {
   };
 }
 
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
-
-async function readJson<T extends ErrorPayload>(response: Response): Promise<T> {
-  const payload = (await response.json()) as T;
-  if (!response.ok || payload.ok === false) {
-    throw new Error(payload.error || `HTTP ${response.status}`);
-  }
-  return payload;
-}
-
 export function useOpsSessions(): UseOpsSessionsResult {
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(200);
@@ -69,12 +58,13 @@ export function useOpsSessions(): UseOpsSessionsResult {
   const [pendingConversationId, setPendingConversationId] = useState<string | null>(null);
   const [createDraft, setCreateDraft] = useState('');
   const [renameDraftById, setRenameDraftById] = useState<Record<string, string>>({});
+  const initialLoadRef = useRef(true);
 
   const queryString = useMemo(() => query.trim(), [query]);
   const activeMinutesString = useMemo(() => activeMinutes.trim(), [activeMinutes]);
 
   const refresh = useCallback(async () => {
-    if (loading) {
+    if (initialLoadRef.current) {
       setLoading(true);
     } else {
       setRefreshing(true);
@@ -98,7 +88,7 @@ export function useOpsSessions(): UseOpsSessionsResult {
       }
 
       const response = await fetch(`/api/ops/sessions?${params.toString()}`, { cache: 'no-store' });
-      const payload = await readJson<OpsSessionsResponse>(response);
+      const payload = await readJsonOrThrow<OpsSessionsResponse>(response);
       setData(payload);
       setRenameDraftById((previous) => {
         const next = { ...previous };
@@ -114,8 +104,9 @@ export function useOpsSessions(): UseOpsSessionsResult {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      initialLoadRef.current = false;
     }
-  }, [activeMinutesString, includeGlobalRequested, includeUnknown, limit, loading, queryString]);
+  }, [activeMinutesString, includeGlobalRequested, includeUnknown, limit, queryString]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -137,7 +128,7 @@ export function useOpsSessions(): UseOpsSessionsResult {
           title: title || undefined,
         }),
       });
-      await readJson<SessionMutationPayload>(response);
+      await readJsonOrThrow<SessionMutationPayload>(response);
       setCreateDraft('');
       await refresh();
     } catch (requestError) {
@@ -166,7 +157,7 @@ export function useOpsSessions(): UseOpsSessionsResult {
             title: nextTitle,
           }),
         });
-        await readJson<SessionMutationPayload>(response);
+        await readJsonOrThrow<SessionMutationPayload>(response);
         await refresh();
       } catch (requestError) {
         setError(getErrorMessage(requestError, 'Failed to rename session.'));

@@ -3,15 +3,9 @@ import type {
   PersonaWithFiles,
   MemoryPersonaType,
 } from '@/server/personas/personaTypes';
+import type { PipelineModel as ModelHubPipelineModel } from '@/components/model-hub/types';
 
-export interface PipelineModel {
-  id: string;
-  accountId: string;
-  providerId: string;
-  modelName: string;
-  status: 'active' | 'rate-limited' | 'offline';
-  priority: number;
-}
+export type PipelineModel = ModelHubPipelineModel;
 
 export interface PersonaEditorPaneProps {
   selectedPersona: PersonaWithFiles;

@@ -267,11 +267,6 @@ export function abortSubagentRun(runId: string, reason?: string): boolean {
   return true;
 }
 
-export function getSubagentRun(runId: string): SubagentRunRecord | null {
-  ensureLoaded();
-  return state.runsById.get(runId) || null;
-}
-
 export function countActiveSubagentRuns(requesterConversationId: string): number {
   ensureLoaded();
   let total = 0;
