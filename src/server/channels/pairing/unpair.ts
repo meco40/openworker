@@ -19,22 +19,21 @@ export async function unpairChannel(
   accountId?: string,
   storeOverride?: CredentialStore,
 ): Promise<void> {
-  const store = storeOverride ?? getCredentialStore();
   switch (channel) {
     case 'telegram':
-      await unpairTelegram(store);
+      await unpairTelegram(storeOverride ?? getCredentialStore());
       break;
     case 'discord':
-      unpairDiscord(store);
+      unpairDiscord(storeOverride ?? getCredentialStore());
       break;
     case 'whatsapp':
-      await unpairBridge('whatsapp', store, accountId);
+      await unpairBridge('whatsapp', storeOverride ?? getCredentialStore(), accountId);
       break;
     case 'imessage':
-      await unpairBridge('imessage', store, accountId);
+      await unpairBridge('imessage', storeOverride ?? getCredentialStore(), accountId);
       break;
     case 'slack':
-      unpairSlack(store);
+      unpairSlack(storeOverride ?? getCredentialStore());
       break;
     default:
       throw new Error(`Unsupported channel for unpair: ${channel}`);
