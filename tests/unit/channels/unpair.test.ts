@@ -10,8 +10,6 @@ describe('unpairChannel', () => {
   beforeEach(() => {
     mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
     vi.stubGlobal('fetch', mockFetch);
-    // Reset credential store singleton
-    (globalThis as Record<string, unknown>).__credentialStore = undefined;
   });
 
   afterEach(() => {
@@ -24,10 +22,9 @@ describe('unpairChannel', () => {
     const store = new CredentialStore(':memory:');
     store.setCredential('telegram', 'bot_token', 'test-token');
     store.setCredential('telegram', 'webhook_secret', 'test-secret');
-    (globalThis as Record<string, unknown>).__credentialStore = store;
 
     const { unpairChannel } = await import('@/server/channels/pairing/unpair');
-    await unpairChannel('telegram');
+    await unpairChannel('telegram', undefined, store);
 
     // deleteWebhook should have been called
     expect(mockFetch).toHaveBeenCalledWith(
@@ -44,10 +41,9 @@ describe('unpairChannel', () => {
     const { CredentialStore } = await import('@/server/channels/credentials/credentialStore');
     const store = new CredentialStore(':memory:');
     store.setCredential('discord', 'bot_token', 'dc-token');
-    (globalThis as Record<string, unknown>).__credentialStore = store;
 
     const { unpairChannel } = await import('@/server/channels/pairing/unpair');
-    await unpairChannel('discord');
+    await unpairChannel('discord', undefined, store);
 
     expect(store.getCredential('discord', 'bot_token')).toBeNull();
     // No external API call expected for Discord

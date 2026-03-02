@@ -9,33 +9,39 @@ import {
 } from '@/server/channels/pairing/bridgeAccounts';
 
 export type UnpairChannelType = 'whatsapp' | 'telegram' | 'discord' | 'imessage' | 'slack';
+type CredentialStore = ReturnType<typeof getCredentialStore>;
 
 /**
  * Disconnects a channel by removing webhooks and clearing credentials.
  */
-export async function unpairChannel(channel: UnpairChannelType, accountId?: string): Promise<void> {
+export async function unpairChannel(
+  channel: UnpairChannelType,
+  accountId?: string,
+  storeOverride?: CredentialStore,
+): Promise<void> {
+  const store = storeOverride ?? getCredentialStore();
   switch (channel) {
     case 'telegram':
-      await unpairTelegram(getCredentialStore());
+      await unpairTelegram(store);
       break;
     case 'discord':
-      unpairDiscord(getCredentialStore());
+      unpairDiscord(store);
       break;
     case 'whatsapp':
-      await unpairBridge('whatsapp', getCredentialStore(), accountId);
+      await unpairBridge('whatsapp', store, accountId);
       break;
     case 'imessage':
-      await unpairBridge('imessage', getCredentialStore(), accountId);
+      await unpairBridge('imessage', store, accountId);
       break;
     case 'slack':
-      unpairSlack(getCredentialStore());
+      unpairSlack(store);
       break;
     default:
       throw new Error(`Unsupported channel for unpair: ${channel}`);
   }
 }
 
-async function unpairTelegram(store: ReturnType<typeof getCredentialStore>): Promise<void> {
+async function unpairTelegram(store: CredentialStore): Promise<void> {
   stopTelegramPolling();
 
   const token = store.getCredential('telegram', 'bot_token') || process.env.TELEGRAM_BOT_TOKEN;
@@ -60,20 +66,20 @@ async function unpairTelegram(store: ReturnType<typeof getCredentialStore>): Pro
   delete process.env.TELEGRAM_WEBHOOK_SECRET;
 }
 
-function unpairDiscord(store: ReturnType<typeof getCredentialStore>): void {
+function unpairDiscord(store: CredentialStore): void {
   // Discord bot connections don't have a webhook to remove in this flow
   store.deleteCredentials('discord');
   delete process.env.DISCORD_BOT_TOKEN;
 }
 
-function unpairSlack(store: ReturnType<typeof getCredentialStore>): void {
+function unpairSlack(store: CredentialStore): void {
   store.deleteCredentials('slack');
   delete process.env.SLACK_BOT_TOKEN;
 }
 
 async function unpairBridge(
   channel: BridgeChannel,
-  store: ReturnType<typeof getCredentialStore>,
+  store: CredentialStore,
   accountIdInput?: string,
 ): Promise<void> {
   const envName = channel === 'whatsapp' ? 'WHATSAPP_BRIDGE_URL' : 'IMESSAGE_BRIDGE_URL';
