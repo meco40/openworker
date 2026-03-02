@@ -9,6 +9,7 @@ describe('Mission Control task PATCH auto-testing trigger', () => {
   let previousDatabasePath: string | undefined;
   let previousProjectsPath: string | undefined;
   let previousPort: string | undefined;
+  let previousAutoTestTrigger: string | undefined;
   let originalFetch: typeof fetch | undefined;
 
   beforeEach(() => {
@@ -16,11 +17,13 @@ describe('Mission Control task PATCH auto-testing trigger', () => {
     previousDatabasePath = process.env.DATABASE_PATH;
     previousProjectsPath = process.env.PROJECTS_PATH;
     previousPort = process.env.PORT;
+    previousAutoTestTrigger = process.env.TASK_AUTOTEST_HTTP_TRIGGER;
     originalFetch = global.fetch;
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-tasks-auto-test-'));
     process.env.DATABASE_PATH = path.join(tempDir, 'mission-control.db');
     process.env.PROJECTS_PATH = path.join(tempDir, 'projects');
     process.env.PORT = '3000';
+    process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
   });
 
   afterEach(async () => {
@@ -45,6 +48,11 @@ describe('Mission Control task PATCH auto-testing trigger', () => {
       delete process.env.PORT;
     } else {
       process.env.PORT = previousPort;
+    }
+    if (previousAutoTestTrigger === undefined) {
+      delete process.env.TASK_AUTOTEST_HTTP_TRIGGER;
+    } else {
+      process.env.TASK_AUTOTEST_HTTP_TRIGGER = previousAutoTestTrigger;
     }
 
     if (tempDir) {

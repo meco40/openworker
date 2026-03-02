@@ -2,14 +2,14 @@
 
 import React, { useState } from 'react';
 import { type LevelFilter } from '@/components/logs/diagnostics';
-import { useLogs, useDiagnostics, useAutoScroll } from '@/components/logs/hooks';
-import {
-  LogsHeader,
-  DiagnosticsPanel,
-  LogsToolbar,
-  LogTable,
-  StatusBar,
-} from '@/components/logs/components';
+import { useLogs } from '@/components/logs/hooks/useLogs';
+import { useDiagnostics } from '@/components/logs/hooks/useDiagnostics';
+import { useAutoScroll } from '@/components/logs/hooks/useAutoScroll';
+import { LogsHeader } from '@/components/logs/components/LogsHeader';
+import { DiagnosticsPanel } from '@/components/logs/components/DiagnosticsPanel';
+import { LogsToolbar } from '@/components/logs/components/LogsToolbar';
+import { LogTable } from '@/components/logs/components/LogTable';
+import { StatusBar } from '@/components/logs/components/StatusBar';
 
 // Re-exports for backward compatibility
 export {

@@ -9,6 +9,7 @@ describe('Mission Control agent-completion webhook auto-testing trigger', () => 
   let previousDatabasePath: string | undefined;
   let previousProjectsPath: string | undefined;
   let previousPort: string | undefined;
+  let previousAutoTestTrigger: string | undefined;
   let previousWebhookSecret: string | undefined;
   let originalFetch: typeof fetch | undefined;
 
@@ -17,12 +18,14 @@ describe('Mission Control agent-completion webhook auto-testing trigger', () => 
     previousDatabasePath = process.env.DATABASE_PATH;
     previousProjectsPath = process.env.PROJECTS_PATH;
     previousPort = process.env.PORT;
+    previousAutoTestTrigger = process.env.TASK_AUTOTEST_HTTP_TRIGGER;
     previousWebhookSecret = process.env.WEBHOOK_SECRET;
     originalFetch = global.fetch;
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-webhook-auto-test-'));
     process.env.DATABASE_PATH = path.join(tempDir, 'mission-control.db');
     process.env.PROJECTS_PATH = path.join(tempDir, 'projects');
     process.env.PORT = '3000';
+    process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
     delete process.env.WEBHOOK_SECRET;
   });
 
@@ -48,6 +51,11 @@ describe('Mission Control agent-completion webhook auto-testing trigger', () => 
       delete process.env.PORT;
     } else {
       process.env.PORT = previousPort;
+    }
+    if (previousAutoTestTrigger === undefined) {
+      delete process.env.TASK_AUTOTEST_HTTP_TRIGGER;
+    } else {
+      process.env.TASK_AUTOTEST_HTTP_TRIGGER = previousAutoTestTrigger;
     }
     if (previousWebhookSecret === undefined) {
       delete process.env.WEBHOOK_SECRET;

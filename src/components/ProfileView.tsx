@@ -2,15 +2,13 @@
 
 import React, { useState } from 'react';
 import type { ControlPlaneMetricsState } from '@/shared/domain/types';
-import { useProfile } from '@/components/profile/hooks';
-import {
-  ProfileHeader,
-  ProfileCard,
-  UsagePanel,
-  LimitEditor,
-  ProfileSidebar,
-  StatusMessage,
-} from '@/components/profile/components';
+import { useProfile } from '@/components/profile/hooks/useProfile';
+import { ProfileHeader } from '@/components/profile/components/ProfileHeader';
+import { ProfileCard } from '@/components/profile/components/ProfileCard';
+import { UsagePanel } from '@/components/profile/components/UsagePanel';
+import { LimitEditor } from '@/components/profile/components/LimitEditor';
+import { ProfileSidebar } from '@/components/profile/components/ProfileSidebar';
+import { StatusMessage } from '@/components/profile/components/StatusMessage';
 
 interface ProfileViewProps {
   metricsState?: ControlPlaneMetricsState;

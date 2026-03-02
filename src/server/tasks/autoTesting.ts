@@ -6,6 +6,7 @@ import { getMissionControlUrl, getProjectsPath } from '@/lib/config';
 
 const MAX_DISCOVERED_HTML_FILES = 20;
 const inFlightAutoTests = new Set<string>();
+const AUTO_TEST_TRIGGER_ENV = 'TASK_AUTOTEST_HTTP_TRIGGER';
 
 function expandHomePath(input: string): string {
   const home = process.env.HOME || process.env.USERPROFILE || '';
@@ -53,6 +54,53 @@ function discoverHtmlFiles(rootDir: string): string[] {
   }
 
   return results;
+}
+
+function parseBooleanEnv(value: string | undefined): boolean | null {
+  if (value === undefined) return null;
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return null;
+}
+
+function isAutoTestHttpTriggerEnabled(): boolean {
+  const configured = parseBooleanEnv(process.env[AUTO_TEST_TRIGGER_ENV]);
+  if (configured !== null) return configured;
+  return process.env.NODE_ENV !== 'test';
+}
+
+function getErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== 'object') return null;
+  const directCode = (error as { code?: unknown }).code;
+  if (typeof directCode === 'string' && directCode.length > 0) return directCode;
+  const cause = (error as { cause?: unknown }).cause;
+  if (!cause || typeof cause !== 'object') return null;
+  const causeCode = (cause as { code?: unknown }).code;
+  return typeof causeCode === 'string' && causeCode.length > 0 ? causeCode : null;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    const cause = (error as Error & { cause?: unknown }).cause;
+    if (cause instanceof Error) {
+      return `${error.message} ${cause.message}`;
+    }
+    return error.message;
+  }
+
+  if (typeof error === 'string') return error;
+  return '';
+}
+
+function isExpectedAbort(error: unknown): boolean {
+  const code = (getErrorCode(error) || '').toUpperCase();
+  if (code === 'ECONNRESET' || code === 'ECONNABORTED' || code === 'ABORT_ERR') {
+    return true;
+  }
+
+  const message = getErrorMessage(error).toLowerCase();
+  return message.includes('aborted') || message.includes('socket hang up');
 }
 
 export function ensureTaskDeliverablesFromProjectDir(params: {
@@ -109,6 +157,10 @@ export function ensureTaskDeliverablesFromProjectDir(params: {
 }
 
 export function triggerAutomatedTaskTest(taskId: string): void {
+  if (!isAutoTestHttpTriggerEnabled()) {
+    return;
+  }
+
   if (!taskId || inFlightAutoTests.has(taskId)) {
     return;
   }
@@ -127,11 +179,21 @@ export function triggerAutomatedTaskTest(taskId: string): void {
       } catch {
         body = '';
       }
+
+      if (response.status === 404 && body.toLowerCase().includes('task not found')) {
+        console.debug(`[auto-test] task ${taskId} skipped: task no longer exists`);
+        return;
+      }
+
       console.warn(
         `[auto-test] task ${taskId} returned HTTP ${response.status}${body ? `: ${body}` : ''}`,
       );
     })
     .catch((error) => {
+      if (isExpectedAbort(error)) {
+        console.debug(`[auto-test] task ${taskId} skipped: request aborted`);
+        return;
+      }
       console.error(`[auto-test] failed for task ${taskId}:`, error);
     })
     .finally(() => {

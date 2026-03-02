@@ -3,13 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import { usePersona } from '@/modules/personas/PersonaContext';
 import type { MemoryType } from '@/core/memory/types';
-import { useMemory, useHistory, useBulkOperations, useMemoryEdit } from '@/components/memory/hooks';
-import {
-  PersonaSidebar,
-  MemoryToolbar,
-  MemoryNodeItem,
-  MemoryPagination,
-} from '@/components/memory/components';
+import { useMemory } from '@/components/memory/hooks/useMemory';
+import { useHistory } from '@/components/memory/hooks/useHistory';
+import { useBulkOperations } from '@/components/memory/hooks/useBulkOperations';
+import { useMemoryEdit } from '@/components/memory/hooks/useMemoryEdit';
+import { PersonaSidebar } from '@/components/memory/components/PersonaSidebar';
+import { MemoryToolbar } from '@/components/memory/components/MemoryToolbar';
+import { MemoryNodeItem } from '@/components/memory/components/MemoryNodeItem';
+import { MemoryPagination } from '@/components/memory/components/MemoryPagination';
 import type { PersonaSummary } from '@/server/personas/personaTypes';
 
 const MemoryView: React.FC = () => {

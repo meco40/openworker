@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { KnowledgeGraphApiPayload } from '@/components/knowledge/graph';
+import type { KnowledgeGraphApiPayload } from '@/components/knowledge/graph/types';
 
 interface UseKnowledgeGraphResult {
   payload: KnowledgeGraphApiPayload | null;

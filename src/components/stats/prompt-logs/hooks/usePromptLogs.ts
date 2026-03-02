@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Preset,
   PromptLogEntry,
@@ -43,6 +43,8 @@ export function usePromptLogs({
   const [models, setModels] = useState<string[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [diagnostics, setDiagnostics] = useState<PromptLogDiagnostics>(EMPTY_DIAGNOSTICS);
+  const abortRef = useRef<AbortController | null>(null);
+  const requestSequenceRef = useRef(0);
 
   const setFilters = useCallback((partial: Partial<FiltersState>) => {
     setFiltersState((prev) => ({ ...prev, ...partial }));
@@ -59,6 +61,12 @@ export function usePromptLogs({
 
   const fetchPage = useCallback(
     async (cursor?: string, append = false) => {
+      requestSequenceRef.current += 1;
+      const requestSequence = requestSequenceRef.current;
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       if (append) {
         setLoadingMore(true);
       } else {
@@ -81,8 +89,12 @@ export function usePromptLogs({
         params.set('limit', String(PAGE_SIZE));
         if (cursor) params.set('before', cursor);
 
-        const response = await fetch(`/api/stats/prompt-logs?${params.toString()}`);
+        const response = await fetch(`/api/stats/prompt-logs?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        if (requestSequence !== requestSequenceRef.current) return;
         const json = (await response.json()) as PromptLogsResponse;
+        if (requestSequence !== requestSequenceRef.current) return;
 
         if (!json.ok) {
           setError(json.error || 'Failed to load prompt logs.');
@@ -104,10 +116,14 @@ export function usePromptLogs({
         updateDistinctValues(json.entries);
         setHasMore(json.entries.length === PAGE_SIZE);
       } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        if (requestSequence !== requestSequenceRef.current) return;
         setError(err instanceof Error ? err.message : 'Failed to load prompt logs.');
       } finally {
-        setLoading(false);
-        setLoadingMore(false);
+        if (requestSequence === requestSequenceRef.current) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
       }
     },
     [customFrom, customTo, filters, preset, updateDistinctValues],
@@ -115,6 +131,9 @@ export function usePromptLogs({
 
   useEffect(() => {
     void fetchPage(undefined, false);
+    return () => {
+      abortRef.current?.abort();
+    };
   }, [fetchPage, reloadKey]);
 
   const loadMore = useCallback(() => {

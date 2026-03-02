@@ -1,21 +1,19 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { useConfig } from '@/components/config/hooks';
-import {
-  ConfigHeader,
-  ConfigTabs,
-  ConfigInfoBar,
-  StatusMessage,
-  ConflictWarning,
-  DiffPreview,
-  ValidationPanel,
-  OverviewTab,
-  NetworkTab,
-  RuntimeTab,
-  UITab,
-  AdvancedTab,
-} from '@/components/config/components';
+import { useConfig } from '@/components/config/hooks/useConfig';
+import { ConfigHeader } from '@/components/config/components/ConfigHeader';
+import { ConfigTabs } from '@/components/config/components/ConfigTabs';
+import { ConfigInfoBar } from '@/components/config/components/ConfigInfoBar';
+import { StatusMessage } from '@/components/config/components/StatusMessage';
+import { ConflictWarning } from '@/components/config/components/ConflictWarning';
+import { DiffPreview } from '@/components/config/components/DiffPreview';
+import { ValidationPanel } from '@/components/config/components/ValidationPanel';
+import { OverviewTab } from '@/components/config/components/tabs/OverviewTab';
+import { NetworkTab } from '@/components/config/components/tabs/NetworkTab';
+import { RuntimeTab } from '@/components/config/components/tabs/RuntimeTab';
+import { UITab } from '@/components/config/components/tabs/UITab';
+import { AdvancedTab } from '@/components/config/components/tabs/AdvancedTab';
 import type { ConfigTab } from '@/components/config/types';
 
 // Re-exports for backward compatibility

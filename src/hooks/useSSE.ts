@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMissionControl } from '@/lib/store';
 import { debug } from '@/lib/debug';
 import type { SSEEvent, Task } from '@/lib/types';
@@ -13,6 +13,7 @@ import type { SSEEvent, Task } from '@/lib/types';
 export function useSSE() {
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
   // Use ref to track selectedTask ID without causing re-renders
   const selectedTaskIdRef = useRef<string | null>(null);
   const { updateTask, addTask, setIsOnline, selectedTask, setSelectedTask } = useMissionControl();
@@ -39,6 +40,7 @@ export function useSSE() {
       eventSource.onopen = () => {
         debug.sse('Connected');
         setIsOnline(true);
+        setIsConnected(true);
         isConnecting = false;
         // Clear any pending reconnect
         if (reconnectTimeoutRef.current) {
@@ -110,6 +112,7 @@ export function useSSE() {
       eventSource.onerror = (error) => {
         debug.sse('Connection error', error);
         setIsOnline(false);
+        setIsConnected(false);
         isConnecting = false;
 
         // Close the connection
@@ -134,6 +137,7 @@ export function useSSE() {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
+      setIsConnected(false);
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
@@ -142,4 +146,6 @@ export function useSSE() {
     // selectedTask removed from deps to prevent re-connection loop
     // We use selectedTaskIdRef to check the current selected task ID without triggering re-renders
   }, [addTask, updateTask, setIsOnline, setSelectedTask]);
+
+  return { isConnected };
 }

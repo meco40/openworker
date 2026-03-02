@@ -9,6 +9,7 @@ describe('Mission Control full flow: create -> planning -> answer -> dispatch ->
   let previousDatabasePath: string | undefined;
   let previousProjectsPath: string | undefined;
   let previousPort: string | undefined;
+  let previousAutoTestTrigger: string | undefined;
   let originalFetch: typeof fetch | undefined;
   let pollCallCount = 0;
 
@@ -17,6 +18,7 @@ describe('Mission Control full flow: create -> planning -> answer -> dispatch ->
     previousDatabasePath = process.env.DATABASE_PATH;
     previousProjectsPath = process.env.PROJECTS_PATH;
     previousPort = process.env.PORT;
+    previousAutoTestTrigger = process.env.TASK_AUTOTEST_HTTP_TRIGGER;
     originalFetch = global.fetch;
     pollCallCount = 0;
 
@@ -24,6 +26,7 @@ describe('Mission Control full flow: create -> planning -> answer -> dispatch ->
     process.env.DATABASE_PATH = path.join(tempDir, 'mission-control.db');
     process.env.PROJECTS_PATH = path.join(tempDir, 'projects');
     process.env.PORT = '3000';
+    process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
 
     vi.doMock('@/server/skills/skillRepository', () => ({
       getSkillRepository: async () => ({
@@ -150,6 +153,11 @@ describe('Mission Control full flow: create -> planning -> answer -> dispatch ->
       delete process.env.PORT;
     } else {
       process.env.PORT = previousPort;
+    }
+    if (previousAutoTestTrigger === undefined) {
+      delete process.env.TASK_AUTOTEST_HTTP_TRIGGER;
+    } else {
+      process.env.TASK_AUTOTEST_HTTP_TRIGGER = previousAutoTestTrigger;
     }
     if (tempDir) {
       fs.rmSync(tempDir, { recursive: true, force: true });

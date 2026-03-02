@@ -25,7 +25,7 @@ export default function WorkspacePage() {
   const [notFound, setNotFound] = useState(false);
 
   // Connect to SSE for real-time updates
-  useSSE();
+  const { isConnected: isSseConnected } = useSSE();
 
   // Load workspace data
   useEffect(() => {
@@ -102,66 +102,61 @@ export default function WorkspacePage() {
 
     loadData();
     checkRuntimeStatus();
+  }, [workspace, setAgents, setTasks, setEvents, setIsOnline, setIsLoading]);
 
-    // SSE is the primary real-time mechanism - these are fallback polls with longer intervals
-    // to reduce server load while providing redundancy
+  // Single fallback sync loop only when SSE is disconnected.
+  useEffect(() => {
+    if (!workspace) return;
+    if (isSseConnected) {
+      return;
+    }
 
-    // Poll for events every 30 seconds (SSE fallback - increased from 5s)
-    const eventPoll = setInterval(async () => {
+    const workspaceId = workspace.id;
+
+    const fallbackSync = async () => {
       try {
-        const res = await fetch('/api/events?limit=20');
-        if (res.ok) {
-          setEvents(await res.json());
+        const [eventsRes, tasksRes, statusRes] = await Promise.all([
+          fetch('/api/events?limit=20'),
+          fetch(`/api/tasks?workspace_id=${workspaceId}`),
+          fetch('/api/mission-control/status'),
+        ]);
+
+        if (eventsRes.ok) {
+          setEvents(await eventsRes.json());
         }
-      } catch (error) {
-        console.error('Failed to poll events:', error);
-      }
-    }, 30000); // Increased from 5000 to 30000
 
-    // Poll tasks as SSE fallback every 60 seconds (increased from 10s)
-    const taskPoll = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/tasks?workspace_id=${workspaceId}`);
-        if (res.ok) {
-          const newTasks: Task[] = await res.json();
-          const currentTasks = useMissionControl.getState().tasks;
-
+        if (tasksRes.ok) {
+          const nextTasks: Task[] = await tasksRes.json();
+          const currentTaskById = new Map(
+            useMissionControl.getState().tasks.map((task) => [task.id, task]),
+          );
           const hasChanges =
-            newTasks.length !== currentTasks.length ||
-            newTasks.some((t) => {
-              const current = currentTasks.find((ct) => ct.id === t.id);
-              return !current || current.status !== t.status;
-            });
+            nextTasks.length !== currentTaskById.size ||
+            nextTasks.some((task) => currentTaskById.get(task.id)?.status !== task.status);
 
           if (hasChanges) {
             debug.api('[FALLBACK] Task changes detected via polling, updating store');
-            setTasks(newTasks);
+            setTasks(nextTasks);
           }
         }
-      } catch (error) {
-        console.error('Failed to poll tasks:', error);
-      }
-    }, 60000); // Increased from 10000 to 60000
 
-    // Check runtime connection every 30 seconds (monitoring + fallback)
-    const connectionCheck = setInterval(async () => {
-      try {
-        const res = await fetch('/api/mission-control/status');
-        if (res.ok) {
-          const status = await res.json();
+        if (statusRes.ok) {
+          const status = await statusRes.json();
           setIsOnline(status.connected);
         }
-      } catch {
-        setIsOnline(false);
+      } catch (error) {
+        console.error('Fallback sync failed:', error);
       }
+    };
+
+    // Run once immediately when entering disconnected mode.
+    void fallbackSync();
+    const fallbackTimer = setInterval(() => {
+      void fallbackSync();
     }, 30000);
 
-    return () => {
-      clearInterval(eventPoll);
-      clearInterval(connectionCheck);
-      clearInterval(taskPoll);
-    };
-  }, [workspace, setAgents, setTasks, setEvents, setIsOnline, setIsLoading]);
+    return () => clearInterval(fallbackTimer);
+  }, [workspace, isSseConnected, setEvents, setIsOnline, setTasks]);
 
   if (notFound) {
     return (

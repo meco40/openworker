@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PromptLogsTab from '@/components/stats/PromptLogsTab';
 import OverviewTabContent from './OverviewTabContent';
 import SessionsTabContent from './SessionsTabContent';
@@ -19,8 +19,16 @@ const StatsView: React.FC = () => {
   const [customTo, setCustomTo] = useState('');
   const [activeTab, setActiveTab] = useState<StatsTab>('overview');
   const [logsReloadKey, setLogsReloadKey] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const requestSequenceRef = useRef(0);
 
   const fetchStats = useCallback(async () => {
+    requestSequenceRef.current += 1;
+    const requestSequence = requestSequenceRef.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
@@ -36,8 +44,12 @@ const StatsView: React.FC = () => {
         params.set('sessions', '1');
       }
 
-      const response = await fetch(`/api/stats?${params.toString()}`);
+      const response = await fetch(`/api/stats?${params.toString()}`, {
+        signal: controller.signal,
+      });
+      if (requestSequence !== requestSequenceRef.current) return;
       const json = (await response.json()) as StatsResponse;
+      if (requestSequence !== requestSequenceRef.current) return;
 
       if (!json.ok) {
         setError(json.error || 'Failed to load stats.');
@@ -45,14 +57,21 @@ const StatsView: React.FC = () => {
         setData(json);
       }
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      if (requestSequence !== requestSequenceRef.current) return;
       setError(err instanceof Error ? err.message : 'Network error.');
     } finally {
-      setLoading(false);
+      if (requestSequence === requestSequenceRef.current) {
+        setLoading(false);
+      }
     }
   }, [preset, customFrom, customTo, activeTab]);
 
   useEffect(() => {
-    fetchStats();
+    void fetchStats();
+    return () => {
+      abortRef.current?.abort();
+    };
   }, [fetchStats]);
 
   const handleRefresh = useCallback(() => {

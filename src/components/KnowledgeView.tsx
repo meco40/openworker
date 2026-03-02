@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { usePersona } from '@/modules/personas/PersonaContext';
 import type { PersonaSummary } from '@/server/personas/personaTypes';
-import { KnowledgeGraphPanel } from '@/components/knowledge/graph';
-import { useKnowledgeGraph } from '@/components/knowledge/hooks';
+import { KnowledgeGraphPanel } from '@/components/knowledge/graph/KnowledgeGraphPanel';
+import { useKnowledgeGraph } from '@/components/knowledge/hooks/useKnowledgeGraph';
 
 const KnowledgeView: React.FC = () => {
   const { personas, activePersonaId, refreshPersonas } = usePersona();

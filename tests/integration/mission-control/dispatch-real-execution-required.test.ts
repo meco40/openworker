@@ -9,6 +9,7 @@ describe('Mission Control dispatch real execution guard', () => {
   let previousDatabasePath: string | undefined;
   let previousProjectsPath: string | undefined;
   let previousPort: string | undefined;
+  let previousAutoTestTrigger: string | undefined;
   let originalFetch: typeof fetch | undefined;
 
   beforeEach(() => {
@@ -16,6 +17,7 @@ describe('Mission Control dispatch real execution guard', () => {
     previousDatabasePath = process.env.DATABASE_PATH;
     previousProjectsPath = process.env.PROJECTS_PATH;
     previousPort = process.env.PORT;
+    previousAutoTestTrigger = process.env.TASK_AUTOTEST_HTTP_TRIGGER;
     originalFetch = global.fetch;
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-dispatch-real-exec-'));
     process.env.DATABASE_PATH = path.join(tempDir, 'mission-control.db');
@@ -44,6 +46,11 @@ describe('Mission Control dispatch real execution guard', () => {
       delete process.env.PORT;
     } else {
       process.env.PORT = previousPort;
+    }
+    if (previousAutoTestTrigger === undefined) {
+      delete process.env.TASK_AUTOTEST_HTTP_TRIGGER;
+    } else {
+      process.env.TASK_AUTOTEST_HTTP_TRIGGER = previousAutoTestTrigger;
     }
 
     if (tempDir) {
@@ -283,6 +290,8 @@ describe('Mission Control dispatch real execution guard', () => {
   });
 
   it('auto-registers html deliverables and triggers automated test after TASK_COMPLETE', async () => {
+    process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
+
     vi.doMock('@/server/skills/skillRepository', () => ({
       getSkillRepository: async () => ({
         listSkills: () => [{ installed: true }],
