@@ -16,13 +16,6 @@ When a request depends on recency (e.g., "latest", "current", "today", "as of no
    - Use the newest versioned docs, release notes, or changelogs.
    - Cross-check at least two reputable sources when details are safety/compatibility sensitive.
 
-### Context7 MCP
-
-- Use Context7 when you need library/API docs.
-- If known, pin the library with slash syntax (e.g., `use library /supabase/supabase`).
-- Mention the target version.
-- Fetch minimal targeted docs; summarize (no large dumps).
-
 ### Web search policy
 
 - Enable and use web search only when it materially improves correctness (e.g., up-to-date APIs, recent advisories, release notes).
@@ -61,14 +54,7 @@ When a request depends on recency (e.g., "latest", "current", "today", "as of no
 - If the repo has no container workflow, create a minimal one.
 - Keep repo-specific container details in the repo’s `AGENTS.md`.
 
-### Secrets and sensitive data
-
-- Never print secrets (tokens, private keys, credentials) to terminal output.
-- Do not request users paste secrets.
-- Avoid commands that might expose secrets (e.g., dumping env vars broadly, `cat ~/.ssh/*`).
-- Prefer existing authenticated CLIs; redact sensitive strings in any displayed output.
-
-## Baseline workflow
+### Baseline workflow
 
 - Start every task by determining:
   1. Goal + acceptance criteria.
@@ -104,6 +90,7 @@ Update `.agent/CONTINUITY.md` only when there is a meaningful delta in:
   - If unknown, write `UNCONFIRMED` (never guess). If something changes, supersede it explicitly (don't silently rewrite history).
 - Keep the file bounded, short and high-signal (anti-bloat).
 - If sections begin to become bloated, compress older items into milestone (`[MILESTONE]`) bullets.
+- Fix Prettier write errors on the file.
 
 ## Definition of done
 

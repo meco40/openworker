@@ -63,9 +63,10 @@ export interface UseProvidersReturn {
   isTestingAll: boolean;
   bulkProbeSummary: string | null;
   probeRateLimitsByAccountId: Record<string, RateLimitSnapshot | null>;
+  // Returns a structured probe outcome to avoid implicit state interception in callers.
   runConnectionProbe: (
     defaultModel?: { accountId: string; modelName: string } | null,
-  ) => Promise<void>;
+  ) => Promise<{ ok: boolean; message: string }>;
   runAllConnectionProbes: (pipeline: { accountId: string; modelName: string }[]) => Promise<void>;
 }
 
@@ -266,10 +267,11 @@ export function useProviders(): UseProvidersReturn {
 
   async function runConnectionProbe(
     defaultModel?: { accountId: string; modelName: string } | null,
-  ) {
+  ): Promise<{ ok: boolean; message: string }> {
     if (!defaultModel?.accountId) {
-      setProbeResult('Kein primäres Modell mit Provider-Account konfiguriert.');
-      return;
+      const message = 'Kein primäres Modell mit Provider-Account konfiguriert.';
+      setProbeResult(message);
+      return { ok: false, message };
     }
     setIsProbing(true);
     setProbeResult(null);
@@ -291,8 +293,11 @@ export function useProviders(): UseProvidersReturn {
           [defaultModel.accountId]: data.connectivity?.rateLimits ?? null,
         }));
       }
+      return { ok: true, message: data.connectivity.message };
     } catch (error) {
-      setProbeResult(`FEHLER: ${error instanceof Error ? error.message : 'Probe fehlgeschlagen'}`);
+      const message = `FEHLER: ${error instanceof Error ? error.message : 'Probe fehlgeschlagen'}`;
+      setProbeResult(message);
+      return { ok: false, message };
     } finally {
       setIsProbing(false);
     }

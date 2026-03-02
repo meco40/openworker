@@ -1,5 +1,3 @@
-'use client';
-
 export type Preset = 'today' | 'week' | 'month' | 'custom';
 export type RiskFilter = 'all' | 'low' | 'medium' | 'high' | 'flagged';
 

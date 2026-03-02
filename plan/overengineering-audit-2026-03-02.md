@@ -3,6 +3,11 @@
 Stand: 2026-03-02
 Scope: `app/**`, `src/**` (App Router + TypeScript + React)
 
+## IST-Validierung (2026-03-02)
+
+- Abschnitt-B-Findings 1-12 gegen aktuellen Code geprüft: **12/12 weiterhin zutreffend**.
+- Korrektur durchgeführt: Inventarblock `Custom Hooks > 80 LOC` auf echte exportierte `use*`-Hooks bereinigt.
+
 ## Abschnitt A: Architektur-Skizze
 
 - Routing läuft ausschließlich über den App Router (`app/**`); kein `pages/`-Router vorhanden.
@@ -281,16 +286,16 @@ Scope: `app/**`, `src/**` (App Router + TypeScript + React)
 250  src/modules/ops/hooks/useOpsSessions.ts
 231  src/modules/conversation-debugger/useConversationDebugger.ts
 229  src/components/memory/hooks/useMemoryEdit.ts
-220  src/modules/agent-room/components/UserChatInput.tsx
+225  src/modules/personas/PersonaContext.tsx
 207  src/skills/hooks/useClawHub.ts
 203  src/skills/hooks/useSkillActions.ts
 199  src/modules/app-shell/useConversationSync.ts
 196  src/components/stats/prompt-logs/hooks/usePromptLogs.ts
-193  src/server/auth/userStore.ts
 188  src/modules/agent-room/hooks/useAgentRoomRuntime.ts
 180  src/components/profile/hooks/useProfile.ts
 165  src/modules/ops/hooks/useOpsNodes.ts
 165  src/components/model-hub/hooks/usePipeline.ts
+157  src/lib/store.ts
 154  src/components/logs/hooks/useDiagnostics.ts
 151  src/hooks/useSSE.ts
 151  src/modules/flow-builder/useFlowEditor.ts

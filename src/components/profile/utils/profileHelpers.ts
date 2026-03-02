@@ -1,4 +1,5 @@
 'use client';
+import { parsePositiveInt } from '@/components/shared/number';
 
 export function createLocalUuid(): string {
   const raw =
@@ -10,7 +11,4 @@ export function createLocalUuid(): string {
   return `OC-${padded.slice(0, 4)}-${padded.slice(4, 8)}-${padded.slice(8, 13)}`;
 }
 
-export function parsePositiveInt(rawValue: string, fallback: number): number {
-  const parsed = Number.parseInt(rawValue, 10);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
-}
+export { parsePositiveInt };

@@ -3,35 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, run, transaction } from '@/lib/db';
 import { broadcast } from '@/lib/events';
 import { CreateTaskSchema } from '@/lib/validation';
-import type { Task, CreateTaskRequest, Agent } from '@/lib/types';
+import type { CreateTaskRequest, Agent } from '@/lib/types';
 import { deleteTaskWorkspace, ensureTaskWorkspace } from '@/server/tasks/taskWorkspace';
-
-interface TaskRowWithJoins extends Task {
-  assigned_agent_name?: string | null;
-  assigned_agent_emoji?: string | null;
-  created_by_agent_name?: string | null;
-  created_by_agent_emoji?: string | null;
-}
-
-function hydrateTaskRelations(task: TaskRowWithJoins): Task {
-  return {
-    ...task,
-    assigned_agent: task.assigned_agent_id
-      ? {
-          id: task.assigned_agent_id,
-          name: task.assigned_agent_name ?? null,
-          avatar_emoji: task.assigned_agent_emoji ?? null,
-        }
-      : undefined,
-    created_by_agent: task.created_by_agent_id
-      ? {
-          id: task.created_by_agent_id,
-          name: task.created_by_agent_name ?? null,
-          avatar_emoji: task.created_by_agent_emoji ?? null,
-        }
-      : undefined,
-  };
-}
+import { hydrateTaskRelations, type TaskRowWithJoins } from '@/server/tasks/taskHydration';
 
 // GET /api/tasks - List all tasks with optional filters
 export async function GET(request: NextRequest) {

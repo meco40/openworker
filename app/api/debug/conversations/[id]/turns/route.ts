@@ -1,28 +1,21 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getPromptDispatchRepository } from '@/server/stats/promptDispatchRepository';
 import { getMessageRepository } from '@/server/channels/messages/runtime';
 import type { DebugTurn } from '@/shared/domain/types';
+import { parsePositiveIntOrFallback } from '@/server/http/params';
+import { withUserContext } from '../../../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function parsePositiveInt(value: string | null, fallback: number): number {
-  const parsed = Number.parseInt(value ?? '', 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-  return parsed;
-}
-
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await resolveRequestUserContext();
-  if (!user) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { id } = await params;
+export const GET = withUserContext<{ id: string }>(async ({ request, params }) => {
+  const { id } = params;
   const url = new URL(request.url);
-  const limit = Math.max(1, Math.min(200, parsePositiveInt(url.searchParams.get('limit'), 50)));
-  const beforeSeqRaw = parsePositiveInt(url.searchParams.get('beforeSeq'), 0);
+  const limit = Math.max(
+    1,
+    Math.min(200, parsePositiveIntOrFallback(url.searchParams.get('limit'), 50)),
+  );
+  const beforeSeqRaw = parsePositiveIntOrFallback(url.searchParams.get('beforeSeq'), 0);
   const beforeSeq = beforeSeqRaw > 0 ? beforeSeqRaw : undefined;
 
   try {
@@ -114,4 +107,4 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const message = error instanceof Error ? error.message : 'Internal error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

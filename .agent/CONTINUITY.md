@@ -759,3 +759,83 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-02T05:20:44+01:00 [TOOL] Verifikation grün: `npm run lint` (0 Warnungen/0 Fehler), `npm run lint:fix` (0 Warnungen/0 Fehler), `npx lint-staged --concurrent false --diff "HEAD~1..HEAD" --verbose` erfolgreich, plus echter Stash-Pfad-Smoke-Test via `npx lint-staged --concurrent false --verbose` mit temporär gestagter `.ts`-Datei erfolgreich.
+
+[PLANS]
+
+- 2026-03-02T05:25:30+01:00 [USER] Validierungsauftrag gestartet: `plan/overengineering-audit-2026-03-02.md` gegen aktuellen IST-Zustand/Fundstellen pruefen.
+
+[DISCOVERIES]
+
+- 2026-03-02T05:25:30+01:00 [TOOL] Abschnitt-B-Findings (1-12) sind im Kern weiterhin durch Codebefunde belegt (Dateigroessen, Duplikate, Pattern-Treffer inkl. `hydrateTaskRelations`, `parsePositiveInt`, Monkey-Patching in `useModelHub`, Auth-Boilerplate in `app/api/**`).
+- 2026-03-02T05:25:30+01:00 [TOOL] Inventar-Qualitaet: Abschnitt "Custom Hooks > 80 LOC" enthaelt mindestens zwei Nicht-Hooks (`src/modules/agent-room/components/UserChatInput.tsx`, `src/server/auth/userStore.ts`) und ist daher nicht strikt korrekt klassifiziert.
+
+[OUTCOMES]
+
+- 2026-03-02T05:25:30+01:00 [TOOL] Audit-Check abgeschlossen; priorisierte Findings spiegeln den IST weitgehend wider, mit Korrekturhinweis zur Hook-Inventar-Klassifikation.
+
+[PLANS]
+
+- 2026-03-02T05:29:59.0403374+01:00 [USER] Korrekturauftrag: `plan/overengineering-audit-2026-03-02.md` gemäß verifizierten Findings aktualisieren.
+
+[PROGRESS]
+
+- 2026-03-02T05:29:59.0403374+01:00 [CODE] Audit-Datei ergänzt um Abschnitt `IST-Validierung (2026-03-02)` mit Status `12/12 weiterhin zutreffend` für Abschnitt-B-Findings.
+- 2026-03-02T05:29:59.0403374+01:00 [CODE] Inventarblock `Custom Hooks > 80 LOC` bereinigt: Nicht-Hooks entfernt (`UserChatInput.tsx`, `userStore.ts`) und Hook-Quelle `src/lib/store.ts` ergänzt.
+
+[OUTCOMES]
+
+- 2026-03-02T05:29:59.0403374+01:00 [TOOL] Dokumentkorrektur abgeschlossen; Audit-Plan enthält jetzt den validierten Status plus korrigierte Hook-Liste.
+
+[PLANS]
+
+- 2026-03-02T05:50:01+01:00 [USER] Umsetzung gestartet: priorisierte Wave-1-Refactors aus dem Overengineering-Plan mit minimalem Risiko und TDD-Absicherung.
+
+[DECISIONS]
+
+- 2026-03-02T05:50:01+01:00 [CODE] Wave-1 auf verhaltensneutrale Konsolidierung fokussiert: Shared Task-Hydration, zentrale Int-Parser je Layer, API-Auth-Wrapper, Type-Datei-Client-Boundary-Entfernung, deprecated Retrieval-Compat-Layer-Entfernung.
+- 2026-03-02T05:50:01+01:00 [CODE] Model-Hub-Probefluss ohne Funktions-Monkey-Patching umgesetzt: runConnectionProbe liefert strukturiertes Ergebnis, useModelHub aktualisiert Session-Stats explizit aus dem Ergebnis.
+
+[PROGRESS]
+
+- 2026-03-02T05:50:01+01:00 [CODE] Neue Shared-Module ergänzt: src/server/tasks/taskHydration.ts, src/server/http/params.ts, src/components/shared/number.ts, app/api/\_shared/withUserContext.ts.
+- 2026-03-02T05:50:01+01:00 [CODE] Konsolidierung eingebaut in app/api/tasks/route.ts und app/api/tasks/[id]/route.ts (shared hydrateTaskRelations).
+- 2026-03-02T05:50:01+01:00 [CODE] Parser-Dedupe umgesetzt in app/api/memory/route.ts, app/api/knowledge/graph/route.ts, app/api/debug/conversations/[id]/turns/route.ts, src/components/profile/utils/profileHelpers.ts.
+- 2026-03-02T05:50:01+01:00 [CODE] Auth-Boilerplate reduziert durch withUserContext in den drei API-Routen (memory, knowledge/graph, debug/conversations/[id]/turns).
+- 2026-03-02T05:50:01+01:00 [CODE] use client-Direktiven aus reinen Typdateien entfernt (stats/prompt-logs/types.ts, profile/types.ts, personas/editor/types.ts).
+- 2026-03-02T05:50:01+01:00 [CODE] Deprecated-Datei src/server/knowledge/retrieval/service.ts entfernt (keine produktiven Imports).
+- 2026-03-02T05:50:01+01:00 [CODE] RED->GREEN Tests ergänzt: tests/unit/refactor/wave1-refactor.contract.test.ts, tests/unit/api/with-user-context.test.ts.
+
+[DISCOVERIES]
+
+- 2026-03-02T05:50:01+01:00 [TOOL] Alias @/_ zeigt auf src/_; Imports nach @/app/... sind in Vitest nicht auflösbar. Lösung: relative Imports auf app/api/\_shared/withUserContext in API-Routen.
+- 2026-03-02T05:50:01+01:00 [TOOL] npm run check initial mit einem echten Type-Fehler im neuen withUserContext-Test (fehlender Generic-Parameter) fehlgeschlagen; nach Korrektur grün.
+
+[OUTCOMES]
+
+- 2026-03-02T05:50:01+01:00 [TOOL] TDD-Nachweis erbracht: neue Refactor-Contract- und Wrapper-Tests initial rot, nach Implementierung grün (7/7).
+- 2026-03-02T05:50:01+01:00 [TOOL] Relevante Regressionen grün: Tasks-Routen, Memory-Route, Knowledge-Graph-Route, Debug-Turns-Route, Persona-Memory-Cascade, Model-Hub-Unit-Suite.
+- 2026-03-02T05:50:01+01:00 [TOOL] Vollständige Verifikation grün: npm run check (typecheck/lint/format), npm run build.
+
+[PLANS]
+
+- 2026-03-02T06:10:31.7080395+01:00 [USER] Wave-2-Umsetzung fortgeführt: priorisiert Finding 11 (`app/api/tasks/[id]/dispatch/route.ts`) und danach Finding 2 (`app/api/memory/route.ts`) modularisieren, ohne API-Verhalten zu ändern.
+
+[DECISIONS]
+
+- 2026-03-02T06:10:31.7080395+01:00 [CODE] Dispatch-Route als Thin Adapter belassen und Use-Case-Flow im Server-Layer in drei Stufen getrennt (`prepareDispatch`, `executeDispatch`, `finalizeDispatch`) unter `src/server/tasks/dispatch/*`.
+- 2026-03-02T06:10:31.7080395+01:00 [CODE] Memory-Route in verb-spezifische Handler ausgelagert (`src/server/memory/api/{get,post,put,delete,patch}Handler.ts`) mit gemeinsamem Parser/Validation-Modul (`shared.ts`) und unverändertem `withUserContext`-Auth-Gate.
+
+[PROGRESS]
+
+- 2026-03-02T06:10:31.7080395+01:00 [CODE] Neue Dispatch-Module ergänzt: `types.ts`, `message.ts`, `failure.ts`, `prepareDispatch.ts`, `executeDispatch.ts`, `finalizeDispatch.ts`, `index.ts`; `app/api/tasks/[id]/dispatch/route.ts` auf Service-Delegation reduziert.
+- 2026-03-02T06:10:31.7080395+01:00 [CODE] Neue Memory-API-Module ergänzt: `types.ts`, `shared.ts`, `getHandler.ts`, `postHandler.ts`, `putHandler.ts`, `deleteHandler.ts`, `patchHandler.ts`, `index.ts`; `app/api/memory/route.ts` auf Handler-Routing reduziert.
+- 2026-03-02T06:10:31.7080395+01:00 [CODE] Neue RED->GREEN Contract-Tests ergänzt: `tests/unit/refactor/wave2-dispatch-route.contract.test.ts` und `tests/unit/refactor/wave2-memory-route-modularization.contract.test.ts`; bestehender Wave-1-Contract auf neue Memory-Parser-Lokation aktualisiert.
+
+[DISCOVERIES]
+
+- 2026-03-02T06:10:31.7080395+01:00 [TOOL] Memory/Persona-Integrationsläufe waren fachlich grün, aber einmalig mit Vitest-Teardown-`EPERM` auf `.local/test-artifacts` beendet; mit `TEST_ARTIFACTS_KEEP=true` reproduzierbar exit-0 bei identischem Green-Resultat (UNCONFIRMED FS-Lock-Flake).
+
+[OUTCOMES]
+
+- 2026-03-02T06:10:31.7080395+01:00 [TOOL] Verifikation für Wave-2 grün: neue Contract-Suiten (Dispatch + Memory), Dispatch-Mission-Control-Regressionen (`dispatch-real-execution-required`, `planning-poll-dispatch-assignment`, `planning-route-dispatch-error-state`, `full-planning-to-review-flow`) sowie Memory/Persona-Regressionen bestanden.
+- 2026-03-02T06:10:31.7080395+01:00 [TOOL] Qualitäts-Gates vollständig bestanden: `npm run check` (typecheck+lint+prettier-check) und `npm run build` erfolgreich nach Refactor.

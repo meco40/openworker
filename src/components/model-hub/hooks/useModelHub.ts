@@ -192,23 +192,16 @@ export function useModelHub(): UseModelHubReturn {
 
   // Enhanced runConnectionProbe with session stats
   const handleRunConnectionProbe = async () => {
-    const originalSetProbeResult = providers.setProbeResult;
-    providers.setProbeResult = (result: string | null) => {
-      originalSetProbeResult(result);
-      if (result && !result.startsWith('FEHLER:')) {
-        setSessionStats((prev) => ({
-          ...prev,
-          requests: prev.requests + 1,
-          lastProbeOk: true,
-        }));
-      } else if (result?.startsWith('FEHLER:')) {
-        setSessionStats((prev) => ({ ...prev, lastProbeOk: false }));
-      }
-    };
-
-    await providers.runConnectionProbe(defaultModel);
-
-    providers.setProbeResult = originalSetProbeResult;
+    const probe = await providers.runConnectionProbe(defaultModel);
+    if (probe.message && !probe.message.startsWith('FEHLER:')) {
+      setSessionStats((prev) => ({
+        ...prev,
+        requests: prev.requests + 1,
+        lastProbeOk: true,
+      }));
+    } else if (probe.message.startsWith('FEHLER:')) {
+      setSessionStats((prev) => ({ ...prev, lastProbeOk: false }));
+    }
     await providers.loadAccounts();
   };
 

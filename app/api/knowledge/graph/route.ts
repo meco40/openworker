@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import type {
   EntityCategory,
   EntityGraphFilter,
@@ -7,6 +6,8 @@ import type {
 } from '@/server/knowledge/entityGraph';
 import type { KnowledgeRepository } from '@/server/knowledge/repository';
 import { getKnowledgeRepository } from '@/server/knowledge/runtime';
+import { parseBoundedIntOrNull } from '@/server/http/params';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -47,13 +48,12 @@ function parseRequiredPersonaId(raw: string | null): string {
   return personaId;
 }
 
-function parsePositiveInt(raw: string | null, fallback: number, min: number, max: number): number {
-  if (raw === null || raw === undefined || raw === '') return fallback;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) {
+function parseGraphLimit(raw: string | null, fallback: number, min: number, max: number): number {
+  const parsed = parseBoundedIntOrNull(raw, fallback, min, max);
+  if (parsed === null) {
     throw new ValidationError('limit must be a number.');
   }
-  return Math.min(max, Math.max(min, Math.floor(parsed)));
+  return parsed;
 }
 
 function normalizeEdgeId(relation: EntityRelation): string {
@@ -63,23 +63,18 @@ function normalizeEdgeId(relation: EntityRelation): string {
   );
 }
 
-export async function GET(request: Request) {
+export const GET = withUserContext(async ({ request, userContext }) => {
   const startedAt = Date.now();
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const url = new URL(request.url);
     const personaId = parseRequiredPersonaId(url.searchParams.get('personaId'));
-    const nodeLimit = parsePositiveInt(
+    const nodeLimit = parseGraphLimit(
       url.searchParams.get('limit'),
       DEFAULT_NODE_LIMIT,
       1,
       MAX_NODE_LIMIT,
     );
-    const edgeLimit = parsePositiveInt(
+    const edgeLimit = parseGraphLimit(
       url.searchParams.get('edgeLimit'),
       DEFAULT_EDGE_LIMIT,
       1,
@@ -201,4 +196,4 @@ export async function GET(request: Request) {
     );
     return NextResponse.json({ ok: false, error: message }, { status });
   }
-}
+});

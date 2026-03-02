@@ -1,5 +1,3 @@
-'use client';
-
 export type StatusTone = 'success' | 'error' | 'info';
 
 export interface StatusMessage {
