@@ -16,7 +16,15 @@ import {
 } from '@/components/personas/hooks';
 
 const PersonasView: React.FC = () => {
-  const { personas, activePersonaId, setActivePersonaId, refreshPersonas, loading } = usePersona();
+  const {
+    personas,
+    activePersonaId,
+    setActivePersonaId,
+    refreshPersonas,
+    loadPersonaById,
+    patchPersonaFile,
+    loading,
+  } = usePersona();
   const [activeTab, setActiveTab] = useState<PersonaTabName>('SOUL.md');
 
   // Persona selection and loading
@@ -28,7 +36,7 @@ const PersonasView: React.FC = () => {
     patchSelectedPersonaFile,
     preferredModelId,
     setPreferredModelId,
-  } = usePersonaSelection();
+  } = usePersonaSelection({ loadPersonaById, onPersonaFilePatched: patchPersonaFile });
 
   // Memory persona type state
   const [memoryPersonaType, setMemoryPersonaType] = useState<MemoryPersonaType>('general');

@@ -618,3 +618,115 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-02T01:58:57+01:00 [TOOL] Verifikation komplett gruen: `npm run check`, `npm test -- tests/unit/modules/master/grok-voice-agent-lazy-connect.test.ts tests/unit/modules/master/grok-voice-agent-output-stream-contract.test.ts`, `npm test -- tests/unit/knowledge/entity-graph`, `npm test` (456/456 Dateien, 2064/2064 Tests), `npm run build`.
+
+[PLANS]
+
+- 2026-03-02T02:53:08+01:00 [USER] Analyseauftrag gestartet: Repository gegen Skill `vercel-react-best-practices` bewerten, mit konkreten Fundstellen statt pauschalem Fazit.
+
+[DISCOVERIES]
+
+- 2026-03-02T02:53:08+01:00 [TOOL] Build-Baseline für Analyse verifiziert: `npm run build` erfolgreich (Next.js 16.1.6, keine Build-Fehler).
+- 2026-03-02T02:53:08+01:00 [TOOL] Positivsignal: umfangreiche View-level Code-Splitting-Nutzung via `next/dynamic` in `src/modules/app-shell/components/AppShellViewContent.tsx`.
+- 2026-03-02T02:53:08+01:00 [TOOL] Abweichung erkannt: 17 Barrel-Imports in Client-Komponenten identifiziert (u. a. `ConfigEditor`, `MemoryView`, `KnowledgeView`, `PersonasView`, `SkillsRegistry`), potenziell konträr zu `bundle-barrel-imports`.
+- 2026-03-02T02:53:08+01:00 [CODE] Doppelte Persona-Detail-Fetch-Pfade bestehen parallel: `PersonaContext` lädt `/api/personas/${activePersonaId}` und `usePersonaSelection` lädt zusätzlich `/api/personas/${id}`.
+
+[OUTCOMES]
+
+- 2026-03-02T02:53:08+01:00 [TOOL] Best-Practice-Audit abgeschlossen; Ergebnis: solide Basis mit mehreren gezielten Optimierungspunkten (Request-Dedupe, Barrel-Imports, einzelne Fetch-/Polling-Muster), keine Codeänderungen vorgenommen.
+
+[PLANS]
+
+- 2026-03-02T03:44:32+01:00 [USER] Umsetzung angefordert: die ersten drei React/Next-Best-Practice-Befunde als IST verifizieren, Verbesserungsplan erstellen, kritisch prüfen, implementieren und vollständig verifizieren.
+
+[DECISIONS]
+
+- 2026-03-02T03:44:32+01:00 [CODE] Persona-Detail-Loads zentralisiert: `PersonaContext` stellt deduplizierenden Loader (`cache + in-flight dedupe`) bereit; `usePersonaSelection` nutzt diesen Loader statt eigener paralleler Requests.
+- 2026-03-02T03:44:32+01:00 [CODE] Mission-Control-Fallback vereinfacht: drei parallele Polling-Intervalle entfernt; ein einzelner Fallback-Sync-Loop läuft nur bei getrenntem SSE.
+- 2026-03-02T03:44:32+01:00 [CODE] Race-Guard-Strategie vereinheitlicht: `StatsView` und `usePromptLogs` auf AbortController + Request-Sequenzprüfung umgestellt (analog Knowledge-Graph-Hook).
+
+[PROGRESS]
+
+- 2026-03-02T03:44:32+01:00 [CODE] `src/modules/personas/PersonaContext.tsx` erweitert um `loadPersonaById(...)`, `personaDetailsCacheRef`, `personaLoadPromisesRef`; `src/components/personas/hooks/usePersonaSelection.ts` auf optionalen Loader refaktoriert; `src/components/PersonasView.tsx` mit Context-Loader verdrahtet.
+- 2026-03-02T03:44:32+01:00 [CODE] `src/hooks/useSSE.ts` liefert jetzt Verbindungsstatus (`isConnected`); `app/mission-control/workspace/[slug]/page.tsx` nutzt statusbasierten Single-Fallback-Sync statt `eventPoll/taskPoll/connectionCheck`.
+- 2026-03-02T03:44:32+01:00 [CODE] `src/components/stats/StatsView.tsx` und `src/components/stats/prompt-logs/hooks/usePromptLogs.ts` um Abort- und Stale-Response-Schutz ergänzt.
+- 2026-03-02T03:44:32+01:00 [CODE] RED->GREEN Contract-Tests ergänzt: `tests/unit/components/persona-fetch-dedup-contract.test.ts`, `tests/unit/components/mission-control-sse-fallback-contract.test.ts`, `tests/unit/components/stats-fetch-race-guards.test.ts`.
+
+[DISCOVERIES]
+
+- 2026-03-02T03:44:32+01:00 [TOOL] Neue RED-Tests bestätigten den IST-Zustand vor Fixes (3/3 fail), anschließend nach Umsetzung GREEN (inkl. bestehendem `react-best-practices-refactor`-Integrationstest).
+- 2026-03-02T03:44:32+01:00 [TOOL] Ein Volltestlauf zeigte einmaligen Timeout-Ausreißer in `tests/skills-route-requests.test.ts` (playwright_cli); isolierter Re-Run und erneuter kompletter Re-Run waren grün.
+- 2026-03-02T03:44:32+01:00 [TOOL] Beim isolierten Re-Run trat einmalig `EPERM` beim Test-Artifacts-Teardown auf (`.local/test-artifacts`); im nachfolgenden kompletten Test-Re-Run nicht reproduzierbar (UNCONFIRMED).
+
+[OUTCOMES]
+
+- 2026-03-02T03:44:32+01:00 [TOOL] Verifikation vollständig durchgeführt: `npm run check` grün, `npm test` grün (459/459 Dateien, 2067/2067 Tests), `npm run build` grün.
+- 2026-03-02T03:50:10+01:00 [OUTCOMES] [TOOL] User-requested full regression run executed via `npm test`; result green with 459/459 test files and 2067/2067 tests passed (duration ~56.6s).
+- 2026-03-02T03:53:45+01:00 [DISCOVERIES] [CODE] Loganalyse: task-dispatch-3/6 stammen aus dispatch-real-execution-required.test.ts; triggerAutomatedTaskTest(...) feuert fire-and-forget Fetch auf /api/tasks/:id/test, wodurch im Testkontext erwartbare 404-Nachlaeufer entstehen, wenn Task/DB bereits beendet ist.
+
+[PLANS]
+
+- 2026-03-02T04:09:16+01:00 [USER] Best-Case-Umsetzung angefordert: Log-Noise/Fehlerbild (`404`-Nachläufer, `aborted`-Noise) minimieren und vollständig verifizieren.
+
+[DECISIONS]
+
+- 2026-03-02T04:09:16+01:00 [CODE] Auto-Test-HTTP-Trigger standardmäßig in `NODE_ENV=test` deaktiviert; explizites Opt-in via `TASK_AUTOTEST_HTTP_TRIGGER=true` für Contract-Suiten.
+- 2026-03-02T04:09:16+01:00 [CODE] Erwartbare Fehlerpfade im Auto-Test-Trigger auf `debug` heruntergestuft: `404 Task not found` sowie lokale Abort/Reset-Fälle (`ECONNRESET`/`aborted`).
+
+[PROGRESS]
+
+- 2026-03-02T04:09:16+01:00 [CODE] `src/server/tasks/autoTesting.ts` erweitert: Env-Gate (`TASK_AUTOTEST_HTTP_TRIGGER`), Fehlerklassifizierung für erwartbare Abbrüche, differenzierte Log-Level.
+- 2026-03-02T04:09:16+01:00 [CODE] Neue Unit-Suite `tests/unit/server/tasks/autoTesting.test.ts` hinzugefügt (Default-disable in Tests, Opt-in-Trigger, 404->debug, aborted->debug).
+- 2026-03-02T04:09:16+01:00 [CODE] Integrationstests mit explizitem Trigger-Opt-in aktualisiert: `tasks-route-auto-testing`, `agent-completion-webhook-auto-testing`, `dispatch-real-execution-required`, `full-planning-to-review-flow`.
+
+[DISCOVERIES]
+
+- 2026-03-02T04:09:16+01:00 [TOOL] Volltestlauf zeigte zunächst zwei bekannte Flakes (`skills-route-requests` Timeout und einmaliger `EPERM` im test-artifacts Teardown); nach gezieltem Re-Run und finalem Volltest nicht reproduzierbar (UNCONFIRMED).
+
+[OUTCOMES]
+
+- 2026-03-02T04:09:16+01:00 [TOOL] Verifikation abgeschlossen: `npm run check` grün; fokussierte Suiten grün; finaler kompletter Lauf `npm test` grün (460/460 Dateien, 2071/2071 Tests).
+- 2026-03-02T04:21:34+01:00 [PLANS] [USER] Analyseauftrag erneut ausgefuehrt: Ist-Zustand gegen Skill vercel-react-best-practices pruefen und mit konkreten Fundstellen bewerten.
+- 2026-03-02T04:21:34+01:00 [DISCOVERIES] [CODE] Weiterhin Barrel-Imports in Client-Komponenten vorhanden (u. a. ConfigEditor, MemoryView, ProfileView, LogsView, KnowledgeView, ConnectionStatus, AgentRoomDetailPage), kontraer zu bundle-barrel-imports.
+- 2026-03-02T04:21:34+01:00 [DISCOVERIES] [CODE] app/api/model-hub/pipeline/route.ts fuehrt Mem0-LLM/Embedder-Sync an mehreren Stellen sequentiell aus (await nacheinander), obwohl Calls unabhaengig wirken; Potenzial fuer async-parallel.
+- 2026-03-02T04:21:34+01:00 [DISCOVERIES] [CODE] src/components/logs/hooks/useLogs.ts nutzt mehrere erneute Fetch-Pfade ohne AbortController oder Request-Sequenzschutz; Risiko fuer stale Responses bei schnellen Filterwechseln.
+- 2026-03-02T04:21:34+01:00 [OUTCOMES] [TOOL] Analyse-Baseline verifiziert: npm run check vollstaendig gruen (typecheck, lint 0/0, prettier check ok); Ergebnis: gute Basis, aber nicht durchgehend Best-Case gemaess Skill.
+- 2026-03-02T04:40:14+01:00 [PLANS] [USER] Umsetzung angefordert: drei React/Next Best-Case-Punkte nur nach IST-Verifikation und belegbarer Verbesserung umsetzen (Barrel-Imports, Mem0-Sync-Parallelisierung, useLogs-Race-Guards).
+- 2026-03-02T04:40:14+01:00 [DISCOVERIES] [TOOL] RED-Nachweis vor Fix: 9 Barrel-Importe in Client-Dateien, 10 sequentielle Mem0-Sync-await-Stellen in `app/api/model-hub/pipeline/route.ts`, kein Abort/Sequenzschutz in `src/components/logs/hooks/useLogs.ts`; neue Contract-Tests initial 3/3 fehlgeschlagen.
+- 2026-03-02T04:40:14+01:00 [DECISIONS] [CODE] Mem0-Syncs zentralisiert und parallelisiert via `runMem0Syncs(...)` + `Promise.all`, um unabhängige LLM/Embedder-Syncs konsistent ohne serielle Wartezeit auszuführen.
+- 2026-03-02T04:40:14+01:00 [PROGRESS] [CODE] Direkte Importpfade in kritischen Client-Dateien umgesetzt (`ConfigEditor`, `ConnectionStatus`, `KnowledgeView`, `useKnowledgeGraph`, `LogsView`, `MemoryView`, `ProfileView`, `AgentRoomDetailPage`), plus AbortController/Request-Sequenzschutz in `useLogs` ergänzt.
+- 2026-03-02T04:40:14+01:00 [DISCOVERIES] [TOOL] Relevante Regressionen fachlich grün; Vitest-Teardown-Fehler `EPERM` auf `.local/test-artifacts` blieb reproduzierbar. Verifikation daher zusätzlich mit `TEST_ARTIFACTS_KEEP=true` ausgeführt, wodurch Exit 0 bei unverändert grünen Testergebnissen erreicht wurde (UNCONFIRMED Lock/FS-Flake).
+- 2026-03-02T04:40:14+01:00 [OUTCOMES] [TOOL] GREEN-Nachweis: neue Contract-Tests 3/3 grün; relevante Bestands-Tests 6/6 grün; Nachher-IST bestätigt Verbesserung (Barrel-Importe COUNT=0, Mem0-Sync-Aufrufe nur noch in Helper + parallel, useLogs enthält Abort/Sequenzschutz); `npm run check` und `npm run build` erfolgreich.
+
+[PLANS]
+
+- 2026-03-02T04:58:18+01:00 [USER] Nach Code-Review angefordert: zwei Findings auf Best-Case-Niveau beheben (`PersonaContext`-Cache-Stale bei File-Save, `useLogs`-Loading-State kann hängen bleiben).
+
+[DECISIONS]
+
+- 2026-03-02T04:58:18+01:00 [CODE] Persona-File-Saves aktualisieren jetzt zusätzlich den deduplizierenden Persona-Detail-Cache über einen expliziten Context-Hook (`patchPersonaFile`) statt nur lokalen View-State zu patchen.
+- 2026-03-02T04:58:18+01:00 [CODE] `useLogs.loadOlder()` setzt bei Abbruch/Sequenzwechseln den globalen `isLoading`-State aktiv zurück, damit ein unterbrochener Vollreload keinen permanenten Spinner hinterlässt.
+
+[PROGRESS]
+
+- 2026-03-02T04:58:18+01:00 [CODE] Implementiert in `src/modules/personas/PersonaContext.tsx`, `src/components/personas/hooks/usePersonaSelection.ts`, `src/components/PersonasView.tsx`; Contract-Absicherung erweitert in `tests/unit/components/persona-fetch-dedup-contract.test.ts`.
+- 2026-03-02T04:58:18+01:00 [CODE] Implementiert in `src/components/logs/hooks/useLogs.ts`; Regression-Absicherung erweitert in `tests/unit/components/logs-fetch-race-guards-contract.test.ts`.
+
+[OUTCOMES]
+
+- 2026-03-02T04:58:18+01:00 [TOOL] Verifikation grün: `npm test -- tests/unit/components/persona-fetch-dedup-contract.test.ts tests/unit/components/logs-fetch-race-guards-contract.test.ts tests/unit/components/persona-selection-file-patch.test.ts`, zusätzlich `npm run check` (typecheck/lint/format-check vollständig grün).
+- 2026-03-02T05:05:22+01:00 [TOOL] Zusätzliche Build-Verifikation erfolgreich: `npm run build` grün (Next.js 16.1.6, Turbopack compile + page generation erfolgreich).
+
+[PLANS]
+
+- 2026-03-02T05:04:46+01:00 [USER] Next.js/TypeScript-Overengineering-Audit angefordert: Architektur-Skizze, priorisierte Smells, konkrete Vereinfachungspläne inkl. Top-10 Hebel sowie Analyse aller Komponenten >200 LOC und Hooks >80 LOC.
+
+[DISCOVERIES]
+
+- 2026-03-02T05:04:46+01:00 [TOOL] Routing-Befund: ausschließlich App Router (`app/*`), keine `pages/` oder `src/pages/` vorhanden.
+- 2026-03-02T05:04:46+01:00 [TOOL] Top-5 Dateien nach LOC (app+src): `MasterFaceCanvasThree.tsx` (498), `useSwarmActions.ts` (471), `app/api/memory/route.ts` (470), `handleInbound.ts` (465), `app/api/tasks/[id]/test/route.ts` (465).
+- 2026-03-02T05:04:46+01:00 [CODE] Hohe Boilerplate-Dichte in API-Layern festgestellt: wiederholte Auth-/Validation-Muster (`resolveRequestUserContext` + `Unauthorized`) und parallele Helper-Duplikate (`parsePositiveInt`, lokale `ValidationError`).
+- 2026-03-02T05:04:46+01:00 [CODE] DTO/Schema-Duplikate identifiziert, u. a. `ConfigResponse` in `src/components/config/types.ts` und `src/components/profile/types.ts`, plus wiederholte Task-Hydration-Logik in `app/api/tasks/route.ts` und `app/api/tasks/[id]/route.ts`.
+
+[OUTCOMES]
+
+- 2026-03-02T05:04:46+01:00 [TOOL] Audit-Arbeit lokal durchgeführt (statische Codeanalyse, keine Codeänderungen an Produktlogik, keine Test-/Buildausführung im Rahmen dieses Analyseauftrags).

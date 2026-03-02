@@ -1,7 +1,11 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import type { PersonaSummary, PersonaWithFiles } from '@/server/personas/personaTypes';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import type {
+  PersonaFileName,
+  PersonaSummary,
+  PersonaWithFiles,
+} from '@/server/personas/personaTypes';
 
 // ─── Types ───────────────────────────────────────────────────
 interface PersonaContextValue {
@@ -15,6 +19,10 @@ interface PersonaContextValue {
   setActivePersonaId: (id: string | null) => void;
   /** Reload the persona list from API */
   refreshPersonas: () => Promise<void>;
+  /** Load a persona with shared cache + in-flight request dedupe */
+  loadPersonaById: (id: string, options?: { force?: boolean }) => Promise<PersonaWithFiles | null>;
+  /** Patch a single persona file in the shared details cache */
+  patchPersonaFile: (id: string, filename: PersonaFileName, content: string) => void;
   /** Loading state */
   loading: boolean;
   /** Enables/disables network-backed persona data loading */
@@ -30,6 +38,87 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
   const [activePersona, setActivePersona] = useState<PersonaWithFiles | null>(null);
   const [loading, setLoading] = useState(false);
   const [dataEnabled, setDataEnabled] = useState(false);
+  const personaDetailsCacheRef = useRef<Map<string, PersonaWithFiles>>(new Map());
+  const personaLoadPromisesRef = useRef<Map<string, Promise<PersonaWithFiles | null>>>(new Map());
+
+  const patchPersonaFile = useCallback((id: string, filename: PersonaFileName, content: string) => {
+    const personaId = String(id || '').trim();
+    if (!personaId) {
+      return;
+    }
+    const cached = personaDetailsCacheRef.current.get(personaId);
+    if (!cached) {
+      return;
+    }
+    personaDetailsCacheRef.current.set(personaId, {
+      ...cached,
+      files: {
+        ...cached.files,
+        [filename]: content,
+      },
+    });
+    setActivePersona((current) => {
+      if (!current || current.id !== personaId) {
+        return current;
+      }
+      return {
+        ...current,
+        files: {
+          ...current.files,
+          [filename]: content,
+        },
+      };
+    });
+  }, []);
+
+  const loadPersonaById = useCallback(
+    async (id: string, options?: { force?: boolean }): Promise<PersonaWithFiles | null> => {
+      const personaId = String(id || '').trim();
+      if (!personaId) {
+        return null;
+      }
+
+      const force = options?.force === true;
+      if (!force) {
+        const cached = personaDetailsCacheRef.current.get(personaId);
+        if (cached) {
+          return cached;
+        }
+      }
+
+      const inflight = personaLoadPromisesRef.current.get(personaId);
+      if (inflight) {
+        return inflight;
+      }
+
+      const request = (async () => {
+        try {
+          const res = await fetch(`/api/personas/${personaId}`, { cache: 'no-store' });
+          if (!res.ok) {
+            personaDetailsCacheRef.current.delete(personaId);
+            return null;
+          }
+
+          const data = (await res.json()) as { persona?: PersonaWithFiles | null };
+          const persona = data.persona ?? null;
+          if (!persona) {
+            personaDetailsCacheRef.current.delete(personaId);
+            return null;
+          }
+          personaDetailsCacheRef.current.set(personaId, persona);
+          return persona;
+        } catch {
+          return null;
+        } finally {
+          personaLoadPromisesRef.current.delete(personaId);
+        }
+      })();
+
+      personaLoadPromisesRef.current.set(personaId, request);
+      return request;
+    },
+    [],
+  );
 
   // Fetch persona list
   const refreshPersonas = useCallback(async () => {
@@ -39,6 +128,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setPersonas(data.personas ?? []);
+        personaDetailsCacheRef.current.clear();
       }
     } catch {
       // Silently fail — personas are optional
@@ -68,23 +158,16 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
     (async () => {
-      try {
-        const res = await fetch(`/api/personas/${activePersonaId}`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setActivePersona(data.persona ?? null);
-        } else if (!cancelled) {
-          setActivePersona(null);
-        }
-      } catch {
-        if (!cancelled) setActivePersona(null);
+      const persona = await loadPersonaById(activePersonaId, { force: true });
+      if (!cancelled) {
+        setActivePersona(persona);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [activePersonaId, dataEnabled]);
+  }, [activePersonaId, dataEnabled, loadPersonaById]);
 
   const setActivePersonaId = useCallback((id: string | null) => {
     setActivePersonaIdState(id);
@@ -111,6 +194,8 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       activePersonaId,
       setActivePersonaId,
       refreshPersonas,
+      loadPersonaById,
+      patchPersonaFile,
       loading,
       setDataEnabled,
     }),
@@ -120,6 +205,8 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       activePersonaId,
       setActivePersonaId,
       refreshPersonas,
+      loadPersonaById,
+      patchPersonaFile,
       loading,
       setDataEnabled,
     ],

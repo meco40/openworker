@@ -13,6 +13,11 @@ interface UsePersonaSelectionReturn {
   setPreferredModelId: (id: string | null) => void;
 }
 
+interface UsePersonaSelectionOptions {
+  loadPersonaById?: (id: string) => Promise<PersonaWithFiles | null>;
+  onPersonaFilePatched?: (id: string, filename: PersonaFileName, content: string) => void;
+}
+
 export function applySavedPersonaFile(
   persona: PersonaWithFiles | null,
   filename: PersonaFileName,
@@ -28,28 +33,48 @@ export function applySavedPersonaFile(
   };
 }
 
-export function usePersonaSelection(): UsePersonaSelectionReturn {
+export function usePersonaSelection(
+  options: UsePersonaSelectionOptions = {},
+): UsePersonaSelectionReturn {
+  const { loadPersonaById, onPersonaFilePatched } = options;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPersona, setSelectedPersona] = useState<PersonaWithFiles | null>(null);
   const [preferredModelId, setPreferredModelId] = useState<string | null>(null);
 
-  const loadPersona = useCallback(async (id: string) => {
-    try {
-      const res = await fetch(`/api/personas/${id}`, { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        const p = data.persona as PersonaWithFiles;
-        setSelectedPersona(p);
-        setPreferredModelId(p.preferredModelId ?? null);
+  const loadPersona = useCallback(
+    async (id: string) => {
+      const loader = loadPersonaById;
+      try {
+        if (loader) {
+          const persona = await loader(id);
+          if (!persona) return;
+          setSelectedPersona(persona);
+          setPreferredModelId(persona.preferredModelId ?? null);
+          return;
+        }
+        const res = await fetch(`/api/personas/${id}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          const p = data.persona as PersonaWithFiles;
+          setSelectedPersona(p);
+          setPreferredModelId(p.preferredModelId ?? null);
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
-    }
-  }, []);
+    },
+    [loadPersonaById],
+  );
 
-  const patchSelectedPersonaFile = useCallback((filename: PersonaFileName, content: string) => {
-    setSelectedPersona((current) => applySavedPersonaFile(current, filename, content));
-  }, []);
+  const patchSelectedPersonaFile = useCallback(
+    (filename: PersonaFileName, content: string) => {
+      setSelectedPersona((current) => applySavedPersonaFile(current, filename, content));
+      if (selectedId) {
+        onPersonaFilePatched?.(selectedId, filename, content);
+      }
+    },
+    [onPersonaFilePatched, selectedId],
+  );
 
   useEffect(() => {
     if (selectedId) {

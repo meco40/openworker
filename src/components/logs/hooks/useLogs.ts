@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getGatewayClient } from '@/modules/gateway/ws-client';
 import type { LogEntry, LevelFilter } from '@/components/logs/diagnostics';
 
@@ -26,6 +26,8 @@ export function useLogs(options: UseLogsOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const requestSequenceRef = useRef(0);
 
   const safeHistoryLimit = Number.isFinite(historyLimit)
     ? Math.min(1000, Math.max(1, Math.floor(historyLimit)))
@@ -66,6 +68,12 @@ export function useLogs(options: UseLogsOptions) {
 
   // Fetch historical logs
   const fetchLogs = useCallback(async () => {
+    requestSequenceRef.current += 1;
+    const requestSequence = requestSequenceRef.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
@@ -75,8 +83,10 @@ export function useLogs(options: UseLogsOptions) {
       if (search) params.set('search', search);
       params.set('limit', String(safeHistoryLimit));
 
-      const res = await fetch(`/api/logs?${params.toString()}`);
+      const res = await fetch(`/api/logs?${params.toString()}`, { signal: controller.signal });
+      if (requestSequence !== requestSequenceRef.current) return;
       const data = (await res.json()) as LogsResponsePayload;
+      if (requestSequence !== requestSequenceRef.current) return;
       if (data.ok) {
         const nextLogs = Array.isArray(data.logs) ? data.logs : [];
         setLogs(nextLogs);
@@ -84,10 +94,13 @@ export function useLogs(options: UseLogsOptions) {
         setHasMoreHistory(Boolean(data.page?.hasMore));
         setHistoryCursor(data.page?.nextCursor ?? resolveFallbackCursor(nextLogs));
       }
-    } catch {
+    } catch (fetchError) {
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') return;
       // Silently fail
     } finally {
-      setIsLoading(false);
+      if (requestSequence === requestSequenceRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [categoryFilter, levelFilter, safeHistoryLimit, search, sourceFilter]);
 
@@ -95,7 +108,16 @@ export function useLogs(options: UseLogsOptions) {
     if (!historyCursor || !hasMoreHistory || isLoadingMore) {
       return;
     }
+
+    requestSequenceRef.current += 1;
+    const requestSequence = requestSequenceRef.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setIsLoadingMore(true);
+    // If pagination interrupts an in-flight full reload, clear the blocking loading state.
+    setIsLoading(false);
     try {
       const params = new URLSearchParams();
       if (levelFilter !== 'all') params.set('level', levelFilter);
@@ -105,8 +127,10 @@ export function useLogs(options: UseLogsOptions) {
       params.set('limit', String(safeHistoryLimit));
       params.set('before', historyCursor);
 
-      const res = await fetch(`/api/logs?${params.toString()}`);
+      const res = await fetch(`/api/logs?${params.toString()}`, { signal: controller.signal });
+      if (requestSequence !== requestSequenceRef.current) return;
       const data = (await res.json()) as LogsResponsePayload;
+      if (requestSequence !== requestSequenceRef.current) return;
       if (data.ok) {
         const olderLogs = Array.isArray(data.logs) ? data.logs : [];
         setLogs((previous) => {
@@ -121,10 +145,14 @@ export function useLogs(options: UseLogsOptions) {
           setTotalCount(data.total);
         }
       }
-    } catch {
+    } catch (fetchError) {
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') return;
       // Silently fail
     } finally {
-      setIsLoadingMore(false);
+      if (requestSequence === requestSequenceRef.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
     }
   }, [
     categoryFilter,
@@ -170,6 +198,12 @@ export function useLogs(options: UseLogsOptions) {
   useEffect(() => {
     void fetchCategories();
   }, [fetchCategories]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   // WebSocket real-time stream
   useEffect(() => {
