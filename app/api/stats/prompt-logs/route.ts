@@ -1,4 +1,3 @@
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getTokenUsageRepository } from '@/server/stats/tokenUsageRepository';
 import {
   getPromptDispatchRepository,
@@ -8,6 +7,7 @@ import {
   getPromptDispatchDiagnostics,
   resetPromptDispatchDiagnostics,
 } from '@/server/stats/promptDispatchDiagnostics';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,12 +37,7 @@ function resolvePreset(preset: string): { from?: string; to?: string } {
   }
 }
 
-export async function GET(request: Request) {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withUserContext(async ({ request }) => {
   try {
     const { searchParams } = new URL(request.url);
     const repo = getPromptDispatchRepository();
@@ -95,14 +90,9 @@ export async function GET(request: Request) {
     const message = error instanceof Error ? error.message : 'Failed to fetch prompt logs.';
     return Response.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
-export async function DELETE() {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const DELETE = withUserContext(async () => {
   try {
     const repo = getPromptDispatchRepository();
     const tokenUsageRepo = getTokenUsageRepository();
@@ -114,4 +104,4 @@ export async function DELETE() {
     const message = error instanceof Error ? error.message : 'Failed to clear prompt logs.';
     return Response.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

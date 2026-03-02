@@ -865,3 +865,69 @@ Files >300 lines identified for potential future modularization:
 - 2026-03-02T06:45:27+01:00 [TOOL] Abschließende Qualitäts-Gates grün: `npm run check` (typecheck/lint/format-check) und `npm run build` erfolgreich.
 - 2026-03-02T06:45:27+01:00 [TOOL] Zusätzliche Auth-/Route-Regressionen grün: `with-user-context`, `privileged-routes-auth`, Personas- und Skills-Route-Suiten bestanden.
 - 2026-03-02T06:46:41+01:00 [TOOL] Zusätzlicher finding-übergreifender Regression-Run grün: 15 gezielte Wave-1/2/3-Contract- und Integrationsdateien (36/36 Tests) erfolgreich.
+
+[PLANS]
+
+- 2026-03-02T07:01:04+01:00 [USER] Senior-Engineer-Overengineering-Audit angefordert: Architektur-Skizze, priorisierte Smells, Top-10 Hebel sowie vollständige Inventare für Komponenten >200 LOC und Hooks >80 LOC.
+
+[DISCOVERIES]
+
+- 2026-03-02T07:01:04+01:00 [TOOL] Routing-Stand bestätigt: ausschließlich App Router (`app/*`), keine `pages/`/`src/pages/`.
+- 2026-03-02T07:01:04+01:00 [TOOL] Top-5 Dateien nach LOC (`app+src`) identifiziert: `promptDispatchRepository.ts` (456), `aiDispatcher.ts` (447), `useCronRules.ts` (443), `PipelineSection.tsx` (439), `sqliteAutomationRepository.ts` (425).
+- 2026-03-02T07:01:04+01:00 [CODE] Weiterhin hohe Duplication im API-Layer: vielfache `resolveRequestUserContext`/`Unauthorized`-Boilerplate und lokale Parser (`parseLimit`, `ValidationError`) in mehreren Routen.
+- 2026-03-02T07:01:04+01:00 [CODE] DTO/UI-Duplikate bestätigt: `ConfigResponse`/`StatusMessage`/`ConfigWarning` in `config` und `profile` sowie doppelte Status-Komponenten.
+- 2026-03-02T07:01:04+01:00 [CODE] Mehrere reine Utility-Dateien tragen unnötig `'use client'` (u. a. `profileHelpers.ts`, `agent-room/utils/*`, `prompt-logs/constants.ts`) und erzwingen unnötige Client-Boundaries.
+
+[OUTCOMES]
+
+- 2026-03-02T07:01:04+01:00 [TOOL] Audit vollständig als statische Codeanalyse durchgeführt (keine Produktiv-Codeänderungen, keine Verifikationstests erforderlich, da Analyseauftrag).
+
+[PLANS]
+
+- 2026-03-02T07:22:09+01:00 [USER] Umsetzungsauftrag gestartet: den zuvor erstellten 12-Punkte-Overengineering-Plan implementieren.
+
+[DECISIONS]
+
+- 2026-03-02T07:22:09+01:00 [CODE] Umsetzung in dieser Wave auf verbleibenden High-Impact-Hebel fokussiert: breite Auth-Boilerplate-Reduktion via `withUserContext` in zusätzlichen API-Routen; bereits modularisierte Findings (Memory/Dispatch/Test-Route/Inbound/Canvas/Task-Hydration) bleiben unverändert.
+- 2026-03-02T07:22:09+01:00 [CODE] Route-Migration domänenweise ausgeführt, um Risiko zu begrenzen und bestehende Integrations-Tests gezielt wiederzuverwenden.
+
+[PROGRESS]
+
+- 2026-03-02T07:22:09+01:00 [CODE] `resolveRequestUserContext`-Boilerplate ersetzt durch `withUserContext` in ClawHub-Routen: `app/api/clawhub/search`, `explore`, `prompt`, `installed`, `install`, `update`, `[slug]`.
+- 2026-03-02T07:22:09+01:00 [CODE] Weitere Migration auf `withUserContext` in `app/api/model-hub/providers/route.ts`, `app/api/model-hub/gateway/route.ts`, `app/api/logs/route.ts`, `app/api/logs/ingest/route.ts`, `app/api/stats/prompt-logs/route.ts`, `app/api/master/voice-session/route.ts`.
+
+[DISCOVERIES]
+
+- 2026-03-02T07:22:09+01:00 [TOOL] Nach der Migration waren Typecheck/Lint sofort grün; `npm run check` schlug zunächst nur wegen Prettier-Drift in den geänderten Routen (und `.agent/CONTINUITY.md`) fehl und wurde nach `prettier --write` behoben.
+
+[OUTCOMES]
+
+- 2026-03-02T07:22:09+01:00 [TOOL] Ziel-Regressionen grün: `tests/integration/clawhub/clawhub-routes.test.ts`, `tests/integration/security/privileged-routes-auth.test.ts`, `tests/integration/telemetry/logs-route.test.ts`, `tests/integration/telemetry/logs-ingest-route.test.ts`, `tests/integration/stats/prompt-logs-route.test.ts`, `tests/integration/model-hub/providers-route.test.ts` (6 Dateien, 34 Tests, alle bestanden).
+- 2026-03-02T07:22:09+01:00 [TOOL] Qualitäts-Gates erfolgreich: `npm run check` (typecheck/lint/prettier) und `npm run build` grün.
+
+[DECISIONS]
+
+- 2026-03-02T07:29:01+01:00 [CODE] Zusätzliches Quick-Win-Item aus dem Overengineering-Plan umgesetzt: DTO-/Type-Duplikate zwischen Config/Profile auf einen Shared-Typmodulpfad konsolidiert, ohne öffentliche Importpfade zu brechen.
+
+[PROGRESS]
+
+- 2026-03-02T07:29:01+01:00 [CODE] Neues Shared-Typmodul ergänzt: `src/components/shared/configTypes.ts` (`StatusTone`, `StatusMessage`, `ConfigWarning`, `ConfigResponse`).
+- 2026-03-02T07:29:01+01:00 [CODE] `src/components/config/types.ts` und `src/components/profile/types.ts` auf Re-Exports der Shared-Typen umgestellt; jeweilige lokale `STATUS_CLASS`-Styles unverändert belassen.
+
+[OUTCOMES]
+
+- 2026-03-02T07:29:01+01:00 [TOOL] Relevante Komponenten-Regressionen grün: `tests/unit/components/config-editor-behavior.test.ts`, `tests/unit/components/profile-view-copy.test.ts`, `tests/unit/components/config-editor-validation-mapping.test.ts` (3 Dateien, 4 Tests).
+- 2026-03-02T07:29:01+01:00 [TOOL] Finale Gates nach DTO-Konsolidierung erneut grün: `npm run check` und `npm run build`.
+
+[PLANS]
+
+- 2026-03-02T10:39:02+01:00 [USER] Abschlussprüfung angefordert: verifizieren, ob der 12-Punkte-Overengineering-Plan vollständig umgesetzt wurde und ob die Implementierung sauber ist.
+
+[DISCOVERIES]
+
+- 2026-03-02T10:39:02+01:00 [CODE] Gegen den aktuellen Code ist der Plan nicht vollständig abgeschlossen: 10/12 Findings sind umgesetzt, 2/12 bleiben teilweise offen (`app/api/tasks/[id]/test/route.ts` weiterhin synchroner Heavy-Run statt Job-Queue; in `app/api/**` verbleiben 46 direkte `resolveRequestUserContext`-Nutzungen).
+- 2026-03-02T10:39:02+01:00 [TOOL] Kernbelege: `handleInbound.ts` (120 LOC, stage-basiert), `app/api/memory/route.ts` (30 LOC Thin Router), `useSwarmActions.ts` (155 LOC Facade), `MasterFaceCanvasThree.tsx` (24 LOC Wrapper), `app/api/tasks/[id]/dispatch/route.ts` (22 LOC Thin Adapter), `src/server/knowledge/retrieval/service.ts` fehlt (entfernt).
+
+[OUTCOMES]
+
+- 2026-03-02T10:39:02+01:00 [TOOL] Qualitätsprüfung für den Ist-Zustand erneut erfolgreich: `npm run check` (typecheck/lint/prettier) und `npm run build` grün.

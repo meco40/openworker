@@ -1,25 +1,20 @@
 import { NextResponse } from 'next/server';
 
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getClawHubService } from '@/server/clawhub/clawhubService';
 import { isValidClawHubSlug, toClawHubHttpStatus } from '@/server/clawhub/errors';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
-type RouteContext = { params: Promise<{ slug: string }> };
+type SlugParams = { slug: string };
 
 interface PatchBody {
   enabled?: boolean;
 }
 
-export async function PATCH(request: Request, context: RouteContext) {
+export const PATCH = withUserContext<SlugParams>(async ({ request, params }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { slug } = await context.params;
+    const { slug } = params;
     const normalizedSlug = slug.trim();
     if (!normalizedSlug) {
       return NextResponse.json({ ok: false, error: 'Skill slug is required.' }, { status: 400 });
@@ -47,16 +42,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     const status = toClawHubHttpStatus(error, 500);
     return NextResponse.json({ ok: false, error: message }, { status });
   }
-}
+});
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export const DELETE = withUserContext<SlugParams>(async ({ params }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { slug } = await context.params;
+    const { slug } = params;
     const normalizedSlug = slug.trim();
     if (!normalizedSlug) {
       return NextResponse.json({ ok: false, error: 'Skill slug is required.' }, { status: 400 });
@@ -76,4 +66,4 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const status = toClawHubHttpStatus(error, 500);
     return NextResponse.json({ ok: false, error: message }, { status });
   }
-}
+});

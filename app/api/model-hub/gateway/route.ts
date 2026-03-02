@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
 import type { GatewayMessage } from '@/server/model-hub/gateway';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -24,13 +24,8 @@ interface GatewayRequestBody {
   payload?: Record<string, unknown>;
 }
 
-export async function POST(request: Request) {
+export const POST = withUserContext(async ({ request }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = (await request.json()) as GatewayRequestBody;
 
     // ─── Embeddings pass-through ──────────────────────────────
@@ -93,4 +88,4 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
-}
+});

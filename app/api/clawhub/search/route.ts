@@ -1,17 +1,12 @@
 import { NextResponse } from 'next/server';
 
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getClawHubService } from '@/server/clawhub/clawhubService';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
-export async function GET(request: Request) {
+export const GET = withUserContext(async ({ request }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const url = new URL(request.url);
     const query = (url.searchParams.get('q') || '').trim();
     if (!query) {
@@ -31,4 +26,4 @@ export async function GET(request: Request) {
     const message = error instanceof Error ? error.message : 'ClawHub search failed';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

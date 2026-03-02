@@ -1,6 +1,6 @@
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getLogRepository } from '@/logging/logRepository';
 import type { LogCategory, LogLevel } from '@/logging/logTypes';
+import { withUserContext } from '../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,12 +32,7 @@ function parseLimit(searchParams: URLSearchParams): number {
  *   before  – ISO timestamp for cursor-based pagination
  *   sources – if set, returns distinct source list instead
  */
-export async function GET(request: Request) {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withUserContext(async ({ request }) => {
   const { searchParams } = new URL(request.url);
   const repo = getLogRepository();
 
@@ -93,18 +88,13 @@ export async function GET(request: Request) {
       nextCursor,
     },
   });
-}
+});
 
 /**
  * DELETE /api/logs — clear all logs.
  */
-export async function DELETE() {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const DELETE = withUserContext(async () => {
   const repo = getLogRepository();
   const deleted = repo.clearLogs();
   return Response.json({ ok: true, deleted });
-}
+});

@@ -1,17 +1,12 @@
 import { NextResponse } from 'next/server';
 
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getClawHubService } from '@/server/clawhub/clawhubService';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export const GET = withUserContext(async () => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const service = getClawHubService();
     const skills = await service.syncInstalledFromLockfile();
     return NextResponse.json({ ok: true, skills });
@@ -20,4 +15,4 @@ export async function GET() {
       error instanceof Error ? error.message : 'Failed to list installed ClawHub skills';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

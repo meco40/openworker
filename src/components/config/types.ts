@@ -1,27 +1,12 @@
-export type StatusTone = 'success' | 'error' | 'info';
+import type { StatusTone } from '@/components/shared/configTypes';
+
+export type {
+  ConfigResponse,
+  ConfigWarning,
+  StatusMessage,
+  StatusTone,
+} from '@/components/shared/configTypes';
 export type ConfigTab = 'overview' | 'network' | 'runtime' | 'ui' | 'advanced';
-
-export interface StatusMessage {
-  tone: StatusTone;
-  text: string;
-}
-
-export interface ConfigWarning {
-  code: string;
-  message: string;
-}
-
-export interface ConfigResponse {
-  ok: boolean;
-  config?: Record<string, unknown>;
-  source?: 'default' | 'file';
-  displayPath?: string;
-  warnings?: ConfigWarning[];
-  revision?: string;
-  currentRevision?: string;
-  error?: string;
-  code?: string;
-}
 
 export const FALLBACK_PATH = '~/.openclaw/openclaw.json';
 

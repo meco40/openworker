@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getClawHubService } from '@/server/clawhub/clawhubService';
 import { isValidClawHubSlug, toClawHubHttpStatus } from '@/server/clawhub/errors';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -12,13 +12,8 @@ interface InstallBody {
   force?: boolean;
 }
 
-export async function POST(request: Request) {
+export const POST = withUserContext(async ({ request }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = (await request.json()) as InstallBody;
     const slug = (body.slug || '').trim();
     if (!slug) {
@@ -46,4 +41,4 @@ export async function POST(request: Request) {
     const status = toClawHubHttpStatus(error, 500);
     return NextResponse.json({ ok: false, error: message }, { status });
   }
-}
+});

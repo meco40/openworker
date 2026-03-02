@@ -1,24 +1,11 @@
-export type StatusTone = 'success' | 'error' | 'info';
+import type { StatusTone } from '@/components/shared/configTypes';
 
-export interface StatusMessage {
-  tone: StatusTone;
-  text: string;
-}
-
-export interface ConfigWarning {
-  code: string;
-  message: string;
-}
-
-export interface ConfigResponse {
-  ok: boolean;
-  config?: Record<string, unknown>;
-  revision?: string;
-  warnings?: ConfigWarning[];
-  error?: string;
-  code?: string;
-  currentRevision?: string;
-}
+export type {
+  ConfigResponse,
+  ConfigWarning,
+  StatusMessage,
+  StatusTone,
+} from '@/components/shared/configTypes';
 
 export const STATUS_CLASS: Record<StatusTone, string> = {
   success: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10',

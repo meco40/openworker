@@ -1,5 +1,5 @@
 import { logFromSystemEvent } from '@/logging/logService';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,12 +9,7 @@ export const dynamic = 'force-dynamic';
  *
  * Body: { type: string, message: string }
  */
-export async function POST(request: Request) {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const POST = withUserContext(async ({ request }) => {
   const body = (await request.json()) as { type?: string; message?: string };
 
   if (!body.type || !body.message) {
@@ -23,4 +18,4 @@ export async function POST(request: Request) {
 
   const entry = logFromSystemEvent(body.type, body.message);
   return Response.json({ ok: true, entry });
-}
+});

@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { NextResponse } from 'next/server';
 import { getModelHubService, getModelHubEncryptionKey } from '@/server/model-hub/runtime';
 import { decryptSecret } from '@/server/model-hub/crypto';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,12 +9,7 @@ export const dynamic = 'force-dynamic';
 const VALID_VOICES = new Set(['Ara', 'Rex', 'Sal', 'Eve', 'Leo']);
 const XAI_REALTIME_SECRETS_URL = 'https://api.x.ai/v1/realtime/client_secrets';
 
-export async function GET(req: NextRequest): Promise<NextResponse> {
-  const ctx = await resolveRequestUserContext();
-  if (!ctx) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withUserContext(async ({ request }): Promise<NextResponse> => {
   // Resolve xAI API key from Model Hub
   let apiKey: string;
   try {
@@ -41,7 +36,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   // Optional voice selection via query param, default Ara
-  const voiceParam = req.nextUrl.searchParams.get('voice') ?? 'Ara';
+  const voiceParam = new URL(request.url).searchParams.get('voice') ?? 'Ara';
   const voice = VALID_VOICES.has(voiceParam) ? voiceParam : 'Ara';
 
   // Request ephemeral token from xAI
@@ -91,4 +86,4 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   return NextResponse.json({ ok: true, token, voice, expiresAt });
-}
+});

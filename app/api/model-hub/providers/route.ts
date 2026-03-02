@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -18,12 +18,7 @@ function getOAuthReadiness(): Record<string, boolean> {
   };
 }
 
-export async function GET() {
-  const userContext = await resolveRequestUserContext();
-  if (!userContext) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const GET = withUserContext(async () => {
   const oauthReady = getOAuthReadiness();
 
   const providers = PROVIDER_CATALOG.map((provider) => {
@@ -64,4 +59,4 @@ export async function GET() {
   });
 
   return NextResponse.json({ ok: true, providers });
-}
+});
