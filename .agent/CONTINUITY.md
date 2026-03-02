@@ -931,3 +931,18 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-02T10:39:02+01:00 [TOOL] Qualitätsprüfung für den Ist-Zustand erneut erfolgreich: `npm run check` (typecheck/lint/prettier) und `npm run build` grün.
+
+[PLANS]
+
+- 2026-03-02T10:56:14.5260947+01:00 [USER] Erneutes Senior-Engineer-Overengineering-Audit angefordert mit klaren Schwellenwerten (Top-5 LOC, Komponenten >200/>400, Hooks >80/>160, DTO-/Schema-Duplikate, priorisierte Vereinfachungshebel).
+
+[DISCOVERIES]
+
+- 2026-03-02T10:56:14.5260947+01:00 [TOOL] Logical-LOC-Scan (`app+src`, ohne Tests) bestätigt Top-5-Dateien: `promptDispatchRepository.ts` (447), `useCronRules.ts` (443), `PipelineSection.tsx` (439), `aiDispatcher.ts` (436), `sqliteAutomationRepository.ts` (423).
+- 2026-03-02T10:56:14.5260947+01:00 [TOOL] Schwellenwert-Inventar: 43 Komponenten >200 LOC (davon 1 >400) und 44 Custom Hooks >80 LOC (davon 21 >160).
+- 2026-03-02T10:56:14.5260947+01:00 [TOOL] API-Boilerplate weiterhin hoch: 31 von 113 `app/api/**/route.ts` nutzen direkt `resolveRequestUserContext` statt Wrapper.
+- 2026-03-02T10:56:14.5260947+01:00 [CODE] Typ-Duplikate erneut bestätigt (u. a. `SearchMessagesOptions` in 3 Pfaden, `PlanningState`/`PlanningQuestion` in `components/planning` + `lib/types`, `ProviderCatalogEntry` in Client+Server-Typmodellen); zusätzlich unnötige `'use client'`-Direktiven in reinen Utility-/Constants-Dateien.
+
+[OUTCOMES]
+
+- 2026-03-02T10:56:14.5260947+01:00 [TOOL] Audit als statische Read-only-Analyse durchgeführt; keine Produktivcode-Änderungen und keine erneuten Build/Test-Läufe innerhalb dieses Analyseauftrags.

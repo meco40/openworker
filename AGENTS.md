@@ -90,7 +90,7 @@ Update `.agent/CONTINUITY.md` only when there is a meaningful delta in:
   - If unknown, write `UNCONFIRMED` (never guess). If something changes, supersede it explicitly (don't silently rewrite history).
 - Keep the file bounded, short and high-signal (anti-bloat).
 - If sections begin to become bloated, compress older items into milestone (`[MILESTONE]`) bullets.
-- Fix Prettier write errors on the file.
+- Do a Automatic prettier format only on that md file.
 
 ## Definition of done
 
