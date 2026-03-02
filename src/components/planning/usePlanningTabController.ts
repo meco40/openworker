@@ -91,14 +91,16 @@ export function usePlanningTabController({
         );
 
         if (!data.hasUpdates && data.isComplete) {
-          const freshRes = await fetch(`/api/tasks/${taskId}/planning`);
-          if (freshRes.ok) {
-            const freshData = await freshRes.json();
-            setState({
-              ...freshData,
-              isComplete: true,
-            });
-          }
+          setState((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  isComplete: true,
+                  currentQuestion: undefined,
+                  dispatchError: data.dispatchError ?? prev.dispatchError,
+                }
+              : prev,
+          );
 
           setSubmitting(false);
           setIsSubmittingAnswer(false);
@@ -117,31 +119,16 @@ export function usePlanningTabController({
           const newQuestion = data.currentQuestion?.question;
           const questionChanged = newQuestion && currentQuestionRef.current !== newQuestion;
 
-          const freshRes = await fetch(`/api/tasks/${taskId}/planning`);
-          if (freshRes.ok) {
-            const freshData = await freshRes.json();
-            setState({
-              ...freshData,
-              isComplete: Boolean(freshData.isComplete || data.complete || data.dispatchError),
-              dispatchError: data.dispatchError ?? freshData.dispatchError,
-              spec: data.spec ?? freshData.spec,
-              agents: data.agents ?? freshData.agents,
-              messages: data.messages ?? freshData.messages,
-              currentQuestion:
-                data.currentQuestion ??
-                (pollSignalsCompletion ? undefined : freshData.currentQuestion),
-            });
-          } else {
-            setState((prev) => ({
-              ...prev!,
-              messages: data.messages,
-              isComplete: data.complete,
-              spec: data.spec,
-              agents: data.agents,
-              currentQuestion: data.currentQuestion,
-              dispatchError: data.dispatchError,
-            }));
-          }
+          setState((prev) => ({
+            ...(prev ?? { taskId, isStarted: true, messages: [], isComplete: false }),
+            messages: data.messages ?? prev?.messages ?? [],
+            isComplete: Boolean(data.complete || data.isComplete || data.dispatchError),
+            spec: data.spec ?? prev?.spec,
+            agents: data.agents ?? prev?.agents,
+            dispatchError: data.dispatchError ?? prev?.dispatchError,
+            currentQuestion:
+              data.currentQuestion ?? (pollSignalsCompletion ? undefined : prev?.currentQuestion),
+          }));
 
           if (questionChanged) {
             currentQuestionRef.current = newQuestion ?? null;

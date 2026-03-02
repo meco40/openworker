@@ -10,7 +10,6 @@ const baseState: GatewayState = {
   cpuUsage: 0,
   memoryUsage: 0,
   activeSessions: 0,
-  onboarded: true,
   totalTokens: 0,
   eventHistory: [],
   trafficData: [],

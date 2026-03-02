@@ -3,7 +3,7 @@ import { fetchJsonOk } from '@/server/model-hub/Models/shared/http';
 import {
   dispatchOpenAICompatibleChat,
   fetchOpenAICompatibleModels,
-} from '@/server/model-hub/Models/shared/openaiCompatible';
+} from '@/server/model-hub/Models/shared/openai-compatible';
 
 const zaiProviderAdapter: ProviderAdapter = {
   id: 'zai',

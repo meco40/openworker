@@ -4,7 +4,7 @@ import {
   type GatewayRequest,
   type GatewayResponse,
 } from '@/server/model-hub/Models';
-import { dispatchOpenAICompatibleChat } from '@/server/model-hub/Models/shared/openaiCompatible';
+import { dispatchOpenAICompatibleChat } from '@/server/model-hub/Models/shared/openai-compatible';
 import { decryptSecret } from '@/server/model-hub/crypto';
 import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
 import type { ProviderAccountRecord } from '@/server/model-hub/repository';

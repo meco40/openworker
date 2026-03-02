@@ -1,6 +1,6 @@
 import type { Conversation } from '@/server/channels/messages/repository';
 import type { ContextBuilder } from '@/server/channels/messages/contextBuilder';
-import type { RecallService } from '@/server/channels/messages/service/recallService';
+import type { RecallService } from '@/server/channels/messages/service/recall';
 import type { SummaryService } from '@/server/channels/messages/service/summaryService';
 import type { ToolManager } from '@/server/channels/messages/service/toolManager';
 import { prepareDispatchMessages } from '@/server/channels/messages/service/dispatchers/ai/prepareDispatchMessages';

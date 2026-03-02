@@ -1,5 +1,5 @@
 import type { FetchedModel, ProviderAdapter } from '@/server/model-hub/Models/types';
-import { dispatchOpenAICompatibleChat } from '@/server/model-hub/Models/shared/openaiCompatible';
+import { dispatchOpenAICompatibleChat } from '@/server/model-hub/Models/shared/openai-compatible';
 import { fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
 
 const OLLAMA_OPENAI_BASE_URL = 'http://localhost:11434/v1';

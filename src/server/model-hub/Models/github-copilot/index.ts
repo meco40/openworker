@@ -1,6 +1,6 @@
 import type { ProviderAdapter } from '@/server/model-hub/Models/types';
 import { fetchJsonOk, fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
-import { dispatchOpenAICompatibleChat } from '@/server/model-hub/Models/shared/openaiCompatible';
+import { dispatchOpenAICompatibleChat } from '@/server/model-hub/Models/shared/openai-compatible';
 
 const githubProviderAdapter: ProviderAdapter = {
   id: 'github-copilot',

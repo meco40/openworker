@@ -213,6 +213,17 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    id: '008',
+    name: 'drop_legacy_planning_tables',
+    up: (db) => {
+      console.log('[Migration 008] Dropping legacy planning tables...');
+
+      db.exec(`DROP INDEX IF EXISTS idx_planning_questions_task`);
+      db.exec(`DROP TABLE IF EXISTS planning_specs`);
+      db.exec(`DROP TABLE IF EXISTS planning_questions`);
+    },
+  },
 ];
 
 /**

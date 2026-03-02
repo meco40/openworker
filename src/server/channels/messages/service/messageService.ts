@@ -13,7 +13,7 @@ import type { StoredMessageAttachment } from '@/server/channels/messages/attachm
 
 import { SubagentManager } from './subagentManager';
 import { ToolManager } from './toolManager';
-import { RecallService } from './recallService';
+import { RecallService } from './recall';
 import { SummaryService } from './summaryService';
 import { createSendResponse } from './utils/responseHelper';
 import {
@@ -382,8 +382,4 @@ export class MessageService {
   }
 
   private resolveChatModelRouting = resolveChatModelRouting;
-}
-
-export function createMessageService(repo: MessageRepository): MessageService {
-  return new MessageService(repo);
 }

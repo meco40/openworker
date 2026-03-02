@@ -93,7 +93,6 @@ export interface GatewayState {
   cpuUsage: number;
   memoryUsage: number;
   activeSessions: number;
-  onboarded: boolean;
   totalTokens: number;
   eventHistory: SystemLog[];
   trafficData: { name: string; tokens: number }[];
@@ -147,7 +146,6 @@ export enum View {
   CONFIG = 'config',
   SKILLS = 'skills',
   EXPOSURE = 'exposure',
-  WIZARD = 'wizard',
   CHANNELS = 'channels',
   LOGS = 'logs',
   STATS = 'stats',

@@ -1183,3 +1183,36 @@ Files >300 lines identified for potential future modularization:
 - 2026-03-02T17:10Z [TOOL] New file: `src/shared/lib/text.ts` (truncateText + formatDateDE)
 - 2026-03-02T17:10Z [TOOL] Dependency removed: `uuid` (^13.0.0) from package.json
 - 2026-03-02T17:10Z [TOOL] Total files modified across Waves 2–4: 22 source files, 1 test file, 1 new shared utility
+
+[PLANS]
+
+- 2026-03-02T17:00:38Z [USER] Delete-first Next.js Refactoring-Audit (Read-only) angefordert: Kern-Flows kartieren, Core-vs-Optional ableiten, Dead Code/Dupes/State+Fetch-Overhead priorisieren und Top-5 Patchvorschlaege liefern.
+
+[DISCOVERIES]
+
+- 2026-03-02T17:00:38Z [TOOL] npm run -s knip meldet aktuell 18 ungenutzte Dateien; verifizierte High-Confidence-Kandidaten: src/components/model-hub/components/\*, src/lib/orchestration.ts, src/lib/db/seed.ts, src/server/knowledge/ingestion/{index,ingestionCursor,taskTracker}.ts, src/server/channels/messages/service/index.ts.
+- 2026-03-02T17:00:38Z [CODE] Drei fruehere knip-Treffer als False-Positives bestaetigt: scripts/e2e/start-e2e-server.ts (Playwright webServer.command), scripts/external-skill-host.mjs (Runtime-Referenz in externalSkillHost.ts), public/vendor/headaudio/headworklet.mjs (Master-Audio-Worklet-Load).
+- 2026-03-02T17:00:38Z [CODE] Unreferenzierte Route-Kandidaten nur mit Docs-Treffern: /api/files/upload, /api/files/download, /api/openclaw/orchestra, /api/openclaw/sessions/[id]/history, /api/tasks/[id]/planning/approve.
+- 2026-03-02T17:00:38Z [CODE] Polling-Overhead bestaetigt: usePlanningTabController fuehrt nach /planning/poll bei Updates zusaetzliche GET /planning-Requests aus (doppelte Netzlast pro Poll-Zyklus).
+
+[OUTCOMES]
+
+- 2026-03-02T17:00:38Z [TOOL] Read-only Audit-Grundlage finalisiert (keine Produktivcode-Aenderungen): Delete-Liste mit LOC-Schaetzung (~2.1k bedingt, ~1.2k Low-Risk), SSOT-Konsolidierungsfelder und Top-5 Patch-Entwuerfe vorbereitet.
+
+[PLANS]
+
+- 2026-03-02T22:20:23.9960799+01:00 [USER] Umsetzung des 10-Findings-Refactor-Plans explizit angefordert ("Implement the plan").
+
+[PROGRESS]
+
+- 2026-03-02T22:20:23.9960799+01:00 [TOOL] Verbleibenden Flake-Kandidaten `tests/skills-route-requests.test.ts` isoliert revalidiert (`-t handles playwright_cli request`) und gruene Ausfuehrung bestaetigt.
+- 2026-03-02T22:20:23.9960799+01:00 [TOOL] Volltestlauf gegen aktuellen Arbeitsstand erneut ausgefuehrt (`npm test`) zur End-to-End-Absicherung der Delete-First-Aenderungen.
+
+[DISCOVERIES]
+
+- 2026-03-02T22:20:23.9960799+01:00 [TOOL] Der zuvor beobachtete Timeout bei `playwright_cli` war im aktuellen Lauf nicht reproduzierbar; sowohl isolierter Test als auch Vollsuite liefen erfolgreich.
+
+[OUTCOMES]
+
+- 2026-03-02T22:20:23.9960799+01:00 [TOOL] Vollsuite erfolgreich: `npm test` = 469/469 Testdateien, 2088/2088 Tests, 0 Fehler.
+- 2026-03-02T22:20:23.9960799+01:00 [TOOL] Production-Build erfolgreich: `npm run build` (Next.js 16.1.6), Build/TypeScript/Static-Generation grün.

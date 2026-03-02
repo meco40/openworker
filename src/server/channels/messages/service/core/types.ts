@@ -8,7 +8,7 @@ import type { HistoryManager } from '@/server/channels/messages/historyManager';
 import type { ContextBuilder } from '@/server/channels/messages/contextBuilder';
 import type { SubagentManager } from '@/server/channels/messages/service/subagentManager';
 import type { ToolManager } from '@/server/channels/messages/service/toolManager';
-import type { RecallService } from '@/server/channels/messages/service/recallService';
+import type { RecallService } from '@/server/channels/messages/service/recall';
 import type { SummaryService } from '@/server/channels/messages/service/summaryService';
 import type { SessionManager } from '@/server/channels/messages/sessionManager';
 

@@ -9,7 +9,7 @@ import type { SessionManager } from '@/server/channels/messages/sessionManager';
 import type { HistoryManager } from '@/server/channels/messages/historyManager';
 import type { ContextBuilder } from '@/server/channels/messages/contextBuilder';
 import type { ToolManager } from '@/server/channels/messages/service/toolManager';
-import type { RecallService } from '@/server/channels/messages/service/recallService';
+import type { RecallService } from '@/server/channels/messages/service/recall';
 import type { SummaryService } from '@/server/channels/messages/service/summaryService';
 import type { CommandHandlerDeps } from '@/server/channels/messages/service/commands';
 import type { ServiceState } from '@/server/channels/messages/service/core/types';

@@ -7,7 +7,7 @@ import {
 } from '@/server/channels/messages/attachments';
 import type { MessageRepository, StoredMessage } from '@/server/channels/messages/repository';
 import type { SessionManager } from '@/server/channels/messages/sessionManager';
-import type { RecallService } from '@/server/channels/messages/service/recallService';
+import type { RecallService } from '@/server/channels/messages/service/recall';
 import type { SummaryService } from '@/server/channels/messages/service/summaryService';
 import type { ChannelType } from '@/shared/domain/types';
 

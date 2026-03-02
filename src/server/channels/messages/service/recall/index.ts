@@ -225,6 +225,3 @@ export {
 
 // Re-export constants for backward compatibility
 export { RECALL_QUERY_STOP_WORDS, TIME_TOKENS, COMMITMENT_TOKENS } from './constants';
-
-// Default export
-export default RecallService;

@@ -65,7 +65,7 @@ async function setupGateway(options: {
   vi.doMock('../../../src/server/model-hub/Models', () => ({
     getProviderAdapter,
   }));
-  vi.doMock('../../../src/server/model-hub/Models/shared/openaiCompatible', () => ({
+  vi.doMock('../../../src/server/model-hub/Models/shared/openai-compatible', () => ({
     dispatchOpenAICompatibleChat,
   }));
   vi.doMock('../../../src/server/model-hub/crypto', () => ({

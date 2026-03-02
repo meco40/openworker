@@ -1,5 +1,5 @@
 import { getProviderAdapter, type FetchedModel } from '@/server/model-hub/Models';
-import { fetchOpenAICompatibleModels } from '@/server/model-hub/Models/shared/openaiCompatible';
+import { fetchOpenAICompatibleModels } from '@/server/model-hub/Models/shared/openai-compatible';
 import { fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
 import { decryptSecret } from '@/server/model-hub/crypto';
 import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';

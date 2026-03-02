@@ -14,4 +14,3 @@
 // for backward compatibility.
 
 export * from './repository/index';
-export { AgentV2Repository as default } from './repository/index';

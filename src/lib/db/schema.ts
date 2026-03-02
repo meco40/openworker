@@ -63,30 +63,6 @@ CREATE TABLE IF NOT EXISTS tasks (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- Planning questions table
-CREATE TABLE IF NOT EXISTS planning_questions (
-  id TEXT PRIMARY KEY,
-  task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-  category TEXT NOT NULL,
-  question TEXT NOT NULL,
-  question_type TEXT DEFAULT 'multiple_choice' CHECK (question_type IN ('multiple_choice', 'text', 'yes_no')),
-  options TEXT,
-  answer TEXT,
-  answered_at TEXT,
-  sort_order INTEGER DEFAULT 0,
-  created_at TEXT DEFAULT (datetime('now'))
-);
-
--- Planning specs table (locked specifications)
-CREATE TABLE IF NOT EXISTS planning_specs (
-  id TEXT PRIMARY KEY,
-  task_id TEXT NOT NULL UNIQUE REFERENCES tasks(id) ON DELETE CASCADE,
-  spec_markdown TEXT NOT NULL,
-  locked_at TEXT NOT NULL,
-  locked_by TEXT,
-  created_at TEXT DEFAULT (datetime('now'))
-);
-
 -- Conversations table (agent-to-agent or task-related)
 CREATE TABLE IF NOT EXISTS conversations (
   id TEXT PRIMARY KEY,
@@ -182,5 +158,4 @@ CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status);
 CREATE INDEX IF NOT EXISTS idx_activities_task ON task_activities(task_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_deliverables_task ON task_deliverables(task_id);
 CREATE INDEX IF NOT EXISTS idx_openclaw_sessions_task ON openclaw_sessions(task_id);
-CREATE INDEX IF NOT EXISTS idx_planning_questions_task ON planning_questions(task_id, sort_order);
 `;

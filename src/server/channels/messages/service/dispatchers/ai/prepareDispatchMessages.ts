@@ -1,6 +1,6 @@
 import type { ContextBuilder } from '@/server/channels/messages/contextBuilder';
 import type { Conversation } from '@/server/channels/messages/repository';
-import type { RecallService } from '@/server/channels/messages/service/recallService';
+import type { RecallService } from '@/server/channels/messages/service/recall';
 import { repairOrphanedToolCalls } from '@/server/channels/messages/service/transcriptRepair';
 import { buildActiveSkillsPromptSection } from '@/server/channels/messages/service/dispatchers/skillsPrompt';
 import type { DispatchMessage } from './types';

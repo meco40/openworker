@@ -27,7 +27,7 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
     }));
 
     const { dispatchOpenAICompatibleChat } =
-      await import('@/server/model-hub/Models/shared/openaiCompatible');
+      await import('@/server/model-hub/Models/shared/openai-compatible');
 
     await dispatchOpenAICompatibleChat('https://api.example.com/v1', 'sk-test', 'openai', {
       model: 'gpt-4o-mini',
@@ -87,7 +87,7 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
     }));
 
     const { dispatchOpenAICompatibleChat } =
-      await import('@/server/model-hub/Models/shared/openaiCompatible');
+      await import('@/server/model-hub/Models/shared/openai-compatible');
 
     const result = await dispatchOpenAICompatibleChat(
       'https://api.example.com/v1',

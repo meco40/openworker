@@ -3,7 +3,7 @@ import {
   dispatchOpenAICompatibleChat,
   fetchOpenAICompatibleModels,
   testOpenAICompatibleModelsEndpoint,
-} from '@/server/model-hub/Models/shared/openaiCompatible';
+} from '@/server/model-hub/Models/shared/openai-compatible';
 
 const mistralProviderAdapter: ProviderAdapter = {
   id: 'mistral',

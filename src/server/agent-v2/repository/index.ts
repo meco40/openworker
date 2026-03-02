@@ -191,6 +191,3 @@ export * as extensionRepository from './extensionRepository';
 export * as signingKeyRepository from './signingKeyRepository';
 export * as recoveryRepository from './recoveryRepository';
 export * as utils from './utils';
-
-// Default export for compatibility
-export default AgentV2Repository;

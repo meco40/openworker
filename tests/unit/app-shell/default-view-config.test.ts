@@ -14,7 +14,7 @@ const fallbackResolvers = [
 
 describe('default view config', () => {
   it('uses configured default view when valid', () => {
-    expect(resolveViewFromConfig('wizard')).toBe(View.WIZARD);
+    expect(resolveViewFromConfig('chat')).toBe(View.CHAT);
     expect(resolveViewFromConfig('cron')).toBe(View.CRON);
     expect(resolveViewFromConfig('instances')).toBe(View.INSTANCES);
     expect(resolveViewFromConfig('sessions')).toBe(View.SESSIONS);

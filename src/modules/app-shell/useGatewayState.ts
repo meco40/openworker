@@ -10,7 +10,6 @@ function createInitialGatewayState(): GatewayState {
     cpuUsage: 12,
     memoryUsage: 256,
     activeSessions: 1,
-    onboarded: true,
     totalTokens: 0,
     eventHistory: [],
     trafficData: Array.from({ length: 12 }, (_, index) => ({ name: `${index * 2}:00`, tokens: 0 })),
