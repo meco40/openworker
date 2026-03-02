@@ -839,3 +839,29 @@ Files >300 lines identified for potential future modularization:
 
 - 2026-03-02T06:10:31.7080395+01:00 [TOOL] Verifikation für Wave-2 grün: neue Contract-Suiten (Dispatch + Memory), Dispatch-Mission-Control-Regressionen (`dispatch-real-execution-required`, `planning-poll-dispatch-assignment`, `planning-route-dispatch-error-state`, `full-planning-to-review-flow`) sowie Memory/Persona-Regressionen bestanden.
 - 2026-03-02T06:10:31.7080395+01:00 [TOOL] Qualitäts-Gates vollständig bestanden: `npm run check` (typecheck+lint+prettier-check) und `npm run build` erfolgreich nach Refactor.
+
+[PLANS]
+
+- 2026-03-02T06:45:27+01:00 [USER] Abschlussauftrag umgesetzt: kompletten Refactor-Plan weiter ausführen, alle verbleibenden Findings fixen und pro Finding vollständige Tests nachziehen.
+
+[DECISIONS]
+
+- 2026-03-02T06:45:27+01:00 [CODE] Finding 5 als modulare Container/View-Struktur abgeschlossen: `MasterFaceCanvasThree.tsx` ist jetzt dünner Wrapper über `useMasterFaceThreeRuntime` + `MasterFaceThreeView`; Verhalten unverändert.
+- 2026-03-02T06:45:27+01:00 [CODE] `withUserContext`-Generic-Constraint von `Record<string,string>` gelöst (route-param-kompatibel ohne Index-Signature) und `request` optional mit sicherem Fallback-Request gemacht, um bestehende GET()-Testaufrufe kompatibel zu halten.
+
+[PROGRESS]
+
+- 2026-03-02T06:45:27+01:00 [CODE] Contract-Test `master-face-canvas-three-interaction-contract` auf neue Modulstruktur angepasst (Wrapper/Runtime/View/Constants als neue Contract-Quellen).
+- 2026-03-02T06:45:27+01:00 [CODE] `src/server/tasks/testing/deliverableTester.ts` typisiert (`cssErrors: CssValidationError[]`) und Lint/Format-Restpunkte in betroffenen Wave-3-Dateien bereinigt.
+
+[DISCOVERIES]
+
+- 2026-03-02T06:45:27+01:00 [TOOL] Finale Gates scheiterten initial an echten Typ-/Lint-/Format-Befunden: `withUserContext`-Constraint (`PersonaIdParams`/`SkillIdParams`), implizites `any[]` in Deliverable-Tester, doppelte Imports in `prepareDispatchStage.ts`, Prettier-Drift in 11 Dateien.
+- 2026-03-02T06:45:27+01:00 [USER] Rückfrage zu `oxlint --threads=1` beantwortet: Stabilitätsfix wegen zuvor reproduzierter `oxc_allocator`-Memory-Flakes; nicht funktionale Notwendigkeit bei jedem Lauf.
+
+[OUTCOMES]
+
+- 2026-03-02T06:45:27+01:00 [TOOL] Finding-5-Regression vollständig grün: 7 Master-Testdateien / 64 Tests bestanden.
+- 2026-03-02T06:45:27+01:00 [TOOL] Abschließende Qualitäts-Gates grün: `npm run check` (typecheck/lint/format-check) und `npm run build` erfolgreich.
+- 2026-03-02T06:45:27+01:00 [TOOL] Zusätzliche Auth-/Route-Regressionen grün: `with-user-context`, `privileged-routes-auth`, Personas- und Skills-Route-Suiten bestanden.
+- 2026-03-02T06:46:41+01:00 [TOOL] Zusätzlicher finding-übergreifender Regression-Run grün: 15 gezielte Wave-1/2/3-Contract- und Integrationsdateien (36/36 Tests) erfolgreich.

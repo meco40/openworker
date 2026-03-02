@@ -5,7 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { getSkillRepository } from '@/server/skills/skillRepository';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -13,19 +13,17 @@ interface PatchBody {
   installed: boolean;
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
+interface SkillIdParams {
+  id: string;
+}
 
-    const [resolvedParams, body, repo] = await Promise.all([
-      params,
+export const PATCH = withUserContext<SkillIdParams>(async ({ request, params }) => {
+  try {
+    const [body, repo] = await Promise.all([
       request.json() as Promise<PatchBody>,
       getSkillRepository(),
     ]);
-    const { id } = resolvedParams;
+    const { id } = params;
     const updated = repo.setInstalled(id, body.installed);
 
     if (!updated) {
@@ -38,17 +36,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const message = error instanceof Error ? error.message : 'Update failed';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withUserContext<SkillIdParams>(async ({ params }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const [resolvedParams, repo] = await Promise.all([params, getSkillRepository()]);
-    const { id } = resolvedParams;
+    const repo = await getSkillRepository();
+    const { id } = params;
     const skill = repo.getSkill(id);
 
     if (!skill) {
@@ -68,4 +61,4 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     const message = error instanceof Error ? error.message : 'Delete failed';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getMemoryService } from '@/server/memory/runtime';
 import { getModelHubService } from '@/server/model-hub/runtime';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
@@ -7,8 +6,13 @@ import { getMessageRepository, getMessageService } from '@/server/channels/messa
 import { getKnowledgeRepository } from '@/server/knowledge/runtime';
 import { MEMORY_PERSONA_TYPES, type MemoryPersonaType } from '@/server/personas/personaTypes';
 import { unpairPersonaTelegram } from '@/server/telegram/personaTelegramPairing';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
+
+interface PersonaIdParams {
+  id: string;
+}
 
 function isPreferredModelAvailable(preferredModelId: string): boolean {
   const modelHub = getModelHubService();
@@ -24,14 +28,9 @@ function isValidModelHubProfileId(value: string): boolean {
 }
 
 // ─── GET /api/personas/[id] ─── Get a persona with all files
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withUserContext<PersonaIdParams>(async ({ userContext, params }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await params;
+    const { id } = params;
     const repo = getPersonaRepository();
     const persona = repo.getPersonaWithFiles(id);
 
@@ -44,18 +43,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
 // ─── PUT /api/personas/[id] ─── Update persona metadata
 // Body: { name?, emoji?, vibe? }
-export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = withUserContext<PersonaIdParams>(async ({ request, userContext, params }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await params;
+    const { id } = params;
     const repo = getPersonaRepository();
 
     // Verify ownership
@@ -169,17 +163,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
 // ─── DELETE /api/personas/[id] ─── Delete a persona
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withUserContext<PersonaIdParams>(async ({ userContext, params }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await params;
+    const { id } = params;
     const repo = getPersonaRepository();
 
     // Verify ownership
@@ -209,4 +198,4 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

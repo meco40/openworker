@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { resolveRequestUserContext } from '@/server/auth/userContext';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
 import { getModelHubService } from '@/server/model-hub/runtime';
 import {
@@ -9,6 +8,7 @@ import {
   type PersonaFileName,
   type MemoryPersonaType,
 } from '@/server/personas/personaTypes';
+import { withUserContext } from '../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -26,13 +26,8 @@ function isValidModelHubProfileId(value: string): boolean {
 }
 
 // ─── GET /api/personas ─── List all personas for the current user
-export async function GET() {
+export const GET = withUserContext(async ({ userContext }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const repo = getPersonaRepository();
     const personas = repo.listPersonas(userContext.userId);
     return NextResponse.json({ ok: true, personas });
@@ -43,17 +38,12 @@ export async function GET() {
     }
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
 
 // ─── POST /api/personas ─── Create a new persona
 // Body: { name, emoji?, vibe?, files?: Record<string, string> }
-export async function POST(request: Request) {
+export const POST = withUserContext(async ({ request, userContext }) => {
   try {
-    const userContext = await resolveRequestUserContext();
-    if (!userContext) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = (await request.json()) as {
       name?: string;
       emoji?: string;
@@ -148,4 +138,4 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});
