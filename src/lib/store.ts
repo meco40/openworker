@@ -18,19 +18,16 @@ interface MissionControlState {
   tasks: Task[];
   conversations: Conversation[];
   events: Event[];
-  currentConversation: Conversation | null;
   messages: Message[];
 
   // OpenClaw state
   agentOpenClawSessions: Record<string, OpenClawSession | null>; // agentId -> session
-  openclawMessages: Message[]; // Messages from OpenClaw (displayed alongside regular messages)
 
   // UI State
   selectedAgent: Agent | null;
   selectedTask: Task | null;
   isOnline: boolean;
   isLoading: boolean;
-  selectedBusiness: string;
 
   // Actions
   setAgents: (agents: Agent[]) => void;
@@ -38,14 +35,12 @@ interface MissionControlState {
   setConversations: (conversations: Conversation[]) => void;
   setEvents: (events: Event[]) => void;
   addEvent: (event: Event) => void;
-  setCurrentConversation: (conversation: Conversation | null) => void;
   setMessages: (messages: Message[]) => void;
   addMessage: (message: Message) => void;
   setSelectedAgent: (agent: Agent | null) => void;
   setSelectedTask: (task: Task | null) => void;
   setIsOnline: (online: boolean) => void;
   setIsLoading: (loading: boolean) => void;
-  setSelectedBusiness: (business: string) => void;
 
   // Task mutations
   updateTaskStatus: (taskId: string, status: TaskStatus) => void;
@@ -58,8 +53,6 @@ interface MissionControlState {
 
   // OpenClaw actions
   setAgentOpenClawSession: (agentId: string, session: OpenClawSession | null) => void;
-  setOpenclawMessages: (messages: Message[]) => void;
-  addOpenclawMessage: (message: Message) => void;
 }
 
 export const useMissionControl = create<MissionControlState>((set) => ({
@@ -68,15 +61,12 @@ export const useMissionControl = create<MissionControlState>((set) => ({
   tasks: [],
   conversations: [],
   events: [],
-  currentConversation: null,
   messages: [],
   agentOpenClawSessions: {},
-  openclawMessages: [],
   selectedAgent: null,
   selectedTask: null,
   isOnline: false,
   isLoading: true,
-  selectedBusiness: 'all',
 
   // Setters
   setAgents: (agents) => set({ agents }),
@@ -87,7 +77,6 @@ export const useMissionControl = create<MissionControlState>((set) => ({
   setConversations: (conversations) => set({ conversations }),
   setEvents: (events) => set({ events }),
   addEvent: (event) => set((state) => ({ events: [event, ...state.events].slice(0, 100) })),
-  setCurrentConversation: (conversation) => set({ currentConversation: conversation }),
   setMessages: (messages) => set({ messages }),
   addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
   setSelectedAgent: (agent) => set({ selectedAgent: agent }),
@@ -100,7 +89,6 @@ export const useMissionControl = create<MissionControlState>((set) => ({
     set({ isOnline: online });
   },
   setIsLoading: (loading) => set({ isLoading: loading }),
-  setSelectedBusiness: (business) => set({ selectedBusiness: business }),
 
   // Task mutations
   updateTaskStatus: (taskId, status) => {
@@ -151,7 +139,4 @@ export const useMissionControl = create<MissionControlState>((set) => ({
     set((state) => ({
       agentOpenClawSessions: { ...state.agentOpenClawSessions, [agentId]: session },
     })),
-  setOpenclawMessages: (messages) => set({ openclawMessages: messages }),
-  addOpenclawMessage: (message) =>
-    set((state) => ({ openclawMessages: [...state.openclawMessages, message] })),
 }));

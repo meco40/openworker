@@ -16,6 +16,7 @@ import {
   View,
 } from '@/shared/domain/types';
 import ViewErrorBoundary from '@/components/ViewErrorBoundary';
+import { isAgentRoomEnabled } from '@/modules/agent-room/featureFlags';
 
 const ViewLoadingFallback: React.FC<{ label: string }> = ({ label }) => (
   <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-xs font-semibold tracking-wide text-zinc-400">
@@ -38,7 +39,7 @@ const ChatInterface = dynamic(() => import('@/components/ChatInterface'), {
 const ChannelPairing = dynamic(() => import('@/messenger/channel-pairing/ChannelPairing'), {
   loading: loading('Messenger Coupling'),
 });
-const ModelHub = dynamic(() => import('@/components/ModelHub'), {
+const ModelHub = dynamic(() => import('@/components/model-hub/ModelHub'), {
   loading: loading('AI Model Hub'),
 });
 const SkillsRegistry = dynamic(() => import('@/skills/SkillsRegistry'), {
@@ -105,9 +106,6 @@ const AgentRoomView = dynamic(() => import('@/modules/agent-room/components/Agen
 const MasterView = dynamic(() => import('@/modules/master/components/MasterView'), {
   loading: loading('Master'),
 });
-
-const isAgentRoomEnabled =
-  String(process.env.NEXT_PUBLIC_AGENT_ROOM_ENABLED || 'true').toLowerCase() === 'true';
 
 interface AppShellViewContentProps {
   currentView: View;
@@ -298,7 +296,7 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
           <ConversationDebuggerView />
         </ViewErrorBoundary>
       )}
-      {currentView === View.AGENT_ROOM && isAgentRoomEnabled && (
+      {currentView === View.AGENT_ROOM && isAgentRoomEnabled() && (
         <ViewErrorBoundary label="Agent Room">
           <AgentRoomView />
         </ViewErrorBoundary>

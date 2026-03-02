@@ -28,7 +28,7 @@ describe('react/next best-practices refactor', () => {
     const viewContent = read('src/modules/app-shell/components/AppShellViewContent.tsx');
     expect(viewContent).toContain("import dynamic from 'next/dynamic';");
     expect(viewContent).not.toContain("dynamic(() => import('../../../../WorkerView'))");
-    expect(viewContent).toContain("dynamic(() => import('@/components/ModelHub')");
+    expect(viewContent).toContain("dynamic(() => import('@/components/model-hub/ModelHub')");
     expect(viewContent).toContain("dynamic(() => import('@/components/Dashboard')");
     expect(viewContent).toContain("dynamic(() => import('@/components/ChatInterface')");
     expect(viewContent).toContain(
@@ -71,15 +71,10 @@ describe('react/next best-practices refactor', () => {
     const skillRoute = read('app/api/skills/[id]/route.ts');
     const metricsRoute = read('app/api/control-plane/metrics/route.ts');
 
-    expect(skillRoute).toContain('const [resolvedParams, body, repo] = await Promise.all([');
+    expect(skillRoute).toContain('const [body, repo] = await Promise.all([');
     expect(metricsRoute).toContain(
       'const [automationImport, knowledgeImport] = await Promise.allSettled([',
     );
-  });
-
-  it('avoids re-sorting the full room message list on every websocket event', () => {
-    const roomSync = read('src/modules/rooms/useRoomSync.ts');
-    expect(roomSync).not.toContain('.sort((a, b) => a.seq - b.seq)');
   });
 
   it('memoizes PersonaContext value to avoid unnecessary consumer rerenders', () => {

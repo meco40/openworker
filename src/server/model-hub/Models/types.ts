@@ -1,32 +1,12 @@
 import type { ProviderAccountRecord } from '@/server/model-hub/repository';
 import type { ProviderCatalogEntry } from '@/server/model-hub/types';
-
-export interface FetchedModel {
-  id: string;
-  name: string;
-  provider: string;
-  owned_by?: string;
-  context_window?: number;
-  created?: number;
-}
+import type { FetchedModel, RateLimitSnapshot } from '@/shared/contracts/modelHub';
+export type { FetchedModel, RateLimitSnapshot, RateLimitWindow } from '@/shared/contracts/modelHub';
 
 export interface ConnectivityResult {
   ok: boolean;
   message: string;
   rateLimits?: RateLimitSnapshot;
-}
-
-export interface RateLimitWindow {
-  window: string;
-  limit?: number;
-  remaining?: number;
-  usedPercent?: number;
-  remainingPercent?: number;
-  reset?: string;
-}
-
-export interface RateLimitSnapshot {
-  windows: RateLimitWindow[];
 }
 
 export interface GatewayMessage {

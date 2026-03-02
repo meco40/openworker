@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import type { OpsSessionSummary, OpsSessionsResponse } from '@/modules/ops/types';
 import { getMessageService } from '@/server/channels/messages/runtime';
+import { parseClampedInt } from '../_shared/query';
 import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
@@ -12,20 +13,6 @@ const MIN_LIMIT = 1;
 const MAX_LIMIT = 200;
 const MIN_ACTIVE_MINUTES = 1;
 const MAX_ACTIVE_MINUTES = 10_080;
-
-function parseLimit(request: Request): number {
-  const raw = new URL(request.url).searchParams.get('limit');
-  if (raw === null) {
-    return DEFAULT_LIMIT;
-  }
-
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed)) {
-    return DEFAULT_LIMIT;
-  }
-
-  return Math.min(Math.max(parsed, MIN_LIMIT), MAX_LIMIT);
-}
 
 function parseQuery(request: Request): string {
   return String(new URL(request.url).searchParams.get('q') || '').trim();
@@ -85,7 +72,7 @@ function includesSearchHit(session: OpsSessionSummary, query: string): boolean {
 }
 
 export const GET = withUserContext(async ({ request, userContext }) => {
-  const limit = parseLimit(request);
+  const limit = parseClampedInt(request, 'limit', DEFAULT_LIMIT, MIN_LIMIT, MAX_LIMIT);
   const query = parseQuery(request);
   const activeMinutes = parseActiveMinutes(request);
   const searchParams = new URL(request.url).searchParams;

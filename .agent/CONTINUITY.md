@@ -1013,3 +1013,99 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-02T12:35:24.1744422+01:00 [TOOL] Statische Verifikation erfolgreich (ohne zusätzliche Testläufe): `npm run typecheck` (ok), `npm run lint` (0 Warnungen/0 Fehler), `npm run format:check` (ok).
+
+[PLANS]
+
+- 2026-03-02T12:56:46.9607290+01:00 [USER] Senior-Engineer-Refactoring-Audit angefordert mit Fokus auf Code-Loeschung (Dead/Unused), Duplikatabbau, Abhaengigkeitsreduktion, State/Effect-Vereinfachung und Next.js-Fetch/Render-Overhead.
+
+[DISCOVERIES]
+
+- 2026-03-02T12:56:46.9607290+01:00 [TOOL] `knip` meldet 51 ungenutzte Dateien; ein Teil sind echte Dead-Code-Kandidaten (u. a. `src/components/DemoBanner.tsx`, `src/modules/master/hooks/useVoiceAgent.ts`, mehrere ungenutzte Barrel-/Compat-Dateien), ein Teil sind bekannte False-Positives bei dynamischer Dateinutzung (z. B. `scripts/external-skill-host.mjs`, `public/vendor/headaudio/headworklet.mjs`).
+- 2026-03-02T12:56:46.9607290+01:00 [CODE] Verwaister Rooms-Stack bestaetigt: `src/modules/rooms/*` + `src/components/personas/hooks/useRoomManagement.ts` haben keine produktive UI-Nutzung; gleichzeitig existieren keine `app/api/rooms/**`-Routen.
+- 2026-03-02T12:56:46.9607290+01:00 [CODE] `src/modules/app-shell/App.tsx` enthaelt unerreichbaren Onboarding-Zweig (`onboarded` initial immer `true`), dadurch ist `TerminalWizard` effektiv Dead Path.
+- 2026-03-02T12:56:46.9607290+01:00 [CODE] Mission-Control-Zustand in `src/lib/store.ts` enthaelt mehrere ungenutzte Felder/Aktionen (`selectedBusiness`, `currentConversation`, `openclawMessages`, zugehoerige Setter), ohne Konsumenten ausserhalb des Stores.
+- 2026-03-02T12:56:46.9607290+01:00 [CODE] Fetch-Overhead in `src/components/stats/StatsView.tsx`: Stats-Request laeuft auch beim `logs`-Tab, obwohl Logs ueber eigene Route geladen werden.
+
+[OUTCOMES]
+
+- 2026-03-02T12:56:46.9607290+01:00 [TOOL] Audit als Read-only-Analyse abgeschlossen; keine Produktivcode-Aenderungen und keine Verifikationslaeufe ausgefuehrt, da Analyseauftrag.
+
+[PLANS]
+
+- 2026-03-02T14:15:00Z [USER] Umsetzungsauftrag bestaetigt: verifizierten Delete-First-Refactor-Plan real implementieren (Dead-Code entfernen, Dupes konsolidieren, Overhead senken) und vollstaendig verifizieren.
+
+[DECISIONS]
+
+- 2026-03-02T14:15:00Z [CODE] `scripts/e2e/start-e2e-server.ts`, `scripts/external-skill-host.mjs` und `public/vendor/headaudio/headworklet.mjs` bleiben erhalten (belegte Runtime-/Test-Nutzung), trotz frueherer False-Positive-Treffer.
+- 2026-03-02T14:15:00Z [CODE] `app/api/ops/*`-Limit-Parsing via neuem Shared-Helper `parseClampedInt` konsolidiert statt route-spezifischer Duplikate.
+- 2026-03-02T14:15:00Z [CODE] `/api/config`-Clientlogik zentralisiert (`loadConfigFromApi`/`saveConfigToApi`), Hooks behalten nur noch view-spezifische Zustandslogik.
+
+[PROGRESS]
+
+- 2026-03-02T14:15:00Z [CODE] Tote Features/Dateien geloescht: `DemoBanner`, `TerminalWizard`, `useVoiceAgent`, `useRoomManagement`, kompletter `src/modules/rooms/*`-Stack, ungenutzte Agent-Room-UI-Teile (`ChatHeader`, `SwarmSidebar`), mehrere Compat-/Barrel-Dateien sowie ungenutzte Skripte (`check-swarm*`, `generate-hologram-female-face-gltf.mjs`).
+- 2026-03-02T14:15:00Z [CODE] Store-Flaeche in `src/lib/store.ts` reduziert: ungenutzte Slices/Aktionen (`selectedBusiness`, `currentConversation`, `openclawMessages` + Setter) entfernt.
+- 2026-03-02T14:15:00Z [CODE] Agent-Room-Feature-Flag zentralisiert in `src/modules/agent-room/featureFlags.ts`; Sidebar, AppShellViewContent und useAgentRoomRuntime auf Single Source umgestellt.
+- 2026-03-02T14:15:00Z [CODE] `src/components/stats/StatsView.tsx` entkoppelt: kein `/api/stats`-Fetch mehr im `logs`-Tab.
+- 2026-03-02T14:15:00Z [CODE] ModelHub-Typduplikate reduziert: `FetchedModel`, `RateLimitWindow`, `RateLimitSnapshot` in `src/shared/contracts/modelHub.ts` zentralisiert und in Client/Server-Typen re-exported.
+- 2026-03-02T14:15:00Z [CODE] Repo-Artefakte bereinigt: `coverage/**` aus VCS entfernt und `coverage/` in `.gitignore` aufgenommen.
+
+[DISCOVERIES]
+
+- 2026-03-02T14:15:00Z [TOOL] Volltestlauf zeigte zuerst 2 rote Tests: veralteter String-Assert in `react-best-practices-refactor.test.ts` sowie inkonsistente DELETE-Request-Mockform in `project-delete-conversation-delete-flow.test.ts`; beide Tests auf aktuellen Route-Vertrag angepasst.
+- 2026-03-02T14:15:00Z [TOOL] Nach Umsetzung sinkt `knip`-Kategorie "Unused files" von 51 auf 23 (weiterhin teils bekannte dynamische/konfigurationsbedingte Treffer).
+
+[OUTCOMES]
+
+- 2026-03-02T14:15:00Z [TOOL] Verifikation erfolgreich: `npm run typecheck` (ok), `npm run lint` (0 Warnungen/0 Fehler), `npm test` (471/471 Dateien, 2092/2092 Tests), `npm run build` (ok).
+
+[PROGRESS]
+
+- 2026-03-02T14:22:41Z [CODE] Zusaetzliche Barrel-Bereinigung umgesetzt: ungenutzte `index.ts`-Entrypoints in `components/{config,knowledge,memory,profile,stats}`, `skills/hooks`, `agent-room/components/canvas` sowie `subagent/actions/index.ts` entfernt.
+
+[OUTCOMES]
+
+- 2026-03-02T14:22:41Z [TOOL] Verifikation nach zweiter Cleanup-Welle erneut gruen: `npm run typecheck` (ok), `npm run lint` (0 Warnungen/0 Fehler), `npm test` (471/471 Dateien, 2092/2092 Tests), `npm run build` (ok).
+
+[PLANS]
+
+- 2026-03-02T13:44:24Z [USER] Abschlusspruefung angefordert: verifizieren, ob der gesamte Delete-First-Refactor-Plan (12 Simplification-Items aus Audit 2026-03-02) im IST vollstaendig umgesetzt wurde.
+
+[DISCOVERIES]
+
+- 2026-03-02T13:44:24Z [TOOL] Soll-Ist-Matrix fuer 12 Plan-Items erstellt: klar umgesetzt (1,2,3,4,6,7,10), teilweise umgesetzt (5,9,12), offen (8 Dependency-Removal, 11 ModelHub-Request-Konsolidierung).
+- 2026-03-02T13:44:24Z [CODE] Rest-Compat weiter vorhanden: src/components/ModelHub.tsx und src/components/stats/PromptLogsTab.tsx werden weiterhin produktiv importiert; src/server/channels/messages/service.ts bleibt explizit Backward-Compat-Reexport.
+- 2026-03-02T13:44:24Z [TOOL] Quality-Gate-Status jetzt:
+  pm run check => ypecheck ok, lint ok, ormat:check fehlgeschlagen (16 Dateien mit Prettier-Drift, inkl. docs/audits/2026-03-02-nextjs-refactor-audit.md).
+
+[OUTCOMES]
+
+- 2026-03-02T13:44:24Z [TOOL] Abschlusspruefung abgeschlossen: Plan ist nicht vollstaendig umgesetzt; derzeit 7/12 voll, 3/12 teilweise, 2/12 offen; keine zusaetzlichen Produktivcode-Aenderungen in dieser Pruefungsrunde.
+
+[PLANS]
+
+- 2026-03-02T14:15:28Z [USER] Umsetzung der verbleibenden 5 Restpunkte angefordert (Item 5/8/9/11/12 aus Audit 2026-03-02) inklusive Vollverifikation.
+
+[DECISIONS]
+
+- 2026-03-02T14:15:28Z [CODE] Compat-Wrapper nicht mehr beibehalten: `src/components/ModelHub.tsx` und `src/components/stats/PromptLogsTab.tsx` entfernt; produktive Importe auf direkte Modulpfade umgestellt.
+- 2026-03-02T14:15:28Z [CODE] Message-Service-Root-Entrypoint bewusst auf minimale API reduziert: nur `MessageService`/`createMessageService` in `src/server/channels/messages/service.ts`.
+- 2026-03-02T14:15:28Z [CODE] ModelHub-Initialload auf Single-Request umgestellt (`includeEmbeddings=true`) statt zweier paralleler Pipeline-GETs.
+- 2026-03-02T14:15:28Z [CODE] Unused-Dependency-Cleanup an `knip`-Befund ausgerichtet: 13 ungenutzte ESLint/ts-api-utils-DevDependencies aus `package.json` entfernt und Lockfiles aktualisiert.
+
+[PROGRESS]
+
+- 2026-03-02T14:15:28Z [CODE] Import-Migration umgesetzt: `AppShellViewContent` -> `@/components/model-hub/ModelHub`; `StatsView` + PromptLogsTab-Unit-Test -> `@/components/stats/prompt-logs/PromptLogsTab`; Integrationsassert in `react-best-practices-refactor` angepasst.
+- 2026-03-02T14:15:28Z [CODE] API/Hook-Änderungen: `app/api/model-hub/pipeline/route.ts` liefert optional `embeddingModels` bei `includeEmbeddings`; `usePipeline` nutzt neuen Combined-Fetch; `useModelHub` initialisiert via `reloadBoth()`.
+- 2026-03-02T14:15:28Z [CODE] Dependency-Hygiene-Test aktualisiert (`tests/unit/dependency-hygiene.test.ts`) auf Abwesenheit des legacy `eslint-import-resolver-typescript`.
+- 2026-03-02T14:15:28Z [TOOL] Lockfiles aktualisiert: `package-lock.json` via `npm install --package-lock-only`, `pnpm-lock.yaml` via `pnpm install --lockfile-only`.
+
+[DISCOVERIES]
+
+- 2026-03-02T14:15:28Z [TOOL] `knip` vor Cleanup zeigte 13 ungenutzte DevDependencies (gesamter ESLint-Stack + `ts-api-utils`); nach Cleanup sind diese Befunde nicht mehr in der Kategorie "Unused devDependencies" enthalten.
+- 2026-03-02T14:15:28Z [TOOL] Nach der Wrapper-Entfernung sind keine Referenzen auf `@/components/ModelHub` oder `@/components/stats/PromptLogsTab` mehr vorhanden.
+
+[OUTCOMES]
+
+- 2026-03-02T14:15:28Z [TOOL] Ziel-Regressionen grün: `model-hub/pipeline-route`, `pipeline-route-mem0-sync-parallel.contract`, `react-best-practices-refactor`, `prompt-logs-tab`, `dependency-hygiene`, `messages-runtime`, `message-service-summary` (7 Dateien, 22 Tests).
+- 2026-03-02T14:15:28Z [TOOL] Qualitäts-Gates vollständig grün: `npm run check` (typecheck/lint/format-check) und `npm run build` erfolgreich.
+- 2026-03-02T14:15:28Z [TOOL] Restpunkt-Matrix geschlossen: die zuvor offenen/teilweisen Items 5/8/9/11/12 sind im aktuellen IST umgesetzt.

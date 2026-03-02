@@ -32,3 +32,25 @@ export interface ProviderCatalogEntry {
   apiBaseUrl?: string;
   docsUrl?: string;
 }
+
+export interface RateLimitWindow {
+  window: string;
+  limit?: number;
+  remaining?: number;
+  usedPercent?: number;
+  remainingPercent?: number;
+  reset?: string;
+}
+
+export interface RateLimitSnapshot {
+  windows: RateLimitWindow[];
+}
+
+export interface FetchedModel {
+  id: string;
+  name: string;
+  provider: string;
+  owned_by?: string;
+  context_window?: number;
+  created?: number;
+}

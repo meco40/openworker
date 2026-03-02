@@ -101,7 +101,7 @@ export function useModelHub(): UseModelHubReturn {
   const providers = useProviders();
   const pipeline = usePipeline();
   const { loadProviders, loadAccounts } = providers;
-  const { loadPipeline, loadEmbeddingPipeline } = pipeline;
+  const { reloadBoth } = pipeline;
 
   const [isAddModelOpen, setIsAddModelOpen] = useState(false);
   const [addModelMode, setAddModelMode] = useState<'pipeline' | 'embedding'>('pipeline');
@@ -148,9 +148,8 @@ export function useModelHub(): UseModelHubReturn {
   useEffect(() => {
     void loadProviders();
     void loadAccounts();
-    void loadPipeline();
-    void loadEmbeddingPipeline();
-  }, [loadProviders, loadAccounts, loadPipeline, loadEmbeddingPipeline]);
+    void reloadBoth();
+  }, [loadProviders, loadAccounts, reloadBoth]);
 
   // Wrapper for removeModelFromPipeline with error handling
   const handleRemoveModelFromPipeline = async (

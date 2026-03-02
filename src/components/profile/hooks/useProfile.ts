@@ -8,8 +8,9 @@ import {
   parseOperatorProfileFromConfig,
   type OperatorProfileState,
 } from '@/modules/profile/operatorProfileConfig';
+import { loadConfigFromApi, saveConfigToApi } from '@/components/config/apiClient';
 import { createLocalUuid, parsePositiveInt } from '@/components/profile/utils/profileHelpers';
-import type { ConfigResponse, StatusMessage } from '@/components/profile/types';
+import type { StatusMessage } from '@/components/profile/types';
 
 interface UseProfileOptions {
   metricsState?: ControlPlaneMetricsState;
@@ -32,8 +33,7 @@ export function useProfile(options: UseProfileOptions = {}) {
     setStatusMessage(null);
 
     try {
-      const response = await fetch('/api/config', { cache: 'no-store' });
-      const payload = (await response.json()) as ConfigResponse;
+      const { response, payload } = await loadConfigFromApi();
       if (!response.ok || !payload.ok || !payload.config) {
         throw new Error(payload.error || 'Failed to load operator profile.');
       }
@@ -104,12 +104,7 @@ export function useProfile(options: UseProfileOptions = {}) {
     setIsSaving(true);
     setStatusMessage(null);
     try {
-      const response = await fetch('/api/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config: nextConfig, revision: baselineRevision }),
-      });
-      const payload = (await response.json()) as ConfigResponse;
+      const { response, payload } = await saveConfigToApi(nextConfig, baselineRevision);
 
       if (!response.ok || !payload.ok || !payload.config) {
         if (payload.code === 'CONFIG_STALE_REVISION') {

@@ -73,9 +73,30 @@ export function usePipeline(): UsePipelineReturn {
     );
   }, [loadPipelineByProfile]);
 
+  const loadBothPipelines = useCallback(async () => {
+    setIsLoadingPipeline(true);
+    setIsLoadingEmbeddingPipeline(true);
+    try {
+      const response = await fetch('/api/model-hub/pipeline?includeEmbeddings=true');
+      const data = (await response.json()) as ApiResponse & {
+        models?: PipelineModel[];
+        embeddingModels?: PipelineModel[];
+      };
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      setPipeline(data.models ?? []);
+      setEmbeddingPipeline(data.embeddingModels ?? []);
+    } catch {
+      setPipeline([]);
+      setEmbeddingPipeline([]);
+    } finally {
+      setIsLoadingPipeline(false);
+      setIsLoadingEmbeddingPipeline(false);
+    }
+  }, []);
+
   const reloadBoth = useCallback(async () => {
-    await Promise.all([loadPipeline(), loadEmbeddingPipeline()]);
-  }, [loadPipeline, loadEmbeddingPipeline]);
+    await loadBothPipelines();
+  }, [loadBothPipelines]);
 
   async function removeModelFromPipeline(
     modelId: string,

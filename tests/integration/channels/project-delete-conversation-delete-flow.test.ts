@@ -131,11 +131,10 @@ describe('project delete + conversation delete flow', () => {
     expect(repo.listProjectsByPersona('persona-1', 'user-1')).toHaveLength(0);
     expect(fs.existsSync(projectsAfterCreate[0].workspacePath)).toBe(false);
 
-    const deleteRequest = {
-      nextUrl: new URL(
-        `http://localhost/api/channels/conversations?id=${encodeURIComponent(conversationId)}`,
-      ),
-    } as unknown as import('next/server').NextRequest;
+    const deleteRequest = new Request(
+      `http://localhost/api/channels/conversations?id=${encodeURIComponent(conversationId)}`,
+      { method: 'DELETE' },
+    ) as unknown as import('next/server').NextRequest;
     const deleteConversationResponse = await conversationsRoute.DELETE(deleteRequest);
     expect(deleteConversationResponse.status).toBe(200);
     const deleteConversationPayload = (await deleteConversationResponse.json()) as { ok: boolean };

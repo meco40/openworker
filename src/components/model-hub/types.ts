@@ -1,8 +1,11 @@
 export type {
+  FetchedModel,
   ProviderAuthMethod,
   ProviderCapability,
   ProviderCatalogEntry,
   ProviderEndpointType,
+  RateLimitSnapshot,
+  RateLimitWindow,
 } from '@/shared/contracts/modelHub';
 
 export interface ProviderAccount {
@@ -32,27 +35,7 @@ export interface PipelineModel {
   updatedAt: string;
 }
 
-export interface RateLimitWindow {
-  window: string;
-  limit?: number;
-  remaining?: number;
-  usedPercent?: number;
-  remainingPercent?: number;
-  reset?: string;
-}
-
-export interface RateLimitSnapshot {
-  windows: RateLimitWindow[];
-}
-
 export type CodexThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
-
-export interface FetchedModel {
-  id: string;
-  name: string;
-  provider: string;
-  context_window?: number;
-}
 
 export interface ApiResponse {
   ok: boolean;

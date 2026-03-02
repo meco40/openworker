@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import PromptLogsTab from '@/components/stats/PromptLogsTab';
+import PromptLogsTab from '@/components/stats/prompt-logs/PromptLogsTab';
 import OverviewTabContent from './OverviewTabContent';
 import SessionsTabContent from './SessionsTabContent';
 import StatsFilterBar from './StatsFilterBar';
@@ -23,6 +23,12 @@ const StatsView: React.FC = () => {
   const requestSequenceRef = useRef(0);
 
   const fetchStats = useCallback(async () => {
+    if (activeTab === 'logs') {
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     requestSequenceRef.current += 1;
     const requestSequence = requestSequenceRef.current;
     abortRef.current?.abort();
@@ -68,11 +74,18 @@ const StatsView: React.FC = () => {
   }, [preset, customFrom, customTo, activeTab]);
 
   useEffect(() => {
+    if (activeTab === 'logs') {
+      abortRef.current?.abort();
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     void fetchStats();
     return () => {
       abortRef.current?.abort();
     };
-  }, [fetchStats]);
+  }, [activeTab, fetchStats]);
 
   const handleRefresh = useCallback(() => {
     if (activeTab === 'logs') {

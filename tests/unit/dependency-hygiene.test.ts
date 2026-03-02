@@ -13,9 +13,9 @@ function readPackageJson(): PackageJson {
 }
 
 describe('dependency hygiene', () => {
-  it('keeps eslint-import-resolver-typescript required by eslint import resolver', () => {
+  it('does not keep legacy eslint resolver packages when lint is oxlint-only', () => {
     const pkg = readPackageJson();
-    expect(pkg.devDependencies?.['eslint-import-resolver-typescript']).toBeTypeOf('string');
+    expect(pkg.devDependencies?.['eslint-import-resolver-typescript']).toBeUndefined();
   });
 
   it('declares postcss used by postcss.config.mjs', () => {

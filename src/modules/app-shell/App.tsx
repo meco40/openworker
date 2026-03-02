@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
 import {
   View,
   ChannelType,
@@ -33,8 +32,6 @@ import AppShellViewContent from '@/modules/app-shell/components/AppShellViewCont
 import { usePersona } from '@/modules/personas/PersonaContext';
 import { getGatewayClient } from '@/modules/gateway/ws-client';
 
-const TerminalWizard = dynamic(() => import('@/components/TerminalWizard'));
-
 const isPersistentSessionV2Enabled =
   String(process.env.NEXT_PUBLIC_CHAT_PERSISTENT_SESSION_V2 || 'true').toLowerCase() === 'true';
 
@@ -52,7 +49,6 @@ const App: React.FC<AppProps> = ({ initialView }) => {
   const [currentView, setCurrentView] = useState<View>(
     () => buildInitialShellState(initialView).currentView,
   );
-  const [onboarded, setOnboarded] = useState<boolean>(true);
   const [isServerResponding, setIsServerResponding] = useState(false);
   const [chatStreamDebug, setChatStreamDebug] =
     useState<ChatStreamDebugState>(DEFAULT_CHAT_STREAM_DEBUG);
@@ -292,10 +288,6 @@ const App: React.FC<AppProps> = ({ initialView }) => {
     setCoupledChannels((previous) => ({ ...previous, [id]: { ...previous[id], ...update } }));
   }, []);
   useChannelStateSync({ onUpdateCoupling: handleUpdateCoupling });
-
-  if (!onboarded) {
-    return <TerminalWizard onComplete={() => setOnboarded(true)} />;
-  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0a0a0a] text-zinc-300">

@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { View } from '@/shared/domain/types';
 import ConnectionStatus from '@/components/ConnectionStatus';
+import { isAgentRoomEnabled } from '@/modules/agent-room/featureFlags';
 
 interface SidebarProps {
   activeView: View;
@@ -12,10 +13,6 @@ interface SidebarItem {
   label: string;
   icon: string;
   requiresAgentRoomEnabled?: boolean;
-}
-
-function isAgentRoomEnabled(): boolean {
-  return String(process.env.NEXT_PUBLIC_AGENT_ROOM_ENABLED || 'true').toLowerCase() === 'true';
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [

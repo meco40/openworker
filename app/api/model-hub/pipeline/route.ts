@@ -201,10 +201,16 @@ const actionHandlers: Record<string, (context: ActionHandlerContext) => Promise<
 export const GET = withUserContext(async ({ request }) => {
   try {
     const url = new URL(request.url);
+    const includeEmbeddings = url.searchParams.get('includeEmbeddings') === 'true';
     const profileId = url.searchParams.get('profileId')?.trim() || DEFAULT_PROFILE;
 
     const service = getModelHubService();
     const models = service.listPipeline(profileId);
+
+    if (includeEmbeddings) {
+      const embeddingModels = service.listPipeline(EMBEDDING_PROFILE_ID);
+      return NextResponse.json({ ok: true, profileId, models, embeddingModels });
+    }
 
     return NextResponse.json({ ok: true, profileId, models });
   } catch (error) {

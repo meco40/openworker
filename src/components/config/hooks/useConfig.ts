@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toJsonString, isObject } from '@/components/config/utils/configHelpers';
-import type { ConfigResponse, StatusMessage, ConfigWarning } from '@/components/config/types';
+import type { StatusMessage, ConfigWarning } from '@/components/config/types';
 import { DEFAULT_CONFIG } from '@/components/config/types';
+import { loadConfigFromApi, saveConfigToApi } from '@/components/config/apiClient';
 import { mapValidationMessageToFieldPath } from '@/shared/config/fieldMetadata';
 import { summarizeConfigDiff, type DiffItem } from '@/shared/config/diffSummary';
 
@@ -41,8 +42,7 @@ export function useConfig() {
     setStatusMessage(null);
     setConflictRevision(null);
     try {
-      const response = await fetch('/api/config', { cache: 'no-store' });
-      const payload = (await response.json()) as ConfigResponse;
+      const { response, payload } = await loadConfigFromApi();
       if (!response.ok || !payload.ok || !payload.config) {
         throw new Error(payload.error || 'Failed to load config.');
       }
@@ -141,12 +141,7 @@ export function useConfig() {
     setIsSaving(true);
     setStatusMessage(null);
     try {
-      const response = await fetch('/api/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config: parsed, revision }),
-      });
-      const payload = (await response.json()) as ConfigResponse;
+      const { response, payload } = await saveConfigToApi(parsed, revision);
 
       if (!response.ok || !payload.ok || !payload.config) {
         const message = payload.error || 'Failed to save config.';
