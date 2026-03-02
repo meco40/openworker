@@ -11,8 +11,8 @@
     "cli:gateway": "node --import tsx src/cli/program.ts gateway",
     "cli:channels": "node --import tsx src/cli/program.ts channels",
     "cli:node": "node --import tsx src/cli/program.ts node",
-    "lint": "oxlint .",
-    "lint:fix": "oxlint . --fix",
+    "lint": "oxlint . --threads=1",
+    "lint:fix": "oxlint . --fix --threads=1",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "typecheck": "tsc --noEmit",
@@ -129,7 +129,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": [
-      "oxlint --fix",
+      "oxlint --fix --threads=1",
       "prettier --write"
     ],
     "*.{json,md,css,scss,yml,yaml}": "prettier --write"

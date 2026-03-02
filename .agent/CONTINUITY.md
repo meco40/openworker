@@ -730,3 +730,32 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-02T05:04:46+01:00 [TOOL] Audit-Arbeit lokal durchgeführt (statische Codeanalyse, keine Codeänderungen an Produktlogik, keine Test-/Buildausführung im Rahmen dieses Analyseauftrags).
+
+[PLANS]
+
+- 2026-03-02T05:14:30+01:00 [USER] Analyseergebnis als Markdown-Datei im plan-Ordner speichern (Planungsgrundlage).
+
+[PROGRESS]
+
+- 2026-03-02T05:14:30+01:00 [CODE] plan/overengineering-audit-2026-03-02.md erstellt und mit Architektur-Skizze, priorisierten Findings, Top-10-Hebeln, Stop-Doing-Liste sowie vollständigen Inventaren (>200 LOC Komponenten, >80 LOC Hooks) befüllt.
+
+[OUTCOMES]
+
+- 2026-03-02T05:14:30+01:00 [TOOL] Ausgabe-Datei verifiziert vorhanden (Length=18831): D:\web\clawtest\plan\overengineering-audit-2026-03-02.md.
+
+[PLANS]
+
+- 2026-03-02T05:20:44+01:00 [USER] Oxlint-Problem beheben und Lint-Prüfung erneut laufen lassen; alle Warnungen/Fehler beseitigen.
+
+[DISCOVERIES]
+
+- 2026-03-02T05:20:44+01:00 [TOOL] Root-Cause reproduziert: `npm run lint` mit Standard-Threadzahl löst sporadisch Rust-Panic in `oxc_allocator` aus (`Insufficient memory to create fixed-size allocator pool`), identisch zum vorherigen pre-commit-Fehlerbild.
+
+[DECISIONS]
+
+- 2026-03-02T05:20:44+01:00 [CODE] Oxlint stabilisiert über Single-Thread-Ausführung (`--threads=1`) sowohl in `scripts.lint`/`scripts.lint:fix` als auch in `lint-staged`-Fix-Task.
+- 2026-03-02T05:20:44+01:00 [CODE] Pre-commit-Ausführung auf serielles `lint-staged` umgestellt (`--concurrent false`), um Memory-Peaks durch parallele Task-Gruppen zu vermeiden.
+
+[OUTCOMES]
+
+- 2026-03-02T05:20:44+01:00 [TOOL] Verifikation grün: `npm run lint` (0 Warnungen/0 Fehler), `npm run lint:fix` (0 Warnungen/0 Fehler), `npx lint-staged --concurrent false --diff "HEAD~1..HEAD" --verbose` erfolgreich, plus echter Stash-Pfad-Smoke-Test via `npx lint-staged --concurrent false --verbose` mit temporär gestagter `.ts`-Datei erfolgreich.
