@@ -1554,3 +1554,22 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-04T00:22:58.1769563+01:00 [TOOL] Verifikation gruen nach Konsolidierung: fokussierte Gateway/Agent-Room-Tests (4 Dateien, 20 Tests), `npm run check`, `npm run build`.
+
+[PLANS]
+
+- 2026-03-04T00:34:09.5619149+01:00 [USER] Follow-up angefordert: verbleibenden `v1|v2`-Fallback im Gateway entfernen und kanonische `?protocol=`-Nutzung ohne implizite Defaults erzwingen.
+
+[DECISIONS]
+
+- 2026-03-04T00:34:09.5619149+01:00 [CODE] Upgrade-Handshake fail-fast: `/ws` akzeptiert nur noch explizites `protocol=v1|v2`; fehlender/ungueltiger Query-Parameter liefert `400 Bad Request` statt implizitem v1-Default.
+- 2026-03-04T00:34:09.5619149+01:00 [CODE] Client-URL-Kanonisierung: `GatewayClient(url)` schreibt bei fehlendem `protocol` den aktuell gesetzten Namespace explizit in die URL (`/ws?protocol=...`), um query-losen Fallback zu eliminieren.
+
+[PROGRESS]
+
+- 2026-03-04T00:34:09.5619149+01:00 [CODE] `server.ts` angepasst (kein implizites v1 mehr, Start-Log auf kanonischen v2-Endpunkt aktualisiert).
+- 2026-03-04T00:34:09.5619149+01:00 [CODE] `src/modules/gateway/ws-client.ts` normalisiert eingehende URLs ohne `protocol`-Query.
+- 2026-03-04T00:34:09.5619149+01:00 [CODE] Aktive Doku und Testabdeckung aktualisiert: `docs/AGENT_V2_RUNBOOK.md`, `docs/gateway-migration.md`, `tests/unit/modules/gateway/ws-client-stream-timeout.test.ts`.
+
+[OUTCOMES]
+
+- 2026-03-04T00:34:09.5619149+01:00 [TOOL] Verifikation gruen nach no-fallback-Haertung: fokussierte Gateway-Tests (4 Dateien, 19 Tests), `npm run check`, `npm run build`.

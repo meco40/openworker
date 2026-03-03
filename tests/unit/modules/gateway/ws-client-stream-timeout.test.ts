@@ -72,6 +72,7 @@ describe('GatewayClient requestStream timeout behavior', () => {
     await vi.advanceTimersByTimeAsync(100);
     const socket = MockBrowserWebSocket.instances[0];
     expect(socket).toBeTruthy();
+    expect(socket.url).toContain('/ws?protocol=v1');
     const requestFrame = JSON.parse(socket.sent[0]) as { id: string | number };
 
     socket.emitFrame({ type: 'stream', id: requestFrame.id, delta: '', done: false });
@@ -93,6 +94,11 @@ describe('GatewayClient requestStream timeout behavior', () => {
         // no-op
       },
     );
+
+    await vi.advanceTimersByTimeAsync(100);
+    const socket = MockBrowserWebSocket.instances[0];
+    expect(socket).toBeTruthy();
+    expect(socket.url).toContain('/ws?protocol=v1');
 
     const handledRejection = requestPromise.catch((error: unknown) => error);
     await vi.advanceTimersByTimeAsync(121_000);

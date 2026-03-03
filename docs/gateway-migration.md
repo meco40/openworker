@@ -48,7 +48,7 @@ ws://localhost:3000/ws-agent-v2  → v2 Protocol (Agent-V2, Swarm, Commands)
 ### After (Unified Endpoint)
 
 ```
-ws://localhost:3000/ws?protocol=v1  → v1 Protocol (default)
+ws://localhost:3000/ws?protocol=v1  → v1 Protocol
 ws://localhost:3000/ws?protocol=v2  → v2 Protocol
 ```
 

@@ -69,10 +69,11 @@ export class GatewayClient {
     }
 
     if (url) {
-      this.url = url;
       const urlObj = new URL(url);
       const p = urlObj.searchParams.get('protocol') as MethodNamespace | null;
       if (p) this.protocol = p;
+      else urlObj.searchParams.set('protocol', this.protocol);
+      this.url = urlObj.toString();
     } else if (typeof window !== 'undefined') {
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       this.url = `${proto}//${window.location.host}/ws?protocol=${this.protocol}`;

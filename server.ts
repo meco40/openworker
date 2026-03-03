@@ -94,7 +94,12 @@ Promise.resolve()
         return;
       }
       const protocolParam = url.searchParams.get('protocol');
-      const protocol: MethodNamespace = protocolParam === 'v2' ? 'v2' : 'v1';
+      if (protocolParam !== 'v1' && protocolParam !== 'v2') {
+        socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+      const protocol: MethodNamespace = protocolParam;
 
       try {
         // Authenticate via NextAuth JWT cookie (same origin, same port)
@@ -226,7 +231,7 @@ Promise.resolve()
     // ─── Start ─────────────────────────────────────────────────
     server.listen(port, hostname, () => {
       console.log(`[gateway] Server ready on http://${hostname}:${port}`);
-      console.log(`[gateway] WebSocket endpoint: ws://${hostname}:${port}/ws?protocol=v1|v2`);
+      console.log(`[gateway] WebSocket endpoint: ws://${hostname}:${port}/ws?protocol=v2`);
     });
   })
   .catch((error: unknown) => {
