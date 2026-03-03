@@ -1,4 +1,4 @@
-interface AutoDispatchOptions {
+export interface AutoDispatchOptions {
   taskId: string;
   taskTitle: string;
   agentId: string | null;

@@ -1463,3 +1463,15 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-03T16:04:34.5014170+01:00 [TOOL] Verifikation grün: `npm test -- tests/unit/lib/events.test.ts` (1 Datei, 12/12 Tests) und `npm run test:components -- tests/unit/components/chat-input-area.test.ts` (1 Datei, 3/3 Tests).
+
+[PLANS]
+
+- 2026-03-03T22:06:49.6350673+01:00 [USER] Review-Finding angefordert: generierte SQLite-Artefakte aus dem Changeset entfernen und Wiederauftreten verhindern.
+
+[PROGRESS]
+
+- 2026-03-03T22:06:49.6350673+01:00 [CODE] `.gitignore` um gezielte Ignore-Regeln für `tests/integration/memory/test-memory-*.db` inkl. `-shm`/`-wal` ergänzt.
+
+[OUTCOMES]
+
+- 2026-03-03T22:06:49.6350673+01:00 [TOOL] `git status --short` zeigt keine `test-memory-*.db*`-Artefakte mehr im Working-Changeset; Finding effektiv behoben.

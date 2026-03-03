@@ -1,6 +1,6 @@
 # Dokumentationsindex
 
-Stand: 2026-02-23
+Stand: 2026-03-03
 
 Diese Seite listet nur aktive Source-of-Truth Dokumente.
 Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
@@ -28,6 +28,7 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
 - **[docs/CLAWHUB_SYSTEM.md](CLAWHUB_SYSTEM.md)**
 - **[docs/KNOWLEDGE_BASE_SYSTEM.md](KNOWLEDGE_BASE_SYSTEM.md)**
 - **[docs/SECURITY_SYSTEM.md](SECURITY_SYSTEM.md)**
+- **[docs/MASTER_AGENT_SYSTEM.md](MASTER_AGENT_SYSTEM.md)**
 
 ## 3) Architektur und Referenzen
 

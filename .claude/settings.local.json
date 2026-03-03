@@ -6,7 +6,8 @@
       "Bash(node:*)",
       "Bash(npm rebuild:*)",
       "Bash(pnpm test:*)",
-      "Bash(pnpm vitest:*)"
+      "Bash(pnpm vitest:*)",
+      "Bash(sort -t'|' -k1 -n)"
     ]
   }
 }

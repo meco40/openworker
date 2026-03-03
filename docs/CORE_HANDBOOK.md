@@ -1,7 +1,7 @@
 # Core Handbook
 
-**Status:** 2026-02-22  
-**Version:** 1.0.0  
+**Status:** 2026-03-03  
+**Version:** 1.1.0  
 **Purpose:** Authoritative technical reference for the OpenClaw Gateway Control Plane codebase
 
 ---
@@ -86,11 +86,11 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 │  │                         SERVER DOMAIN LAYER                                     │    │
 │  │                                                                                 │    │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │    │
-│  │  │   Channels  │  │    Rooms    │  │   Memory    │  │      Model Hub          │ │    │
+│  │  │   Channels  │  │   Master    │  │   Memory    │  │      Model Hub          │ │    │
 │  │  │  ─────────  │  │  ─────────  │  │  ─────────  │  │  ────────────────────   │ │    │
-│  │  │ • Routing   │  │ • Personas  │  │ • Mem0      │  │ • Multi-provider        │ │    │
-│  │  │ • Adapters  │  │ • Sessions  │  │ • SQLite    │  │ • Fallback chain        │ │    │
-│  │  │ • Webhooks  │  │ • Tools     │  │ • Recall    │  │ • Token tracking        │ │    │
+│  │  │ • Routing   │  │ • Runs      │  │ • Mem0      │  │ • Multi-provider        │ │    │
+│  │  │ • Adapters  │  │ • Tools     │  │ • SQLite    │  │ • Fallback chain        │ │    │
+│  │  │ • Webhooks  │  │ • Learning  │  │ • Recall    │  │ • Token tracking        │ │    │
 │  │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └───────────┬─────────────┘ │    │
 │  │         │                │                │                     │               │    │
 │  │  ┌──────┴──────┐  ┌──────┴──────┐  ┌──────┴──────┐  ┌───────────┴─────────────┐ │    │
@@ -116,7 +116,7 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 │  │   ├── messages          (chat history, FTS5 enabled)                            │    │
 │  │   ├── conversations     (session metadata)                                      │    │
 │  │   ├── channels          (omnichannel bindings)                                  │    │
-│  │   ├── rooms             (collaboration spaces)                                  │    │
+│  │   ├── master_*          (master agent runs, notes, reminders)                   │    │
 │  │   ├── memory_nodes      (local memory fallback)                                 │    │
 │  │   ├── knowledge_*       (episodic memory)                                       │    │
 
@@ -220,10 +220,10 @@ openclaw-gateway-control-plane/
 │   │   ├── cron/                          # Automation scheduling UI
 │   │   ├── exposure/                      # Exposure/analytics module
 │   │   ├── gateway/                       # WebSocket client connection
+│   │   ├── master/                        # Master Agent UI
 │   │   ├── ops/                           # Ops dashboard module
 │   │   ├── personas/                      # Persona management UI
 │   │   ├── profile/                       # User profile configuration
-│   │   ├── rooms/                         # Room management UI
 │   │   ├── security/                      # Security overview UI
 │   │   ├── tasks/                         # Task management UI
 │   │   └── telemetry/                     # Telemetry/metrics UI
@@ -263,6 +263,15 @@ openclaw-gateway-control-plane/
 │   │   │   ├── retrievalService.ts        # Context retrieval
 │   │   │   └── sqliteKnowledgeRepository.ts # SQLite storage
 │   │   │
+│   │   ├── master/                        # Master Agent system
+│   │   │   ├── orchestrator.ts            # Run lifecycle management
+│   │   │   ├── execution/                 # Execution runtime
+│   │   │   ├── delegation/                # Subagent delegation
+│   │   │   ├── connectors/                # External connectors (Gmail)
+│   │   │   ├── capabilities/              # Learning & inventory
+│   │   │   ├── toolforge/                 # Tool creation pipeline
+│   │   │   └── repository/                # Master data storage
+│   │   │
 │   │   ├── memory/                        # Memory system
 │   │   │   ├── mem0Client.ts              # Mem0 API client
 │   │   │   ├── service.ts                 # Memory operations
@@ -281,12 +290,6 @@ openclaw-gateway-control-plane/
 │   │   │
 │   │   ├── personas/                      # AI persona definitions
 │   │   │   └── personaTypes.ts            # Persona configuration types
-│   │   │
-│   │   ├── rooms/                         # Rooms collaboration system
-│   │   │   ├── orchestrator.ts            # Room lifecycle management
-│   │   │   ├── repositories/              # Data access layer
-│   │   │   ├── toolExecutor.ts            # Room tool execution
-│   │   │   └── runtimeRole.ts             # Runtime role configuration
 │   │   │
 │   │   ├── skills/                        # Skill system
 │   │   │   ├── builtInSkills.ts           # Core skill definitions
@@ -967,4 +970,4 @@ npm run knip             # Find unused code
 
 ---
 
-**Document Maintenance:** Update this handbook when making architectural changes. Last updated: 2026-02-21
+**Document Maintenance:** Update this handbook when making architectural changes. Last updated: 2026-03-03

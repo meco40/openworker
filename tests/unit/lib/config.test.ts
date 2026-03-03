@@ -14,6 +14,10 @@ const localStorageMock = (() => {
     clear: vi.fn(() => {
       store = {};
     }),
+    get length() {
+      return Object.keys(store).length;
+    },
+    key: vi.fn((index: number) => Object.keys(store)[index] ?? null),
     get store() {
       return store;
     },
@@ -25,19 +29,27 @@ async function getFreshConfigModule(mockWindow: boolean) {
   vi.resetModules();
 
   if (mockWindow) {
-    // @ts-expect-error - mocking window for tests
-    globalThis.window = {
+    (globalThis as Record<string, unknown>).window = {
       location: {
         origin: 'http://localhost:3000',
+        href: 'http://localhost:3000',
+        protocol: 'http:',
+        host: 'localhost:3000',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/',
+        search: '',
+        hash: '',
+        ancestorOrigins: [] as unknown as DOMStringList,
+        assign: vi.fn(),
+        replace: vi.fn(),
+        reload: vi.fn(),
       },
-    };
-    // @ts-expect-error - mocking localStorage for tests
-    globalThis.localStorage = localStorageMock;
+    } as unknown as Window;
+    (globalThis as Record<string, unknown>).localStorage = localStorageMock;
   } else {
-    // @ts-expect-error - intentionally removing window for server-side tests
-    delete globalThis.window;
-    // @ts-expect-error - intentionally removing localStorage for server-side tests
-    delete globalThis.localStorage;
+    delete (globalThis as Record<string, unknown>).window;
+    delete (globalThis as Record<string, unknown>).localStorage;
   }
 
   return import('@/lib/config');
@@ -51,10 +63,8 @@ describe('Config Management', () => {
 
   afterEach(() => {
     vi.resetModules();
-    // @ts-expect-error - cleanup
-    delete globalThis.window;
-    // @ts-expect-error - cleanup
-    delete globalThis.localStorage;
+    delete (globalThis as Record<string, unknown>).window;
+    delete (globalThis as Record<string, unknown>).localStorage;
   });
 
   describe('getConfig', () => {

@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz aller aktuell implementierten HTTP-API-Routen unter `app/api` mit exportierten Methoden.
 - Scope: Route-/Methoden-Katalog, Domain-Gruppierung, Runtime-Hinweise zum aktuellen Systemzustand.
 - Source of Truth: This document is derived from `app/api/**/route.ts` and overrides archived API documents on conflicts.
-- Last Reviewed: 2026-02-23
+- Last Reviewed: 2026-03-03
 - Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md, docs/runbooks/gateway-config-production-rollout.md
 
 ---
@@ -33,6 +33,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | health        |      2 |
 | knowledge     |      1 |
 | logs          |      2 |
+| master        |     12 |
 | memory        |      1 |
 | model-hub     |     10 |
 | ops           |      4 |
@@ -138,6 +139,34 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | DELETE, GET | /api/logs        |
 | POST        | /api/logs/ingest |
 
+### /api/master
+
+| Methods | Route                             |
+| ------- | --------------------------------- |
+| GET     | /api/master/capabilities          |
+| POST    | /api/master/capabilities          |
+| GET     | /api/master/metrics               |
+| GET     | /api/master/notes                 |
+| POST    | /api/master/notes                 |
+| PATCH   | /api/master/notes                 |
+| DELETE  | /api/master/notes                 |
+| GET     | /api/master/reminders             |
+| POST    | /api/master/reminders             |
+| PATCH   | /api/master/reminders             |
+| DELETE  | /api/master/reminders             |
+| POST    | /api/master/gmail                 |
+| GET     | /api/master/toolforge             |
+| POST    | /api/master/toolforge             |
+| POST    | /api/master/voice-session         |
+| GET     | /api/master/runs                  |
+| POST    | /api/master/runs                  |
+| GET     | /api/master/runs/[id]             |
+| PATCH   | /api/master/runs/[id]             |
+| POST    | /api/master/runs/[id]/actions     |
+| GET     | /api/master/runs/[id]/delegations |
+| POST    | /api/master/runs/[id]/delegations |
+| POST    | /api/master/runs/[id]/feedback    |
+
 ### /api/memory
 
 | Methods                       | Route       |
@@ -209,3 +238,6 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 - `/api/automations/[id]/flow` verwaltet den visuellen `flowGraph` (GET/PUT) fuer Automation-Regeln.
 - Debug-Endpoints (`/api/debug/*`) liefern Conversation-Turn-Analysen und Replay fuer technische Diagnose.
 - `/api/channels/telegram/bots/[botId]/webhook` — Eingehende Updates für persona-gebundene Bots mit eigenem Webhook-Secret pro Bot.
+- Master-Endpoints (`/api/master/*`) steuern den Master Agent: Runs, Notes, Reminders, Gmail, ToolForge, Capabilities und Metriken.
+- `/api/master/runs/[id]/actions` unterstuetzt Run-Controls (`run.start`, `run.tick`, `run.cancel`, `run.export`) sowie Approval-Entscheidungen (`approve_once`, `approve_always`, `deny`).
+- `/api/master/runs/[id]/feedback` ermoeglicht Feedback zu abgeschlossenen Runs.
