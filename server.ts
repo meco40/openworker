@@ -7,6 +7,7 @@ import next from 'next';
 import { WebSocketServer } from 'ws';
 import { getToken } from 'next-auth/jwt';
 import { handleConnection, getClientRegistry, broadcast } from './src/server/gateway/index.js';
+import type { MethodNamespace } from './src/server/gateway/method-router.js';
 import { TICK_INTERVAL_MS, MAX_PAYLOAD_BYTES } from './src/server/gateway/constants.js';
 import { runGatewayKeepaliveSweep } from './src/server/gateway/keepalive.js';
 import { getPrincipalUserId } from './src/server/auth/principal.js';
@@ -87,31 +88,19 @@ Promise.resolve()
 
       const { pathname } = url;
 
+      // Legacy support: /ws-agent-v2 -> /ws?protocol=v2
+      let protocol: MethodNamespace = 'v1';
       if (pathname === '/ws-agent-v2') {
-        socket.write(
-          'HTTP/1.1 410 Gone\r\n' +
-            'Content-Type: application/json\r\n' +
-            '\r\n' +
-            JSON.stringify({
-              error: 'Endpoint deprecated',
-              message:
-                'The /ws-agent-v2 endpoint has been removed. Please use /ws?protocol=v2 instead.',
-              migrationUrl: '/ws?protocol=v2',
-            }) +
-            '\r\n',
-        );
-        socket.destroy();
-        return;
-      }
-
-      if (pathname !== '/ws') {
+        console.warn('[gateway] Legacy path /ws-agent-v2 is deprecated. Use /ws?protocol=v2');
+        protocol = 'v2';
+      } else if (pathname === '/ws') {
+        const protocolParam = url.searchParams.get('protocol');
+        protocol = protocolParam === 'v2' ? 'v2' : 'v1';
+      } else {
         socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
         socket.destroy();
         return;
       }
-
-      const protocolParam = url.searchParams.get('protocol');
-      const protocol: 'v1' | 'v2' = protocolParam === 'v2' ? 'v2' : 'v1';
 
       try {
         // Authenticate via NextAuth JWT cookie (same origin, same port)
