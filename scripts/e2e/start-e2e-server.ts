@@ -83,6 +83,7 @@ async function main(): Promise<void> {
   const env = process.env as Record<string, string | undefined>;
 
   env.NODE_ENV = env.NODE_ENV || 'production';
+  env.NEXTAUTH_SECRET = env.NEXTAUTH_SECRET || 'e2e-local-nextauth-secret';
   // Docker injects HOSTNAME with a container id; force loopback for Playwright health checks.
   env.HOSTNAME = '127.0.0.1';
   env.PORT = String(appPort);

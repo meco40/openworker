@@ -23,7 +23,8 @@ function resolveNextAuthSecret(): string {
     throw new Error('NEXTAUTH_SECRET (or AUTH_SECRET) must be set in production.');
   }
 
-  if (!insecureSecretWarningLogged) {
+  const isTestRuntime = process.env.NODE_ENV === 'test';
+  if (!insecureSecretWarningLogged && !isTestRuntime) {
     insecureSecretWarningLogged = true;
     console.warn(
       '[SECURITY WARNING] NEXTAUTH_SECRET is not configured. Falling back to a local development secret.',

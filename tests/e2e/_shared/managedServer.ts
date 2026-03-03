@@ -120,6 +120,7 @@ export class ManagedServer {
       PORT: String(this.port),
       HOSTNAME: '127.0.0.1',
       REQUIRE_AUTH: 'false',
+      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'e2e-local-nextauth-secret',
       MEMORY_PROVIDER: 'mem0',
       MEM0_BASE_URL: `http://127.0.0.1:${this.mem0Port}`,
       MEM0_API_KEY: 'test-mem0-key',

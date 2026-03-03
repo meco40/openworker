@@ -7,6 +7,8 @@ import {
   type BridgeChannel,
 } from '@/server/channels/pairing/bridgeAccounts';
 
+const IS_TEST_RUNTIME = process.env.NODE_ENV === 'test';
+
 function resolveBridgeUrl(channel: BridgeChannel): string {
   const envName = channel === 'whatsapp' ? 'WHATSAPP_BRIDGE_URL' : 'IMESSAGE_BRIDGE_URL';
   const bridgeUrl = process.env[envName];
@@ -46,7 +48,9 @@ export async function registerBridgeWebhook(params: {
   const bridgeBaseUrl = resolveBridgeUrl(params.channel);
   const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || process.env.VERCEL_URL;
   if (!appUrl) {
-    console.warn('APP_URL not set - bridge webhook not registered.');
+    if (!IS_TEST_RUNTIME) {
+      console.warn('APP_URL not set - bridge webhook not registered.');
+    }
     return { ok: false };
   }
 
@@ -69,12 +73,18 @@ export async function registerBridgeWebhook(params: {
       }),
     });
     if (!response.ok) {
-      console.warn(`${params.channel} webhook registration failed with status ${response.status}.`);
+      if (!IS_TEST_RUNTIME) {
+        console.warn(
+          `${params.channel} webhook registration failed with status ${response.status}.`,
+        );
+      }
       return { ok: false, callbackUrl };
     }
     return { ok: true, callbackUrl };
   } catch (error) {
-    console.warn(`${params.channel} webhook registration warning:`, error);
+    if (!IS_TEST_RUNTIME) {
+      console.warn(`${params.channel} webhook registration warning:`, error);
+    }
     return { ok: false, callbackUrl };
   }
 }
@@ -103,7 +113,9 @@ export async function pairBridgeChannel(channel: BridgeChannel, accountIdInput?:
       store,
     );
   } catch (error) {
-    console.warn(`${channel} pairing status persistence warning:`, error);
+    if (!IS_TEST_RUNTIME) {
+      console.warn(`${channel} pairing status persistence warning:`, error);
+    }
   }
 
   return {

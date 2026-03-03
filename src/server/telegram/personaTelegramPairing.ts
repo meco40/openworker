@@ -7,6 +7,8 @@ import {
 } from '@/server/telegram/personaTelegramPoller';
 import { serializeTelegramAllowedUpdates } from '@/server/channels/telegram/allowedUpdates';
 
+const IS_TEST_RUNTIME = process.env.NODE_ENV === 'test';
+
 // ─── Types ───────────────────────────────────────────────────
 
 export interface PairPersonaTelegramResult {
@@ -69,12 +71,12 @@ export async function pairPersonaTelegram(
     const whData = (await whResponse.json()) as { ok?: boolean; description?: string };
     if (whData.ok) {
       transport = 'webhook';
-    } else {
+    } else if (!IS_TEST_RUNTIME) {
       console.warn(
         `[PersonaTelegramPairing] Webhook setup warning for persona ${personaId}: ${whData.description}`,
       );
     }
-  } else {
+  } else if (!IS_TEST_RUNTIME) {
     console.warn(
       '[PersonaTelegramPairing] APP_URL not set — using polling mode for persona',
       personaId,

@@ -7,6 +7,8 @@ import {
 import { serializeTelegramAllowedUpdates } from '@/server/channels/telegram/allowedUpdates';
 import { syncTelegramNativeCommands } from '@/server/channels/telegram/nativeCommands';
 
+const IS_TEST_RUNTIME = process.env.NODE_ENV === 'test';
+
 export async function pairTelegram(token: string) {
   if (!token) throw new Error('Telegram token is required.');
 
@@ -37,10 +39,10 @@ export async function pairTelegram(token: string) {
     const whData = (await whResponse.json()) as { ok?: boolean; description?: string };
     if (whData.ok) {
       transport = 'webhook';
-    } else {
+    } else if (!IS_TEST_RUNTIME) {
       console.warn(`Telegram webhook setup warning: ${whData.description}`);
     }
-  } else {
+  } else if (!IS_TEST_RUNTIME) {
     console.warn('APP_URL not set - Telegram webhook not registered. Set APP_URL for production.');
   }
 
@@ -52,7 +54,9 @@ export async function pairTelegram(token: string) {
         body: JSON.stringify({ drop_pending_updates: true }),
       });
     } catch (error) {
-      console.warn('Telegram deleteWebhook warning while switching to polling mode:', error);
+      if (!IS_TEST_RUNTIME) {
+        console.warn('Telegram deleteWebhook warning while switching to polling mode:', error);
+      }
     }
   }
 
