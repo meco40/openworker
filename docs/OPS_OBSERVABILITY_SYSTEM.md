@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Referenz fuer operative Steuerung, Diagnose und Observability-APIs.
-- Scope: Ops-Endpunkte, Config-API, Health/Doctor, Control-Plane-Metriken, Logs, Stats.
+- Scope: Ops-Endpunkte, Config-API, Health/Doctor, Control-Plane-Metriken, Logs, Stats, Master-Metriken.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-22
+- Last Reviewed: 2026-03-03
 - Related Runbooks: docs/runbooks/gateway-config-production-rollout.md, docs/runbooks/chat-cli-smoke-approval.md
 
 ---
@@ -79,6 +79,25 @@ Quellen: `app/api/logs/route.ts`, `app/api/logs/ingest/route.ts`
 
 Quellen: `app/api/stats/route.ts`, `app/api/stats/prompt-logs/route.ts`
 
+### 2.7 Master Metrics
+
+| Methode | Pfad                  | Zweck                                                   |
+| ------- | --------------------- | ------------------------------------------------------- |
+| GET     | `/api/master/metrics` | Master-Agent-Metriken (Runs, Delegations, Capabilities) |
+
+Metriken-Details:
+
+- `totalRuns`: Alle Runs insgesamt
+- `activeRuns`: Aktuell laufende Runs
+- `completedRuns`: Erfolgreich abgeschlossene Runs
+- `failedRuns`: Fehlgeschlagene Runs
+- `pendingApprovals`: Ausstehende Approval-Entscheidungen
+- `totalDelegations`: Alle Delegations an Subagenten
+- `capabilitiesByType`: Capabilities nach Typ gruppiert
+- `learningLoopStatus`: Status des Learning-Loops (naechster Run, letzte Ausfuehrung)
+
+Quelle: `app/api/master/metrics/route.ts`, `src/server/master/metrics.ts`
+
 ## 3. Auth und Zugriff
 
 Alle oben genannten Endpunkte nutzen `resolveRequestUserContext()` und liefern bei fehlendem Kontext `401`.
@@ -99,7 +118,9 @@ npm run lint
 
 ## 5. Siehe auch
 
-- `docs/WORKER_SYSTEM.md`
+- `docs/WORKER_SYSTEM.md` (Legacy)
+- `docs/MASTER_AGENT_SYSTEM.md` - Master Agent Metriken und Runtime
 - `docs/OMNICHANNEL_GATEWAY_SYSTEM.md`
 - `docs/DEPLOYMENT_OPERATIONS.md`
 - `docs/API_REFERENCE.md`
+- `docs/TASKS_SYSTEM.md` - Task-Management und Workspace-Artifakte

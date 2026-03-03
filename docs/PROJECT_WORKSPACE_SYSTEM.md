@@ -2,9 +2,9 @@
 
 ## Metadata
 
-- Purpose: Define the conversation-scoped project workspace workflow for persona-driven build tasks.
-- Scope: `/project` lifecycle, no-project guard approvals, workspace cwd propagation for tool execution.
-- Last Reviewed: 2026-02-23
+- Purpose: Define the conversation-scoped project workspace workflow for persona-driven build tasks and Master Agent isolation.
+- Scope: `/project` lifecycle, no-project guard approvals, workspace cwd propagation for tool execution, Master-Workspace-Isolation.
+- Last Reviewed: 2026-03-03
 
 ---
 
@@ -22,6 +22,30 @@ This enables:
 
 - Strict persona isolation for projects.
 - Conversation-specific active project (important when a user switches channels/devices).
+
+### 1.1 Master-Workspace-Isolation
+
+Der Master Agent verwendet eine erweiterte Workspace-Isolation:
+
+- **Scope-Auflösung**: `resolveMasterWorkspaceScope` kanonisiert auf `persona:<personaId>:<workspaceId>`
+- **Workspace-Cwd**: Wird auf Persona-Root begrenzt (`PERSONAS_ROOT_PATH/<persona-slug>`)
+- **Isolation-Gate**: Jede Master-Action validiert den Workspace-Scope vor Ausfuehrung
+- **Task-Bindung**: Tasks erben den Master-Workspace-Scope bei der Erstellung
+
+```typescript
+// Scope-Auflösung für Master Actions
+const scope = resolveMasterWorkspaceScope({
+  personaId: 'persona_123',
+  workspaceId: 'ws_456',
+});
+// Ergebnis: 'persona:persona_123:ws_456'
+```
+
+Vorteile:
+
+- Strikte Isolation zwischen Persona-Workspaces
+- Verhindert unbeabsichtigten Zugriff auf fremde Projekte
+- Ermöglicht sichere Multi-User-Umgebungen
 
 ---
 
@@ -125,6 +149,13 @@ Git worktrees are intentionally not a platform-level special feature here.
 pnpm vitest run tests/messageRouter.test.ts tests/unit/channels/project-repository.test.ts tests/unit/channels/message-service-project-command.test.ts tests/unit/channels/message-service-project-guard.test.ts tests/unit/channels/message-service-project-approval-command.test.ts tests/unit/channels/message-service-project-workspace-cwd.test.ts tests/unit/channels/message-service-subagents.test.ts tests/unit/channels/message-service-tool-approval.test.ts tests/unit/channels/message-service-shell-command.test.ts tests/unit/skills/shell-execute-security.test.ts tests/unit/personas/persona-project-workspace.test.ts
 pnpm typecheck
 pnpm lint
+```
+
+### 6.1 Master-Workspace-Isolation Tests
+
+```bash
+pnpm vitest run tests/unit/master/master-workspace-scope.test.ts
+pnpm vitest run tests/integration/master/master-workspace-isolation.test.ts
 ```
 
 ## 7. E2E Runbook

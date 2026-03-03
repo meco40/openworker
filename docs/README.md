@@ -11,6 +11,8 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
   - Gesamtsystem, Architekturregeln, Qualitaets-Gates.
 - **[docs/API_REFERENCE.md](API_REFERENCE.md)**
   - Aktive API-Routen als technische Referenz.
+- **[docs/TASKS_SYSTEM.md](TASKS_SYSTEM.md)**
+  - Task-Management, Workspace-Artifakte, Completion-Flow.
 
 ## 2) Domänensysteme
 
@@ -21,14 +23,18 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
 - **[docs/MODEL_HUB_SYSTEM.md](MODEL_HUB_SYSTEM.md)**
 - **[docs/PERSONA_ROOMS_SYSTEM.md](PERSONA_ROOMS_SYSTEM.md)**
 - **[docs/OPS_OBSERVABILITY_SYSTEM.md](OPS_OBSERVABILITY_SYSTEM.md)**
-- **[docs/WORKER_SYSTEM.md](WORKER_SYSTEM.md)**
-- **[docs/WORKER_ORCHESTRA_SYSTEM.md](WORKER_ORCHESTRA_SYSTEM.md)**
 - **[docs/AUTOMATION_SYSTEM.md](AUTOMATION_SYSTEM.md)**
 - **[docs/SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)**
 - **[docs/CLAWHUB_SYSTEM.md](CLAWHUB_SYSTEM.md)**
 - **[docs/KNOWLEDGE_BASE_SYSTEM.md](KNOWLEDGE_BASE_SYSTEM.md)**
 - **[docs/SECURITY_SYSTEM.md](SECURITY_SYSTEM.md)**
 - **[docs/MASTER_AGENT_SYSTEM.md](MASTER_AGENT_SYSTEM.md)**
+- **[docs/PROJECT_WORKSPACE_SYSTEM.md](PROJECT_WORKSPACE_SYSTEM.md)**
+
+## 3) Legacy-Dokumente (Archiv-reif)
+
+- **[docs/WORKER_SYSTEM.md](WORKER_SYSTEM.md)** ⚠️ Legacy - System entfernt
+- **[docs/WORKER_ORCHESTRA_SYSTEM.md](WORKER_ORCHESTRA_SYSTEM.md)** ⚠️ Legacy - System entfernt
 
 ## 3) Architektur und Referenzen
 

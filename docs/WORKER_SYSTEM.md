@@ -1,11 +1,15 @@
-# Worker System
+# Worker System (Legacy)
+
+> **Status:** ⚠️ **ARCHIV-REIF** - Dieses Dokument beschreibt entfernte Legacy-Systeme. Zur Aufbewahrung historischer Kontexte belassen, jedoch nicht mehr als aktive Referenz verwenden.
+>
+> **Empfohlene Nachfolger:** `docs/AUTOMATION_SYSTEM.md`, `docs/MASTER_AGENT_SYSTEM.md`, `docs/OPS_OBSERVABILITY_SYSTEM.md`
 
 ## Metadata
 
-- Purpose: Verbindliche Referenz zum aktuellen Worker-Status und den aktiven Nachfolge-Pfaden.
-- Scope: Entfernte Worker-/Rooms-Runtimes, aktive Ops-/Automation-/Chat-Alternativen.
-- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-23
+- Purpose: Historische Referenz zum Worker-Status (entfernt 2026-02).
+- Scope: Dokumentiert entfernte Worker-/Rooms-Runtimes und aktive Nachfolge-Pfade.
+- Source of Truth: **ARCHIVED** - Dieses System ist nicht mehr in der Runtime vorhanden. Siehe Nachfolger oben.
+- Last Reviewed: 2026-03-03 (als Legacy markiert)
 - Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md, docs/runbooks/gateway-config-production-rollout.md
 
 ---

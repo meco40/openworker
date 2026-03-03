@@ -1,11 +1,15 @@
-# Worker Orchestra System
+# Worker Orchestra System (Legacy)
+
+> **Status:** ⚠️ **ARCHIV-REIF** - Dieses Dokument beschreibt entfernte Legacy-Systeme. Zur Aufbewahrung historischer Kontexte belassen, jedoch nicht mehr als aktive Referenz verwenden.
+>
+> **Empfohlene Nachfolger:** `docs/AUTOMATION_SYSTEM.md`, `docs/MASTER_AGENT_SYSTEM.md`
 
 ## Metadata
 
-- Purpose: Verbindliche Referenz zum aktuellen Status der frueheren Worker-Orchestra-Funktion.
-- Scope: Legacy-Status, aktive Nachfolger fuer Flow-Definition und Runtime-Ausfuehrung.
-- Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-23
+- Purpose: Historische Referenz zur Worker-Orchestra-Funktion (entfernt 2026-02).
+- Scope: Dokumentiert entfernte Orchestra-API und aktive Nachfolger.
+- Source of Truth: **ARCHIVED** - Dieses System ist nicht mehr in der Runtime vorhanden. Siehe Nachfolger oben.
+- Last Reviewed: 2026-03-03 (als Legacy markiert)
 - Related Runbooks: docs/runbooks/gateway-config-production-rollout.md
 
 ---

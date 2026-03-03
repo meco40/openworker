@@ -30,6 +30,8 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | control-plane |      1 |
 | debug         |      3 |
 | doctor        |      1 |
+| events        |      2 |
+| files         |      2 |
 | health        |      2 |
 | knowledge     |      1 |
 | logs          |      2 |
@@ -41,6 +43,9 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | security      |      2 |
 | skills        |      4 |
 | stats         |      2 |
+| tasks         |      4 |
+| webhooks      |      2 |
+| workspaces    |      3 |
 
 ## Route Catalog
 
@@ -118,6 +123,20 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | Methods | Route       |
 | ------- | ----------- |
 | GET     | /api/doctor |
+
+### /api/events
+
+| Methods | Route              |
+| ------- | ------------------ |
+| GET     | /api/events        |
+| POST    | /api/events/ingest |
+
+### /api/files
+
+| Methods | Route             |
+| ------- | ----------------- |
+| GET     | /api/files        |
+| POST    | /api/files/upload |
 
 ### /api/health
 
@@ -229,6 +248,30 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | GET         | /api/stats             |
 | DELETE, GET | /api/stats/prompt-logs |
 
+### /api/tasks
+
+| Methods    | Route                               |
+| ---------- | ----------------------------------- |
+| GET, POST  | /api/tasks                          |
+| GET, PATCH | /api/tasks/[id]                     |
+| POST       | /api/tasks/[id]/complete            |
+| GET        | /api/tasks/workspaces/[workspaceId] |
+
+### /api/webhooks
+
+| Methods | Route                          |
+| ------- | ------------------------------ |
+| POST    | /api/webhooks/agent-completion |
+| POST    | /api/webhooks/gateway          |
+
+### /api/workspaces
+
+| Methods    | Route                          |
+| ---------- | ------------------------------ |
+| GET, POST  | /api/workspaces                |
+| GET, PATCH | /api/workspaces/[id]           |
+| GET        | /api/workspaces/[id]/artifacts |
+
 ## Notes
 
 - Auth route (`/api/auth/[...nextauth]`) wird ueber Handler-Aliase (`GET`, `POST`) exportiert.
@@ -241,3 +284,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 - Master-Endpoints (`/api/master/*`) steuern den Master Agent: Runs, Notes, Reminders, Gmail, ToolForge, Capabilities und Metriken.
 - `/api/master/runs/[id]/actions` unterstuetzt Run-Controls (`run.start`, `run.tick`, `run.cancel`, `run.export`) sowie Approval-Entscheidungen (`approve_once`, `approve_always`, `deny`).
 - `/api/master/runs/[id]/feedback` ermoeglicht Feedback zu abgeschlossenen Runs.
+- Tasks-Endpoints (`/api/tasks/*`) verwalten Task-Lifecycle und Workspace-Artifakte.
+- Workspaces-Endpoints (`/api/workspaces/*`) bieten Projekt-Workspace-Management und Artifact-Zugriff.
+- Events-Endpoints (`/api/events/*`) dienen der Event-Ingession fuer System-Events.
+- Webhooks-Endpoints (`/api/webhooks/*`) empfangen externe Webhooks (Agent-Completion, Gateway).

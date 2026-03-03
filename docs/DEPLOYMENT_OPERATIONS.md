@@ -1,9 +1,22 @@
 # Deployment & Operations Guide
 
-**Version:** 1.0.0  
-**Last Updated:** 2026-02-22
+**Version:** 1.1.0  
+**Last Updated:** 2026-03-03
 
 This document provides comprehensive guidance for deploying, operating, and maintaining OpenClaw Gateway in production environments. It covers deployment topologies, Docker configuration, systemd services, monitoring, backup strategies, and operational procedures.
+
+### 2026-03-03 Update: Master Agent Runtime
+
+Dieser Guide wurde um Master-Runtime-Betriebserweiterungen ergänzt:
+
+- Master-Agent als integrierter Bestandteil des Web-Service
+- SQLite-Erweiterungen für `master_*` Tabellen
+- Maintenance-Scheduler (03:00 UTC täglich)
+- Secret-Storage mit AES-256-GCM-Verschlüsselung
+- Gmail-Connector-Betrieb (OAuth2)
+- Delegation-Runtime für Subagenten-Pools
+
+Siehe Abschnitt [Master Agent Operations](#master-agent-operations).
 
 ---
 
@@ -869,6 +882,193 @@ else
     fi
 fi
 ```
+
+---
+
+## Master Agent Operations
+
+### Overview
+
+Der Master Agent ist als integrierter Bestandteil des Web-Service implementiert und benötigt keine separate Service-Instanz.
+
+**Laufzeit-Komponenten:**
+
+- **Orchestrator**: Steuert Run-Lifecycle und Approvals
+- **Execution Runtime**: Führt Task-Pläne im Hintergrund aus
+- **Delegation Dispatcher**: Verteilt Capabilities an Subagenten
+- **Learning Loop**: Tägliche Wartung (03:00 UTC)
+- **Connector Runtime**: Gmail, Notes, Reminders
+
+### SQLite-Erweiterungen
+
+Der Master Agent verwendet folgende Datenbanktabellen:
+
+```sql
+-- Master Runs
+CREATE TABLE master_runs (
+  id TEXT PRIMARY KEY,
+  persona_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  contract_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Master Actions (Approval-Ledger)
+CREATE TABLE master_action_ledger (
+  id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  action_type TEXT NOT NULL,
+  status TEXT NOT NULL,
+  approval_mode TEXT,
+  created_at TEXT NOT NULL
+);
+
+-- Master Delegations
+CREATE TABLE master_delegations (
+  id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  capability TEXT NOT NULL,
+  status TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+-- Master Audit (Secret-Änderungen)
+CREATE TABLE master_audit_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_type TEXT NOT NULL,
+  metadata_json TEXT,
+  created_at TEXT NOT NULL
+);
+
+-- Master Notes & Reminders
+CREATE TABLE master_notes (
+  id TEXT PRIMARY KEY,
+  persona_id TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE master_reminders (
+  id TEXT PRIMARY KEY,
+  persona_id TEXT NOT NULL,
+  reminder_at TEXT NOT NULL,
+  content TEXT NOT NULL
+);
+```
+
+### Secret-Storage (enc:v2)
+
+Master-Secrets werden mit AES-256-GCM verschlüsselt:
+
+```typescript
+// Secret-Verschlüsselung
+import { encryptSecret, decryptSecret } from '@/server/master/secrets';
+
+const encrypted = encryptSecret('my-token', encryptionKey);
+// Format: enc:v2:<iv>:<ciphertext>:<tag>
+
+const decrypted = decryptSecret(encrypted, encryptionKey);
+```
+
+**Umgebungsvariable erforderlich:**
+
+```bash
+MODEL_HUB_ENCRYPTION_KEY=<32-byte-base64-key>
+```
+
+### Maintenance-Scheduler
+
+Der Learning-Loop wird täglich um 03:00 UTC ausgeführt:
+
+- **Zeitpunkt**: 03:00 UTC (konfigurierbar via `MASTER_LEARNING_HOUR_UTC`)
+- **Frequenz**: Einmal pro Tag pro Workspace-Scope
+- **Preemption**: Überspringt Scopes mit aktiven Runs
+- **Cadence**: Einmal alle 24h pro Scope
+
+**Konfiguration:**
+
+```bash
+# Learning-Loop Konfiguration
+MASTER_LEARNING_HOUR_UTC=3
+MASTER_LEARNING_ENABLED=true
+MASTER_LEARNING_MAX_RUNS_PER_DAY=10
+```
+
+### Gmail-Connector-Betrieb
+
+Für Gmail-Integration wird OAuth2 benötigt:
+
+**Einrichtung:**
+
+1. Google Cloud Console: OAuth2-Credentials erstellen
+2. Redirect-URI: `https://<your-domain>/api/master/gmail/oauth/callback`
+3. Credentials in `.env.local`:
+   ```bash
+   GMAIL_OAUTH_CLIENT_ID=<client-id>
+   GMAIL_OAUTH_CLIENT_SECRET=<client-secret>
+   GMAIL_OAUTH_REDIRECT_URI=https://<your-domain>/api/master/gmail/oauth/callback
+   ```
+
+**Betriebsmodi:**
+
+- **Mock-Mode**: Deterministische Tests (Standard in Entwicklung)
+- **Real-Mode**: Gmail REST API mit OAuth2 (Produktion)
+
+```bash
+MASTER_GMAIL_REAL_MODE=true  # Real-Mode aktivieren
+```
+
+### Monitoring
+
+**Metriken-Endpoint:**
+
+```bash
+GET /api/master/metrics
+```
+
+**Response:**
+
+```json
+{
+  "totalRuns": 42,
+  "activeRuns": 3,
+  "completedRuns": 38,
+  "failedRuns": 1,
+  "pendingApprovals": 2,
+  "totalDelegations": 156,
+  "capabilitiesByType": {
+    "code_generation": 15,
+    "web_research": 12,
+    "data_analysis": 8
+  },
+  "learningLoopStatus": {
+    "nextRun": "2026-03-04T03:00:00Z",
+    "lastRun": "2026-03-03T03:00:00Z",
+    "runsToday": 5
+  }
+}
+```
+
+### Verifikation
+
+```bash
+# Master-Health prüfen
+curl http://localhost:3000/api/master/metrics
+
+# Master-Tests ausführen
+npm test -- tests/unit/master tests/integration/master
+```
+
+### Troubleshooting
+
+| Problem                                   | Lösung                                                                  |
+| ----------------------------------------- | ----------------------------------------------------------------------- |
+| Learning-Loop wird nicht ausgeführt       | `MASTER_LEARNING_ENABLED=true` prüfen, Logs auf `learning-loop` filtern |
+| Gmail-OAuth schlägt fehl                  | Redirect-URI in Google Cloud Console prüfen                             |
+| Secrets können nicht entschlüsselt werden | `MODEL_HUB_ENCRYPTION_KEY` identisch in allen Instanzen setzen          |
+| Runs bleiben in `AWAITING_APPROVAL`       | Approval über UI oder `/approve <token>`-Command einreichen             |
 
 ---
 
