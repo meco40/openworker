@@ -105,6 +105,62 @@ describe('mem0Client', () => {
     expect(result.memories[0]).toMatchObject({ id: 'legacy-1', content: 'Alpha' });
   });
 
+  it('falls back to v1 list endpoint when v2 returns an empty first page', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            memories: [],
+            total: 0,
+            page: 1,
+            page_size: 25,
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            { id: 'legacy-1', memory: 'Alpha', metadata: { type: 'fact' } },
+            { id: 'legacy-2', memory: 'Beta', metadata: { type: 'preference' } },
+          ]),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+
+    const client = createMem0Client(
+      {
+        baseUrl: 'http://mem0.local',
+        apiPath: '/v1',
+      },
+      fetchMock as unknown as typeof fetch,
+    );
+
+    const result = await client.listMemories({
+      userId: 'user-1',
+      personaId: 'persona-1',
+      page: 1,
+      pageSize: 25,
+      type: 'fact',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstCall = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const secondCall = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+    expect(firstCall[0]).toBe('http://mem0.local/v2/memories');
+    expect(secondCall[0]).toBe('http://mem0.local/v1/memories?user_id=user-1&agent_id=persona-1');
+    expect(result.total).toBe(1);
+    expect(result.memories).toHaveLength(1);
+    expect(result.memories[0]).toMatchObject({ id: 'legacy-1', content: 'Alpha' });
+  });
+
   it('deletes all persona memories via filter endpoint', async () => {
     const fetchMock = vi.fn(
       async () =>

@@ -19,6 +19,10 @@ import {
 } from '../utils';
 import { normalizeText, isV2UnavailableError } from '../utils/http';
 
+function shouldTryV1Fallback(input: Mem0ListInput, memories: Mem0MemoryRecord[], total: number) {
+  return Math.max(1, Math.floor(input.page)) === 1 && memories.length === 0 && total === 0;
+}
+
 /**
  * Create search memories operation
  */
@@ -81,46 +85,9 @@ export function createListOperation(
     init: { method: 'POST'; body?: Record<string, unknown> },
   ) => Promise<unknown>,
 ) {
-  return async function listMemories(input: Mem0ListInput): Promise<Mem0ListMemoryResult> {
+  const listViaV1 = async (input: Mem0ListInput): Promise<Mem0ListMemoryResult> => {
     const page = Math.max(1, Math.floor(input.page));
     const pageSize = Math.max(1, Math.floor(input.pageSize));
-    const filters: Record<string, unknown> = {
-      user_id: input.userId,
-    };
-    if (input.personaId) {
-      filters.agent_id = input.personaId;
-    }
-    if (input.type) {
-      filters.type = input.type;
-    }
-
-    try {
-      const payload = await requestV2('/memories', {
-        method: 'POST',
-        body: {
-          filters,
-          page,
-          page_size: pageSize,
-          ...(input.query?.trim() ? { query: input.query.trim() } : {}),
-        },
-      });
-
-      const memories = extractMemories(payload)
-        .map((entry) => toMemoryRecord(entry))
-        .filter((entry): entry is Mem0MemoryRecord => entry !== null);
-      const meta = extractListMeta(payload, page, pageSize);
-      const total = meta.total > 0 ? meta.total : memories.length;
-
-      return {
-        memories,
-        total,
-        page: meta.page,
-        pageSize: meta.pageSize,
-      };
-    } catch (error) {
-      if (!isV2UnavailableError(error)) throw error;
-    }
-
     const params = new URLSearchParams({
       user_id: input.userId,
     });
@@ -154,6 +121,59 @@ export function createListOperation(
       page,
       pageSize,
     };
+  };
+
+  return async function listMemories(input: Mem0ListInput): Promise<Mem0ListMemoryResult> {
+    const page = Math.max(1, Math.floor(input.page));
+    const pageSize = Math.max(1, Math.floor(input.pageSize));
+    const filters: Record<string, unknown> = {
+      user_id: input.userId,
+    };
+    if (input.personaId) {
+      filters.agent_id = input.personaId;
+    }
+    if (input.type) {
+      filters.type = input.type;
+    }
+
+    try {
+      const payload = await requestV2('/memories', {
+        method: 'POST',
+        body: {
+          filters,
+          page,
+          page_size: pageSize,
+          ...(input.query?.trim() ? { query: input.query.trim() } : {}),
+        },
+      });
+
+      const memories = extractMemories(payload)
+        .map((entry) => toMemoryRecord(entry))
+        .filter((entry): entry is Mem0MemoryRecord => entry !== null);
+      const meta = extractListMeta(payload, page, pageSize);
+      const total = meta.total > 0 ? meta.total : memories.length;
+
+      if (shouldTryV1Fallback(input, memories, total)) {
+        try {
+          const fallback = await listViaV1(input);
+          if (fallback.total > 0 || fallback.memories.length > 0) {
+            return fallback;
+          }
+        } catch {
+          // Keep v2 result when v1 fallback probe fails.
+        }
+      }
+
+      return {
+        memories,
+        total,
+        page: meta.page,
+        pageSize: meta.pageSize,
+      };
+    } catch (error) {
+      if (!isV2UnavailableError(error)) throw error;
+    }
+    return listViaV1(input);
   };
 }
 

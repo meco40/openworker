@@ -1418,3 +1418,35 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-03T02:51:25.2427578+01:00 [TOOL] CI-relevante Fehlerursache reproduziert und lokal behoben; E2E-Suiten starten nun stabil im production-like Testmodus ohne Abschwaechung der produktiven Secret-Pflicht.
+
+[PLANS]
+
+- 2026-03-03T07:40:32.9861349+01:00 [USER] Frage aufgenommen: Warum zeigt die Memory-Seite keine Daten?
+
+[DISCOVERIES]
+
+- 2026-03-03T07:40:32.9861349+01:00 [TOOL] Mem0 ist erreichbar (`http://127.0.0.1:8010` antwortet), aber List-Queries fuer vorhandene Persona-IDs und Scopes liefern `total=0` (u. a. `legacy-local-user` + Persona `b517701e-ed76-40fe-bda5-a6543fe9a881`/`52694068-f8ab-42fb-b40e-7438ec5f7a29`/`326e3a5b-bdcb-41b2-b851-e425ab1b3223`).
+- 2026-03-03T07:40:32.9861349+01:00 [TOOL] Lokale Persona-Datenbank enthaelt 3 Personas (alle `user_id=legacy-local-user`), aber in der Messages-DB gibt es fuer `memory_nodes` aktuell `COUNT(*)=0`; bestehende Konversationen sind grossteils ohne `personaId` angelegt.
+
+[OUTCOMES]
+
+- 2026-03-03T07:40:32.9861349+01:00 [TOOL] Root-Cause fuer leere Memory-Ansicht im aktuellen Workspace: Es liegen im abgefragten Mem0-Scope keine Memory-Eintraege vor (nicht primär ein UI-Rendering-Fehler); ohne aktive Persona beim Chatten werden keine persona-gebundenen Memory-Records erzeugt.
+
+[PLANS]
+
+- 2026-03-03T07:48:32.0736000+01:00 [USER] Bugfix angefordert: Memory-Seite zeigt trotz vorhandener Mem0-Daten leeres Ergebnis.
+
+[PROGRESS]
+
+- 2026-03-03T07:48:32.0736000+01:00 [CODE] `src/server/memory/mem0/operations/recall.ts` gehaertet: `listMemories` nutzt weiterhin primär Mem0 `v2`, probiert aber bei leerer erster `v2`-Seite (`total=0`, `items=0`) defensiv `v1 /memories` als Fallback und übernimmt Ergebnis, wenn dort Daten vorhanden sind.
+- 2026-03-03T07:48:32.0736000+01:00 [CODE] Neue Regression ergänzt: `tests/unit/memory/mem0-client/mem0-client.fallbacks-timeout.cases.ts` validiert den neuen Pfad `v2 empty -> v1 fallback`.
+- 2026-03-03T07:48:32.0736000+01:00 [CODE] Bestehende Autosync-Tests angepasst (`tests/unit/memory/mem0-client/mem0-client.autosync.cases.ts`), da durch den neuen Fallback in leeren Antwortfällen ein zusätzlicher Request erwartet wird.
+
+[DISCOVERIES]
+
+- 2026-03-03T07:48:32.0736000+01:00 [TOOL] Reproduktion bestaetigt: Direkter Call auf Mem0 `v1 /memories?user_id=legacy-local-user&agent_id=b517701e-ed76-40fe-bda5-a6543fe9a881` liefert Daten (`results`), waehrend entsprechender `v2 /memories`-Call leer zurueckkam.
+- 2026-03-03T07:48:32.0736000+01:00 [TOOL] Kombinierter Testlauf mit Integrationstests zeigte einen lokalen Umgebungseffekt im Vitest-Teardown (`EPERM` beim Entfernen von `.local/test-artifacts`), unabhaengig von den funktional grünen Tests.
+
+[OUTCOMES]
+
+- 2026-03-03T07:48:32.0736000+01:00 [TOOL] Verifikation fuer Bugfix gruen: `npm run typecheck` erfolgreich, `npm run lint` erfolgreich (0 Warnungen/0 Fehler), `npm test -- tests/unit/memory/mem0-client.test.ts` erfolgreich (18/18).

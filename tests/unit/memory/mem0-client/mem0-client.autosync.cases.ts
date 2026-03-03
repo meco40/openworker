@@ -23,6 +23,12 @@ describe('mem0Client', () => {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
       );
 
     const client = createMem0Client(
@@ -42,7 +48,9 @@ describe('mem0Client', () => {
     });
 
     expect(result.total).toBe(0);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const thirdCall = fetchMock.mock.calls[2] as unknown as [string, RequestInit];
+    expect(thirdCall[0]).toBe('http://mem0.local/v1/memories?user_id=user-1&agent_id=persona-1');
     expect(mem0SyncMocks.syncMem0LlmFromModelHub).toHaveBeenCalledTimes(1);
     expect(mem0SyncMocks.syncMem0EmbedderFromModelHub).toHaveBeenCalledTimes(1);
   });
@@ -70,6 +78,12 @@ describe('mem0Client', () => {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
       );
 
     const client = createMem0Client(
@@ -89,7 +103,9 @@ describe('mem0Client', () => {
     });
 
     expect(result.total).toBe(0);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const thirdCall = fetchMock.mock.calls[2] as unknown as [string, RequestInit];
+    expect(thirdCall[0]).toBe('http://mem0.local/v1/memories?user_id=user-1&agent_id=persona-1');
     expect(mem0SyncMocks.syncMem0LlmFromModelHub).toHaveBeenCalledTimes(1);
     expect(mem0SyncMocks.syncMem0EmbedderFromModelHub).toHaveBeenCalledTimes(1);
   });
