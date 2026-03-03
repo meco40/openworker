@@ -2,199 +2,127 @@
 
 ## Metadata
 
-- Purpose: Verbindliche Referenz fuer Task-Management und Workspace-Artifakte.
-- Scope: Task-Lifecycle, Workspace-Bindung, Artifacts, Completion-Flow.
-- Source of Truth: This is the active system documentation for this domain.
+- Purpose: Verbindliche Referenz fuer Task-Lifecycle, Planning, Dispatch, Testing und Deliverables.
+- Scope: Task-Domain (`src/server/tasks/*`) und zugehoerige API-Routen unter `app/api/tasks/*`.
+- Source of Truth: Diese Doku beschreibt den aktiven Stand und hat Vorrang vor archivierten Plan-/Review-Dokumenten.
 - Last Reviewed: 2026-03-03
-- Related Runbooks: N/A
+- Related Docs: `docs/API_REFERENCE.md`, `docs/MASTER_AGENT_SYSTEM.md`, `docs/PROJECT_WORKSPACE_SYSTEM.md`
 
 ---
 
-## 1. Funktionserläuterung
+## 1. Funktionsueberblick
 
-Das Tasks-System verwaltet ausfuehrbare Aufgaben mit Workspace-Bindung und Artifact-Produktion. Tasks koennen manuell oder automatisiert (via Master Agent) erstellt werden.
+Das Tasks-System verwaltet Arbeitsauftraege inklusive:
 
-### Kernkonzepte
+- Status-Lifecycle (`inbox` -> `assigned` -> `in_progress` -> `testing` -> `review` -> `done`)
+- Planning-Sessions (Frage/Antwort-Flow + Dispatch-Vorbereitung)
+- Deliverables und Activities pro Task
+- Automatisierte Task-Tests
+- Workspace-Erzeugung und Orphan-Cleanup
 
-- **Task**: Ausfuehrbare Aufgabe mit Titel, Beschreibung, Status und Workspace-Bindung
-- **Workspace**: Isolierte Arbeitsumgebung pro Task (Dateien, Outputs, Logs)
-- **Artifact**: Produzierte Datei oder Ergebnis eines Tasks
-- **Completion**: Task-Abschluss mit Ergebnis-Zusammenfassung
+Hinweis: Es gibt aktuell **keinen** separaten Endpoint `/api/tasks/[id]/complete`.
 
 ---
 
 ## 2. Architektur
 
-### 2.1 Komponenten
+### 2.1 Wichtige Module
 
-- `src/server/tasks/types.ts` - Zentrale Typdefinitionen
-- `src/server/tasks/taskRepository.ts` - SQLite-Repository
-- `src/server/tasks/taskService.ts` - Business-Logik
-- `src/server/tasks/workspaceManager.ts` - Workspace-Verwaltung
-- `src/server/tasks/artifactService.ts` - Artifact-Management
-- `app/api/tasks/*` - HTTP-Schnittstellen
+- `src/server/tasks/taskService.ts` - CRUD, Statuswechsel, Events, Auto-Dispatch Trigger
+- `src/server/tasks/taskHydration.ts` - Relation-Hydration fuer Task-Antworten
+- `src/server/tasks/taskWorkspace.ts` - Workspace-Erzeugung, Pfadhaertung, Cleanup
+- `src/server/tasks/workspaceCleanupRuntime.ts` - Intervall-Cleanup fuer verwaiste Workspaces
+- `src/server/tasks/autoTesting.ts` - Auto-Test Trigger + Deliverable-Autoregistrierung
+- `src/server/tasks/dispatch/*` - Dispatch-Pipeline (prepare/execute/finalize/failure)
+- `src/server/tasks/testing/*` - Test-Jobs und Ausfuehrungslogik
+- `app/api/tasks/*` - HTTP-Routen
 
-### 2.2 Datenhaltung
+### 2.2 Persistenz
 
-- **Tasks**: `tasks.db` mit Tabellen `tasks`, `task_artifacts`, `task_logs`
-- **Workspaces**: Dateibasiert unter `.local/workspaces/<taskId>/`
-- **Artifacts**: Metadata in DB, Dateien im Workspace-Verzeichnis
+Task-Daten liegen in der zentralen Mission-Control-Datenbank (`DATABASE_PATH`, Default `mission-control.db`) in Tabellen wie:
 
-### 2.3 Task-Status
+- `tasks`
+- `task_activities`
+- `task_deliverables`
+- `task_test_jobs` (wird durch Testing-Service initialisiert)
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   PENDING   │ ──▶ │   RUNNING   │ ──▶ │ COMPLETED   │
-└─────────────┘     └─────────────┘     └─────────────┘
-       │                   │                   │
-       │                   ▼                   │
-       │            ┌─────────────┐            │
-       └───────────▶│   FAILED    │◀───────────┘
-                    └─────────────┘
-```
+Task-Workspaces liegen dateibasiert unter `TASK_WORKSPACES_ROOT` (Default: `workspaces/`).
 
 ---
 
-## 3. API-Referenz
+## 3. API-Routen
 
-| Methode | Pfad                                  | Zweck                            |
-| ------- | ------------------------------------- | -------------------------------- |
-| GET     | `/api/tasks`                          | Tasks listen (gefiltert)         |
-| POST    | `/api/tasks`                          | Neuen Task erstellen             |
-| GET     | `/api/tasks/[id]`                     | Task-Details laden               |
-| PATCH   | `/api/tasks/[id]`                     | Task aktualisieren (Status etc.) |
-| POST    | `/api/tasks/[id]/complete`            | Task als abgeschlossen markieren |
-| GET     | `/api/tasks/workspaces/[workspaceId]` | Alle Tasks eines Workspaces      |
-
----
-
-## 4. Task-Erstellung
-
-### 4.1 Manuelle Erstellung
-
-```typescript
-POST /api/tasks
-{
-  "title": "Datenanalyse durchfuehren",
-  "description": "CSV-Daten importieren und auswerten",
-  "workspaceId": "ws_123",
-  "priority": "high",
-  "metadata": {
-    "source": "user",
-    "tags": ["analysis", "data"]
-  }
-}
-```
-
-### 4.2 Automatische Erstellung (Master Agent)
-
-Der Master Agent erstellt Tasks im Rahmen von Run-Delegations:
-
-```typescript
-POST /api/master/runs/[id]/delegations
-{
-  "capability": "code_generation",
-  "taskPlan": {
-    "title": "Feature implementieren",
-    "steps": [...]
-  }
-}
-```
+| Methode | Pfad                                      | Zweck                                        |
+| ------- | ----------------------------------------- | -------------------------------------------- |
+| GET     | `/api/tasks`                              | Taskliste mit Filtern laden                  |
+| POST    | `/api/tasks`                              | Task erstellen                               |
+| GET     | `/api/tasks/[id]`                         | Task-Details laden                           |
+| PATCH   | `/api/tasks/[id]`                         | Task aktualisieren                           |
+| DELETE  | `/api/tasks/[id]`                         | Task loeschen                                |
+| GET     | `/api/tasks/[id]/activities`              | Activities lesen                             |
+| POST    | `/api/tasks/[id]/activities`              | Activity eintragen                           |
+| GET     | `/api/tasks/[id]/deliverables`            | Deliverables lesen                           |
+| POST    | `/api/tasks/[id]/deliverables`            | Deliverable anlegen                          |
+| POST    | `/api/tasks/[id]/dispatch`                | Dispatch fuer zugewiesenen Task starten      |
+| GET     | `/api/tasks/[id]/planning`                | Planning-Status lesen                        |
+| POST    | `/api/tasks/[id]/planning`                | Planning starten                             |
+| DELETE  | `/api/tasks/[id]/planning`                | Planning abbrechen/reset                     |
+| POST    | `/api/tasks/[id]/planning/answer`         | Antwort auf Planning-Frage uebermitteln      |
+| GET     | `/api/tasks/[id]/planning/poll`           | Polling fuer Planning-Fortschritt            |
+| POST    | `/api/tasks/[id]/planning/retry-dispatch` | Dispatch nach Planning-Fehler erneut starten |
+| GET     | `/api/tasks/[id]/subagent`                | Subagent-Zuordnungen lesen                   |
+| POST    | `/api/tasks/[id]/subagent`                | Subagent zuweisen                            |
+| GET     | `/api/tasks/[id]/test`                    | Teststatus/Test-Info lesen                   |
+| POST    | `/api/tasks/[id]/test`                    | Task-Tests ausloesen                         |
 
 ---
 
-## 5. Workspace-Management
+## 4. Statusmodell
 
-### 5.1 Workspace-Struktur
+Task-Status laut Schema (`tasks.status`):
 
-```
-.local/workspaces/<taskId>/
-├── src/           # Quellcode-Dateien
-├── output/        # Generierte Outputs
-├── logs/          # Ausfuehrungs-Logs
-├── artifacts/     # Finale Artefakte
-└── metadata.json  # Workspace-Metadaten
-```
+- `pending_dispatch`
+- `planning`
+- `inbox`
+- `assigned`
+- `in_progress`
+- `testing`
+- `review`
+- `done`
 
-### 5.2 Workspace-Isolation
-
-- Jeder Task erhaelt einen isolierten Workspace
-- Pfadvalidierung verhindert Directory-Traversal
-- Workspace-Cwd wird bei Skill-Ausfuehrung gesetzt
+Spezialregel: Uebergang `review -> done` ist im Service auf Master-Agents beschraenkt.
 
 ---
 
-## 6. Artifact-Management
+## 5. Laufzeitkonfiguration
 
-### 6.1 Artifact-Typen
-
-- **Code**: `.ts`, `.js`, `.py` Dateien
-- **Data**: `.csv`, `.json`, `.parquet` Dateien
-- **Report**: `.md`, `.pdf` Dokumente
-- **Config**: `.yaml`, `.toml` Konfigurationen
-
-### 6.2 Artifact-Registrierung
-
-```typescript
-POST /api/tasks/[id]/artifacts
-{
-  "name": "analyse-report.md",
-  "type": "report",
-  "path": "artifacts/analyse-report.md",
-  "description": "Datenanalyse-Zusammenfassung"
-}
-```
+| Variable                                       | Default                             | Zweck                                           |
+| ---------------------------------------------- | ----------------------------------- | ----------------------------------------------- |
+| `DATABASE_PATH`                                | `mission-control.db`                | Zentrale SQLite fuer Task-Daten                 |
+| `TASK_WORKSPACES_ROOT`                         | `workspaces`                        | Root fuer Task-Workspace-Ordner                 |
+| `TASK_WORKSPACES_CLEANUP_ENABLED`              | `true`                              | Aktiviert/deaktiviert Workspace-Cleanup-Runtime |
+| `TASK_WORKSPACES_CLEANUP_STARTUP`              | `true`                              | Fuehrt Cleanup beim Start aus                   |
+| `TASK_WORKSPACES_CLEANUP_INTERVAL_MS`          | `1800000`                           | Intervall fuer periodisches Cleanup             |
+| `TASK_WORKSPACES_CLEANUP_MAX_REMOVALS_PER_RUN` | `200`                               | Max. Loeschungen pro Cleanup-Lauf               |
+| `TASK_AUTOTEST_HTTP_TRIGGER`                   | `true` (ausserhalb `NODE_ENV=test`) | Aktiviert HTTP-basierten Auto-Test-Trigger      |
 
 ---
 
-## 7. Integration mit Master Agent
-
-### 7.1 Task-Delegation
-
-Der Master Agent delegiert Capabilities an Tasks:
-
-1. Run wird erstellt mit Capability-Plan
-2. Task wird automatisch erstellt
-3. Subagenten werden dem Task zugewiesen
-4. Ergebnisse werden als Artifacts gespeichert
-5. Run wird bei Task-Completion aktualisiert
-
-### 7.2 Approval-Integration
-
-Tasks mit Side-Effects (z.B. `shell_execute`, `gmail.send`) erfordern Approval:
-
-- `approve_once`: Einmalige Freigabe fuer diesen Task
-- `approve_always`: Dauerhafte Freigabe fuer diese Capability
-- `deny`: Task wird pausiert/benachrichtigt
-
----
-
-## 8. Konfiguration
-
-| Variable                  | Standard            | Beschreibung                |
-| ------------------------- | ------------------- | --------------------------- |
-| `TASKS_DB_PATH`           | `.local/tasks.db`   | Pfad zur Tasks-Datenbank    |
-| `TASKS_WORKSPACE_ROOT`    | `.local/workspaces` | Root fuer Workspaces        |
-| `TASKS_MAX_CONCURRENT`    | `10`                | Maximale parallele Tasks    |
-| `TASKS_TIMEOUT_MS`        | `3600000`           | Timeout pro Task (1 Stunde) |
-| `TASKS_ARTIFACT_MAX_SIZE` | `10485760`          | Max Artifact-Groesse (10MB) |
-
----
-
-## 9. Verifikation
+## 6. Verifikation
 
 ```bash
-npm run test -- tests/unit/tasks
-npm run test -- tests/integration/tasks
 npm run typecheck
 npm run lint
+npm test -- tests/integration/mission-control/tasks-route-auto-testing.test.ts
+npm test -- tests/integration/mission-control/tasks-route-workspaces.test.ts
+npm test -- tests/integration/mission-control/tasks-route-agent-shape.test.ts
 ```
 
 ---
 
-## 10. Siehe auch
+## 7. Siehe auch
 
-- `docs/MASTER_AGENT_SYSTEM.md` - Master Agent Delegations
-- `docs/PROJECT_WORKSPACE_SYSTEM.md` - Workspace-Isolation
-- `docs/SKILLS_SYSTEM.md` - Skill-Ausfuehrung in Tasks
-- `docs/API_REFERENCE.md` - Vollstaendige API-Dokumentation
+- `docs/API_REFERENCE.md`
+- `docs/MASTER_AGENT_SYSTEM.md`
+- `docs/PROJECT_WORKSPACE_SYSTEM.md`
+- `docs/OPS_OBSERVABILITY_SYSTEM.md`

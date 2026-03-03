@@ -58,7 +58,7 @@ workspaces/
 | **Workspace Forking**   | Bestehenden Workspace kopieren, andere Richtung einschlagen     |
 | **Template Workspaces** | Vorlagen-Ordner mit Boilerplate                                 |
 
-### [NEW] [workspaceManager.ts](file:///d:/web/clawtest/src/server/worker/workspaceManager.ts)
+### [NEW] `src/server/worker/workspaceManager.ts`
 
 Cross-Platform Filesystem-Service via `path.join()` — kein Hardcoden von `/` oder `\`.
 
@@ -78,7 +78,7 @@ export interface WorkspaceManager {
 }
 ```
 
-### [MODIFY] [workerRepository.ts](file:///d:/web/clawtest/src/server/worker/workerRepository.ts)
+### [MODIFY] `src/server/worker/workerRepository.ts`
 
 - Neue Spalten: `workspace_path TEXT`, `workspace_type TEXT`
 - Methoden: `setWorkspacePath()`, `setWorkspaceType()`
@@ -100,13 +100,13 @@ export interface WorkspaceManager {
 | **Data**     | "Analysiere diese CSV-Datei"           | Charts, Reports    | `python`, `sql`             |
 | **General**  | "Schreibe mir einen Businessplan"      | Dokumente (MD/PDF) | `filesystem`, `search`      |
 
-### [MODIFY] [workerTypes.ts](file:///d:/web/clawtest/src/server/worker/workerTypes.ts)
+### [MODIFY] `src/server/worker/workerTypes.ts`
 
 ```typescript
 export type WorkspaceType = 'research' | 'webapp' | 'creative' | 'data' | 'general';
 ```
 
-### [MODIFY] [workerExecutor.ts](file:///d:/web/clawtest/src/server/worker/workerExecutor.ts)
+### [MODIFY] `src/server/worker/workerExecutor.ts`
 
 **Kritischste Änderung** — Executor bekommt echte Tool-Ausführung mit Tool-Calling-Loop:
 
@@ -119,7 +119,7 @@ async function executeStep(task, step): Promise<StepResult> {
 }
 ```
 
-### [NEW] [workspaceScaffold.ts](file:///d:/web/clawtest/src/server/worker/workspaceScaffold.ts)
+### [NEW] `src/server/worker/workspaceScaffold.ts`
 
 Typ-spezifische Ordnerstruktur:
 
@@ -170,7 +170,7 @@ workspaces/task-789/
 
 ## Phase 3: Unified Types & API Integration
 
-### [MODIFY] [types.ts](file:///d:/web/clawtest/types.ts)
+### [MODIFY] `types.ts`
 
 Frontend-Types an Backend angeglichen:
 
@@ -209,13 +209,13 @@ Frontend-Types an Backend angeglichen:
  }
 ```
 
-### [NEW] [route.ts](file:///d:/web/clawtest/app/api/worker/[id]/files/route.ts)
+### [NEW] `app/api/worker/[id]/files/route.ts`
 
 - `GET /api/worker/:id/files` → Datei-Listing
 - `GET /api/worker/:id/files?path=...` → Datei-Inhalt (Text + Binary via Base64)
 - `POST /api/worker/:id/files` → Datei hochladen/ändern
 
-### [MODIFY] [workerAgent.ts](file:///d:/web/clawtest/src/server/worker/workerAgent.ts)
+### [MODIFY] `src/server/worker/workerAgent.ts`
 
 1. Workspace mit typ-spezifischem Scaffold erstellen
 2. Executor bekommt Workspace-Pfad als `cwd`
@@ -227,19 +227,19 @@ Frontend-Types an Backend angeglichen:
 
 ## Phase 4: Frontend Refactoring
 
-### [DELETE] [WorkerView.tsx](file:///d:/web/clawtest/WorkerView.tsx)
+### [DELETE] `WorkerView.tsx`
 
 Aufgeteilt in fokussierte Komponenten:
 
-### [NEW] [WorkerTaskList.tsx](file:///d:/web/clawtest/components/worker/WorkerTaskList.tsx)
+### [NEW] `components/worker/WorkerTaskList.tsx`
 
 Task-Übersicht mit Workspace-Typ-Badge. Daten via API (`GET /api/worker`).
 
-### [NEW] [WorkerTaskCreation.tsx](file:///d:/web/clawtest/components/worker/WorkerTaskCreation.tsx)
+### [NEW] `components/worker/WorkerTaskCreation.tsx`
 
 Formular mit AI-erkanntem Workspace-Typ, Priority-Selector, Objective-Textarea.
 
-### [NEW] [WorkerTaskDetail.tsx](file:///d:/web/clawtest/components/worker/WorkerTaskDetail.tsx)
+### [NEW] `components/worker/WorkerTaskDetail.tsx`
 
 3 Panels: Flow-Visualisierung, **Workspace File Browser** mit typ-spezifischer Preview, Live Terminal via SSE.
 
@@ -254,11 +254,11 @@ Formular mit AI-erkanntem Workspace-Typ, Priority-Selector, Objective-Textarea.
 | `.mp4`, `.webm`        | Video-Player                 |
 | Sonstige               | Download-Button              |
 
-### [NEW] [useWorkerTasks.ts](file:///d:/web/clawtest/src/modules/worker/hooks/useWorkerTasks.ts)
+### [NEW] `src/modules/worker/hooks/useWorkerTasks.ts`
 
 Central Hook: API-Calls, SSE-Subscription, State Management.
 
-### [NEW] [useWorkspaceFiles.ts](file:///d:/web/clawtest/src/modules/worker/hooks/useWorkspaceFiles.ts)
+### [NEW] `src/modules/worker/hooks/useWorkspaceFiles.ts`
 
 Hook für Workspace-Dateien: Listing, Öffnen, Vorschau.
 

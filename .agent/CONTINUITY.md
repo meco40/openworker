@@ -1493,3 +1493,39 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-03T22:22:43.9761019+01:00 [TOOL] Commit und Push abgeschlossen; Actions-Check durchgeführt und die zwei konkreten Failure-Ursachen mit Run-IDs verifiziert.
+
+[PLANS]
+
+- 2026-03-03T23:02:55.7249189+01:00 [USER] Dokumentations-IST-Pruefung fuer alle aktiven Dokus angefordert, inkl. Validierung ob `.agent/CONTINUITY.md` den realen Stand widerspiegelt.
+
+[DISCOVERIES]
+
+- 2026-03-03T23:02:55.7249189+01:00 [TOOL] Kontinuitaetsabgleich zeigte Drift: letzter eingetragener Push/Actions-Stand war `da5f46f`, waehrend HEAD bereits `764248b` und `aa3a9fd` enthaelt (vor dieser Aktualisierung fehlte diese Delta-Information in `.agent/CONTINUITY.md`).
+- 2026-03-03T23:02:55.7249189+01:00 [TOOL] Active-Docs-Audit fand reale Inkonsistenzen: toter Link in `README.md` (`docs/MISSION_CONTROL_RUNBOOK.md`), API-Dokumentation nicht mehr deckungsgleich mit `app/api/**/route.ts`, Task-Doku mit nicht existenten Endpunkten/Config-Keys, Skills-Baseline-Zahl veraltet.
+
+[PROGRESS]
+
+- 2026-03-03T23:02:55.7249189+01:00 [CODE] `docs/API_REFERENCE.md` aus aktuellem Route-Baum (`app/api/**/route.ts`) neu aufgebaut (Domain-Summary + Route-Catalog + Methodenabgleich).
+- 2026-03-03T23:02:55.7249189+01:00 [CODE] `docs/TASKS_SYSTEM.md` auf aktuelle Task-Architektur, reale Endpunkte und reale Env-Variablen umgestellt.
+- 2026-03-03T23:02:55.7249189+01:00 [CODE] `README.md` korrigiert (Skill-Baseline, Doku-Tabelle ohne toten Mission-Control-Runbook-Link, Tasks-System aufgenommen).
+- 2026-03-03T23:02:55.7249189+01:00 [CODE] `docs/DEPLOYMENT_OPERATIONS.md` Gmail-Sektion auf aktuellen Connector-Betrieb/Env-Keys aktualisiert; veralteten Migrationsskript-Hinweis durch Auto-Migrationshinweis ersetzt.
+- 2026-03-03T23:02:55.7249189+01:00 [CODE] `docs/SKILLS_SYSTEM.md` Metadaten und Runtime-Baseline auf aktuellen Skill-Katalogstand angehoben.
+
+[OUTCOMES]
+
+- 2026-03-03T23:02:55.7249189+01:00 [TOOL] Re-Checks nach Anpassung gruen: Active Docs `BROKEN_LINKS=0`, `MISSING_SCRIPT_REFERENCES=0`, API-Diff `MISSING_IN_DOC=0` und `STALE_IN_DOC=0`.
+- 2026-03-03T23:02:55.7249189+01:00 [TOOL] `.agent/CONTINUITY.md` ist nach diesem Delta wieder auf aktuellem Dokumentations- und Repo-Stand.
+
+[PLANS]
+
+- 2026-03-03T23:08:34.9272858+01:00 [USER] Archiv-Dokumentation ebenfalls bereinigen angefordert (kaputte Links/Referenzen in `docs/archive/**`).
+
+[PROGRESS]
+
+- 2026-03-03T23:08:34.9272858+01:00 [CODE] `docs/archive/analysis/MEMORY_ARCHITECTURE_ANALYSIS_REVIEW.md`: relative Quellpfad-Links auf korrekten Repo-Bezug (`../../../src/...`) korrigiert.
+- 2026-03-03T23:08:34.9272858+01:00 [CODE] `docs/archive/plans/superseded/WORKER_IMPROVEMENT_PLAN.md`: veraltete `file:///d:/web/clawtest/...`-Links in stabile, nicht-klickbare historische Codepfad-Referenzen umgewandelt.
+
+[OUTCOMES]
+
+- 2026-03-03T23:08:34.9272858+01:00 [TOOL] Archiv-Linkcheck nach Bereinigung: `ARCHIVE_DOC_FILES=88`, `BROKEN_LINKS=0`.
+- 2026-03-03T23:08:34.9272858+01:00 [TOOL] Gesamtdoku-Check verifiziert weiterhin `BROKEN_LINKS=0` ueber alle 158 Markdown-Dateien (inkl. aktiver Doku + Archiv).

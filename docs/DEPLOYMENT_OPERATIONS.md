@@ -998,26 +998,20 @@ MASTER_LEARNING_MAX_RUNS_PER_DAY=10
 
 ### Gmail-Connector-Betrieb
 
-Für Gmail-Integration wird OAuth2 benötigt:
-
-**Einrichtung:**
-
-1. Google Cloud Console: OAuth2-Credentials erstellen
-2. Redirect-URI: `https://<your-domain>/api/master/gmail/oauth/callback`
-3. Credentials in `.env.local`:
-   ```bash
-   GMAIL_OAUTH_CLIENT_ID=<client-id>
-   GMAIL_OAUTH_CLIENT_SECRET=<client-secret>
-   GMAIL_OAUTH_REDIRECT_URI=https://<your-domain>/api/master/gmail/oauth/callback
-   ```
+Der Gmail-Connector nutzt gespeicherte Connector-Secrets pro Scope (`gmail`) und hat aktuell **keine dedizierte Callback-Route** unter `/api/master/gmail/oauth/callback`.
 
 **Betriebsmodi:**
 
-- **Mock-Mode**: Deterministische Tests (Standard in Entwicklung)
-- **Real-Mode**: Gmail REST API mit OAuth2 (Produktion)
+- **Auto (Default)**: Mock fuer Test-Tokens, sonst Real-API
+- **Mock**: Deterministische Tests
+- **Real**: Erzwingt Gmail REST API Calls
 
 ```bash
-MASTER_GMAIL_REAL_MODE=true  # Real-Mode aktivieren
+# auto | mock | real
+OPENCLAW_MASTER_GMAIL_MODE=real
+
+# Optional: Detailabrufe bei list/search steuern (1=true, 0=false)
+MASTER_GMAIL_FETCH_DETAILS=1
 ```
 
 ### Monitoring
@@ -1755,8 +1749,9 @@ git checkout "$VERSION"
 # 5. Install dependencies
 npm ci --omit=dev
 
-# 6. Run database migrations (if any)
-# npm run migrate
+# 6. Run database migrations
+# Hinweis: SQLite-Migrationen werden beim App-Start automatisch ausgeführt
+# (src/lib/db/migrations.ts via getDb()).
 
 # 7. Build application
 npm run build

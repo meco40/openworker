@@ -26,9 +26,9 @@
 
 **Prüfung:**
 
-- [`recallFromKnowledge()`](src/server/channels/messages/service.ts:1296) ✅
-- [`recallFromMemory()`](src/server/channels/messages/service.ts:1321) ✅
-- [`recallFromChat()`](src/server/channels/messages/service.ts:1352) ✅
+- [`recallFromKnowledge()`](../../../src/server/channels/messages/service.ts:1296) ✅
+- [`recallFromMemory()`](../../../src/server/channels/messages/service.ts:1321) ✅
+- [`recallFromChat()`](../../../src/server/channels/messages/service.ts:1352) ✅
 
 **Code-Beweis (Zeile 1273-1277):**
 
@@ -48,13 +48,13 @@ const [knowledgeResult, memoryResult, chatResult] = await Promise.allSettled([
 
 **Behauptung:** Tool-Calling läuft nur in `useAgentRuntime.ts`, nicht in `dispatchToAI`.
 
-**Prüfung Frontend ([`useAgentRuntime.ts:70`](src/modules/app-shell/useAgentRuntime.ts:70)):**
+**Prüfung Frontend ([`useAgentRuntime.ts:70`](../../../src/modules/app-shell/useAgentRuntime.ts:70)):**
 
 ```typescript
 const allTools = [...CORE_MEMORY_TOOLS, ...optionalTools];
 ```
 
-**Prüfung Server ([`service.ts:956-966`](src/server/channels/messages/service.ts:956)):**
+**Prüfung Server ([`service.ts:956-966`](../../../src/server/channels/messages/service.ts:956)):**
 
 ```typescript
 const result = await service.dispatchWithFallback(
@@ -79,7 +79,7 @@ const result = await service.dispatchWithFallback(
 
 **Prüfung der Infrastructure:**
 
-[`Models/types.ts:58`](src/server/model-hub/Models/types.ts:58):
+[`Models/types.ts:58`](../../../src/server/model-hub/Models/types.ts:58):
 
 ```typescript
 export interface GatewayRequest {
@@ -91,7 +91,7 @@ export interface GatewayRequest {
 }
 ```
 
-[`Models/types.ts:73`](src/server/model-hub/Models/types.ts:73):
+[`Models/types.ts:73`](../../../src/server/model-hub/Models/types.ts:73):
 
 ```typescript
 export interface GatewayResponse {
@@ -113,7 +113,7 @@ export interface GatewayResponse {
 
 **Behauptung:** Auto-Memory erkennt Negation nicht generisch - "Lass nicht nach Aldi gehen" wird als 'fact' klassifiziert.
 
-**Prüfung ([`autoMemory.ts:61-63`](src/server/channels/messages/autoMemory.ts:61)):**
+**Prüfung ([`autoMemory.ts:61-63`](../../../src/server/channels/messages/autoMemory.ts:61)):**
 
 ```typescript
 if (/\b(ich mag nicht|ich hasse|vermeide|i dislike|i hate|avoid)\b/i.test(lower)) {
@@ -137,7 +137,7 @@ if (/\b(ich mag nicht|ich hasse|vermeide|i dislike|i hate|avoid)\b/i.test(lower)
 
 **Behauptung:** Chat-FTS5 muss integriert werden.
 
-**Prüfung ([`service.ts:1352`](src/server/channels/messages/service.ts:1352)):**
+**Prüfung ([`service.ts:1352`](../../../src/server/channels/messages/service.ts:1352)):**
 
 ```typescript
 private recallFromChat(
@@ -172,7 +172,7 @@ private recallFromChat(
 
 ## Technische Lösung für P0
 
-Um Tool-Calling im Server zu aktivieren, genügt folgende Änderung in [`service.ts:956`](src/server/channels/messages/service.ts:956):
+Um Tool-Calling im Server zu aktivieren, genügt folgende Änderung in [`service.ts:956`](../../../src/server/channels/messages/service.ts:956):
 
 ```typescript
 // Importiere CORE_MEMORY_TOOLS

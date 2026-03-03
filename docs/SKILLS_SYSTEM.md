@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer Skill-Lifecycle und Skill-Execution-Governance.
 - Scope: Skill-Registry, Installation, Runtime-Konfiguration, Dispatch und Sicherheitsgrenzen.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-23
+- Last Reviewed: 2026-03-03
 - Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md
 
 ---
@@ -16,7 +16,7 @@ This document describes the complete Skills System architecture, covering skill 
 
 The Skills System is a modular, extensible framework that enables the AI assistant to execute domain-specific capabilities through a unified interface. It combines **built-in skills** (shipped with the system) with **external skills** (installed from GitHub, npm, or manual sources) through a controlled execution environment.
 
-Current runtime baseline: 10 built-in skills (8 installed by default, 2 opt-in).
+Current runtime baseline: 34 built-in skills (11 installed by default, 23 opt-in/compat).
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -44,12 +44,10 @@ Current runtime baseline: 10 built-in skills (8 installed by default, 2 opt-in).
 │ • search          │  │ • npm packages    │  │ • Categories      │
 │ • filesystem      │  │ • Manual manifests│  │ • Ratings         │
 │ • python          │  │                   │  │                   │
-│ • vision          │  │                   │  │                   │
 │ • shell           │  │                   │  │                   │
 │ • subagents       │  │                   │  │                   │
-│ • multi-tool-use-parallel │  │            │  │                   │
-│ • github (opt)    │  │                   │  │                   │
-│ • sql (opt)       │  │                   │  │                   │
+│ • web-fetch       │  │                   │  │                   │
+│ • ... plus opt-in/compat skills        │  │                   │
 └─────────┬─────────┘  └─────────┬─────────┘  └─────────┬─────────┘
           │                      │                      │
           └──────────────────────┼──────────────────────┘
