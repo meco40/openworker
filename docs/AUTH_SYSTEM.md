@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer Authentifizierung, User-Kontext-Aufloesung und Auth-Runtime-Modi.
 - Scope: NextAuth-Route, Session/JWT-Strategie, Fallback-Principal, zentrale Auth-Module.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-21
+- Last Reviewed: 2026-03-03
 - Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md
 
 ---

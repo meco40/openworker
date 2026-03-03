@@ -1475,3 +1475,21 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-03T22:06:49.6350673+01:00 [TOOL] `git status --short` zeigt keine `test-memory-*.db*`-Artefakte mehr im Working-Changeset; Finding effektiv behoben.
+
+[PLANS]
+
+- 2026-03-03T22:22:43.9761019+01:00 [USER] Auftrag erhalten: aktuelle Änderungen committen, pushen und GitHub-Actions-Status prüfen.
+
+[PROGRESS]
+
+- 2026-03-03T22:22:43.9761019+01:00 [TOOL] Lokale Verifikation durchgeführt: `npm run check` erfolgreich (Typecheck/Lint/Format-Check, 4 Lint-Warnungen ohne Fehler).
+- 2026-03-03T22:22:43.9761019+01:00 [TOOL] Alle Änderungen committet und nach `origin/main` gepusht (`da5f46f`, Message: `test: expand test coverage and update docs/config`).
+
+[DISCOVERIES]
+
+- 2026-03-03T22:22:43.9761019+01:00 [TOOL] GitHub Actions für Commit `da5f46f0dad399798892737a89a4246876296c82` fehlgeschlagen: `CI` Run `22643304113` scheitert bei `pnpm/action-setup@v4` wegen doppelter pnpm-Version (Action `10.30.1` vs `packageManager` mit Hash).
+- 2026-03-03T22:22:43.9761019+01:00 [TOOL] `E2E Browser` Run `22643304122` fehlgeschlagen: `npm ci` meldet `package.json`/`package-lock.json` unsynchron (fehlende neue Dependencies im Lockfile, u. a. `@testing-library/*`, `jsdom`).
+
+[OUTCOMES]
+
+- 2026-03-03T22:22:43.9761019+01:00 [TOOL] Commit und Push abgeschlossen; Actions-Check durchgeführt und die zwei konkreten Failure-Ursachen mit Run-IDs verifiziert.

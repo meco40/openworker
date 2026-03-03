@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer Security-Architektur und Schutzmechanismen.
 - Scope: Webhook-Verifikation, Command-Approval, Credential-Schutz, Threat-Mitigation.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-21
+- Last Reviewed: 2026-03-03
 - Related Runbooks: docs/runbooks/gateway-config-production-rollout.md
 
 ---

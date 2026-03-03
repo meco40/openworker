@@ -20,11 +20,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run test -- tests/unit/worker/openai-worker-runtime.test.ts tests/integration/worker/openai-event-ordering.test.ts tests/integration/worker/openai-duplicate-events.test.ts tests/integration/worker/openai-schema-version.test.ts tests/integration/worker/openai-runtime-failover.test.ts tests/integration/worker/openai-budget-enforcement.test.ts tests/integration/worker/openai-rate-limit.test.ts tests/load/worker-openai-load.test.ts
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm run test -- tests/unit/worker/openai-worker-runtime.test.ts tests/integration/worker/openai-event-ordering.test.ts tests/integration/worker/openai-duplicate-events.test.ts tests/integration/worker/openai-schema-version.test.ts tests/integration/worker/openai-runtime-failover.test.ts tests/integration/worker/openai-budget-enforcement.test.ts tests/integration/worker/openai-rate-limit.test.ts tests/load/worker-openai-load.test.ts
       - run: python -m pip install -e ./services/openai_worker
       - run: python -m pytest services/openai_worker/tests -q

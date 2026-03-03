@@ -40,11 +40,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup pnpm
+        if: steps.preflight.outputs.should_run == 'true'
+        uses: pnpm/action-setup@v4
 
       - name: Install dependencies
         if: steps.preflight.outputs.should_run == 'true'
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run live e2e
         if: steps.preflight.outputs.should_run == 'true'
@@ -53,4 +58,4 @@ jobs:
           MEM0_BASE_URL: ${{ secrets.MEM0_BASE_URL }}
           MEM0_API_KEY: ${{ secrets.MEM0_API_KEY }}
           MEM0_API_PATH: ${{ secrets.MEM0_API_PATH }}
-        run: npm run test:e2e:live
+        run: pnpm run test:e2e:live

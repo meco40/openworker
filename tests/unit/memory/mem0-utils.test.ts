@@ -12,6 +12,8 @@ import {
   extractListMeta,
 } from '@/server/memory/mem0/utils';
 
+const missingValue: unknown = ({} as { missing?: unknown }).missing;
+
 describe('mem0/utils', () => {
   describe('pickRecord', () => {
     it('returns object from plain object', () => {
@@ -21,7 +23,7 @@ describe('mem0/utils', () => {
 
     it('returns empty object from non-object', () => {
       expect(pickRecord(null)).toEqual({});
-      expect(pickRecord()).toEqual({});
+      expect(pickRecord(missingValue)).toEqual({});
       expect(pickRecord('string')).toEqual({});
       expect(pickRecord(123)).toEqual({});
     });
@@ -39,7 +41,7 @@ describe('mem0/utils', () => {
 
     it('returns null for non-string', () => {
       expect(pickString(null)).toBeNull();
-      expect(pickString()).toBeNull();
+      expect(pickString(missingValue)).toBeNull();
       expect(pickString(123)).toBeNull();
       expect(pickString({})).toBeNull();
     });
@@ -61,7 +63,7 @@ describe('mem0/utils', () => {
 
     it('returns null for non-number', () => {
       expect(pickNumber(null)).toBeNull();
-      expect(pickNumber()).toBeNull();
+      expect(pickNumber(missingValue)).toBeNull();
       expect(pickNumber('123')).toBeNull();
     });
 
@@ -96,7 +98,7 @@ describe('mem0/utils', () => {
     it('returns empty array for unknown structure', () => {
       expect(extractMemories({ foo: 'bar' })).toEqual([]);
       expect(extractMemories(null)).toEqual([]);
-      expect(extractMemories()).toEqual([]);
+      expect(extractMemories(missingValue)).toEqual([]);
     });
   });
 

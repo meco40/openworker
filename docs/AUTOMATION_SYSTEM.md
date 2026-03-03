@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer zeitgesteuerte Automations im System.
 - Scope: Cron-Regeln, Scheduler-Lease, Run-Queue, Retry/Dead-Letter, Triggerquellen.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-22
+- Last Reviewed: 2026-03-03
 - Related Runbooks: N/A
 
 ---
