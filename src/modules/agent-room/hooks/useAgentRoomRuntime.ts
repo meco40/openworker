@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { AgentV2GatewayClient } from '@/modules/gateway/ws-agent-v2-client';
+import { useGatewayClient } from '@/modules/gateway/useUnifiedGatewayClient';
 import { useSwarmCatalogState } from '@/modules/agent-room/hooks/useSwarmCatalogState';
 import { useSwarmActions } from '@/modules/agent-room/hooks/useSwarmActions';
 import { useSwarmConnection } from '@/modules/agent-room/hooks/useSwarmConnection';
@@ -48,6 +49,12 @@ export function useAgentRoomRuntime() {
   // ── Shared refs (owned here, passed to sub-hooks) ──
 
   const clientRef = useRef<AgentV2GatewayClient | null>(null);
+  const gatewayClient = useGatewayClient('v2') as AgentV2GatewayClient;
+
+  if (!clientRef.current && gatewayClient) {
+    clientRef.current = gatewayClient;
+  }
+
   const sessionToSwarmRef = useRef<Map<string, string>>(new Map());
   const commandToInfoRef = useRef<Map<string, { personaId: string; phase: string }>>(new Map());
   const swarmsRef = useRef<SwarmRecord[]>([]);
