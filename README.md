@@ -12,7 +12,7 @@ OpenClaw Gateway ist eine **Next.js-basierte Multi-Channel-KI-Plattform** mit Un
 - **Omnichannel-Messaging** (Telegram, WhatsApp, Discord, iMessage, Slack, WebChat)
 - **Persistente Chat-Konversationen** mit Persona-Bindung und Streaming-Tool-Loop
 - **Automation- und Ops-Steuerung** über Scheduler, Ops-API und Runtime-Health
-- **Skill-basiertes Tool-System** mit 10 Built-in Skills (8 Default + 2 opt-in) + ClawHub-Erweiterungen
+- **Skill-basiertes Tool-System** mit 34 Built-in Skills (11 Default + 23 opt-in/compat) + ClawHub-Erweiterungen
 - **Konzeptuelles Memory** mit Embedding-basierter Ähnlichkeitssuche
 - **Multi-Provider-KI** (14 Provider: OpenAI, OpenAI Codex, Anthropic, Google Gemini, OpenRouter, Ollama, LM Studio, xAI, Mistral, Cohere, Z.AI, Kimi Code, ByteDance, GitHub Copilot/Models)
 
@@ -201,6 +201,7 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | [docs/MODEL_HUB_SYSTEM.md](docs/MODEL_HUB_SYSTEM.md)                     | Multi-Provider KI-System           |
 | [docs/PERSONA_ROOMS_SYSTEM.md](docs/PERSONA_ROOMS_SYSTEM.md)             | Persona-System                     |
 | [docs/PROJECT_WORKSPACE_SYSTEM.md](docs/PROJECT_WORKSPACE_SYSTEM.md)     | Projekt-Workspaces und Guard-Logik |
+| [docs/TASKS_SYSTEM.md](docs/TASKS_SYSTEM.md)                             | Task-Lifecycle und Deliverables    |
 | [docs/OPS_OBSERVABILITY_SYSTEM.md](docs/OPS_OBSERVABILITY_SYSTEM.md)     | Ops, Metriken und Observability    |
 | [docs/AUTOMATION_SYSTEM.md](docs/AUTOMATION_SYSTEM.md)                   | Cron-basierte Automationen         |
 | [docs/SKILLS_SYSTEM.md](docs/SKILLS_SYSTEM.md)                           | Skill-System & Tools               |
@@ -210,7 +211,6 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | [docs/DEPLOYMENT_OPERATIONS.md](docs/DEPLOYMENT_OPERATIONS.md)           | Deployment & Betrieb               |
 | [docs/WORKER_SYSTEM.md](docs/WORKER_SYSTEM.md)                           | Legacy-Status (Worker entfernt)    |
 | [docs/WORKER_ORCHESTRA_SYSTEM.md](docs/WORKER_ORCHESTRA_SYSTEM.md)       | Legacy-Status (Orchestra entfernt) |
-| [docs/MISSION_CONTROL_RUNBOOK.md](docs/MISSION_CONTROL_RUNBOOK.md)       | Mission Control Integration        |
 
 ---
 
@@ -250,6 +250,20 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | `OPENCLAW_SHELL_MAX_BUFFER_BYTES`    | Output-Buffer-Limit für `shell_execute`                                        |
 
 Hinweis: Provider-Secrets (z. B. OpenAI, Anthropic, OpenRouter) werden im aktuellen Model-Hub-Flow als Account-Secrets über UI/API hinterlegt und verschlüsselt gespeichert (`MODEL_HUB_ENCRYPTION_KEY` erforderlich), nicht als globale `*_API_KEY`-Environment-Variablen. Legacy `*_API_KEY`-Env-Vars werden nicht mehr gelesen.
+
+---
+
+## WebSocket Gateway
+
+Single endpoint: `ws://localhost:3000/ws`
+
+- **General purpose**: `ws://localhost:3000/ws?protocol=v1` (default)
+- **Agent V2**: `ws://localhost:3000/ws?protocol=v2`
+
+### Rate Limits
+
+- v1: 60 requests/minute
+- v2: 600 requests/minute (configurable)
 
 ---
 
