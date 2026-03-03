@@ -44,7 +44,8 @@ export class AgentV2GatewayClient {
   private readonly unsubscribers: Array<() => void> = [];
 
   constructor(url?: string) {
-    this.client = new GatewayClient(url || deriveAgentV2Url());
+    const base = url || deriveBaseUrl();
+    this.client = new GatewayClient({ protocol: 'v2', url: base });
     this.bindEventBridge();
   }
 
@@ -179,12 +180,12 @@ export class AgentV2GatewayClient {
   }
 }
 
-function deriveAgentV2Url(): string {
+function deriveBaseUrl(): string {
   if (typeof window === 'undefined') {
-    return 'ws://localhost:3000/ws-agent-v2';
+    return 'ws://localhost:3000/ws?protocol=v2';
   }
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${window.location.host}/ws-agent-v2`;
+  return `${protocol}//${window.location.host}/ws?protocol=v2`;
 }
 
 function normalizeEnvelope(payload: unknown): AgentV2EventEnvelope | null {

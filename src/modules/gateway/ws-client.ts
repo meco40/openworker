@@ -9,6 +9,7 @@ import type {
   StreamFrame,
 } from '@/server/gateway/protocol';
 import type { GatewayEvent } from '@/server/gateway/events';
+import type { MethodNamespace } from '@/server/gateway/method-router';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -55,18 +56,29 @@ export class GatewayClient {
   private streamHandlers = new Map<string | number, StreamHandler>();
   private lastSeq = 0;
   private url: string;
+  private protocol: MethodNamespace = 'v1';
   private intentionalClose = false;
   private connectFailures = 0; // Track consecutive failures without ever opening
 
-  constructor(url?: string) {
-    // Derive WS URL from current location
+  constructor(options?: { protocol?: MethodNamespace; url?: string } | string) {
+    const url = typeof options === 'string' ? options : options?.url;
+    const protocol = typeof options === 'object' ? options?.protocol : undefined;
+
+    if (protocol) {
+      this.protocol = protocol;
+    }
+
     if (url) {
       this.url = url;
+      const urlObj = new URL(url);
+      const p = urlObj.searchParams.get('protocol') as MethodNamespace | null;
+      if (p) this.protocol = p;
+      else if (url.includes('/ws-agent-v2')) this.protocol = 'v2';
     } else if (typeof window !== 'undefined') {
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      this.url = `${proto}//${window.location.host}/ws`;
+      this.url = `${proto}//${window.location.host}/ws?protocol=${this.protocol}`;
     } else {
-      this.url = 'ws://localhost:3000/ws';
+      this.url = `ws://localhost:3000/ws?protocol=${this.protocol}`;
     }
   }
 
