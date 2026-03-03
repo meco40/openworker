@@ -15,9 +15,8 @@ import type { MethodNamespace } from '@/server/gateway/method-router';
 export function handleConnection(
   socket: WebSocket,
   userId: string,
-  options?: { protocol?: MethodNamespace },
+  protocol: MethodNamespace = 'v1',
 ): void {
-  const protocol = options?.protocol ?? 'v1';
   const maxRequestsPerMinute = resolveMaxRequestsPerMinute(protocol);
   const connId = `ws-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 

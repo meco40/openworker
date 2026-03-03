@@ -156,7 +156,7 @@ describe('gateway connection handler', () => {
 
     const { handleConnection, dispatchMethod } = await setupHandler();
     const socket = new MockSocket();
-    handleConnection(socket as never, 'user-a', { protocol: 'v2' });
+    handleConnection(socket as never, 'user-a', 'v2');
 
     const attempts = MAX_REQUESTS_PER_MINUTE + 20;
     for (let i = 1; i <= attempts; i++) {
