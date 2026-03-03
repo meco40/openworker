@@ -23,6 +23,7 @@ import {
   type OkPayload,
   type UseCronRulesResult,
 } from '@/modules/cron/hooks/use-cron-rules/types';
+import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 
 export type {
   CronRuleDraft,
@@ -37,6 +38,7 @@ export {
 } from '@/modules/cron/hooks/use-cron-rules/form';
 
 export function useCronRules(): UseCronRulesResult {
+  const confirm = useConfirmDialog();
   const [rules, setRules] = useState<CronRule[]>([]);
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
   const [runs, setRuns] = useState<CronRun[]>([]);
@@ -199,13 +201,14 @@ export function useCronRules(): UseCronRulesResult {
     async (ruleId: string) => {
       const targetRule = rules.find((rule) => rule.id === ruleId);
       const label = targetRule?.name ?? ruleId;
-      if (typeof window !== 'undefined') {
-        const confirmed = window.confirm(
-          `Delete cron job "${label}"? This action cannot be undone.`,
-        );
-        if (!confirmed) {
-          return;
-        }
+      const confirmed = await confirm({
+        title: 'Cron Job löschen?',
+        description: `Delete cron job "${label}"? This action cannot be undone.`,
+        confirmLabel: 'Delete',
+        tone: 'danger',
+      });
+      if (!confirmed) {
+        return;
       }
 
       setPendingRuleId(ruleId);
@@ -226,7 +229,7 @@ export function useCronRules(): UseCronRulesResult {
         setPendingRuleId(null);
       }
     },
-    [refreshAll, rules],
+    [confirm, refreshAll, rules],
   );
 
   const toggleRule = useCallback(

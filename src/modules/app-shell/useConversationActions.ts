@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import type React from 'react';
 import { ChannelType, Conversation, Message, SystemLog } from '@/shared/domain/types';
+import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 import {
   buildConversationTitle,
   removeConversationById,
@@ -27,6 +28,8 @@ export function useConversationActions({
   setActiveConversationId,
   setMessages,
 }: UseConversationActionsArgs) {
+  const confirm = useConfirmDialog();
+
   const handleNewConversation = useCallback(async () => {
     try {
       const response = await fetch('/api/channels/conversations', {
@@ -54,13 +57,14 @@ export function useConversationActions({
     async (conversationId: string) => {
       const conversation = conversations.find((item) => item.id === conversationId);
       const confirmationLabel = conversation?.title || conversationId;
-      if (typeof window !== 'undefined') {
-        const confirmed = window.confirm(
-          `Conversation "${confirmationLabel}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
-        );
-        if (!confirmed) {
-          return;
-        }
+      const confirmed = await confirm({
+        title: 'Conversation löschen?',
+        description: `Conversation "${confirmationLabel}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+        confirmLabel: 'Löschen',
+        tone: 'danger',
+      });
+      if (!confirmed) {
+        return;
       }
 
       try {
@@ -111,6 +115,7 @@ export function useConversationActions({
     [
       activeConversationId,
       addEventLog,
+      confirm,
       conversations,
       handleNewConversation,
       setActiveConversationId,

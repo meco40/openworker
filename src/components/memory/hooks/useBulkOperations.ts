@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type { MemoryNode, MemoryType } from '@/core/memory/types';
+import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 
 interface UseBulkOperationsOptions {
   nodes: MemoryNode[];
@@ -11,6 +12,7 @@ interface UseBulkOperationsOptions {
 
 export function useBulkOperations(options: UseBulkOperationsOptions) {
   const { nodes, selectedPersonaId, reloadCurrent } = options;
+  const confirm = useConfirmDialog();
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkType, setBulkType] = useState<'keep' | MemoryType>('keep');
@@ -87,7 +89,13 @@ export function useBulkOperations(options: UseBulkOperationsOptions) {
 
   const applyBulkDelete = useCallback(async () => {
     if (!selectedPersonaId || selectedIds.length === 0) return;
-    if (!window.confirm(`Ausgewählte ${selectedIds.length} Memory-Einträge löschen?`)) return;
+    const confirmed = await confirm({
+      title: 'Memory-Einträge löschen?',
+      description: `Ausgewählte ${selectedIds.length} Memory-Einträge löschen?`,
+      confirmLabel: 'Löschen',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     setBulkBusy(true);
     try {
       const response = await fetch('/api/memory', {
@@ -106,7 +114,7 @@ export function useBulkOperations(options: UseBulkOperationsOptions) {
     } finally {
       setBulkBusy(false);
     }
-  }, [reloadCurrent, selectedIds, selectedPersonaId]);
+  }, [confirm, reloadCurrent, selectedIds, selectedPersonaId]);
 
   return {
     selectedIds,

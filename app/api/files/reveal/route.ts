@@ -3,63 +3,43 @@
  * Opens a file's location in Finder (macOS) or Explorer (Windows)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'node:child_process';
+import { NextResponse } from 'next/server';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { resolveAllowedExistingPath } from '@/server/security/fileAccess';
+import { withUserContext } from '../../_shared/withUserContext';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
-export async function POST(request: NextRequest) {
+export const POST = withUserContext(async ({ request }) => {
   try {
-    const { filePath } = await request.json();
+    const body = (await request.json().catch(() => null)) as { filePath?: string } | null;
+    const filePath = typeof body?.filePath === 'string' ? body.filePath : '';
 
     if (!filePath) {
       return NextResponse.json({ error: 'filePath is required' }, { status: 400 });
     }
 
-    // Expand tilde
-    const expandedPath = filePath.replace(/^~/, process.env.HOME || '');
-
-    // Security: Ensure path is within allowed directories (from env config)
-    const allowedPaths = [
-      process.env.WORKSPACE_BASE_PATH?.replace(/^~/, process.env.HOME || ''),
-      process.env.PROJECTS_PATH?.replace(/^~/, process.env.HOME || ''),
-    ].filter(Boolean) as string[];
-
-    const normalizedPath = path.normalize(expandedPath);
-    const isAllowed = allowedPaths.some((allowed) =>
-      normalizedPath.startsWith(path.normalize(allowed)),
-    );
-
-    if (!isAllowed) {
+    const resolvedPathResult = resolveAllowedExistingPath(filePath);
+    if (!resolvedPathResult.ok) {
       console.warn(`[FILE] Blocked access to: ${filePath}`);
-      return NextResponse.json({ error: 'Path not in allowed directories' }, { status: 403 });
-    }
-
-    // Check if file/directory exists
-    if (!existsSync(normalizedPath)) {
       return NextResponse.json(
-        { error: 'File or directory not found', path: normalizedPath },
-        { status: 404 },
+        { error: resolvedPathResult.error },
+        { status: resolvedPathResult.status },
       );
     }
+    const normalizedPath = resolvedPathResult.resolvedPath;
 
     // Open in Finder (macOS) - reveal the file
     const platform = process.platform;
-    let command: string;
-
     if (platform === 'darwin') {
-      command = `open -R "${normalizedPath}"`;
+      await execFileAsync('open', ['-R', normalizedPath]);
     } else if (platform === 'win32') {
-      command = `explorer /select,"${normalizedPath}"`;
+      await execFileAsync('explorer.exe', [`/select,${normalizedPath}`]);
     } else {
-      // Linux - open containing folder
-      command = `xdg-open "${path.dirname(normalizedPath)}"`;
+      await execFileAsync('xdg-open', [path.dirname(normalizedPath)]);
     }
-
-    await execAsync(command);
 
     console.log(`[FILE] Revealed: ${normalizedPath}`);
     return NextResponse.json({ success: true, path: normalizedPath });
@@ -67,4 +47,4 @@ export async function POST(request: NextRequest) {
     console.error('[FILE] Error revealing file:', error);
     return NextResponse.json({ error: 'Failed to reveal file' }, { status: 500 });
   }
-}
+});

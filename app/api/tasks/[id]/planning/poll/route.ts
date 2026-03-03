@@ -3,6 +3,7 @@ import { queryOne, run, getDb, queryAll } from '@/lib/db';
 import { broadcast } from '@/lib/events';
 import { extractJSON, getMessagesFromOpenClaw } from '@/lib/planning-utils';
 import { Task } from '@/lib/types';
+import { fetchWithPolicy } from '@/server/http/fetchWithPolicy';
 
 // Planning timeout and poll interval configuration with validation
 const PLANNING_TIMEOUT_MS = parseInt(process.env.PLANNING_TIMEOUT_MS || '30000', 10);
@@ -166,10 +167,14 @@ async function handlePlanningCompletion(
     console.log(`[Planning Poll] Triggering dispatch: ${dispatchUrl}`);
 
     try {
-      const dispatchRes = await fetch(dispatchUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const dispatchRes = await fetchWithPolicy(
+        dispatchUrl,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        },
+        { timeoutMs: 5_000, retries: 1 },
+      );
 
       if (dispatchRes.ok) {
         const dispatchData = await dispatchRes.json();

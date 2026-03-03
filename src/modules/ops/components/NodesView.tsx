@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useOpsNodes } from '@/modules/ops/hooks/useOpsNodes';
 import { formatDateTime } from '@/shared/lib/dateFormat';
+import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 
 const BRIDGE_CHANNELS = new Set(['whatsapp', 'imessage']);
 
@@ -25,6 +26,7 @@ function MetricCard({ label, value }: { label: string; value: string | number })
 }
 
 const NodesView: React.FC = () => {
+  const confirm = useConfirmDialog();
   const state = useOpsNodes();
   const data = state.data?.nodes;
   const [execCommandDraft, setExecCommandDraft] = useState('');
@@ -134,11 +136,14 @@ const NodesView: React.FC = () => {
               <button
                 type="button"
                 disabled={hasPendingAction}
-                onClick={() => {
-                  if (
-                    typeof window !== 'undefined' &&
-                    !window.confirm('Clear all exec approvals?')
-                  ) {
+                onClick={async () => {
+                  const confirmed = await confirm({
+                    title: 'Approvals leeren?',
+                    description: 'Clear all exec approvals?',
+                    confirmLabel: 'Clear',
+                    tone: 'danger',
+                  });
+                  if (!confirmed) {
                     return;
                   }
                   void state.actions.clearExecApprovals();
@@ -295,11 +300,14 @@ const NodesView: React.FC = () => {
                           <button
                             type="button"
                             disabled={hasPendingAction || !channel.supportsPairing}
-                            onClick={() => {
-                              if (
-                                typeof window !== 'undefined' &&
-                                !window.confirm(`Disconnect channel "${channel.channel}"?`)
-                              ) {
+                            onClick={async () => {
+                              const confirmed = await confirm({
+                                title: 'Channel trennen?',
+                                description: `Disconnect channel "${channel.channel}"?`,
+                                confirmLabel: 'Disconnect',
+                                tone: 'danger',
+                              });
+                              if (!confirmed) {
                                 return;
                               }
                               void state.actions.disconnectChannel(
@@ -347,11 +355,14 @@ const NodesView: React.FC = () => {
                 <button
                   type="button"
                   disabled={hasPendingAction}
-                  onClick={() => {
-                    if (
-                      typeof window !== 'undefined' &&
-                      !window.confirm('Reject pending Telegram pairing request?')
-                    ) {
+                  onClick={async () => {
+                    const confirmed = await confirm({
+                      title: 'Pairing ablehnen?',
+                      description: 'Reject pending Telegram pairing request?',
+                      confirmLabel: 'Reject',
+                      tone: 'danger',
+                    });
+                    if (!confirmed) {
                       return;
                     }
                     void state.actions.rejectTelegramPending();

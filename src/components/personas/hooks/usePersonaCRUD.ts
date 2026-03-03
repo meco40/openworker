@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import type { PersonaWithFiles } from '@/server/personas/personaTypes';
+import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 
 interface UsePersonaCRUDOptions {
   selectedId: string | null;
@@ -33,6 +34,7 @@ export function usePersonaCRUD(options: UsePersonaCRUDOptions): UsePersonaCRUDRe
     setActivePersonaId,
     activePersonaId,
   } = options;
+  const confirm = useConfirmDialog();
   const [creating, setCreating] = useState(false);
 
   const createPersona = useCallback(
@@ -86,7 +88,13 @@ export function usePersonaCRUD(options: UsePersonaCRUDOptions): UsePersonaCRUDRe
 
   const deletePersona = useCallback(async () => {
     if (!selectedId) return;
-    if (!window.confirm('Persona endgültig löschen?')) return;
+    const confirmed = await confirm({
+      title: 'Persona löschen?',
+      description: 'Persona endgültig löschen?',
+      confirmLabel: 'Löschen',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await fetch(`/api/personas/${selectedId}`, { method: 'DELETE' });
       if (activePersonaId === selectedId) setActivePersonaId(null);
@@ -95,7 +103,7 @@ export function usePersonaCRUD(options: UsePersonaCRUDOptions): UsePersonaCRUDRe
     } catch {
       /* ignore */
     }
-  }, [selectedId, activePersonaId, setActivePersonaId, refreshPersonas, setSelectedId]);
+  }, [selectedId, confirm, activePersonaId, setActivePersonaId, refreshPersonas, setSelectedId]);
 
   return {
     creating,

@@ -5,6 +5,7 @@ import { usePersona } from '@/modules/personas/PersonaContext';
 import type { PersonaTabName, MemoryPersonaType } from '@/server/personas/personaTypes';
 import { PersonasSidebar } from '@/components/personas/PersonasSidebar';
 import { PersonaEditorPane } from '@/components/personas/editor/PersonaEditorPane';
+import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 import {
   usePersonaSelection,
   usePersonaEditor,
@@ -16,6 +17,7 @@ import {
 } from '@/components/personas/hooks';
 
 const PersonasView: React.FC = () => {
+  const confirm = useConfirmDialog();
   const {
     personas,
     activePersonaId,
@@ -103,13 +105,21 @@ const PersonasView: React.FC = () => {
 
   // Selection handlers
   const selectPersona = useCallback(
-    (id: string) => {
-      if (dirty && !window.confirm('Ungespeicherte Änderungen verwerfen?')) return;
+    async (id: string) => {
+      if (dirty) {
+        const shouldDiscard = await confirm({
+          title: 'Änderungen verwerfen?',
+          description: 'Ungespeicherte Änderungen verwerfen?',
+          confirmLabel: 'Verwerfen',
+          tone: 'danger',
+        });
+        if (!shouldDiscard) return;
+      }
       setSelectedId(id);
       setDirty(false);
       setEditingMeta(false);
     },
-    [dirty, setSelectedId, setDirty, setEditingMeta],
+    [confirm, dirty, setSelectedId, setDirty, setEditingMeta],
   );
 
   // Effects

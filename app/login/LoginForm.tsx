@@ -4,13 +4,26 @@ import { FormEvent, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 
+function sanitizeCallbackUrl(raw: string | null): string {
+  if (!raw) return '/';
+
+  try {
+    const url = new URL(raw, window.location.origin);
+    if (url.origin !== window.location.origin) return '/';
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return '/';
+  }
+}
+
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const callbackUrl = sanitizeCallbackUrl(searchParams.get('callbackUrl'));
+  const isDev = process.env.NODE_ENV !== 'production';
 
-  const [email, setEmail] = useState('admin@local.dev');
-  const [password, setPassword] = useState('admin1234');
+  const [email, setEmail] = useState(isDev ? 'admin@local.dev' : '');
+  const [password, setPassword] = useState(isDev ? 'admin1234' : '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,9 +56,11 @@ export default function LoginForm() {
         className="w-full max-w-sm space-y-4 rounded-xl border border-zinc-800 bg-zinc-950 p-6"
       >
         <h1 className="text-xl font-semibold">Sign In</h1>
-        <p className="text-sm text-zinc-400">
-          Standard lokal: <code>admin@local.dev</code> / <code>admin1234</code>
-        </p>
+        {isDev ? (
+          <p className="text-sm text-zinc-400">
+            Standard lokal: <code>admin@local.dev</code> / <code>admin1234</code>
+          </p>
+        ) : null}
 
         <label className="block space-y-1 text-sm">
           <span>Email</span>

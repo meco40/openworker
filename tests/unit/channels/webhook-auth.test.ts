@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { verifyTelegramWebhook, verifySharedSecret } from '@/server/channels/webhookAuth';
 
 // ─── Helper ──────────────────────────────────────────────────
@@ -10,6 +10,10 @@ function makeRequest(headers: Record<string, string> = {}): Request {
     body: '{}',
   });
 }
+
+afterEach(() => {
+  delete process.env.ALLOW_INSECURE_WEBHOOKS;
+});
 
 // ─── verifyTelegramWebhook ───────────────────────────────────
 
@@ -29,7 +33,13 @@ describe('verifyTelegramWebhook', () => {
     expect(verifyTelegramWebhook(req, 'abc123')).toBe(false);
   });
 
-  it('skips check when secret is empty', () => {
+  it('fails closed when secret is empty', () => {
+    const req = makeRequest();
+    expect(verifyTelegramWebhook(req, '')).toBe(false);
+  });
+
+  it('allows empty secret only with explicit insecure dev flag', () => {
+    process.env.ALLOW_INSECURE_WEBHOOKS = 'true';
     const req = makeRequest();
     expect(verifyTelegramWebhook(req, '')).toBe(true);
   });
@@ -53,7 +63,13 @@ describe('verifySharedSecret', () => {
     expect(verifySharedSecret(req, 'my-secret')).toBe(false);
   });
 
-  it('skips check when expected secret is empty', () => {
+  it('fails closed when expected secret is empty', () => {
+    const req = makeRequest();
+    expect(verifySharedSecret(req, '')).toBe(false);
+  });
+
+  it('allows empty shared secret only with explicit insecure dev flag', () => {
+    process.env.ALLOW_INSECURE_WEBHOOKS = 'true';
     const req = makeRequest();
     expect(verifySharedSecret(req, '')).toBe(true);
   });

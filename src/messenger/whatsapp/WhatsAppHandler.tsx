@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { CoupledChannel } from '@/shared/domain/types';
 
 interface WhatsAppHandlerProps {
@@ -71,11 +72,12 @@ export const WhatsAppHandler: React.FC<WhatsAppHandlerProps> = ({
     return (
       <div className="animate-in fade-in flex flex-col items-center gap-6 py-4 duration-300">
         <div className="relative h-44 w-44 overflow-hidden rounded-2xl bg-white p-3 shadow-2xl">
-          {/* eslint-disable-next-line @next/next/no-img-element -- external QR image source is generated at runtime */}
-          <img
+          <Image
             src="https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=openclaw-wa-link"
-            className="h-full w-full"
             alt="QR Code"
+            fill
+            unoptimized
+            className="h-full w-full object-cover"
           />
           <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />

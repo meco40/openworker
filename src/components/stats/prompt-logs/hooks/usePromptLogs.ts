@@ -11,6 +11,7 @@ import {
   UsePromptLogsReturn,
 } from '../types';
 import { PAGE_SIZE, EMPTY_SUMMARY, EMPTY_DIAGNOSTICS } from '../constants';
+import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 
 interface UsePromptLogsOptions {
   preset: Preset;
@@ -25,6 +26,7 @@ export function usePromptLogs({
   customTo,
   reloadKey,
 }: UsePromptLogsOptions): UsePromptLogsReturn {
+  const confirm = useConfirmDialog();
   const [entries, setEntries] = useState<PromptLogEntry[]>([]);
   const [summary, setSummary] = useState<PromptLogSummary | null>(null);
   const [total, setTotal] = useState(0);
@@ -144,10 +146,13 @@ export function usePromptLogs({
   }, [entries, fetchPage]);
 
   const resetLogs = useCallback(async () => {
-    if (typeof window !== 'undefined') {
-      const confirmed = window.confirm('Alle Prompt-Logs und Usage-Statistiken wirklich löschen?');
-      if (!confirmed) return;
-    }
+    const confirmed = await confirm({
+      title: 'Prompt-Logs löschen?',
+      description: 'Alle Prompt-Logs und Usage-Statistiken wirklich löschen?',
+      confirmLabel: 'Löschen',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
 
     setResetting(true);
     setError(null);
@@ -171,7 +176,7 @@ export function usePromptLogs({
     } finally {
       setResetting(false);
     }
-  }, [fetchPage]);
+  }, [confirm, fetchPage]);
 
   return {
     entries,

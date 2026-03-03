@@ -7,10 +7,12 @@ import { parseAgentTurns } from '@/modules/agent-room/agentTurnParser';
 import { extractCommandCompletionText } from '@/modules/agent-room/completionText';
 import { useAgentRoomRuntime } from '@/modules/agent-room/hooks/useAgentRoomRuntime';
 import { useSwarmMessages } from '@/modules/agent-room/hooks/useSwarmMessages';
+import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 import { AgentRoomDetailPage, AgentRoomEntryPage } from './layout';
 import NewSwarmModal from './NewSwarmModal';
 
 export default function AgentRoomView() {
+  const confirm = useConfirmDialog();
   const { personas } = usePersona();
   const runtime = useAgentRoomRuntime();
   const {
@@ -164,21 +166,25 @@ export default function AgentRoomView() {
   }, []);
 
   const handleDeleteSwarm = useCallback(
-    (swarmId: string) => {
+    async (swarmId: string) => {
       const swarm = runtime.swarms.find((item) => item.id === swarmId);
       if (!swarm) return;
       if (swarm.status === 'running' || swarm.status === 'hold') {
         return;
       }
-      const shouldDelete =
-        typeof window === 'undefined' ? true : window.confirm('Delete this task permanently?');
+      const shouldDelete = await confirm({
+        title: 'Task löschen?',
+        description: 'Delete this task permanently?',
+        confirmLabel: 'Delete',
+        tone: 'danger',
+      });
       if (!shouldDelete) return;
       void runtime.deleteSwarm(swarmId);
       if (runtime.selectedSwarmId === swarmId) {
         setPageMode('entry');
       }
     },
-    [runtime],
+    [confirm, runtime],
   );
 
   const handlePauseSwarm = useCallback(
@@ -189,25 +195,33 @@ export default function AgentRoomView() {
   );
 
   const handleStopSwarm = useCallback(
-    (swarmId: string) => {
-      const shouldStop =
-        typeof window === 'undefined' ? true : window.confirm('Stop this task and abort it?');
+    async (swarmId: string) => {
+      const shouldStop = await confirm({
+        title: 'Task stoppen?',
+        description: 'Stop this task and abort it?',
+        confirmLabel: 'Stop',
+        tone: 'danger',
+      });
       if (!shouldStop) return;
       void runtime.abortSwarm(swarmId).then(() => {
         setPageMode('entry');
       });
     },
-    [runtime],
+    [confirm, runtime],
   );
 
   const handleFinishSwarm = useCallback(
-    (swarmId: string) => {
-      const shouldFinish =
-        typeof window === 'undefined' ? true : window.confirm('Mark this task as finished?');
+    async (swarmId: string) => {
+      const shouldFinish = await confirm({
+        title: 'Task abschließen?',
+        description: 'Mark this task as finished?',
+        confirmLabel: 'Finish',
+        tone: 'danger',
+      });
       if (!shouldFinish) return;
       void runtime.forceComplete(swarmId);
     },
-    [runtime],
+    [confirm, runtime],
   );
 
   useEffect(() => {

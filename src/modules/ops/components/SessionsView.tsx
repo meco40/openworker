@@ -3,8 +3,10 @@
 import React from 'react';
 import { useOpsSessions } from '@/modules/ops/hooks/useOpsSessions';
 import { formatDateTime } from '@/shared/lib/dateFormat';
+import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 
 const SessionsView: React.FC = () => {
+  const confirm = useConfirmDialog();
   const state = useOpsSessions();
   const sessions = state.data?.sessions || [];
 
@@ -172,11 +174,14 @@ const SessionsView: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            if (
-                              typeof window !== 'undefined' &&
-                              !window.confirm(`Delete session "${session.title}"?`)
-                            ) {
+                          onClick={async () => {
+                            const confirmed = await confirm({
+                              title: 'Session löschen?',
+                              description: `Delete session "${session.title}"?`,
+                              confirmLabel: 'Delete',
+                              tone: 'danger',
+                            });
+                            if (!confirmed) {
                               return;
                             }
                             void state.actions.deleteSession(session.id);

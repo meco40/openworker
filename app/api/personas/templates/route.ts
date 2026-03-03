@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { PERSONA_TEMPLATES } from '@/lib/persona-templates';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
 // ─── GET /api/personas/templates ─── List available starter templates
-export async function GET() {
+export const GET = withUserContext(async () => {
   const templates = PERSONA_TEMPLATES.map((t) => ({
     id: t.id,
     name: t.name,
@@ -13,4 +14,4 @@ export async function GET() {
   }));
 
   return NextResponse.json({ ok: true, templates });
-}
+});

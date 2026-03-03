@@ -1,5 +1,6 @@
 import { getTokenUsageRepository } from '@/server/stats/tokenUsageRepository';
 import { getMessageRepository } from '@/server/channels/messages/runtime';
+import { withUserContext } from '../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -79,7 +80,7 @@ function buildSessionLens(): SessionLensSummary {
   };
 }
 
-export async function GET(request: Request) {
+export const GET = withUserContext(async ({ request }) => {
   try {
     const { searchParams } = new URL(request.url);
     const repo = getTokenUsageRepository();
@@ -127,4 +128,4 @@ export async function GET(request: Request) {
     const message = error instanceof Error ? error.message : 'Failed to fetch stats.';
     return Response.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

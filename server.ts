@@ -38,10 +38,21 @@ const port = parseInt(process.env.PORT || '3000', 10);
 
 const REQUIRE_AUTH = String(process.env.REQUIRE_AUTH || 'false').toLowerCase() === 'true';
 
-const SECRET =
-  process.env.NEXTAUTH_SECRET?.trim() ||
-  process.env.AUTH_SECRET?.trim() ||
-  'openclaw-local-nextauth-secret';
+function resolveAuthSecret(): string {
+  const secret = process.env.NEXTAUTH_SECRET?.trim() || process.env.AUTH_SECRET?.trim();
+  if (secret) return secret;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('NEXTAUTH_SECRET (or AUTH_SECRET) must be set in production.');
+  }
+
+  console.warn(
+    '[SECURITY WARNING] NEXTAUTH_SECRET is not configured. Falling back to a local development secret.',
+  );
+  return 'openclaw-local-nextauth-secret';
+}
+
+const SECRET = resolveAuthSecret();
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();

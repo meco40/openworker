@@ -4,11 +4,11 @@ import {
   isTelegramPollingActive,
   startTelegramPolling,
 } from '@/server/channels/pairing/telegramPolling';
+import { withUserContext } from '../../../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
-export async function POST(_request: Request) {
-  void _request;
+export const POST = withUserContext(async () => {
   try {
     const store = getCredentialStore();
     const transport = store.getCredential('telegram', 'update_transport') || 'webhook';
@@ -55,4 +55,4 @@ export async function POST(_request: Request) {
     const message = error instanceof Error ? error.message : 'Unknown Telegram polling error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

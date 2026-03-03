@@ -1,11 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+import { shouldAllowApiRequestWithoutToken } from './src/server/auth/proxyPolicy';
 
 // Log warning at startup if auth is disabled
 const MC_API_TOKEN = process.env.MC_API_TOKEN;
 if (!MC_API_TOKEN) {
   console.warn(
-    '[SECURITY WARNING] MC_API_TOKEN not set - API authentication is DISABLED (local dev mode)',
+    '[SECURITY WARNING] MC_API_TOKEN not set - bearer token auth disabled; same-origin/session policy still applies',
   );
+}
+
+const REQUIRE_AUTH = String(process.env.REQUIRE_AUTH || 'false').toLowerCase() === 'true';
+
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET?.trim() || process.env.AUTH_SECRET?.trim();
+
+const PUBLIC_API_PREFIXES = [
+  '/api/auth',
+  '/api/webhooks',
+  '/api/channels/telegram/webhook',
+  '/api/channels/telegram/bots',
+  '/api/channels/discord/webhook',
+  '/api/channels/slack/webhook',
+  '/api/channels/whatsapp/webhook',
+  '/api/channels/imessage/webhook',
+  '/api/health/scheduler',
+];
+
+function hasPathPrefix(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
+function isPublicApiPath(pathname: string): boolean {
+  return PUBLIC_API_PREFIXES.some((prefix) => hasPathPrefix(pathname, prefix));
 }
 
 /**
@@ -49,6 +75,16 @@ function isSameOriginRequest(request: NextRequest): boolean {
   return false;
 }
 
+function isLoopbackHostRequest(request: NextRequest): boolean {
+  const hostname = request.nextUrl.hostname.toLowerCase();
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname === '[::1]'
+  );
+}
+
 function constantTimeEqual(left: string, right: string): boolean {
   const encoder = new TextEncoder();
   const leftBytes = encoder.encode(left);
@@ -69,7 +105,7 @@ if (DEMO_MODE) {
   console.log('[DEMO] Running in demo mode — all write operations are blocked');
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Only protect /api/* routes
@@ -80,6 +116,11 @@ export function proxy(request: NextRequest) {
       response.headers.set('X-Demo-Mode', 'true');
       return response;
     }
+    return NextResponse.next();
+  }
+
+  // Public API endpoints (auth callbacks/webhooks/health probes) must stay reachable without session.
+  if (isPublicApiPath(pathname)) {
     return NextResponse.next();
   }
 
@@ -98,13 +139,39 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // If MC_API_TOKEN is not set, auth is disabled (dev mode)
-  if (!MC_API_TOKEN) {
+  // Allow authenticated session requests (NextAuth cookie).
+  let hasSession = false;
+  try {
+    const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
+    if (token && (typeof token.id === 'string' || typeof token.sub === 'string')) {
+      hasSession = true;
+    }
+  } catch {
+    // Fall through to bearer validation.
+  }
+
+  if (hasSession) {
     return NextResponse.next();
   }
 
-  // Allow same-origin browser requests (UI fetching its own API)
-  if (isSameOriginRequest(request)) {
+  const sameOrigin = isSameOriginRequest(request);
+  const loopbackHost = isLoopbackHostRequest(request);
+
+  if (!MC_API_TOKEN) {
+    if (
+      shouldAllowApiRequestWithoutToken({
+        requireAuth: REQUIRE_AUTH,
+        hasSession,
+        sameOrigin,
+        loopbackHost,
+      })
+    ) {
+      return NextResponse.next();
+    }
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  if (!REQUIRE_AUTH && sameOrigin) {
     return NextResponse.next();
   }
 
@@ -134,13 +201,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/api/tasks/:path*',
-    '/api/agents/:path*',
-    '/api/openclaw/:path*',
-    '/api/events/:path*',
-    '/api/files/:path*',
-    '/api/workspaces/:path*',
-    '/api/webhooks/:path*',
-  ],
+  matcher: ['/api/:path*'],
 };

@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getOpenClawClient } from '@/lib/openclaw/client';
+import { getSseDiagnostics } from '@/lib/events';
+import { withUserContext } from '../../_shared/withUserContext';
 
 /**
  * GET /api/mission-control/status
  *
  * Reports integrated runtime health for Mission Control UI.
  */
-export async function GET() {
+export const GET = withUserContext(async () => {
   try {
     const client = getOpenClawClient();
     const runtimeUrl = client.getGatewayUrl();
@@ -41,6 +43,7 @@ export async function GET() {
       runtime_url: runtimeUrl,
       mode,
       sessions_count: sessionsCount,
+      sse: getSseDiagnostics(),
     });
   } catch (error) {
     console.error('Mission Control runtime status check failed:', error);
@@ -52,4 +55,4 @@ export async function GET() {
       { status: 500 },
     );
   }
-}
+});

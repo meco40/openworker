@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import type { Conversation, MessageAttachment } from '@/shared/domain/types';
 import type { QueuedChatMessage } from '@/modules/chat/types';
 import { ALLOWED_ATTACHMENT_TYPES, formatFileSize } from '@/modules/chat/uiUtils';
@@ -48,10 +49,12 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
       {pendingFile && (
         <div className="animate-in fade-in slide-in-from-bottom-1 mb-3 flex items-center space-x-3 rounded-xl border border-zinc-700/50 bg-zinc-900/80 px-3 py-2 duration-200">
           {pendingFile.type.startsWith('image/') ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={pendingFile.url}
               alt={pendingFile.name}
+              width={48}
+              height={48}
+              unoptimized
               className="h-12 w-12 rounded-lg border border-zinc-700/50 object-cover"
             />
           ) : (

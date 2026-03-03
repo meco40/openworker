@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getModelHubService, getModelHubEncryptionKey } from '@/server/model-hub/runtime';
 import { decryptSecret } from '@/server/model-hub/crypto';
 import { withUserContext } from '../../_shared/withUserContext';
+import { fetchWithPolicy } from '@/server/http/fetchWithPolicy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,14 +44,18 @@ export const GET = withUserContext(async ({ request }): Promise<NextResponse> =>
   let token: string;
   let expiresAt: number;
   try {
-    const xaiRes = await fetch(XAI_REALTIME_SECRETS_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+    const xaiRes = await fetchWithPolicy(
+      XAI_REALTIME_SECRETS_URL,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ expires_after: { seconds: 300 } }),
       },
-      body: JSON.stringify({ expires_after: { seconds: 300 } }),
-    });
+      { timeoutMs: 10_000, retries: 1 },
+    );
 
     if (!xaiRes.ok) {
       const errBody = await xaiRes.text().catch(() => '');

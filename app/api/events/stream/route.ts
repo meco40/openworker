@@ -4,8 +4,9 @@
  */
 
 import { NextRequest } from 'next/server';
-import { registerClient, unregisterClient } from '@/lib/events';
+import { getSseDiagnostics, registerClient, unregisterClient } from '@/lib/events';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
@@ -14,12 +15,24 @@ export async function GET(request: NextRequest) {
   // Create a readable stream for SSE
   const stream = new ReadableStream({
     start(controller) {
+      if (request.signal.aborted) {
+        controller.close();
+        return;
+      }
+
       // Register this client
       registerClient(controller);
 
       // Send initial connection message
       const connectMsg = encoder.encode(`: connected\n\n`);
       controller.enqueue(connectMsg);
+
+      const diagnostics = getSseDiagnostics();
+      controller.enqueue(
+        encoder.encode(
+          `data: ${JSON.stringify({ type: 'sse_connected', payload: diagnostics })}\n\n`,
+        ),
+      );
 
       // Set up keep-alive ping every 30 seconds
       const keepAliveInterval = setInterval(() => {
@@ -51,6 +64,7 @@ export async function GET(request: NextRequest) {
       'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no', // Disable nginx buffering
+      'X-SSE-Mode': 'single-node-in-memory',
     },
   });
 }

@@ -5,6 +5,7 @@ import { getOpenAICodexClientId, OPENAI_CODEX_TOKEN_URL } from '@/server/model-h
 import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
 import { buildModelHubCallbackUrl } from '@/server/model-hub/urlOrigin';
 import { withUserContext } from '../../../_shared/withUserContext';
+import { fetchWithPolicy } from '@/server/http/fetchWithPolicy';
 
 export const runtime = 'nodejs';
 
@@ -50,15 +51,19 @@ function ensureString(value: unknown): string {
 }
 
 async function exchangeOpenRouterCode(code: string, codeVerifier: string, callbackUrl: string) {
-  const response = await fetch('https://openrouter.ai/api/v1/auth/keys', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      code,
-      code_verifier: codeVerifier,
-      callback_url: callbackUrl,
-    }),
-  });
+  const response = await fetchWithPolicy(
+    'https://openrouter.ai/api/v1/auth/keys',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        code_verifier: codeVerifier,
+        callback_url: callbackUrl,
+      }),
+    },
+    { timeoutMs: 12_000, retries: 1 },
+  );
   const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   if (!response.ok) {
     throw new Error(ensureString(json.error) || `OpenRouter exchange failed (${response.status}).`);
@@ -78,19 +83,23 @@ async function exchangeGitHubCode(code: string, callbackUrl: string): Promise<Oa
     throw new Error('Missing GITHUB_OAUTH_CLIENT_ID or GITHUB_OAUTH_CLIENT_SECRET.');
   }
 
-  const response = await fetch('https://github.com/login/oauth/access_token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
+  const response = await fetchWithPolicy(
+    'https://github.com/login/oauth/access_token',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code,
+        redirect_uri: callbackUrl,
+      }),
     },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      code,
-      redirect_uri: callbackUrl,
-    }),
-  });
+    { timeoutMs: 12_000, retries: 1 },
+  );
 
   const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   if (!response.ok) {
@@ -134,11 +143,15 @@ async function exchangeOpenAICode(
     body.set('client_secret', clientSecret);
   }
 
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-  });
+  const response = await fetchWithPolicy(
+    tokenUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    },
+    { timeoutMs: 12_000, retries: 1 },
+  );
   const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   if (!response.ok) {
     throw new Error(

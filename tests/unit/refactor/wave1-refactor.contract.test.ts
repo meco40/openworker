@@ -10,9 +10,11 @@ describe('wave1 refactor contracts', () => {
   it('shares task hydration mapper across task routes', () => {
     const tasksRoute = read('app/api/tasks/route.ts');
     const taskByIdRoute = read('app/api/tasks/[id]/route.ts');
+    const taskService = read('src/server/tasks/taskService.ts');
 
-    expect(tasksRoute).toContain("from '@/server/tasks/taskHydration'");
-    expect(taskByIdRoute).toContain("from '@/server/tasks/taskHydration'");
+    expect(tasksRoute).toContain("from '@/server/tasks/taskService'");
+    expect(taskByIdRoute).toContain("from '@/server/tasks/taskService'");
+    expect(taskService).toContain("from '@/server/tasks/taskHydration'");
     expect(tasksRoute).not.toContain('function hydrateTaskRelations(');
     expect(taskByIdRoute).not.toContain('function hydrateTaskRelations(');
   });

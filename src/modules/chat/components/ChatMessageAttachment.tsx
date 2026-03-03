@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import type { MessageAttachment } from '@/shared/domain/types';
 import { formatFileSize, getAttachmentIcon } from '@/modules/chat/uiUtils';
 
@@ -10,10 +11,12 @@ const ChatMessageAttachment: React.FC<ChatMessageAttachmentProps> = ({ attachmen
   if (attachment.type.startsWith('image/')) {
     return (
       <div className="mt-2 max-w-xs overflow-hidden rounded-lg border border-zinc-700/50">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={attachment.url}
           alt={attachment.name}
+          width={640}
+          height={360}
+          unoptimized
           className="max-h-60 max-w-full bg-zinc-950 object-contain"
         />
         <div className="flex items-center justify-between bg-zinc-900/80 px-2 py-1">

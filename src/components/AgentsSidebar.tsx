@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, ChevronRight, ChevronLeft, Zap, ZapOff, Loader2, Search } from 'lucide-react';
 import { useMissionControl } from '@/lib/store';
 import type { Agent, AgentStatus, OpenClawSession } from '@/lib/types';
+import { useAlertDialog } from '@/components/shared/ConfirmDialogProvider';
 import { AgentModal } from './AgentModal';
 import { DiscoverAgentsModal } from './DiscoverAgentsModal';
 
@@ -23,6 +24,7 @@ function getStatusBadge(status: AgentStatus): string {
 }
 
 export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
+  const alertDialog = useAlertDialog();
   const {
     agents,
     selectedAgent,
@@ -106,7 +108,11 @@ export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
         } else {
           const error = await res.json();
           console.error('Failed to link runtime session:', error);
-          alert(`Failed to link runtime session: ${error.error || 'Unknown error'}`);
+          await alertDialog({
+            title: 'Runtime-Link fehlgeschlagen',
+            description: `Failed to link runtime session: ${error.error || 'Unknown error'}`,
+            tone: 'danger',
+          });
         }
       }
     } catch (error) {

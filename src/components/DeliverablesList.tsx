@@ -9,6 +9,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { FileText, Link as LinkIcon, Package, ExternalLink, Eye } from 'lucide-react';
 import { debug } from '@/lib/debug';
 import type { TaskDeliverable } from '@/lib/types';
+import { useAlertDialog } from '@/components/shared/ConfirmDialogProvider';
 
 interface DeliverablesListProps {
   taskId: string;
@@ -38,6 +39,7 @@ function formatTimestamp(timestamp: string): string {
 }
 
 export function DeliverablesList({ taskId }: DeliverablesListProps) {
+  const alertDialog = useAlertDialog();
   const [deliverables, setDeliverables] = useState<TaskDeliverable[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -85,11 +87,17 @@ export function DeliverablesList({ taskId }: DeliverablesListProps) {
         debug.file('Failed to open', error);
 
         if (res.status === 404) {
-          alert(`File not found:\n${deliverable.path}\n\nThe file may have been moved or deleted.`);
+          await alertDialog({
+            title: 'Datei nicht gefunden',
+            description: `File not found:\n${deliverable.path}\n\nThe file may have been moved or deleted.`,
+            tone: 'danger',
+          });
         } else if (res.status === 403) {
-          alert(
-            `Cannot open this location:\n${deliverable.path}\n\nPath is outside allowed directories.`,
-          );
+          await alertDialog({
+            title: 'Pfad nicht erlaubt',
+            description: `Cannot open this location:\n${deliverable.path}\n\nPath is outside allowed directories.`,
+            tone: 'danger',
+          });
         } else {
           throw new Error(error.error || 'Unknown error');
         }
@@ -98,9 +106,16 @@ export function DeliverablesList({ taskId }: DeliverablesListProps) {
         // Fallback: copy path to clipboard
         try {
           await navigator.clipboard.writeText(deliverable.path);
-          alert(`Could not open Finder. Path copied to clipboard:\n${deliverable.path}`);
+          await alertDialog({
+            title: 'Finder konnte nicht geöffnet werden',
+            description: `Could not open Finder. Path copied to clipboard:\n${deliverable.path}`,
+            tone: 'danger',
+          });
         } catch {
-          alert(`File path:\n${deliverable.path}`);
+          await alertDialog({
+            title: 'Dateipfad',
+            description: `File path:\n${deliverable.path}`,
+          });
         }
       }
     }

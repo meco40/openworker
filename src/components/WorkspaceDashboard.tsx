@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, ArrowRight, Folder, Users, CheckSquare, Trash2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import type { WorkspaceStats } from '@/lib/types';
+import { useAlertDialog } from '@/components/shared/ConfirmDialogProvider';
 
 export function WorkspaceDashboard() {
   const [workspaces, setWorkspaces] = useState<WorkspaceStats[]>([]);
@@ -128,6 +129,7 @@ function WorkspaceCard({
   workspace: WorkspaceStats;
   onDelete: (id: string) => void;
 }) {
+  const alertDialog = useAlertDialog();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -141,10 +143,18 @@ function WorkspaceCard({
         onDelete(workspace.id);
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to delete workspace');
+        await alertDialog({
+          title: 'Workspace konnte nicht gelöscht werden',
+          description: data.error || 'Failed to delete workspace',
+          tone: 'danger',
+        });
       }
     } catch {
-      alert('Failed to delete workspace');
+      await alertDialog({
+        title: 'Workspace konnte nicht gelöscht werden',
+        description: 'Failed to delete workspace',
+        tone: 'danger',
+      });
     } finally {
       setDeleting(false);
       setShowDeleteConfirm(false);

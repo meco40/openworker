@@ -13,6 +13,7 @@ const TaskStatus = z.enum([
 ]);
 
 const TaskPriority = z.enum(['low', 'normal', 'high', 'urgent']);
+const AgentStatus = z.enum(['standby', 'working', 'offline']);
 
 const ActivityType = z.enum(['spawned', 'updated', 'completed', 'file_created', 'status_changed']);
 
@@ -60,8 +61,85 @@ export const CreateDeliverableSchema = z.object({
   description: z.string().optional(),
 });
 
+export const CreateWorkspaceSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(120, 'Name must be 120 characters or less'),
+  description: z
+    .string()
+    .max(2000, 'Description must be 2000 characters or less')
+    .optional()
+    .nullable(),
+  icon: z.string().trim().min(1, 'Icon cannot be empty').max(16).optional(),
+});
+
+export const UpdateWorkspaceSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(120, 'Name must be 120 characters or less')
+    .optional(),
+  description: z
+    .string()
+    .max(2000, 'Description must be 2000 characters or less')
+    .optional()
+    .nullable(),
+  icon: z.string().trim().min(1, 'Icon cannot be empty').max(16).optional(),
+});
+
+export const CreateAgentSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(120, 'Name must be 120 characters or less'),
+  role: z
+    .string()
+    .trim()
+    .min(1, 'Role is required')
+    .max(240, 'Role must be 240 characters or less'),
+  description: z.string().max(4000).optional().nullable(),
+  avatar_emoji: z.string().trim().min(1).max(16).optional(),
+  is_master: z.boolean().optional(),
+  workspace_id: z.string().trim().min(1).optional(),
+  soul_md: z.string().max(20000).optional().nullable(),
+  user_md: z.string().max(20000).optional().nullable(),
+  agents_md: z.string().max(20000).optional().nullable(),
+  model: z.string().max(400).optional().nullable(),
+});
+
+export const UpdateAgentSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(120, 'Name must be 120 characters or less')
+    .optional(),
+  role: z
+    .string()
+    .trim()
+    .min(1, 'Role is required')
+    .max(240, 'Role must be 240 characters or less')
+    .optional(),
+  description: z.string().max(4000).optional().nullable(),
+  avatar_emoji: z.string().trim().min(1).max(16).optional(),
+  status: AgentStatus.optional(),
+  is_master: z.boolean().optional(),
+  soul_md: z.string().max(20000).optional().nullable(),
+  user_md: z.string().max(20000).optional().nullable(),
+  agents_md: z.string().max(20000).optional().nullable(),
+  model: z.string().max(400).optional().nullable(),
+});
+
 // Type exports for use in routes
 export type CreateTaskInput = z.infer<typeof CreateTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof UpdateTaskSchema>;
 export type CreateActivityInput = z.infer<typeof CreateActivitySchema>;
 export type CreateDeliverableInput = z.infer<typeof CreateDeliverableSchema>;
+export type CreateWorkspaceInput = z.infer<typeof CreateWorkspaceSchema>;
+export type UpdateWorkspaceInput = z.infer<typeof UpdateWorkspaceSchema>;
+export type CreateAgentInput = z.infer<typeof CreateAgentSchema>;
+export type UpdateAgentInput = z.infer<typeof UpdateAgentSchema>;

@@ -1276,3 +1276,110 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-03T00:05:46.0933827+01:00 [TOOL] Verifikation vollständig grün: `npm run check` erfolgreich (Typecheck/Lint/Format; Lint mit 1432 bekannten Warnungen, 0 Fehler), `npm test` erfolgreich (471/471 Dateien, 2094/2094 Tests), `npm run build` erfolgreich.
+
+[PLANS]
+
+- 2026-03-03T00:32:50.8944820+01:00 [USER] Vollständige Next.js Code- und Architektur-Review (App Router, Rendering, Security, Performance, DX, Wartbarkeit) mit priorisierten Findings und 14-Tage-Maßnahmenplan angefordert.
+
+[DISCOVERIES]
+
+- 2026-03-03T00:32:50.8944820+01:00 [CODE] Sicherheitskritische Stellen bestätigt: Pfadprüfung in `app/api/files/reveal/route.ts` und `app/api/files/preview/route.ts` nutzt `startsWith(path.normalize(...))`; `reveal` führt Shell-Kommando via `exec` mit Pfadinterpolation aus.
+- 2026-03-03T00:32:50.8944820+01:00 [CODE] Auth- und Validierungsmuster sind uneinheitlich: `proxy.ts` schützt nur Subset der API-Routen via Matcher; nur 4 Route-Handler nutzen `safeParse` trotz 57 Handlern mit `request.json()`.
+- 2026-03-03T00:32:50.8944820+01:00 [CODE] Webhook-Authentifizierung fällt bei fehlenden Secrets auf Allow-Mode zurück (`verifyTelegramWebhook`/`verifySharedSecret` geben bei leerem Secret `true` zurück).
+- 2026-03-03T00:32:50.8944820+01:00 [TOOL] Verifikation: `npm test` grün (471/471 Dateien, 2094/2094 Tests), `npm run build` grün (Next.js 16.1.6), `npm run check` grün mit 1432 Lint-Warnungen (0 Fehler), `npm run -s knip` meldet u. a. 402 ungenutzte Exports.
+
+[OUTCOMES]
+
+- 2026-03-03T00:32:50.8944820+01:00 [TOOL] Read-only Review-Durchlauf abgeschlossen; keine Produktivcode-Änderungen vorgenommen. Befunde priorisiert für Security/Architektur/Performance/DX mit konkreten Folgeaktionen.
+
+[PROGRESS]
+
+- 2026-03-03T00:36:14.9910782+01:00 [CODE] Review-Ergebnis als Markdown persistiert: docs/reviews/2026-03-03-nextjs-code-architecture-review.md (Executive Summary, Architecture Map, priorisierte Findings, Quick Wins/Short Projects/Initiativen, 14-Tage-Plan, Stop-Doing).
+
+[OUTCOMES]
+
+- 2026-03-03T00:36:14.9910782+01:00 [TOOL] User-Anforderung "Findings als md speichern" erfüllt; Datei verifiziert (Inhalt vorhanden, strukturkonform).
+
+[PROGRESS]
+
+- 2026-03-03T00:42:37.0927487+01:00 [CODE] Selbstkritische Revalidierung der Review-Findings durchgeführt und in docs/reviews/2026-03-03-nextjs-code-architecture-review.md dokumentiert (Selbstkritische Nachprüfung).
+
+[DISCOVERIES]
+
+- 2026-03-03T00:42:37.0927487+01:00 [TOOL] Auth-Finding präzisiert: nicht pauschal ungeschützt, sondern konkret 7 Nicht-Matcher-Routen ohne Route-Auth (/api/security/status, /api/security/policy-explain, /api/stats, /api/mission-control/status, /api/channels/telegram/pairing/poll, /api/personas/templates, /api/auth/[...nextauth]).
+- 2026-03-03T00:42:37.0927487+01:00 [TOOL] Validation-Finding bestätigt mit Nuance: 57
+  equest.json()-Routen, 4 safeParse-Routen, zusätzliche manuelle Guards vorhanden.
+- 2026-03-03T00:42:37.0927487+01:00 [TOOL] Knip-Befund als Wartungssignal bestätigt, aber als „indikativ“ markiert (bekannte False Positives).
+
+[OUTCOMES]
+
+- 2026-03-03T00:42:37.0927487+01:00 [TOOL] User-Frage "IST oder Annahme" beantwortbar mit korrigierter Einstufung pro Finding; ursprüngliche Überbreite beim Auth-Befund transparent korrigiert.
+
+[PLANS]
+
+- 2026-03-03T01:16:42.6093550+01:00 [USER] Umsetzung des zuvor erstellten Next.js-Review-Fixplans angefordert ("Implement the plan"), mit Fokus auf verifizierte High-Risk-Findings.
+
+[PROGRESS]
+
+- 2026-03-03T01:16:42.6093550+01:00 [CODE] Auth-Perimeter gehärtet: `proxy.ts` auf globales `/api/:path*`-Matching umgestellt, explizite Public-Allowlist ergänzt, Session/Bearer-Checks vereinheitlicht; Non-Matcher-Routen zusätzlich mit `withUserContext` abgesichert (`/api/security/status`, `/api/security/policy-explain`, `/api/stats`, `/api/mission-control/status`, `/api/channels/telegram/pairing/poll`, `/api/personas/templates`).
+- 2026-03-03T01:16:42.6093550+01:00 [CODE] Filesystem-Security-Fix umgesetzt: neue zentrale Pfadvalidierung in `src/server/security/fileAccess.ts` (realpath + relative-root check), `app/api/files/reveal/route.ts` von `exec` auf `execFile` migriert, `app/api/files/preview/route.ts` auf sicheren Resolver + nosniff/no-store Header umgestellt.
+- 2026-03-03T01:16:42.6093550+01:00 [CODE] Webhook-Auth fail-closed eingeführt (`src/server/channels/webhookAuth.ts`): fehlende Secrets lehnen nun standardmäßig ab; expliziter Dev-Override nur über `ALLOW_INSECURE_WEBHOOKS=true`.
+- 2026-03-03T01:16:42.6093550+01:00 [CODE] Timeout-/Retry-Policy ergänzt (`src/server/http/fetchWithPolicy.ts`) und in kritischen Routen integriert: `app/api/master/voice-session/route.ts`, `app/api/model-hub/oauth/callback/route.ts`, `app/api/tasks/[id]/planning/poll/route.ts`.
+- 2026-03-03T01:16:42.6093550+01:00 [CODE] Zusätzliche Security/DX-Fixes umgesetzt: `app/login/LoginForm.tsx` mit callbackUrl-Sanitizing und Prod-sicherem Credential-Handling; `app/api/events/stream/route.ts` um `runtime='nodejs'` ergänzt; Secret-Policy für Auth in `src/auth.ts`/`server.ts` gehärtet (Prod fail-fast mit Build-Phase-Ausnahme in Next-Build).
+
+[DISCOVERIES]
+
+- 2026-03-03T01:16:42.6093550+01:00 [TOOL] Direkter Prod-Secret-Throw in `src/auth.ts` blockierte `next build`, weil `/api/auth/[...nextauth]` während Page-Data-Collect evaluiert wird; Guard wurde auf Runtime-Prod beschränkt (`NEXT_PHASE !== 'phase-production-build'`).
+- 2026-03-03T01:16:42.6093550+01:00 [TOOL] Projektweite Lint-Warnlast (1432 bekannte Warnings) bleibt unverändert und ist weiterhin Baseline; keine neuen Lint-Errors durch das Patchset.
+
+[OUTCOMES]
+
+- 2026-03-03T01:16:42.6093550+01:00 [TOOL] Verifikation erfolgreich: `npm run check` (typecheck/lint/format-check grün, 1432 bekannte Warnungen), `npm run build` (Next.js 16.1.6 grün), plus fokussierte Regressionen (6 Testdateien / 19 Tests) für Webhook-Auth, File-Access-Guard, Timeout-Policy, Security-/Stats-/Mission-Control-Routen.
+- 2026-03-03T01:20:20.7789787+01:00 [CODE] App-Router-Fallbacks ergänzt: segmentierte `loading.tsx`/`error.tsx` für `app/mission-control` und `app/mission-control/workspace/[slug]` implementiert.
+- 2026-03-03T01:20:20.7789787+01:00 [TOOL] Re-Verification nach Boundary-Ergänzung erneut grün: `npm run check` und `npm run build` erfolgreich.
+
+[PLANS]
+
+- 2026-03-03T01:46:52.9019072+01:00 [USER] Auftrag: verbleibende Next.js-Review-Findings praktisch umsetzen (nicht nur auditieren), inklusive erneuter kritischer Verifikation.
+
+[PROGRESS]
+
+- 2026-03-03T01:46:52.9019072+01:00 [CODE] Auth-Proxy-Policy gehärtet: neues Modul `src/server/auth/proxyPolicy.ts`, `proxy.ts` nutzt ohne `MC_API_TOKEN` jetzt fail-closed Entscheidung (Session/same-origin/loopback), statt pauschalem Allow.
+- 2026-03-03T01:46:52.9019072+01:00 [CODE] Validation-Standardisierung erweitert: `app/api/_shared/parseJsonBody.ts` eingeführt und auf `app/api/workspaces/*` + `app/api/agents/*` ausgerollt; zentrale Schemas in `src/lib/validation.ts` um Workspace/Agent ergänzt.
+- 2026-03-03T01:46:52.9019072+01:00 [CODE] Route-Schutz vereinheitlicht: `workspaces`- und `agents`-Routen auf `withUserContext` umgestellt (GET/POST/PATCH/DELETE).
+- 2026-03-03T01:46:52.9019072+01:00 [CODE] Rendering verbessert: `app/mission-control/workspace/[slug]/page.tsx` auf Server-Component mit initialer DB-Auflösung umgestellt; Client-Interaktivität nach `WorkspaceClientPage.tsx` ausgelagert.
+- 2026-03-03T01:46:52.9019072+01:00 [CODE] Image-Optimierungs-Finding geschlossen: verbliebene `<img>`-Stellen auf `next/image` migriert (`ChatInputArea`, `ChatMessageAttachment`, `WhatsAppHandler`).
+
+[DISCOVERIES]
+
+- 2026-03-03T01:46:52.9019072+01:00 [TOOL] TDD-Red-Phase bestätigt: neue Regressionstests für Workspace-/Agent-Validation und Proxy-Policy waren initial rot (u. a. invalid body wurde vorher 201/200 akzeptiert).
+- 2026-03-03T01:46:52.9019072+01:00 [TOOL] Nach Fixes: `request.json(`-Treffer in `app/api` von 66 auf 62 reduziert; zusätzlich 4 Routen nutzen jetzt den gemeinsamen Zod-Parse-Helper.
+- 2026-03-03T01:46:52.9019072+01:00 [TOOL] `<img>`-Treffer in `src/app` sind jetzt 0; `window.confirm/alert` bleibt unverändert bei 17 (weiteres A11y-Follow-up erforderlich).
+
+[OUTCOMES]
+
+- 2026-03-03T01:46:52.9019072+01:00 [TOOL] Neue und fokussierte Regressionen grün: `tests/unit/auth/proxy-policy.test.ts`, `tests/integration/mission-control/workspaces-route-validation.test.ts`, `tests/integration/mission-control/agents-route-validation.test.ts`, plus bestehende Security-Suites (`webhook-auth`, `file-access`, `fetch-with-policy`).
+- 2026-03-03T01:46:52.9019072+01:00 [TOOL] Projektweite Verifikation erfolgreich: `npm run check` (0 Errors, 1432 bekannte Warnings), `npm run build` grün.
+- 2026-03-03T01:48:46.4722671+01:00 [CODE] Contract-Test auf neue Mission-Control-Dateigrenze angepasst: `tests/unit/components/mission-control-sse-fallback-contract.test.ts` referenziert nun `WorkspaceClientPage.tsx` statt serverseitiger `page.tsx`.
+- 2026-03-03T01:48:46.4722671+01:00 [TOOL] Zusätzliche Regressionen grün: kombinierter Lauf über 8 Testdateien (37/37 Tests) inkl. Proxy-Policy, Validation-Routen, Mission-Control-SSE-Contract und Security-Suites.
+
+[PLANS]
+
+- 2026-03-03T02:19:38.0069033+01:00 [USER] Umsetzung des 4-Block-Plans angefordert (SSE-Härtung Single-Node, Confirm/Alert-A11y-Migration, Service-Layer-Extraktion, Knip/Lint-Cleanup).
+
+[PROGRESS]
+
+- 2026-03-03T02:19:38.0069033+01:00 [CODE] Zentralen Confirm/Alert-Dialog eingeführt (`src/components/shared/ConfirmDialogProvider.tsx`) und global angebunden (`src/components/providers/AppClientProviders.tsx`, `app/layout.tsx`); 17 direkte `window.confirm`-Stellen plus 7 `alert(...)`-Stellen auf Hook-Nutzung migriert.
+- 2026-03-03T02:19:38.0069033+01:00 [CODE] Task-API auf Thin-Controller + Service-Layer umgestellt: neue Domänenschicht `src/server/tasks/taskService.ts`, Routen `app/api/tasks/route.ts` und `app/api/tasks/[id]/route.ts` delegieren an Service inkl. typed Domain-Errors.
+- 2026-03-03T02:19:38.0069033+01:00 [CODE] SSE-In-Memory-Broadcaster für lokalen Single-Node-Betrieb gehärtet: Capacity-Guard + Pruning + Diagnostics in `src/lib/events.ts`; Stream-Route erweitert um Diagnose-Handshake/Header (`app/api/events/stream/route.ts`), Status-Route liefert SSE-Diagnostics (`app/api/mission-control/status/route.ts`).
+- 2026-03-03T02:19:38.0069033+01:00 [CODE] Knip-Wave-1 bereinigt: ungenutzten Barrel `src/components/personas/editor/index.ts` entfernt; Contract-Test an neue Service-Layer-Struktur angepasst (`tests/unit/refactor/wave1-refactor.contract.test.ts`).
+
+[DISCOVERIES]
+
+- 2026-03-03T02:19:38.0069033+01:00 [TOOL] `knip`-Befund verbessert: `Unused files` von 4 auf 3 reduziert; verbleibende 3 Dateien sind bekannte dynamische False-Positives (`scripts/external-skill-host.mjs`, `scripts/e2e/start-e2e-server.ts`, `public/vendor/headaudio/headworklet.mjs`).
+- 2026-03-03T02:19:38.0069033+01:00 [TOOL] Neue Task-Service-Extraktion hat bestehenden Refactor-Contract-Test gebrochen (erwartete direkte `taskHydration`-Imports in Routen); Test wurde auf die neue, sauberere Service-Layer-Konvention aktualisiert.
+- 2026-03-03T02:19:38.0069033+01:00 [TOOL] Lint-Warnungs-Baseline blieb stabil bei 1432 (nach zwischenzeitlichen +3 Warnungen im neuen Dialog-Provider durch Parameternamen, anschließend neutralisiert).
+
+[OUTCOMES]
+
+- 2026-03-03T02:19:38.0069033+01:00 [TOOL] Verifikation erfolgreich: `npm run typecheck` grün, fokussierte Regressionen grün (`wave1-refactor.contract`, `tasks-route-agent-shape`, `tasks-route-workspaces`, `tasks-route-auto-testing`, `cron-view`, `agent-room-background-navigation`, `mission-control-sse-fallback-contract`), `npm run check` grün (1432 bekannte Warnungen, 0 Errors), `npm run build` grün.

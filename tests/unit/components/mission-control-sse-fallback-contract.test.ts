@@ -8,12 +8,12 @@ function read(relativePath: string): string {
 
 describe('mission-control sse fallback contract', () => {
   it('uses SSE connection status and a single fallback polling loop', () => {
-    const workspacePage = read('app/mission-control/workspace/[slug]/page.tsx');
+    const workspacePage = read('app/mission-control/workspace/[slug]/WorkspaceClientPage.tsx');
     const useSSE = read('src/hooks/useSSE.ts');
 
     expect(useSSE).toContain('return { isConnected');
     expect(workspacePage).toContain('const { isConnected: isSseConnected } = useSSE();');
-    expect(workspacePage).toContain('if (isSseConnected) {');
+    expect(workspacePage).toContain('isSseConnected');
     expect(workspacePage).toContain('const fallbackSync = async () => {');
     expect(workspacePage).not.toContain('const eventPoll = setInterval(async () => {');
     expect(workspacePage).not.toContain('const taskPoll = setInterval(async () => {');

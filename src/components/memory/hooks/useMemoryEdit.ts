@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import type { MemoryNode } from '@/core/memory/types';
 import type { EditDraft } from '@/components/memory/types';
+import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 
 interface UseMemoryEditOptions {
   selectedPersonaId: string | null;
@@ -69,6 +70,7 @@ async function exportPersonaMemorySnapshot(
 
 export function useMemoryEdit(options: UseMemoryEditOptions) {
   const { selectedPersonaId, nodes, reloadCurrent, setErrorMessage } = options;
+  const confirm = useConfirmDialog();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<EditDraft | null>(null);
@@ -131,7 +133,13 @@ export function useMemoryEdit(options: UseMemoryEditOptions) {
   const deleteNode = useCallback(
     async (nodeId: string, onSuccess?: () => void) => {
       if (!selectedPersonaId) return;
-      if (!window.confirm('Diese Memory wirklich löschen?')) return;
+      const confirmed = await confirm({
+        title: 'Memory löschen?',
+        description: 'Diese Memory wirklich löschen?',
+        confirmLabel: 'Löschen',
+        tone: 'danger',
+      });
+      if (!confirmed) return;
       setDeletingId(nodeId);
       try {
         const response = await fetch(
@@ -146,15 +154,19 @@ export function useMemoryEdit(options: UseMemoryEditOptions) {
         setDeletingId(null);
       }
     },
-    [reloadCurrent, selectedPersonaId],
+    [confirm, reloadCurrent, selectedPersonaId],
   );
 
   const clearPersonaMemory = useCallback(
     async (onSuccess?: () => void) => {
       if (!selectedPersonaId) return;
-      const firstConfirm = window.confirm(
-        'Vor dem Loeschen wird ein JSON-Backup exportiert. Danach folgt eine zweite Sicherheitsabfrage. Fortfahren?',
-      );
+      const firstConfirm = await confirm({
+        title: 'Komplette Memory löschen?',
+        description:
+          'Vor dem Loeschen wird ein JSON-Backup exportiert. Danach folgt eine zweite Sicherheitsabfrage. Fortfahren?',
+        confirmLabel: 'Weiter',
+        tone: 'danger',
+      });
       if (!firstConfirm) return;
 
       setClearingAll(true);
@@ -196,7 +208,7 @@ export function useMemoryEdit(options: UseMemoryEditOptions) {
         setClearingAll(false);
       }
     },
-    [cancelEdit, reloadCurrent, selectedPersonaId, setErrorMessage],
+    [cancelEdit, confirm, reloadCurrent, selectedPersonaId, setErrorMessage],
   );
 
   const updateDraftContent = useCallback((content: string) => {

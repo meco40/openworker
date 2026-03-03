@@ -1,55 +1,56 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { queryAll, queryOne, run } from '@/lib/db';
-import type { Agent, CreateAgentRequest } from '@/lib/types';
+import { CreateAgentSchema } from '@/lib/validation';
+import type { Agent } from '@/lib/types';
+import { parseJsonBody } from '../_shared/parseJsonBody';
+import { withUserContext } from '../_shared/withUserContext';
 
-// GET /api/agents - List all agents
-export async function GET(request: NextRequest) {
+export const runtime = 'nodejs';
+
+export const GET = withUserContext(async ({ request }) => {
   try {
-    const workspaceId = request.nextUrl.searchParams.get('workspace_id');
+    const workspaceId = new URL(request.url).searchParams.get('workspace_id');
 
-    let agents: Agent[];
-    if (workspaceId) {
-      agents = queryAll<Agent>(
-        `
-        SELECT * FROM agents WHERE workspace_id = ? ORDER BY is_master DESC, name ASC
-      `,
-        [workspaceId],
-      );
-    } else {
-      agents = queryAll<Agent>(`
-        SELECT * FROM agents ORDER BY is_master DESC, name ASC
-      `);
-    }
+    const agents = workspaceId
+      ? queryAll<Agent>(
+          `
+          SELECT * FROM agents WHERE workspace_id = ? ORDER BY is_master DESC, name ASC
+        `,
+          [workspaceId],
+        )
+      : queryAll<Agent>(`
+          SELECT * FROM agents ORDER BY is_master DESC, name ASC
+        `);
+
     return NextResponse.json(agents);
   } catch (error) {
     console.error('Failed to fetch agents:', error);
     return NextResponse.json({ error: 'Failed to fetch agents' }, { status: 500 });
   }
-}
+});
 
-// POST /api/agents - Create a new agent
-export async function POST(request: NextRequest) {
+export const POST = withUserContext(async ({ request }) => {
   try {
-    const body: CreateAgentRequest = await request.json();
-
-    if (!body.name || !body.role) {
-      return NextResponse.json({ error: 'Name and role are required' }, { status: 400 });
+    const parsed = await parseJsonBody(request, CreateAgentSchema);
+    if (!parsed.ok) {
+      return parsed.response as Response;
     }
 
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
+    const body = parsed.data;
 
     run(
       `INSERT INTO agents (id, name, role, description, avatar_emoji, is_master, workspace_id, soul_md, user_md, agents_md, model, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
-        body.name,
-        body.role,
-        body.description || null,
-        body.avatar_emoji || '🤖',
+        body.name.trim(),
+        body.role.trim(),
+        body.description?.trim() || null,
+        body.avatar_emoji?.trim() || '🤖',
         body.is_master ? 1 : 0,
-        (body as { workspace_id?: string }).workspace_id || 'default',
+        body.workspace_id || 'default',
         body.soul_md || null,
         body.user_md || null,
         body.agents_md || null,
@@ -59,7 +60,6 @@ export async function POST(request: NextRequest) {
       ],
     );
 
-    // Log event
     run(
       `INSERT INTO events (id, type, agent_id, message, created_at)
        VALUES (?, ?, ?, ?, ?)`,
@@ -72,4 +72,4 @@ export async function POST(request: NextRequest) {
     console.error('Failed to create agent:', error);
     return NextResponse.json({ error: 'Failed to create agent' }, { status: 500 });
   }
-}
+});

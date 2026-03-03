@@ -3,13 +3,30 @@ import crypto from 'node:crypto';
 // ─── Webhook Authentication Utilities ────────────────────────
 // Verifies that incoming webhook requests originate from the expected platform.
 
+let insecureWebhookWarningLogged = false;
+
+function allowInsecureWebhookFallback(): boolean {
+  const enabled = process.env.ALLOW_INSECURE_WEBHOOKS === 'true';
+  if (!enabled) return false;
+  if (process.env.NODE_ENV === 'production') return false;
+
+  if (!insecureWebhookWarningLogged) {
+    insecureWebhookWarningLogged = true;
+    console.warn(
+      '[SECURITY WARNING] ALLOW_INSECURE_WEBHOOKS=true enabled. Missing webhook secrets are accepted in non-production environments.',
+    );
+  }
+
+  return true;
+}
+
 /**
  * Verifies the Telegram webhook secret token header.
  * Telegram sends the secret_token (set during setWebhook) in the
  * `X-Telegram-Bot-Api-Secret-Token` header on each webhook delivery.
  */
 export function verifyTelegramWebhook(request: Request, secretToken: string): boolean {
-  if (!secretToken) return true; // No secret configured → skip check
+  if (!secretToken) return allowInsecureWebhookFallback();
   const header = request.headers.get('x-telegram-bot-api-secret-token');
   return header === secretToken;
 }
@@ -24,7 +41,7 @@ export async function verifyDiscordWebhook(
   publicKeyHex: string,
   body: string,
 ): Promise<boolean> {
-  if (!publicKeyHex) return true; // No key configured → skip check
+  if (!publicKeyHex) return allowInsecureWebhookFallback();
 
   const signature = request.headers.get('x-signature-ed25519');
   const timestamp = request.headers.get('x-signature-timestamp');
@@ -58,7 +75,7 @@ export async function verifyDiscordWebhook(
  * and can set a shared secret during pairing.
  */
 export function verifySharedSecret(request: Request, expectedSecret: string): boolean {
-  if (!expectedSecret) return true; // No secret configured → skip check
+  if (!expectedSecret) return allowInsecureWebhookFallback();
   const header = request.headers.get('x-webhook-secret');
   return header === expectedSecret;
 }

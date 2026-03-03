@@ -51,7 +51,7 @@ describe('auth options secret resolution', () => {
     expect(authOptions.secret).toBe('openclaw-local-nextauth-secret');
   });
 
-  it('keeps a deterministic fallback secret in production when no env secret exists', async () => {
+  it('fails closed in production when no env secret exists', async () => {
     process.env = {
       ...ORIGINAL_ENV,
       NODE_ENV: 'production',
@@ -60,8 +60,8 @@ describe('auth options secret resolution', () => {
     delete process.env.AUTH_SECRET;
     vi.resetModules();
 
-    const { authOptions } = await import('@/auth');
-
-    expect(authOptions.secret).toBe('openclaw-local-nextauth-secret');
+    await expect(import('@/auth')).rejects.toThrow(
+      'NEXTAUTH_SECRET (or AUTH_SECRET) must be set in production.',
+    );
   });
 });

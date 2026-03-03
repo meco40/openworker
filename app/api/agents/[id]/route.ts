@@ -1,13 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { queryOne, run } from '@/lib/db';
-import type { Agent, UpdateAgentRequest } from '@/lib/types';
+import { UpdateAgentSchema } from '@/lib/validation';
+import type { Agent } from '@/lib/types';
+import { parseJsonBody } from '../../_shared/parseJsonBody';
+import { withUserContext } from '../../_shared/withUserContext';
 
-// GET /api/agents/[id] - Get a single agent
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const runtime = 'nodejs';
+
+export const GET = withUserContext<{ id: string }>(async ({ params }) => {
   try {
-    const { id } = await params;
-    const agent = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [id]);
-
+    const agent = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [params.id]);
     if (!agent) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
@@ -17,15 +19,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.error('Failed to fetch agent:', error);
     return NextResponse.json({ error: 'Failed to fetch agent' }, { status: 500 });
   }
-}
+});
 
-// PATCH /api/agents/[id] - Update an agent
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withUserContext<{ id: string }>(async ({ request, params }) => {
   try {
-    const { id } = await params;
-    const body: UpdateAgentRequest = await request.json();
+    const parsed = await parseJsonBody(request, UpdateAgentSchema);
+    if (!parsed.ok) {
+      return parsed.response as Response;
+    }
 
-    const existing = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [id]);
+    const body = parsed.data;
+    const existing = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [params.id]);
     if (!existing) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
@@ -35,25 +39,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     if (body.name !== undefined) {
       updates.push('name = ?');
-      values.push(body.name);
+      values.push(body.name.trim());
     }
     if (body.role !== undefined) {
       updates.push('role = ?');
-      values.push(body.role);
+      values.push(body.role.trim());
     }
     if (body.description !== undefined) {
       updates.push('description = ?');
-      values.push(body.description);
+      values.push(body.description?.trim() || null);
     }
     if (body.avatar_emoji !== undefined) {
       updates.push('avatar_emoji = ?');
-      values.push(body.avatar_emoji);
+      values.push(body.avatar_emoji.trim());
     }
     if (body.status !== undefined) {
       updates.push('status = ?');
       values.push(body.status);
 
-      // Log status change event
       const now = new Date().toISOString();
       run(
         `INSERT INTO events (id, type, agent_id, message, created_at)
@@ -61,7 +64,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         [
           crypto.randomUUID(),
           'agent_status_changed',
-          id,
+          params.id,
           `${existing.name} is now ${body.status}`,
           now,
         ],
@@ -73,19 +76,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
     if (body.soul_md !== undefined) {
       updates.push('soul_md = ?');
-      values.push(body.soul_md);
+      values.push(body.soul_md || null);
     }
     if (body.user_md !== undefined) {
       updates.push('user_md = ?');
-      values.push(body.user_md);
+      values.push(body.user_md || null);
     }
     if (body.agents_md !== undefined) {
       updates.push('agents_md = ?');
-      values.push(body.agents_md);
+      values.push(body.agents_md || null);
     }
     if (body.model !== undefined) {
       updates.push('model = ?');
-      values.push(body.model);
+      values.push(body.model || null);
     }
 
     if (updates.length === 0) {
@@ -94,46 +97,36 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     updates.push('updated_at = ?');
     values.push(new Date().toISOString());
-    values.push(id);
+    values.push(params.id);
 
     run(`UPDATE agents SET ${updates.join(', ')} WHERE id = ?`, values);
-
-    const agent = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [id]);
+    const agent = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [params.id]);
     return NextResponse.json(agent);
   } catch (error) {
     console.error('Failed to update agent:', error);
     return NextResponse.json({ error: 'Failed to update agent' }, { status: 500 });
   }
-}
+});
 
-// DELETE /api/agents/[id] - Delete an agent
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export const DELETE = withUserContext<{ id: string }>(async ({ params }) => {
   try {
-    const { id } = await params;
-    const existing = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [id]);
-
+    const existing = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [params.id]);
     if (!existing) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
-    // Delete or nullify related records first (foreign key constraints)
-    run('DELETE FROM openclaw_sessions WHERE agent_id = ?', [id]);
-    run('DELETE FROM events WHERE agent_id = ?', [id]);
-    run('DELETE FROM messages WHERE sender_agent_id = ?', [id]);
-    run('DELETE FROM conversation_participants WHERE agent_id = ?', [id]);
-    run('UPDATE tasks SET assigned_agent_id = NULL WHERE assigned_agent_id = ?', [id]);
-    run('UPDATE tasks SET created_by_agent_id = NULL WHERE created_by_agent_id = ?', [id]);
-    run('UPDATE task_activities SET agent_id = NULL WHERE agent_id = ?', [id]);
-
-    // Now delete the agent
-    run('DELETE FROM agents WHERE id = ?', [id]);
+    run('DELETE FROM openclaw_sessions WHERE agent_id = ?', [params.id]);
+    run('DELETE FROM events WHERE agent_id = ?', [params.id]);
+    run('DELETE FROM messages WHERE sender_agent_id = ?', [params.id]);
+    run('DELETE FROM conversation_participants WHERE agent_id = ?', [params.id]);
+    run('UPDATE tasks SET assigned_agent_id = NULL WHERE assigned_agent_id = ?', [params.id]);
+    run('UPDATE tasks SET created_by_agent_id = NULL WHERE created_by_agent_id = ?', [params.id]);
+    run('UPDATE task_activities SET agent_id = NULL WHERE agent_id = ?', [params.id]);
+    run('DELETE FROM agents WHERE id = ?', [params.id]);
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Failed to delete agent:', error);
     return NextResponse.json({ error: 'Failed to delete agent' }, { status: 500 });
   }
-}
+});

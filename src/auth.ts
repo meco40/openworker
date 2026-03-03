@@ -3,6 +3,7 @@ import Credentials from 'next-auth/providers/credentials';
 import { getAuthUserStore } from '@/server/auth/userStore';
 
 const LOCAL_DEVELOPMENT_AUTH_SECRET = 'openclaw-local-nextauth-secret';
+let insecureSecretWarningLogged = false;
 
 function resolveNextAuthSecret(): string {
   const nextAuthSecret = process.env.NEXTAUTH_SECRET?.trim();
@@ -13,6 +14,20 @@ function resolveNextAuthSecret(): string {
   const authSecret = process.env.AUTH_SECRET?.trim();
   if (authSecret) {
     return authSecret;
+  }
+
+  const isProductionRuntime = process.env.NODE_ENV === 'production';
+  const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
+
+  if (isProductionRuntime && !isBuildPhase) {
+    throw new Error('NEXTAUTH_SECRET (or AUTH_SECRET) must be set in production.');
+  }
+
+  if (!insecureSecretWarningLogged) {
+    insecureSecretWarningLogged = true;
+    console.warn(
+      '[SECURITY WARNING] NEXTAUTH_SECRET is not configured. Falling back to a local development secret.',
+    );
   }
 
   return LOCAL_DEVELOPMENT_AUTH_SECRET;

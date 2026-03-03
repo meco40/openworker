@@ -31,6 +31,7 @@ import AppShellHeader from '@/modules/app-shell/components/AppShellHeader';
 import AppShellViewContent from '@/modules/app-shell/components/AppShellViewContent';
 import { usePersona } from '@/modules/personas/PersonaContext';
 import { getGatewayClient } from '@/modules/gateway/ws-client';
+import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 
 const DEFAULT_CHAT_STREAM_DEBUG: ChatStreamDebugState = {
   phase: 'idle',
@@ -43,6 +44,7 @@ interface AppProps {
 }
 
 const App: React.FC<AppProps> = ({ initialView }) => {
+  const confirm = useConfirmDialog();
   const [currentView, setCurrentView] = useState<View>(
     () => buildInitialShellState(initialView).currentView,
   );
@@ -243,13 +245,15 @@ const App: React.FC<AppProps> = ({ initialView }) => {
         return;
       }
 
-      if (typeof window !== 'undefined') {
-        const confirmed = window.confirm(
+      const confirmed = await confirm({
+        title: 'Nachricht löschen?',
+        description:
           'Nachricht wirklich loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden.',
-        );
-        if (!confirmed) {
-          return;
-        }
+        confirmLabel: 'Löschen',
+        tone: 'danger',
+      });
+      if (!confirmed) {
+        return;
       }
 
       try {
@@ -278,7 +282,7 @@ const App: React.FC<AppProps> = ({ initialView }) => {
         addEventLog('SYS', errorMessage);
       }
     },
-    [addEventLog, setMessages],
+    [addEventLog, confirm, setMessages],
   );
 
   const handleUpdateCoupling = useCallback((id: string, update: Partial<CoupledChannel>) => {
