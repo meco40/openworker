@@ -57,11 +57,6 @@ const SECRET = resolveAuthSecret();
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
-function getRequestUrl(req: { url?: string; headers: { host?: string | undefined } }): URL {
-  const host = req.headers.host || `${hostname}:${port}`;
-  return new URL(req.url || '/', `http://${host}`);
-}
-
 Promise.resolve()
   .then(async () => {
     assertMemoryRuntimeConfiguration();
@@ -81,15 +76,42 @@ Promise.resolve()
 
     // ─── WebSocket Upgrade ─────────────────────────────────────
     server.on('upgrade', async (req, socket, head) => {
-      const url = new URL(req.url || '/', `http://${hostname}:${port}`);
+      let url: URL;
+      try {
+        url = new URL(req.url || '/', `http://${hostname}:${port}`);
+      } catch {
+        socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+
       const { pathname } = url;
-      const protocol = (url.searchParams.get('protocol') as 'v1' | 'v2') ?? 'v1';
+
+      if (pathname === '/ws-agent-v2') {
+        socket.write(
+          'HTTP/1.1 410 Gone\r\n' +
+            'Content-Type: application/json\r\n' +
+            '\r\n' +
+            JSON.stringify({
+              error: 'Endpoint deprecated',
+              message:
+                'The /ws-agent-v2 endpoint has been removed. Please use /ws?protocol=v2 instead.',
+              migrationUrl: '/ws?protocol=v2',
+            }) +
+            '\r\n',
+        );
+        socket.destroy();
+        return;
+      }
 
       if (pathname !== '/ws') {
         socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
         socket.destroy();
         return;
       }
+
+      const protocolParam = url.searchParams.get('protocol');
+      const protocol: 'v1' | 'v2' = protocolParam === 'v2' ? 'v2' : 'v1';
 
       try {
         // Authenticate via NextAuth JWT cookie (same origin, same port)
