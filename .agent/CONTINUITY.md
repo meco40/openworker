@@ -1450,3 +1450,16 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-03T07:48:32.0736000+01:00 [TOOL] Verifikation fuer Bugfix gruen: `npm run typecheck` erfolgreich, `npm run lint` erfolgreich (0 Warnungen/0 Fehler), `npm test -- tests/unit/memory/mem0-client.test.ts` erfolgreich (18/18).
+
+[PLANS]
+
+- 2026-03-03T16:04:34.5014170+01:00 [USER] Zwei konkrete Review-Findings beheben: fehlerhaften `next/image`-Mock im Component-Test-Setup und fehlerhafte `SSE_MAX_CLIENTS`-Env-Restoration in `events`-Tests.
+
+[PROGRESS]
+
+- 2026-03-03T16:04:34.5014170+01:00 [CODE] `tests/setup/component-testing.setup.ts`: `next/image`-Mock von plain-object-Return auf `React.createElement('img', ...)` umgestellt, damit Renderer ein gültiges React-Element erhalten.
+- 2026-03-03T16:04:34.5014170+01:00 [CODE] `tests/unit/lib/events.test.ts`: `restoreEnv`-Helper ergänzt und beide `SSE_MAX_CLIENTS`-Restore-Stellen auf delete-or-set Semantik umgestellt (kein String "undefined" mehr).
+
+[OUTCOMES]
+
+- 2026-03-03T16:04:34.5014170+01:00 [TOOL] Verifikation grün: `npm test -- tests/unit/lib/events.test.ts` (1 Datei, 12/12 Tests) und `npm run test:components -- tests/unit/components/chat-input-area.test.ts` (1 Datei, 3/3 Tests).

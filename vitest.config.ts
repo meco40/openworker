@@ -14,12 +14,22 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          name: 'components',
+          environment: 'jsdom',
+          setupFiles: ['tests/setup/component-testing.setup.ts'],
+          include: ['tests/unit/components/**/*.test.{ts,tsx}'],
+        },
+      },
+      {
+        extends: true,
+        test: {
           name: 'unit-fast',
           isolate: false,
           include: ['tests/unit/**/*.test.ts'],
           exclude: [
             'tests/unit/channels/message-service-*.test.ts',
             'tests/unit/channels/telegram-*.test.ts',
+            'tests/unit/components/**/*.test.{ts,tsx}',
           ],
         },
       },
@@ -40,12 +50,18 @@ export default defineConfig({
           name: 'core-isolated',
           isolate: true,
           include: ['tests/**/*.test.ts'],
-          exclude: ['tests/unit/**/*.test.ts', 'tests/e2e/**/*.e2e.test.ts'],
+          exclude: [
+            'tests/unit/**/*.test.ts',
+            'tests/e2e/**/*.e2e.test.ts',
+            'tests/unit/components/**/*.test.{ts,tsx}',
+          ],
         },
       },
     ],
     coverage: {
       provider: 'v8',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      reportsDirectory: './coverage',
       exclude: [
         'components/**',
         'src/modules/**',
@@ -56,6 +72,9 @@ export default defineConfig({
         'src/server/channels/messages/service.ts',
         'src/server/channels/outbound/router.ts',
         'src/server/channels/pairing/telegramPolling.ts',
+        'tests/**',
+        '**/*.test.{ts,tsx}',
+        '**/*.spec.{ts,tsx}',
       ],
       thresholds: {
         lines: 60,
