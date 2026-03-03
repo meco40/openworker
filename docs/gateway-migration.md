@@ -2,7 +2,7 @@
 
 ## Breaking Changes
 
-- ❌ `/ws-agent-v2` Endpoint ist deprecated (bleibt aber unterstützt)
+- ❌ `/ws-agent-v2` Endpoint ist entfernt
 - ✅ Neue URLs: `/ws?protocol=v2`
 
 ## Client Migration
@@ -11,7 +11,7 @@
 
 ```typescript
 const client = new AgentV2GatewayClient();
-// Connects to: ws://localhost:3000/ws-agent-v2
+// (Alt): ws://localhost:3000/ws-agent-v2
 ```
 
 ### After
@@ -54,5 +54,5 @@ ws://localhost:3000/ws?protocol=v2  → v2 Protocol
 
 ## Backward Compatibility
 
-Legacy `/ws-agent-v2` path is still supported during migration period.
-Clients using the old path will continue to work without code changes.
+Es gibt keinen Legacy-Fallback mehr auf `/ws-agent-v2`.
+Alle Clients müssen `ws://<host>/ws?protocol=v2` verwenden.

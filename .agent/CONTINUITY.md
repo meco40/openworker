@@ -1529,3 +1529,28 @@ Files >300 lines identified for potential future modularization:
 
 - 2026-03-03T23:08:34.9272858+01:00 [TOOL] Archiv-Linkcheck nach Bereinigung: `ARCHIVE_DOC_FILES=88`, `BROKEN_LINKS=0`.
 - 2026-03-03T23:08:34.9272858+01:00 [TOOL] Gesamtdoku-Check verifiziert weiterhin `BROKEN_LINKS=0` ueber alle 158 Markdown-Dateien (inkl. aktiver Doku + Archiv).
+
+[PLANS]
+
+- 2026-03-04T00:22:58.1769563+01:00 [USER] Auftrag erhalten: doppelte Gateway-Loesung entfernen, Legacy-Fallback loeschen und auf einen voll funktionsfaehigen Gateway-Pfad konsolidieren.
+
+[DECISIONS]
+
+- 2026-03-04T00:22:58.1769563+01:00 [CODE] Single-Client-Ownership im Agent-Room festgelegt: `useGatewayClient('v2')` bleibt Owner fuer Connect/Disconnect; `useSwarmConnection` nutzt nur den bereits bestehenden Client fuer Subscriptions.
+- 2026-03-04T00:22:58.1769563+01:00 [CODE] Legacy-Transportpfad `/ws-agent-v2` entfernt; v2 wird ausschliesslich ueber `/ws?protocol=v2` ausgewaehlt.
+
+[PROGRESS]
+
+- 2026-03-04T00:22:58.1769563+01:00 [CODE] `server.ts` auf einzigen Upgrade-Pfad `/ws` reduziert; Protokollauswahl nur noch ueber Query-Parameter `protocol=v1|v2`.
+- 2026-03-04T00:22:58.1769563+01:00 [CODE] `src/modules/agent-room/hooks/useSwarmConnection.ts` von eigener Client-Erzeugung bereinigt (kein `new AgentV2GatewayClient()`, kein zweites connect/disconnect).
+- 2026-03-04T00:22:58.1769563+01:00 [CODE] `src/modules/gateway/ws-client.ts` Legacy-Erkennung fuer `/ws-agent-v2` entfernt.
+- 2026-03-04T00:22:58.1769563+01:00 [CODE] Betroffene Tests und aktive Doku aktualisiert (`ws-agent-v2-client.test.ts`, `ws-client-disconnect.test.ts`, `use-agent-room-runtime-connection-stability.test.ts`, `docs/AGENT_V2_RUNBOOK.md`, `docs/gateway-migration.md`).
+
+[DISCOVERIES]
+
+- 2026-03-04T00:22:58.1769563+01:00 [CODE] Root-Cause der doppelten Verbindungen: parallel genutzte Lifecycles (`useGatewayClient` + `useSwarmConnection` erzeugte eigenen zweiten `AgentV2GatewayClient`).
+- 2026-03-04T00:22:58.1769563+01:00 [TOOL] `next build` schreibt `next-env.d.ts` lokal auf `.next/types/routes.d.ts` um; fuer sauberen Working-Tree wurde die Datei auf den vorherigen Repo-Stand rueckgestellt.
+
+[OUTCOMES]
+
+- 2026-03-04T00:22:58.1769563+01:00 [TOOL] Verifikation gruen nach Konsolidierung: fokussierte Gateway/Agent-Room-Tests (4 Dateien, 20 Tests), `npm run check`, `npm run build`.

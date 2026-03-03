@@ -60,7 +60,7 @@ describe('GatewayClient disconnect behavior', () => {
 
   it('does not close synchronously while socket is still connecting', async () => {
     const { GatewayClient } = await import('@/modules/gateway/ws-client');
-    const client = new GatewayClient('ws://localhost:3000/ws-agent-v2');
+    const client = new GatewayClient('ws://localhost:3000/ws?protocol=v2');
 
     client.connect();
     const socket = MockBrowserWebSocket.instances[0];

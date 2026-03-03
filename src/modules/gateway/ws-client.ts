@@ -73,7 +73,6 @@ export class GatewayClient {
       const urlObj = new URL(url);
       const p = urlObj.searchParams.get('protocol') as MethodNamespace | null;
       if (p) this.protocol = p;
-      else if (url.includes('/ws-agent-v2')) this.protocol = 'v2';
     } else if (typeof window !== 'undefined') {
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       this.url = `${proto}//${window.location.host}/ws?protocol=${this.protocol}`;

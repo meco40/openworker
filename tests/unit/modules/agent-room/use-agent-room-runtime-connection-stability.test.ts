@@ -21,6 +21,13 @@ function extractLoadCatalogDeps(source: string): string {
   return match?.[1] ?? '';
 }
 
+function readConnectionHookSource(): string {
+  return fs.readFileSync(
+    path.join(process.cwd(), 'src/modules/agent-room/hooks/useSwarmConnection.ts'),
+    'utf8',
+  );
+}
+
 describe('useAgentRoomRuntime websocket connection stability', () => {
   it('keeps event callback independent from swarm state to avoid reconnect loops', () => {
     const source = readHookSource();
@@ -32,5 +39,10 @@ describe('useAgentRoomRuntime websocket connection stability', () => {
     const source = readHookSource();
     const deps = extractLoadCatalogDeps(source);
     expect(deps).not.toContain('selectedSwarmId');
+  });
+
+  it('reuses the shared gateway client instead of creating a second connection', () => {
+    const source = readConnectionHookSource();
+    expect(source).not.toContain('new AgentV2GatewayClient(');
   });
 });

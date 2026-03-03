@@ -2,9 +2,9 @@
 
 ## Runtime selector / rollback
 
-- v2 transport endpoint: `/ws-agent-v2`
-- v1 transport endpoint remains: `/ws`
-- rollback strategy: move clients back to `/ws` (v1 path) and stop using `agent.v2.*` methods.
+- v2 transport endpoint: `/ws?protocol=v2`
+- v1 transport endpoint: `/ws?protocol=v1` (or `/ws` without query)
+- rollback strategy: switch clients to protocol `v1` via query param and stop using `agent.v2.*` methods.
 - database schema rollback is not required (all changes are additive).
 
 ## Mandatory SLOs

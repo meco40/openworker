@@ -6,7 +6,7 @@
  */
 
 import { useEffect } from 'react';
-import { AgentV2GatewayClient } from '@/modules/gateway/ws-agent-v2-client';
+import type { AgentV2GatewayClient } from '@/modules/gateway/ws-agent-v2-client';
 import { parseSwarmRecord } from '@/modules/agent-room/swarmTypes';
 import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
 import type { SwarmCatalogActions } from '@/modules/agent-room/hooks/useSwarmCatalogState';
@@ -38,10 +38,9 @@ export function useSwarmConnection(input: SwarmConnectionInput): void {
 
   useEffect(() => {
     if (!enabled) return;
-    const client = new AgentV2GatewayClient();
+    const client = clientRef.current;
+    if (!client) return;
     const sessionToSwarmMap = sessionToSwarmRef.current;
-    clientRef.current = client;
-    client.connect();
     const unsubscribe = client.onEvent(handleAgentEvent);
 
     const unsubscribeSwarm = client.onSwarmEvent((raw) => {
@@ -105,8 +104,6 @@ export function useSwarmConnection(input: SwarmConnectionInput): void {
     return () => {
       unsubscribe();
       unsubscribeSwarm();
-      client.disconnect();
-      clientRef.current = null;
       sessionToSwarmMap.clear();
     };
   }, [
