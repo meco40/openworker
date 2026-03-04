@@ -4,7 +4,9 @@
 
 - Purpose: Define the conversation-scoped project workspace workflow for persona-driven build tasks and Master Agent isolation.
 - Scope: `/project` lifecycle, no-project guard approvals, workspace cwd propagation for tool execution, Master-Workspace-Isolation.
+- Source of Truth: `src/server/channels/messages/service/*`, `src/server/channels/messages/repository/queries/projects.ts`, `src/server/master/workspaceScope.ts`.
 - Last Reviewed: 2026-03-03
+- Related Runbooks: N/A
 
 ---
 

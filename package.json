@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch server.ts",
+    "dev": "node scripts/dev-stack.mjs",
+    "dev:web": "tsx watch server.ts",
     "dev:scheduler": "tsx watch scheduler.ts",
     "dev:next": "next dev",
     "cli": "node --import tsx src/cli/program.ts",

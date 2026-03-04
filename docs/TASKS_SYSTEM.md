@@ -6,6 +6,7 @@
 - Scope: Task-Domain (`src/server/tasks/*`) und zugehoerige API-Routen unter `app/api/tasks/*`.
 - Source of Truth: Diese Doku beschreibt den aktiven Stand und hat Vorrang vor archivierten Plan-/Review-Dokumenten.
 - Last Reviewed: 2026-03-03
+- Related Runbooks: N/A
 - Related Docs: `docs/API_REFERENCE.md`, `docs/MASTER_AGENT_SYSTEM.md`, `docs/PROJECT_WORKSPACE_SYSTEM.md`
 
 ---

@@ -17,6 +17,12 @@ Scope: Alle zuvor nicht-archivierten Dateien unter `docs/` wurden einzeln bewert
   - `docs/OPS_OBSERVABILITY_SYSTEM.md`
 - Aktive API-Domaenenabdeckung ist damit vollstaendig (`auth`, `automations`, `channels`, `clawhub`, `config`, `control-plane`, `doctor`, `health`, `knowledge`, `logs`, `memory`, `model-hub`, `ops`, `personas`, `rooms`, `security`, `skills`, `stats`).
 
+## Addendum (Statusupdate 2026-03-04)
+
+- Die Tabelle unter "Einzelentscheidungen" bleibt ein Snapshot des Audit-Stands vom 2026-02-21.
+- Seit der Runtime-Bereinigung sind `docs/WORKER_SYSTEM.md` und `docs/WORKER_ORCHESTRA_SYSTEM.md` **Legacy-Statusdokumente** (Systeme entfernt), siehe `docs/README.md` und Root-`README.md`.
+- Bei Widerspruechen zwischen dieser historischen Tabelle und aktueller Einordnung gilt die aktuelle Doku-Navigation unter `docs/README.md`.
+
 ## Einzelentscheidungen
 
 | Dokument (vor Audit)                                                   | Entscheidung    | Ziel / Status                                                                             | Kurzbegruendung                                               |

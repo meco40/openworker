@@ -1,7 +1,12 @@
 # Master Agent System
 
-**Status:** 2026-03-04  
-**Scope:** Production-ready `Master` control plane with executable run flow, observability, and hardened connector/runtime paths.
+## Metadata
+
+- Purpose: Authoritative reference for the Master control plane runtime, contracts, APIs, and workspace isolation behavior.
+- Scope: Production-ready `Master` vertical slice with run lifecycle, approvals, delegations, observability, and voice-session integration.
+- Source of Truth: `app/api/master/*`, `src/server/master/*`, `src/modules/master/*`.
+- Last Reviewed: 2026-03-04
+- Related Runbooks: N/A
 
 ## Overview
 
@@ -68,6 +73,8 @@ Agent Room remains chat-only.
     - run controls: `run.start`, `run.tick`, `run.cancel`, `run.export`
     - approval controls for side effects remain `approve_once|approve_always|deny`
   - `GET/POST /api/master/runs/[id]/delegations`
+  - `POST /api/master/runs/[id]/feedback`
+    - stores completed-run feedback (`rating`, `policy`, optional `comment`)
 - Productivity:
   - `GET/POST/PATCH/DELETE /api/master/notes`
   - `GET/POST/PATCH/DELETE /api/master/reminders`

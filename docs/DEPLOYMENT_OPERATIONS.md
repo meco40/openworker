@@ -294,7 +294,7 @@ services:
       - '${PORT:-3000}:3000'
     environment:
       NODE_ENV: production
-      ROOMS_RUNNER: web
+      SWARM_RUNNER: server
       HOSTNAME: 0.0.0.0
       PORT: 3000
       # Database
@@ -347,7 +347,7 @@ services:
     command: ['node', '--import', 'tsx', 'scheduler.ts']
     environment:
       NODE_ENV: production
-      ROOMS_RUNNER: scheduler
+      SWARM_RUNNER: scheduler
       SCHEDULER_INSTANCE_ID: ${SCHEDULER_INSTANCE_ID:-scheduler-1}
       # Automation Settings
       AUTOMATION_TICK_INTERVAL_MS: ${AUTOMATION_TICK_INTERVAL_MS:-15000}
@@ -476,7 +476,7 @@ WorkingDirectory=/opt/openclaw
 Environment="NODE_ENV=production"
 Environment="PORT=3000"
 Environment="HOSTNAME=0.0.0.0"
-Environment="ROOMS_RUNNER=web"
+Environment="SWARM_RUNNER=server"
 EnvironmentFile=-/opt/openclaw/.env
 
 # Execution
@@ -528,7 +528,7 @@ WorkingDirectory=/opt/openclaw
 
 # Environment
 Environment="NODE_ENV=production"
-Environment="ROOMS_RUNNER=scheduler"
+Environment="SWARM_RUNNER=scheduler"
 Environment="SCHEDULER_INSTANCE_ID=scheduler-1"
 EnvironmentFile=-/opt/openclaw/.env
 
@@ -607,7 +607,7 @@ sudo systemctl restart openclaw-web.service
 | `NODE_ENV`     | `development` | Runtime environment: `development`, `production`, `test` |
 | `HOSTNAME`     | `0.0.0.0`     | Server bind address                                      |
 | `PORT`         | `3000`        | HTTP server port                                         |
-| `ROOMS_RUNNER` | `both`        | Service role: `web`, `scheduler`, `both`                 |
+| `SWARM_RUNNER` | `server`      | Swarm runtime role: `server` (default) or `scheduler`    |
 
 ### Database Configuration
 
@@ -677,7 +677,7 @@ HOSTNAME=0.0.0.0
 PORT=3000
 
 # Service Role (set per service)
-# ROOMS_RUNNER=web
+# SWARM_RUNNER=server
 # SCHEDULER_INSTANCE_ID=scheduler-1
 
 # Database

@@ -130,10 +130,10 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 │                                                                                         │
 │   ┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────────┐     │
 │   │   Web Server        │    │   Scheduler         │    │   Combined (Dev)        │     │
-│   │   (server.ts)       │    │   (scheduler.ts)    │    │   ROOMS_RUNNER=both     │     │
+│   │   (server.ts)       │    │   (scheduler.ts)    │    │ SWARM_RUNNER per process│     │
 │   │   ─────────────     │    │   ─────────────     │    │   ─────────────────     │     │
-│   │   HTTP + WS API     │    │   Cron execution    │    │   Full stack single     │     │
-│   │   User-facing       │    │   Background tasks  │    │   process               │     │
+│   │   HTTP + WS API     │    │   Cron execution    │    │   Full stack dual       │     │
+│   │   User-facing       │    │   Background tasks  │    │   processes             │     │
 │   └─────────────────────┘    └─────────────────────┘    └─────────────────────────┘     │
 │                                                                                         │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
@@ -171,23 +171,21 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 
 | Component         | Package         | Version  | Purpose                  |
 | ----------------- | --------------- | -------- | ------------------------ |
-| **Google GenAI**  | `@google/genai` | ^1.40.0  | Gemini API access        |
+| **Google GenAI**  | `@google/genai` | ^1.42.0  | Gemini API access        |
 | **Flow Diagrams** | `@xyflow/react` | ^12.10.0 | Graph/flow visualization |
-| **Archives**      | `archiver`      | ^7.0.1   | Workspace export         |
 | **Charts**        | `recharts`      | ^3.7.0   | Metrics visualization    |
 
 ### Development Tools
 
-| Category              | Package                | Version | Purpose                |
-| --------------------- | ---------------------- | ------- | ---------------------- |
-| **Linting**           | `oxlint`               | ^1.48.0 | Primary linter (fast)  |
-| **TypeScript ESLint** | `@typescript-eslint/*` | ^8.55.0 | TS-specific rules      |
-| **Formatting**        | `prettier`             | ^3.8.1  | Code formatting        |
-| **Testing**           | `vitest`               | ^4.0.18 | Unit/integration tests |
-| **Coverage**          | `@vitest/coverage-v8`  | ^4.0.18 | Test coverage          |
-| **Styling**           | `tailwindcss`          | ^4.1.18 | Utility CSS            |
-| **Git Hooks**         | `husky`                | ^9.1.7  | Pre-commit validation  |
-| **Dead Code**         | `knip`                 | ^5.83.1 | Unused code detection  |
+| Category       | Package               | Version | Purpose                |
+| -------------- | --------------------- | ------- | ---------------------- |
+| **Linting**    | `oxlint`              | ^1.48.0 | Primary linter (fast)  |
+| **Formatting** | `prettier`            | ^3.8.1  | Code formatting        |
+| **Testing**    | `vitest`              | ^4.0.18 | Unit/integration tests |
+| **Coverage**   | `@vitest/coverage-v8` | ^4.0.18 | Test coverage          |
+| **Styling**    | `tailwindcss`         | ^4.1.18 | Utility CSS            |
+| **Git Hooks**  | `husky`               | ^9.1.7  | Pre-commit validation  |
+| **Dead Code**  | `knip`                | ^5.83.1 | Unused code detection  |
 
 ---
 
@@ -614,13 +612,12 @@ Message service → outbound router → adapter → external API
 
 ### Runtime Role Configuration
 
-The `ROOMS_RUNNER` environment variable controls which runtime executes rooms:
+The `SWARM_RUNNER` environment variable controls where the swarm runtime is active:
 
-| Value       | Description                               |
-| ----------- | ----------------------------------------- |
-| `web`       | Web server handles rooms (default)        |
-| `scheduler` | Scheduler handles rooms                   |
-| `both`      | Both runtimes can handle rooms (dev mode) |
+| Value       | Description                                                    |
+| ----------- | -------------------------------------------------------------- |
+| `server`    | Runtime runs in `server.ts` (default)                          |
+| `scheduler` | Runtime runs in `scheduler.ts` (when set in scheduler service) |
 
 ### Persona Configuration
 
@@ -944,14 +941,14 @@ ANTHROPIC_API_KEY=...
 # ... provider-specific keys
 
 # Runtime
-ROOMS_RUNNER=web|scheduler|both
+SWARM_RUNNER=server|scheduler
 ```
 
 ### Common Commands
 
 ```bash
 # Development
-npm run dev              # Start dev server
+npm run dev              # Start web + scheduler stack
 npm run dev:scheduler    # Start scheduler only
 
 # Quality

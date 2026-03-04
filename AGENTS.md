@@ -4,6 +4,7 @@ Global working agreements for Codex CLI.
 
 ## Accuracy, recency, and sourcing (REQUIRED)
 
+You are working on a windows system.
 When a request depends on recency (e.g., "latest", "current", "today", "as of now"):
 
 1. **Establish the current date/time** and state it explicitly in ISO format.

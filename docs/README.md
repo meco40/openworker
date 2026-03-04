@@ -36,27 +36,27 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
 - **[docs/WORKER_SYSTEM.md](WORKER_SYSTEM.md)** ⚠️ Legacy - System entfernt
 - **[docs/WORKER_ORCHESTRA_SYSTEM.md](WORKER_ORCHESTRA_SYSTEM.md)** ⚠️ Legacy - System entfernt
 
-## 3) Architektur und Referenzen
+## 4) Architektur und Referenzen
 
 - **[docs/ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)**
 - **[docs/memory-architecture.md](memory-architecture.md)**
 - **[docs/architecture/model-hub-provider-matrix.md](architecture/model-hub-provider-matrix.md)**
 
-## 4) Betrieb
+## 5) Betrieb
 
 - **[docs/DEPLOYMENT_OPERATIONS.md](DEPLOYMENT_OPERATIONS.md)**
 - **[docs/OMNICHANNEL_GATEWAY_OPERATIONS.md](OMNICHANNEL_GATEWAY_OPERATIONS.md)**
 - **[docs/runbooks/chat-cli-smoke-approval.md](runbooks/chat-cli-smoke-approval.md)**
 - **[docs/runbooks/gateway-config-production-rollout.md](runbooks/gateway-config-production-rollout.md)**
 
-## 5) Prozess und Planung
+## 6) Prozess und Planung
 
 - **[docs/SPEC_KIT.md](SPEC_KIT.md)**
 - **[docs/ux/gateway-config-copy-guidelines.md](ux/gateway-config-copy-guidelines.md)**
 - **[docs/plans/README.md](plans/README.md)**
-- **[docs/DOCUMENTATION_AUDIT_2026-02-21.md](DOCUMENTATION_AUDIT_2026-02-21.md)**
+- **[docs/DOCUMENTATION_AUDIT_2026-02-21.md](DOCUMENTATION_AUDIT_2026-02-21.md)** (historischer Audit mit Addendum)
 
-## 6) Archiv
+## 7) Archiv
 
 - **[docs/archive/README.md](archive/README.md)**
 

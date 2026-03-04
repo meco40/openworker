@@ -221,7 +221,7 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | `MEMORY_PROVIDER`                    | Memory-Provider (`mem0`)                                                       |
 | `MEM0_BASE_URL`                      | Mem0 Base URL                                                                  |
 | `MEM0_API_KEY`                       | Mem0 API Key                                                                   |
-| `MEM0_API_PATH`                      | Mem0 API Pfad (Default `/`)                                                    |
+| `MEM0_API_PATH`                      | Mem0 API Pfad (Default `/v1`)                                                  |
 | `MEM0_TIMEOUT_MS`                    | Mem0 Request-Timeout                                                           |
 | `MEM0_MAX_RETRIES`                   | Mem0 Retry-Limit                                                               |
 | `MEM0_RETRY_BASE_DELAY_MS`           | Mem0 Retry-Backoff-Basis                                                       |
