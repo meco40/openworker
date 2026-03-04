@@ -26,6 +26,7 @@
     "test:e2e:smoke": "vitest run --config vitest.e2e.config.ts",
     "test:e2e:live": "node --import tsx scripts/e2e/live-preflight.ts && vitest run --config vitest.e2e.live.config.ts",
     "test:e2e:browser": "playwright test",
+    "test:e2e:browser:ci": "playwright test tests/e2e/browser/authentication.spec.ts tests/e2e/browser/chat-smoke.spec.ts tests/e2e/browser/chat-queue-and-persona.spec.ts tests/e2e/browser/integration-scenarios.spec.ts tests/e2e/browser/keyboard-navigation.spec.ts",
     "build": "next build",
     "analyze": "cross-env ANALYZE=true next build --webpack",
     "knip": "knip",

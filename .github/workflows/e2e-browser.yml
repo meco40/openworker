@@ -51,7 +51,7 @@ jobs:
         run: pnpm run build
 
       - name: Run browser e2e
-        run: pnpm run test:e2e:browser
+        run: pnpm run test:e2e:browser:ci
 
       - name: Upload Playwright artifacts
         if: always()
