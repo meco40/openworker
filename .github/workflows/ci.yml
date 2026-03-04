@@ -102,7 +102,7 @@ jobs:
             vitest-${{ runner.os }}-
 
       - name: Run tests with coverage
-        run: pnpm run test:coverage -- --cache-dir=.vitest-cache
+        run: pnpm run test:coverage
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -154,7 +154,7 @@ jobs:
             vitest-components-${{ runner.os }}-
 
       - name: Run component tests
-        run: pnpm exec vitest run --project=components --cache-dir=.vitest-cache
+        run: pnpm exec vitest run --project=components
 
   e2e-smoke:
     name: E2E Smoke Tests
