@@ -1663,3 +1663,11 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-04T01:41:24.7968305+01:00 [TOOL] Vollpruefung ohne neue Fixes erfolgreich: `npm run check` (Typecheck/Lint/Prettier gruen, 0 Warnungen/0 Fehler), `npm test` (489/489 Dateien, 2375/2375 Tests), `npm run build` (Next.js Produktionbuild erfolgreich).
+
+[PROGRESS]
+
+- 2026-03-04T01:43:41.4073404+01:00 [TOOL] Alle Arbeitsaenderungen auf `main` committed (`d967366`, Message: `feat(gateway): hard-cut websocket transport to protocol v2`).
+
+[OUTCOMES]
+
+- 2026-03-04T01:43:41.4073404+01:00 [TOOL] Push erfolgreich nach `origin/main` (Dry-Run und anschliessender echter Push: `aa3a9fd..d967366`).
