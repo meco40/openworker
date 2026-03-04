@@ -6,7 +6,7 @@ import { makeEvent } from '@/server/gateway/protocol';
 import { MAX_BUFFERED_BYTES } from '@/server/gateway/constants';
 
 interface BroadcastOptions {
-  protocol?: 'v1' | 'v2';
+  protocol?: 'v2';
 }
 
 // ─── Broadcast Functions ─────────────────────────────────────

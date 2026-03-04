@@ -69,9 +69,24 @@ describe('Mission Control OpenClaw integration routes', () => {
 
     expect(response.status).toBe(200);
     expect(payload.connected).toBe(true);
-    expect(payload.gateway_url).toContain('/ws');
+    expect(payload.gateway_url).toContain('/ws?protocol=v2');
     expect(payload.gateway_url).not.toContain('18789');
     expect(payload.error).toBeUndefined();
+  });
+
+  it('canonicalizes OPENCLAW_GATEWAY_URL protocol to v2', async () => {
+    process.env.OPENCLAW_GATEWAY_URL = 'ws://127.0.0.1:3000/ws?protocol=v1';
+
+    const { GET } = await import('../../../app/api/openclaw/status/route');
+    const response = await GET();
+    const payload = (await response.json()) as {
+      connected: boolean;
+      gateway_url?: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.connected).toBe(true);
+    expect(payload.gateway_url).toBe('ws://127.0.0.1:3000/ws?protocol=v2');
   });
 
   it('links an agent to OpenClaw without requiring an external gateway', async () => {

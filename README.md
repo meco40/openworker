@@ -255,14 +255,13 @@ Hinweis: Provider-Secrets (z. B. OpenAI, Anthropic, OpenRouter) werden im aktuel
 
 ## WebSocket Gateway
 
-Single endpoint: `ws://localhost:3000/ws`
+Single endpoint path: `/ws` (clients must use `?protocol=v2`)
 
-- **General purpose**: `ws://localhost:3000/ws?protocol=v1` (default)
-- **Agent V2**: `ws://localhost:3000/ws?protocol=v2`
+- **Verwendet**: `ws://localhost:3000/ws?protocol=v2`
+- `protocol=v2` muss explizit gesetzt sein, sonst antwortet der Server mit `400 Bad Request`.
 
 ### Rate Limits
 
-- v1: 60 requests/minute
 - v2: 600 requests/minute (configurable)
 
 ---

@@ -28,8 +28,20 @@ function parseIncoming(raw: RawData): GatewayIncoming | null {
   }
 }
 
+function normalizeGatewayUrl(raw: string): string {
+  try {
+    const parsed = new URL(raw);
+    if (parsed.searchParams.get('protocol') !== 'v2') {
+      parsed.searchParams.set('protocol', 'v2');
+    }
+    return parsed.toString();
+  } catch {
+    return raw;
+  }
+}
+
 export async function createWsRpcClient(url: string): Promise<WsRpcClient> {
-  const socket = new WsClient(url);
+  const socket = new WsClient(normalizeGatewayUrl(url));
   const pending = new Map<string | number, PendingRequest>();
   let nextId = 1;
 

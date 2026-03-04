@@ -213,7 +213,11 @@ export class ManagedServer {
     return `http://127.0.0.1:${this.port}${path}`;
   }
 
-  wsUrl(): string {
+  wsBaseUrl(): string {
     return `ws://127.0.0.1:${this.port}/ws`;
+  }
+
+  wsUrl(): string {
+    return `${this.wsBaseUrl()}?protocol=v2`;
   }
 }

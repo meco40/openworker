@@ -1573,3 +1573,93 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-04T00:34:09.5619149+01:00 [TOOL] Verifikation gruen nach no-fallback-Haertung: fokussierte Gateway-Tests (4 Dateien, 19 Tests), `npm run check`, `npm run build`.
+
+[PLANS]
+
+- 2026-03-04T00:49:46.3374712+01:00 [USER] Analyse/Fix angefordert: Security-Log `[SECURITY WARNING] MC_API_TOKEN not set ...` entfernen und Token-Erwartung fuer Mission Control abschalten.
+
+[DECISIONS]
+
+- 2026-03-04T00:49:46.3374712+01:00 [CODE] `MC_API_TOKEN` bleibt optional als Bearer-Mechanismus; die implizite "Erwartung" wurde auf Logging-Ebene entfernt (kein Startup-Warnhinweis mehr bei fehlendem Token).
+
+[DISCOVERIES]
+
+- 2026-03-04T00:49:46.3374712+01:00 [CODE] Root-Cause war ein Top-Level-`console.warn` in `proxy.ts`, das bei fehlendem `MC_API_TOKEN` immer ausgefuehrt wurde, obwohl die Runtime-Policy bereits Token-frei (Session/Same-Origin/Loopback) funktionieren kann.
+- 2026-03-04T00:49:46.3374712+01:00 [TOOL] TDD-Red bestaetigt: neuer Test `tests/unit/auth/proxy-startup-warning.test.ts` schlug initial fehl, weil die Warnung beim Import von `proxy.ts` ausgegeben wurde.
+
+[PROGRESS]
+
+- 2026-03-04T00:49:46.3374712+01:00 [CODE] `proxy.ts` bereinigt: Top-Level-Startup-Warnblock fuer fehlenden `MC_API_TOKEN` entfernt.
+- 2026-03-04T00:49:46.3374712+01:00 [CODE] Regressionstest ergaenzt: `tests/unit/auth/proxy-startup-warning.test.ts` (stellt sicher, dass ohne `MC_API_TOKEN` keine Warnung geloggt wird).
+
+[OUTCOMES]
+
+- 2026-03-04T00:49:46.3374712+01:00 [TOOL] Verifikation gruen: `npm test -- tests/unit/auth/proxy-startup-warning.test.ts` und `npm test -- tests/unit/auth/proxy-policy.test.ts tests/unit/auth/proxy-startup-warning.test.ts` erfolgreich.
+- 2026-03-04T00:52:23.2239024+01:00 [TOOL] Voller Projektcheck fuer diese Aenderung ebenfalls gruen: `npm run check` (typecheck/lint/format ok, 0 Warnungen/0 Fehler).
+- 2026-03-04T00:54:18.4273484+01:00 [TOOL] Produktionsbuild erfolgreich: `npm run build` (Next.js 16.1.6, Proxy/Middleware und Route-Generierung ohne Fehler).
+
+[PROGRESS]
+
+- 2026-03-04T01:02:21.4268856+01:00 [CODE] README WebSocket-Gateway-Dokumentation korrigiert: `protocol=v1` nicht mehr als impliziter Default bezeichnet; explizite Pflicht `?protocol=v1|v2` + `400 Bad Request` bei fehlendem/ungueltigem Parameter dokumentiert.
+
+[OUTCOMES]
+
+- 2026-03-04T01:02:21.4268856+01:00 [TOOL] Dokumentations-Drift zwischen `README.md` und aktuellem Server-Handshake-Verhalten (`/ws` verlangt explizites `protocol`) beseitigt.
+
+[PROGRESS]
+
+- 2026-03-04T01:04:36.6259734+01:00 [USER] Doku-Praezisierung angefordert: kein v1-Hinweis mehr, da im Projekt nur v2 genutzt wird.
+- 2026-03-04T01:04:36.6259734+01:00 [CODE] `README.md` WebSocket-Abschnitt auf v2-only Nutzung geschärft (`/ws?protocol=v2`), allgemeiner v1-Hinweis und v1-Rate-Limit-Zeile entfernt.
+
+[OUTCOMES]
+
+- 2026-03-04T01:04:36.6259734+01:00 [TOOL] Aktive Top-Level-Doku entspricht nun der realen Betriebsvorgabe "nur v2 verwenden" ohne irreführenden v1-Client-Hinweis.
+
+[PLANS]
+
+- 2026-03-04T01:21:39.9158924+01:00 [USER] Umsetzung der v2-only Gateway-Migration als Hard-Cut angefordert (nur `?protocol=v2`, RPC-Namen unverändert).
+
+[DECISIONS]
+
+- 2026-03-04T01:21:39.9158924+01:00 [CODE] Gateway-Transport final v2-only konsolidiert: Handshake akzeptiert ausschließlich `protocol=v2`; query-loses `/ws` und `protocol=v1` bleiben absichtlich ungültig (`400`).
+- 2026-03-04T01:21:39.9158924+01:00 [CODE] Keine RPC-Umbenennung: bestehende Methoden (`chat.*`, `sessions.*`, `channels.*`, `logs.*`, `presence.*`) laufen weiter, jetzt vollständig im v2-Transport.
+
+[PROGRESS]
+
+- 2026-03-04T01:21:39.9158924+01:00 [CODE] Kernpfade umgestellt: `server.ts` (Handshake), `src/server/gateway/{method-router,connection-handler,client-registry,broadcast}.ts` (v2-only Namespace/Typing), `src/modules/gateway/{ws-client,useUnifiedGatewayClient}.ts` (v2-default), `src/cli/lib/gatewayRpc.ts` und `src/lib/openclaw/client.ts` (v2-URL-Defaults + URL-Kanonisierung).
+- 2026-03-04T01:21:39.9158924+01:00 [CODE] Test-/E2E-Helfer angepasst: `tests/e2e/_shared/{managedServer,wsRpcClient}.ts`, neue Negativ-Handshake-Cases in `tests/e2e/chat/gateway-connectivity.e2e.test.ts` für `/ws` ohne Query und `?protocol=v1`.
+- 2026-03-04T01:21:39.9158924+01:00 [CODE] Relevante aktive Doku auf v2-only aktualisiert: `docs/AGENT_V2_RUNBOOK.md`, `docs/gateway-migration.md`, `docs/runbooks/chat-cli-smoke-approval.md`, `docs/DEPLOYMENT_OPERATIONS.md`.
+
+[DISCOVERIES]
+
+- 2026-03-04T01:21:39.9158924+01:00 [TOOL] `npm run check` war initial nur wegen Prettier-Drift rot; Typecheck und Lint waren bereits grün. Nach gezieltem `prettier --write` auf den betroffenen Dateien lief `check` vollständig grün.
+
+[OUTCOMES]
+
+- 2026-03-04T01:21:39.9158924+01:00 [TOOL] Gateway-Migrationsverifikation grün: fokussierte Unit-Suites (5 Dateien, 28 Tests), E2E-Smoke (`gateway-connectivity`, `ws-chat-stream-core`, `ws-chat-abort`; 3 Dateien, 5 Tests), `npm run check`, `npm run build`.
+
+[PLANS]
+
+- 2026-03-04T01:36:10.0791663+01:00 [USER] Tiefe Nachpruefung der v2-only Migration angefordert (Best-Case-Qualitaet inkl. Korrekturen bei Abweichungen).
+
+[DISCOVERIES]
+
+- 2026-03-04T01:36:10.0791663+01:00 [TOOL] Deep-Scan auf aktive Doku (`docs/**` ohne `archive/plans/reviews`) fand keine verbliebene operative v1-Transportnutzung; `protocol=v1` erscheint nur noch in expliziten Negativ-/Migrationshinweisen.
+- 2026-03-04T01:36:10.0791663+01:00 [TOOL] Ein expliziter Akzeptanzfall fehlte noch: Rejection fuer `protocol=<anderes>` war serverseitig implementiert, aber im E2E nicht separat abgesichert.
+
+[PROGRESS]
+
+- 2026-03-04T01:36:10.0791663+01:00 [CODE] `tests/e2e/chat/gateway-connectivity.e2e.test.ts` um Negativtest `protocol=invalid` ergaenzt (erwartet `400`).
+- 2026-03-04T01:36:10.0791663+01:00 [CODE] `README.md` WebSocket-Abschnitt praezisiert: Endpoint-Pfad bleibt `/ws`, Clients muessen explizit `?protocol=v2` setzen.
+
+[OUTCOMES]
+
+- 2026-03-04T01:36:10.0791663+01:00 [TOOL] Verifikation nach Deep-Fixes gruen: `npm run test:e2e:smoke -- tests/e2e/chat/gateway-connectivity.e2e.test.ts` (4/4), `npm test -- tests/unit/gateway/method-router.test.ts tests/unit/gateway/connection-handler.test.ts tests/unit/gateway/agent-v2-methods.test.ts tests/unit/modules/gateway/ws-client-stream-timeout.test.ts tests/unit/modules/gateway/ws-agent-v2-client.test.ts` (28/28), `npm test -- tests/integration/mission-control/runtime-status-route.test.ts tests/integration/mission-control/openclaw-integration-routes.test.ts` (4/4), `npm run check`, `npm run build`.
+
+[PLANS]
+
+- 2026-03-04T01:41:24.7968305+01:00 [USER] Komplette Fehlerpruefung angefordert inklusive Fix aller Fehler und Warnungen.
+
+[OUTCOMES]
+
+- 2026-03-04T01:41:24.7968305+01:00 [TOOL] Vollpruefung ohne neue Fixes erfolgreich: `npm run check` (Typecheck/Lint/Prettier gruen, 0 Warnungen/0 Fehler), `npm test` (489/489 Dateien, 2375/2375 Tests), `npm run build` (Next.js Produktionbuild erfolgreich).

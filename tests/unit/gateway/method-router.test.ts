@@ -125,7 +125,7 @@ describe('Method Router', () => {
     expect(capturedParams).toEqual({});
   });
 
-  it('keeps v1 and v2 method registries isolated', async () => {
+  it('dispatches methods in explicit v2 namespace', async () => {
     registerMethod(
       'test.v2',
       async (_params, _client, respond) => {
@@ -134,14 +134,6 @@ describe('Method Router', () => {
       'v2',
     );
 
-    const sentV1: unknown[] = [];
-    await dispatchMethod(makeFrame('test.v2'), makeClient(), (frame) => sentV1.push(frame), 'v1');
-    expect(sentV1[0]).toMatchObject({
-      type: 'res',
-      ok: false,
-      error: { code: 'INVALID_REQUEST' },
-    });
-
     const sentV2: unknown[] = [];
     await dispatchMethod(makeFrame('test.v2'), makeClient(), (frame) => sentV2.push(frame), 'v2');
     expect(sentV2[0]).toMatchObject({
@@ -149,5 +141,8 @@ describe('Method Router', () => {
       ok: true,
       payload: { scope: 'v2' },
     });
+
+    const methods = getRegisteredMethods('v2');
+    expect(methods).toContain('test.v2');
   });
 });

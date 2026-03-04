@@ -1578,7 +1578,7 @@ curl -i -N \
   -H "Upgrade: websocket" \
   -H "Sec-WebSocket-Version: 13" \
   -H "Sec-WebSocket-Key: $(openssl rand -base64 16)" \
-  http://localhost:3000/ws
+  http://localhost:3000/ws?protocol=v2
 ```
 
 **Checklist:**

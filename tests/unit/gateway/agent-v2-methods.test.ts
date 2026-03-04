@@ -240,7 +240,7 @@ describe('gateway agent v2 methods', () => {
     expect(deleteFrames[0]).toMatchObject({ type: 'res', ok: true });
   });
 
-  it('does not expose v2 methods to v1 namespace', async () => {
+  it('dispatches v2 methods via default namespace', async () => {
     vi.resetModules();
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({
       getMessageRepository: vi.fn(() => ({})),
@@ -275,16 +275,15 @@ describe('gateway agent v2 methods', () => {
     const sent: unknown[] = [];
 
     await dispatchMethod(
-      makeRequest('agent.v2.session.start'),
+      makeRequest('agent.v2.session.list', { limit: 5 }),
       makeClient(),
       (frame) => sent.push(frame),
-      'v1',
+      'v2',
     );
 
     expect(sent[0]).toMatchObject({
       type: 'res',
-      ok: false,
-      error: { code: 'INVALID_REQUEST' },
+      ok: true,
     });
   });
 });

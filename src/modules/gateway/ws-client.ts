@@ -56,7 +56,7 @@ export class GatewayClient {
   private streamHandlers = new Map<string | number, StreamHandler>();
   private lastSeq = 0;
   private url: string;
-  private protocol: MethodNamespace = 'v1';
+  private protocol: MethodNamespace = 'v2';
   private intentionalClose = false;
   private connectFailures = 0; // Track consecutive failures without ever opening
 
@@ -70,9 +70,12 @@ export class GatewayClient {
 
     if (url) {
       const urlObj = new URL(url);
-      const p = urlObj.searchParams.get('protocol') as MethodNamespace | null;
-      if (p) this.protocol = p;
-      else urlObj.searchParams.set('protocol', this.protocol);
+      const protocolParam = urlObj.searchParams.get('protocol');
+      if (protocolParam === 'v2') {
+        this.protocol = 'v2';
+      } else {
+        urlObj.searchParams.set('protocol', this.protocol);
+      }
       this.url = urlObj.toString();
     } else if (typeof window !== 'undefined') {
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';

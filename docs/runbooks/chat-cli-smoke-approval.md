@@ -28,7 +28,7 @@ npm run smoke:chat-cli-approval -- --message "/shell echo smoke-test"
 
 ## Optionen
 
-- `--url <ws-url>` (default: `ws://127.0.0.1:${PORT|3000}/ws`)
+- `--url <ws-url>` (default: `ws://127.0.0.1:${PORT|3000}/ws?protocol=v2`)
 - `--conversation <id>` (optional; ohne Angabe wird `sessions.reset` genutzt)
 - `--persona <id>` (optional)
 - `--message "<text>"` oder Nachricht als trailing text

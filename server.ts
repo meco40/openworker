@@ -94,7 +94,7 @@ Promise.resolve()
         return;
       }
       const protocolParam = url.searchParams.get('protocol');
-      if (protocolParam !== 'v1' && protocolParam !== 'v2') {
+      if (protocolParam !== 'v2') {
         socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
         socket.destroy();
         return;

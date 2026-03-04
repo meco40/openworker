@@ -35,10 +35,22 @@ interface ChatSendResult {
 
 const DEFAULT_PORT = Number.parseInt(process.env.PORT || '3000', 10);
 const SAFE_PORT = Number.isFinite(DEFAULT_PORT) && DEFAULT_PORT > 0 ? DEFAULT_PORT : 3000;
-const DEFAULT_GATEWAY_URL = `ws://127.0.0.1:${SAFE_PORT}/ws`;
+const DEFAULT_GATEWAY_URL = `ws://127.0.0.1:${SAFE_PORT}/ws?protocol=v2`;
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeGatewayUrl(raw: string): string {
+  try {
+    const parsed = new URL(raw);
+    if (parsed.searchParams.get('protocol') !== 'v2') {
+      parsed.searchParams.set('protocol', 'v2');
+    }
+    return parsed.toString();
+  } catch {
+    return raw;
+  }
 }
 
 function mapStoredRoleToGatewayRole(role: string): 'user' | 'assistant' | 'system' {
@@ -168,7 +180,9 @@ export class OpenClawClient extends EventEmitter {
   private readonly mode: OpenClawMode = 'integrated';
 
   constructor(
-    private readonly url: string = process.env.OPENCLAW_GATEWAY_URL || DEFAULT_GATEWAY_URL,
+    private readonly url: string = normalizeGatewayUrl(
+      process.env.OPENCLAW_GATEWAY_URL || DEFAULT_GATEWAY_URL,
+    ),
   ) {
     super();
     this.on('error', () => {});

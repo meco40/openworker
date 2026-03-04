@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { shouldAllowApiRequestWithoutToken } from './src/server/auth/proxyPolicy';
 
-// Log warning at startup if auth is disabled
 const MC_API_TOKEN = process.env.MC_API_TOKEN;
-if (!MC_API_TOKEN) {
-  console.warn(
-    '[SECURITY WARNING] MC_API_TOKEN not set - bearer token auth disabled; same-origin/session policy still applies',
-  );
-}
 
 const REQUIRE_AUTH = String(process.env.REQUIRE_AUTH || 'false').toLowerCase() === 'true';
 

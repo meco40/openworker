@@ -44,7 +44,7 @@ describe('Mission Control runtime status route', () => {
 
     expect(response.status).toBe(200);
     expect(payload.connected).toBe(true);
-    expect(payload.runtime_url).toContain('/ws');
+    expect(payload.runtime_url).toContain('/ws?protocol=v2');
     expect(payload.mode).toBe('integrated');
     expect(payload.error).toBeUndefined();
   });

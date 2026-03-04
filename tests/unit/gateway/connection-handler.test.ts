@@ -7,6 +7,7 @@ import { GatewayEvents } from '@/server/gateway/events';
 import { getClientRegistry } from '@/server/gateway/client-registry';
 
 type MessagePayload = string | Buffer;
+const DEFAULT_GATEWAY_V2_LIMIT = Math.max(MAX_REQUESTS_PER_MINUTE, 600);
 
 class MockSocket extends EventEmitter {
   OPEN = 1;
@@ -130,47 +131,46 @@ describe('gateway connection handler', () => {
     });
   });
 
-  it('rate limits requests above MAX_REQUESTS_PER_MINUTE', async () => {
+  it('rate limits requests above default v2 gateway budget', async () => {
     const { handleConnection, dispatchMethod } = await setupHandler();
     const socket = new MockSocket();
 
     handleConnection(socket as never, 'user-a');
 
-    for (let i = 1; i <= MAX_REQUESTS_PER_MINUTE + 1; i++) {
+    for (let i = 1; i <= DEFAULT_GATEWAY_V2_LIMIT + 1; i++) {
       socket.emit('message', makeReq(`req-${i}`) as MessagePayload);
     }
 
-    expect(dispatchMethod).toHaveBeenCalledTimes(MAX_REQUESTS_PER_MINUTE);
+    expect(dispatchMethod).toHaveBeenCalledTimes(DEFAULT_GATEWAY_V2_LIMIT);
     const last = parseSendCall(socket, socket.send.mock.calls.length - 1);
     expect(last).toEqual({
       type: 'res',
-      id: `req-${MAX_REQUESTS_PER_MINUTE + 1}`,
+      id: `req-${DEFAULT_GATEWAY_V2_LIMIT + 1}`,
       ok: false,
       error: { code: 'RATE_LIMITED', message: 'Too many requests' },
     });
   });
 
-  it('uses higher default request budget for v2 protocol connections', async () => {
+  it('respects AGENT_V2_MAX_REQUESTS_PER_MINUTE override', async () => {
     const original = process.env.AGENT_V2_MAX_REQUESTS_PER_MINUTE;
-    delete process.env.AGENT_V2_MAX_REQUESTS_PER_MINUTE;
+    process.env.AGENT_V2_MAX_REQUESTS_PER_MINUTE = '75';
 
     const { handleConnection, dispatchMethod } = await setupHandler();
     const socket = new MockSocket();
-    handleConnection(socket as never, 'user-a', 'v2');
+    handleConnection(socket as never, 'user-a');
 
-    const attempts = MAX_REQUESTS_PER_MINUTE + 20;
+    const attempts = 76;
     for (let i = 1; i <= attempts; i++) {
       socket.emit('message', makeReq(`v2-req-${i}`) as MessagePayload);
     }
 
-    expect(dispatchMethod).toHaveBeenCalledTimes(attempts);
-    const last = parseSendCall(socket, socket.send.mock.calls.length - 1);
-    expect(last).not.toEqual(
-      expect.objectContaining({
-        ok: false,
-        error: { code: 'RATE_LIMITED', message: 'Too many requests' },
-      }),
-    );
+    expect(dispatchMethod).toHaveBeenCalledTimes(75);
+    expect(parseSendCall(socket, socket.send.mock.calls.length - 1)).toMatchObject({
+      type: 'res',
+      id: 'v2-req-76',
+      ok: false,
+      error: { code: 'RATE_LIMITED', message: 'Too many requests' },
+    });
 
     if (original === undefined) {
       delete process.env.AGENT_V2_MAX_REQUESTS_PER_MINUTE;
@@ -186,7 +186,7 @@ describe('gateway connection handler', () => {
 
     handleConnection(socket as never, 'user-a');
     const client = registry.getByUserId('user-a')[0];
-    client.requestCount = MAX_REQUESTS_PER_MINUTE;
+    client.requestCount = DEFAULT_GATEWAY_V2_LIMIT;
     client.requestWindowStart = 39_000;
 
     socket.emit('message', makeReq('after-reset') as MessagePayload);

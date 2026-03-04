@@ -19,24 +19,23 @@ export type MethodHandler = (
   context: { requestId: string | number; sendRaw: SendRawFn },
 ) => Promise<void> | void;
 
-export type MethodNamespace = 'v1' | 'v2';
+export type MethodNamespace = 'v2';
 
 // ─── Handler Registry ────────────────────────────────────────
 
 const handlersByNamespace: Record<MethodNamespace, Map<string, MethodHandler>> = {
-  v1: new Map<string, MethodHandler>(),
   v2: new Map<string, MethodHandler>(),
 };
 
 export function registerMethod(
   method: string,
   handler: MethodHandler,
-  namespace: MethodNamespace = 'v1',
+  namespace: MethodNamespace = 'v2',
 ): void {
   handlersByNamespace[namespace].set(method, handler);
 }
 
-export function getRegisteredMethods(namespace: MethodNamespace = 'v1'): string[] {
+export function getRegisteredMethods(namespace: MethodNamespace = 'v2'): string[] {
   return Array.from(handlersByNamespace[namespace].keys());
 }
 
@@ -46,7 +45,7 @@ export async function dispatchMethod(
   frame: RequestFrame,
   client: GatewayClient,
   sendRaw: SendRawFn,
-  namespace: MethodNamespace = 'v1',
+  namespace: MethodNamespace = 'v2',
 ): Promise<void> {
   const handler = handlersByNamespace[namespace].get(frame.method);
 

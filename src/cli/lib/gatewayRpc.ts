@@ -32,11 +32,23 @@ export interface GatewayRpcClientOptions {
   timeoutMs?: number;
 }
 
+function normalizeGatewayUrl(raw: string): string {
+  try {
+    const parsed = new URL(raw);
+    if (parsed.searchParams.get('protocol') !== 'v2') {
+      parsed.searchParams.set('protocol', 'v2');
+    }
+    return parsed.toString();
+  } catch {
+    return raw;
+  }
+}
+
 function defaultGatewayUrl(): string {
   const configured = process.env.GATEWAY_WS_URL?.trim();
-  if (configured) return configured;
+  if (configured) return normalizeGatewayUrl(configured);
   const port = Number(process.env.PORT || 3000);
-  return `ws://127.0.0.1:${Number.isFinite(port) ? port : 3000}/ws`;
+  return `ws://127.0.0.1:${Number.isFinite(port) ? port : 3000}/ws?protocol=v2`;
 }
 
 function parseTimeout(value: number | undefined): number {
@@ -60,7 +72,7 @@ export class GatewayRpcClient {
 
   static async connect(options: GatewayRpcClientOptions = {}): Promise<GatewayRpcClient> {
     const timeoutMs = parseTimeout(options.timeoutMs);
-    const url = options.url?.trim() || defaultGatewayUrl();
+    const url = normalizeGatewayUrl(options.url?.trim() || defaultGatewayUrl());
     const socket = new WebSocket(url);
     const client = new GatewayRpcClient(socket, timeoutMs);
 

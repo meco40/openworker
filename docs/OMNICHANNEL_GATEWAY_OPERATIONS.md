@@ -9,7 +9,7 @@ Sie fasst den frueheren Integrationsbericht und das Runbook zusammen.
 
 ## Architektur in Kurzform
 
-- Transport: WebSocket Gateway (`/ws`) fuer Realtime Events + RPC.
+- Transport: WebSocket Gateway (`/ws?protocol=v2`) fuer Realtime Events + RPC.
 - Channel-Verarbeitung: normalisierte Inbound-Pipeline und adapterbasiertes Routing.
 - Persistenz: Channel-Bindings, Konversationen und Messages serverseitig in SQLite.
 - Outbound: platform-spezifische Adapter (Telegram, WhatsApp, Discord, iMessage, Slack).

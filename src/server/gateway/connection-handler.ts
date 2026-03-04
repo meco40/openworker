@@ -15,9 +15,9 @@ import type { MethodNamespace } from '@/server/gateway/method-router';
 export function handleConnection(
   socket: WebSocket,
   userId: string,
-  protocol: MethodNamespace = 'v1',
+  protocol: MethodNamespace = 'v2',
 ): void {
-  const maxRequestsPerMinute = resolveMaxRequestsPerMinute(protocol);
+  const maxRequestsPerMinute = resolveMaxRequestsPerMinute();
   const connId = `ws-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const client: GatewayClient = {
@@ -130,13 +130,12 @@ function send(socket: WebSocket, data: unknown): void {
   }
 }
 
-const DEFAULT_AGENT_V2_MAX_REQUESTS_PER_MINUTE = 600;
+const DEFAULT_GATEWAY_MAX_REQUESTS_PER_MINUTE = 600;
 
-function resolveMaxRequestsPerMinute(protocol: MethodNamespace): number {
-  if (protocol !== 'v2') return MAX_REQUESTS_PER_MINUTE;
+function resolveMaxRequestsPerMinute(): number {
   const raw = Number.parseInt(String(process.env.AGENT_V2_MAX_REQUESTS_PER_MINUTE || ''), 10);
   if (!Number.isFinite(raw) || raw <= 0) {
-    return Math.max(MAX_REQUESTS_PER_MINUTE, DEFAULT_AGENT_V2_MAX_REQUESTS_PER_MINUTE);
+    return Math.max(MAX_REQUESTS_PER_MINUTE, DEFAULT_GATEWAY_MAX_REQUESTS_PER_MINUTE);
   }
   return Math.max(10, Math.min(raw, 10_000));
 }
