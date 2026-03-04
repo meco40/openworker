@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { KnowledgeRetrievalService } from '@/server/knowledge/retrievalService';
+import { KnowledgeRetrievalService } from '@/server/knowledge/retrieval';
 
 describe('KnowledgeRetrievalService', () => {
   it('triggers recall probe when query mentions known counterpart name', async () => {

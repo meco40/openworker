@@ -1,5 +1,3 @@
-import type { StatusTone } from '@/components/shared/configTypes';
-
 export type {
   ConfigResponse,
   ConfigWarning,
@@ -7,8 +5,6 @@ export type {
   StatusTone,
 } from '@/components/shared/configTypes';
 export type ConfigTab = 'overview' | 'network' | 'runtime' | 'ui' | 'advanced';
-
-export const FALLBACK_PATH = '~/.openclaw/openclaw.json';
 
 export const TAB_ITEMS: Array<{ id: ConfigTab; label: string }> = [
   { id: 'overview', label: 'Overview' },
@@ -37,10 +33,4 @@ export const DEFAULT_CONFIG: Record<string, unknown> = {
     timeFormat: '24h',
     showAdvancedDebug: false,
   },
-};
-
-export const STATUS_CLASS: Record<StatusTone, string> = {
-  success: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10',
-  error: 'text-rose-400 border-rose-500/20 bg-rose-500/10',
-  info: 'text-zinc-300 border-zinc-700 bg-zinc-900/50',
 };

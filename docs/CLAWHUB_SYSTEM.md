@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer ClawHub-Integration im Skill-Subsystem.
 - Scope: Katalogsuche, Installation/Update, Aktivierungsstatus und Prompt-Integration.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-21
+- Last Reviewed: 2026-03-04
 - Related Runbooks: N/A
 
 ---
@@ -38,7 +38,6 @@ ClawHub erweitert das Skills-System um Suche, Installation und Lebenszyklus-Mana
 | Methode | Pfad                     | Zweck                             |
 | ------- | ------------------------ | --------------------------------- |
 | GET     | `/api/clawhub/search`    | Katalog-Suche                     |
-| GET     | `/api/clawhub/explore`   | Explore-Ansicht                   |
 | GET     | `/api/clawhub/installed` | Installierte Skills auflisten     |
 | POST    | `/api/clawhub/install`   | Skill installieren                |
 | POST    | `/api/clawhub/update`    | Installierte Skills aktualisieren |

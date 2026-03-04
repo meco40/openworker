@@ -19,7 +19,7 @@ import {
   type SwarmPhase,
   type ResolvedSwarmUnit,
   getSwarmPhaseLabel,
-} from '@/modules/agent-room/swarmPhases';
+} from '@/shared/domain/swarmPhases';
 import { parseAgentTurns, type ParsedAgentTurn } from '@/modules/agent-room/agentTurnParser';
 
 export interface SwarmMessage {

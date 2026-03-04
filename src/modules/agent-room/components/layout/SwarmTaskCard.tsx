@@ -1,7 +1,7 @@
 'use client';
 
 import type { SwarmRecord, SwarmStatus } from '@/modules/agent-room/swarmTypes';
-import { getSwarmPhaseLabel } from '@/modules/agent-room/swarmPhases';
+import { getSwarmPhaseLabel } from '@/shared/domain/swarmPhases';
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 

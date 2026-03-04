@@ -1,5 +1,5 @@
 import type { MemoryType } from '@/core/memory/types';
-import type { Mem0Client } from '@/server/memory/mem0Client';
+import type { Mem0Client } from '@/server/memory/mem0';
 import { resolveUserId } from '../validators/typeValidators';
 
 export interface BulkUpdateOptions {

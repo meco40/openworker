@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createMem0Client } from '@/server/memory/mem0Client';
+import { createMem0Client } from '@/server/memory/mem0';
 import { getMem0SyncMocks, registerMem0ClientCleanup } from './mem0-client.harness';
 
 describe('mem0Client', () => {

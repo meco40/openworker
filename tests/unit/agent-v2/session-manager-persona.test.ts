@@ -62,7 +62,7 @@ describe('AgentV2SessionManager persona binding', () => {
       stopAll: vi.fn(),
     };
 
-    const { AgentV2SessionManager } = await import('@/server/agent-v2/sessionManager');
+    const { AgentV2SessionManager } = await import('@/server/agent-v2/session');
     const manager = new AgentV2SessionManager(repository as never, extensionHost as never);
     const result = await manager.startSession({
       userId: 'user-1',
@@ -113,7 +113,7 @@ describe('AgentV2SessionManager persona binding', () => {
       runHooks: vi.fn(async () => []),
       stopAll: vi.fn(),
     };
-    const { AgentV2SessionManager } = await import('@/server/agent-v2/sessionManager');
+    const { AgentV2SessionManager } = await import('@/server/agent-v2/session');
     const manager = new AgentV2SessionManager(repository as never, extensionHost as never);
 
     await expect(

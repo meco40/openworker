@@ -5,7 +5,7 @@ import {
   getPhaseRounds,
   getSwarmPhaseLabel,
   type SwarmPhase,
-} from '@/modules/agent-room/swarmPhases';
+} from '@/shared/domain/swarmPhases';
 import type { SwarmRecord, SwarmStatus } from '@/modules/agent-room/swarmTypes';
 import type { SwarmMessage } from '@/modules/agent-room/hooks/useSwarmMessages';
 import type { PersonaSummary } from '@/server/personas/personaTypes';

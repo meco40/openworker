@@ -200,6 +200,17 @@ Files >300 lines identified for potential future modularization:
 - 2026-02-26T21:36:21Z [PROGRESS] Neue Dateien ergänzt: `counterpartCache.ts`, `queryPlanning.ts`, `ruleEvidenceCollector.ts`, `retrievalExecution.ts`; `knowledgeRetrievalService.ts` auf delegierende Klasse reduziert (Constructor + `shouldTriggerRecall` + `retrieve`).
 - 2026-02-26T21:36:21Z [OUTCOMES] Verifikation grün nach Modularisierung: `npm run typecheck` erfolgreich; fokussierte Tests `tests/unit/knowledge/retrieval-service.test.ts` und `tests/unit/knowledge/retrieval-entity.test.ts` mit 15/15 Tests bestanden.
 
+- 2026-03-04T02:15:00Z [PLANS] [USER] Refactoring-Audit Findings als Hard-Cleanup umsetzen: Dead Code löschen, Wrapper migrieren/entfernen, unreferenzierte API-Routen entfernen, Verifikation vollständig durchführen.
+- 2026-03-04T02:15:00Z [DECISIONS] [CODE] Legacy-Importpfade wurden auf kanonische Module migriert (`knowledge/retrieval`, `agent-v2/session`, `memory/mem0`, `shared/domain/swarmPhases`) und Wrapper-Dateien anschließend gelöscht.
+- 2026-03-04T02:15:00Z [DECISIONS] [CODE] Unreferenzierte statische API-Endpunkte wurden entfernt (`/api/channels/discord/webhook`, `/api/channels/imessage/webhook`, `/api/clawhub/explore`, `/api/master/capabilities`, `/api/master/toolforge`) als bewusstes Surface-Reduction-Breaking-Change.
+- 2026-03-04T02:15:00Z [PROGRESS] [CODE] Dead/Redundant Frontend-Code entfernt: `MasterFaceCanvas.tsx`, `waitForGatewayConnected`-Helper, ungenutzte Gateway-Hooks/Exports, unnötiger Agent-Room-Enabled-Branch, ungenutzte Config-Konstanten, Named-Export in PromptLogs.
+- 2026-03-04T02:15:00Z [PROGRESS] [CODE] v2-only Vereinfachungen umgesetzt: `useUnifiedGatewayClient` ohne Namespace-Parameter; Workspace-Client-State vereinfacht (derived statt redundanter State-Haltung).
+- 2026-03-04T02:15:00Z [PROGRESS] [CODE] Domain-Bereinigung umgesetzt: `ChannelType.SIGNAL` und `ChannelType.TEAMS` entfernt; `@testing-library/user-event` aus `package.json` entfernt.
+- 2026-03-04T02:15:00Z [DISCOVERIES] [TOOL] Frühere Route-Heuristik war unvollständig ohne `/api`-Präfix; Korrekturscan zeigte 5 intern unreferenzierte statische Routen statt 3.
+- 2026-03-04T02:15:00Z [DISCOVERIES] [TOOL] Einzelner Test-Timeout war Last-bedingt durch parallelisierte Verifikation; sequenzielle Runs waren stabil.
+- 2026-03-04T02:15:00Z [PROGRESS] [CODE] Test-Artefakt-Cleanup auf Windows gehärtet: `scripts/cleanup-test-artifacts.ts` behandelt `EPERM/EACCES/EBUSY/ENOTEMPTY` als best-effort statt Run-Abbruch.
+- 2026-03-04T02:15:00Z [OUTCOMES] [TOOL] Endverifikation grün nach Cleanup: `npm run check` (typecheck/lint/format), `npm run test` (489/489 Dateien, 2375/2375 Tests), `npm run build` (ok).
+
 - 2026-02-26T23:16:00Z [DISCOVERIES] Root-Cause der 6 Testfehler nach Refactor lag testseitig: SUT-Import vor i.mock (Mock nicht aktiv), Recharts-Guard mit altem Dateipfad, Mem0-Stub ohne POST /v2/memories im Persona-Delete-Flow. [TOOL]
 - 2026-02-26T23:16:00Z [PROGRESS] Minimalfixes in 3 Tests umgesetzt: Import-Reihenfolge korrigiert (i-dispatcher-tool-loop), Guard auf OverviewTabContent.tsx aktualisiert, Mem0-Search-Stub ergänzt (personas-memory-cascade-delete). [CODE]
 - 2026-02-26T23:16:00Z [OUTCOMES] Vollverifikation grün:
@@ -1671,3 +1682,42 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-04T01:43:41.4073404+01:00 [TOOL] Push erfolgreich nach `origin/main` (Dry-Run und anschliessender echter Push: `aa3a9fd..d967366`).
+
+[PLANS]
+
+- 2026-03-04T02:26:53.0315835+01:00 [USER] GitHub-Actions-Fehlerpruefung angefordert inklusive Fix aller ggf. verbleibenden CI-Fehler.
+
+[DISCOVERIES]
+
+- 2026-03-04T02:26:53.0315835+01:00 [TOOL] Aktueller Head auf `main` ist `eb96111`; zu diesem Commit sind beide Workflows erfolgreich: `CI` Run `22650656058` und `E2E Browser` Run `22650656061`.
+- 2026-03-04T02:26:53.0315835+01:00 [TOOL] Es gibt derzeit keine laufenden (`in_progress`) Workflow-Runs auf `main`.
+
+[OUTCOMES]
+
+- 2026-03-04T02:26:53.0315835+01:00 [TOOL] Keine neuen GitHub-Actions-Fehler vorhanden; daher waren keine weiteren Code- oder Workflow-Fixes erforderlich.
+
+[PLANS]
+
+- 2026-03-04T03:24:47.4126860+01:00 [USER] Vollstaendige Ist-Pruefung angefordert: Umsetzung aller offenen Phasen verifizieren und Restarbeiten (falls vorhanden) abschliessen.
+
+[DISCOVERIES]
+
+- 2026-03-04T03:24:47.4126860+01:00 [TOOL] Aktive Dokumentation hatte Drift zu entfernten API-Endpunkten (`/api/channels/discord/webhook`, `/api/channels/imessage/webhook`, `/api/clawhub/explore`, `/api/master/capabilities`, `/api/master/toolforge`), waehrend Code/Route-Baum bereits ohne diese Endpunkte ist.
+- 2026-03-04T03:24:47.4126860+01:00 [TOOL] Zuvor gemeldeter Persona-Test-Timeout war lokal nicht deterministisch reproduzierbar (6x isolierter Lauf von `tests/unit/personas/persona-filesystem-storage.test.ts` gruen).
+
+[PROGRESS]
+
+- 2026-03-04T03:24:47.4126860+01:00 [CODE] Aktive Doku auf Ist-Stand korrigiert: `docs/API_REFERENCE.md` (Route-Anzahl 103, Domain-Counts angepasst, entfernte Endpunkte entfernt), `docs/CLAWHUB_SYSTEM.md`, `docs/CORE_HANDBOOK.md`, `docs/MASTER_AGENT_SYSTEM.md`, `docs/OMNICHANNEL_GATEWAY_SYSTEM.md`, `docs/SKILLS_SYSTEM.md`.
+- 2026-03-04T03:24:47.4126860+01:00 [TOOL] Prettier auf geaenderte Doku-Dateien ausgefuehrt.
+
+[OUTCOMES]
+
+- 2026-03-04T03:24:47.4126860+01:00 [TOOL] Vollverifikation erfolgreich: `npm run check` (Typecheck/Lint/Format gruen), `npm run test` (489/489 Dateien, 2375/2375 Tests), `npm run build` (Next.js Build erfolgreich).
+
+[PLANS]
+
+- 2026-03-04T03:30:24.2555508+01:00 [USER] Finale Gesamtpruefung mit Fehler-/Warnungsbehebung sowie anschliessendem Commit+Push angefordert.
+
+[OUTCOMES]
+
+- 2026-03-04T03:30:24.2555508+01:00 [TOOL] Erneute Vollverifikation ohne Restfehler: `npm run check` (0 Warnungen/0 Fehler), `npm run test` (489/489 Dateien, 2375/2375 Tests), `npm run build` (ok).

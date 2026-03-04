@@ -1,5 +1,5 @@
 import type { MemoryNode, MemoryType } from '@/core/memory/types';
-import type { Mem0Client, Mem0MemoryRecord } from '@/server/memory/mem0Client';
+import type { Mem0Client, Mem0MemoryRecord } from '@/server/memory/mem0';
 import type { MemoryFeedbackSignal, MemoryRecallResult, MemoryHistoryRecord } from './types';
 import { MemoryVersionConflictError } from './errors';
 import { toMemoryNode, toHistoryRecord } from './mappers/nodeMappers';

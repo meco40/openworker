@@ -26,7 +26,6 @@ import { useChannelStateSync } from '@/modules/app-shell/useChannelStateSync';
 import { useSkillsCatalog } from '@/modules/app-shell/useSkillsCatalog';
 import { useConversationActions } from '@/modules/app-shell/useConversationActions';
 import { useChatMessageActions } from '@/modules/app-shell/useChatMessageActions';
-import { waitForGatewayConnected } from '@/modules/app-shell/gatewayConnection';
 import AppShellHeader from '@/modules/app-shell/components/AppShellHeader';
 import AppShellViewContent from '@/modules/app-shell/components/AppShellViewContent';
 import { usePersona } from '@/modules/personas/PersonaContext';
@@ -143,7 +142,6 @@ const App: React.FC<AppProps> = ({ initialView }) => {
       let sawDelta = false;
 
       try {
-        await waitForGatewayConnected();
         const gatewayClient = getGatewayClient();
         await gatewayClient.requestStream(
           'chat.stream',

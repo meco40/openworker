@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { StoredMessage } from '@/server/channels/messages/repository';
-import { KnowledgeRetrievalService } from '@/server/knowledge/retrievalService';
+import { KnowledgeRetrievalService } from '@/server/knowledge/retrieval';
 import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 

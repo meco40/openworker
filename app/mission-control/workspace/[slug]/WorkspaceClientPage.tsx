@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { Header } from '@/components/Header';
@@ -21,15 +21,15 @@ interface WorkspaceClientPageProps {
 export default function WorkspaceClientPage({ slug, initialWorkspace }: WorkspaceClientPageProps) {
   const { setAgents, setTasks, setEvents, setIsOnline, setIsLoading, isLoading } =
     useMissionControl();
-  const [workspace] = useState<Workspace | null>(initialWorkspace);
-  const [notFound, setNotFound] = useState(!initialWorkspace);
+  const workspace: Workspace | null = initialWorkspace;
+  const notFound = !workspace;
   const { isConnected: isSseConnected } = useSSE();
 
   useEffect(() => {
-    if (initialWorkspace) return;
-    setNotFound(true);
-    setIsLoading(false);
-  }, [initialWorkspace, setIsLoading]);
+    if (!workspace) {
+      setIsLoading(false);
+    }
+  }, [setIsLoading, workspace]);
 
   useEffect(() => {
     if (!workspace) return;

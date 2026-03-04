@@ -59,17 +59,34 @@ export function cleanupTestArtifactsRoot(
   }
 
   const statsBefore = collectTestArtifactsStats(root);
+  let removed = false;
 
   if (!dryRun && fs.existsSync(root)) {
-    fs.rmSync(root, { recursive: true, force: true });
+    try {
+      fs.rmSync(root, { recursive: true, force: true });
+      removed = statsBefore.files > 0;
+    } catch (error) {
+      if (!isTransientCleanupError(error)) {
+        throw error;
+      }
+      console.warn(
+        `[test-artifacts] cleanup skipped for locked path: ${root} (${(error as { code?: string }).code || 'UNKNOWN'})`,
+      );
+    }
   }
 
   return {
     root,
     dryRun,
-    removed: !dryRun && statsBefore.files > 0,
+    removed,
     statsBefore,
   };
+}
+
+function isTransientCleanupError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const code = String((error as { code?: unknown }).code || '');
+  return code === 'EPERM' || code === 'EACCES' || code === 'EBUSY' || code === 'ENOTEMPTY';
 }
 
 function isWithinAllowedRoot(candidatePath: string, allowedRoot: string): boolean {

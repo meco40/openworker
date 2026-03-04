@@ -1,4 +1,4 @@
-import type { SwarmPhase } from '@/modules/agent-room/swarmPhases';
+import type { SwarmPhase } from '@/shared/domain/swarmPhases';
 
 /**
  * Phase-related utilities for swarm phase management.

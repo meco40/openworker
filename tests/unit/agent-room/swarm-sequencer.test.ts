@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SWARM_PHASES } from '@/modules/agent-room/swarmPhases';
+import { SWARM_PHASES } from '@/shared/domain/swarmPhases';
 import {
   buildPhaseIdempotencyKey,
   getPhaseCommandMethod,

@@ -1,4 +1,4 @@
-import type { Mem0Client, Mem0MemoryRecord } from '@/server/memory/mem0Client';
+import type { Mem0Client, Mem0MemoryRecord } from '@/server/memory/mem0';
 import type { MemoryNode } from '@/core/memory/types';
 import type { MemoryFeedbackSignal } from '../types';
 import {

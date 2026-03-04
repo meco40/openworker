@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { buildAutoLogicGraphSource, buildLogicGraphSource } from '@/modules/agent-room/logicGraph';
-import type { SwarmPhase } from '@/modules/agent-room/swarmPhases';
+import type { SwarmPhase } from '@/shared/domain/swarmPhases';
 
 interface LogicGraphPanelProps {
   artifact: string;

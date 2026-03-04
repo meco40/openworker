@@ -1,5 +1,5 @@
 import type { MemoryNode, MemoryType } from '@/core/memory/types';
-import type { Mem0Client } from '@/server/memory/mem0Client';
+import type { Mem0Client } from '@/server/memory/mem0';
 import { formatTimestamp } from '../utils/timestamp';
 import { asImportance, resolveUserId } from '../validators/typeValidators';
 

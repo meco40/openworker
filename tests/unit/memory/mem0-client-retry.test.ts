@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createMem0Client, type Mem0ClientConfig } from '@/server/memory/mem0Client';
+import { createMem0Client, type Mem0ClientConfig } from '@/server/memory/mem0';
 
 function okResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {

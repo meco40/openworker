@@ -13,7 +13,7 @@ import {
   stripLeadingSpeakerPrefix,
   stripTrailingOtherSpeakerTurns,
 } from '@/server/agent-room/prompt';
-import type { SwarmPhase } from '@/modules/agent-room/swarmPhases';
+import type { SwarmPhase } from '@/shared/domain/swarmPhases';
 
 describe('agent room simple loop', () => {
   it('alternates strictly between two selected personas', () => {

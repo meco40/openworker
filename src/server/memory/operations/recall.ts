@@ -1,4 +1,4 @@
-import type { Mem0Client } from '@/server/memory/mem0Client';
+import type { Mem0Client } from '@/server/memory/mem0';
 import type { MemoryRecallResult } from '../types';
 import { MEM0_SCORE_THRESHOLD } from '../constants';
 import { normalizeMem0Score } from '../utils/scoring';

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { StoredMessage } from '@/server/channels/messages/repository';
-import { KnowledgeRetrievalService } from '@/server/knowledge/retrievalService';
+import { KnowledgeRetrievalService } from '@/server/knowledge/retrieval';
 import { makeMessage } from './retrieval-service.harness';
 
 describe('KnowledgeRetrievalService', () => {

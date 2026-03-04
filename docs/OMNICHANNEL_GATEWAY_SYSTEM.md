@@ -290,12 +290,12 @@ flowchart TB
         IM[iMessage]
     end
 
-    subgraph Webhooks
+    subgraph Ingress
         WH1[/telegram/webhook]
-        WH2[/discord/webhook]
+        WH2[discord ingress (no public webhook route)]
         WH3[/whatsapp/webhook]
         WH4[/slack/webhook]
-        WH5[/imessage/webhook]
+        WH5[iMessage ingress (no public webhook route)]
     end
 
     subgraph Channels
@@ -469,10 +469,8 @@ GET    /api/channels/inbox         # Nachrichten-Inbox
 ```
 POST /api/channels/telegram/webhook
 POST /api/channels/telegram/bots/[botId]/webhook   # Persona-gebundener Bot-Webhook
-POST /api/channels/discord/webhook
 POST /api/channels/whatsapp/webhook
 POST /api/channels/slack/webhook
-POST /api/channels/imessage/webhook
 ```
 
 ### 7.3 Telegram Pairing (globaler Bot)

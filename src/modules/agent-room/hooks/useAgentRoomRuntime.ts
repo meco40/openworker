@@ -49,7 +49,7 @@ export function useAgentRoomRuntime() {
   // ── Shared refs (owned here, passed to sub-hooks) ──
 
   const clientRef = useRef<AgentV2GatewayClient | null>(null);
-  const gatewayClient = useGatewayClient('v2') as AgentV2GatewayClient;
+  const gatewayClient = useGatewayClient() as AgentV2GatewayClient;
 
   if (!clientRef.current && gatewayClient) {
     clientRef.current = gatewayClient;
@@ -162,7 +162,6 @@ export function useAgentRoomRuntime() {
   );
 
   return {
-    enabled: true,
     swarms,
     selectedSwarmId,
     selectedSwarm,

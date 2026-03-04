@@ -1,8 +1,4 @@
-import {
-  SWARM_PHASES,
-  getSwarmPhaseLabel,
-  type SwarmPhase,
-} from '@/modules/agent-room/swarmPhases';
+import { SWARM_PHASES, getSwarmPhaseLabel, type SwarmPhase } from '@/shared/domain/swarmPhases';
 
 const MERMAID_BLOCK_REGEX = /```mermaid\s*([\s\S]*?)```/gi;
 const UNQUOTED_SQUARE_NODE_REGEX = /\b([A-Za-z][A-Za-z0-9_-]*)\[(?!")([^\]\n]+)\]/g;

@@ -1,4 +1,4 @@
-import { SWARM_PHASES, type SwarmPhase } from '@/modules/agent-room/swarmPhases';
+import { SWARM_PHASES, type SwarmPhase } from '@/shared/domain/swarmPhases';
 
 // Re-export canonical types from shared
 export type {

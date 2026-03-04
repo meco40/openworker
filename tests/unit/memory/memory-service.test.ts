@@ -8,7 +8,7 @@ import type {
   Mem0MemoryRecord,
   Mem0SearchHit,
   Mem0SearchInput,
-} from '@/server/memory/mem0Client';
+} from '@/server/memory/mem0';
 import { MemoryService } from '@/server/memory/service';
 
 function scopeKey(userId: string, personaId: string): string {

@@ -8,7 +8,7 @@ import {
   createMem0ClientFromEnv,
   type Mem0Client,
   type Mem0MemoryRecord,
-} from '@/server/memory/mem0Client';
+} from '@/server/memory/mem0';
 
 const DEFAULT_MESSAGES_DB_PATH = '.local/messages.db';
 const DEFAULT_PERSONAS_DB_PATH = '.local/personas.db';

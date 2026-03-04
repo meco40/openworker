@@ -6,7 +6,7 @@ import { getKnowledgeConfig } from '@/server/knowledge/config';
 import { KnowledgeExtractor } from '@/server/knowledge/extractor';
 import { KnowledgeIngestionCursor } from '@/server/knowledge/ingestionCursor';
 import { KnowledgeIngestionService } from '@/server/knowledge/ingestion/service';
-import { KnowledgeRetrievalService } from '@/server/knowledge/retrievalService';
+import { KnowledgeRetrievalService } from '@/server/knowledge/retrieval';
 import type { KnowledgeRepository } from '@/server/knowledge/repository';
 import { SqliteKnowledgeRepository } from '@/server/knowledge/sqliteKnowledgeRepository';
 import { KnowledgeRuntimeLoop } from '@/server/knowledge/runtimeLoop';

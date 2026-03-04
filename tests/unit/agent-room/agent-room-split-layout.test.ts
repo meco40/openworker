@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SwarmRecord } from '@/modules/agent-room/swarmTypes';
 import type { SwarmStatus } from '@/shared/domain/agentRoom.types';
-import { SWARM_PHASES, getSwarmPhaseLabel } from '@/modules/agent-room/swarmPhases';
+import { SWARM_PHASES, getSwarmPhaseLabel } from '@/shared/domain/swarmPhases';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

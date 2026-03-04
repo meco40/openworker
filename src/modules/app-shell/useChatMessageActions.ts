@@ -8,7 +8,6 @@ import type {
   MessageAttachment,
   SystemLog,
 } from '@/shared/domain/types';
-import { waitForGatewayConnected } from '@/modules/app-shell/gatewayConnection';
 import { toMessage } from '@/modules/chat/services/routeMessage';
 import { getGatewayClient } from '@/modules/gateway/ws-client';
 
@@ -77,7 +76,6 @@ export function useChatMessageActions({
       );
 
       try {
-        await waitForGatewayConnected();
         const gatewayClient = getGatewayClient();
         const approved = decision !== 'deny';
         const approveAlways = decision === 'approve_always';

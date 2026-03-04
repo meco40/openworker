@@ -1,5 +1,5 @@
 import { afterEach, vi } from 'vitest';
-import { __resetMem0ModelHubSyncStateForTests } from '@/server/memory/mem0Client';
+import { __resetMem0ModelHubSyncStateForTests } from '@/server/memory/mem0';
 
 const mem0SyncMocks = vi.hoisted(() => ({
   syncMem0LlmFromModelHub: vi.fn(),

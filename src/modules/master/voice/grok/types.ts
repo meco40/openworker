@@ -1,4 +1,4 @@
-import type { FaceState } from '../../components/MasterFaceCanvas';
+import type { FaceState } from '../../components/master-face-three/types';
 import type { MasterAvatarAudioListener } from '../../types';
 
 export type VoiceAgentStatus =

@@ -1,6 +1,6 @@
 import { AgentV2Repository } from '@/server/agent-v2/repository';
 import { AgentV2ExtensionHost } from '@/server/agent-v2/extensions/host';
-import { AgentV2SessionManager } from '@/server/agent-v2/sessionManager';
+import { AgentV2SessionManager } from '@/server/agent-v2/session';
 
 declare global {
   var __agentV2Repository: AgentV2Repository | undefined;

@@ -73,9 +73,6 @@ Agent Room remains chat-only.
   - `GET/POST/PATCH/DELETE /api/master/reminders`
 - Observability:
   - `GET /api/master/metrics`
-- Expansion:
-  - `GET/POST /api/master/capabilities`
-  - `GET/POST /api/master/toolforge` (`GET` optionally returns global shared catalog entries)
 
 ## UI Utility
 

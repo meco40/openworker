@@ -13,7 +13,7 @@ import {
   getSwarmPhaseLabel,
   getPhaseRounds,
   type SwarmPhase,
-} from '@/modules/agent-room/swarmPhases';
+} from '@/shared/domain/swarmPhases';
 import type { SwarmStatus } from '@/shared/domain/agentRoom.types';
 
 // ─── State machine ────────────────────────────────────────────────────────────

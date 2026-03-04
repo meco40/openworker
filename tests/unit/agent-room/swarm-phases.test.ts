@@ -5,7 +5,7 @@ import {
   getPhaseRounds,
   getNextSwarmPhase,
   getSwarmPhaseLabel,
-} from '@/modules/agent-room/swarmPhases';
+} from '@/shared/domain/swarmPhases';
 
 describe('swarm phases', () => {
   it('keeps deterministic phase order without evaluation step', () => {

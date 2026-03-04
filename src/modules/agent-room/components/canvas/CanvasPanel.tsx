@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { SwarmPhase } from '@/modules/agent-room/swarmPhases';
+import type { SwarmPhase } from '@/shared/domain/swarmPhases';
 import type { SwarmRecord } from '@/modules/agent-room/swarmTypes';
 import LogicGraphPanel from '../LogicGraphPanel';
 import { ArtifactTab } from './ArtifactTab';

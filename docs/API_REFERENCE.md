@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz aller aktuell implementierten HTTP-API-Routen unter `app/api` mit exportierten Methoden.
 - Scope: Route-/Methoden-Katalog und Domain-Gruppierung zum aktuellen Systemzustand.
 - Source of Truth: This document is derived from `app/api/**/route.ts` and overrides archived API documents on conflicts.
-- Last Reviewed: 2026-03-03
+- Last Reviewed: 2026-03-04
 - Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md, docs/runbooks/gateway-config-production-rollout.md
 
 ---
@@ -16,7 +16,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 - Basis: `/api`
 - Quelle: exportierte Methoden in `app/api/**/route.ts`
-- Anzahl Routen: 108
+- Anzahl Routen: 103
 
 ## Domain Summary
 
@@ -25,8 +25,8 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | agents          |      5 |
 | auth            |      1 |
 | automations     |      6 |
-| channels        |     15 |
-| clawhub         |      7 |
+| channels        |     13 |
+| clawhub         |      6 |
 | config          |      1 |
 | control-plane   |      1 |
 | debug           |      3 |
@@ -36,7 +36,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | health          |      2 |
 | knowledge       |      1 |
 | logs            |      2 |
-| master          |     12 |
+| master          |     10 |
 | memory          |      1 |
 | mission-control |      1 |
 | model-hub       |     10 |
@@ -84,8 +84,6 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | Methods                  | Route                                       |
 | ------------------------ | ------------------------------------------- |
 | GET, POST, PATCH, DELETE | /api/channels/conversations                 |
-| POST                     | /api/channels/discord/webhook               |
-| POST                     | /api/channels/imessage/webhook              |
 | GET                      | /api/channels/inbox                         |
 | GET, POST, DELETE        | /api/channels/messages                      |
 | GET                      | /api/channels/messages/attachments          |
@@ -104,7 +102,6 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | Methods       | Route                  |
 | ------------- | ---------------------- |
 | PATCH, DELETE | /api/clawhub/[slug]    |
-| GET           | /api/clawhub/explore   |
 | POST          | /api/clawhub/install   |
 | GET           | /api/clawhub/installed |
 | GET           | /api/clawhub/prompt    |
@@ -175,7 +172,6 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 | Methods                  | Route                             |
 | ------------------------ | --------------------------------- |
-| GET, POST                | /api/master/capabilities          |
 | POST                     | /api/master/gmail                 |
 | GET                      | /api/master/metrics               |
 | GET, POST, PATCH, DELETE | /api/master/notes                 |
@@ -185,7 +181,6 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | POST                     | /api/master/runs/[id]/actions     |
 | GET, POST                | /api/master/runs/[id]/delegations |
 | POST                     | /api/master/runs/[id]/feedback    |
-| GET, POST                | /api/master/toolforge             |
 | GET                      | /api/master/voice-session         |
 
 ### /api/memory

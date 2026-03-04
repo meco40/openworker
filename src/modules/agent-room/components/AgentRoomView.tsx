@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePersona } from '@/modules/personas/PersonaContext';
-import type { SwarmPhase } from '@/modules/agent-room/swarmPhases';
+import type { SwarmPhase } from '@/shared/domain/swarmPhases';
 import { parseAgentTurns } from '@/modules/agent-room/agentTurnParser';
 import { extractCommandCompletionText } from '@/modules/agent-room/completionText';
 import { useAgentRoomRuntime } from '@/modules/agent-room/hooks/useAgentRoomRuntime';
@@ -235,17 +235,6 @@ export default function AgentRoomView() {
       setNotice('The selected task no longer exists.');
     }
   }, [pageMode, runtime.selectedSwarm, runtime.selectedSwarmId]);
-
-  if (!runtime.enabled) {
-    return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-        <h2 className="text-base font-semibold text-white">Agent Room disabled</h2>
-        <p className="mt-2 text-sm text-zinc-400">
-          Set <code>NEXT_PUBLIC_AGENT_ROOM_ENABLED=true</code> to enable the Agent Room.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="h-full">

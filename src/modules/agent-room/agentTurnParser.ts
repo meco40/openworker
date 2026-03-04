@@ -1,4 +1,4 @@
-import type { ResolvedSwarmUnit, SwarmPhase } from '@/modules/agent-room/swarmPhases';
+import type { ResolvedSwarmUnit, SwarmPhase } from '@/shared/domain/swarmPhases';
 
 export interface ParsedAgentTurn {
   personaId: string;

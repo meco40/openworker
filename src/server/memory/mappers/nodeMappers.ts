@@ -1,5 +1,5 @@
 import type { MemoryNode, MemoryType } from '@/core/memory/types';
-import type { Mem0HistoryEntry, Mem0MemoryRecord, Mem0SearchHit } from '@/server/memory/mem0Client';
+import type { Mem0HistoryEntry, Mem0MemoryRecord, Mem0SearchHit } from '@/server/memory/mem0';
 import { formatTimestamp } from '../utils/timestamp';
 import { asMemoryType, asImportance, asConfidence, asVersion } from '../validators/typeValidators';
 import type { MemoryHistoryRecord } from '../types';

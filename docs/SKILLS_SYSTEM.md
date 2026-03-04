@@ -999,7 +999,7 @@ ClawHub extends the Skills System with a marketplace interface for discovering a
          ▼
   ┌──────────────┐
   │  ClawHub API │  /api/clawhub/search
-  │   Routes     │  /api/clawhub/explore
+  │   Routes     │  /api/clawhub/installed
   └──────┬───────┘
          │
          ▼
@@ -1021,7 +1021,6 @@ ClawHub extends the Skills System with a marketplace interface for discovering a
 | Method | Endpoint                 | Description                |
 | ------ | ------------------------ | -------------------------- |
 | GET    | `/api/clawhub/search`    | Search skill catalog       |
-| GET    | `/api/clawhub/explore`   | Browse featured skills     |
 | GET    | `/api/clawhub/installed` | List installed skills      |
 | POST   | `/api/clawhub/install`   | Install from catalog       |
 | POST   | `/api/clawhub/update`    | Update installed skills    |

@@ -1,5 +1,5 @@
 import type React from 'react';
-import { getNextSwarmPhase } from '@/modules/agent-room/swarmPhases';
+import { getNextSwarmPhase } from '@/shared/domain/swarmPhases';
 import type { AgentV2GatewayClient } from '@/modules/gateway/ws-agent-v2-client';
 import type {
   CreateSwarmInput,

@@ -316,7 +316,7 @@ describe('knowledge runtime', () => {
     vi.doMock('../../../src/server/channels/messages/sqliteMessageRepository', () => ({
       SqliteMessageRepository,
     }));
-    vi.doMock('../../../src/server/knowledge/retrievalService', () => ({
+    vi.doMock('../../../src/server/knowledge/retrieval', () => ({
       KnowledgeRetrievalService,
     }));
     vi.doMock('../../../src/server/memory/runtime', () => ({

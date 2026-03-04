@@ -196,4 +196,3 @@ const PromptLogsTab: React.FC<PromptLogsTabProps> = ({
 };
 
 export default PromptLogsTab;
-export { PromptLogsTab };

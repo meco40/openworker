@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Mem0Client } from '@/server/memory/mem0Client';
+import type { Mem0Client } from '@/server/memory/mem0';
 import {
   assertMemoryRuntimeConfiguration,
   assertMemoryRuntimeReady,

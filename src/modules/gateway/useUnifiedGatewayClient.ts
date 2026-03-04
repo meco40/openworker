@@ -3,18 +3,16 @@
 import React from 'react';
 import type { GatewayClient } from './ws-client';
 import { AgentV2GatewayClient } from './ws-agent-v2-client';
-import type { MethodNamespace } from '@/server/gateway/method-router';
 
-export function createGatewayClient(namespace: MethodNamespace = 'v2') {
-  void namespace;
+export function createGatewayClient() {
   return new AgentV2GatewayClient();
 }
 
-export function useGatewayClient(namespace: MethodNamespace = 'v2') {
+export function useGatewayClient() {
   const clientRef = React.useRef<GatewayClient | AgentV2GatewayClient | null>(null);
 
   if (!clientRef.current) {
-    clientRef.current = createGatewayClient(namespace);
+    clientRef.current = createGatewayClient();
   }
 
   React.useEffect(() => {

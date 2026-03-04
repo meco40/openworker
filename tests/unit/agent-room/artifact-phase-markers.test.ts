@@ -5,7 +5,7 @@ import {
   SWARM_PHASES,
   type ResolvedSwarmUnit,
   type SwarmPhase,
-} from '@/modules/agent-room/swarmPhases';
+} from '@/shared/domain/swarmPhases';
 
 /**
  * Tests for the phase marker system in Agent Room artifacts.

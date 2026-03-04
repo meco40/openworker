@@ -50,7 +50,7 @@ describe('GET /api/control-plane/metrics', () => {
     tokenRepo.recordUsage('openai', 'gpt-4.1', 40, 30, 70);
     (globalThis as GlobalSingletons).__tokenUsageRepository = tokenRepo;
 
-    const { createMem0Client } = await import('@/server/memory/mem0Client');
+    const { createMem0Client } = await import('@/server/memory/mem0');
     const { MemoryService } = await import('@/server/memory/service');
     const mem0Store = new Map<
       string,

@@ -4,7 +4,7 @@ import { loadEnvConfig } from '@next/env';
 import BetterSqlite3 from 'better-sqlite3';
 
 import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
-import { createMem0ClientFromEnv, type Mem0Client } from '@/server/memory/mem0Client';
+import { createMem0ClientFromEnv, type Mem0Client } from '@/server/memory/mem0';
 
 const DEFAULT_MESSAGES_DB_PATH = '.local/messages.db';
 const DEFAULT_PERSONAS_DB_PATH = '.local/personas.db';

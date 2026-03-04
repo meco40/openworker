@@ -1,6 +1,6 @@
 import { MemoryService } from '@/server/memory/service';
-import type { Mem0Client } from '@/server/memory/mem0Client';
-import { createMem0ClientFromEnv } from '@/server/memory/mem0Client';
+import type { Mem0Client } from '@/server/memory/mem0';
+import { createMem0ClientFromEnv } from '@/server/memory/mem0';
 
 declare global {
   var __memoryService: MemoryService | undefined;

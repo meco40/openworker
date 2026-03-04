@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createMem0Client } from '@/server/memory/mem0Client';
+import { createMem0Client } from '@/server/memory/mem0';
 import { MemoryService } from '@/server/memory/service';
 
 const liveEnabled = String(process.env.MEM0_E2E || '').trim() === '1';

@@ -4,8 +4,6 @@ export enum ChannelType {
   SLACK = 'Slack',
   DISCORD = 'Discord',
   WEBCHAT = 'WebChat',
-  SIGNAL = 'Signal',
-  TEAMS = 'Teams',
   IMESSAGE = 'iMessage',
   /** Internal – Agent Room swarm sessions. Never shown in the regular chat UI. */
   AGENT_ROOM = 'AgentRoom',
