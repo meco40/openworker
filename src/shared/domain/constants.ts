@@ -1,4 +1,4 @@
-import { CommandPermission, AIProvider } from '@/shared/domain/types';
+import { CommandPermission } from '@/shared/domain/types';
 
 // INITIAL_SKILLS removed — skills are now loaded from SQLite via GET /api/skills
 
@@ -196,23 +196,3 @@ export const SECURITY_RULES: CommandPermission[] = [
     enabled: false,
   },
 ];
-
-/** @deprecated Use PROVIDER_CATALOG from src/server/model-hub/providerCatalog instead */
-export const REAL_MODELS = [
-  'gemini-3-flash-preview',
-  'gemini-3-pro-preview',
-  'gemini-2.5-flash-lite-latest',
-  'gemini-2.5-flash-latest',
-  'gemini-2.5-flash-image',
-  'gemini-3-pro-image-preview',
-  'gemini-2.5-flash-native-audio-preview-12-2025',
-];
-
-/** @deprecated Use PROVIDER_CATALOG from src/server/model-hub/providerCatalog instead */
-export const GEMINI_PROVIDER: AIProvider = {
-  id: 'gemini',
-  name: 'Google Gemini',
-  authType: 'api_key',
-  icon: '✨',
-  availableModels: REAL_MODELS,
-};

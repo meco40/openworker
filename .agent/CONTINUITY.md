@@ -1721,3 +1721,222 @@ Files >300 lines identified for potential future modularization:
 [OUTCOMES]
 
 - 2026-03-04T03:30:24.2555508+01:00 [TOOL] Erneute Vollverifikation ohne Restfehler: `npm run check` (0 Warnungen/0 Fehler), `npm run test` (489/489 Dateien, 2375/2375 Tests), `npm run build` (ok).
+
+[PLANS]
+
+- 2026-03-04T03:37:36.9343597+01:00 [USER] GitHub-Actions-Pruefung angefordert, inklusive Fix aller ggf. verbleibenden Fehler.
+
+[OUTCOMES]
+
+- 2026-03-04T03:37:36.9343597+01:00 [TOOL] Aktueller Head `98d6ff6` ist in GitHub Actions vollstaendig gruen: `CI` Run `22652408482` (success) und `E2E Browser` Run `22652408486` (success); keine offenen Fehler, daher kein weiterer Code-Fix erforderlich.
+
+[PLANS]
+
+- 2026-03-04T05:27:43.7125780+01:00 [USER] Re-Validierung angefordert, ob die Refactoring-Audit-Findings den IST-Zustand korrekt abbilden oder Fehler enthalten.
+
+[DISCOVERIES]
+
+- 2026-03-04T05:27:43.7125780+01:00 [TOOL] Vorheriges Finding zu `scripts/e2e/start-e2e-server.ts` war falsch positiv: Datei ist aktiv in `playwright.config.ts` als Web-Server-Startkommando referenziert.
+- 2026-03-04T05:27:43.7125780+01:00 [TOOL] Vorheriges Finding zu Gateway-Konstanten war teilweise falsch positiv: `MAX_PAYLOAD_BYTES` und `TICK_INTERVAL_MS` werden produktiv in `server.ts` verwendet; nur `HANDSHAKE_TIMEOUT_MS` und `MAX_CONNECTIONS_PER_USER` bleiben unreferenziert.
+- 2026-03-04T05:27:43.7125780+01:00 [TOOL] Vorheriges Finding zu Dev-Dependencies war falsch positiv: `eslint-plugin-security`, `eslint-plugin-sonarjs` und `eslint-plugin-unused-imports` sind in `.oxlintrc.json` unter `jsPlugins` aktiv konfiguriert.
+
+[OUTCOMES]
+
+- 2026-03-04T05:27:43.7125780+01:00 [TOOL] Audit-Basis auf IST korrigiert: nur verifizierte Dead-Code-Kandidaten mit 0 externen Code-Referenzen bleiben im Delete-Kandidatenpool; die drei falsch-positiven Kandidatengruppen wurden entfernt.
+
+[PLANS]
+
+- 2026-03-04T05:30:46.8415161+01:00 [USER] Verifikation angefordert, ob alle zuvor bestaetigten Refactoring-Findings bereits sauber umgesetzt wurden.
+
+[DISCOVERIES]
+
+- 2026-03-04T05:30:46.8415161+01:00 [TOOL] Umsetzungs-Check zeigt offene Punkte: `listAdapters`, `verifyDiscordWebhook`, `buildProjectGuardPrompt`, `countOrphanedToolCalls`, `resetGatewayClient`, `HANDSHAKE_TIMEOUT_MS`, `MAX_CONNECTIONS_PER_USER`, `REAL_MODELS`, `GEMINI_PROVIDER` sind weiterhin im Code vorhanden; auch `src/modules/agent-room/swarmViewState.ts` existiert weiterhin.
+
+[OUTCOMES]
+
+- 2026-03-04T05:30:46.8415161+01:00 [TOOL] Status ist `UNCONFIRMED` fuer „alle Findings abgewickelt“; der aktuelle Ist-Stand ist „nicht vollstaendig umgesetzt“.
+
+[PLANS]
+
+- 2026-03-04T05:35:26.7929928+01:00 [USER] Komplette Fehlerpruefung angefordert, inkl. Behebung aller Fehler und Warnungen.
+
+[OUTCOMES]
+
+- 2026-03-04T05:35:26.7929928+01:00 [TOOL] Vollverifikation erfolgreich ohne neue Fixes: `npm run check` (Typecheck/Lint/Format gruen, 0 Warnungen/0 Fehler), `npm test` (489/489 Dateien, 2375/2375 Tests), `npm run build` (Next.js Produktionsbuild erfolgreich).
+- 2026-03-04T05:39:08.0625620+01:00 [TOOL] Erneute Vollpruefung als Abschlusslauf erfolgreich: `npm run check`, `npm test` (489/489 Dateien, 2375/2375 Tests), `npm run build` jeweils gruen; keine Fehler/Warnungen und kein Code-Fix erforderlich.
+
+[PLANS]
+
+- 2026-03-04T07:03:18.3112409+01:00 [USER] Analyseauftrag aufgenommen: wiederkehrendes Gateway-Muster disconnected (1001) gefolgt von connected im Runtime-Log ursächlich erklären.
+
+[DISCOVERIES]
+
+- 2026-03-04T07:03:18.3112409+01:00 [CODE] Der explizite Client-Disconnect-Pfad sendet close(1000, 'client disconnect') in src/modules/gateway/ws-client.ts; beobachtetes 1001 stammt daher nicht aus diesem Lifecycle.
+- 2026-03-04T07:03:18.3112409+01:00 [CODE] Browser-Reload wird im Tasks-Planning aktiv ausgelöst: src/components/TaskModal.tsx ruft bei onSpecLocked direkt window.location.reload() auf; usePlanningTabController triggert onSpecLocked bei Abschluss.
+- 2026-03-04T07:03:18.3112409+01:00 [TOOL] Die HTTP-Folge im Log (/api/channels/state, /api/control-plane/metrics, /api/memory) entspricht den Initial-Fetches der App beim Neuaufbau nach Reload.
+
+[OUTCOMES]
+
+- 2026-03-04T07:03:18.3112409+01:00 [TOOL] Root-Cause für den gezeigten Ausschnitt als Browser-seitiger Lifecycle-Close (Reload/Navigation/Tab-Gone) eingegrenzt; kein serverseitiger forcierter Close im Normalpfad identifiziert.
+
+[PLANS]
+
+- 2026-03-04T07:24:37.6909531+01:00 [USER] Entscheidungsauftrag erhalten: Dead-Code-Kandidaten eigenständig final als Entfernen vs. Implementieren abschließen (Simplify ohne Funktionsabbau).
+
+[DECISIONS]
+
+- 2026-03-04T07:24:37.6909531+01:00 [CODE] Unreferenzierte Symbole ohne Runtime-Pfad entfernt: `listAdapters`, `verifyDiscordWebhook`, `buildProjectGuardPrompt`, `countOrphanedToolCalls`, `resetGatewayClient`, `HANDSHAKE_TIMEOUT_MS`, `REAL_MODELS`, `GEMINI_PROVIDER`.
+- 2026-03-04T07:24:37.6909531+01:00 [CODE] Statt Entfernung implementiert: `MAX_CONNECTIONS_PER_USER` wird jetzt produktiv in `server.ts` für das Connection-Limit genutzt (keine Verhaltensänderung, nur Konfigurations-Entkopplung vom Magic Number `5`).
+- 2026-03-04T07:24:37.6909531+01:00 [CODE] `src/modules/agent-room/swarmViewState.ts` als test-only Waisenmodul entfernt; betroffene Tests auf relevante Runtime-Assertions reduziert.
+
+[PROGRESS]
+
+- 2026-03-04T07:24:37.6909531+01:00 [CODE] Bereinigt/angepasst: `server.ts`, `src/server/gateway/constants.ts`, `src/server/channels/{routing/adapterRegistry.ts,webhookAuth.ts,messages/service/{projectGuard.ts,transcriptRepair.ts}}`, `src/modules/gateway/ws-client.ts`, `src/shared/domain/constants.ts`, `tests/unit/{agent-room/swarm-types.test.ts,components/agent-room-layout-modes.test.tsx}`; Datei entfernt: `src/modules/agent-room/swarmViewState.ts`.
+
+[OUTCOMES]
+
+- 2026-03-04T07:24:37.6909531+01:00 [TOOL] Vollverifikation nach Simplify-Schnitt grün: `npm run check` (Typecheck/Lint/Format grün), `npm test` (489/489 Dateien, 2373/2373 Tests), `npm run build` (Next.js Produktionsbuild erfolgreich).
+- 2026-03-04T07:24:37.6909531+01:00 [TOOL] Der vorherige Refactoring-Status „UNCONFIRMED“ zu diesen Kandidaten ist für diesen Scope abgeschlossen: alle gelisteten Kandidaten wurden entweder entfernt oder produktiv verdrahtet.
+
+[PLANS]
+
+- 2026-03-04T07:42:55.1541941+01:00 [USER] Umsetzung beauftragt: Planning-Refresh ohne Full-Page-Reload, Modal bleibt offen, Neu-laden-Button als Fallback, kein reload-induziertes WS-Flattern.
+
+[DECISIONS]
+
+- 2026-03-04T07:42:55.1541941+01:00 [CODE] Hard-Reload-Strategie entfernt: Planning-Completion nutzt jetzt gezielten Daten-Refresh statt window.location.reload.
+- 2026-03-04T07:42:55.1541941+01:00 [CODE] Refresh-Ownership zentralisiert in WorkspaceClientPage via wiederverwendbarem refreshWorkspaceData(reason)-Callback; dieser wird bis in MissionQueue/TaskModal durchgereicht.
+- 2026-03-04T07:42:55.1541941+01:00 [CODE] Planning-Controller Completion-Callback idempotent gemacht (Ref-Guard), damit Poll-Rennen keinen Mehrfach-Refresh triggern.
+
+[PROGRESS]
+
+- 2026-03-04T07:42:55.1541941+01:00 [CODE] Geaendert: app/mission-control/workspace/[slug]/WorkspaceClientPage.tsx, src/components/MissionQueue.tsx, src/components/TaskModal.tsx.
+- 2026-03-04T07:42:55.1541941+01:00 [CODE] Planning-API/UX aktualisiert: src/components/planning/{types.ts,PlanningTab.tsx,PlanningTabView.tsx,usePlanningTabController.ts}.
+- 2026-03-04T07:42:55.1541941+01:00 [CODE] Neue Regressionstests hinzugefuegt: tests/unit/components/planning-controller-completion-idempotence.test.ts, tests/unit/components/planning-view-fallback-refresh-contract.test.ts, tests/unit/components/task-modal-planning-refresh-contract.test.ts.
+
+[OUTCOMES]
+
+- 2026-03-04T07:42:55.1541941+01:00 [TOOL] Verifikation erfolgreich: npm run check grün (typecheck/lint/format), npm test grün (492 Dateien, 2376 Tests), npm run build grün (Next.js production build).
+- 2026-03-04T07:42:55.1541941+01:00 [TOOL] Der Planning-Flow hat keinen Codepfad mehr mit window.location.reload; Fallback erfolgt ueber expliziten Neu-laden-Button mit kontrolliertem State-Refresh.
+
+[PLANS]
+
+- 2026-03-04T08:53:36.5011883+01:00 [USER] Folgeanalyse angefordert: WS-Flattern besteht weiter beim WebUI-Root-Besuch trotz Planning-Reload-Fix.
+
+[DISCOVERIES]
+
+- 2026-03-04T08:53:36.5011883+01:00 [TOOL] Log-Sequenz zeigt weiterhin `GET /` zwischen WS-Disconnect/Connect-Zyklen; das ist ein Dokument-Neuladevorgang, nicht nur ein reiner Socket-Reconnect.
+- 2026-03-04T08:53:36.5011883+01:00 [CODE] Eager-WS-Verbindungen im Root-Shell-Pfad wurden global beim Mount aufgebaut (`useChannelStateSync` ohne Gating + `ConnectionStatus` via `useGatewayConnection` mit Auto-Connect).
+
+[DECISIONS]
+
+- 2026-03-04T08:53:36.5011883+01:00 [CODE] WS-Connect im Root entkoppelt: Channel-State-Sync laeuft nur noch in relevanten Views (`CHAT`, `CHANNELS`) statt global beim Laden von `/`.
+- 2026-03-04T08:53:36.5011883+01:00 [CODE] `useGatewayConnection` um `autoConnect`-Option erweitert; `ConnectionStatus` nutzt passiven Modus (`autoConnect: false`) und zeigt bei disconnected als Idle.
+
+[PROGRESS]
+
+- 2026-03-04T08:53:36.5011883+01:00 [CODE] Geaendert: `src/modules/app-shell/{App.tsx,useChannelStateSync.ts}`, `src/modules/gateway/useGatewayConnection.ts`, `src/components/ConnectionStatus.tsx`.
+- 2026-03-04T08:53:36.5011883+01:00 [CODE] Neue Contracts hinzugefuegt: `tests/unit/app-shell/channel-state-sync-gating-contract.test.ts`, `tests/unit/gateway/use-gateway-connection-autoconnect-contract.test.ts`, `tests/unit/components/connection-status-passive-contract.test.ts`.
+
+[OUTCOMES]
+
+- 2026-03-04T08:53:36.5011883+01:00 [TOOL] Vollverifikation nach Fix grün: `npm run check`, `npm run test` (495 Dateien, 2379 Tests), `npm run build`.
+
+[PLANS]
+
+- 2026-03-04T09:21:42.0195418+01:00 [USER] Persistentes Root-Reload-Muster im Dashboard gemeldet (`GET /` plus erneute Initial-Fetches), obwohl keine UI-Interaktion stattfindet.
+
+[DISCOVERIES]
+
+- 2026-03-04T09:21:42.0195418+01:00 [TOOL] Das beobachtete Request-Muster (`/api/control-plane/metrics` + `/api/memory` + wiederholtes `GET /`) entspricht wiederholten App-Neumounts/Document-Reloads, nicht einer einzelnen Hook-Pollingquelle.
+- 2026-03-04T09:21:42.0195418+01:00 [TOOL] `tsx watch` kann im Dev-Stack Prozess-Neustarts beguenstigen; um Root-Reconnect-Flattern im lokalen Betrieb zu eliminieren, wurde der Default-Dev-Start auf non-watch stabilisiert.
+
+[DECISIONS]
+
+- 2026-03-04T09:21:42.0195418+01:00 [CODE] `npm run dev` auf stabilen Serverstart ohne Watch umgestellt (`node --import tsx server.ts`); der alte Watch-Workflow bleibt explizit unter `npm run dev:watch` verfuegbar.
+- 2026-03-04T09:21:42.0195418+01:00 [CODE] Regression-Guard ergaenzt, damit der Default-Dev-Start nicht wieder auf `tsx watch` regressiert.
+
+[PROGRESS]
+
+- 2026-03-04T09:21:42.0195418+01:00 [CODE] Geaendert: `package.json` (`dev` angepasst, `dev:watch` hinzugefuegt).
+- 2026-03-04T09:21:42.0195418+01:00 [CODE] Neu: `tests/unit/dev/dev-script-stability-contract.test.ts`.
+
+[OUTCOMES]
+
+- 2026-03-04T09:21:42.0195418+01:00 [TOOL] Verifikation grün nach Dev-Start-Fix: `npm run check`, `npm run test` (496 Dateien, 2380 Tests), `npm run build`.
+
+[PLANS]
+
+- 2026-03-04T10:56:00+01:00 [USER] Rueckmeldung: bisherige Dev-Watch-Aenderung ist kein Best-Case; Fokus auf echte Ursache fuer periodisches `GET /` + WS-Flattern.
+
+[DISCOVERIES]
+
+- 2026-03-04T10:56:00+01:00 [TOOL] Reproduktion mit Playwright zeigte periodische Browser-Reloads (zusaetzlicher Dokument-Request `GET /` nach ~41s) bei idle Tab.
+- 2026-03-04T10:56:00+01:00 [TOOL] Browser-Konsole zeigte fortlaufend fehlgeschlagene HMR-Upgrades: `ws://<host>/_next/webpack-hmr ... 404`.
+- 2026-03-04T10:56:00+01:00 [TOOL] Log-Signatur mit `compile: ...` bestaetigt Dev-Runtime statt echter Production-Runtime fuer den betroffenen Lauf.
+
+[DECISIONS]
+
+- 2026-03-04T10:56:00+01:00 [CODE] Production-Startpfad abgesichert: `start:web` und `start:scheduler` setzen jetzt explizit `NODE_ENV=production`.
+- 2026-03-04T10:56:00+01:00 [CODE] WS-Upgrade-Handling in `server.ts` erweitert: in Dev werden Non-`/ws` Upgrades an Next-Upgrade-Handler delegiert (HMR-Kompatibilitaetsversuch).
+
+[PROGRESS]
+
+- 2026-03-04T10:56:00+01:00 [CODE] Geaendert: `package.json` (Start-Skripte) und `server.ts` (Upgrade-Routing/Delegation).
+- 2026-03-04T10:56:00+01:00 [TOOL] Parallel ausgefuehrte Verifikation (`check`/`test`/`build`) war einmal inkonsistent (`.next/types/validator.ts`), danach sequenziell verifiziert.
+
+[OUTCOMES]
+
+- 2026-03-04T10:56:00+01:00 [TOOL] `npm run check` grün, `npm run build` grün nach den Aenderungen.
+- 2026-03-04T10:56:00+01:00 [TOOL] Voller `npm run test` bzw. isolierter Lauf `personas-memory-cascade-delete.test.ts` weiterhin mit bekanntem Timeout (UNRELATED/UNCONFIRMED bzgl. neuer Aenderungen).
+- 2026-03-04T10:56:00+01:00 [TOOL] Dev-HMR-404 in lokaler Repro weiterhin sichtbar (UNCONFIRMED, ob Next 16 + Custom Server HMR-Upgrade vollstaendig unterstuetzt).
+
+[PLANS]
+
+- 2026-03-04T11:10:00+01:00 [USER] Bugfix angefordert fuer Telegram-Polling-Konflikt: `getUpdates HTTP 409` / `another getUpdates is active`.
+
+[DECISIONS]
+
+- 2026-03-04T11:10:00+01:00 [CODE] Telegram-Channel-Poller auf prozessuebergreifende Lease-Koordination umgestellt (CredentialStore/SQLite), damit nur ein Runtime-Owner `getUpdates` aktiv ausfuehrt.
+- 2026-03-04T11:10:00+01:00 [CODE] Bei HTTP 409 stoppt der lokale Poller sofort, setzt ein Conflict-Cooldown und gibt die Lease frei statt im 2s-Loop weiter zu pollen.
+
+[PROGRESS]
+
+- 2026-03-04T11:10:00+01:00 [CODE] `CredentialStore` erweitert um atomare Lease-Operationen: `claimLease`, `renewLease`, `releaseLease` in `src/server/channels/credentials/credentialStore.ts`.
+- 2026-03-04T11:10:00+01:00 [CODE] `src/server/channels/pairing/telegramPolling.ts` angepasst: Lease-Acquire beim Start, Lease-Renew je Poll-Zyklus, Lease-Release beim Stop, 409-handling mit Backoff+Stop.
+- 2026-03-04T11:10:00+01:00 [CODE] Neue Regressionstestdatei: `tests/unit/channels/telegram-polling-lease.test.ts`.
+
+[OUTCOMES]
+
+- 2026-03-04T11:10:00+01:00 [TOOL] Verifikation gruen: `npm run check`, `npm run build`.
+- 2026-03-04T11:10:00+01:00 [TOOL] Relevante Tests gruen: `telegram-polling-lease`, `telegram-pairing-poll-route`, `channels-pair-route`, `messages-runtime`.
+
+[PLANS]
+
+- 2026-03-04T10:27:00+01:00 [USER] Analyseauftrag aufgenommen: Ursachen fuer `KnowledgeIngestion`-Logs mit `Mem0 request timeout after 15000ms`, Circuit-Open und Summary-Kounters klaeren.
+
+[DISCOVERIES]
+
+- 2026-03-04T10:27:00+01:00 [CODE] `storeFacts` oeffnet den Mem0-Circuit exakt nach 2 aufeinanderfolgenden Store-Fehlern innerhalb eines Fensters (`MEM0_MAX_CONSECUTIVE_FAILURES_PER_WINDOW = 2`) und ueberspringt danach Rest-Fakten im selben Fenster.
+- 2026-03-04T10:27:00+01:00 [CODE] `Mem0 request timeout after 15000ms` stammt aus dem Abort-Pfad im Mem0-HTTP-Client; `15000ms` kommt aus `MEM0_WRITE_TIMEOUT_MS` (lokal in `.env`/`.env.local` auf 15000 gesetzt).
+- 2026-03-04T10:27:00+01:00 [TOOL] Mem0-Container-Logs fuer die betroffene Persona zeigen externe Embedding-Calls (`openrouter.ai/api/v1/embeddings`) mit teils grossen Zeitabstaenden (u. a. ~17s), konsistent mit Write-Timeout-Risiko im aufrufenden Dienst.
+
+[OUTCOMES]
+
+- 2026-03-04T10:27:00+01:00 [TOOL] Verhalten als erwarteter Schutzpfad verifiziert: `tests/unit/knowledge/ingestion-concurrency.test.ts` reproduziert dieselbe Log-Sequenz (`continuing` -> `opening circuit` -> Summary) und ist gruen (3/3).
+- 2026-03-04T10:27:00+01:00 [ASSUMPTION] Exakte Einzelursache pro Timeout-Request bleibt UNCONFIRMED ohne korrelierte End-to-End Request-IDs zwischen Gateway- und Mem0-Logs.
+
+[PLANS]
+
+- 2026-03-04T10:33:00+01:00 [USER] Folgeanalyse angefordert: Warum der Mem0-Store-Pfad langsam ist.
+
+[DISCOVERIES]
+
+- 2026-03-04T10:33:00+01:00 [TOOL] Live-Messung gegen lokales Mem0 (`POST /memories`, 5 Runs) zeigte variable Antwortzeiten von ~1.1s bis ~6.1s; Slowdown ist daher intermittierend, nicht konstant.
+- 2026-03-04T10:33:00+01:00 [TOOL] Mem0-Logs enthalten Burst-Phasen mit grossen Abstaenden zwischen Embedding-HTTP-Calls zu OpenRouter (u. a. 17.659s, 15.506s), konsistent mit Upstream-Latenzspitzen.
+- 2026-03-04T10:33:00+01:00 [CODE] Ingestion speichert Fakten bewusst strikt sequentiell (max 1 in-flight Store-Call) plus 100ms Rate-Limit pro Fact; dadurch addieren sich externe Latenzen direkt zur Window-Laufzeit.
+- 2026-03-04T10:33:00+01:00 [CODE] Timeout/Retry-Konfiguration verstaerkt Wartezeit bei Stoerung: `MEM0_WRITE_TIMEOUT_MS=15000`, `MEM0_WRITE_MAX_RETRIES=1`, `retryOnTimeout=true` => bis zu ca. 30.5s pro fehlgeschlagenem Fact-Store vor Fehlerausgabe.
+
+[OUTCOMES]
+
+- 2026-03-04T10:33:00+01:00 [TOOL] Root-Cause fuer "langsam" eingegrenzt auf Kombination aus externer Embedding-Latenz (OpenRouter) und bewusst sequentiellem Ingestion-Write-Pfad; lokale Infrastruktur ist nicht dauerhaft langsam, sondern zeigt Last-/Netzspitzen.

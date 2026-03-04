@@ -1,5 +1,3 @@
-import crypto from 'node:crypto';
-
 // ─── Webhook Authentication Utilities ────────────────────────
 // Verifies that incoming webhook requests originate from the expected platform.
 
@@ -30,44 +28,6 @@ export function verifyTelegramWebhook(request: Request, secretToken: string): bo
   if (!secretToken) return allowInsecureWebhookFallback();
   const header = request.headers.get('x-telegram-bot-api-secret-token');
   return header === secretToken;
-}
-
-/**
- * Verifies an Ed25519 signature for Discord webhook requests.
- * Discord sends `X-Signature-Ed25519` and `X-Signature-Timestamp` headers.
- * The signed payload is `timestamp + body`.
- */
-export async function verifyDiscordWebhook(
-  request: Request,
-  publicKeyHex: string,
-  body: string,
-): Promise<boolean> {
-  if (!publicKeyHex) return allowInsecureWebhookFallback();
-
-  const signature = request.headers.get('x-signature-ed25519');
-  const timestamp = request.headers.get('x-signature-timestamp');
-
-  if (!signature || !timestamp) return false;
-
-  try {
-    const publicKeyBytes = Buffer.from(publicKeyHex, 'hex');
-    const signatureBytes = Buffer.from(signature, 'hex');
-    const message = Buffer.from(timestamp + body);
-
-    // Use Node.js crypto.verify with Ed25519
-    return crypto.verify(
-      undefined, // Ed25519 does not use a separate hash algorithm
-      message,
-      {
-        key: crypto.createPublicKey({ key: publicKeyBytes, format: 'der', type: 'spki' }),
-        dsaEncoding: undefined as never,
-      },
-      signatureBytes,
-    );
-  } catch {
-    // If the key format or signature is invalid, reject
-    return false;
-  }
 }
 
 /**

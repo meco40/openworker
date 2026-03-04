@@ -16,8 +16,9 @@ const stateConfig = {
  * Shows a colored dot + label reflecting the WebSocket gateway state.
  */
 const ConnectionStatus: React.FC = () => {
-  const { state } = useGatewayConnection();
-  const cfg = stateConfig[state] ?? stateConfig.idle;
+  const { state } = useGatewayConnection({ autoConnect: false });
+  const effectiveState = state === 'disconnected' ? 'idle' : state;
+  const cfg = stateConfig[effectiveState] ?? stateConfig.idle;
 
   return (
     <div className="flex items-center justify-between rounded border border-zinc-800 bg-zinc-900/50 px-3 py-2">

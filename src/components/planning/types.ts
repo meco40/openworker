@@ -40,5 +40,6 @@ export interface PlanningSessionState {
 
 export interface PlanningTabProps {
   taskId: string;
-  onSpecLocked?: () => void;
+  onPlanningComplete?: (ctx: { taskId: string; dispatchError?: string }) => Promise<void> | void;
+  onFallbackRefresh?: () => Promise<void> | void;
 }

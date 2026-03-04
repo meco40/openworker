@@ -8,7 +8,11 @@ import { WebSocketServer } from 'ws';
 import { getToken } from 'next-auth/jwt';
 import { handleConnection, getClientRegistry, broadcast } from './src/server/gateway/index.js';
 import type { MethodNamespace } from './src/server/gateway/method-router.js';
-import { TICK_INTERVAL_MS, MAX_PAYLOAD_BYTES } from './src/server/gateway/constants.js';
+import {
+  TICK_INTERVAL_MS,
+  MAX_PAYLOAD_BYTES,
+  MAX_CONNECTIONS_PER_USER,
+} from './src/server/gateway/constants.js';
 import { runGatewayKeepaliveSweep } from './src/server/gateway/keepalive.js';
 import { getPrincipalUserId } from './src/server/auth/principal.js';
 import {
@@ -66,6 +70,8 @@ Promise.resolve()
     await app.prepare();
   })
   .then(() => {
+    const handleNextUpgrade = app.getUpgradeHandler();
+
     const server = createServer((req, res) => {
       handle(req, res);
     });
@@ -87,6 +93,13 @@ Promise.resolve()
       }
 
       const { pathname } = url;
+
+      // In dev mode Next.js uses its own websocket upgrade paths (HMR).
+      // Delegate all non-gateway upgrades so the browser does not fall back to hard reload loops.
+      if (dev && pathname !== '/ws') {
+        handleNextUpgrade(req, socket, head);
+        return;
+      }
 
       if (pathname !== '/ws') {
         socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
@@ -125,7 +138,7 @@ Promise.resolve()
         // Check connection limit per user
         const registry = getClientRegistry();
         const existing = registry.getByUserId(userId);
-        if (existing.length >= 5) {
+        if (existing.length >= MAX_CONNECTIONS_PER_USER) {
           socket.write('HTTP/1.1 429 Too Many Connections\r\n\r\n');
           socket.destroy();
           return;

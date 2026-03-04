@@ -63,11 +63,16 @@ export async function loadChannelState(
 }
 
 interface UseChannelStateSyncArgs {
+  enabled: boolean;
   onUpdateCoupling: (id: string, update: Partial<CoupledChannel>) => void;
 }
 
-export function useChannelStateSync({ onUpdateCoupling }: UseChannelStateSyncArgs): void {
+export function useChannelStateSync({ enabled, onUpdateCoupling }: UseChannelStateSyncArgs): void {
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     let disposed = false;
 
     loadChannelState(fetch)
@@ -104,5 +109,5 @@ export function useChannelStateSync({ onUpdateCoupling }: UseChannelStateSyncArg
       disposed = true;
       unsubscribe();
     };
-  }, [onUpdateCoupling]);
+  }, [enabled, onUpdateCoupling]);
 }

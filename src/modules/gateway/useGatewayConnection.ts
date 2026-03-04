@@ -17,11 +17,16 @@ import {
  * Returns the current WebSocket connection state and auto-connects
  * when the component mounts.
  */
-export function useGatewayConnection(): {
+interface UseGatewayConnectionOptions {
+  autoConnect?: boolean;
+}
+
+export function useGatewayConnection(options?: UseGatewayConnectionOptions): {
   state: ConnectionState;
   client: GatewayClient;
 } {
   const client = getGatewayClient();
+  const autoConnect = options?.autoConnect ?? true;
 
   const state = useSyncExternalStore(
     (onChange) => {
@@ -32,9 +37,12 @@ export function useGatewayConnection(): {
   );
 
   useEffect(() => {
+    if (!autoConnect) {
+      return;
+    }
     client.connect();
     // Don't disconnect on unmount — singleton stays alive
-  }, [client]);
+  }, [autoConnect, client]);
 
   return { state, client };
 }

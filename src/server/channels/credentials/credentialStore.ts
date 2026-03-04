@@ -70,6 +70,70 @@ export class CredentialStore {
       updatedAt: r.updated_at as string,
     }));
   }
+
+  claimLease(
+    channel: string,
+    ownerKey: string,
+    expiresAtKey: string,
+    ownerId: string,
+    ttlMs: number,
+  ): boolean {
+    const nowMs = Date.now();
+    const expiresAt = new Date(nowMs + Math.max(1_000, ttlMs)).toISOString();
+    const readValue = this.db.prepare(
+      'SELECT value FROM channel_credentials WHERE channel = ? AND key = ?',
+    );
+
+    const tx = this.db.transaction(() => {
+      const ownerRow = readValue.get(channel, ownerKey) as { value?: string } | undefined;
+      const expiresRow = readValue.get(channel, expiresAtKey) as { value?: string } | undefined;
+      const currentOwner = String(ownerRow?.value || '').trim();
+      const currentExpiryMs = Date.parse(String(expiresRow?.value || ''));
+      const hasValidExpiry = Number.isFinite(currentExpiryMs);
+      const expired = !hasValidExpiry || currentExpiryMs <= nowMs;
+
+      if (currentOwner && currentOwner !== ownerId && !expired) {
+        return false;
+      }
+
+      this.setCredential(channel, ownerKey, ownerId);
+      this.setCredential(channel, expiresAtKey, expiresAt);
+      return true;
+    });
+
+    return tx();
+  }
+
+  renewLease(
+    channel: string,
+    ownerKey: string,
+    expiresAtKey: string,
+    ownerId: string,
+    ttlMs: number,
+  ): boolean {
+    const expiresAt = new Date(Date.now() + Math.max(1_000, ttlMs)).toISOString();
+    const tx = this.db.transaction(() => {
+      const owner = this.getCredential(channel, ownerKey);
+      if (owner !== ownerId) {
+        return false;
+      }
+      this.setCredential(channel, expiresAtKey, expiresAt);
+      return true;
+    });
+    return tx();
+  }
+
+  releaseLease(channel: string, ownerKey: string, expiresAtKey: string, ownerId: string): void {
+    const tx = this.db.transaction(() => {
+      const owner = this.getCredential(channel, ownerKey);
+      if (owner !== ownerId) {
+        return;
+      }
+      this.deleteCredential(channel, ownerKey);
+      this.deleteCredential(channel, expiresAtKey);
+    });
+    tx();
+  }
 }
 
 // ─── Singleton ───────────────────────────────────────────────

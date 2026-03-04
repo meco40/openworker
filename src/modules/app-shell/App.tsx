@@ -54,6 +54,7 @@ const App: React.FC<AppProps> = ({ initialView }) => {
   const shouldEnableChatData = currentView === View.CHAT;
   const shouldEnableAgentRuntime =
     currentView === View.CHAT || currentView === View.CHANNELS || currentView === View.AGENT_ROOM;
+  const shouldEnableChannelStateSync = currentView === View.CHAT || currentView === View.CHANNELS;
   const shouldEnablePersonaData = shouldEnableAgentRuntime || currentView === View.PERSONAS;
   const shouldLoadSkills = shouldEnableAgentRuntime || currentView === View.SKILLS;
   const { skills, setSkills } = useSkillsCatalog({ shouldLoadSkills });
@@ -286,7 +287,10 @@ const App: React.FC<AppProps> = ({ initialView }) => {
   const handleUpdateCoupling = useCallback((id: string, update: Partial<CoupledChannel>) => {
     setCoupledChannels((previous) => ({ ...previous, [id]: { ...previous[id], ...update } }));
   }, []);
-  useChannelStateSync({ onUpdateCoupling: handleUpdateCoupling });
+  useChannelStateSync({
+    enabled: shouldEnableChannelStateSync,
+    onUpdateCoupling: handleUpdateCoupling,
+  });
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0a0a0a] text-zinc-300">

@@ -4,6 +4,10 @@ import { serializeTelegramAllowedUpdates } from '@/server/channels/telegram/allo
 
 const CHANNEL = 'telegram';
 const POLL_INTERVAL_MS = 2_000;
+const POLLING_LEASE_TTL_MS = 30_000;
+const POLLING_CONFLICT_COOLDOWN_MS = 30_000;
+const POLLING_OWNER_KEY = 'polling_owner';
+const POLLING_LEASE_UNTIL_KEY = 'polling_lease_until';
 
 interface TelegramUpdateMessage {
   message_id: number;
@@ -84,11 +88,17 @@ interface TelegramGetUpdatesResponse {
 declare global {
   var __telegramPollingTimer: ReturnType<typeof setTimeout> | undefined;
   var __telegramPollingActive: boolean | undefined;
+  var __telegramPollingInstanceId: string | undefined;
+  var __telegramPollingConflictUntilMs: number | undefined;
 }
 
 export async function startTelegramPolling(): Promise<void> {
   if (globalThis.__telegramPollingActive) {
     console.log('[Telegram Polling] Already active, skipping start.');
+    return;
+  }
+  const conflictUntilMs = globalThis.__telegramPollingConflictUntilMs || 0;
+  if (Date.now() < conflictUntilMs) {
     return;
   }
 
@@ -103,6 +113,18 @@ export async function startTelegramPolling(): Promise<void> {
 
   if (transport !== 'polling') {
     console.log('[Telegram Polling] Transport is not polling (transport=%s), skipping.', transport);
+    return;
+  }
+  const ownerId = getPollingOwnerId();
+  const hasLease = store.claimLease(
+    CHANNEL,
+    POLLING_OWNER_KEY,
+    POLLING_LEASE_UNTIL_KEY,
+    ownerId,
+    POLLING_LEASE_TTL_MS,
+  );
+  if (!hasLease) {
+    console.log('[Telegram Polling] Another runtime owns polling lease; skipping start.');
     return;
   }
 
@@ -130,6 +152,7 @@ export function stopTelegramPolling(): void {
     clearTimeout(globalThis.__telegramPollingTimer);
     globalThis.__telegramPollingTimer = undefined;
   }
+  releasePollingLease();
   console.log('[Telegram Polling] Stopped.');
 }
 
@@ -148,6 +171,20 @@ function schedulePoll(): void {
 
 async function pollOnce(): Promise<void> {
   const store = getCredentialStore();
+  const ownerId = getPollingOwnerId();
+  const leaseOk = store.renewLease(
+    CHANNEL,
+    POLLING_OWNER_KEY,
+    POLLING_LEASE_UNTIL_KEY,
+    ownerId,
+    POLLING_LEASE_TTL_MS,
+  );
+  if (!leaseOk) {
+    console.log('[Telegram Polling] Lease lost; stopping local poller.');
+    stopTelegramPolling();
+    return;
+  }
+
   const token = store.getCredential(CHANNEL, 'bot_token') || process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     stopTelegramPolling();
@@ -177,6 +214,8 @@ async function pollOnce(): Promise<void> {
         console.warn(
           '[Telegram Polling] Conflict (409) - another getUpdates is active. Backing off.',
         );
+        globalThis.__telegramPollingConflictUntilMs = Date.now() + POLLING_CONFLICT_COOLDOWN_MS;
+        stopTelegramPolling();
       }
       return;
     }
@@ -205,4 +244,19 @@ async function pollOnce(): Promise<void> {
   } catch (err) {
     console.error('[Telegram Polling] Fetch error:', err);
   }
+}
+
+function getPollingOwnerId(): string {
+  if (!globalThis.__telegramPollingInstanceId) {
+    globalThis.__telegramPollingInstanceId = `telegram-poller:${process.pid}:${Math.random()
+      .toString(36)
+      .slice(2, 10)}`;
+  }
+  return globalThis.__telegramPollingInstanceId;
+}
+
+function releasePollingLease(): void {
+  const ownerId = globalThis.__telegramPollingInstanceId;
+  if (!ownerId) return;
+  getCredentialStore().releaseLease(CHANNEL, POLLING_OWNER_KEY, POLLING_LEASE_UNTIL_KEY, ownerId);
 }

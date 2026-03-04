@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { Header } from '@/components/Header';
@@ -11,12 +11,18 @@ import { SSEDebugPanel } from '@/components/SSEDebugPanel';
 import { useMissionControl } from '@/lib/store';
 import { useSSE } from '@/hooks/useSSE';
 import { debug } from '@/lib/debug';
-import type { Task, Workspace } from '@/lib/types';
+import type { Workspace } from '@/lib/types';
 
 interface WorkspaceClientPageProps {
   slug: string;
   initialWorkspace: Workspace | null;
 }
+
+type WorkspaceRefreshReason =
+  | 'initial-load'
+  | 'planning-complete'
+  | 'manual-fallback'
+  | 'sse-fallback';
 
 export default function WorkspaceClientPage({ slug, initialWorkspace }: WorkspaceClientPageProps) {
   const { setAgents, setTasks, setEvents, setIsOnline, setIsLoading, isLoading } =
@@ -25,20 +31,13 @@ export default function WorkspaceClientPage({ slug, initialWorkspace }: Workspac
   const notFound = !workspace;
   const { isConnected: isSseConnected } = useSSE();
 
-  useEffect(() => {
-    if (!workspace) {
-      setIsLoading(false);
-    }
-  }, [setIsLoading, workspace]);
+  const refreshWorkspaceData = useCallback(
+    async (reason: WorkspaceRefreshReason) => {
+      if (!workspace) return;
+      const workspaceId = workspace.id;
 
-  useEffect(() => {
-    if (!workspace) return;
-
-    const workspaceId = workspace.id;
-
-    async function loadData() {
       try {
-        debug.api('Loading workspace data...', { workspaceId });
+        debug.api('Loading workspace data...', { workspaceId, reason });
 
         const [agentsRes, tasksRes, eventsRes] = await Promise.all([
           fetch(`/api/agents?workspace_id=${workspaceId}`),
@@ -49,7 +48,7 @@ export default function WorkspaceClientPage({ slug, initialWorkspace }: Workspac
         if (agentsRes.ok) setAgents(await agentsRes.json());
         if (tasksRes.ok) {
           const tasksData = await tasksRes.json();
-          debug.api('Loaded tasks', { count: tasksData.length });
+          debug.api('Loaded tasks', { count: tasksData.length, reason });
           setTasks(tasksData);
         }
         if (eventsRes.ok) setEvents(await eventsRes.json());
@@ -58,7 +57,18 @@ export default function WorkspaceClientPage({ slug, initialWorkspace }: Workspac
       } finally {
         setIsLoading(false);
       }
+    },
+    [setAgents, setEvents, setIsLoading, setTasks, workspace],
+  );
+
+  useEffect(() => {
+    if (!workspace) {
+      setIsLoading(false);
     }
+  }, [setIsLoading, workspace]);
+
+  useEffect(() => {
+    if (!workspace) return;
 
     async function checkRuntimeStatus() {
       try {
@@ -77,43 +87,20 @@ export default function WorkspaceClientPage({ slug, initialWorkspace }: Workspac
       }
     }
 
-    loadData();
-    checkRuntimeStatus();
-  }, [workspace, setAgents, setEvents, setIsLoading, setIsOnline, setTasks]);
+    void refreshWorkspaceData('initial-load');
+    void checkRuntimeStatus();
+  }, [refreshWorkspaceData, setIsOnline, workspace]);
 
   useEffect(() => {
     if (!workspace || isSseConnected) {
       return;
     }
 
-    const workspaceId = workspace.id;
-
     const fallbackSync = async () => {
       try {
-        const [eventsRes, tasksRes, statusRes] = await Promise.all([
-          fetch('/api/events?limit=20'),
-          fetch(`/api/tasks?workspace_id=${workspaceId}`),
-          fetch('/api/mission-control/status'),
-        ]);
+        await refreshWorkspaceData('sse-fallback');
 
-        if (eventsRes.ok) {
-          setEvents(await eventsRes.json());
-        }
-
-        if (tasksRes.ok) {
-          const nextTasks: Task[] = await tasksRes.json();
-          const currentTaskById = new Map(
-            useMissionControl.getState().tasks.map((task) => [task.id, task]),
-          );
-          const hasChanges =
-            nextTasks.length !== currentTaskById.size ||
-            nextTasks.some((task) => currentTaskById.get(task.id)?.status !== task.status);
-
-          if (hasChanges) {
-            debug.api('[FALLBACK] Task changes detected via polling, updating store');
-            setTasks(nextTasks);
-          }
-        }
+        const statusRes = await fetch('/api/mission-control/status');
 
         if (statusRes.ok) {
           const status = await statusRes.json();
@@ -130,7 +117,7 @@ export default function WorkspaceClientPage({ slug, initialWorkspace }: Workspac
     }, 30000);
 
     return () => clearInterval(fallbackTimer);
-  }, [workspace, isSseConnected, setEvents, setIsOnline, setTasks]);
+  }, [workspace, isSseConnected, refreshWorkspaceData, setIsOnline]);
 
   if (notFound) {
     return (
@@ -170,7 +157,12 @@ export default function WorkspaceClientPage({ slug, initialWorkspace }: Workspac
 
       <div className="flex flex-1 overflow-hidden">
         <AgentsSidebar workspaceId={workspace.id} />
-        <MissionQueue workspaceId={workspace.id} />
+        <MissionQueue
+          workspaceId={workspace.id}
+          onRefreshWorkspaceData={async (reason) => {
+            await refreshWorkspaceData(reason);
+          }}
+        />
         <LiveFeed />
       </div>
 

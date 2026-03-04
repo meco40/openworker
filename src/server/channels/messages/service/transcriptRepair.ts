@@ -71,29 +71,3 @@ export function repairOrphanedToolCalls(messages: GatewayMessage[]): GatewayMess
 
   return output;
 }
-
-/**
- * Count the number of orphaned tool-call stubs in a messages array.
- * Useful for logging/metrics.
- */
-export function countOrphanedToolCalls(messages: GatewayMessage[]): number {
-  let count = 0;
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-    if (!msg || msg.role !== 'assistant') continue;
-    const stubMatch = TOOL_CALL_STUB_RE.exec(msg.content.trim());
-    if (!stubMatch) continue;
-    const toolName = stubMatch[1];
-    if (!toolName) continue;
-    const next = messages[i + 1];
-    const isAnswered =
-      next &&
-      next.role === 'user' &&
-      (() => {
-        const m = TOOL_RESULT_PREFIX_RE.exec(next.content);
-        return m !== null && m[1] === toolName;
-      })();
-    if (!isAnswered) count += 1;
-  }
-  return count;
-}

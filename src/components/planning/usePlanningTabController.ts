@@ -18,6 +18,8 @@ export interface PlanningTabController {
   isWaitingForResponse: boolean;
   retryingDispatch: boolean;
   isSubmittingAnswer: boolean;
+  isRefreshingFallback: boolean;
+  fallbackRefreshError: string | null;
   hasRetrySubmission: boolean;
   setOtherText: (value: string) => void;
   setSelectedOption: (value: string | null) => void;
@@ -25,12 +27,14 @@ export interface PlanningTabController {
   submitAnswer: () => Promise<void>;
   handleRetry: () => Promise<void>;
   retryDispatch: () => Promise<void>;
+  triggerFallbackRefresh: () => Promise<void>;
   cancelPlanning: () => Promise<void>;
 }
 
 export function usePlanningTabController({
   taskId,
-  onSpecLocked,
+  onPlanningComplete,
+  onFallbackRefresh,
 }: PlanningTabProps): PlanningTabController {
   const [state, setState] = useState<PlanningSessionState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,12 +47,29 @@ export function usePlanningTabController({
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [retryingDispatch, setRetryingDispatch] = useState(false);
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
+  const [isRefreshingFallback, setIsRefreshingFallback] = useState(false);
+  const [fallbackRefreshError, setFallbackRefreshError] = useState<string | null>(null);
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isPollingRef = useRef(false);
   const lastSubmissionRef = useRef<PlanningSubmission | null>(null);
   const currentQuestionRef = useRef<string | null>(null);
+  const completionCallbackSentRef = useRef(false);
+
+  const notifyPlanningComplete = useCallback(
+    async (dispatchError?: string) => {
+      if (completionCallbackSentRef.current) return;
+      completionCallbackSentRef.current = true;
+      if (!onPlanningComplete) return;
+      try {
+        await onPlanningComplete({ taskId, dispatchError });
+      } catch (completionError) {
+        console.error('Planning completion callback failed:', completionError);
+      }
+    },
+    [onPlanningComplete, taskId],
+  );
 
   const loadState = useCallback(async () => {
     try {
@@ -109,9 +130,7 @@ export function usePlanningTabController({
           setIsWaitingForResponse(false);
           stopPolling();
 
-          if (onSpecLocked) {
-            onSpecLocked();
-          }
+          await notifyPlanningComplete(data.dispatchError);
           return;
         }
 
@@ -146,8 +165,8 @@ export function usePlanningTabController({
             setError(`Planning completed but dispatch failed: ${data.dispatchError}`);
           }
 
-          if ((data.complete || data.isComplete) && !data.dispatchError && onSpecLocked) {
-            onSpecLocked();
+          if (pollSignalsCompletion) {
+            await notifyPlanningComplete(data.dispatchError);
           }
 
           if (data.currentQuestion || pollSignalsCompletion) {
@@ -167,7 +186,7 @@ export function usePlanningTabController({
     } finally {
       isPollingRef.current = false;
     }
-  }, [taskId, onSpecLocked, stopPolling]);
+  }, [taskId, notifyPlanningComplete, stopPolling]);
 
   const startPolling = useCallback(() => {
     stopPolling();
@@ -182,7 +201,7 @@ export function usePlanningTabController({
       setSubmitting(false);
       setIsSubmittingAnswer(false);
       setError(
-        'The orchestrator is taking too long to respond. Please try submitting again or refresh the page.',
+        'The orchestrator is taking too long to respond. Please try submitting again or use Neu laden.',
       );
     }, 90000);
   }, [pollForUpdates, stopPolling]);
@@ -213,6 +232,7 @@ export function usePlanningTabController({
   const startPlanning = async () => {
     setStarting(true);
     setError(null);
+    completionCallbackSentRef.current = false;
 
     try {
       const res = await fetch(`/api/tasks/${taskId}/planning`, { method: 'POST' });
@@ -323,6 +343,23 @@ export function usePlanningTabController({
     }
   };
 
+  const triggerFallbackRefresh = async () => {
+    if (!onFallbackRefresh) return;
+    setIsRefreshingFallback(true);
+    setFallbackRefreshError(null);
+    try {
+      await onFallbackRefresh();
+    } catch (refreshError) {
+      const message =
+        refreshError instanceof Error
+          ? refreshError.message
+          : 'Neu laden fehlgeschlagen. Bitte erneut versuchen.';
+      setFallbackRefreshError(message);
+    } finally {
+      setIsRefreshingFallback(false);
+    }
+  };
+
   const cancelPlanning = async () => {
     if (!confirm('Are you sure you want to cancel planning? This will reset the planning state.')) {
       return;
@@ -339,6 +376,7 @@ export function usePlanningTabController({
       });
 
       if (res.ok) {
+        completionCallbackSentRef.current = false;
         setState({
           taskId,
           isStarted: false,
@@ -368,6 +406,8 @@ export function usePlanningTabController({
     isWaitingForResponse,
     retryingDispatch,
     isSubmittingAnswer,
+    isRefreshingFallback,
+    fallbackRefreshError,
     hasRetrySubmission: Boolean(lastSubmissionRef.current),
     setOtherText,
     setSelectedOption,
@@ -375,6 +415,7 @@ export function usePlanningTabController({
     submitAnswer,
     handleRetry,
     retryDispatch,
+    triggerFallbackRefresh,
     cancelPlanning,
   };
 }

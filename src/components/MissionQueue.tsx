@@ -10,6 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 interface MissionQueueProps {
   workspaceId?: string;
+  onRefreshWorkspaceData?: (reason: 'planning-complete' | 'manual-fallback') => Promise<void>;
 }
 
 const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
@@ -28,7 +29,7 @@ function handleDragOver(e: React.DragEvent): void {
   e.dataTransfer.dropEffect = 'move';
 }
 
-export function MissionQueue({ workspaceId }: MissionQueueProps) {
+export function MissionQueue({ workspaceId, onRefreshWorkspaceData }: MissionQueueProps) {
   const { tasks, updateTaskStatus, addEvent } = useMissionControl();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -164,13 +165,18 @@ export function MissionQueue({ workspaceId }: MissionQueueProps) {
 
       {/* Modals */}
       {showCreateModal && (
-        <TaskModal onClose={() => setShowCreateModal(false)} workspaceId={workspaceId} />
+        <TaskModal
+          onClose={() => setShowCreateModal(false)}
+          workspaceId={workspaceId}
+          onRefreshWorkspaceData={onRefreshWorkspaceData}
+        />
       )}
       {editingTask && (
         <TaskModal
           task={editingTask}
           onClose={() => setEditingTask(null)}
           workspaceId={workspaceId}
+          onRefreshWorkspaceData={onRefreshWorkspaceData}
         />
       )}
     </div>

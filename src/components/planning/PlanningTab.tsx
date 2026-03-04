@@ -20,6 +20,8 @@ export function PlanningTab(props: PlanningTabProps) {
       isWaitingForResponse={controller.isWaitingForResponse}
       retryingDispatch={controller.retryingDispatch}
       isSubmittingAnswer={controller.isSubmittingAnswer}
+      isRefreshingFallback={controller.isRefreshingFallback}
+      fallbackRefreshError={controller.fallbackRefreshError}
       hasRetrySubmission={controller.hasRetrySubmission}
       onOtherTextChange={controller.setOtherText}
       onSelectOption={controller.setSelectedOption}
@@ -27,6 +29,7 @@ export function PlanningTab(props: PlanningTabProps) {
       onSubmitAnswer={controller.submitAnswer}
       onRetry={controller.handleRetry}
       onRetryDispatch={controller.retryDispatch}
+      onFallbackRefresh={controller.triggerFallbackRefresh}
       onCancelPlanning={controller.cancelPlanning}
     />
   );

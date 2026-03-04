@@ -17,10 +17,12 @@ interface TaskModalProps {
   task?: Task;
   onClose: () => void;
   workspaceId?: string;
+  onRefreshWorkspaceData?: (reason: 'planning-complete' | 'manual-fallback') => Promise<void>;
 }
 
-export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
-  const { agents, addTask, updateTask, addEvent } = useMissionControl();
+export function TaskModal({ task, onClose, workspaceId, onRefreshWorkspaceData }: TaskModalProps) {
+  const { agents, addTask, updateTask, addEvent, setAgents, setTasks, setEvents } =
+    useMissionControl();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAgentModal, setShowAgentModal] = useState(false);
   const [usePlanningMode, setUsePlanningMode] = useState(false);
@@ -29,10 +31,44 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
     task?.status === 'planning' ? 'planning' : 'overview',
   );
 
-  // Stable callback for when spec is locked - use window.location.reload() to refresh data
-  const handleSpecLocked = useCallback(() => {
-    window.location.reload();
-  }, []);
+  const resolvedWorkspaceId = workspaceId || task?.workspace_id || 'default';
+
+  const refreshMissionControlData = useCallback(
+    async (reason: 'planning-complete' | 'manual-fallback') => {
+      if (onRefreshWorkspaceData) {
+        await onRefreshWorkspaceData(reason);
+        return;
+      }
+
+      const [agentsRes, tasksRes, eventsRes] = await Promise.all([
+        fetch(`/api/agents?workspace_id=${encodeURIComponent(resolvedWorkspaceId)}`),
+        fetch(`/api/tasks?workspace_id=${encodeURIComponent(resolvedWorkspaceId)}`),
+        fetch('/api/events?limit=50'),
+      ]);
+
+      if (agentsRes.ok) {
+        const nextAgents = await agentsRes.json();
+        setAgents(nextAgents);
+      }
+      if (tasksRes.ok) {
+        const nextTasks = await tasksRes.json();
+        setTasks(nextTasks);
+      }
+      if (eventsRes.ok) {
+        const nextEvents = await eventsRes.json();
+        setEvents(nextEvents);
+      }
+    },
+    [onRefreshWorkspaceData, resolvedWorkspaceId, setAgents, setEvents, setTasks],
+  );
+
+  const handlePlanningComplete = useCallback(async () => {
+    await refreshMissionControlData('planning-complete');
+  }, [refreshMissionControlData]);
+
+  const handleFallbackRefresh = useCallback(async () => {
+    await refreshMissionControlData('manual-fallback');
+  }, [refreshMissionControlData]);
 
   const [form, setForm] = useState({
     title: task?.title || '',
@@ -57,7 +93,7 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
         status: !task && usePlanningMode ? 'planning' : form.status,
         assigned_agent_id: form.assigned_agent_id || null,
         due_date: form.due_date || null,
-        workspace_id: workspaceId || task?.workspace_id || 'default',
+        workspace_id: resolvedWorkspaceId,
       };
 
       const res = await fetch(url, {
@@ -363,7 +399,11 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
 
           {/* Planning Tab */}
           {activeTab === 'planning' && task && (
-            <PlanningTab taskId={task.id} onSpecLocked={handleSpecLocked} />
+            <PlanningTab
+              taskId={task.id}
+              onPlanningComplete={handlePlanningComplete}
+              onFallbackRefresh={handleFallbackRefresh}
+            />
           )}
 
           {/* Activity Tab */}

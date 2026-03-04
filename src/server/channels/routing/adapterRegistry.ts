@@ -18,10 +18,6 @@ export function getAdapter(channel: ChannelKey): ChannelAdapter | undefined {
   return registry.get(channel);
 }
 
-export function listAdapters(): ChannelAdapter[] {
-  return [...registry.values()];
-}
-
 export function resetAdapterRegistryForTests(): void {
   registry.clear();
 }

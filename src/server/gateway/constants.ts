@@ -12,9 +12,6 @@ export const MAX_BUFFERED_BYTES = 1_572_864;
 /** Keepalive tick interval (30s) */
 export const TICK_INTERVAL_MS = 30_000;
 
-/** Handshake timeout — close if no hello within this window (10s) */
-export const HANDSHAKE_TIMEOUT_MS = 10_000;
-
 /** Maximum WebSocket connections per user (multi-tab) */
 export const MAX_CONNECTIONS_PER_USER = 5;
 

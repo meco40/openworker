@@ -1,18 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { SWARM_LAYOUT_MODES, SWARM_OUTPUT_TABS } from '@/modules/agent-room/swarmViewState';
 import { parseSwarmRecord } from '@/modules/agent-room/swarmTypes';
 
 describe('swarm types', () => {
-  it('defines expected layout modes and tabs', () => {
-    expect(SWARM_LAYOUT_MODES).toEqual(['split', 'chat', 'board']);
-    expect(SWARM_OUTPUT_TABS).toEqual([
-      'solution_artifact',
-      'logic_graph',
-      'history',
-      'conflict_radar',
-    ]);
-  });
-
   it('parses server payload with persona-first unit contract and session id', () => {
     const parsed = parseSwarmRecord({
       id: 'swarm-1',

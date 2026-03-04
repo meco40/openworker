@@ -75,30 +75,3 @@ export function buildProjectClarificationPrompt(params: {
 
   return lines.join('\n');
 }
-
-export function buildProjectGuardPrompt(params: {
-  approvalToken: string;
-  projects?: GuardProjectSuggestion[];
-}): string {
-  const lines: string[] = [
-    'Fuer diese Anfrage erkenne ich Build/Code-Intent, aber es ist kein aktives Projekt gesetzt.',
-    '',
-    'Bitte waehle einen sicheren Ausfuehrungspfad:',
-    '- `/project new <name>` fuer ein neues Projekt-Workspace',
-    '- `/project use <id|slug|index>` fuer ein bestehendes Projekt',
-  ];
-
-  const projects = (params.projects || []).slice(0, 5);
-  if (projects.length > 0) {
-    lines.push('');
-    lines.push('Vorhandene Projekte:');
-    for (const project of projects) {
-      lines.push(`- ${project.name} (${project.slug})`);
-    }
-  }
-
-  lines.push('');
-  lines.push(`Alternativ einmalig bestaetigen: \`/approve ${params.approvalToken}\``);
-  lines.push(`Oder ablehnen: \`/deny ${params.approvalToken}\``);
-  return lines.join('\n');
-}

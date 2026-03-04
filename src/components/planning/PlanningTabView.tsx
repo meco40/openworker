@@ -13,6 +13,8 @@ interface PlanningTabViewProps {
   isWaitingForResponse: boolean;
   retryingDispatch: boolean;
   isSubmittingAnswer: boolean;
+  isRefreshingFallback: boolean;
+  fallbackRefreshError: string | null;
   hasRetrySubmission: boolean;
   onOtherTextChange: (value: string) => void;
   onSelectOption: (value: string | null) => void;
@@ -20,6 +22,7 @@ interface PlanningTabViewProps {
   onSubmitAnswer: () => Promise<void>;
   onRetry: () => Promise<void>;
   onRetryDispatch: () => Promise<void>;
+  onFallbackRefresh: () => Promise<void>;
   onCancelPlanning: () => Promise<void>;
 }
 
@@ -35,6 +38,8 @@ export function PlanningTabView({
   isWaitingForResponse,
   retryingDispatch,
   isSubmittingAnswer,
+  isRefreshingFallback,
+  fallbackRefreshError,
   hasRetrySubmission,
   onOtherTextChange,
   onSelectOption,
@@ -42,6 +47,7 @@ export function PlanningTabView({
   onSubmitAnswer,
   onRetry,
   onRetryDispatch,
+  onFallbackRefresh,
   onCancelPlanning,
 }: PlanningTabViewProps) {
   if (loading) {
@@ -61,12 +67,37 @@ export function PlanningTabView({
             <Lock className="h-5 w-5" />
             <span className="font-medium">Planning Complete</span>
           </div>
-          {state.dispatchError && (
-            <div className="text-right">
-              <span className="text-sm text-amber-400">⚠️ Dispatch Failed</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {state.dispatchError && (
+              <div className="text-right">
+                <span className="text-sm text-amber-400">⚠️ Dispatch Failed</span>
+              </div>
+            )}
+            <button
+              onClick={onFallbackRefresh}
+              disabled={isRefreshingFallback}
+              className="flex items-center gap-1 rounded border border-zinc-600 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+            >
+              {isRefreshingFallback ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Neu laden...
+                </>
+              ) : (
+                'Neu laden'
+              )}
+            </button>
+          </div>
         </div>
+
+        {fallbackRefreshError && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400" />
+              <p className="text-xs text-red-300">{fallbackRefreshError}</p>
+            </div>
+          </div>
+        )}
 
         {state.dispatchError && (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">

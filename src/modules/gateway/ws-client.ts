@@ -485,10 +485,3 @@ export function getGatewayClient(): GatewayClient {
   }
   return instance;
 }
-
-export function resetGatewayClient(): void {
-  if (instance) {
-    instance.disconnect();
-    instance = null;
-  }
-}
