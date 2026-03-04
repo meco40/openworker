@@ -430,26 +430,27 @@ interface RPCRequest {
 
 ## 6. Webhook Security
 
-### 6.1 Signature Verification
+### 6.1 Webhook Verification (Runtime)
 
 ```typescript
 // Telegram
-const isValid =
-  crypto.createHmac('sha256', TELEGRAM_WEBHOOK_SECRET).update(data).digest('hex') === signature;
+const isValid = request.headers.get('x-telegram-bot-api-secret-token') === TELEGRAM_WEBHOOK_SECRET;
 
-// Discord
-const isValid = verifyDiscordSignature(body, signature, timestamp, DISCORD_PUBLIC_KEY);
+// Shared secret channels (WhatsApp / iMessage / Slack)
+const isValid = request.headers.get('x-webhook-secret') === EXPECTED_SHARED_SECRET;
 ```
+
+Die Verifikation ist standardmäßig fail-closed. Falls kein Secret konfiguriert ist, wird der Request nur akzeptiert, wenn `ALLOW_INSECURE_WEBHOOKS=true` und `NODE_ENV !== 'production'`.
 
 ### 6.2 Umgebungsvariablen
 
-| Variable                | Beschreibung       |
-| ----------------------- | ------------------ |
-| TELEGRAM_WEBHOOK_SECRET | Telegram Secret    |
-| DISCORD_PUBLIC_KEY      | Discord Public Key |
-| WHATSAPP_WEBHOOK_SECRET | WhatsApp Secret    |
-| IMESSAGE_WEBHOOK_SECRET | iMessage Secret    |
-| SLACK_WEBHOOK_SECRET    | Slack Secret       |
+| Variable                | Beschreibung                                                |
+| ----------------------- | ----------------------------------------------------------- |
+| TELEGRAM_WEBHOOK_SECRET | Telegram Secret                                             |
+| WHATSAPP_WEBHOOK_SECRET | WhatsApp Secret                                             |
+| IMESSAGE_WEBHOOK_SECRET | iMessage Secret                                             |
+| SLACK_WEBHOOK_SECRET    | Slack Secret                                                |
+| ALLOW_INSECURE_WEBHOOKS | Non-Prod/Test-Override fuer fehlende Secrets (`true/false`) |
 
 ---
 
@@ -479,6 +480,13 @@ POST /api/channels/slack/webhook
 POST /api/channels/telegram/pairing/confirm
 POST /api/channels/telegram/pairing/poll
 ```
+
+Runtime-Verhalten (`src/server/channels/pairing/telegramPolling.ts`):
+
+- Polling-Intervall: 2s (`POLL_INTERVAL_MS`), Lease-TTL: 30s (`POLLING_LEASE_TTL_MS`).
+- Vor dem Start wird eine prozessuebergreifende Lease im `CredentialStore` beansprucht (`claimLease` auf `polling_owner` + `polling_lease_until`).
+- Jeder Poll-Zyklus erneuert die Lease (`renewLease`); bei Lease-Verlust stoppt der lokale Poller sofort.
+- Bei `getUpdates`-HTTP-`409` wird der Poller gestoppt, die Lease freigegeben und ein Conflict-Cooldown von 30s gesetzt (`POLLING_CONFLICT_COOLDOWN_MS`), statt im 2s-Loop weiter zu pollen.
 
 ### 7.4 Persona-gebundene Telegram Bots
 

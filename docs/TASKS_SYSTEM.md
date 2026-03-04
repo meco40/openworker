@@ -77,6 +77,27 @@ Task-Workspaces liegen dateibasiert unter `TASK_WORKSPACES_ROOT` (Default: `work
 
 ---
 
+### 3.1 Task-Test-Jobmodell (`/api/tasks/[id]/test`)
+
+- `POST /api/tasks/[id]/test` startet den Lauf asynchron und queued einen Job.
+- `GET /api/tasks/[id]/test` liefert den zusammengefassten Teststatus.
+- `GET /api/tasks/[id]/test?jobId=<id>` liefert den Detailstatus fuer einen konkreten Job.
+
+Job-Statuswerte:
+
+- `queued`
+- `running`
+- `completed`
+- `failed`
+
+Implementierung:
+
+- Route-Adapter: `app/api/tasks/[id]/test/route.ts`
+- Service: `src/server/tasks/testing/service.ts`
+- Persistenz: Tabelle `task_test_jobs`
+
+---
+
 ## 4. Statusmodell
 
 Task-Status laut Schema (`tasks.status`):
@@ -108,7 +129,20 @@ Spezialregel: Uebergang `review -> done` ist im Service auf Master-Agents beschr
 
 ---
 
-## 6. Verifikation
+## 6. Workspace-Cleanup CLI
+
+Fuer manuelles/one-off Cleanup stehen folgende Skripte zur Verfuegung:
+
+| Command                           | Zweck                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------- |
+| `npm run workspaces:cleanup`      | Entfernt verwaiste Task-Workspaces und gibt menschenlesbares Ergebnis aus |
+| `npm run workspaces:cleanup:json` | Gleiches Cleanup, aber als JSON-Report (geeignet fuer CI/Automationen)    |
+
+Implementierung: `scripts/cleanup-task-workspaces.ts`
+
+---
+
+## 7. Verifikation
 
 ```bash
 npm run typecheck
@@ -120,7 +154,7 @@ npm test -- tests/integration/mission-control/tasks-route-agent-shape.test.ts
 
 ---
 
-## 7. Siehe auch
+## 8. Siehe auch
 
 - `docs/API_REFERENCE.md`
 - `docs/MASTER_AGENT_SYSTEM.md`

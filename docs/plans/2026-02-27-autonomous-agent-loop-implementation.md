@@ -700,7 +700,7 @@ Exit criteria:
 - Create: `src/server/master/toolforge/pipeline.ts`
 - Create: `src/server/master/toolforge/validator.ts`
 - Create: `src/server/master/toolforge/sandboxRunner.ts`
-- Create: `app/api/master/toolforge/route.ts`
+- Create (historical plan item; route removed in current baseline): `app/api/master/toolforge/route.ts`
 - Test: `tests/unit/master/master-toolforge.test.ts`
 
 **Estimate:** L
@@ -732,7 +732,7 @@ Exit criteria:
 
 - Create: `src/server/master/capabilities/apprenticeship.ts`
 - Create: `src/server/master/capabilities/proposalTemplate.ts`
-- Create: `app/api/master/capabilities/route.ts`
+- Create (historical plan item; route removed in current baseline): `app/api/master/capabilities/route.ts`
 - Test: `tests/unit/master/master-apprenticeship.test.ts`
 
 **Estimate:** M

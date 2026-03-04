@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer Authentifizierung, User-Kontext-Aufloesung und Auth-Runtime-Modi.
 - Scope: NextAuth-Route, Session/JWT-Strategie, Fallback-Principal, zentrale Auth-Module.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-03-03
+- Last Reviewed: 2026-03-04
 - Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md
 
 ---
@@ -17,6 +17,7 @@ Das System nutzt NextAuth mit Credentials-Provider und JWT-Sessionstrategie.
 - API-Entry: `app/api/auth/[...nextauth]/route.ts`
 - NextAuth-Konfiguration: `src/auth.ts`
 - Request-Auth-Resolver: `src/server/auth/userContext.ts`
+- Route-Wrapper fuer API-Guards: `app/api/_shared/withUserContext.ts`
 - Principal-Fallback: `src/server/auth/principal.ts`
 
 Die Route exportiert `GET` und `POST` ueber denselben NextAuth-Handler.
@@ -44,7 +45,7 @@ Damit bleibt das lokale/dev-nahe Arbeiten ohne erzwungenen Login moeglich.
 | GET     | `/api/auth/[...nextauth]` | NextAuth Session/Provider Flows (read) |
 | POST    | `/api/auth/[...nextauth]` | Login/Callback-Flows ueber NextAuth    |
 
-Hinweis: Fachliche Autorisierung fuer API-Routen erfolgt domain-spezifisch ueber `resolveRequestUserContext()` in den jeweiligen Route-Handlern.
+Hinweis: Fachliche Autorisierung fuer API-Routen erfolgt domain-spezifisch ueber die Wrapper `withUserContext(...)` bzw. `withResolvedUserContext(...)`, die intern auf `resolveRequestUserContext()` aufbauen.
 
 ## 4. Relevante Konfiguration
 
@@ -60,6 +61,7 @@ Hinweis: Fachliche Autorisierung fuer API-Routen erfolgt domain-spezifisch ueber
 ```bash
 rg -n "NextAuth|authOptions|Credentials" src/auth.ts app/api/auth/[...nextauth]/route.ts
 rg -n "resolveRequestUserContext|REQUIRE_AUTH|LEGACY_LOCAL_USER_ID" src/server/auth
+rg -n "withUserContext|withResolvedUserContext" app/api
 npm run typecheck
 npm run lint
 ```

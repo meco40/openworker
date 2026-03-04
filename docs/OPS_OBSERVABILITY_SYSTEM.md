@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer operative Steuerung, Diagnose und Observability-APIs.
 - Scope: Ops-Endpunkte, Config-API, Health/Doctor, Control-Plane-Metriken, Logs, Stats, Master-Metriken.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-03-03
+- Last Reviewed: 2026-03-04
 - Related Runbooks: docs/runbooks/gateway-config-production-rollout.md, docs/runbooks/chat-cli-smoke-approval.md
 
 ---
@@ -100,9 +100,10 @@ Quelle: `app/api/master/metrics/route.ts`, `src/server/master/metrics.ts`
 
 ## 3. Auth und Zugriff
 
-Alle oben genannten Endpunkte nutzen `resolveRequestUserContext()` und liefern bei fehlendem Kontext `401`.
+Die oben genannten Endpunkte sind ueber `withUserContext(...)` oder `withResolvedUserContext(...)` abgesichert und liefern bei fehlendem Kontext `401` (bzw. optionalen Kontext, wo fachlich vorgesehen).
 
 - Resolver: `src/server/auth/userContext.ts`
+- Route-Wrapper: `app/api/_shared/withUserContext.ts`
 - Standard-Unauthorized-Response: `src/server/http/unauthorized.ts`
 
 `/api/ops/sessions` beachtet zusaetzlich `includeGlobalApplied` nur fuer nicht-authentisierte Kontexte.
@@ -111,7 +112,7 @@ Alle oben genannten Endpunkte nutzen `resolveRequestUserContext()` und liefern b
 
 ```bash
 rg --files app/api | rg "ops|config|health|doctor|control-plane|logs|stats"
-rg -n "resolveRequestUserContext" app/api/ops app/api/config app/api/health app/api/doctor app/api/logs app/api/stats
+rg -n "withUserContext|withResolvedUserContext" app/api/ops app/api/config app/api/health app/api/doctor app/api/control-plane app/api/logs app/api/stats
 npm run typecheck
 npm run lint
 ```

@@ -1,6 +1,6 @@
 # Master Agent System
 
-**Status:** 2026-02-27  
+**Status:** 2026-03-04  
 **Scope:** Production-ready `Master` control plane with executable run flow, observability, and hardened connector/runtime paths.
 
 ## Overview
@@ -73,6 +73,17 @@ Agent Room remains chat-only.
   - `GET/POST/PATCH/DELETE /api/master/reminders`
 - Observability:
   - `GET /api/master/metrics`
+
+## Voice Session Runtime
+
+- Token endpoint: `GET /api/master/voice-session`
+  - Guarded via `withUserContext(...)`
+  - Resolves xAI key from Model Hub account storage
+  - Requests ephemeral realtime client secret from `https://api.x.ai/v1/realtime/client_secrets`
+- Frontend hook: `src/modules/master/voice/grok/useGrokVoiceAgent.ts`
+  - Lazy connect: no eager websocket connect on mount
+  - One-turn policy: auto-disconnect is scheduled after `response.output_audio.done` / `response.done`
+  - Output audio stream is exposed via `subscribeOutputAudio(...)` for avatar rendering
 
 ## UI Utility
 

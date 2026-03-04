@@ -407,17 +407,15 @@ function hasDangerousCommandEnabled(commands: CommandPermission[]): boolean {
 
 ## Webhook Security
 
-Incoming webhooks from messaging platforms are cryptographically verified to prevent spoofing attacks.
+Incoming webhooks from messaging platforms are verified to prevent spoofing attacks.
+The runtime implementation is `src/server/channels/webhookAuth.ts` and is fail-closed by default.
 
 ### Verification Methods
 
-| Channel  | Method        | Algorithm                  | Key Source                |
-| -------- | ------------- | -------------------------- | ------------------------- |
-| Telegram | Signed        | HMAC-SHA256 (secret token) | `TELEGRAM_WEBHOOK_SECRET` |
-| Discord  | Signed        | Ed25519                    | `DISCORD_PUBLIC_KEY`      |
-| WhatsApp | Shared Secret | Header comparison          | `WHATSAPP_WEBHOOK_SECRET` |
-| iMessage | Shared Secret | Header comparison          | `IMESSAGE_WEBHOOK_SECRET` |
-| Slack    | Shared Secret | Header comparison          | `SLACK_WEBHOOK_SECRET`    |
+| Channel                     | Method        | Verification                                 | Key Source                                                                     |
+| --------------------------- | ------------- | -------------------------------------------- | ------------------------------------------------------------------------------ |
+| Telegram                    | Signed Header | `x-telegram-bot-api-secret-token === secret` | `TELEGRAM_WEBHOOK_SECRET`                                                      |
+| WhatsApp / iMessage / Slack | Shared Secret | `x-webhook-secret === expectedSecret`        | `WHATSAPP_WEBHOOK_SECRET` / `IMESSAGE_WEBHOOK_SECRET` / `SLACK_WEBHOOK_SECRET` |
 
 ### Telegram Webhook Verification
 
@@ -425,7 +423,7 @@ Telegram sends the secret token (configured during `setWebhook`) in the `X-Teleg
 
 ```typescript
 function verifyTelegramWebhook(request: Request, secretToken: string): boolean {
-  if (!secretToken) return true; // No secret configured → skip check (warning state)
+  if (!secretToken) return allowInsecureWebhookFallback();
 
   const header = request.headers.get('x-telegram-bot-api-secret-token');
   return header === secretToken;
@@ -444,65 +442,26 @@ curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
   }'
 ```
 
-### Discord Webhook Verification
-
-Discord uses Ed25519 signatures with timestamp-based replay protection:
-
-```typescript
-async function verifyDiscordWebhook(
-  request: Request,
-  publicKeyHex: string,
-  body: string,
-): Promise<boolean> {
-  if (!publicKeyHex) return true; // No key configured → skip check
-
-  const signature = request.headers.get('x-signature-ed25519');
-  const timestamp = request.headers.get('x-signature-timestamp');
-
-  if (!signature || !timestamp) return false;
-
-  try {
-    const publicKeyBytes = Buffer.from(publicKeyHex, 'hex');
-    const signatureBytes = Buffer.from(signature, 'hex');
-    const message = Buffer.from(timestamp + body);
-
-    return crypto.verify(
-      undefined, // Ed25519 does not use a separate hash algorithm
-      message,
-      {
-        key: crypto.createPublicKey({
-          key: publicKeyBytes,
-          format: 'der',
-          type: 'spki',
-        }),
-        dsaEncoding: undefined as never,
-      },
-      signatureBytes,
-    );
-  } catch {
-    return false;
-  }
-}
-```
-
-**Security Features:**
-
-1. **Cryptographic Signing**: Ed25519 provides strong authentication
-2. **Timestamp Validation**: The timestamp in the signed payload prevents replay attacks
-3. **Constant-Time Comparison**: Node.js `crypto.verify` uses constant-time operations
-
 ### Shared Secret Verification
 
 For WhatsApp, iMessage, and Slack bridges where we control both endpoints:
 
 ```typescript
 function verifySharedSecret(request: Request, expectedSecret: string): boolean {
-  if (!expectedSecret) return true; // No secret configured → skip check
+  if (!expectedSecret) return allowInsecureWebhookFallback();
 
   const header = request.headers.get('x-webhook-secret');
   return header === expectedSecret;
 }
 ```
+
+### Non-Production Override (`ALLOW_INSECURE_WEBHOOKS`)
+
+For local development and tests, missing webhook secrets can be allowed explicitly:
+
+- `ALLOW_INSECURE_WEBHOOKS=true` enables insecure fallback.
+- The override is ignored in `NODE_ENV=production`.
+- In non-test environments, runtime logs a one-time security warning when this fallback is used.
 
 **Best Practices:**
 
@@ -552,7 +511,8 @@ interface ChannelSecurityDiagnostic {
 
 ## Command Permissions & Risk Levels
 
-The command permission system controls which shell commands can be executed, with risk-based approval workflows.
+The command permission system controls which command-like tool executions can run, with risk-based approval workflows.
+It applies to `shell_execute`, `playwright_cli` command mode, and `process_manager` with `action=start`.
 
 ### Risk Level Definitions
 
@@ -796,12 +756,12 @@ const credentials = store.listCredentials('telegram');
 
 ### Authentication Methods
 
-| Method                 | Use Case             | Implementation         |
-| ---------------------- | -------------------- | ---------------------- |
-| **Webhook Signatures** | Channel verification | Ed25519, HMAC-SHA256   |
-| **Shared Secrets**     | Bridge webhooks      | Header comparison      |
-| **API Keys**           | Model providers      | Header/token-based     |
-| **Session Tokens**     | Web UI               | JWT or session cookies |
+| Method                    | Use Case             | Implementation          |
+| ------------------------- | -------------------- | ----------------------- |
+| **Webhook Secret Header** | Channel verification | Header token comparison |
+| **Shared Secrets**        | Bridge webhooks      | Header comparison       |
+| **API Keys**              | Model providers      | Header/token-based      |
+| **Session Tokens**        | Web UI               | JWT or session cookies  |
 
 ### Authorization Model
 
@@ -888,8 +848,7 @@ The system uses **attribute-based access control** (ABAC) for commands:
 
 **Mitigation**:
 
-- Ed25519 signature verification (Discord)
-- HMAC-SHA256 secret token (Telegram)
+- Telegram secret-header verification (`X-Telegram-Bot-Api-Secret-Token`)
 - Shared secret validation (WhatsApp, iMessage, Slack)
 
 **Residual Risk**: Low (cryptographic verification)
@@ -1170,18 +1129,6 @@ Verifies Telegram webhook requests.
 function verifyTelegramWebhook(request: Request, secretToken: string): boolean;
 ```
 
-#### `verifyDiscordWebhook(request, publicKeyHex, body)`
-
-Verifies Discord Ed25519 signatures.
-
-```typescript
-async function verifyDiscordWebhook(
-  request: Request,
-  publicKeyHex: string,
-  body: string,
-): Promise<boolean>;
-```
-
 #### `verifySharedSecret(request, expectedSecret)`
 
 Verifies shared secret headers.
@@ -1205,8 +1152,28 @@ class CredentialStore {
   // Delete all credentials for a channel
   deleteCredentials(channel: string): void;
 
+  // Delete one credential key
+  deleteCredential(channel: string, key: string): void;
+
   // List credentials for a channel
   listCredentials(channel: string): ChannelCredential[];
+
+  // Distributed lease primitives (used by Telegram polling)
+  claimLease(
+    channel: string,
+    ownerKey: string,
+    expiresAtKey: string,
+    ownerId: string,
+    ttlMs: number,
+  ): boolean;
+  renewLease(
+    channel: string,
+    ownerKey: string,
+    expiresAtKey: string,
+    ownerId: string,
+    ttlMs: number,
+  ): boolean;
+  releaseLease(channel: string, ownerKey: string, expiresAtKey: string, ownerId: string): void;
 }
 
 // Singleton accessor
@@ -1221,20 +1188,21 @@ function getCredentialStore(): CredentialStore;
 
 #### Core Security
 
-| Variable           | Description             | Required | Default              |
-| ------------------ | ----------------------- | -------- | -------------------- |
-| `APP_URL`          | Application base URL    | Yes      | -                    |
-| `MESSAGES_DB_PATH` | Path to SQLite database | No       | `.local/messages.db` |
+| Variable                  | Description                                                         | Required | Default              |
+| ------------------------- | ------------------------------------------------------------------- | -------- | -------------------- |
+| `APP_URL`                 | Application base URL                                                | Yes      | -                    |
+| `MESSAGES_DB_PATH`        | Path to SQLite database                                             | No       | `.local/messages.db` |
+| `ALLOW_INSECURE_WEBHOOKS` | Non-prod/test override for missing webhook secrets (`true`/`false`) | No       | `false`              |
 
 #### Webhook Secrets
 
-| Variable                  | Description                | Required    | Verification Type |
-| ------------------------- | -------------------------- | ----------- | ----------------- |
-| `TELEGRAM_WEBHOOK_SECRET` | Telegram bot secret token  | Recommended | HMAC-SHA256       |
-| `DISCORD_PUBLIC_KEY`      | Discord Ed25519 public key | Recommended | Ed25519           |
-| `WHATSAPP_WEBHOOK_SECRET` | WhatsApp bridge secret     | Recommended | Shared secret     |
-| `IMESSAGE_WEBHOOK_SECRET` | iMessage bridge secret     | Recommended | Shared secret     |
-| `SLACK_WEBHOOK_SECRET`    | Slack webhook secret       | Recommended | Shared secret     |
+| Variable                  | Description                                       | Required    | Verification Type  |
+| ------------------------- | ------------------------------------------------- | ----------- | ------------------ |
+| `TELEGRAM_WEBHOOK_SECRET` | Telegram bot secret token                         | Recommended | Header token match |
+| `DISCORD_PUBLIC_KEY`      | Discord Ed25519 public key (security diagnostics) | Optional    | Ed25519            |
+| `WHATSAPP_WEBHOOK_SECRET` | WhatsApp bridge secret                            | Recommended | Shared secret      |
+| `IMESSAGE_WEBHOOK_SECRET` | iMessage bridge secret                            | Recommended | Shared secret      |
+| `SLACK_WEBHOOK_SECRET`    | Slack webhook secret                              | Recommended | Shared secret      |
 
 ### TypeScript Interfaces
 

@@ -221,15 +221,16 @@ openai-compatible/
 
 ### For Consumers
 
-**No changes required!** All existing imports continue to work:
+Legacy compatibility wrapper paths were removed in later cleanup waves.
+Use canonical imports directly:
 
 ```typescript
-// These all still work:
+// Canonical imports
 import { MessageService } from '@/server/channels/messages/service';
 import { AgentV2Repository } from '@/server/agent-v2/repository';
-import { IngestionService } from '@/server/knowledge/ingestionService';
-import { createMem0Client } from '@/server/memory/mem0Client';
-import { ModelHub } from '@/components/ModelHub';
+import { getKnowledgeIngestionService } from '@/server/knowledge/runtime';
+import { createMem0Client } from '@/server/memory/mem0';
+import ModelHub from '@/components/model-hub/ModelHub';
 ```
 
 ### For Contributors

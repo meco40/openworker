@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer Skill-Lifecycle und Skill-Execution-Governance.
 - Scope: Skill-Registry, Installation, Runtime-Konfiguration, Dispatch und Sicherheitsgrenzen.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-03-03
+- Last Reviewed: 2026-03-04
 - Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md
 
 ---
@@ -74,19 +74,16 @@ Current runtime baseline: 34 built-in skills (11 installed by default, 23 opt-in
 ║  ┌─────────────────────────────────────────────────────────────────────┐ ║
 ║  │                      HANDLER REGISTRY                               │ ║
 ║  ├─────────────────┬─────────────────┬─────────────────────────────────┤ ║
-║  │  file_read      │  shell_execute  │  python_execute                 │ ║
-║  │  ─────────────  │  ────────────── │  ──────────────                 │ ║
-║  │  Workspace      │  Shell command  │  Python code                    │ ║
-║  │  sandbox read   │  execution      │  execution                      │ ║
+║  │  file_read/read │  shell_execute  │  python_execute                 │ ║
+║  │  ─────────────  │  + exec alias   │  ──────────────                 │ ║
+║  │  Workspace      │  command tools  │  Python code                    │ ║
+║  │  sandbox read   │  + approvals    │  execution                      │ ║
 ║  ├─────────────────┼─────────────────┼─────────────────────────────────┤ ║
-║  │  browser_snapshot│ github_query   │  db_query                       │ ║
-║  │  ───────────────│  ────────────   │  ────────                       │ ║
-║  │  Web page       │  GitHub API     │  SQLite read-only               │ ║
-║  │  fetching       │  integration    │  queries                        │ ║
+║  │  process_manager│ sessions_*      │  memory_search/get              │ ║
+║  │  + process alias│ + agents_list   │  compat query bridge            │ ║
+║  │  command spawn  │ orchestration   │                                 │ ║
 ║  ├─────────────────┴─────────────────┴─────────────────────────────────┤ ║
-║  │                      vision_analyze                                 │ ║
-║  │                      ─────────────                                  │ ║
-║  │                      Image analysis via Gemini                      │ ║
+║  │  browser/browser_snapshot, github_query, db_query, vision_analyze  │ ║
 ║  └─────────────────────────────────────────────────────────────────────┘ ║
 ║                                                                           ║
 ║  Flow: name-based lookup → argument normalization → handler execution    ║
@@ -298,15 +295,32 @@ const SKILL_RUNTIME_CONFIG_FIELDS: SkillRuntimeConfigField[] = [
 Central dispatch for skill handler execution.
 
 ```typescript
-const SKILL_HANDLERS: Record<string, SkillHandler> = {
+const SKILL_HANDLERS: Partial<Record<string, SkillHandler>> = {
   file_read: fileReadHandler,
+  read: readCompatHandler,
+  write: writeCompatHandler,
+  edit: editCompatHandler,
+  apply_patch: applyPatchCompatHandler,
   shell_execute: shellExecuteHandler,
+  exec: shellExecuteHandler,
   python_execute: pythonExecuteHandler,
   github_query: githubQueryHandler,
   db_query: dbQueryHandler,
   browser_snapshot: browserSnapshotHandler,
+  browser: browserToolHandler,
   vision_analyze: visionAnalyzeHandler,
   subagents: subagentsHandler,
+  agents_list: agentsListHandler,
+  sessions_list: sessionsListHandler,
+  sessions_history: sessionsHistoryHandler,
+  sessions_send: sessionsSendHandler,
+  sessions_spawn: sessionsSpawnHandler,
+  session_status: sessionStatusHandler,
+  message: messageCompatHandler,
+  memory_search: memorySearchHandler,
+  memory_get: memoryGetHandler,
+  process_manager: processManagerHandler,
+  process: processManagerHandler,
   'multi_tool_use.parallel': multiToolUseParallelHandler,
 };
 
@@ -494,6 +508,24 @@ Executes shell commands with security restrictions.
 - Blocked tokens: `rm -rf`, `shutdown`, `mkfs`, `powershell -enc`, etc.
 - Timeout: 15 seconds
 - Max output: 1MB
+- If `OPENCLAW_EXEC_APPROVALS_REQUIRED=true`, command execution requires interactive approval.
+
+#### `process-manager` - Managed Process Runtime
+
+| Attribute    | Value             |
+| ------------ | ----------------- |
+| **Function** | `process_manager` |
+| **Alias**    | `process`         |
+| **Default**  | Not installed     |
+| **Category** | Automation        |
+
+Starts/stops/background-manages long-running processes with the same command-policy and approval model as `shell_execute`.
+
+**Security:**
+
+- `action=start` validates command policy via `evaluateNodeCommandPolicy(...)`
+- Same approval gate as `shell_execute` when `OPENCLAW_EXEC_APPROVALS_REQUIRED=true`
+- `action=start` requires a non-empty `command`
 
 #### `github` - GitHub Manager
 
@@ -564,6 +596,21 @@ Runs multiple runtime tool calls in parallel via one dispatcher call.
 
 - `tool_uses` must be a non-empty array
 - nested `multi_tool_use.parallel` calls are blocked
+
+### Compatibility Skills (Opt-In)
+
+The runtime also exposes compatibility function names to support legacy/OpenClaw-style tool prompts.
+
+| Function Name(s)                                                                         | Runtime Handler / Behavior                          |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `read`, `write`, `edit`, `apply_patch`                                                   | Coding-compat bridge handlers                       |
+| `exec`                                                                                   | Alias to `shell_execute`                            |
+| `process`                                                                                | Alias to `process_manager`                          |
+| `agents_list`                                                                            | Session-compat handler                              |
+| `sessions_list`, `sessions_history`, `sessions_send`, `sessions_spawn`, `session_status` | Session-compat handlers                             |
+| `message`                                                                                | Message-compat handler                              |
+| `memory_search`, `memory_get`                                                            | Memory-compat handlers                              |
+| `browser`                                                                                | Browser-tool handler (separate from snapshot fetch) |
 
 ### Data & Media
 
@@ -970,14 +1017,16 @@ const db = new BetterSqlite3(resolved, { readonly: true });
 
 ### Authentication
 
-All skill API endpoints require valid user context:
+All skill API endpoints are guarded via route wrappers:
 
 ```typescript
-const userContext = await resolveRequestUserContext();
-if (!userContext) {
-  return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-}
+export const POST = withUserContext(async ({ request, userContext }) => {
+  // userContext is guaranteed here
+  return runSkillDispatch(request, userContext.userId);
+});
 ```
+
+For optional-context routes, use `withResolvedUserContext(...)`.
 
 ---
 

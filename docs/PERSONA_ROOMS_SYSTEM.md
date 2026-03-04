@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer Persona-Verwaltung und persona-gebundene Channel-Integrationen.
 - Scope: Persona-Lifecycle, Datei-Kontext, Telegram-Bot-Bindings je Persona.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-23
+- Last Reviewed: 2026-03-04
 - Related Runbooks: docs/runbooks/gateway-config-production-rollout.md
 
 ---
@@ -19,8 +19,18 @@ Das Persona-System verwaltet Identitaeten, Datei-Kontexte und persona-spezifisch
 - **Persona**: Konfigurierbare Identitaet mit Prompting-/Kontextdaten
 - **Persona Files**: Dateien pro Persona fuer dauerhaftes Kontextwissen
 - **Persona Telegram Bot**: Optionaler Telegram-Bot pro Persona mit eigener Token-/Webhook-Konfiguration
+- **Roleplay Tool Policy**: Personas mit `memoryPersonaType=roleplay` deaktivieren Tool-Nutzung im Message-Service-FLOW (Inbound-Commands, Dispatch/Preflight, AI-Tool-Context).
 
 Hinweis: Das fruehere Rooms-Subsystem (`/api/rooms/*`, `src/server/rooms/*`) ist aus der aktiven Runtime entfernt.
+
+### Tool-Verhalten bei Roleplay-Personas
+
+- Wenn `memoryPersonaType` auf `roleplay` steht, werden Tools hart deaktiviert.
+- Betroffene Pfade:
+  - Inbound-Command-Routing (`/shell`, projektbezogene Tool-Commands)
+  - AI-Dispatch/Tool-Loop (Tool-Context leer, keine Skill/Tool-Guidance)
+  - Approval-Pfade liefern Status `tools_disabled_for_roleplay`
+- Kernlogik: `src/server/channels/messages/service/core/toolPolicy.ts`
 
 ---
 

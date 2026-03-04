@@ -970,11 +970,14 @@ const geminiProviderAdapter: ProviderAdapter = {
 
 #### Pipeline
 
-| Method | Endpoint                               | Description               |
-| ------ | -------------------------------------- | ------------------------- |
-| `GET`  | `/api/model-hub/pipeline?profileId=p1` | Get pipeline for profile  |
-| `PUT`  | `/api/model-hub/pipeline`              | Replace entire pipeline   |
-| `POST` | `/api/model-hub/pipeline`              | Add/remove/update/reorder |
+| Method | Endpoint                                         | Description                                     |
+| ------ | ------------------------------------------------ | ----------------------------------------------- |
+| `GET`  | `/api/model-hub/pipeline?profileId=p1`           | Get pipeline for profile                        |
+| `GET`  | `/api/model-hub/pipeline?includeEmbeddings=true` | Get default + embedding pipeline in one request |
+| `PUT`  | `/api/model-hub/pipeline`                        | Replace entire pipeline                         |
+| `POST` | `/api/model-hub/pipeline`                        | Add/remove/update/reorder                       |
+
+`includeEmbeddings=true` liefert `models` (Standardprofil) und zusaetzlich `embeddingModels` (`p1-embeddings`) im selben Response-Body.
 
 **POST Actions:**
 

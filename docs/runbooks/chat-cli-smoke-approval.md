@@ -3,14 +3,14 @@
 Validiert lokal den kompletten Flow:
 
 1. User sendet Chat-Nachricht via Gateway `chat.stream`
-2. Agent fordert bei `shell_execute` Approval an (`approval_required`)
+2. Agent fordert bei command-basierten Tools Approval an (`approval_required`) - z. B. `shell_execute` oder `process_manager` (`action=start`)
 3. Approval wird via `chat.approval.respond` gesendet
 4. Agent liefert die finale Antwort nach Tool-Ausfuehrung
 
 ## Voraussetzungen
 
 - Server laeuft (`npm run dev` oder `npm run start`)
-- `shell_execute` Skill ist installiert
+- `shell_execute` Skill ist installiert (optional zusaetzlich `process_manager`)
 - Fuer echten Approval-Flow:
   - `OPENCLAW_EXEC_APPROVALS_REQUIRED=true`
 
@@ -46,6 +46,9 @@ npm run smoke:chat-cli-approval -- --decision approve_always --message "Nutze sh
 
 # Nur Token/Prompt pruefen, nichts bestaetigen
 npm run smoke:chat-cli-approval -- --decision skip --message "Nutze shell_execute und fuehre echo smoke-3 aus."
+
+# Prozess-Start pruefen (gleiches Approval-Gate wie shell_execute)
+npm run smoke:chat-cli-approval -- --decision approve_once --message "Nutze process_manager und starte den Befehl: node -e \"console.log('smoke-process')\""
 ```
 
 ## Erwartetes Ergebnis
