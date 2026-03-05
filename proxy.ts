@@ -11,6 +11,7 @@ const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET?.trim() || process.env.AUTH_
 const PUBLIC_API_PREFIXES = [
   '/api/auth',
   '/api/webhooks',
+  '/api/model-hub/oauth/callback',
   '/api/channels/telegram/webhook',
   '/api/channels/telegram/bots',
   '/api/channels/discord/webhook',
