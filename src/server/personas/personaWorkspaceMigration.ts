@@ -36,6 +36,13 @@ export function migrateLegacyAttachmentsToPersonaWorkspaces(): {
   let migratedFiles = 0;
   let touchedMessages = 0;
   try {
+    const hasMessagesTable = hasTable(db, 'messages');
+    const hasConversationsTable = hasTable(db, 'conversations');
+    if (!hasMessagesTable || !hasConversationsTable) {
+      writeMigrationMarker(markerPath);
+      return { migratedFiles: 0, touchedMessages: 0 };
+    }
+
     const rows = db
       .prepare(
         `
@@ -113,10 +120,21 @@ export function migrateLegacyAttachmentsToPersonaWorkspaces(): {
     personaRepo.close();
   }
 
-  fs.mkdirSync(path.dirname(markerPath), { recursive: true });
-  fs.writeFileSync(markerPath, new Date().toISOString(), 'utf8');
+  writeMigrationMarker(markerPath);
 
   return { migratedFiles, touchedMessages };
+}
+
+function hasTable(db: ReturnType<typeof openSqliteDatabase>, tableName: string): boolean {
+  const row = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")
+    .get(String(tableName).trim()) as { name?: string } | undefined;
+  return Boolean(row?.name);
+}
+
+function writeMigrationMarker(markerPath: string): void {
+  fs.mkdirSync(path.dirname(markerPath), { recursive: true });
+  fs.writeFileSync(markerPath, new Date().toISOString(), 'utf8');
 }
 
 function parseMetadataObject(metadata: string): Record<string, unknown> {

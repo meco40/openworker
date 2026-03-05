@@ -179,4 +179,34 @@ describe('persona workspace lifecycle', () => {
     messageRepo.close();
     personaRepo.close();
   });
+
+  it('returns gracefully when messages schema is not initialized yet', () => {
+    const personasRootPath = createTestPersonasRootPath();
+    const personasDbPath = path.resolve(
+      getTestArtifactsRoot(),
+      `personas.workspace.empty.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
+    );
+    const messagesDbPath = path.resolve(
+      getTestArtifactsRoot(),
+      `messages.workspace.empty.${Date.now()}.${Math.random().toString(36).slice(2)}.db`,
+    );
+    cleanupFiles.push(personasDbPath, messagesDbPath);
+    process.env.PERSONAS_DB_PATH = personasDbPath;
+    process.env.MESSAGES_DB_PATH = messagesDbPath;
+
+    // Seed at least one persona so workspace setup still runs.
+    const personaRepo = new PersonaRepository(personasDbPath);
+    personaRepo.createPersona({
+      userId: 'u1',
+      name: 'Nata Guard',
+      emoji: '🛡️',
+      vibe: '',
+    });
+
+    const result = migrateLegacyAttachmentsToPersonaWorkspaces();
+    expect(result).toEqual({ migratedFiles: 0, touchedMessages: 0 });
+    expect(fs.existsSync(path.join(personasRootPath, '.migration-v1.done'))).toBe(true);
+
+    personaRepo.close();
+  });
 });

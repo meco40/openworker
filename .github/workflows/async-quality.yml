@@ -69,6 +69,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build app for browser e2e
+        run: pnpm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+
       - name: Install Playwright browser
         run: pnpm exec playwright install chromium
 
@@ -153,6 +158,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build app for flaky detector
+        run: pnpm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
 
       - name: Run flaky detector
         run: node --import tsx scripts/ci/flaky-detection.ts
