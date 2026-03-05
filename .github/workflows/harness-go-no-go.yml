@@ -1,0 +1,179 @@
+name: Harness Go No-Go
+
+on:
+  schedule:
+    - cron: '50 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  go-no-go:
+    name: Go/No-Go Decision
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ENGINEERING_SNAPSHOT_OUTPUT: engineering-metrics-snapshot.json
+      ROLL_OUT_GATE_OUTPUT: harness-rollout-gates-report.json
+      GO_NO_GO_OUTPUT: harness-go-no-go-report.json
+      ROLLOUT_GATES_ENFORCE: ${{ vars.ROLLOUT_GATES_ENFORCE || '0' }}
+      GO_NO_GO_ENFORCE: ${{ vars.GO_NO_GO_ENFORCE || '0' }}
+      GO_NO_GO_OWNER: ${{ vars.GO_NO_GO_OWNER || vars.ROLLOUT_GATE_OWNER || github.repository_owner }}
+      ROLLOUT_SLA_HOURS: ${{ vars.ROLLOUT_SLA_HOURS || '24' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build snapshot payload
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ENGINEERING_SNAPSHOT_OUTPUT: ${{ env.ENGINEERING_SNAPSHOT_OUTPUT }}
+        run: node scripts/ci/engineering-metrics-snapshot.mjs
+
+      - name: Evaluate rollout gates
+        run: node --import tsx scripts/ci/harness-rollout-gates.ts
+
+      - name: Evaluate go/no-go decision
+        run: node --import tsx scripts/ci/harness-go-no-go.ts
+
+      - name: Upload go/no-go reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-go-no-go-report
+          path: |
+            ${{ env.ENGINEERING_SNAPSHOT_OUTPUT }}
+            ${{ env.ROLL_OUT_GATE_OUTPUT }}
+            ${{ env.GO_NO_GO_OUTPUT }}
+          if-no-files-found: error
+
+      - name: Open/update decision + follow-up issues
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          GO_NO_GO_OUTPUT: ${{ env.GO_NO_GO_OUTPUT }}
+          GO_NO_GO_OWNER: ${{ env.GO_NO_GO_OWNER }}
+          ROLLOUT_SLA_HOURS: ${{ env.ROLLOUT_SLA_HOURS }}
+        with:
+          script: |
+            const fs = require('fs')
+            const report = JSON.parse(fs.readFileSync(process.env.GO_NO_GO_OUTPUT, 'utf8'))
+            if (report.skipped) {
+              core.info('Not a configured decision date; skipping issue automation.')
+              return
+            }
+
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const decisionDate = String(report.decisionDate || '').trim()
+            const dedupeLabel = `go-no-go:date:${decisionDate}`
+            const recommendation = String(report.recommendation || 'hold')
+            const overallStatus = String(report.overallStatus || 'unknown')
+            const failedGates = Array.isArray(report.failedGates) ? report.failedGates : []
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`
+
+            const decisionBody = [
+              `Decision date: ${decisionDate}`,
+              `Overall status: ${overallStatus}`,
+              `Recommendation: ${recommendation}`,
+              `Run: ${runUrl}`,
+              '',
+              'Failed gates:',
+              ...(failedGates.length
+                ? failedGates.map((gate) => `- ${gate.id}: ${gate.label} (${gate.detail || 'n/a'})`)
+                : ['- none']),
+            ].join('\n')
+
+            const openDecisionIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              labels: dedupeLabel,
+              per_page: 100,
+            })
+            const existingDecision = openDecisionIssues.find((item) => !item.pull_request)
+            const decisionLabels = ['harness-rollout', 'go-no-go', dedupeLabel, `decision:${recommendation}`]
+
+            if (existingDecision) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: existingDecision.number,
+                title: `[Harness][Go/No-Go] ${decisionDate}: ${recommendation}`,
+                body: decisionBody,
+                labels: decisionLabels,
+                assignees: [String(process.env.GO_NO_GO_OWNER || owner)],
+              })
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title: `[Harness][Go/No-Go] ${decisionDate}: ${recommendation}`,
+                body: decisionBody,
+                labels: decisionLabels,
+                assignees: [String(process.env.GO_NO_GO_OWNER || owner)],
+              })
+            }
+
+            const dueHours = Number(process.env.ROLLOUT_SLA_HOURS || '24')
+            const dueAt = new Date(Date.now() + Math.max(1, dueHours) * 3600 * 1000).toISOString()
+
+            for (const gate of failedGates) {
+              const gateId = String(gate.id || '').trim()
+              if (!gateId) continue
+              const gateLabel = `go-no-go:gate:${gateId}:date:${decisionDate}`
+              const current = await github.paginate(github.rest.issues.listForRepo, {
+                owner,
+                repo,
+                state: 'open',
+                labels: gateLabel,
+                per_page: 100,
+              })
+              const existing = current.find((item) => !item.pull_request)
+              const body = [
+                `Decision date: ${decisionDate}`,
+                `Gate: ${gateId}`,
+                `Detail: ${String(gate.detail || 'n/a')}`,
+                `Decision recommendation: ${recommendation}`,
+                `Run: ${runUrl}`,
+                `SLA due at: ${dueAt}`,
+              ].join('\n')
+              const labels = ['harness-rollout', 'go-no-go', 'sla-24h', gateLabel]
+              if (existing) {
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: existing.number,
+                  title: `[Harness][Go/No-Go] Follow-up ${gateId} (${decisionDate})`,
+                  body,
+                  labels,
+                  assignees: [String(process.env.GO_NO_GO_OWNER || owner)],
+                })
+              } else {
+                await github.rest.issues.create({
+                  owner,
+                  repo,
+                  title: `[Harness][Go/No-Go] Follow-up ${gateId} (${decisionDate})`,
+                  body,
+                  labels,
+                  assignees: [String(process.env.GO_NO_GO_OWNER || owner)],
+                })
+              }
+            }

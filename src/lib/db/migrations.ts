@@ -352,6 +352,46 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: '012',
+    name: 'add_engineering_rollout_tables',
+    up: (db) => {
+      console.log('[Migration 012] Adding engineering rollout baseline and gate-run tables...');
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS engineering_rollout_baselines (
+          id TEXT PRIMARY KEY,
+          window_start TEXT NOT NULL,
+          window_end TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          source TEXT NOT NULL,
+          baseline_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_engineering_rollout_baselines_created
+        ON engineering_rollout_baselines (created_at DESC);
+      `);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS engineering_rollout_gate_runs (
+          id TEXT PRIMARY KEY,
+          phase_id TEXT,
+          status TEXT NOT NULL CHECK (status IN ('pass', 'fail', 'unknown')),
+          payload_json TEXT NOT NULL,
+          generated_at TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_engineering_rollout_gate_runs_generated
+        ON engineering_rollout_gate_runs (generated_at DESC);
+      `);
+    },
+  },
 ];
 
 /**

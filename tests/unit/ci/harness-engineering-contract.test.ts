@@ -69,6 +69,23 @@ describe('harness engineering governance contracts', () => {
     expect(workflow).toContain('Apply metrics alert policy');
   });
 
+  it('keeps rollout gate and go/no-go workflows with stable contexts', () => {
+    const rolloutWorkflow = fs.readFileSync('.github/workflows/harness-rollout-gates.yml', 'utf8');
+    const goNoGoWorkflow = fs.readFileSync('.github/workflows/harness-go-no-go.yml', 'utf8');
+
+    expect(rolloutWorkflow).toContain('Harness Rollout Gates');
+    expect(rolloutWorkflow).toContain('Rollout Exit Gates');
+    expect(rolloutWorkflow).toContain('ROLLOUT_GATES_ENFORCE');
+    expect(rolloutWorkflow).toContain('scripts/ci/harness-rollout-gates.ts');
+    expect(rolloutWorkflow).toContain('harness-rollout-gates-report.json');
+
+    expect(goNoGoWorkflow).toContain('Harness Go No-Go');
+    expect(goNoGoWorkflow).toContain('Go/No-Go Decision');
+    expect(goNoGoWorkflow).toContain('GO_NO_GO_ENFORCE');
+    expect(goNoGoWorkflow).toContain('scripts/ci/harness-go-no-go.ts');
+    expect(goNoGoWorkflow).toContain('harness-go-no-go-report.json');
+  });
+
   it('keeps domain registry and scenario matrix as source-of-truth artifacts', () => {
     const registry = fs.readFileSync('docs/contracts/DOMAIN_REGISTRY.json', 'utf8');
     const matrix = fs.readFileSync('docs/contracts/DOMAIN_SCENARIO_MATRIX.json', 'utf8');

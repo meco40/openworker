@@ -1,0 +1,194 @@
+name: Harness Rollout Gates
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '35 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: harness-rollout-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  rollout-exit-gates:
+    name: Rollout Exit Gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ENGINEERING_SNAPSHOT_OUTPUT: engineering-metrics-snapshot.json
+      ROLL_OUT_GATE_OUTPUT: harness-rollout-gates-report.json
+      ROLLOUT_GATES_ENFORCE: ${{ vars.ROLLOUT_GATES_ENFORCE || '0' }}
+      ROLLOUT_GATE_OWNER: ${{ vars.ROLLOUT_GATE_OWNER || github.repository_owner }}
+      ROLLOUT_SLA_HOURS: ${{ vars.ROLLOUT_SLA_HOURS || '24' }}
+      ENGINEERING_INGEST_ENABLED: ${{ vars.ENGINEERING_INGEST_ENABLED || '0' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build snapshot payload
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ENGINEERING_SNAPSHOT_OUTPUT: ${{ env.ENGINEERING_SNAPSHOT_OUTPUT }}
+        run: node scripts/ci/engineering-metrics-snapshot.mjs
+
+      - name: Evaluate rollout exit gates
+        run: node --import tsx scripts/ci/harness-rollout-gates.ts
+
+      - name: Upload rollout reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-rollout-gates-report
+          path: |
+            ${{ env.ENGINEERING_SNAPSHOT_OUTPUT }}
+            ${{ env.ROLL_OUT_GATE_OUTPUT }}
+          if-no-files-found: error
+
+      - name: Ingest rollout gate run
+        if: always() && env.ENGINEERING_INGEST_ENABLED == '1'
+        env:
+          ENGINEERING_INGEST_URL: ${{ secrets.ENGINEERING_INGEST_URL }}
+          ENGINEERING_INGEST_TOKEN: ${{ secrets.ENGINEERING_INGEST_TOKEN }}
+          ROLL_OUT_GATE_OUTPUT: ${{ env.ROLL_OUT_GATE_OUTPUT }}
+          ENGINEERING_INGEST_STRICT: ${{ vars.ENGINEERING_INGEST_STRICT || '0' }}
+        shell: bash
+        run: |
+          if [ -z "$ENGINEERING_INGEST_URL" ] || [ -z "$ENGINEERING_INGEST_TOKEN" ]; then
+            echo "Missing ENGINEERING_INGEST_URL or ENGINEERING_INGEST_TOKEN"
+            exit 1
+          fi
+
+          NOW_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          IDEMPOTENCY_KEY="rollout-gate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          PAYLOAD_FILE="rollout-gate-ingest.json"
+
+          node -e "const fs=require('fs'); const report=JSON.parse(fs.readFileSync(process.env.ROLL_OUT_GATE_OUTPUT,'utf8')); const payload={ rolloutGateRun: report.ingestPayload?.rolloutGateRun || null }; fs.writeFileSync('rollout-gate-ingest.json', JSON.stringify(payload));"
+
+          set +e
+          HTTP_STATUS="$(curl -sS -o rollout-gate-ingest-response.json -w "%{http_code}" \
+            -X POST "$ENGINEERING_INGEST_URL" \
+            -H "content-type: application/json" \
+            -H "x-engineering-ingest-token: $ENGINEERING_INGEST_TOKEN" \
+            -H "x-engineering-ingest-timestamp: $NOW_ISO" \
+            -H "x-engineering-ingest-idempotency-key: $IDEMPOTENCY_KEY" \
+            --data-binary "@$PAYLOAD_FILE")"
+          CURL_EXIT="$?"
+          set -e
+
+          if [ "$CURL_EXIT" -eq 0 ] && [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Rollout gate ingest succeeded with HTTP $HTTP_STATUS."
+            exit 0
+          fi
+
+          echo "::warning::Rollout gate ingest failed (curl_exit=$CURL_EXIT, http_status=$HTTP_STATUS)."
+          if [ -f rollout-gate-ingest-response.json ]; then
+            cat rollout-gate-ingest-response.json
+          fi
+
+          if [ "$ENGINEERING_INGEST_STRICT" = "1" ]; then
+            exit 1
+          fi
+
+      - name: Open/update rollout issue
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          ROLL_OUT_GATE_OUTPUT: ${{ env.ROLL_OUT_GATE_OUTPUT }}
+          ROLLOUT_GATE_OWNER: ${{ env.ROLLOUT_GATE_OWNER }}
+          ROLLOUT_SLA_HOURS: ${{ env.ROLLOUT_SLA_HOURS }}
+        with:
+          script: |
+            const fs = require('fs')
+            const report = JSON.parse(fs.readFileSync(process.env.ROLL_OUT_GATE_OUTPUT, 'utf8'))
+            const rollout = report.rollout || {}
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const phase = String(rollout.phase || 'unassigned')
+            const dedupeLabel = `harness-rollout:phase:${phase}`
+            const overallStatus = String(rollout.overallStatus || 'unknown')
+            const failedGates = Array.isArray(rollout.exitGates)
+              ? rollout.exitGates.filter((gate) => String(gate.status || '') !== 'pass')
+              : []
+
+            const existing = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              labels: dedupeLabel,
+              per_page: 100,
+            })
+            const issue = existing.find((item) => !item.pull_request)
+
+            if (overallStatus === 'pass') {
+              if (issue) {
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  state: 'closed',
+                })
+              }
+              return
+            }
+
+            const dueHours = Number(process.env.ROLLOUT_SLA_HOURS || '24')
+            const dueAt = new Date(Date.now() + Math.max(1, dueHours) * 3600 * 1000).toISOString()
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`
+            const body = [
+              `Phase: ${phase}`,
+              `Overall status: ${overallStatus}`,
+              `Mode: ${String(rollout.mode || 'unknown')}`,
+              `Recommendation: ${String(rollout.recommendation || 'hold')}`,
+              `Run: ${runUrl}`,
+              `SLA due at: ${dueAt}`,
+              '',
+              'Failed/unknown gates:',
+              ...(failedGates.length
+                ? failedGates.map((gate) => `- ${gate.id}: ${gate.label} (${gate.detail || 'n/a'})`)
+                : ['- none']),
+            ].join('\n')
+            const labels = ['harness-rollout', dedupeLabel, 'gate-failed', 'sla-24h']
+
+            if (issue) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issue.number,
+                title: `[Harness][Rollout] Exit gates failing (${phase})`,
+                body,
+                labels,
+                assignees: [String(process.env.ROLLOUT_GATE_OWNER || owner)],
+              })
+              return
+            }
+
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title: `[Harness][Rollout] Exit gates failing (${phase})`,
+              body,
+              labels,
+              assignees: [String(process.env.ROLLOUT_GATE_OWNER || owner)],
+            })

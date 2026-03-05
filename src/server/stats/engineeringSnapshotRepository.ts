@@ -9,6 +9,25 @@ export interface StoredEngineeringSnapshot {
   createdAt: string;
 }
 
+export interface StoredEngineeringRolloutBaseline {
+  id: string;
+  windowStart: string;
+  windowEnd: string;
+  payload: Record<string, unknown>;
+  source: string;
+  baselineHash: string;
+  createdAt: string;
+}
+
+export interface StoredEngineeringRolloutGateRun {
+  id: string;
+  phaseId: string | null;
+  status: 'pass' | 'fail' | 'unknown';
+  payload: Record<string, unknown>;
+  generatedAt: string;
+  createdAt: string;
+}
+
 export interface EngineeringPrFact {
   prNumber: number;
   createdAt: string;
@@ -157,6 +176,133 @@ export function getLatestEngineeringSnapshot(windowDays: 7 | 30): StoredEngineer
     windowDays: row.window_days as 7 | 30,
     payload,
     source: row.source,
+    generatedAt: row.generated_at,
+    createdAt: row.created_at,
+  };
+}
+
+export function storeEngineeringRolloutBaseline(input: {
+  id: string;
+  windowStart: string;
+  windowEnd: string;
+  payload: Record<string, unknown>;
+  source: string;
+  baselineHash: string;
+}): void {
+  run(
+    `INSERT OR IGNORE INTO engineering_rollout_baselines (
+      id, window_start, window_end, payload_json, source, baseline_hash
+    ) VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      input.id,
+      input.windowStart,
+      input.windowEnd,
+      JSON.stringify(input.payload),
+      input.source,
+      input.baselineHash,
+    ],
+  );
+}
+
+export function getEngineeringRolloutBaselineById(
+  id: string,
+): StoredEngineeringRolloutBaseline | null {
+  const row = queryOne<{
+    id: string;
+    window_start: string;
+    window_end: string;
+    payload_json: string;
+    source: string;
+    baseline_hash: string;
+    created_at: string;
+  }>(
+    `SELECT id, window_start, window_end, payload_json, source, baseline_hash, created_at
+     FROM engineering_rollout_baselines
+     WHERE id = ?
+     LIMIT 1`,
+    [id],
+  );
+
+  if (!row) return null;
+  const payload = parseJsonObject(row.payload_json);
+  if (!payload) return null;
+  return {
+    id: row.id,
+    windowStart: row.window_start,
+    windowEnd: row.window_end,
+    payload,
+    source: row.source,
+    baselineHash: row.baseline_hash,
+    createdAt: row.created_at,
+  };
+}
+
+export function getLatestEngineeringRolloutBaseline(): StoredEngineeringRolloutBaseline | null {
+  const row = queryOne<{
+    id: string;
+    window_start: string;
+    window_end: string;
+    payload_json: string;
+    source: string;
+    baseline_hash: string;
+    created_at: string;
+  }>(
+    `SELECT id, window_start, window_end, payload_json, source, baseline_hash, created_at
+     FROM engineering_rollout_baselines
+     ORDER BY created_at DESC
+     LIMIT 1`,
+  );
+
+  if (!row) return null;
+  const payload = parseJsonObject(row.payload_json);
+  if (!payload) return null;
+  return {
+    id: row.id,
+    windowStart: row.window_start,
+    windowEnd: row.window_end,
+    payload,
+    source: row.source,
+    baselineHash: row.baseline_hash,
+    createdAt: row.created_at,
+  };
+}
+
+export function storeEngineeringRolloutGateRun(input: {
+  phaseId: string | null;
+  status: 'pass' | 'fail' | 'unknown';
+  payload: Record<string, unknown>;
+  generatedAt: string;
+}): void {
+  const id = `gr-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  run(
+    `INSERT INTO engineering_rollout_gate_runs (id, phase_id, status, payload_json, generated_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [id, input.phaseId, input.status, JSON.stringify(input.payload), input.generatedAt],
+  );
+}
+
+export function getLatestEngineeringRolloutGateRun(): StoredEngineeringRolloutGateRun | null {
+  const row = queryOne<{
+    id: string;
+    phase_id: string | null;
+    status: 'pass' | 'fail' | 'unknown';
+    payload_json: string;
+    generated_at: string;
+    created_at: string;
+  }>(
+    `SELECT id, phase_id, status, payload_json, generated_at, created_at
+     FROM engineering_rollout_gate_runs
+     ORDER BY generated_at DESC
+     LIMIT 1`,
+  );
+  if (!row) return null;
+  const payload = parseJsonObject(row.payload_json);
+  if (!payload) return null;
+  return {
+    id: row.id,
+    phaseId: row.phase_id,
+    status: row.status,
+    payload,
     generatedAt: row.generated_at,
     createdAt: row.created_at,
   };

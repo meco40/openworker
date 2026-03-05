@@ -1,5 +1,11 @@
 import { queryAll } from '@/lib/db';
 import { loadDomainRegistry } from '@/server/ci/harnessDomainRegistry';
+import {
+  evaluateHarnessRollout,
+  loadHarnessRolloutConfig,
+  type HarnessRolloutConfig,
+  type RolloutBaselineRecord,
+} from '@/server/stats/harnessRollout';
 import { getMasterRepository } from '@/server/master/runtime';
 import type { WorkspaceScope } from '@/server/master/types';
 import {
@@ -12,11 +18,13 @@ import {
 } from '@/server/stats/engineeringMetrics';
 import {
   getGuardianAutoRevertCount,
+  getEngineeringRolloutBaselineById,
   getHarnessDomainStats,
   getHarnessLaneStats,
   getHarnessScenarioStats,
   getHarnessWorktreeStats,
   getLatestEngineeringSnapshot,
+  getLatestEngineeringRolloutBaseline,
 } from '@/server/stats/engineeringSnapshotRepository';
 
 const ALLOWED_WINDOWS = new Set([7, 30]);
@@ -180,6 +188,62 @@ function collectRunSignals(
   return { completedRuns, verificationRuns, rollbackEvents };
 }
 
+function loadRolloutState(): {
+  config: HarnessRolloutConfig;
+  baseline: RolloutBaselineRecord | null;
+} {
+  try {
+    const config = loadHarnessRolloutConfig();
+    const baseline =
+      getEngineeringRolloutBaselineById(config.baseline.id) ||
+      getLatestEngineeringRolloutBaseline();
+    return {
+      config,
+      baseline: baseline
+        ? {
+            id: baseline.id,
+            payload: baseline.payload,
+            createdAt: baseline.createdAt,
+            source: baseline.source,
+            hash: baseline.baselineHash,
+          }
+        : null,
+    };
+  } catch {
+    return {
+      config: {
+        version: 'unknown',
+        timezone: 'UTC',
+        rolloutStart: '',
+        baseline: {
+          id: 'unknown',
+          windowStart: '',
+          windowEnd: '',
+          source: 'unknown',
+        },
+        owners: {
+          rolloutGateOwnerVar: 'ROLLOUT_GATE_OWNER',
+          goNoGoOwnerVar: 'GO_NO_GO_OWNER',
+        },
+        sla: {
+          defaultHours: 24,
+          overrideVar: 'ROLLOUT_SLA_HOURS',
+        },
+        phases: [],
+        goNoGo: {
+          decisionDates: [],
+          recommendationPolicy: {
+            pass: 'go',
+            fail: 'hold',
+            unknown: 'hold',
+          },
+        },
+      },
+      baseline: null,
+    };
+  }
+}
+
 export function parseWindowDays(raw: string | null): 7 | 30 {
   if (!raw) return 30;
   const parsed = Number.parseInt(raw, 10);
@@ -199,6 +263,7 @@ export function collectEngineeringMetricsSnapshot(params: {
   const from = new Date(now.getTime() - params.windowDays * 24 * 60 * 60 * 1000);
   const fromIso = from.toISOString();
   const nowMs = now.getTime();
+  const rolloutState = loadRolloutState();
 
   const laneStats = getHarnessLaneStats(fromIso).map((row) => ({
     lane: row.lane,
@@ -274,7 +339,7 @@ export function collectEngineeringMetricsSnapshot(params: {
         'criticalFailAutoReverts',
         'critical_fail_auto_reverts',
       );
-      return {
+      const snapshotResult: EngineeringMetricsSnapshot = {
         windowDays: params.windowDays,
         leadTimeMedianHours: numericOrNull(
           readPayloadNumber(payload, 'leadTimeMedianHours', 'lead_time_median_hours'),
@@ -348,6 +413,17 @@ export function collectEngineeringMetricsSnapshot(params: {
           laneSuccessRates: laneStats,
         },
       };
+      return {
+        ...snapshotResult,
+        rollout: evaluateHarnessRollout({
+          config: rolloutState.config,
+          baseline: rolloutState.baseline,
+          now,
+          snapshotsByWindow: {
+            [params.windowDays]: snapshotResult,
+          },
+        }),
+      };
     }
   }
 
@@ -362,7 +438,7 @@ export function collectEngineeringMetricsSnapshot(params: {
     asyncFailures: collectAsyncFailures(fromIso, nowMs),
   };
   const computed = computeEngineeringMetricsSnapshot(signals, now.toISOString());
-  return {
+  const fallbackResult: EngineeringMetricsSnapshot = {
     ...computed,
     source: 'fallback',
     snapshotAgeHours:
@@ -379,6 +455,17 @@ export function collectEngineeringMetricsSnapshot(params: {
     observability: {
       laneSuccessRates: laneStats,
     },
+  };
+  return {
+    ...fallbackResult,
+    rollout: evaluateHarnessRollout({
+      config: rolloutState.config,
+      baseline: rolloutState.baseline,
+      now,
+      snapshotsByWindow: {
+        [params.windowDays]: fallbackResult,
+      },
+    }),
   };
 }
 

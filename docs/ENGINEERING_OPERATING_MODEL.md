@@ -1,4 +1,4 @@
-# Engineering Operating Model (Harness v3)
+# Engineering Operating Model (Harness v4)
 
 ## Ziel
 
@@ -53,6 +53,12 @@ Regeln:
 
 Regel: Async-Fehler erzeugen innerhalb von 24h einen Follow-up-Task mit Owner.
 
+3. Rollout Exit Gates (main-only Push Gate):
+
+- `Rollout Exit Gates` (`.github/workflows/harness-rollout-gates.yml`)
+- 4-Wochen-Phasenmodell via `config/harness-rollout-gates.json`
+- im Enforcement-Modus blockiert ein roter Rollout-Gate-Status den Push-Check
+
 ## Guardian-Verhalten
 
 Der `Main Guardian` reagiert auf fehlgeschlagene Blocking-Gates auf `main`:
@@ -74,6 +80,11 @@ Der `Main Guardian` reagiert auf fehlgeschlagene Blocking-Gates auf `main`:
 - Durchsatz- und Stabilitätsmetriken reviewen
 - Top-3 Reibungspunkte mit klaren Gegenmassnahmen planen
 
+3. Go/No-Go:
+
+- `Harness Go No-Go` Workflow laeuft taeglich und entscheidet nur an den fixen Decision Dates.
+- Empfehlung wird als dedupliziertes Decision-Issue dokumentiert (`go|hold|rollback-hardening`).
+
 ## Observability und Retention
 
 1. Harness-Events sind OTel-kompatibel und enthalten `trace_id`, `span_id`, `domain`, `scenario`, `worktree_id`, `commit_sha`.
@@ -83,5 +94,28 @@ Der `Main Guardian` reagiert auf fehlgeschlagene Blocking-Gates auf `main`:
 - `scenarioSuccessRates`
 - `worktreeHarness`
 - `criticalFailAutoReverts`
+- `rollout.phase`
+- `rollout.exitGates`
+- `rollout.recommendation`
+- `rollout.baselineId`
 
 3. Harness-Events werden mit 90-Tage-Retention gehalten und bei Ingest PII-sicher redigiert.
+
+## Flag-Matrix und Rollback
+
+1. Flags:
+
+- `ROLLOUT_GATES_ENFORCE` (`0|1`)
+- `GO_NO_GO_ENFORCE` (`0|1`)
+- `MAIN_GUARDIAN_AUTOREVERT_ENABLED` (`0|1`, Standard `1`)
+
+2. Rollout-Reihenfolge:
+
+- Woche 1 report-only
+- Woche 2-4 enforce
+
+3. Rollback-Reihenfolge:
+
+- `GO_NO_GO_ENFORCE=0`
+- `ROLLOUT_GATES_ENFORCE=0`
+- optional `MAIN_GUARDIAN_AUTOREVERT_ENABLED=0`

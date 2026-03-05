@@ -5,6 +5,7 @@
 - 2026-03-04T21:03:45Z [TOOL] Documentation review executed across active docs (`README.md`, `docs/*.md` excluding `docs/archive/*`) with checks for config/runtime drift, dependency/version drift, and link integrity.
 - 2026-03-05T00:26:10+01:00 [USER] Execute Harness-Engineering v2 rollout for Mission Control + Chat with blocking/async gates, deterministic harness, SoR contracts, entropy loop, and engineering metrics endpoint.
 - 2026-03-05T10:41:29+01:00 [USER] Execute Harness v3 cleaned full plan for 3 remaining points: main-only enforcement, repo-wide domain governance, full worktree harness + observability.
+- 2026-03-05T11:28:18+01:00 [USER] Implement Harness Restpunkte v4 fully: fixed baseline, rollout exit-gates workflow, go/no-go automation, owner/SLA tracking, and required check rollout.
 
 [DECISIONS]
 
@@ -13,6 +14,8 @@
 - 2026-03-05T08:13:25+01:00 [CODE] Harness Wave 2 thin-route AST guard is enforced with a frozen legacy exception baseline; any new direct DB usage in non-exempt `app/api/**/route.ts` now fails tests.
 - 2026-03-05T10:41:29+01:00 [CODE] Harness v3 keeps main-only safety as post-push enforcement (`Main Policy` + `Main Guardian`) and requires commit trailers for agentic commits instead of PR-template-only proof.
 - 2026-03-05T10:41:29+01:00 [CODE] Engineering stats/ingest stay additive: new domain/scenario/worktree/guardian observability fields were added without breaking existing API fields.
+- 2026-03-05T11:28:18+01:00 [CODE] Harness v4 pins rollout baseline to fixed UTC window (`2026-02-07T00:00:00Z`..`2026-03-08T23:59:59Z`) and stores it immutably in `engineering_rollout_baselines`.
+- 2026-03-05T11:28:18+01:00 [CODE] Rollout enforcement remains main-only post-push; hard gate context is `Rollout Exit Gates`, with issue-based follow-up and 24h SLA ownership.
 
 [PROGRESS]
 
@@ -52,6 +55,10 @@
 - 2026-03-05T10:56:33+01:00 [TOOL] Repaired local Node/pnpm module state via `pnpm install --force`; `@next/env` package contents restored and `pnpm run build` now completes successfully.
 - 2026-03-05T10:56:33+01:00 [TOOL] Committed and pushed Harness v3 batch to `origin/main` (`1029249`) with main-policy trailers (`Agentic-Change`, `Harness-Scenario`, `Harness-Evidence`, `Risk-Class`, `Human-Approval`).
 - 2026-03-05T10:56:33+01:00 [TOOL] Updated required status checks on `main` from `PR Policy` to `Main Policy` and verified post-push green `Blocking Gates`, `Async Quality Gates`, and `E2E Browser` runs.
+- 2026-03-05T11:28:18+01:00 [CODE] Implemented Harness v4 artifacts: `config/harness-rollout-gates.json`, rollout evaluator (`src/server/stats/harnessRollout.ts`), new workflows (`harness-rollout-gates.yml`, `harness-go-no-go.yml`), and new CI scripts for rollout/go-no-go.
+- 2026-03-05T11:28:18+01:00 [CODE] Extended ingest/stats pipeline with rollout persistence and API exposure (`engineering_rollout_baselines`, `engineering_rollout_gate_runs`, `snapshot.rollout.*` fields on `GET /api/stats/engineering`).
+- 2026-03-05T11:28:18+01:00 [TOOL] Verification completed for v4 scope: `pnpm run check`, plus targeted stats/ci/rollout test suites (`20 tests passed`).
+- 2026-03-05T11:28:18+01:00 [TOOL] Branch protection on `meco40/openworker` `main` updated to include required context `Rollout Exit Gates`; rollout/go-no-go/guardian flag variables set in GitHub Actions variables.
 
 [DISCOVERIES]
 
@@ -81,6 +88,7 @@
 - 2026-03-05T10:41:29+01:00 [CODE] Domain registry generation initially referenced two non-existent tests (`tests/unit/skills/policy.test.ts`, `tests/integration/tasks/routes/task-routes.test.ts`); corrected to existing test files before enforcing contracts.
 - 2026-03-05T10:41:29+01:00 [TOOL] Local Next build remains blocked by workspace module resolution (`Cannot find module '@next/env'`) despite dependency declaration; this is an existing local environment issue, not introduced by harness v3 changes.
 - 2026-03-05T10:56:33+01:00 [TOOL] `next-env.d.ts` flips between `.next/types` and `.next/dev/types` depending on build/dev generation; file was restored to committed state after validation to avoid incidental drift.
+- 2026-03-05T11:28:18+01:00 [TOOL] GitHub REST update for `/branches/main/protection/required_status_checks` returned 404 on direct PUT, but full protection PUT (`/branches/main/protection`) succeeded and persisted the new required context list.
 
 [OUTCOMES]
 
@@ -109,3 +117,4 @@
 - 2026-03-05T10:41:29+01:00 [CODE] Harness v3 core gaps are implemented locally: enforceable main-only policy, guardian safety automation, repo-wide domain contracts, full scenario matrix integration, and expanded engineering observability/retention.
 - 2026-03-05T10:41:29+01:00 [TOOL] Quality verification is green for typecheck/lint/format and targeted v3 tests; `pnpm run build` is still red locally due pre-existing `@next/env` module resolution issue.
 - 2026-03-05T10:56:33+01:00 [TOOL] Both requested follow-ups are complete: local build is green again and GitHub branch protection now enforces the final main-only required-check set including `Main Policy`.
+- 2026-03-05T11:28:18+01:00 [CODE] Harness Restpunkte v4 is implemented end-to-end: fixed baseline SoR, 4-week rollout gate automation, go/no-go decision automation with SLA-owned follow-ups, and additive rollout fields in engineering stats.

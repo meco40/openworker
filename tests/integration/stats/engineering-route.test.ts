@@ -87,6 +87,11 @@ describe('GET /api/stats/engineering', () => {
         worktreeHarness: {
           totalWorktrees: number;
         };
+        rollout: {
+          overallStatus: string;
+          recommendation: string;
+          baselineId: string | null;
+        };
       };
     };
 
@@ -100,6 +105,8 @@ describe('GET /api/stats/engineering', () => {
     expect(payload.snapshot.domainCoverage.activeDomains).toBeGreaterThan(0);
     expect(Array.isArray(payload.snapshot.scenarioSuccessRates)).toBe(true);
     expect(typeof payload.snapshot.worktreeHarness.totalWorktrees).toBe('number');
+    expect(typeof payload.snapshot.rollout.overallStatus).toBe('string');
+    expect(typeof payload.snapshot.rollout.recommendation).toBe('string');
   });
 
   it('returns partial metrics when run and task signals exist', async () => {
@@ -161,6 +168,9 @@ describe('GET /api/stats/engineering', () => {
         source: string;
         isFallback: boolean;
         criticalFailAutoReverts: number;
+        rollout: {
+          baselineId: string | null;
+        };
       };
     };
 
@@ -172,6 +182,10 @@ describe('GET /api/stats/engineering', () => {
     expect(payload.snapshot.source).toBeTruthy();
     expect(typeof payload.snapshot.isFallback).toBe('boolean');
     expect(typeof payload.snapshot.criticalFailAutoReverts).toBe('number');
+    expect(
+      typeof payload.snapshot.rollout.baselineId === 'string' ||
+        payload.snapshot.rollout.baselineId === null,
+    ).toBe(true);
   });
 
   it('rejects unsupported window sizes', async () => {
@@ -253,6 +267,9 @@ describe('GET /api/stats/engineering', () => {
         domainCoverage: {
           coveredDomains: number;
         };
+        rollout: {
+          overallStatus: string;
+        };
       };
     };
 
@@ -263,5 +280,6 @@ describe('GET /api/stats/engineering', () => {
     expect(payload.snapshot.firstPassCiRate).toBe(0.9);
     expect(payload.snapshot.criticalFailAutoReverts).toBe(1);
     expect(payload.snapshot.domainCoverage.coveredDomains).toBe(9);
+    expect(typeof payload.snapshot.rollout.overallStatus).toBe('string');
   });
 });

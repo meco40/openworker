@@ -86,7 +86,7 @@ jobs:
   auto-revert:
     name: Auto Revert Failed Main Commit
     needs: [evaluate]
-    if: needs.evaluate.outputs.action == 'auto_revert'
+    if: needs.evaluate.outputs.action == 'auto_revert' && (vars.MAIN_GUARDIAN_AUTOREVERT_ENABLED == '' || vars.MAIN_GUARDIAN_AUTOREVERT_ENABLED == '1')
     runs-on: ubuntu-latest
     outputs:
       revert_sha: ${{ steps.revert.outputs.revert_sha }}

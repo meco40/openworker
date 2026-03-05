@@ -2,9 +2,12 @@ import { timingSafeEqual } from 'node:crypto';
 import {
   appendHarnessRunEvents,
   createIngestReceipt,
+  getEngineeringRolloutBaselineById,
   hasIngestReceipt,
   pruneHarnessRunEventsBefore,
   replaceEngineeringPrFacts,
+  storeEngineeringRolloutBaseline,
+  storeEngineeringRolloutGateRun,
   storeEngineeringSnapshot,
   type EngineeringPrFact,
   type HarnessRunEvent,
@@ -204,6 +207,69 @@ function parseEvents(body: Record<string, unknown>): HarnessRunEvent[] {
   });
 }
 
+function parseRolloutBaseline(body: Record<string, unknown>): {
+  id: string;
+  windowStart: string;
+  windowEnd: string;
+  payload: Record<string, unknown>;
+  source: string;
+  baselineHash: string;
+} | null {
+  const baseline = asRecord(body.rolloutBaseline ?? body.rollout_baseline);
+  if (!baseline) return null;
+  const id = String(baseline.id || '')
+    .trim()
+    .slice(0, 128);
+  if (!id) throw new Error('rolloutBaseline.id is required');
+  const payload = asRecord(baseline.payload);
+  if (!payload) throw new Error('rolloutBaseline.payload is required');
+  const windowStart = asIso(baseline.windowStart ?? baseline.window_start);
+  const windowEnd = asIso(baseline.windowEnd ?? baseline.window_end);
+  const source = String(baseline.source || 'github-snapshot').trim() || 'github-snapshot';
+  const baselineHash = String(baseline.hash ?? baseline.baseline_hash ?? '')
+    .trim()
+    .slice(0, 128);
+  if (!baselineHash) throw new Error('rolloutBaseline.hash is required');
+  return {
+    id,
+    windowStart,
+    windowEnd,
+    payload,
+    source,
+    baselineHash,
+  };
+}
+
+function parseRolloutGateRun(body: Record<string, unknown>): {
+  phaseId: string | null;
+  status: 'pass' | 'fail' | 'unknown';
+  payload: Record<string, unknown>;
+  generatedAt: string;
+} | null {
+  const row = asRecord(body.rolloutGateRun ?? body.rollout_gate_run);
+  if (!row) return null;
+  const statusInput = String(row.status || '')
+    .trim()
+    .toLowerCase();
+  const status =
+    statusInput === 'pass'
+      ? 'pass'
+      : statusInput === 'fail'
+        ? 'fail'
+        : statusInput === 'unknown'
+          ? 'unknown'
+          : null;
+  if (!status) throw new Error('rolloutGateRun.status must be pass|fail|unknown');
+  const payload = asRecord(row.payload);
+  if (!payload) throw new Error('rolloutGateRun.payload is required');
+  return {
+    phaseId: asOptionalString(row.phaseId ?? row.phase_id),
+    status,
+    payload,
+    generatedAt: asIso(row.generatedAt ?? row.generated_at ?? new Date().toISOString()),
+  };
+}
+
 export async function POST(request: Request) {
   try {
     if (!readBooleanEnv('ENGINEERING_INGEST_ENABLED', false)) {
@@ -252,6 +318,8 @@ export async function POST(request: Request) {
     const snapshots = parseSnapshotRows(body);
     const prFacts = parsePrFacts(body);
     const events = parseEvents(body);
+    const rolloutBaseline = parseRolloutBaseline(body);
+    const rolloutGateRun = parseRolloutGateRun(body);
     const receivedAt = new Date(nowMs).toISOString();
 
     createIngestReceipt(idempotencyKey, receivedAt);
@@ -263,6 +331,12 @@ export async function POST(request: Request) {
     }
     if (events.length > 0) {
       appendHarnessRunEvents(events);
+    }
+    if (rolloutBaseline && !getEngineeringRolloutBaselineById(rolloutBaseline.id)) {
+      storeEngineeringRolloutBaseline(rolloutBaseline);
+    }
+    if (rolloutGateRun) {
+      storeEngineeringRolloutGateRun(rolloutGateRun);
     }
     const retentionCutoffIso = new Date(
       nowMs - HARNESS_RETENTION_DAYS * 24 * 60 * 60 * 1000,
@@ -276,6 +350,8 @@ export async function POST(request: Request) {
         snapshots: snapshots.length,
         prFacts: prFacts.length,
         events: events.length,
+        rolloutBaseline: rolloutBaseline ? 1 : 0,
+        rolloutGateRun: rolloutGateRun ? 1 : 0,
         prunedEvents,
       },
     });

@@ -61,6 +61,35 @@ export interface EngineeringMetricsSnapshot {
       flakySuspicions: number;
     }>;
   };
+  rollout?: {
+    phase: string | null;
+    phaseWindow: {
+      start: string | null;
+      end: string | null;
+    };
+    mode: 'report-only' | 'enforce' | null;
+    baselineId: string | null;
+    overallStatus: 'pass' | 'fail' | 'unknown';
+    recommendation: 'go' | 'hold' | 'rollback-hardening';
+    exitGates: Array<{
+      id: string;
+      label: string;
+      status: 'pass' | 'fail' | 'unknown';
+      windowDays: 7 | 30;
+      metric: string;
+      operator: '>=' | '<=' | '>' | '<' | '==';
+      expected: number | null;
+      actual: number | null;
+      detail: string;
+    }>;
+    deltaVsBaseline: {
+      firstPassCiRate: number | null;
+      revertRate: number | null;
+      flakyRate: number | null;
+      mergeThroughputPerWeek: number | null;
+      medianPrSize: number | null;
+    };
+  };
 }
 
 function roundToTwo(value: number): number {

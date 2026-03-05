@@ -15,6 +15,12 @@ function makeHeaders(overrides: Record<string, string> = {}): HeadersInit {
 }
 
 function makeBody() {
+  const baselinePayload = {
+    windowDays: 30,
+    firstPassCiRate: 0.75,
+    revertRate: 0.05,
+    flakyRate: 0.01,
+  };
   return {
     snapshots: [
       {
@@ -59,6 +65,23 @@ function makeBody() {
         run_url: 'https://github.com/example/repo/actions/runs/1?token=secret',
       },
     ],
+    rolloutBaseline: {
+      id: 'baseline-2026-02-07_2026-03-08',
+      windowStart: '2026-02-07T00:00:00Z',
+      windowEnd: '2026-03-08T23:59:59Z',
+      source: 'github-snapshot',
+      hash: 'test-baseline-hash',
+      payload: baselinePayload,
+    },
+    rolloutGateRun: {
+      phaseId: 'week-1',
+      status: 'pass',
+      generatedAt: new Date().toISOString(),
+      payload: {
+        phase: 'week-1',
+        overallStatus: 'pass',
+      },
+    },
   };
 }
 
@@ -164,6 +187,14 @@ describe('POST /api/internal/stats/engineering/snapshots', () => {
     expect(rows[0].worktree_id).toBe('gha-main');
     expect(rows[0].commit_sha).toBe('abcdef1234567890abcdef1234567890abcdef12');
     expect(rows[0].run_url).toBe('https://github.com/example/repo/actions/runs/1');
+
+    const baselines = queryAll<{ id: string }>('SELECT id FROM engineering_rollout_baselines');
+    expect(baselines.some((row) => row.id === 'baseline-2026-02-07_2026-03-08')).toBe(true);
+
+    const gateRuns = queryAll<{ phase_id: string | null; status: string }>(
+      'SELECT phase_id, status FROM engineering_rollout_gate_runs',
+    );
+    expect(gateRuns.some((row) => row.phase_id === 'week-1' && row.status === 'pass')).toBe(true);
   });
 
   it('returns 429 when ingest rate window is exceeded', async () => {

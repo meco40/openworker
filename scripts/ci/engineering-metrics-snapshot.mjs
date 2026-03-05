@@ -1,4 +1,5 @@
 import { writeFileSync } from 'node:fs';
+import crypto from 'node:crypto';
 
 const GITHUB_API = 'https://api.github.com';
 const ACTIVE_DOMAINS = [
@@ -36,6 +37,10 @@ function ratio(numerator, denominator) {
 
 function round2(value) {
   return Math.round(value * 100) / 100;
+}
+
+function hashPayload(payload) {
+  return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 
 async function githubFetch(path, token) {
@@ -275,6 +280,24 @@ async function main() {
     token,
     3,
   );
+  const sevenDaysAgoMs = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+  const recent7dCommits = recentCommits.filter((commit) => {
+    const committedAt = Date.parse(String(commit?.commit?.committer?.date || ''));
+    return Number.isFinite(committedAt) && committedAt >= sevenDaysAgoMs;
+  });
+  let agenticCommits = 0;
+  let commitsWithEvidence = 0;
+  for (const commit of recent7dCommits) {
+    const message = String(commit?.commit?.message || '');
+    const isAgentic = /Agentic-Change:\s*yes/i.test(message);
+    if (!isAgentic) continue;
+    agenticCommits += 1;
+    const hasScenario = /Harness-Scenario:\s*[-a-z0-9:_]+/i.test(message);
+    const hasEvidence = /Harness-Evidence:\s*https:\/\/\S+/i.test(message);
+    if (hasScenario && hasEvidence) commitsWithEvidence += 1;
+  }
+  const scenarioEvidenceRate =
+    agenticCommits <= 0 ? 1 : round2(commitsWithEvidence / agenticCommits);
   const guardianRevertCommits = recentCommits.filter((commit) =>
     String(commit?.commit?.message || '')
       .toLowerCase()
@@ -312,9 +335,11 @@ async function main() {
     ? asyncSlaBreaches.filter((issue) => !issue.pull_request).length
     : 0;
 
-  const snapshots = windows.map((windowDays) => {
-    const fromMs = now.getTime() - windowDays * 24 * 60 * 60 * 1000;
-    const merged = mergedPrs.filter((pr) => Date.parse(pr.mergedAt) >= fromMs);
+  function buildSnapshotForRange(windowDays, fromMs, toMs = now.getTime()) {
+    const merged = mergedPrs.filter((pr) => {
+      const mergedAtMs = Date.parse(pr.mergedAt);
+      return Number.isFinite(mergedAtMs) && mergedAtMs >= fromMs && mergedAtMs <= toMs;
+    });
     const leadTimes = merged
       .map((pr) => hoursBetween(pr.createdAt, pr.mergedAt))
       .filter((value) => value !== null);
@@ -328,13 +353,16 @@ async function main() {
       (event) =>
         event.lane === 'flaky-detection' &&
         Number.isFinite(Date.parse(event.finished_at)) &&
-        Date.parse(event.finished_at) >= fromMs,
+        Date.parse(event.finished_at) >= fromMs &&
+        Date.parse(event.finished_at) <= toMs,
     );
     const flakyFailures = flakyWindow.filter((event) => event.status !== 'success').length;
 
     const eventsWindow = allEvents.filter(
       (event) =>
-        Number.isFinite(Date.parse(event.finished_at)) && Date.parse(event.finished_at) >= fromMs,
+        Number.isFinite(Date.parse(event.finished_at)) &&
+        Date.parse(event.finished_at) >= fromMs &&
+        Date.parse(event.finished_at) <= toMs,
     );
 
     return {
@@ -363,7 +391,28 @@ async function main() {
       generatedAt: nowIso,
       source: 'github-snapshot',
     };
-  });
+  }
+
+  const snapshots = windows.map((windowDays) =>
+    buildSnapshotForRange(windowDays, now.getTime() - windowDays * 24 * 60 * 60 * 1000),
+  );
+
+  const baselineWindowStart = Date.parse('2026-02-07T00:00:00Z');
+  const baselineWindowEnd = Date.parse('2026-03-08T23:59:59Z');
+  const baselineSnapshot = buildSnapshotForRange(30, baselineWindowStart, baselineWindowEnd);
+  const baselinePayload = {
+    ...baselineSnapshot,
+    generatedAt: new Date(baselineWindowEnd).toISOString(),
+    source: 'github-snapshot',
+  };
+  const rolloutBaseline = {
+    id: 'baseline-2026-02-07_2026-03-08',
+    windowStart: '2026-02-07T00:00:00Z',
+    windowEnd: '2026-03-08T23:59:59Z',
+    source: 'github-snapshot',
+    hash: hashPayload(baselinePayload),
+    payload: baselinePayload,
+  };
 
   const prFacts = mergedPrs
     .filter((pr) => Date.parse(pr.mergedAt) >= oldest30.getTime())
@@ -384,10 +433,14 @@ async function main() {
     snapshots,
     prFacts,
     events: allEvents,
+    rolloutBaseline,
     meta: {
       generatedAt: nowIso,
       blockingFailStreak,
       criticalFailAutoReverts: guardianEvents.length,
+      ingestSuccessRate: 1,
+      scenarioEvidenceRate,
+      baselineId: rolloutBaseline.id,
     },
   };
 
