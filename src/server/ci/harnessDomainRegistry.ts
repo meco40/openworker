@@ -37,6 +37,7 @@ const SCENARIO_MATRIX_PATH = path.resolve(
   process.cwd(),
   'docs/contracts/DOMAIN_SCENARIO_MATRIX.json',
 );
+const CONTRACTS_ROOT_PATH = path.resolve(process.cwd(), 'docs/contracts');
 
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -154,7 +155,22 @@ export function parseCommitTrailers(message: string): Record<string, string> {
 }
 
 export function readContractLastReviewed(contractPath: string): string | null {
-  const absolute = path.resolve(process.cwd(), contractPath);
+  const raw = String(contractPath || '')
+    .trim()
+    .replace(/\\/g, '/');
+  if (!raw) return null;
+
+  const relativePath = raw.startsWith('docs/contracts/')
+    ? raw.slice('docs/contracts/'.length)
+    : raw;
+  const absolute = path.resolve(CONTRACTS_ROOT_PATH, relativePath);
+  const allowedPrefix = CONTRACTS_ROOT_PATH.endsWith(path.sep)
+    ? CONTRACTS_ROOT_PATH
+    : `${CONTRACTS_ROOT_PATH}${path.sep}`;
+  if (absolute !== CONTRACTS_ROOT_PATH && !absolute.startsWith(allowedPrefix)) {
+    return null;
+  }
+
   if (!fs.existsSync(absolute)) return null;
   const content = fs.readFileSync(absolute, 'utf8');
   const match = content.match(/- Last Reviewed:\s*(\d{4}-\d{2}-\d{2})/i);

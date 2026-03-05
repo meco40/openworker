@@ -7,6 +7,8 @@ import {
   removeConversationById,
   resolveActiveConversationAfterDeletion,
   STREAMING_DRAFT_ID_PREFIX,
+  applyInboxSnapshot,
+  upsertConversationFromInboxUpdate,
   upsertMessageReplacingStreamingDraft,
   upsertConversationActivity,
 } from '@/modules/app-shell/runtimeLogic';
@@ -203,6 +205,139 @@ describe('app-shell runtime logic', () => {
     expect(updated[0].id).toBe('conv-1');
     expect(updated[0].updatedAt).toBe('2026-02-10T09:00:00.000Z');
     expect(updated[1].id).toBe('conv-2');
+  });
+
+  it('inserts unknown conversation from inbox.updated payload without reload', () => {
+    const conversations: Conversation[] = [
+      {
+        id: 'conv-1',
+        channelType: 'WebChat' as never,
+        externalChatId: null,
+        userId: 'user-a',
+        title: 'Existing',
+        modelOverride: null,
+        personaId: null,
+        createdAt: '2026-02-10T08:00:00.000Z',
+        updatedAt: '2026-02-10T08:00:00.000Z',
+      },
+    ];
+
+    const updated = upsertConversationFromInboxUpdate(conversations, {
+      conversationId: 'conv-2',
+      channelType: 'Telegram' as never,
+      title: 'New external chat',
+      updatedAt: '2026-02-10T09:00:00.000Z',
+    });
+
+    expect(updated[0]?.id).toBe('conv-2');
+    expect(updated[0]?.channelType).toBe('Telegram');
+    expect(updated[1]?.id).toBe('conv-1');
+  });
+
+  it('keeps conversation upsert idempotent for duplicate inbox.updated events', () => {
+    const conversations: Conversation[] = [
+      {
+        id: 'conv-1',
+        channelType: 'WebChat' as never,
+        externalChatId: null,
+        userId: 'user-a',
+        title: 'Existing',
+        modelOverride: null,
+        personaId: null,
+        createdAt: '2026-02-10T08:00:00.000Z',
+        updatedAt: '2026-02-10T08:00:00.000Z',
+      },
+    ];
+
+    const next = upsertConversationFromInboxUpdate(conversations, {
+      conversationId: 'conv-1',
+      channelType: 'WebChat' as never,
+      title: 'Existing',
+      updatedAt: '2026-02-10T08:30:00.000Z',
+    });
+    const again = upsertConversationFromInboxUpdate(next, {
+      conversationId: 'conv-1',
+      channelType: 'WebChat' as never,
+      title: 'Existing',
+      updatedAt: '2026-02-10T08:30:00.000Z',
+    });
+
+    expect(again).toHaveLength(1);
+    expect(again[0]?.id).toBe('conv-1');
+    expect(again[0]?.updatedAt).toBe('2026-02-10T08:30:00.000Z');
+  });
+
+  it('ignores stale inbox.updated payloads for existing conversations', () => {
+    const conversations: Conversation[] = [
+      {
+        id: 'conv-1',
+        channelType: 'WebChat' as never,
+        externalChatId: null,
+        userId: 'user-a',
+        title: 'Existing',
+        modelOverride: null,
+        personaId: null,
+        createdAt: '2026-02-10T08:00:00.000Z',
+        updatedAt: '2026-02-10T09:00:00.000Z',
+      },
+    ];
+
+    const updated = upsertConversationFromInboxUpdate(conversations, {
+      conversationId: 'conv-1',
+      channelType: 'WebChat' as never,
+      title: 'Older payload',
+      updatedAt: '2026-02-10T08:30:00.000Z',
+    });
+
+    expect(updated).toHaveLength(1);
+    expect(updated[0]?.title).toBe('Existing');
+    expect(updated[0]?.updatedAt).toBe('2026-02-10T09:00:00.000Z');
+  });
+
+  it('applies inbox snapshot as replace semantics and keeps deterministic sorting', () => {
+    const conversations: Conversation[] = [
+      {
+        id: 'conv-old',
+        channelType: 'WebChat' as never,
+        externalChatId: null,
+        userId: 'user-a',
+        title: 'Old',
+        modelOverride: null,
+        personaId: null,
+        createdAt: '2026-02-10T08:00:00.000Z',
+        updatedAt: '2026-02-10T08:00:00.000Z',
+      },
+      {
+        id: 'conv-keep',
+        channelType: 'Telegram' as never,
+        externalChatId: null,
+        userId: 'user-a',
+        title: 'Keep me',
+        modelOverride: null,
+        personaId: null,
+        createdAt: '2026-02-10T08:05:00.000Z',
+        updatedAt: '2026-02-10T08:05:00.000Z',
+      },
+    ];
+
+    const updated = applyInboxSnapshot(conversations, [
+      {
+        conversationId: 'conv-keep',
+        channelType: 'Telegram' as never,
+        title: 'Keep me updated',
+        updatedAt: '2026-02-10T10:00:00.000Z',
+      },
+      {
+        conversationId: 'conv-new',
+        channelType: 'Discord' as never,
+        title: 'Brand new',
+        updatedAt: '2026-02-10T09:00:00.000Z',
+      },
+    ]);
+
+    expect(updated.map((item) => item.id)).toEqual(['conv-keep', 'conv-new']);
+    expect(updated.some((item) => item.id === 'conv-old')).toBe(false);
+    expect(updated[0]?.title).toBe('Keep me updated');
   });
 
   it('removes deleted conversation from the list', () => {

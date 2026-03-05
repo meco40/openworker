@@ -3,6 +3,9 @@
 import { ChannelType } from '@/shared/domain/types';
 import type {
   Conversation,
+  InboxItemRecord,
+  InboxListInput,
+  InboxListResult,
   MessageRepository,
   StoredMessage,
 } from '@/server/channels/messages/repository';
@@ -165,6 +168,107 @@ export class MessageService {
 
   getMessage(messageId: string, userId?: string): StoredMessage | null {
     return getMessage({ repo: this.repo, sessionManager: this.sessionManager }, messageId, userId);
+  }
+
+  listInbox(input: Omit<InboxListInput, 'userId'> & { userId: string }): InboxListResult {
+    if (typeof this.repo.listInbox === 'function') {
+      return this.repo.listInbox(input);
+    }
+
+    const limit = Math.max(1, Math.min(100, Number(input.limit || 50)));
+    const conversations = this.listConversations(input.userId, 10_000).sort((a, b) => {
+      const updatedAtCompare = b.updatedAt.localeCompare(a.updatedAt);
+      if (updatedAtCompare !== 0) return updatedAtCompare;
+      return b.id.localeCompare(a.id);
+    });
+    const normalizedChannel = String(input.channel || '')
+      .trim()
+      .toLowerCase();
+    const normalizedQuery = String(input.query || '')
+      .trim()
+      .toLowerCase();
+    const filteredItems: InboxItemRecord[] = conversations
+      .map((conversation) => {
+        const lastMessage = this.listMessages(conversation.id, input.userId, 1).at(-1) || null;
+        return {
+          conversationId: conversation.id,
+          channelType: conversation.channelType,
+          title: conversation.title,
+          updatedAt: conversation.updatedAt,
+          lastMessage: lastMessage
+            ? {
+                id: lastMessage.id,
+                role: lastMessage.role,
+                content: lastMessage.content,
+                createdAt: lastMessage.createdAt,
+                platform: lastMessage.platform,
+              }
+            : null,
+        };
+      })
+      .filter((item) => !normalizedChannel || item.channelType.toLowerCase() === normalizedChannel)
+      .filter((item) => {
+        if (!normalizedQuery) return true;
+        return (
+          item.title.toLowerCase().includes(normalizedQuery) ||
+          String(item.lastMessage?.content || '')
+            .toLowerCase()
+            .includes(normalizedQuery)
+        );
+      });
+
+    const startIndex = input.cursor
+      ? filteredItems.findIndex(
+          (item) =>
+            item.updatedAt === input.cursor?.updatedAt &&
+            item.conversationId === input.cursor?.conversationId,
+        ) + 1
+      : 0;
+    const pagedItems = filteredItems.slice(startIndex, startIndex + limit + 1);
+    const hasMore = pagedItems.length > limit;
+    const items = hasMore ? pagedItems.slice(0, limit) : pagedItems;
+    const last = hasMore ? items[items.length - 1] : null;
+
+    return {
+      items,
+      limit,
+      hasMore,
+      nextCursor: last
+        ? {
+            updatedAt: last.updatedAt,
+            conversationId: last.conversationId,
+          }
+        : null,
+      totalMatched: filteredItems.length,
+    };
+  }
+
+  getInboxItem(conversationId: string, userId: string): InboxItemRecord | null {
+    if (typeof this.repo.getInboxItem === 'function') {
+      return this.repo.getInboxItem(conversationId, userId);
+    }
+
+    const conversation = this.getConversation(conversationId, userId);
+    if (!conversation) {
+      return null;
+    }
+
+    const lastMessage = this.listMessages(conversation.id, userId, 1).at(-1) || null;
+    return {
+      conversationId: conversation.id,
+      channelType: conversation.channelType,
+      title: conversation.title,
+      updatedAt: conversation.updatedAt,
+      lastMessage: lastMessage
+        ? {
+            id: lastMessage.id,
+            role: lastMessage.role,
+            content: lastMessage.content,
+            createdAt: lastMessage.createdAt,
+            platform: lastMessage.platform,
+          }
+        : null,
+    };
   }
 
   async handleInbound(

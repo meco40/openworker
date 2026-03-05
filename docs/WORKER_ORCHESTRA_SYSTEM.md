@@ -41,7 +41,6 @@ Historische Detailsaetze liegen im Archiv unter `docs/archive/`.
   - `src/server/automation/executor.ts`
 - Operative Einsicht/Steuerung:
   - `GET|POST /api/ops/nodes`
-  - `GET /api/ops/agents`
 
 ---
 

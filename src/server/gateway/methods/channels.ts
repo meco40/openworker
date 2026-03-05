@@ -5,13 +5,22 @@ import { GatewayEvents } from '@/server/gateway/events';
 import { CHANNEL_CAPABILITIES } from '@/server/channels/adapters/capabilities';
 import type { ChannelKey } from '@/server/channels/adapters/types';
 import { listBridgeAccounts } from '@/server/channels/pairing/bridgeAccounts';
+import {
+  createUnavailableError,
+  isInboxV2Enabled,
+  resolveInboxListInput,
+  toInboxV1Response,
+  toInboxV2Response,
+} from '@/server/channels/inbox/contract';
+import { consumeInboxRateLimit } from '@/server/channels/inbox/rateLimit';
+import {
+  logInboxObservability,
+  recordInboxQueryDuration,
+  recordInboxReconnectResync,
+} from '@/server/channels/inbox/observability';
 
 function safeString(value: unknown): string {
   return typeof value === 'string' ? value : '';
-}
-
-function normalizeText(value: string): string {
-  return value.trim().toLowerCase();
 }
 
 registerMethod(
@@ -168,47 +177,64 @@ registerMethod(
 registerMethod(
   'inbox.list',
   async (params: Record<string, unknown>, client: GatewayClient, respond: RespondFn) => {
-    const filterChannel = normalizeText(safeString(params.channel));
-    const query = normalizeText(safeString(params.q));
-    const requestedLimit = Number(params.limit);
-    const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(100, requestedLimit)) : 50;
+    const startedAt = Date.now();
+    const input = resolveInboxListInput({
+      channel: safeString(params.channel),
+      q: safeString(params.q),
+      limit: params.limit as number | string | undefined,
+      cursor: safeString(params.cursor),
+      resync: params.resync as string | number | boolean | undefined,
+      version: params.version as string | number | undefined,
+    });
+
+    const v2Enabled = isInboxV2Enabled();
+    if (input.version === 'v2' && !v2Enabled) {
+      throw createUnavailableError('Inbox v2 is temporarily disabled.');
+    }
+
+    const rateLimit = consumeInboxRateLimit('ws', `${client.userId}:${client.connId}`);
+    if (!rateLimit.allowed) {
+      const error = new Error('Too many inbox requests.') as Error & { code: 'RATE_LIMITED' };
+      error.code = 'RATE_LIMITED';
+      throw error;
+    }
 
     const { getMessageService } = await import('@/server/channels/messages/runtime');
     const service = getMessageService();
-
-    const conversations = service.listConversations(client.userId, limit);
-    const items = conversations
-      .map((conversation) => {
-        const lastMessage = service.listMessages(conversation.id, client.userId, 1).at(-1) || null;
-        return {
-          conversationId: conversation.id,
-          channelType: conversation.channelType,
-          title: conversation.title,
-          updatedAt: conversation.updatedAt,
-          lastMessage: lastMessage
-            ? {
-                id: lastMessage.id,
-                role: lastMessage.role,
-                content: lastMessage.content,
-                createdAt: lastMessage.createdAt,
-                platform: lastMessage.platform,
-              }
-            : null,
-        };
-      })
-      .filter((item) => !filterChannel || normalizeText(item.channelType) === filterChannel)
-      .filter((item) => {
-        if (!query) return true;
-        return (
-          normalizeText(item.title).includes(query) ||
-          normalizeText(item.lastMessage?.content || '').includes(query)
-        );
-      });
-
-    respond({
-      items,
-      total: items.length,
-      nextCursor: null,
+    const result = service.listInbox({
+      userId: client.userId,
+      channel: input.channel,
+      query: input.query,
+      limit: input.limit,
+      cursor: input.cursor,
     });
+
+    const durationMs = Date.now() - startedAt;
+    recordInboxQueryDuration('ws', durationMs);
+    if (input.resync) {
+      recordInboxReconnectResync();
+    }
+    logInboxObservability('query.ws', {
+      userId: client.userId,
+      version: input.version,
+      resync: input.resync,
+      limit: input.limit,
+      hasCursor: Boolean(input.cursor),
+      returned: result.items.length,
+      totalMatched: result.totalMatched,
+      durationMs,
+    });
+
+    if (input.version === 'v1') {
+      respond({
+        ...toInboxV1Response(result),
+        deprecated: {
+          sunset: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      });
+      return;
+    }
+
+    respond(toInboxV2Response(result));
   },
 );

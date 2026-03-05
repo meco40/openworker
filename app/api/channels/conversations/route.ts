@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getMessageService } from '@/server/channels/messages/runtime';
 import type { ChannelType } from '@/shared/domain/types';
+import { emitInboxUpdated } from '@/server/channels/inbox/events';
 import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
@@ -47,6 +48,19 @@ export const POST = withUserContext(async ({ request, userContext }) => {
       conversation.personaId = body.personaId;
     }
 
+    emitInboxUpdated({
+      userId: userContext.userId,
+      action: 'upsert',
+      conversationId: conversation.id,
+      item: {
+        conversationId: conversation.id,
+        channelType: conversation.channelType,
+        title: conversation.title,
+        updatedAt: conversation.updatedAt,
+        lastMessage: null,
+      },
+    });
+
     return NextResponse.json({ ok: true, conversation });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -72,6 +86,12 @@ export const DELETE = withUserContext(async ({ request, userContext }) => {
     const { broadcastToUser } = await import('@/server/gateway/broadcast');
     const { GatewayEvents } = await import('@/server/gateway/events');
     broadcastToUser(userContext.userId, GatewayEvents.CONVERSATION_DELETED, { conversationId });
+    emitInboxUpdated({
+      userId: userContext.userId,
+      action: 'delete',
+      conversationId,
+      item: null,
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

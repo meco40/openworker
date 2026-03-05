@@ -130,3 +130,40 @@ export interface SearchMessagesOptions {
   role?: 'user' | 'agent' | 'system';
   limit?: number;
 }
+
+export interface InboxCursor {
+  updatedAt: string;
+  conversationId: string;
+}
+
+export interface InboxLastMessage {
+  id: string;
+  role: 'user' | 'agent' | 'system';
+  content: string;
+  createdAt: string;
+  platform: ChannelType;
+}
+
+export interface InboxItemRecord {
+  conversationId: string;
+  channelType: ChannelType;
+  title: string;
+  updatedAt: string;
+  lastMessage: InboxLastMessage | null;
+}
+
+export interface InboxListInput {
+  userId: string;
+  channel?: string;
+  query?: string;
+  limit?: number;
+  cursor?: InboxCursor | null;
+}
+
+export interface InboxListResult {
+  items: InboxItemRecord[];
+  limit: number;
+  hasMore: boolean;
+  nextCursor: InboxCursor | null;
+  totalMatched: number;
+}

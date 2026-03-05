@@ -3,7 +3,7 @@ import { View } from '@/shared/domain/types';
 import { resolveDefaultViewFromConfig } from '@/server/config/uiRuntimeConfig';
 import { resolveViewFromConfig } from '@/modules/app-shell/useAppShellState';
 
-const invalidViewValues = ['invalid-view', 'teams'] as const;
+const invalidViewValues = ['invalid-view', 'teams', 'agents'] as const;
 const fallbackResolvers = [
   ['resolveViewFromConfig', (value: string) => resolveViewFromConfig(value)],
   [
@@ -22,7 +22,6 @@ describe('default view config', () => {
     expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'cron' } })).toBe(View.CRON);
     expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'memory' } })).toBe(View.MEMORY);
     expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'nodes' } })).toBe(View.NODES);
-    expect(resolveDefaultViewFromConfig({ ui: { defaultView: 'agents' } })).toBe(View.AGENTS);
   });
 
   describe.each(fallbackResolvers)('%s', (_resolverName, resolve) => {

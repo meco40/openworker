@@ -10,13 +10,11 @@ describe('ops routes', () => {
     const instancesRoute = await import('../../../../app/api/ops/instances/route');
     const sessionsRoute = await import('../../../../app/api/ops/sessions/route');
     const nodesRoute = await import('../../../../app/api/ops/nodes/route');
-    const agentsRoute = await import('../../../../app/api/ops/agents/route');
 
     const responses = await Promise.all([
       instancesRoute.GET(new Request('http://localhost/api/ops/instances')),
       sessionsRoute.GET(new Request('http://localhost/api/ops/sessions')),
       nodesRoute.GET(new Request('http://localhost/api/ops/nodes')),
-      agentsRoute.GET(new Request('http://localhost/api/ops/agents')),
     ]);
 
     for (const response of responses) {

@@ -3,6 +3,7 @@ import { getMemoryService } from '@/server/memory/runtime';
 import { getClientRegistry } from '@/server/gateway/client-registry';
 import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 import { getMessageRepository } from '@/server/channels/messages/runtime';
+import { getInboxObservabilitySnapshot } from '@/server/channels/inbox/observability';
 import { withResolvedUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
@@ -117,6 +118,7 @@ export const GET = withResolvedUserContext(async ({ userContext }) => {
         ramUsageBytes,
         agentRoom: agentRoomMetrics,
         automation: automationMetrics,
+        inbox: getInboxObservabilitySnapshot(),
         rooms: null,
         knowledge: knowledgeMetrics,
         generatedAt: new Date().toISOString(),

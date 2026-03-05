@@ -35,7 +35,6 @@ Quellen: `app/api/config/route.ts`, `src/server/config/gatewayConfig.ts`
 | ------- | -------------------- | ---------------------------------------------------------------------------- |
 | GET     | `/api/ops/nodes`     | Health, Doctor, Channels, Personas, Automation, Exec-Approvals               |
 | POST    | `/api/ops/nodes`     | Operative Aktionen (z. B. `exec.approve`, Pairing, Binding, Secret-Rotation) |
-| GET     | `/api/ops/agents`    | Persona-Uebersicht                                                           |
 | GET     | `/api/ops/sessions`  | Sessionsuche/-filterung (q, activeMinutes, includeUnknown, includeGlobal)    |
 | GET     | `/api/ops/instances` | WebSocket-Connection-Instanzen pro User + global                             |
 

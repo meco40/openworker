@@ -87,11 +87,6 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: 'M5 12h14M12 5v14M3 7h4v4H3V7zm14 0h4v4h-4V7zM3 13h4v4H3v-4zm14 0h4v4h-4v-4z',
   },
   {
-    id: View.AGENTS,
-    label: 'Agents',
-    icon: 'M12 2a3 3 0 013 3v2h1a2 2 0 012 2v8a2 2 0 01-2 2h-8a2 2 0 01-2-2V9a2 2 0 012-2h1V5a3 3 0 013-3z',
-  },
-  {
     id: View.LOGS,
     label: 'System Logs',
     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',

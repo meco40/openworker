@@ -57,6 +57,38 @@ export interface ChatStreamDebugState {
   activeToolCall?: string | null;
 }
 
+export interface InboxLastMessage {
+  id: string;
+  role: 'user' | 'agent' | 'system';
+  content: string;
+  createdAt: string;
+  platform: ChannelType;
+}
+
+export interface InboxItem {
+  conversationId: string;
+  channelType: ChannelType;
+  title: string;
+  updatedAt: string;
+  lastMessage: InboxLastMessage | null;
+}
+
+export interface InboxPage {
+  limit: number;
+  returned: number;
+  hasMore: boolean;
+  nextCursor: string | null;
+  totalMatched: number;
+}
+
+export interface InboxUpdatedPayload {
+  version: 'v2';
+  action: 'upsert' | 'delete';
+  conversationId: string;
+  item: InboxItem | null;
+  serverTs: string;
+}
+
 export interface Conversation {
   id: string;
   channelType: ChannelType;
@@ -122,6 +154,27 @@ export interface ControlPlaneMetrics {
     deadLetterRuns: number;
     leaseAgeSeconds: number | null;
   } | null;
+  inbox?: {
+    queries: { http: number; ws: number };
+    queryLatencyMs: {
+      httpP95: number | null;
+      httpP99: number | null;
+      wsP95: number | null;
+      wsP99: number | null;
+    };
+    liveInsertLatencyMs: {
+      p95: number | null;
+      p99: number | null;
+    };
+    events: {
+      emitted: number;
+      dropped: number;
+      dropRate: number | null;
+      upserts: number;
+      deletes: number;
+    };
+    reconnectResyncCount: number;
+  } | null;
   generatedAt: string;
 }
 
@@ -159,7 +212,6 @@ export enum View {
   INSTANCES = 'instances',
   SESSIONS = 'sessions',
   NODES = 'nodes',
-  AGENTS = 'agents',
   DEBUGGER = 'debugger',
   MASTER = 'master',
   AGENT_ROOM = 'agent-room',

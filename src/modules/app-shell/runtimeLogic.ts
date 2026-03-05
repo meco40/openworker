@@ -1,4 +1,10 @@
-import type { ChannelType, Conversation, Message, MessageAttachment } from '@/shared/domain/types';
+import type {
+  ChannelType,
+  Conversation,
+  InboxItem,
+  Message,
+  MessageAttachment,
+} from '@/shared/domain/types';
 
 interface ConversationApiMessage {
   id: string;
@@ -101,6 +107,81 @@ export function upsertConversationActivity(
     { ...existing, updatedAt },
     ...conversations.filter((conversation) => conversation.id !== conversationId),
   ];
+}
+
+function compareConversationOrder(a: Conversation, b: Conversation): number {
+  const updatedAtCompare = b.updatedAt.localeCompare(a.updatedAt);
+  if (updatedAtCompare !== 0) return updatedAtCompare;
+  return b.id.localeCompare(a.id);
+}
+
+export function upsertConversationFromInboxUpdate(
+  conversations: Conversation[],
+  item: Pick<InboxItem, 'conversationId' | 'channelType' | 'title' | 'updatedAt'>,
+): Conversation[] {
+  const existing = conversations.find((conversation) => conversation.id === item.conversationId);
+  if (existing && existing.updatedAt.localeCompare(item.updatedAt) > 0) {
+    return conversations;
+  }
+
+  const nextConversation: Conversation = existing
+    ? {
+        ...existing,
+        channelType: item.channelType,
+        title: item.title,
+        updatedAt: item.updatedAt,
+      }
+    : {
+        id: item.conversationId,
+        channelType: item.channelType,
+        externalChatId: null,
+        userId: 'unknown',
+        title: item.title,
+        modelOverride: null,
+        personaId: null,
+        createdAt: item.updatedAt,
+        updatedAt: item.updatedAt,
+      };
+
+  const withoutCurrent = conversations.filter(
+    (conversation) => conversation.id !== item.conversationId,
+  );
+  return [nextConversation, ...withoutCurrent].sort(compareConversationOrder);
+}
+
+export function applyInboxSnapshot(
+  conversations: Conversation[],
+  items: Array<Pick<InboxItem, 'conversationId' | 'channelType' | 'title' | 'updatedAt'>>,
+): Conversation[] {
+  const previousById = new Map(
+    conversations.map((conversation) => [conversation.id, conversation]),
+  );
+  const nextById = new Map<string, Conversation>();
+
+  for (const item of items) {
+    const existing = previousById.get(item.conversationId);
+    const nextConversation: Conversation = existing
+      ? {
+          ...existing,
+          channelType: item.channelType,
+          title: item.title,
+          updatedAt: item.updatedAt,
+        }
+      : {
+          id: item.conversationId,
+          channelType: item.channelType,
+          externalChatId: null,
+          userId: 'unknown',
+          title: item.title,
+          modelOverride: null,
+          personaId: null,
+          createdAt: item.updatedAt,
+          updatedAt: item.updatedAt,
+        };
+    nextById.set(nextConversation.id, nextConversation);
+  }
+
+  return Array.from(nextById.values()).sort(compareConversationOrder);
 }
 
 export function removeConversationById(

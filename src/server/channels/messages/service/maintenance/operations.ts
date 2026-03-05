@@ -1,6 +1,7 @@
 import { GatewayEvents } from '@/server/gateway/events';
 import { broadcastToUser } from '@/server/gateway/broadcast';
 import { getServerEventBus } from '@/server/events/runtime';
+import { buildInboxItemFromConversation, emitInboxUpdated } from '@/server/channels/inbox/events';
 import {
   deleteStoredAttachmentFile,
   extractStoredAttachmentsFromMetadata,
@@ -120,5 +121,11 @@ export function saveDirectMessage(
     message: msg,
   });
   broadcastToUser(conversation.userId, GatewayEvents.CHAT_MESSAGE, msg);
+  emitInboxUpdated({
+    userId: conversation.userId,
+    action: 'upsert',
+    conversationId: conversation.id,
+    item: buildInboxItemFromConversation(conversation, msg),
+  });
   return msg;
 }

@@ -6,6 +6,7 @@ import {
   type IncomingMessageAttachmentPayload,
   type StoredMessageAttachment,
 } from '@/server/channels/messages/attachments';
+import { emitInboxUpdated } from '@/server/channels/inbox/events';
 import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
@@ -142,7 +143,19 @@ export const DELETE = withUserContext(async ({ request, userContext }) => {
     }
 
     const service = getMessageService();
-    const deleted = service.deleteMessage(messageId, userContext.userId, conversationId);
+    const existingMessage = service.getMessage(messageId, userContext.userId);
+    if (!existingMessage) {
+      return NextResponse.json({ ok: false, error: 'Message not found' }, { status: 404 });
+    }
+    if (conversationId && existingMessage.conversationId !== conversationId) {
+      return NextResponse.json({ ok: false, error: 'Message not found' }, { status: 404 });
+    }
+
+    const deleted = service.deleteMessage(
+      messageId,
+      userContext.userId,
+      existingMessage.conversationId,
+    );
     if (!deleted) {
       return NextResponse.json({ ok: false, error: 'Message not found' }, { status: 404 });
     }
@@ -151,7 +164,15 @@ export const DELETE = withUserContext(async ({ request, userContext }) => {
     const { GatewayEvents } = await import('@/server/gateway/events');
     broadcastToUser(userContext.userId, GatewayEvents.CHAT_MESSAGE_DELETED, {
       messageId,
-      conversationId: conversationId || null,
+      conversationId: existingMessage.conversationId || null,
+    });
+
+    const inboxItem = service.getInboxItem(existingMessage.conversationId, userContext.userId);
+    emitInboxUpdated({
+      userId: userContext.userId,
+      action: inboxItem ? 'upsert' : 'delete',
+      conversationId: existingMessage.conversationId,
+      item: inboxItem,
     });
 
     return NextResponse.json({ ok: true });

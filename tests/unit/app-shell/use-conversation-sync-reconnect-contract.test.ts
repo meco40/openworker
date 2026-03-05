@@ -9,7 +9,9 @@ describe('useConversationSync reconnect contract', () => {
 
     expect(source).toContain('client.onStateChange');
     expect(source).toContain("if (state !== 'connected')");
-    expect(source).toContain('void loadConversations()');
+    expect(source).toContain('void loadConversations({ resync: true })');
+    expect(source).toContain('/api/channels/inbox?');
+    expect(source).toContain("params.set('resync', '1')");
     expect(source).toContain('void loadMessages(currentConversationId)');
   });
 });

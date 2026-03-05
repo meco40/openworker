@@ -4,6 +4,7 @@
 import { registerMethod, type RespondFn } from '@/server/gateway/method-router';
 import type { GatewayClient } from '@/server/gateway/client-registry';
 import { ChannelType } from '@/shared/domain/types';
+import { emitInboxUpdated } from '@/server/channels/inbox/events';
 
 // ─── sessions.delete ─────────────────────────────────────────
 // Delete a conversation and all its messages.
@@ -26,6 +27,12 @@ registerMethod(
       const { broadcastToUser } = await import('@/server/gateway/broadcast');
       const { GatewayEvents } = await import('@/server/gateway/events');
       broadcastToUser(client.userId, GatewayEvents.CONVERSATION_DELETED, { conversationId });
+      emitInboxUpdated({
+        userId: client.userId,
+        action: 'delete',
+        conversationId,
+        item: null,
+      });
     }
 
     respond({ deleted });
@@ -55,6 +62,18 @@ registerMethod(
     broadcastToUser(client.userId, GatewayEvents.CONVERSATION_RESET, {
       oldConversationId: null,
       newConversationId: newConversation.id,
+    });
+    emitInboxUpdated({
+      userId: client.userId,
+      action: 'upsert',
+      conversationId: newConversation.id,
+      item: {
+        conversationId: newConversation.id,
+        channelType: newConversation.channelType,
+        title: newConversation.title,
+        updatedAt: newConversation.updatedAt,
+        lastMessage: null,
+      },
     });
 
     respond({ conversationId: newConversation.id });

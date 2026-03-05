@@ -6,6 +6,7 @@ import { getPersonaRepository } from '@/server/personas/personaRepository';
 import { broadcastToUser } from '@/server/gateway/broadcast';
 import { GatewayEvents } from '@/server/gateway/events';
 import { areToolsDisabledForPersona } from '@/server/channels/messages/service/core/toolPolicy';
+import { buildInboxItemFromConversation, emitInboxUpdated } from '@/server/channels/inbox/events';
 import type { HandleInboundDeps, HandleInboundParams } from '../handleInbound';
 
 export interface CreateInboundContextResult {
@@ -56,6 +57,12 @@ export function createInboundContextStage(
     message: userMsg,
   });
   broadcastToUser(conversation.userId, GatewayEvents.CHAT_MESSAGE, userMsg);
+  emitInboxUpdated({
+    userId: conversation.userId,
+    action: 'upsert',
+    conversationId: conversation.id,
+    item: buildInboxItemFromConversation(conversation, userMsg),
+  });
 
   const effectiveConversation = applyChannelBindingPersona(deps.repo, conversation, platform);
   const activePersona = effectiveConversation.personaId

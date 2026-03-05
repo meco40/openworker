@@ -1,6 +1,6 @@
 # Omnichannel and Gateway Operations
 
-Stand: 2026-02-21
+Stand: 2026-03-05
 
 ## Zweck
 
@@ -64,7 +64,9 @@ Health/Diagnose:
 ## Channel State und Inbox
 
 - `GET /api/channels/state`
-- `GET /api/channels/inbox?channel=<ChannelName>&q=<search>&limit=<n>`
+- `GET /api/channels/inbox?version=2&channel=<ChannelName>&q=<search>&limit=<n>`
+- Pagination: `cursor=<base64url>`
+- Reconnect-Resync signal: `resync=1`
 
 Gateway RPC Alternativen:
 
@@ -72,6 +74,8 @@ Gateway RPC Alternativen:
 - `channels.pair`
 - `channels.unpair`
 - `inbox.list`
+
+`inbox.list` nutzt denselben v2-Contract wie HTTP (`items[]` + `page { limit, returned, hasMore, nextCursor, totalMatched }`).
 
 ## Realtime Betrieb
 
@@ -93,11 +97,20 @@ Gateway RPC Alternativen:
 `Keine Live-Updates`:
 
 - WS-Verbindung und Event-Subscriptions pruefen.
+- `INBOX_V2_EVENTS_ENABLED` darf nicht auf `false` stehen.
 
 `pair ok, aber kein outbound`:
 
 - Credentials/Token in Store oder Env pruefen.
 - Ziel-Chat-ID auf externer Plattform pruefen.
+
+## Inbox v2 Flags
+
+- `INBOX_V2_ENABLED` (globaler v2 enable/disable Schalter)
+- `INBOX_V2_EVENTS_ENABLED` (Realtime-Kill-Switch)
+- `INBOX_V2_LOGS` (structured inbox logs)
+- `INBOX_HTTP_RATE_LIMIT_PER_MINUTE`
+- `INBOX_WS_RATE_LIMIT_PER_MINUTE`
 
 ## Verifikation
 
@@ -110,3 +123,5 @@ Gateway RPC Alternativen:
 - `docs/archive/operations/GATEWAY_WEBSOCKET_INTEGRATION.md`
 - `docs/archive/operations/OMNICHANNEL_RUNBOOK.md`
 - `docs/archive/reports/OMNICHANNEL_IMPLEMENTATION_BERICHT.md`
+- `docs/contracts/INBOX_V2_CONTRACT.md`
+- `docs/runbooks/INBOX_V1_TO_V2_MIGRATION.md`

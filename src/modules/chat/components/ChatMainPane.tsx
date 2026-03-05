@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ChatApprovalDecision,
   ChatStreamDebugState,
@@ -9,6 +9,7 @@ import type {
 import { getPlatformMeta } from '@/modules/chat/uiUtils';
 import ChatMessageAttachment from '@/modules/chat/components/ChatMessageAttachment';
 import { usePersona } from '@/modules/personas/PersonaContext';
+import { findCaseInsensitiveMatchRanges, stepConversationSearchIndex } from '@/modules/chat/search';
 
 interface ChatMainPaneProps {
   activeConversation: Conversation | undefined;
@@ -36,7 +37,10 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
   const activeMeta = activeConversation ? getPlatformMeta(activeConversation.channelType) : null;
   const { activePersona, personas, activePersonaId, setActivePersonaId } = usePersona();
   const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
+  const [conversationSearchQuery, setConversationSearchQuery] = useState('');
+  const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const searchMatchRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const streamDebugLabel =
     chatStreamDebug.phase === 'running'
       ? chatStreamDebug.transport === 'live-delta'
@@ -74,6 +78,106 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
     };
   }, [showPersonaDropdown]);
 
+  const messageSearchRanges = useMemo(
+    () =>
+      messages.map((message) =>
+        findCaseInsensitiveMatchRanges(message.content || '', conversationSearchQuery),
+      ),
+    [messages, conversationSearchQuery],
+  );
+
+  const messageSearchOffsets = useMemo(() => {
+    let offset = 0;
+    return messageSearchRanges.map((ranges) => {
+      const current = offset;
+      offset += ranges.length;
+      return current;
+    });
+  }, [messageSearchRanges]);
+
+  const totalSearchMatches = useMemo(
+    () => messageSearchRanges.reduce((sum, ranges) => sum + ranges.length, 0),
+    [messageSearchRanges],
+  );
+
+  useEffect(() => {
+    setConversationSearchQuery('');
+    setActiveSearchMatchIndex(0);
+    searchMatchRefs.current = [];
+  }, [activeConversation?.id]);
+
+  useEffect(() => {
+    if (totalSearchMatches <= 0) {
+      setActiveSearchMatchIndex(0);
+      return;
+    }
+    setActiveSearchMatchIndex((previous) => Math.min(previous, totalSearchMatches - 1));
+  }, [totalSearchMatches]);
+
+  useEffect(() => {
+    if (totalSearchMatches <= 0) return;
+    const target = searchMatchRefs.current[activeSearchMatchIndex];
+    target?.scrollIntoView({
+      block: 'center',
+      behavior: 'smooth',
+    });
+  }, [activeSearchMatchIndex, totalSearchMatches]);
+
+  const handleFindNext = () => {
+    setActiveSearchMatchIndex((previous) =>
+      stepConversationSearchIndex(previous, totalSearchMatches, 'next'),
+    );
+  };
+
+  const handleFindPrevious = () => {
+    setActiveSearchMatchIndex((previous) =>
+      stepConversationSearchIndex(previous, totalSearchMatches, 'prev'),
+    );
+  };
+
+  function renderMessageContent(content: string, messageIndex: number): React.ReactNode {
+    const ranges = messageSearchRanges[messageIndex] || [];
+    if (ranges.length === 0) {
+      return content;
+    }
+
+    const baseOffset = messageSearchOffsets[messageIndex] || 0;
+    const nodes: React.ReactNode[] = [];
+    let cursor = 0;
+
+    ranges.forEach((range, localIndex) => {
+      if (range.start > cursor) {
+        nodes.push(content.slice(cursor, range.start));
+      }
+
+      const globalMatchIndex = baseOffset + localIndex;
+      const isActive = globalMatchIndex === activeSearchMatchIndex;
+      nodes.push(
+        <span
+          key={`${messageIndex}-${range.start}-${range.end}`}
+          ref={(element) => {
+            searchMatchRefs.current[globalMatchIndex] = element;
+          }}
+          className={`search-highlight inline rounded px-0.5 ${
+            isActive
+              ? 'search-highlight-active bg-amber-300 text-zinc-900'
+              : 'bg-amber-500/30 text-amber-100'
+          }`}
+        >
+          {content.slice(range.start, range.end)}
+        </span>,
+      );
+
+      cursor = range.end;
+    });
+
+    if (cursor < content.length) {
+      nodes.push(content.slice(cursor));
+    }
+
+    return nodes;
+  }
+
   return (
     <>
       <header className="z-20 flex h-16 items-center justify-between border-b border-zinc-800 bg-zinc-950/80 px-6 backdrop-blur-2xl">
@@ -103,6 +207,52 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900/70 px-1.5 py-1">
+            <input
+              type="text"
+              aria-label="In Konversation suchen"
+              placeholder="In Konversation suchen"
+              value={conversationSearchQuery}
+              onChange={(event) => {
+                setConversationSearchQuery(event.target.value);
+                setActiveSearchMatchIndex(0);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                if (event.shiftKey) {
+                  handleFindPrevious();
+                  return;
+                }
+                handleFindNext();
+              }}
+              className="w-48 rounded-md border border-transparent bg-transparent px-2 py-0.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-500 focus:border-zinc-500"
+            />
+            <span className="min-w-[56px] text-center text-[10px] font-semibold text-zinc-400">
+              {totalSearchMatches <= 0
+                ? '0 / 0'
+                : `${activeSearchMatchIndex + 1} / ${totalSearchMatches}`}
+            </span>
+            <button
+              type="button"
+              onClick={handleFindPrevious}
+              className="h-6 w-6 rounded-md border border-zinc-700 text-zinc-300 transition hover:border-zinc-500 disabled:opacity-50"
+              aria-label="Vorherigen Treffer"
+              disabled={totalSearchMatches <= 0}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              onClick={handleFindNext}
+              className="h-6 w-6 rounded-md border border-zinc-700 text-zinc-300 transition hover:border-zinc-500 disabled:opacity-50"
+              aria-label="Naechsten Treffer"
+              disabled={totalSearchMatches <= 0}
+            >
+              ↓
+            </button>
+          </div>
+
           <div
             className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${streamDebugClass}`}
           >
@@ -199,7 +349,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
             </span>
           </div>
         ) : (
-          messages.map((message) => {
+          messages.map((message, messageIndex) => {
             const meta = getPlatformMeta(message.platform);
             const approvalRequest = message.approvalRequest;
             return (
@@ -267,7 +417,11 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                         message.role === 'user' ? 'font-medium' : 'font-normal'
                       }`}
                     >
-                      {message.content || (message.role === 'agent' ? '...' : '')}
+                      {message.content
+                        ? renderMessageContent(message.content, messageIndex)
+                        : message.role === 'agent'
+                          ? '...'
+                          : ''}
                     </div>
                     {message.attachment && (
                       <ChatMessageAttachment attachment={message.attachment} />

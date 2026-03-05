@@ -16,6 +16,7 @@ function mockUserContext(context: MockUserContext): void {
 describe('project delete + conversation delete flow', () => {
   let repo: SqliteMessageRepository;
   let personasRootPath = '';
+  const emitInboxUpdated = vi.fn();
 
   beforeEach(() => {
     vi.resetModules();
@@ -50,6 +51,16 @@ describe('project delete + conversation delete flow', () => {
     vi.doMock('../../../src/server/gateway/broadcast', () => ({
       broadcastToUser: vi.fn(),
     }));
+    vi.doMock('../../../src/server/channels/inbox/events', async () => {
+      const actual = await vi.importActual<
+        typeof import('../../../src/server/channels/inbox/events')
+      >('../../../src/server/channels/inbox/events');
+      return {
+        ...actual,
+        emitInboxUpdated,
+      };
+    });
+    emitInboxUpdated.mockReset();
   });
 
   afterEach(() => {
@@ -88,6 +99,13 @@ describe('project delete + conversation delete flow', () => {
     };
     expect(createConversationPayload.ok).toBe(true);
     const conversationId = createConversationPayload.conversation.id;
+    expect(emitInboxUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        action: 'upsert',
+        conversationId,
+      }),
+    );
 
     const projectCreateResponse = await messagesRoute.POST(
       new Request('http://localhost/api/channels/messages', {
@@ -140,5 +158,11 @@ describe('project delete + conversation delete flow', () => {
     const deleteConversationPayload = (await deleteConversationResponse.json()) as { ok: boolean };
     expect(deleteConversationPayload.ok).toBe(true);
     expect(repo.getConversation(conversationId, 'user-1')).toBeNull();
+    expect(emitInboxUpdated).toHaveBeenCalledWith({
+      userId: 'user-1',
+      action: 'delete',
+      conversationId,
+      item: null,
+    });
   });
 });

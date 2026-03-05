@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 import Sidebar from '@/components/Sidebar';
 import { View } from '@/shared/domain/types';
 
-describe('Sidebar ops seven-point navigation', () => {
-  it('contains all seven operations points', () => {
+describe('Sidebar ops navigation', () => {
+  it('contains the ops navigation entries', () => {
     const html = renderToStaticMarkup(
       createElement(Sidebar, {
         activeView: View.DASHBOARD,
@@ -23,7 +23,6 @@ describe('Sidebar ops seven-point navigation', () => {
     expect(navLabels).toContain('Usage Stats');
     expect(navLabels).toContain('Cron');
     expect(navLabels).toContain('Nodes');
-    expect(navLabels).toContain('Agents');
     expect(navLabels).toContain('System Logs');
   });
 });

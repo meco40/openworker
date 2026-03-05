@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer Multi-Channel-Routing und Gateway-Kommunikation.
 - Scope: Inbound/Outbound Routing, Adapter, Pairing, Webhooks, Gateway-RPC/Event-Flow.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-23
+- Last Reviewed: 2026-03-05
 - Related Runbooks: docs/runbooks/gateway-config-production-rollout.md
 
 ---
@@ -462,7 +462,7 @@ Die Verifikation ist standardmäßig fail-closed. Falls kein Secret konfiguriert
 GET    /api/channels/state         # Channel-Status
 POST   /api/channels/pair          # Channel koppeln
 DELETE /api/channels/pair          # Channel trennen
-GET    /api/channels/inbox         # Nachrichten-Inbox
+GET    /api/channels/inbox         # Nachrichten-Inbox (v2 default)
 ```
 
 ### 7.2 Webhooks
@@ -579,3 +579,5 @@ Beim Shutdown werden alle Poller via `stopAllPersonaBotPolling()` sauber gestopp
 - docs/SESSION_MANAGEMENT.md
 - docs/PERSONA_ROOMS_SYSTEM.md
 - docs/SECURITY_SYSTEM.md
+- docs/contracts/INBOX_V2_CONTRACT.md
+- docs/runbooks/INBOX_V1_TO_V2_MIGRATION.md

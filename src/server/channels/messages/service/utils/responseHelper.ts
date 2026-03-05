@@ -4,6 +4,7 @@ import { broadcastToUser } from '@/server/gateway/broadcast';
 import { GatewayEvents } from '@/server/gateway/events';
 import { deliverOutbound } from '@/server/channels/outbound/router';
 import { getServerEventBus } from '@/server/events/runtime';
+import { buildInboxItemFromConversation, emitInboxUpdated } from '@/server/channels/inbox/events';
 import type { HistoryManager } from '@/server/channels/messages/historyManager';
 import type { SubagentManager } from '@/server/channels/messages/service/subagentManager';
 import type { ToolManager } from '@/server/channels/messages/service/toolManager';
@@ -56,6 +57,12 @@ export function createSendResponse(historyManager: HistoryManager) {
     });
 
     broadcastToUser(conversation.userId, GatewayEvents.CHAT_MESSAGE, agentMsg);
+    emitInboxUpdated({
+      userId: conversation.userId,
+      action: 'upsert',
+      conversationId: conversation.id,
+      item: buildInboxItemFromConversation(conversation, agentMsg),
+    });
 
     try {
       await deliverOutbound(platform, externalChatId, content, {

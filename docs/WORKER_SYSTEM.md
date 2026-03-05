@@ -34,14 +34,12 @@ Quelle: `src/server/security/policyExplain.ts`
 
 - `GET /api/ops/nodes`
 - `POST /api/ops/nodes`
-- `GET /api/ops/agents`
 - `GET /api/ops/sessions`
 - `GET /api/ops/instances`
 
 Quellen:
 
 - `app/api/ops/nodes/route.ts`
-- `app/api/ops/agents/route.ts`
 - `app/api/ops/sessions/route.ts`
 - `app/api/ops/instances/route.ts`
 

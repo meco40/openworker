@@ -31,6 +31,7 @@ import { SearchQueries } from '@/server/channels/messages/repository/queries/sea
 import { DeleteQueries } from '@/server/channels/messages/repository/queries/delete';
 import { ProjectQueries } from '@/server/channels/messages/repository/queries/projects';
 import { AgentRoomQueries } from '@/server/channels/messages/repository/queries/agentRoom';
+import { InboxQueries } from '@/server/channels/messages/repository/queries/inbox';
 import { openSqliteDatabase } from '@/server/db/sqlite';
 
 // ─── SQLite Implementation ───────────────────────────────────
@@ -47,6 +48,7 @@ export class SqliteMessageRepository implements MessageRepository {
   private readonly deleteQueries: DeleteQueries;
   private readonly projectQueries: ProjectQueries;
   private readonly agentRoomQueries: AgentRoomQueries;
+  private readonly inboxQueries: InboxQueries;
 
   constructor(dbPath = process.env.MESSAGES_DB_PATH || '.local/messages.db') {
     this.db = openSqliteDatabase({ dbPath });
@@ -61,6 +63,7 @@ export class SqliteMessageRepository implements MessageRepository {
     this.deleteQueries = new DeleteQueries(this.db, normalizeUserId);
     this.projectQueries = new ProjectQueries(this.db, normalizeUserId);
     this.agentRoomQueries = new AgentRoomQueries(this.db, normalizeUserId);
+    this.inboxQueries = new InboxQueries(this.db, normalizeUserId);
 
     this.migrate();
   }
@@ -245,6 +248,14 @@ export class SqliteMessageRepository implements MessageRepository {
 
   searchMessages(query: string, opts: SearchMessagesOptions = {}): StoredMessage[] {
     return this.searchQueries.searchMessages(query, opts);
+  }
+
+  listInbox(input: import('@/server/channels/messages/repository').InboxListInput) {
+    return this.inboxQueries.listInbox(input);
+  }
+
+  getInboxItem(conversationId: string, userId: string) {
+    return this.inboxQueries.getInboxItem(conversationId, userId);
   }
 
   createProject(input: {

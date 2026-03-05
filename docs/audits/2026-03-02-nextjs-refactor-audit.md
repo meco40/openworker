@@ -61,7 +61,7 @@ Nicht löschen trotz knip (dynamisch geladen):
 
 | Dupe                                                                | Ort                                                                                                                                             | neue Quelle                                                           | Schritte                                                                            |
 | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `parseLimit` (3x identisch)                                         | `app/api/ops/agents/route.ts`, `app/api/ops/instances/route.ts`, `app/api/ops/sessions/route.ts`                                                | `app/api/ops/_shared/query.ts`                                        | Shared `parseClampedInt()` einführen, lokale Funktionen löschen, 3 Routen umstellen |
+| `parseLimit` (2x identisch)                                         | `app/api/ops/instances/route.ts`, `app/api/ops/sessions/route.ts`                                                                               | `app/api/ops/_shared/query.ts`                                        | Shared `parseClampedInt()` einführen, lokale Funktionen löschen, 2 Routen umstellen |
 | `/api/config` Fetch/PUT-Logik doppelt                               | `src/components/config/hooks/useConfig.ts`, `src/components/profile/hooks/useProfile.ts`                                                        | `src/components/config/apiClient.ts`                                  | `loadConfig/saveConfig` zentralisieren, Hooks auf View-State reduzieren             |
 | Agent-Room-Flag Parsing doppelt                                     | `src/components/Sidebar.tsx`, `src/modules/app-shell/components/AppShellViewContent.tsx`, `src/modules/agent-room/hooks/useAgentRoomRuntime.ts` | `src/modules/agent-room/featureFlags.ts`                              | `isAgentRoomEnabled()` zentralisieren                                               |
 | ModelHub DTOs doppelt (`FetchedModel`, `RateLimit*`)                | `src/components/model-hub/types.ts`, `src/server/model-hub/Models/types.ts`                                                                     | `src/shared/contracts/modelHub.ts` (+ optional `shared/rateLimit.ts`) | Shared Typen exportieren, Client/Server-Typen als Re-Exports                        |
@@ -212,7 +212,7 @@ diff --git a/app/api/ops/_shared/query.ts b/app/api/ops/_shared/query.ts
 +  if (!Number.isFinite(parsed)) return fallback;
 +  return Math.min(Math.max(parsed, min), max);
 +}
-diff --git a/app/api/ops/agents/route.ts b/app/api/ops/agents/route.ts
+diff --git a/app/api/ops/sessions/route.ts b/app/api/ops/sessions/route.ts
 @@
 -function parseLimit(request: Request): number { ... }
 +import { parseClampedInt } from '../_shared/query';

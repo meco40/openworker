@@ -15,6 +15,9 @@ import type {
   ConversationContextState,
   ConversationProjectState,
   CreateConversationInput,
+  InboxItemRecord,
+  InboxListInput,
+  InboxListResult,
   PersonaProjectRecord,
   SaveMessageInput,
   SearchMessagesOptions,
@@ -30,8 +33,12 @@ export type {
   AgentRoomSwarmStatus,
   AgentRoomSwarmUnit,
   ConversationContextState,
+  InboxCursor,
   ConversationProjectState,
   CreateConversationInput,
+  InboxItemRecord,
+  InboxListInput,
+  InboxListResult,
   PersonaProjectRecord,
   SaveMessageInput,
   SearchMessagesOptions,
@@ -88,6 +95,8 @@ export interface MessageRepository {
     query: string,
     opts?: SearchMessagesOptions,
   ): Promise<StoredMessage[]> | StoredMessage[];
+  listInbox?(input: InboxListInput): InboxListResult;
+  getInboxItem?(conversationId: string, userId: string): InboxItemRecord | null;
 
   getConversationContext(conversationId: string, userId?: string): ConversationContextState | null;
   upsertConversationContext(

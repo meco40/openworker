@@ -92,9 +92,6 @@ const SessionsView = dynamic(() => import('@/modules/ops/components/SessionsView
 const NodesView = dynamic(() => import('@/modules/ops/components/NodesView'), {
   loading: loading('Nodes'),
 });
-const AgentsView = dynamic(() => import('@/modules/ops/components/AgentsView'), {
-  loading: loading('Agents'),
-});
 const ConversationDebuggerView = dynamic(
   () => import('@/modules/conversation-debugger/ConversationDebuggerView'),
   { loading: loading('Conversation Debugger') },
@@ -233,11 +230,6 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
       {currentView === View.NODES && (
         <ViewErrorBoundary label="Nodes">
           <NodesView />
-        </ViewErrorBoundary>
-      )}
-      {currentView === View.AGENTS && (
-        <ViewErrorBoundary label="Agents">
-          <AgentsView />
         </ViewErrorBoundary>
       )}
       {currentView === View.LOGS && (

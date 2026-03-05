@@ -56,9 +56,23 @@ export interface ChannelStatusPayload {
 }
 
 export interface InboxUpdatedPayload {
+  version: 'v2';
+  action: 'upsert' | 'delete';
   conversationId: string;
-  channelType: string;
-  updatedAt: string;
+  item: {
+    conversationId: string;
+    channelType: string;
+    title: string;
+    updatedAt: string;
+    lastMessage: {
+      id: string;
+      role: 'user' | 'agent' | 'system';
+      content: string;
+      createdAt: string;
+      platform: string;
+    } | null;
+  } | null;
+  serverTs: string;
 }
 
 export interface RoomMessagePayload {

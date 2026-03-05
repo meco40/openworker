@@ -16,7 +16,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 - Basis: `/api`
 - Quelle: exportierte Methoden in `app/api/**/route.ts`
-- Anzahl Routen: 104
+- Anzahl Routen: 103
 
 ## Domain Summary
 
@@ -41,7 +41,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | mission-control |      1 |
 | model-hub       |     10 |
 | openclaw        |      4 |
-| ops             |      4 |
+| ops             |      3 |
 | personas        |      4 |
 | security        |      2 |
 | skills          |      5 |
@@ -96,6 +96,13 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | POST                     | /api/channels/telegram/webhook              |
 | GET, PUT                 | /api/channels/whatsapp/accounts             |
 | POST                     | /api/channels/whatsapp/webhook              |
+
+#### /api/channels/inbox
+
+- `version`: `2` (default, canonical), `1` (deprecated transition mode)
+- `v2` response: `items[]` and `page { limit, returned, hasMore, nextCursor, totalMatched }`
+- `v1` response: deprecated shape (`items`, `total`, `nextCursor`)
+- Vollstaendiger Contract: `docs/contracts/INBOX_V2_CONTRACT.md`
 
 ### /api/clawhub
 
@@ -223,7 +230,6 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 | Methods   | Route              |
 | --------- | ------------------ |
-| GET       | /api/ops/agents    |
 | GET       | /api/ops/instances |
 | GET, POST | /api/ops/nodes     |
 | GET       | /api/ops/sessions  |

@@ -20,6 +20,7 @@ function mockUserContext(context: MockUserContext): void {
 describe('message delete route', () => {
   let repo: SqliteMessageRepository;
   let uploadRoot = '';
+  const emitInboxUpdated = vi.fn();
 
   beforeEach(() => {
     vi.resetModules();
@@ -37,6 +38,16 @@ describe('message delete route', () => {
     vi.doMock('../../../src/server/gateway/broadcast', () => ({
       broadcastToUser: vi.fn(),
     }));
+    vi.doMock('../../../src/server/channels/inbox/events', async () => {
+      const actual = await vi.importActual<
+        typeof import('../../../src/server/channels/inbox/events')
+      >('../../../src/server/channels/inbox/events');
+      return {
+        ...actual,
+        emitInboxUpdated,
+      };
+    });
+    emitInboxUpdated.mockReset();
   });
 
   afterEach(() => {
@@ -96,5 +107,15 @@ describe('message delete route', () => {
     expect(payload.ok).toBe(true);
     expect(repo.getMessage(stored.id, 'user-1')).toBeNull();
     expect(fs.existsSync(attachmentAbsPath)).toBe(false);
+    expect(emitInboxUpdated).toHaveBeenCalledWith({
+      userId: 'user-1',
+      action: 'upsert',
+      conversationId: conversation.id,
+      item: expect.objectContaining({
+        conversationId: conversation.id,
+        channelType: ChannelType.WEBCHAT,
+        lastMessage: null,
+      }),
+    });
   });
 });

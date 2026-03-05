@@ -1,5 +1,4 @@
 import type { Conversation } from '@/shared/domain/types';
-import type { PersonaSummary } from '@/server/personas/personaTypes';
 
 export interface OpsInstancesConnectionSummary {
   connId: string;
@@ -123,22 +122,6 @@ export interface OpsNodesResponse {
       pendingExpiresAt: string | null;
       hasPending: boolean;
     };
-    generatedAt: string;
-  };
-}
-
-export type OpsAgentPersonaSummary = Pick<
-  PersonaSummary,
-  'id' | 'name' | 'emoji' | 'vibe' | 'updatedAt'
->;
-
-export interface OpsAgentsResponse {
-  ok: true;
-  query: {
-    limit: number;
-  };
-  agents: {
-    personas: OpsAgentPersonaSummary[];
     generatedAt: string;
   };
 }

@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Conversation, Message } from '@/shared/domain/types';
+import type {
+  Conversation,
+  InboxItem,
+  InboxPage,
+  InboxUpdatedPayload,
+  Message,
+} from '@/shared/domain/types';
 import {
+  applyInboxSnapshot,
   mapConversationApiMessage,
   mapConversationStreamMessage,
   removeMessageById,
+  upsertConversationFromInboxUpdate,
   upsertMessageReplacingStreamingDraft,
   upsertConversationActivity,
 } from '@/modules/app-shell/runtimeLogic';
@@ -12,6 +20,12 @@ import { getGatewayClient } from '@/modules/gateway/ws-client';
 interface ConversationListResponse {
   ok: boolean;
   conversations: Conversation[];
+}
+
+interface InboxListResponse {
+  ok: boolean;
+  items: InboxItem[];
+  page: InboxPage;
 }
 
 interface PersistedConversationMessage {
@@ -43,31 +57,79 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(() => null);
 
   const activeConversationRef = useRef<string | null>(activeConversationId);
+  const loadMessagesRequestIdRef = useRef(0);
   useEffect(() => {
     activeConversationRef.current = activeConversationId;
   }, [activeConversationId]);
 
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (options?: { resync?: boolean }) => {
+    const isResync = Boolean(options?.resync);
     try {
-      const response = await fetch('/api/channels/conversations');
-      const data = (await response.json()) as ConversationListResponse;
-      if (!data.ok) {
-        return;
-      }
-      setConversations(data.conversations);
-      if (data.conversations.length > 0 && !activeConversationRef.current) {
-        setActiveConversationId(data.conversations[0].id);
-      }
+      const aggregatedItems: InboxItem[] = [];
+      let cursor: string | null = null;
+      let pageCount = 0;
+      do {
+        const params = new URLSearchParams({
+          version: '2',
+          limit: '100',
+        });
+        if (cursor) {
+          params.set('cursor', cursor);
+        }
+        if (isResync) {
+          params.set('resync', '1');
+        }
+
+        const response = await fetch(`/api/channels/inbox?${params.toString()}`);
+        const data = (await response.json()) as InboxListResponse;
+        if (!response.ok || !data.ok) {
+          throw new Error('Inbox listing failed');
+        }
+
+        aggregatedItems.push(...(Array.isArray(data.items) ? data.items : []));
+        cursor = data.page?.hasMore ? data.page.nextCursor || null : null;
+        pageCount += 1;
+      } while (cursor && pageCount < 20);
+
+      setConversations((previous) => applyInboxSnapshot(previous, aggregatedItems));
+      setActiveConversationId((previous) => {
+        if (previous && aggregatedItems.some((item) => item.conversationId === previous)) {
+          return previous;
+        }
+        return aggregatedItems[0]?.conversationId || null;
+      });
     } catch (error) {
-      console.warn('Failed to load conversations:', error);
+      if (isResync) {
+        console.warn('Inbox resync failed, falling back to conversations endpoint:', error);
+      }
+      try {
+        const response = await fetch('/api/channels/conversations');
+        const data = (await response.json()) as ConversationListResponse;
+        if (!data.ok) {
+          return;
+        }
+        setConversations(data.conversations);
+        if (data.conversations.length > 0 && !activeConversationRef.current) {
+          setActiveConversationId(data.conversations[0].id);
+        }
+      } catch (fallbackError) {
+        console.warn('Failed to load conversations:', fallbackError);
+      }
     }
   }, []);
 
   const loadMessages = useCallback(async (conversationId: string) => {
+    const requestId = ++loadMessagesRequestIdRef.current;
     try {
       const response = await fetch(`/api/channels/messages?conversationId=${conversationId}`);
       const data = (await response.json()) as ConversationMessagesResponse;
       if (!data.ok) {
+        return;
+      }
+      if (requestId !== loadMessagesRequestIdRef.current) {
+        return;
+      }
+      if (activeConversationRef.current !== conversationId) {
         return;
       }
       setMessages(data.messages.map(mapConversationApiMessage));
@@ -110,6 +172,30 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
       } catch {
         // Ignore malformed messages.
       }
+    });
+    const unsubInboxUpdated = client.on('inbox.updated', (payload) => {
+      const data = payload as InboxUpdatedPayload;
+      if (!data || data.version !== 'v2' || !data.conversationId) {
+        return;
+      }
+
+      if (data.action === 'delete') {
+        setConversations((previous) =>
+          previous.filter((conversation) => conversation.id !== data.conversationId),
+        );
+        if (activeConversationRef.current === data.conversationId) {
+          setActiveConversationId(null);
+          setMessages([]);
+        }
+        return;
+      }
+
+      if (!data.item) {
+        return;
+      }
+      const item = data.item;
+
+      setConversations((previous) => upsertConversationFromInboxUpdate(previous, item));
     });
 
     // ─── Session lifecycle events ────────────────────────
@@ -158,7 +244,7 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
     });
     const unsubState = client.onStateChange((state) => {
       if (state !== 'connected') return;
-      void loadConversations();
+      void loadConversations({ resync: true });
       const currentConversationId = activeConversationRef.current;
       if (currentConversationId) {
         void loadMessages(currentConversationId);
@@ -170,6 +256,7 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
       unsubDeleted();
       unsubReset();
       unsubAborted();
+      unsubInboxUpdated();
       unsubMessageDeleted();
       unsubState();
     };
@@ -181,6 +268,7 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
     }
 
     if (!activeConversationId) {
+      loadMessagesRequestIdRef.current += 1;
       setMessages([]);
       return;
     }
