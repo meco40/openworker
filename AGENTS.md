@@ -55,6 +55,103 @@ When a request depends on recency (e.g., "latest", "current", "today", "as of no
 - If the repo has no container workflow, create a minimal one.
 - Keep repo-specific container details in the repo’s `AGENTS.md`.
 
+## Repository workflows and commands (`D:\web\clawtest`)
+
+Use these workflows by default for this repository.
+
+### Environment bootstrap
+
+```powershell
+pnpm install
+Copy-Item .env.local.example .env.local
+```
+
+Required local memory settings in `.env.local`:
+
+- `MEMORY_PROVIDER=mem0`
+- `MEM0_BASE_URL=http://127.0.0.1:8010`
+- `MEM0_API_KEY=local-mem0-dev-token` (or local override)
+- `MODEL_HUB_ENCRYPTION_KEY=<32-byte-key>`
+
+### Local development workflow (preferred)
+
+1. Start local mem0 services:
+
+```powershell
+pnpm run mem0:local:up
+```
+
+2. Start app development stack:
+
+```powershell
+pnpm run dev
+```
+
+3. Start scheduler when automation behavior is in scope:
+
+```powershell
+pnpm run dev:scheduler
+```
+
+Useful runtime helpers:
+
+```powershell
+pnpm run mem0:local:logs
+pnpm run mem0:local:ps
+pnpm run mem0:local:down
+```
+
+### Validation workflow (after code changes)
+
+Run focused checks first, then full checks before completion:
+
+```powershell
+pnpm run typecheck
+pnpm run lint
+pnpm run test
+pnpm run check
+pnpm run build
+```
+
+E2E lanes:
+
+```powershell
+pnpm run test:e2e:smoke
+pnpm run test:e2e:browser
+pnpm run test:e2e:live
+```
+
+### Container workflows
+
+Use containerized flows instead of host package/system changes.
+
+Production-like stack:
+
+```powershell
+docker compose up -d --build web scheduler
+docker compose logs -f web scheduler
+docker compose down
+```
+
+E2E in containers:
+
+```powershell
+pwsh -File scripts/e2e/run-smoke-in-container.ps1
+pwsh -File scripts/e2e/run-browser-in-container.ps1
+```
+
+### Safe maintenance commands
+
+Prefer dry runs before apply-style cleanup commands:
+
+```powershell
+pnpm run local:cleanup:dry
+pnpm run test:artifacts:clean:dry
+pnpm run local:cleanup
+pnpm run test:artifacts:clean
+pnpm run workspaces:cleanup
+```
+
 ### Baseline workflow
 
 - Start every task by determining:
