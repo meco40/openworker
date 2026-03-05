@@ -39,6 +39,43 @@ async function ensureMasterScope(request: APIRequestContext): Promise<{
   return { personaId, workspaceId };
 }
 
+async function markRunCompleted(
+  request: APIRequestContext,
+  runId: string,
+  scope: { personaId: string; workspaceId: string },
+  page: { waitForTimeout: (timeout: number) => Promise<void> },
+): Promise<void> {
+  let lastStatus = -1;
+  let lastError = '';
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const patchResponse = await request.patch(`/api/master/runs/${encodeURIComponent(runId)}`, {
+      data: {
+        status: 'COMPLETED',
+        verificationPassed: true,
+        personaId: scope.personaId,
+        workspaceId: scope.workspaceId,
+      },
+    });
+    lastStatus = patchResponse.status();
+
+    const payload = (await patchResponse.json().catch(() => ({}))) as { error?: string };
+    lastError = String(payload.error || '');
+
+    if (lastStatus === 200) {
+      return;
+    }
+    if (lastStatus === 404) {
+      break;
+    }
+
+    // run.start executes asynchronously and can contend with immediate PATCH updates.
+    await page.waitForTimeout(250);
+  }
+
+  throw new Error(`Failed to PATCH run as COMPLETED (status=${lastStatus}, error="${lastError}")`);
+}
+
 test('mission-control run create/start/feedback flow is executable', async ({ page, request }) => {
   await page.goto('/');
   const scope = await ensureMasterScope(request);
@@ -73,15 +110,7 @@ test('mission-control run create/start/feedback flow is executable', async ({ pa
   );
   expect(startResponse.status()).toBe(200);
 
-  const patchResponse = await request.patch(`/api/master/runs/${encodeURIComponent(runId)}`, {
-    data: {
-      status: 'COMPLETED',
-      verificationPassed: true,
-      personaId: scope.personaId,
-      workspaceId: scope.workspaceId,
-    },
-  });
-  expect(patchResponse.status()).toBe(200);
+  await markRunCompleted(request, runId, scope, page);
 
   const feedbackParams = new URLSearchParams({
     personaId: scope.personaId,

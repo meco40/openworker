@@ -36,6 +36,8 @@
 - 2026-03-05T08:28:43+01:00 [TOOL] Enabled `ENGINEERING_INGEST_ENABLED=1` in GitHub Actions repo variables for `meco40/openworker` and verified via `GET /actions/variables/ENGINEERING_INGEST_ENABLED`.
 - 2026-03-05T08:55:38+01:00 [CODE] Fixed async browser harness regression by updating `tests/e2e/browser/mission-control-run-feedback.spec.ts` to resolve a valid Master scope (`personaId`, `workspaceId`) before run create/start/patch/feedback calls.
 - 2026-03-05T08:55:38+01:00 [TOOL] Local verification after fix: `pnpm run check` passed and targeted integration suite (`tests/integration/master/master-runs-route.test.ts`, `tests/integration/master/master-feedback-route.test.ts`) passed.
+- 2026-03-05T09:02:24+01:00 [CODE] Hardened mission-control browser harness scenario with bounded PATCH retry logic after `run.start` to absorb transient run-state contention before feedback submission.
+- 2026-03-05T09:02:24+01:00 [TOOL] Re-verified post-fix quality gates locally via `pnpm run check` (typecheck, lint, format all green).
 
 [DISCOVERIES]
 
@@ -60,6 +62,7 @@
 - 2026-03-05T08:28:43+01:00 [TOOL] `engineering-metrics-snapshot.yml` is not present on GitHub default branch yet (`gh workflow run ...` returns 404); current remote workflow inventory differs from local Harness Wave 2 files.
 - 2026-03-05T08:55:38+01:00 [CODE] Browser E2E failure on CI (`mission-control-run-feedback`) is caused by a contract mismatch: Master run routes now require explicit scope fields (`personaId`, `workspaceId`), and the old test payload omitted them, yielding HTTP 400.
 - 2026-03-05T08:55:38+01:00 [TOOL] Local Playwright reproduction is currently blocked by a broken pnpm junction for `@next/env` (`MODULE_NOT_FOUND`) under Node v24; CI with fresh install remains the authoritative runtime for browser-e2e validation.
+- 2026-03-05T09:02:24+01:00 [TOOL] CI logs for commit `be890cc` show the remaining 400 moved to `PATCH /api/master/runs/:id` directly after `run.start`, indicating a timing/race issue rather than missing scope fields.
 
 [OUTCOMES]
 
@@ -82,3 +85,4 @@
 - 2026-03-05T08:27:07+01:00 [TOOL] Token synchronization step completed: `ENGINEERING_INGEST_TOKEN` is present in `.env` and `.env.local`, and repo secret `ENGINEERING_INGEST_TOKEN` shows updated timestamp in GitHub.
 - 2026-03-05T08:28:43+01:00 [TOOL] Ingest feature flag is now active in repo settings, but runtime validation is blocked until Harness Wave 2 workflow files are pushed to `main`.
 - 2026-03-05T08:55:38+01:00 [CODE] Mission-control browser harness scenario now aligns with current API scope invariants and should no longer fail with 400 on `POST /api/master/runs` in async CI.
+- 2026-03-05T09:02:24+01:00 [CODE] Harness scenario now includes deterministic retry on run completion patch, reducing flakiness in async browser lane without weakening assertion coverage.
