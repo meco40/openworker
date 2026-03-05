@@ -9,6 +9,8 @@
 - 2026-03-05T16:15:04Z [USER] Implement the full "Multi-Channel Inbox Best-Case+ Plan" with live-first behavior and mobile-ready contract.
 - 2026-03-05T16:25:24Z [USER] Require in-conversation text search in chat conversations.
 - 2026-03-05T16:54:37Z [USER] Remove the `Agents` page completely (UI, API, types, tests, and active docs) with no active references remaining.
+- 2026-03-05T17:32:16Z [USER] Request a deep complete review of the `Master` page.
+- 2026-03-05T18:02:23Z [USER] Implement the approved best-case fix plan for Master findings 1–4 (feedback success semantics, voice capability fallback, abort+guard race handling, mobile avatar handling).
 
 ## [DECISIONS]
 
@@ -24,6 +26,7 @@
 - 2026-03-05T16:54:37Z [CODE] Remove `View.AGENTS` and delete the dedicated Ops agents surface (`/api/ops/agents`, `AgentsView`, `useOpsAgents`, `OpsAgentsResponse`) instead of keeping a compatibility stub.
 - 2026-03-05T17:07:59Z [CODE] Replace `check` script chaining from `npm run` to `pnpm run` to eliminate npm-specific unknown env warnings during repository validation.
 - 2026-03-05T17:07:59Z [CODE] Restrict `readContractLastReviewed` path resolution to `docs/contracts` root to avoid Turbopack broad dynamic file-pattern scanning at build time.
+- 2026-03-05T18:02:23Z [USER] Confirmed best-case preference for race handling: use abort+guard semantics instead of queueing requests.
 
 ## [PROGRESS]
 
@@ -51,6 +54,13 @@
 - 2026-03-05T17:07:59Z [CODE] Updated `package.json` `check` script to run `pnpm run typecheck && pnpm run lint && pnpm run format:check`.
 - 2026-03-05T17:07:59Z [CODE] Updated `src/server/ci/harnessDomainRegistry.ts` contract review path resolution with `CONTRACTS_ROOT_PATH`-bounded resolution and traversal guard.
 - 2026-03-05T17:07:59Z [TOOL] Verified with `pnpm vitest run tests/unit/docs/domain-registry-contract.test.ts`, `pnpm run check`, `pnpm run build`, and full `pnpm run test`.
+- 2026-03-05T17:32:16Z [TOOL] Reviewed `Master` implementation paths (`src/modules/master/*`, `app/api/master/*`, `src/server/master/{http,workspaceScope}.ts`, and routing in `src/modules/app-shell/components/AppShellViewContent.tsx`).
+- 2026-03-05T17:32:16Z [TOOL] Ran targeted verification: `pnpm vitest run tests/unit/modules/master tests/unit/master/master-view-routing.test.ts tests/integration/master` (13 files / 78 tests, all pass).
+- 2026-03-05T18:02:23Z [CODE] Updated Master frontend data flow: `fetchRuns/fetchMetrics/fetchRunDetail` now accept optional abort signals; `useMasterView` now applies per-channel abort controllers plus scope-token guards and stale-detail invalidation on scope changes.
+- 2026-03-05T18:02:23Z [CODE] Updated feedback flow contract: `UseMasterViewResult.submitFeedback` now returns explicit success/failure result; `RunFeedbackPanel` now awaits server-confirmed success, blocks duplicate submits in-flight, surfaces inline errors, and resets state on `runId` changes.
+- 2026-03-05T18:02:23Z [CODE] Updated voice + entry UX: runtime capability detection in `useGrokVoiceAgent`, unsupported mic guard, text-input-first fallback in `MasterEntryPage`, and avatar suppression for viewports `<380px`.
+- 2026-03-05T18:02:23Z [CODE] Added component-level behavior tests for new flows in `tests/unit/components/master/{run-feedback-panel-submit,master-entry-page-viewport,use-master-view-race,grok-voice-agent-capabilities}.test.tsx`.
+- 2026-03-05T18:02:23Z [TOOL] Verified with `pnpm vitest run tests/unit/components/master/* tests/unit/modules/master tests/unit/master/master-view-routing.test.ts tests/integration/master`, `pnpm run typecheck`, `pnpm run lint`, `pnpm run check`, and `pnpm run build`.
 
 ## [DISCOVERIES]
 
@@ -68,6 +78,12 @@
 - 2026-03-05T17:07:59Z [TOOL] `pnpm run check` emitted npm warnings only because script-level chaining called `npm run`; running the same gates via `pnpm run` removed those warnings.
 - 2026-03-05T17:07:59Z [TOOL] Turbopack warning (`matches 19236 files`) traced to `readContractLastReviewed` resolving `path.resolve(process.cwd(), contractPath)` with unconstrained dynamic path input.
 - 2026-03-05T17:07:59Z [TOOL] After bounding contract reads to `docs/contracts`, `pnpm run build` completed without Turbopack warnings.
+- 2026-03-05T17:32:16Z [CODE] `RunFeedbackPanel` sets local `submitted=true` immediately after calling async submit, so the UI can show success even when server submission fails.
+- 2026-03-05T17:32:16Z [CODE] `useGrokVoiceAgent` hardcodes `sttSupported/ttsSupported` to `true`, making unsupported-browser fallback branches unreachable and masking runtime capability checks.
+- 2026-03-05T17:32:16Z [CODE] `MasterEntryPage` renders fixed avatar dimensions (`340x442`) through `MasterFaceThreeView` inline style, which can overflow narrow mobile viewports.
+- 2026-03-05T17:32:16Z [TOOL] Existing `Master` test suite is mostly contract/string assertions and does not cover several behavioral paths (async failure handling, viewport overflow, capability fallbacks).
+- 2026-03-05T18:02:23Z [CODE] `useMasterView` previously allowed async stale responses to apply after rapid scope changes; abort+guard tokening now prevents stale runs/metrics/detail writes.
+- 2026-03-05T18:02:23Z [TOOL] `pnpm run check` initially failed due Prettier drift on modified Master files; formatting with `pnpm prettier ... --write` resolved this with no logic changes.
 
 ## [OUTCOMES]
 
@@ -79,3 +95,5 @@
 - 2026-03-05T16:25:24Z [CODE] Users can now search message text within the active conversation and step through all hits without leaving the conversation context.
 - 2026-03-05T16:54:37Z [CODE] Agents Ops page and endpoint are fully removed from active runtime, tests, and active documentation; remaining `Agents` mentions are limited to non-target domains (e.g. `/api/agents`) and archived docs.
 - 2026-03-05T17:07:59Z [CODE] Full validation run is green with warnings removed from repository-owned checks: `typecheck`, `lint`, `format:check`, `test`, and `build`.
+- 2026-03-05T17:32:16Z [TOOL] Delivered deep `Master` page review findings across UI, voice runtime, API behavior, and test quality, with prioritized risks and concrete line-level references (no runtime code changes in this pass).
+- 2026-03-05T18:02:23Z [CODE] Master findings 1–4 are implemented end-to-end with behavior tests and full validation evidence; UI now gates feedback success on server confirmation, supports text-only voice fallback, avoids stale scope writes, and avoids 3D avatar rendering on very small mobile viewports.

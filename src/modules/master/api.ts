@@ -63,10 +63,14 @@ export async function fetchPersonas(): Promise<MasterPersonaSummary[]> {
 
 // ─── Runs ─────────────────────────────────────────────────────────────────────
 
-export async function fetchRuns(personaId: string, workspaceId: string): Promise<MasterRun[]> {
+export async function fetchRuns(
+  personaId: string,
+  workspaceId: string,
+  signal?: AbortSignal,
+): Promise<MasterRun[]> {
   const params = buildScopeParams(personaId, workspaceId);
   const payload = await parseOkJson<{ runs?: MasterRun[] }>(
-    await fetch(`/api/master/runs?${params.toString()}`, { cache: 'no-store' }),
+    await fetch(`/api/master/runs?${params.toString()}`, { cache: 'no-store', signal }),
   );
   return payload.runs ?? [];
 }
@@ -129,10 +133,11 @@ export async function postRunAction(
 export async function fetchMetrics(
   personaId: string,
   workspaceId: string,
+  signal?: AbortSignal,
 ): Promise<MasterMetrics | null> {
   const params = buildScopeParams(personaId, workspaceId);
   const payload = await parseOkJson<{ metrics?: MasterMetrics }>(
-    await fetch(`/api/master/metrics?${params.toString()}`, { cache: 'no-store' }),
+    await fetch(`/api/master/metrics?${params.toString()}`, { cache: 'no-store', signal }),
   );
   return payload.metrics ?? null;
 }
@@ -148,10 +153,11 @@ export async function fetchRunDetail(
   runId: string,
   personaId: string,
   workspaceId: string,
+  signal?: AbortSignal,
 ): Promise<RunDetail | null> {
   const params = buildScopeParams(personaId, workspaceId);
   const payload = await parseOkJson<{ run?: MasterRun; steps?: MasterStep[] }>(
-    await fetch(`/api/master/runs/${runId}?${params.toString()}`, { cache: 'no-store' }),
+    await fetch(`/api/master/runs/${runId}?${params.toString()}`, { cache: 'no-store', signal }),
   );
   if (!payload.run) return null;
   return { run: payload.run, steps: payload.steps ?? [] };

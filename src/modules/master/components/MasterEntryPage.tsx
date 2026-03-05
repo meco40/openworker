@@ -247,9 +247,19 @@ export default function MasterEntryPage({
 
   // animated subtitle ticker
   const [subtitleVisible, setSubtitleVisible] = useState(true);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
   useEffect(() => {
     const id = setInterval(() => setSubtitleVisible((v) => !v), 3200);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setIsCompactViewport(window.innerWidth < 380);
+    };
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
   }, []);
 
   const statusLabel = STATUS_LABELS[voice.status] ?? 'Ready';
@@ -287,22 +297,28 @@ export default function MasterEntryPage({
       </p>
 
       {/* ── Particle face ────────────────────────────────────────────────── */}
-      <div className="relative z-10 transition-all duration-500">
-        <MasterFaceCanvas
-          state={voice.faceState}
-          amplitude={voice.amplitude}
-          outputAudioStream={outputAudioStream}
-          width={340}
-          height={442}
-        />
+      {!isCompactViewport ? (
+        <div className="relative z-10 transition-all duration-500">
+          <MasterFaceCanvas
+            state={voice.faceState}
+            amplitude={voice.amplitude}
+            outputAudioStream={outputAudioStream}
+            width={340}
+            height={442}
+          />
 
-        {/* Speaking wave overlay */}
-        {voice.status === 'speaking' && (
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2">
-            <SpeakingWave amplitude={voice.amplitude} />
-          </div>
-        )}
-      </div>
+          {/* Speaking wave overlay */}
+          {voice.status === 'speaking' && (
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2">
+              <SpeakingWave amplitude={voice.amplitude} />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="relative z-10 w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-xs text-white/55">
+          3D avatar hidden on small screens.
+        </div>
+      )}
 
       {/* ── Status text ──────────────────────────────────────────────────── */}
       <div className="relative z-10 mt-4 h-5 text-center">
@@ -343,7 +359,7 @@ export default function MasterEntryPage({
       {/* ── Controls ─────────────────────────────────────────────────────── */}
       <div className="relative z-10 mt-6 flex flex-col items-center gap-4">
         {/* Mic button */}
-        {voice.sttSupported ? (
+        {voice.sttSupported && (
           <div className="flex flex-col items-center gap-2">
             <MicButton
               status={voice.status}
@@ -352,24 +368,23 @@ export default function MasterEntryPage({
             />
             {voice.status === 'idle' && <p className="text-[11px] text-white/25">tap & speak</p>}
           </div>
-        ) : (
-          <TextInput
-            onSubmit={voice.submitText}
-            disabled={voice.status === 'thinking' || voice.status === 'speaking'}
-          />
         )}
 
-        {/* Text input shown below mic as alternative when STT is supported */}
-        {voice.sttSupported && (
-          <TextInput
-            onSubmit={voice.submitText}
-            disabled={
-              voice.status === 'thinking' ||
-              voice.status === 'speaking' ||
-              voice.status === 'listening'
-            }
-          />
+        {!voice.sttSupported && (
+          <p className="text-center text-xs text-white/40">
+            Voice input is not supported. Use text input below.
+          </p>
         )}
+
+        {/* Text input is always available as a reliable fallback */}
+        <TextInput
+          onSubmit={voice.submitText}
+          disabled={
+            voice.status === 'thinking' ||
+            voice.status === 'speaking' ||
+            (voice.sttSupported && voice.status === 'listening')
+          }
+        />
 
         {/* Replay button */}
         {voice.aiResponse && voice.status === 'idle' && (
@@ -414,7 +429,7 @@ export default function MasterEntryPage({
       {/* ── Browser support hint ──────────────────────────────────────────── */}
       {!voice.sttSupported && !voice.ttsSupported && (
         <p className="relative z-10 mt-4 text-center text-xs text-white/20">
-          Voice features require a Chromium-based browser (Chrome, Edge).
+          Live voice features require a modern browser with WebAudio + WebSocket support.
         </p>
       )}
     </div>

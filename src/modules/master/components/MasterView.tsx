@@ -362,7 +362,7 @@ const MasterView: React.FC = () => {
               <RunFeedbackPanel
                 runId={view.selectedRun.id}
                 loading={view.loadingAction === 'submitting-feedback'}
-                onSubmit={(input) => void view.submitFeedback(input)}
+                onSubmit={view.submitFeedback}
               />
             </ViewErrorBoundary>
           )}

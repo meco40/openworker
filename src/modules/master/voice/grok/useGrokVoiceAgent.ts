@@ -16,6 +16,23 @@ import type {
 
 export type { UseGrokVoiceAgentOptions, UseGrokVoiceAgentResult, VoiceAgentStatus } from './types';
 
+function resolveVoiceCapabilities(): { sttSupported: boolean; ttsSupported: boolean } {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return { sttSupported: false, ttsSupported: false };
+  }
+
+  const hasAudioContext =
+    typeof window.AudioContext === 'function' ||
+    typeof (window as Window & { webkitAudioContext?: unknown }).webkitAudioContext === 'function';
+  const hasRealtimeTransport = typeof window.WebSocket === 'function';
+  const hasGetUserMedia = typeof navigator.mediaDevices?.getUserMedia === 'function';
+
+  return {
+    sttSupported: hasGetUserMedia && hasAudioContext && hasRealtimeTransport,
+    ttsSupported: hasAudioContext && hasRealtimeTransport,
+  };
+}
+
 export function useGrokVoiceAgent({
   onStatusChange,
 }: UseGrokVoiceAgentOptions = {}): UseGrokVoiceAgentResult {
@@ -25,6 +42,7 @@ export function useGrokVoiceAgent({
   const [aiResponse, setAiResponse] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+  const [capabilities] = useState(resolveVoiceCapabilities);
 
   const statusRef = useRef<VoiceAgentStatus>('idle');
   const unmountedRef = useRef(false);
@@ -209,6 +227,11 @@ export function useGrokVoiceAgent({
   }, []);
 
   const startListening = useCallback(async () => {
+    if (!capabilities.sttSupported) {
+      setError('Voice input is not supported in this browser. Use text input.');
+      setStatus('unsupported');
+      return;
+    }
     if (statusRef.current === 'listening') return;
 
     setError(null);
@@ -234,7 +257,7 @@ export function useGrokVoiceAgent({
         setStatus('error');
       },
     });
-  }, [realtime, setStatus]);
+  }, [capabilities.sttSupported, realtime, setStatus]);
 
   const stopListening = useCallback(() => {
     realtime.disconnect({ stopMic: true });
@@ -243,6 +266,11 @@ export function useGrokVoiceAgent({
   const submitText = useCallback(
     async (text: string): Promise<void> => {
       if (statusRef.current === 'thinking' || statusRef.current === 'speaking') return;
+      if (!capabilities.ttsSupported) {
+        setError('Live voice output is not supported in this browser.');
+        setStatus('unsupported');
+        return;
+      }
 
       setError(null);
       realtime.clearAutoDisconnectTimer();
@@ -271,7 +299,7 @@ export function useGrokVoiceAgent({
       );
       ws.send(JSON.stringify({ type: 'response.create' }));
     },
-    [realtime, setStatus],
+    [capabilities.ttsSupported, realtime, setStatus],
   );
 
   const subscribeOutputAudio = useCallback((listener: MasterAvatarAudioListener): (() => void) => {
@@ -327,8 +355,8 @@ export function useGrokVoiceAgent({
     transcript,
     aiResponse,
     error,
-    sttSupported: true,
-    ttsSupported: true,
+    sttSupported: capabilities.sttSupported,
+    ttsSupported: capabilities.ttsSupported,
     connected,
     startListening,
     stopListening,

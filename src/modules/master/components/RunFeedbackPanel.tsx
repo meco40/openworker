@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { SubmitFeedbackInput } from '@/modules/master/api';
 
 interface RunFeedbackPanelProps {
   runId: string;
   loading: boolean;
-  onSubmit: (input: SubmitFeedbackInput) => void;
+  onSubmit: (input: SubmitFeedbackInput) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 type PolicyOption = 'safe' | 'balanced' | 'fast';
@@ -21,11 +21,40 @@ export const RunFeedbackPanel: React.FC<RunFeedbackPanelProps> = ({ runId, loadi
   const [policy, setPolicy] = useState<PolicyOption>('balanced');
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const submitInFlightRef = useRef(false);
 
-  const handleSubmit = () => {
-    if (rating === 0) return;
-    onSubmit({ runId, rating, policy, comment: comment.trim() || undefined });
-    setSubmitted(true);
+  useEffect(() => {
+    setRating(0);
+    setHoverRating(0);
+    setPolicy('balanced');
+    setComment('');
+    setSubmitted(false);
+    setSubmitError(null);
+    submitInFlightRef.current = false;
+  }, [runId]);
+
+  const handleSubmit = async () => {
+    if (rating === 0 || loading || submitInFlightRef.current) return;
+    submitInFlightRef.current = true;
+    setSubmitError(null);
+    try {
+      const result = await onSubmit({
+        runId,
+        rating,
+        policy,
+        comment: comment.trim() || undefined,
+      });
+      if (result.ok) {
+        setSubmitted(true);
+      } else {
+        setSubmitError(result.error || 'Feedback konnte nicht gespeichert werden.');
+      }
+    } catch {
+      setSubmitError('Feedback konnte nicht gespeichert werden.');
+    } finally {
+      submitInFlightRef.current = false;
+    }
   };
 
   if (submitted) {
@@ -150,7 +179,7 @@ export const RunFeedbackPanel: React.FC<RunFeedbackPanelProps> = ({ runId, loadi
 
         <button
           type="button"
-          onClick={handleSubmit}
+          onClick={() => void handleSubmit()}
           disabled={loading || rating === 0}
           className="rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-black tracking-widest text-white uppercase shadow-lg shadow-indigo-600/25 transition-all hover:bg-indigo-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -182,6 +211,11 @@ export const RunFeedbackPanel: React.FC<RunFeedbackPanelProps> = ({ runId, loadi
             'Submit Feedback'
           )}
         </button>
+        {submitError && (
+          <p className="rounded-xl border border-rose-700/40 bg-rose-900/25 px-3 py-2 text-xs text-rose-300">
+            {submitError}
+          </p>
+        )}
       </div>
     </section>
   );

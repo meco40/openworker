@@ -69,6 +69,8 @@ export type LoadingAction =
   | 'refreshing'
   | null;
 
+export type SubmitFeedbackResult = { ok: true } | { ok: false; error: string };
+
 export interface UseMasterViewResult {
   // Data
   personas: MasterPersonaSummary[];
@@ -105,9 +107,15 @@ export interface UseMasterViewResult {
   exportRun: (runId: string) => Promise<void>;
   cancelRun: (runId: string) => Promise<void>;
   submitDecision: (actionType: string, decision: ApprovalDecision) => Promise<void>;
-  submitFeedback: (input: SubmitFeedbackInput) => Promise<void>;
+  submitFeedback: (input: SubmitFeedbackInput) => Promise<SubmitFeedbackResult>;
   dismissExportBundle: () => void;
   refreshAll: () => Promise<void>;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException
+    ? error.name === 'AbortError'
+    : error instanceof Error && error.name === 'AbortError';
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -131,6 +139,10 @@ export function useMasterView(): UseMasterViewResult {
   // Ref to avoid stale closure over selectedRunId in refreshAll
   const selectedRunIdRef = useRef<string | null>(null);
   const refreshInFlightRef = useRef(false);
+  const scopeTokenRef = useRef(0);
+  const runsAbortRef = useRef<AbortController | null>(null);
+  const metricsAbortRef = useRef<AbortController | null>(null);
+  const detailAbortRef = useRef<AbortController | null>(null);
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -161,6 +173,9 @@ export function useMasterView(): UseMasterViewResult {
   useEffect(() => {
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+      runsAbortRef.current?.abort();
+      metricsAbortRef.current?.abort();
+      detailAbortRef.current?.abort();
     };
   }, []);
 
@@ -186,40 +201,87 @@ export function useMasterView(): UseMasterViewResult {
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
-  const loadRuns = useCallback(async (personaId: string, workspace: string) => {
-    const nextRuns = await fetchRuns(personaId, workspace);
-    setRuns(nextRuns);
-    setSelectedRunId((prev) => prev || nextRuns[0]?.id || null);
+  const loadRuns = useCallback(async (personaId: string, workspace: string, scopeToken: number) => {
+    runsAbortRef.current?.abort();
+    const controller = new AbortController();
+    runsAbortRef.current = controller;
+    try {
+      const nextRuns = await fetchRuns(personaId, workspace, controller.signal);
+      if (scopeToken !== scopeTokenRef.current) return;
+      setRuns(nextRuns);
+      setSelectedRunId((prev) => {
+        if (prev && nextRuns.some((run) => run.id === prev)) return prev;
+        return nextRuns[0]?.id || null;
+      });
+    } finally {
+      if (runsAbortRef.current === controller) {
+        runsAbortRef.current = null;
+      }
+    }
   }, []);
 
-  const loadMetrics = useCallback(async (personaId: string, workspace: string) => {
-    const nextMetrics = await fetchMetrics(personaId, workspace);
-    setMetrics(nextMetrics);
-  }, []);
+  const loadMetrics = useCallback(
+    async (personaId: string, workspace: string, scopeToken: number) => {
+      metricsAbortRef.current?.abort();
+      const controller = new AbortController();
+      metricsAbortRef.current = controller;
+      try {
+        const nextMetrics = await fetchMetrics(personaId, workspace, controller.signal);
+        if (scopeToken !== scopeTokenRef.current) return;
+        setMetrics(nextMetrics);
+      } finally {
+        if (metricsAbortRef.current === controller) {
+          metricsAbortRef.current = null;
+        }
+      }
+    },
+    [],
+  );
+
+  const loadRunDetail = useCallback(
+    async (runId: string, personaId: string, workspace: string, scopeToken: number) => {
+      detailAbortRef.current?.abort();
+      const controller = new AbortController();
+      detailAbortRef.current = controller;
+      try {
+        const detail = await fetchRunDetail(runId, personaId, workspace, controller.signal);
+        if (scopeToken !== scopeTokenRef.current) return;
+        if (selectedRunIdRef.current !== runId) return;
+        setSelectedRunDetail(detail);
+      } finally {
+        if (detailAbortRef.current === controller) {
+          detailAbortRef.current = null;
+        }
+      }
+    },
+    [],
+  );
 
   const refreshAll = useCallback(async () => {
     if (!selectedPersonaId || !workspaceId) return;
     if (refreshInFlightRef.current) return;
+    const scopeToken = scopeTokenRef.current;
     refreshInFlightRef.current = true;
     setLoadingAction('refreshing');
     try {
       await Promise.all([
-        loadRuns(selectedPersonaId, workspaceId),
-        loadMetrics(selectedPersonaId, workspaceId),
+        loadRuns(selectedPersonaId, workspaceId, scopeToken),
+        loadMetrics(selectedPersonaId, workspaceId, scopeToken),
       ]);
       // Refresh selected run detail (uses ref to avoid stale closure)
       const currentRunId = selectedRunIdRef.current;
       if (currentRunId) {
-        const detail = await fetchRunDetail(currentRunId, selectedPersonaId, workspaceId);
-        setSelectedRunDetail(detail);
+        await loadRunDetail(currentRunId, selectedPersonaId, workspaceId, scopeToken);
       }
     } catch (error) {
-      showStatus({ tone: 'error', text: toErrorMessage(error) });
+      if (!isAbortError(error)) {
+        showStatus({ tone: 'error', text: toErrorMessage(error) });
+      }
     } finally {
       refreshInFlightRef.current = false;
       setLoadingAction(null);
     }
-  }, [loadMetrics, loadRuns, selectedPersonaId, workspaceId, showStatus]);
+  }, [loadMetrics, loadRunDetail, loadRuns, selectedPersonaId, workspaceId, showStatus]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -356,8 +418,11 @@ export function useMasterView(): UseMasterViewResult {
       try {
         await apiSubmitFeedback(input, selectedPersonaId, workspaceId);
         showStatus({ tone: 'success', text: 'Feedback submitted.' });
+        return { ok: true } as const;
       } catch (error) {
-        showStatus({ tone: 'error', text: toErrorMessage(error) });
+        const message = toErrorMessage(error);
+        showStatus({ tone: 'error', text: message });
+        return { ok: false, error: message } as const;
       } finally {
         setLoadingAction(null);
       }
@@ -387,9 +452,23 @@ export function useMasterView(): UseMasterViewResult {
   // identity-change loop that refreshAll's setLoadingAction calls would cause.
   useEffect(() => {
     if (!selectedPersonaId || !workspaceId) return;
-    void loadRuns(selectedPersonaId, workspaceId);
-    void loadMetrics(selectedPersonaId, workspaceId);
-  }, [selectedPersonaId, workspaceId, loadRuns, loadMetrics]);
+    const scopeToken = scopeTokenRef.current + 1;
+    scopeTokenRef.current = scopeToken;
+    setSelectedRunId(null);
+    setSelectedRunDetail(null);
+    detailAbortRef.current?.abort();
+
+    void loadRuns(selectedPersonaId, workspaceId, scopeToken).catch((error: unknown) => {
+      if (!isAbortError(error)) {
+        showStatus({ tone: 'error', text: toErrorMessage(error) });
+      }
+    });
+    void loadMetrics(selectedPersonaId, workspaceId, scopeToken).catch((error: unknown) => {
+      if (!isAbortError(error)) {
+        showStatus({ tone: 'error', text: toErrorMessage(error) });
+      }
+    });
+  }, [selectedPersonaId, workspaceId, loadRuns, loadMetrics, showStatus]);
 
   // Keep a stable ref to refreshAll so the polling interval never needs to
   // be recreated when refreshAll's identity changes.
@@ -412,13 +491,19 @@ export function useMasterView(): UseMasterViewResult {
   // Load run detail when selectedRunId changes
   useEffect(() => {
     if (!selectedRunId || !selectedPersonaId || !workspaceId) {
+      detailAbortRef.current?.abort();
       setSelectedRunDetail(null);
       return;
     }
-    fetchRunDetail(selectedRunId, selectedPersonaId, workspaceId)
-      .then((detail) => setSelectedRunDetail(detail))
-      .catch(() => setSelectedRunDetail(null));
-  }, [selectedRunId, selectedPersonaId, workspaceId]);
+    const scopeToken = scopeTokenRef.current;
+    void loadRunDetail(selectedRunId, selectedPersonaId, workspaceId, scopeToken).catch(
+      (error: unknown) => {
+        if (!isAbortError(error)) {
+          setSelectedRunDetail(null);
+        }
+      },
+    );
+  }, [selectedRunId, selectedPersonaId, workspaceId, loadRunDetail]);
 
   return {
     personas,

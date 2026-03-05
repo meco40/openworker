@@ -25,7 +25,7 @@ export interface UseGrokVoiceAgentResult {
   sttSupported: boolean;
   ttsSupported: boolean;
   connected: boolean;
-  startListening: () => void;
+  startListening: () => Promise<void>;
   stopListening: () => void;
   cancel: () => void;
   submitText: (text: string) => Promise<void>;
