@@ -34,6 +34,25 @@ export interface EngineeringMetricsSnapshot {
   source?: 'snapshot' | 'fallback';
   snapshotAgeHours?: number | null;
   isFallback?: boolean;
+  domainCoverage?: {
+    activeDomains: number;
+    coveredDomains: number;
+    coverageRate: number | null;
+    uncoveredDomains: string[];
+  };
+  scenarioSuccessRates?: Array<{
+    scenario: string;
+    successRate: number | null;
+    totalRuns: number;
+    flakySuspicions: number;
+  }>;
+  worktreeHarness?: {
+    totalWorktrees: number;
+    healthyWorktrees: number;
+    successRate: number | null;
+    unstableWorktrees: number;
+  };
+  criticalFailAutoReverts?: number;
   observability?: {
     laneSuccessRates: Array<{
       lane: string;

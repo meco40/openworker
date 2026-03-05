@@ -4,8 +4,8 @@
 
 - Purpose: Verbindliche Regeln fuer agentische Änderungen im Chat-/Omnichannel-Pfad.
 - Scope: `src/modules/chat`, `app/api/channels`, `src/server/channels/messages`, relevante Gateway-Methoden.
-- Source of Truth: Diese Datei ist der verbindliche Vertrag fuer Chat-Agent-Arbeit.
-- Last Reviewed: 2026-03-04
+- Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
+- Last Reviewed: 2026-03-05
 
 ---
 

@@ -1,0 +1,176 @@
+name: Main Guardian
+
+on:
+  workflow_run:
+    workflows: ['Blocking Gates']
+    types: [completed]
+
+permissions:
+  contents: write
+  issues: write
+  actions: read
+
+concurrency:
+  group: main-guardian
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    name: Evaluate Revert Action
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main'
+    outputs:
+      action: ${{ steps.evaluate.outputs.action }}
+      sha: ${{ steps.evaluate.outputs.sha }}
+      short_sha: ${{ steps.evaluate.outputs.short_sha }}
+      reason: ${{ steps.evaluate.outputs.reason }}
+      severity: ${{ steps.evaluate.outputs.severity }}
+      issue_number: ${{ steps.evaluate.outputs.issue_number }}
+    steps:
+      - name: Evaluate guardian decision
+        id: evaluate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const run = context.payload.workflow_run
+            const sha = String(run.head_sha || '').trim()
+            const shortSha = sha.slice(0, 12)
+            const runUrl = String(run.html_url || '')
+
+            if (!sha) {
+              core.setOutput('action', 'noop')
+              core.setOutput('reason', 'missing_sha')
+              return
+            }
+
+            const latest = await github.rest.repos.getBranch({ owner, repo, branch: 'main' })
+            const latestSha = String(latest.data.commit?.sha || '').trim()
+
+            let action = 'auto_revert'
+            let reason = 'head_match'
+            let severity = 'warning'
+
+            if (latestSha !== sha) {
+              action = 'incident_only'
+              reason = 'main_head_advanced'
+              severity = 'critical'
+            }
+
+            const commit = await github.rest.repos.getCommit({ owner, repo, ref: sha })
+            const commitMessage = String(commit.data.commit.message || '')
+            if (commitMessage.toLowerCase().startsWith('revert(guardian):')) {
+              action = 'noop'
+              reason = 'guardian_revert_commit'
+              severity = 'warning'
+            }
+
+            const query = `repo:${owner}/${repo} is:issue in:title "[Harness Guardian] ${sha}"`
+            const search = await github.rest.search.issuesAndPullRequests({ q: query, per_page: 5 })
+            const existingIssue = (search.data.items || []).find((item) => !item.pull_request)
+            if (existingIssue) {
+              action = 'noop'
+              reason = 'already_handled'
+              severity = 'warning'
+              core.setOutput('issue_number', String(existingIssue.number))
+            }
+
+            core.info(`Guardian decision action=${action} reason=${reason} sha=${sha} latest=${latestSha}`)
+            core.setOutput('action', action)
+            core.setOutput('reason', reason)
+            core.setOutput('severity', severity)
+            core.setOutput('sha', sha)
+            core.setOutput('short_sha', shortSha)
+
+  auto-revert:
+    name: Auto Revert Failed Main Commit
+    needs: [evaluate]
+    if: needs.evaluate.outputs.action == 'auto_revert'
+    runs-on: ubuntu-latest
+    outputs:
+      revert_sha: ${{ steps.revert.outputs.revert_sha }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Configure git author
+        run: |
+          git config user.name "openworker-main-guardian[bot]"
+          git config user.email "openworker-main-guardian@users.noreply.github.com"
+
+      - name: Revert failed commit
+        id: revert
+        shell: bash
+        run: |
+          TARGET_SHA="${{ needs.evaluate.outputs.sha }}"
+          git revert --no-commit "$TARGET_SHA"
+          git commit -m "revert(guardian): auto-revert failing main commit ${TARGET_SHA}"
+          git push origin HEAD:main
+          echo "revert_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  report:
+    name: Report Guardian Outcome
+    needs: [evaluate, auto-revert]
+    if: always() && needs.evaluate.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open or update incident issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const run = context.payload.workflow_run
+            const sha = '${{ needs.evaluate.outputs.sha }}'
+            const shortSha = '${{ needs.evaluate.outputs.short_sha }}'
+            const action = '${{ needs.evaluate.outputs.action }}'
+            const reason = '${{ needs.evaluate.outputs.reason }}'
+            const severity = '${{ needs.evaluate.outputs.severity }}'
+            const revertResult = '${{ needs.auto-revert.result }}'
+            const revertSha = '${{ needs.auto-revert.outputs.revert_sha }}'
+            const runUrl = String(run.html_url || '')
+
+            const title = `[Harness Guardian] ${sha}`
+            const bodyLines = [
+              `Target SHA: ${sha}`,
+              `Decision: ${action}`,
+              `Reason: ${reason}`,
+              `Blocking Run: ${runUrl}`,
+              `Auto-revert job: ${revertResult}`,
+              revertSha ? `Revert SHA: ${revertSha}` : 'Revert SHA: n/a',
+            ]
+            const labels = ['harness', 'harness-guardian', `severity:${severity}`]
+            if (action === 'incident_only') {
+              labels.push('critical-incident')
+            }
+            if (action === 'auto_revert') {
+              labels.push('auto-reverted')
+            }
+
+            const query = `repo:${owner}/${repo} is:issue in:title "[Harness Guardian] ${sha}"`
+            const search = await github.rest.search.issuesAndPullRequests({ q: query, per_page: 5 })
+            const existingIssue = (search.data.items || []).find((item) => !item.pull_request)
+
+            if (existingIssue) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: existingIssue.number,
+                title,
+                body: bodyLines.join('\n'),
+                labels,
+              })
+              return
+            }
+
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              body: bodyLines.join('\n'),
+              labels,
+            })

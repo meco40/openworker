@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "generatedAt": "2026-03-05T11:10:00Z",
+  "scenarios": [
+    {
+      "runner": "vitest",
+      "id": "core-api-health",
+      "domains": ["core-api"],
+      "command": "pnpm run test -- tests/integration/app-smoke.test.ts"
+    },
+    {
+      "runner": "vitest",
+      "id": "auth-session-guard",
+      "domains": ["auth", "session"],
+      "command": "pnpm run test -- tests/integration/channels/omnichannel-security.contract.test.ts"
+    },
+    {
+      "runner": "vitest",
+      "id": "memory-operations",
+      "domains": ["memory"],
+      "command": "pnpm run test -- tests/integration/memory/memory-route.test.ts"
+    },
+    {
+      "runner": "vitest",
+      "id": "gateway-rpc-core",
+      "domains": ["omnichannel-gateway"],
+      "command": "pnpm run test -- tests/unit/gateway/gateway-contract.test.ts"
+    },
+    {
+      "runner": "vitest",
+      "id": "model-hub-pipeline",
+      "domains": ["model-hub"],
+      "command": "pnpm run test -- tests/integration/model-hub/pipeline-route.test.ts"
+    },
+    {
+      "runner": "playwright",
+      "id": "persona-rooms-isolation",
+      "domains": ["persona-rooms"],
+      "command": "pnpm exec playwright test tests/e2e/browser/chat-queue-and-persona.spec.ts"
+    },
+    {
+      "runner": "vitest",
+      "id": "ops-engineering-stats",
+      "domains": ["ops-observability"],
+      "command": "pnpm run test -- tests/integration/stats/engineering-route.test.ts"
+    },
+    {
+      "runner": "vitest",
+      "id": "automation-reminder-cycle",
+      "domains": ["automation"],
+      "command": "pnpm run test -- tests/unit/master/master-notes-reminders-cron.test.ts"
+    },
+    {
+      "runner": "vitest",
+      "id": "skills-policy-guard",
+      "domains": ["skills"],
+      "command": "pnpm run test -- tests/unit/skills/skills-registry.test.ts"
+    },
+    {
+      "runner": "vitest",
+      "id": "clawhub-sync",
+      "domains": ["clawhub"],
+      "command": "pnpm run test -- tests/unit/clawhub/clawhub-service.test.ts"
+    },
+    {
+      "runner": "vitest",
+      "id": "knowledge-retrieval-guard",
+      "domains": ["knowledge-base"],
+      "command": "pnpm run test -- tests/unit/knowledge/retrieval-service/retrieval-service.harness.ts"
+    },
+    {
+      "runner": "vitest",
+      "id": "security-authz-guard",
+      "domains": ["security"],
+      "command": "pnpm run test -- tests/integration/channels/omnichannel-security.contract.test.ts"
+    },
+    {
+      "runner": "vitest",
+      "id": "project-workspace-guard",
+      "domains": ["project-workspace"],
+      "command": "pnpm run test -- tests/unit/channels/message-service-project-workspace-cwd.test.ts"
+    },
+    {
+      "runner": "vitest",
+      "id": "tasks-lifecycle",
+      "domains": ["tasks"],
+      "command": "pnpm run test -- tests/integration/mission-control/tasks-route-workspaces.test.ts"
+    },
+    {
+      "runner": "playwright",
+      "id": "chat-stream",
+      "domains": ["chat"],
+      "command": "pnpm exec playwright test tests/e2e/browser/chat-smoke.spec.ts"
+    },
+    {
+      "runner": "playwright",
+      "id": "persona-switch",
+      "domains": ["chat", "persona-rooms"],
+      "command": "pnpm exec playwright test tests/e2e/browser/chat-queue-and-persona.spec.ts"
+    },
+    {
+      "runner": "playwright",
+      "id": "master-run-feedback",
+      "domains": ["mission-control", "master-agent"],
+      "command": "pnpm exec playwright test tests/e2e/browser/mission-control-run-feedback.spec.ts"
+    }
+  ]
+}

@@ -7,6 +7,8 @@ describe('harness engineering governance contracts', () => {
     const asyncWorkflow = fs.readFileSync('.github/workflows/async-quality.yml', 'utf8');
 
     expect(blocking).toContain('Blocking Gates');
+    expect(blocking).toContain('Main Policy');
+    expect(blocking).toContain('scripts/ci/main-policy-check.ts');
     expect(blocking).toContain('pnpm run typecheck');
     expect(blocking).toContain('pnpm run lint');
     expect(blocking).toContain('pnpm run test:e2e:smoke');
@@ -18,6 +20,14 @@ describe('harness engineering governance contracts', () => {
     expect(asyncWorkflow).toContain('Async SLA Follow-up');
     expect(asyncWorkflow).toContain('MEM0_BASE_URL');
     expect(asyncWorkflow).toContain('MEM0_API_KEY');
+  });
+
+  it('keeps main guardian workflow for deterministic post-push safety', () => {
+    const workflow = fs.readFileSync('.github/workflows/main-guardian.yml', 'utf8');
+    expect(workflow).toContain('Main Guardian');
+    expect(workflow).toContain("workflows: ['Blocking Gates']");
+    expect(workflow).toContain('Auto Revert Failed Main Commit');
+    expect(workflow).toContain('revert(guardian): auto-revert failing main commit');
   });
 
   it('keeps required fields in pull request template', () => {
@@ -57,5 +67,14 @@ describe('harness engineering governance contracts', () => {
     expect(workflow).toContain('Build snapshot payload');
     expect(workflow).toContain('Ingest snapshot into internal API');
     expect(workflow).toContain('Apply metrics alert policy');
+  });
+
+  it('keeps domain registry and scenario matrix as source-of-truth artifacts', () => {
+    const registry = fs.readFileSync('docs/contracts/DOMAIN_REGISTRY.json', 'utf8');
+    const matrix = fs.readFileSync('docs/contracts/DOMAIN_SCENARIO_MATRIX.json', 'utf8');
+    const runbook = fs.readFileSync('docs/runbooks/HARNESS_INCIDENT_TRIAGE.md', 'utf8');
+    expect(registry).toContain('"domains"');
+    expect(matrix).toContain('"scenarios"');
+    expect(runbook).toContain('Harness-Events werden max. 90 Tage gehalten');
   });
 });

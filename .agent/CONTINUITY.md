@@ -4,12 +4,15 @@
 
 - 2026-03-04T21:03:45Z [TOOL] Documentation review executed across active docs (`README.md`, `docs/*.md` excluding `docs/archive/*`) with checks for config/runtime drift, dependency/version drift, and link integrity.
 - 2026-03-05T00:26:10+01:00 [USER] Execute Harness-Engineering v2 rollout for Mission Control + Chat with blocking/async gates, deterministic harness, SoR contracts, entropy loop, and engineering metrics endpoint.
+- 2026-03-05T10:41:29+01:00 [USER] Execute Harness v3 cleaned full plan for 3 remaining points: main-only enforcement, repo-wide domain governance, full worktree harness + observability.
 
 [DECISIONS]
 
 - 2026-03-04T21:03:45Z [ASSUMPTION] Review scope prioritized active source-of-truth docs; archive/plans/reviews treated as historical unless they are linked as active guidance.
 - 2026-03-05T00:26:10+01:00 [CODE] Harness verify now enforces a deterministic build prerequisite (`pnpm run build` when `.next/BUILD_ID` is absent) and skips reinstall in current-workspace mode to avoid Windows file-lock churn.
 - 2026-03-05T08:13:25+01:00 [CODE] Harness Wave 2 thin-route AST guard is enforced with a frozen legacy exception baseline; any new direct DB usage in non-exempt `app/api/**/route.ts` now fails tests.
+- 2026-03-05T10:41:29+01:00 [CODE] Harness v3 keeps main-only safety as post-push enforcement (`Main Policy` + `Main Guardian`) and requires commit trailers for agentic commits instead of PR-template-only proof.
+- 2026-03-05T10:41:29+01:00 [CODE] Engineering stats/ingest stay additive: new domain/scenario/worktree/guardian observability fields were added without breaking existing API fields.
 
 [PROGRESS]
 
@@ -42,6 +45,10 @@
 - 2026-03-05T09:09:36+01:00 [CODE] Added integration coverage in `tests/integration/master/master-runs-route.test.ts` for partial PATCH behavior to prevent future NOT NULL regressions.
 - 2026-03-05T09:09:36+01:00 [TOOL] Verification executed: `pnpm run test -- tests/integration/master/master-runs-route.test.ts` and `pnpm run check` both passed after route fix.
 - 2026-03-05T09:13:47+01:00 [TOOL] Post-push CI verification for commit `2d15118` completed with all target workflows green: `E2E Browser`, `Async Quality Gates`, `Blocking Gates`.
+- 2026-03-05T10:41:29+01:00 [CODE] Added repo-wide domain SoR artifacts (`docs/contracts/DOMAIN_REGISTRY.json`, `docs/contracts/DOMAIN_SCENARIO_MATRIX.json`) and completed missing per-domain contract docs (`docs/contracts/*_AGENT_CONTRACT.md`).
+- 2026-03-05T10:41:29+01:00 [CODE] Implemented `scripts/ci/main-policy-check.ts`, wired `Main Policy` in blocking workflow, and added `Main Guardian` incident labeling/severity handling for main-head-advanced failures.
+- 2026-03-05T10:41:29+01:00 [CODE] Extended ingest + stats pipeline for harness observability (`domain`, `scenario`, `worktree_id`, `commit_sha`) with 90-day retention pruning and URL/error redaction at ingest.
+- 2026-03-05T10:41:29+01:00 [TOOL] Verification run completed: `pnpm run check` and targeted Vitest suites for CI policy, domain contracts, ingest route, and engineering stats all passed.
 
 [DISCOVERIES]
 
@@ -68,6 +75,8 @@
 - 2026-03-05T08:55:38+01:00 [TOOL] Local Playwright reproduction is currently blocked by a broken pnpm junction for `@next/env` (`MODULE_NOT_FOUND`) under Node v24; CI with fresh install remains the authoritative runtime for browser-e2e validation.
 - 2026-03-05T09:02:24+01:00 [TOOL] CI logs for commit `be890cc` show the remaining 400 moved to `PATCH /api/master/runs/:id` directly after `run.start`, indicating a timing/race issue rather than missing scope fields.
 - 2026-03-05T09:09:36+01:00 [TOOL] CI failure details on commit `e7f8d63`: `NOT NULL constraint failed: master_runs.title` during PATCH because route passed `title`/`contract` keys as `undefined`, which repository serialized to `NULL`.
+- 2026-03-05T10:41:29+01:00 [CODE] Domain registry generation initially referenced two non-existent tests (`tests/unit/skills/policy.test.ts`, `tests/integration/tasks/routes/task-routes.test.ts`); corrected to existing test files before enforcing contracts.
+- 2026-03-05T10:41:29+01:00 [TOOL] Local Next build remains blocked by workspace module resolution (`Cannot find module '@next/env'`) despite dependency declaration; this is an existing local environment issue, not introduced by harness v3 changes.
 
 [OUTCOMES]
 
@@ -93,3 +102,5 @@
 - 2026-03-05T09:02:24+01:00 [CODE] Harness scenario now includes deterministic retry on run completion patch, reducing flakiness in async browser lane without weakening assertion coverage.
 - 2026-03-05T09:09:36+01:00 [CODE] Root-cause regression in PATCH API behavior is remediated and guarded by integration test; next CI cycle should validate browser async lane end-to-end.
 - 2026-03-05T09:13:47+01:00 [TOOL] Harness Wave 2 rollout is operationally green on `main` for the enforced check set, including previously failing mission-control browser path.
+- 2026-03-05T10:41:29+01:00 [CODE] Harness v3 core gaps are implemented locally: enforceable main-only policy, guardian safety automation, repo-wide domain contracts, full scenario matrix integration, and expanded engineering observability/retention.
+- 2026-03-05T10:41:29+01:00 [TOOL] Quality verification is green for typecheck/lint/format and targeted v3 tests; `pnpm run build` is still red locally due pre-existing `@next/env` module resolution issue.

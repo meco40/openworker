@@ -43,16 +43,20 @@ function makeBody() {
     ],
     events: [
       {
-        traceId: 'trace-1',
-        spanId: 'span-1',
-        serviceName: 'github-actions',
+        trace_id: 'trace-1',
+        span_id: 'span-1',
+        service_name: 'github-actions',
+        domain: 'ops-observability',
         lane: 'coverage',
+        scenario: 'lane:coverage',
         status: 'success',
-        startedAt: new Date(Date.now() - 1_000).toISOString(),
-        finishedAt: new Date().toISOString(),
-        durationMs: 1000,
-        errorKind: null,
-        runUrl: 'https://github.com/example/repo/actions/runs/1',
+        started_at: new Date(Date.now() - 1_000).toISOString(),
+        finished_at: new Date().toISOString(),
+        duration_ms: 1000,
+        worktree_id: 'gha-main',
+        commit_sha: 'abcdef1234567890abcdef1234567890abcdef12',
+        error_kind: null,
+        run_url: 'https://github.com/example/repo/actions/runs/1?token=secret',
       },
     ],
   };
@@ -76,6 +80,8 @@ describe('POST /api/internal/stats/engineering/snapshots', () => {
     process.env.DATABASE_PATH = databasePath;
     process.env.ENGINEERING_INGEST_TOKEN = 'test-ingest-token';
     process.env.ENGINEERING_INGEST_ENABLED = '1';
+    (globalThis as { __engineeringIngestRateWindow?: number[] }).__engineeringIngestRateWindow =
+      undefined;
   });
 
   afterEach(() => {
@@ -89,6 +95,8 @@ describe('POST /api/internal/stats/engineering/snapshots', () => {
     else process.env.ENGINEERING_INGEST_ENABLED = previousEnabled;
 
     cleanupSqliteArtifacts(databasePath);
+    (globalThis as { __engineeringIngestRateWindow?: number[] }).__engineeringIngestRateWindow =
+      undefined;
     vi.restoreAllMocks();
     vi.resetModules();
   });
@@ -141,5 +149,47 @@ describe('POST /api/internal/stats/engineering/snapshots', () => {
       }),
     );
     expect(second.status).toBe(409);
+
+    const { queryAll } = await import('@/lib/db');
+    const rows = queryAll<{
+      domain: string | null;
+      scenario: string | null;
+      worktree_id: string | null;
+      commit_sha: string | null;
+      run_url: string | null;
+    }>('SELECT domain, scenario, worktree_id, commit_sha, run_url FROM harness_run_events');
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+    expect(rows[0].domain).toBe('ops-observability');
+    expect(rows[0].scenario).toBe('lane:coverage');
+    expect(rows[0].worktree_id).toBe('gha-main');
+    expect(rows[0].commit_sha).toBe('abcdef1234567890abcdef1234567890abcdef12');
+    expect(rows[0].run_url).toBe('https://github.com/example/repo/actions/runs/1');
+  });
+
+  it('returns 429 when ingest rate window is exceeded', async () => {
+    const { POST } = await import('../../../app/api/internal/stats/engineering/snapshots/route');
+    for (let index = 0; index < 12; index += 1) {
+      const response = await POST(
+        new Request('http://localhost/api/internal/stats/engineering/snapshots', {
+          method: 'POST',
+          headers: makeHeaders({
+            'x-engineering-ingest-idempotency-key': `rate-ok-${Date.now()}-${index}`,
+          }),
+          body: JSON.stringify(makeBody()),
+        }),
+      );
+      expect(response.status).toBe(200);
+    }
+
+    const blocked = await POST(
+      new Request('http://localhost/api/internal/stats/engineering/snapshots', {
+        method: 'POST',
+        headers: makeHeaders({
+          'x-engineering-ingest-idempotency-key': `rate-block-${Date.now()}`,
+        }),
+        body: JSON.stringify(makeBody()),
+      }),
+    );
+    expect(blocked.status).toBe(429);
   });
 });

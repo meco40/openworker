@@ -291,6 +291,10 @@ const migrations: Migration[] = [
           duration_ms INTEGER NOT NULL DEFAULT 0,
           error_kind TEXT,
           run_url TEXT,
+          domain TEXT,
+          scenario TEXT,
+          worktree_id TEXT,
+          commit_sha TEXT,
           created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
       `);
@@ -298,6 +302,53 @@ const migrations: Migration[] = [
       db.exec(`
         CREATE INDEX IF NOT EXISTS idx_harness_run_events_lane_finished
         ON harness_run_events (lane, finished_at DESC);
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_harness_run_events_domain_finished
+        ON harness_run_events (domain, finished_at DESC);
+      `);
+    },
+  },
+  {
+    id: '011',
+    name: 'extend_harness_run_events_v3',
+    up: (db) => {
+      console.log('[Migration 011] Extending harness run events for v3 observability...');
+
+      const columns = db.prepare('PRAGMA table_info(harness_run_events)').all() as Array<{
+        name: string;
+      }>;
+      const hasColumn = (name: string) => columns.some((column) => column.name === name);
+
+      if (!hasColumn('domain')) {
+        db.exec(`ALTER TABLE harness_run_events ADD COLUMN domain TEXT`);
+      }
+      if (!hasColumn('scenario')) {
+        db.exec(`ALTER TABLE harness_run_events ADD COLUMN scenario TEXT`);
+      }
+      if (!hasColumn('worktree_id')) {
+        db.exec(`ALTER TABLE harness_run_events ADD COLUMN worktree_id TEXT`);
+      }
+      if (!hasColumn('commit_sha')) {
+        db.exec(`ALTER TABLE harness_run_events ADD COLUMN commit_sha TEXT`);
+      }
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_harness_run_events_domain_finished
+        ON harness_run_events (domain, finished_at DESC);
+      `);
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_harness_run_events_scenario_finished
+        ON harness_run_events (scenario, finished_at DESC);
+      `);
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_harness_run_events_worktree_finished
+        ON harness_run_events (worktree_id, finished_at DESC);
+      `);
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_harness_run_events_commit_finished
+        ON harness_run_events (commit_sha, finished_at DESC);
       `);
     },
   },

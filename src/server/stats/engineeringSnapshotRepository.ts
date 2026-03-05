@@ -23,11 +23,15 @@ export interface HarnessRunEvent {
   traceId?: string | null;
   spanId?: string | null;
   serviceName: string;
+  domain?: string | null;
   lane: string;
+  scenario?: string | null;
   status: 'success' | 'failure' | 'cancelled' | 'skipped';
   startedAt: string;
   finishedAt: string;
   durationMs: number;
+  worktreeId?: string | null;
+  commitSha?: string | null;
   errorKind?: string | null;
   runUrl?: string | null;
 }
@@ -101,24 +105,33 @@ export function appendHarnessRunEvents(events: HarnessRunEvent[]): void {
       const id = `he-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
       run(
         `INSERT INTO harness_run_events (
-          id, trace_id, span_id, service_name, lane, status, started_at, finished_at, duration_ms, error_kind, run_url
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          id, trace_id, span_id, service_name, domain, lane, scenario, status, started_at, finished_at, duration_ms, worktree_id, commit_sha, error_kind, run_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           event.traceId || null,
           event.spanId || null,
           event.serviceName,
+          event.domain || null,
           event.lane,
+          event.scenario || null,
           event.status,
           event.startedAt,
           event.finishedAt,
           Math.max(0, Math.floor(event.durationMs)),
+          event.worktreeId || null,
+          event.commitSha || null,
           event.errorKind || null,
           event.runUrl || null,
         ],
       );
     }
   });
+}
+
+export function pruneHarnessRunEventsBefore(cutoffIso: string): number {
+  const result = run('DELETE FROM harness_run_events WHERE finished_at < ?', [cutoffIso]);
+  return Number(result.changes || 0);
 }
 
 export function getLatestEngineeringSnapshot(windowDays: 7 | 30): StoredEngineeringSnapshot | null {
@@ -182,4 +195,106 @@ export function getHarnessLaneStats(fromIso: string): Array<{
     medianDurationMs: row.median_duration_ms === null ? null : Number(row.median_duration_ms),
     flakySuspicions: Number(row.flaky_suspicions || 0),
   }));
+}
+
+export function getHarnessDomainStats(fromIso: string): Array<{
+  domain: string;
+  totalRuns: number;
+  successRuns: number;
+}> {
+  const rows = queryAll<{
+    domain: string | null;
+    total_runs: number;
+    success_runs: number;
+  }>(
+    `SELECT
+      domain,
+      COUNT(*) AS total_runs,
+      SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS success_runs
+     FROM harness_run_events
+     WHERE finished_at >= ? AND domain IS NOT NULL AND TRIM(domain) != ''
+     GROUP BY domain`,
+    [fromIso],
+  );
+
+  return rows.map((row) => ({
+    domain: String(row.domain || '').trim(),
+    totalRuns: Number(row.total_runs || 0),
+    successRuns: Number(row.success_runs || 0),
+  }));
+}
+
+export function getHarnessScenarioStats(fromIso: string): Array<{
+  scenario: string;
+  totalRuns: number;
+  successRuns: number;
+  flakySuspicions: number;
+}> {
+  const rows = queryAll<{
+    scenario: string | null;
+    total_runs: number;
+    success_runs: number;
+    flaky_suspicions: number;
+  }>(
+    `SELECT
+      scenario,
+      COUNT(*) AS total_runs,
+      SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS success_runs,
+      SUM(CASE WHEN status = 'failure' OR status = 'cancelled' THEN 1 ELSE 0 END) AS flaky_suspicions
+     FROM harness_run_events
+     WHERE finished_at >= ? AND scenario IS NOT NULL AND TRIM(scenario) != ''
+     GROUP BY scenario`,
+    [fromIso],
+  );
+
+  return rows.map((row) => ({
+    scenario: String(row.scenario || '').trim(),
+    totalRuns: Number(row.total_runs || 0),
+    successRuns: Number(row.success_runs || 0),
+    flakySuspicions: Number(row.flaky_suspicions || 0),
+  }));
+}
+
+export function getHarnessWorktreeStats(fromIso: string): Array<{
+  worktreeId: string;
+  totalRuns: number;
+  successRuns: number;
+  lastFinishedAt: string | null;
+}> {
+  const rows = queryAll<{
+    worktree_id: string | null;
+    total_runs: number;
+    success_runs: number;
+    last_finished_at: string | null;
+  }>(
+    `SELECT
+      worktree_id,
+      COUNT(*) AS total_runs,
+      SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS success_runs,
+      MAX(finished_at) AS last_finished_at
+     FROM harness_run_events
+     WHERE finished_at >= ? AND worktree_id IS NOT NULL AND TRIM(worktree_id) != ''
+     GROUP BY worktree_id`,
+    [fromIso],
+  );
+
+  return rows.map((row) => ({
+    worktreeId: String(row.worktree_id || '').trim(),
+    totalRuns: Number(row.total_runs || 0),
+    successRuns: Number(row.success_runs || 0),
+    lastFinishedAt: row.last_finished_at ? String(row.last_finished_at) : null,
+  }));
+}
+
+export function getGuardianAutoRevertCount(fromIso: string): number {
+  const row = queryOne<{ total: number }>(
+    `SELECT COUNT(*) AS total
+     FROM harness_run_events
+     WHERE finished_at >= ?
+       AND lane = 'main-guardian'
+       AND scenario = 'guardian-auto-revert'
+       AND status = 'success'`,
+    [fromIso],
+  );
+  return Number(row?.total || 0);
 }

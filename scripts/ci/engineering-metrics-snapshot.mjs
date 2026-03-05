@@ -1,6 +1,26 @@
 import { writeFileSync } from 'node:fs';
 
 const GITHUB_API = 'https://api.github.com';
+const ACTIVE_DOMAINS = [
+  'core-api',
+  'auth',
+  'session',
+  'memory',
+  'omnichannel-gateway',
+  'model-hub',
+  'persona-rooms',
+  'ops-observability',
+  'automation',
+  'skills',
+  'clawhub',
+  'knowledge-base',
+  'security',
+  'master-agent',
+  'project-workspace',
+  'tasks',
+  'chat',
+  'mission-control',
+];
 
 function median(values) {
   const list = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
@@ -55,6 +75,84 @@ function hoursBetween(startIso, endIso) {
   const endMs = Date.parse(endIso);
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) return null;
   return (endMs - startMs) / (60 * 60 * 1000);
+}
+
+function normalizeStatus(raw) {
+  const value = String(raw || '')
+    .trim()
+    .toLowerCase();
+  if (value === 'success') return 'success';
+  if (value === 'skipped' || value === 'neutral') return 'skipped';
+  if (value === 'cancelled') return 'cancelled';
+  return 'failure';
+}
+
+function buildDomainCoverage(events) {
+  const coveredSet = new Set(
+    events
+      .filter((event) => event.status === 'success')
+      .map((event) => String(event.domain || '').trim())
+      .filter(Boolean),
+  );
+  const uncoveredDomains = ACTIVE_DOMAINS.filter((domainId) => !coveredSet.has(domainId));
+  return {
+    activeDomains: ACTIVE_DOMAINS.length,
+    coveredDomains: ACTIVE_DOMAINS.length - uncoveredDomains.length,
+    coverageRate:
+      ACTIVE_DOMAINS.length <= 0
+        ? null
+        : round2((ACTIVE_DOMAINS.length - uncoveredDomains.length) / ACTIVE_DOMAINS.length),
+    uncoveredDomains,
+  };
+}
+
+function buildScenarioSuccessRates(events) {
+  const buckets = new Map();
+  for (const event of events) {
+    const scenario = String(event.scenario || '').trim();
+    if (!scenario) continue;
+    const current = buckets.get(scenario) || {
+      scenario,
+      totalRuns: 0,
+      successRuns: 0,
+      flakySuspicions: 0,
+    };
+    current.totalRuns += 1;
+    if (event.status === 'success') current.successRuns += 1;
+    if (event.status === 'failure' || event.status === 'cancelled') current.flakySuspicions += 1;
+    buckets.set(scenario, current);
+  }
+  return Array.from(buckets.values()).map((row) => ({
+    scenario: row.scenario,
+    successRate: row.totalRuns <= 0 ? null : round2(row.successRuns / row.totalRuns),
+    totalRuns: row.totalRuns,
+    flakySuspicions: row.flakySuspicions,
+  }));
+}
+
+function buildWorktreeHarness(events) {
+  const buckets = new Map();
+  for (const event of events) {
+    const worktreeId = String(event.worktree_id || '').trim();
+    if (!worktreeId) continue;
+    const current = buckets.get(worktreeId) || { totalRuns: 0, successRuns: 0 };
+    current.totalRuns += 1;
+    if (event.status === 'success') current.successRuns += 1;
+    buckets.set(worktreeId, current);
+  }
+  const rows = Array.from(buckets.values());
+  const healthy = rows.filter(
+    (row) => row.totalRuns > 0 && row.totalRuns === row.successRuns,
+  ).length;
+  const unstable = rows.filter(
+    (row) => row.totalRuns > 0 && row.totalRuns > row.successRuns,
+  ).length;
+  return {
+    totalWorktrees: rows.length,
+    healthyWorktrees: healthy,
+    successRate: rows.length <= 0 ? null : round2(healthy / rows.length),
+    unstableWorktrees: unstable,
+  };
 }
 
 async function main() {
@@ -149,21 +247,62 @@ async function main() {
       const finishedAt = toIso(job.completed_at || run.updated_at);
       if (!startedAt || !finishedAt) continue;
       const durationMs = Math.max(0, Date.parse(finishedAt) - Date.parse(startedAt));
+
       laneEvents.push({
-        traceId: `run-${run.id}`,
-        spanId: `job-${job.id}`,
-        serviceName: 'github-actions',
+        trace_id: `run-${run.id}`,
+        span_id: `job-${job.id}`,
+        service_name: 'github-actions',
+        domain: 'ops-observability',
         lane,
-        status: String(job.conclusion || 'cancelled'),
-        startedAt,
-        finishedAt,
-        durationMs,
-        errorKind:
-          String(job.conclusion || '') === 'success' ? null : String(job.conclusion || 'failure'),
-        runUrl: String(run.html_url || ''),
+        scenario: `lane:${lane}`,
+        status: normalizeStatus(job.conclusion),
+        started_at: startedAt,
+        finished_at: finishedAt,
+        duration_ms: durationMs,
+        worktree_id: 'gha-main',
+        commit_sha: String(run.head_sha || '').trim() || null,
+        error_kind:
+          normalizeStatus(job.conclusion) === 'success'
+            ? null
+            : String(job.conclusion || 'failure').toLowerCase(),
+        run_url: String(run.html_url || ''),
       });
     }
   }
+
+  const recentCommits = await paginate(
+    `/repos/${owner}/${repo}/commits?sha=main&since=${encodeURIComponent(oldest30.toISOString())}`,
+    token,
+    3,
+  );
+  const guardianRevertCommits = recentCommits.filter((commit) =>
+    String(commit?.commit?.message || '')
+      .toLowerCase()
+      .startsWith('revert(guardian): auto-revert failing main commit'),
+  );
+  const guardianEvents = guardianRevertCommits.map((commit) => {
+    const committedAt = toIso(commit?.commit?.committer?.date || nowIso) || nowIso;
+    const sha = String(commit?.sha || '').trim();
+    const shortSha = sha.slice(0, 12);
+    return {
+      trace_id: `guardian-${shortSha}`,
+      span_id: `commit-${shortSha}`,
+      service_name: 'github-actions',
+      domain: 'ops-observability',
+      lane: 'main-guardian',
+      scenario: 'guardian-auto-revert',
+      status: 'success',
+      started_at: committedAt,
+      finished_at: committedAt,
+      duration_ms: 0,
+      worktree_id: 'main',
+      commit_sha: sha || null,
+      error_kind: null,
+      run_url: String(commit?.html_url || ''),
+    };
+  });
+
+  const allEvents = [...laneEvents, ...guardianEvents];
 
   const asyncSlaBreaches = await githubFetch(
     `/repos/${owner}/${repo}/issues?state=open&labels=async-failure,harness,sla-breached&per_page=100`,
@@ -185,10 +324,18 @@ async function main() {
       return run && String(run.conclusion || '') === 'success';
     }).length;
     const reverted = merged.filter((pr) => pr.reverted).length;
-    const flakyWindow = laneEvents.filter(
-      (event) => event.lane === 'flaky-detection' && Date.parse(event.finishedAt) >= fromMs,
+    const flakyWindow = allEvents.filter(
+      (event) =>
+        event.lane === 'flaky-detection' &&
+        Number.isFinite(Date.parse(event.finished_at)) &&
+        Date.parse(event.finished_at) >= fromMs,
     );
     const flakyFailures = flakyWindow.filter((event) => event.status !== 'success').length;
+
+    const eventsWindow = allEvents.filter(
+      (event) =>
+        Number.isFinite(Date.parse(event.finished_at)) && Date.parse(event.finished_at) >= fromMs,
+    );
 
     return {
       windowDays,
@@ -207,6 +354,12 @@ async function main() {
         ratio(reverted, merged.length) === null ? null : round2(ratio(reverted, merged.length)),
       medianPrSize: median(sizes) === null ? null : Math.round(median(sizes)),
       asyncFailureSlaBreaches,
+      domainCoverage: buildDomainCoverage(eventsWindow),
+      scenarioSuccessRates: buildScenarioSuccessRates(eventsWindow),
+      worktreeHarness: buildWorktreeHarness(eventsWindow),
+      criticalFailAutoReverts: eventsWindow.filter(
+        (event) => event.lane === 'main-guardian' && event.scenario === 'guardian-auto-revert',
+      ).length,
       generatedAt: nowIso,
       source: 'github-snapshot',
     };
@@ -230,19 +383,11 @@ async function main() {
   const payload = {
     snapshots,
     prFacts,
-    events: laneEvents.map((event) => ({
-      ...event,
-      status:
-        event.status === 'success' ||
-        event.status === 'failure' ||
-        event.status === 'cancelled' ||
-        event.status === 'skipped'
-          ? event.status
-          : 'failure',
-    })),
+    events: allEvents,
     meta: {
       generatedAt: nowIso,
       blockingFailStreak,
+      criticalFailAutoReverts: guardianEvents.length,
     },
   };
 

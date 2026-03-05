@@ -79,6 +79,14 @@ describe('GET /api/stats/engineering', () => {
         firstPassCiRate: number | null;
         source: string;
         isFallback: boolean;
+        domainCoverage: {
+          activeDomains: number;
+          coveredDomains: number;
+        };
+        scenarioSuccessRates: unknown[];
+        worktreeHarness: {
+          totalWorktrees: number;
+        };
       };
     };
 
@@ -89,6 +97,9 @@ describe('GET /api/stats/engineering', () => {
     expect(payload.snapshot.firstPassCiRate).toBeNull();
     expect(payload.snapshot.source).toBeTruthy();
     expect(typeof payload.snapshot.isFallback).toBe('boolean');
+    expect(payload.snapshot.domainCoverage.activeDomains).toBeGreaterThan(0);
+    expect(Array.isArray(payload.snapshot.scenarioSuccessRates)).toBe(true);
+    expect(typeof payload.snapshot.worktreeHarness.totalWorktrees).toBe('number');
   });
 
   it('returns partial metrics when run and task signals exist', async () => {
@@ -149,6 +160,7 @@ describe('GET /api/stats/engineering', () => {
         asyncFailureSlaBreaches: number;
         source: string;
         isFallback: boolean;
+        criticalFailAutoReverts: number;
       };
     };
 
@@ -159,6 +171,7 @@ describe('GET /api/stats/engineering', () => {
     expect(payload.snapshot.asyncFailureSlaBreaches).toBeGreaterThanOrEqual(1);
     expect(payload.snapshot.source).toBeTruthy();
     expect(typeof payload.snapshot.isFallback).toBe('boolean');
+    expect(typeof payload.snapshot.criticalFailAutoReverts).toBe('number');
   });
 
   it('rejects unsupported window sizes', async () => {
@@ -198,6 +211,27 @@ describe('GET /api/stats/engineering', () => {
               revertRate: 0.02,
               medianPrSize: 180,
               asyncFailureSlaBreaches: 0,
+              domainCoverage: {
+                activeDomains: 18,
+                coveredDomains: 9,
+                coverageRate: 0.5,
+                uncoveredDomains: ['auth'],
+              },
+              scenarioSuccessRates: [
+                {
+                  scenario: 'chat-stream',
+                  successRate: 1,
+                  totalRuns: 2,
+                  flakySuspicions: 0,
+                },
+              ],
+              worktreeHarness: {
+                totalWorktrees: 1,
+                healthyWorktrees: 1,
+                successRate: 1,
+                unstableWorktrees: 0,
+              },
+              criticalFailAutoReverts: 1,
               generatedAt: nowIso,
               source: 'github-snapshot',
             },
@@ -215,6 +249,10 @@ describe('GET /api/stats/engineering', () => {
         source: string;
         isFallback: boolean;
         firstPassCiRate: number | null;
+        criticalFailAutoReverts: number;
+        domainCoverage: {
+          coveredDomains: number;
+        };
       };
     };
 
@@ -223,5 +261,7 @@ describe('GET /api/stats/engineering', () => {
     expect(payload.snapshot.source).toBe('snapshot');
     expect(payload.snapshot.isFallback).toBe(false);
     expect(payload.snapshot.firstPassCiRate).toBe(0.9);
+    expect(payload.snapshot.criticalFailAutoReverts).toBe(1);
+    expect(payload.snapshot.domainCoverage.coveredDomains).toBe(9);
   });
 });

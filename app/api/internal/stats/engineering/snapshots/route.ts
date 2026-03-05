@@ -3,6 +3,7 @@ import {
   appendHarnessRunEvents,
   createIngestReceipt,
   hasIngestReceipt,
+  pruneHarnessRunEventsBefore,
   replaceEngineeringPrFacts,
   storeEngineeringSnapshot,
   type EngineeringPrFact,
@@ -15,6 +16,7 @@ export const dynamic = 'force-dynamic';
 const MAX_CLOCK_SKEW_MS = 15 * 60 * 1000;
 const RATE_WINDOW_MS = 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 12;
+const HARNESS_RETENTION_DAYS = 90;
 
 declare global {
   var __engineeringIngestRateWindow: number[] | undefined;
@@ -87,6 +89,40 @@ function asInt(value: unknown, field: string): number {
   return Math.floor(parsed);
 }
 
+function asOptionalString(value: unknown): string | null {
+  const parsed = String(value || '').trim();
+  return parsed ? parsed : null;
+}
+
+function redactRunUrl(input: string | null): string | null {
+  if (!input) return null;
+  try {
+    const parsed = new URL(input);
+    parsed.username = '';
+    parsed.password = '';
+    parsed.search = '';
+    parsed.hash = '';
+    return `${parsed.origin}${parsed.pathname}`.slice(0, 512);
+  } catch {
+    return null;
+  }
+}
+
+function redactErrorKind(value: string | null): string | null {
+  if (!value) return null;
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9._:-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 64);
+  if (!normalized) return null;
+  if (normalized.includes('token') || normalized.includes('secret') || normalized.includes('key')) {
+    return 'redacted-sensitive-error';
+  }
+  return normalized;
+}
+
 function parseSnapshotRows(body: Record<string, unknown>): Array<{
   windowDays: 7 | 30;
   source: string;
@@ -97,12 +133,12 @@ function parseSnapshotRows(body: Record<string, unknown>): Array<{
   return raw.map((entry) => {
     const row = asRecord(entry);
     if (!row) throw new Error('Invalid snapshots payload');
-    const windowDays = asInt(row.windowDays, 'windowDays');
+    const windowDays = asInt(row.windowDays ?? row.window_days, 'windowDays');
     if (windowDays !== 7 && windowDays !== 30) {
       throw new Error('windowDays must be 7 or 30');
     }
     const source = String(row.source || 'github-snapshot').trim() || 'github-snapshot';
-    const generatedAt = asIso(row.generatedAt || new Date().toISOString());
+    const generatedAt = asIso(row.generatedAt ?? row.generated_at ?? new Date().toISOString());
     const payload = { ...row };
     return { windowDays: windowDays as 7 | 30, source, generatedAt, payload };
   });
@@ -114,12 +150,12 @@ function parsePrFacts(body: Record<string, unknown>): EngineeringPrFact[] {
     const row = asRecord(entry);
     if (!row) throw new Error('Invalid prFacts payload');
     return {
-      prNumber: asInt(row.prNumber, 'prNumber'),
-      createdAt: asIso(row.createdAt),
-      mergedAt: asIso(row.mergedAt),
+      prNumber: asInt(row.prNumber ?? row.pr_number, 'prNumber'),
+      createdAt: asIso(row.createdAt ?? row.created_at),
+      mergedAt: asIso(row.mergedAt ?? row.merged_at),
       additions: asInt(row.additions || 0, 'additions'),
       deletions: asInt(row.deletions || 0, 'deletions'),
-      firstPassBlocking: Boolean(row.firstPassBlocking),
+      firstPassBlocking: Boolean(row.firstPassBlocking ?? row.first_pass_blocking),
       reverted: Boolean(row.reverted),
     };
   });
@@ -130,21 +166,40 @@ function parseEvents(body: Record<string, unknown>): HarnessRunEvent[] {
   return raw.map((entry) => {
     const row = asRecord(entry);
     if (!row) throw new Error('Invalid events payload');
-    const status = String(row.status || '').trim();
+    const statusInput = String(row.status || '')
+      .trim()
+      .toLowerCase();
+    const status =
+      statusInput === 'success'
+        ? 'success'
+        : statusInput === 'cancelled'
+          ? 'cancelled'
+          : statusInput === 'skipped'
+            ? 'skipped'
+            : 'failure';
     if (!['success', 'failure', 'cancelled', 'skipped'].includes(status)) {
       throw new Error('Invalid event status');
     }
+    const runUrlRaw = asOptionalString(row.runUrl ?? row.run_url);
+    const errorKindRaw = asOptionalString(row.errorKind ?? row.error_kind);
+    const commitSha = asOptionalString(row.commitSha ?? row.commit_sha);
+
     return {
-      traceId: row.traceId ? String(row.traceId) : null,
-      spanId: row.spanId ? String(row.spanId) : null,
-      serviceName: String(row.serviceName || '').trim() || 'github-actions',
+      traceId: asOptionalString(row.traceId ?? row.trace_id),
+      spanId: asOptionalString(row.spanId ?? row.span_id),
+      serviceName:
+        String((row.serviceName ?? row.service_name ?? '') as unknown).trim() || 'github-actions',
+      domain: asOptionalString(row.domain),
       lane: String(row.lane || '').trim() || 'unknown',
+      scenario: asOptionalString(row.scenario),
       status: status as HarnessRunEvent['status'],
-      startedAt: asIso(row.startedAt),
-      finishedAt: asIso(row.finishedAt),
-      durationMs: Math.max(0, asInt(row.durationMs || 0, 'durationMs')),
-      errorKind: row.errorKind ? String(row.errorKind) : null,
-      runUrl: row.runUrl ? String(row.runUrl) : null,
+      startedAt: asIso(row.startedAt ?? row.started_at),
+      finishedAt: asIso(row.finishedAt ?? row.finished_at),
+      durationMs: Math.max(0, asInt(row.durationMs ?? row.duration_ms ?? 0, 'durationMs')),
+      worktreeId: asOptionalString(row.worktreeId ?? row.worktree_id),
+      commitSha: commitSha && /^[a-f0-9]{7,40}$/i.test(commitSha) ? commitSha.toLowerCase() : null,
+      errorKind: redactErrorKind(errorKindRaw),
+      runUrl: redactRunUrl(runUrlRaw),
     };
   });
 }
@@ -209,6 +264,10 @@ export async function POST(request: Request) {
     if (events.length > 0) {
       appendHarnessRunEvents(events);
     }
+    const retentionCutoffIso = new Date(
+      nowMs - HARNESS_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const prunedEvents = pruneHarnessRunEventsBefore(retentionCutoffIso);
 
     return Response.json({
       ok: true,
@@ -217,6 +276,7 @@ export async function POST(request: Request) {
         snapshots: snapshots.length,
         prFacts: prFacts.length,
         events: events.length,
+        prunedEvents,
       },
     });
   } catch (error) {

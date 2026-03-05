@@ -114,6 +114,34 @@ jobs:
             exit 1
           fi
 
+  main-policy:
+    name: Main Policy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Enforce main-only commit policy
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: node --import tsx scripts/ci/main-policy-check.ts
+
   lint:
     name: Typecheck + Lint + Format
     runs-on: ubuntu-latest
@@ -270,8 +298,11 @@ jobs:
     name: E2E Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [pr-policy, lint, test-unit, architecture-guards]
-    if: always() && (needs.pr-policy.result == 'success' || needs.pr-policy.result == 'skipped')
+    needs: [pr-policy, main-policy, lint, test-unit, architecture-guards]
+    if: |
+      always() &&
+      (needs.pr-policy.result == 'success' || needs.pr-policy.result == 'skipped') &&
+      (needs.main-policy.result == 'success' || needs.main-policy.result == 'skipped')
     steps:
       - name: Checkout
         uses: actions/checkout@v4

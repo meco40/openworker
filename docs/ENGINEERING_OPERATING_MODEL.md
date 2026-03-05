@@ -1,9 +1,9 @@
-# Engineering Operating Model (Harness v2)
+# Engineering Operating Model (Harness v3)
 
 ## Ziel
 
 Dieses Modell legt fest, wie Mensch und Agent gemeinsam liefern:
-kleine PRs, harte Sicherheits-Gates, asynchrone Qualitäts-Nachläufe und klare Eskalation.
+main-only Delivery, harte post-push Sicherheits-Gates, asynchrone Qualitäts-Nachläufe und klare Eskalation.
 
 ## Rollen
 
@@ -19,6 +19,21 @@ kleine PRs, harte Sicherheits-Gates, asynchrone Qualitäts-Nachläufe und klare 
 - priorisiert Risiken und Escalations,
 - validiert Trade-offs bei grossen oder weitreichenden Änderungen.
 
+## Main-Only Commit-Vertrag
+
+Agentische main-Commits verwenden Trailer-Metadaten:
+
+- `Agentic-Change: yes|no`
+- `Harness-Scenario: <scenario-id>`
+- `Harness-Evidence: <https-url>`
+- `Risk-Class: low|medium|high`
+- `Human-Approval: <user|none>`
+
+Regeln:
+
+1. `Agentic-Change: yes` erzwingt gueltiges Scenario + Evidence + Risk-Class.
+2. High-risk-Pfade (Auth, Security, DB-Migration, Gateway, Memory-Core, Model-Hub-Dispatch) erzwingen `Human-Approval != none`.
+
 ## Gate-Model
 
 1. Blocking Gates (Merge-blockierend):
@@ -27,6 +42,7 @@ kleine PRs, harte Sicherheits-Gates, asynchrone Qualitäts-Nachläufe und klare 
 - `lint`
 - Unit/Integration
 - `e2e:smoke`
+- `Main Policy` (push auf `main`)
 
 2. Async Gates (nicht merge-blockierend):
 
@@ -36,6 +52,14 @@ kleine PRs, harte Sicherheits-Gates, asynchrone Qualitäts-Nachläufe und klare 
 - Flaky-Detection
 
 Regel: Async-Fehler erzeugen innerhalb von 24h einen Follow-up-Task mit Owner.
+
+## Guardian-Verhalten
+
+Der `Main Guardian` reagiert auf fehlgeschlagene Blocking-Gates auf `main`:
+
+1. Falls der fehlerhafte SHA noch aktueller `main`-Head ist: deterministischer Auto-Revert.
+2. Falls `main` bereits weitergelaufen ist: kein Blind-Revert, stattdessen Incident-Issue.
+3. Revert-Loop-Schutz: Guardian-Revert-Commits werden nicht erneut revertiert.
 
 ## Triage-Rhythmus
 
@@ -49,3 +73,15 @@ Regel: Async-Fehler erzeugen innerhalb von 24h einen Follow-up-Task mit Owner.
 
 - Durchsatz- und Stabilitätsmetriken reviewen
 - Top-3 Reibungspunkte mit klaren Gegenmassnahmen planen
+
+## Observability und Retention
+
+1. Harness-Events sind OTel-kompatibel und enthalten `trace_id`, `span_id`, `domain`, `scenario`, `worktree_id`, `commit_sha`.
+2. `GET /api/stats/engineering` liefert additiv:
+
+- `domainCoverage`
+- `scenarioSuccessRates`
+- `worktreeHarness`
+- `criticalFailAutoReverts`
+
+3. Harness-Events werden mit 90-Tage-Retention gehalten und bei Ingest PII-sicher redigiert.

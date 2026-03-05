@@ -1,4 +1,5 @@
 import { queryAll } from '@/lib/db';
+import { loadDomainRegistry } from '@/server/ci/harnessDomainRegistry';
 import { getMasterRepository } from '@/server/master/runtime';
 import type { WorkspaceScope } from '@/server/master/types';
 import {
@@ -10,7 +11,11 @@ import {
   type VerificationRunSignal,
 } from '@/server/stats/engineeringMetrics';
 import {
+  getGuardianAutoRevertCount,
+  getHarnessDomainStats,
   getHarnessLaneStats,
+  getHarnessScenarioStats,
+  getHarnessWorktreeStats,
   getLatestEngineeringSnapshot,
 } from '@/server/stats/engineeringSnapshotRepository';
 
@@ -35,6 +40,35 @@ function parseIsoMs(value: string | null | undefined): number | null {
   const parsed = Date.parse(input);
   if (!Number.isFinite(parsed)) return null;
   return parsed;
+}
+
+function readPayloadNumber(payload: Record<string, unknown>, ...keys: string[]): number | null {
+  for (const key of keys) {
+    const parsed = Number(payload[key]);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function readPayloadObject(
+  payload: Record<string, unknown>,
+  ...keys: string[]
+): Record<string, unknown> | null {
+  for (const key of keys) {
+    const value = payload[key];
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+function readPayloadArray(payload: Record<string, unknown>, ...keys: string[]): unknown[] | null {
+  for (const key of keys) {
+    const value = payload[key];
+    if (!Array.isArray(value)) continue;
+    return value;
+  }
+  return null;
 }
 
 function resolveScopes(userId: string, workspaceId: string | null): WorkspaceScope[] {
@@ -173,25 +207,143 @@ export function collectEngineeringMetricsSnapshot(params: {
     medianDurationMs: row.medianDurationMs,
     flakySuspicions: row.flakySuspicions,
   }));
+  const domainStats = getHarnessDomainStats(fromIso);
+  const scenarioStats = getHarnessScenarioStats(fromIso);
+  const worktreeStats = getHarnessWorktreeStats(fromIso);
+  const activeDomains = loadDomainRegistry().domains.map((domain) => domain.id);
+  const coveredDomainSet = new Set(
+    domainStats.filter((row) => row.totalRuns > 0).map((row) => row.domain),
+  );
+  const coveredDomains = activeDomains.filter((domainId) => coveredDomainSet.has(domainId));
+  const uncoveredDomains = activeDomains.filter((domainId) => !coveredDomainSet.has(domainId));
+
+  const domainCoverage = {
+    activeDomains: activeDomains.length,
+    coveredDomains: coveredDomains.length,
+    coverageRate:
+      activeDomains.length <= 0
+        ? null
+        : Math.round((coveredDomains.length / activeDomains.length) * 100) / 100,
+    uncoveredDomains,
+  };
+
+  const scenarioSuccessRates = scenarioStats.map((row) => ({
+    scenario: row.scenario,
+    successRate:
+      row.totalRuns <= 0 ? null : Math.round((row.successRuns / row.totalRuns) * 100) / 100,
+    totalRuns: row.totalRuns,
+    flakySuspicions: row.flakySuspicions,
+  }));
+
+  const healthyWorktrees = worktreeStats.filter(
+    (row) => row.totalRuns > 0 && row.successRuns === row.totalRuns,
+  ).length;
+  const unstableWorktrees = worktreeStats.filter(
+    (row) => row.totalRuns > 0 && row.successRuns < row.totalRuns,
+  ).length;
+  const worktreeHarness = {
+    totalWorktrees: worktreeStats.length,
+    healthyWorktrees,
+    successRate:
+      worktreeStats.length <= 0
+        ? null
+        : Math.round((healthyWorktrees / worktreeStats.length) * 100) / 100,
+    unstableWorktrees,
+  };
+
+  const criticalFailAutoReverts = getGuardianAutoRevertCount(fromIso);
 
   const latest = getLatestEngineeringSnapshot(params.windowDays);
   if (latest) {
     const generatedMs = parseIsoMs(latest.generatedAt);
     if (generatedMs !== null && nowMs - generatedMs <= SNAPSHOT_STALE_MS) {
       const payload = latest.payload;
+      const payloadDomainCoverage = readPayloadObject(payload, 'domainCoverage', 'domain_coverage');
+      const payloadScenarioSuccessRates = readPayloadArray(
+        payload,
+        'scenarioSuccessRates',
+        'scenario_success_rates',
+      );
+      const payloadWorktreeHarness = readPayloadObject(
+        payload,
+        'worktreeHarness',
+        'worktree_harness',
+      );
+      const payloadCriticalFailAutoReverts = readPayloadNumber(
+        payload,
+        'criticalFailAutoReverts',
+        'critical_fail_auto_reverts',
+      );
       return {
         windowDays: params.windowDays,
-        leadTimeMedianHours: numericOrNull(payload.leadTimeMedianHours),
-        mergeThroughputPerWeek: numericOrNull(payload.mergeThroughputPerWeek),
-        firstPassCiRate: numericOrNull(payload.firstPassCiRate),
-        flakyRate: numericOrNull(payload.flakyRate),
-        revertRate: numericOrNull(payload.revertRate),
-        medianPrSize: integerOrNull(payload.medianPrSize),
-        asyncFailureSlaBreaches: integerOrZero(payload.asyncFailureSlaBreaches),
+        leadTimeMedianHours: numericOrNull(
+          readPayloadNumber(payload, 'leadTimeMedianHours', 'lead_time_median_hours'),
+        ),
+        mergeThroughputPerWeek: numericOrNull(
+          readPayloadNumber(payload, 'mergeThroughputPerWeek', 'merge_throughput_per_week'),
+        ),
+        firstPassCiRate: numericOrNull(
+          readPayloadNumber(payload, 'firstPassCiRate', 'first_pass_ci_rate'),
+        ),
+        flakyRate: numericOrNull(readPayloadNumber(payload, 'flakyRate', 'flaky_rate')),
+        revertRate: numericOrNull(readPayloadNumber(payload, 'revertRate', 'revert_rate')),
+        medianPrSize: integerOrNull(readPayloadNumber(payload, 'medianPrSize', 'median_pr_size')),
+        asyncFailureSlaBreaches: integerOrZero(
+          readPayloadNumber(payload, 'asyncFailureSlaBreaches', 'async_failure_sla_breaches'),
+        ),
         generatedAt: latest.generatedAt,
         source: 'snapshot',
         snapshotAgeHours: Math.round(((nowMs - generatedMs) / (60 * 60 * 1000)) * 100) / 100,
         isFallback: false,
+        domainCoverage:
+          payloadDomainCoverage && typeof payloadDomainCoverage === 'object'
+            ? {
+                activeDomains: integerOrZero(payloadDomainCoverage.activeDomains),
+                coveredDomains: integerOrZero(payloadDomainCoverage.coveredDomains),
+                coverageRate: numericOrNull(payloadDomainCoverage.coverageRate),
+                uncoveredDomains: Array.isArray(payloadDomainCoverage.uncoveredDomains)
+                  ? payloadDomainCoverage.uncoveredDomains
+                      .map((domain) => String(domain || '').trim())
+                      .filter(Boolean)
+                  : [],
+              }
+            : domainCoverage,
+        scenarioSuccessRates: Array.isArray(payloadScenarioSuccessRates)
+          ? payloadScenarioSuccessRates
+              .map((entry) => {
+                if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+                const row = entry as Record<string, unknown>;
+                return {
+                  scenario: String(row.scenario || '').trim(),
+                  successRate: numericOrNull(row.successRate),
+                  totalRuns: integerOrZero(row.totalRuns),
+                  flakySuspicions: integerOrZero(row.flakySuspicions),
+                };
+              })
+              .filter(
+                (
+                  entry,
+                ): entry is {
+                  scenario: string;
+                  successRate: number | null;
+                  totalRuns: number;
+                  flakySuspicions: number;
+                } => Boolean(entry && entry.scenario),
+              )
+          : scenarioSuccessRates,
+        worktreeHarness:
+          payloadWorktreeHarness && typeof payloadWorktreeHarness === 'object'
+            ? {
+                totalWorktrees: integerOrZero(payloadWorktreeHarness.totalWorktrees),
+                healthyWorktrees: integerOrZero(payloadWorktreeHarness.healthyWorktrees),
+                successRate: numericOrNull(payloadWorktreeHarness.successRate),
+                unstableWorktrees: integerOrZero(payloadWorktreeHarness.unstableWorktrees),
+              }
+            : worktreeHarness,
+        criticalFailAutoReverts:
+          payloadCriticalFailAutoReverts === null
+            ? criticalFailAutoReverts
+            : integerOrZero(payloadCriticalFailAutoReverts),
         observability: {
           laneSuccessRates: laneStats,
         },
@@ -220,6 +372,10 @@ export function collectEngineeringMetricsSnapshot(params: {
           ) / 100
         : null,
     isFallback: true,
+    domainCoverage,
+    scenarioSuccessRates,
+    worktreeHarness,
+    criticalFailAutoReverts,
     observability: {
       laneSuccessRates: laneStats,
     },
@@ -227,11 +383,13 @@ export function collectEngineeringMetricsSnapshot(params: {
 }
 
 function numericOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function integerOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.round(parsed) : null;
 }

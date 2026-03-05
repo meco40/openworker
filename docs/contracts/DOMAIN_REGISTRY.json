@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "generatedAt": "2026-03-05T11:10:00Z",
+  "domains": [
+    {
+      "risk": "high",
+      "display": "Core API",
+      "contract": "docs/contracts/CORE_API_AGENT_CONTRACT.md",
+      "tests": ["tests/contract/public-api.contract.test.ts"],
+      "paths": ["app/api/**", "src/server/**", "src/lib/db/**"],
+      "owner": "team-core",
+      "systemDoc": "docs/CORE_HANDBOOK.md",
+      "scenarios": ["core-api-health"],
+      "id": "core-api"
+    },
+    {
+      "risk": "high",
+      "display": "Auth",
+      "contract": "docs/contracts/AUTH_AGENT_CONTRACT.md",
+      "tests": ["tests/integration/channels/omnichannel-security.contract.test.ts"],
+      "paths": ["auth.ts", "app/api/auth/**", "src/server/auth/**"],
+      "owner": "team-security",
+      "systemDoc": "docs/AUTH_SYSTEM.md",
+      "scenarios": ["auth-session-guard"],
+      "id": "auth"
+    },
+    {
+      "risk": "high",
+      "display": "Session",
+      "contract": "docs/contracts/SESSION_AGENT_CONTRACT.md",
+      "tests": ["tests/integration/persistent-chat-session-v2.contract.test.ts"],
+      "paths": ["app/api/channels/state/**", "src/server/channels/**"],
+      "owner": "team-security",
+      "systemDoc": "docs/SESSION_MANAGEMENT.md",
+      "scenarios": ["auth-session-guard"],
+      "id": "session"
+    },
+    {
+      "risk": "high",
+      "display": "Memory",
+      "contract": "docs/contracts/MEMORY_AGENT_CONTRACT.md",
+      "tests": ["tests/integration/memory/memory-route.test.ts"],
+      "paths": ["app/api/memory/**", "src/server/memory/**", "src/core/memory/**"],
+      "owner": "team-memory",
+      "systemDoc": "docs/MEMORY_SYSTEM.md",
+      "scenarios": ["memory-operations"],
+      "id": "memory"
+    },
+    {
+      "risk": "high",
+      "display": "Omnichannel Gateway",
+      "contract": "docs/contracts/OMNICHANNEL_GATEWAY_AGENT_CONTRACT.md",
+      "tests": ["tests/unit/gateway/gateway-contract.test.ts"],
+      "paths": ["src/server/gateway/**", "app/api/channels/**", "src/modules/gateway/**"],
+      "owner": "team-gateway",
+      "systemDoc": "docs/OMNICHANNEL_GATEWAY_SYSTEM.md",
+      "scenarios": ["gateway-rpc-core"],
+      "id": "omnichannel-gateway"
+    },
+    {
+      "risk": "high",
+      "display": "Model Hub",
+      "contract": "docs/contracts/MODEL_HUB_AGENT_CONTRACT.md",
+      "tests": ["tests/integration/model-hub/pipeline-route.test.ts"],
+      "paths": ["app/api/model-hub/**", "src/server/model-hub/**", "src/components/model-hub/**"],
+      "owner": "team-modelhub",
+      "systemDoc": "docs/MODEL_HUB_SYSTEM.md",
+      "scenarios": ["model-hub-pipeline"],
+      "id": "model-hub"
+    },
+    {
+      "risk": "medium",
+      "display": "Persona Rooms",
+      "contract": "docs/contracts/PERSONA_ROOMS_AGENT_CONTRACT.md",
+      "tests": ["tests/e2e/browser/chat-queue-and-persona.spec.ts"],
+      "paths": ["app/api/personas/**", "src/server/personas/**"],
+      "owner": "team-chat",
+      "systemDoc": "docs/PERSONA_ROOMS_SYSTEM.md",
+      "scenarios": ["persona-rooms-isolation"],
+      "id": "persona-rooms"
+    },
+    {
+      "risk": "medium",
+      "display": "Ops Observability",
+      "contract": "docs/contracts/OPS_OBSERVABILITY_AGENT_CONTRACT.md",
+      "tests": ["tests/integration/stats/engineering-route.test.ts"],
+      "paths": ["app/api/stats/**", "src/components/stats/**", "src/server/stats/**"],
+      "owner": "team-ops",
+      "systemDoc": "docs/OPS_OBSERVABILITY_SYSTEM.md",
+      "scenarios": ["ops-engineering-stats"],
+      "id": "ops-observability"
+    },
+    {
+      "risk": "medium",
+      "display": "Automation",
+      "contract": "docs/contracts/AUTOMATION_AGENT_CONTRACT.md",
+      "tests": ["tests/unit/master/master-notes-reminders-cron.test.ts"],
+      "paths": ["src/server/automation/**", "app/api/master/reminders/**"],
+      "owner": "team-ops",
+      "systemDoc": "docs/AUTOMATION_SYSTEM.md",
+      "scenarios": ["automation-reminder-cycle"],
+      "id": "automation"
+    },
+    {
+      "risk": "medium",
+      "display": "Skills",
+      "contract": "docs/contracts/SKILLS_AGENT_CONTRACT.md",
+      "tests": ["tests/unit/skills/skills-registry.test.ts"],
+      "paths": ["src/server/skills/**", "src/skills/**"],
+      "owner": "team-runtime",
+      "systemDoc": "docs/SKILLS_SYSTEM.md",
+      "scenarios": ["skills-policy-guard"],
+      "id": "skills"
+    },
+    {
+      "risk": "medium",
+      "display": "ClawHub",
+      "contract": "docs/contracts/CLAWHUB_AGENT_CONTRACT.md",
+      "tests": ["tests/unit/clawhub/clawhub-service.test.ts"],
+      "paths": ["src/server/clawhub/**"],
+      "owner": "team-runtime",
+      "systemDoc": "docs/CLAWHUB_SYSTEM.md",
+      "scenarios": ["clawhub-sync"],
+      "id": "clawhub"
+    },
+    {
+      "risk": "medium",
+      "display": "Knowledge Base",
+      "contract": "docs/contracts/KNOWLEDGE_BASE_AGENT_CONTRACT.md",
+      "tests": ["tests/unit/knowledge/retrieval-service/retrieval-service.harness.ts"],
+      "paths": ["src/server/knowledge/**"],
+      "owner": "team-knowledge",
+      "systemDoc": "docs/KNOWLEDGE_BASE_SYSTEM.md",
+      "scenarios": ["knowledge-retrieval-guard"],
+      "id": "knowledge-base"
+    },
+    {
+      "risk": "high",
+      "display": "Security",
+      "contract": "docs/contracts/SECURITY_AGENT_CONTRACT.md",
+      "tests": ["tests/integration/channels/omnichannel-security.contract.test.ts"],
+      "paths": [
+        "src/server/auth/**",
+        "src/server/master/safety.ts",
+        "src/server/skills/handlers/**"
+      ],
+      "owner": "team-security",
+      "systemDoc": "docs/SECURITY_SYSTEM.md",
+      "scenarios": ["security-authz-guard"],
+      "id": "security"
+    },
+    {
+      "risk": "high",
+      "display": "Master Agent",
+      "contract": "docs/contracts/MASTER_AGENT_CONTRACT.md",
+      "tests": ["tests/integration/master/master-runs-route.test.ts"],
+      "paths": ["app/api/master/**", "src/server/master/**", "src/modules/master/**"],
+      "owner": "team-master",
+      "systemDoc": "docs/MASTER_AGENT_SYSTEM.md",
+      "scenarios": ["master-run-feedback"],
+      "id": "master-agent"
+    },
+    {
+      "risk": "medium",
+      "display": "Project Workspace",
+      "contract": "docs/contracts/PROJECT_WORKSPACE_AGENT_CONTRACT.md",
+      "tests": ["tests/unit/channels/message-service-project-workspace-cwd.test.ts"],
+      "paths": [
+        "src/server/personas/personaProjectWorkspace.ts",
+        "src/server/tasks/taskWorkspace.ts"
+      ],
+      "owner": "team-runtime",
+      "systemDoc": "docs/PROJECT_WORKSPACE_SYSTEM.md",
+      "scenarios": ["project-workspace-guard"],
+      "id": "project-workspace"
+    },
+    {
+      "risk": "medium",
+      "display": "Tasks",
+      "contract": "docs/contracts/TASKS_AGENT_CONTRACT.md",
+      "tests": ["tests/integration/mission-control/tasks-route-workspaces.test.ts"],
+      "paths": ["app/api/tasks/**", "src/server/tasks/**"],
+      "owner": "team-core",
+      "systemDoc": "docs/TASKS_SYSTEM.md",
+      "scenarios": ["tasks-lifecycle"],
+      "id": "tasks"
+    },
+    {
+      "risk": "high",
+      "display": "Chat",
+      "contract": "docs/contracts/CHAT_AGENT_CONTRACT.md",
+      "tests": ["tests/e2e/browser/chat-smoke.spec.ts"],
+      "paths": ["src/modules/chat/**", "app/api/channels/**", "src/server/channels/messages/**"],
+      "owner": "team-chat",
+      "systemDoc": "docs/OMNICHANNEL_GATEWAY_SYSTEM.md",
+      "scenarios": ["chat-stream"],
+      "id": "chat"
+    },
+    {
+      "risk": "high",
+      "display": "Mission Control",
+      "contract": "docs/contracts/MISSION_CONTROL_AGENT_CONTRACT.md",
+      "tests": ["tests/e2e/browser/mission-control-run-feedback.spec.ts"],
+      "paths": ["src/modules/mission-control/**", "app/api/master/**", "src/server/master/**"],
+      "owner": "team-master",
+      "systemDoc": "docs/MASTER_AGENT_SYSTEM.md",
+      "scenarios": ["master-run-feedback"],
+      "id": "mission-control"
+    }
+  ]
+}

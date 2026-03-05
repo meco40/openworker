@@ -55,9 +55,11 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
 - **[docs/AGENT_ENGINEERING_INDEX.md](AGENT_ENGINEERING_INDEX.md)**
 - **[docs/ENGINEERING_OPERATING_MODEL.md](ENGINEERING_OPERATING_MODEL.md)**
 - **[docs/TECH_DEBT_REGISTER.md](TECH_DEBT_REGISTER.md)**
-- **[docs/contracts/MISSION_CONTROL_AGENT_CONTRACT.md](contracts/MISSION_CONTROL_AGENT_CONTRACT.md)**
-- **[docs/contracts/CHAT_AGENT_CONTRACT.md](contracts/CHAT_AGENT_CONTRACT.md)**
+- **`docs/contracts/*_AGENT_CONTRACT.md`** (alle aktiven Domain-Contracts)
+- **[docs/contracts/DOMAIN_REGISTRY.json](contracts/DOMAIN_REGISTRY.json)**
+- **[docs/contracts/DOMAIN_SCENARIO_MATRIX.json](contracts/DOMAIN_SCENARIO_MATRIX.json)**
 - **[docs/runbooks/AGENT_VERIFY_HARNESS.md](runbooks/AGENT_VERIFY_HARNESS.md)**
+- **[docs/runbooks/HARNESS_INCIDENT_TRIAGE.md](runbooks/HARNESS_INCIDENT_TRIAGE.md)**
 - **[docs/ux/gateway-config-copy-guidelines.md](ux/gateway-config-copy-guidelines.md)**
 - **[docs/plans/README.md](plans/README.md)**
 - **[docs/DOCUMENTATION_AUDIT_2026-02-21.md](DOCUMENTATION_AUDIT_2026-02-21.md)** (historischer Audit mit Addendum)
