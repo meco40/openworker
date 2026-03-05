@@ -41,6 +41,7 @@
 - 2026-03-05T09:09:36+01:00 [CODE] Patched `app/api/master/runs/[id]/route.ts` so PATCH only forwards explicitly provided fields to repository updates (prevents unintended null writes for omitted required fields like `title`/`contract`).
 - 2026-03-05T09:09:36+01:00 [CODE] Added integration coverage in `tests/integration/master/master-runs-route.test.ts` for partial PATCH behavior to prevent future NOT NULL regressions.
 - 2026-03-05T09:09:36+01:00 [TOOL] Verification executed: `pnpm run test -- tests/integration/master/master-runs-route.test.ts` and `pnpm run check` both passed after route fix.
+- 2026-03-05T09:13:47+01:00 [TOOL] Post-push CI verification for commit `2d15118` completed with all target workflows green: `E2E Browser`, `Async Quality Gates`, `Blocking Gates`.
 
 [DISCOVERIES]
 
@@ -91,3 +92,4 @@
 - 2026-03-05T08:55:38+01:00 [CODE] Mission-control browser harness scenario now aligns with current API scope invariants and should no longer fail with 400 on `POST /api/master/runs` in async CI.
 - 2026-03-05T09:02:24+01:00 [CODE] Harness scenario now includes deterministic retry on run completion patch, reducing flakiness in async browser lane without weakening assertion coverage.
 - 2026-03-05T09:09:36+01:00 [CODE] Root-cause regression in PATCH API behavior is remediated and guarded by integration test; next CI cycle should validate browser async lane end-to-end.
+- 2026-03-05T09:13:47+01:00 [TOOL] Harness Wave 2 rollout is operationally green on `main` for the enforced check set, including previously failing mission-control browser path.
