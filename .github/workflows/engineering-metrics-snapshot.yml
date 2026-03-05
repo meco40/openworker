@@ -45,10 +45,12 @@ jobs:
 
       - name: Ingest snapshot into internal API
         if: env.ENGINEERING_INGEST_ENABLED == '1'
+        id: ingest
         env:
           ENGINEERING_INGEST_URL: ${{ secrets.ENGINEERING_INGEST_URL }}
           ENGINEERING_INGEST_TOKEN: ${{ secrets.ENGINEERING_INGEST_TOKEN }}
           ENGINEERING_SNAPSHOT_OUTPUT: ${{ env.ENGINEERING_SNAPSHOT_OUTPUT }}
+          ENGINEERING_INGEST_STRICT: ${{ vars.ENGINEERING_INGEST_STRICT || '0' }}
         shell: bash
         run: |
           if [ -z "$ENGINEERING_INGEST_URL" ] || [ -z "$ENGINEERING_INGEST_TOKEN" ]; then
@@ -58,13 +60,34 @@ jobs:
 
           NOW_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           IDEMPOTENCY_KEY="snapshot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          curl --fail-with-body \
+          set +e
+          HTTP_STATUS="$(curl -sS -o ingest-response.json -w "%{http_code}" \
             -X POST "$ENGINEERING_INGEST_URL" \
             -H "content-type: application/json" \
             -H "x-engineering-ingest-token: $ENGINEERING_INGEST_TOKEN" \
             -H "x-engineering-ingest-timestamp: $NOW_ISO" \
             -H "x-engineering-ingest-idempotency-key: $IDEMPOTENCY_KEY" \
-            --data-binary "@$ENGINEERING_SNAPSHOT_OUTPUT"
+            --data-binary "@$ENGINEERING_SNAPSHOT_OUTPUT")"
+          CURL_EXIT="$?"
+          set -e
+
+          if [ "$CURL_EXIT" -eq 0 ] && [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Ingest succeeded with HTTP $HTTP_STATUS."
+            exit 0
+          fi
+
+          echo "::warning::Engineering snapshot ingest failed (curl_exit=$CURL_EXIT, http_status=$HTTP_STATUS)."
+          if [ -f ingest-response.json ]; then
+            echo "Ingest response:"
+            cat ingest-response.json
+          fi
+
+          if [ "$ENGINEERING_INGEST_STRICT" = "1" ]; then
+            echo "ENGINEERING_INGEST_STRICT=1, failing workflow."
+            exit 1
+          fi
+
+          echo "Continuing in non-strict mode (ENGINEERING_INGEST_STRICT=${ENGINEERING_INGEST_STRICT})."
 
       - name: Apply metrics alert policy
         if: env.ENGINEERING_ALERTS_ENABLED == '1'
