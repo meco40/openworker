@@ -38,6 +38,9 @@
 - 2026-03-05T08:55:38+01:00 [TOOL] Local verification after fix: `pnpm run check` passed and targeted integration suite (`tests/integration/master/master-runs-route.test.ts`, `tests/integration/master/master-feedback-route.test.ts`) passed.
 - 2026-03-05T09:02:24+01:00 [CODE] Hardened mission-control browser harness scenario with bounded PATCH retry logic after `run.start` to absorb transient run-state contention before feedback submission.
 - 2026-03-05T09:02:24+01:00 [TOOL] Re-verified post-fix quality gates locally via `pnpm run check` (typecheck, lint, format all green).
+- 2026-03-05T09:09:36+01:00 [CODE] Patched `app/api/master/runs/[id]/route.ts` so PATCH only forwards explicitly provided fields to repository updates (prevents unintended null writes for omitted required fields like `title`/`contract`).
+- 2026-03-05T09:09:36+01:00 [CODE] Added integration coverage in `tests/integration/master/master-runs-route.test.ts` for partial PATCH behavior to prevent future NOT NULL regressions.
+- 2026-03-05T09:09:36+01:00 [TOOL] Verification executed: `pnpm run test -- tests/integration/master/master-runs-route.test.ts` and `pnpm run check` both passed after route fix.
 
 [DISCOVERIES]
 
@@ -63,6 +66,7 @@
 - 2026-03-05T08:55:38+01:00 [CODE] Browser E2E failure on CI (`mission-control-run-feedback`) is caused by a contract mismatch: Master run routes now require explicit scope fields (`personaId`, `workspaceId`), and the old test payload omitted them, yielding HTTP 400.
 - 2026-03-05T08:55:38+01:00 [TOOL] Local Playwright reproduction is currently blocked by a broken pnpm junction for `@next/env` (`MODULE_NOT_FOUND`) under Node v24; CI with fresh install remains the authoritative runtime for browser-e2e validation.
 - 2026-03-05T09:02:24+01:00 [TOOL] CI logs for commit `be890cc` show the remaining 400 moved to `PATCH /api/master/runs/:id` directly after `run.start`, indicating a timing/race issue rather than missing scope fields.
+- 2026-03-05T09:09:36+01:00 [TOOL] CI failure details on commit `e7f8d63`: `NOT NULL constraint failed: master_runs.title` during PATCH because route passed `title`/`contract` keys as `undefined`, which repository serialized to `NULL`.
 
 [OUTCOMES]
 
@@ -86,3 +90,4 @@
 - 2026-03-05T08:28:43+01:00 [TOOL] Ingest feature flag is now active in repo settings, but runtime validation is blocked until Harness Wave 2 workflow files are pushed to `main`.
 - 2026-03-05T08:55:38+01:00 [CODE] Mission-control browser harness scenario now aligns with current API scope invariants and should no longer fail with 400 on `POST /api/master/runs` in async CI.
 - 2026-03-05T09:02:24+01:00 [CODE] Harness scenario now includes deterministic retry on run completion patch, reducing flakiness in async browser lane without weakening assertion coverage.
+- 2026-03-05T09:09:36+01:00 [CODE] Root-cause regression in PATCH API behavior is remediated and guarded by integration test; next CI cycle should validate browser async lane end-to-end.

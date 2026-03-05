@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getMasterRepository } from '@/server/master/runtime';
 import { resolveMasterUserId, resolveScopeFromRequest } from '@/server/master/http';
+import type { MasterRun } from '@/server/master/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -50,16 +51,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<Para
       contract?: string;
     };
     const scope = resolveScopeFromRequest(request, userId, body);
-    const run = getMasterRepository().updateRun(scope, id, {
-      status: body.status as never,
-      progress: body.progress,
-      lastError: body.lastError ?? undefined,
-      pausedForApproval: body.pausedForApproval,
-      verificationPassed: body.verificationPassed,
-      resultBundle: body.resultBundle ?? undefined,
-      title: body.title,
-      contract: body.contract,
-    });
+    const patch: Partial<MasterRun> = {};
+    if (body.status !== undefined) patch.status = body.status as MasterRun['status'];
+    if (body.progress !== undefined) patch.progress = body.progress;
+    if (body.lastError !== undefined) patch.lastError = body.lastError;
+    if (body.pausedForApproval !== undefined) patch.pausedForApproval = body.pausedForApproval;
+    if (body.verificationPassed !== undefined) patch.verificationPassed = body.verificationPassed;
+    if (body.resultBundle !== undefined) patch.resultBundle = body.resultBundle;
+    if (body.title !== undefined) patch.title = body.title;
+    if (body.contract !== undefined) patch.contract = body.contract;
+
+    const run = getMasterRepository().updateRun(scope, id, patch);
     if (!run) {
       return NextResponse.json({ ok: false, error: 'Run not found' }, { status: 404 });
     }

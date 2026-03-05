@@ -272,4 +272,60 @@ describe('master routes', () => {
     );
     expect(crossScopeResponse.status).toBe(404);
   });
+
+  it('supports partial PATCH updates without nulling required run fields', async () => {
+    const { getPersonaRepository } = await import('@/server/personas/personaRepository');
+    const persona = getPersonaRepository().createPersona({
+      userId: 'legacy-local-user',
+      name: 'Patch Persona',
+      emoji: 'P',
+      vibe: 'strict',
+    });
+
+    const runsRoute = await import('../../../app/api/master/runs/route');
+    const runRoute = await import('../../../app/api/master/runs/[id]/route');
+
+    const createResponse = await runsRoute.POST(
+      new Request('http://localhost/api/master/runs', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Patch contract',
+          contract: 'keep title and contract',
+          personaId: persona.id,
+          workspaceId: 'w-patch',
+        }),
+      }),
+    );
+    expect(createResponse.status).toBe(201);
+    const createPayload = (await createResponse.json()) as {
+      ok: boolean;
+      run: { id: string; title: string; contract: string };
+    };
+    expect(createPayload.ok).toBe(true);
+    const runId = createPayload.run.id;
+
+    const patchResponse = await runRoute.PATCH(
+      new Request(`http://localhost/api/master/runs/${runId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          personaId: persona.id,
+          workspaceId: 'w-patch',
+          status: 'COMPLETED',
+          verificationPassed: true,
+        }),
+      }),
+      { params: Promise.resolve({ id: runId }) },
+    );
+    expect(patchResponse.status).toBe(200);
+    const patchPayload = (await patchResponse.json()) as {
+      ok: boolean;
+      run: { status: string; title: string; contract: string };
+    };
+    expect(patchPayload.ok).toBe(true);
+    expect(patchPayload.run.status).toBe('COMPLETED');
+    expect(patchPayload.run.title).toBe('Patch contract');
+    expect(patchPayload.run.contract).toBe('keep title and contract');
+  });
 });
