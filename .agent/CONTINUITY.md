@@ -49,6 +49,9 @@
 - 2026-03-05T10:41:29+01:00 [CODE] Implemented `scripts/ci/main-policy-check.ts`, wired `Main Policy` in blocking workflow, and added `Main Guardian` incident labeling/severity handling for main-head-advanced failures.
 - 2026-03-05T10:41:29+01:00 [CODE] Extended ingest + stats pipeline for harness observability (`domain`, `scenario`, `worktree_id`, `commit_sha`) with 90-day retention pruning and URL/error redaction at ingest.
 - 2026-03-05T10:41:29+01:00 [TOOL] Verification run completed: `pnpm run check` and targeted Vitest suites for CI policy, domain contracts, ingest route, and engineering stats all passed.
+- 2026-03-05T10:56:33+01:00 [TOOL] Repaired local Node/pnpm module state via `pnpm install --force`; `@next/env` package contents restored and `pnpm run build` now completes successfully.
+- 2026-03-05T10:56:33+01:00 [TOOL] Committed and pushed Harness v3 batch to `origin/main` (`1029249`) with main-policy trailers (`Agentic-Change`, `Harness-Scenario`, `Harness-Evidence`, `Risk-Class`, `Human-Approval`).
+- 2026-03-05T10:56:33+01:00 [TOOL] Updated required status checks on `main` from `PR Policy` to `Main Policy` and verified post-push green `Blocking Gates`, `Async Quality Gates`, and `E2E Browser` runs.
 
 [DISCOVERIES]
 
@@ -77,6 +80,7 @@
 - 2026-03-05T09:09:36+01:00 [TOOL] CI failure details on commit `e7f8d63`: `NOT NULL constraint failed: master_runs.title` during PATCH because route passed `title`/`contract` keys as `undefined`, which repository serialized to `NULL`.
 - 2026-03-05T10:41:29+01:00 [CODE] Domain registry generation initially referenced two non-existent tests (`tests/unit/skills/policy.test.ts`, `tests/integration/tasks/routes/task-routes.test.ts`); corrected to existing test files before enforcing contracts.
 - 2026-03-05T10:41:29+01:00 [TOOL] Local Next build remains blocked by workspace module resolution (`Cannot find module '@next/env'`) despite dependency declaration; this is an existing local environment issue, not introduced by harness v3 changes.
+- 2026-03-05T10:56:33+01:00 [TOOL] `next-env.d.ts` flips between `.next/types` and `.next/dev/types` depending on build/dev generation; file was restored to committed state after validation to avoid incidental drift.
 
 [OUTCOMES]
 
@@ -104,3 +108,4 @@
 - 2026-03-05T09:13:47+01:00 [TOOL] Harness Wave 2 rollout is operationally green on `main` for the enforced check set, including previously failing mission-control browser path.
 - 2026-03-05T10:41:29+01:00 [CODE] Harness v3 core gaps are implemented locally: enforceable main-only policy, guardian safety automation, repo-wide domain contracts, full scenario matrix integration, and expanded engineering observability/retention.
 - 2026-03-05T10:41:29+01:00 [TOOL] Quality verification is green for typecheck/lint/format and targeted v3 tests; `pnpm run build` is still red locally due pre-existing `@next/env` module resolution issue.
+- 2026-03-05T10:56:33+01:00 [TOOL] Both requested follow-ups are complete: local build is green again and GitHub branch protection now enforces the final main-only required-check set including `Main Policy`.
