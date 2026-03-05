@@ -13,6 +13,8 @@ import {
 export function PersonaEditorPane({
   selectedPersona,
   selectedId,
+  systemManaged,
+  systemManagementHint,
   editingMeta,
   setEditingMeta,
   metaName,
@@ -55,6 +57,8 @@ export function PersonaEditorPane({
     <>
       <FormHeader
         selectedPersona={selectedPersona}
+        systemManaged={systemManaged}
+        systemManagementHint={systemManagementHint}
         editingMeta={editingMeta}
         setEditingMeta={setEditingMeta}
         metaName={metaName}
@@ -82,6 +86,8 @@ export function PersonaEditorPane({
             preferredModelId={preferredModelId}
             onPreferredModelChange={onPreferredModelChange}
             savingPreferredModel={savingPreferredModel}
+            readOnly={systemManaged}
+            readOnlyMessage={systemManagementHint}
             memoryPersonaType={memoryPersonaType}
             onMemoryPersonaTypeChange={onMemoryPersonaTypeChange}
             savingMemoryPersonaType={savingMemoryPersonaType}
@@ -97,6 +103,8 @@ export function PersonaEditorPane({
             setEditorContent={setEditorContent}
             setDirty={setDirty}
             activeTab={activeTab}
+            readOnly={systemManaged}
+            readOnlyMessage={systemManagementHint}
           />
         )}
       </div>
@@ -106,6 +114,8 @@ export function PersonaEditorPane({
         dirty={dirty}
         saving={saving}
         savingPreferredModel={savingPreferredModel}
+        systemManaged={systemManaged}
+        systemManagementHint={systemManagementHint}
         selectedId={selectedId}
         editorContent={editorContent}
         preferredModelId={preferredModelId}

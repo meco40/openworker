@@ -39,6 +39,8 @@ const PersonasView: React.FC = () => {
     preferredModelId,
     setPreferredModelId,
   } = usePersonaSelection({ loadPersonaById, onPersonaFilePatched: patchPersonaFile });
+  const isSystemPersona = selectedPersona?.systemPersonaKey === 'master';
+  const systemManagementHint = 'Konfiguration über Master > Settings';
 
   // Memory persona type state
   const [memoryPersonaType, setMemoryPersonaType] = useState<MemoryPersonaType>('general');
@@ -103,6 +105,12 @@ const PersonasView: React.FC = () => {
   const { pipelineModels, loadPipelineModels } = usePipelineModels();
   const [savingPreferredModel, setSavingPreferredModel] = useState(false);
 
+  useEffect(() => {
+    if (isSystemPersona) {
+      setEditingMeta(false);
+    }
+  }, [isSystemPersona, setEditingMeta]);
+
   // Selection handlers
   const selectPersona = useCallback(
     async (id: string) => {
@@ -155,7 +163,7 @@ const PersonasView: React.FC = () => {
   // Save preferred model wrapper
   const handleSavePreferredModel = useCallback(
     async (modelId: string | null) => {
-      if (!selectedId) return;
+      if (!selectedId || isSystemPersona) return;
       setSavingPreferredModel(true);
       try {
         const updated = await updatePersonaSetting({ preferredModelId: modelId });
@@ -166,13 +174,13 @@ const PersonasView: React.FC = () => {
         setSavingPreferredModel(false);
       }
     },
-    [selectedId, updatePersonaSetting, setPreferredModelId],
+    [selectedId, isSystemPersona, updatePersonaSetting, setPreferredModelId],
   );
 
   // Save memory persona type
   const handleSaveMemoryPersonaType = useCallback(
     async (type: MemoryPersonaType) => {
-      if (!selectedId) return;
+      if (!selectedId || isSystemPersona) return;
       setMemoryPersonaType(type);
       setSavingMemoryPersonaType(true);
       try {
@@ -181,13 +189,13 @@ const PersonasView: React.FC = () => {
         setSavingMemoryPersonaType(false);
       }
     },
-    [selectedId, updatePersonaSetting],
+    [selectedId, isSystemPersona, updatePersonaSetting],
   );
 
   // Save autonomous settings (called on toggle flip OR save button press)
   const handleSaveAutonomous = useCallback(
     async (newIsAutonomous: boolean) => {
-      if (!selectedId) return;
+      if (!selectedId || isSystemPersona) return;
       setIsAutonomous(newIsAutonomous);
       setSavingAutonomous(true);
       try {
@@ -196,7 +204,7 @@ const PersonasView: React.FC = () => {
         setSavingAutonomous(false);
       }
     },
-    [selectedId, maxToolCalls, updatePersonaSetting],
+    [selectedId, isSystemPersona, maxToolCalls, updatePersonaSetting],
   );
 
   return (
@@ -227,6 +235,8 @@ const PersonasView: React.FC = () => {
           <PersonaEditorPane
             selectedPersona={selectedPersona}
             selectedId={selectedId}
+            systemManaged={isSystemPersona}
+            systemManagementHint={systemManagementHint}
             editingMeta={editingMeta}
             setEditingMeta={setEditingMeta}
             metaName={metaName}

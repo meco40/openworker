@@ -18,6 +18,8 @@ export function GatewayTabContent({
   preferredModelId,
   onPreferredModelChange,
   savingPreferredModel,
+  readOnly,
+  readOnlyMessage,
   memoryPersonaType,
   onMemoryPersonaTypeChange,
   savingMemoryPersonaType,
@@ -44,12 +46,16 @@ export function GatewayTabContent({
           preferredModelId={preferredModelId}
           onPreferredModelChange={onPreferredModelChange}
           savingPreferredModel={savingPreferredModel}
+          readOnly={readOnly}
+          readOnlyMessage={readOnlyMessage}
         />
 
         <MemoryTypeSection
           memoryPersonaType={memoryPersonaType}
           onMemoryPersonaTypeChange={onMemoryPersonaTypeChange}
           savingMemoryPersonaType={savingMemoryPersonaType}
+          readOnly={readOnly}
+          readOnlyMessage={readOnlyMessage}
         />
 
         <AutonomousConfigSection
@@ -58,6 +64,8 @@ export function GatewayTabContent({
           onIsAutonomousChange={onIsAutonomousChange}
           onMaxToolCallsChange={onMaxToolCallsChange}
           savingAutonomous={savingAutonomous}
+          readOnly={readOnly}
+          readOnlyMessage={readOnlyMessage}
         />
       </div>
     </div>

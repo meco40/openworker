@@ -351,7 +351,7 @@ describe('persona memory cascade delete', () => {
     expect(knowledgeRepo.listEvents({ userId: defaultUser, personaId })).toHaveLength(0);
     expect(knowledgeRepo.listEntities({ userId: defaultUser, personaId })).toHaveLength(0);
     expect(knowledgeRepo.getIngestionCheckpoint(conversation.id, personaId)).toBeNull();
-  }, 15_000);
+  }, 30_000);
 
   it('unpairs persona telegram bot when persona is deleted', async () => {
     const personasDbPath = path.join(

@@ -10,6 +10,8 @@ export type PipelineModel = ModelHubPipelineModel;
 export interface PersonaEditorPaneProps {
   selectedPersona: PersonaWithFiles;
   selectedId: string | null;
+  systemManaged: boolean;
+  systemManagementHint: string;
   editingMeta: boolean;
   setEditingMeta: (value: boolean) => void;
   metaName: string;
@@ -51,6 +53,8 @@ export interface PersonaEditorPaneProps {
 
 export interface FormHeaderProps {
   selectedPersona: PersonaWithFiles;
+  systemManaged: boolean;
+  systemManagementHint: string;
   editingMeta: boolean;
   setEditingMeta: (value: boolean) => void;
   metaName: string;
@@ -87,12 +91,16 @@ export interface ModelConfigSectionProps {
   preferredModelId: string | null;
   onPreferredModelChange: (modelId: string | null) => void;
   savingPreferredModel: boolean;
+  readOnly?: boolean;
+  readOnlyMessage?: string;
 }
 
 export interface MemoryTypeSectionProps {
   memoryPersonaType: MemoryPersonaType;
   onMemoryPersonaTypeChange: (type: MemoryPersonaType) => void;
   savingMemoryPersonaType: boolean;
+  readOnly?: boolean;
+  readOnlyMessage?: string;
 }
 
 export interface AutonomousConfigSectionProps {
@@ -101,6 +109,8 @@ export interface AutonomousConfigSectionProps {
   onIsAutonomousChange: (value: boolean) => void;
   onMaxToolCallsChange: (value: number) => void;
   savingAutonomous: boolean;
+  readOnly?: boolean;
+  readOnlyMessage?: string;
 }
 
 export interface SystemPromptSectionProps {
@@ -108,6 +118,8 @@ export interface SystemPromptSectionProps {
   setEditorContent: (value: string) => void;
   setDirty: (value: boolean) => void;
   activeTab: PersonaTabName;
+  readOnly?: boolean;
+  readOnlyMessage?: string;
 }
 
 export interface ActionButtonsProps {
@@ -115,6 +127,8 @@ export interface ActionButtonsProps {
   dirty: boolean;
   saving: boolean;
   savingPreferredModel: boolean;
+  systemManaged: boolean;
+  systemManagementHint: string;
   selectedId: string | null;
   editorContent: string;
   preferredModelId: string | null;

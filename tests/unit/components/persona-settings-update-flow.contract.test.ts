@@ -17,6 +17,8 @@ describe('persona settings update flow contract', () => {
     const pipelineHook = read('src/components/personas/hooks/usePipelineModels.ts');
 
     expect(personasView).toContain('const updatePersonaSetting = useCallback(');
+    expect(personasView).toContain("selectedPersona?.systemPersonaKey === 'master'");
+    expect(personasView).toContain('systemManagementHint=');
     expect(countOccurrences(personasView, "method: 'PUT'")).toBe(1);
     expect(pipelineHook).not.toContain('/api/personas/');
     expect(pipelineHook).not.toContain("method: 'PUT'");

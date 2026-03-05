@@ -44,7 +44,7 @@ export async function executeMasterRunFlow(input: {
     current = orchestrator.advanceRun(scope, runId, { progress: 12 });
   }
 
-  const plan = await buildExecutionPlanWithModel(current.contract);
+  const plan = await buildExecutionPlanWithModel(current.contract, scope);
   repo.appendStep(scope, runId, {
     runId,
     userId: scope.userId,

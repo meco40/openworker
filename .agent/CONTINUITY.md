@@ -2,6 +2,8 @@
 
 ## [PLANS]
 
+- 2026-03-05T23:11:00Z [USER] Implement the production-ready rollout that turns `Master` into a system persona with a dedicated `Master > Settings` tab and preserved approval/audit runtime.
+- 2026-03-06T00:20:00Z [USER] Address the follow-up Master review gaps: hide `Master` from normal persona selection, add a real rollout flag with legacy fallback, and update stale docs.
 - 2026-03-05T13:15:17Z [USER] Update `AGENTS.md` with new workflows and commands for this workspace.
 - 2026-03-05T13:15:17Z [ASSUMPTION] Interpreted "new workflows and commands" as adding repo-specific operational playbooks derived from current scripts and compose files.
 - 2026-03-05T15:58:37Z [USER] Investigate and fix OAuth failure (`{"error":"Unauthorized"}`) on `openai-codex` at `/api/model-hub/oauth/callback`.
@@ -14,6 +16,11 @@
 
 ## [DECISIONS]
 
+- 2026-03-05T23:11:00Z [CODE] `Master` is implemented as a system persona (`systemPersonaKey='master'`) with server-side tool allowlist and a dedicated `/api/master/settings` write surface; normal persona edit/delete/file-write routes stay blocked for this persona.
+- 2026-03-05T23:11:00Z [CODE] Master runtime scope resolution now auto-provisions and normalizes to the `Master` persona per user/workspace, with a dedicated `personas/master/projects/workspaces/<workspace>` root and legacy `master_*` scope migration.
+- 2026-03-05T23:11:00Z [CODE] Keep `Master` visible in Personas UI with `System` badge, but centralize editable behavior in `Master > Settings`; direct persona-editor changes are read-only for Master.
+- 2026-03-06T00:20:00Z [CODE] `MASTER_SYSTEM_PERSONA_ENABLED` is now the authoritative rollout gate: enabled/unset keeps fixed-system-persona mode; disabled returns `404` on `/api/master/settings` and reverts Master runtime/UI to legacy persona-scoped execution.
+- 2026-03-06T00:20:00Z [CODE] `Master` remains visible in Personas UI but is blocked from normal `PersonaContext` activation and filtered out of chat/swarm persona pickers in V1.
 - 2026-03-05T13:15:17Z [CODE] Keep global guidance intact and append a dedicated `D:\web\clawtest` section instead of rewriting existing policy blocks.
 - 2026-03-05T13:15:17Z [CODE] Include command sets for bootstrap, dev stack, validation, container usage, and safe cleanup (dry-run first).
 - 2026-03-05T15:58:37Z [CODE] Treat `/api/model-hub/oauth/callback` as a public proxy path so OAuth redirects can reach route-level auth checks even when middleware bearer checks would otherwise reject them.
@@ -30,6 +37,13 @@
 
 ## [PROGRESS]
 
+- 2026-03-05T23:11:00Z [CODE] Added system-persona support to persona types/repository, including `system_persona_key`, `persona_tool_permissions`, `ensureMasterPersona`, route hardening, and removal of the old Nexus-only `TOOLS.md` coupling.
+- 2026-03-05T23:11:00Z [CODE] Implemented `/api/master/settings`, Master runtime persona resolution, runtime allowlist enforcement, workspace normalization/migration, and fixed Master frontend flow to use a fixed system persona with a new `Settings` tab.
+- 2026-03-05T23:11:00Z [CODE] Updated Personas UI to badge and lock the Master persona; updated Master/API/runtime/unit/integration tests to cover provisioning, route protection, settings persistence, workspace migration, and UI behavior.
+- 2026-03-05T23:11:00Z [TOOL] Verified final rollout in worktree `feat-master-system-persona` with `pnpm run test`, `pnpm run check`, and `pnpm run build` (all pass).
+- 2026-03-06T00:20:00Z [CODE] Added `src/server/master/featureFlags.ts`, patched workspace/runtime/settings paths for legacy fallback, updated Master frontend hook/API/form/view for system-vs-legacy mode, and filtered the Master persona out of normal chat/swarm selection paths.
+- 2026-03-06T00:20:00Z [CODE] Updated `docs/MASTER_AGENT_SYSTEM.md` and `docs/API_REFERENCE.md` to document the system-persona model, `/api/master/settings`, and rollout-flag behavior.
+- 2026-03-06T00:20:00Z [TOOL] Verified review-fix implementation with focused Vitest coverage plus full `pnpm run typecheck`, `pnpm run lint`, `pnpm run test`, `pnpm run check`, and `pnpm run build`.
 - 2026-03-05T13:15:17Z [TOOL] Read `.agent/CONTINUITY.md`, `AGENTS.md`, `package.json`, `README.md`, `docker-compose*.yml`, and `Dockerfile` to map actual workflows.
 - 2026-03-05T13:15:17Z [CODE] Patched `AGENTS.md` with repository-specific workflow and command sections.
 - 2026-03-05T15:58:37Z [CODE] Added `tests/unit/auth/proxy-oauth-callback.test.ts` to reproduce the callback 401 path through `proxy.ts`.
@@ -64,6 +78,9 @@
 
 ## [DISCOVERIES]
 
+- 2026-03-05T23:11:00Z [CODE] The Master runtime reads personas through the singleton `getPersonaRepository()` path; tests that instantiate a separate `PersonaRepository` can pass in isolation yet fail in full-suite runs due to repository-instance drift.
+- 2026-03-05T23:11:00Z [TOOL] `tests/integration/personas/personas-memory-cascade-delete.test.ts` completes in roughly 9-11s under normal load; the prior 15s timeout was too tight for full-suite contention and required a targeted increase to 30s.
+- 2026-03-06T00:20:00Z [TOOL] A first full-suite rerun transiently failed `tests/unit/skills/demo-session-compat-handlers.test.ts` while the test passed in isolation and on immediate full-suite rerun, indicating an existing non-deterministic suite interaction rather than a reproducible Master-regression.
 - 2026-03-05T13:15:17Z [TOOL] Repository already exposes explicit workflows via scripts: mem0 lifecycle, e2e container scripts, and cleanup commands with dry-run variants.
 - 2026-03-05T15:58:37Z [CODE] `proxy.ts` returned JSON `401 Unauthorized` before `app/api/model-hub/oauth/callback/route.ts` executed, matching the user-facing failure shape.
 - 2026-03-05T15:58:37Z [TOOL] `pnpm run build` reports one pre-existing Turbopack warning about broad pattern matching in `src/server/ci/harnessDomainRegistry.ts` import traces.
@@ -87,6 +104,10 @@
 
 ## [OUTCOMES]
 
+- 2026-03-05T23:11:00Z [CODE] Master is now a production-ready system persona rollout: auto-provisioned per user, policy-controlled through `Master > Settings`, protected from direct persona mutation, and integrated into Master runtime/workspace execution.
+- 2026-03-05T23:11:00Z [TOOL] Final repository gates are green in the feature worktree: `test` (521 files / 2463 tests), `check`, and `build`.
+- 2026-03-06T00:20:00Z [CODE] The follow-up review gaps are closed: Master cannot be selected as a normal chat/swarm persona, the rollout is flag-controlled with a legacy fallback path, and active docs now match the implemented behavior.
+- 2026-03-06T00:20:00Z [TOOL] Final repository gates are green after the follow-up fixes: `typecheck`, `lint`, `test` (522 files / 2469 tests on final rerun), `check`, and `build`.
 - 2026-03-05T13:15:17Z [CODE] `AGENTS.md` now contains concrete, copy-ready commands and a default workflow order aligned to the repo's existing tooling.
 - 2026-03-05T15:58:37Z [CODE] OAuth callback requests for Model Hub now bypass proxy token enforcement and proceed to route-level user-context handling, eliminating the premature middleware 401 for Codex OAuth callback redirects.
 - 2026-03-05T15:20:00Z [TOOL] Delivered a deep technical review with prioritized findings (correctness, performance, test robustness, and UX/A11y) and did not modify runtime behavior in this pass.

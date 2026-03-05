@@ -5,6 +5,7 @@ import { toSummaryFromSearchResult } from '@/server/master/execution/runtime/cap
 import { buildCodeGenerationContent } from '@/server/master/execution/runtime/codeGeneration';
 import { parseJsonObject } from '@/server/master/execution/runtime/jsonParsing';
 import { buildToolContext } from '@/server/master/execution/runtime/toolContext';
+import { getMasterRuntimePersonaConfig } from '@/server/master/runtimePersona';
 import type {
   Capability,
   CapabilityControl,
@@ -25,6 +26,27 @@ export async function executeCapabilityTask(input: {
 }): Promise<CapabilityTaskResult> {
   const { scope, run, capability, repo, control, approvalBypass } = input;
   const toolContext = buildToolContext(scope, run.id, approvalBypass);
+  const runtimePersona = getMasterRuntimePersonaConfig({
+    userId: scope.userId,
+    personaId: scope.personaId,
+  });
+
+  const requiredTool =
+    capability === 'web_search'
+      ? 'web_search'
+      : capability === 'code_generation'
+        ? 'write'
+        : capability === 'system_ops'
+          ? 'shell_execute'
+          : null;
+  if (requiredTool && !runtimePersona.allowedToolFunctionNames.includes(requiredTool)) {
+    return {
+      output: `Capability ${capability} is not allowed because tool ${requiredTool} is not allowed.`,
+      confidence: 0.2,
+      mode: 'fallback',
+      degradedMode: true,
+    };
+  }
 
   if (capability === 'web_search') {
     try {
@@ -51,7 +73,11 @@ export async function executeCapabilityTask(input: {
 
   if (capability === 'code_generation') {
     const filePath = control.filePath || `master-output/${run.id}-solution.md`;
-    const generated = await buildCodeGenerationContent({ run, filePath });
+    const generated = await buildCodeGenerationContent({
+      run,
+      filePath,
+      scope: { userId: scope.userId, personaId: scope.personaId },
+    });
     await dispatchSkill('write', { path: filePath, content: generated.content }, toolContext);
     return {
       output: `Wrote implementation draft to ${filePath}`,

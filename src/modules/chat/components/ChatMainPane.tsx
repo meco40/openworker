@@ -59,6 +59,10 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
       : chatStreamDebug.phase === 'error'
         ? 'border-rose-500/30 bg-rose-600/15 text-rose-300'
         : 'border-amber-500/30 bg-amber-600/15 text-amber-300';
+  const selectablePersonas = useMemo(
+    () => personas.filter((persona) => persona.systemPersonaKey !== 'master'),
+    [personas],
+  );
 
   useEffect(() => {
     if (!showPersonaDropdown) {
@@ -302,7 +306,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                   <span>🤖</span>
                   <span>Default (kein Persona)</span>
                 </button>
-                {personas.map((p) => (
+                {selectablePersonas.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => {
@@ -319,7 +323,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                     <span className="truncate">{p.name}</span>
                   </button>
                 ))}
-                {personas.length === 0 && (
+                {selectablePersonas.length === 0 && (
                   <div className="px-4 py-3 text-xs text-zinc-600">Keine Personas erstellt</div>
                 )}
               </div>

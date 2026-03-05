@@ -5,6 +5,7 @@ import type {
   PersonaFileName,
   PersonaProfile,
   PersonaSummary,
+  SystemPersonaKey,
   PersonaWithFiles,
 } from '@/server/personas/personaTypes';
 import { openSqliteDatabase } from '@/server/db/sqlite';
@@ -24,8 +25,6 @@ import {
   writePersonaFile,
 } from '@/server/personas/personaWorkspace';
 
-const NEXUS_PERSONA_NAME = 'nexus';
-
 // ─── Row mappers ─────────────────────────────────────────────
 
 function toPersona(row: Record<string, unknown>): PersonaProfile {
@@ -35,11 +34,13 @@ function toPersona(row: Record<string, unknown>): PersonaProfile {
     slug: (row.slug as string) || slugifyPersonaName(String(row.name || 'persona')),
     emoji: row.emoji as string,
     vibe: row.vibe as string,
+    systemPersonaKey: (row.system_persona_key as SystemPersonaKey) || null,
     preferredModelId: (row.preferred_model_id as string) || null,
     modelHubProfileId: (row.model_hub_profile_id as string) || null,
     memoryPersonaType: ((row.memory_persona_type as string) || 'general') as MemoryPersonaType,
     isAutonomous: Boolean(row.is_autonomous),
     maxToolCalls: typeof row.max_tool_calls === 'number' ? row.max_tool_calls : 120,
+    allowedToolFunctionNames: [],
     userId: row.user_id as string,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -53,11 +54,13 @@ function toSummary(row: Record<string, unknown>): PersonaSummary {
     slug: (row.slug as string) || slugifyPersonaName(String(row.name || 'persona')),
     emoji: row.emoji as string,
     vibe: row.vibe as string,
+    systemPersonaKey: (row.system_persona_key as SystemPersonaKey) || null,
     preferredModelId: (row.preferred_model_id as string) || null,
     modelHubProfileId: (row.model_hub_profile_id as string) || null,
     memoryPersonaType: ((row.memory_persona_type as string) || 'general') as MemoryPersonaType,
     isAutonomous: Boolean(row.is_autonomous),
     maxToolCalls: typeof row.max_tool_calls === 'number' ? row.max_tool_calls : 120,
+    allowedToolFunctionNames: [],
     updatedAt: row.updated_at as string,
   };
 }
@@ -79,6 +82,7 @@ export class PersonaRepository {
         name TEXT NOT NULL,
         emoji TEXT NOT NULL DEFAULT '🤖',
         vibe TEXT NOT NULL DEFAULT '',
+        system_persona_key TEXT,
         preferred_model_id TEXT,
         model_hub_profile_id TEXT,
         user_id TEXT NOT NULL,
@@ -119,14 +123,33 @@ export class PersonaRepository {
     } catch {
       // column already exists
     }
+    try {
+      this.db.exec('ALTER TABLE personas ADD COLUMN system_persona_key TEXT');
+    } catch {
+      // column already exists
+    }
     this.db.exec(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_personas_slug_unique
         ON personas (slug);
+    `);
+    this.db.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_personas_user_system_key_unique
+        ON personas (user_id, system_persona_key)
+        WHERE system_persona_key IS NOT NULL;
     `);
 
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_personas_user
         ON personas (user_id, updated_at DESC);
+    `);
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS persona_tool_permissions (
+        persona_id TEXT NOT NULL,
+        function_name TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (persona_id, function_name)
+      );
     `);
 
     this.backfillPersonaSlugsAndWorkspaces();
@@ -139,21 +162,28 @@ export class PersonaRepository {
     const rows = this.db
       .prepare('SELECT * FROM personas WHERE user_id = ? ORDER BY updated_at DESC')
       .all(userId) as Array<Record<string, unknown>>;
-    return rows.map(toSummary);
+    return rows.map((row) => this.attachAllowedToolFunctions(toSummary(row)));
   }
 
   listAllPersonas(): PersonaSummary[] {
     const rows = this.db.prepare('SELECT * FROM personas ORDER BY updated_at DESC').all() as Array<
       Record<string, unknown>
     >;
-    return rows.map(toSummary);
+    return rows.map((row) => this.attachAllowedToolFunctions(toSummary(row)));
   }
 
   getPersona(id: string): PersonaProfile | null {
     const row = this.db.prepare('SELECT * FROM personas WHERE id = ?').get(id) as
       | Record<string, unknown>
       | undefined;
-    return row ? toPersona(row) : null;
+    return row ? this.attachAllowedToolFunctions(toPersona(row)) : null;
+  }
+
+  getSystemPersona(userId: string, key: SystemPersonaKey): PersonaProfile | null {
+    const row = this.db
+      .prepare('SELECT * FROM personas WHERE user_id = ? AND system_persona_key = ? LIMIT 1')
+      .get(userId, key) as Record<string, unknown> | undefined;
+    return row ? this.attachAllowedToolFunctions(toPersona(row)) : null;
   }
 
   getPersonaWithFiles(id: string): PersonaWithFiles | null {
@@ -173,12 +203,16 @@ export class PersonaRepository {
     const now = new Date().toISOString();
     const memoryPersonaType = input.memoryPersonaType || 'general';
     const slug = this.resolveUniqueSlugOrThrow(input.name);
+    const systemPersonaKey = input.systemPersonaKey || null;
+    const allowedToolFunctionNames = normalizeAllowedToolFunctionNames(
+      input.allowedToolFunctionNames,
+    );
 
     this.db.transaction(() => {
       this.db
         .prepare(
-          `INSERT INTO personas (id, name, slug, emoji, vibe, preferred_model_id, model_hub_profile_id, memory_persona_type, is_autonomous, max_tool_calls, user_id, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO personas (id, name, slug, emoji, vibe, system_persona_key, preferred_model_id, model_hub_profile_id, memory_persona_type, is_autonomous, max_tool_calls, user_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -186,6 +220,7 @@ export class PersonaRepository {
           slug,
           input.emoji,
           input.vibe,
+          systemPersonaKey,
           input.preferredModelId || null,
           input.modelHubProfileId || null,
           memoryPersonaType,
@@ -195,6 +230,7 @@ export class PersonaRepository {
           now,
           now,
         );
+      this.replaceAllowedToolFunctionNames(id, allowedToolFunctionNames, now);
     })();
     ensurePersonaFiles(slug, input.files);
 
@@ -216,6 +252,7 @@ export class PersonaRepository {
   ): void {
     const current = this.getPersona(id);
     if (!current) return;
+    this.assertSystemPersonaMutationAllowed(current, updates);
 
     const now = new Date().toISOString();
     const setClauses: string[] = ['updated_at = ?'];
@@ -281,6 +318,9 @@ export class PersonaRepository {
   deletePersona(id: string): boolean {
     const existing = this.getPersona(id);
     if (!existing) return false;
+    if (existing.systemPersonaKey) {
+      throw new Error('Cannot delete a system persona.');
+    }
 
     const result = this.db.prepare('DELETE FROM personas WHERE id = ?').run(id);
     if (result.changes > 0) {
@@ -311,8 +351,7 @@ export class PersonaRepository {
   // ─── System Instruction Composition ─────────────────────────
 
   /**
-   * Composes the system instruction from SOUL.md + AGENTS.md + USER.md,
-   * and for persona "Nexus" additionally includes TOOLS.md.
+   * Composes the system instruction from SOUL.md + AGENTS.md + USER.md.
    * capped at MAX_PERSONA_INSTRUCTION_CHARS.
    * Returns null if persona doesn't exist or all instruction files are empty.
    */
@@ -325,13 +364,6 @@ export class PersonaRepository {
       const content = this.getFile(personaId, filename);
       if (content?.trim()) {
         parts.push(`--- ${filename} ---\n${content.trim()}`);
-      }
-    }
-
-    if (persona.name.trim().toLowerCase() === NEXUS_PERSONA_NAME) {
-      const toolsContent = this.getFile(personaId, 'TOOLS.md');
-      if (toolsContent?.trim()) {
-        parts.push(`--- TOOLS.md ---\n${toolsContent.trim()}`);
       }
     }
 
@@ -351,6 +383,18 @@ export class PersonaRepository {
     this.db.close();
   }
 
+  setAllowedToolFunctionNames(personaId: string, functionNames: string[]): void {
+    const persona = this.getPersona(personaId);
+    if (!persona) return;
+    const now = new Date().toISOString();
+    this.replaceAllowedToolFunctionNames(
+      personaId,
+      normalizeAllowedToolFunctionNames(functionNames),
+      now,
+    );
+    this.db.prepare('UPDATE personas SET updated_at = ? WHERE id = ?').run(now, personaId);
+  }
+
   private resolveUniqueSlugOrThrow(name: string): string {
     const slug = slugifyPersonaName(name);
     this.assertUniquePersonaSlug(slug);
@@ -364,6 +408,56 @@ export class PersonaRepository {
     if (!existing) return;
     if (excludePersonaId && existing.id === excludePersonaId) return;
     throw new Error(`Persona slug already exists: "${slug}".`);
+  }
+
+  private attachAllowedToolFunctions<T extends PersonaProfile | PersonaSummary>(persona: T): T {
+    return {
+      ...persona,
+      allowedToolFunctionNames: this.listAllowedToolFunctionNames(persona.id),
+    };
+  }
+
+  private listAllowedToolFunctionNames(personaId: string): string[] {
+    const rows = this.db
+      .prepare(
+        'SELECT function_name FROM persona_tool_permissions WHERE persona_id = ? ORDER BY function_name ASC',
+      )
+      .all(personaId) as Array<{ function_name: string }>;
+    return rows.map((row) => row.function_name);
+  }
+
+  private replaceAllowedToolFunctionNames(
+    personaId: string,
+    functionNames: string[],
+    now: string,
+  ): void {
+    this.db.prepare('DELETE FROM persona_tool_permissions WHERE persona_id = ?').run(personaId);
+    const insertPermission = this.db.prepare(
+      `INSERT INTO persona_tool_permissions (persona_id, function_name, created_at, updated_at)
+       VALUES (?, ?, ?, ?)`,
+    );
+    for (const functionName of functionNames) {
+      insertPermission.run(personaId, functionName, now, now);
+    }
+  }
+
+  private assertSystemPersonaMutationAllowed(
+    persona: PersonaProfile,
+    updates: {
+      name?: string;
+      emoji?: string;
+      vibe?: string;
+      preferredModelId?: string | null;
+      modelHubProfileId?: string | null;
+      memoryPersonaType?: MemoryPersonaType;
+      isAutonomous?: boolean;
+      maxToolCalls?: number;
+    },
+  ): void {
+    if (!persona.systemPersonaKey) return;
+    if (updates.name !== undefined) {
+      throw new Error('Cannot rename a system persona.');
+    }
   }
 
   private backfillPersonaSlugsAndWorkspaces(): void {
@@ -452,6 +546,13 @@ export class PersonaRepository {
 
     this.db.exec('DROP TABLE IF EXISTS persona_files');
   }
+}
+
+function normalizeAllowedToolFunctionNames(functionNames?: string[]): string[] {
+  if (!Array.isArray(functionNames)) return [];
+  return [
+    ...new Set(functionNames.map((value) => String(value || '').trim()).filter(Boolean)),
+  ].sort((left, right) => left.localeCompare(right));
 }
 
 // ─── Singleton ───────────────────────────────────────────────

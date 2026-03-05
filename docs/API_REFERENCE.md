@@ -16,7 +16,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 - Basis: `/api`
 - Quelle: exportierte Methoden in `app/api/**/route.ts`
-- Anzahl Routen: 103
+- Anzahl Routen: 105
 
 ## Domain Summary
 
@@ -36,7 +36,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | health          |      2 |
 | knowledge       |      1 |
 | logs            |      2 |
-| master          |     10 |
+| master          |     11 |
 | memory          |      1 |
 | mission-control |      1 |
 | model-hub       |     10 |
@@ -188,7 +188,10 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | POST                     | /api/master/runs/[id]/actions     |
 | GET, POST                | /api/master/runs/[id]/delegations |
 | POST                     | /api/master/runs/[id]/feedback    |
+| GET, PUT                 | /api/master/settings              |
 | GET                      | /api/master/voice-session         |
+
+- `/api/master/settings` is available only while `MASTER_SYSTEM_PERSONA_ENABLED` is enabled; otherwise it returns `404` and the Master UI falls back to legacy persona-scoped operation.
 
 ### /api/memory
 

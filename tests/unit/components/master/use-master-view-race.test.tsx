@@ -4,7 +4,8 @@ import type { MasterRun } from '@/modules/master/types';
 import { useMasterView } from '@/modules/master/hooks/useMasterView';
 
 const apiMocks = vi.hoisted(() => ({
-  fetchPersonas: vi.fn(),
+  fetchMasterSettings: vi.fn(),
+  fetchMasterPersonas: vi.fn(),
   fetchWorkspaces: vi.fn(),
   fetchRuns: vi.fn(),
   fetchMetrics: vi.fn(),
@@ -13,18 +14,23 @@ const apiMocks = vi.hoisted(() => ({
   createRun: vi.fn(),
   postRunAction: vi.fn(),
   submitFeedback: vi.fn(async () => {}),
+  saveMasterSettings: vi.fn(),
 }));
 
 vi.mock('@/modules/master/api', () => ({
-  fetchPersonas: apiMocks.fetchPersonas,
+  fetchMasterSettings: apiMocks.fetchMasterSettings,
+  fetchMasterPersonas: apiMocks.fetchMasterPersonas,
   fetchWorkspaces: apiMocks.fetchWorkspaces,
   fetchRuns: apiMocks.fetchRuns,
   fetchMetrics: apiMocks.fetchMetrics,
   fetchRunDetail: apiMocks.fetchRunDetail,
   cancelRun: apiMocks.cancelRun,
   createRun: apiMocks.createRun,
+  isMasterSystemPersonaDisabledError: (error: unknown) =>
+    error instanceof Error && /disabled/i.test(error.message),
   postRunAction: apiMocks.postRunAction,
   submitFeedback: apiMocks.submitFeedback,
+  saveMasterSettings: apiMocks.saveMasterSettings,
 }));
 
 function makeRun(id: string, personaId: string): MasterRun {
@@ -64,50 +70,97 @@ function createDeferred<T>() {
 
 describe('useMasterView race guards', () => {
   beforeEach(() => {
-    apiMocks.fetchPersonas.mockReset();
+    apiMocks.fetchMasterSettings.mockReset();
+    apiMocks.fetchMasterPersonas.mockReset();
     apiMocks.fetchWorkspaces.mockReset();
     apiMocks.fetchRuns.mockReset();
     apiMocks.fetchMetrics.mockReset();
     apiMocks.fetchRunDetail.mockReset();
-    apiMocks.fetchPersonas.mockResolvedValue([
-      { id: 'p1', name: 'Persona 1', slug: 'p1' },
-      { id: 'p2', name: 'Persona 2', slug: 'p2' },
-    ]);
+    apiMocks.fetchMasterSettings.mockResolvedValue({
+      persona: {
+        id: 'master-1',
+        name: 'Master',
+        slug: 'master',
+        emoji: '🧭',
+        systemPersonaKey: 'master',
+      },
+      runtimeSettings: {
+        preferredModelId: 'gpt-4o-mini',
+        modelHubProfileId: 'ops-team',
+        isAutonomous: true,
+        maxToolCalls: 120,
+      },
+      allowedToolFunctionNames: ['shell_execute', 'web_search'],
+      instructionFiles: {
+        'SOUL.md': 'Master soul',
+        'AGENTS.md': 'Master agents',
+        'USER.md': 'Master user',
+      },
+    });
     apiMocks.fetchWorkspaces.mockResolvedValue([{ id: 'main', name: 'Main', slug: 'main' }]);
     apiMocks.fetchMetrics.mockResolvedValue(null);
     apiMocks.fetchRunDetail.mockResolvedValue(null);
+    apiMocks.fetchMasterPersonas.mockResolvedValue([
+      {
+        id: 'persona-1',
+        name: 'Architect',
+        slug: 'architect',
+        emoji: '🧠',
+        systemPersonaKey: null,
+      },
+    ]);
   });
 
-  it('ignores stale run list responses after persona switch', async () => {
-    const p1Runs = createDeferred<MasterRun[]>();
+  it('ignores stale run list responses after workspace switch', async () => {
+    const mainRuns = createDeferred<MasterRun[]>();
 
-    apiMocks.fetchRuns.mockImplementation((personaId: string) => {
-      if (personaId === 'p1') return p1Runs.promise;
-      return Promise.resolve([makeRun('run-p2', 'p2')]);
+    apiMocks.fetchRuns.mockImplementation((workspaceId: string) => {
+      if (workspaceId === 'main') return mainRuns.promise;
+      return Promise.resolve([makeRun('run-secondary', 'master-1')]);
     });
 
     const { result } = renderHook(() => useMasterView());
 
     await waitFor(() => {
-      expect(apiMocks.fetchRuns).toHaveBeenCalledWith('p1', 'main', expect.anything());
+      expect(apiMocks.fetchRuns).toHaveBeenCalledWith('main', 'master-1', expect.anything());
     });
 
     act(() => {
-      result.current.setSelectedPersonaId('p2');
+      result.current.setWorkspaceId('secondary');
     });
 
     await waitFor(() => {
-      expect(apiMocks.fetchRuns).toHaveBeenCalledWith('p2', 'main', expect.anything());
+      expect(apiMocks.fetchRuns).toHaveBeenCalledWith('secondary', 'master-1', expect.anything());
     });
 
     await waitFor(() => {
-      expect(result.current.runs[0]?.id).toBe('run-p2');
+      expect(result.current.runs[0]?.id).toBe('run-secondary');
     });
 
-    p1Runs.resolve([makeRun('run-p1', 'p1')]);
+    mainRuns.resolve([makeRun('run-main', 'master-1')]);
 
     await waitFor(() => {
-      expect(result.current.runs[0]?.id).toBe('run-p2');
+      expect(result.current.runs[0]?.id).toBe('run-secondary');
     });
+  });
+
+  it('falls back to legacy persona mode when Master system settings are disabled', async () => {
+    apiMocks.fetchMasterSettings.mockRejectedValue(new Error('Master system persona is disabled.'));
+    apiMocks.fetchRuns.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useMasterView());
+
+    await waitFor(() => {
+      expect(apiMocks.fetchMasterPersonas).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(result.current.masterMode).toBe('legacy');
+      expect(result.current.selectedPersonaId).toBe('persona-1');
+    });
+
+    expect(result.current.masterSettings).toBeNull();
+    expect(result.current.availablePersonas).toHaveLength(1);
+    expect(result.current.availablePersonas[0]?.id).toBe('persona-1');
   });
 });

@@ -1,10 +1,16 @@
 import React from 'react';
-import type { MasterPersonaSummary, WorkspaceSummary } from '@/modules/master/types';
+import type {
+  MasterPersonaSummary,
+  MasterViewMode,
+  WorkspaceSummary,
+} from '@/modules/master/types';
 
 interface CreateRunFormProps {
+  mode: MasterViewMode;
+  persona: MasterPersonaSummary | null;
   personas: MasterPersonaSummary[];
-  workspaces: WorkspaceSummary[];
   selectedPersonaId: string;
+  workspaces: WorkspaceSummary[];
   workspaceId: string;
   runTitle: string;
   runContract: string;
@@ -18,9 +24,11 @@ interface CreateRunFormProps {
 }
 
 export const CreateRunForm: React.FC<CreateRunFormProps> = ({
+  mode,
+  persona,
   personas,
-  workspaces,
   selectedPersonaId,
+  workspaces,
   workspaceId,
   runTitle,
   runContract,
@@ -32,9 +40,9 @@ export const CreateRunForm: React.FC<CreateRunFormProps> = ({
   onCreateRun,
   onRefresh,
 }) => {
-  const personaSelectId = 'create-run-persona-select';
   const workspaceControlId =
     workspaces.length > 0 ? 'create-run-workspace-select' : 'create-run-workspace-input';
+  const personaSelectId = 'create-run-persona-select';
   const titleInputId = 'create-run-title-input';
   const contractTextareaId = 'create-run-contract-textarea';
 
@@ -68,25 +76,49 @@ export const CreateRunForm: React.FC<CreateRunFormProps> = ({
       <div className="p-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
-            <label
-              htmlFor={personaSelectId}
-              className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase"
-            >
-              Persona
-            </label>
-            <select
-              id={personaSelectId}
-              value={selectedPersonaId}
-              onChange={(e) => onPersonaChange(e.target.value)}
-              className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
-            >
-              <option value="">Select persona</option>
-              {personas.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.emoji ? `${p.emoji} ${p.name}` : p.name}
-                </option>
-              ))}
-            </select>
+            {mode === 'system' ? (
+              <>
+                <span className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+                  Persona
+                </span>
+                <div className="rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-3 text-sm text-zinc-100">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{persona?.emoji ?? '🧭'}</span>
+                      <div>
+                        <p className="font-semibold text-white">{persona?.name ?? 'Master'}</p>
+                        <p className="text-xs text-zinc-500">System persona managed via Settings</p>
+                      </div>
+                    </div>
+                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold tracking-widest text-amber-300 uppercase">
+                      Fixed
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <label
+                  htmlFor={personaSelectId}
+                  className="block text-[11px] font-semibold tracking-wide text-zinc-500 uppercase"
+                >
+                  Persona
+                </label>
+                <select
+                  id={personaSelectId}
+                  value={selectedPersonaId}
+                  onChange={(event) => onPersonaChange(event.target.value)}
+                  className="w-full rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-100 transition-colors focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
+                >
+                  <option value="">Select Persona</option>
+                  {personas.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.emoji ?? '🤖'} {entry.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -157,7 +189,7 @@ export const CreateRunForm: React.FC<CreateRunFormProps> = ({
           <button
             type="button"
             onClick={onCreateRun}
-            disabled={loading || !runContract.trim()}
+            disabled={loading || !selectedPersonaId || !runContract.trim()}
             className="rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-black tracking-widest text-white uppercase shadow-lg shadow-indigo-600/25 transition-all hover:bg-indigo-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (

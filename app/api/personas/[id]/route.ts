@@ -69,6 +69,13 @@ export const PUT = withUserContext<PersonaIdParams>(async ({ request, userContex
       maxToolCalls?: number;
     };
 
+    if (existing.systemPersonaKey) {
+      return NextResponse.json(
+        { ok: false, error: 'System persona identity is managed by Master settings.' },
+        { status: 403 },
+      );
+    }
+
     const updates: {
       name?: string;
       emoji?: string;
@@ -175,6 +182,12 @@ export const DELETE = withUserContext<PersonaIdParams>(async ({ userContext, par
     const existing = repo.getPersona(id);
     if (!existing || existing.userId !== userContext.userId) {
       return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
+    }
+    if (existing.systemPersonaKey) {
+      return NextResponse.json(
+        { ok: false, error: 'System personas cannot be deleted.' },
+        { status: 403 },
+      );
     }
 
     const messageService = getMessageService();

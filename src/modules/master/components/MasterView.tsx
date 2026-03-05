@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useMasterView } from '@/modules/master/hooks/useMasterView';
 import ViewErrorBoundary from '@/components/ViewErrorBoundary';
 import MasterEntryPage from './MasterEntryPage';
@@ -12,10 +12,11 @@ import { ExportBundlePanel } from './ExportBundlePanel';
 import { RunDetailPanel } from './RunDetailPanel';
 import { RunFeedbackPanel } from './RunFeedbackPanel';
 import MasterLearningPanel from './MasterLearningPanel';
+import MasterSettingsPanel from './MasterSettingsPanel';
 
 // ─── Tab types ────────────────────────────────────────────────────────────────
 
-type Tab = 'new' | 'runs' | 'analytics';
+type Tab = 'new' | 'runs' | 'analytics' | 'settings';
 
 // ─── Status banner ────────────────────────────────────────────────────────────
 
@@ -122,8 +123,28 @@ const MasterView: React.FC = () => {
   const view = useMasterView();
   const [activeTab, setActiveTab] = useState<Tab>('new');
   const [showEntry, setShowEntry] = useState(true);
+  const tabs = useMemo(
+    () => [
+      'new',
+      'runs',
+      'analytics',
+      ...(view.masterMode === 'system' ? (['settings'] as const) : []),
+    ],
+    [view.masterMode],
+  );
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: string | number }[] = [
+  useEffect(() => {
+    if (!tabs.includes(activeTab)) {
+      setActiveTab('new');
+    }
+  }, [activeTab, tabs]);
+
+  const tabDefinitions: {
+    id: Tab;
+    label: string;
+    icon: React.ReactNode;
+    badge?: string | number;
+  }[] = [
     {
       id: 'new',
       label: 'New Run',
@@ -180,7 +201,34 @@ const MasterView: React.FC = () => {
         </svg>
       ),
     },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: (
+        <svg
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M10.325 4.317a1 1 0 011.35-.936l.242.107a1 1 0 00.966 0l.242-.107a1 1 0 011.35.936l.031.264a1 1 0 00.617.823l.244.1a1 1 0 01.576 1.28l-.09.25a1 1 0 00.132.993l.164.21a1 1 0 010 1.244l-.164.21a1 1 0 00-.132.993l.09.25a1 1 0 01-.576 1.28l-.244.1a1 1 0 00-.617.823l-.031.264a1 1 0 01-1.35.936l-.242-.107a1 1 0 00-.966 0l-.242.107a1 1 0 01-1.35-.936l-.031-.264a1 1 0 00-.617-.823l-.244-.1a1 1 0 01-.576-1.28l.09-.25a1 1 0 00-.132-.993l-.164-.21a1 1 0 010-1.244l.164-.21a1 1 0 00.132-.993l-.09-.25a1 1 0 01.576-1.28l.244-.1a1 1 0 00.617-.823l.031-.264z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+          />
+        </svg>
+      ),
+    },
   ];
+  const visibleTabs = tabDefinitions.filter((tab) => tabs.includes(tab.id));
 
   if (showEntry) {
     return (
@@ -203,6 +251,11 @@ const MasterView: React.FC = () => {
         <div className="relative z-10">
           <div className="mb-2 flex items-center gap-3">
             <h2 className="text-3xl font-black tracking-tight text-white uppercase">Master</h2>
+            {view.masterPersona && (
+              <div className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold tracking-widest text-amber-300 uppercase">
+                {view.masterPersona.systemPersonaKey ?? 'system'}
+              </div>
+            )}
             <div className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 py-1">
               <span
                 className={`h-2 w-2 rounded-full ${view.hasActiveRuns ? 'animate-pulse bg-emerald-400' : 'bg-zinc-600'}`}
@@ -217,6 +270,13 @@ const MasterView: React.FC = () => {
             Create Master Run contracts, execute autonomously, review approvals, and export verified
             bundles.
           </p>
+          {view.masterPersona && (
+            <p className="mt-3 text-xs tracking-wide text-zinc-600">
+              {view.masterMode === 'system'
+                ? `${view.masterPersona.emoji ?? '🧭'} ${view.masterPersona.name} is fixed and managed via the Settings tab.`
+                : `${view.masterPersona.emoji ?? '🤖'} ${view.masterPersona.name} is active for this workspace in legacy mode.`}
+            </p>
+          )}
         </div>
 
         {/* right-side quick stats */}
@@ -265,7 +325,7 @@ const MasterView: React.FC = () => {
 
       {/* ── Tab bar ── */}
       <div className="flex items-center gap-1 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-1.5">
-        {tabs.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
@@ -304,9 +364,11 @@ const MasterView: React.FC = () => {
       {activeTab === 'new' && (
         <ViewErrorBoundary label="Create Run Form">
           <CreateRunForm
-            personas={view.personas}
-            workspaces={view.workspaces}
+            mode={view.masterMode}
+            persona={view.masterPersona}
+            personas={view.availablePersonas}
             selectedPersonaId={view.selectedPersonaId}
+            workspaces={view.workspaces}
             workspaceId={view.workspaceId}
             runTitle={view.runTitle}
             runContract={view.runContract}
@@ -388,6 +450,16 @@ const MasterView: React.FC = () => {
             <MasterLearningPanel metrics={view.metrics} />
           </ViewErrorBoundary>
         </div>
+      )}
+
+      {activeTab === 'settings' && (
+        <ViewErrorBoundary label="Master Settings">
+          <MasterSettingsPanel
+            settings={view.masterSettings}
+            loading={view.loadingAction === 'saving-settings'}
+            onSave={(input) => void view.saveSettings(input)}
+          />
+        </ViewErrorBoundary>
       )}
     </section>
   );

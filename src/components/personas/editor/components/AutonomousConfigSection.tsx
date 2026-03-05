@@ -10,6 +10,8 @@ export function AutonomousConfigSection({
   onIsAutonomousChange,
   onMaxToolCallsChange,
   savingAutonomous,
+  readOnly = false,
+  readOnlyMessage,
 }: AutonomousConfigSectionProps) {
   return (
     <div className="space-y-4 border-t border-zinc-800 pt-6">
@@ -33,7 +35,7 @@ export function AutonomousConfigSection({
           type="button"
           role="switch"
           aria-checked={isAutonomous}
-          disabled={savingAutonomous}
+          disabled={readOnly || savingAutonomous}
           onClick={() => onIsAutonomousChange(!isAutonomous)}
           className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
             isAutonomous ? 'bg-violet-600' : 'bg-zinc-700'
@@ -47,6 +49,7 @@ export function AutonomousConfigSection({
           />
         </button>
       </div>
+      {readOnlyMessage && <p className="text-xs text-amber-300/80">{readOnlyMessage}</p>}
 
       {/* Max Tool Calls — only visible when autonomous */}
       {isAutonomous && (
@@ -61,7 +64,7 @@ export function AutonomousConfigSection({
               min={TOOL_CALLS_CONFIG.MIN}
               max={TOOL_CALLS_CONFIG.MAX}
               value={maxToolCalls}
-              disabled={savingAutonomous}
+              disabled={readOnly || savingAutonomous}
               onChange={(e) => {
                 const val = Number(e.target.value);
                 if (!Number.isNaN(val)) onMaxToolCallsChange(val);
@@ -75,7 +78,7 @@ export function AutonomousConfigSection({
           </div>
           <button
             onClick={() => onIsAutonomousChange(isAutonomous)}
-            disabled={savingAutonomous}
+            disabled={readOnly || savingAutonomous}
             className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-bold tracking-wider text-white uppercase transition-all hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {savingAutonomous ? 'Speichern...' : 'Speichern'}

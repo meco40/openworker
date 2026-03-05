@@ -22,13 +22,45 @@ export interface WorkspaceSummary {
   slug: string;
 }
 
-// ─── Persona summary (minimal shape needed by the UI) ─────────────────────────
+// ─── Master persona + settings ────────────────────────────────────────────────
 
 export interface MasterPersonaSummary {
   id: string;
   name: string;
   slug: string;
   emoji?: string;
+  systemPersonaKey?: string | null;
+}
+
+export interface MasterInstructionFiles {
+  'SOUL.md': string;
+  'AGENTS.md': string;
+  'USER.md': string;
+}
+
+export interface MasterRuntimeSettings {
+  preferredModelId: string | null;
+  modelHubProfileId: string | null;
+  isAutonomous: boolean;
+  maxToolCalls: number;
+}
+
+export interface MasterSettingsSnapshot {
+  persona: MasterPersonaSummary;
+  runtimeSettings: MasterRuntimeSettings;
+  allowedToolFunctionNames: string[];
+  instructionFiles: MasterInstructionFiles;
+}
+
+export type MasterViewMode = 'system' | 'legacy';
+
+export interface SaveMasterSettingsInput {
+  preferredModelId?: string | null;
+  modelHubProfileId?: string | null;
+  isAutonomous?: boolean;
+  maxToolCalls?: number;
+  allowedToolFunctionNames?: string[];
+  files?: Partial<MasterInstructionFiles>;
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────

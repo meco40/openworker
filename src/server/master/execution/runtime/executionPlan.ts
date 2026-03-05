@@ -1,4 +1,5 @@
 import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
+import { getMasterRuntimePersonaConfig } from '@/server/master/runtimePersona';
 import { extractJsonObjectFromText } from '@/server/master/execution/runtime/jsonParsing';
 import type { Capability, ExecutionPlan } from '@/server/master/execution/runtime/types';
 
@@ -62,16 +63,24 @@ export function buildFallbackExecutionPlan(contract: string): ExecutionPlan {
   };
 }
 
-export async function buildExecutionPlanWithModel(contract: string): Promise<ExecutionPlan> {
+export async function buildExecutionPlanWithModel(
+  contract: string,
+  scope: { userId: string; personaId?: string | null },
+): Promise<ExecutionPlan> {
   try {
+    const runtimePersona = getMasterRuntimePersonaConfig(scope);
     const response = await getModelHubService().dispatchWithFallback(
-      'p1',
+      runtimePersona.modelHubProfileId,
       getModelHubEncryptionKey(),
       {
         messages: [
           {
             role: 'system',
             content: [
+              runtimePersona.systemInstruction,
+              runtimePersona.preferredModelId
+                ? `Preferred model hint: ${runtimePersona.preferredModelId}`
+                : null,
               'You are a strict runtime planner for an autonomous execution engine.',
               'Return JSON only with keys:',
               '- capabilities: array of web_search|code_generation|notes|reminders|system_ops',
@@ -80,7 +89,9 @@ export async function buildExecutionPlanWithModel(contract: string): Promise<Exe
               '- riskProfile: low|medium|high',
               '- requiresApproval: boolean',
               'Never return markdown fences.',
-            ].join('\n'),
+            ]
+              .filter(Boolean)
+              .join('\n\n'),
           },
           {
             role: 'user',

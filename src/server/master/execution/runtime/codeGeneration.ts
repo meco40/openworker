@@ -1,4 +1,5 @@
 import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
+import { getMasterRuntimePersonaConfig } from '@/server/master/runtimePersona';
 import { extractJsonObjectFromText } from '@/server/master/execution/runtime/jsonParsing';
 import type { MasterRun } from '@/server/master/types';
 import type { RuntimeMode } from '@/server/master/execution/runtime/types';
@@ -6,6 +7,7 @@ import type { RuntimeMode } from '@/server/master/execution/runtime/types';
 export async function buildCodeGenerationContent(input: {
   run: MasterRun;
   filePath: string;
+  scope: { userId: string; personaId?: string | null };
 }): Promise<{ content: string; mode: RuntimeMode; degradedMode: boolean }> {
   const fallbackContent = [
     '# Master Generated Program Draft',
@@ -19,14 +21,19 @@ export async function buildCodeGenerationContent(input: {
   ].join('\n');
 
   try {
+    const runtimePersona = getMasterRuntimePersonaConfig(input.scope);
     const response = await getModelHubService().dispatchWithFallback(
-      'p1',
+      runtimePersona.modelHubProfileId,
       getModelHubEncryptionKey(),
       {
         messages: [
           {
             role: 'system',
             content: [
+              runtimePersona.systemInstruction,
+              runtimePersona.preferredModelId
+                ? `Preferred model hint: ${runtimePersona.preferredModelId}`
+                : null,
               'You generate implementation drafts for coding tasks.',
               'Return JSON only with keys:',
               '- files: [{ path: string, content: string }]',
@@ -34,7 +41,9 @@ export async function buildCodeGenerationContent(input: {
               '- testPlan: string[]',
               '- summary: string',
               'Do not return markdown fences.',
-            ].join('\n'),
+            ]
+              .filter(Boolean)
+              .join('\n\n'),
           },
           {
             role: 'user',

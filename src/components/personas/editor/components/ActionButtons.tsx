@@ -29,6 +29,8 @@ export function ActionButtons({
   dirty,
   saving,
   savingPreferredModel,
+  systemManaged,
+  systemManagementHint,
   selectedId,
   editorContent,
   preferredModelId,
@@ -41,29 +43,38 @@ export function ActionButtons({
     <div className="flex items-center justify-between border-t border-zinc-800 bg-zinc-900/40 px-4 py-2">
       <StatusBar isGatewayTab={isGatewayTab} dirty={dirty} activeFile={activeFile} />
       <div className="flex items-center gap-3">
+        {systemManaged && (
+          <span className="text-[10px] text-amber-300/80">{systemManagementHint}</span>
+        )}
         {!isGatewayTab && (
           <span className="text-[10px] text-zinc-600">{editorContent.length} Zeichen</span>
         )}
         <button
           onClick={isGatewayTab ? () => onPreferredModelChange(preferredModelId) : saveFile}
-          disabled={isGatewayTab ? savingPreferredModel : !dirty || saving || !selectedId}
+          disabled={
+            systemManaged || (isGatewayTab ? savingPreferredModel : !dirty || saving || !selectedId)
+          }
           className={`rounded-lg px-4 py-1.5 text-xs font-bold tracking-wider uppercase transition-all ${
-            isGatewayTab
-              ? savingPreferredModel
-                ? 'cursor-not-allowed bg-zinc-800 text-zinc-600'
-                : 'bg-indigo-600 text-white hover:bg-indigo-500'
-              : dirty
-                ? 'bg-indigo-600 text-white hover:bg-indigo-500'
-                : 'cursor-not-allowed bg-zinc-800 text-zinc-600'
+            systemManaged
+              ? 'cursor-not-allowed bg-zinc-800 text-zinc-600'
+              : isGatewayTab
+                ? savingPreferredModel
+                  ? 'cursor-not-allowed bg-zinc-800 text-zinc-600'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                : dirty
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-500'
+                  : 'cursor-not-allowed bg-zinc-800 text-zinc-600'
           }`}
         >
-          {isGatewayTab
-            ? savingPreferredModel
-              ? 'Speichern...'
-              : 'Speichern'
-            : saving
-              ? 'Speichern...'
-              : 'Speichern'}
+          {systemManaged
+            ? 'Gesperrt'
+            : isGatewayTab
+              ? savingPreferredModel
+                ? 'Speichern...'
+                : 'Speichern'
+              : saving
+                ? 'Speichern...'
+                : 'Speichern'}
         </button>
       </div>
     </div>

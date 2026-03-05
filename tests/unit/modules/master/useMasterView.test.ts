@@ -9,9 +9,35 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 // ─── Mock the API module ──────────────────────────────────────────────────────
 
 vi.mock('@/modules/master/api', () => ({
-  fetchPersonas: vi.fn(async () => [
-    { id: 'p1', name: 'Nexus', slug: 'nexus', emoji: '🤖' },
-    { id: 'p2', name: 'Atlas', slug: 'atlas', emoji: '🌍' },
+  fetchMasterSettings: vi.fn(async () => ({
+    persona: {
+      id: 'master-1',
+      name: 'Master',
+      slug: 'master',
+      emoji: '🧭',
+      systemPersonaKey: 'master',
+    },
+    runtimeSettings: {
+      preferredModelId: 'gpt-4o-mini',
+      modelHubProfileId: 'ops-team',
+      isAutonomous: true,
+      maxToolCalls: 120,
+    },
+    allowedToolFunctionNames: ['shell_execute', 'web_search'],
+    instructionFiles: {
+      'SOUL.md': 'Master soul',
+      'AGENTS.md': 'Master agents',
+      'USER.md': 'Master user',
+    },
+  })),
+  fetchMasterPersonas: vi.fn(async () => [
+    {
+      id: 'persona-1',
+      name: 'Architect',
+      slug: 'architect',
+      emoji: '🧠',
+      systemPersonaKey: null,
+    },
   ]),
   fetchWorkspaces: vi.fn(async () => [{ id: 'main', name: 'Main', slug: 'main' }]),
   fetchRuns: vi.fn(async () => []),
@@ -37,7 +63,30 @@ vi.mock('@/modules/master/api', () => ({
   })),
   postRunAction: vi.fn(async () => ({ exportBundle: { result: 'ok' } })),
   cancelRun: vi.fn(async () => {}),
+  isMasterSystemPersonaDisabledError: (error: unknown) =>
+    error instanceof Error && /disabled/i.test(error.message),
   submitFeedback: vi.fn(async () => {}),
+  saveMasterSettings: vi.fn(async () => ({
+    persona: {
+      id: 'master-1',
+      name: 'Master',
+      slug: 'master',
+      emoji: '🧭',
+      systemPersonaKey: 'master',
+    },
+    runtimeSettings: {
+      preferredModelId: 'gpt-4o-mini',
+      modelHubProfileId: 'ops-team',
+      isAutonomous: true,
+      maxToolCalls: 120,
+    },
+    allowedToolFunctionNames: ['shell_execute', 'web_search'],
+    instructionFiles: {
+      'SOUL.md': 'Master soul',
+      'AGENTS.md': 'Master agents',
+      'USER.md': 'Master user',
+    },
+  })),
 }));
 
 import type { MasterRun } from '@/modules/master/types';

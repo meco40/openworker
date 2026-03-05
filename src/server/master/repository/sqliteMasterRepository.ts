@@ -48,6 +48,10 @@ import {
   upsertConnectorSecret,
 } from '@/server/master/repository/secrets.store';
 import { appendAuditEvent, listAuditEvents } from '@/server/master/repository/audit.store';
+import {
+  migrateUserLegacyScopesToMasterPersona,
+  migrateWorkspaceScope,
+} from '@/server/master/repository/migration.store';
 import { listKnownScopes } from '@/server/master/repository/scopes.store';
 import type { MasterRepository } from '@/server/master/repository';
 import type {
@@ -316,6 +320,14 @@ export class SqliteMasterRepository implements MasterRepository {
 
   listKnownScopes(limit = 500): WorkspaceScope[] {
     return listKnownScopes(this.db, limit);
+  }
+
+  migrateWorkspaceScope(userId: string, fromWorkspaceId: string, toWorkspaceId: string): void {
+    migrateWorkspaceScope(this.db, { userId, fromWorkspaceId, toWorkspaceId });
+  }
+
+  migrateUserLegacyScopesToMasterPersona(userId: string, masterPersonaId: string): number {
+    return migrateUserLegacyScopesToMasterPersona(this.db, userId, masterPersonaId);
   }
 
   close(): void {

@@ -8,22 +8,28 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
+  MasterViewMode,
   MasterRun,
   MasterMetrics,
   MasterPersonaSummary,
+  MasterSettingsSnapshot,
+  SaveMasterSettingsInput,
   StatusMessage,
   ApprovalDecision,
   WorkspaceSummary,
 } from '@/modules/master/types';
 import {
-  fetchPersonas,
+  fetchMasterPersonas,
+  fetchMasterSettings,
   fetchWorkspaces,
   fetchRuns,
   fetchMetrics,
   fetchRunDetail,
   cancelRun as apiCancelRun,
   createRun as apiCreateRun,
+  isMasterSystemPersonaDisabledError,
   postRunAction,
+  saveMasterSettings as apiSaveMasterSettings,
   submitFeedback as apiSubmitFeedback,
   type RunDetail,
   type SubmitFeedbackInput,
@@ -66,6 +72,7 @@ export type LoadingAction =
   | 'cancelling'
   | 'deciding'
   | 'submitting-feedback'
+  | 'saving-settings'
   | 'refreshing'
   | null;
 
@@ -73,7 +80,10 @@ export type SubmitFeedbackResult = { ok: true } | { ok: false; error: string };
 
 export interface UseMasterViewResult {
   // Data
-  personas: MasterPersonaSummary[];
+  masterMode: MasterViewMode;
+  masterPersona: MasterPersonaSummary | null;
+  masterSettings: MasterSettingsSnapshot | null;
+  availablePersonas: MasterPersonaSummary[];
   workspaces: WorkspaceSummary[];
   runs: MasterRun[];
   paginatedRuns: MasterRun[];
@@ -108,6 +118,7 @@ export interface UseMasterViewResult {
   cancelRun: (runId: string) => Promise<void>;
   submitDecision: (actionType: string, decision: ApprovalDecision) => Promise<void>;
   submitFeedback: (input: SubmitFeedbackInput) => Promise<SubmitFeedbackResult>;
+  saveSettings: (input: SaveMasterSettingsInput) => Promise<void>;
   dismissExportBundle: () => void;
   refreshAll: () => Promise<void>;
 }
@@ -121,7 +132,10 @@ function isAbortError(error: unknown): boolean {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useMasterView(): UseMasterViewResult {
-  const [personas, setPersonas] = useState<MasterPersonaSummary[]>([]);
+  const [masterMode, setMasterMode] = useState<MasterViewMode>('system');
+  const [masterPersona, setMasterPersona] = useState<MasterPersonaSummary | null>(null);
+  const [masterSettings, setMasterSettings] = useState<MasterSettingsSnapshot | null>(null);
+  const [availablePersonas, setAvailablePersonas] = useState<MasterPersonaSummary[]>([]);
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
   const [selectedPersonaId, setSelectedPersonaId] = useState('');
   const [workspaceId, setWorkspaceId] = useState('main');
@@ -206,7 +220,7 @@ export function useMasterView(): UseMasterViewResult {
     const controller = new AbortController();
     runsAbortRef.current = controller;
     try {
-      const nextRuns = await fetchRuns(personaId, workspace, controller.signal);
+      const nextRuns = await fetchRuns(workspace, personaId, controller.signal);
       if (scopeToken !== scopeTokenRef.current) return;
       setRuns(nextRuns);
       setSelectedRunId((prev) => {
@@ -226,7 +240,7 @@ export function useMasterView(): UseMasterViewResult {
       const controller = new AbortController();
       metricsAbortRef.current = controller;
       try {
-        const nextMetrics = await fetchMetrics(personaId, workspace, controller.signal);
+        const nextMetrics = await fetchMetrics(workspace, personaId, controller.signal);
         if (scopeToken !== scopeTokenRef.current) return;
         setMetrics(nextMetrics);
       } finally {
@@ -244,7 +258,7 @@ export function useMasterView(): UseMasterViewResult {
       const controller = new AbortController();
       detailAbortRef.current = controller;
       try {
-        const detail = await fetchRunDetail(runId, personaId, workspace, controller.signal);
+        const detail = await fetchRunDetail(runId, workspace, personaId, controller.signal);
         if (scopeToken !== scopeTokenRef.current) return;
         if (selectedRunIdRef.current !== runId) return;
         setSelectedRunDetail(detail);
@@ -287,7 +301,7 @@ export function useMasterView(): UseMasterViewResult {
 
   const createRun = useCallback(async () => {
     if (!selectedPersonaId || !workspaceId) {
-      showStatus({ tone: 'error', text: 'Select persona and workspace first.' });
+      showStatus({ tone: 'error', text: 'Master persona settings are still loading.' });
       return;
     }
     if (!runContract.trim()) {
@@ -299,8 +313,8 @@ export function useMasterView(): UseMasterViewResult {
       const run = await apiCreateRun({
         title: runTitle.trim() || 'Master Contract',
         contract: runContract.trim(),
-        personaId: selectedPersonaId,
         workspaceId,
+        personaId: selectedPersonaId,
       });
       showStatus({ tone: 'success', text: 'Master run created.' });
       setRunContract('');
@@ -311,7 +325,7 @@ export function useMasterView(): UseMasterViewResult {
     } finally {
       setLoadingAction(null);
     }
-  }, [runContract, runTitle, selectedPersonaId, workspaceId, refreshAll, showStatus]);
+  }, [selectedPersonaId, runContract, runTitle, workspaceId, refreshAll, showStatus]);
 
   const startRun = useCallback(
     async (runId: string) => {
@@ -322,8 +336,8 @@ export function useMasterView(): UseMasterViewResult {
         await postRunAction(runId, {
           actionType: 'run.start',
           stepId: `run-start-${Date.now()}`,
-          personaId: selectedPersonaId,
           workspaceId,
+          personaId: selectedPersonaId,
         });
         showStatus({ tone: 'success', text: 'Run started in background.' });
         await refreshAll();
@@ -345,8 +359,8 @@ export function useMasterView(): UseMasterViewResult {
         const result = await postRunAction(runId, {
           actionType: 'run.export',
           stepId: `run-export-${Date.now()}`,
-          personaId: selectedPersonaId,
           workspaceId,
+          personaId: selectedPersonaId,
         });
         setExportBundle({
           data: JSON.stringify(result.exportBundle ?? {}, null, 2),
@@ -372,7 +386,7 @@ export function useMasterView(): UseMasterViewResult {
       );
       setLoadingAction('cancelling');
       try {
-        await apiCancelRun(runId, selectedPersonaId, workspaceId);
+        await apiCancelRun(runId, workspaceId, selectedPersonaId);
         showStatus({ tone: 'info', text: 'Run cancelled.' });
         await refreshAll();
       } catch (error) {
@@ -398,8 +412,8 @@ export function useMasterView(): UseMasterViewResult {
           actionType,
           decision,
           stepId: `approval-${Date.now()}`,
-          personaId: selectedPersonaId,
           workspaceId,
+          personaId: selectedPersonaId,
         });
         showStatus({ tone: 'success', text: `Decision applied: ${decision} for ${actionType}.` });
         await refreshAll();
@@ -409,14 +423,14 @@ export function useMasterView(): UseMasterViewResult {
         setLoadingAction(null);
       }
     },
-    [selectedRunId, refreshAll, selectedPersonaId, workspaceId, showStatus],
+    [selectedPersonaId, selectedRunId, refreshAll, workspaceId, showStatus],
   );
 
   const submitFeedback = useCallback(
     async (input: SubmitFeedbackInput) => {
       setLoadingAction('submitting-feedback');
       try {
-        await apiSubmitFeedback(input, selectedPersonaId, workspaceId);
+        await apiSubmitFeedback(input, workspaceId, selectedPersonaId);
         showStatus({ tone: 'success', text: 'Feedback submitted.' });
         return { ok: true } as const;
       } catch (error) {
@@ -430,22 +444,83 @@ export function useMasterView(): UseMasterViewResult {
     [selectedPersonaId, workspaceId, showStatus],
   );
 
+  const saveSettings = useCallback(
+    async (input: SaveMasterSettingsInput) => {
+      if (masterMode !== 'system') {
+        showStatus({ tone: 'error', text: 'Master settings are unavailable in legacy mode.' });
+        return;
+      }
+      setLoadingAction('saving-settings');
+      try {
+        const snapshot = await apiSaveMasterSettings(input);
+        setMasterSettings(snapshot);
+        setMasterPersona(snapshot.persona);
+        showStatus({ tone: 'success', text: 'Master settings saved.' });
+        await refreshAll();
+      } catch (error) {
+        showStatus({ tone: 'error', text: toErrorMessage(error) });
+      } finally {
+        setLoadingAction(null);
+      }
+    },
+    [masterMode, refreshAll, showStatus],
+  );
+
   // ── Effects ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    Promise.all([fetchPersonas(), fetchWorkspaces()])
-      .then(([nextPersonas, nextWorkspaces]) => {
-        setPersonas(nextPersonas);
+    const loadInitialState = async () => {
+      try {
+        const [nextSettings, nextWorkspaces] = await Promise.all([
+          fetchMasterSettings(),
+          fetchWorkspaces(),
+        ]);
+        setMasterMode('system');
+        setMasterSettings(nextSettings);
+        setAvailablePersonas([nextSettings.persona]);
+        setMasterPersona(nextSettings.persona);
+        setSelectedPersonaId(nextSettings.persona.id);
         setWorkspaces(nextWorkspaces);
-        if (!selectedPersonaId && nextPersonas.length > 0) {
-          setSelectedPersonaId(nextPersonas[0].id);
+      } catch (error) {
+        if (!isMasterSystemPersonaDisabledError(error)) {
+          showStatus({ tone: 'error', text: toErrorMessage(error) });
+          return;
         }
-      })
-      .catch((error: unknown) => {
-        showStatus({ tone: 'error', text: toErrorMessage(error) });
-      });
+        try {
+          const [legacyPersonas, nextWorkspaces] = await Promise.all([
+            fetchMasterPersonas(),
+            fetchWorkspaces(),
+          ]);
+          const initialPersona = legacyPersonas[0] ?? null;
+          setMasterMode('legacy');
+          setMasterSettings(null);
+          setAvailablePersonas(legacyPersonas);
+          setMasterPersona(initialPersona);
+          setSelectedPersonaId(initialPersona?.id ?? '');
+          setWorkspaces(nextWorkspaces);
+        } catch (legacyError) {
+          showStatus({ tone: 'error', text: toErrorMessage(legacyError) });
+        }
+      }
+    };
+
+    void loadInitialState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (masterMode !== 'legacy') {
+      return;
+    }
+    const nextPersona =
+      availablePersonas.find((persona) => persona.id === selectedPersonaId) ??
+      availablePersonas[0] ??
+      null;
+    setMasterPersona(nextPersona);
+    if ((nextPersona?.id ?? '') !== selectedPersonaId) {
+      setSelectedPersonaId(nextPersona?.id ?? '');
+    }
+  }, [availablePersonas, masterMode, selectedPersonaId]);
 
   // Initial data load when persona or workspace changes.
   // Uses stable loadRuns/loadMetrics (both have [] deps) to avoid the
@@ -503,10 +578,13 @@ export function useMasterView(): UseMasterViewResult {
         }
       },
     );
-  }, [selectedRunId, selectedPersonaId, workspaceId, loadRunDetail]);
+  }, [selectedPersonaId, selectedRunId, workspaceId, loadRunDetail]);
 
   return {
-    personas,
+    masterMode,
+    masterPersona,
+    masterSettings,
+    availablePersonas,
     workspaces,
     runs,
     paginatedRuns,
@@ -539,6 +617,7 @@ export function useMasterView(): UseMasterViewResult {
     cancelRun,
     submitDecision,
     submitFeedback,
+    saveSettings,
     refreshAll,
   };
 }

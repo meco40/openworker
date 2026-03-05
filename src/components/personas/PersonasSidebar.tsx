@@ -117,9 +117,16 @@ export function PersonasSidebar({
             <span className="text-lg">{persona.emoji}</span>
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-semibold">{persona.name}</div>
-              {persona.vibe && (
-                <div className="truncate text-[10px] text-zinc-500">{persona.vibe}</div>
-              )}
+              <div className="flex items-center gap-2">
+                {persona.systemPersonaKey && (
+                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-amber-300 uppercase">
+                    System
+                  </span>
+                )}
+                {persona.vibe && (
+                  <div className="truncate text-[10px] text-zinc-500">{persona.vibe}</div>
+                )}
+              </div>
             </div>
             {activePersonaId === persona.id && (
               <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" title="Aktiv" />

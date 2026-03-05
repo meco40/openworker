@@ -124,6 +124,7 @@ describe('master gmail route', () => {
   it('supports connector bootstrap and revoke flow', async () => {
     const { getPersonaRepository } = await import('@/server/personas/personaRepository');
     const { getMasterRepository } = await import('@/server/master/runtime');
+    const { resolveMasterWorkspaceScope } = await import('@/server/master/workspaceScope');
     const route = await import('../../../app/api/master/gmail/route');
     const persona = getPersonaRepository().createPersona({
       userId: 'legacy-local-user',
@@ -147,10 +148,11 @@ describe('master gmail route', () => {
     );
     expect(connect.status).toBe(200);
 
-    const scope = {
+    const scope = resolveMasterWorkspaceScope({
       userId: 'legacy-local-user',
-      workspaceId: `persona:${persona.id}:w2`,
-    };
+      personaId: persona.id,
+      workspaceId: 'w2',
+    });
     const stored = getMasterRepository().getConnectorSecret(scope, 'gmail', 'default');
     expect(stored).not.toBeNull();
 

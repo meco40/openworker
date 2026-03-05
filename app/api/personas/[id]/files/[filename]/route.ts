@@ -56,6 +56,12 @@ export const PUT = withUserContext<{ id: string; filename: string }>(
       if (!persona || persona.userId !== userContext.userId) {
         return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
       }
+      if (persona.systemPersonaKey) {
+        return NextResponse.json(
+          { ok: false, error: 'System persona files are managed by Master settings.' },
+          { status: 403 },
+        );
+      }
 
       const body = (await request.json()) as { content?: string };
       if (typeof body.content !== 'string') {

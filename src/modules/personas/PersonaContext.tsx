@@ -31,6 +31,10 @@ interface PersonaContextValue {
 
 const PersonaContext = createContext<PersonaContextValue | null>(null);
 
+function isMasterSystemPersona(persona: PersonaSummary | null | undefined): boolean {
+  return persona?.systemPersonaKey === 'master';
+}
+
 // ─── Provider ────────────────────────────────────────────────
 export function PersonaProvider({ children }: { children: React.ReactNode }) {
   const [personas, setPersonas] = useState<PersonaSummary[]>([]);
@@ -169,15 +173,33 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
     };
   }, [activePersonaId, dataEnabled, loadPersonaById]);
 
-  const setActivePersonaId = useCallback((id: string | null) => {
-    setActivePersonaIdState(id);
-    // Persist selection to localStorage for page reloads
-    if (id) {
-      localStorage.setItem('openclaw-active-persona', id);
-    } else {
+  useEffect(() => {
+    if (!activePersonaId) {
+      return;
+    }
+    const selectedPersona = personas.find((persona) => persona.id === activePersonaId);
+    if (isMasterSystemPersona(selectedPersona)) {
+      setActivePersona(null);
+      setActivePersonaIdState(null);
       localStorage.removeItem('openclaw-active-persona');
     }
-  }, []);
+  }, [activePersonaId, personas]);
+
+  const setActivePersonaId = useCallback(
+    (id: string | null) => {
+      const nextId = String(id || '').trim();
+      const nextPersona = nextId ? personas.find((persona) => persona.id === nextId) : null;
+      const normalizedId = isMasterSystemPersona(nextPersona) ? null : nextId || null;
+      setActivePersonaIdState(normalizedId);
+      // Persist selection to localStorage for page reloads
+      if (normalizedId) {
+        localStorage.setItem('openclaw-active-persona', normalizedId);
+      } else {
+        localStorage.removeItem('openclaw-active-persona');
+      }
+    },
+    [personas],
+  );
 
   // Restore from localStorage on mount
   useEffect(() => {

@@ -8,6 +8,7 @@ export type MemoryPersonaType = 'roleplay' | 'builder' | 'assistant' | 'general'
 
 /** Alias used by knowledge subsystem */
 export type PersonaType = MemoryPersonaType;
+export type SystemPersonaKey = 'master';
 
 export const MEMORY_PERSONA_TYPES: readonly MemoryPersonaType[] = [
   'general',
@@ -63,11 +64,13 @@ export interface PersonaProfile {
   slug: string;
   emoji: string;
   vibe: string;
+  systemPersonaKey: SystemPersonaKey | null;
   preferredModelId: string | null;
   modelHubProfileId: string | null;
   memoryPersonaType: MemoryPersonaType;
   isAutonomous: boolean;
   maxToolCalls: number;
+  allowedToolFunctionNames: string[];
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -83,11 +86,13 @@ export interface PersonaSummary {
   slug: string;
   emoji: string;
   vibe: string;
+  systemPersonaKey: SystemPersonaKey | null;
   preferredModelId: string | null;
   modelHubProfileId: string | null;
   memoryPersonaType: MemoryPersonaType;
   isAutonomous: boolean;
   maxToolCalls: number;
+  allowedToolFunctionNames: string[];
   updatedAt: string;
 }
 
@@ -96,10 +101,12 @@ export interface CreatePersonaInput {
   emoji: string;
   vibe: string;
   userId: string;
+  systemPersonaKey?: SystemPersonaKey | null;
   preferredModelId?: string | null;
   modelHubProfileId?: string | null;
   memoryPersonaType?: MemoryPersonaType;
   isAutonomous?: boolean;
   maxToolCalls?: number;
+  allowedToolFunctionNames?: string[];
   files?: Partial<Record<PersonaFileName, string>>;
 }

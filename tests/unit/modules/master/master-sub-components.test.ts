@@ -209,7 +209,7 @@ describe('MetricsPanel', () => {
 
   it('renders empty state when metrics is null', () => {
     const html = renderToStaticMarkup(createElement(MetricsPanel, { metrics: null }));
-    expect(html).toContain('Select a persona to view metrics');
+    expect(html).toContain('Run Master once to populate metrics');
   });
 
   it('renders formatted percentages', () => {

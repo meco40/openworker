@@ -5,17 +5,21 @@
 - Purpose: Authoritative reference for the Master control plane runtime, contracts, APIs, and workspace isolation behavior.
 - Scope: Production-ready `Master` vertical slice with run lifecycle, approvals, delegations, observability, and voice-session integration.
 - Source of Truth: `app/api/master/*`, `src/server/master/*`, `src/modules/master/*`.
-- Last Reviewed: 2026-03-04
+- Last Reviewed: 2026-03-06
 - Related Runbooks: N/A
 
 ## Overview
 
-The Master Agent is implemented as a separate vertical slice and does not change Agent Room behavior.
+The Master Agent is implemented as a dedicated vertical slice with a system-persona front end and a guarded runtime back end. It does not change Agent Room execution behavior.
 
 - UI: `View.MASTER` + `src/modules/master/components/*`
 - API: `app/api/master/*`
 - Domain/runtime: `src/server/master/*`
 - Storage: SQLite tables `master_*` in `src/server/master/migrations.ts`
+- System persona: `Master` is provisioned per user via `ensureMasterPersona(...)` with `systemPersonaKey='master'`
+- Rollout gate: `MASTER_SYSTEM_PERSONA_ENABLED`
+  - enabled or unset: Master uses the fixed system persona plus `Master > Settings`
+  - disabled (`0|false|off|no`): Master falls back to legacy persona-scoped runs and `/api/master/settings` returns `404`
 
 Agent Room remains chat-only.
 
@@ -24,8 +28,11 @@ Agent Room remains chat-only.
 - Approval modes: `approve_once`, `approve_always`, `deny`
 - Pause contract: unresolved high-risk actions move run to `AWAITING_APPROVAL`
 - Gmail send contract: `send` always requires approval
-- Workspace isolation: each run is bound to persona workspace scope via `resolveMasterWorkspaceScope`
+- Workspace isolation: each run is bound to a workspace scope via `resolveMasterWorkspaceScope`
+  - system mode: normalized to `persona:<masterPersonaId>:<workspaceId>` and rooted at `personas/master/projects/workspaces/<workspace>`
+  - legacy mode: remains bound to the requested persona scope `persona:<personaId>:<workspaceId>`
 - Side effects: idempotency keys + action ledger (`master_action_ledger`) provide replay-safe execution
+- Normal persona paths: the `Master` system persona stays visible in Personas UI but is filtered out of normal chat/swarm persona selection in V1
 
 ## Runtime Topology
 
@@ -80,6 +87,10 @@ Agent Room remains chat-only.
   - `GET/POST/PATCH/DELETE /api/master/reminders`
 - Observability:
   - `GET /api/master/metrics`
+- Settings:
+  - `GET/PUT /api/master/settings`
+  - available only while `MASTER_SYSTEM_PERSONA_ENABLED` is enabled
+  - authoritatively updates Master model binding, instruction files, autonomy settings, and tool allowlist
 
 ## Voice Session Runtime
 
@@ -95,11 +106,14 @@ Agent Room remains chat-only.
 ## UI Utility
 
 - `MasterView` is now task-operational:
-  - persona/workspace scope selection
+  - fixed system-persona operation in system mode
+  - legacy persona selection only when `MASTER_SYSTEM_PERSONA_ENABLED` is disabled
+  - workspace scope selection
   - contract creation (`Create Master Run`)
   - run start and export controls
   - approval decision submission (`approve_once`, `approve_always`, `deny`)
   - live metrics + polling status
+  - `Settings` tab for Master persona configuration in system mode only
 
 ## Verification Snapshot
 

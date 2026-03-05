@@ -117,10 +117,14 @@ export default function NewSwarmModal({
   const [pauseBetweenPhases, setPauseBetweenPhases] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const availablePersonas = useMemo(
+    () => personas.filter((persona) => persona.systemPersonaKey !== 'master'),
+    [personas],
+  );
 
   const personaMap = useMemo(
-    () => new Map(personas.map((persona) => [persona.id, persona])),
-    [personas],
+    () => new Map(availablePersonas.map((persona) => [persona.id, persona])),
+    [availablePersonas],
   );
 
   if (!open) return null;
@@ -280,7 +284,7 @@ export default function NewSwarmModal({
               const nextLead = event.target.value;
               setLeadPersonaId(nextLead);
               setSelectedUnitIds((previous) => {
-                const defaults = personas
+                const defaults = availablePersonas
                   .map((persona) => persona.id)
                   .filter((personaId) => personaId !== nextLead);
                 const filtered = previous.filter((id) => id !== nextLead);
@@ -296,7 +300,7 @@ export default function NewSwarmModal({
             className="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
           >
             <option value="">Select Persona</option>
-            {personas.map((persona) => (
+            {availablePersonas.map((persona) => (
               <option key={persona.id} value={persona.id}>
                 {persona.emoji} {persona.name}
               </option>
@@ -306,14 +310,14 @@ export default function NewSwarmModal({
 
         <div className="mb-4 rounded border border-zinc-800 bg-zinc-950/50 p-3">
           <div className="mb-2 text-xs font-semibold text-zinc-400 uppercase">Swarm Units</div>
-          {personas.length === 0 && (
+          {availablePersonas.length === 0 && (
             <div className="text-xs text-amber-300">
               Keine Personas verfügbar. Bitte zuerst Personas anlegen.
             </div>
           )}
-          {personas.length > 0 && (
+          {availablePersonas.length > 0 && (
             <div className="grid max-h-40 grid-cols-1 gap-2 overflow-auto pr-1">
-              {personas.map((persona) => {
+              {availablePersonas.map((persona) => {
                 const checked =
                   selectedUnitIds.includes(persona.id) || persona.id === leadPersonaId;
                 return (
@@ -362,7 +366,7 @@ export default function NewSwarmModal({
           </button>
           <button
             type="submit"
-            disabled={creating || personas.length === 0}
+            disabled={creating || availablePersonas.length === 0}
             className="rounded border border-cyan-500/50 bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-200 disabled:opacity-50"
           >
             {creating ? 'Deploying...' : 'Deploy Agents'}

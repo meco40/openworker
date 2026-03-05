@@ -9,17 +9,19 @@ import type {
   MasterRun,
   MasterStep,
   MasterMetrics,
-  MasterPersonaSummary,
   ApprovalDecision,
+  MasterPersonaSummary,
+  MasterSettingsSnapshot,
+  SaveMasterSettingsInput,
   WorkspaceSummary,
 } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildScopeParams(personaId: string, workspaceId: string): URLSearchParams {
+function buildScopeParams(workspaceId: string, personaId?: string | null): URLSearchParams {
   const params = new URLSearchParams();
-  if (personaId) params.set('personaId', personaId);
   if (workspaceId) params.set('workspaceId', workspaceId);
+  if (personaId) params.set('personaId', personaId);
   return params;
 }
 
@@ -35,6 +37,20 @@ async function parseOkJson<T>(response: Response): Promise<T> {
 
 const FALLBACK_WORKSPACE: WorkspaceSummary = { id: 'main', name: 'Main', slug: 'main' };
 
+export class MasterSystemPersonaDisabledError extends Error {
+  constructor(message = 'Master system persona is disabled.') {
+    super(message);
+    this.name = 'MasterSystemPersonaDisabledError';
+  }
+}
+
+export function isMasterSystemPersonaDisabledError(error: unknown): boolean {
+  if (error instanceof MasterSystemPersonaDisabledError) {
+    return true;
+  }
+  return error instanceof Error && /master system persona .*disabled/i.test(error.message);
+}
+
 export async function fetchWorkspaces(): Promise<WorkspaceSummary[]> {
   try {
     const response = await fetch('/api/workspaces', { cache: 'no-store' });
@@ -47,28 +63,44 @@ export async function fetchWorkspaces(): Promise<WorkspaceSummary[]> {
   }
 }
 
-// ─── Personas ─────────────────────────────────────────────────────────────────
+// ─── Master settings ──────────────────────────────────────────────────────────
 
-export async function fetchPersonas(): Promise<MasterPersonaSummary[]> {
+export async function fetchMasterSettings(): Promise<MasterSettingsSnapshot> {
+  const response = await fetch('/api/master/settings', { cache: 'no-store' });
+  if (response.status === 404) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new MasterSystemPersonaDisabledError(payload?.error ?? undefined);
+  }
+  return parseOkJson<MasterSettingsSnapshot>(response);
+}
+
+export async function saveMasterSettings(
+  input: SaveMasterSettingsInput,
+): Promise<MasterSettingsSnapshot> {
+  return parseOkJson<MasterSettingsSnapshot>(
+    await fetch('/api/master/settings', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    }),
+  );
+}
+
+export async function fetchMasterPersonas(): Promise<MasterPersonaSummary[]> {
   const payload = await parseOkJson<{
-    personas?: Array<{ id: string; name: string; slug: string; emoji?: string }>;
+    personas?: Array<MasterPersonaSummary & { systemPersonaKey?: string | null }>;
   }>(await fetch('/api/personas', { cache: 'no-store' }));
-  return (payload.personas ?? []).map((p) => ({
-    id: p.id,
-    name: p.name,
-    slug: p.slug,
-    emoji: p.emoji,
-  }));
+  return (payload.personas ?? []).filter((persona) => persona.systemPersonaKey !== 'master');
 }
 
 // ─── Runs ─────────────────────────────────────────────────────────────────────
 
 export async function fetchRuns(
-  personaId: string,
   workspaceId: string,
+  personaId?: string | null,
   signal?: AbortSignal,
 ): Promise<MasterRun[]> {
-  const params = buildScopeParams(personaId, workspaceId);
+  const params = buildScopeParams(workspaceId, personaId);
   const payload = await parseOkJson<{ runs?: MasterRun[] }>(
     await fetch(`/api/master/runs?${params.toString()}`, { cache: 'no-store', signal }),
   );
@@ -78,8 +110,8 @@ export async function fetchRuns(
 export interface CreateRunInput {
   title: string;
   contract: string;
-  personaId: string;
   workspaceId: string;
+  personaId?: string | null;
 }
 
 export async function createRun(input: CreateRunInput): Promise<MasterRun> {
@@ -100,8 +132,8 @@ export interface RunActionInput {
   actionType: string;
   stepId?: string;
   decision?: ApprovalDecision;
-  personaId: string;
   workspaceId: string;
+  personaId?: string | null;
 }
 
 export interface RunActionResult {
@@ -131,11 +163,11 @@ export async function postRunAction(
 // ─── Metrics ──────────────────────────────────────────────────────────────────
 
 export async function fetchMetrics(
-  personaId: string,
   workspaceId: string,
+  personaId?: string | null,
   signal?: AbortSignal,
 ): Promise<MasterMetrics | null> {
-  const params = buildScopeParams(personaId, workspaceId);
+  const params = buildScopeParams(workspaceId, personaId);
   const payload = await parseOkJson<{ metrics?: MasterMetrics }>(
     await fetch(`/api/master/metrics?${params.toString()}`, { cache: 'no-store', signal }),
   );
@@ -151,11 +183,11 @@ export interface RunDetail {
 
 export async function fetchRunDetail(
   runId: string,
-  personaId: string,
   workspaceId: string,
+  personaId?: string | null,
   signal?: AbortSignal,
 ): Promise<RunDetail | null> {
-  const params = buildScopeParams(personaId, workspaceId);
+  const params = buildScopeParams(workspaceId, personaId);
   const payload = await parseOkJson<{ run?: MasterRun; steps?: MasterStep[] }>(
     await fetch(`/api/master/runs/${runId}?${params.toString()}`, { cache: 'no-store', signal }),
   );
@@ -167,14 +199,14 @@ export async function fetchRunDetail(
 
 export async function cancelRun(
   runId: string,
-  personaId: string,
   workspaceId: string,
+  personaId?: string | null,
 ): Promise<void> {
   await postRunAction(runId, {
     actionType: 'run.cancel',
     stepId: `run-cancel-${Date.now()}`,
-    personaId,
     workspaceId,
+    personaId,
   });
 }
 
@@ -189,10 +221,10 @@ export interface SubmitFeedbackInput {
 
 export async function submitFeedback(
   input: SubmitFeedbackInput,
-  personaId: string,
   workspaceId: string,
+  personaId?: string | null,
 ): Promise<void> {
-  const params = buildScopeParams(personaId, workspaceId);
+  const params = buildScopeParams(workspaceId, personaId);
   await parseOkJson<Record<string, unknown>>(
     await fetch(`/api/master/runs/${input.runId}/feedback?${params.toString()}`, {
       method: 'POST',

@@ -88,7 +88,7 @@ describe('persona model binding persistence', () => {
     repo.close();
   });
 
-  it('includes TOOLS.md in system instruction for Nexus persona', () => {
+  it('does not treat TOOLS.md as an authorization-bearing instruction even for Nexus', () => {
     createTestPersonasRootPath();
     const repo = new PersonaRepository(':memory:');
     const created = repo.createPersona({
@@ -105,8 +105,8 @@ describe('persona model binding persistence', () => {
     } as never);
 
     const instruction = repo.getPersonaSystemInstruction(created.id);
-    expect(instruction).toContain('--- TOOLS.md ---');
-    expect(instruction).toContain('Use safe_shell for local search');
+    expect(instruction).not.toContain('--- TOOLS.md ---');
+    expect(instruction).toContain('--- SOUL.md ---');
 
     repo.close();
   });

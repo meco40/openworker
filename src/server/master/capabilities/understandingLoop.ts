@@ -1,6 +1,7 @@
 import type { MasterRepository } from '@/server/master/repository';
 import type { WorkspaceScope } from '@/server/master/types';
 import { getModelHubEncryptionKey, getModelHubService } from '@/server/model-hub/runtime';
+import { getMasterRuntimePersonaConfig } from '@/server/master/runtimePersona';
 
 export function shouldRunLearningCycleAt(date: Date): boolean {
   return date.getUTCHours() === 3 && date.getUTCMinutes() === 0;
@@ -32,24 +33,29 @@ async function computeAiConfidenceAdjustment(input: {
   capability: string;
   confidence: number;
   benchmarkSummary: string;
+  scope: WorkspaceScope;
 }): Promise<{ delta: number | null; evidenceCount: number | null }> {
   if (String(process.env.MASTER_AI_RUNTIME_V2 || '').trim() !== '1') {
     return { delta: null, evidenceCount: null };
   }
   try {
+    const runtimePersona = getMasterRuntimePersonaConfig(input.scope);
     const response = await getModelHubService().dispatchWithFallback(
-      'p1',
+      runtimePersona.modelHubProfileId,
       getModelHubEncryptionKey(),
       {
         messages: [
           {
             role: 'system',
             content: [
+              runtimePersona.systemInstruction,
               'You evaluate capability confidence updates.',
               'Return JSON only with keys:',
               '- delta: number between -0.05 and 0.05',
               '- evidenceCount: integer >= 0',
-            ].join('\n'),
+            ]
+              .filter(Boolean)
+              .join('\n\n'),
           },
           {
             role: 'user',
@@ -89,6 +95,7 @@ export async function runCapabilityUnderstandingCycle(
       capability: score.capability,
       confidence: score.confidence,
       benchmarkSummary: score.benchmarkSummary,
+      scope,
     });
     const fallbackDelta = 0.01;
     const delta = ai.delta ?? fallbackDelta;
