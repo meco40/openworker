@@ -1,6 +1,6 @@
 # Dokumentationsindex
 
-Stand: 2026-03-04
+Stand: 2026-03-05
 
 Diese Seite listet nur aktive Source-of-Truth Dokumente.
 Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
@@ -60,9 +60,14 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
 - **[docs/contracts/DOMAIN_SCENARIO_MATRIX.json](contracts/DOMAIN_SCENARIO_MATRIX.json)**
 - **[docs/runbooks/AGENT_VERIFY_HARNESS.md](runbooks/AGENT_VERIFY_HARNESS.md)**
 - **[docs/runbooks/HARNESS_INCIDENT_TRIAGE.md](runbooks/HARNESS_INCIDENT_TRIAGE.md)**
+- **[docs/runbooks/HARNESS_ROLLOUT_GATES.md](runbooks/HARNESS_ROLLOUT_GATES.md)**
 - **[docs/ux/gateway-config-copy-guidelines.md](ux/gateway-config-copy-guidelines.md)**
 - **[docs/plans/README.md](plans/README.md)**
 - **[docs/DOCUMENTATION_AUDIT_2026-02-21.md](DOCUMENTATION_AUDIT_2026-02-21.md)** (historischer Audit mit Addendum)
+
+## 8) Live Ops Entry
+
+- Mission Control Rollout Dashboard: `/mission-control/engineering-rollout`
 
 ## 7) Archiv
 

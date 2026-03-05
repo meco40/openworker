@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz aller aktuell implementierten HTTP-API-Routen unter `app/api` mit exportierten Methoden.
 - Scope: Route-/Methoden-Katalog und Domain-Gruppierung zum aktuellen Systemzustand.
 - Source of Truth: This document is derived from `app/api/**/route.ts` and overrides archived API documents on conflicts.
-- Last Reviewed: 2026-03-04
+- Last Reviewed: 2026-03-05
 - Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md, docs/runbooks/gateway-config-production-rollout.md
 
 ---
@@ -261,6 +261,32 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | GET         | /api/stats/engineering |
 | GET         | /api/stats             |
 | GET, DELETE | /api/stats/prompt-logs |
+
+#### /api/stats/engineering
+
+- Auth: `withUserContext(...)` (401 ohne User-Kontext)
+- Query:
+  - `windowDays`: `7 | 30` (optional, default `30`)
+  - `workspaceId`: `string` (optional)
+- Erfolgsantwort:
+  - `{ ok: true, snapshot: EngineeringMetricsSnapshot }`
+  - Basisfelder:
+    - `windowDays`, `leadTimeMedianHours`, `mergeThroughputPerWeek`, `firstPassCiRate`
+    - `flakyRate`, `revertRate`, `medianPrSize`, `asyncFailureSlaBreaches`, `generatedAt`
+  - Snapshot-Herkunft:
+    - `source` (`snapshot|fallback`), `snapshotAgeHours`, `isFallback`
+  - Harness-Observability:
+    - `domainCoverage`, `scenarioSuccessRates`, `worktreeHarness`
+    - `criticalFailAutoReverts`
+    - `observability.laneSuccessRates[]`
+  - Rollout (v4, additiv):
+    - `rollout.phase`, `rollout.phaseWindow`, `rollout.mode`
+    - `rollout.baselineId`, `rollout.overallStatus`, `rollout.recommendation`
+    - `rollout.exitGates[]`, `rollout.deltaVsBaseline`
+- Fehlerantwort:
+  - `{ ok: false, error: string }`
+  - `400` bei invalidem `windowDays`
+  - `500` bei Berechnungs-/Runtime-Fehlern
 
 ### /api/tasks
 

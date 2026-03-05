@@ -31,3 +31,14 @@
 6. Engineering-Observability wird ueber `GET /api/stats/engineering` inklusive Domain-/Scenario-/Worktree-Metriken ausgewertet.
 7. Rollout-Exit-Gates laufen ueber `.github/workflows/harness-rollout-gates.yml` mit festem 4-Wochen-Phasenmodell.
 8. Go/No-Go-Entscheidungen werden ueber `.github/workflows/harness-go-no-go.yml` dedupliziert als Issues dokumentiert.
+
+## Operator Entry Points
+
+1. API:
+
+- `GET /api/stats/engineering`
+- `POST /api/internal/stats/engineering/snapshots`
+
+2. UI:
+
+- `/mission-control/engineering-rollout` (Live-Template fuer Woche-1-4 Rollout-Steuerung)

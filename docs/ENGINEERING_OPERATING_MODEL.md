@@ -101,6 +101,17 @@ Der `Main Guardian` reagiert auf fehlgeschlagene Blocking-Gates auf `main`:
 
 3. Harness-Events werden mit 90-Tage-Retention gehalten und bei Ingest PII-sicher redigiert.
 
+## Operator Entry Points
+
+1. API:
+
+- `GET /api/stats/engineering` (KPIs, Rollout-Status, Harness-Observability)
+- `POST /api/internal/stats/engineering/snapshots` (internal ingest)
+
+2. UI:
+
+- `GET /mission-control/engineering-rollout` (kompaktes Live-Dashboard fuer Woche-1-4 und Go/No-Go)
+
 ## Flag-Matrix und Rollback
 
 1. Flags:
@@ -108,6 +119,10 @@ Der `Main Guardian` reagiert auf fehlgeschlagene Blocking-Gates auf `main`:
 - `ROLLOUT_GATES_ENFORCE` (`0|1`)
 - `GO_NO_GO_ENFORCE` (`0|1`)
 - `MAIN_GUARDIAN_AUTOREVERT_ENABLED` (`0|1`, Standard `1`)
+- `ENGINEERING_INGEST_ENABLED` (`0|1`)
+- `ASYNC_SLA_AUTOMATION_ENABLED` (`0|1`)
+- `CLEANUP_DRAFT_PR_ENABLED` (`0|1`)
+- `ENGINEERING_ALERTS_ENABLED` (`0|1`)
 
 2. Rollout-Reihenfolge:
 

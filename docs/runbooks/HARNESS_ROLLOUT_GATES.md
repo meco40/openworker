@@ -25,6 +25,22 @@ Verbindliche Steuerung der 4-Wochen-Harness-Rollout-Phasen mit harten Exit-Gates
 5. `GO_NO_GO_OWNER` (Decision-/Follow-up-Owner)
 6. `ROLLOUT_SLA_HOURS` (Default 24)
 
+## Ingest prerequisites
+
+1. App runtime:
+   - `ENGINEERING_INGEST_ENABLED=1`
+   - `ENGINEERING_INGEST_TOKEN=<shared-token>`
+2. GitHub Actions secrets:
+   - `ENGINEERING_INGEST_URL` (z. B. `https://<host>/api/internal/stats/engineering/snapshots`)
+   - `ENGINEERING_INGEST_TOKEN` (muss dem Runtime-Token entsprechen)
+3. Wenn URL oder Token fehlen, laufen Workflows report-only und posten keinen Snapshot-Ingest.
+
+## Live dashboard
+
+1. UI-Route: `/mission-control/engineering-rollout`
+2. Datenquelle: `GET /api/stats/engineering`
+3. Zweck: Woche-1-4 Exit-Gates, Baseline-Delta, KPI-Drift, Go/No-Go-Empfehlung.
+
 ## Weekly matrix
 
 1. Woche 1 (`2026-03-09` bis `2026-03-15`): report-only

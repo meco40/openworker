@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer operative Steuerung, Diagnose und Observability-APIs.
 - Scope: Ops-Endpunkte, Config-API, Health/Doctor, Control-Plane-Metriken, Logs, Stats, Master-Metriken.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-03-04
+- Last Reviewed: 2026-03-05
 - Related Runbooks: docs/runbooks/gateway-config-production-rollout.md, docs/runbooks/chat-cli-smoke-approval.md
 
 ---
@@ -80,7 +80,21 @@ Quellen: `app/api/logs/route.ts`, `app/api/logs/ingest/route.ts`
 
 Quellen: `app/api/stats/engineering/route.ts`, `app/api/stats/route.ts`, `app/api/stats/prompt-logs/route.ts`
 
-### 2.7 Master Metrics
+`/api/stats/engineering` liefert fuer Harness-v4 additiv:
+
+- Snapshot-Quelle und Frische: `source`, `snapshotAgeHours`, `isFallback`
+- Rollout-Zustand: `rollout.phase`, `rollout.exitGates`, `rollout.recommendation`, `rollout.baselineId`
+- Harness-Observability: `domainCoverage`, `scenarioSuccessRates`, `worktreeHarness`, `criticalFailAutoReverts`
+
+### 2.7 Mission Control Rollout Dashboard
+
+| Typ | Pfad                                   | Zweck                                                             |
+| --- | -------------------------------------- | ----------------------------------------------------------------- |
+| UI  | `/mission-control/engineering-rollout` | Kompakte Live-Sicht fuer Woche-1-4-Gates, KPI-Status und Go/No-Go |
+
+Quellen: `app/mission-control/engineering-rollout/page.tsx`, `src/components/stats/EngineeringRolloutDashboard.tsx`
+
+### 2.8 Master Metrics
 
 | Methode | Pfad                  | Zweck                                                   |
 | ------- | --------------------- | ------------------------------------------------------- |
@@ -108,6 +122,18 @@ Die oben genannten Endpunkte sind ueber `withUserContext(...)` oder `withResolve
 - Standard-Unauthorized-Response: `src/server/http/unauthorized.ts`
 
 `/api/ops/sessions` beachtet zusaetzlich `includeGlobalApplied` nur fuer nicht-authentisierte Kontexte.
+
+### 3.1 Internal Ingest (Engineering Snapshots)
+
+- Internal Route: `POST /api/internal/stats/engineering/snapshots`
+- Route ist token-geschuetzt und nur aktiv mit `ENGINEERING_INGEST_ENABLED=1`.
+- Benoetigte Header:
+  - `x-engineering-ingest-token`
+  - `x-engineering-ingest-timestamp`
+  - `x-engineering-ingest-idempotency-key`
+- Workflow-seitig benoetigt:
+  - Secret `ENGINEERING_INGEST_URL`
+  - Secret `ENGINEERING_INGEST_TOKEN`
 
 ## 4. Verifikation
 

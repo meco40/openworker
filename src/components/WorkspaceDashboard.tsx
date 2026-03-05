@@ -1,7 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, ArrowRight, Folder, Users, CheckSquare, Trash2, AlertTriangle } from 'lucide-react';
+import {
+  Plus,
+  ArrowRight,
+  Folder,
+  Users,
+  CheckSquare,
+  Trash2,
+  AlertTriangle,
+  LineChart,
+} from 'lucide-react';
 import Link from 'next/link';
 import type { WorkspaceStats } from '@/lib/types';
 import { useAlertDialog } from '@/components/shared/ConfirmDialogProvider';
@@ -50,13 +59,22 @@ export function WorkspaceDashboard() {
               <span className="text-2xl">🦞</span>
               <h1 className="text-xl font-bold">Mission Control</h1>
             </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-mc-accent text-mc-bg hover:bg-mc-accent/90 flex items-center gap-2 rounded-lg px-4 py-2 font-medium"
-            >
-              <Plus className="h-4 w-4" />
-              New Workspace
-            </button>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/mission-control/engineering-rollout"
+                className="border-mc-border hover:bg-mc-bg-tertiary flex items-center gap-2 rounded-lg border px-4 py-2 text-sm"
+              >
+                <LineChart className="h-4 w-4" />
+                Rollout Dashboard
+              </Link>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-mc-accent text-mc-bg hover:bg-mc-accent/90 flex items-center gap-2 rounded-lg px-4 py-2 font-medium"
+              >
+                <Plus className="h-4 w-4" />
+                New Workspace
+              </button>
+            </div>
           </div>
         </div>
       </header>
