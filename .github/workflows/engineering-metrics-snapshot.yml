@@ -1,0 +1,166 @@
+name: Engineering Metrics Snapshot
+
+on:
+  schedule:
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  snapshot:
+    name: Build + Ingest Engineering Snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ENGINEERING_INGEST_ENABLED: ${{ vars.ENGINEERING_INGEST_ENABLED || '0' }}
+      ENGINEERING_ALERTS_ENABLED: ${{ vars.ENGINEERING_ALERTS_ENABLED || '0' }}
+      ENGINEERING_SNAPSHOT_OUTPUT: engineering-metrics-snapshot.json
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build snapshot payload
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ENGINEERING_SNAPSHOT_OUTPUT: ${{ env.ENGINEERING_SNAPSHOT_OUTPUT }}
+        run: node scripts/ci/engineering-metrics-snapshot.mjs
+
+      - name: Upload snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: engineering-metrics-snapshot
+          path: ${{ env.ENGINEERING_SNAPSHOT_OUTPUT }}
+          if-no-files-found: error
+
+      - name: Ingest snapshot into internal API
+        if: env.ENGINEERING_INGEST_ENABLED == '1'
+        env:
+          ENGINEERING_INGEST_URL: ${{ secrets.ENGINEERING_INGEST_URL }}
+          ENGINEERING_INGEST_TOKEN: ${{ secrets.ENGINEERING_INGEST_TOKEN }}
+          ENGINEERING_SNAPSHOT_OUTPUT: ${{ env.ENGINEERING_SNAPSHOT_OUTPUT }}
+        shell: bash
+        run: |
+          if [ -z "$ENGINEERING_INGEST_URL" ] || [ -z "$ENGINEERING_INGEST_TOKEN" ]; then
+            echo "Missing ENGINEERING_INGEST_URL or ENGINEERING_INGEST_TOKEN"
+            exit 1
+          fi
+
+          NOW_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          IDEMPOTENCY_KEY="snapshot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          curl --fail-with-body \
+            -X POST "$ENGINEERING_INGEST_URL" \
+            -H "content-type: application/json" \
+            -H "x-engineering-ingest-token: $ENGINEERING_INGEST_TOKEN" \
+            -H "x-engineering-ingest-timestamp: $NOW_ISO" \
+            -H "x-engineering-ingest-idempotency-key: $IDEMPOTENCY_KEY" \
+            --data-binary "@$ENGINEERING_SNAPSHOT_OUTPUT"
+
+      - name: Apply metrics alert policy
+        if: env.ENGINEERING_ALERTS_ENABLED == '1'
+        uses: actions/github-script@v7
+        env:
+          ENGINEERING_SNAPSHOT_OUTPUT: ${{ env.ENGINEERING_SNAPSHOT_OUTPUT }}
+        with:
+          script: |
+            const fs = require('fs')
+            const payload = JSON.parse(fs.readFileSync(process.env.ENGINEERING_SNAPSHOT_OUTPUT, 'utf8'))
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const snapshots = Array.isArray(payload.snapshots) ? payload.snapshots : []
+            const sevenDay = snapshots.find((entry) => Number(entry.windowDays) === 7) || null
+            const blockingFailStreak = Number(payload?.meta?.blockingFailStreak || 0)
+
+            async function upsertAlertIssue(input) {
+              const existing = await github.paginate(github.rest.issues.listForRepo, {
+                owner,
+                repo,
+                state: 'open',
+                labels: input.dedupeLabel,
+                per_page: 100,
+              })
+              const issue = existing.find((item) => !item.pull_request)
+              const labels = ['harness-alert', input.severity, input.dedupeLabel]
+              if (issue) {
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  title: input.title,
+                  body: input.body,
+                  labels,
+                })
+                return
+              }
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title: input.title,
+                body: input.body,
+                labels,
+              })
+            }
+
+            async function closeAlertIssue(dedupeLabel) {
+              const existing = await github.paginate(github.rest.issues.listForRepo, {
+                owner,
+                repo,
+                state: 'open',
+                labels: dedupeLabel,
+                per_page: 100,
+              })
+              for (const issue of existing) {
+                if (issue.pull_request) continue
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  state: 'closed',
+                })
+              }
+            }
+
+            const asyncBreaches = Number(sevenDay?.asyncFailureSlaBreaches || 0)
+            if (asyncBreaches > 0) {
+              await upsertAlertIssue({
+                dedupeLabel: 'harness-alert:async-sla-breach',
+                severity: 'warning',
+                title: `[Harness][Warn] Async SLA breaches detected (${asyncBreaches})`,
+                body: `7d asyncFailureSlaBreaches=${asyncBreaches}\nRun: ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
+              })
+            } else {
+              await closeAlertIssue('harness-alert:async-sla-breach')
+            }
+
+            const flakyRate = Number(sevenDay?.flakyRate || 0)
+            if (flakyRate > 0.02) {
+              await upsertAlertIssue({
+                dedupeLabel: 'harness-alert:flaky-rate',
+                severity: 'warning',
+                title: `[Harness][Warn] Flaky rate above threshold (${Math.round(flakyRate * 10000) / 100}%)`,
+                body: `7d flakyRate=${flakyRate}\nThreshold=0.02\nRun: ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
+              })
+            } else {
+              await closeAlertIssue('harness-alert:flaky-rate')
+            }
+
+            if (blockingFailStreak >= 2) {
+              await upsertAlertIssue({
+                dedupeLabel: 'harness-alert:blocking-fail-streak',
+                severity: 'critical',
+                title: `[Harness][Critical] Blocking gate fail streak ${blockingFailStreak}`,
+                body: `blockingFailStreak=${blockingFailStreak}\nThreshold=2\nRun: ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
+              })
+            } else {
+              await closeAlertIssue('harness-alert:blocking-fail-streak')
+            }

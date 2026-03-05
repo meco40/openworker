@@ -1,0 +1,248 @@
+name: Async Quality Gates
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: async-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  coverage:
+    name: Coverage (Async)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run coverage suite
+        run: pnpm run test:coverage
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: async-coverage-report
+          path: coverage/
+          if-no-files-found: warn
+
+  browser:
+    name: Browser E2E (Async)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install chromium
+
+      - name: Run browser async suite
+        run: pnpm run test:e2e:browser:ci
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: async-playwright-artifacts
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+
+  live-e2e:
+    name: Live E2E (Async)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      should_run: ${{ steps.preflight.outputs.should_run }}
+    steps:
+      - name: Preflight secrets
+        id: preflight
+        env:
+          MEM0_BASE_URL: ${{ secrets.MEM0_BASE_URL }}
+          MEM0_API_KEY: ${{ secrets.MEM0_API_KEY }}
+        run: |
+          if [ -z "$MEM0_BASE_URL" ] || [ -z "$MEM0_API_KEY" ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Explain skip
+        if: steps.preflight.outputs.should_run != 'true'
+        run: echo "Skipping live E2E because MEM0_BASE_URL or MEM0_API_KEY is not configured."
+
+      - name: Checkout
+        if: steps.preflight.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: steps.preflight.outputs.should_run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        if: steps.preflight.outputs.should_run == 'true'
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        if: steps.preflight.outputs.should_run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Run live e2e
+        if: steps.preflight.outputs.should_run == 'true'
+        env:
+          MEM0_E2E: '1'
+          MEM0_BASE_URL: ${{ secrets.MEM0_BASE_URL }}
+          MEM0_API_KEY: ${{ secrets.MEM0_API_KEY }}
+          MEM0_API_PATH: ${{ secrets.MEM0_API_PATH }}
+        run: pnpm run test:e2e:live
+
+  flaky-detection:
+    name: Flaky Detection (Async)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run flaky detector
+        run: node --import tsx scripts/ci/flaky-detection.ts
+
+  async-sla-followup:
+    name: Async SLA Follow-up
+    if: always()
+    needs: [coverage, browser, live-e2e, flaky-detection]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ASYNC_SLA_AUTOMATION_ENABLED: ${{ vars.ASYNC_SLA_AUTOMATION_ENABLED || '0' }}
+      ASYNC_SLA_OWNER: ${{ vars.ASYNC_SLA_OWNER || github.repository_owner }}
+    steps:
+      - name: Open/update/close SLA issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const enabled = String(process.env.ASYNC_SLA_AUTOMATION_ENABLED || '0') === '1'
+            if (!enabled) {
+              core.info('ASYNC_SLA_AUTOMATION_ENABLED != 1, running in report-only mode.')
+              return
+            }
+
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const branch = context.ref.replace('refs/heads/', '')
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`
+            const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+            const lanes = [
+              { id: 'coverage', result: '${{ needs.coverage.result }}', treatSkippedAsFailure: false },
+              { id: 'browser', result: '${{ needs.browser.result }}', treatSkippedAsFailure: false },
+              { id: 'live-e2e', result: '${{ needs.live-e2e.result }}', treatSkippedAsFailure: false },
+              { id: 'flaky-detection', result: '${{ needs.flaky-detection.result }}', treatSkippedAsFailure: false },
+            ]
+
+            for (const lane of lanes) {
+              const dedupeLabel = `harness-lane:${lane.id}:branch:${branch}`
+              const shouldOpen = lane.result === 'failure' || lane.result === 'cancelled' || (lane.treatSkippedAsFailure && lane.result === 'skipped')
+
+              const issues = await github.paginate(github.rest.issues.listForRepo, {
+                owner,
+                repo,
+                state: 'open',
+                labels: `async-failure,harness,${dedupeLabel}`,
+                per_page: 100,
+              })
+
+              const existing = issues.find((item) => !item.pull_request)
+
+              if (shouldOpen) {
+                const title = `[Harness][Async SLA] ${lane.id} failed on ${branch}`
+                const body = [
+                  `Lane: ${lane.id}`,
+                  `Branch: ${branch}`,
+                  `Workflow run: ${runUrl}`,
+                  `SLA due at: ${dueAt}`,
+                  '',
+                  'This issue is managed automatically by async-sla-followup.',
+                ].join('\n')
+
+                if (existing) {
+                  await github.rest.issues.update({
+                    owner,
+                    repo,
+                    issue_number: existing.number,
+                    title,
+                    body,
+                    labels: ['async-failure', 'harness', 'sla-24h', dedupeLabel],
+                    assignees: [String(process.env.ASYNC_SLA_OWNER || context.repo.owner)],
+                  })
+                } else {
+                  await github.rest.issues.create({
+                    owner,
+                    repo,
+                    title,
+                    body,
+                    labels: ['async-failure', 'harness', 'sla-24h', dedupeLabel],
+                    assignees: [String(process.env.ASYNC_SLA_OWNER || context.repo.owner)],
+                  })
+                }
+                continue
+              }
+
+              if (existing) {
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: existing.number,
+                  state: 'closed',
+                })
+              }
+            }

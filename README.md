@@ -23,14 +23,14 @@ OpenClaw Gateway ist eine **Next.js-basierte Multi-Channel-KI-Plattform** mit Un
 ### Voraussetzungen
 
 - Node.js 22+
-- npm
+- pnpm (Source of Truth fuer Lockfile/CI)
 - Docker Desktop (für lokalen Mem0-Stack)
 
 ### Installation
 
 ```bash
 # Abhängigkeiten installieren
-npm install
+pnpm install
 
 # Environment-Variablen setzen
 cp .env.local.example .env.local
@@ -41,16 +41,16 @@ cp .env.local.example .env.local
 
 ```bash
 # Lokalen Mem0-Stack starten (Postgres + mem0 API)
-npm run mem0:local:up
+pnpm run mem0:local:up
 
 # Web-Server starten
-npm run dev
+pnpm run dev
 
 # Scheduler starten (optional, für Automations-Läufe und Scheduler-Health)
-npm run dev:scheduler
+pnpm run dev:scheduler
 ```
 
-`npm run dev` startet nur, wenn Mem0 erreichbar ist. Für den lokalen Stack sind in `.env.local` mindestens diese Werte nötig:
+`pnpm run dev` startet nur, wenn Mem0 erreichbar ist. Für den lokalen Stack sind in `.env.local` mindestens diese Werte nötig:
 
 - `MEMORY_PROVIDER=mem0`
 - `MEM0_BASE_URL=http://127.0.0.1:8010`
@@ -61,10 +61,10 @@ npm run dev:scheduler
 
 ```bash
 # Build
-npm run build
+pnpm run build
 
 # Start
-npm run start
+pnpm run start
 ```
 
 ---

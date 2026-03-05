@@ -1,0 +1,62 @@
+name: Async SLA Audit
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sla-audit:
+    name: Mark SLA Breaches
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ASYNC_SLA_AUTOMATION_ENABLED: ${{ vars.ASYNC_SLA_AUTOMATION_ENABLED || '0' }}
+    steps:
+      - name: Mark overdue async-failure issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const enabled = String(process.env.ASYNC_SLA_AUTOMATION_ENABLED || '0') === '1'
+            if (!enabled) {
+              core.info('ASYNC_SLA_AUTOMATION_ENABLED != 1, running in report-only mode.')
+              return
+            }
+
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const now = Date.now()
+
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              labels: 'async-failure,harness,sla-24h',
+              per_page: 100,
+            })
+
+            for (const issue of openIssues) {
+              if (issue.pull_request) continue
+              const body = String(issue.body || '')
+              const match = body.match(/SLA due at:\s*([0-9TZ:.\-+]+)/i)
+              if (!match) continue
+
+              const dueAt = Date.parse(match[1])
+              if (!Number.isFinite(dueAt) || dueAt > now) continue
+
+              const currentLabels = issue.labels.map((label) =>
+                typeof label === 'string' ? label : String(label.name || ''),
+              )
+              if (currentLabels.includes('sla-breached')) continue
+
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issue.number,
+                labels: [...currentLabels, 'sla-breached'],
+              })
+            }

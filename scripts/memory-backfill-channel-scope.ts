@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 
 import BetterSqlite3 from 'better-sqlite3';
-import nextEnv from '@next/env';
 
 import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 import {
@@ -13,10 +13,10 @@ import {
 
 const DEFAULT_MESSAGES_DB_PATH = '.local/messages.db';
 const MEMORY_PAGE_SIZE = 200;
-const loadEnvConfigFn =
-  (nextEnv as unknown as { loadEnvConfig?: (dir: string) => void }).loadEnvConfig ??
-  (nextEnv as unknown as { default?: { loadEnvConfig?: (dir: string) => void } }).default
-    ?.loadEnvConfig;
+const require = createRequire(import.meta.url);
+const { loadEnvConfig } = require('@next/env') as {
+  loadEnvConfig?: (dir: string, dev?: boolean) => void;
+};
 
 type ConversationScope = {
   conversationId: string;
@@ -408,8 +408,8 @@ async function backfillMem0Scopes(
 }
 
 async function main(): Promise<void> {
-  if (loadEnvConfigFn) {
-    loadEnvConfigFn(process.cwd());
+  if (loadEnvConfig) {
+    loadEnvConfig(process.cwd());
   }
 
   const messagesDbPath = process.env.MESSAGES_DB_PATH || DEFAULT_MESSAGES_DB_PATH;

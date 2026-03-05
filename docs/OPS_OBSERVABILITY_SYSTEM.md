@@ -71,13 +71,14 @@ Quellen: `app/api/logs/route.ts`, `app/api/logs/ingest/route.ts`
 
 ### 2.6 Stats
 
-| Methode | Pfad                     | Zweck                                        |
-| ------- | ------------------------ | -------------------------------------------- |
-| GET     | `/api/stats`             | Token-Nutzung, Uptime, optional Session-Lens |
-| GET     | `/api/stats/prompt-logs` | Prompt-Dispatch-Logs, Summary, Diagnostics   |
-| DELETE  | `/api/stats/prompt-logs` | Prompt-Logs + Token-Usage zuruecksetzen      |
+| Methode | Pfad                     | Zweck                                          |
+| ------- | ------------------------ | ---------------------------------------------- |
+| GET     | `/api/stats/engineering` | Engineering-KPIs (7/30 Tage, Harness-Delivery) |
+| GET     | `/api/stats`             | Token-Nutzung, Uptime, optional Session-Lens   |
+| GET     | `/api/stats/prompt-logs` | Prompt-Dispatch-Logs, Summary, Diagnostics     |
+| DELETE  | `/api/stats/prompt-logs` | Prompt-Logs + Token-Usage zuruecksetzen        |
 
-Quellen: `app/api/stats/route.ts`, `app/api/stats/prompt-logs/route.ts`
+Quellen: `app/api/stats/engineering/route.ts`, `app/api/stats/route.ts`, `app/api/stats/prompt-logs/route.ts`
 
 ### 2.7 Master Metrics
 

@@ -224,6 +224,83 @@ const migrations: Migration[] = [
       db.exec(`DROP TABLE IF EXISTS planning_questions`);
     },
   },
+  {
+    id: '009',
+    name: 'add_engineering_metrics_tables',
+    up: (db) => {
+      console.log('[Migration 009] Adding engineering metrics snapshot tables...');
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS engineering_metrics_snapshots (
+          id TEXT PRIMARY KEY,
+          window_days INTEGER NOT NULL CHECK (window_days IN (7, 30)),
+          payload_json TEXT NOT NULL,
+          source TEXT NOT NULL,
+          generated_at TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_engineering_metrics_snapshots_window_generated
+        ON engineering_metrics_snapshots (window_days, generated_at DESC);
+      `);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS engineering_pr_facts (
+          id TEXT PRIMARY KEY,
+          pr_number INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          merged_at TEXT NOT NULL,
+          additions INTEGER NOT NULL DEFAULT 0,
+          deletions INTEGER NOT NULL DEFAULT 0,
+          first_pass_blocking INTEGER NOT NULL DEFAULT 0,
+          reverted INTEGER NOT NULL DEFAULT 0
+        );
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_engineering_pr_facts_merged
+        ON engineering_pr_facts (merged_at DESC);
+      `);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS engineering_ingest_receipts (
+          idempotency_key TEXT PRIMARY KEY,
+          received_at TEXT NOT NULL
+        );
+      `);
+    },
+  },
+  {
+    id: '010',
+    name: 'add_harness_run_events_table',
+    up: (db) => {
+      console.log('[Migration 010] Adding harness run events table...');
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS harness_run_events (
+          id TEXT PRIMARY KEY,
+          trace_id TEXT,
+          span_id TEXT,
+          service_name TEXT NOT NULL,
+          lane TEXT NOT NULL,
+          status TEXT NOT NULL,
+          started_at TEXT NOT NULL,
+          finished_at TEXT NOT NULL,
+          duration_ms INTEGER NOT NULL DEFAULT 0,
+          error_kind TEXT,
+          run_url TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_harness_run_events_lane_finished
+        ON harness_run_events (lane, finished_at DESC);
+      `);
+    },
+  },
 ];
 
 /**

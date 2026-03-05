@@ -1,0 +1,62 @@
+name: Agent-Ready Task
+description: Structured task intake for deterministic implementation and review.
+title: '[Task]: '
+labels:
+  - task
+  - agent-ready
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What outcome should be achieved?
+      placeholder: Implement ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Concrete checks that must pass before completion.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and Non-Goals
+      description: Explicitly state what is in and out.
+      placeholder: |
+        In scope:
+        Out of scope:
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Affected Domains and Invariants
+      description: Mention impacted domains and invariants that must hold.
+      placeholder: Mission Control, Chat, ...
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Required Verification
+      description: Minimum checks for this task.
+      placeholder: |
+        - pnpm run typecheck
+        - pnpm run lint
+        - pnpm run test -- <target>
+    validations:
+      required: true
+  - type: textarea
+    id: async_owner
+    attributes:
+      label: Async Failure Owner (24h SLA)
+      description: Owner for async-quality follow-ups.
+      placeholder: '@owner'
+    validations:
+      required: true

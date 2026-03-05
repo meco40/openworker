@@ -1,4 +1,4 @@
-name: CI
+name: Blocking Gates
 
 on:
   pull_request:
@@ -18,8 +18,104 @@ env:
   NODE_VERSION: '22'
 
 jobs:
+  pr-policy:
+    name: PR Policy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enforce PR size split rationale
+        shell: bash
+        run: |
+          BASE_REF="${{ github.base_ref }}"
+          if [ -z "$BASE_REF" ]; then
+            echo "No base ref available; skipping split-rationale gate."
+            exit 0
+          fi
+
+          git fetch --no-tags --prune origin "$BASE_REF" --depth=1
+          CHANGED="$(git diff --numstat "origin/$BASE_REF"...HEAD | awk '{add+=$1;del+=$2} END {print add+del+0}')"
+          echo "changed_lines=$CHANGED"
+
+          if [ "$CHANGED" -le 500 ]; then
+            echo "PR size is within the soft threshold."
+            exit 0
+          fi
+
+          BODY="${{ github.event.pull_request.body }}"
+          if echo "$BODY" | grep -Eiq "split rationale|split-rationale|reason for split"; then
+            echo "Split rationale found in PR body."
+            exit 0
+          fi
+
+          echo "::error::PRs above 500 changed lines require a split rationale in the PR template."
+          exit 1
+
+      - name: Warn if PR age exceeds 24 hours
+        shell: bash
+        run: |
+          CREATED_AT="${{ github.event.pull_request.created_at }}"
+          if [ -z "$CREATED_AT" ]; then
+            echo "No PR creation timestamp available."
+            exit 0
+          fi
+
+          CREATED_EPOCH="$(date -d "$CREATED_AT" +%s)"
+          NOW_EPOCH="$(date -u +%s)"
+          AGE_SECONDS="$((NOW_EPOCH - CREATED_EPOCH))"
+          AGE_HOURS="$((AGE_SECONDS / 3600))"
+          echo "pr_age_hours=$AGE_HOURS"
+
+          if [ "$AGE_HOURS" -gt 24 ]; then
+            echo "::warning::PR is older than 24h. Prefer smaller/faster merges."
+          fi
+
+      - name: Enforce harness evidence for agentic PRs
+        shell: bash
+        run: |
+          BODY="${{ github.event.pull_request.body }}"
+          if [ -z "$BODY" ]; then
+            echo "PR body is empty; skipping agentic harness checks."
+            exit 0
+          fi
+
+          if ! echo "$BODY" | grep -Eq "## Agentic Change"; then
+            echo "Agentic section missing; skipping harness evidence check."
+            exit 0
+          fi
+
+          YES_COUNT="$(echo "$BODY" | grep -Eci "^[[:space:]]*-[[:space:]]*\\[[xX]\\][[:space:]]*Yes, this PR includes agentic implementation changes" || true)"
+          NO_COUNT="$(echo "$BODY" | grep -Eci "^[[:space:]]*-[[:space:]]*\\[[xX]\\][[:space:]]*No, this PR is human-only" || true)"
+
+          if [ "$YES_COUNT" -gt 0 ] && [ "$NO_COUNT" -gt 0 ]; then
+            echo "::error::Select exactly one option in 'Agentic Change' (Yes or No)."
+            exit 1
+          fi
+
+          if [ "$YES_COUNT" -lt 1 ]; then
+            echo "Agentic Change = No or unset; no harness evidence required."
+            exit 0
+          fi
+
+          SCENARIO_MATCHES="$(echo "$BODY" | grep -Eci "^[[:space:]]*-[[:space:]]*\\[[xX]\\][[:space:]]*(chat-stream|persona-switch|master-run-feedback)" || true)"
+          if [ "$SCENARIO_MATCHES" -lt 1 ]; then
+            echo "::error::Agentic PRs must reference at least one allowed harness scenario (chat-stream, persona-switch, master-run-feedback)."
+            exit 1
+          fi
+
+          EVIDENCE_LINKS="$(echo "$BODY" | grep -Eo "https://[^ )]+" | wc -l)"
+          if [ "$EVIDENCE_LINKS" -lt 1 ]; then
+            echo "::error::Agentic PRs must include at least one evidence URL for the harness scenario."
+            exit 1
+          fi
+
   lint:
-    name: Lint & Format
+    name: Typecheck + Lint + Format
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -35,10 +131,10 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Get pnpm store directory
+        id: pnpm-cache
         shell: bash
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-        id: pnpm-cache
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -51,7 +147,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run type check
+      - name: Run typecheck
         run: pnpm run typecheck
 
       - name: Run lint
@@ -61,7 +157,7 @@ jobs:
         run: pnpm run format:check
 
   test-unit:
-    name: Unit Tests
+    name: Unit + Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -77,10 +173,10 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Get pnpm store directory
+        id: pnpm-cache
         shell: bash
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-        id: pnpm-cache
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -101,16 +197,8 @@ jobs:
           restore-keys: |
             vitest-${{ runner.os }}-
 
-      - name: Run tests with coverage
-        run: pnpm run test:coverage
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 14
-          if-no-files-found: warn
+      - name: Run unit and integration tests
+        run: pnpm run test
 
   test-components:
     name: Component Tests
@@ -129,10 +217,10 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Get pnpm store directory
+        id: pnpm-cache
         shell: bash
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-        id: pnpm-cache
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -154,13 +242,36 @@ jobs:
             vitest-components-${{ runner.os }}-
 
       - name: Run component tests
-        run: pnpm exec vitest run --project=components
+        run: pnpm run test:components
+
+  architecture-guards:
+    name: Architecture Guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run architecture guard tests
+        run: pnpm run test:architecture:guards
 
   e2e-smoke:
-    name: E2E Smoke Tests
+    name: E2E Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [lint, test-unit]
+    needs: [pr-policy, lint, test-unit, architecture-guards]
+    if: always() && (needs.pr-policy.result == 'success' || needs.pr-policy.result == 'skipped')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -174,10 +285,10 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Get pnpm store directory
+        id: pnpm-cache
         shell: bash
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-        id: pnpm-cache
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -190,20 +301,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache Next.js build
-        uses: actions/cache@v4
-        with:
-          path: .next/cache
-          key: nextjs-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml', 'src/**', 'app/**') }}
-          restore-keys: |
-            nextjs-${{ runner.os }}-
-
-      - name: Build Next.js app
+      - name: Build app
         run: pnpm run build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
 
-      - name: Run deterministic e2e smoke
+      - name: Run deterministic smoke suite
         run: pnpm run test:e2e:smoke
         env:
           NODE_ENV: test

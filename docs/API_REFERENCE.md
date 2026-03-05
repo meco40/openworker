@@ -16,7 +16,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 - Basis: `/api`
 - Quelle: exportierte Methoden in `app/api/**/route.ts`
-- Anzahl Routen: 103
+- Anzahl Routen: 104
 
 ## Domain Summary
 
@@ -45,7 +45,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | personas        |      4 |
 | security        |      2 |
 | skills          |      5 |
-| stats           |      2 |
+| stats           |      3 |
 | tasks           |     11 |
 | webhooks        |      1 |
 | workspaces      |      2 |
@@ -258,6 +258,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 | Methods     | Route                  |
 | ----------- | ---------------------- |
+| GET         | /api/stats/engineering |
 | GET         | /api/stats             |
 | GET, DELETE | /api/stats/prompt-logs |
 

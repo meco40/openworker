@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { loadEnvConfig } from '@next/env';
+import { createRequire } from 'node:module';
 import BetterSqlite3 from 'better-sqlite3';
 
 import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
@@ -13,6 +13,10 @@ import {
 const DEFAULT_MESSAGES_DB_PATH = '.local/messages.db';
 const DEFAULT_PERSONAS_DB_PATH = '.local/personas.db';
 const PAGE_SIZE = 200;
+const require = createRequire(import.meta.url);
+const { loadEnvConfig } = require('@next/env') as {
+  loadEnvConfig?: (dir: string, dev?: boolean) => void;
+};
 
 interface CliOptions {
   apply: boolean;
@@ -272,7 +276,7 @@ async function collectNoiseCandidates(
 }
 
 async function main(): Promise<void> {
-  loadEnvConfig(process.cwd());
+  loadEnvConfig?.(process.cwd());
   const options = parseArgs(process.argv.slice(2));
 
   const messagesDbPath = process.env.MESSAGES_DB_PATH || DEFAULT_MESSAGES_DB_PATH;

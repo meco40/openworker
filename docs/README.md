@@ -1,6 +1,6 @@
 # Dokumentationsindex
 
-Stand: 2026-03-03
+Stand: 2026-03-04
 
 Diese Seite listet nur aktive Source-of-Truth Dokumente.
 Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
@@ -52,6 +52,12 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
 ## 6) Prozess und Planung
 
 - **[docs/SPEC_KIT.md](SPEC_KIT.md)**
+- **[docs/AGENT_ENGINEERING_INDEX.md](AGENT_ENGINEERING_INDEX.md)**
+- **[docs/ENGINEERING_OPERATING_MODEL.md](ENGINEERING_OPERATING_MODEL.md)**
+- **[docs/TECH_DEBT_REGISTER.md](TECH_DEBT_REGISTER.md)**
+- **[docs/contracts/MISSION_CONTROL_AGENT_CONTRACT.md](contracts/MISSION_CONTROL_AGENT_CONTRACT.md)**
+- **[docs/contracts/CHAT_AGENT_CONTRACT.md](contracts/CHAT_AGENT_CONTRACT.md)**
+- **[docs/runbooks/AGENT_VERIFY_HARNESS.md](runbooks/AGENT_VERIFY_HARNESS.md)**
 - **[docs/ux/gateway-config-copy-guidelines.md](ux/gateway-config-copy-guidelines.md)**
 - **[docs/plans/README.md](plans/README.md)**
 - **[docs/DOCUMENTATION_AUDIT_2026-02-21.md](DOCUMENTATION_AUDIT_2026-02-21.md)** (historischer Audit mit Addendum)
