@@ -34,6 +34,8 @@
 - 2026-03-05T08:24:09+01:00 [TOOL] Set repository secrets `ENGINEERING_INGEST_TOKEN` (new random value) and `ENGINEERING_INGEST_URL` (`https://openworker.vercel.app/api/internal/stats/engineering/snapshots`) on `meco40/openworker`; verified via `GET /actions/secrets`.
 - 2026-03-05T08:27:07+01:00 [TOOL] Rotated `ENGINEERING_INGEST_TOKEN` again and synchronized it between GitHub Actions secret and local runtime env files (`.env`, `.env.local`) so workflow and server can share one token value.
 - 2026-03-05T08:28:43+01:00 [TOOL] Enabled `ENGINEERING_INGEST_ENABLED=1` in GitHub Actions repo variables for `meco40/openworker` and verified via `GET /actions/variables/ENGINEERING_INGEST_ENABLED`.
+- 2026-03-05T08:55:38+01:00 [CODE] Fixed async browser harness regression by updating `tests/e2e/browser/mission-control-run-feedback.spec.ts` to resolve a valid Master scope (`personaId`, `workspaceId`) before run create/start/patch/feedback calls.
+- 2026-03-05T08:55:38+01:00 [TOOL] Local verification after fix: `pnpm run check` passed and targeted integration suite (`tests/integration/master/master-runs-route.test.ts`, `tests/integration/master/master-feedback-route.test.ts`) passed.
 
 [DISCOVERIES]
 
@@ -56,6 +58,8 @@
 - 2026-03-05T08:20:23+01:00 [TOOL] Repository had zero configured Actions secrets/variables before rollout; ingest remains disabled because `ENGINEERING_INGEST_URL` and `ENGINEERING_INGEST_TOKEN` are not provisioned.
 - 2026-03-05T08:24:09+01:00 [ASSUMPTION] `ENGINEERING_INGEST_URL` was set to `openworker.vercel.app` endpoint as best-available public domain signal; live ingest still requires matching `ENGINEERING_INGEST_TOKEN` in deployed app runtime environment.
 - 2026-03-05T08:28:43+01:00 [TOOL] `engineering-metrics-snapshot.yml` is not present on GitHub default branch yet (`gh workflow run ...` returns 404); current remote workflow inventory differs from local Harness Wave 2 files.
+- 2026-03-05T08:55:38+01:00 [CODE] Browser E2E failure on CI (`mission-control-run-feedback`) is caused by a contract mismatch: Master run routes now require explicit scope fields (`personaId`, `workspaceId`), and the old test payload omitted them, yielding HTTP 400.
+- 2026-03-05T08:55:38+01:00 [TOOL] Local Playwright reproduction is currently blocked by a broken pnpm junction for `@next/env` (`MODULE_NOT_FOUND`) under Node v24; CI with fresh install remains the authoritative runtime for browser-e2e validation.
 
 [OUTCOMES]
 
@@ -77,3 +81,4 @@
 - 2026-03-05T08:24:09+01:00 [TOOL] Ingest secrets are now present in GitHub Actions, removing the prior secret-blocker for enabling snapshot ingest workflow calls.
 - 2026-03-05T08:27:07+01:00 [TOOL] Token synchronization step completed: `ENGINEERING_INGEST_TOKEN` is present in `.env` and `.env.local`, and repo secret `ENGINEERING_INGEST_TOKEN` shows updated timestamp in GitHub.
 - 2026-03-05T08:28:43+01:00 [TOOL] Ingest feature flag is now active in repo settings, but runtime validation is blocked until Harness Wave 2 workflow files are pushed to `main`.
+- 2026-03-05T08:55:38+01:00 [CODE] Mission-control browser harness scenario now aligns with current API scope invariants and should no longer fail with 400 on `POST /api/master/runs` in async CI.
