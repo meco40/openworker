@@ -73,12 +73,24 @@ export async function executeMasterRunFlow(input: {
     }
 
     const control = buildCapabilityControl(capability, latest);
+    const toolName =
+      capability === 'system_ops'
+        ? 'shell_execute'
+        : capability === 'code_generation'
+          ? 'write'
+          : capability;
+    const targetContext =
+      control.filePath ??
+      (capability === 'system_ops' ? (scope.workspaceCwd ?? scope.workspaceId) : 'create');
     const approval = resolveRuntimeApproval({
       repo,
       scope,
       actionType: control.actionType,
       fingerprint: control.fingerprint,
       requiresApproval: control.requiresApproval,
+      toolName,
+      host: 'gateway',
+      targetContext,
     });
 
     if (approval.decision === 'awaiting_approval') {
@@ -95,12 +107,7 @@ export async function executeMasterRunFlow(input: {
           resolvedPath: control.filePath ?? null,
           fingerprint: approval.fingerprint,
           riskLevel: control.requiresApproval ? 'high' : 'medium',
-          toolName:
-            capability === 'system_ops'
-              ? 'shell_execute'
-              : capability === 'code_generation'
-                ? 'write'
-                : capability,
+          toolName,
         });
       }
       repo.updateRun(scope, runId, {

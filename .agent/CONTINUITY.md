@@ -18,6 +18,8 @@
 
 ## [DECISIONS]
 
+- 2026-03-06T15:11:34Z [CODE] Operator tool policy is now enforced in the runtime approval gate, not just persisted for UI/settings; effective decisions are `deny`, `ask`, or `allow` based on security mode, ask mode, host-aware allowlist matching, and the existing approval flow.
+- 2026-03-06T15:11:34Z [CODE] Subagent pool completion/failure paths must preserve an already-cancelled session and refresh session leases on an interval while work is still running; cancellation is treated as authoritative over later worker completion.
 - 2026-03-06T11:40:26Z [CODE] Review-gap closure keeps the new generic runtime contract and updates tests to that contract instead of restoring legacy `dispatchSkill(...)` assertions; capability execution now standardizes on `runTool(...)` plus tool-name requests.
 - 2026-03-06T11:40:26Z [CODE] Master runtime/unit tests that provision the system persona should use an explicit `PersonaRepository` when isolation matters, rather than the singleton `getPersonaRepository()` path, to avoid cross-test slug collisions in full-suite runs.
 - 2026-03-06T12:05:00Z [CODE] Operator live updates use a dedicated Master SSE endpoint (`/api/master/events`) for snapshot-style change notifications, while HTTP remains the authoritative read/write surface and the UI falls back to guarded polling when SSE is unavailable.
@@ -46,6 +48,8 @@
 
 ## [PROGRESS]
 
+- 2026-03-06T15:11:34Z [CODE] Merged the parity worktree commit onto local `main`, then closed the last review findings directly on `main`: runtime approval now consumes persisted tool policy, approval/subagent UI fetches degrade to empty lists when feature-gated routes return `404`, and subagent pool execution now heartbeats leases and preserves cancelled sessions/jobs.
+- 2026-03-06T15:11:34Z [TOOL] Re-ran repository gates after the post-merge fixes: `pnpm run typecheck`, `pnpm run lint`, `pnpm run test`, `pnpm run check`, and `pnpm run build` all pass on local `main`.
 - 2026-03-06T11:40:26Z [CODE] Closed the remaining post-review parity gaps: approval routes now expose UI-compatible payload aliases and flag gating, capability execution is wired through `runTool(...)`, approval persistence is created from execution flow, run leases now heartbeat during execution, subagent/session routes honor rollout flags, and SSE clients subscribe to named `snapshot` events with polling fallback preserved.
 - 2026-03-06T11:40:26Z [CODE] Updated the affected contract tests to match the new runtime architecture and fixed the SSE hook test stub to implement `addEventListener/removeEventListener`; isolated the `tool-runner` test from the global persona singleton to remove full-suite slug collisions.
 - 2026-03-06T11:40:26Z [TOOL] Re-verified the review-gap fixes with targeted `typecheck` and focused Vitest suites, then a full `pnpm run test`, `pnpm run check`, and `pnpm run build`.
@@ -98,6 +102,8 @@
 
 ## [DISCOVERIES]
 
+- 2026-03-06T15:11:34Z [CODE] The initial fixed-sleep heartbeat assertion in `tests/unit/master/master-subagent-pool.test.ts` was flaky under full-suite load because `completeSubagentSession(...)` clears `heartbeatAt`; the durable assertion is to wait for a `running` session heartbeat to advance before completion rather than sampling at fixed milliseconds.
+- 2026-03-06T15:11:34Z [TOOL] `pnpm run check` surfaced Prettier drift on the post-review files even after green `typecheck`/`lint`/`test`; formatting those touched files and rerunning the full gate was required before the branch was genuinely ready to push.
 - 2026-03-06T11:40:26Z [CODE] The new named SSE contract (`event: snapshot`) requires test doubles to implement `addEventListener/removeEventListener`; using only `onmessage` is insufficient once the hook subscribes to the named event channel.
 - 2026-03-06T11:40:26Z [CODE] `tests/unit/master/execution-runtime/runtime-modularization-contract.test.ts` was asserting the old `dispatchSkill(...)` architecture and needed to be updated to the generic `runTool(...)` contract to reflect the implemented runtime rather than pinning the old design in place.
 - 2026-03-06T12:05:00Z [TOOL] `pnpm run test` needed a longer execution window in this worktree; the earlier 120s shell timeout caused an `EPIPE` from truncated Vitest output even though the full suite passes when allowed to complete.
@@ -130,6 +136,8 @@
 
 ## [OUTCOMES]
 
+- 2026-03-06T15:11:34Z [CODE] Local `main` now contains the parity rollout commit plus the final enforcement/stability fixes: tool policy is runtime-effective, subagent cancellations are stable, subagent leases heartbeat while running, and feature-gated Master UI fetches no longer fail hard on disabled routes.
+- 2026-03-06T15:11:34Z [TOOL] Final local verification on `main` is green after the final fixes: `typecheck`, `lint`, `test` (539 files / 2500 tests), `check`, and `build`.
 - 2026-03-06T11:40:26Z [CODE] The previously identified review gaps are now closed in the parity worktree: Approval UI/API payloads align, generic tool execution is on the real runtime path, run lease heartbeats are periodic, rollout flags gate the new surfaces, and the SSE hook/test contract matches the implemented named-event transport.
 - 2026-03-06T11:40:26Z [TOOL] Final verification after gap-closure is green: `typecheck`, `lint`, `test` (537 files / 2494 tests), `check`, and `build`.
 - 2026-03-06T12:05:00Z [CODE] The Master autonomy parity rollout is now implemented in the isolated worktree: persistent approvals and tool policy, leased run execution, durable subagent sessions, reminder lifecycle callbacks, operator SSE/polling UX, rollout flags, observability metrics, and rollout/docs surfaces are present together.

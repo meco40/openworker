@@ -8,12 +8,18 @@ import {
   syncSubagentSessionHeartbeat,
 } from '@/server/master/delegation/sessionService';
 
+interface SubagentPoolOptions {
+  heartbeatIntervalMs?: number;
+  leaseMs?: number;
+}
+
 export class SubagentPool {
   private readonly ownerId = `subagent-pool:${process.pid}`;
 
   constructor(
     private readonly repo: MasterRepository,
     private readonly inbox: DelegationInbox,
+    private readonly options: SubagentPoolOptions = {},
   ) {}
 
   async execute(
@@ -23,22 +29,49 @@ export class SubagentPool {
     sessionId: string | null,
     task: () => Promise<{ output: string; confidence?: number }>,
   ): Promise<void> {
+    const leaseMs = this.options.leaseMs ?? 30_000;
+    const heartbeatIntervalMs = this.options.heartbeatIntervalMs ?? 10_000;
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    const syncHeartbeat = () => {
+      if (!sessionId) return;
+      const updated = syncSubagentSessionHeartbeat(this.repo, scope, sessionId, {
+        ownerId: this.ownerId,
+        leaseMs,
+      });
+      if (!updated && heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+    };
+
     if (sessionId) {
-      claimSubagentSession(this.repo, scope, sessionId, { ownerId: this.ownerId });
+      claimSubagentSession(this.repo, scope, sessionId, { ownerId: this.ownerId, leaseMs });
     }
     this.repo.updateDelegationJob(scope, jobId, { status: 'running' });
     this.inbox.publish(scope, runId, jobId, 'progress', { stage: 'running' });
     if (sessionId) {
-      syncSubagentSessionHeartbeat(this.repo, scope, sessionId, { ownerId: this.ownerId });
+      syncHeartbeat();
+      heartbeatTimer = setInterval(syncHeartbeat, heartbeatIntervalMs);
+      heartbeatTimer.unref?.();
     }
     try {
       const result = await task();
+      const session = sessionId ? this.repo.getSubagentSession(scope, sessionId) : null;
+      if (session?.status === 'cancelled') {
+        this.repo.updateDelegationJob(scope, jobId, { status: 'cancelled' });
+        return;
+      }
       this.repo.updateDelegationJob(scope, jobId, { status: 'completed' });
       this.inbox.publish(scope, runId, jobId, 'result', result);
       if (sessionId) {
         completeSubagentSession(this.repo, scope, sessionId, result.output);
       }
     } catch (error) {
+      const session = sessionId ? this.repo.getSubagentSession(scope, sessionId) : null;
+      if (session?.status === 'cancelled') {
+        this.repo.updateDelegationJob(scope, jobId, { status: 'cancelled' });
+        return;
+      }
       const message = error instanceof Error ? error.message : 'subagent execution failed';
       this.repo.updateDelegationJob(scope, jobId, {
         status: 'failed',
@@ -51,6 +84,10 @@ export class SubagentPool {
         failSubagentSession(this.repo, scope, sessionId, message);
       }
       throw error;
+    } finally {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+      }
     }
   }
 }

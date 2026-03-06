@@ -175,9 +175,11 @@ export async function fetchApprovalRequests(
 ): Promise<MasterApprovalRequest[]> {
   const params = buildScopeParams(workspaceId, personaId);
   if (runId) params.set('runId', runId);
-  const payload = await parseOkJson<{ approvals?: MasterApprovalRequest[] }>(
-    await fetch(`/api/master/approvals?${params.toString()}`, { cache: 'no-store' }),
-  );
+  const response = await fetch(`/api/master/approvals?${params.toString()}`, { cache: 'no-store' });
+  if (response.status === 404) {
+    return [];
+  }
+  const payload = await parseOkJson<{ approvals?: MasterApprovalRequest[] }>(response);
   return payload.approvals ?? [];
 }
 
@@ -248,9 +250,11 @@ export async function fetchSubagentSessions(
 ): Promise<MasterSubagentSession[]> {
   const params = buildScopeParams(workspaceId, personaId);
   if (runId) params.set('runId', runId);
-  const payload = await parseOkJson<{ sessions?: MasterSubagentSession[] }>(
-    await fetch(`/api/master/subagents?${params.toString()}`, { cache: 'no-store' }),
-  );
+  const response = await fetch(`/api/master/subagents?${params.toString()}`, { cache: 'no-store' });
+  if (response.status === 404) {
+    return [];
+  }
+  const payload = await parseOkJson<{ sessions?: MasterSubagentSession[] }>(response);
   return payload.sessions ?? [];
 }
 

@@ -2,6 +2,7 @@ import type { MasterRepository } from '@/server/master/repository';
 import type { WorkspaceScope } from '@/server/master/types';
 import { consumeApprovedApprovalRequest } from '@/server/master/approvals/service';
 import { isMasterApprovalControlPlaneEnabled } from '@/server/master/featureFlags';
+import { resolveToolPolicy } from '@/server/master/toolPolicy/service';
 
 export type ApprovalGateDecision = 'allowed' | 'awaiting_approval' | 'denied';
 
@@ -32,10 +33,32 @@ export function resolveRuntimeApproval(input: {
   actionType: string;
   fingerprint?: string;
   requiresApproval: boolean;
+  toolName?: string;
+  host?: 'sandbox' | 'gateway' | null;
+  targetContext?: string | null;
 }): RuntimeApprovalResolution {
   const actionType = String(input.actionType || '').trim();
   const fingerprint = String(input.fingerprint || actionType).trim() || actionType;
-  if (!input.requiresApproval) {
+  const toolPolicy = resolveToolPolicy({
+    repo: input.repo,
+    scope: input.scope,
+    actionType,
+    toolName: input.toolName,
+    host: input.host,
+    targetContext: input.targetContext,
+    fingerprint,
+  });
+  if (toolPolicy.decision === 'deny') {
+    return {
+      decision: 'denied',
+      actionType,
+      fingerprint,
+      reason: toolPolicy.reason ?? `Action denied by tool policy: ${actionType}`,
+    };
+  }
+
+  const requiresApproval = input.requiresApproval || toolPolicy.decision === 'ask';
+  if (!requiresApproval) {
     return { decision: 'allowed', actionType, fingerprint };
   }
 
@@ -75,6 +98,6 @@ export function resolveRuntimeApproval(input: {
     decision: 'awaiting_approval',
     actionType,
     fingerprint,
-    reason: `Approval required for ${actionType} (${fingerprint}).`,
+    reason: toolPolicy.reason ?? `Approval required for ${actionType} (${fingerprint}).`,
   };
 }

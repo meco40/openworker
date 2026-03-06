@@ -8,6 +8,7 @@ import {
   clearOneTimeApprovalsForTests,
   resolveRuntimeApproval,
 } from '@/server/master/execution/approvalPolicy';
+import { saveToolPolicy } from '@/server/master/toolPolicy/service';
 
 describe('master runtime approval policy', () => {
   it('requires approval when no persistent or one-time decision exists', () => {
@@ -76,5 +77,63 @@ describe('master runtime approval policy', () => {
 
     repo.close();
     clearOneTimeApprovalsForTests();
+  });
+
+  it('denies runtime actions when operator tool policy security is deny', () => {
+    const repo = new SqliteMasterRepository(':memory:');
+    const scope = { userId: 'u1', workspaceId: 'w1' };
+    saveToolPolicy({
+      repo,
+      scope,
+      policy: {
+        security: 'deny',
+        ask: 'off',
+        allowlist: [],
+        updatedBy: 'operator-user',
+      },
+    });
+
+    const result = resolveRuntimeApproval({
+      repo,
+      scope,
+      actionType: 'shell.exec',
+      fingerprint: 'shell.exec',
+      requiresApproval: false,
+      toolName: 'shell_execute',
+      host: 'gateway',
+      targetContext: 'D:/web/clawtest',
+    });
+
+    expect(result.decision).toBe('denied');
+    repo.close();
+  });
+
+  it('requires approval when operator allowlist misses and ask is on_miss', () => {
+    const repo = new SqliteMasterRepository(':memory:');
+    const scope = { userId: 'u1', workspaceId: 'w1' };
+    saveToolPolicy({
+      repo,
+      scope,
+      policy: {
+        security: 'allowlist',
+        ask: 'on_miss',
+        allowlist: ['shell.exec:gateway:D:/safe/workspace:*'],
+        updatedBy: 'operator-user',
+      },
+    });
+
+    const result = resolveRuntimeApproval({
+      repo,
+      scope,
+      actionType: 'shell.exec',
+      fingerprint: 'shell.exec',
+      requiresApproval: false,
+      toolName: 'shell_execute',
+      host: 'gateway',
+      targetContext: 'D:/other/workspace',
+    });
+
+    expect(result.decision).toBe('awaiting_approval');
+    repo.close();
   });
 });
