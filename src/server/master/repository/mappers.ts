@@ -1,5 +1,6 @@
 import type {
   MasterActionLedgerEntry,
+  MasterApprovalRequest,
   MasterAuditEvent,
   MasterCapabilityProposal,
   MasterCapabilityScore,
@@ -11,6 +12,8 @@ import type {
   MasterReminder,
   MasterRun,
   MasterStep,
+  MasterSubagentSession,
+  MasterToolPolicy,
   MasterToolForgeArtifact,
   WorkspaceScope,
 } from '@/server/master/types';
@@ -36,6 +39,9 @@ export function toRun(row: Record<string, unknown>): MasterRun {
       : null,
     cancelledAt: row.cancelled_at ? String(row.cancelled_at) : null,
     cancelReason: row.cancel_reason ? String(row.cancel_reason) : null,
+    ownerId: row.owner_id ? String(row.owner_id) : null,
+    leaseExpiresAt: row.lease_expires_at ? String(row.lease_expires_at) : null,
+    heartbeatAt: row.heartbeat_at ? String(row.heartbeat_at) : null,
   };
 }
 
@@ -139,6 +145,70 @@ export function toActionLedgerEntry(row: Record<string, unknown>): MasterActionL
     idempotencyKey: String(row.idempotency_key),
     state: row.state as MasterActionLedgerEntry['state'],
     resultPayload: row.result_payload ? String(row.result_payload) : null,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export function toApprovalRequest(row: Record<string, unknown>): MasterApprovalRequest {
+  return {
+    id: String(row.id),
+    runId: String(row.run_id),
+    stepId: String(row.step_id),
+    userId: String(row.user_id),
+    workspaceId: String(row.workspace_id),
+    toolName: String(row.tool_name),
+    actionType: String(row.action_type),
+    summary: String(row.summary),
+    prompt: String(row.prompt),
+    host:
+      row.host === 'gateway' || row.host === 'sandbox'
+        ? (row.host as MasterApprovalRequest['host'])
+        : null,
+    cwd: row.cwd ? String(row.cwd) : null,
+    resolvedPath: row.resolved_path ? String(row.resolved_path) : null,
+    fingerprint: String(row.fingerprint),
+    riskLevel: row.risk_level as MasterApprovalRequest['riskLevel'],
+    status: row.status as MasterApprovalRequest['status'],
+    expiresAt: String(row.expires_at),
+    decision: (row.decision as MasterApprovalRequest['decision']) ?? null,
+    decisionReason: row.decision_reason ? String(row.decision_reason) : null,
+    decidedAt: row.decided_at ? String(row.decided_at) : null,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export function toToolPolicy(row: Record<string, unknown>): MasterToolPolicy {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    workspaceId: String(row.workspace_id),
+    security: row.security as MasterToolPolicy['security'],
+    ask: row.ask as MasterToolPolicy['ask'],
+    allowlist: parseJsonArray(row.allowlist),
+    updatedBy: row.updated_by ? String(row.updated_by) : null,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export function toSubagentSession(row: Record<string, unknown>): MasterSubagentSession {
+  return {
+    id: String(row.id),
+    runId: String(row.run_id),
+    userId: String(row.user_id),
+    workspaceId: String(row.workspace_id),
+    status: row.status as MasterSubagentSession['status'],
+    title: String(row.title),
+    prompt: String(row.prompt),
+    assignedTools: parseJsonArray(row.assigned_tools),
+    ownerId: row.owner_id ? String(row.owner_id) : null,
+    leaseExpiresAt: row.lease_expires_at ? String(row.lease_expires_at) : null,
+    heartbeatAt: row.heartbeat_at ? String(row.heartbeat_at) : null,
+    latestEventAt: row.latest_event_at ? String(row.latest_event_at) : null,
+    resultSummary: row.result_summary ? String(row.result_summary) : null,
+    lastError: row.last_error ? String(row.last_error) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };

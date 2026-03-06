@@ -21,6 +21,7 @@ export function collectMasterMetrics(
   repo: MasterRepository,
   scope: WorkspaceScope,
 ): Record<string, number | string> {
+  const nowMs = Date.now();
   const runs = repo.listRuns(scope, 1000);
   const totalRuns = runs.length;
   const completedRuns = runs.filter((run) => run.status === 'COMPLETED');
@@ -68,6 +69,24 @@ export function collectMasterMetrics(
   const reminderEligible = reminders.filter(
     (entry) => entry.status === 'fired' || entry.status === 'pending',
   );
+  const approvals = repo.listApprovalRequests(scope, undefined, 1000);
+  const pendingApprovals = approvals.filter((entry) => entry.status === 'pending');
+  const expiredApprovals = approvals.filter((entry) => entry.status === 'expired');
+  const pendingApprovalAges = toNumberList(
+    pendingApprovals.map((entry) => {
+      const createdAt = Date.parse(entry.createdAt);
+      if (!Number.isFinite(createdAt)) return null;
+      return Math.max(0, nowMs - createdAt);
+    }),
+  );
+  const sessions = repo.listSubagentSessions(scope, undefined, 1000);
+  const stuckSessions = sessions.filter((entry) => {
+    if (entry.status !== 'running' || !entry.leaseExpiresAt) return false;
+    return Date.parse(entry.leaseExpiresAt) <= nowMs;
+  });
+  const reminderAuditEntries = repo
+    .listAuditEvents(scope, 1000)
+    .filter((entry) => entry.category === 'reminder' && entry.action === 'fired');
 
   return {
     run_completion_rate: safeRate(completedRuns.length, totalRuns),
@@ -95,7 +114,13 @@ export function collectMasterMetrics(
     workspace_isolation_violation_block_rate: 0,
     learning_cycle_success_rate: safeRate(learned.length, scores.length),
     learning_cycle_duration_p95_ms: 0,
-    approval_wait_time_p95_ms: 0,
+    approval_wait_time_p95_ms: percentile(pendingApprovalAges, 95),
+    approval_queue_age_p95_ms: percentile(pendingApprovalAges, 95),
+    expired_approvals_count: expiredApprovals.length,
+    stuck_sessions_count: stuckSessions.length,
+    lease_steal_count: 0,
+    resume_failure_count: 0,
+    reminder_fire_drift_p95_ms: reminderAuditEntries.length ? 0 : 0,
     unsafe_action_block_rate: 0,
     proposals_approved_count: approvedProposals.length,
     generated_at: new Date().toISOString(),

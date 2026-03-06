@@ -30,6 +30,9 @@ export interface MasterRun {
   pendingApprovalActionType: string | null;
   cancelledAt: string | null;
   cancelReason: string | null;
+  ownerId: string | null;
+  leaseExpiresAt: string | null;
+  heartbeatAt: string | null;
 }
 
 export interface MasterStep {
@@ -134,6 +137,61 @@ export interface MasterApprovalRule {
   updatedAt: string;
 }
 
+export interface MasterApprovalRequest {
+  id: string;
+  runId: string;
+  stepId: string;
+  userId: string;
+  workspaceId: string;
+  toolName: string;
+  actionType: string;
+  summary: string;
+  prompt: string;
+  host: 'sandbox' | 'gateway' | null;
+  cwd: string | null;
+  resolvedPath: string | null;
+  fingerprint: string;
+  riskLevel: 'low' | 'medium' | 'high';
+  status: 'pending' | 'approved' | 'denied' | 'expired';
+  expiresAt: string;
+  decision: ApprovalDecision | null;
+  decisionReason: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MasterToolPolicy {
+  id: string;
+  userId: string;
+  workspaceId: string;
+  security: 'deny' | 'allowlist' | 'full';
+  ask: 'off' | 'on_miss' | 'always';
+  allowlist: string[];
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MasterSubagentSession {
+  id: string;
+  runId: string;
+  userId: string;
+  workspaceId: string;
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+  title: string;
+  prompt: string;
+  assignedTools: string[];
+  ownerId: string | null;
+  leaseExpiresAt: string | null;
+  heartbeatAt: string | null;
+  latestEventAt: string | null;
+  resultSummary: string | null;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface MasterCapabilityScore {
   id: string;
   userId: string;
@@ -207,14 +265,6 @@ export interface MasterRunCreateInput {
 export interface WorkspaceScope {
   userId: string;
   workspaceId: string;
-}
-
-export interface MasterApprovalRequest {
-  runId: string;
-  stepId: string;
-  actionType: string;
-  fingerprint: string;
-  prompt: string;
 }
 
 export interface TriggerPolicyDecision {

@@ -13,14 +13,22 @@ import type {
   MasterMetrics,
   MasterPersonaSummary,
   MasterSettingsSnapshot,
+  MasterApprovalRequest,
+  MasterSubagentSession,
+  MasterReminder,
   SaveMasterSettingsInput,
   StatusMessage,
   ApprovalDecision,
   WorkspaceSummary,
 } from '@/modules/master/types';
 import {
+  createMasterEventsUrl,
+  decideApprovalRequest,
+  fetchApprovalRequests,
   fetchMasterPersonas,
   fetchMasterSettings,
+  fetchReminders,
+  fetchSubagentSessions,
   fetchWorkspaces,
   fetchRuns,
   fetchMetrics,
@@ -28,6 +36,7 @@ import {
   cancelRun as apiCancelRun,
   createRun as apiCreateRun,
   isMasterSystemPersonaDisabledError,
+  parseMasterEventMessage,
   postRunAction,
   saveMasterSettings as apiSaveMasterSettings,
   submitFeedback as apiSubmitFeedback,
@@ -86,6 +95,9 @@ export interface UseMasterViewResult {
   availablePersonas: MasterPersonaSummary[];
   workspaces: WorkspaceSummary[];
   runs: MasterRun[];
+  approvalRequests: MasterApprovalRequest[];
+  subagentSessions: MasterSubagentSession[];
+  reminders: MasterReminder[];
   paginatedRuns: MasterRun[];
   runsPage: number;
   totalRunPages: number;
@@ -93,11 +105,13 @@ export interface UseMasterViewResult {
   selectedRunDetail: RunDetail | null;
   metrics: MasterMetrics | null;
   exportBundle: { data: string; runId: string } | null;
+  eventsConnected: boolean;
   // UI state
   loading: boolean;
   loadingAction: LoadingAction;
   statusMessage: StatusMessage | null;
   hasActiveRuns: boolean;
+  hasPendingApprovals: boolean;
   // Form state
   selectedPersonaId: string;
   workspaceId: string;
@@ -117,6 +131,7 @@ export interface UseMasterViewResult {
   exportRun: (runId: string) => Promise<void>;
   cancelRun: (runId: string) => Promise<void>;
   submitDecision: (actionType: string, decision: ApprovalDecision) => Promise<void>;
+  decideApproval: (approvalRequestId: string, decision: ApprovalDecision) => Promise<void>;
   submitFeedback: (input: SubmitFeedbackInput) => Promise<SubmitFeedbackResult>;
   saveSettings: (input: SaveMasterSettingsInput) => Promise<void>;
   dismissExportBundle: () => void;
@@ -142,6 +157,9 @@ export function useMasterView(): UseMasterViewResult {
   const [runTitle, setRunTitle] = useState('New Master Contract');
   const [runContract, setRunContract] = useState('');
   const [runs, setRuns] = useState<MasterRun[]>([]);
+  const [approvalRequests, setApprovalRequests] = useState<MasterApprovalRequest[]>([]);
+  const [subagentSessions, setSubagentSessions] = useState<MasterSubagentSession[]>([]);
+  const [reminders, setReminders] = useState<MasterReminder[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<MasterMetrics | null>(null);
   const [loadingAction, setLoadingAction] = useState<LoadingAction>(null);
@@ -149,6 +167,7 @@ export function useMasterView(): UseMasterViewResult {
   const [exportBundle, setExportBundle] = useState<{ data: string; runId: string } | null>(null);
   const [runsPage, setRunsPage] = useState(0);
   const [selectedRunDetail, setSelectedRunDetail] = useState<RunDetail | null>(null);
+  const [eventsConnected, setEventsConnected] = useState(false);
 
   // Ref to avoid stale closure over selectedRunId in refreshAll
   const selectedRunIdRef = useRef<string | null>(null);
@@ -157,6 +176,9 @@ export function useMasterView(): UseMasterViewResult {
   const runsAbortRef = useRef<AbortController | null>(null);
   const metricsAbortRef = useRef<AbortController | null>(null);
   const detailAbortRef = useRef<AbortController | null>(null);
+  const approvalsAbortRef = useRef<AbortController | null>(null);
+  const sessionsAbortRef = useRef<AbortController | null>(null);
+  const remindersAbortRef = useRef<AbortController | null>(null);
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -190,6 +212,9 @@ export function useMasterView(): UseMasterViewResult {
       runsAbortRef.current?.abort();
       metricsAbortRef.current?.abort();
       detailAbortRef.current?.abort();
+      approvalsAbortRef.current?.abort();
+      sessionsAbortRef.current?.abort();
+      remindersAbortRef.current?.abort();
     };
   }, []);
 
@@ -201,6 +226,10 @@ export function useMasterView(): UseMasterViewResult {
   );
 
   const hasActiveRuns = useMemo(() => runs.some((r) => ACTIVE_RUN_STATUSES.has(r.status)), [runs]);
+  const hasPendingApprovals = useMemo(
+    () => approvalRequests.some((request) => request.status === 'pending'),
+    [approvalRequests],
+  );
   const hasTransitioningRuns = useMemo(
     () => runs.some((r) => TRANSITIONING_RUN_STATUSES.has(r.status)),
     [runs],
@@ -252,6 +281,60 @@ export function useMasterView(): UseMasterViewResult {
     [],
   );
 
+  const loadApprovalRequests = useCallback(
+    async (personaId: string, workspace: string, scopeToken: number) => {
+      approvalsAbortRef.current?.abort();
+      const controller = new AbortController();
+      approvalsAbortRef.current = controller;
+      try {
+        const nextApprovals = await fetchApprovalRequests(workspace, personaId);
+        if (scopeToken !== scopeTokenRef.current) return;
+        setApprovalRequests(nextApprovals);
+      } finally {
+        if (approvalsAbortRef.current === controller) {
+          approvalsAbortRef.current = null;
+        }
+      }
+    },
+    [],
+  );
+
+  const loadSubagentSessions = useCallback(
+    async (personaId: string, workspace: string, scopeToken: number) => {
+      sessionsAbortRef.current?.abort();
+      const controller = new AbortController();
+      sessionsAbortRef.current = controller;
+      try {
+        const nextSessions = await fetchSubagentSessions(workspace, personaId);
+        if (scopeToken !== scopeTokenRef.current) return;
+        setSubagentSessions(nextSessions);
+      } finally {
+        if (sessionsAbortRef.current === controller) {
+          sessionsAbortRef.current = null;
+        }
+      }
+    },
+    [],
+  );
+
+  const loadReminders = useCallback(
+    async (personaId: string, workspace: string, scopeToken: number) => {
+      remindersAbortRef.current?.abort();
+      const controller = new AbortController();
+      remindersAbortRef.current = controller;
+      try {
+        const nextReminders = await fetchReminders(workspace, personaId);
+        if (scopeToken !== scopeTokenRef.current) return;
+        setReminders(nextReminders);
+      } finally {
+        if (remindersAbortRef.current === controller) {
+          remindersAbortRef.current = null;
+        }
+      }
+    },
+    [],
+  );
+
   const loadRunDetail = useCallback(
     async (runId: string, personaId: string, workspace: string, scopeToken: number) => {
       detailAbortRef.current?.abort();
@@ -281,6 +364,9 @@ export function useMasterView(): UseMasterViewResult {
       await Promise.all([
         loadRuns(selectedPersonaId, workspaceId, scopeToken),
         loadMetrics(selectedPersonaId, workspaceId, scopeToken),
+        loadApprovalRequests(selectedPersonaId, workspaceId, scopeToken),
+        loadSubagentSessions(selectedPersonaId, workspaceId, scopeToken),
+        loadReminders(selectedPersonaId, workspaceId, scopeToken),
       ]);
       // Refresh selected run detail (uses ref to avoid stale closure)
       const currentRunId = selectedRunIdRef.current;
@@ -295,7 +381,17 @@ export function useMasterView(): UseMasterViewResult {
       refreshInFlightRef.current = false;
       setLoadingAction(null);
     }
-  }, [loadMetrics, loadRunDetail, loadRuns, selectedPersonaId, workspaceId, showStatus]);
+  }, [
+    loadApprovalRequests,
+    loadMetrics,
+    loadReminders,
+    loadRunDetail,
+    loadRuns,
+    loadSubagentSessions,
+    selectedPersonaId,
+    workspaceId,
+    showStatus,
+  ]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -400,22 +496,17 @@ export function useMasterView(): UseMasterViewResult {
     [refreshAll, selectedPersonaId, workspaceId, showStatus],
   );
 
-  const submitDecision = useCallback(
-    async (actionType: string, decision: ApprovalDecision) => {
-      if (!selectedRunId) {
-        showStatus({ tone: 'error', text: 'Select a run first.' });
-        return;
-      }
+  const decideApproval = useCallback(
+    async (approvalRequestId: string, decision: ApprovalDecision) => {
       setLoadingAction('deciding');
       try {
-        await postRunAction(selectedRunId, {
-          actionType,
+        await decideApprovalRequest({
+          approvalRequestId,
           decision,
-          stepId: `approval-${Date.now()}`,
           workspaceId,
           personaId: selectedPersonaId,
         });
-        showStatus({ tone: 'success', text: `Decision applied: ${decision} for ${actionType}.` });
+        showStatus({ tone: 'success', text: `Decision applied: ${decision}.` });
         await refreshAll();
       } catch (error) {
         showStatus({ tone: 'error', text: toErrorMessage(error) });
@@ -423,7 +514,24 @@ export function useMasterView(): UseMasterViewResult {
         setLoadingAction(null);
       }
     },
-    [selectedPersonaId, selectedRunId, refreshAll, workspaceId, showStatus],
+    [refreshAll, selectedPersonaId, workspaceId, showStatus],
+  );
+
+  const submitDecision = useCallback(
+    async (actionType: string, decision: ApprovalDecision) => {
+      const pendingRequest = approvalRequests.find(
+        (request) =>
+          request.status === 'pending' &&
+          request.runId === selectedRunId &&
+          request.actionType === actionType,
+      );
+      if (!pendingRequest) {
+        showStatus({ tone: 'error', text: 'No matching approval request found.' });
+        return;
+      }
+      await decideApproval(pendingRequest.id, decision);
+    },
+    [approvalRequests, decideApproval, selectedRunId, showStatus],
   );
 
   const submitFeedback = useCallback(
@@ -543,7 +651,35 @@ export function useMasterView(): UseMasterViewResult {
         showStatus({ tone: 'error', text: toErrorMessage(error) });
       }
     });
-  }, [selectedPersonaId, workspaceId, loadRuns, loadMetrics, showStatus]);
+    void loadApprovalRequests(selectedPersonaId, workspaceId, scopeToken).catch(
+      (error: unknown) => {
+        if (!isAbortError(error)) {
+          showStatus({ tone: 'error', text: toErrorMessage(error) });
+        }
+      },
+    );
+    void loadSubagentSessions(selectedPersonaId, workspaceId, scopeToken).catch(
+      (error: unknown) => {
+        if (!isAbortError(error)) {
+          showStatus({ tone: 'error', text: toErrorMessage(error) });
+        }
+      },
+    );
+    void loadReminders(selectedPersonaId, workspaceId, scopeToken).catch((error: unknown) => {
+      if (!isAbortError(error)) {
+        showStatus({ tone: 'error', text: toErrorMessage(error) });
+      }
+    });
+  }, [
+    selectedPersonaId,
+    workspaceId,
+    loadApprovalRequests,
+    loadMetrics,
+    loadReminders,
+    loadRuns,
+    loadSubagentSessions,
+    showStatus,
+  ]);
 
   // Keep a stable ref to refreshAll so the polling interval never needs to
   // be recreated when refreshAll's identity changes.
@@ -552,16 +688,45 @@ export function useMasterView(): UseMasterViewResult {
     refreshAllRef.current = refreshAll;
   });
 
+  useEffect(() => {
+    if (!selectedPersonaId || !workspaceId || typeof EventSource === 'undefined') {
+      setEventsConnected(false);
+      return;
+    }
+    const eventSource = new EventSource(createMasterEventsUrl(workspaceId, selectedPersonaId));
+    const handleSnapshot = (event: MessageEvent<string>) => {
+      if (!parseMasterEventMessage(event.data)) {
+        return;
+      }
+      void refreshAllRef.current();
+    };
+    eventSource.onopen = () => {
+      setEventsConnected(true);
+    };
+    eventSource.onmessage = handleSnapshot;
+    eventSource.addEventListener('snapshot', handleSnapshot as EventListener);
+    eventSource.onerror = () => {
+      setEventsConnected(false);
+      eventSource.close();
+    };
+    return () => {
+      setEventsConnected(false);
+      eventSource.removeEventListener('snapshot', handleSnapshot as EventListener);
+      eventSource.close();
+    };
+  }, [selectedPersonaId, workspaceId]);
+
   // Auto-poll only while there are truly transitioning runs (not AWAITING_APPROVAL
   // which blocks indefinitely on user input). Uses a ref-stable callback so the
   // timer is never cleared/restarted due to refreshAll identity changes.
   useEffect(() => {
-    if (!selectedPersonaId || !workspaceId || !hasTransitioningRuns) return;
+    if (!selectedPersonaId || !workspaceId || eventsConnected) return;
+    if (!hasTransitioningRuns && !hasPendingApprovals) return;
     const interval = setInterval(() => {
       void refreshAllRef.current();
     }, AUTO_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [hasTransitioningRuns, selectedPersonaId, workspaceId]);
+  }, [eventsConnected, hasPendingApprovals, hasTransitioningRuns, selectedPersonaId, workspaceId]);
 
   // Load run detail when selectedRunId changes
   useEffect(() => {
@@ -587,6 +752,9 @@ export function useMasterView(): UseMasterViewResult {
     availablePersonas,
     workspaces,
     runs,
+    approvalRequests,
+    subagentSessions,
+    reminders,
     paginatedRuns,
     runsPage,
     totalRunPages,
@@ -594,10 +762,12 @@ export function useMasterView(): UseMasterViewResult {
     selectedRunDetail,
     metrics,
     exportBundle,
+    eventsConnected,
     loading,
     loadingAction,
     statusMessage,
     hasActiveRuns,
+    hasPendingApprovals,
     selectedPersonaId,
     workspaceId,
     runTitle,
@@ -616,6 +786,7 @@ export function useMasterView(): UseMasterViewResult {
     exportRun,
     cancelRun,
     submitDecision,
+    decideApproval,
     submitFeedback,
     saveSettings,
     refreshAll,

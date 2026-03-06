@@ -29,6 +29,9 @@ export function runMasterMigrations(db: ReturnType<typeof BetterSqlite3>): void 
       paused_for_approval INTEGER NOT NULL DEFAULT 0,
       cancelled_at TEXT,
       cancel_reason TEXT,
+      owner_id TEXT,
+      lease_expires_at TEXT,
+      heartbeat_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -151,6 +154,72 @@ export function runMasterMigrations(db: ReturnType<typeof BetterSqlite3>): void 
       UNIQUE (user_id, workspace_id, action_type, fingerprint)
     );
 
+    CREATE TABLE IF NOT EXISTS master_approval_requests (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL,
+      step_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      tool_name TEXT NOT NULL,
+      action_type TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      host TEXT,
+      cwd TEXT,
+      resolved_path TEXT,
+      fingerprint TEXT NOT NULL,
+      risk_level TEXT NOT NULL,
+      status TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      decision TEXT,
+      decision_reason TEXT,
+      decided_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_master_approval_requests_scope
+      ON master_approval_requests (user_id, workspace_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_master_approval_requests_run
+      ON master_approval_requests (run_id, status, updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS master_tool_policies (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      security TEXT NOT NULL,
+      ask TEXT NOT NULL,
+      allowlist TEXT NOT NULL DEFAULT '[]',
+      updated_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE (user_id, workspace_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS master_subagent_sessions (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      title TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      assigned_tools TEXT NOT NULL DEFAULT '[]',
+      owner_id TEXT,
+      lease_expires_at TEXT,
+      heartbeat_at TEXT,
+      latest_event_at TEXT,
+      result_summary TEXT,
+      last_error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_master_subagent_sessions_run
+      ON master_subagent_sessions (run_id, status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_master_subagent_sessions_scope
+      ON master_subagent_sessions (user_id, workspace_id, updated_at DESC);
+
     CREATE TABLE IF NOT EXISTS master_capability_scores (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -223,6 +292,11 @@ export function runMasterMigrations(db: ReturnType<typeof BetterSqlite3>): void 
   ensureColumn(db, 'master_runs', 'cancelled_at', 'TEXT');
   ensureColumn(db, 'master_runs', 'cancel_reason', 'TEXT');
   ensureColumn(db, 'master_runs', 'pending_approval_action_type', 'TEXT');
+  ensureColumn(db, 'master_runs', 'owner_id', 'TEXT');
+  ensureColumn(db, 'master_runs', 'lease_expires_at', 'TEXT');
+  ensureColumn(db, 'master_runs', 'heartbeat_at', 'TEXT');
+  ensureColumn(db, 'master_approval_requests', 'action_type', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, 'master_approval_requests', 'prompt', "TEXT NOT NULL DEFAULT ''");
 
   // Idempotency: one feedback record per (run, user) — upsert-safe
   db.exec(

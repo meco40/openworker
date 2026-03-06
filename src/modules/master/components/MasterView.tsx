@@ -13,10 +13,14 @@ import { RunDetailPanel } from './RunDetailPanel';
 import { RunFeedbackPanel } from './RunFeedbackPanel';
 import MasterLearningPanel from './MasterLearningPanel';
 import MasterSettingsPanel from './MasterSettingsPanel';
+import { ApprovalQueuePanel } from './ApprovalQueuePanel';
+import { ToolPolicyPanel } from './ToolPolicyPanel';
+import { SubagentSessionsPanel } from './SubagentSessionsPanel';
+import { AutomationPanel } from './AutomationPanel';
 
 // ─── Tab types ────────────────────────────────────────────────────────────────
 
-type Tab = 'new' | 'runs' | 'analytics' | 'settings';
+type Tab = 'new' | 'runs' | 'approvals' | 'automation' | 'analytics' | 'settings';
 
 // ─── Status banner ────────────────────────────────────────────────────────────
 
@@ -127,6 +131,8 @@ const MasterView: React.FC = () => {
     () => [
       'new',
       'runs',
+      'approvals',
+      'automation',
       'analytics',
       ...(view.masterMode === 'system' ? (['settings'] as const) : []),
     ],
@@ -202,6 +208,50 @@ const MasterView: React.FC = () => {
       ),
     },
     {
+      id: 'approvals',
+      label: 'Approvals',
+      badge: view.hasPendingApprovals
+        ? view.approvalRequests.filter((request) => request.status === 'pending').length
+        : undefined,
+      icon: (
+        <svg
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 9v3.75m0 3.75h.008v.008H12v-.008zm9-3.758a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ),
+    },
+    {
+      id: 'automation',
+      label: 'Automation',
+      badge: view.reminders.length > 0 ? view.reminders.length : undefined,
+      icon: (
+        <svg
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ),
+    },
+    {
       id: 'settings',
       label: 'Settings',
       icon: (
@@ -262,7 +312,16 @@ const MasterView: React.FC = () => {
                 aria-hidden="true"
               />
               <span className="font-mono text-[10px] font-semibold tracking-wider text-zinc-400">
-                {view.hasActiveRuns ? '1 RING' : `${view.runs.length} RUNS`}
+                {view.hasActiveRuns ? 'LIVE' : `${view.runs.length} RUNS`}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 py-1">
+              <span
+                className={`h-2 w-2 rounded-full ${view.eventsConnected ? 'bg-sky-400' : 'bg-zinc-600'}`}
+                aria-hidden="true"
+              />
+              <span className="font-mono text-[10px] font-semibold tracking-wider text-zinc-400">
+                {view.eventsConnected ? 'SSE' : 'POLL'}
               </span>
             </div>
           </div>
@@ -418,6 +477,13 @@ const MasterView: React.FC = () => {
             </ViewErrorBoundary>
           )}
 
+          <ViewErrorBoundary label="Subagent Sessions">
+            <SubagentSessionsPanel
+              sessions={view.subagentSessions}
+              runId={view.selectedRun?.id ?? null}
+            />
+          </ViewErrorBoundary>
+
           {/* Feedback – only for completed runs */}
           {view.selectedRun?.status === 'COMPLETED' && (
             <ViewErrorBoundary key={view.selectedRun.id} label="Run Feedback">
@@ -452,14 +518,43 @@ const MasterView: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'settings' && (
-        <ViewErrorBoundary label="Master Settings">
-          <MasterSettingsPanel
-            settings={view.masterSettings}
-            loading={view.loadingAction === 'saving-settings'}
-            onSave={(input) => void view.saveSettings(input)}
+      {activeTab === 'approvals' && (
+        <ViewErrorBoundary label="Approval Queue">
+          <ApprovalQueuePanel
+            approvals={view.approvalRequests}
+            loading={view.loadingAction === 'deciding'}
+            onDecide={(approvalRequestId, decision) =>
+              void view.decideApproval(approvalRequestId, decision)
+            }
           />
         </ViewErrorBoundary>
+      )}
+
+      {activeTab === 'automation' && (
+        <ViewErrorBoundary label="Automation">
+          <AutomationPanel reminders={view.reminders} />
+        </ViewErrorBoundary>
+      )}
+
+      {activeTab === 'settings' && (
+        <div className="space-y-5">
+          {view.masterSettings && (
+            <ViewErrorBoundary label="Tool Policy">
+              <ToolPolicyPanel
+                policy={view.masterSettings.toolPolicy}
+                loading={view.loadingAction === 'saving-settings'}
+                onSave={(toolPolicy) => void view.saveSettings({ toolPolicy })}
+              />
+            </ViewErrorBoundary>
+          )}
+          <ViewErrorBoundary label="Master Settings">
+            <MasterSettingsPanel
+              settings={view.masterSettings}
+              loading={view.loadingAction === 'saving-settings'}
+              onSave={(input) => void view.saveSettings(input)}
+            />
+          </ViewErrorBoundary>
+        </div>
       )}
     </section>
   );

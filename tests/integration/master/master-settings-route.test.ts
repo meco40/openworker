@@ -89,12 +89,18 @@ describe('master settings route', () => {
         maxToolCalls: number;
       };
       allowedToolFunctionNames: string[];
+      toolPolicy: {
+        security: string;
+        ask: string;
+        allowlist: string[];
+      };
       instructionFiles: Record<string, string>;
     };
     expect(getPayload.ok).toBe(true);
     expect(getPayload.persona.name).toBe('Master');
     expect(getPayload.persona.systemPersonaKey).toBe('master');
     expect(getPayload.allowedToolFunctionNames.length).toBeGreaterThan(0);
+    expect(getPayload.toolPolicy.security).toBe('allowlist');
     expect(getPayload.instructionFiles['SOUL.md']).not.toBe('');
 
     const putResponse = await route.PUT(
@@ -107,6 +113,11 @@ describe('master settings route', () => {
           isAutonomous: false,
           maxToolCalls: 33,
           allowedToolFunctionNames: ['shell_execute', 'web_search'],
+          toolPolicy: {
+            security: 'full',
+            ask: 'always',
+            allowlist: ['shell.exec:D:/web/clawtest:*'],
+          },
           files: {
             'SOUL.md': 'Master soul override',
             'AGENTS.md': 'Master agents override',
@@ -125,6 +136,11 @@ describe('master settings route', () => {
         maxToolCalls: number;
       };
       allowedToolFunctionNames: string[];
+      toolPolicy: {
+        security: string;
+        ask: string;
+        allowlist: string[];
+      };
       instructionFiles: Record<string, string>;
     };
     expect(putPayload.ok).toBe(true);
@@ -133,6 +149,11 @@ describe('master settings route', () => {
     expect(putPayload.runtimeSettings.isAutonomous).toBe(false);
     expect(putPayload.runtimeSettings.maxToolCalls).toBe(33);
     expect(putPayload.allowedToolFunctionNames).toEqual(['shell_execute', 'web_search']);
+    expect(putPayload.toolPolicy).toMatchObject({
+      security: 'full',
+      ask: 'always',
+      allowlist: ['shell.exec:D:/web/clawtest:*'],
+    });
     expect(putPayload.instructionFiles['SOUL.md']).toBe('Master soul override');
   });
 

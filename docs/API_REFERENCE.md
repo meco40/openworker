@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz aller aktuell implementierten HTTP-API-Routen unter `app/api` mit exportierten Methoden.
 - Scope: Route-/Methoden-Katalog und Domain-Gruppierung zum aktuellen Systemzustand.
 - Source of Truth: This document is derived from `app/api/**/route.ts` and overrides archived API documents on conflicts.
-- Last Reviewed: 2026-03-05
+- Last Reviewed: 2026-03-06
 - Related Runbooks: docs/runbooks/chat-cli-smoke-approval.md, docs/runbooks/gateway-config-production-rollout.md
 
 ---
@@ -16,7 +16,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 - Basis: `/api`
 - Quelle: exportierte Methoden in `app/api/**/route.ts`
-- Anzahl Routen: 105
+- Anzahl Routen: 111
 
 ## Domain Summary
 
@@ -36,7 +36,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | health          |      2 |
 | knowledge       |      1 |
 | logs            |      2 |
-| master          |     11 |
+| master          |     17 |
 | memory          |      1 |
 | mission-control |      1 |
 | model-hub       |     10 |
@@ -177,21 +177,30 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 ### /api/master
 
-| Methods                  | Route                             |
-| ------------------------ | --------------------------------- |
-| POST                     | /api/master/gmail                 |
-| GET                      | /api/master/metrics               |
-| GET, POST, PATCH, DELETE | /api/master/notes                 |
-| GET, POST, PATCH, DELETE | /api/master/reminders             |
-| GET, POST                | /api/master/runs                  |
-| GET, PATCH               | /api/master/runs/[id]             |
-| POST                     | /api/master/runs/[id]/actions     |
-| GET, POST                | /api/master/runs/[id]/delegations |
-| POST                     | /api/master/runs/[id]/feedback    |
-| GET, PUT                 | /api/master/settings              |
-| GET                      | /api/master/voice-session         |
+| Methods                  | Route                               |
+| ------------------------ | ----------------------------------- |
+| GET                      | /api/master/approvals               |
+| POST                     | /api/master/approvals/[id]/decision |
+| GET                      | /api/master/events                  |
+| POST                     | /api/master/gmail                   |
+| GET                      | /api/master/metrics                 |
+| GET, POST, PATCH, DELETE | /api/master/notes                   |
+| GET, POST, PATCH, DELETE | /api/master/reminders               |
+| GET, PATCH, DELETE       | /api/master/reminders/[id]          |
+| POST                     | /api/master/reminders/[id]/fire     |
+| GET, POST                | /api/master/runs                    |
+| GET, PATCH               | /api/master/runs/[id]               |
+| POST                     | /api/master/runs/[id]/actions       |
+| GET, POST                | /api/master/runs/[id]/delegations   |
+| POST                     | /api/master/runs/[id]/feedback      |
+| GET, PUT                 | /api/master/settings                |
+| GET                      | /api/master/subagents               |
+| GET, PATCH               | /api/master/subagents/[id]          |
+| GET                      | /api/master/voice-session           |
 
 - `/api/master/settings` is available only while `MASTER_SYSTEM_PERSONA_ENABLED` is enabled; otherwise it returns `404` and the Master UI falls back to legacy persona-scoped operation.
+- `/api/master/events` is available only while `MASTER_OPERATOR_EVENTS_ENABLED` is enabled; otherwise it returns `404`.
+- `/api/master/settings` now returns and persists `toolPolicy { security, ask, allowlist }`.
 
 ### /api/memory
 

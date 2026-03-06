@@ -2,9 +2,12 @@ import { createMasterSqliteDb, type MasterSqliteDb } from '@/server/master/repos
 import {
   addFeedback,
   appendStep,
+  claimRun,
   createRun,
   getRun,
   listRuns,
+  releaseRunLease,
+  renewRunLease,
   listSteps,
   updateRun,
 } from '@/server/master/repository/runs.store';
@@ -38,6 +41,19 @@ import {
   upsertCapabilityScore,
 } from '@/server/master/repository/governance.store';
 import {
+  createApprovalRequest,
+  getApprovalRequest,
+  listApprovalRequests,
+  updateApprovalRequest,
+} from '@/server/master/repository/approvals.store';
+import {
+  createSubagentSession,
+  getSubagentSession,
+  listSubagentSessions,
+  updateSubagentSession,
+} from '@/server/master/repository/sessions.store';
+import { getToolPolicy, upsertToolPolicy } from '@/server/master/repository/toolPolicy.store';
+import {
   createToolForgeArtifact,
   listGlobalToolForgeArtifacts,
   listToolForgeArtifacts,
@@ -57,6 +73,7 @@ import type { MasterRepository } from '@/server/master/repository';
 import type {
   ApprovalDecision,
   MasterActionLedgerEntry,
+  MasterApprovalRequest,
   MasterAuditEvent,
   MasterCapabilityProposal,
   MasterCapabilityScore,
@@ -69,6 +86,8 @@ import type {
   MasterRun,
   MasterRunCreateInput,
   MasterStep,
+  MasterSubagentSession,
+  MasterToolPolicy,
   MasterToolForgeArtifact,
   WorkspaceScope,
 } from '@/server/master/types';
@@ -94,6 +113,29 @@ export class SqliteMasterRepository implements MasterRepository {
 
   updateRun(scope: WorkspaceScope, runId: string, patch: Partial<MasterRun>): MasterRun | null {
     return updateRun(this.db, scope, runId, patch);
+  }
+
+  claimRun(
+    scope: WorkspaceScope,
+    runId: string,
+    ownerId: string,
+    leaseExpiresAt: string,
+  ): MasterRun | null {
+    return claimRun(this.db, scope, runId, ownerId, leaseExpiresAt);
+  }
+
+  renewRunLease(
+    scope: WorkspaceScope,
+    runId: string,
+    ownerId: string,
+    leaseExpiresAt: string,
+    heartbeatAt: string,
+  ): MasterRun | null {
+    return renewRunLease(this.db, scope, runId, ownerId, leaseExpiresAt, heartbeatAt);
+  }
+
+  releaseRunLease(scope: WorkspaceScope, runId: string, ownerId: string): MasterRun | null {
+    return releaseRunLease(this.db, scope, runId, ownerId);
   }
 
   appendStep(
@@ -226,6 +268,77 @@ export class SqliteMasterRepository implements MasterRepository {
     fingerprint: string,
   ): ApprovalDecision | null {
     return getApprovalRule(this.db, scope, actionType, fingerprint);
+  }
+
+  createApprovalRequest(
+    scope: WorkspaceScope,
+    request: Omit<
+      MasterApprovalRequest,
+      'id' | 'userId' | 'workspaceId' | 'createdAt' | 'updatedAt'
+    >,
+  ): MasterApprovalRequest {
+    return createApprovalRequest(this.db, scope, request);
+  }
+
+  updateApprovalRequest(
+    scope: WorkspaceScope,
+    requestId: string,
+    patch: Partial<MasterApprovalRequest>,
+  ): MasterApprovalRequest | null {
+    return updateApprovalRequest(this.db, scope, requestId, patch);
+  }
+
+  getApprovalRequest(scope: WorkspaceScope, requestId: string): MasterApprovalRequest | null {
+    return getApprovalRequest(this.db, scope, requestId);
+  }
+
+  listApprovalRequests(
+    scope: WorkspaceScope,
+    runId?: string,
+    limit = 200,
+  ): MasterApprovalRequest[] {
+    return listApprovalRequests(this.db, scope, runId, limit);
+  }
+
+  upsertToolPolicy(
+    scope: WorkspaceScope,
+    policy: Omit<MasterToolPolicy, 'id' | 'userId' | 'workspaceId' | 'createdAt' | 'updatedAt'>,
+  ): MasterToolPolicy {
+    return upsertToolPolicy(this.db, scope, policy);
+  }
+
+  getToolPolicy(scope: WorkspaceScope): MasterToolPolicy | null {
+    return getToolPolicy(this.db, scope);
+  }
+
+  createSubagentSession(
+    scope: WorkspaceScope,
+    session: Omit<
+      MasterSubagentSession,
+      'id' | 'userId' | 'workspaceId' | 'createdAt' | 'updatedAt'
+    >,
+  ): MasterSubagentSession {
+    return createSubagentSession(this.db, scope, session);
+  }
+
+  updateSubagentSession(
+    scope: WorkspaceScope,
+    sessionId: string,
+    patch: Partial<MasterSubagentSession>,
+  ): MasterSubagentSession | null {
+    return updateSubagentSession(this.db, scope, sessionId, patch);
+  }
+
+  getSubagentSession(scope: WorkspaceScope, sessionId: string): MasterSubagentSession | null {
+    return getSubagentSession(this.db, scope, sessionId);
+  }
+
+  listSubagentSessions(
+    scope: WorkspaceScope,
+    runId?: string,
+    limit = 200,
+  ): MasterSubagentSession[] {
+    return listSubagentSessions(this.db, scope, runId, limit);
   }
 
   upsertCapabilityScore(

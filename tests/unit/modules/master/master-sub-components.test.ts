@@ -33,6 +33,9 @@ function makeRun(overrides: Partial<MasterRun> = {}): MasterRun {
     pendingApprovalActionType: null,
     cancelledAt: null,
     cancelReason: null,
+    ownerId: null,
+    leaseExpiresAt: null,
+    heartbeatAt: null,
     ...overrides,
   };
 }

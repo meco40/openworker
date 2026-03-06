@@ -6,7 +6,7 @@
 - Scope: Production-ready `Master` vertical slice with run lifecycle, approvals, delegations, observability, and voice-session integration.
 - Source of Truth: `app/api/master/*`, `src/server/master/*`, `src/modules/master/*`.
 - Last Reviewed: 2026-03-06
-- Related Runbooks: N/A
+- Related Runbooks: `docs/runbooks/master-autonomy-rollout.md`
 
 ## Overview
 
@@ -20,6 +20,11 @@ The Master Agent is implemented as a dedicated vertical slice with a system-pers
 - Rollout gate: `MASTER_SYSTEM_PERSONA_ENABLED`
   - enabled or unset: Master uses the fixed system persona plus `Master > Settings`
   - disabled (`0|false|off|no`): Master falls back to legacy persona-scoped runs and `/api/master/settings` returns `404`
+- Runtime gates:
+  - `MASTER_GENERIC_RUNTIME_ENABLED`
+  - `MASTER_APPROVAL_CONTROL_PLANE_ENABLED`
+  - `MASTER_SUBAGENT_SESSIONS_ENABLED`
+  - `MASTER_OPERATOR_EVENTS_ENABLED`
 
 Agent Room remains chat-only.
 
@@ -38,9 +43,13 @@ Agent Room remains chat-only.
 
 - Control plane:
   - `MasterOrchestrator` controls lifecycle and approvals
+  - persistent approval requests live in `master_approval_requests`
+  - operator tool policy lives in `master_tool_policies`
   - user interactions remain responsive during delegation
 - Worker plane:
   - delegation dispatcher, inbox, subagent pool, aggregation, recovery
+  - durable operator-facing session state lives in `master_subagent_sessions`
+  - run ownership and session execution use lease fields (`ownerId`, `leaseExpiresAt`, `heartbeatAt`)
   - policy gates: cooldown/capacity/budget reasons are explicit
   - autonomous execution runtime runs task plans in background without blocking UI interactions
 
@@ -78,19 +87,28 @@ Agent Room remains chat-only.
   - `GET/PATCH /api/master/runs/[id]`
   - `POST /api/master/runs/[id]/actions`
     - run controls: `run.start`, `run.tick`, `run.cancel`, `run.export`
-    - approval controls for side effects remain `approve_once|approve_always|deny`
+    - approval-producing actions return durable request ids
   - `GET/POST /api/master/runs/[id]/delegations`
   - `POST /api/master/runs/[id]/feedback`
     - stores completed-run feedback (`rating`, `policy`, optional `comment`)
+- Approvals:
+  - `GET /api/master/approvals`
+  - `POST /api/master/approvals/[id]/decision`
+- Subagents:
+  - `GET /api/master/subagents`
+  - `GET/PATCH /api/master/subagents/[id]`
 - Productivity:
   - `GET/POST/PATCH/DELETE /api/master/notes`
   - `GET/POST/PATCH/DELETE /api/master/reminders`
+  - `GET/PATCH/DELETE /api/master/reminders/[id]`
+  - `POST /api/master/reminders/[id]/fire`
 - Observability:
   - `GET /api/master/metrics`
+  - `GET /api/master/events` (SSE snapshots with polling fallback in UI)
 - Settings:
   - `GET/PUT /api/master/settings`
   - available only while `MASTER_SYSTEM_PERSONA_ENABLED` is enabled
-  - authoritatively updates Master model binding, instruction files, autonomy settings, and tool allowlist
+  - authoritatively updates Master model binding, instruction files, autonomy settings, tool allowlist, and operator tool policy
 
 ## Voice Session Runtime
 
@@ -111,9 +129,11 @@ Agent Room remains chat-only.
   - workspace scope selection
   - contract creation (`Create Master Run`)
   - run start and export controls
-  - approval decision submission (`approve_once`, `approve_always`, `deny`)
-  - live metrics + polling status
-  - `Settings` tab for Master persona configuration in system mode only
+  - approval queue with durable decisions (`approve_once`, `approve_always`, `deny`)
+  - subagent session visibility for delegated work
+  - reminder/automation panel
+  - live metrics plus SSE status with polling fallback
+  - `Settings` tab for Master persona configuration and tool policy in system mode only
 
 ## Verification Snapshot
 

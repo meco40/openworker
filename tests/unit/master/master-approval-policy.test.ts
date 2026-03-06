@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { SqliteMasterRepository } from '@/server/master/repository/sqliteMasterRepository';
 import {
+  applyApprovalDecision,
+  createPendingApprovalRequest,
+} from '@/server/master/approvals/service';
+import {
   clearOneTimeApprovalsForTests,
-  registerOneTimeApproval,
   resolveRuntimeApproval,
 } from '@/server/master/execution/approvalPolicy';
 
@@ -27,7 +30,31 @@ describe('master runtime approval policy', () => {
     const repo = new SqliteMasterRepository(':memory:');
     const scope = { userId: 'u1', workspaceId: 'w1' };
     clearOneTimeApprovalsForTests();
-    registerOneTimeApproval(scope, 'shell.exec', 'shell.exec');
+    const run = repo.createRun({
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      title: 'Approval run',
+      contract: 'needs one approval',
+    });
+    const request = createPendingApprovalRequest({
+      repo,
+      scope,
+      runId: run.id,
+      stepId: 'step-1',
+      actionType: 'shell.exec',
+      summary: 'Run shell.exec once',
+      host: 'gateway',
+      cwd: 'D:/web/clawtest',
+      resolvedPath: 'D:/web/clawtest',
+      fingerprint: 'shell.exec',
+      riskLevel: 'high',
+    });
+    applyApprovalDecision({
+      repo,
+      scope,
+      requestId: request.id,
+      decision: 'approve_once',
+    });
 
     const first = resolveRuntimeApproval({
       repo,

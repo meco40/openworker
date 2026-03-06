@@ -1,10 +1,12 @@
 import { aggregateDelegationResult } from '@/server/master/delegation/aggregator';
 import { recoverDelegationQueue } from '@/server/master/delegation/recovery';
+import { createPendingApprovalRequest } from '@/server/master/approvals/service';
 import { resolveRuntimeApproval } from '@/server/master/execution/approvalPolicy';
 import { buildCapabilityControl } from '@/server/master/execution/runtime/capabilityControl';
 import { normalizeCapabilityOutput } from '@/server/master/execution/runtime/capabilityOutput';
 import { executeCapabilityTask } from '@/server/master/execution/runtime/capabilityExecutor';
 import { buildExecutionPlanWithModel } from '@/server/master/execution/runtime/executionPlan';
+import { isMasterApprovalControlPlaneEnabled } from '@/server/master/featureFlags';
 import { parseJsonObject } from '@/server/master/execution/runtime/jsonParsing';
 import type { RuntimeMode } from '@/server/master/execution/runtime/types';
 import type { MasterOrchestrator } from '@/server/master/orchestrator';
@@ -80,6 +82,27 @@ export async function executeMasterRunFlow(input: {
     });
 
     if (approval.decision === 'awaiting_approval') {
+      if (isMasterApprovalControlPlaneEnabled()) {
+        createPendingApprovalRequest({
+          repo,
+          scope,
+          runId,
+          stepId: `approval-${capability}-${nextStepSequence(scope, runId)}`,
+          actionType: approval.actionType,
+          summary: `Approval required for ${capability}`,
+          host: 'gateway',
+          cwd: scope.workspaceCwd ?? null,
+          resolvedPath: control.filePath ?? null,
+          fingerprint: approval.fingerprint,
+          riskLevel: control.requiresApproval ? 'high' : 'medium',
+          toolName:
+            capability === 'system_ops'
+              ? 'shell_execute'
+              : capability === 'code_generation'
+                ? 'write'
+                : capability,
+        });
+      }
       repo.updateRun(scope, runId, {
         status: 'AWAITING_APPROVAL',
         pausedForApproval: true,
@@ -159,7 +182,7 @@ export async function executeMasterRunFlow(input: {
           stepId: step.id,
           repo,
           control,
-          approvalBypass: control.requiresApproval,
+          approvalBypass: control.requiresApproval && approval.decision === 'allowed',
         }),
     });
 

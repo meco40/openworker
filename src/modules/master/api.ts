@@ -10,8 +10,12 @@ import type {
   MasterStep,
   MasterMetrics,
   ApprovalDecision,
+  MasterApprovalRequest,
   MasterPersonaSummary,
   MasterSettingsSnapshot,
+  MasterSubagentSession,
+  MasterReminder,
+  MasterEventMessage,
   SaveMasterSettingsInput,
   WorkspaceSummary,
 } from './types';
@@ -132,6 +136,7 @@ export interface RunActionInput {
   actionType: string;
   stepId?: string;
   decision?: ApprovalDecision;
+  approvalRequestId?: string;
   workspaceId: string;
   personaId?: string | null;
 }
@@ -154,10 +159,49 @@ export async function postRunAction(
         stepId: input.stepId ?? `step-${Date.now()}`,
         actionType: input.actionType,
         decision: input.decision,
+        approvalRequestId: input.approvalRequestId,
       }),
     }),
   );
   return payload;
+}
+
+// ─── Approvals ────────────────────────────────────────────────────────────────
+
+export async function fetchApprovalRequests(
+  workspaceId: string,
+  personaId?: string | null,
+  runId?: string | null,
+): Promise<MasterApprovalRequest[]> {
+  const params = buildScopeParams(workspaceId, personaId);
+  if (runId) params.set('runId', runId);
+  const payload = await parseOkJson<{ approvals?: MasterApprovalRequest[] }>(
+    await fetch(`/api/master/approvals?${params.toString()}`, { cache: 'no-store' }),
+  );
+  return payload.approvals ?? [];
+}
+
+export async function decideApprovalRequest(input: {
+  approvalRequestId: string;
+  decision: ApprovalDecision;
+  workspaceId: string;
+  personaId?: string | null;
+}): Promise<MasterApprovalRequest> {
+  const payload = await parseOkJson<{ approval?: MasterApprovalRequest }>(
+    await fetch(`/api/master/approvals/${input.approvalRequestId}/decision`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        personaId: input.personaId,
+        workspaceId: input.workspaceId,
+        decision: input.decision,
+      }),
+    }),
+  );
+  if (!payload.approval) {
+    throw new Error('No approval returned from server.');
+  }
+  return payload.approval;
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
@@ -193,6 +237,73 @@ export async function fetchRunDetail(
   );
   if (!payload.run) return null;
   return { run: payload.run, steps: payload.steps ?? [] };
+}
+
+// ─── Subagent sessions ───────────────────────────────────────────────────────
+
+export async function fetchSubagentSessions(
+  workspaceId: string,
+  personaId?: string | null,
+  runId?: string | null,
+): Promise<MasterSubagentSession[]> {
+  const params = buildScopeParams(workspaceId, personaId);
+  if (runId) params.set('runId', runId);
+  const payload = await parseOkJson<{ sessions?: MasterSubagentSession[] }>(
+    await fetch(`/api/master/subagents?${params.toString()}`, { cache: 'no-store' }),
+  );
+  return payload.sessions ?? [];
+}
+
+export async function fetchSubagentSession(
+  sessionId: string,
+  workspaceId: string,
+  personaId?: string | null,
+): Promise<MasterSubagentSession | null> {
+  const params = buildScopeParams(workspaceId, personaId);
+  const payload = await parseOkJson<{ session?: MasterSubagentSession }>(
+    await fetch(`/api/master/subagents/${sessionId}?${params.toString()}`, { cache: 'no-store' }),
+  );
+  return payload.session ?? null;
+}
+
+// ─── Reminders ────────────────────────────────────────────────────────────────
+
+export async function fetchReminders(
+  workspaceId: string,
+  personaId?: string | null,
+): Promise<MasterReminder[]> {
+  const params = buildScopeParams(workspaceId, personaId);
+  const payload = await parseOkJson<{ reminders?: MasterReminder[] }>(
+    await fetch(`/api/master/reminders?${params.toString()}`, { cache: 'no-store' }),
+  );
+  return payload.reminders ?? [];
+}
+
+export async function fetchReminder(
+  reminderId: string,
+  workspaceId: string,
+  personaId?: string | null,
+): Promise<MasterReminder | null> {
+  const params = buildScopeParams(workspaceId, personaId);
+  const payload = await parseOkJson<{ reminder?: MasterReminder }>(
+    await fetch(`/api/master/reminders/${reminderId}?${params.toString()}`, { cache: 'no-store' }),
+  );
+  return payload.reminder ?? null;
+}
+
+// ─── Events ───────────────────────────────────────────────────────────────────
+
+export function createMasterEventsUrl(workspaceId: string, personaId?: string | null): string {
+  const params = buildScopeParams(workspaceId, personaId);
+  return `/api/master/events?${params.toString()}`;
+}
+
+export function parseMasterEventMessage(data: string): MasterEventMessage | null {
+  try {
+    return JSON.parse(data) as MasterEventMessage;
+  } catch {
+    return null;
+  }
 }
 
 // ─── Cancel run ───────────────────────────────────────────────────────────────

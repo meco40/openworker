@@ -12,6 +12,10 @@ export type {
   MasterRunStatus,
   ApprovalDecision,
   MasterStep,
+  MasterApprovalRequest,
+  MasterToolPolicy,
+  MasterSubagentSession,
+  MasterReminder,
 } from '@/server/master/types';
 
 // ─── Workspace summary ───────────────────────────────────────────────────────
@@ -49,6 +53,11 @@ export interface MasterSettingsSnapshot {
   persona: MasterPersonaSummary;
   runtimeSettings: MasterRuntimeSettings;
   allowedToolFunctionNames: string[];
+  toolPolicy: {
+    security: 'deny' | 'allowlist' | 'full';
+    ask: 'off' | 'on_miss' | 'always';
+    allowlist: string[];
+  };
   instructionFiles: MasterInstructionFiles;
 }
 
@@ -60,6 +69,11 @@ export interface SaveMasterSettingsInput {
   isAutonomous?: boolean;
   maxToolCalls?: number;
   allowedToolFunctionNames?: string[];
+  toolPolicy?: {
+    security: 'deny' | 'allowlist' | 'full';
+    ask: 'off' | 'on_miss' | 'always';
+    allowlist: string[];
+  };
   files?: Partial<MasterInstructionFiles>;
 }
 
@@ -79,6 +93,14 @@ export interface MasterMetrics {
 export interface StatusMessage {
   tone: 'info' | 'success' | 'error';
   text: string;
+}
+
+export interface MasterEventMessage {
+  id: string;
+  type: 'heartbeat' | 'snapshot';
+  at: string;
+  pendingApprovals: number;
+  activeRuns: number;
 }
 
 // ─── Avatar audio stream types ───────────────────────────────────────────────

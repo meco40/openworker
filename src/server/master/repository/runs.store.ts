@@ -26,8 +26,9 @@ export function createRun(db: MasterSqliteDb, input: MasterRunCreateInput): Mast
   db.prepare(
     `INSERT INTO master_runs (
        id, user_id, workspace_id, title, contract, status, progress, verification_passed,
-       result_bundle, last_error, paused_for_approval, cancelled_at, cancel_reason, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, 'ANALYZING', 0, 0, NULL, NULL, 0, NULL, NULL, ?, ?)`,
+       result_bundle, last_error, paused_for_approval, cancelled_at, cancel_reason,
+       owner_id, lease_expires_at, heartbeat_at, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, 'ANALYZING', 0, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, ?, ?)`,
   ).run(id, input.userId, input.workspaceId, input.title, input.contract, now, now);
   return getRun(db, { userId: input.userId, workspaceId: input.workspaceId }, id)!;
 }
@@ -68,6 +69,9 @@ export function updateRun(
     pendingApprovalActionType: 'pending_approval_action_type',
     cancelledAt: 'cancelled_at',
     cancelReason: 'cancel_reason',
+    ownerId: 'owner_id',
+    leaseExpiresAt: 'lease_expires_at',
+    heartbeatAt: 'heartbeat_at',
   };
   for (const [key, column] of Object.entries(map)) {
     if (!(key in patch)) continue;
@@ -86,6 +90,84 @@ export function updateRun(
     `UPDATE master_runs SET ${updates.join(', ')}
      WHERE id = ? AND user_id = ? AND workspace_id = ?`,
   ).run(...values);
+  return getRun(db, scope, runId);
+}
+
+export function claimRun(
+  db: MasterSqliteDb,
+  scope: WorkspaceScope,
+  runId: string,
+  ownerId: string,
+  leaseExpiresAt: string,
+): MasterRun | null {
+  const heartbeatAt = nowIso();
+  const result = db
+    .prepare(
+      `UPDATE master_runs
+       SET owner_id = ?, lease_expires_at = ?, heartbeat_at = ?, updated_at = ?
+       WHERE id = ? AND user_id = ? AND workspace_id = ?
+         AND (
+           owner_id IS NULL
+           OR owner_id = ?
+           OR lease_expires_at IS NULL
+           OR lease_expires_at <= ?
+         )`,
+    )
+    .run(
+      ownerId,
+      leaseExpiresAt,
+      heartbeatAt,
+      heartbeatAt,
+      runId,
+      scope.userId,
+      scope.workspaceId,
+      ownerId,
+      heartbeatAt,
+    );
+  if (result.changes === 0) {
+    return null;
+  }
+  return getRun(db, scope, runId);
+}
+
+export function renewRunLease(
+  db: MasterSqliteDb,
+  scope: WorkspaceScope,
+  runId: string,
+  ownerId: string,
+  leaseExpiresAt: string,
+  heartbeatAt: string,
+): MasterRun | null {
+  const result = db
+    .prepare(
+      `UPDATE master_runs
+       SET lease_expires_at = ?, heartbeat_at = ?, updated_at = ?
+       WHERE id = ? AND user_id = ? AND workspace_id = ? AND owner_id = ?`,
+    )
+    .run(leaseExpiresAt, heartbeatAt, heartbeatAt, runId, scope.userId, scope.workspaceId, ownerId);
+  if (result.changes === 0) {
+    return null;
+  }
+  return getRun(db, scope, runId);
+}
+
+export function releaseRunLease(
+  db: MasterSqliteDb,
+  scope: WorkspaceScope,
+  runId: string,
+  ownerId: string,
+): MasterRun | null {
+  const updatedAt = nowIso();
+  const result = db
+    .prepare(
+      `UPDATE master_runs
+       SET owner_id = NULL, lease_expires_at = NULL, heartbeat_at = NULL, updated_at = ?
+       WHERE id = ? AND user_id = ? AND workspace_id = ? AND owner_id = ?`,
+    )
+    .run(updatedAt, runId, scope.userId, scope.workspaceId, ownerId);
+  if (result.changes === 0) {
+    return null;
+  }
   return getRun(db, scope, runId);
 }
 

@@ -1,6 +1,7 @@
 import type { MasterRepository } from '@/server/master/repository';
 import type { MasterReminder, WorkspaceScope } from '@/server/master/types';
 import { getAutomationService } from '@/server/automation/runtime';
+import { MasterRemindersService } from '@/server/master/reminders';
 
 export interface CronJobDefinition {
   id: string;
@@ -13,6 +14,14 @@ export interface CronJobDefinition {
 
 function ruleName(scope: WorkspaceScope, reminderId: string): string {
   return `master-reminder:${scope.workspaceId}:${reminderId}`;
+}
+
+function ruleReminderId(scope: WorkspaceScope, name: string): string | null {
+  const prefix = `master-reminder:${scope.workspaceId}:`;
+  if (!name.startsWith(prefix)) {
+    return null;
+  }
+  return name.slice(prefix.length) || null;
 }
 
 export class MasterCronBridge {
@@ -97,5 +106,27 @@ export class MasterCronBridge {
           automationRuleId: linked?.id || null,
         };
       });
+  }
+
+  completeReminderRun(
+    scope: WorkspaceScope,
+    input: { automationRuleId: string; firedAt?: string; summary?: string | null },
+  ) {
+    const rule = getAutomationService()
+      .listRules(scope.userId)
+      .find((entry) => entry.id === input.automationRuleId);
+    if (!rule) {
+      return null;
+    }
+    const reminderId = ruleReminderId(scope, rule.name);
+    if (!reminderId) {
+      return null;
+    }
+    return new MasterRemindersService(this.repo, { scheduler: this }).fire(scope, reminderId, {
+      firedAt: input.firedAt,
+      source: 'cron',
+      summary: input.summary ?? null,
+      automationRuleId: input.automationRuleId,
+    });
   }
 }

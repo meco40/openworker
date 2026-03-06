@@ -1,5 +1,7 @@
 import type { MasterRepository } from '@/server/master/repository';
 import type { WorkspaceScope } from '@/server/master/types';
+import { consumeApprovedApprovalRequest } from '@/server/master/approvals/service';
+import { isMasterApprovalControlPlaneEnabled } from '@/server/master/featureFlags';
 
 export type ApprovalGateDecision = 'allowed' | 'awaiting_approval' | 'denied';
 
@@ -10,22 +12,18 @@ export interface RuntimeApprovalResolution {
   reason?: string;
 }
 
-const oneTimeApprovals = new Set<string>();
-
-function approvalKey(scope: WorkspaceScope, actionType: string, fingerprint: string): string {
-  return `${scope.userId}::${scope.workspaceId}::${actionType}::${fingerprint}`;
-}
-
 export function registerOneTimeApproval(
-  scope: WorkspaceScope,
-  actionType: string,
-  fingerprint: string,
+  _scope: WorkspaceScope,
+  _actionType: string,
+  _fingerprint: string,
 ): void {
-  oneTimeApprovals.add(approvalKey(scope, actionType, fingerprint));
+  throw new Error(
+    'registerOneTimeApproval is no longer supported; persist an approval request instead.',
+  );
 }
 
 export function clearOneTimeApprovalsForTests(): void {
-  oneTimeApprovals.clear();
+  // no-op; one-time approvals are now persisted in repository-backed approval requests
 }
 
 export function resolveRuntimeApproval(input: {
@@ -37,14 +35,7 @@ export function resolveRuntimeApproval(input: {
 }): RuntimeApprovalResolution {
   const actionType = String(input.actionType || '').trim();
   const fingerprint = String(input.fingerprint || actionType).trim() || actionType;
-  const key = approvalKey(input.scope, actionType, fingerprint);
-
   if (!input.requiresApproval) {
-    return { decision: 'allowed', actionType, fingerprint };
-  }
-
-  if (oneTimeApprovals.has(key)) {
-    oneTimeApprovals.delete(key);
     return { decision: 'allowed', actionType, fingerprint };
   }
 
@@ -59,6 +50,25 @@ export function resolveRuntimeApproval(input: {
   }
   if (rule === 'approve_always') {
     return { decision: 'allowed', actionType, fingerprint };
+  }
+
+  const consumed = consumeApprovedApprovalRequest({
+    repo: input.repo,
+    scope: input.scope,
+    actionType,
+    fingerprint,
+  });
+  if (consumed) {
+    return { decision: 'allowed', actionType, fingerprint };
+  }
+
+  if (!isMasterApprovalControlPlaneEnabled()) {
+    return {
+      decision: 'denied',
+      actionType,
+      fingerprint,
+      reason: `Approval control plane is disabled for ${actionType}.`,
+    };
   }
 
   return {

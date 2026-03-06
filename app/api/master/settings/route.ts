@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { isMasterSystemPersonaEnabled } from '@/server/master/featureFlags';
+import { getMasterRepository } from '@/server/master/runtime';
 import { getModelHubService } from '@/server/model-hub/runtime';
 import { ensureMasterPersona } from '@/server/master/systemPersona';
+import { loadToolPolicy, saveToolPolicy } from '@/server/master/toolPolicy/service';
+import { resolveMasterWorkspaceScope } from '@/server/master/workspaceScope';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
 import { PERSONA_INSTRUCTION_FILES, type PersonaFileName } from '@/server/personas/personaTypes';
 import { withUserContext } from '../../_shared/withUserContext';
@@ -15,6 +18,11 @@ interface MasterSettingsBody {
   isAutonomous?: boolean;
   maxToolCalls?: number;
   allowedToolFunctionNames?: string[];
+  toolPolicy?: {
+    security?: 'deny' | 'allowlist' | 'full';
+    ask?: 'off' | 'on_miss' | 'always';
+    allowlist?: string[];
+  };
   files?: Partial<Record<PersonaFileName, string>>;
 }
 
@@ -31,11 +39,27 @@ function isValidModelHubProfileId(value: string): boolean {
   return /^[a-zA-Z0-9._-]{1,64}$/.test(value.trim());
 }
 
-function buildSettingsPayload(personaId: string) {
+function defaultToolPolicy() {
+  return {
+    security: 'allowlist' as const,
+    ask: 'on_miss' as const,
+    allowlist: [] as string[],
+  };
+}
+
+function buildSettingsPayload(personaId: string, userId: string) {
   const persona = getPersonaRepository().getPersonaWithFiles(personaId);
   if (!persona) {
     throw new Error('Master persona could not be loaded.');
   }
+  const scope = resolveMasterWorkspaceScope({
+    userId,
+    workspaceId: 'main',
+  });
+  const toolPolicy = loadToolPolicy({
+    repo: getMasterRepository(),
+    scope,
+  });
 
   const instructionFiles = Object.fromEntries(
     PERSONA_INSTRUCTION_FILES.map((filename) => [filename, persona.files[filename] ?? '']),
@@ -57,6 +81,7 @@ function buildSettingsPayload(personaId: string) {
       maxToolCalls: persona.maxToolCalls,
     },
     allowedToolFunctionNames: persona.allowedToolFunctionNames,
+    toolPolicy: toolPolicy ?? defaultToolPolicy(),
     instructionFiles,
   };
 }
@@ -70,7 +95,7 @@ export const GET = withUserContext(async ({ userContext }) => {
       );
     }
     const master = ensureMasterPersona(userContext.userId);
-    return NextResponse.json(buildSettingsPayload(master.id));
+    return NextResponse.json(buildSettingsPayload(master.id, userContext.userId));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to load Master settings';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
@@ -162,6 +187,28 @@ export const PUT = withUserContext(async ({ request, userContext }) => {
       repo.setAllowedToolFunctionNames(master.id, body.allowedToolFunctionNames);
     }
 
+    const scope = resolveMasterWorkspaceScope({
+      userId: userContext.userId,
+      workspaceId: 'main',
+    });
+    if (body.toolPolicy) {
+      const security = body.toolPolicy.security ?? defaultToolPolicy().security;
+      const ask = body.toolPolicy.ask ?? defaultToolPolicy().ask;
+      const allowlist = Array.isArray(body.toolPolicy.allowlist)
+        ? body.toolPolicy.allowlist.map((entry) => String(entry))
+        : defaultToolPolicy().allowlist;
+      saveToolPolicy({
+        repo: getMasterRepository(),
+        scope,
+        policy: {
+          security,
+          ask,
+          allowlist,
+          updatedBy: userContext.userId,
+        },
+      });
+    }
+
     if (body.files && typeof body.files === 'object') {
       for (const filename of PERSONA_INSTRUCTION_FILES) {
         const content = body.files[filename];
@@ -171,7 +218,7 @@ export const PUT = withUserContext(async ({ request, userContext }) => {
       }
     }
 
-    return NextResponse.json(buildSettingsPayload(master.id));
+    return NextResponse.json(buildSettingsPayload(master.id, userContext.userId));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update Master settings';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

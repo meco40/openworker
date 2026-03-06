@@ -24,6 +24,11 @@ vi.mock('@/modules/master/api', () => ({
       maxToolCalls: 120,
     },
     allowedToolFunctionNames: ['shell_execute', 'web_search'],
+    toolPolicy: {
+      security: 'allowlist',
+      ask: 'on_miss',
+      allowlist: [],
+    },
     instructionFiles: {
       'SOUL.md': 'Master soul',
       'AGENTS.md': 'Master agents',
@@ -43,6 +48,9 @@ vi.mock('@/modules/master/api', () => ({
   fetchRuns: vi.fn(async () => []),
   fetchMetrics: vi.fn(async () => null),
   fetchRunDetail: vi.fn(async () => null),
+  fetchApprovalRequests: vi.fn(async () => []),
+  fetchSubagentSessions: vi.fn(async () => []),
+  fetchReminders: vi.fn(async () => []),
   createRun: vi.fn(async (input: { title: string; contract: string }) => ({
     id: 'run-new',
     userId: 'u1',
@@ -60,11 +68,17 @@ vi.mock('@/modules/master/api', () => ({
     pendingApprovalActionType: null,
     cancelledAt: null,
     cancelReason: null,
+    ownerId: null,
+    leaseExpiresAt: null,
+    heartbeatAt: null,
   })),
   postRunAction: vi.fn(async () => ({ exportBundle: { result: 'ok' } })),
   cancelRun: vi.fn(async () => {}),
+  decideApprovalRequest: vi.fn(async () => ({})),
+  createMasterEventsUrl: vi.fn(() => '/api/master/events?workspaceId=main&personaId=master-1'),
   isMasterSystemPersonaDisabledError: (error: unknown) =>
     error instanceof Error && /disabled/i.test(error.message),
+  parseMasterEventMessage: vi.fn((data: string) => JSON.parse(data)),
   submitFeedback: vi.fn(async () => {}),
   saveMasterSettings: vi.fn(async () => ({
     persona: {
@@ -81,6 +95,11 @@ vi.mock('@/modules/master/api', () => ({
       maxToolCalls: 120,
     },
     allowedToolFunctionNames: ['shell_execute', 'web_search'],
+    toolPolicy: {
+      security: 'allowlist',
+      ask: 'on_miss',
+      allowlist: [],
+    },
     instructionFiles: {
       'SOUL.md': 'Master soul',
       'AGENTS.md': 'Master agents',
@@ -111,6 +130,9 @@ function makeRun(overrides: Partial<MasterRun> = {}): MasterRun {
     pendingApprovalActionType: null,
     cancelledAt: null,
     cancelReason: null,
+    ownerId: null,
+    leaseExpiresAt: null,
+    heartbeatAt: null,
     ...overrides,
   };
 }

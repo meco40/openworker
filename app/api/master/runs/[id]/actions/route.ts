@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
+import {
+  createPendingApprovalRequest,
+  applyApprovalDecision,
+} from '@/server/master/approvals/service';
+import { isMasterApprovalControlPlaneEnabled } from '@/server/master/featureFlags';
 import { getMasterExecutionRuntime, getMasterRepository } from '@/server/master/runtime';
 import { resolveMasterUserId, resolveScopeFromRequest } from '@/server/master/http';
 import type { ApprovalDecision } from '@/server/master/types';
-import { registerOneTimeApproval } from '@/server/master/execution/approvalPolicy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +22,7 @@ interface ActionBody {
   stepId?: string;
   actionType?: string;
   fingerprint?: string;
+  approvalRequestId?: string;
   decision?: ApprovalDecision;
 }
 
@@ -87,14 +92,47 @@ export async function POST(request: Request, { params }: { params: Promise<Param
       return NextResponse.json({ ok: true, exportBundle });
     }
 
-    const runtime = getMasterExecutionRuntime();
+    if (!isMasterApprovalControlPlaneEnabled()) {
+      return NextResponse.json(
+        { ok: false, error: 'Master approval control plane is disabled.' },
+        { status: 404 },
+      );
+    }
+
     const fingerprint = String(body.fingerprint || actionType).trim() || actionType;
     const storedRule = repo.getApprovalRule(scope, actionType, fingerprint);
     const effectiveDecision = isApprovalDecision(body.decision)
       ? body.decision
       : storedRule || undefined;
 
+    if (body.approvalRequestId && effectiveDecision) {
+      const approval = applyApprovalDecision({
+        repo,
+        scope,
+        requestId: body.approvalRequestId,
+        decision: effectiveDecision,
+      });
+      if (effectiveDecision !== 'deny') {
+        const runtime = getMasterExecutionRuntime();
+        runtime.startBackground(scope, approval.runId);
+      }
+      return NextResponse.json({ ok: true, approval });
+    }
+
     if (!effectiveDecision) {
+      const approvalRequest = createPendingApprovalRequest({
+        repo,
+        scope,
+        runId: id,
+        stepId,
+        actionType,
+        summary: `Approval required for ${actionType}`,
+        host: 'gateway',
+        cwd: body.workspaceCwd ?? null,
+        resolvedPath: body.workspaceCwd ?? null,
+        fingerprint,
+        riskLevel: 'high',
+      });
       repo.updateRun(scope, id, {
         status: 'AWAITING_APPROVAL',
         pausedForApproval: true,
@@ -107,17 +145,31 @@ export async function POST(request: Request, { params }: { params: Promise<Param
           status: 'AWAITING_APPROVAL',
           actionType,
           fingerprint,
+          approvalRequestId: approvalRequest.id,
         },
         { status: 202 },
       );
     }
 
-    if (effectiveDecision === 'approve_always') {
-      repo.upsertApprovalRule(scope, actionType, fingerprint, 'approve_always');
-    }
-    if (effectiveDecision === 'approve_once') {
-      registerOneTimeApproval(scope, actionType, fingerprint);
-    }
+    const approvalRequest = createPendingApprovalRequest({
+      repo,
+      scope,
+      runId: id,
+      stepId,
+      actionType,
+      summary: `Approval required for ${actionType}`,
+      host: 'gateway',
+      cwd: body.workspaceCwd ?? null,
+      resolvedPath: body.workspaceCwd ?? null,
+      fingerprint,
+      riskLevel: 'high',
+    });
+    applyApprovalDecision({
+      repo,
+      scope,
+      requestId: approvalRequest.id,
+      decision: effectiveDecision,
+    });
 
     if (effectiveDecision === 'deny') {
       const patched = repo.updateRun(scope, id, {
@@ -135,6 +187,7 @@ export async function POST(request: Request, { params }: { params: Promise<Param
       pendingApprovalActionType: null,
       lastError: null,
     });
+    const runtime = getMasterExecutionRuntime();
     const resumed = runtime.startBackground(scope, id);
     return NextResponse.json({ ok: true, decision: effectiveDecision, resumed, run: patched });
   } catch (error) {

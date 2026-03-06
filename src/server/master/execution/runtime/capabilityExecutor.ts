@@ -1,10 +1,8 @@
-import { dispatchSkill } from '@/server/skills/executeSkill';
-import { executeSystemOperationWithRuntime } from '@/server/master/systemOps';
-import { buildSystemCommand } from '@/server/master/execution/runtime/capabilityControl';
 import { toSummaryFromSearchResult } from '@/server/master/execution/runtime/capabilityOutput';
+import { buildSystemCommand } from '@/server/master/execution/runtime/capabilityControl';
 import { buildCodeGenerationContent } from '@/server/master/execution/runtime/codeGeneration';
-import { parseJsonObject } from '@/server/master/execution/runtime/jsonParsing';
-import { buildToolContext } from '@/server/master/execution/runtime/toolContext';
+import { runTool } from '@/server/master/execution/runtime/toolRunner';
+import { isMasterGenericRuntimeEnabled } from '@/server/master/featureFlags';
 import { getMasterRuntimePersonaConfig } from '@/server/master/runtimePersona';
 import type {
   Capability,
@@ -24,8 +22,7 @@ export async function executeCapabilityTask(input: {
   control: CapabilityControl;
   approvalBypass: boolean;
 }): Promise<CapabilityTaskResult> {
-  const { scope, run, capability, repo, control, approvalBypass } = input;
-  const toolContext = buildToolContext(scope, run.id, approvalBypass);
+  const { scope, run, capability, repo, control, approvalBypass, stepId } = input;
   const runtimePersona = getMasterRuntimePersonaConfig({
     userId: scope.userId,
     personaId: scope.personaId,
@@ -48,15 +45,41 @@ export async function executeCapabilityTask(input: {
     };
   }
 
+  if (!isMasterGenericRuntimeEnabled()) {
+    return {
+      output: `Generic runtime is disabled for capability ${capability}.`,
+      confidence: 0.2,
+      mode: 'fallback',
+      degradedMode: true,
+    };
+  }
+
   if (capability === 'web_search') {
     try {
-      const result = await dispatchSkill(
-        'web_search',
-        { query: run.contract, count: 5 },
-        toolContext,
-      );
+      const result = await runTool({
+        scope,
+        run,
+        repo,
+        stepId,
+        approvalBypass,
+        request: {
+          toolName: 'web_search',
+          actionType: 'web_search',
+          fingerprint: 'web_search',
+          requiresApproval: false,
+          query: run.contract,
+        },
+      });
+      if (result.status !== 'completed') {
+        return {
+          output: result.status === 'blocked' ? result.reason : result.summary,
+          confidence: 0.25,
+          mode: 'fallback',
+          degradedMode: true,
+        };
+      }
       return {
-        output: toSummaryFromSearchResult(result),
+        output: toSummaryFromSearchResult(result.details),
         confidence: 0.78,
         mode: 'fallback',
         degradedMode: false,
@@ -78,77 +101,117 @@ export async function executeCapabilityTask(input: {
       filePath,
       scope: { userId: scope.userId, personaId: scope.personaId },
     });
-    await dispatchSkill('write', { path: filePath, content: generated.content }, toolContext);
+    const result = await runTool({
+      scope,
+      run,
+      repo,
+      stepId,
+      approvalBypass,
+      request: {
+        toolName: 'write',
+        actionType: control.actionType,
+        fingerprint: control.fingerprint,
+        requiresApproval: control.requiresApproval,
+        path: filePath,
+        content: generated.content,
+      },
+    });
     return {
-      output: `Wrote implementation draft to ${filePath}`,
-      confidence: generated.mode === 'model' ? 0.86 : 0.74,
+      output:
+        result.status === 'completed'
+          ? `Wrote implementation draft to ${filePath}`
+          : result.status === 'blocked'
+            ? result.reason
+            : result.summary,
+      confidence: result.status === 'completed' ? (generated.mode === 'model' ? 0.86 : 0.74) : 0.25,
       mode: generated.mode,
-      degradedMode: generated.degradedMode,
+      degradedMode: generated.degradedMode || result.status !== 'completed',
     };
   }
 
   if (capability === 'notes') {
-    const note = repo.createNote(scope, {
-      title: `Master note: ${run.title}`,
-      content: run.contract,
-      tags: ['master', 'autonomous'],
+    const result = await runTool({
+      scope,
+      run,
+      repo,
+      stepId,
+      approvalBypass,
+      request: {
+        toolName: 'notes',
+        actionType: 'notes',
+        fingerprint: 'notes',
+        requiresApproval: false,
+        noteTitle: `Master note: ${run.title}`,
+        noteContent: run.contract,
+        noteTags: ['master', 'autonomous'],
+      },
     });
     return {
-      output: `Stored note ${note.id} (${note.title})`,
-      confidence: 0.8,
+      output:
+        result.status === 'completed'
+          ? result.output
+          : result.status === 'blocked'
+            ? result.reason
+            : result.summary,
+      confidence: result.status === 'completed' ? 0.8 : 0.25,
       mode: 'fallback',
-      degradedMode: false,
+      degradedMode: result.status !== 'completed',
     };
   }
 
   if (capability === 'reminders') {
-    const reminderAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    const reminder = repo.createReminder(scope, {
-      title: `Follow-up: ${run.title}`,
-      message: run.contract,
-      remindAt: reminderAt,
-      cronExpression: null,
-      status: 'pending',
+    const result = await runTool({
+      scope,
+      run,
+      repo,
+      stepId,
+      approvalBypass,
+      request: {
+        toolName: 'reminders',
+        actionType: 'reminders',
+        fingerprint: 'reminders',
+        requiresApproval: false,
+        noteTitle: `Follow-up: ${run.title}`,
+        noteContent: run.contract,
+        remindAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      },
     });
     return {
-      output: `Created reminder ${reminder.id} for ${reminder.remindAt}`,
-      confidence: 0.75,
+      output:
+        result.status === 'completed'
+          ? result.output
+          : result.status === 'blocked'
+            ? result.reason
+            : result.summary,
+      confidence: result.status === 'completed' ? 0.75 : 0.25,
       mode: 'fallback',
-      degradedMode: false,
+      degradedMode: result.status !== 'completed',
     };
   }
 
-  const command = control.command || buildSystemCommand(run.contract);
-  const systemResult = await executeSystemOperationWithRuntime({
-    command,
-    approved: approvalBypass,
-    execute: async () => {
-      const skillResult = await dispatchSkill(
-        'shell_execute',
-        { command },
-        { ...toolContext, bypassApproval: approvalBypass },
-      );
-      const payload = parseJsonObject(JSON.stringify(skillResult)) || {};
-      return {
-        stdout: typeof payload.stdout === 'string' ? payload.stdout : '',
-        stderr: typeof payload.stderr === 'string' ? payload.stderr : '',
-        exitCode:
-          typeof payload.exitCode === 'number' ? payload.exitCode : Number(payload.exitCode || 0),
-      };
+  const result = await runTool({
+    scope,
+    run,
+    repo,
+    stepId,
+    approvalBypass,
+    request: {
+      toolName: 'shell_execute',
+      actionType: control.actionType,
+      fingerprint: control.fingerprint,
+      requiresApproval: control.requiresApproval,
+      command: control.command || buildSystemCommand(run.contract),
     },
   });
-  if (systemResult.status !== 'executed') {
-    return {
-      output: systemResult.output,
-      confidence: 0.25,
-      mode: 'fallback',
-      degradedMode: true,
-    };
-  }
   return {
-    output: systemResult.output,
-    confidence: 0.65,
+    output:
+      result.status === 'completed'
+        ? result.output
+        : result.status === 'blocked'
+          ? result.reason
+          : result.summary,
+    confidence: result.status === 'completed' ? 0.65 : 0.25,
     mode: 'fallback',
-    degradedMode: false,
+    degradedMode: result.status !== 'completed',
   };
 }

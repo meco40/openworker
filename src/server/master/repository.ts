@@ -1,6 +1,7 @@
 import type {
   ApprovalDecision,
   MasterActionLedgerEntry,
+  MasterApprovalRequest,
   MasterCapabilityProposal,
   MasterCapabilityScore,
   MasterConnectorSecret,
@@ -13,6 +14,8 @@ import type {
   MasterRun,
   MasterRunCreateInput,
   MasterStep,
+  MasterSubagentSession,
+  MasterToolPolicy,
   MasterToolForgeArtifact,
   WorkspaceScope,
 } from '@/server/master/types';
@@ -22,6 +25,20 @@ export interface MasterRepository {
   getRun(scope: WorkspaceScope, runId: string): MasterRun | null;
   listRuns(scope: WorkspaceScope, limit?: number): MasterRun[];
   updateRun(scope: WorkspaceScope, runId: string, patch: Partial<MasterRun>): MasterRun | null;
+  claimRun(
+    scope: WorkspaceScope,
+    runId: string,
+    ownerId: string,
+    leaseExpiresAt: string,
+  ): MasterRun | null;
+  renewRunLease(
+    scope: WorkspaceScope,
+    runId: string,
+    ownerId: string,
+    leaseExpiresAt: string,
+    heartbeatAt: string,
+  ): MasterRun | null;
+  releaseRunLease(scope: WorkspaceScope, runId: string, ownerId: string): MasterRun | null;
 
   appendStep(
     scope: WorkspaceScope,
@@ -101,6 +118,50 @@ export interface MasterRepository {
     actionType: string,
     fingerprint: string,
   ): ApprovalDecision | null;
+
+  createApprovalRequest(
+    scope: WorkspaceScope,
+    request: Omit<
+      MasterApprovalRequest,
+      'id' | 'userId' | 'workspaceId' | 'createdAt' | 'updatedAt'
+    >,
+  ): MasterApprovalRequest;
+  updateApprovalRequest(
+    scope: WorkspaceScope,
+    requestId: string,
+    patch: Partial<MasterApprovalRequest>,
+  ): MasterApprovalRequest | null;
+  getApprovalRequest(scope: WorkspaceScope, requestId: string): MasterApprovalRequest | null;
+  listApprovalRequests(
+    scope: WorkspaceScope,
+    runId?: string,
+    limit?: number,
+  ): MasterApprovalRequest[];
+
+  upsertToolPolicy(
+    scope: WorkspaceScope,
+    policy: Omit<MasterToolPolicy, 'id' | 'userId' | 'workspaceId' | 'createdAt' | 'updatedAt'>,
+  ): MasterToolPolicy;
+  getToolPolicy(scope: WorkspaceScope): MasterToolPolicy | null;
+
+  createSubagentSession(
+    scope: WorkspaceScope,
+    session: Omit<
+      MasterSubagentSession,
+      'id' | 'userId' | 'workspaceId' | 'createdAt' | 'updatedAt'
+    >,
+  ): MasterSubagentSession;
+  updateSubagentSession(
+    scope: WorkspaceScope,
+    sessionId: string,
+    patch: Partial<MasterSubagentSession>,
+  ): MasterSubagentSession | null;
+  getSubagentSession(scope: WorkspaceScope, sessionId: string): MasterSubagentSession | null;
+  listSubagentSessions(
+    scope: WorkspaceScope,
+    runId?: string,
+    limit?: number,
+  ): MasterSubagentSession[];
 
   upsertCapabilityScore(
     scope: WorkspaceScope,

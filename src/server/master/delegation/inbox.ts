@@ -1,5 +1,6 @@
 import type { MasterRepository } from '@/server/master/repository';
 import type { WorkspaceScope } from '@/server/master/types';
+import { publishDelegationEvent } from '@/server/master/delegation/sessionService';
 
 export class DelegationInbox {
   constructor(private readonly repo: MasterRepository) {}
@@ -11,7 +12,7 @@ export class DelegationInbox {
     type: 'progress' | 'result' | 'error',
     payload: unknown,
   ): void {
-    this.repo.appendDelegationEvent(scope, {
+    publishDelegationEvent(this.repo, scope, {
       runId,
       jobId,
       type,

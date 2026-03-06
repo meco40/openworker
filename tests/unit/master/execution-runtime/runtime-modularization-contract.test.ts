@@ -33,7 +33,8 @@ describe('master execution runtime modularization contract', () => {
     expect(planSource).toContain('buildExecutionPlanWithModel');
     expect(planSource).toContain('buildFallbackExecutionPlan');
     expect(capabilitySource).toContain('executeCapabilityTask');
-    expect(capabilitySource).toMatch(/dispatchSkill\(\s*'web_search'/);
-    expect(capabilitySource).toMatch(/dispatchSkill\(\s*'write'/);
+    expect(capabilitySource).toContain('runTool({');
+    expect(capabilitySource).toContain("toolName: 'web_search'");
+    expect(capabilitySource).toContain("toolName: 'write'");
   });
 });

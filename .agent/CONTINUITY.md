@@ -2,6 +2,8 @@
 
 ## [PLANS]
 
+- 2026-03-06T12:05:00Z [USER] Implement the full Master OpenClaw autonomy parity plan in the isolated worktree, including persistence-first approvals/policy, leased runtime ownership, durable sessions, reminder lifecycle, operator UI/SSE, flags, observability, and docs.
+- 2026-03-06T10:35:00Z [USER] Implement Task 3 from the approved Master autonomy parity plan in the forked worktree, limited to delegation/session routes/tests plus minimal related imports.
 - 2026-03-05T23:11:00Z [USER] Implement the production-ready rollout that turns `Master` into a system persona with a dedicated `Master > Settings` tab and preserved approval/audit runtime.
 - 2026-03-06T00:20:00Z [USER] Address the follow-up Master review gaps: hide `Master` from normal persona selection, add a real rollout flag with legacy fallback, and update stale docs.
 - 2026-03-05T13:15:17Z [USER] Update `AGENTS.md` with new workflows and commands for this workspace.
@@ -16,6 +18,13 @@
 
 ## [DECISIONS]
 
+- 2026-03-06T11:40:26Z [CODE] Review-gap closure keeps the new generic runtime contract and updates tests to that contract instead of restoring legacy `dispatchSkill(...)` assertions; capability execution now standardizes on `runTool(...)` plus tool-name requests.
+- 2026-03-06T11:40:26Z [CODE] Master runtime/unit tests that provision the system persona should use an explicit `PersonaRepository` when isolation matters, rather than the singleton `getPersonaRepository()` path, to avoid cross-test slug collisions in full-suite runs.
+- 2026-03-06T12:05:00Z [CODE] Operator live updates use a dedicated Master SSE endpoint (`/api/master/events`) for snapshot-style change notifications, while HTTP remains the authoritative read/write surface and the UI falls back to guarded polling when SSE is unavailable.
+- 2026-03-06T12:05:00Z [CODE] The Settings surface keeps persona tool allowlist and operator tool policy separate: persona permissions remain the hard ceiling, while `toolPolicy { security, ask, allowlist }` is persisted in `master_tool_policies`.
+- 2026-03-06T10:43:46Z [CODE] Task 4 reminder lifecycle stays within existing reminder schema; `firedAt` and duplicate-fire identity are persisted via audit metadata while reminder status continues to use the existing `pending|fired|paused|cancelled` column.
+- 2026-03-06T11:42:00Z [CODE] Task 3 uses the existing persisted `master_subagent_sessions` table without a schema change; session-to-job detail pairing is derived deterministically by creation order within a run.
+- 2026-03-06T11:42:00Z [CODE] New operator-facing session surface is split into `GET /api/master/subagents`, `GET /api/master/subagents/[id]`, and `PATCH /api/master/subagents/[id]` (`action='cancel'`).
 - 2026-03-05T23:11:00Z [CODE] `Master` is implemented as a system persona (`systemPersonaKey='master'`) with server-side tool allowlist and a dedicated `/api/master/settings` write surface; normal persona edit/delete/file-write routes stay blocked for this persona.
 - 2026-03-05T23:11:00Z [CODE] Master runtime scope resolution now auto-provisions and normalizes to the `Master` persona per user/workspace, with a dedicated `personas/master/projects/workspaces/<workspace>` root and legacy `master_*` scope migration.
 - 2026-03-05T23:11:00Z [CODE] Keep `Master` visible in Personas UI with `System` badge, but centralize editable behavior in `Master > Settings`; direct persona-editor changes are read-only for Master.
@@ -37,6 +46,15 @@
 
 ## [PROGRESS]
 
+- 2026-03-06T11:40:26Z [CODE] Closed the remaining post-review parity gaps: approval routes now expose UI-compatible payload aliases and flag gating, capability execution is wired through `runTool(...)`, approval persistence is created from execution flow, run leases now heartbeat during execution, subagent/session routes honor rollout flags, and SSE clients subscribe to named `snapshot` events with polling fallback preserved.
+- 2026-03-06T11:40:26Z [CODE] Updated the affected contract tests to match the new runtime architecture and fixed the SSE hook test stub to implement `addEventListener/removeEventListener`; isolated the `tool-runner` test from the global persona singleton to remove full-suite slug collisions.
+- 2026-03-06T11:40:26Z [TOOL] Re-verified the review-gap fixes with targeted `typecheck` and focused Vitest suites, then a full `pnpm run test`, `pnpm run check`, and `pnpm run build`.
+- 2026-03-06T12:05:00Z [CODE] Completed the parity rollout in the worktree: Task 0/1 foundations persisted approval requests, tool policy, subagent sessions, and run leases; Task 2 added DB-backed run claiming plus generic tool-runner support; Task 5 added Approval/Automation UI panels, Tool Policy UI, Subagent Sessions UI, and SSE-backed `useMasterView`; Task 6 added rollout flags, event route, metrics expansion, and updated Master/API docs with a new rollout runbook.
+- 2026-03-06T12:05:00Z [TOOL] Verified the integrated rollout with focused Vitest suites for approvals/runtime/sessions/reminders/events/UI, plus full `pnpm run typecheck`, `pnpm run lint`, `pnpm run test`, `pnpm run check`, and `pnpm run build`.
+- 2026-03-06T10:43:46Z [CODE] Implemented Task 4 reminder lifecycle work in the parity worktree: `MasterRemindersService` now owns create/update/pause/cancel/delete/fire transitions with audit emission and optional scheduler projection, `MasterCronBridge` can project automation rules and write cron completion back into reminder state, and Master reminder routes now expose collection/detail/fire flows through the service.
+- 2026-03-06T10:43:46Z [TOOL] Verified Task 4 with `pnpm test -- tests/unit/master/master-reminders-service.test.ts tests/integration/master/master-reminders-lifecycle.test.ts` and `pnpm run typecheck`.
+- 2026-03-06T11:42:00Z [CODE] Added `src/server/master/delegation/{sessionService,sessionTypes}.ts`, wired dispatcher/pool/inbox through durable session lifecycle updates, and added new subagent list/detail/cancel routes under `app/api/master/subagents/*`.
+- 2026-03-06T11:42:00Z [TOOL] Verified Task 3 with `pnpm vitest run tests/unit/master/master-subagent-session-service.test.ts tests/integration/master/master-subagents-route.test.ts`, `pnpm run typecheck`, `pnpm run lint`, and `pnpm run build`.
 - 2026-03-05T23:11:00Z [CODE] Added system-persona support to persona types/repository, including `system_persona_key`, `persona_tool_permissions`, `ensureMasterPersona`, route hardening, and removal of the old Nexus-only `TOOLS.md` coupling.
 - 2026-03-05T23:11:00Z [CODE] Implemented `/api/master/settings`, Master runtime persona resolution, runtime allowlist enforcement, workspace normalization/migration, and fixed Master frontend flow to use a fixed system persona with a new `Settings` tab.
 - 2026-03-05T23:11:00Z [CODE] Updated Personas UI to badge and lock the Master persona; updated Master/API/runtime/unit/integration tests to cover provisioning, route protection, settings persistence, workspace migration, and UI behavior.
@@ -80,6 +98,12 @@
 
 ## [DISCOVERIES]
 
+- 2026-03-06T11:40:26Z [CODE] The new named SSE contract (`event: snapshot`) requires test doubles to implement `addEventListener/removeEventListener`; using only `onmessage` is insufficient once the hook subscribes to the named event channel.
+- 2026-03-06T11:40:26Z [CODE] `tests/unit/master/execution-runtime/runtime-modularization-contract.test.ts` was asserting the old `dispatchSkill(...)` architecture and needed to be updated to the generic `runTool(...)` contract to reflect the implemented runtime rather than pinning the old design in place.
+- 2026-03-06T12:05:00Z [TOOL] `pnpm run test` needed a longer execution window in this worktree; the earlier 120s shell timeout caused an `EPIPE` from truncated Vitest output even though the full suite passes when allowed to complete.
+- 2026-03-06T10:43:46Z [CODE] `master_reminders` updates are presence-based in `reminders.store.ts`; passing keys with `undefined` values causes required columns to be written as `NULL`, so reminder lifecycle code must strip undefined fields before calling `repo.updateReminder(...)`.
+- 2026-03-06T10:43:46Z [CODE] In integration paths, reminder audit rows live under the resolved Master workspace scope (`persona:<masterPersonaId>:<workspaceId>`), not the raw request `workspaceId`; route tests that inspect repository audit state must read the persisted reminder scope.
+- 2026-03-06T11:42:00Z [CODE] The current persisted session model has no direct `jobId`, so session detail/replay must either add schema later or derive job association from stable per-run creation order; Task 3 takes the derivation path to stay within the approved file ownership.
 - 2026-03-05T23:11:00Z [CODE] The Master runtime reads personas through the singleton `getPersonaRepository()` path; tests that instantiate a separate `PersonaRepository` can pass in isolation yet fail in full-suite runs due to repository-instance drift.
 - 2026-03-05T23:11:00Z [TOOL] `tests/integration/personas/personas-memory-cascade-delete.test.ts` completes in roughly 9-11s under normal load; the prior 15s timeout was too tight for full-suite contention and required a targeted increase to 30s.
 - 2026-03-06T00:20:00Z [TOOL] A first full-suite rerun transiently failed `tests/unit/skills/demo-session-compat-handlers.test.ts` while the test passed in isolation and on immediate full-suite rerun, indicating an existing non-deterministic suite interaction rather than a reproducible Master-regression.
@@ -106,6 +130,12 @@
 
 ## [OUTCOMES]
 
+- 2026-03-06T11:40:26Z [CODE] The previously identified review gaps are now closed in the parity worktree: Approval UI/API payloads align, generic tool execution is on the real runtime path, run lease heartbeats are periodic, rollout flags gate the new surfaces, and the SSE hook/test contract matches the implemented named-event transport.
+- 2026-03-06T11:40:26Z [TOOL] Final verification after gap-closure is green: `typecheck`, `lint`, `test` (537 files / 2494 tests), `check`, and `build`.
+- 2026-03-06T12:05:00Z [CODE] The Master autonomy parity rollout is now implemented in the isolated worktree: persistent approvals and tool policy, leased run execution, durable subagent sessions, reminder lifecycle callbacks, operator SSE/polling UX, rollout flags, observability metrics, and rollout/docs surfaces are present together.
+- 2026-03-06T12:05:00Z [TOOL] Final repository verification in the parity worktree is green: `typecheck`, `lint`, `test` (537 files / 2494 tests), `check`, and `build`.
+- 2026-03-06T10:43:46Z [CODE] Reminder lifecycle coverage now includes service-level cron projection, pause/cancel transitions, fire audit emission, duplicate-fire suppression, and route-level detail/fire callbacks for Master reminders.
+- 2026-03-06T11:42:00Z [CODE] Task 3 now provides durable subagent sessions with claim/reclaim/cancel helpers, dispatcher/pool session syncing, and operator APIs for session list/detail inspection in the parity worktree.
 - 2026-03-05T23:11:00Z [CODE] Master is now a production-ready system persona rollout: auto-provisioned per user, policy-controlled through `Master > Settings`, protected from direct persona mutation, and integrated into Master runtime/workspace execution.
 - 2026-03-05T23:11:00Z [TOOL] Final repository gates are green in the feature worktree: `test` (521 files / 2463 tests), `check`, and `build`.
 - 2026-03-06T00:20:00Z [CODE] The follow-up review gaps are closed: Master cannot be selected as a normal chat/swarm persona, the rollout is flag-controlled with a legacy fallback path, and active docs now match the implemented behavior.

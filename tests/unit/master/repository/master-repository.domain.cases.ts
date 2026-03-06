@@ -88,6 +88,76 @@ describe('SqliteMasterRepository domain features', () => {
     repo.upsertApprovalRule(scope, 'gmail.send', 'fingerprint-1', 'approve_always');
     expect(repo.getApprovalRule(scope, 'gmail.send', 'fingerprint-1')).toBe('approve_always');
 
+    const leasedRun = repo.updateRun(scope, run.id, {
+      ownerId: 'worker-a',
+      leaseExpiresAt: '2026-03-06T12:00:00.000Z',
+      heartbeatAt: '2026-03-06T11:59:00.000Z',
+    });
+    expect(leasedRun?.ownerId).toBe('worker-a');
+    expect(leasedRun?.leaseExpiresAt).toBe('2026-03-06T12:00:00.000Z');
+    expect(leasedRun?.heartbeatAt).toBe('2026-03-06T11:59:00.000Z');
+
+    const approvalRequest = repo.createApprovalRequest(scope, {
+      runId: run.id,
+      stepId: 'step-approve-1',
+      toolName: 'shell_execute',
+      actionType: 'shell.exec',
+      summary: 'Run npm test in workspace',
+      prompt: 'Allow the shell command for this run?',
+      host: 'gateway',
+      cwd: 'D:/web/clawtest',
+      resolvedPath: 'D:/web/clawtest',
+      fingerprint: 'shell_execute:gateway:D:/web/clawtest:npm test',
+      riskLevel: 'high',
+      status: 'pending',
+      expiresAt: '2026-03-06T12:05:00.000Z',
+      decision: null,
+      decisionReason: null,
+      decidedAt: null,
+    });
+    expect(repo.listApprovalRequests(scope, run.id)).toHaveLength(1);
+    const approvedRequest = repo.updateApprovalRequest(scope, approvalRequest.id, {
+      status: 'approved',
+      decision: 'approve_once',
+      decidedAt: '2026-03-06T12:01:00.000Z',
+    });
+    expect(approvedRequest?.decision).toBe('approve_once');
+    expect(approvedRequest?.status).toBe('approved');
+
+    const toolPolicy = repo.upsertToolPolicy(scope, {
+      security: 'allowlist',
+      ask: 'on_miss',
+      allowlist: ['shell_execute:gateway:D:/web/clawtest:*'],
+      updatedBy: 'operator-user',
+    });
+    expect(toolPolicy.security).toBe('allowlist');
+    expect(repo.getToolPolicy(scope)?.allowlist).toContain(
+      'shell_execute:gateway:D:/web/clawtest:*',
+    );
+
+    const session = repo.createSubagentSession(scope, {
+      runId: run.id,
+      status: 'queued',
+      title: 'Investigate failing command',
+      prompt: 'Inspect the failing shell command and summarize root cause.',
+      assignedTools: ['read', 'shell_execute'],
+      ownerId: null,
+      leaseExpiresAt: null,
+      heartbeatAt: null,
+      latestEventAt: null,
+      resultSummary: null,
+      lastError: null,
+    });
+    expect(repo.listSubagentSessions(scope, run.id)).toHaveLength(1);
+    const runningSession = repo.updateSubagentSession(scope, session.id, {
+      status: 'running',
+      ownerId: 'worker-a',
+      leaseExpiresAt: '2026-03-06T12:10:00.000Z',
+      heartbeatAt: '2026-03-06T12:02:00.000Z',
+    });
+    expect(runningSession?.status).toBe('running');
+    expect(runningSession?.ownerId).toBe('worker-a');
+
     repo.upsertCapabilityScore(scope, 'gmail', 0.8, '{"latencyMs":200}', new Date().toISOString());
     expect(repo.listCapabilityScores(scope)).toHaveLength(1);
 

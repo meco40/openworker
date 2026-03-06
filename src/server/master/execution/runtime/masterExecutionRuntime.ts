@@ -11,6 +11,7 @@ export type { MasterRunExportBundle };
 
 export class MasterExecutionRuntime {
   private readonly running = new Map<string, Promise<void>>();
+  private readonly ownerId = `master-runtime-${Math.random().toString(36).slice(2)}`;
 
   constructor(
     private readonly repo: MasterRepository,
@@ -24,7 +25,11 @@ export class MasterExecutionRuntime {
   startBackground(scope: MasterWorkspaceBinding, runId: string): boolean {
     const key = this.key(scope, runId);
     if (this.running.has(key)) return false;
+    const leaseExpiresAt = new Date(Date.now() + 60_000).toISOString();
+    const claimed = this.repo.claimRun(scope, runId, this.ownerId, leaseExpiresAt);
+    if (!claimed) return false;
     const promise = this.execute(scope, runId).finally(() => {
+      this.repo.releaseRunLease(scope, runId, this.ownerId);
       this.running.delete(key);
     });
     this.running.set(key, promise);
@@ -32,7 +37,15 @@ export class MasterExecutionRuntime {
   }
 
   async executeNow(scope: MasterWorkspaceBinding, runId: string) {
-    await this.execute(scope, runId);
+    const leaseExpiresAt = new Date(Date.now() + 60_000).toISOString();
+    if (!this.repo.claimRun(scope, runId, this.ownerId, leaseExpiresAt)) {
+      throw new Error('Master run is already claimed by another runtime.');
+    }
+    try {
+      await this.execute(scope, runId);
+    } finally {
+      this.repo.releaseRunLease(scope, runId, this.ownerId);
+    }
     const run = this.repo.getRun(scope, runId);
     if (!run) {
       throw new Error('Master run not found.');
@@ -83,12 +96,30 @@ export class MasterExecutionRuntime {
   }
 
   private async execute(scope: MasterWorkspaceBinding, runId: string): Promise<void> {
-    await executeMasterRunFlow({
-      scope,
-      runId,
-      repo: this.repo,
-      orchestrator: this.orchestrator,
-      nextStepSequence: (flowScope, flowRunId) => this.nextStepSequence(flowScope, flowRunId),
-    });
+    const renewLease = () =>
+      this.repo.renewRunLease(
+        scope,
+        runId,
+        this.ownerId,
+        new Date(Date.now() + 60_000).toISOString(),
+        new Date().toISOString(),
+      );
+
+    renewLease();
+    const heartbeat = setInterval(() => {
+      renewLease();
+    }, 15_000);
+    heartbeat.unref?.();
+    try {
+      await executeMasterRunFlow({
+        scope,
+        runId,
+        repo: this.repo,
+        orchestrator: this.orchestrator,
+        nextStepSequence: (flowScope, flowRunId) => this.nextStepSequence(flowScope, flowRunId),
+      });
+    } finally {
+      clearInterval(heartbeat);
+    }
   }
 }

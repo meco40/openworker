@@ -3,7 +3,12 @@ import type { WorkspaceScope } from '@/server/master/types';
 import { DelegationInbox } from '@/server/master/delegation/inbox';
 import { DelegationResourceGovernor } from '@/server/master/delegation/resourceGovernor';
 import { evaluateTriggerPolicy } from '@/server/master/delegation/triggerPolicy';
+import {
+  createSubagentSessionForDispatch,
+  publishDelegationEvent,
+} from '@/server/master/delegation/sessionService';
 import { SubagentPool } from '@/server/master/delegation/subagentPool';
+import { isMasterSubagentSessionsEnabled } from '@/server/master/featureFlags';
 
 export class DelegationDispatcher {
   private readonly inbox: DelegationInbox;
@@ -47,6 +52,13 @@ export class DelegationDispatcher {
       return { jobId: '', accepted: false, reason: 'capacity_exhausted' };
     }
 
+    const session = isMasterSubagentSessionsEnabled()
+      ? createSubagentSessionForDispatch(this.repo, input.scope, {
+          runId: input.runId,
+          capability: input.capability,
+          payload: input.payload,
+        })
+      : null;
     const job = this.repo.createDelegationJob(input.scope, {
       runId: input.runId,
       capability: input.capability,
@@ -56,9 +68,15 @@ export class DelegationDispatcher {
       maxAttempts: 3,
       timeoutMs,
     });
+    publishDelegationEvent(this.repo, input.scope, {
+      runId: input.runId,
+      jobId: job.id,
+      type: 'created',
+      payload: JSON.stringify({ capability: input.capability }),
+    });
 
     try {
-      await this.pool.execute(input.scope, input.runId, job.id, input.task);
+      await this.pool.execute(input.scope, input.runId, job.id, session?.id ?? null, input.task);
       return { jobId: job.id, accepted: true };
     } finally {
       this.governor.release(input.capability);

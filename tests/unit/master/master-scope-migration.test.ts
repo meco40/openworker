@@ -100,6 +100,43 @@ describe('master scope migration', () => {
       tags: ['legacy'],
     });
     repo.upsertApprovalRule(legacyScope, 'gmail.send', 'mail:f1', 'approve_always');
+    repo.createApprovalRequest(legacyScope, {
+      runId: repo.listRuns(legacyScope)[0]!.id,
+      stepId: 'step-legacy-approval',
+      toolName: 'shell_execute',
+      actionType: 'shell.exec',
+      summary: 'Run legacy shell command',
+      prompt: 'Allow the legacy shell command?',
+      host: 'gateway',
+      cwd: 'D:/web/clawtest',
+      resolvedPath: 'D:/web/clawtest',
+      fingerprint: 'shell_execute:gateway:D:/web/clawtest:legacy',
+      riskLevel: 'high',
+      status: 'pending',
+      expiresAt: '2026-03-06T12:05:00.000Z',
+      decision: null,
+      decisionReason: null,
+      decidedAt: null,
+    });
+    repo.upsertToolPolicy(legacyScope, {
+      security: 'allowlist',
+      ask: 'on_miss',
+      allowlist: ['shell_execute:gateway:D:/web/clawtest:*'],
+      updatedBy: 'legacy-local-user',
+    });
+    repo.createSubagentSession(legacyScope, {
+      runId: repo.listRuns(legacyScope)[0]!.id,
+      status: 'queued',
+      title: 'Legacy session',
+      prompt: 'continue legacy work',
+      assignedTools: ['read'],
+      ownerId: null,
+      leaseExpiresAt: null,
+      heartbeatAt: null,
+      latestEventAt: null,
+      resultSummary: null,
+      lastError: null,
+    });
 
     const normalizedScope = resolveMasterWorkspaceScope({
       userId: 'legacy-local-user',
@@ -112,8 +149,14 @@ describe('master scope migration', () => {
     expect(repo.listRuns(normalizedScope)).toHaveLength(1);
     expect(repo.listNotes(normalizedScope)).toHaveLength(1);
     expect(repo.getApprovalRule(normalizedScope, 'gmail.send', 'mail:f1')).toBe('approve_always');
+    expect(repo.listApprovalRequests(normalizedScope)).toHaveLength(1);
+    expect(repo.getToolPolicy(normalizedScope)?.security).toBe('allowlist');
+    expect(repo.listSubagentSessions(normalizedScope)).toHaveLength(1);
     expect(repo.listRuns(legacyScope)).toHaveLength(0);
     expect(repo.listNotes(legacyScope)).toHaveLength(0);
     expect(repo.getApprovalRule(legacyScope, 'gmail.send', 'mail:f1')).toBeNull();
+    expect(repo.listApprovalRequests(legacyScope)).toHaveLength(0);
+    expect(repo.getToolPolicy(legacyScope)).toBeNull();
+    expect(repo.listSubagentSessions(legacyScope)).toHaveLength(0);
   });
 });
