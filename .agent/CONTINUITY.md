@@ -75,6 +75,8 @@
 - 2026-03-05T18:02:23Z [CODE] Updated voice + entry UX: runtime capability detection in `useGrokVoiceAgent`, unsupported mic guard, text-input-first fallback in `MasterEntryPage`, and avatar suppression for viewports `<380px`.
 - 2026-03-05T18:02:23Z [CODE] Added component-level behavior tests for new flows in `tests/unit/components/master/{run-feedback-panel-submit,master-entry-page-viewport,use-master-view-race,grok-voice-agent-capabilities}.test.tsx`.
 - 2026-03-05T18:02:23Z [TOOL] Verified with `pnpm vitest run tests/unit/components/master/* tests/unit/modules/master tests/unit/master/master-view-routing.test.ts tests/integration/master`, `pnpm run typecheck`, `pnpm run lint`, `pnpm run check`, and `pnpm run build`.
+- 2026-03-06T07:31:32Z [TOOL] Fast-forward merged `feat-master-system-persona` into local `main` after restoring generated local artifacts that blocked the merge (`next-env.d.ts`, `tsconfig.tsbuildinfo`).
+- 2026-03-06T07:31:32Z [TOOL] Re-verified merged `main` with `pnpm run typecheck`, `pnpm run lint`, `pnpm run test`, `pnpm run check`, and `pnpm run build`.
 
 ## [DISCOVERIES]
 
@@ -118,3 +120,4 @@
 - 2026-03-05T17:07:59Z [CODE] Full validation run is green with warnings removed from repository-owned checks: `typecheck`, `lint`, `format:check`, `test`, and `build`.
 - 2026-03-05T17:32:16Z [TOOL] Delivered deep `Master` page review findings across UI, voice runtime, API behavior, and test quality, with prioritized risks and concrete line-level references (no runtime code changes in this pass).
 - 2026-03-05T18:02:23Z [CODE] Master findings 1–4 are implemented end-to-end with behavior tests and full validation evidence; UI now gates feedback success on server confirmation, supports text-only voice fallback, avoids stale scope writes, and avoids 3D avatar rendering on very small mobile viewports.
+- 2026-03-06T07:31:32Z [CODE] `main` now includes the full `Master` system-persona rollout and passed the repository validation gates on the merged result before push.
