@@ -32,7 +32,7 @@ describe('RunFeedbackPanel submit behavior', () => {
     await waitFor(() => {
       expect(onSubmit).toHaveBeenCalledTimes(1);
     });
-    expect(screen.getByText(/feedback submitted/i)).toBeInTheDocument();
+    expect(await screen.findByText(/feedback submitted/i)).toBeInTheDocument();
   });
 
   it('keeps form visible and shows inline error on failed submit', async () => {
