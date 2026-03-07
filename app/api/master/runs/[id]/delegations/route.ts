@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { publishMasterUpdated } from '@/server/master/liveEvents';
 import { getMasterRepository } from '@/server/master/runtime';
 import { resolveMasterUserId, resolveScopeFromRequest } from '@/server/master/http';
 
@@ -69,6 +70,11 @@ export async function POST(request: Request, { params }: { params: Promise<Param
       runId: id,
       type: 'created',
       payload: JSON.stringify({ capability: body.capability }),
+    });
+    publishMasterUpdated({
+      scope,
+      resources: ['subagents', 'metrics'],
+      runId: id,
     });
     return NextResponse.json({ ok: true, job }, { status: 201 });
   } catch (error) {

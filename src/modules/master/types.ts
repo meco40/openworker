@@ -17,6 +17,7 @@ export type {
   MasterSubagentSession,
   MasterReminder,
 } from '@/server/master/types';
+export type { MasterInvalidationResource } from '@/server/events/types';
 
 // ─── Workspace summary ───────────────────────────────────────────────────────
 
@@ -95,13 +96,27 @@ export interface StatusMessage {
   text: string;
 }
 
-export interface MasterEventMessage {
+interface MasterEventBase {
   id: string;
-  type: 'heartbeat' | 'snapshot';
   at: string;
-  pendingApprovals: number;
-  activeRuns: number;
 }
+
+export type MasterEventMessage =
+  | (MasterEventBase & { type: 'connected' })
+  | (MasterEventBase & { type: 'heartbeat' })
+  | (MasterEventBase & {
+      type: 'updated';
+      resources: import('@/server/events/types').MasterInvalidationResource[];
+      runId?: string | null;
+      approvalRequestId?: string | null;
+      sessionId?: string | null;
+      reminderId?: string | null;
+    })
+  | (MasterEventBase & {
+      type: 'snapshot';
+      pendingApprovals: number;
+      activeRuns: number;
+    });
 
 // ─── Avatar audio stream types ───────────────────────────────────────────────
 

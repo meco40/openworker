@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
+import { getServerEventBus } from '@/server/events/runtime';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
@@ -16,6 +17,7 @@ describe('master events route', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.resetModules();
+    getServerEventBus().clearAllSubscribers();
     delete process.env.MASTER_OPERATOR_EVENTS_ENABLED;
     delete process.env.PERSONAS_ROOT_PATH;
     delete process.env.PERSONAS_DB_PATH;
@@ -39,8 +41,9 @@ describe('master events route', () => {
     }
   });
 
-  it('streams snapshot events when enabled', async () => {
+  it('streams connected event first and forwards matching master.updated events', async () => {
     process.env.MASTER_OPERATOR_EVENTS_ENABLED = 'true';
+    process.env.MASTER_SYSTEM_PERSONA_ENABLED = 'false';
     const suffix = `${Date.now()}.${Math.random().toString(36).slice(2)}`;
     process.env.PERSONAS_ROOT_PATH = path.resolve(
       getTestArtifactsRoot(),
@@ -54,10 +57,19 @@ describe('master events route', () => {
     cleanupFiles.push(String(process.env.PERSONAS_DB_PATH));
 
     mockUserContext({ userId: 'user-events', authenticated: true });
+    const { getPersonaRepository } = await import('@/server/personas/personaRepository');
+    const persona = getPersonaRepository().createPersona({
+      userId: 'user-events',
+      name: 'Master Events Persona',
+      emoji: 'M',
+      vibe: 'strict',
+    });
     const route = await import('../../../app/api/master/events/route');
 
     const response = await route.GET(
-      new Request('http://localhost/api/master/events?workspaceId=main'),
+      new Request(
+        `http://localhost/api/master/events?personaId=${encodeURIComponent(persona.id)}&workspaceId=main`,
+      ),
     );
 
     expect(response.status).toBe(200);
@@ -66,9 +78,24 @@ describe('master events route', () => {
     const reader = response.body?.getReader();
     expect(reader).toBeTruthy();
     const firstChunk = await reader!.read();
-    const payload = new TextDecoder().decode(firstChunk.value);
-    expect(payload).toContain('"type":"snapshot"');
-    expect(payload).toContain('"pendingApprovals"');
+    const firstPayload = new TextDecoder().decode(firstChunk.value);
+    expect(firstPayload).toContain('event: connected');
+    expect(firstPayload).toContain('"type":"connected"');
+
+    getServerEventBus().publish('master.updated', {
+      userId: 'user-events',
+      workspaceId: `persona:${persona.id}:main`,
+      resources: ['runs', 'metrics'],
+      runId: 'run-1',
+      at: new Date().toISOString(),
+    });
+
+    const secondChunk = await reader!.read();
+    const secondPayload = new TextDecoder().decode(secondChunk.value);
+    expect(secondPayload).toContain('event: updated');
+    expect(secondPayload).toContain('"type":"updated"');
+    expect(secondPayload).toContain('"resources":["runs","metrics"]');
+    expect(secondPayload).toContain('"runId":"run-1"');
     await reader?.cancel();
   });
 

@@ -7,6 +7,7 @@
 - Source of Truth: `app/api/master/*`, `src/server/master/*`, `src/modules/master/*`.
 - Last Reviewed: 2026-03-06
 - Related Runbooks: `docs/runbooks/master-autonomy-rollout.md`
+- User Guide: `docs/MASTER_PAGE_GUIDE.md`
 
 ## Overview
 
@@ -104,7 +105,7 @@ Agent Room remains chat-only.
   - `POST /api/master/reminders/[id]/fire`
 - Observability:
   - `GET /api/master/metrics`
-  - `GET /api/master/events` (SSE snapshots with polling fallback in UI)
+  - `GET /api/master/events` (SSE invalidation stream: `connected`, `heartbeat`, `updated`; UI keeps a guarded polling fallback)
 - Settings:
   - `GET/PUT /api/master/settings`
   - available only while `MASTER_SYSTEM_PERSONA_ENABLED` is enabled

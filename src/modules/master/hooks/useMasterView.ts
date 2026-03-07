@@ -19,6 +19,7 @@ import type {
   SaveMasterSettingsInput,
   StatusMessage,
   ApprovalDecision,
+  MasterInvalidationResource,
   WorkspaceSummary,
 } from '@/modules/master/types';
 import {
@@ -69,7 +70,7 @@ const TRANSITIONING_RUN_STATUSES = new Set([
 ]);
 
 const RUNS_PER_PAGE = 10;
-const AUTO_REFRESH_INTERVAL_MS = 5_000;
+const FALLBACK_POLL_INTERVAL_MS = 15_000;
 const STATUS_DISMISS_DELAY_MS = 5_000;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -203,6 +204,39 @@ export function useMasterView(): UseMasterViewResult {
 
   const dismissExportBundle = useCallback(() => {
     setExportBundle(null);
+  }, []);
+
+  const applySystemSettingsSnapshot = useCallback((snapshot: MasterSettingsSnapshot) => {
+    setMasterMode('system');
+    setMasterSettings(snapshot);
+    setAvailablePersonas([snapshot.persona]);
+    setMasterPersona(snapshot.persona);
+    setSelectedPersonaId(snapshot.persona.id);
+  }, []);
+
+  const applyRunUpdate = useCallback((run: MasterRun) => {
+    setRuns((prev) => {
+      const index = prev.findIndex((entry) => entry.id === run.id);
+      if (index < 0) {
+        return [run, ...prev];
+      }
+      const next = [...prev];
+      next[index] = run;
+      return next;
+    });
+    setSelectedRunDetail((prev) => (prev?.run.id === run.id ? { ...prev, run } : prev));
+  }, []);
+
+  const applyApprovalUpdate = useCallback((approval: MasterApprovalRequest) => {
+    setApprovalRequests((prev) => {
+      const index = prev.findIndex((entry) => entry.id === approval.id);
+      if (index < 0) {
+        return [approval, ...prev];
+      }
+      const next = [...prev];
+      next[index] = approval;
+      return next;
+    });
   }, []);
 
   // Cleanup timer on unmount
@@ -354,6 +388,76 @@ export function useMasterView(): UseMasterViewResult {
     [],
   );
 
+  const loadSettingsSnapshot = useCallback(
+    async (scopeToken: number) => {
+      if (masterMode !== 'system') return;
+      const snapshot = await fetchMasterSettings();
+      if (scopeToken !== scopeTokenRef.current) return;
+      applySystemSettingsSnapshot(snapshot);
+    },
+    [applySystemSettingsSnapshot, masterMode],
+  );
+
+  const invalidateResources = useCallback(
+    async (
+      resources: MasterInvalidationResource[],
+      options: { runId?: string | null } = {},
+    ): Promise<void> => {
+      if (!selectedPersonaId || !workspaceId) return;
+      const scopeToken = scopeTokenRef.current;
+      const resourceSet = new Set(resources);
+      const tasks: Promise<unknown>[] = [];
+
+      if (resourceSet.has('runs')) {
+        tasks.push(loadRuns(selectedPersonaId, workspaceId, scopeToken));
+      }
+      if (resourceSet.has('metrics')) {
+        tasks.push(loadMetrics(selectedPersonaId, workspaceId, scopeToken));
+      }
+      if (resourceSet.has('approvals')) {
+        tasks.push(loadApprovalRequests(selectedPersonaId, workspaceId, scopeToken));
+      }
+      if (resourceSet.has('subagents')) {
+        tasks.push(loadSubagentSessions(selectedPersonaId, workspaceId, scopeToken));
+      }
+      if (resourceSet.has('reminders')) {
+        tasks.push(loadReminders(selectedPersonaId, workspaceId, scopeToken));
+      }
+      if (resourceSet.has('settings')) {
+        tasks.push(loadSettingsSnapshot(scopeToken));
+      }
+
+      const currentRunId = selectedRunIdRef.current;
+      const shouldReloadDetail =
+        resourceSet.has('run_detail') &&
+        currentRunId &&
+        (!options.runId || options.runId === currentRunId);
+      if (shouldReloadDetail && currentRunId) {
+        tasks.push(loadRunDetail(currentRunId, selectedPersonaId, workspaceId, scopeToken));
+      }
+
+      try {
+        await Promise.all(tasks);
+      } catch (error) {
+        if (!isAbortError(error)) {
+          showStatus({ tone: 'error', text: toErrorMessage(error) });
+        }
+      }
+    },
+    [
+      loadApprovalRequests,
+      loadMetrics,
+      loadReminders,
+      loadRunDetail,
+      loadRuns,
+      loadSettingsSnapshot,
+      loadSubagentSessions,
+      selectedPersonaId,
+      showStatus,
+      workspaceId,
+    ],
+  );
+
   const refreshAll = useCallback(async () => {
     if (!selectedPersonaId || !workspaceId) return;
     if (refreshInFlightRef.current) return;
@@ -412,16 +516,27 @@ export function useMasterView(): UseMasterViewResult {
         workspaceId,
         personaId: selectedPersonaId,
       });
+      applyRunUpdate(run);
+      selectedRunIdRef.current = run.id;
       showStatus({ tone: 'success', text: 'Master run created.' });
       setRunContract('');
       setSelectedRunId(run.id);
-      await refreshAll();
+      setSelectedRunDetail(null);
+      await loadRunDetail(run.id, selectedPersonaId, workspaceId, scopeTokenRef.current);
     } catch (error) {
       showStatus({ tone: 'error', text: toErrorMessage(error) });
     } finally {
       setLoadingAction(null);
     }
-  }, [selectedPersonaId, runContract, runTitle, workspaceId, refreshAll, showStatus]);
+  }, [
+    applyRunUpdate,
+    loadRunDetail,
+    selectedPersonaId,
+    runContract,
+    runTitle,
+    workspaceId,
+    showStatus,
+  ]);
 
   const startRun = useCallback(
     async (runId: string) => {
@@ -429,23 +544,24 @@ export function useMasterView(): UseMasterViewResult {
       setRuns((prev) => prev.map((r) => (r.id === runId ? { ...r, status: 'EXECUTING' } : r)));
       setLoadingAction('starting');
       try {
-        await postRunAction(runId, {
+        const result = await postRunAction(runId, {
           actionType: 'run.start',
           stepId: `run-start-${Date.now()}`,
           workspaceId,
           personaId: selectedPersonaId,
         });
+        if (result.run) {
+          applyRunUpdate(result.run);
+        }
         showStatus({ tone: 'success', text: 'Run started in background.' });
-        await refreshAll();
       } catch (error) {
         showStatus({ tone: 'error', text: toErrorMessage(error) });
-        // Revert optimistic update on failure
-        await refreshAll();
+        await invalidateResources(['runs', 'metrics', 'run_detail'], { runId });
       } finally {
         setLoadingAction(null);
       }
     },
-    [refreshAll, selectedPersonaId, workspaceId, showStatus],
+    [applyRunUpdate, invalidateResources, selectedPersonaId, workspaceId, showStatus],
   );
 
   const exportRun = useCallback(
@@ -482,39 +598,54 @@ export function useMasterView(): UseMasterViewResult {
       );
       setLoadingAction('cancelling');
       try {
-        await apiCancelRun(runId, workspaceId, selectedPersonaId);
+        const result = await apiCancelRun(runId, workspaceId, selectedPersonaId);
+        if (result.run) {
+          applyRunUpdate(result.run);
+        }
         showStatus({ tone: 'info', text: 'Run cancelled.' });
-        await refreshAll();
       } catch (error) {
         showStatus({ tone: 'error', text: toErrorMessage(error) });
-        // Revert optimistic update on failure
-        await refreshAll();
+        await invalidateResources(['runs', 'metrics', 'run_detail'], { runId });
       } finally {
         setLoadingAction(null);
       }
     },
-    [refreshAll, selectedPersonaId, workspaceId, showStatus],
+    [applyRunUpdate, invalidateResources, selectedPersonaId, workspaceId, showStatus],
   );
 
   const decideApproval = useCallback(
     async (approvalRequestId: string, decision: ApprovalDecision) => {
       setLoadingAction('deciding');
       try {
-        await decideApprovalRequest({
+        const result = await decideApprovalRequest({
           approvalRequestId,
           decision,
           workspaceId,
           personaId: selectedPersonaId,
         });
+        applyApprovalUpdate(result.approval);
+        if (result.run) {
+          applyRunUpdate(result.run);
+        } else {
+          await invalidateResources(['runs', 'metrics', 'run_detail'], {
+            runId: result.approval.runId,
+          });
+        }
         showStatus({ tone: 'success', text: `Decision applied: ${decision}.` });
-        await refreshAll();
       } catch (error) {
         showStatus({ tone: 'error', text: toErrorMessage(error) });
       } finally {
         setLoadingAction(null);
       }
     },
-    [refreshAll, selectedPersonaId, workspaceId, showStatus],
+    [
+      applyApprovalUpdate,
+      applyRunUpdate,
+      invalidateResources,
+      selectedPersonaId,
+      workspaceId,
+      showStatus,
+    ],
   );
 
   const submitDecision = useCallback(
@@ -561,17 +692,15 @@ export function useMasterView(): UseMasterViewResult {
       setLoadingAction('saving-settings');
       try {
         const snapshot = await apiSaveMasterSettings(input);
-        setMasterSettings(snapshot);
-        setMasterPersona(snapshot.persona);
+        applySystemSettingsSnapshot(snapshot);
         showStatus({ tone: 'success', text: 'Master settings saved.' });
-        await refreshAll();
       } catch (error) {
         showStatus({ tone: 'error', text: toErrorMessage(error) });
       } finally {
         setLoadingAction(null);
       }
     },
-    [masterMode, refreshAll, showStatus],
+    [applySystemSettingsSnapshot, masterMode, showStatus],
   );
 
   // ── Effects ────────────────────────────────────────────────────────────────
@@ -583,11 +712,7 @@ export function useMasterView(): UseMasterViewResult {
           fetchMasterSettings(),
           fetchWorkspaces(),
         ]);
-        setMasterMode('system');
-        setMasterSettings(nextSettings);
-        setAvailablePersonas([nextSettings.persona]);
-        setMasterPersona(nextSettings.persona);
-        setSelectedPersonaId(nextSettings.persona.id);
+        applySystemSettingsSnapshot(nextSettings);
         setWorkspaces(nextWorkspaces);
       } catch (error) {
         if (!isMasterSystemPersonaDisabledError(error)) {
@@ -681,11 +806,14 @@ export function useMasterView(): UseMasterViewResult {
     showStatus,
   ]);
 
-  // Keep a stable ref to refreshAll so the polling interval never needs to
-  // be recreated when refreshAll's identity changes.
+  // Keep stable refs so event handlers and fallback polling do not recreate timers.
   const refreshAllRef = useRef(refreshAll);
   useEffect(() => {
     refreshAllRef.current = refreshAll;
+  });
+  const invalidateResourcesRef = useRef(invalidateResources);
+  useEffect(() => {
+    invalidateResourcesRef.current = invalidateResources;
   });
 
   useEffect(() => {
@@ -694,37 +822,59 @@ export function useMasterView(): UseMasterViewResult {
       return;
     }
     const eventSource = new EventSource(createMasterEventsUrl(workspaceId, selectedPersonaId));
-    const handleSnapshot = (event: MessageEvent<string>) => {
-      if (!parseMasterEventMessage(event.data)) {
+    const handleEvent = (event: MessageEvent<string>) => {
+      const message = parseMasterEventMessage(event.data);
+      if (!message) {
         return;
       }
-      void refreshAllRef.current();
+      if (message.type === 'connected') {
+        setEventsConnected(true);
+        return;
+      }
+      if (message.type === 'heartbeat') {
+        return;
+      }
+      if (message.type === 'snapshot') {
+        void refreshAllRef.current();
+        return;
+      }
+      void invalidateResourcesRef.current(message.resources, {
+        runId: message.runId ?? null,
+      });
     };
     eventSource.onopen = () => {
       setEventsConnected(true);
     };
-    eventSource.onmessage = handleSnapshot;
-    eventSource.addEventListener('snapshot', handleSnapshot as EventListener);
+    eventSource.onmessage = handleEvent;
+    eventSource.addEventListener('connected', handleEvent as EventListener);
+    eventSource.addEventListener('heartbeat', handleEvent as EventListener);
+    eventSource.addEventListener('updated', handleEvent as EventListener);
+    eventSource.addEventListener('snapshot', handleEvent as EventListener);
     eventSource.onerror = () => {
       setEventsConnected(false);
       eventSource.close();
     };
     return () => {
       setEventsConnected(false);
-      eventSource.removeEventListener('snapshot', handleSnapshot as EventListener);
+      eventSource.removeEventListener('connected', handleEvent as EventListener);
+      eventSource.removeEventListener('heartbeat', handleEvent as EventListener);
+      eventSource.removeEventListener('updated', handleEvent as EventListener);
+      eventSource.removeEventListener('snapshot', handleEvent as EventListener);
       eventSource.close();
     };
   }, [selectedPersonaId, workspaceId]);
 
-  // Auto-poll only while there are truly transitioning runs (not AWAITING_APPROVAL
-  // which blocks indefinitely on user input). Uses a ref-stable callback so the
-  // timer is never cleared/restarted due to refreshAll identity changes.
+  // Guarded fallback polling is limited to volatile slices while SSE is unavailable.
   useEffect(() => {
     if (!selectedPersonaId || !workspaceId || eventsConnected) return;
     if (!hasTransitioningRuns && !hasPendingApprovals) return;
     const interval = setInterval(() => {
-      void refreshAllRef.current();
-    }, AUTO_REFRESH_INTERVAL_MS);
+      const resources: MasterInvalidationResource[] = ['runs', 'metrics', 'approvals', 'subagents'];
+      if (selectedRunIdRef.current) {
+        resources.push('run_detail');
+      }
+      void invalidateResourcesRef.current(resources, { runId: selectedRunIdRef.current });
+    }, FALLBACK_POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [eventsConnected, hasPendingApprovals, hasTransitioningRuns, selectedPersonaId, workspaceId]);
 

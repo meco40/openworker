@@ -1,5 +1,6 @@
 import type { MasterRepository } from '@/server/master/repository';
 import type { ApprovalDecision, MasterRun, WorkspaceScope } from '@/server/master/types';
+import { publishMasterUpdated } from '@/server/master/liveEvents';
 import { assertTransition, nextLifecycleStatus } from '@/server/master/lifecycle';
 import { DelegationDispatcher } from '@/server/master/delegation/dispatcher';
 import { MasterActionLedgerService } from '@/server/master/execution/actionLedger';
@@ -38,11 +39,17 @@ export class MasterOrchestrator {
       100,
       Math.max(0, options?.progress ?? run.progress + (next === 'COMPLETED' ? 100 : 15)),
     );
-    return this.repo.updateRun(scope, runId, {
+    const updated = this.repo.updateRun(scope, runId, {
       status: next,
       progress,
       pausedForApproval: next === 'AWAITING_APPROVAL',
     })!;
+    publishMasterUpdated({
+      scope,
+      resources: ['runs', 'metrics', 'run_detail'],
+      runId,
+    });
+    return updated;
   }
 
   applyApprovalDecision(

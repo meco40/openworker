@@ -143,6 +143,11 @@ export interface RunActionInput {
 
 export interface RunActionResult {
   exportBundle?: unknown;
+  run?: MasterRun | null;
+  approval?: MasterApprovalRequest;
+  started?: boolean;
+  resumed?: boolean;
+  decision?: ApprovalDecision;
 }
 
 export async function postRunAction(
@@ -188,8 +193,8 @@ export async function decideApprovalRequest(input: {
   decision: ApprovalDecision;
   workspaceId: string;
   personaId?: string | null;
-}): Promise<MasterApprovalRequest> {
-  const payload = await parseOkJson<{ approval?: MasterApprovalRequest }>(
+}): Promise<{ approval: MasterApprovalRequest; run?: MasterRun | null }> {
+  const payload = await parseOkJson<{ approval?: MasterApprovalRequest; run?: MasterRun | null }>(
     await fetch(`/api/master/approvals/${input.approvalRequestId}/decision`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -203,7 +208,7 @@ export async function decideApprovalRequest(input: {
   if (!payload.approval) {
     throw new Error('No approval returned from server.');
   }
-  return payload.approval;
+  return { approval: payload.approval, run: payload.run ?? null };
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
@@ -316,8 +321,8 @@ export async function cancelRun(
   runId: string,
   workspaceId: string,
   personaId?: string | null,
-): Promise<void> {
-  await postRunAction(runId, {
+): Promise<RunActionResult> {
+  return await postRunAction(runId, {
     actionType: 'run.cancel',
     stepId: `run-cancel-${Date.now()}`,
     workspaceId,

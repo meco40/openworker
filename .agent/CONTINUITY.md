@@ -2,6 +2,7 @@
 
 ## [PLANS]
 
+- 2026-03-06T15:20:00Z [USER] Create a detailed but simple-language description of the Master page, with examples and diagrams that non-technical readers can understand.
 - 2026-03-06T12:05:00Z [USER] Implement the full Master OpenClaw autonomy parity plan in the isolated worktree, including persistence-first approvals/policy, leased runtime ownership, durable sessions, reminder lifecycle, operator UI/SSE, flags, observability, and docs.
 - 2026-03-06T10:35:00Z [USER] Implement Task 3 from the approved Master autonomy parity plan in the forked worktree, limited to delegation/session routes/tests plus minimal related imports.
 - 2026-03-05T23:11:00Z [USER] Implement the production-ready rollout that turns `Master` into a system persona with a dedicated `Master > Settings` tab and preserved approval/audit runtime.
@@ -18,6 +19,8 @@
 
 ## [DECISIONS]
 
+- 2026-03-06T15:58:48Z [CODE] Master live updates now use scoped invalidation events on the shared server event bus (`master.updated`) instead of synthetic SSE snapshots; `/api/master/events` forwards `connected`, `heartbeat`, and `updated` events filtered by resolved `userId + workspaceId`.
+- 2026-03-06T15:58:48Z [CODE] `useMasterView` now treats `refreshAll()` as an initial/manual/legacy fallback path only; normal SSE handling and direct operator actions use targeted refetches or local state patching, and polling fallback is reduced to 15s volatile-slice refreshes only while SSE is disconnected and work is still active.
 - 2026-03-06T15:11:34Z [CODE] Operator tool policy is now enforced in the runtime approval gate, not just persisted for UI/settings; effective decisions are `deny`, `ask`, or `allow` based on security mode, ask mode, host-aware allowlist matching, and the existing approval flow.
 - 2026-03-06T15:11:34Z [CODE] Subagent pool completion/failure paths must preserve an already-cancelled session and refresh session leases on an interval while work is still running; cancellation is treated as authoritative over later worker completion.
 - 2026-03-06T11:40:26Z [CODE] Review-gap closure keeps the new generic runtime contract and updates tests to that contract instead of restoring legacy `dispatchSkill(...)` assertions; capability execution now standardizes on `runTool(...)` plus tool-name requests.
@@ -48,6 +51,12 @@
 
 ## [PROGRESS]
 
+- 2026-03-07T07:42:07Z [TOOL] Reproduced `npm run build` failure (`next` not found), traced it to renamed bin shims in `node_modules/.bin` (`*.fc_verify_err`), repaired the shim filenames by stripping the suffix, and re-verified `npm run build` and `npm run dev` startup on `E:\web\clawtest`.
+- 2026-03-07T01:30:04Z [TOOL] Reproduced `pnpm run build` failure on `E:\web\clawtest` after folder move, then ran `pnpm install --force` in `E:` to recreate dependency links for the new path and verified `pnpm run build` now succeeds from `E:\web\clawtest`.
+- 2026-03-06T15:58:48Z [CODE] Implemented the Master live-invalidation rollout across server and client paths: added `src/server/master/liveEvents.ts`, extended the shared event contract with `master.updated`, converted `/api/master/events` into a pure event forwarder, published scoped invalidations from run/approval/runtime/delegation/reminder/settings mutation boundaries, and refactored `useMasterView` to do targeted reloads plus local action patching instead of full refresh fan-out.
+- 2026-03-06T15:58:48Z [CODE] Updated active tests and docs for the new transport contract: Master event integration tests now assert `connected` plus forwarded `updated` events, `useMasterView` behavior tests cover targeted invalidation and no-full-refresh action flows, and `docs/MASTER_AGENT_SYSTEM.md` now documents the invalidation-style SSE stream rather than snapshot polling.
+- 2026-03-06T15:58:48Z [TOOL] Verified the implementation with focused Master Vitest suites, full `pnpm run test` and `pnpm run build`, then formatted changed files and reran `pnpm run check` to green on the final worktree state.
+- 2026-03-06T15:20:00Z [CODE] Added a new user-facing documentation page `docs/MASTER_PAGE_GUIDE.md` that explains the Master page in simple German, covers every visible function/tab, includes concrete examples, and adds Mermaid diagrams for structure and flow.
 - 2026-03-06T15:11:34Z [CODE] Merged the parity worktree commit onto local `main`, then closed the last review findings directly on `main`: runtime approval now consumes persisted tool policy, approval/subagent UI fetches degrade to empty lists when feature-gated routes return `404`, and subagent pool execution now heartbeats leases and preserves cancelled sessions/jobs.
 - 2026-03-06T15:11:34Z [TOOL] Re-ran repository gates after the post-merge fixes: `pnpm run typecheck`, `pnpm run lint`, `pnpm run test`, `pnpm run check`, and `pnpm run build` all pass on local `main`.
 - 2026-03-06T11:40:26Z [CODE] Closed the remaining post-review parity gaps: approval routes now expose UI-compatible payload aliases and flag gating, capability execution is wired through `runTool(...)`, approval persistence is created from execution flow, run leases now heartbeat during execution, subagent/session routes honor rollout flags, and SSE clients subscribe to named `snapshot` events with polling fallback preserved.
@@ -102,6 +111,10 @@
 
 ## [DISCOVERIES]
 
+- 2026-03-07T07:42:07Z [TOOL] Local bin shims can exist only as `*.fc_verify_err` files in `node_modules/.bin`; when that happens, both `npm run build` and `pnpm run build` fail because command names like `next` and `tsx` are no longer resolvable.
+- 2026-03-07T01:30:04Z [TOOL] After relocating the repo from `D:` to `E:`, existing dependency resolution from `app` still pointed to `D:\web\clawtest\...` (`next/package.json`), which caused Turbopack root validation to fail in `E:` builds until dependencies were relinked from the new location.
+- 2026-03-06T15:58:48Z [CODE] Approval invalidation publishes need to stay in the approval service boundary rather than both service and route/action layers; publishing from both recreated duplicate live-update bursts during approval resolution paths.
+- 2026-03-06T15:58:48Z [TOOL] The live-invalidation change itself passed `typecheck`, `lint`, `test`, and `build`, but `pnpm run check` still blocked on Prettier drift until the touched Master files were explicitly formatted and the check rerun.
 - 2026-03-06T15:11:34Z [CODE] The initial fixed-sleep heartbeat assertion in `tests/unit/master/master-subagent-pool.test.ts` was flaky under full-suite load because `completeSubagentSession(...)` clears `heartbeatAt`; the durable assertion is to wait for a `running` session heartbeat to advance before completion rather than sampling at fixed milliseconds.
 - 2026-03-06T15:11:34Z [TOOL] `pnpm run check` surfaced Prettier drift on the post-review files even after green `typecheck`/`lint`/`test`; formatting those touched files and rerunning the full gate was required before the branch was genuinely ready to push.
 - 2026-03-06T11:40:26Z [CODE] The new named SSE contract (`event: snapshot`) requires test doubles to implement `addEventListener/removeEventListener`; using only `onmessage` is insufficient once the hook subscribes to the named event channel.
@@ -136,6 +149,11 @@
 
 ## [OUTCOMES]
 
+- 2026-03-07T07:42:07Z [TOOL] `npm run build` now completes successfully and `npm run dev` starts cleanly again on `E:\web\clawtest`; requested running dev processes were explicitly stopped after verification.
+- 2026-03-07T01:30:04Z [TOOL] `pnpm run build` is restored for the relocated workspace path (`E:\web\clawtest`) without requiring code/config changes; fix was dependency relink via `pnpm install --force` in the new path.
+- 2026-03-06T15:58:48Z [CODE] The Master page now uses best-case live invalidation semantics: SSE delivers scope-filtered change notifications, the UI refreshes only affected slices, direct actions no longer trigger full fan-out reloads, and fallback polling is guarded to active volatile state only.
+- 2026-03-06T15:58:48Z [TOOL] Final local verification for the live-invalidation implementation is green: focused Master tests pass, `pnpm run test` passes (539 files / 2505 tests), `pnpm run build` passes, and `pnpm run check` passes after formatting.
+- 2026-03-06T15:20:00Z [CODE] The repository now includes both the technical Master system reference and a separate simple-language guide for end users/operators; `docs/MASTER_AGENT_SYSTEM.md` links to `docs/MASTER_PAGE_GUIDE.md`.
 - 2026-03-06T15:11:34Z [CODE] Local `main` now contains the parity rollout commit plus the final enforcement/stability fixes: tool policy is runtime-effective, subagent cancellations are stable, subagent leases heartbeat while running, and feature-gated Master UI fetches no longer fail hard on disabled routes.
 - 2026-03-06T15:11:34Z [TOOL] Final local verification on `main` is green after the final fixes: `typecheck`, `lint`, `test` (539 files / 2500 tests), `check`, and `build`.
 - 2026-03-06T11:40:26Z [CODE] The previously identified review gaps are now closed in the parity worktree: Approval UI/API payloads align, generic tool execution is on the real runtime path, run lease heartbeats are periodic, rollout flags gate the new surfaces, and the SSE hook/test contract matches the implemented named-event transport.

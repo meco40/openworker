@@ -4,6 +4,7 @@ import {
   applyApprovalDecision,
 } from '@/server/master/approvals/service';
 import { isMasterApprovalControlPlaneEnabled } from '@/server/master/featureFlags';
+import { publishMasterUpdated } from '@/server/master/liveEvents';
 import { getMasterExecutionRuntime, getMasterRepository } from '@/server/master/runtime';
 import { resolveMasterUserId, resolveScopeFromRequest } from '@/server/master/http';
 import type { ApprovalDecision } from '@/server/master/types';
@@ -68,14 +69,26 @@ export async function POST(request: Request, { params }: { params: Promise<Param
       if (actionType === 'run.start') {
         const started = runtime.startBackground(scope, id);
         const updated = repo.getRun(scope, id);
+        if (updated) {
+          publishMasterUpdated({
+            scope,
+            resources: ['runs', 'metrics', 'run_detail'],
+            runId: updated.id,
+          });
+        }
         return NextResponse.json({
           ok: true,
           started,
-          run: updated,
+          run: updated ? { ...updated, status: 'EXECUTING' } : updated,
         });
       }
       if (actionType === 'run.tick') {
         const updated = await runtime.executeNow(scope, id);
+        publishMasterUpdated({
+          scope,
+          resources: ['runs', 'metrics', 'run_detail'],
+          runId: updated.id,
+        });
         return NextResponse.json({ ok: true, run: updated });
       }
       if (actionType === 'run.cancel') {
@@ -86,6 +99,13 @@ export async function POST(request: Request, { params }: { params: Promise<Param
           cancelledAt: new Date().toISOString(),
           cancelReason: 'operator_cancel',
         });
+        if (patched) {
+          publishMasterUpdated({
+            scope,
+            resources: ['runs', 'metrics', 'run_detail'],
+            runId: patched.id,
+          });
+        }
         return NextResponse.json({ ok: true, run: patched });
       }
       const exportBundle = runtime.buildExportBundle(scope, id);
@@ -116,7 +136,8 @@ export async function POST(request: Request, { params }: { params: Promise<Param
         const runtime = getMasterExecutionRuntime();
         runtime.startBackground(scope, approval.runId);
       }
-      return NextResponse.json({ ok: true, approval });
+      const run = repo.getRun(scope, approval.runId);
+      return NextResponse.json({ ok: true, approval, run });
     }
 
     if (!effectiveDecision) {

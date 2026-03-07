@@ -74,7 +74,6 @@ export class DelegationDispatcher {
       type: 'created',
       payload: JSON.stringify({ capability: input.capability }),
     });
-
     try {
       await this.pool.execute(input.scope, input.runId, job.id, session?.id ?? null, input.task);
       return { jobId: job.id, accepted: true };

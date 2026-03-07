@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isMasterSystemPersonaEnabled } from '@/server/master/featureFlags';
+import { publishMasterUpdated } from '@/server/master/liveEvents';
 import { getMasterRepository } from '@/server/master/runtime';
 import { getModelHubService } from '@/server/model-hub/runtime';
 import { ensureMasterPersona } from '@/server/master/systemPersona';
@@ -217,6 +218,11 @@ export const PUT = withUserContext(async ({ request, userContext }) => {
         }
       }
     }
+
+    publishMasterUpdated({
+      scope,
+      resources: ['settings'],
+    });
 
     return NextResponse.json(buildSettingsPayload(master.id, userContext.userId));
   } catch (error) {

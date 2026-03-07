@@ -5,6 +5,7 @@ import type {
   MasterSubagentSession,
   WorkspaceScope,
 } from '@/server/master/types';
+import { publishMasterUpdated } from '@/server/master/liveEvents';
 import type {
   ClaimSubagentSessionInput,
   SubagentSessionDetail,
@@ -74,7 +75,7 @@ export function createSubagentSessionForDispatch(
     assignedTools?: string[];
   },
 ): MasterSubagentSession {
-  return repo.createSubagentSession(scope, {
+  const created = repo.createSubagentSession(scope, {
     runId: input.runId,
     status: 'queued',
     title: buildSessionTitle(input.capability),
@@ -87,6 +88,13 @@ export function createSubagentSessionForDispatch(
     resultSummary: null,
     lastError: null,
   });
+  publishMasterUpdated({
+    scope,
+    resources: ['subagents', 'metrics'],
+    runId: input.runId,
+    sessionId: created.id,
+  });
+  return created;
 }
 
 export function claimSubagentSession(
@@ -108,12 +116,21 @@ export function claimSubagentSession(
   ) {
     return null;
   }
-  return repo.updateSubagentSession(scope, sessionId, {
+  const updated = repo.updateSubagentSession(scope, sessionId, {
     status: 'running',
     ownerId: input.ownerId,
     leaseExpiresAt: expiresAt(now, input.leaseMs ?? DEFAULT_LEASE_MS),
     heartbeatAt: now,
   });
+  if (updated) {
+    publishMasterUpdated({
+      scope,
+      resources: ['subagents', 'metrics'],
+      runId: updated.runId,
+      sessionId: updated.id,
+    });
+  }
+  return updated;
 }
 
 export function claimNextSubagentSession(
@@ -158,7 +175,7 @@ export function completeSubagentSession(
   resultSummary: string,
   latestEventAt = nowIso(),
 ): MasterSubagentSession | null {
-  return repo.updateSubagentSession(scope, sessionId, {
+  const updated = repo.updateSubagentSession(scope, sessionId, {
     status: 'completed',
     ownerId: null,
     leaseExpiresAt: null,
@@ -167,6 +184,15 @@ export function completeSubagentSession(
     resultSummary,
     lastError: null,
   });
+  if (updated) {
+    publishMasterUpdated({
+      scope,
+      resources: ['subagents', 'metrics'],
+      runId: updated.runId,
+      sessionId: updated.id,
+    });
+  }
+  return updated;
 }
 
 export function failSubagentSession(
@@ -176,7 +202,7 @@ export function failSubagentSession(
   message: string,
   latestEventAt = nowIso(),
 ): MasterSubagentSession | null {
-  return repo.updateSubagentSession(scope, sessionId, {
+  const updated = repo.updateSubagentSession(scope, sessionId, {
     status: 'failed',
     ownerId: null,
     leaseExpiresAt: null,
@@ -184,6 +210,15 @@ export function failSubagentSession(
     latestEventAt,
     lastError: message,
   });
+  if (updated) {
+    publishMasterUpdated({
+      scope,
+      resources: ['subagents', 'metrics'],
+      runId: updated.runId,
+      sessionId: updated.id,
+    });
+  }
+  return updated;
 }
 
 export function cancelSubagentSession(
@@ -212,6 +247,14 @@ export function cancelSubagentSession(
       jobId: job.id,
       type: 'cancelled',
       payload: JSON.stringify({ reason }),
+    });
+  }
+  if (cancelled) {
+    publishMasterUpdated({
+      scope,
+      resources: ['subagents', 'metrics'],
+      runId: cancelled.runId,
+      sessionId: cancelled.id,
     });
   }
   return cancelled;

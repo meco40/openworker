@@ -56,7 +56,8 @@ export async function POST(request: Request, { params }: { params: Promise<Param
       runtime.startBackground(scope, approvalRequest.runId);
     }
 
-    return NextResponse.json({ ok: true, approval: approvalRequest, approvalRequest });
+    const run = repo.getRun(scope, approvalRequest.runId);
+    return NextResponse.json({ ok: true, approval: approvalRequest, approvalRequest, run });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to apply approval decision';
     return NextResponse.json({ ok: false, error: message }, { status: 400 });

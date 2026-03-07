@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { publishMasterUpdated } from '@/server/master/liveEvents';
 import { getMasterRepository } from '@/server/master/runtime';
 import { resolveMasterUserId, resolveScopeFromRequest } from '@/server/master/http';
 import type { MasterRun } from '@/server/master/types';
@@ -65,6 +66,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<Para
     if (!run) {
       return NextResponse.json({ ok: false, error: 'Run not found' }, { status: 404 });
     }
+    publishMasterUpdated({
+      scope,
+      resources: ['runs', 'metrics', 'run_detail'],
+      runId: run.id,
+    });
     return NextResponse.json({ ok: true, run });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to patch master run';

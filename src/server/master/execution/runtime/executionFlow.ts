@@ -7,6 +7,7 @@ import { normalizeCapabilityOutput } from '@/server/master/execution/runtime/cap
 import { executeCapabilityTask } from '@/server/master/execution/runtime/capabilityExecutor';
 import { buildExecutionPlanWithModel } from '@/server/master/execution/runtime/executionPlan';
 import { isMasterApprovalControlPlaneEnabled } from '@/server/master/featureFlags';
+import { publishMasterUpdated } from '@/server/master/liveEvents';
 import { parseJsonObject } from '@/server/master/execution/runtime/jsonParsing';
 import type { RuntimeMode } from '@/server/master/execution/runtime/types';
 import type { MasterOrchestrator } from '@/server/master/orchestrator';
@@ -22,6 +23,12 @@ export async function executeMasterRunFlow(input: {
   nextStepSequence: (scope: MasterWorkspaceBinding, runId: string) => number;
 }): Promise<void> {
   const { scope, runId, repo, orchestrator, nextStepSequence } = input;
+  const publishRunState = () =>
+    publishMasterUpdated({
+      scope,
+      resources: ['runs', 'metrics', 'run_detail'],
+      runId,
+    });
   const run = repo.getRun(scope, runId);
   if (!run) {
     throw new Error('Master run not found.');
@@ -144,6 +151,7 @@ export async function executeMasterRunFlow(input: {
         pausedForApproval: false,
         lastError: approval.reason || `Action denied: ${approval.actionType}.`,
       });
+      publishRunState();
       repo.appendStep(scope, runId, {
         runId,
         userId: scope.userId,
@@ -197,6 +205,7 @@ export async function executeMasterRunFlow(input: {
       repo.updateRun(scope, runId, {
         lastError: delegated.reason || `Delegation rejected for ${capability}.`,
       });
+      publishRunState();
       repo.appendStep(scope, runId, {
         runId,
         userId: scope.userId,
@@ -235,6 +244,7 @@ export async function executeMasterRunFlow(input: {
     repo.updateRun(scope, runId, {
       progress: Math.min(80, (repo.getRun(scope, runId)?.progress || 0) + 18),
     });
+    publishRunState();
     repo.appendStep(scope, runId, {
       runId,
       userId: scope.userId,
@@ -295,6 +305,7 @@ export async function executeMasterRunFlow(input: {
     verificationPassed,
     resultBundle,
   });
+  publishRunState();
 
   if (verificationReport.status === 'failed') {
     orchestrator.advanceRun(scope, runId, { failed: true, progress: 92 });
@@ -302,6 +313,7 @@ export async function executeMasterRunFlow(input: {
       status: 'FAILED',
       lastError: verificationReport.summary,
     });
+    publishRunState();
     repo.appendAuditEvent(scope, {
       category: 'verification',
       action: 'verification_failed',
@@ -316,6 +328,7 @@ export async function executeMasterRunFlow(input: {
       status: 'REFINING',
       lastError: verificationReport.summary,
     });
+    publishRunState();
     repo.appendAuditEvent(scope, {
       category: 'verification',
       action: 'verification_needs_refinement',
@@ -338,6 +351,7 @@ export async function executeMasterRunFlow(input: {
     pausedForApproval: false,
     lastError: null,
   });
+  publishRunState();
   repo.appendAuditEvent(scope, {
     category: 'verification',
     action: 'verification_passed',

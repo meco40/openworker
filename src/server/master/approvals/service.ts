@@ -4,6 +4,7 @@ import type {
   MasterApprovalRequest,
   WorkspaceScope,
 } from '@/server/master/types';
+import { publishMasterUpdated } from '@/server/master/liveEvents';
 
 const DEFAULT_APPROVAL_TTL_MS = 5 * 60 * 1000;
 
@@ -85,6 +86,12 @@ export function createPendingApprovalRequest(input: {
       fingerprint: input.fingerprint,
     }),
   });
+  publishMasterUpdated({
+    scope: input.scope,
+    resources: ['approvals', 'runs', 'metrics', 'run_detail'],
+    runId: input.runId,
+    approvalRequestId: request.id,
+  });
   return request;
 }
 
@@ -136,6 +143,12 @@ export function applyApprovalDecision(input: {
       decision: input.decision,
     }),
   });
+  publishMasterUpdated({
+    scope: input.scope,
+    resources: ['approvals', 'runs', 'metrics', 'run_detail'],
+    runId: updated.runId,
+    approvalRequestId: updated.id,
+  });
 
   return updated;
 }
@@ -159,8 +172,17 @@ export function consumeApprovedApprovalRequest(input: {
     return null;
   }
 
-  return input.repo.updateApprovalRequest(input.scope, request.id, {
+  const consumed = input.repo.updateApprovalRequest(input.scope, request.id, {
     status: 'expired',
     decisionReason: request.decisionReason ?? 'approve_once consumed by runtime',
   });
+  if (consumed) {
+    publishMasterUpdated({
+      scope: input.scope,
+      resources: ['approvals', 'runs', 'metrics', 'run_detail'],
+      runId: consumed.runId,
+      approvalRequestId: consumed.id,
+    });
+  }
+  return consumed;
 }

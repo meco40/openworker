@@ -1,4 +1,5 @@
 import type { MasterRepository } from '@/server/master/repository';
+import { publishMasterUpdated } from '@/server/master/liveEvents';
 import type { MasterReminder, WorkspaceScope } from '@/server/master/types';
 
 export interface ReminderSchedulerBridge {
@@ -85,6 +86,11 @@ export class MasterRemindersService {
       action: 'created',
       metadata: toMetadata({ reminderId: reminder.id }),
     });
+    publishMasterUpdated({
+      scope,
+      resources: ['reminders', 'metrics'],
+      reminderId: reminder.id,
+    });
     return reminder;
   }
 
@@ -121,6 +127,11 @@ export class MasterRemindersService {
       action: this.resolveUpdateAction(normalizedPatch.status),
       metadata: toMetadata({ reminderId: reminder.id, patch: normalizedPatch }),
     });
+    publishMasterUpdated({
+      scope,
+      resources: ['reminders', 'metrics'],
+      reminderId: reminder.id,
+    });
 
     return reminder;
   }
@@ -141,6 +152,11 @@ export class MasterRemindersService {
         category: 'reminder',
         action: 'deleted',
         metadata: toMetadata({ reminderId }),
+      });
+      publishMasterUpdated({
+        scope,
+        resources: ['reminders', 'metrics'],
+        reminderId,
       });
     }
     return deleted;
@@ -177,6 +193,11 @@ export class MasterRemindersService {
         summary: input.summary ?? null,
         automationRuleId: input.automationRuleId ?? null,
       }),
+    });
+    publishMasterUpdated({
+      scope,
+      resources: ['reminders', 'metrics'],
+      reminderId: updated.id,
     });
 
     return {
