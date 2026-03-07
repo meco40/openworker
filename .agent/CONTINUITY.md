@@ -51,6 +51,10 @@
 
 ## [PROGRESS]
 
+- 2026-03-07T10:03:32+01:00 [TOOL] Verified local `main` fresh with `pnpm run typecheck`, `pnpm run lint`, `pnpm run test`, `pnpm run check`, and `pnpm run build`; the only failure was a full-suite timing issue in `tests/unit/components/master/run-feedback-panel-submit.test.tsx`.
+- 2026-03-07T10:03:32+01:00 [CODE] Stabilized the flaky Master feedback test on `main` by awaiting the success confirmation with `screen.findByText(...)` instead of an immediate post-submit DOM read, then committed the fix as `b2587c1`.
+- 2026-03-07T10:03:32+01:00 [TOOL] Removed the registered `feat/master-openclaw-parity` worktree metadata/branch after pruning the post-move stale registration and deleted the legacy `D:\web\clawtest\.worktrees` directory contents so only the `E:\web\clawtest` `main` worktree remains.
+
 - 2026-03-07T07:42:07Z [TOOL] Reproduced `npm run build` failure (`next` not found), traced it to renamed bin shims in `node_modules/.bin` (`*.fc_verify_err`), repaired the shim filenames by stripping the suffix, and re-verified `npm run build` and `npm run dev` startup on `E:\web\clawtest`.
 - 2026-03-07T01:30:04Z [TOOL] Reproduced `pnpm run build` failure on `E:\web\clawtest` after folder move, then ran `pnpm install --force` in `E:` to recreate dependency links for the new path and verified `pnpm run build` now succeeds from `E:\web\clawtest`.
 - 2026-03-06T15:58:48Z [CODE] Implemented the Master live-invalidation rollout across server and client paths: added `src/server/master/liveEvents.ts`, extended the shared event contract with `master.updated`, converted `/api/master/events` into a pure event forwarder, published scoped invalidations from run/approval/runtime/delegation/reminder/settings mutation boundaries, and refactored `useMasterView` to do targeted reloads plus local action patching instead of full refresh fan-out.
@@ -111,6 +115,9 @@
 
 ## [DISCOVERIES]
 
+- 2026-03-07T10:03:32+01:00 [TOOL] After the repo moved from `D:` to `E:`, `git worktree remove` on the old parity worktree failed validation until `git worktree repair <path>` followed by `git worktree prune` cleared the stale registration (`gitdir file points to non-existent location`).
+- 2026-03-07T10:03:32+01:00 [CODE] `tests/unit/components/master/run-feedback-panel-submit.test.tsx` was flaky only in full-suite runs because it asserted the success banner immediately after the async submit callback was called; waiting for the rendered success text removes that race without changing runtime behavior.
+
 - 2026-03-07T07:42:07Z [TOOL] Local bin shims can exist only as `*.fc_verify_err` files in `node_modules/.bin`; when that happens, both `npm run build` and `pnpm run build` fail because command names like `next` and `tsx` are no longer resolvable.
 - 2026-03-07T01:30:04Z [TOOL] After relocating the repo from `D:` to `E:`, existing dependency resolution from `app` still pointed to `D:\web\clawtest\...` (`next/package.json`), which caused Turbopack root validation to fail in `E:` builds until dependencies were relinked from the new location.
 - 2026-03-06T15:58:48Z [CODE] Approval invalidation publishes need to stay in the approval service boundary rather than both service and route/action layers; publishing from both recreated duplicate live-update bursts during approval resolution paths.
@@ -149,6 +156,9 @@
 
 ## [OUTCOMES]
 
+- 2026-03-07T10:03:32+01:00 [CODE] Local `main` now includes commit `b2587c1` (`Stabilize Master feedback submit test`), which hardens the Master feedback submit test against full-suite timing races.
+- 2026-03-07T10:03:32+01:00 [TOOL] Final local verification is green on `main`: `pnpm run typecheck`, `pnpm run lint`, `pnpm run test` (539 files / 2505 tests), `pnpm run check`, and `pnpm run build`.
+- 2026-03-07T10:03:32+01:00 [TOOL] Repository cleanup is complete: `git worktree list` shows only `E:\web\clawtest` on `main`, `git branch --list` shows only `main`, and the old `D:\web\clawtest\.worktrees` directory is removed.
 - 2026-03-07T07:42:07Z [TOOL] `npm run build` now completes successfully and `npm run dev` starts cleanly again on `E:\web\clawtest`; requested running dev processes were explicitly stopped after verification.
 - 2026-03-07T01:30:04Z [TOOL] `pnpm run build` is restored for the relocated workspace path (`E:\web\clawtest`) without requiring code/config changes; fix was dependency relink via `pnpm install --force` in the new path.
 - 2026-03-06T15:58:48Z [CODE] The Master page now uses best-case live invalidation semantics: SSE delivers scope-filtered change notifications, the UI refreshes only affected slices, direct actions no longer trigger full fan-out reloads, and fallback polling is guarded to active volatile state only.
