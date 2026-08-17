@@ -99,4 +99,87 @@ describe('automation repository', () => {
 
     repo.close();
   });
+
+  it('updateRule returns null for non-existent ruleId', () => {
+    const dbPath = uniqueDbPath('automation.repository.update-null');
+    createdDbFiles.push(dbPath);
+
+    const repo = new SqliteAutomationRepository(dbPath);
+    const result = repo.updateRule('non-existent-rule', 'user-a', { name: 'Updated' });
+    expect(result).toBeNull();
+    repo.close();
+  });
+
+  it('deleteRule returns false for non-existent ruleId', () => {
+    const dbPath = uniqueDbPath('automation.repository.delete-false');
+    createdDbFiles.push(dbPath);
+
+    const repo = new SqliteAutomationRepository(dbPath);
+    const result = repo.deleteRule('non-existent-rule', 'user-a');
+    expect(result).toBe(false);
+    repo.close();
+  });
+
+  it('getRuleById returns null for non-existent ruleId', () => {
+    const dbPath = uniqueDbPath('automation.repository.get-by-id-null');
+    createdDbFiles.push(dbPath);
+
+    const repo = new SqliteAutomationRepository(dbPath);
+    const result = repo.getRuleById('non-existent-rule');
+    expect(result).toBeNull();
+    repo.close();
+  });
+
+  it('getFlowGraph returns null when rule has no flowGraph', () => {
+    const dbPath = uniqueDbPath('automation.repository.flowgraph-null');
+    createdDbFiles.push(dbPath);
+
+    const repo = new SqliteAutomationRepository(dbPath);
+    const rule = repo.createRule({
+      userId: 'user-a',
+      name: 'No graph rule',
+      cronExpression: '0 9 * * *',
+      timezone: 'UTC',
+      prompt: 'Does nothing',
+      enabled: true,
+    });
+
+    const graph = repo.getFlowGraph(rule.id, 'user-a');
+    expect(graph).toBeNull();
+    repo.close();
+  });
+
+  it('getFlowGraph returns null for non-existent ruleId', () => {
+    const dbPath = uniqueDbPath('automation.repository.flowgraph-no-rule');
+    createdDbFiles.push(dbPath);
+
+    const repo = new SqliteAutomationRepository(dbPath);
+    const graph = repo.getFlowGraph('does-not-exist', 'user-a');
+    expect(graph).toBeNull();
+    repo.close();
+  });
+
+  it('saveFlowGraph returns null for non-existent ruleId', () => {
+    const dbPath = uniqueDbPath('automation.repository.savegraph-null');
+    createdDbFiles.push(dbPath);
+
+    const repo = new SqliteAutomationRepository(dbPath);
+    const result = repo.saveFlowGraph('does-not-exist', 'user-a', {
+      version: 1,
+      nodes: [],
+      edges: [],
+    });
+    expect(result).toBeNull();
+    repo.close();
+  });
+
+  it('getRun returns null for non-existent runId', () => {
+    const dbPath = uniqueDbPath('automation.repository.getrun-null');
+    createdDbFiles.push(dbPath);
+
+    const repo = new SqliteAutomationRepository(dbPath);
+    const result = repo.getRun('non-existent-run');
+    expect(result).toBeNull();
+    repo.close();
+  });
 });

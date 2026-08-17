@@ -3,6 +3,7 @@ import { ChannelType } from '@/shared/domain/types';
 import type { StoredMessage } from '@/server/channels/messages/repository';
 import {
   buildAutoMemoryCandidates,
+  getAutoSessionMemoryMode,
   isAutoSessionMemoryEnabled,
 } from '@/server/channels/messages/autoMemory';
 
@@ -62,9 +63,18 @@ describe('autoMemory candidate builder', () => {
     expect(recap?.content).toContain('Besprochen am 2026-02-10');
   });
 
-  it('treats auto session memory as enabled by default', () => {
+  it('treats auto session memory as disabled by default', () => {
     const previous = process.env.CHAT_AUTO_SESSION_MEMORY;
     delete process.env.CHAT_AUTO_SESSION_MEMORY;
+    expect(getAutoSessionMemoryMode()).toBe('off');
+    expect(isAutoSessionMemoryEnabled()).toBe(false);
+    process.env.CHAT_AUTO_SESSION_MEMORY = previous;
+  });
+
+  it('enables auto session memory only when explicitly requested', () => {
+    const previous = process.env.CHAT_AUTO_SESSION_MEMORY;
+    process.env.CHAT_AUTO_SESSION_MEMORY = 'heuristic';
+    expect(getAutoSessionMemoryMode()).toBe('heuristic');
     expect(isAutoSessionMemoryEnabled()).toBe(true);
     process.env.CHAT_AUTO_SESSION_MEMORY = previous;
   });

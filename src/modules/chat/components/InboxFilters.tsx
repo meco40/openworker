@@ -41,6 +41,7 @@ const InboxFilters: React.FC<InboxFiltersProps> = ({
         value={searchQuery}
         onChange={(event) => onSearchChange(event.target.value)}
         placeholder="Suche..."
+        aria-label="Konversationen durchsuchen"
         className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/40"
       />
     </div>

@@ -5,7 +5,7 @@
 - Purpose: Zentrales Einstiegspunkt-Dokument fuer Harness-Engineering, Agent-Legibility und Delivery-Standards.
 - Scope: Main-only Betriebsmodell, Agent-Harness, Domänenverträge, Governance und Betriebsmodell fuer alle aktiven Domänen.
 - Source of Truth: Diese Seite verweist auf die verbindlichen Agent-Engineering-Dokumente fuer den gesamten aktiven System-Scope.
-- Last Reviewed: 2026-03-05
+- Last Reviewed: 2026-08-17
 
 ---
 

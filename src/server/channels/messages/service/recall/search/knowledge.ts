@@ -4,6 +4,7 @@
 
 import type { Conversation } from '@/server/channels/messages/repository';
 import { ensureKnowledgeIngestedForConversation } from '@/server/knowledge/runtime';
+import { isKnowledgePreIngestOnRecallEnabled } from '@/server/knowledge/inlineIngestionPolicy';
 import { normalizeMemoryContext } from '../../types';
 import type { KnowledgeRetrievalServiceLike } from '../../types';
 
@@ -19,7 +20,7 @@ export async function recallFromKnowledge(
 ): Promise<string | null> {
   if (!service) return null;
   for (const userIdCandidate of memoryUserIds) {
-    if (!options.skipPreIngest) {
+    if (!options.skipPreIngest && isKnowledgePreIngestOnRecallEnabled()) {
       try {
         await ensureKnowledgeIngestedForConversation({
           conversationId: conversation.id,

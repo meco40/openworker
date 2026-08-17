@@ -31,27 +31,7 @@ export interface TelegramModelCallbackQuery {
   };
 }
 
-type ParsedNativeCommand = { kind: 'none' } | { kind: 'model'; args: string; command: '/model' };
-
 const CLEAR_MODEL_ARGS = new Set(['off', 'clear', 'auto', 'default']);
-
-function parseNativeCommand(text: string): ParsedNativeCommand {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith('/')) {
-    return { kind: 'none' };
-  }
-
-  const firstSpace = trimmed.indexOf(' ');
-  const token = (firstSpace >= 0 ? trimmed.slice(0, firstSpace) : trimmed).toLowerCase();
-  const bareToken = token.split('@')[0];
-
-  if (bareToken !== '/model') {
-    return { kind: 'none' };
-  }
-
-  const args = firstSpace >= 0 ? trimmed.slice(firstSpace + 1).trim() : '';
-  return { kind: 'model', args, command: '/model' };
-}
 
 function normalizeProviderKey(providerId: string): string {
   return providerId
@@ -171,7 +151,7 @@ async function resolveTelegramConversation(chatId: string, conversationExternalC
 }
 
 async function sendOrEditTelegramModelMessage(
-  chatId: string,
+  target: string,
   text: string,
   options: {
     messageId?: number;
@@ -180,7 +160,7 @@ async function sendOrEditTelegramModelMessage(
 ): Promise<void> {
   if (typeof options.messageId === 'number') {
     try {
-      await editTelegramMessage(chatId, options.messageId, text, {
+      await editTelegramMessage(target, options.messageId, text, {
         replyMarkup: options.replyMarkup,
       });
       return;
@@ -189,58 +169,52 @@ async function sendOrEditTelegramModelMessage(
     }
   }
 
-  await deliverTelegram(chatId, text, {
+  await deliverTelegram(target, text, {
     replyMarkup: options.replyMarkup,
   });
 }
 
-export async function handleTelegramNativeCommand(
-  chatId: string,
-  text: string,
+export async function handleTelegramModelCommand(
+  target: string,
+  args: string,
   conversationExternalChatId?: string,
-): Promise<boolean> {
-  const parsed = parseNativeCommand(text);
-  if (parsed.kind !== 'model') {
-    return false;
-  }
-
+): Promise<void> {
   const { service, conversation } = await resolveTelegramConversation(
-    chatId,
+    target,
     conversationExternalChatId,
   );
   const profileId = resolveProfileId();
   const providers = listActiveProviders(profileId);
-  const arg = parsed.args.trim();
+  const arg = args.trim();
   const argLower = arg.toLowerCase();
 
   if (CLEAR_MODEL_ARGS.has(argLower)) {
     service.setModelOverride(conversation.id, null, conversation.userId);
-    await deliverTelegram(chatId, 'Model override cleared. The pipeline fallback will be used.');
-    return true;
+    await deliverTelegram(target, 'Model override cleared. The pipeline fallback will be used.');
+    return;
   }
 
   if (arg.length > 0) {
     const selected = findModelByReference(providers, arg);
     if (!selected) {
       await deliverTelegram(
-        chatId,
+        target,
         'Model not found in active pipeline. Send /model for provider browsing.',
       );
-      return true;
+      return;
     }
 
     service.setModelOverride(conversation.id, selected.model, conversation.userId);
     await deliverTelegram(
-      chatId,
+      target,
       `Model override set to ${selected.model} (${selected.provider}).`,
     );
-    return true;
+    return;
   }
 
   const overview = buildModelOverviewText(conversation.modelOverride, providers);
   const replyMarkup = buildInlineKeyboard(buildProviderKeyboard(toProviderInfo(providers)));
-  await deliverTelegram(chatId, overview, { replyMarkup });
-  return true;
+  await deliverTelegram(target, overview, { replyMarkup });
 }
 
 export async function processTelegramModelCallback(
@@ -271,6 +245,7 @@ export async function processTelegramModelCallback(
     conversationExternalChatId,
   );
   const messageId = query.message?.message_id;
+  const target = conversationExternalChatId || chatId;
 
   switch (parsed.type) {
     case 'providers':
@@ -282,7 +257,7 @@ export async function processTelegramModelCallback(
           : buildBrowseProvidersButton(),
       );
       await sendOrEditTelegramModelMessage(
-        chatId,
+        target,
         buildModelOverviewText(conversation.modelOverride, providers),
         {
           messageId,
@@ -310,7 +285,7 @@ export async function processTelegramModelCallback(
 
       await answerTelegramCallbackQuery(query.id);
       await sendOrEditTelegramModelMessage(
-        chatId,
+        target,
         `Provider ${provider.id} (${provider.models.length} models)\nSelect a model:`,
         {
           messageId,
@@ -332,7 +307,7 @@ export async function processTelegramModelCallback(
       await answerTelegramCallbackQuery(query.id, `Model set: ${selectedModel}`);
 
       await sendOrEditTelegramModelMessage(
-        chatId,
+        target,
         `Model override set to ${selectedModel} (${selectedProvider.id}).`,
         {
           messageId,

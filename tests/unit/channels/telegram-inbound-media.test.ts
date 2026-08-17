@@ -19,8 +19,11 @@ vi.mock('../../../src/server/channels/messages/runtime', () => ({
   }),
 }));
 
-vi.mock('../../../src/server/channels/telegram/modelSelection', () => ({
+vi.mock('../../../src/server/channels/telegram/nativeCommandHandler', () => ({
   handleTelegramNativeCommand: (...args: unknown[]) => handleNativeCommand(...args),
+}));
+
+vi.mock('../../../src/server/channels/telegram/modelSelection', () => ({
   processTelegramModelCallback: vi.fn(),
 }));
 

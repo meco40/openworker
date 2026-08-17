@@ -4,6 +4,7 @@ import type { Conversation } from '@/shared/domain/types';
 import { ChannelType } from '@/shared/domain/types';
 import { CreateConversationInput } from '@/server/channels/messages/repository/types';
 import { toConversation } from '@/server/channels/messages/messageRowMappers';
+import { logInboxDbQuery } from '@/server/diagnostics/chatDisplayTrace';
 
 export class ConversationQueries {
   constructor(
@@ -39,6 +40,7 @@ export class ConversationQueries {
   }
 
   getConversation(id: string, userId?: string): Conversation | null {
+    const startedAt = Date.now();
     const normalizedUserId = userId ? this.normalizeUserId(userId) : null;
     const row = normalizedUserId
       ? (this.db
@@ -47,6 +49,12 @@ export class ConversationQueries {
       : (this.db.prepare('SELECT * FROM conversations WHERE id = ?').get(id) as
           | Record<string, unknown>
           | undefined);
+    logInboxDbQuery('conversations.get', {
+      conversationId: id,
+      userId: normalizedUserId,
+      found: Boolean(row),
+      durationMs: Date.now() - startedAt,
+    });
     return row ? toConversation(row) : null;
   }
 
@@ -86,6 +94,7 @@ export class ConversationQueries {
   }
 
   listConversations(limit = 50, userId?: string): Conversation[] {
+    const startedAt = Date.now();
     const normalizedUserId = userId ? this.normalizeUserId(userId) : null;
     // Exclude Agent Room conversations (including legacy variants) and any
     // conversation linked to an Agent Room swarm.
@@ -123,6 +132,12 @@ export class ConversationQueries {
           `,
           )
           .all(limit) as Array<Record<string, unknown>>);
+    logInboxDbQuery('conversations.list', {
+      userId: normalizedUserId,
+      limit,
+      returnedRows: rows.length,
+      durationMs: Date.now() - startedAt,
+    });
     return rows.map(toConversation);
   }
 

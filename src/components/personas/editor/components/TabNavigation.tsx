@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { PERSONA_TAB_NAMES } from '@/server/personas/personaTypes';
+import { PERSONA_TAB_NAMES } from '@/shared/personaTypes';
 import { TAB_LABELS } from '@/components/personas/personaLabels';
 import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 import type { TabNavigationProps } from '../types';

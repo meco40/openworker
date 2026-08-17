@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import { resolveRequestUserContext } from '@/server/auth/userContext';
+import {
+  getChatDisplaySlowThresholdMs,
+  isChatDisplayRequestPath,
+  logChatDisplayTrace,
+} from '@/server/diagnostics/chatDisplayTrace';
 
 type ResolvedUserContext = Awaited<ReturnType<typeof resolveRequestUserContext>>;
 type UserContext = NonNullable<ResolvedUserContext>;
@@ -27,7 +32,24 @@ export function withUserContext<TParams = Record<string, never>>(
   options: WithUserContextOptions = {},
 ) {
   return async (request?: Request, context?: RouteContext<TParams>): Promise<Response> => {
+    const resolvedRequest = resolveRequestFromArgs(request);
+    const pathname = new URL(resolvedRequest.url).pathname;
+    const shouldTrace = isChatDisplayRequestPath(pathname);
+    const authStartedAt = Date.now();
     const userContext = await resolveRequestUserContext();
+    const authDurationMs = Date.now() - authStartedAt;
+    if (shouldTrace) {
+      logChatDisplayTrace(
+        'server.auth.resolved',
+        {
+          path: pathname,
+          authenticated: Boolean(userContext?.authenticated),
+          hasUserContext: Boolean(userContext),
+          durationMs: authDurationMs,
+        },
+        { force: authDurationMs >= getChatDisplaySlowThresholdMs() },
+      );
+    }
     if (!userContext) {
       if (options.onUnauthorized) {
         return options.onUnauthorized();
@@ -37,7 +59,7 @@ export function withUserContext<TParams = Record<string, never>>(
 
     const params = context?.params ? await context.params : ({} as TParams);
     return handler({
-      request: resolveRequestFromArgs(request),
+      request: resolvedRequest,
       userContext,
       params,
     });
@@ -48,10 +70,27 @@ export function withResolvedUserContext<TParams = Record<string, never>>(
   handler: (args: WithUserContextArgs<TParams>) => Promise<Response>,
 ) {
   return async (request?: Request, context?: RouteContext<TParams>): Promise<Response> => {
+    const resolvedRequest = resolveRequestFromArgs(request);
+    const pathname = new URL(resolvedRequest.url).pathname;
+    const shouldTrace = isChatDisplayRequestPath(pathname);
+    const authStartedAt = Date.now();
     const userContext = await resolveRequestUserContext();
+    const authDurationMs = Date.now() - authStartedAt;
+    if (shouldTrace) {
+      logChatDisplayTrace(
+        'server.auth.resolved',
+        {
+          path: pathname,
+          authenticated: Boolean(userContext?.authenticated),
+          hasUserContext: Boolean(userContext),
+          durationMs: authDurationMs,
+        },
+        { force: authDurationMs >= getChatDisplaySlowThresholdMs() },
+      );
+    }
     const params = context?.params ? await context.params : ({} as TParams);
     return handler({
-      request: resolveRequestFromArgs(request),
+      request: resolvedRequest,
       userContext,
       params,
     });

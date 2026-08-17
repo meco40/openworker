@@ -4,6 +4,7 @@
 import { makeResponse, makeError } from '@/server/gateway/protocol';
 import type { ErrorCode, RequestFrame } from '@/server/gateway/protocol';
 import type { GatewayClient } from '@/server/gateway/client-registry';
+import type { MethodNamespace } from '@/shared/gatewayTypes';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -18,8 +19,6 @@ export type MethodHandler = (
   respond: RespondFn,
   context: { requestId: string | number; sendRaw: SendRawFn },
 ) => Promise<void> | void;
-
-export type MethodNamespace = 'v2';
 
 // ─── Handler Registry ────────────────────────────────────────
 
@@ -81,3 +80,5 @@ function toErrorCode(error: unknown): ErrorCode {
   if (code === 'REPLAY_WINDOW_EXPIRED') return 'REPLAY_WINDOW_EXPIRED';
   return 'UNAVAILABLE';
 }
+
+export type { MethodNamespace } from '@/shared/gatewayTypes';

@@ -1,9 +1,9 @@
 import { getTokenUsageRepository } from '@/server/stats/tokenUsageRepository';
-import { getMemoryService } from '@/server/memory/runtime';
 import { getClientRegistry } from '@/server/gateway/client-registry';
-import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 import { getMessageRepository } from '@/server/channels/messages/runtime';
 import { getInboxObservabilitySnapshot } from '@/server/channels/inbox/observability';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
+import { resolveVectorNodeCountSafe } from '@/server/control-plane/vectorNodeCount';
 import { withResolvedUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
@@ -16,45 +16,6 @@ function resolveTodayRange(): { from: string; to: string } {
   return { from: from.toISOString(), to: now.toISOString() };
 }
 
-function resolveVectorCountScopes(userId?: string): string[] {
-  const normalizedUserId = String(userId || '').trim();
-  if (!normalizedUserId) return [];
-  if (normalizedUserId !== LEGACY_LOCAL_USER_ID) return [normalizedUserId];
-
-  const scopes = new Set<string>([normalizedUserId]);
-  try {
-    const conversations = getMessageRepository().listConversations(500, normalizedUserId);
-    for (const conversation of conversations) {
-      const channel = String(conversation.channelType || '')
-        .trim()
-        .toLowerCase();
-      const externalChatId = String(conversation.externalChatId || '').trim();
-      if (!channel || !externalChatId || channel === 'webchat') continue;
-      scopes.add(`channel:${channel}:${externalChatId}`);
-    }
-  } catch (error) {
-    console.warn('Vector scope discovery failed:', error);
-  }
-
-  return Array.from(scopes);
-}
-
-async function resolveVectorNodeCount(userId?: string): Promise<number> {
-  const memoryService = getMemoryService();
-  const scopes = resolveVectorCountScopes(userId);
-  if (scopes.length === 0) {
-    return (await memoryService.snapshot()).length;
-  }
-  if (scopes.length === 1) {
-    return (await memoryService.snapshot(undefined, scopes[0])).length;
-  }
-
-  const nodes = (
-    await Promise.all(scopes.map((scopeUserId) => memoryService.snapshot(undefined, scopeUserId)))
-  ).flat();
-  return new Set(nodes.map((node) => node.id)).size;
-}
-
 export const GET = withResolvedUserContext(async ({ userContext }) => {
   try {
     const uptimeSeconds = Math.floor(process.uptime());
@@ -65,7 +26,7 @@ export const GET = withResolvedUserContext(async ({ userContext }) => {
     const { from, to } = resolveTodayRange();
     const tokensToday = getTokenUsageRepository().getTotalTokens(from, to).totalTokens;
 
-    const vectorNodeCount = await resolveVectorNodeCount(userContext?.userId);
+    const vectorNodeCount = await resolveVectorNodeCountSafe(userContext?.userId);
     const metricsUserId = userContext?.userId || LEGACY_LOCAL_USER_ID;
     const agentRoomMetrics =
       getMessageRepository().getAgentRoomSwarmMetrics?.(metricsUserId) || null;

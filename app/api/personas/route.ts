@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
-import { getModelHubService } from '@/server/model-hub/runtime';
 import {
   PERSONA_FILE_NAMES,
   MEMORY_PERSONA_TYPES,
@@ -12,7 +11,8 @@ import { withUserContext } from '../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
-function isPreferredModelAvailable(preferredModelId: string): boolean {
+async function isPreferredModelAvailable(preferredModelId: string): Promise<boolean> {
+  const { getModelHubService } = await import('@/server/model-hub/runtime');
   const modelHub = getModelHubService();
   const activePipeline = modelHub.listPipeline('p1');
   return activePipeline.some(
@@ -61,7 +61,7 @@ export const POST = withUserContext(async ({ request, userContext }) => {
     let preferredModelId: string | null = null;
     if (typeof body.preferredModelId === 'string' && body.preferredModelId.trim().length > 0) {
       preferredModelId = body.preferredModelId.trim();
-      if (!isPreferredModelAvailable(preferredModelId)) {
+      if (!(await isPreferredModelAvailable(preferredModelId))) {
         return NextResponse.json(
           { ok: false, error: `preferredModelId "${preferredModelId}" is not available.` },
           { status: 400 },

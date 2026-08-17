@@ -10,31 +10,36 @@ export interface StoreMemoryOptions {
   importance: number;
   userId?: string;
   metadata?: Record<string, unknown>;
+  /** When provided, aborting this signal will cancel the underlying Mem0 HTTP request. */
+  signal?: AbortSignal;
 }
 
 export async function storeMemory(
   client: Mem0Client,
   options: StoreMemoryOptions,
 ): Promise<MemoryNode> {
-  const { personaId, type, content, importance, userId, metadata } = options;
+  const { personaId, type, content, importance, userId, metadata, signal } = options;
   const scopedUserId = resolveUserId(userId);
   const extraMetadata =
     metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
   const nowIso = new Date().toISOString();
 
-  const result = await client.addMemory({
-    userId: scopedUserId,
-    personaId,
-    content,
-    metadata: {
-      ...extraMetadata,
-      type,
-      importance: asImportance(importance, 3),
-      confidence: 0.3,
-      version: 1,
-      lastVerified: nowIso,
+  const result = await client.addMemory(
+    {
+      userId: scopedUserId,
+      personaId,
+      content,
+      metadata: {
+        ...extraMetadata,
+        type,
+        importance: asImportance(importance, 3),
+        confidence: 0.3,
+        version: 1,
+        lastVerified: nowIso,
+      },
     },
-  });
+    signal,
+  );
   if (!result.id) {
     throw new Error('Mem0 store failed: response did not include memory id.');
   }

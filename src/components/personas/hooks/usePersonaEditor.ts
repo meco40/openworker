@@ -1,11 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type {
-  PersonaFileName,
-  PersonaTabName,
-  PersonaWithFiles,
-} from '@/server/personas/personaTypes';
+import type { PersonaFileName, PersonaTabName, PersonaWithFiles } from '@/shared/personaTypes';
 
 interface UsePersonaEditorOptions {
   selectedId: string | null;

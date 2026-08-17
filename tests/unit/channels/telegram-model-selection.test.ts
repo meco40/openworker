@@ -75,12 +75,10 @@ describe('telegram model selection', () => {
   });
 
   it('handles /model command and sends provider menu', async () => {
-    const { handleTelegramNativeCommand } =
+    const { handleTelegramModelCommand } =
       await import('@/server/channels/telegram/modelSelection');
 
-    const handled = await handleTelegramNativeCommand('123', '/model');
-
-    expect(handled).toBe(true);
+    await handleTelegramModelCommand('123', '');
     expect(deliverTelegram).toHaveBeenCalledTimes(1);
     expect(setModelOverride).not.toHaveBeenCalled();
     expect(String(deliverTelegram.mock.calls[0][1])).toContain('Model selection');
@@ -93,12 +91,10 @@ describe('telegram model selection', () => {
       modelOverride: 'gpt-4o',
     });
 
-    const { handleTelegramNativeCommand } =
+    const { handleTelegramModelCommand } =
       await import('@/server/channels/telegram/modelSelection');
 
-    const handled = await handleTelegramNativeCommand('123', '/model off');
-
-    expect(handled).toBe(true);
+    await handleTelegramModelCommand('123', 'off');
     expect(setModelOverride).toHaveBeenCalledWith('conv-1', null, 'legacy-local-user');
   });
 

@@ -29,6 +29,7 @@ export default defineConfig({
           exclude: [
             'tests/unit/channels/message-service-*.test.ts',
             'tests/unit/channels/telegram-*.test.ts',
+            'tests/unit/server/summaryService-perf.test.ts',
             'tests/unit/components/**/*.test.{ts,tsx}',
           ],
         },
@@ -41,6 +42,7 @@ export default defineConfig({
           include: [
             'tests/unit/channels/message-service-*.test.ts',
             'tests/unit/channels/telegram-*.test.ts',
+            'tests/unit/server/summaryService-perf.test.ts',
           ],
         },
       },
@@ -63,6 +65,24 @@ export default defineConfig({
       reporter: ['text', 'json', 'html', 'lcov'],
       reportsDirectory: './coverage',
       exclude: [
+        '.next/**',
+        'coverage/**',
+        'node_modules/**',
+        'tests/**',
+        '**/*.test.{ts,tsx}',
+        '**/*.spec.{ts,tsx}',
+        'demo/**',
+        'backups/**',
+        'workspaces/**',
+        '.worktrees/**',
+        '.tmp/**',
+        '.tmp_merge/**',
+        'dist/**',
+        'public/**',
+        'src/modules/master/vendor/**',
+        // Coverage is a gate for the tested application core. Browser entrypoints,
+        // external adapters, and operational surfaces below are validated by their
+        // dedicated build/E2E or integration checks and are not part of this unit gate.
         'components/**',
         'src/modules/**',
         'app/api/model-hub/**',
@@ -74,8 +94,7 @@ export default defineConfig({
         'src/server/channels/outbound/router.ts',
         'src/server/channels/pairing/telegramPolling.ts',
         'src/skills/hooks/**',
-        'src/server/agent-v2/**',
-        'src/server/knowledge/**',
+        // Agent-v2 method registration is covered by direct behavior tests.
         'src/server/agent-room/services/turnDispatch.service.ts',
         'src/server/agent-room/services/swarmResolution.service.ts',
         'src/server/agent-room/services/turnCompletion.service.ts',
@@ -132,7 +151,6 @@ export default defineConfig({
         'src/server/gateway/methods/chat.ts',
         'src/server/automation/flowCompiler.ts',
         'src/server/channels/pairing/slack.ts',
-        'src/server/channels/pairing/telegram.ts',
         'app/api/channels/telegram/webhook/route.ts',
         'src/server/channels/webhookAuth.ts',
         'app/api/personas/**',
@@ -144,9 +162,6 @@ export default defineConfig({
         'app/api/channels/whatsapp/webhook/route.ts',
         'src/server/tasks/dispatch/failure.ts',
         'src/server/auth/userStore.ts',
-        'tests/**',
-        '**/*.test.{ts,tsx}',
-        '**/*.spec.{ts,tsx}',
       ],
       thresholds: {
         lines: 70,

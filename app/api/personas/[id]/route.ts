@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getMemoryService } from '@/server/memory/runtime';
-import { getModelHubService } from '@/server/model-hub/runtime';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
-import { getMessageRepository, getMessageService } from '@/server/channels/messages/runtime';
-import { getKnowledgeRepository } from '@/server/knowledge/runtime';
 import { MEMORY_PERSONA_TYPES, type MemoryPersonaType } from '@/server/personas/personaTypes';
-import { unpairPersonaTelegram } from '@/server/telegram/personaTelegramPairing';
 import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
@@ -14,7 +9,8 @@ interface PersonaIdParams {
   id: string;
 }
 
-function isPreferredModelAvailable(preferredModelId: string): boolean {
+async function isPreferredModelAvailable(preferredModelId: string): Promise<boolean> {
+  const { getModelHubService } = await import('@/server/model-hub/runtime');
   const modelHub = getModelHubService();
   const activePipeline = modelHub.listPipeline('p1');
   return activePipeline.some(
@@ -25,6 +21,39 @@ function isPreferredModelAvailable(preferredModelId: string): boolean {
 function isValidModelHubProfileId(value: string): boolean {
   if (!value.trim()) return false;
   return /^[a-zA-Z0-9._-]{1,64}$/.test(value.trim());
+}
+
+async function deletePersonaDependencies(personaId: string, userId: string): Promise<void> {
+  const [
+    { getMemoryService },
+    { getMessageRepository, getMessageService },
+    { getKnowledgeRepository },
+    { unpairPersonaTelegram },
+  ] = await Promise.all([
+    import('@/server/memory/runtime'),
+    import('@/server/channels/messages/runtime'),
+    import('@/server/knowledge/runtime'),
+    import('@/server/telegram/personaTelegramPairing'),
+  ]);
+
+  // Mem0 is the privacy-critical remote store. Delete it first and let errors
+  // abort the operation so the route never reports success with orphaned data.
+  await getMemoryService().deleteByPersona(personaId, userId);
+
+  const messageService = getMessageService();
+  const messageRepository = getMessageRepository();
+  const personaConversations =
+    typeof messageRepository.listConversationsByPersona === 'function'
+      ? messageRepository.listConversationsByPersona(personaId, userId, 10_000)
+      : messageService
+          .listConversations(userId, 10_000)
+          .filter((conversation) => conversation.personaId === personaId);
+  for (const conversation of personaConversations) {
+    messageService.deleteConversation(conversation.id, userId);
+  }
+
+  getKnowledgeRepository().deleteKnowledgeByScope(userId, personaId);
+  await unpairPersonaTelegram(personaId);
 }
 
 // ─── GET /api/personas/[id] ─── Get a persona with all files
@@ -97,7 +126,7 @@ export const PUT = withUserContext<PersonaIdParams>(async ({ request, userContex
         updates.preferredModelId = null;
       } else if (typeof body.preferredModelId === 'string' && body.preferredModelId.trim().length) {
         const normalizedModelId = body.preferredModelId.trim();
-        if (!isPreferredModelAvailable(normalizedModelId)) {
+        if (!(await isPreferredModelAvailable(normalizedModelId))) {
           return NextResponse.json(
             { ok: false, error: `preferredModelId "${normalizedModelId}" is not available.` },
             { status: 400 },
@@ -190,21 +219,7 @@ export const DELETE = withUserContext<PersonaIdParams>(async ({ userContext, par
       );
     }
 
-    const messageService = getMessageService();
-    const messageRepository = getMessageRepository();
-    const personaConversations =
-      typeof messageRepository.listConversationsByPersona === 'function'
-        ? messageRepository.listConversationsByPersona(id, userContext.userId, 10_000)
-        : messageService
-            .listConversations(userContext.userId, 10_000)
-            .filter((conversation) => conversation.personaId === id);
-    for (const conversation of personaConversations) {
-      messageService.deleteConversation(conversation.id, userContext.userId);
-    }
-
-    getKnowledgeRepository().deleteKnowledgeByScope(userContext.userId, id);
-    await unpairPersonaTelegram(id);
-    await getMemoryService().deleteByPersona(id, userContext.userId);
+    await deletePersonaDependencies(id, userContext.userId);
     repo.deletePersona(id);
     return NextResponse.json({ ok: true });
   } catch (error) {

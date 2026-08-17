@@ -15,7 +15,6 @@ import type { ChannelType } from '@/shared/domain/types';
 export interface MaintenanceDeps {
   repo: MessageRepository;
   sessionManager: SessionManager;
-  summaryRefreshInFlight: Set<string>;
   summaryService: SummaryService;
   recallService: RecallService;
   activeRequests: Map<string, AbortController>;
@@ -46,7 +45,6 @@ export function deleteConversation(
 ): boolean {
   abortGeneration(deps.activeRequests, conversationId);
   deps.activeRequests.delete(conversationId);
-  deps.summaryRefreshInFlight.delete(conversationId);
   deps.summaryService.clearInFlight(conversationId);
   deps.recallService.clearConversationState(conversationId);
   return deps.repo.deleteConversation(conversationId, userId);
@@ -80,7 +78,6 @@ export function deleteMessage(
     deleteStoredAttachmentFile(attachment);
   }
 
-  deps.summaryRefreshInFlight.delete(message.conversationId);
   deps.summaryService.clearInFlight(message.conversationId);
   deps.recallService.clearConversationState(message.conversationId);
   return true;

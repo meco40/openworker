@@ -27,7 +27,7 @@ export async function handleSubagentCommand(
     {
       runtime: 'subagents-command',
       action: parsed.action,
-      ...(result.payload || {}),
+      ...result.payload,
     },
   );
 }

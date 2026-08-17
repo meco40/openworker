@@ -123,7 +123,7 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
  * lines of unchanged text around each change.
  */
 function markVisibleLines(lines: DiffLine[], ctx: number): boolean[] {
-  const visible = new Array(lines.length).fill(false) as boolean[];
+  const visible = Array.from({ length: lines.length }, () => false);
 
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].kind !== 'same') {

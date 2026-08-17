@@ -16,6 +16,7 @@ import {
   upsertConversationActivity,
 } from '@/modules/app-shell/runtimeLogic';
 import { getGatewayClient } from '@/modules/gateway/ws-client';
+import { debug } from '@/lib/debug';
 
 interface ConversationListResponse {
   ok: boolean;
@@ -51,6 +52,13 @@ interface UseConversationSyncArgs {
   enabled: boolean;
 }
 
+function logChatDisplayStep(stage: string, payload: Record<string, unknown> = {}): void {
+  debug.api(`[chat.display] ${stage}`, {
+    ts: new Date().toISOString(),
+    ...payload,
+  });
+}
+
 export function useConversationSync({ enabled }: UseConversationSyncArgs) {
   const [conversations, setConversations] = useState<Conversation[]>(() => []);
   const [messages, setMessages] = useState<Message[]>(() => []);
@@ -64,6 +72,8 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
 
   const loadConversations = useCallback(async (options?: { resync?: boolean }) => {
     const isResync = Boolean(options?.resync);
+    const startedAt = performance.now();
+    logChatDisplayStep('client.inbox.load.start', { resync: isResync });
     try {
       const aggregatedItems: InboxItem[] = [];
       let cursor: string | null = null;
@@ -80,17 +90,31 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
           params.set('resync', '1');
         }
 
+        const pageStartedAt = performance.now();
+        logChatDisplayStep('client.inbox.page.request', {
+          page: pageCount + 1,
+          resync: isResync,
+          hasCursor: Boolean(cursor),
+        });
         const response = await fetch(`/api/channels/inbox?${params.toString()}`);
         const data = (await response.json()) as InboxListResponse;
         if (!response.ok || !data.ok) {
           throw new Error('Inbox listing failed');
         }
+        logChatDisplayStep('client.inbox.page.response', {
+          page: pageCount + 1,
+          status: response.status,
+          returned: Array.isArray(data.items) ? data.items.length : 0,
+          hasMore: Boolean(data.page?.hasMore),
+          durationMs: Math.round(performance.now() - pageStartedAt),
+        });
 
         aggregatedItems.push(...(Array.isArray(data.items) ? data.items : []));
         cursor = data.page?.hasMore ? data.page.nextCursor || null : null;
         pageCount += 1;
       } while (cursor && pageCount < 20);
 
+      const previousActiveConversationId = activeConversationRef.current;
       setConversations((previous) => applyInboxSnapshot(previous, aggregatedItems));
       setActiveConversationId((previous) => {
         if (previous && aggregatedItems.some((item) => item.conversationId === previous)) {
@@ -98,11 +122,26 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
         }
         return aggregatedItems[0]?.conversationId || null;
       });
+      logChatDisplayStep('client.inbox.load.complete', {
+        resync: isResync,
+        pageCount,
+        returned: aggregatedItems.length,
+        previousActiveConversationId,
+        nextActiveConversationId:
+          previousActiveConversationId || aggregatedItems[0]?.conversationId || null,
+        durationMs: Math.round(performance.now() - startedAt),
+      });
     } catch (error) {
       if (isResync) {
         console.warn('Inbox resync failed, falling back to conversations endpoint:', error);
       }
+      logChatDisplayStep('client.inbox.load.error', {
+        resync: isResync,
+        durationMs: Math.round(performance.now() - startedAt),
+        message: error instanceof Error ? error.message : 'Inbox listing failed',
+      });
       try {
+        const fallbackStartedAt = performance.now();
         const response = await fetch('/api/channels/conversations');
         const data = (await response.json()) as ConversationListResponse;
         if (!data.ok) {
@@ -112,29 +151,72 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
         if (data.conversations.length > 0 && !activeConversationRef.current) {
           setActiveConversationId(data.conversations[0].id);
         }
+        logChatDisplayStep('client.conversations.fallback.complete', {
+          returned: data.conversations.length,
+          durationMs: Math.round(performance.now() - fallbackStartedAt),
+        });
       } catch (fallbackError) {
         console.warn('Failed to load conversations:', fallbackError);
+        logChatDisplayStep('client.conversations.fallback.error', {
+          message:
+            fallbackError instanceof Error ? fallbackError.message : 'Failed to load conversations',
+        });
       }
     }
   }, []);
 
   const loadMessages = useCallback(async (conversationId: string) => {
     const requestId = ++loadMessagesRequestIdRef.current;
+    const startedAt = performance.now();
+    logChatDisplayStep('client.messages.load.start', {
+      conversationId,
+      requestId,
+    });
     try {
       const response = await fetch(`/api/channels/messages?conversationId=${conversationId}`);
       const data = (await response.json()) as ConversationMessagesResponse;
       if (!data.ok) {
+        logChatDisplayStep('client.messages.load.invalid', {
+          conversationId,
+          requestId,
+          status: response.status,
+          durationMs: Math.round(performance.now() - startedAt),
+        });
         return;
       }
       if (requestId !== loadMessagesRequestIdRef.current) {
+        logChatDisplayStep('client.messages.load.stale', {
+          conversationId,
+          requestId,
+          currentRequestId: loadMessagesRequestIdRef.current,
+          durationMs: Math.round(performance.now() - startedAt),
+        });
         return;
       }
       if (activeConversationRef.current !== conversationId) {
+        logChatDisplayStep('client.messages.load.inactive', {
+          conversationId,
+          requestId,
+          activeConversationId: activeConversationRef.current,
+          durationMs: Math.round(performance.now() - startedAt),
+        });
         return;
       }
       setMessages(data.messages.map(mapConversationApiMessage));
+      logChatDisplayStep('client.messages.load.complete', {
+        conversationId,
+        requestId,
+        returned: data.messages.length,
+        durationMs: Math.round(performance.now() - startedAt),
+      });
     } catch (error) {
       console.error(error);
+      logChatDisplayStep('client.messages.load.error', {
+        conversationId,
+        requestId,
+        durationMs: Math.round(performance.now() - startedAt),
+        message: error instanceof Error ? error.message : 'Failed to load messages',
+      });
     }
   }, []);
 
@@ -153,6 +235,7 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
     }
 
     const client = getGatewayClient();
+    logChatDisplayStep('client.ws.connect.start');
     client.connect();
 
     // Listen for chat.message events via WS gateway
@@ -178,6 +261,11 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
       if (!data || data.version !== 'v2' || !data.conversationId) {
         return;
       }
+      logChatDisplayStep('client.ws.inbox.updated', {
+        action: data.action,
+        conversationId: data.conversationId,
+        hasItem: Boolean(data.item),
+      });
 
       if (data.action === 'delete') {
         setConversations((previous) =>
@@ -244,6 +332,9 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
     });
     const unsubState = client.onStateChange((state) => {
       if (state !== 'connected') return;
+      logChatDisplayStep('client.ws.connected.resync', {
+        activeConversationId: activeConversationRef.current,
+      });
       void loadConversations({ resync: true });
       const currentConversationId = activeConversationRef.current;
       if (currentConversationId) {

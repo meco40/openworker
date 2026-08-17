@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePersona } from '@/modules/personas/PersonaContext';
-import type { PersonaTabName, MemoryPersonaType } from '@/server/personas/personaTypes';
+import type { PersonaTabName, MemoryPersonaType } from '@/shared/personaTypes';
 import { PersonasSidebar } from '@/components/personas/PersonasSidebar';
 import { PersonaEditorPane } from '@/components/personas/editor/PersonaEditorPane';
 import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
@@ -130,10 +130,10 @@ const PersonasView: React.FC = () => {
     [confirm, dirty, setSelectedId, setDirty, setEditingMeta],
   );
 
-  // Effects
   useEffect(() => {
-    loadPipelineModels();
-  }, [loadPipelineModels]);
+    if (!selectedPersona || isSystemPersona || activeTab !== 'GATEWAY') return;
+    void loadPipelineModels();
+  }, [activeTab, isSystemPersona, loadPipelineModels, selectedPersona]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({ dirty, selectedId, activeTab, onSave: saveFile });

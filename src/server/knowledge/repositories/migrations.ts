@@ -183,6 +183,12 @@ export function runKnowledgeMigrations(db: BetterSqlite3.Database): void {
       ON knowledge_retrieval_audit (user_id, persona_id, created_at DESC);
   `);
 
+  // conversation_id index for efficient deleteConversation / cascade cleanup
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_knowledge_audit_conversation_id
+      ON knowledge_retrieval_audit (conversation_id);
+  `);
+
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_events_scope
       ON knowledge_events(user_id, persona_id, event_type, speaker_role);

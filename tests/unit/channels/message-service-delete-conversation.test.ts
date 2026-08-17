@@ -63,10 +63,17 @@ function buildRepository(
 }
 
 describe('MessageService.deleteConversation', () => {
-  it('aborts in-flight generation and clears in-memory state for deleted conversation', () => {
+  it('aborts in-flight generation and clears in-memory summary state for deleted conversation', () => {
     const deleteConversation = vi.fn(() => true);
     const deleteMessage = vi.fn(() => true);
     const service = new MessageService(buildRepository(deleteConversation, deleteMessage));
+
+    const summaryService = (
+      service as unknown as {
+        summaryService: { clearInFlight: (conversationId: string) => void };
+      }
+    ).summaryService;
+    const clearInFlight = vi.spyOn(summaryService, 'clearInFlight');
 
     const firstController = new AbortController();
     const secondController = new AbortController();
@@ -74,12 +81,9 @@ describe('MessageService.deleteConversation', () => {
       state: {
         activeRequests: Map<string, AbortController>;
       };
-      summaryRefreshInFlight: Set<string>;
     };
     internals.state.activeRequests.set('conv-delete', firstController);
     internals.state.activeRequests.set('conv-keep', secondController);
-    internals.summaryRefreshInFlight.add('conv-delete');
-    internals.summaryRefreshInFlight.add('conv-keep');
 
     const deleted = service.deleteConversation('conv-delete', 'user-1');
 
@@ -88,8 +92,8 @@ describe('MessageService.deleteConversation', () => {
     expect(firstController.signal.aborted).toBe(true);
     expect(internals.state.activeRequests.has('conv-delete')).toBe(false);
     expect(internals.state.activeRequests.has('conv-keep')).toBe(true);
-    expect(internals.summaryRefreshInFlight.has('conv-delete')).toBe(false);
-    expect(internals.summaryRefreshInFlight.has('conv-keep')).toBe(true);
+    expect(clearInFlight).toHaveBeenCalledWith('conv-delete');
+    expect(clearInFlight).not.toHaveBeenCalledWith('conv-keep');
   });
 });
 
@@ -99,17 +103,18 @@ describe('MessageService.deleteMessage', () => {
     const deleteMessage = vi.fn(() => true);
     const service = new MessageService(buildRepository(deleteConversation, deleteMessage));
 
-    const internals = service as unknown as {
-      summaryRefreshInFlight: Set<string>;
-    };
-    internals.summaryRefreshInFlight.add('conv-delete');
-    internals.summaryRefreshInFlight.add('conv-keep');
+    const summaryService = (
+      service as unknown as {
+        summaryService: { clearInFlight: (conversationId: string) => void };
+      }
+    ).summaryService;
+    const clearInFlight = vi.spyOn(summaryService, 'clearInFlight');
 
     const deleted = service.deleteMessage('msg-1', 'user-1');
 
     expect(deleted).toBe(true);
     expect(deleteMessage).toHaveBeenCalledWith('msg-1', 'user-1');
-    expect(internals.summaryRefreshInFlight.has('conv-delete')).toBe(false);
-    expect(internals.summaryRefreshInFlight.has('conv-keep')).toBe(true);
+    expect(clearInFlight).toHaveBeenCalledWith('conv-delete');
+    expect(clearInFlight).not.toHaveBeenCalledWith('conv-keep');
   });
 });

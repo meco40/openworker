@@ -15,6 +15,8 @@ describe('Gateway API contract', () => {
 
     expect(source).toContain('REQUIRE_AUTH');
     expect(source).toContain('HTTP/1.1 401 Unauthorized');
+    expect(source).toContain('NEXT_DEV_BUNDLER');
+    expect(source).toContain('webpack: true');
   });
 
   describe('Chat request body', () => {

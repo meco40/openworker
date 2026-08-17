@@ -1,4 +1,6 @@
 import { execFile as execFileCallback } from 'node:child_process';
+import { createRequire } from 'node:module';
+import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { isCommandApproved } from '@/server/gateway/exec-approval-manager';
 import {
@@ -16,6 +18,7 @@ import {
 import type { SkillDispatchContext } from '@/server/skills/types';
 
 const execFile = promisify(execFileCallback);
+const require = createRequire(import.meta.url);
 
 function resolveShell(command: string): { file: string; args: string[] } {
   if (process.platform === 'win32') {
@@ -35,6 +38,22 @@ function quoteToken(token: string): string {
 function buildShellCommand(tokens: string[]): string {
   const quoted = tokens.map((token) => quoteToken(token));
   return ['npx', 'playwright', ...quoted].join(' ');
+}
+
+function resolvePlaywrightInvocation(
+  cwd: string,
+  tokens: string[],
+): { file: string; args: string[] } {
+  try {
+    const packageEntry = require.resolve('playwright', { paths: [cwd] });
+    return {
+      file: process.execPath,
+      args: [path.join(path.dirname(packageEntry), 'cli.js'), ...tokens],
+    };
+  } catch {
+    const shell = resolveShell(buildShellCommand(tokens));
+    return { file: shell.file, args: shell.args };
+  }
 }
 
 export async function playwrightCliHandler(
@@ -68,9 +87,9 @@ export async function playwrightCliHandler(
 
   const cwd = resolveSkillExecutionCwd(context);
   const { timeoutMs, maxBufferBytes } = resolveShellExecutionOptionsFromEnv();
-  const shell = resolveShell(buildShellCommand(tokens));
+  const invocation = resolvePlaywrightInvocation(cwd, tokens);
   try {
-    const { stdout, stderr } = await execFile(shell.file, shell.args, {
+    const { stdout, stderr } = await execFile(invocation.file, invocation.args, {
       cwd,
       timeout: timeoutMs,
       maxBuffer: maxBufferBytes,

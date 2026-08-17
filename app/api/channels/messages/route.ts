@@ -6,7 +6,11 @@ import {
   type IncomingMessageAttachmentPayload,
   type StoredMessageAttachment,
 } from '@/server/channels/messages/attachments';
-import { emitInboxUpdated } from '@/server/channels/inbox/events';
+import {
+  getChatDisplaySlowThresholdMs,
+  logChatDisplayTrace,
+} from '@/server/diagnostics/chatDisplayTrace';
+import { deleteMessageWithSideEffects } from '@/server/channels/messages/deleteMessageAction';
 import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
@@ -18,21 +22,65 @@ function normalizePersonaId(value: unknown): string | null {
 }
 
 export const GET = withUserContext(async ({ request, userContext }) => {
+  const startedAt = Date.now();
   const { searchParams } = new URL(request.url);
   const conversationId = searchParams.get('conversationId');
   const limit = parseInt(searchParams.get('limit') || '100', 10);
   const before = searchParams.get('before') || undefined;
 
+  const serviceStartedAt = Date.now();
   const service = getMessageService();
+  const serviceResolveDurationMs = Date.now() - serviceStartedAt;
 
   if (!conversationId) {
     // Return default webchat messages
+    const defaultConversationStartedAt = Date.now();
     const conv = service.getDefaultWebChatConversation(userContext.userId);
+    const defaultConversationDurationMs = Date.now() - defaultConversationStartedAt;
+    const listStartedAt = Date.now();
     const messages = service.listMessages(conv.id, userContext.userId, limit, before);
+    const listMessagesDurationMs = Date.now() - listStartedAt;
+    const durationMs = Date.now() - startedAt;
+    logChatDisplayTrace(
+      'http.messages.complete',
+      {
+        path: '/api/channels/messages',
+        userId: userContext.userId,
+        conversationId: conv.id,
+        requestedDefaultConversation: true,
+        limit,
+        hasBefore: Boolean(before),
+        returned: messages.length,
+        durationMs,
+        serviceResolveDurationMs,
+        defaultConversationDurationMs,
+        listMessagesDurationMs,
+      },
+      { force: durationMs >= getChatDisplaySlowThresholdMs() },
+    );
     return NextResponse.json({ ok: true, conversationId: conv.id, messages });
   }
 
+  const listStartedAt = Date.now();
   const messages = service.listMessages(conversationId, userContext.userId, limit, before);
+  const listMessagesDurationMs = Date.now() - listStartedAt;
+  const durationMs = Date.now() - startedAt;
+  logChatDisplayTrace(
+    'http.messages.complete',
+    {
+      path: '/api/channels/messages',
+      userId: userContext.userId,
+      conversationId,
+      requestedDefaultConversation: false,
+      limit,
+      hasBefore: Boolean(before),
+      returned: messages.length,
+      durationMs,
+      serviceResolveDurationMs,
+      listMessagesDurationMs,
+    },
+    { force: durationMs >= getChatDisplaySlowThresholdMs() },
+  );
   return NextResponse.json({ ok: true, conversationId, messages });
 });
 
@@ -143,37 +191,15 @@ export const DELETE = withUserContext(async ({ request, userContext }) => {
     }
 
     const service = getMessageService();
-    const existingMessage = service.getMessage(messageId, userContext.userId);
-    if (!existingMessage) {
-      return NextResponse.json({ ok: false, error: 'Message not found' }, { status: 404 });
-    }
-    if (conversationId && existingMessage.conversationId !== conversationId) {
-      return NextResponse.json({ ok: false, error: 'Message not found' }, { status: 404 });
-    }
-
-    const deleted = service.deleteMessage(
+    const result = await deleteMessageWithSideEffects({
+      service,
       messageId,
-      userContext.userId,
-      existingMessage.conversationId,
-    );
-    if (!deleted) {
-      return NextResponse.json({ ok: false, error: 'Message not found' }, { status: 404 });
-    }
-
-    const { broadcastToUser } = await import('@/server/gateway/broadcast');
-    const { GatewayEvents } = await import('@/server/gateway/events');
-    broadcastToUser(userContext.userId, GatewayEvents.CHAT_MESSAGE_DELETED, {
-      messageId,
-      conversationId: existingMessage.conversationId || null,
-    });
-
-    const inboxItem = service.getInboxItem(existingMessage.conversationId, userContext.userId);
-    emitInboxUpdated({
       userId: userContext.userId,
-      action: inboxItem ? 'upsert' : 'delete',
-      conversationId: existingMessage.conversationId,
-      item: inboxItem,
+      conversationId,
     });
+    if (!result.ok) {
+      return NextResponse.json({ ok: false, error: 'Message not found' }, { status: 404 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

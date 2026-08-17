@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { parseBoundedIntOrFallback } from '@/server/http/params';
-import { getMemoryService } from '@/server/memory/runtime';
 import type { MemoryApiUserContext } from './types';
 import {
+  MemoryRuntimeUnavailableError,
   ValidationError,
   dedupeById,
+  getReadyMemoryService,
   parseFlag,
   parseOptionalType,
   parsePersonaId,
@@ -20,9 +21,30 @@ export async function handleMemoryGet(request: Request, userContext: MemoryApiUs
     const includeHistory = parseFlag(url.searchParams.get('history'));
     const pageParam = url.searchParams.get('page');
     const pageSizeParam = url.searchParams.get('pageSize');
-    const service = getMemoryService();
     const userScopes = resolveMemoryReadUserScopes(userContext.userId, personaId);
     const primaryUserScope = userScopes[0] || userContext.userId;
+    const page = parseBoundedIntOrFallback(pageParam, 1, 1, 1_000_000);
+    const pageSize = parseBoundedIntOrFallback(pageSizeParam, 25, 1, 200);
+    let service;
+    try {
+      service = getReadyMemoryService();
+    } catch (error) {
+      if (error instanceof MemoryRuntimeUnavailableError) {
+        if (includeHistory) {
+          return NextResponse.json({ ok: true, node: null, history: [], degraded: true });
+        }
+        if (pageParam !== null || pageSizeParam !== null) {
+          return NextResponse.json({
+            ok: true,
+            nodes: [],
+            pagination: { page, pageSize, total: 0, totalPages: 1 },
+            degraded: true,
+          });
+        }
+        return NextResponse.json({ ok: true, nodes: [], degraded: true });
+      }
+      throw error;
+    }
 
     if (includeHistory) {
       if (!nodeId) {
@@ -36,77 +58,44 @@ export async function handleMemoryGet(request: Request, userContext: MemoryApiUs
     }
 
     if (pageParam !== null || pageSizeParam !== null) {
-      const page = parseBoundedIntOrFallback(pageParam, 1, 1, 1_000_000);
-      const pageSize = parseBoundedIntOrFallback(pageSizeParam, 25, 1, 200);
       const query = String(url.searchParams.get('query') || '').trim();
       const type = parseOptionalType(url.searchParams.get('type'));
-      if (userScopes.length > 1) {
-        const merged = dedupeById(
-          (
-            await Promise.all(
-              userScopes.map((scopeUserId) => service.snapshot(personaId, scopeUserId)),
-            )
-          ).flat(),
-        );
-        const needle = query.toLowerCase();
-        const filtered = merged
-          .filter((node) => {
-            if (!needle) return true;
-            return (
-              node.content.toLowerCase().includes(needle) ||
-              node.type.toLowerCase().includes(needle)
-            );
-          })
-          .filter((node) => (type ? node.type === type : true))
-          .sort((a, b) => rankNodeTimestamp(b) - rankNodeTimestamp(a));
-        const total = filtered.length;
-        const offset = (page - 1) * pageSize;
-        const nodes = filtered.slice(offset, offset + pageSize);
-        return NextResponse.json({
-          ok: true,
-          nodes,
-          pagination: {
-            page,
-            pageSize,
-            total,
-            totalPages: Math.max(1, Math.ceil(total / pageSize)),
-          },
-        });
-      }
-      const result = await service.listPage(
-        personaId,
-        {
-          page,
-          pageSize,
-          query: query || undefined,
-          type,
-        },
-        primaryUserScope,
-      );
+      const input = { page, pageSize, query: query || undefined, type };
+      const result =
+        userScopes.length > 1
+          ? await service.listPageAcrossScopes(personaId, userScopes, input)
+          : await service.listPage(personaId, input, primaryUserScope);
       return NextResponse.json({ ok: true, nodes: result.nodes, pagination: result.pagination });
     }
 
     if (userScopes.length > 1) {
-      const merged = dedupeById(
-        (
-          await Promise.all(
-            userScopes.map((scopeUserId) => service.snapshot(personaId, scopeUserId)),
-          )
-        ).flat(),
-      ).sort((a, b) => rankNodeTimestamp(b) - rankNodeTimestamp(a));
+      const snapshots = await Promise.all(
+        userScopes.map((scopeUserId) => service.snapshotWithMeta(personaId, scopeUserId)),
+      );
+      const merged = dedupeById(snapshots.flatMap((snapshot) => snapshot.nodes)).sort(
+        (a, b) => rankNodeTimestamp(b) - rankNodeTimestamp(a),
+      );
       return NextResponse.json({
         ok: true,
         nodes: merged,
+        truncated: snapshots.some((snapshot) => snapshot.truncated),
       });
     }
 
+    const snapshot = await service.snapshotWithMeta(personaId, primaryUserScope);
     return NextResponse.json({
       ok: true,
-      nodes: await service.snapshot(personaId, primaryUserScope),
+      nodes: snapshot.nodes,
+      truncated: snapshot.truncated,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to load memory snapshot.';
-    const status = error instanceof ValidationError ? 400 : 500;
+    const status =
+      error instanceof ValidationError
+        ? 400
+        : error instanceof MemoryRuntimeUnavailableError
+          ? 503
+          : 500;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

@@ -103,9 +103,33 @@ describe('MessageService auto session memory', () => {
   beforeEach(() => {
     dispatchWithFallbackMock.mockClear();
     memoryStoreMock.mockClear();
+    delete process.env.CHAT_AUTO_SESSION_MEMORY;
   });
 
-  it('stores auto-generated memory candidates during summary refresh when persona is active', async () => {
+  it('does not store auto-generated memory candidates during summary refresh by default', async () => {
+    const service = new MessageService(buildRepository());
+    const conversation: Conversation = {
+      id: 'c-1',
+      channelType: 'WebChat' as never,
+      externalChatId: 'default',
+      userId: 'user-1',
+      title: 'Summary Test',
+      modelOverride: null,
+      personaId: 'persona-1',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await (
+      service as unknown as { maybeRefreshConversationSummary: (c: Conversation) => Promise<void> }
+    ).maybeRefreshConversationSummary(conversation);
+
+    expect(dispatchWithFallbackMock).toHaveBeenCalledTimes(1);
+    expect(memoryStoreMock).not.toHaveBeenCalled();
+  });
+
+  it('stores auto-generated memory candidates during summary refresh when explicitly enabled', async () => {
+    process.env.CHAT_AUTO_SESSION_MEMORY = 'heuristic';
     const service = new MessageService(buildRepository());
     const conversation: Conversation = {
       id: 'c-1',
@@ -134,6 +158,7 @@ describe('MessageService auto session memory', () => {
   });
 
   it('does not store auto-session memory for Agent Room conversations', async () => {
+    process.env.CHAT_AUTO_SESSION_MEMORY = 'heuristic';
     const service = new MessageService(buildRepository());
     const conversation: Conversation = {
       id: 'c-1',

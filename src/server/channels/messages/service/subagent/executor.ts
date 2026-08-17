@@ -241,6 +241,6 @@ export async function invokeSubagentToolCall(
     status: (result.payload?.status as string) || 'ok',
     action,
     text: result.text,
-    ...(result.payload || {}),
+    ...result.payload,
   };
 }

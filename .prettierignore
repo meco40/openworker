@@ -13,3 +13,4 @@ public/vendor
 src/modules/master/vendor
 public/models/*.gltf
 public/models/*.glb
+test-results/**

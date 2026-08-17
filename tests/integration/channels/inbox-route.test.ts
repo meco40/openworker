@@ -231,6 +231,22 @@ describe('GET /api/channels/inbox', () => {
     expect(pageTwo.items[0]?.conversationId).not.toBe(pageOne.items[0]?.conversationId);
   });
 
+  it('reports the exact total across unfiltered cursor pages', async () => {
+    const { GET } = await import('../../../app/api/channels/inbox/route');
+    const response = await GET(
+      new Request('http://localhost/api/channels/inbox?version=2&limit=1'),
+    );
+    const json = (await response.json()) as {
+      ok: boolean;
+      page: { totalMatched: number; hasMore: boolean };
+    };
+
+    expect(response.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(json.page.totalMatched).toBe(2);
+    expect(json.page.hasMore).toBe(true);
+  });
+
   it('returns 503 when inbox v2 is disabled', async () => {
     process.env.INBOX_V2_ENABLED = 'false';
     const { GET } = await import('../../../app/api/channels/inbox/route');

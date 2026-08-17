@@ -20,6 +20,10 @@ function buildDecisionReason(decision: ApprovalDecision): string {
       return 'Approved for a single matching action.';
     case 'deny':
       return 'Action denied by operator.';
+    default: {
+      const _exhaustive: never = decision;
+      throw new Error(`Unexpected approval decision: ${_exhaustive}`);
+    }
   }
 }
 

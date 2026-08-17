@@ -36,13 +36,20 @@ services:
       MEM0_API_KEY: ${MEM0_API_KEY:-local-mem0-dev-token}
       MEM0_ALLOW_ADMIN_ENDPOINTS: 'true'
       HISTORY_DB_PATH: /app/history/history.db
-      # Bootstrap configuration (prevents "unconfigured" state)
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      MEM0_LLM_PROVIDER: gemini
-      MEM0_LLM_MODEL: gemini-1.5-flash
-      MEM0_EMBEDDER_PROVIDER: gemini
-      MEM0_EMBEDDER_MODEL: text-embedding-004
-      MEM0_EMBEDDING_DIMS: 1536
+      # Optional bootstrap configuration. Leave these unset to let the
+      # application's Model Hub sync configure Mem0 from the active p1 and
+      # p1-embeddings profiles. A Gemini key alone must not force a bootstrap
+      # that can shadow a valid Model Hub configuration.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      MEM0_LLM_PROVIDER: ${MEM0_LLM_PROVIDER:-}
+      MEM0_LLM_MODEL: ${MEM0_LLM_MODEL:-}
+      MEM0_LLM_API_KEY: ${MEM0_LLM_API_KEY:-}
+      MEM0_LLM_BASE_URL: ${MEM0_LLM_BASE_URL:-}
+      MEM0_EMBEDDER_PROVIDER: ${MEM0_EMBEDDER_PROVIDER:-}
+      MEM0_EMBEDDER_MODEL: ${MEM0_EMBEDDER_MODEL:-}
+      MEM0_EMBEDDER_API_KEY: ${MEM0_EMBEDDER_API_KEY:-}
+      MEM0_EMBEDDER_BASE_URL: ${MEM0_EMBEDDER_BASE_URL:-}
+      MEM0_EMBEDDING_DIMS: ${MEM0_EMBEDDING_DIMS:-768}
     volumes:
       - mem0-history-data:/app/history
     ports:
@@ -53,7 +60,7 @@ services:
           'CMD',
           'python',
           '-c',
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=5).read()",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()",
         ]
       interval: 15s
       timeout: 5s

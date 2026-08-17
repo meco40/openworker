@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import type { OpsInstancesResponse } from '@/modules/ops/types';
+import type { OpsInstancesResponse } from '@/shared/opsTypes';
 import { getClientRegistry } from '@/server/gateway/client-registry';
 import { parseClampedInt } from '../_shared/query';
 import { withUserContext } from '../../_shared/withUserContext';

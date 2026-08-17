@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getMemoryService } from '@/server/memory/runtime';
 import {
   DELETE_ALL_CONFIRM_TOKEN,
+  MemoryRuntimeUnavailableError,
   ValidationError,
+  getReadyMemoryService,
   isDeleteAllConfirmed,
   parsePersonaId,
 } from './shared';
@@ -13,7 +14,7 @@ export async function handleMemoryDelete(request: Request, userContext: MemoryAp
     const url = new URL(request.url);
     const personaId = parsePersonaId(url.searchParams.get('personaId'));
     const nodeId = String(url.searchParams.get('id') || '').trim();
-    const service = getMemoryService();
+    const service = getReadyMemoryService();
 
     if (nodeId) {
       const deleted = (await service.delete(personaId, nodeId, userContext.userId)) ? 1 : 0;
@@ -30,7 +31,12 @@ export async function handleMemoryDelete(request: Request, userContext: MemoryAp
     return NextResponse.json({ ok: true, deleted });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid request.';
-    const status = error instanceof ValidationError ? 400 : 500;
+    const status =
+      error instanceof ValidationError
+        ? 400
+        : error instanceof MemoryRuntimeUnavailableError
+          ? 503
+          : 500;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

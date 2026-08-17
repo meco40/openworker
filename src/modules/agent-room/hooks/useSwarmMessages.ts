@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
+import type { AgentV2EventEnvelope } from '@/shared/agentV2Types';
 import {
   SWARM_PHASES,
   type SwarmPhase,

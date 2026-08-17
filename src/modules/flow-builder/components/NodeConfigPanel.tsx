@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import type { FlowNodeType, FlowNodeData } from '@/server/automation/flowTypes';
+import type { FlowNodeType, FlowNodeData } from '@/shared/flowTypes';
 
 interface FieldDef {
   key: string;

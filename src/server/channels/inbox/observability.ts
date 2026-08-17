@@ -1,3 +1,5 @@
+import { isChatDisplayTraceEnabled } from '@/server/diagnostics/chatDisplayTrace';
+
 type Source = 'http' | 'ws';
 type Action = 'upsert' | 'delete';
 
@@ -135,7 +137,7 @@ export function getInboxObservabilitySnapshot(): {
 }
 
 export function shouldLogInboxObservability(): boolean {
-  return String(process.env.INBOX_V2_LOGS || '').toLowerCase() === 'true';
+  return isChatDisplayTraceEnabled();
 }
 
 export function logInboxObservability(stage: string, payload: Record<string, unknown>): void {

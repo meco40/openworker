@@ -17,7 +17,7 @@ import { runGatewayKeepaliveSweep } from './src/server/gateway/keepalive.js';
 import { getPrincipalUserId } from './src/server/auth/principal.js';
 import {
   assertMemoryRuntimeConfiguration,
-  assertMemoryRuntimeReady,
+  ensureMemoryRuntimeReadyForStartup,
 } from './src/server/memory/runtime.js';
 import { getPersonaTelegramBotRegistry } from './src/server/telegram/personaTelegramBotRegistry.js';
 import {
@@ -43,6 +43,15 @@ const port = parseInt(process.env.PORT || '3000', 10);
 
 const REQUIRE_AUTH = String(process.env.REQUIRE_AUTH || 'false').toLowerCase() === 'true';
 
+type NextDevBundler = 'webpack' | 'turbopack';
+
+function resolveNextDevBundler(): NextDevBundler {
+  const value = String(process.env.NEXT_DEV_BUNDLER || 'webpack')
+    .trim()
+    .toLowerCase();
+  return value === 'turbopack' || value === 'turbo' ? 'turbopack' : 'webpack';
+}
+
 function resolveAuthSecret(): string {
   const secret = process.env.NEXTAUTH_SECRET?.trim() || process.env.AUTH_SECRET?.trim();
   if (secret) return secret;
@@ -58,14 +67,25 @@ function resolveAuthSecret(): string {
 }
 
 const SECRET = resolveAuthSecret();
+const nextDevBundler = dev ? resolveNextDevBundler() : null;
 
-const app = next({ dev, hostname, port });
+if (nextDevBundler) {
+  console.info(`[gateway] Next dev bundler: ${nextDevBundler}`);
+}
+
+const app = next({
+  dev,
+  hostname,
+  port,
+  ...(nextDevBundler === 'webpack' ? { webpack: true } : {}),
+  ...(nextDevBundler === 'turbopack' ? { turbopack: true } : {}),
+});
 const handle = app.getRequestHandler();
 
 Promise.resolve()
   .then(async () => {
     assertMemoryRuntimeConfiguration();
-    await assertMemoryRuntimeReady();
+    await ensureMemoryRuntimeReadyForStartup({ component: 'gateway' });
     await bootstrapMessageRuntime();
     await app.prepare();
   })

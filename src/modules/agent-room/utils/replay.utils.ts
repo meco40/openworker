@@ -1,4 +1,4 @@
-import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
+import type { AgentV2EventEnvelope } from '@/shared/agentV2Types';
 
 /**
  * Replay utilities for recovering swarm state from session events.

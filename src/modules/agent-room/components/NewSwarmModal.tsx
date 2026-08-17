@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import type { PersonaSummary } from '@/server/personas/personaTypes';
+import type { PersonaSummary } from '@/shared/personaTypes';
 import type { SwarmUnit } from '@/modules/agent-room/swarmTypes';
 
 interface NewSwarmModalProps {

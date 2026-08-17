@@ -14,7 +14,7 @@ export interface OpenSqliteDatabaseOptions {
   additionalPragmas?: string[];
 }
 
-const DEFAULT_BUSY_TIMEOUT_MS = 5000;
+const DEFAULT_BUSY_TIMEOUT_MS = 30000;
 const DEFAULT_SYNCHRONOUS: SqliteSynchronousMode = 'NORMAL';
 
 function isInMemoryPath(dbPath: string): boolean {
@@ -55,8 +55,14 @@ export function applySqlitePragmas(
     db.pragma('foreign_keys = ON');
   }
 
+  // Page cache: 16 MB per connection (default is ~2 MB)
+  db.pragma('cache_size = -16000');
+  // Memory-mapped I/O: 128 MB hint to the OS page cache
+  db.pragma('mmap_size = 134217728');
+
   if (!readonly) {
     db.pragma(`synchronous = ${synchronous}`);
+    db.pragma('temp_store = MEMORY');
     if (enableWal && !inMemory) {
       db.pragma('journal_mode = WAL');
     }

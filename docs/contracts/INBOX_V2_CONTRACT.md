@@ -4,7 +4,7 @@
 
 - Purpose: Canonical contract for multi-channel inbox listing and realtime updates.
 - Scope: HTTP `GET /api/channels/inbox`, WS RPC `inbox.list`, WS event `inbox.updated`.
-- Last Reviewed: 2026-03-05
+- Last Reviewed: 2026-08-17
 
 ---
 

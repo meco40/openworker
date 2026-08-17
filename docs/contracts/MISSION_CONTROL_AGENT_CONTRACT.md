@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Regeln fuer agentische Änderungen im Mission-Control-Bereich.
 - Scope: `app/mission-control`, `app/api/master`, `app/api/tasks`, `src/modules/mission-control`, `src/server/master`.
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-03-05
+- Last Reviewed: 2026-08-17
 
 ---
 

@@ -50,7 +50,7 @@ const App: React.FC<AppProps> = ({ initialView }) => {
   const [isServerResponding, setIsServerResponding] = useState(false);
   const [chatStreamDebug, setChatStreamDebug] =
     useState<ChatStreamDebugState>(DEFAULT_CHAT_STREAM_DEBUG);
-  const { activePersonaId, setDataEnabled } = usePersona();
+  const { activePersonaId, setDataEnabled, setActivePersonaDetailsEnabled } = usePersona();
   const shouldEnableChatData = currentView === View.CHAT;
   const shouldEnableAgentRuntime =
     currentView === View.CHAT || currentView === View.CHANNELS || currentView === View.AGENT_ROOM;
@@ -61,7 +61,13 @@ const App: React.FC<AppProps> = ({ initialView }) => {
 
   useEffect(() => {
     setDataEnabled(shouldEnablePersonaData);
-  }, [setDataEnabled, shouldEnablePersonaData]);
+    setActivePersonaDetailsEnabled(shouldEnableAgentRuntime);
+  }, [
+    setActivePersonaDetailsEnabled,
+    setDataEnabled,
+    shouldEnableAgentRuntime,
+    shouldEnablePersonaData,
+  ]);
 
   const [coupledChannels, setCoupledChannels] = useState<Record<string, CoupledChannel>>(() => {
     const fallbackChannels = buildInitialShellState().coupledChannels;

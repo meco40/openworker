@@ -49,3 +49,5 @@ tests/integration/memory/test-memory-*.db-wal
 !app/api/logs/**
 !components/logs/
 !components/logs/**
+
+*.tsbuildinfo

@@ -36,9 +36,20 @@ export function normalizeText(value: string): string {
 }
 
 /**
+ * Check if error is a network-level connection failure (fetch failed, ECONNREFUSED, etc.)
+ */
+export function isNetworkError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\bfetch failed\b|\bECONNREFUSED\b|\bECONNRESET\b|\bENOTFOUND\b|\bsocket hang up\b/i.test(
+    message,
+  );
+}
+
+/**
  * Check if error is a transient HTTP error
  */
 export function isTransientHttpError(error: unknown): boolean {
+  if (isNetworkError(error)) return true;
   const message = error instanceof Error ? error.message : String(error);
   const statusMatch = /HTTP\s*(\d{3})/i.exec(message);
   if (!statusMatch) return false;

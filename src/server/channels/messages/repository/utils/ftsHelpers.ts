@@ -1,5 +1,10 @@
 import { STOP_WORDS } from '@/server/channels/messages/repository/constants/stopWords';
 
+function renderFtsToken(token: string): string {
+  if (token.endsWith('*')) return token;
+  return `"${token.replace(/"/g, '""')}"`;
+}
+
 /**
  * Converts a user query string into an FTS5 MATCH expression.
  * - Otherwise, OR all non-stopword tokens for recall-friendly matching.
@@ -19,10 +24,14 @@ export function buildFtsQuery(raw: string): string {
     .filter(Boolean);
   const tokens = allTokens.filter((t) => !STOP_WORDS.has(t.replace(/\*$/, '').toLowerCase()));
   if (tokens.length === 0) {
-    // All words were stop words — fall back to original tokens
-    return allTokens.length <= 1 ? (allTokens[0] ?? raw) : allTokens.join(' AND ');
+    // If there are no safe tokens at all (punctuation-only input), skip MATCH entirely.
+    if (allTokens.length === 0) return '';
+    // All safe words were stop words — fall back to the safe token list only.
+    return allTokens.length <= 1
+      ? renderFtsToken(allTokens[0] ?? '')
+      : allTokens.map(renderFtsToken).join(' AND ');
   }
-  if (tokens.length === 1) return tokens[0];
+  if (tokens.length === 1) return renderFtsToken(tokens[0]);
   // Use OR semantics for recall — BM25 ranking surfaces multi-match hits first
-  return tokens.join(' OR ');
+  return tokens.map(renderFtsToken).join(' OR ');
 }

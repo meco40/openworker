@@ -154,6 +154,46 @@ describe('KnowledgeIngestionService', () => {
     expect(second.processedConversations).toBe(0);
   });
 
+  it('does not advance the cursor when Mem0 persistence is incomplete', async () => {
+    const window: IngestionWindow = {
+      conversationId: 'conv-mem0-failure',
+      userId: 'user-1',
+      personaId: 'persona-1',
+      fromSeqExclusive: 0,
+      toSeqInclusive: 2,
+      messages: [
+        createMessage(1, 'conv-mem0-failure', 'fact one'),
+        createMessage(2, 'conv-mem0-failure', 'fact two'),
+      ],
+    };
+    const markWindowProcessed = vi.fn();
+    const store = vi.fn(async () => {
+      throw new Error('Mem0 unavailable');
+    });
+
+    const service = new KnowledgeIngestionService({
+      cursor: { getPendingWindows: vi.fn(() => [window]), markWindowProcessed },
+      extractor: {
+        extract: vi.fn(async () => ({
+          ...buildExtraction('mem0-failure'),
+          facts: ['persist me'],
+        })),
+      },
+      knowledgeRepository: {
+        upsertEpisode: vi.fn(),
+        upsertMeetingLedger: vi.fn(),
+      },
+      memoryService: { store },
+    });
+
+    const result = await service.runOnce();
+
+    expect(result.processedConversations).toBe(0);
+    expect(result.processedMessages).toBe(0);
+    expect(result.errors[0]?.reason).toMatch(/remain pending/i);
+    expect(markWindowProcessed).not.toHaveBeenCalled();
+  });
+
   it('stores only meaningful fact artifacts in memory (no command/greeting noise, no teaser/episode)', async () => {
     const window: IngestionWindow = {
       conversationId: 'conv-meaningful',

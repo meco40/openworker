@@ -43,7 +43,6 @@ export interface ServiceComponents {
   toolManager: ToolManager;
   recallService: RecallService;
   summaryService: SummaryService;
-  summaryRefreshInFlight: Set<string>;
 }
 
 /**

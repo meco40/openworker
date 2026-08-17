@@ -42,7 +42,7 @@ async function gmailApiFetch<T>(
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
-      ...(options?.headers || {}),
+      ...options?.headers,
     },
   });
   if (!response.ok) {

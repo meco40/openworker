@@ -53,7 +53,7 @@ export function isPersonaBotPollingActive(botId: string): boolean {
 }
 
 export function stopAllPersonaBotPolling(): void {
-  for (const botId of [...pollers.keys()]) {
+  for (const botId of pollers.keys()) {
     stopPersonaBotPolling(botId);
   }
 }

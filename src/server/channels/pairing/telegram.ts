@@ -78,7 +78,7 @@ export async function pairTelegram(token: string) {
     await startTelegramPolling();
   }
 
-  void syncTelegramNativeCommands(token);
+  await syncTelegramNativeCommands(token);
 
   return {
     status: 'awaiting_code' as const,

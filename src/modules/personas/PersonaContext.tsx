@@ -1,11 +1,7 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import type {
-  PersonaFileName,
-  PersonaSummary,
-  PersonaWithFiles,
-} from '@/server/personas/personaTypes';
+import type { PersonaFileName, PersonaSummary, PersonaWithFiles } from '@/shared/personaTypes';
 
 // ─── Types ───────────────────────────────────────────────────
 interface PersonaContextValue {
@@ -27,6 +23,8 @@ interface PersonaContextValue {
   loading: boolean;
   /** Enables/disables network-backed persona data loading */
   setDataEnabled: (enabled: boolean) => void;
+  /** Enables/disables loading the active persona's full file payload */
+  setActivePersonaDetailsEnabled: (enabled: boolean) => void;
 }
 
 const PersonaContext = createContext<PersonaContextValue | null>(null);
@@ -42,6 +40,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
   const [activePersona, setActivePersona] = useState<PersonaWithFiles | null>(null);
   const [loading, setLoading] = useState(false);
   const [dataEnabled, setDataEnabled] = useState(false);
+  const [activePersonaDetailsEnabled, setActivePersonaDetailsEnabled] = useState(false);
   const personaDetailsCacheRef = useRef<Map<string, PersonaWithFiles>>(new Map());
   const personaLoadPromisesRef = useRef<Map<string, Promise<PersonaWithFiles | null>>>(new Map());
 
@@ -151,7 +150,8 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch full persona when activePersonaId changes
   useEffect(() => {
-    if (!dataEnabled) {
+    if (!dataEnabled || !activePersonaDetailsEnabled) {
+      setActivePersona(null);
       return;
     }
 
@@ -171,7 +171,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [activePersonaId, dataEnabled, loadPersonaById]);
+  }, [activePersonaDetailsEnabled, activePersonaId, dataEnabled, loadPersonaById]);
 
   useEffect(() => {
     if (!activePersonaId) {
@@ -220,6 +220,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       patchPersonaFile,
       loading,
       setDataEnabled,
+      setActivePersonaDetailsEnabled,
     }),
     [
       personas,
@@ -231,6 +232,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       patchPersonaFile,
       loading,
       setDataEnabled,
+      setActivePersonaDetailsEnabled,
     ],
   );
 

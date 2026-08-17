@@ -2,7 +2,7 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import type { FlowNodeData } from '@/server/automation/flowTypes';
+import type { FlowNodeData } from '@/shared/flowTypes';
 
 export function PromptNode({ data: rawData, selected }: NodeProps) {
   const data = rawData as FlowNodeData;

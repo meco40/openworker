@@ -1,8 +1,4 @@
-import type {
-  PersonaTabName,
-  PersonaWithFiles,
-  MemoryPersonaType,
-} from '@/server/personas/personaTypes';
+import type { PersonaTabName, PersonaWithFiles, MemoryPersonaType } from '@/shared/personaTypes';
 import type { PipelineModel as ModelHubPipelineModel } from '@/components/model-hub/types';
 
 export type PipelineModel = ModelHubPipelineModel;

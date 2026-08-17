@@ -144,13 +144,20 @@ class HttpMem0Client implements Mem0Client {
     const maxRetries = Number.isFinite(options?.maxRetries)
       ? Math.max(0, Math.floor(options?.maxRetries as number))
       : this.maxRetries;
+    const externalSignal = options?.signal;
     let maxAttempts = 1 + maxRetries;
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      // Bail out immediately if the caller already aborted.
+      if (externalSignal?.aborted) {
+        throw createMem0AbortError();
+      }
       try {
-        return await this.requestOnce(apiPath, path, init, timeoutMs);
+        return await this.requestOnce(apiPath, path, init, timeoutMs, externalSignal);
       } catch (error) {
         lastError = error;
+        // Never retry after an external abort — the caller gave up.
+        if (externalSignal?.aborted) break;
         if (isMem0RuntimeUnconfiguredError(error) || isMem0InvalidModelConfigError(error)) {
           const synced = await triggerMem0ModelHubSync();
           if (synced) {
@@ -171,7 +178,9 @@ class HttpMem0Client implements Mem0Client {
       }
     }
 
-    throw lastError;
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('Mem0 request failed without a response.');
   }
 
   private async requestOnce(
@@ -182,9 +191,17 @@ class HttpMem0Client implements Mem0Client {
       body?: Record<string, unknown>;
     },
     timeoutMs: number,
+    externalSignal?: AbortSignal,
   ): Promise<unknown> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    // Link external signal so aborting it also cancels this fetch immediately.
+    const externalAbortHandler = () => controller.abort();
+    if (externalSignal?.aborted) {
+      controller.abort();
+    } else {
+      externalSignal?.addEventListener('abort', externalAbortHandler, { once: true });
+    }
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -213,13 +230,23 @@ class HttpMem0Client implements Mem0Client {
         (error instanceof DOMException && error.name === 'AbortError') ||
         (error instanceof Error && error.name === 'AbortError')
       ) {
+        if (externalSignal?.aborted) {
+          throw createMem0AbortError();
+        }
         throw new Error(`Mem0 request timeout after ${timeoutMs}ms.`);
       }
       throw error;
     } finally {
       clearTimeout(timeout);
+      externalSignal?.removeEventListener('abort', externalAbortHandler);
     }
   }
+}
+
+function createMem0AbortError(): Error {
+  const error = new Error('Mem0 request aborted by caller.');
+  error.name = 'AbortError';
+  return error;
 }
 
 /**
@@ -281,12 +308,12 @@ export function createMem0ClientFromEnv(
     ? Math.max(100, Math.floor(writeTimeoutRaw))
     : readTimeoutMs;
 
-  const maxRetriesRaw = Number(env.MEM0_MAX_RETRIES ?? 3);
-  const maxRetries = Number.isFinite(maxRetriesRaw) ? Math.max(0, Math.floor(maxRetriesRaw)) : 3;
-  const writeMaxRetriesRaw = Number(env.MEM0_WRITE_MAX_RETRIES ?? 1);
+  const maxRetriesRaw = Number(env.MEM0_MAX_RETRIES ?? 1);
+  const maxRetries = Number.isFinite(maxRetriesRaw) ? Math.max(0, Math.floor(maxRetriesRaw)) : 1;
+  const writeMaxRetriesRaw = Number(env.MEM0_WRITE_MAX_RETRIES ?? 0);
   const writeMaxRetries = Number.isFinite(writeMaxRetriesRaw)
     ? Math.max(0, Math.floor(writeMaxRetriesRaw))
-    : 1;
+    : 0;
 
   const retryDelayRaw = Number(env.MEM0_RETRY_BASE_DELAY_MS ?? DEFAULT_RETRY_BASE_DELAY_MS);
   const retryBaseDelayMs = Number.isFinite(retryDelayRaw)

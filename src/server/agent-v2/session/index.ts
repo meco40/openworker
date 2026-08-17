@@ -254,7 +254,7 @@ export class AgentV2SessionManager {
           const execution = await executeCommand(started.command, userId, this.getExecuteContext());
           resultPayload = {
             message: execution.message,
-            ...(execution.metadata || {}),
+            ...execution.metadata,
           };
           if (execution.status !== 'ok') {
             completionStatus = 'failed_recoverable';

@@ -4,12 +4,12 @@
 
 import type {
   EventFrame,
+  GatewayEvent,
+  MethodNamespace,
   RequestFrame,
   ResponseFrame,
   StreamFrame,
-} from '@/server/gateway/protocol';
-import type { GatewayEvent } from '@/server/gateway/events';
-import type { MethodNamespace } from '@/server/gateway/method-router';
+} from '@/shared/gatewayTypes';
 
 // ─── Types ───────────────────────────────────────────────────
 

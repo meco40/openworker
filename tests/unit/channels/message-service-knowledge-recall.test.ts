@@ -170,9 +170,36 @@ describe('MessageService knowledge recall integration', () => {
     ensureKnowledgeIngestedForConversationMock.mockClear();
     memoryRecallDetailedMock.mockClear();
     delete process.env.RECALL_STRICT_EVIDENCE;
+    delete process.env.KNOWLEDGE_PRE_INGEST_ON_RECALL;
   });
 
   it('injects knowledge context for retrospective sauna prompt before mem0 fallback', async () => {
+    const service = new MessageService(buildRepository('persona-1'));
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Was haben wir letztes ueber sauna gesprochen?',
+      undefined,
+      undefined,
+      'user-1',
+    );
+
+    expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
+    expect(ensureKnowledgeIngestedForConversationMock).not.toHaveBeenCalled();
+    expect(memoryRecallDetailedMock).toHaveBeenCalled();
+
+    const dispatchedMessages = getDispatchedMessages();
+    expect(
+      dispatchedMessages.some(
+        (message) =>
+          message.role === 'system' && message.content.includes('Knowledge: Mittags Sauna'),
+      ),
+    ).toBe(true);
+  });
+
+  it('runs knowledge pre-ingest on recall only when explicitly enabled', async () => {
+    process.env.KNOWLEDGE_PRE_INGEST_ON_RECALL = 'true';
     const service = new MessageService(buildRepository('persona-1'));
 
     await service.handleInbound(
@@ -191,15 +218,6 @@ describe('MessageService knowledge recall integration', () => {
       userId: 'user-1',
       personaId: 'persona-1',
     });
-    expect(memoryRecallDetailedMock).toHaveBeenCalled();
-
-    const dispatchedMessages = getDispatchedMessages();
-    expect(
-      dispatchedMessages.some(
-        (message) =>
-          message.role === 'system' && message.content.includes('Knowledge: Mittags Sauna'),
-      ),
-    ).toBe(true);
   });
 
   it('skips knowledge/memory recall for regular non-retrospective chat', async () => {
@@ -274,6 +292,7 @@ describe('MessageService knowledge recall integration', () => {
     );
 
     expect(knowledgeRetrieveMock).toHaveBeenCalledTimes(1);
+    expect(ensureKnowledgeIngestedForConversationMock).not.toHaveBeenCalled();
     expect(memoryRecallDetailedMock).toHaveBeenCalled();
   });
 

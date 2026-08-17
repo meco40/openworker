@@ -1,26 +1,34 @@
 # ─── OpenClaw Gateway Docker Build ────────────────────────────
 # Multi-stage build using Next.js standalone output.
 
-# ── Stage 1: Dependencies ─────────────────────────────────────
-FROM node:22-alpine AS deps
-WORKDIR /app
+# ── Base ───────────────────────────────────────────────────────
+FROM node:22-alpine AS base
 ENV HUSKY=0
+RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
 
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev --ignore-scripts
+# ── Stage 1: Dependencies ─────────────────────────────────────
+FROM base AS deps
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml ./
+# The custom server.ts/scheduler.ts entrypoints are executed through tsx at
+# runtime, so keep the runtime dependency graph flat and complete in this
+# stage. This avoids copying pnpm's root symlinks (and missing transitive
+# packages such as luxon) into the final image.
+RUN pnpm config set node-linker hoisted && \
+    pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # ── Stage 2: Build ────────────────────────────────────────────
-FROM node:22-alpine AS builder
+FROM base AS builder
 WORKDIR /app
-ENV HUSKY=0
 
-COPY package.json package-lock.json* ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
-# ── Stage 3: Production ──────────────────────────────────────
+# ── Stage 3: Production ────────────────────────────────────────
 FROM node:22-alpine AS runner
 WORKDIR /app
 
@@ -42,11 +50,8 @@ COPY --from=builder /app/scheduler.ts ./scheduler.ts
 COPY --from=builder /app/types.ts ./types.ts
 COPY --from=builder /app/src ./src
 
-# Runtime dependencies used by custom TypeScript entrypoints
-COPY --from=deps /app/node_modules/ws ./node_modules/ws
-COPY --from=deps /app/node_modules/tsx ./node_modules/tsx
-COPY --from=deps /app/node_modules/cron-parser ./node_modules/cron-parser
-COPY --from=deps /app/node_modules/luxon ./node_modules/luxon
+# Complete flattened production dependency graph for custom entrypoints.
+COPY --from=deps /app/node_modules ./node_modules
 
 # Create data directory for SQLite (mount as volume)
 RUN mkdir -p /app/.local && chown nextjs:nodejs /app/.local

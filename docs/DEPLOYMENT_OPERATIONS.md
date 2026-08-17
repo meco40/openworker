@@ -141,7 +141,7 @@ OpenClaw Gateway is a multi-service Node.js application comprising:
 
 ### Single-Node Deployment
 
-Suitable for small deployments (< 1000 active rooms):
+Suitable for small deployments (< 1000 active conversations):
 
 ```
 ┌─────────────────────────────────────────┐
@@ -213,7 +213,7 @@ WORKDIR /app
 
 # Install dependencies first (better layer caching)
 COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN pnpm install --frozen-lockfile --omit=dev
 
 # ============================================================================
 # STAGE 2: Builder
@@ -231,7 +231,7 @@ COPY . .
 # Build application
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-RUN npm run build
+RUN pnpm run build
 
 # ============================================================================
 # STAGE 3: Production Runner
@@ -274,7 +274,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
 CMD ["node", "--import", "tsx", "server.ts"]
 ```
 
-### Production docker-compose.yml
+### Production docker compose.yml
 
 ```yaml
 version: '3.8'
@@ -424,15 +424,15 @@ networks:
 # Build image
 docker build -t openclaw-gateway:latest .
 
-# Run with docker-compose
-docker-compose up -d
+# Run with docker compose
+docker compose up -d
 
 # View logs
-docker-compose logs -f web
-docker-compose logs -f scheduler
+docker compose logs -f web
+docker compose logs -f scheduler
 
 # Scale web service
-docker-compose up -d --scale web=3
+docker compose up -d --scale web=3
 
 # Backup volume
 docker run --rm -v openclaw_openclaw-data:/data -v $(pwd)/backups:/backup alpine tar czf /backup/backup-$(date +%Y%m%d).tar.gz -C /data .
@@ -745,14 +745,6 @@ GET /api/control-plane/metrics
 
 ```json
 {
-  "rooms": {
-    "activeRooms": 5,
-    "totalRooms": 23,
-    "roomsByPersona": {
-      "assistant": 3,
-      "support": 2
-    }
-  },
   "channels": {
     "telegram": "connected",
     "discord": "connected",
@@ -1052,7 +1044,7 @@ GET /api/master/metrics
 curl http://localhost:3000/api/master/metrics
 
 # Master-Tests ausführen
-npm test -- tests/unit/master tests/integration/master
+pnpm run test -- tests/unit/master tests/integration/master
 ```
 
 ### Troubleshooting
@@ -1234,7 +1226,7 @@ echo "Restore completed successfully"
    # Install dependencies
    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
    sudo apt-get install -y nodejs sqlite3
-   sudo npm install -g tsx
+   sudo pnpm add -g tsx
    ```
 
 2. **Restore data**
@@ -1257,7 +1249,7 @@ echo "Restore completed successfully"
    cd /opt/openclaw
 
    # Install dependencies
-   npm ci --omit=dev
+   pnpm install --frozen-lockfile --omit=dev
 
    # Copy environment
    cp /tmp/.env /opt/openclaw/.env
@@ -1297,7 +1289,7 @@ sudo systemctl start openclaw-web openclaw-scheduler
 The web service is stateless and can be scaled horizontally:
 
 ```yaml
-# docker-compose.scale.yml
+# docker compose.scale.yml
 version: '3.8'
 
 services:
@@ -1357,7 +1349,7 @@ SQLite limitations for high-scale deployments:
 
 **When to migrate to PostgreSQL:**
 
-- > 10,000 active rooms
+- > 10,000 active conversations
 - > 100 writes/second sustained
 - Multi-region deployment required
 
@@ -1747,14 +1739,14 @@ git fetch origin
 git checkout "$VERSION"
 
 # 5. Install dependencies
-npm ci --omit=dev
+pnpm install --frozen-lockfile --omit=dev
 
 # 6. Run database migrations
 # Hinweis: SQLite-Migrationen werden beim App-Start automatisch ausgeführt
 # (src/lib/db/migrations.ts via getDb()).
 
 # 7. Build application
-npm run build
+pnpm run build
 
 # 8. Start services
 sudo systemctl start openclaw-web
@@ -1789,8 +1781,8 @@ sudo systemctl stop openclaw-web
 # 2. Restore code
 cd /opt/openclaw
 git checkout "$ROLLBACK_VERSION"
-npm ci --omit=dev
-npm run build
+pnpm install --frozen-lockfile --omit=dev
+pnpm run build
 
 # 3. Restore data (if needed)
 # tar -xzf /opt/openclaw/backups/pre-upgrade-XXXX/data.tar.gz -C /opt/openclaw/.local

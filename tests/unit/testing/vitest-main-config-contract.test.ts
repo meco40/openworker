@@ -61,6 +61,7 @@ describe('main vitest config', () => {
     expect(unitFastConfig.exclude).toEqual([
       'tests/unit/channels/message-service-*.test.ts',
       'tests/unit/channels/telegram-*.test.ts',
+      'tests/unit/server/summaryService-perf.test.ts',
       'tests/unit/components/**/*.test.{ts,tsx}',
     ]);
 
@@ -68,6 +69,7 @@ describe('main vitest config', () => {
     expect(unitIsolatedConfig.include).toEqual([
       'tests/unit/channels/message-service-*.test.ts',
       'tests/unit/channels/telegram-*.test.ts',
+      'tests/unit/server/summaryService-perf.test.ts',
     ]);
 
     expect(coreIsolatedConfig.isolate).toBe(true);

@@ -18,6 +18,10 @@ import {
   recordInboxQueryDuration,
   recordInboxReconnectResync,
 } from '@/server/channels/inbox/observability';
+import {
+  getChatDisplaySlowThresholdMs,
+  logChatDisplayTrace,
+} from '@/server/diagnostics/chatDisplayTrace';
 
 function safeString(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -200,7 +204,10 @@ registerMethod(
     }
 
     const { getMessageService } = await import('@/server/channels/messages/runtime');
+    const serviceStartedAt = Date.now();
     const service = getMessageService();
+    const serviceResolveDurationMs = Date.now() - serviceStartedAt;
+    const listInboxStartedAt = Date.now();
     const result = service.listInbox({
       userId: client.userId,
       channel: input.channel,
@@ -208,6 +215,7 @@ registerMethod(
       limit: input.limit,
       cursor: input.cursor,
     });
+    const listInboxDurationMs = Date.now() - listInboxStartedAt;
 
     const durationMs = Date.now() - startedAt;
     recordInboxQueryDuration('ws', durationMs);
@@ -224,6 +232,22 @@ registerMethod(
       totalMatched: result.totalMatched,
       durationMs,
     });
+    logChatDisplayTrace(
+      'ws.inbox.complete',
+      {
+        userId: client.userId,
+        connId: client.connId,
+        version: input.version,
+        resync: input.resync,
+        returned: result.items.length,
+        totalMatched: result.totalMatched,
+        hasMore: result.hasMore,
+        durationMs,
+        serviceResolveDurationMs,
+        listInboxDurationMs,
+      },
+      { force: durationMs >= getChatDisplaySlowThresholdMs() },
+    );
 
     if (input.version === 'v1') {
       respond({

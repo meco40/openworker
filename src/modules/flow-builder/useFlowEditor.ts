@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNodesState, useEdgesState, addEdge } from '@xyflow/react';
 import type { Connection } from '@xyflow/react';
 import type { FlowBuilderNode, FlowBuilderEdge } from '@/modules/flow-builder/types';
-import type { FlowGraph, FlowNodeData, FlowNodeType } from '@/server/automation/flowTypes';
+import type { FlowGraph, FlowNodeData, FlowNodeType } from '@/shared/flowTypes';
 import { createId } from '@/shared/lib/ids';
 
 function graphToReactFlow(graph: FlowGraph): {

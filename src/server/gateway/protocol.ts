@@ -2,57 +2,26 @@
 // JSON-RPC-like framing for WebSocket communication.
 // Adapted from OpenClaw demo gateway protocol.
 
-// ─── Frame Types ─────────────────────────────────────────────
-
-export interface RequestFrame {
-  type: 'req';
-  id: string | number;
-  method: string;
-  params?: unknown;
-}
-
-export interface ResponseFrame {
-  type: 'res';
-  id: string | number;
-  ok: boolean;
-  payload?: unknown;
-  error?: ErrorShape;
-}
-
-export interface EventFrame {
-  type: 'event';
-  event: string;
-  payload?: unknown;
-  seq?: number;
-}
-
-/** Token-by-token AI streaming frame */
-export interface StreamFrame {
-  type: 'stream';
-  id: string | number;
-  delta: string;
-  done: boolean;
-}
-
-export type GatewayFrame = RequestFrame | ResponseFrame | EventFrame | StreamFrame;
-
-// ─── Error Shape ─────────────────────────────────────────────
-
-export type ErrorCode =
-  | 'INVALID_REQUEST'
-  | 'UNAUTHORIZED'
-  | 'NOT_FOUND'
-  | 'UNAVAILABLE'
-  | 'RATE_LIMITED'
-  | 'BACKPRESSURE'
-  | 'REPLAY_WINDOW_EXPIRED';
-
-export interface ErrorShape {
-  code: ErrorCode;
-  message: string;
-}
+export {
+  type RequestFrame,
+  type ResponseFrame,
+  type EventFrame,
+  type StreamFrame,
+  type GatewayFrame,
+  type ErrorCode,
+  type ErrorShape,
+} from '@/shared/gatewayTypes';
 
 // ─── Frame Parsing ───────────────────────────────────────────
+
+import type {
+  ErrorCode,
+  GatewayFrame,
+  RequestFrame,
+  ResponseFrame,
+  EventFrame,
+  StreamFrame,
+} from '@/shared/gatewayTypes';
 
 export function parseFrame(raw: string): GatewayFrame | null {
   try {

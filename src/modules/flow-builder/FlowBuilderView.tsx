@@ -7,7 +7,7 @@ import { FlowEditorCanvas } from '@/modules/flow-builder/components/FlowEditorCa
 import { NodePalette } from '@/modules/flow-builder/components/NodePalette';
 import { NodeConfigPanel } from '@/modules/flow-builder/components/NodeConfigPanel';
 import { FlowToolbar } from '@/modules/flow-builder/components/FlowToolbar';
-import type { FlowNodeType } from '@/server/automation/flowTypes';
+import type { FlowNodeType } from '@/shared/flowTypes';
 import type { FlowBuilderNode } from '@/modules/flow-builder/types';
 import type { NodeMouseHandler } from '@xyflow/react';
 

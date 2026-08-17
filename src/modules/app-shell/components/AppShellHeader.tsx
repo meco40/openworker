@@ -6,7 +6,7 @@ interface AppShellHeaderProps {
 }
 
 function renderMetric(value: number | undefined): string {
-  if (typeof value !== 'number') {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
     return '--';
   }
   return value.toLocaleString('de-DE');

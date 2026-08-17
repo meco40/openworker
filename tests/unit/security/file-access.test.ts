@@ -64,4 +64,52 @@ describe('resolveAllowedExistingPath', () => {
       expect(result.status).toBe(404);
     }
   });
+
+  it('returns 400 for empty string path', () => {
+    const result = resolveAllowedExistingPath('');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(400);
+    }
+  });
+
+  it('returns 400 for whitespace-only path', () => {
+    const result = resolveAllowedExistingPath('   ');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(400);
+    }
+  });
+
+  it('returns 500 when no allowed roots are configured', () => {
+    delete process.env.WORKSPACE_BASE_PATH;
+    delete process.env.PROJECTS_PATH;
+
+    // Create a real file to pass the existence check
+    const tmpFile = path.join(os.tmpdir(), `mc-noroot-${Date.now()}.html`);
+    fs.writeFileSync(tmpFile, '<html></html>');
+    try {
+      const result = resolveAllowedExistingPath(tmpFile);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.status).toBe(500);
+      }
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
+  });
+
+  it('accepts path within projectRoot', () => {
+    const targetPath = path.join(projectRoot, 'index.html');
+    fs.writeFileSync(targetPath, '<html>project ok</html>');
+
+    const result = resolveAllowedExistingPath(targetPath);
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts the root directory itself', () => {
+    // workspaceRoot itself is an existing path within the allowed root
+    const result = resolveAllowedExistingPath(workspaceRoot);
+    expect(result.ok).toBe(true);
+  });
 });

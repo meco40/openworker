@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import type { OpsSessionSummary, OpsSessionsResponse } from '@/modules/ops/types';
+import type { OpsSessionSummary, OpsSessionsResponse } from '@/shared/opsTypes';
 import { getMessageService } from '@/server/channels/messages/runtime';
 import { parseClampedInt } from '../_shared/query';
 import { withUserContext } from '../../_shared/withUserContext';

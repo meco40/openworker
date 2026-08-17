@@ -145,3 +145,115 @@ describe('taskWorkspace', () => {
     }
   });
 });
+
+describe('taskWorkspace — sanitizeTaskWorkspaceDirectoryName (via ensureTaskWorkspace)', () => {
+  let tempDir = '';
+  let previousTaskWorkspacesRoot: string | undefined;
+
+  beforeEach(() => {
+    previousTaskWorkspacesRoot = process.env.TASK_WORKSPACES_ROOT;
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'task-workspace-sanitize-'));
+    process.env.TASK_WORKSPACES_ROOT = path.join(tempDir, 'workspaces');
+  });
+
+  afterEach(() => {
+    if (previousTaskWorkspacesRoot === undefined) {
+      delete process.env.TASK_WORKSPACES_ROOT;
+    } else {
+      process.env.TASK_WORKSPACES_ROOT = previousTaskWorkspacesRoot;
+    }
+    if (tempDir) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+      tempDir = '';
+    }
+  });
+
+  it('sanitizes special chars (< > : " / \\ | ? *) to underscores', () => {
+    const workspaceDir = ensureTaskWorkspace('task<name>with:special/chars');
+    const dirName = path.basename(workspaceDir);
+    expect(dirName).not.toMatch(/[<>:"/\\|?*]/);
+    expect(fs.existsSync(workspaceDir)).toBe(true);
+  });
+
+  it('filters control characters from task ID', () => {
+    const workspaceDir = ensureTaskWorkspace('task\x00\x01abc');
+    const dirName = path.basename(workspaceDir);
+    expect(Array.from(dirName).some((character) => character.charCodeAt(0) < 0x20)).toBe(false);
+    expect(fs.existsSync(workspaceDir)).toBe(true);
+  });
+
+  it('uses task-unknown for whitespace-only task ID', () => {
+    const workspaceDir = ensureTaskWorkspace('   ');
+    const dirName = path.basename(workspaceDir);
+    expect(dirName).toBe('task-unknown');
+    expect(fs.existsSync(workspaceDir)).toBe(true);
+  });
+
+  it('strips trailing dots from task ID', () => {
+    const workspaceDir = ensureTaskWorkspace('my-task...');
+    const dirName = path.basename(workspaceDir);
+    expect(dirName).not.toMatch(/\.+$/);
+    expect(fs.existsSync(workspaceDir)).toBe(true);
+  });
+});
+
+describe('taskWorkspace — normalizeTaskWorkspaceMetadata (via cleanupOrphanTaskWorkspaces)', () => {
+  let tempDir = '';
+  let previousTaskWorkspacesRoot: string | undefined;
+
+  beforeEach(() => {
+    previousTaskWorkspacesRoot = process.env.TASK_WORKSPACES_ROOT;
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'task-workspace-meta-'));
+    process.env.TASK_WORKSPACES_ROOT = path.join(tempDir, 'workspaces');
+  });
+
+  afterEach(() => {
+    if (previousTaskWorkspacesRoot === undefined) {
+      delete process.env.TASK_WORKSPACES_ROOT;
+    } else {
+      process.env.TASK_WORKSPACES_ROOT = previousTaskWorkspacesRoot;
+    }
+    if (tempDir) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+      tempDir = '';
+    }
+  });
+
+  it('treats metadata with invalid ISO timestamp as valid (normalizes to now)', () => {
+    const root = path.join(tempDir, 'workspaces');
+    fs.mkdirSync(root, { recursive: true });
+    // Write metadata with an invalid createdAt but a valid taskId
+    const dirName = 'task-bad-ts';
+    const dir = path.join(root, dirName);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, '.workspace.json'),
+      JSON.stringify({
+        taskId: 'task-bad-ts',
+        type: 'general',
+        createdAt: 'not-a-date',
+        version: 1,
+      }),
+    );
+
+    // normalizeTaskWorkspaceMetadata falls back to new Date().toISOString() — metadata reads as 'ok'
+    const report = cleanupOrphanTaskWorkspaces(['task-bad-ts']);
+    expect(report.reasonCounts.invalidMetadata).toBe(0);
+    expect(report.reasonCounts.activeTask).toBe(1);
+  });
+
+  it('counts as invalidMetadata when taskId is missing from metadata', () => {
+    const root = path.join(tempDir, 'workspaces');
+    fs.mkdirSync(root, { recursive: true });
+    const dir = path.join(root, 'task-no-id');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, '.workspace.json'),
+      JSON.stringify({ type: 'general', createdAt: new Date().toISOString(), version: 1 }),
+    );
+
+    const report = cleanupOrphanTaskWorkspaces([]);
+    expect(report.reasonCounts.invalidMetadata).toBe(1);
+    expect(report.skipped).toBe(1);
+  });
+});

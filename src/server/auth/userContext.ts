@@ -1,5 +1,4 @@
 import type { Session } from 'next-auth';
-import { auth } from '@/auth';
 import { getPrincipalUserId } from '@/server/auth/principal';
 
 export { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
@@ -38,14 +37,34 @@ function isMissingRequestScopeAuthError(error: unknown): boolean {
   );
 }
 
+export function shouldUseLocalPrincipalWithoutSessionLookup(
+  requireAuth = isAuthRequired(),
+): boolean {
+  if (requireAuth) {
+    return false;
+  }
+  if (String(process.env.AUTH_OPTIONAL_SESSION_LOOKUP || 'false').toLowerCase() === 'true') {
+    return false;
+  }
+  return process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
+}
+
 export async function resolveRequestUserContext(): Promise<{
   userId: string;
   authenticated: boolean;
 } | null> {
   const requireAuth = isAuthRequired();
+  if (shouldUseLocalPrincipalWithoutSessionLookup(requireAuth)) {
+    return {
+      userId: getPrincipalUserId(),
+      authenticated: false,
+    };
+  }
+
   let session: Pick<Session, 'user'> | null | undefined;
 
   try {
+    const { auth } = await import('@/auth');
     session = await auth();
   } catch (error) {
     if (!isMissingRequestScopeAuthError(error)) {

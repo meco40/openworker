@@ -13,9 +13,9 @@ import {
   inferSourceEnd,
 } from './qualityChecks';
 import {
-  MEM0_MAX_CONSECUTIVE_FAILURES_PER_WINDOW,
-  MEM0_RATE_LIMIT_DELAY_MS,
+  MEM0_STORE_FACT_TIMEOUT_MS,
   DEFAULT_TOPIC_KEY,
+  MEM0_MAX_CONSECUTIVE_FAILURES_PER_WINDOW,
 } from './constants';
 import type { MemoryServiceLike, KnowledgeRepositoryLike } from './types';
 import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
@@ -39,6 +39,8 @@ export interface FactProcessingResult {
   topicKey: string;
   mem0FailCount: number;
   mem0SkippedCount: number;
+  /** Facts that were not persisted and must be retried before checkpointing. */
+  mem0PendingCount: number;
 }
 
 /**
@@ -125,9 +127,9 @@ export async function storeFacts(
   repo: KnowledgeRepositoryLike,
   facts: string[],
   context: FactProcessingContext,
-): Promise<{ failCount: number; skippedCount: number }> {
+): Promise<{ failCount: number; skippedCount: number; pendingCount: number }> {
   if (!memoryService) {
-    return { failCount: 0, skippedCount: 0 };
+    return { failCount: 0, skippedCount: facts.length, pendingCount: facts.length };
   }
 
   const { window, extraction, dominantEmotion, corrections } = context;
@@ -135,9 +137,13 @@ export async function storeFacts(
   const sourceSeqStart = inferSourceStart(window);
   const sourceSeqEnd = inferSourceEnd(window);
 
-  let mem0FailCount = 0;
-  let mem0SkippedCount = 0;
-  let mem0ConsecutiveFailCount = 0;
+  // ── Phase 1: pre-process all facts synchronously (metadata + guards) ──────
+  interface PreparedFact {
+    fact: string;
+    metadata: Record<string, unknown>;
+  }
+  const prepared: PreparedFact[] = [];
+  let skippedCount = 0;
 
   for (let factIdx = 0; factIdx < facts.length; factIdx++) {
     const fact = facts[factIdx];
@@ -150,12 +156,11 @@ export async function storeFacts(
         poisoningCheck.reason,
         fact.slice(0, 80),
       );
+      skippedCount++;
       continue;
     }
 
-    // Detect subject based on self-references in the fact
     const subject = detectFactSubject(fact);
-
     const metadata: Record<string, unknown> = {
       topicKey,
       conversationId: window.conversationId,
@@ -168,13 +173,11 @@ export async function storeFacts(
       selfReference: subject === 'assistant',
     };
 
-    // Poisoning guard: flag suspicious content
     if (poisoningCheck.riskLevel === 'suspicious') {
       metadata.securityFlag = 'suspicious';
       metadata.securityReason = poisoningCheck.reason;
     }
 
-    // Emotion metadata
     if (dominantEmotion) {
       metadata.emotionalTone = dominantEmotion.emotion;
       metadata.emotionIntensity = dominantEmotion.intensity;
@@ -183,68 +186,104 @@ export async function storeFacts(
       }
     }
 
-    // Correction annotations
     if (corrections.length > 0) {
       metadata.hasCorrections = true;
       metadata.correctionCount = corrections.length;
     }
 
-    // Within-batch contradiction detection
+    // Within-batch contradiction detection (against already-prepared facts)
     let lifecycleStatus: LifecycleStatus = 'new';
-    for (let prevIdx = 0; prevIdx < factIdx; prevIdx++) {
-      const signal = detectContradictionSignal(fact, facts[prevIdx]);
+    for (const prev of prepared) {
+      const signal = detectContradictionSignal(fact, prev.fact);
       if (signal.hasContradiction) {
         metadata.contradictionDetected = true;
         metadata.contradictionType = signal.contradictionType;
         metadata.contradictionConfidence = signal.confidence;
-        metadata.supersedes = facts[prevIdx];
+        metadata.supersedes = prev.fact;
         metadata.supersededFactLifecycleStatus = transitionLifecycle('new', 'contradicted');
         break;
       }
     }
 
-    // Fact lifecycle: apply correction signals
     if (corrections.length > 0) {
       lifecycleStatus = transitionLifecycle(lifecycleStatus, 'corrected_by_user');
     }
     metadata.lifecycleStatus = lifecycleStatus;
 
-    // Circuit breaker for consecutive failures
-    if (mem0ConsecutiveFailCount >= MEM0_MAX_CONSECUTIVE_FAILURES_PER_WINDOW) {
-      mem0SkippedCount++;
-      continue;
+    prepared.push({ fact, metadata });
+  }
+
+  if (prepared.length === 0) {
+    return { failCount: 0, skippedCount, pendingCount: 0 };
+  }
+
+  // ── Phase 2: store facts sequentially with per-window circuit breaker ──────
+  // Sequential execution ensures at most 1 in-flight Mem0 call at a time,
+  // preventing connection pool exhaustion.
+  let failCount = 0;
+  let pendingCount = 0;
+  let consecutiveFailures = 0;
+
+  for (let i = 0; i < prepared.length; i++) {
+    // Per-window circuit breaker: stop after too many consecutive failures
+    if (consecutiveFailures >= MEM0_MAX_CONSECUTIVE_FAILURES_PER_WINDOW) {
+      console.warn(
+        `[KnowledgeIngestion] Per-window circuit breaker open after ${consecutiveFailures} consecutive failures; skipping remaining ${prepared.length - i} fact(s).`,
+      );
+      skippedCount += prepared.length - i;
+      pendingCount += prepared.length - i;
+      break;
     }
 
+    const { fact, metadata } = prepared[i];
+    const controller = new AbortController();
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
     try {
-      // Rate-limit Mem0 calls
-      if (factIdx > 0) {
-        await new Promise((resolve) => setTimeout(resolve, MEM0_RATE_LIMIT_DELAY_MS));
-      }
-      await memoryService.store(window.personaId, 'fact', fact, 4, window.userId, metadata);
-      mem0ConsecutiveFailCount = 0;
-    } catch (storeError) {
-      mem0FailCount++;
-      mem0ConsecutiveFailCount++;
-      const errorText = storeError instanceof Error ? storeError.message : String(storeError);
-      if (mem0ConsecutiveFailCount >= MEM0_MAX_CONSECUTIVE_FAILURES_PER_WINDOW) {
-        console.warn(
-          '[KnowledgeIngestion] Mem0 store failed, opening circuit for remaining facts:',
-          errorText,
-        );
-      } else {
-        console.warn(
-          '[KnowledgeIngestion] Mem0 store failed, continuing with next fact:',
-          errorText,
-        );
-      }
+      const storePromise = memoryService.store(
+        window.personaId,
+        'fact',
+        fact,
+        4,
+        window.userId,
+        metadata,
+        controller.signal,
+      );
+      storePromise.catch(() => {});
+      await Promise.race([
+        storePromise,
+        new Promise<never>((_resolve, reject) => {
+          timeoutHandle = setTimeout(() => {
+            controller.abort();
+            reject(
+              new Error(
+                `[KnowledgeIngestion] Mem0 fact store timeout after ${MEM0_STORE_FACT_TIMEOUT_MS}ms`,
+              ),
+            );
+          }, MEM0_STORE_FACT_TIMEOUT_MS);
+        }),
+      ]);
+      consecutiveFailures = 0;
+    } catch (err) {
+      failCount++;
+      pendingCount++;
+      consecutiveFailures++;
+      const errorText = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `[KnowledgeIngestion] Mem0 store failed for fact ${i + 1}/${prepared.length}:`,
+        errorText,
+      );
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
     }
   }
 
-  if (mem0FailCount > 0 || mem0SkippedCount > 0) {
+  // ── Phase 3: aggregate ────────────────────────────────────────────────────
+  if (failCount > 0) {
     console.warn(
-      `[KnowledgeIngestion] Mem0 store summary for window ${window.personaId} seq=${sourceSeqStart}-${sourceSeqEnd}: failed=${mem0FailCount}, skipped_after_circuit=${mem0SkippedCount}, total_facts=${facts.length}`,
+      `[KnowledgeIngestion] Mem0 store summary for window ${window.personaId}` +
+        ` seq=${sourceSeqStart}-${sourceSeqEnd}: failed=${failCount}/${prepared.length}`,
     );
   }
 
-  return { failCount: mem0FailCount, skippedCount: mem0SkippedCount };
+  return { failCount, skippedCount, pendingCount };
 }

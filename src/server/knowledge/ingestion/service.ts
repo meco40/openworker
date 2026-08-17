@@ -9,6 +9,7 @@ import {
   type KnowledgeIngestionServiceOptions,
 } from './types';
 import { processWindow as processIngestionWindow } from './messageProcessor';
+import { MEM0_MAX_GLOBAL_FAILURES_PER_CYCLE, MEM0_FAILURE_BACKOFF_BASE_MS } from './constants';
 
 export class KnowledgeIngestionService {
   private readonly minMessagesPerBatch: number;
@@ -54,7 +55,12 @@ export class KnowledgeIngestionService {
       messages: deltaMessages,
     };
 
-    await this.processWindow(window);
+    const result = await this.processWindow(window);
+    if (result.mem0PendingCount > 0) {
+      throw new Error(
+        `Mem0 persistence incomplete: ${result.mem0PendingCount} fact(s) remain pending; ingestion checkpoint was not advanced.`,
+      );
+    }
     this.deps.knowledgeRepository.upsertIngestionCheckpoint?.({
       conversationId: window.conversationId,
       personaId: window.personaId,
@@ -66,12 +72,40 @@ export class KnowledgeIngestionService {
     const windows = this.deps.cursor.getPendingWindows();
     let processedConversations = 0;
     let processedMessages = 0;
+    let globalMem0FailCount = 0;
     const errors: KnowledgeIngestionError[] = [];
 
     for (const window of windows) {
       if (window.messages.length < this.minMessagesPerBatch) continue;
+
+      // Global circuit breaker: stop processing windows when Mem0 is unhealthy
+      if (globalMem0FailCount >= MEM0_MAX_GLOBAL_FAILURES_PER_CYCLE) {
+        console.warn(
+          `[KnowledgeIngestion] Global circuit breaker open: ${globalMem0FailCount} cumulative Mem0 failures, skipping remaining windows.`,
+        );
+        break;
+      }
+
       try {
-        await this.processWindow(window);
+        const result = await this.processWindow(window);
+        globalMem0FailCount += result.mem0FailCount;
+
+        // Back off between windows when Mem0 is showing signs of stress
+        if (result.mem0FailCount > 0) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, MEM0_FAILURE_BACKOFF_BASE_MS * result.mem0FailCount),
+          );
+        }
+
+        if (result.mem0PendingCount > 0) {
+          errors.push({
+            conversationId: window.conversationId,
+            personaId: window.personaId,
+            reason: `Mem0 persistence incomplete: ${result.mem0PendingCount} fact(s) remain pending; window will be retried.`,
+          });
+          continue;
+        }
+
         this.deps.cursor.markWindowProcessed(window);
         processedConversations += 1;
         processedMessages += window.messages.length;
@@ -87,8 +121,8 @@ export class KnowledgeIngestionService {
     return { processedConversations, processedMessages, errors };
   }
 
-  private async processWindow(window: IngestionWindow): Promise<void> {
-    await processIngestionWindow({
+  private async processWindow(window: IngestionWindow) {
+    return processIngestionWindow({
       window,
       extractor: this.deps.extractor,
       repo: this.deps.knowledgeRepository,

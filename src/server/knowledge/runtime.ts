@@ -1,7 +1,7 @@
 import type { MessageRepository } from '@/server/channels/messages/repository';
 import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
 import { getModelHubService, getModelHubEncryptionKey } from '@/server/model-hub/runtime';
-import { getMemoryService } from '@/server/memory/runtime';
+import * as memoryRuntime from '@/server/memory/runtime';
 import { getKnowledgeConfig } from '@/server/knowledge/config';
 import { KnowledgeExtractor } from '@/server/knowledge/extractor';
 import { KnowledgeIngestionCursor } from '@/server/knowledge/ingestionCursor';
@@ -89,9 +89,23 @@ export function getKnowledgeIngestionCursor(): KnowledgeIngestionCursor {
   return globalThis.__knowledgeCursor;
 }
 
-function tryGetMemoryService(): ReturnType<typeof getMemoryService> | null {
+function tryGetMemoryService(): ReturnType<typeof memoryRuntime.getMemoryService> | null {
   try {
-    return getMemoryService();
+    const runtimeWithOptional = memoryRuntime as typeof memoryRuntime & {
+      getMemoryServiceIfReady?: () => ReturnType<typeof memoryRuntime.getMemoryService> | null;
+    };
+    const guardedService =
+      'getMemoryServiceIfReady' in runtimeWithOptional
+        ? runtimeWithOptional.getMemoryServiceIfReady?.()
+        : undefined;
+    if (guardedService === null) {
+      console.warn(
+        '[knowledge] Mem0 unavailable — Mem0 storage will be skipped during ingestion.',
+        'runtime degraded',
+      );
+      return null;
+    }
+    return guardedService ?? memoryRuntime.getMemoryService();
   } catch (err) {
     console.warn(
       '[knowledge] Mem0 unavailable — Mem0 storage will be skipped during ingestion.',

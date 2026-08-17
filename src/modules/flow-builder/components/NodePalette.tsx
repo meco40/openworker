@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { NODE_PALETTE } from '@/modules/flow-builder/types';
-import type { FlowNodeType } from '@/server/automation/flowTypes';
+import type { FlowNodeType } from '@/shared/flowTypes';
 
 interface NodePaletteProps {
   onAddNode: (type: FlowNodeType, label: string) => void;

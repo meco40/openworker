@@ -1,6 +1,6 @@
 # OpenClaw Gateway Control Plane
 
-**Stand:** 2026-03-03  
+**Stand:** 2026-08-17
 **Version:** 0.0.0
 
 ---
@@ -11,6 +11,7 @@ OpenClaw Gateway ist eine **Next.js-basierte Multi-Channel-KI-Plattform** mit Un
 
 - **Omnichannel-Messaging** (Telegram, WhatsApp, Discord, iMessage, Slack, WebChat)
 - **Persistente Chat-Konversationen** mit Persona-Bindung und Streaming-Tool-Loop
+- **Master Agent** für Plan-Delegation, Tool-Approvals und autonome Workflows
 - **Automation- und Ops-Steuerung** über Scheduler, Ops-API und Runtime-Health
 - **Skill-basiertes Tool-System** mit 34 Built-in Skills (11 Default + 23 opt-in/compat) + ClawHub-Erweiterungen
 - **Konzeptuelles Memory** mit Embedding-basierter Ähnlichkeitssuche
@@ -32,8 +33,8 @@ OpenClaw Gateway ist eine **Next.js-basierte Multi-Channel-KI-Plattform** mit Un
 # Abhängigkeiten installieren
 pnpm install
 
-# Environment-Variablen setzen
-cp .env.local.example .env.local
+# Environment-Variablen setzen (Windows PowerShell)
+Copy-Item .env.local.example .env.local
 # Editiere .env.local
 ```
 
@@ -50,11 +51,13 @@ pnpm run dev
 pnpm run dev:scheduler
 ```
 
-`pnpm run dev` startet nur, wenn Mem0 erreichbar ist. Für den lokalen Stack sind in `.env.local` mindestens diese Werte nötig:
+`pnpm run dev` prüft Mem0 beim Start mit mehreren Versuchen. In der Entwicklung startet der Stack nach erfolglosen Versuchen im degradierten Modus; Memory-Schreib- und Recall-Aktionen bleiben dann solange nicht verfügbar, bis Mem0 wieder bereit ist. Für den lokalen Stack sind in `.env.local` mindestens diese Werte nötig:
 
-- `MEMORY_PROVIDER=mem0`
+- `MEMORY_PROVIDER=mem0` (oder `sqlite` für lokalen SQLite-Fallback)
 - `MEM0_BASE_URL=http://127.0.0.1:8010`
 - `MEM0_API_KEY=local-mem0-dev-token` (oder eigener Token)
+- `MEM0_API_PATH=/` (der gebündelte `mem0-local`-Dienst nutzt keinen `/v1`-Prefix)
+- `GEMINI_API_KEY=<key>` (für mem0-local Bootstrap, sofern im Stack verwendet)
 - `MODEL_HUB_ENCRYPTION_KEY=<32-byte-key>` (für Model-Hub-Secrets; empfohlen)
 
 ### Produktion
@@ -121,31 +124,31 @@ pnpm run start
 
 ```bash
 # Linting
-npm run lint
+pnpm run lint
 
 # TypeScript-Typprüfung
-npm run typecheck
+pnpm run typecheck
 
 # Tests (Unit + Integration, ohne E2E)
-npm run test
+pnpm run test
 
 # E2E Baseline (Alias auf Smoke-Lane)
-npm run test:e2e
+pnpm run test:e2e
 
 # E2E Smoke (deterministisch, Vitest)
-npm run test:e2e:smoke
+pnpm run test:e2e:smoke
 
 # E2E Browser-Journeys (Playwright)
-npm run test:e2e:browser
+pnpm run test:e2e:browser
 
 # E2E Live (Mem0, opt-in via MEM0_E2E=1)
-npm run test:e2e:live
+pnpm run test:e2e:live
 
 # Vollständiger Check (typecheck + lint + format:check)
-npm run check
+pnpm run check
 
 # Build (Produktion)
-npm run build
+pnpm run build
 ```
 
 ### E2E im Container
@@ -248,8 +251,19 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | `OPENCLAW_CHAT_STREAM_KEEPALIVE_MS`  | Keepalive-Intervall für `chat.stream`                                          |
 | `OPENCLAW_SHELL_TIMEOUT_MS`          | Laufzeitlimit für `shell_execute`                                              |
 | `OPENCLAW_SHELL_MAX_BUFFER_BYTES`    | Output-Buffer-Limit für `shell_execute`                                        |
+| `REQUIRE_AUTH`                       | Auth erzwingen (`true`/`false`, Default in Dev oft `false`)                    |
+| `NEXTAUTH_SECRET`                    | Secret für NextAuth-JWT-Signierung                                             |
+| `AUTH_DB_PATH`                       | Pfad zur Auth-SQLite                                                           |
+| `SCHEDULER_HEALTH_TOKEN`             | Bearer-Token für Scheduler-Health-Checks                                       |
+| `SWARM_RUNNER`                       | `server` oder `scheduler` — bestimmt, wer Agent-Room-Swarm ausführt            |
+| `AGENT_V2_MAX_REQUESTS_PER_MINUTE`   | WebSocket-Rate-Limit (Default 600)                                             |
+| `OPENCLAW_EXEC_APPROVALS_REQUIRED`   | Ausführungs-Approvals erforderlich (`true`/`false`)                            |
+| `TASK_WORKSPACES_ROOT`               | Root-Verzeichnis für Task-Workspaces                                           |
+| `TELEGRAM_BOT_TOKEN`                 | Legacy-Fallback für Telegram-Bot (Channel-Outbound)                            |
+| `DISCORD_BOT_TOKEN`                  | Legacy-Fallback für Discord-Bot (Channel-Outbound)                             |
+| `SLACK_BOT_TOKEN`                    | Legacy-Fallback für Slack-Bot (Channel-Outbound)                               |
 
-Hinweis: Provider-Secrets (z. B. OpenAI, Anthropic, OpenRouter) werden im aktuellen Model-Hub-Flow als Account-Secrets über UI/API hinterlegt und verschlüsselt gespeichert (`MODEL_HUB_ENCRYPTION_KEY` erforderlich), nicht als globale `*_API_KEY`-Environment-Variablen. Legacy `*_API_KEY`-Env-Vars werden nicht mehr gelesen.
+Hinweis: Provider-Secrets für den Model-Hub werden über UI/API hinterlegt und verschlüsselt gespeichert (`MODEL_HUB_ENCRYPTION_KEY` erforderlich). Einige Legacy-Fallbacks und Channel-Bot-Token (z. B. `TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `SLACK_BOT_TOKEN`, `GEMINI_API_KEY`) werden weiterhin aus der Umgebung gelesen, sofern konfiguriert.
 
 ---
 
@@ -262,7 +276,7 @@ Single endpoint path: `/ws` (clients must use `?protocol=v2`)
 
 ### Rate Limits
 
-- v2: 600 requests/minute (configurable)
+- v2: 600 requests/minute (Default, konfigurierbar über `AGENT_V2_MAX_REQUESTS_PER_MINUTE`)
 
 ---
 

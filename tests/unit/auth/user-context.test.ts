@@ -43,6 +43,23 @@ describe('resolveUserIdFromSession', () => {
 });
 
 describe('resolveRequestUserContext', () => {
+  it('skips session lookup in local optional-auth dev mode', async () => {
+    process.env = { ...ORIGINAL_ENV, NODE_ENV: 'development', REQUIRE_AUTH: 'false' };
+    const authMock = vi.fn().mockRejectedValue(new Error('should not be called'));
+    vi.doMock('../../../src/auth', () => ({
+      auth: authMock,
+    }));
+
+    const { resolveRequestUserContext } = await import('@/server/auth/userContext');
+    const context = await resolveRequestUserContext();
+
+    expect(context).toEqual({
+      userId: LEGACY_LOCAL_USER_ID,
+      authenticated: false,
+    });
+    expect(authMock).not.toHaveBeenCalled();
+  });
+
   it('falls back to legacy local user when auth context is unavailable and auth is optional', async () => {
     process.env = { ...ORIGINAL_ENV, REQUIRE_AUTH: 'false' };
     vi.doMock('../../../src/auth', () => ({

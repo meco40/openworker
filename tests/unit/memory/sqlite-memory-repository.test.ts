@@ -153,4 +153,55 @@ describe('SqliteMemoryRepository', () => {
     expect(repo.listNodes(personaA)).toHaveLength(1);
     expect(repo.listNodes(personaA)[0].id).toBe('p3');
   });
+
+  it('resolveUserId: empty string resolves to LEGACY_LOCAL_USER_ID', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+    // Insert with empty userId — should map to LEGACY_LOCAL_USER_ID
+    repo.insertNode(personaA, createNode({ id: 'mem-legacy' }), '');
+    // Retrieve with empty userId — should find it
+    const nodes = repo.listNodes(personaA, '');
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].id).toBe('mem-legacy');
+  });
+
+  it('resolveUserId: whitespace-only string resolves to LEGACY_LOCAL_USER_ID', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+    repo.insertNode(personaA, createNode({ id: 'mem-ws-legacy' }), '   ');
+    const nodes = repo.listNodes(personaA, '   ');
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].id).toBe('mem-ws-legacy');
+  });
+
+  it('toNode: empty embedding_json returns empty array', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+    repo.insertNode(personaA, createNode({ id: 'mem-empty-embed', embedding: [] }));
+    const nodes = repo.listNodes(personaA);
+    const node = nodes.find((n) => n.id === 'mem-empty-embed');
+    expect(node).toBeDefined();
+    expect(node?.embedding).toEqual([]);
+  });
+
+  it('toNode: null metadata_json returns undefined metadata', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+    // Insert with no metadata (metadata will be null in DB)
+    repo.insertNode(personaA, createNode({ id: 'mem-no-meta', metadata: undefined }));
+    const nodes = repo.listNodes(personaA);
+    const node = nodes.find((n) => n.id === 'mem-no-meta');
+    expect(node).toBeDefined();
+    expect(node?.metadata).toBeUndefined();
+  });
+
+  it('migrate: hasColumn returns true when column already exists (second instance is no-op)', () => {
+    // Create first instance — creates the table with all columns
+    const repo1 = new SqliteMemoryRepository(dbPath);
+    repo1.insertNode(personaA, createNode({ id: 'mem-migrate-check' }));
+
+    // Create second instance on same DB — migrate() should detect columns already exist
+    // and not throw (ALTER TABLE would fail if it tries to add existing column)
+    expect(() => {
+      const repo2 = new SqliteMemoryRepository(dbPath);
+      const nodes = repo2.listNodes(personaA);
+      expect(nodes[0].id).toBe('mem-migrate-check');
+    }).not.toThrow();
+  });
 });

@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getMemoryService } from '@/server/memory/runtime';
 import { MemoryVersionConflictError } from '@/server/memory/service';
-import { ValidationError, parseUpdateBody } from './shared';
+import {
+  MemoryRuntimeUnavailableError,
+  ValidationError,
+  getReadyMemoryService,
+  parseUpdateBody,
+} from './shared';
 import type { MemoryApiUserContext } from './types';
 
 export async function handleMemoryPut(request: Request, userContext: MemoryApiUserContext) {
   try {
     const body = (await request.json()) as Record<string, unknown>;
     const parsed = parseUpdateBody(body);
-    const service = getMemoryService();
+    const service = getReadyMemoryService();
     const node =
       parsed.restoreIndex !== undefined
         ? await service.restoreFromHistory(
@@ -41,9 +45,11 @@ export async function handleMemoryPut(request: Request, userContext: MemoryApiUs
     const status =
       error instanceof ValidationError || error instanceof SyntaxError
         ? 400
-        : error instanceof MemoryVersionConflictError
-          ? 409
-          : 500;
+        : error instanceof MemoryRuntimeUnavailableError
+          ? 503
+          : error instanceof MemoryVersionConflictError
+            ? 409
+            : 500;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

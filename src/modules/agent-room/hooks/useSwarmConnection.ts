@@ -8,7 +8,7 @@
 import { useEffect } from 'react';
 import type { AgentV2GatewayClient } from '@/modules/gateway/ws-agent-v2-client';
 import { parseSwarmRecord } from '@/modules/agent-room/swarmTypes';
-import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
+import type { AgentV2EventEnvelope } from '@/shared/agentV2Types';
 import type { SwarmCatalogActions } from '@/modules/agent-room/hooks/useSwarmCatalogState';
 
 interface SwarmConnectionInput {

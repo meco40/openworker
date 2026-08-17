@@ -8,8 +8,11 @@ vi.mock('../../../src/server/channels/outbound/telegram', () => ({
   answerTelegramCallbackQuery,
 }));
 
-vi.mock('../../../src/server/channels/telegram/modelSelection', () => ({
+vi.mock('../../../src/server/channels/telegram/nativeCommandHandler', () => ({
   handleTelegramNativeCommand: vi.fn().mockResolvedValue(false),
+}));
+
+vi.mock('../../../src/server/channels/telegram/modelSelection', () => ({
   processTelegramModelCallback,
 }));
 

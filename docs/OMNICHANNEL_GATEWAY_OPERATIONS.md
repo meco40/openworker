@@ -109,8 +109,29 @@ Gateway RPC Alternativen:
 - `INBOX_V2_ENABLED` (globaler v2 enable/disable Schalter)
 - `INBOX_V2_EVENTS_ENABLED` (Realtime-Kill-Switch)
 - `INBOX_V2_LOGS` (structured inbox logs)
+- `CHAT_DISPLAY_LOGS` (client/server timing trace fuer Chat-Anzeige)
+- `CHAT_DISPLAY_SLOW_MS` (Slow-Request-Threshold, Default 1000 ms)
+- `INBOX_DB_SLOW_MS` (Slow-DB-Query-Threshold, Default 500 ms)
 - `INBOX_HTTP_RATE_LIMIT_PER_MINUTE`
 - `INBOX_WS_RATE_LIMIT_PER_MINUTE`
+
+## Chat-Anzeige Timing Logs
+
+Serverseitig schreiben langsame Chat-/Inbox-Anzeige-Schritte structured JSON mit
+`scope="chat.display"`. Mit `CHAT_DISPLAY_LOGS=true` oder `INBOX_V2_LOGS=true`
+werden alle Schritte sichtbar:
+
+- `proxy.*`: Proxy/Auth-Entscheidung vor der Route.
+- `server.auth.resolved`: User-Context-Aufloesung innerhalb der Route.
+- `http.inbox.complete`, `http.messages.complete`, `http.conversations.complete`: Route-Zeit.
+- `service.listInbox.complete`: Service-Pfad, inklusive Repository/Fallback.
+- `db.inbox.*`, `db.messages.list`, `db.conversations.*`: konkrete SQLite-Abfragen.
+
+Clientseitig laesst sich derselbe Ablauf in der WebView-Konsole aktivieren:
+
+```js
+localStorage.setItem('MC_DEBUG', 'true');
+```
 
 ## Verifikation
 

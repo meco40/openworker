@@ -6,6 +6,7 @@ import {
   stopPersonaBotPolling,
 } from '@/server/telegram/personaTelegramPoller';
 import { serializeTelegramAllowedUpdates } from '@/server/channels/telegram/allowedUpdates';
+import { syncTelegramNativeCommands } from '@/server/channels/telegram/nativeCommands';
 
 const IS_TEST_RUNTIME = process.env.NODE_ENV === 'test';
 
@@ -128,6 +129,8 @@ export async function pairPersonaTelegram(
   if (transport === 'polling') {
     await startPersonaBotPolling(botId);
   }
+
+  await syncTelegramNativeCommands(token);
 
   return { botId, peerName, transport };
 }

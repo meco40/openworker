@@ -2,9 +2,11 @@ import type { MemoryType } from '@/core/memory/types';
 import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 import { getMessageRepository } from '@/server/channels/messages/runtime';
 import { parseBoundedIntOrFallback } from '@/server/http/params';
+import * as memoryRuntime from '@/server/memory/runtime';
 import type { ParsedBulkBody, ParsedRecallArgs, ParsedStoreArgs, ParsedUpdateBody } from './types';
 
 export class ValidationError extends Error {}
+export class MemoryRuntimeUnavailableError extends Error {}
 
 const ALLOWED_TYPES: MemoryType[] = [
   'fact',
@@ -16,6 +18,21 @@ const ALLOWED_TYPES: MemoryType[] = [
 ];
 
 export const DELETE_ALL_CONFIRM_TOKEN = 'delete-all-memory';
+export const MEMORY_RUNTIME_UNAVAILABLE_MESSAGE = 'Memory runtime unavailable: Mem0 is not ready.';
+
+export function getReadyMemoryService() {
+  const runtimeWithOptional = memoryRuntime as typeof memoryRuntime & {
+    getMemoryServiceIfReady?: () => ReturnType<typeof memoryRuntime.getMemoryService> | null;
+  };
+  const guardedService =
+    'getMemoryServiceIfReady' in runtimeWithOptional
+      ? runtimeWithOptional.getMemoryServiceIfReady?.()
+      : undefined;
+  if (guardedService === null) {
+    throw new MemoryRuntimeUnavailableError(MEMORY_RUNTIME_UNAVAILABLE_MESSAGE);
+  }
+  return guardedService ?? memoryRuntime.getMemoryService();
+}
 
 export function parseStoreArgs(raw: Record<string, unknown>): ParsedStoreArgs {
   const personaId = parsePersonaId(raw.personaId);

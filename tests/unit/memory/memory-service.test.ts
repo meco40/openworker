@@ -484,25 +484,30 @@ describe('MemoryService (mem0-only)', () => {
 
   it('keeps listPage total consistent when local filter removes non-matching rows', async () => {
     const client = createInMemoryMem0Client();
-    client.listMemories = async () => ({
-      memories: [
-        defaultRecord('m-1', {
-          userId: 'user-a',
-          personaId: 'persona-a',
-          content: 'match-item',
-          metadata: { type: 'fact', importance: 3, confidence: 0.3 },
-        }),
-        defaultRecord('m-2', {
-          userId: 'user-a',
-          personaId: 'persona-a',
-          content: 'different-item',
-          metadata: { type: 'fact', importance: 3, confidence: 0.3 },
-        }),
-      ],
-      total: 999,
-      page: 1,
-      pageSize: 25,
-    });
+    client.listMemories = async (input) => {
+      if (input.page > 1) {
+        return { memories: [], total: 2, page: input.page, pageSize: 200 };
+      }
+      return {
+        memories: [
+          defaultRecord('m-1', {
+            userId: 'user-a',
+            personaId: 'persona-a',
+            content: 'match-item',
+            metadata: { type: 'fact', importance: 3, confidence: 0.3 },
+          }),
+          defaultRecord('m-2', {
+            userId: 'user-a',
+            personaId: 'persona-a',
+            content: 'different-item',
+            metadata: { type: 'fact', importance: 3, confidence: 0.3 },
+          }),
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 200,
+      };
+    };
     const service = new MemoryService(client);
 
     const result = await service.listPage(
@@ -515,5 +520,47 @@ describe('MemoryService (mem0-only)', () => {
     expect(result.nodes[0].content).toBe('match-item');
     expect(result.pagination.total).toBe(1);
     expect(result.pagination.totalPages).toBe(1);
+  });
+
+  it('merges legacy and channel scopes before slicing pagination', async () => {
+    const client = createInMemoryMem0Client();
+    await client.addMemory({
+      userId: 'legacy-user',
+      personaId: 'persona-a',
+      content: 'legacy memory',
+      metadata: { type: 'fact', importance: 3 },
+    });
+    await client.addMemory({
+      userId: 'channel:telegram:chat-1',
+      personaId: 'persona-a',
+      content: 'channel memory one',
+      metadata: { type: 'fact', importance: 3 },
+    });
+    await client.addMemory({
+      userId: 'channel:telegram:chat-1',
+      personaId: 'persona-a',
+      content: 'channel memory two',
+      metadata: { type: 'fact', importance: 3 },
+    });
+    const service = new MemoryService(client);
+
+    const firstPage = await service.listPageAcrossScopes(
+      'persona-a',
+      ['legacy-user', 'channel:telegram:chat-1'],
+      { page: 1, pageSize: 2 },
+    );
+    const secondPage = await service.listPageAcrossScopes(
+      'persona-a',
+      ['legacy-user', 'channel:telegram:chat-1'],
+      { page: 2, pageSize: 2 },
+    );
+
+    expect(firstPage.nodes).toHaveLength(2);
+    expect(secondPage.nodes).toHaveLength(1);
+    expect(firstPage.pagination.total).toBe(3);
+    expect(secondPage.pagination.totalPages).toBe(2);
+    expect(new Set([...firstPage.nodes, ...secondPage.nodes].map((node) => node.content))).toEqual(
+      new Set(['legacy memory', 'channel memory one', 'channel memory two']),
+    );
   });
 });

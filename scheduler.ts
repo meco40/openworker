@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { startAutomationRuntime, stopAutomationRuntime } from './src/server/automation/runtime';
 import {
   assertMemoryRuntimeConfiguration,
-  assertMemoryRuntimeReady,
+  ensureMemoryRuntimeReadyForStartup,
 } from './src/server/memory/runtime';
 import {
   startKnowledgeRuntimeLoop,
@@ -37,7 +37,7 @@ console.log(`[automation-scheduler] starting with instance ${instanceId}`);
 
 async function bootstrap(): Promise<void> {
   assertMemoryRuntimeConfiguration();
-  await assertMemoryRuntimeReady();
+  await ensureMemoryRuntimeReadyForStartup({ component: 'scheduler' });
 
   if (swarmRunner === 'scheduler') {
     const { bootstrapMessageRuntime } = await import('./src/server/channels/messages/runtime');

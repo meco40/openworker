@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import type { PersonaWithFiles } from '@/server/personas/personaTypes';
+import type { PersonaWithFiles } from '@/shared/personaTypes';
 
 interface UsePersonaMetaOptions {
   selectedId: string | null;

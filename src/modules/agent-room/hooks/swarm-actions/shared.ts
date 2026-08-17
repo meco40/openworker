@@ -13,7 +13,7 @@ import {
   isTransientGatewayConnectionError,
   shouldFallbackToSessionSnapshot,
 } from '@/modules/agent-room/utils';
-import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
+import type { AgentV2EventEnvelope } from '@/shared/agentV2Types';
 
 export type AgentRoomDeployState = 'idle' | 'deploying';
 

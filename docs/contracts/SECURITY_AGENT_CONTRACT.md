@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Security.
 - Scope: "src/server/auth/**", "src/server/master/safety.ts", "src/server/skills/handlers/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-03-05
+- Last Reviewed: 2026-08-17
 
 ---
 

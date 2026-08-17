@@ -85,7 +85,7 @@ describe('AST architecture guards', () => {
       violations.push(relativePath);
     }
 
-    expect(new Set([...baselineExceptions])).toEqual(LEGACY_ROUTE_DB_EXCEPTIONS);
+    expect(new Set(baselineExceptions)).toEqual(LEGACY_ROUTE_DB_EXCEPTIONS);
     expect(violations).toEqual([]);
   });
 

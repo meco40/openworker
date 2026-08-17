@@ -33,9 +33,12 @@ describe('openSqliteDatabase', () => {
     db.exec("INSERT INTO sample (value) VALUES ('ok')");
 
     expect(db.pragma('journal_mode', { simple: true })).toBe('wal');
-    expect(db.pragma('busy_timeout', { simple: true })).toBe(5000);
+    expect(db.pragma('busy_timeout', { simple: true })).toBe(30000);
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
     expect(db.pragma('synchronous', { simple: true })).toBe(1);
+    expect(Number(db.pragma('cache_size', { simple: true }))).toBe(-16000);
+    expect(Number(db.pragma('mmap_size', { simple: true }))).toBe(134217728);
+    expect(db.pragma('temp_store', { simple: true })).toBe(2); // 2 = MEMORY
   });
 
   it('opens readonly connections safely without requiring write pragmas', async () => {

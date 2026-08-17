@@ -44,7 +44,7 @@ export async function runModelToolLoop(
         auditContext: {
           kind: 'chat',
           conversationId: conversation.id,
-          ...(params.auditContextExtras ?? {}),
+          ...params.auditContextExtras,
         },
       },
       {

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { runDoctorCommand } from '@/commands/doctorCommand';
 import { runHealthCommand } from '@/commands/healthCommand';
-import type { OpsNodeChannelSummary, OpsNodesResponse } from '@/modules/ops/types';
+import type { OpsNodeChannelSummary, OpsNodesResponse } from '@/shared/opsTypes';
 import { CHANNEL_CAPABILITIES } from '@/server/channels/adapters/capabilities';
 import type { ChannelKey } from '@/server/channels/adapters/types';
 import { getMessageRepository } from '@/server/channels/messages/runtime';

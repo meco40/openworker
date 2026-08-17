@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { PersonaSummary } from '@/server/personas/personaTypes';
+import type { PersonaSummary } from '@/shared/personaTypes';
 
 interface PersonaSidebarProps {
   personas: PersonaSummary[];

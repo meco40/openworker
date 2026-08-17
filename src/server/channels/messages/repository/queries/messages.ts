@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type BetterSqlite3 from 'better-sqlite3';
 import type { StoredMessage, SaveMessageInput } from '@/server/channels/messages/repository/types';
 import { toMessage } from '@/server/channels/messages/messageRowMappers';
+import { logInboxDbQuery } from '@/server/diagnostics/chatDisplayTrace';
 
 export class MessageQueries {
   constructor(
@@ -81,6 +82,7 @@ export class MessageQueries {
     before?: string,
     userId?: string,
   ): StoredMessage[] {
+    const startedAt = Date.now();
     const normalizedUserId = userId ? this.normalizeUserId(userId) : null;
     const beforeSeq = before && /^\d+$/.test(before) ? Number(before) : null;
 
@@ -105,6 +107,14 @@ export class MessageQueries {
               'SELECT * FROM messages WHERE conversation_id = ? AND seq < ? ORDER BY seq DESC LIMIT ?',
             )
             .all(conversationId, beforeSeq, limit) as Array<Record<string, unknown>>);
+      logInboxDbQuery('messages.list', {
+        conversationId,
+        userId: normalizedUserId,
+        limit,
+        mode: 'beforeSeq',
+        returnedRows: rows.length,
+        durationMs: Date.now() - startedAt,
+      });
       return rows.map(toMessage).reverse();
     }
 
@@ -127,6 +137,14 @@ export class MessageQueries {
               'SELECT * FROM messages WHERE conversation_id = ? AND created_at < ? ORDER BY seq DESC LIMIT ?',
             )
             .all(conversationId, before, limit) as Array<Record<string, unknown>>);
+      logInboxDbQuery('messages.list', {
+        conversationId,
+        userId: normalizedUserId,
+        limit,
+        mode: 'beforeCreatedAt',
+        returnedRows: rows.length,
+        durationMs: Date.now() - startedAt,
+      });
       return rows.map(toMessage).reverse();
     }
 
@@ -146,6 +164,14 @@ export class MessageQueries {
       : (this.db
           .prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY seq DESC LIMIT ?')
           .all(conversationId, limit) as Array<Record<string, unknown>>);
+    logInboxDbQuery('messages.list', {
+      conversationId,
+      userId: normalizedUserId,
+      limit,
+      mode: 'latest',
+      returnedRows: rows.length,
+      durationMs: Date.now() - startedAt,
+    });
     return rows.map(toMessage).reverse();
   }
 

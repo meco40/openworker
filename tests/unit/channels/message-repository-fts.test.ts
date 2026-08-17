@@ -247,5 +247,14 @@ describe('SqliteMessageRepository — FTS5 search', () => {
       expect(results.length).toBe(1);
       expect(results[0].content).toContain('Wie ist es');
     });
+
+    it('returns no matches for punctuation-only query without throwing', () => {
+      const conv = seedConversation();
+      seedMessage(conv.id, 'Das ist ein normaler Satz.');
+
+      expect(() => repo.searchMessages('???', { userId })).not.toThrow();
+      const results = repo.searchMessages('???', { userId });
+      expect(results).toEqual([]);
+    });
   });
 });

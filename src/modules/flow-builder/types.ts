@@ -1,5 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
-import type { FlowNodeData, FlowNodeType } from '@/server/automation/flowTypes';
+import type { FlowNodeData, FlowNodeType } from '@/shared/flowTypes';
 
 // ReactFlow-kompatible Node/Edge Typen
 export type FlowBuilderNode = Node<FlowNodeData, FlowNodeType>;

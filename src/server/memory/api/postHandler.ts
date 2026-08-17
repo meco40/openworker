@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getMemoryService } from '@/server/memory/runtime';
-import { ValidationError, parseRecallArgs, parseStoreArgs } from './shared';
+import {
+  MemoryRuntimeUnavailableError,
+  ValidationError,
+  getReadyMemoryService,
+  parseRecallArgs,
+  parseStoreArgs,
+} from './shared';
 import type { MemoryApiUserContext, MemoryPostBody } from './types';
 
 export async function handleMemoryPost(request: Request, userContext: MemoryApiUserContext) {
@@ -8,7 +13,7 @@ export async function handleMemoryPost(request: Request, userContext: MemoryApiU
     const body = (await request.json()) as MemoryPostBody;
     const fcName = String(body.fcName || '').trim();
     const args = body.args || {};
-    const service = getMemoryService();
+    const service = getReadyMemoryService();
 
     if (fcName === 'core_memory_store') {
       const parsed = parseStoreArgs(args);
@@ -39,7 +44,12 @@ export async function handleMemoryPost(request: Request, userContext: MemoryApiU
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid request.';
-    const status = error instanceof ValidationError || error instanceof SyntaxError ? 400 : 500;
+    const status =
+      error instanceof ValidationError || error instanceof SyntaxError
+        ? 400
+        : error instanceof MemoryRuntimeUnavailableError
+          ? 503
+          : 500;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

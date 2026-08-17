@@ -68,6 +68,7 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
           </div>
           <button
             onClick={onRemovePendingFile}
+            aria-label="Datei entfernen"
             className="flex h-7 w-7 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-800 text-zinc-500 transition-all hover:border-red-500/30 hover:bg-red-500/20 hover:text-red-400"
           >
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,6 +101,7 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                 </div>
                 <button
                   onClick={() => onRemoveQueuedMessage?.(queued.id)}
+                  aria-label="Aus Warteschlange entfernen"
                   className="rounded border border-red-900/60 px-2 py-0.5 text-[10px] text-red-300 hover:bg-red-950/40"
                   title="Aus Warteschlange entfernen"
                 >
@@ -124,6 +126,7 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={!activeConversation}
+            aria-label="Datei anhängen"
             title="Datei anhängen"
             className={`shrink-0 rounded-lg p-2 transition-all ${
               activeConversation
@@ -151,6 +154,7 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
           <textarea
             ref={textInputRef}
             data-testid="chat-input"
+            aria-label="Nachricht eingeben"
             value={input}
             onChange={(event) => onInputChange(event.target.value)}
             onKeyDown={(event) => {
@@ -173,6 +177,7 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
           {isGenerating && (
             <button
               onClick={onAbort}
+              aria-label="Generation abbrechen"
               className="shrink-0 animate-pulse rounded-lg bg-red-600 p-2.5 text-white shadow-lg transition-all hover:bg-red-500 active:scale-95"
               title="Generation abbrechen"
             >
@@ -192,6 +197,7 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
           <button
             onClick={onSend}
             data-testid="chat-send-button"
+            aria-label="Nachricht senden"
             disabled={!canSend}
             className={`shrink-0 rounded-lg p-2.5 transition-all ${
               canSend

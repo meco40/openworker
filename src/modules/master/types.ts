@@ -16,8 +16,8 @@ export type {
   MasterToolPolicy,
   MasterSubagentSession,
   MasterReminder,
-} from '@/server/master/types';
-export type { MasterInvalidationResource } from '@/server/events/types';
+} from '@/shared/masterTypes';
+export type { MasterInvalidationResource } from '@/shared/eventsTypes';
 
 // ─── Workspace summary ───────────────────────────────────────────────────────
 
@@ -106,7 +106,7 @@ export type MasterEventMessage =
   | (MasterEventBase & { type: 'heartbeat' })
   | (MasterEventBase & {
       type: 'updated';
-      resources: import('@/server/events/types').MasterInvalidationResource[];
+      resources: import('@/shared/eventsTypes').MasterInvalidationResource[];
       runId?: string | null;
       approvalRequestId?: string | null;
       sessionId?: string | null;

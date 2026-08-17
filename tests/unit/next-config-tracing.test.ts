@@ -13,8 +13,6 @@ describe('next config output tracing excludes', () => {
 
     expect(rootExcludes).toContain('**/.codex/**');
     expect(rootExcludes).toContain('**/.openclaw/**');
-    expect(rootExcludes).toContain('**/C:/Users/**/.codex/**');
-    expect(rootExcludes).toContain('**/C:/Users/**/.openclaw/**');
   });
 
   it('excludes heavy local workspace artifacts from standalone tracing', () => {

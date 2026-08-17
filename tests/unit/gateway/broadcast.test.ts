@@ -167,4 +167,37 @@ describe('gateway broadcast', () => {
     expect(unstableSocket.send).toHaveBeenCalledTimes(1);
     expect(unstableSocket.close).toHaveBeenCalledWith(1011, 'send error');
   });
+
+  it('protocol filter: options.protocol = v2 skips clients without protocol set', () => {
+    const socketV2 = makeMockSocket();
+    const socketNoProto = makeMockSocket();
+    const clientV2 = makeClient('conn-v2', 'user-a', socketV2);
+    const clientNoProto = makeClient('conn-noproto', 'user-b', socketNoProto);
+    // Set protocol only on clientV2
+    (clientV2 as GatewayClient & { protocol?: string }).protocol = 'v2';
+
+    registry.register(clientV2);
+    registry.register(clientNoProto);
+
+    broadcast('tick', { ts: 1 }, { protocol: 'v2' });
+
+    expect(socketV2.send).toHaveBeenCalledTimes(1);
+    expect(socketNoProto.send).not.toHaveBeenCalled();
+  });
+
+  it('broadcast with no options sends to all clients regardless of protocol', () => {
+    const socketV2 = makeMockSocket();
+    const socketNoProto = makeMockSocket();
+    const clientV2 = makeClient('conn-v2b', 'user-a', socketV2);
+    const clientNoProto = makeClient('conn-noproto-b', 'user-b', socketNoProto);
+    (clientV2 as GatewayClient & { protocol?: string }).protocol = 'v2';
+
+    registry.register(clientV2);
+    registry.register(clientNoProto);
+
+    broadcast('tick', { ts: 1 }); // no options → all clients
+
+    expect(socketV2.send).toHaveBeenCalledTimes(1);
+    expect(socketNoProto.send).toHaveBeenCalledTimes(1);
+  });
 });

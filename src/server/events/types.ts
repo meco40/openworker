@@ -1,14 +1,9 @@
 import type { Conversation } from '@/shared/domain/types';
 import type { StoredMessage } from '@/server/channels/messages/repository';
 
-export type MasterInvalidationResource =
-  | 'runs'
-  | 'run_detail'
-  | 'metrics'
-  | 'approvals'
-  | 'subagents'
-  | 'reminders'
-  | 'settings';
+import type { MasterInvalidationResource } from '@/shared/eventsTypes';
+
+export type { MasterInvalidationResource } from '@/shared/eventsTypes';
 
 export interface ServerEventMap {
   'chat.message.persisted': {

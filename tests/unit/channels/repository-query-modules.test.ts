@@ -132,6 +132,16 @@ describe('SearchQueries', () => {
     expect(db.prepare).not.toHaveBeenCalled();
   });
 
+  it('returns empty list for punctuation-only query without touching DB', () => {
+    const db = makeDb(() => ({ all: vi.fn() }));
+    const queries = new SearchQueries(db as never);
+
+    const result = queries.searchMessages('???', { userId: 'user-a' });
+
+    expect(result).toEqual([]);
+    expect(db.prepare).not.toHaveBeenCalled();
+  });
+
   it('builds filtered query and clamps limit boundaries', () => {
     const all = vi.fn(() => [
       {
@@ -330,7 +340,7 @@ describe('DeleteQueries', () => {
     expect(db.prepare).not.toHaveBeenCalled();
   });
 
-  it('deletes one message and invalidates derived conversation data', () => {
+  it('deletes one message and invalidates only the runtime context cache', () => {
     const runCalls: Array<{ sql: string; args: unknown[] }> = [];
     const db = makeDb((sql) => ({
       run: vi.fn((...args: unknown[]) => {
@@ -356,10 +366,14 @@ describe('DeleteQueries', () => {
 
     expect(deleted).toBe(true);
     expect(runCalls.some((entry) => entry.sql.includes('DELETE FROM messages'))).toBe(true);
+    // Runtime context cache must be invalidated so the next request regenerates it.
     expect(runCalls.some((entry) => entry.sql.includes('conversation_context'))).toBe(true);
-    expect(runCalls.some((entry) => entry.sql.includes('knowledge_episodes'))).toBe(true);
-    expect(runCalls.some((entry) => entry.sql.includes('knowledge_meeting_ledger'))).toBe(true);
-    expect(runCalls.some((entry) => entry.sql.includes('knowledge_retrieval_audit'))).toBe(true);
+    // Knowledge tables must NOT be cleared — they contain knowledge from ALL messages
+    // in the conversation, not just the deleted one. Clearing them on single-message
+    // delete would be semantically wrong and cause full-table-scans.
+    expect(runCalls.some((entry) => entry.sql.includes('knowledge_episodes'))).toBe(false);
+    expect(runCalls.some((entry) => entry.sql.includes('knowledge_meeting_ledger'))).toBe(false);
+    expect(runCalls.some((entry) => entry.sql.includes('knowledge_retrieval_audit'))).toBe(false);
     expect(
       runCalls.some((entry) => entry.sql.includes('UPDATE conversations SET updated_at = ?')),
     ).toBe(true);

@@ -117,7 +117,14 @@ export class DeleteQueries {
     const deletedRows = this.deleteSingleMessage(id, normalizedUserId);
     if (deletedRows <= 0) return false;
 
-    this.clearConversationDerivedState(message.conversationId);
+    // Only invalidate the runtime context cache. Knowledge tables (episodes,
+    // meeting_ledger, retrieval_audit) must NOT be cleared here — deleting one
+    // message does not invalidate knowledge extracted from other messages in the
+    // same conversation. Clearing them would also cause a full-table-scan on
+    // knowledge_retrieval_audit and destroy legitimate knowledge data.
+    this.db
+      .prepare('DELETE FROM conversation_context WHERE conversation_id = ?')
+      .run(message.conversationId);
     this.db
       .prepare('UPDATE conversations SET updated_at = ? WHERE id = ? AND user_id = ?')
       .run(new Date().toISOString(), message.conversationId, normalizedUserId);

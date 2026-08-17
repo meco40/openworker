@@ -304,10 +304,11 @@ flowchart TB
 
 ## 4. Session Commands
 
-| Command | Beschreibung                |
-| ------- | --------------------------- |
-| /new    | Neue Konversation erstellen |
-| /reset  | Session zurücksetzen        |
+| Command     | Beschreibung                                                                          |
+| ----------- | ------------------------------------------------------------------------------------- |
+| /new        | Neue Konversation erstellen                                                           |
+| /chatdelete | Letzte persistierte Telegram-Nachricht der aktuellen Chat-/Topic-Session hart löschen |
+| /reset      | Session zurücksetzen                                                                  |
 
 ---
 

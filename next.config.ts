@@ -17,8 +17,6 @@ const nextConfig: NextConfig = {
       '.local/**/*.db-wal',
       '**/.codex/**',
       '**/.openclaw/**',
-      '**/C:/Users/**/.codex/**',
-      '**/C:/Users/**/.openclaw/**',
       'demo/**',
       'backups/**',
       'workspaces/**',

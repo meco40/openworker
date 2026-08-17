@@ -7,11 +7,18 @@ import { getMemoryService } from '@/server/memory/runtime';
 import {
   isAutoSessionMemoryEnabled,
   buildAutoMemoryCandidates,
+  getAutoSessionMemoryMode,
 } from '@/server/channels/messages/autoMemory';
+import {
+  getAutoSessionMemorySlowThresholdMs,
+  logAutoSessionMemoryTrace,
+} from '@/server/diagnostics/autoSessionMemoryTrace';
 import { getServerEventBus } from '@/server/events/runtime';
+import { isInlineKnowledgeIngestionEnabled } from '@/server/knowledge/inlineIngestionPolicy';
 
 export class SummaryService {
   private summaryRefreshInFlight = new Set<string>();
+  private static readonly AUTO_SESSION_MEMORY_TIMEOUT_MS = 3000;
 
   constructor(
     private readonly repo: {
@@ -114,9 +121,17 @@ export class SummaryService {
         createdAt: new Date().toISOString(),
       });
 
-      await this.maybeStoreAutoSessionMemory(conversation, summarizationChunk);
-      await this.maybeStoreKnowledgeArtifacts(conversation, summarizationChunk, mergedSummary);
+      // Release the in-flight lock NOW — SQLite write is done, the rest is
+      // background I/O (Mem0 / knowledge ingestion) that must NOT block the
+      // summary cycle or any subsequent message from triggering a new refresh.
+      this.summaryRefreshInFlight.delete(conversation.id);
+
+      // Fire-and-forget — these are best-effort side effects.
+      void this.maybeStoreAutoSessionMemory(conversation, summarizationChunk);
+      void this.maybeStoreKnowledgeArtifacts(conversation, summarizationChunk, mergedSummary);
+      return;
     } finally {
+      // Idempotent safety net for early-return / exception paths.
       this.summaryRefreshInFlight.delete(conversation.id);
     }
   }
@@ -125,21 +140,73 @@ export class SummaryService {
     conversation: Conversation,
     messages: StoredMessage[],
   ): Promise<void> {
-    if (this.isAgentRoomConversation(conversation)) return;
-    if (!conversation.personaId) return;
-    if (!isAutoSessionMemoryEnabled()) return;
+    const mode = getAutoSessionMemoryMode();
+    if (this.isAgentRoomConversation(conversation)) {
+      logAutoSessionMemoryTrace('summary.skip', {
+        conversationId: conversation.id,
+        personaId: conversation.personaId,
+        reason: 'agent_room',
+        mode,
+      });
+      return;
+    }
+    if (!conversation.personaId) {
+      logAutoSessionMemoryTrace('summary.skip', {
+        conversationId: conversation.id,
+        personaId: conversation.personaId,
+        reason: 'missing_persona',
+        mode,
+      });
+      return;
+    }
+    if (!isAutoSessionMemoryEnabled()) {
+      logAutoSessionMemoryTrace('summary.skip', {
+        conversationId: conversation.id,
+        personaId: conversation.personaId,
+        reason: 'disabled',
+        mode,
+      });
+      return;
+    }
 
     const candidates = buildAutoMemoryCandidates(messages);
-    if (candidates.length === 0) return;
+    if (candidates.length === 0) {
+      logAutoSessionMemoryTrace('summary.skip', {
+        conversationId: conversation.id,
+        personaId: conversation.personaId,
+        reason: 'no_candidates',
+        mode,
+      });
+      return;
+    }
     const memoryUserId = resolveMemoryScopedUserId({
       userId: conversation.userId,
       channelType: conversation.channelType,
       externalChatId: conversation.externalChatId || 'default',
     });
+    const batchStartedAt = Date.now();
+    const slowThresholdMs = getAutoSessionMemorySlowThresholdMs();
+    let storedCount = 0;
+    let failedCount = 0;
 
-    for (const candidate of candidates) {
+    logAutoSessionMemoryTrace('summary.batch.start', {
+      conversationId: conversation.id,
+      personaId: conversation.personaId,
+      memoryUserId,
+      candidateCount: candidates.length,
+      messageCount: messages.length,
+      mode,
+      timeoutMs: SummaryService.AUTO_SESSION_MEMORY_TIMEOUT_MS,
+    });
+
+    let circuitOpen = false;
+    for (const [index, candidate] of candidates.entries()) {
+      if (circuitOpen) break;
+      const startedAt = Date.now();
+      const controller = new AbortController();
+      let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
       try {
-        await getMemoryService().store(
+        const storePromise = getMemoryService().store(
           conversation.personaId,
           candidate.type,
           candidate.content,
@@ -150,11 +217,95 @@ export class SummaryService {
             sourceRole: 'user',
             sourceType: 'auto_session',
           },
+          controller.signal,
+        );
+        storePromise.catch(() => {});
+        await Promise.race([
+          storePromise,
+          new Promise<never>(
+            (_resolve, reject) =>
+              (timeoutHandle = setTimeout(() => {
+                controller.abort();
+                reject(
+                  new Error(
+                    `auto-session memory candidate timeout after ${SummaryService.AUTO_SESSION_MEMORY_TIMEOUT_MS}ms`,
+                  ),
+                );
+              }, SummaryService.AUTO_SESSION_MEMORY_TIMEOUT_MS)),
+          ),
+        ]);
+        storedCount += 1;
+        const durationMs = Date.now() - startedAt;
+        logAutoSessionMemoryTrace(
+          'summary.candidate.stored',
+          {
+            conversationId: conversation.id,
+            personaId: conversation.personaId,
+            memoryUserId,
+            candidateIndex: index + 1,
+            candidateCount: candidates.length,
+            candidateType: candidate.type,
+            importance: candidate.importance,
+            durationMs,
+          },
+          { force: durationMs >= slowThresholdMs },
         );
       } catch (error) {
-        console.error('Auto session memory store failed:', error);
+        failedCount += 1;
+        const durationMs = Date.now() - startedAt;
+        const message = error instanceof Error ? error.message : String(error);
+        const timedOut = message.includes('timeout');
+        logAutoSessionMemoryTrace(
+          'summary.candidate.failed',
+          {
+            conversationId: conversation.id,
+            personaId: conversation.personaId,
+            memoryUserId,
+            candidateIndex: index + 1,
+            candidateCount: candidates.length,
+            candidateType: candidate.type,
+            importance: candidate.importance,
+            durationMs,
+            timeoutMs: SummaryService.AUTO_SESSION_MEMORY_TIMEOUT_MS,
+            error: message,
+          },
+          { force: true, level: timedOut ? 'warn' : 'error' },
+        );
+        if (timedOut) {
+          circuitOpen = true;
+          logAutoSessionMemoryTrace(
+            'summary.circuit_open',
+            {
+              conversationId: conversation.id,
+              personaId: conversation.personaId,
+              memoryUserId,
+              candidateIndex: index + 1,
+              candidateCount: candidates.length,
+              reason: 'timeout',
+            },
+            { force: true, level: 'warn' },
+          );
+        }
+      } finally {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
       }
     }
+
+    const durationMs = Date.now() - batchStartedAt;
+    logAutoSessionMemoryTrace(
+      'summary.batch.complete',
+      {
+        conversationId: conversation.id,
+        personaId: conversation.personaId,
+        memoryUserId,
+        candidateCount: candidates.length,
+        storedCount,
+        failedCount,
+        circuitOpen,
+        durationMs,
+      },
+      { force: circuitOpen || durationMs >= slowThresholdMs },
+    );
   }
 
   private async maybeStoreKnowledgeArtifacts(
@@ -165,6 +316,7 @@ export class SummaryService {
     if (this.isAgentRoomConversation(conversation)) return;
     if (!conversation.personaId) return;
     if (messages.length === 0) return;
+    if (!isInlineKnowledgeIngestionEnabled()) return;
 
     const { resolveKnowledgeConfig } = await import('@/server/knowledge/config');
     const knowledgeConfig = resolveKnowledgeConfig();

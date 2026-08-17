@@ -1,8 +1,52 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const npmCmd = 'npm';
+function resolveNpmCliPath() {
+  const envPath = String(process.env.npm_execpath || '').trim();
+  if (envPath && fs.existsSync(envPath)) {
+    return envPath;
+  }
+
+  const nodeDir = path.dirname(process.execPath);
+  const candidates =
+    process.platform === 'win32'
+      ? [path.join(nodeDir, 'node_modules', 'npm', 'bin', 'npm-cli.js')]
+      : [
+          path.join(nodeDir, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+          path.join(nodeDir, '..', 'lib64', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+        ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function resolvePackageManagerInvocation() {
+  const npmCliPath = resolveNpmCliPath();
+  if (npmCliPath) {
+    return {
+      command: process.execPath,
+      baseArgs: [npmCliPath],
+      display: `${process.execPath} ${npmCliPath}`,
+    };
+  }
+
+  const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  return {
+    command: npmCmd,
+    baseArgs: [],
+    display: npmCmd,
+  };
+}
+
+const packageManager = resolvePackageManagerInvocation();
 
 /** @type {{name: string, proc: import('node:child_process').ChildProcess}[]} */
 const children = [];
@@ -10,11 +54,11 @@ let shuttingDown = false;
 let exitCode = 0;
 
 function startChild(name, args) {
-  console.log(`[dev-stack] starting ${name}: ${npmCmd} ${args.join(' ')}`);
-  const proc = spawn(npmCmd, args, {
+  const commandArgs = [...packageManager.baseArgs, ...args];
+  console.log(`[dev-stack] starting ${name}: ${packageManager.display} ${args.join(' ')}`);
+  const proc = spawn(packageManager.command, commandArgs, {
     stdio: 'inherit',
     env: process.env,
-    shell: true,
   });
   children.push({ name, proc });
 

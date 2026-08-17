@@ -6,7 +6,7 @@
 
 import { useCallback } from 'react';
 import type { SwarmRecord } from '@/modules/agent-room/swarmTypes';
-import type { PersonaSummary } from '@/server/personas/personaTypes';
+import type { PersonaSummary } from '@/shared/personaTypes';
 
 export function useSwarmExport(swarms: SwarmRecord[], personas: PersonaSummary[]) {
   const exportRunJson = useCallback(

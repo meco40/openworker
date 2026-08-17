@@ -19,7 +19,7 @@ import { useSwarmConnection } from '@/modules/agent-room/hooks/useSwarmConnectio
 import { useSwarmExport } from '@/modules/agent-room/hooks/useSwarmExport';
 import type { SwarmRecord } from '@/modules/agent-room/swarmTypes';
 import { usePersona } from '@/modules/personas/PersonaContext';
-import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
+import type { AgentV2EventEnvelope } from '@/shared/agentV2Types';
 import {
   clampArtifactForPersistence,
   trimArtifactHistoryForPayload,

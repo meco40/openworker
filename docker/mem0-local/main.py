@@ -1,6 +1,7 @@
 import copy
 import logging
 import os
+from threading import RLock
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
@@ -145,6 +146,7 @@ def _build_bootstrap_config() -> Dict[str, Any]:
 
 CURRENT_CONFIG = _build_bootstrap_config()
 MEMORY_INSTANCE: Optional[Memory] = None
+MEMORY_CONFIG_LOCK = RLock()
 if _is_config_ready(CURRENT_CONFIG):
     try:
         MEMORY_INSTANCE = Memory.from_config(CURRENT_CONFIG)
@@ -159,6 +161,16 @@ app = FastAPI(
     description="A REST API for managing and searching memories for AI agents and apps.",
     version="1.0.0",
 )
+
+
+@app.get("/health", summary="Mem0 readiness health check")
+def health_check():
+    if MEMORY_INSTANCE is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Mem0 runtime is not configured. Set llm + embedder via Model Hub sync.",
+        )
+    return {"status": "ok"}
 
 
 def require_api_key(authorization: Optional[str] = Header(default=None)) -> None:
@@ -211,12 +223,13 @@ class EmbedderConfigUpdate(BaseModel):
 def _swap_memory_config(next_config: Dict[str, Any]) -> bool:
     global MEMORY_INSTANCE
     global CURRENT_CONFIG
-    if _is_config_ready(next_config):
-        MEMORY_INSTANCE = Memory.from_config(next_config)
-    else:
-        MEMORY_INSTANCE = None
-    CURRENT_CONFIG = next_config
-    return MEMORY_INSTANCE is not None
+    with MEMORY_CONFIG_LOCK:
+        if _is_config_ready(next_config):
+            MEMORY_INSTANCE = Memory.from_config(next_config)
+        else:
+            MEMORY_INSTANCE = None
+        CURRENT_CONFIG = next_config
+        return MEMORY_INSTANCE is not None
 
 
 def _require_memory_instance() -> Memory:
@@ -259,14 +272,14 @@ def set_llm_config(
         raise HTTPException(status_code=400, detail="llm.config must be an object when provided.")
     normalized_config = _normalize_runtime_component_model(provider, config_obj or {})
 
-    next_config = copy.deepcopy(CURRENT_CONFIG)
-    next_config["llm"] = {
-        "provider": provider,
-        "config": normalized_config,
-    }
-
     try:
-        ready = _swap_memory_config(next_config)
+        with MEMORY_CONFIG_LOCK:
+            next_config = copy.deepcopy(CURRENT_CONFIG)
+            next_config["llm"] = {
+                "provider": provider,
+                "config": normalized_config,
+            }
+            ready = _swap_memory_config(next_config)
     except Exception as e:
         logging.exception("Error in set_llm_config:")
         raise HTTPException(status_code=500, detail=str(e))
@@ -296,20 +309,23 @@ def set_embedder_config(
         raise HTTPException(status_code=400, detail="embedder.config must be an object when provided.")
     normalized_config = _normalize_runtime_component_model(provider, config_obj or {})
 
-    next_config = copy.deepcopy(CURRENT_CONFIG)
-    next_config["embedder"] = {
-        "provider": provider,
-        "config": normalized_config,
-    }
-    if payload.embedding_model_dims is not None:
-        if payload.embedding_model_dims <= 0:
-            raise HTTPException(status_code=400, detail="embedding_model_dims must be a positive integer.")
-        vector_store = next_config.setdefault("vector_store", {})
-        vector_store_config = vector_store.setdefault("config", {})
-        vector_store_config["embedding_model_dims"] = int(payload.embedding_model_dims)
-
     try:
-        ready = _swap_memory_config(next_config)
+        with MEMORY_CONFIG_LOCK:
+            next_config = copy.deepcopy(CURRENT_CONFIG)
+            next_config["embedder"] = {
+                "provider": provider,
+                "config": normalized_config,
+            }
+            if payload.embedding_model_dims is not None:
+                if payload.embedding_model_dims <= 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="embedding_model_dims must be a positive integer.",
+                    )
+                vector_store = next_config.setdefault("vector_store", {})
+                vector_store_config = vector_store.setdefault("config", {})
+                vector_store_config["embedding_model_dims"] = int(payload.embedding_model_dims)
+            ready = _swap_memory_config(next_config)
     except Exception as e:
         logging.exception("Error in set_embedder_config:")
         raise HTTPException(status_code=500, detail=str(e))

@@ -5,6 +5,12 @@ import type {
 } from '@/server/channels/messages/repository/types';
 import { toMessage } from '@/server/channels/messages/messageRowMappers';
 import { buildFtsQuery } from '@/server/channels/messages/repository/utils/ftsHelpers';
+import {
+  getChatRecallSlowThresholdMs,
+  logChatRecallTrace,
+  previewRecallText,
+} from '@/server/diagnostics/chatRecallTrace';
+import { summarizeError } from '@/server/diagnostics/errorSummary';
 
 export class SearchQueries {
   constructor(private readonly db: BetterSqlite3.Database) {}
@@ -19,6 +25,22 @@ export class SearchQueries {
 
     // Build FTS5 match expression — AND all tokens
     const ftsQuery = buildFtsQuery(trimmed);
+    if (!ftsQuery) {
+      logChatRecallTrace(
+        'fts.query_skipped',
+        {
+          reason: 'no_searchable_tokens',
+          queryLength: trimmed.length,
+          queryPreview: previewRecallText(trimmed),
+          conversationId: opts.conversationId ?? null,
+          userId: opts.userId ?? null,
+          personaId: opts.personaId ?? null,
+          role: opts.role ?? null,
+        },
+        { force: true, level: 'warn' },
+      );
+      return [];
+    }
     params.push(ftsQuery);
 
     if (opts.userId) {
@@ -51,8 +73,50 @@ export class SearchQueries {
       LIMIT ?
     `;
     params.push(limit);
+    const startedAt = Date.now();
 
-    const rows = this.db.prepare(sql).all(...params) as Array<Record<string, unknown>>;
-    return rows.map(toMessage);
+    try {
+      const rows = this.db.prepare(sql).all(...params) as Array<Record<string, unknown>>;
+      const durationMs = Date.now() - startedAt;
+      const slowThresholdMs = getChatRecallSlowThresholdMs();
+      const slow = durationMs >= slowThresholdMs;
+      logChatRecallTrace(
+        'fts.query_completed',
+        {
+          durationMs,
+          slow,
+          slowThresholdMs,
+          queryLength: trimmed.length,
+          queryPreview: previewRecallText(trimmed),
+          ftsQuery,
+          resultCount: rows.length,
+          limit,
+          conversationId: opts.conversationId ?? null,
+          userId: opts.userId ?? null,
+          personaId: opts.personaId ?? null,
+          role: opts.role ?? null,
+        },
+        { force: slow },
+      );
+      return rows.map(toMessage);
+    } catch (error) {
+      logChatRecallTrace(
+        'fts.query_failed',
+        {
+          durationMs: Date.now() - startedAt,
+          queryLength: trimmed.length,
+          queryPreview: previewRecallText(trimmed),
+          ftsQuery,
+          limit,
+          conversationId: opts.conversationId ?? null,
+          userId: opts.userId ?? null,
+          personaId: opts.personaId ?? null,
+          role: opts.role ?? null,
+          error: summarizeError(error),
+        },
+        { force: true, level: 'error' },
+      );
+      throw error;
+    }
   }
 }

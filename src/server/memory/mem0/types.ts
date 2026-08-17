@@ -77,7 +77,7 @@ export interface Mem0HistoryEntry {
 }
 
 export interface Mem0Client {
-  addMemory(input: Mem0MemoryInput): Promise<{ id: string | null }>;
+  addMemory(input: Mem0MemoryInput, signal?: AbortSignal): Promise<{ id: string | null }>;
   searchMemories(input: Mem0SearchInput): Promise<Mem0SearchHit[]>;
   listMemories(input: Mem0ListInput): Promise<Mem0ListMemoryResult>;
   getMemory(id: string): Promise<Mem0MemoryRecord | null>;
@@ -95,6 +95,8 @@ export interface RequestOptions {
   timeoutMs?: number;
   maxRetries?: number;
   retryOnTimeout?: boolean;
+  /** When provided, aborting this signal will cancel the underlying fetch immediately. */
+  signal?: AbortSignal;
 }
 
 /** HTTP request initialization */

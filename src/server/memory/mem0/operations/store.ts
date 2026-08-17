@@ -12,11 +12,19 @@ export function createStoreOperation(
   request: (
     path: string,
     init: { method: 'POST'; body?: Record<string, unknown> },
-    options?: { timeoutMs?: number; maxRetries?: number; retryOnTimeout?: boolean },
+    options?: {
+      timeoutMs?: number;
+      maxRetries?: number;
+      retryOnTimeout?: boolean;
+      signal?: AbortSignal;
+    },
   ) => Promise<unknown>,
   config: { writeTimeoutMs: number; writeMaxRetries: number },
 ) {
-  return async function addMemory(input: Mem0MemoryInput): Promise<{ id: string | null }> {
+  return async function addMemory(
+    input: Mem0MemoryInput,
+    signal?: AbortSignal,
+  ): Promise<{ id: string | null }> {
     const payload = await request(
       '/memories',
       {
@@ -33,6 +41,7 @@ export function createStoreOperation(
         timeoutMs: config.writeTimeoutMs,
         maxRetries: config.writeMaxRetries,
         retryOnTimeout: true,
+        signal,
       },
     );
     return { id: extractId(payload) };

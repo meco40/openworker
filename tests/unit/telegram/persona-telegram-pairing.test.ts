@@ -5,8 +5,12 @@ const pollerMocks = vi.hoisted(() => ({
   startPersonaBotPolling: vi.fn(async () => {}),
   stopPersonaBotPolling: vi.fn(),
 }));
+const syncTelegramNativeCommands = vi.hoisted(() => vi.fn(async () => {}));
 
 vi.mock('@/server/telegram/personaTelegramPoller', () => pollerMocks);
+vi.mock('@/server/channels/telegram/nativeCommands', () => ({
+  syncTelegramNativeCommands,
+}));
 
 describe('pairPersonaTelegram', () => {
   const originalEnv = { ...process.env };
@@ -55,6 +59,7 @@ describe('pairPersonaTelegram', () => {
     const { pairPersonaTelegram } = await import('@/server/telegram/personaTelegramPairing');
 
     await pairPersonaTelegram('persona-1', 'shared-token');
+    expect(syncTelegramNativeCommands).toHaveBeenCalledWith('shared-token');
 
     await expect(pairPersonaTelegram('persona-2', 'shared-token')).rejects.toThrow(
       /already paired/i,

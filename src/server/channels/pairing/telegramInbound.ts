@@ -6,10 +6,10 @@ import {
   isTelegramChatAuthorized,
 } from '@/server/channels/pairing/telegramCodePairing';
 import {
-  handleTelegramNativeCommand,
   processTelegramModelCallback,
   type TelegramModelCallbackQuery,
 } from '@/server/channels/telegram/modelSelection';
+import { handleTelegramNativeCommand } from '@/server/channels/telegram/nativeCommandHandler';
 import { applyTelegramGroupMigration } from '@/server/channels/telegram/groupMigration';
 import {
   extractTelegramInboundMedia,

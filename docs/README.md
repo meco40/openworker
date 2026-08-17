@@ -1,6 +1,6 @@
 # Dokumentationsindex
 
-Stand: 2026-03-05
+Stand: 2026-08-17
 
 Diese Seite listet nur aktive Source-of-Truth Dokumente.
 Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
@@ -13,6 +13,10 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
   - Aktive API-Routen als technische Referenz.
 - **[docs/TASKS_SYSTEM.md](TASKS_SYSTEM.md)**
   - Task-Management, Workspace-Artifakte, Completion-Flow.
+- **[docs/MASTER_AGENT_SYSTEM.md](MASTER_AGENT_SYSTEM.md)**
+  - Master Agent System-Persona, Approvals, Subagent-Sessions, Reminders.
+- **[docs/MASTER_PAGE_GUIDE.md](MASTER_PAGE_GUIDE.md)**
+  - Einfache Beschreibung der Master-Seite fuer Endnutzer.
 
 ## 2) Domänensysteme
 
@@ -28,7 +32,6 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
 - **[docs/CLAWHUB_SYSTEM.md](CLAWHUB_SYSTEM.md)**
 - **[docs/KNOWLEDGE_BASE_SYSTEM.md](KNOWLEDGE_BASE_SYSTEM.md)**
 - **[docs/SECURITY_SYSTEM.md](SECURITY_SYSTEM.md)**
-- **[docs/MASTER_AGENT_SYSTEM.md](MASTER_AGENT_SYSTEM.md)**
 - **[docs/PROJECT_WORKSPACE_SYSTEM.md](PROJECT_WORKSPACE_SYSTEM.md)**
 
 ## 3) Legacy-Dokumente (Archiv-reif)
@@ -39,6 +42,8 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
 ## 4) Architektur und Referenzen
 
 - **[docs/ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)**
+- **[docs/ARCHITECTURE_REFACTORING.md](ARCHITECTURE_REFACTORING.md)**
+- **[docs/MODULARIZATION_ANALYSIS.md](MODULARIZATION_ANALYSIS.md)**
 - **[docs/memory-architecture.md](memory-architecture.md)**
 - **[docs/architecture/model-hub-provider-matrix.md](architecture/model-hub-provider-matrix.md)**
 
@@ -46,6 +51,9 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
 
 - **[docs/DEPLOYMENT_OPERATIONS.md](DEPLOYMENT_OPERATIONS.md)**
 - **[docs/OMNICHANNEL_GATEWAY_OPERATIONS.md](OMNICHANNEL_GATEWAY_OPERATIONS.md)**
+- **[docs/AGENT_V2_RUNBOOK.md](AGENT_V2_RUNBOOK.md)**
+- **[docs/gateway-migration.md](gateway-migration.md)**
+- **[docs/mission-control-agent-spawn-sequence.md](mission-control-agent-spawn-sequence.md)**
 - **[docs/runbooks/chat-cli-smoke-approval.md](runbooks/chat-cli-smoke-approval.md)**
 - **[docs/runbooks/gateway-config-production-rollout.md](runbooks/gateway-config-production-rollout.md)**
 
@@ -65,11 +73,11 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
 - **[docs/plans/README.md](plans/README.md)**
 - **[docs/DOCUMENTATION_AUDIT_2026-02-21.md](DOCUMENTATION_AUDIT_2026-02-21.md)** (historischer Audit mit Addendum)
 
-## 8) Live Ops Entry
+## 7) Live Ops Entry
 
 - Mission Control Rollout Dashboard: `/mission-control/engineering-rollout`
 
-## 7) Archiv
+## 8) Archiv
 
 - **[docs/archive/README.md](archive/README.md)**
 

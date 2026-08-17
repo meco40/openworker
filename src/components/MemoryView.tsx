@@ -11,7 +11,7 @@ import { PersonaSidebar } from '@/components/memory/components/PersonaSidebar';
 import { MemoryToolbar } from '@/components/memory/components/MemoryToolbar';
 import { MemoryNodeItem } from '@/components/memory/components/MemoryNodeItem';
 import { MemoryPagination } from '@/components/memory/components/MemoryPagination';
-import type { PersonaSummary } from '@/server/personas/personaTypes';
+import type { PersonaSummary } from '@/shared/personaTypes';
 
 const MemoryView: React.FC = () => {
   const { personas, activePersonaId, refreshPersonas } = usePersona();

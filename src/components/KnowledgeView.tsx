@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePersona } from '@/modules/personas/PersonaContext';
-import type { PersonaSummary } from '@/server/personas/personaTypes';
+import type { PersonaSummary } from '@/shared/personaTypes';
 import { KnowledgeGraphPanel } from '@/components/knowledge/graph/KnowledgeGraphPanel';
 import { useKnowledgeGraph } from '@/components/knowledge/hooks/useKnowledgeGraph';
 

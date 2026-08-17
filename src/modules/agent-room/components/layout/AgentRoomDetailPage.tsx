@@ -8,7 +8,7 @@ import {
 } from '@/shared/domain/swarmPhases';
 import type { SwarmRecord, SwarmStatus } from '@/modules/agent-room/swarmTypes';
 import type { SwarmMessage } from '@/modules/agent-room/hooks/useSwarmMessages';
-import type { PersonaSummary } from '@/server/personas/personaTypes';
+import type { PersonaSummary } from '@/shared/personaTypes';
 import { SwarmChatFeed } from '@/modules/agent-room/components/SwarmChatFeed';
 import { UserChatInput } from '@/modules/agent-room/components/UserChatInput';
 import { CanvasPanel } from '@/modules/agent-room/components/canvas/CanvasPanel';

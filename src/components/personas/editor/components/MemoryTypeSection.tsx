@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { MEMORY_PERSONA_TYPES, MEMORY_PERSONA_TYPE_LABELS } from '@/server/personas/personaTypes';
+import { MEMORY_PERSONA_TYPES, MEMORY_PERSONA_TYPE_LABELS } from '@/shared/personaTypes';
 import type { MemoryTypeSectionProps } from '../types';
 
 export function MemoryTypeSection({

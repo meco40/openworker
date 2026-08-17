@@ -88,7 +88,7 @@ export async function registerFeedback(
       personaId,
       content: existingNode.content,
       metadata: {
-        ...(existingNode.metadata || {}),
+        ...existingNode.metadata,
         type: existingNode.type,
         importance: nextImportance,
         confidence: nextConfidence,

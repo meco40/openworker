@@ -3,7 +3,7 @@
  */
 
 /** Default timeout in milliseconds */
-export const DEFAULT_TIMEOUT_MS = 5000;
+export const DEFAULT_TIMEOUT_MS = 15000;
 
 /** HTTP status codes considered transient (will be retried) */
 export const TRANSIENT_HTTP_CODES = new Set([429, 500, 502, 503]);

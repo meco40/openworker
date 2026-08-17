@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { SwarmRecord } from '@/modules/agent-room/swarmTypes';
-import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
+import type { AgentV2EventEnvelope } from '@/shared/agentV2Types';
 import {
   applySwarmTerminalEvent,
   getNextPhaseOrNull,

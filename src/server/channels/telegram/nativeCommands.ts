@@ -5,6 +5,7 @@ export interface TelegramMenuCommand {
 
 export const TELEGRAM_NATIVE_COMMANDS: TelegramMenuCommand[] = [
   { command: 'new', description: 'Start a new conversation' },
+  { command: 'chatdelete', description: 'Delete the latest message in this chat' },
   { command: 'reset', description: 'Reset the current conversation' },
   { command: 'persona', description: 'List or switch persona' },
   { command: 'cron', description: 'Manage automation rules' },

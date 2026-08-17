@@ -8,6 +8,8 @@ export interface AutoMemoryCandidate {
   importance: number;
 }
 
+type EnvLike = Record<string, string | undefined>;
+
 const EXPLICIT_SAVE_PATTERN = /^speichere\s+ab(?:\s*[:\-–—]\s*|\s+|$)/i;
 const MAX_CANDIDATES = 4;
 const MIN_MESSAGES_FOR_RECAP = 4;
@@ -114,9 +116,21 @@ function buildRecapCandidate(userMessages: StoredMessage[]): AutoMemoryCandidate
   return { type: 'lesson', content: clipText(recap), importance: 2 };
 }
 
-export function isAutoSessionMemoryEnabled(): boolean {
-  const mode = String(process.env.CHAT_AUTO_SESSION_MEMORY || 'heuristic').toLowerCase();
-  return mode !== 'off' && mode !== 'false' && mode !== '0';
+export function getAutoSessionMemoryMode(
+  env: EnvLike = process.env as EnvLike,
+): 'off' | 'heuristic' {
+  const mode = String(env.CHAT_AUTO_SESSION_MEMORY || '')
+    .trim()
+    .toLowerCase();
+  if (!mode) return 'off';
+  if (mode === 'off' || mode === 'false' || mode === '0' || mode === 'no') {
+    return 'off';
+  }
+  return 'heuristic';
+}
+
+export function isAutoSessionMemoryEnabled(env: EnvLike = process.env as EnvLike): boolean {
+  return getAutoSessionMemoryMode(env) !== 'off';
 }
 
 export function buildAutoMemoryCandidates(messages: StoredMessage[]): AutoMemoryCandidate[] {

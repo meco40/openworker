@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { getMessageService } from '@/server/channels/messages/runtime';
 import type { ChannelType } from '@/shared/domain/types';
 import { emitInboxUpdated } from '@/server/channels/inbox/events';
+import {
+  getChatDisplaySlowThresholdMs,
+  logChatDisplayTrace,
+} from '@/server/diagnostics/chatDisplayTrace';
 import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
@@ -13,12 +17,33 @@ function normalizePersonaId(value: unknown): string | null {
 }
 
 export const GET = withUserContext(async ({ userContext }) => {
+  const startedAt = Date.now();
+  const serviceStartedAt = Date.now();
   const service = getMessageService();
+  const serviceResolveDurationMs = Date.now() - serviceStartedAt;
 
   // Ensure a default WebChat conversation always exists so the UI input is never disabled
+  const defaultConversationStartedAt = Date.now();
   service.getDefaultWebChatConversation(userContext.userId);
+  const defaultConversationDurationMs = Date.now() - defaultConversationStartedAt;
 
+  const listStartedAt = Date.now();
   const conversations = service.listConversations(userContext.userId);
+  const listConversationsDurationMs = Date.now() - listStartedAt;
+  const durationMs = Date.now() - startedAt;
+  logChatDisplayTrace(
+    'http.conversations.complete',
+    {
+      path: '/api/channels/conversations',
+      userId: userContext.userId,
+      returned: conversations.length,
+      durationMs,
+      serviceResolveDurationMs,
+      defaultConversationDurationMs,
+      listConversationsDurationMs,
+    },
+    { force: durationMs >= getChatDisplaySlowThresholdMs() },
+  );
   return NextResponse.json({ ok: true, conversations });
 });
 

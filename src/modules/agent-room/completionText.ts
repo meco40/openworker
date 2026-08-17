@@ -1,4 +1,4 @@
-import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
+import type { AgentV2EventEnvelope } from '@/shared/agentV2Types';
 
 export function extractCommandCompletionText(event: AgentV2EventEnvelope): string {
   const payload = (event.payload || {}) as Record<string, unknown>;

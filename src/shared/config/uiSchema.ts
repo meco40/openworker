@@ -18,3 +18,11 @@ export function isAllowedUiDensity(value: string): value is UiDensity {
 export function isAllowedUiTimeFormat(value: string): value is UiTimeFormat {
   return (ALLOWED_UI_TIME_FORMATS as readonly string[]).includes(value);
 }
+
+export function resolveViewFromConfig(value: unknown): View {
+  const candidate = typeof value === 'string' ? value.trim() : '';
+  if (candidate && isAllowedUiDefaultView(candidate)) {
+    return candidate as View;
+  }
+  return View.DASHBOARD;
+}

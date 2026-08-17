@@ -21,7 +21,7 @@ export function makeEntity(overrides: Partial<UpsertEntityInput>): UpsertEntityI
     owner: 'persona',
     ...rest,
     properties: {
-      ...(properties ?? {}),
+      ...properties,
     },
   };
 }
@@ -50,7 +50,7 @@ export function makeRelation(
     confidence: 0.9,
     ...rest,
     properties: {
-      ...(properties ?? {}),
+      ...properties,
     },
   };
 }

@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Model Hub.
 - Scope: "app/api/model-hub/**", "src/server/model-hub/**", "src/components/model-hub/\*\*".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-03-05
+- Last Reviewed: 2026-08-17
 
 ---
 

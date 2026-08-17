@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import type { PersonaTabName } from '@/server/personas/personaTypes';
+import type { PersonaTabName } from '@/shared/personaTypes';
 
 interface UsePersonaFormProps {
   setEditorContent: (value: string) => void;

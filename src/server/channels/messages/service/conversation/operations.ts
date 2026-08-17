@@ -54,6 +54,16 @@ export function getConversation(
   return deps.repo.getConversation(conversationId, resolvedUserId);
 }
 
+export function getConversationByExternalChat(
+  deps: ConversationOperationDeps,
+  channelType: ChannelType,
+  externalChatId: string,
+  userId?: string,
+): Conversation | null {
+  const resolvedUserId = deps.sessionManager.resolveUserId(userId);
+  return deps.repo.getConversationByExternalChat(channelType, externalChatId, resolvedUserId);
+}
+
 export function isAgentRoomConversation(
   deps: ConversationOperationDeps,
   conversationId: string,

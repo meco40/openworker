@@ -28,6 +28,9 @@ export interface ProcessWindowResult {
   entitiesCreated: number;
   entitiesMerged: number;
   taskCompletions: TaskCompletionResult[];
+  mem0FailCount: number;
+  /** Number of facts that were not persisted and must be retried. */
+  mem0PendingCount: number;
 }
 
 /**
@@ -153,10 +156,12 @@ export async function processWindow(context: ProcessWindowContext): Promise<Proc
   );
 
   return {
-    factsStored: facts.length - factResult.skippedCount,
+    factsStored: Math.max(0, facts.length - factResult.failCount - factResult.skippedCount),
     eventsStored: eventResult.stored,
     entitiesCreated: entityResult.created,
     entitiesMerged: entityResult.merged,
     taskCompletions,
+    mem0FailCount: factResult.failCount,
+    mem0PendingCount: factResult.pendingCount,
   };
 }

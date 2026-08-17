@@ -26,6 +26,55 @@ export { detectMemorySubject } from './subject/detector';
 export class MemoryService {
   constructor(private readonly mem0Client: Mem0Client) {}
 
+  private rankNode(node: MemoryNode): number {
+    const timestamp = String(node.metadata?.lastVerified || '').trim();
+    const parsed = Date.parse(timestamp);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private async listAllFilteredNodes(
+    personaId: string | undefined,
+    userId: string | undefined,
+    input: { query?: string; type?: MemoryType },
+  ): Promise<MemoryNode[]> {
+    const scopedUserId = resolveUserId(userId);
+    const apiPageSize = 200;
+    const nodes: MemoryNode[] = [];
+    let page = 1;
+    let fetchedRecords = 0;
+    let reportedTotal = Number.POSITIVE_INFINITY;
+
+    while (page <= 10_000) {
+      const listed = await this.mem0Client.listMemories({
+        userId: scopedUserId,
+        personaId,
+        page,
+        pageSize: apiPageSize,
+        query: input.query?.trim() || undefined,
+        type: input.type,
+      });
+      const mapped = listed.memories.map((record) => toMemoryNode(record));
+      nodes.push(
+        ...mapped
+          .filter((node) => matchesQuery(node, input.query))
+          .filter((node) => matchesType(node, input.type)),
+      );
+      fetchedRecords += listed.memories.length;
+      reportedTotal = Number.isFinite(listed.total)
+        ? Math.max(0, Math.floor(listed.total))
+        : fetchedRecords;
+
+      if (listed.memories.length === 0 || fetchedRecords >= reportedTotal) break;
+      page += 1;
+    }
+
+    if (page > 10_000) {
+      throw new Error('Mem0 pagination exceeded the safety limit while listing memories.');
+    }
+
+    return nodes;
+  }
+
   private async resolveNodeVersion(nodeId: string, node: MemoryNode): Promise<number> {
     const metaVersion = Number(node.metadata?.version);
     if (Number.isFinite(metaVersion) && metaVersion >= 1) {
@@ -47,6 +96,7 @@ export class MemoryService {
     importance: number,
     userId?: string,
     metadata?: Record<string, unknown>,
+    signal?: AbortSignal,
   ): Promise<MemoryNode> {
     return storeMemory(this.mem0Client, {
       personaId,
@@ -55,6 +105,7 @@ export class MemoryService {
       importance,
       userId,
       metadata,
+      signal,
     });
   }
 
@@ -81,30 +132,16 @@ export class MemoryService {
     return registerFeedback(this.mem0Client, { personaId, nodeIds, signal, userId });
   }
 
+  async snapshotWithMeta(
+    personaId?: string,
+    userId?: string,
+  ): Promise<{ nodes: MemoryNode[]; total: number; truncated: boolean }> {
+    const nodes = await this.listAllFilteredNodes(personaId, userId, {});
+    return { nodes, total: nodes.length, truncated: false };
+  }
+
   async snapshot(personaId?: string, userId?: string): Promise<MemoryNode[]> {
-    const scopedUserId = resolveUserId(userId);
-    const pageSize = 200;
-    const maxPages = 200;
-    let page = 1;
-    let total = Number.POSITIVE_INFINITY;
-    const nodes: MemoryNode[] = [];
-
-    while (page <= maxPages && nodes.length < total) {
-      const listed = await this.mem0Client.listMemories({
-        userId: scopedUserId,
-        personaId,
-        page,
-        pageSize,
-      });
-      const mapped = listed.memories.map((record) => toMemoryNode(record));
-      nodes.push(...mapped);
-      total = Math.max(0, listed.total);
-      if (mapped.length === 0) break;
-      if (nodes.length >= total) break;
-      page += 1;
-    }
-
-    return nodes;
+    return (await this.snapshotWithMeta(personaId, userId)).nodes;
   }
 
   async count(personaId?: string, userId?: string): Promise<number> {
@@ -133,37 +170,55 @@ export class MemoryService {
     nodes: MemoryNode[];
     pagination: { page: number; pageSize: number; total: number; totalPages: number };
   }> {
-    const scopedUserId = resolveUserId(userId);
     const page = Math.max(1, Math.floor(input.page));
     const pageSize = Math.max(1, Math.min(200, Math.floor(input.pageSize)));
-
-    const listed = await this.mem0Client.listMemories({
-      userId: scopedUserId,
-      personaId,
-      page,
-      pageSize,
-      query: input.query?.trim() || undefined,
-      type: input.type,
-    });
-
-    const filteredNodes = listed.memories
-      .map((record) => toMemoryNode(record))
-      .filter((node) => matchesQuery(node, input.query))
-      .filter((node) => matchesType(node, input.type));
-
-    const localFilteredOut = listed.memories.length !== filteredNodes.length;
-    const total = localFilteredOut
-      ? filteredNodes.length
-      : Math.max(filteredNodes.length, listed.total);
-    const safePageSize = Math.max(1, listed.pageSize);
+    const allNodes = await this.listAllFilteredNodes(personaId, userId, input);
+    const offset = (page - 1) * pageSize;
+    const nodes = allNodes.slice(offset, offset + pageSize);
 
     return {
-      nodes: filteredNodes,
+      nodes,
       pagination: {
-        page: listed.page,
-        pageSize: safePageSize,
-        total,
-        totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+        page,
+        pageSize,
+        total: allNodes.length,
+        totalPages: Math.max(1, Math.ceil(allNodes.length / pageSize)),
+      },
+    };
+  }
+
+  async listPageAcrossScopes(
+    personaId: string,
+    userScopes: string[],
+    input: { page: number; pageSize: number; query?: string; type?: MemoryType },
+  ): Promise<{
+    nodes: MemoryNode[];
+    pagination: { page: number; pageSize: number; total: number; totalPages: number };
+  }> {
+    const scopedNodes = await Promise.all(
+      userScopes.map((scopeUserId) => this.listAllFilteredNodes(personaId, scopeUserId, input)),
+    );
+    const byId = new Map<string, MemoryNode>();
+    for (const node of scopedNodes.flat()) {
+      const existing = byId.get(node.id);
+      if (!existing || this.rankNode(node) >= this.rankNode(existing)) {
+        byId.set(node.id, node);
+      }
+    }
+
+    const allNodes = Array.from(byId.values()).sort(
+      (a, b) => this.rankNode(b) - this.rankNode(a) || a.id.localeCompare(b.id),
+    );
+    const page = Math.max(1, Math.floor(input.page));
+    const pageSize = Math.max(1, Math.min(200, Math.floor(input.pageSize)));
+    const offset = (page - 1) * pageSize;
+    return {
+      nodes: allNodes.slice(offset, offset + pageSize),
+      pagination: {
+        page,
+        pageSize,
+        total: allNodes.length,
+        totalPages: Math.max(1, Math.ceil(allNodes.length / pageSize)),
       },
     };
   }
@@ -203,7 +258,7 @@ export class MemoryService {
     }
     const nextVersion = currentVersion + 1;
     const nextMetadata: Record<string, unknown> = {
-      ...(currentNode.metadata || {}),
+      ...currentNode.metadata,
       type: nextType,
       importance: nextImportance,
       confidence: nextConfidence,
@@ -250,7 +305,7 @@ export class MemoryService {
         return {
           ...latestNode,
           metadata: {
-            ...(latestNode.metadata || {}),
+            ...latestNode.metadata,
             version: latestVersion,
             mem0Id: nodeId,
           },

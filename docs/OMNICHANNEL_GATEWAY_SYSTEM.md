@@ -364,6 +364,15 @@ flowchart TB
 
 > **Persona-gebundene Telegram Bots** ermöglichen es, pro Persona einen eigenen Bot-Token zu registrieren. Jeder Bot erhält eine eigene `botId`, einen separaten Webhook (`/api/channels/telegram/bots/[botId]/webhook`) oder Polling-Loop und liefert eingehende Nachrichten direkt unter der konfigurierten Persona aus — ohne globale `/persona`-Umschaltung.
 
+### Telegram Native Commands
+
+- `/new` - Start a new conversation
+- `/chatdelete` - Hard-delete the latest persisted message in the current Telegram chat/topic
+- `/reset` - Reset the current conversation
+- `/persona` - List or switch persona
+- `/cron` - Manage automation rules
+- `/model` - Inspect or switch chat model
+
 ---
 
 ## 5. WebSocket Events

@@ -1,5 +1,5 @@
 import { GatewayClient } from '@/modules/gateway/ws-client';
-import type { AgentV2EventEnvelope, AgentV2EventType } from '@/server/agent-v2/types';
+import type { AgentV2EventEnvelope, AgentV2EventType } from '@/shared/agentV2Types';
 
 const AGENT_V2_EVENT_TYPES: AgentV2EventType[] = [
   'agent.v2.session.updated',

@@ -1,4 +1,4 @@
-import type { PersonaFileName, PersonaTabName } from '@/server/personas/personaTypes';
+import type { PersonaFileName, PersonaTabName } from '@/shared/personaTypes';
 
 export const FILE_LABELS: Record<PersonaFileName, string> = {
   'SOUL.md': 'Soul',

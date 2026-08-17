@@ -14,6 +14,10 @@ import {
   recordInboxQueryDuration,
   recordInboxReconnectResync,
 } from '@/server/channels/inbox/observability';
+import {
+  getChatDisplaySlowThresholdMs,
+  logChatDisplayTrace,
+} from '@/server/diagnostics/chatDisplayTrace';
 import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
@@ -34,7 +38,12 @@ function errorResponse(
 
 export const GET = withUserContext(async ({ request, userContext }) => {
   const startedAt = Date.now();
+  let inputDurationMs = 0;
+  let rateLimitDurationMs = 0;
+  let serviceResolveDurationMs = 0;
+  let listInboxDurationMs = 0;
   try {
+    const inputStartedAt = Date.now();
     const { searchParams } = new URL(request.url);
     const input = resolveInboxListInput({
       channel: searchParams.get('channel') || '',
@@ -44,13 +53,27 @@ export const GET = withUserContext(async ({ request, userContext }) => {
       resync: searchParams.get('resync') || undefined,
       version: searchParams.get('version') || undefined,
     });
+    inputDurationMs = Date.now() - inputStartedAt;
+    logChatDisplayTrace('http.inbox.input', {
+      path: '/api/channels/inbox',
+      userId: userContext.userId,
+      version: input.version,
+      resync: input.resync,
+      limit: input.limit,
+      hasCursor: Boolean(input.cursor),
+      hasChannel: Boolean(input.channel),
+      hasQuery: Boolean(input.query),
+      durationMs: inputDurationMs,
+    });
 
     const v2Enabled = isInboxV2Enabled();
     if (input.version === 'v2' && !v2Enabled) {
       throw createUnavailableError('Inbox v2 is temporarily disabled.');
     }
 
+    const rateLimitStartedAt = Date.now();
     const rateLimit = consumeInboxRateLimit('http', userContext.userId);
+    rateLimitDurationMs = Date.now() - rateLimitStartedAt;
     if (!rateLimit.allowed) {
       return NextResponse.json(
         {
@@ -69,7 +92,10 @@ export const GET = withUserContext(async ({ request, userContext }) => {
       );
     }
 
+    const serviceStartedAt = Date.now();
     const service = getMessageService();
+    serviceResolveDurationMs = Date.now() - serviceStartedAt;
+    const listInboxStartedAt = Date.now();
     const result = service.listInbox({
       userId: userContext.userId,
       channel: input.channel,
@@ -77,6 +103,7 @@ export const GET = withUserContext(async ({ request, userContext }) => {
       limit: input.limit,
       cursor: input.cursor,
     });
+    listInboxDurationMs = Date.now() - listInboxStartedAt;
 
     const durationMs = Date.now() - startedAt;
     recordInboxQueryDuration('http', durationMs);
@@ -93,6 +120,24 @@ export const GET = withUserContext(async ({ request, userContext }) => {
       totalMatched: result.totalMatched,
       durationMs,
     });
+    logChatDisplayTrace(
+      'http.inbox.complete',
+      {
+        path: '/api/channels/inbox',
+        userId: userContext.userId,
+        version: input.version,
+        resync: input.resync,
+        returned: result.items.length,
+        totalMatched: result.totalMatched,
+        hasMore: result.hasMore,
+        durationMs,
+        inputDurationMs,
+        rateLimitDurationMs,
+        serviceResolveDurationMs,
+        listInboxDurationMs,
+      },
+      { force: durationMs >= getChatDisplaySlowThresholdMs() },
+    );
 
     if (input.version === 'v1') {
       return NextResponse.json(toInboxV1Response(result), {

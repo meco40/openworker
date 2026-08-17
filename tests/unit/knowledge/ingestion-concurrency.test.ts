@@ -151,8 +151,8 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
     const result = await service.runOnce();
 
     expect(store).toHaveBeenCalledTimes(3);
-    // processWindow does not throw on individual store failures, so no errors
-    expect(result.errors).toHaveLength(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.reason).toMatch(/remain pending/i);
   });
 
   it('opens mem0 circuit only after repeated consecutive failures within one window', async () => {
@@ -208,6 +208,7 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
 
     // Two failures in a row open the circuit; third fact is skipped in this window.
     expect(store).toHaveBeenCalledTimes(2);
-    expect(result.errors).toHaveLength(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.reason).toMatch(/remain pending/i);
   });
 });

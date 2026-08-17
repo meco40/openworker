@@ -311,4 +311,52 @@ describe('mem0Client', () => {
       }),
     ).rejects.toThrow(/timeout|aborted/i);
   });
+
+  it('preserves caller cancellation as AbortError instead of reporting a timeout', async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener(
+          'abort',
+          () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })),
+          { once: true },
+        );
+      });
+    });
+    const client = createMem0Client(
+      { baseUrl: 'http://mem0.local', apiPath: '/v1', timeoutMs: 4000 },
+      fetchMock as unknown as typeof fetch,
+    );
+    const controller = new AbortController();
+    const request = client.addMemory(
+      {
+        userId: 'user-1',
+        personaId: 'persona-1',
+        content: 'cancelled request',
+        metadata: {},
+      },
+      controller.signal,
+    );
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(request).rejects.not.toThrow(/timeout/i);
+  });
+
+  it('fails immediately when the caller signal is already aborted', async () => {
+    const fetchMock = vi.fn();
+    const client = createMem0Client(
+      { baseUrl: 'http://mem0.local', apiPath: '/v1' },
+      fetchMock as unknown as typeof fetch,
+    );
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      client.addMemory(
+        { userId: 'user-1', personaId: 'persona-1', content: 'cancelled', metadata: {} },
+        controller.signal,
+      ),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

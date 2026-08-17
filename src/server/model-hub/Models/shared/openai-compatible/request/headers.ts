@@ -8,6 +8,6 @@ export function buildRequestHeaders(
   return {
     'Content-Type': CONTENT_TYPE_JSON,
     ...buildOptionalAuthHeaders(secret),
-    ...(extraHeaders ?? {}),
+    ...extraHeaders,
   };
 }

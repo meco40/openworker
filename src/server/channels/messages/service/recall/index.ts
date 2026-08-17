@@ -20,12 +20,17 @@ import { getKnowledgeRetrievalService } from '@/server/knowledge/runtime';
 import { resolveMemoryUserIdCandidates } from '@/server/memory/userScope';
 import { fuseRecallSources } from '@/server/channels/messages/recallFusion';
 import {
+  getChatRecallSlowThresholdMs,
+  logChatRecallTrace,
+  previewRecallText,
+} from '@/server/diagnostics/chatRecallTrace';
+import { summarizeError } from '@/server/diagnostics/errorSummary';
+import {
   shouldRecallMemoryForInput,
   isExplicitRecallCommand,
   normalizeMemoryContext,
   MEMORY_RECALL_LIMIT,
   MEMORY_FEEDBACK_WINDOW_MS,
-  type KnowledgeRetrievalServiceLike,
 } from '../types';
 import { recallFromKnowledge, recallFromChat } from './search';
 import { buildStrictEvidenceReply } from './evidence';
@@ -79,23 +84,40 @@ export class RecallService {
     const knowledgeConfig = resolveKnowledgeConfig();
     const knowledgeRetrievalService =
       knowledgeConfig.layerEnabled && knowledgeConfig.retrievalEnabled
-        ? (getKnowledgeRetrievalService() as unknown as KnowledgeRetrievalServiceLike)
+        ? getKnowledgeRetrievalService()
         : null;
 
     const shouldRecall = shouldRecallMemoryForInput(userInput);
     if (!shouldRecall) return null;
     const explicitRecallCommand = isExplicitRecallCommand(userInput);
+    const startedAt = Date.now();
+    const sourceDurationsMs: Partial<Record<'knowledge' | 'memory' | 'chat', number>> = {};
+    const measure = async <T>(
+      source: 'knowledge' | 'memory' | 'chat',
+      fn: () => Promise<T>,
+    ): Promise<T> => {
+      const sourceStartedAt = Date.now();
+      try {
+        return await fn();
+      } finally {
+        sourceDurationsMs[source] = Date.now() - sourceStartedAt;
+      }
+    };
 
     // Parallel recall from all three sources
     const [knowledgeResult, memoryResult, chatResult] = await Promise.allSettled([
-      recallFromKnowledge(knowledgeRetrievalService, memoryUserIds, conversation, userInput, {
-        skipPreIngest: explicitRecallCommand,
-        includeSemantic: !explicitRecallCommand,
-      }),
-      this.recallFromMemory(memoryUserIds, conversation, userInput, {
-        mode: explicitRecallCommand ? 'lexical' : 'semantic',
-      }),
-      this.recallFromChat(conversation, userInput),
+      measure('knowledge', () =>
+        recallFromKnowledge(knowledgeRetrievalService, memoryUserIds, conversation, userInput, {
+          skipPreIngest: explicitRecallCommand,
+          includeSemantic: !explicitRecallCommand,
+        }),
+      ),
+      measure('memory', () =>
+        this.recallFromMemory(memoryUserIds, conversation, userInput, {
+          mode: explicitRecallCommand ? 'lexical' : 'semantic',
+        }),
+      ),
+      measure('chat', () => this.recallFromChat(conversation, userInput)),
     ]);
 
     const knowledgeContext = knowledgeResult.status === 'fulfilled' ? knowledgeResult.value : null;
@@ -107,6 +129,42 @@ export class RecallService {
       memory: memoryContext,
       chatHits,
     });
+
+    const durationMs = Date.now() - startedAt;
+    const slowThresholdMs = getChatRecallSlowThresholdMs();
+    const slow = durationMs >= slowThresholdMs;
+    const hasFailure =
+      knowledgeResult.status === 'rejected' ||
+      memoryResult.status === 'rejected' ||
+      chatResult.status === 'rejected';
+    logChatRecallTrace(
+      'context.completed',
+      {
+        durationMs,
+        slow,
+        slowThresholdMs,
+        conversationId: conversation.id,
+        channelType: conversation.channelType,
+        externalChatId: conversation.externalChatId || null,
+        personaId: conversation.personaId ?? null,
+        userId: conversation.userId,
+        queryLength: userInput.trim().length,
+        queryPreview: previewRecallText(userInput),
+        explicitRecallCommand,
+        memoryUserIdsCount: memoryUserIds.length,
+        sourceDurationsMs,
+        sourceStatuses: {
+          knowledge: knowledgeResult.status,
+          memory: memoryResult.status,
+          chat: chatResult.status,
+        },
+        hasKnowledgeContext: Boolean(knowledgeContext),
+        hasMemoryContext: Boolean(memoryContext),
+        chatHitCount: chatHits.length,
+        fusedLength: fused?.length ?? 0,
+      },
+      { force: slow || hasFailure, level: hasFailure ? 'warn' : 'info' },
+    );
 
     return fused;
   }
@@ -137,6 +195,7 @@ export class RecallService {
       if (this.stateManager.isMem0ScopeTemporarilyEmpty(personaId, userIdCandidate)) {
         continue;
       }
+      const startedAt = Date.now();
       try {
         const recalled = await getMemoryService().recallDetailed(
           personaId,
@@ -157,13 +216,72 @@ export class RecallService {
         const normalized = normalizeMemoryContext(recalled.context);
         if (normalized) {
           this.stateManager.clearMem0ScopeEmptyMarker(personaId, userIdCandidate);
+          const durationMs = Date.now() - startedAt;
+          const slowThresholdMs = getChatRecallSlowThresholdMs();
+          logChatRecallTrace(
+            'memory.scope_completed',
+            {
+              durationMs,
+              slow: durationMs >= slowThresholdMs,
+              slowThresholdMs,
+              conversationId: conversation.id,
+              channelType: conversation.channelType,
+              externalChatId: conversation.externalChatId || null,
+              personaId,
+              memoryUserId: userIdCandidate,
+              queryLength: userInput.trim().length,
+              queryPreview: previewRecallText(userInput),
+              mode: options.mode,
+              matchesCount: recalled.matches.length,
+              contextLength: normalized.length,
+            },
+            { force: durationMs >= slowThresholdMs },
+          );
           return normalized;
         }
         if (recalled.matches.length === 0) {
           this.stateManager.markMem0ScopeTemporarilyEmpty(personaId, userIdCandidate);
         }
+        const durationMs = Date.now() - startedAt;
+        const slowThresholdMs = getChatRecallSlowThresholdMs();
+        logChatRecallTrace(
+          'memory.scope_completed',
+          {
+            durationMs,
+            slow: durationMs >= slowThresholdMs,
+            slowThresholdMs,
+            conversationId: conversation.id,
+            channelType: conversation.channelType,
+            externalChatId: conversation.externalChatId || null,
+            personaId,
+            memoryUserId: userIdCandidate,
+            queryLength: userInput.trim().length,
+            queryPreview: previewRecallText(userInput),
+            mode: options.mode,
+            matchesCount: recalled.matches.length,
+            contextLength: 0,
+            emptyScopeMarked: recalled.matches.length === 0,
+          },
+          { force: durationMs >= slowThresholdMs },
+        );
       } catch (error) {
-        console.error('Memory recall failed:', error);
+        logChatRecallTrace(
+          'memory.scope_failed',
+          {
+            durationMs: Date.now() - startedAt,
+            conversationId: conversation.id,
+            channelType: conversation.channelType,
+            externalChatId: conversation.externalChatId || null,
+            personaId,
+            memoryUserId: userIdCandidate,
+            queryLength: userInput.trim().length,
+            queryPreview: previewRecallText(userInput),
+            mode: options.mode,
+            error: summarizeError(error),
+          },
+          { force: true, level: 'error' },
+        );
+        console.error('Memory recall failed:', summarizeError(error));
       }
     }
     return null;

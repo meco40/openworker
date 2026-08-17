@@ -13,6 +13,10 @@ import { SessionManager } from '@/server/channels/messages/sessionManager';
 import { HistoryManager } from '@/server/channels/messages/historyManager';
 import { ContextBuilder } from '@/server/channels/messages/contextBuilder';
 import type { StoredMessageAttachment } from '@/server/channels/messages/attachments';
+import {
+  getChatDisplaySlowThresholdMs,
+  logChatDisplayTrace,
+} from '@/server/diagnostics/chatDisplayTrace';
 
 import { SubagentManager } from './subagentManager';
 import { ToolManager } from './toolManager';
@@ -34,6 +38,7 @@ import {
   getOrCreateConversation,
   getDefaultWebChatConversation,
   getConversation,
+  getConversationByExternalChat,
   isAgentRoomConversation,
   listMessages,
   getMessage,
@@ -63,7 +68,6 @@ export class MessageService {
   private readonly toolManager: ToolManager;
   private readonly recallService: RecallService;
   private readonly summaryService: SummaryService;
-  private readonly summaryRefreshInFlight: Set<string>;
   private readonly state: ServiceState;
   private readonly sendResponse: ReturnType<typeof createSendResponse>;
 
@@ -86,9 +90,6 @@ export class MessageService {
       (conversation) => this.isMemoryEnabledWithRepo(conversation),
     );
     this.summaryService = new SummaryService(repo);
-    this.summaryRefreshInFlight = (
-      this.summaryService as unknown as { summaryRefreshInFlight: Set<string> }
-    ).summaryRefreshInFlight;
     this.state = {
       activeRequests: new Map<string, AbortController>(),
       processingMessages: new Set<string>(),
@@ -143,6 +144,19 @@ export class MessageService {
     );
   }
 
+  getConversationByExternalChat(
+    channelType: ChannelType,
+    externalChatId: string,
+    userId?: string,
+  ): Conversation | null {
+    return getConversationByExternalChat(
+      { repo: this.repo, sessionManager: this.sessionManager },
+      channelType,
+      externalChatId,
+      userId,
+    );
+  }
+
   isAgentRoomConversation(conversationId: string, userId?: string): boolean {
     return isAgentRoomConversation(
       { repo: this.repo, sessionManager: this.sessionManager },
@@ -171,8 +185,26 @@ export class MessageService {
   }
 
   listInbox(input: Omit<InboxListInput, 'userId'> & { userId: string }): InboxListResult {
+    const startedAt = Date.now();
     if (typeof this.repo.listInbox === 'function') {
-      return this.repo.listInbox(input);
+      const result = this.repo.listInbox(input);
+      const durationMs = Date.now() - startedAt;
+      logChatDisplayTrace(
+        'service.listInbox.complete',
+        {
+          userId: input.userId,
+          backend: 'repository',
+          limit: input.limit,
+          hasChannel: Boolean(input.channel),
+          hasQuery: Boolean(input.query),
+          hasCursor: Boolean(input.cursor),
+          returned: result.items.length,
+          totalMatched: result.totalMatched,
+          durationMs,
+        },
+        { force: durationMs >= getChatDisplaySlowThresholdMs() },
+      );
+      return result;
     }
 
     const limit = Math.max(1, Math.min(100, Number(input.limit || 50)));
@@ -229,7 +261,7 @@ export class MessageService {
     const items = hasMore ? pagedItems.slice(0, limit) : pagedItems;
     const last = hasMore ? items[items.length - 1] : null;
 
-    return {
+    const result = {
       items,
       limit,
       hasMore,
@@ -241,6 +273,23 @@ export class MessageService {
         : null,
       totalMatched: filteredItems.length,
     };
+    const durationMs = Date.now() - startedAt;
+    logChatDisplayTrace(
+      'service.listInbox.complete',
+      {
+        userId: input.userId,
+        backend: 'fallback',
+        limit,
+        hasChannel: Boolean(input.channel),
+        hasQuery: Boolean(input.query),
+        hasCursor: Boolean(input.cursor),
+        returned: result.items.length,
+        totalMatched: result.totalMatched,
+        durationMs,
+      },
+      { force: durationMs >= getChatDisplaySlowThresholdMs() },
+    );
+    return result;
   }
 
   getInboxItem(conversationId: string, userId: string): InboxItemRecord | null {
@@ -433,7 +482,6 @@ export class MessageService {
       {
         repo: this.repo,
         sessionManager: this.sessionManager,
-        summaryRefreshInFlight: this.summaryRefreshInFlight,
         summaryService: this.summaryService,
         recallService: this.recallService,
         activeRequests: this.state.activeRequests,
@@ -448,7 +496,6 @@ export class MessageService {
       {
         repo: this.repo,
         sessionManager: this.sessionManager,
-        summaryRefreshInFlight: this.summaryRefreshInFlight,
         summaryService: this.summaryService,
         recallService: this.recallService,
         activeRequests: this.state.activeRequests,

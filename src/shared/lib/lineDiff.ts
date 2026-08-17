@@ -25,7 +25,7 @@ export function computeLineDiff(oldText: string, newText: string): DiffLine[] {
 
   const lcs: number[][] = [];
   for (let i = 0; i <= m; i++) {
-    lcs[i] = new Array(n + 1).fill(0);
+    lcs[i] = Array.from({ length: n + 1 }, () => 0);
   }
 
   for (let i = 1; i <= m; i++) {

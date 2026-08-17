@@ -1,23 +1,27 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const callMock = vi.hoisted(() => vi.fn());
+const callMock = vi.fn();
 
-vi.mock('@/lib/openclaw/client', () => ({
-  getOpenClawClient: () => ({ call: callMock }),
-}));
+beforeEach(() => {
+  vi.resetModules();
+  callMock.mockReset();
 
-import {
-  agentsListHandler,
-  sessionStatusHandler,
-  sessionsHistoryHandler,
-  sessionsListHandler,
-  sessionsSendHandler,
-  sessionsSpawnHandler,
-} from '@/server/skills/handlers/sessionCompat';
+  vi.doMock('@/lib/openclaw/client', () => ({
+    getOpenClawClient: () => ({ call: callMock }),
+  }));
+});
 
 describe('session/agent compat handlers', () => {
   it('maps sessions and agents tool calls to OpenClaw client methods', async () => {
-    callMock.mockReset();
+    const {
+      agentsListHandler,
+      sessionStatusHandler,
+      sessionsHistoryHandler,
+      sessionsListHandler,
+      sessionsSendHandler,
+      sessionsSpawnHandler,
+    } = await import('@/server/skills/handlers/sessionCompat');
+
     callMock.mockImplementation(async (method: string) => {
       if (method === 'agents.list') return [{ id: 'agent-1', name: 'Agent 1' }];
       if (method === 'sessions.list') return [{ id: 'agent:main:s-1', status: 'active' }];

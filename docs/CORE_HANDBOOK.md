@@ -72,7 +72,7 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 │  │  │  - Auth verification    │  │  │     │  └────┬────┘ └────┬────┘ └────┬─────┘   │   │
 │  │  └─────────────────────────┘  │  │     │       │           │           │         │   │
 │  │  ┌─────────────────────────┐  │  │     │  ┌────┴────┐ ┌───┴────┐ ┌──┴───────┐    │   │
-│  │  │  Method Router          │  │  │     │  │ iMessage│ │WhatsApp│ │  Email   │    │   │
+│  │  │  Method Router          │  │  │     │  │ iMessage│ │WhatsApp│ │  WebChat │    │   │
 │  │  │  - RPC calls            │  │  │     │  └─────────┘ └────────┘ └──────────┘    │   │
 │  │  │  - Event broadcasting   │  │  │     └─────────────────────────────────────────┘   │
 │  │  └─────────────────────────┘  │  │                                                   │
@@ -204,7 +204,6 @@ openclaw-gateway-control-plane/
 │   │   ├── model-hub/                     # Model Hub provider routes
 │   │   ├── ops/                           # Ops/monitoring routes
 │   │   ├── personas/                      # Persona CRUD routes
-│   │   ├── rooms/                         # Room orchestration routes
 │   │   └── skills/                        # Skill management routes
 │   ├── layout.tsx                         # Root layout
 │   ├── page.tsx                           # Home page
@@ -225,6 +224,11 @@ openclaw-gateway-control-plane/
 │   │   ├── security/                      # Security overview UI
 │   │   ├── tasks/                         # Task management UI
 │   │   └── telemetry/                     # Telemetry/metrics UI
+│   │
+│   ├── components/                        # Reusable React UI components
+│   │   └── ui/                            # Base UI component library
+│   │
+│   ├── lib/                               # Utility functions
 │   │
 │   ├── server/                            # Server-side domains
 │   │   ├── auth/                          # Authentication & authorization
@@ -311,11 +315,6 @@ openclaw-gateway-control-plane/
 │       ├── doctorCommand.ts               # System diagnostics
 │       └── health/                        # Health check implementations
 │
-├── components/                            # React UI components
-│   └── ui/                               # Base UI component library
-│
-├── lib/                                  # Client-side utilities
-│
 ├── tests/                                # Test suites
 │   ├── unit/                             # Unit tests
 │   ├── integration/                      # Integration tests
@@ -393,7 +392,6 @@ export async function POST(request: Request) {
 src/server/
 ├── channels/messages/service.ts      # Message processing logic
 ├── memory/service.ts                  # Memory operations
-├── rooms/orchestrator.ts              # Room orchestration
 └── ...
 ```
 
@@ -464,28 +462,28 @@ const router = new MessageRouter(mockRepo, mockRegistry);
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Set up environment
 copy .env.local.example .env.local
 # Edit .env.local with your configuration
 
 # Run development server (web + scheduler combined)
-npm run dev
+pnpm run dev
 
 # Or run separately:
-npm run dev:next      # Next.js only
-npm run dev:scheduler # Scheduler only
+pnpm run dev:next      # Next.js only
+pnpm run dev:scheduler # Scheduler only
 ```
 
 ### Development Modes
 
-| Command                 | Description              | Use Case             |
-| ----------------------- | ------------------------ | -------------------- |
-| `npm run dev`           | Web + Scheduler combined | Local development    |
-| `npm run dev:next`      | Next.js dev server only  | UI-focused work      |
-| `npm run dev:scheduler` | Background tasks only    | Automation testing   |
-| `npm run dev:stack`     | Alias for `npm run dev`  | Standard development |
+| Command                  | Description              | Use Case             |
+| ------------------------ | ------------------------ | -------------------- |
+| `pnpm run dev`           | Web + Scheduler combined | Local development    |
+| `pnpm run dev:next`      | Next.js dev server only  | UI-focused work      |
+| `pnpm run dev:scheduler` | Background tasks only    | Automation testing   |
+| `pnpm run dev:stack`     | Alias for `pnpm run dev` | Standard development |
 
 ### Code Quality Gates
 
@@ -493,14 +491,14 @@ Before committing, ensure all quality gates pass:
 
 ```bash
 # Run all checks
-npm run check
+pnpm run check
 
 # Individual checks:
-npm run typecheck   # TypeScript compilation check
-npm run lint        # Oxlint validation
-npm run format:check # Prettier format check
-npm run test        # Vitest test suite
-npm run build       # Production build
+pnpm run typecheck   # TypeScript compilation check
+pnpm run lint        # Oxlint validation
+pnpm run format:check # Prettier format check
+pnpm run test        # Vitest test suite
+pnpm run build       # Production build
 ```
 
 ### Git Workflow
@@ -520,7 +518,7 @@ npm run build       # Production build
 
 3. **Pre-push verification** (recommended):
    ```bash
-   npm run check && npm run test
+   pnpm run check && pnpm run test
    ```
 
 ### Adding New Features
@@ -637,9 +635,9 @@ interface PersonaConfig {
 
 ### Canonical Documentation
 
-For complete rooms/personas documentation, see:
+For complete personas documentation, see:
 
-- `docs/PERSONA_ROOMS_SYSTEM.md` - System design
+- `docs/PERSONA_ROOMS_SYSTEM.md` - Persona system design
 - `docs/SESSION_MANAGEMENT.md` - Session handling
 
 ---
@@ -707,16 +705,16 @@ All code must pass before merging:
 
 ```bash
 # 1. TypeScript compilation
-npm run typecheck
+pnpm run typecheck
 
 # 2. Oxlint validation
-npm run lint
+pnpm run lint
 
 # 3. Test suite
-npm run test
+pnpm run test
 
 # 4. Production build
-npm run build
+pnpm run build
 ```
 
 ### Automated Enforcement
@@ -741,7 +739,7 @@ npm run build
 | Functions  | 60%     | 70%    |
 | Lines      | 60%     | 70%    |
 
-Run coverage: `npm run test:coverage`
+Run coverage: `pnpm run test:coverage`
 
 ---
 
@@ -751,7 +749,7 @@ Run coverage: `npm run test:coverage`
 
 ```bash
 # Enable verbose logging
-DEBUG=ws npm run dev
+DEBUG=ws pnpm run dev
 
 # Monitor gateway connections
 curl http://localhost:3000/api/health
@@ -777,7 +775,7 @@ SELECT * FROM messages LIMIT 10;          # Recent messages
 | `WS 429 Too Many Connections` | Connection limit    | Close old connections, max 5/user |
 | `Mem0ConnectionError`         | API unreachable     | Check `MEM0_BASE_URL`, network    |
 | `TypeError: Cannot read...`   | Missing null check  | Enable strict null checks         |
-| `Build fails`                 | Type error          | Run `npm run typecheck`           |
+| `Build fails`                 | Type error          | Run `pnpm run typecheck`          |
 
 ### Logging Levels
 
@@ -816,16 +814,16 @@ VERBOSE_LOGGING=true
 
 ```bash
 # Run all tests
-npm run test
+pnpm run test
 
 # Watch mode
-npm run test:watch
+pnpm run test:watch
 
 # With coverage
-npm run test:coverage
+pnpm run test:coverage
 
 # Specific test
-npm run test -- tests/unit/memory/service.test.ts
+pnpm run test -- tests/unit/memory/service.test.ts
 ```
 
 ### Writing Tests
@@ -948,21 +946,21 @@ SWARM_RUNNER=server|scheduler
 
 ```bash
 # Development
-npm run dev              # Start web + scheduler stack
-npm run dev:scheduler    # Start scheduler only
+pnpm run dev              # Start web + scheduler stack
+pnpm run dev:scheduler    # Start scheduler only
 
 # Quality
-npm run check            # All checks (type, lint, format)
-npm run test             # Run tests
-npm run test:coverage    # Coverage report
+pnpm run check            # All checks (type, lint, format)
+pnpm run test             # Run tests
+pnpm run test:coverage    # Coverage report
 
 # Build
-npm run build            # Production build
-npm run start            # Start production server
+pnpm run build            # Production build
+pnpm run start            # Start production server
 
 # Utilities
-npm run memory:reset     # Reset memory database
-npm run knip             # Find unused code
+pnpm run memory:reset     # Reset memory database
+pnpm run knip             # Find unused code
 ```
 
 ---

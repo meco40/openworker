@@ -28,4 +28,25 @@ describe('AppShellHeader', () => {
     expect(ramUsageIndex).toBeGreaterThan(vectorNodesIndex);
     expect(html).toMatch(/1[,.]5 GB/);
   });
+
+  it('renders unavailable vector counts as placeholder', () => {
+    const metricsState: ControlPlaneMetricsState = {
+      metrics: {
+        uptimeSeconds: 1,
+        activeWsSessions: 1,
+        tokensToday: 1,
+        vectorNodeCount: -1,
+        ramUsageBytes: 1024,
+        generatedAt: '2026-02-23T00:00:00.000Z',
+      },
+      loading: false,
+      stale: false,
+      error: null,
+    };
+
+    const html = renderToStaticMarkup(createElement(AppShellHeader, { metricsState }));
+
+    expect(html).toContain('Vector Nodes');
+    expect(html).toContain('--');
+  });
 });
