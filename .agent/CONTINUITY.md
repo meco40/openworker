@@ -377,6 +377,17 @@ Validation final for this pass:
 - Build-Warnung: 13 Turbopack-Meldungen zu sehr breiten dynamischen Dateimustern; Build bleibt erfolgreich, aber Tracing-/Bundle-Performance ist betroffen.
 - Laufzeit: `npm run dev` startete Web, Scheduler und Swarm-Runtime; `/` lieferte 200. Lokaler Mem0-/Postgres-Compose-Stack war healthy und Mem0 `/health` lieferte 200; kein Mem0-Connection-Error im Startlog. Der geschützte `/api/health`-Aufruf ohne Auth lieferte 401.
 
+## [OUTCOMES] 2026-08-18T00:33:00+02:00 [CODE] Branch-Coverage der 4 Service-Layer-Zielmodule auf ≥80% gehoben
+
+- **Empfehlung aus App-Review umgesetzt**: Branch-Coverage auf 80% für die 4 identifizierten Service-Layer-Dateien gehoben.
+- **Neue Testdateien** (4 Dateien / 114 Tests):
+  - `tests/unit/memory/api-shared-branches.test.ts` (50 Tests) → `memory/api/shared.ts` Branches 92.36%
+  - `tests/unit/channels/telegram-outbound-branches.test.ts` (25 Tests) → `outbound/telegram.ts` Branches 87.63%
+  - `tests/unit/clawhub/clawhub-service-branches.test.ts` (21 Tests) → `clawhubService.ts` Branches 95.6%
+  - `tests/unit/stats/engineering-metrics-service-branches.test.ts` (18 Tests) → `engineeringMetricsService.ts` Branches 87.18%
+- **Abgedeckte Bereiche**: `getReadyMemoryService` (alle 3 Pfade), `parseStoreArgs`/`parseRecallArgs`/`parseUpdateBody`/`parseBulkBody` (alle Validierungs-Branches), `resolveMemoryReadUserScopes` (Legacy-Scope, Channel-Scopes, Fehlerfall), `splitTelegramMessage` (alle Split-Pfade), `buildInlineKeyboard` (Filter-Logik), `deliverTelegram`/`editTelegramMessage`/`answerTelegramCallbackQuery` (Chunking, Retry, Fehler, Token-Auflösung), `ClawHubService` (search/explore/install/update/uninstall/setEnabled/getPromptBlock/getClawHubService), `collectEngineeringMetricsSnapshot` (Snapshot- und Fallback-Pfad, alle readPayload-Helfer, Scope-Auflösung, Run-Signale, Merge-Sizes, Async-Failures, Domain/Worktree/Scenario-Stats, Rollout-Fallback).
+- **Validierung**: `pnpm run check` ✅ (Typecheck, Oxlint 0 Warnungen/0 Fehler, Prettier), `pnpm run test` ✅ 570 Dateien / 2868 Tests (vorher 566/2754, +4 Dateien +114 Tests), `pnpm run build` ✅ (Next.js 16.1.6 webpack, erfolgreich in 9.1min, 52 statische Seiten).
+
 ## [OUTCOMES] 2026-08-17T18:30:00+02:00 [CODE] Alle bestätigten Review-Befunde behoben und nachgeprüft
 
 - Security: Webhook-Signaturen fail-closed und timing-sicher; Completion-GET ohne Taskdaten; Skill-Aktivierung serverseitig erzwungen; SSRF-, Redirect-, Header-, Body-, Pfad-, Symlink- und Preview-Grenzen zentralisiert; WhatsApp-Media-Hosts exakt allowlisted; externe Skills standardmäßig deaktiviert, mit eingeschränkter Umgebung und sicherer Manifest-/Paketpfadvalidierung.
