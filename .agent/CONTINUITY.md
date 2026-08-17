@@ -367,4 +367,4 @@ Validation final for this pass:
 - Diagnostics: Identifier, Queries und Fehlertext werden in Trace-Logs gehasht; erzwungene Logs benötigen explizite Opt-in-Variablen.
 - Coverage/Testqualität: 564 Dateien und 2741 Tests bestanden; Coverage-Scope enthält die geänderte Knowledge-Ingestion und liegt bei ca. 84,70% Statements, 72,38% Branches, 87,72% Functions und 86,45% Lines.
 - Verifikation: `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build` und `pnpm run test:e2e:smoke` bestanden; Smoke 7 Dateien/11 Tests. Lokales Mem0 und Postgres healthy, `npm run dev` meldete Server ready, `GET /` HTTP 200, kein Mem0-Connection-Error.
-- Push-Status: UNCONFIRMED bis Commit und Remote-Push nach abschließender expliziter Staging-Prüfung erfolgt sind.
+- Push-Status: [TOOL] Commit `09f4de1bac1aea0d30517d924f2ca87645538d97` ist nach `origin/main` gepusht; Worktree enthält danach nur das untracked lokale `.kilo/`-Artefakt.
