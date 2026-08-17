@@ -9,6 +9,7 @@
  */
 
 import type { SkillDispatchContext } from '@/server/skills/types';
+import { fetchWithSsrfGuard, readResponseTextLimited } from '@/server/http/ssrfGuard';
 
 type NotificationAction = 'webhook_send' | 'email_send';
 
@@ -25,31 +26,6 @@ interface NotificationsArgs {
   from?: string;
 }
 
-const BLOCKED_PRIVATE_RANGES = [
-  /^127\./,
-  /^10\./,
-  /^192\.168\./,
-  /^172\.(1[6-9]|2\d|3[01])\./,
-  /^169\.254\./,
-  /^::1$/,
-  /^fc|^fd/,
-  /^localhost$/i,
-];
-
-function assertUrlAllowed(url: string): void {
-  let hostname: string;
-  try {
-    hostname = new URL(url).hostname;
-  } catch {
-    throw new Error(`Invalid URL: ${url}`);
-  }
-  for (const pattern of BLOCKED_PRIVATE_RANGES) {
-    if (pattern.test(hostname)) {
-      throw new Error(`Blocked: private/loopback URL not allowed (${hostname})`);
-    }
-  }
-}
-
 async function sendWebhook(
   url: string,
   payload: unknown,
@@ -59,18 +35,20 @@ async function sendWebhook(
     return { error: 'Webhook skill disabled. Set OPENCLAW_NOTIFICATIONS_ENABLED=true to enable.' };
   }
 
-  assertUrlAllowed(url);
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
+  const response = await fetchWithSsrfGuard(
+    url,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
+    { maxRedirects: 0 },
+  );
 
-  const responseText = await response.text().catch(() => '');
+  const responseText = await readResponseTextLimited(response, 64_000).catch(() => '');
   return {
     status: response.status,
     statusText: response.statusText,

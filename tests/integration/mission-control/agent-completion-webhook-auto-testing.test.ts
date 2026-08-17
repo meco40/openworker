@@ -11,6 +11,7 @@ describe('Mission Control agent-completion webhook auto-testing trigger', () => 
   let previousPort: string | undefined;
   let previousAutoTestTrigger: string | undefined;
   let previousWebhookSecret: string | undefined;
+  let previousAllowInsecureWebhooks: string | undefined;
   let originalFetch: typeof fetch | undefined;
 
   beforeEach(() => {
@@ -20,6 +21,7 @@ describe('Mission Control agent-completion webhook auto-testing trigger', () => 
     previousPort = process.env.PORT;
     previousAutoTestTrigger = process.env.TASK_AUTOTEST_HTTP_TRIGGER;
     previousWebhookSecret = process.env.WEBHOOK_SECRET;
+    previousAllowInsecureWebhooks = process.env.ALLOW_INSECURE_WEBHOOKS;
     originalFetch = global.fetch;
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-webhook-auto-test-'));
     process.env.DATABASE_PATH = path.join(tempDir, 'mission-control.db');
@@ -27,6 +29,7 @@ describe('Mission Control agent-completion webhook auto-testing trigger', () => 
     process.env.PORT = '3000';
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
     delete process.env.WEBHOOK_SECRET;
+    process.env.ALLOW_INSECURE_WEBHOOKS = 'true';
   });
 
   afterEach(async () => {
@@ -61,6 +64,11 @@ describe('Mission Control agent-completion webhook auto-testing trigger', () => 
       delete process.env.WEBHOOK_SECRET;
     } else {
       process.env.WEBHOOK_SECRET = previousWebhookSecret;
+    }
+    if (previousAllowInsecureWebhooks === undefined) {
+      delete process.env.ALLOW_INSECURE_WEBHOOKS;
+    } else {
+      process.env.ALLOW_INSECURE_WEBHOOKS = previousAllowInsecureWebhooks;
     }
 
     if (tempDir) {

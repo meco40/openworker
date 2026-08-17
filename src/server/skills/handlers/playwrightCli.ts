@@ -1,5 +1,5 @@
 import { execFile as execFileCallback } from 'node:child_process';
-import { createRequire } from 'node:module';
+import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { isCommandApproved } from '@/server/gateway/exec-approval-manager';
@@ -18,7 +18,6 @@ import {
 import type { SkillDispatchContext } from '@/server/skills/types';
 
 const execFile = promisify(execFileCallback);
-const require = createRequire(import.meta.url);
 
 function resolveShell(command: string): { file: string; args: string[] } {
   if (process.platform === 'win32') {
@@ -40,20 +39,20 @@ function buildShellCommand(tokens: string[]): string {
   return ['npx', 'playwright', ...quoted].join(' ');
 }
 
-function resolvePlaywrightInvocation(
-  cwd: string,
-  tokens: string[],
-): { file: string; args: string[] } {
-  try {
-    const packageEntry = require.resolve('playwright', { paths: [cwd] });
+function resolvePlaywrightInvocation(tokens: string[]): { file: string; args: string[] } {
+  const configuredCliPath = String(process.env.PLAYWRIGHT_CLI_PATH || '').trim();
+  const localCliPath = configuredCliPath
+    ? path.resolve(configuredCliPath)
+    : path.resolve(process.cwd(), 'node_modules/playwright/cli.js');
+  if (existsSync(localCliPath)) {
     return {
       file: process.execPath,
-      args: [path.join(path.dirname(packageEntry), 'cli.js'), ...tokens],
+      args: [localCliPath, ...tokens],
     };
-  } catch {
-    const shell = resolveShell(buildShellCommand(tokens));
-    return { file: shell.file, args: shell.args };
   }
+
+  const shell = resolveShell(buildShellCommand(tokens));
+  return { file: shell.file, args: shell.args };
 }
 
 export async function playwrightCliHandler(
@@ -87,7 +86,7 @@ export async function playwrightCliHandler(
 
   const cwd = resolveSkillExecutionCwd(context);
   const { timeoutMs, maxBufferBytes } = resolveShellExecutionOptionsFromEnv();
-  const invocation = resolvePlaywrightInvocation(cwd, tokens);
+  const invocation = resolvePlaywrightInvocation(tokens);
   try {
     const { stdout, stderr } = await execFile(invocation.file, invocation.args, {
       cwd,

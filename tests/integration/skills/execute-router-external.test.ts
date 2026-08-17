@@ -20,6 +20,7 @@ describe('dispatchSkill external handlers', () => {
 
   beforeEach(() => {
     listSkillsMock.mockReset();
+    process.env.EXTERNAL_SKILLS_ENABLED = 'true';
     fs.mkdirSync(tempDir, { recursive: true });
     handlerPath = path.join(tempDir, `external-skill-${Date.now()}.mjs`);
     fs.writeFileSync(
@@ -39,6 +40,7 @@ describe('dispatchSkill external handlers', () => {
 
   afterEach(() => {
     stopExternalSkillHost();
+    delete process.env.EXTERNAL_SKILLS_ENABLED;
     if (handlerPath && fs.existsSync(handlerPath)) {
       fs.rmSync(handlerPath, { force: true });
     }

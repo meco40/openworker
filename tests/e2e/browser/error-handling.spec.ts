@@ -25,21 +25,16 @@ test.describe('Error Handling & Edge Cases', () => {
 
   test('handle large data sets', async ({ page }) => {
     await page.goto('/');
-    await page
-      .getByRole('button', { name: /Multi-Channel Inbox|Dashboard/i })
-      .first()
-      .click({ timeout: 10000 });
-    const listContainer = page.locator('[class*="list"], [data-testid*="list"]').first();
-    await expect(listContainer).toBeVisible({ timeout: 10000 });
+    await page.locator('button[data-view="tasks"]').click({ timeout: 10000 });
+    await expect(page.getByRole('searchbox', { name: 'Search tasks' })).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test('handle special characters in input', async ({ page }) => {
     await page.goto('/');
-    await page
-      .getByRole('button', { name: /Multi-Channel Inbox|Dashboard/i })
-      .first()
-      .click({ timeout: 10000 });
-    const input = page.locator('[data-testid="chat-input"], input[type="text"], textarea').first();
+    await page.locator('button[data-view="chat"]').click({ timeout: 10000 });
+    const input = page.getByTestId('chat-input');
     await expect(input).toBeVisible({ timeout: 10000 });
   });
 });

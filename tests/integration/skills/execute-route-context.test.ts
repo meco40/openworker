@@ -53,6 +53,7 @@ describe('POST /api/skills/execute context forwarding', () => {
       { action: 'list' },
       {
         userId: 'legacy-user',
+        enforceSkillActivation: true,
         conversationId: 'conv-1',
         platform: 'webchat',
         externalChatId: 'default',

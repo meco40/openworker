@@ -1,8 +1,12 @@
+import { fetchWithSsrfGuard, readResponseTextLimited } from '@/server/http/ssrfGuard';
+
 export async function browserSnapshotHandler(args: Record<string, unknown>) {
   const url = String(args.url || '').trim() || 'https://example.com';
-  const response = await fetch(url, { headers: { 'User-Agent': 'openclaw-browser-skill' } });
+  const response = await fetchWithSsrfGuard(url, {
+    headers: { 'User-Agent': 'openclaw-browser-skill' },
+  });
   if (!response.ok) throw new Error(`Failed to fetch URL (${response.status}).`);
-  const html = await response.text();
+  const html = await readResponseTextLimited(response, 1_000_000);
 
   const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
   const descriptionMatch = html.match(

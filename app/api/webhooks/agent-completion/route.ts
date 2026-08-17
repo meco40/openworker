@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHmac } from 'node:crypto';
-import { queryOne, queryAll, run } from '@/lib/db';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { queryOne, run } from '@/lib/db';
+import { allowInsecureWebhookFallback } from '@/server/channels/webhookAuth';
 import {
   ensureTaskDeliverablesFromProjectDir,
   triggerAutomatedTaskTest,
@@ -14,17 +15,17 @@ function verifyWebhookSignature(signature: string, rawBody: string): boolean {
   const webhookSecret = process.env.WEBHOOK_SECRET;
 
   if (!webhookSecret) {
-    // Dev mode - skip validation
-    return true;
+    return allowInsecureWebhookFallback();
   }
 
-  if (!signature) {
+  if (!/^[a-f0-9]{64}$/i.test(signature)) {
     return false;
   }
 
   const expectedSignature = createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
-
-  return signature === expectedSignature;
+  const received = Buffer.from(signature, 'hex');
+  const expected = Buffer.from(expectedSignature, 'hex');
+  return received.length === expected.length && timingSafeEqual(received, expected);
 }
 
 /**
@@ -48,15 +49,10 @@ export async function POST(request: NextRequest) {
     // Read raw body for signature verification
     const rawBody = await request.text();
 
-    // Verify webhook signature if WEBHOOK_SECRET is set
-    const webhookSecret = process.env.WEBHOOK_SECRET;
-    if (webhookSecret) {
-      const signature = request.headers.get('x-webhook-signature');
-
-      if (!signature || !verifyWebhookSignature(signature, rawBody)) {
-        console.warn('[WEBHOOK] Invalid signature attempt');
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+    const signature = request.headers.get('x-webhook-signature') || '';
+    if (!verifyWebhookSignature(signature, rawBody)) {
+      console.warn('[WEBHOOK] Invalid signature attempt');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = JSON.parse(rawBody);
@@ -78,7 +74,7 @@ export async function POST(request: NextRequest) {
 
       // Only move to testing if not already in testing, review, or done
       // (Don't overwrite user's approval or testing results)
-      const shouldAutoTest = task.status !== 'review' && task.status !== 'done';
+      const shouldAutoTest = !['testing', 'review', 'done'].includes(task.status);
       if (task.status !== 'testing' && task.status !== 'review' && task.status !== 'done') {
         run('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?', ['testing', now, task.id]);
       }
@@ -162,7 +158,7 @@ export async function POST(request: NextRequest) {
 
       // Only move to testing if not already in testing, review, or done
       // (Don't overwrite user's approval or testing results)
-      const shouldAutoTest = task.status !== 'review' && task.status !== 'done';
+      const shouldAutoTest = !['testing', 'review', 'done'].includes(task.status);
       if (task.status !== 'testing' && task.status !== 'review' && task.status !== 'done') {
         run('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?', ['testing', now, task.id]);
       }
@@ -218,27 +214,11 @@ export async function POST(request: NextRequest) {
 /**
  * GET /api/webhooks/agent-completion
  *
- * Returns webhook status and recent completions
+ * Returns webhook status without exposing task or agent data.
  */
 export async function GET() {
-  try {
-    const recentCompletions = queryAll(
-      `SELECT e.*, a.name as agent_name, t.title as task_title
-       FROM events e
-       LEFT JOIN agents a ON e.agent_id = a.id
-       LEFT JOIN tasks t ON e.task_id = t.id
-       WHERE e.type = 'task_completed'
-       ORDER BY e.created_at DESC
-       LIMIT 10`,
-    );
-
-    return NextResponse.json({
-      status: 'active',
-      recent_completions: recentCompletions,
-      endpoint: '/api/webhooks/agent-completion',
-    });
-  } catch (error) {
-    console.error('Failed to fetch completion status:', error);
-    return NextResponse.json({ error: 'Failed to fetch status' }, { status: 500 });
-  }
+  return NextResponse.json({
+    status: 'active',
+    endpoint: '/api/webhooks/agent-completion',
+  });
 }

@@ -4,6 +4,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { POST as executeSkillPost } from '../app/api/skills/execute/route';
 import { getTestArtifactsRoot } from './helpers/testArtifacts';
+import { getSkillRepository } from '@/server/skills/skillRepository';
 
 function makeRequest(body: Record<string, unknown>) {
   return new Request('http://localhost/api/skills/execute', {
@@ -14,17 +15,22 @@ function makeRequest(body: Record<string, unknown>) {
 }
 
 describe('skills execute route requests', () => {
-  beforeAll(() => {
+  beforeAll(async () => {
     const localDir = getTestArtifactsRoot();
     fs.mkdirSync(localDir, { recursive: true });
     const dbPath = path.join(localDir, 'skills.db');
     process.env.SQLITE_DB_PATH = dbPath;
+    process.env.SKILLS_DB_PATH = dbPath;
 
     const db = new BetterSqlite3(dbPath);
     db.exec(
       "CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, title TEXT); DELETE FROM notes; INSERT INTO notes(title) VALUES ('alpha'),('beta');",
     );
     db.close();
+
+    const repository = await getSkillRepository();
+    repository.setInstalled('sql-bridge', true);
+    repository.setInstalled('github-manager', true);
   });
 
   it('handles file_read request', async () => {

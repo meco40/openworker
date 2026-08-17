@@ -10,29 +10,37 @@ test.describe('UI Components', () => {
 
   test('dropdowns expand and collapse', async ({ page }) => {
     await page.goto('/');
-    const dropdown = page.locator('[class*="dropdown"], [data-testid*="dropdown"]').first();
-    await expect(dropdown).toBeVisible({ timeout: 10000 });
+    await page.locator('button[data-view="chat"]').click({ timeout: 10000 });
+    await page.getByTestId('persona-dropdown-toggle').click({ timeout: 10000 });
+    await expect(page.getByTestId('persona-dropdown-menu')).toBeVisible();
+    await page.getByTestId('persona-dropdown-toggle').click();
+    await expect(page.getByTestId('persona-dropdown-menu')).toBeHidden();
   });
 
   test('modals open and close', async ({ page }) => {
     await page.goto('/');
-    const modalTrigger = page.locator('[class*="modal-trigger"], [data-testid*="modal"]').first();
-    await expect(modalTrigger).toBeVisible({ timeout: 10000 });
+    await page.locator('button[data-view="tasks"]').click({ timeout: 10000 });
+    await page.getByRole('button', { name: 'New Task' }).click();
+    await expect(page.getByRole('dialog', { name: 'New Task' })).toBeVisible();
+    await page.getByRole('button', { name: 'Close' }).click();
+    await expect(page.getByRole('dialog', { name: 'New Task' })).toBeHidden();
   });
 
-  test('tooltips display on hover', async ({ page }) => {
+  test('tooltips provide titles for icon controls', async ({ page }) => {
     await page.goto('/');
-    const tooltip = page.locator('[class*="tooltip"], [data-testid*="tooltip"]').first();
-    await expect(tooltip).toBeVisible({ timeout: 10000 });
+    await page.locator('button[data-view="personas"]').click({ timeout: 10000 });
+    const createButton = page.getByTitle('Neue Persona');
+    await expect(createButton).toBeVisible({ timeout: 10000 });
+    await expect(createButton).toHaveAttribute('title', 'Neue Persona');
   });
 
-  test('loading spinners appear', async ({ page }) => {
+  test('loading states expose an accessible status', async ({ page }) => {
+    await page.route('**/api/tasks**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 750));
+      await route.continue();
+    });
     await page.goto('/');
-    await page
-      .getByRole('button', { name: /Multi-Channel Inbox|Dashboard/i })
-      .first()
-      .click({ timeout: 10000 });
-    const spinner = page.locator('[class*="spinner"], [class*="loading"]').first();
-    await expect(spinner.first()).toBeVisible({ timeout: 10000 });
+    await page.locator('button[data-view="tasks"]').click({ timeout: 10000 });
+    await expect(page.getByRole('status').first()).toBeVisible({ timeout: 10000 });
   });
 });

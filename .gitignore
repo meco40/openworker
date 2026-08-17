@@ -34,6 +34,7 @@ coverage/
 .worktrees/
 .tmp/
 .playwright-mcp/
+playwright-report/
 /mission-control.db
 /mission-control.db-shm
 /mission-control.db-wal

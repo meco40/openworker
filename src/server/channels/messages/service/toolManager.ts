@@ -266,6 +266,7 @@ export class ToolManager {
       const { dispatchSkill, normalizeSkillArgs } = await import('@/server/skills/executeSkill');
       const result = await dispatchSkill(functionName, normalizeSkillArgs(args), {
         bypassApproval: commandApprovalTool && Boolean(params.skipApprovalCheck),
+        enforceSkillActivation: true,
         workspaceCwd: params.workspaceCwd,
         conversationId: params.conversation.id,
         userId: params.conversation.userId,

@@ -4,11 +4,12 @@
  */
 
 import { NextResponse } from 'next/server';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { resolveAllowedExistingPath } from '@/server/security/fileAccess';
 import { withUserContext } from '../../_shared/withUserContext';
 
 export const GET = withUserContext(async ({ request }) => {
+  const MAX_PREVIEW_BYTES = 2 * 1024 * 1024;
   const filePath = new URL(request.url).searchParams.get('path');
 
   if (!filePath) {
@@ -31,11 +32,18 @@ export const GET = withUserContext(async ({ request }) => {
   const normalizedPath = resolvedPathResult.resolvedPath;
 
   try {
+    if (statSync(normalizedPath).size > MAX_PREVIEW_BYTES) {
+      return NextResponse.json({ error: 'Preview file is too large.' }, { status: 413 });
+    }
     const content = readFileSync(normalizedPath, 'utf-8');
     return new NextResponse(content, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
         'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy':
+          "sandbox; default-src 'none'; img-src data: blob: https:; style-src 'unsafe-inline'",
+        'X-Frame-Options': 'DENY',
+        'Content-Disposition': 'inline',
         'Cache-Control': 'no-store',
       },
     });

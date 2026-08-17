@@ -60,6 +60,25 @@ function resolveHostIdleMs(): number {
   return Math.min(raw, 60 * 60 * 1000);
 }
 
+function buildExternalSkillEnvironment(): NodeJS.ProcessEnv {
+  const allowedKeys = [
+    'PATH',
+    'PATHEXT',
+    'SystemRoot',
+    'ComSpec',
+    'TEMP',
+    'TMP',
+    'NODE_ENV',
+    'NODE_PATH',
+  ];
+  const environment = Object.fromEntries(
+    allowedKeys
+      .map((key) => [key, process.env[key]] as const)
+      .filter((entry): entry is readonly [string, string] => typeof entry[1] === 'string'),
+  );
+  return environment as NodeJS.ProcessEnv;
+}
+
 function buildStoppedStatus(): ExternalSkillHostStatus {
   return {
     running: false,
@@ -160,7 +179,7 @@ class ExternalSkillHostClient {
 
     const child = spawn(process.execPath, [hostScriptPath], {
       cwd: process.cwd(),
-      env: process.env,
+      env: buildExternalSkillEnvironment(),
       stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
     });
 

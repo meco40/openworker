@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getClawHubService } from '@/server/clawhub/clawhubService';
 import { isValidClawHubSlug, toClawHubHttpStatus } from '@/server/clawhub/errors';
 import { withUserContext } from '../../_shared/withUserContext';
+import { areExternalSkillsEnabled } from '@/server/skills/externalSkillPolicy';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,12 @@ interface InstallBody {
 
 export const POST = withUserContext(async ({ request }) => {
   try {
+    if (!areExternalSkillsEnabled()) {
+      return NextResponse.json(
+        { ok: false, error: 'External skill installation is disabled.' },
+        { status: 403 },
+      );
+    }
     const body = (await request.json()) as InstallBody;
     const slug = (body.slug || '').trim();
     if (!slug) {

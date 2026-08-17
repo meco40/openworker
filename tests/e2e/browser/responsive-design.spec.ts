@@ -22,14 +22,14 @@ test.describe('Responsive Design', () => {
   test('sidebar collapses on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto('/');
-    const sidebar = page.locator('[class*="sidebar"], [data-testid*="sidebar"]').first();
+    const sidebar = page.getByTestId('app-sidebar');
     await expect(sidebar.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('navigation adapts to screen size', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto('/');
-    const nav = page.locator('nav, [class*="nav"]').first();
+    const nav = page.getByTestId('app-navigation');
     await expect(nav).toBeVisible({ timeout: 10000 });
   });
 });

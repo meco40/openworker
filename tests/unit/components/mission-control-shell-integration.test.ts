@@ -14,7 +14,7 @@ describe('Mission Control shell integration', () => {
       }),
     );
     const navLabels = Array.from(
-      html.matchAll(/<span class="font-medium">([^<]+)<\/span>/g),
+      html.matchAll(/<span class="font-medium[^"]*">([^<]+)<\/span>/g),
       ([, label]) => label,
     );
 

@@ -16,7 +16,8 @@ function isWithinRoot(candidate, root) {
   const normalizedCandidate = normalizePathForCompare(candidate);
   const normalizedRoot = normalizePathForCompare(root);
   if (normalizedCandidate === normalizedRoot) return true;
-  return normalizedCandidate.startsWith(`${normalizedRoot}${path.sep}`);
+  const relative = path.relative(normalizedRoot, normalizedCandidate);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
 function resolveHandlerPath(inputPath) {
@@ -29,7 +30,11 @@ function resolveHandlerPath(inputPath) {
   if (!fs.existsSync(absolutePath)) {
     throw new Error(`External skill handler not found at: ${absolutePath}`);
   }
-  return absolutePath;
+  const realPath = fs.realpathSync(absolutePath);
+  if (!isWithinRoot(realPath, WORKSPACE_ROOT)) {
+    throw new Error(`External skill handler escapes workspace root through a symbolic link.`);
+  }
+  return realPath;
 }
 
 function resolveModuleHandler(moduleValue, functionName) {

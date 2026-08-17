@@ -46,6 +46,7 @@ function resolveSkillDispatchContext(body: SkillRequest, userId: string): SkillD
 
   return {
     userId,
+    enforceSkillActivation: true,
     conversationId,
     platform,
     externalChatId,
@@ -61,7 +62,11 @@ export const POST = withUserContext(async ({ request, userContext }) => {
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown skill execution error';
-    const status = String(message).startsWith('Unsupported skill:') ? 400 : 500;
+    const status = String(message).startsWith('Unsupported skill:')
+      ? 400
+      : String(message).startsWith('Skill is not active:')
+        ? 403
+        : 500;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 });

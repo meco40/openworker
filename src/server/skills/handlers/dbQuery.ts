@@ -1,16 +1,15 @@
 import path from 'node:path';
+import { realpath } from 'node:fs/promises';
 import { getRuntimeConfigValue } from '@/server/skills/runtimeConfig';
 import { openSqliteDatabase } from '@/server/db/sqlite';
+import { assertPathWithinRoot } from '@/server/security/pathBoundary';
 
 const MAX_RESULT_ROWS = 200;
+const WORKSPACE_ROOT = path.resolve('.');
 
 function ensureWorkspacePath(userPath: string): string {
-  const workspaceRoot = path.resolve('.');
-  const resolved = path.resolve(workspaceRoot, userPath);
-  if (!resolved.startsWith(workspaceRoot)) {
-    throw new Error('Path escapes workspace root.');
-  }
-  return resolved;
+  const resolved = path.resolve(WORKSPACE_ROOT, userPath);
+  return assertPathWithinRoot(resolved, WORKSPACE_ROOT);
 }
 
 export async function dbQueryHandler(args: Record<string, unknown>) {
@@ -28,7 +27,9 @@ export async function dbQueryHandler(args: Record<string, unknown>) {
   }
 
   const resolved = ensureWorkspacePath(dbPath);
-  const db = openSqliteDatabase({ dbPath: resolved, readonly: true, enableWal: false });
+  const realPath = await realpath(resolved);
+  const safeRealPath = assertPathWithinRoot(realPath, WORKSPACE_ROOT);
+  const db = openSqliteDatabase({ dbPath: safeRealPath, readonly: true, enableWal: false });
   try {
     const statement = db.prepare(query);
     const rows = statement.all();

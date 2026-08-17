@@ -35,6 +35,8 @@ import { processManagerHandler } from '@/server/skills/handlers/processManager';
 import { gatewaySelfHealHandler } from '@/server/skills/handlers/gatewaySelfHeal';
 import { executeExternalSkillInHost } from '@/server/skills/externalSkillHost';
 import { getSkillRepository } from '@/server/skills/skillRepository';
+import { assertExternalSkillsEnabled } from '@/server/skills/externalSkillPolicy';
+import { assertSkillActive } from '@/server/skills/skillActivation';
 import type { SkillDispatchContext, SkillHandler } from '@/server/skills/types';
 
 export { normalizeArgs as normalizeSkillArgs };
@@ -111,6 +113,8 @@ async function dispatchExternalSkill(
     return null;
   }
 
+  assertExternalSkillsEnabled();
+
   return executeExternalSkillInHost({
     functionName,
     handlerPath: skillRow.handlerPath,
@@ -125,6 +129,9 @@ export async function dispatchSkill(
   context?: SkillDispatchContext,
 ) {
   const handler = SKILL_HANDLERS[name];
+  if (context?.enforceSkillActivation) {
+    await assertSkillActive(name);
+  }
   if (!handler) {
     const externalResult = await dispatchExternalSkill(name, args, context);
     if (externalResult !== null) {

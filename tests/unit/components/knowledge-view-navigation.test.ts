@@ -23,7 +23,7 @@ describe('Knowledge view integration', () => {
       }),
     );
     const navLabels = Array.from(
-      html.matchAll(/<span class="font-medium">([^<]+)<\/span>/g),
+      html.matchAll(/<span class="font-medium[^"]*">([^<]+)<\/span>/g),
       ([, label]) => label,
     );
     expect(navLabels).toContain('Graph');

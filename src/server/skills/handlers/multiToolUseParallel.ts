@@ -27,6 +27,7 @@ import { shellExecuteHandler } from '@/server/skills/handlers/shellExecute';
 import { subagentsHandler } from '@/server/skills/handlers/subagents';
 import { visionAnalyzeHandler } from '@/server/skills/handlers/visionAnalyze';
 import type { SkillDispatchContext } from '@/server/skills/types';
+import { assertSkillActive } from '@/server/skills/skillActivation';
 
 type ParallelToolCallInput = {
   name?: unknown;
@@ -128,6 +129,9 @@ export async function multiToolUseParallelHandler(
       }
 
       try {
+        if (context?.enforceSkillActivation) {
+          await assertSkillActive(name);
+        }
         const value = await handler(callArgs, context);
         return {
           index,

@@ -4,6 +4,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType, type Conversation } from '@/shared/domain/types';
 import { ToolManager } from '@/server/channels/messages/service/toolManager';
+import { getSkillRepository } from '@/server/skills/skillRepository';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
 const generateContentMock = vi.hoisted(() => vi.fn(async () => ({ text: 'vision-ok' })));
@@ -33,13 +34,15 @@ function buildConversation(): Conversation {
 describe('Persona Nexus tool readiness', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
   const previousSqlitePath = process.env.SQLITE_DB_PATH;
+  const previousSkillsDbPath = process.env.SKILLS_DB_PATH;
   const previousGeminiKey = process.env.GEMINI_API_KEY;
   const previousApprovalsRequired = process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     const localDir = getTestArtifactsRoot();
     fs.mkdirSync(localDir, { recursive: true });
     const dbPath = path.join(localDir, 'nexus-tools-readiness.db');
+    process.env.SKILLS_DB_PATH = path.join(localDir, 'nexus-tools-readiness-skills.db');
     const db = new BetterSqlite3(dbPath);
     db.exec(
       "CREATE TABLE IF NOT EXISTS readiness_notes (id INTEGER PRIMARY KEY, title TEXT); DELETE FROM readiness_notes; INSERT INTO readiness_notes(title) VALUES ('nexus-ok');",
@@ -49,6 +52,10 @@ describe('Persona Nexus tool readiness', () => {
     process.env.SQLITE_DB_PATH = dbPath;
     process.env.GEMINI_API_KEY = 'test-gemini-key';
     process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'false';
+
+    const repository = await getSkillRepository();
+    repository.setInstalled('github-manager', true);
+    repository.setInstalled('sql-bridge', true);
   });
 
   beforeEach(() => {
@@ -237,6 +244,11 @@ describe('Persona Nexus tool readiness', () => {
       delete process.env.SQLITE_DB_PATH;
     } else {
       process.env.SQLITE_DB_PATH = previousSqlitePath;
+    }
+    if (previousSkillsDbPath === undefined) {
+      delete process.env.SKILLS_DB_PATH;
+    } else {
+      process.env.SKILLS_DB_PATH = previousSkillsDbPath;
     }
     if (previousGeminiKey === undefined) {
       delete process.env.GEMINI_API_KEY;

@@ -1,6 +1,7 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isPathWithinRoot } from '@/server/security/pathBoundary';
 
 const MAX_FILE_BYTES = 256_000;
 const WORKSPACE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../');
@@ -44,7 +45,7 @@ function ensureWorkspacePath(userPath: string): string {
     throw new Error(`Path is not in an allowed workspace location: ${head}`);
   }
 
-  if (!resolved.startsWith(WORKSPACE_ROOT)) {
+  if (!isPathWithinRoot(resolved, WORKSPACE_ROOT)) {
     throw new Error('Path escapes workspace root.');
   }
 
@@ -55,12 +56,16 @@ export async function fileReadHandler(args: Record<string, unknown>) {
   const inputPath = String(args.path || '').trim();
   if (!inputPath) throw new Error('file_read requires a non-empty path.');
   const resolvedPath = ensureWorkspacePath(inputPath);
+  const realPath = await realpath(resolvedPath);
+  if (!isPathWithinRoot(realPath, WORKSPACE_ROOT)) {
+    throw new Error('Path escapes workspace root through a symbolic link.');
+  }
 
-  const content = await readFile(resolvedPath, 'utf-8');
+  const content = await readFile(realPath, 'utf-8');
   const truncated = content.length > MAX_FILE_BYTES;
   return {
     path: inputPath,
-    resolvedPath,
+    resolvedPath: realPath,
     truncated,
     content: truncated ? content.slice(0, MAX_FILE_BYTES) : content,
   };

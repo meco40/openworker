@@ -7,6 +7,10 @@ function mockUserContext(context: { userId: string; authenticated: boolean } | n
   }));
 }
 
+function enableExternalSkillsForValidation(): void {
+  process.env.EXTERNAL_SKILLS_ENABLED = 'true';
+}
+
 function mockClawHubService(overrides?: {
   search?: () => Promise<unknown>;
   syncInstalledFromLockfile?: () => Promise<unknown>;
@@ -64,9 +68,16 @@ function mockClawHubService(overrides?: {
 }
 
 describe('clawhub routes', () => {
+  const previousExternalSkillsEnabled = process.env.EXTERNAL_SKILLS_ENABLED;
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.resetModules();
+    if (previousExternalSkillsEnabled === undefined) {
+      delete process.env.EXTERNAL_SKILLS_ENABLED;
+    } else {
+      process.env.EXTERNAL_SKILLS_ENABLED = previousExternalSkillsEnabled;
+    }
   });
 
   it('returns 401 on search when unauthorized', async () => {
@@ -95,6 +106,7 @@ describe('clawhub routes', () => {
   });
 
   it('validates install payload', async () => {
+    enableExternalSkillsForValidation();
     mockUserContext({ userId: 'legacy-local-user', authenticated: false });
     mockClawHubService();
 
@@ -113,6 +125,7 @@ describe('clawhub routes', () => {
   });
 
   it('returns 400 when install slug is invalid', async () => {
+    enableExternalSkillsForValidation();
     mockUserContext({ userId: 'legacy-local-user', authenticated: false });
     mockClawHubService({
       install: async () => {
@@ -135,6 +148,7 @@ describe('clawhub routes', () => {
   });
 
   it('validates update payload constraints', async () => {
+    enableExternalSkillsForValidation();
     mockUserContext({ userId: 'legacy-local-user', authenticated: false });
     mockClawHubService();
 
@@ -153,6 +167,7 @@ describe('clawhub routes', () => {
   });
 
   it('returns 400 when update slug is invalid', async () => {
+    enableExternalSkillsForValidation();
     mockUserContext({ userId: 'legacy-local-user', authenticated: false });
     mockClawHubService({
       update: async () => {

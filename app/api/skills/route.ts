@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { getSkillRepository } from '@/server/skills/skillRepository';
 import { installFromSource } from '@/server/skills/skillInstaller';
 import { withUserContext } from '../_shared/withUserContext';
+import { areExternalSkillsEnabled } from '@/server/skills/externalSkillPolicy';
 
 export const runtime = 'nodejs';
 
@@ -29,6 +30,16 @@ interface InstallRequest {
 export const POST = withUserContext(async ({ request }) => {
   try {
     const body = (await request.json()) as InstallRequest;
+    if (body.source !== 'manual' && !areExternalSkillsEnabled()) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            'External skill installation is disabled. Set EXTERNAL_SKILLS_ENABLED=true after review.',
+        },
+        { status: 403 },
+      );
+    }
     const skill = await installFromSource(body.source, body.value);
     return NextResponse.json({ ok: true, skill });
   } catch (error) {

@@ -130,22 +130,29 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
   );
 
   return (
-    <aside className="z-20 flex w-64 flex-col border-r border-zinc-800 bg-[#0c0c0c]">
-      <div className="flex flex-1 flex-col overflow-y-auto p-6">
+    <aside
+      data-testid="app-sidebar"
+      aria-label="Primary navigation"
+      className="z-20 flex w-64 flex-col border-r border-zinc-800 bg-[#0c0c0c] max-md:w-16"
+    >
+      <div className="flex flex-1 flex-col overflow-y-auto p-6 max-md:p-2">
         <div className="mb-8 flex items-center space-x-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-indigo-600 to-violet-700 text-xl font-black text-white">
+          <div className="mx-auto flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gradient-to-br from-indigo-600 to-violet-700 text-xl font-black text-white">
             C
           </div>
-          <span className="text-lg font-bold tracking-tight text-white">OpenClaw</span>
+          <span className="text-lg font-bold tracking-tight text-white max-md:hidden">
+            OpenClaw
+          </span>
         </div>
 
-        <nav className="space-y-1">
+        <nav data-testid="app-navigation" aria-label="OpenClaw sections" className="space-y-1">
           {SIDEBAR_ITEMS.map((item) => (
             <button
               key={item.id}
               data-view={item.id}
+              aria-label={item.label}
               onClick={handleViewChange}
-              className={`flex w-full items-center space-x-3 rounded-md px-3 py-2.5 text-sm transition-all duration-200 ${
+              className={`flex w-full items-center space-x-3 rounded-md px-3 py-2.5 text-sm transition-all duration-200 max-md:justify-center max-md:px-2 ${
                 activeView === item.id
                   ? 'bg-zinc-800 text-white shadow-lg'
                   : 'text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300'
@@ -154,12 +161,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
               </svg>
-              <span className="font-medium">{item.label}</span>
+              <span className="font-medium max-md:hidden">{item.label}</span>
             </button>
           ))}
         </nav>
 
-        <div className="mt-8">
+        <div className="mt-8 max-md:hidden">
           <h4 className="mb-4 px-3 text-[10px] font-bold tracking-widest text-zinc-600 uppercase">
             Companion Apps
           </h4>

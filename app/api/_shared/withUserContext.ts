@@ -23,6 +23,17 @@ interface WithUserContextOptions {
   onUnauthorized?: () => Response;
 }
 
+type NextRouteContext = {
+  params: Promise<Record<string, string | string[] | undefined>>;
+};
+
+type RouteHandler<TParams> = {
+  (): Promise<Response>;
+  (request: Request): Promise<Response>;
+  (request: Request, context: RouteContext<TParams>): Promise<Response>;
+  (request: Request, context: NextRouteContext): Promise<Response>;
+};
+
 function resolveRequestFromArgs(request?: Request): Request {
   return request ?? new Request('http://localhost/api/_shared/with-user-context');
 }
@@ -30,8 +41,8 @@ function resolveRequestFromArgs(request?: Request): Request {
 export function withUserContext<TParams = Record<string, never>>(
   handler: (args: WithUserContextArgs<TParams> & { userContext: UserContext }) => Promise<Response>,
   options: WithUserContextOptions = {},
-) {
-  return async (request?: Request, context?: RouteContext<TParams>): Promise<Response> => {
+): RouteHandler<TParams> {
+  const wrapped = async (request?: Request, context?: RouteContext<TParams>): Promise<Response> => {
     const resolvedRequest = resolveRequestFromArgs(request);
     const pathname = new URL(resolvedRequest.url).pathname;
     const shouldTrace = isChatDisplayRequestPath(pathname);
@@ -64,12 +75,13 @@ export function withUserContext<TParams = Record<string, never>>(
       params,
     });
   };
+  return wrapped as RouteHandler<TParams>;
 }
 
 export function withResolvedUserContext<TParams = Record<string, never>>(
   handler: (args: WithUserContextArgs<TParams>) => Promise<Response>,
-) {
-  return async (request?: Request, context?: RouteContext<TParams>): Promise<Response> => {
+): RouteHandler<TParams> {
+  const wrapped = async (request?: Request, context?: RouteContext<TParams>): Promise<Response> => {
     const resolvedRequest = resolveRequestFromArgs(request);
     const pathname = new URL(resolvedRequest.url).pathname;
     const shouldTrace = isChatDisplayRequestPath(pathname);
@@ -95,4 +107,5 @@ export function withResolvedUserContext<TParams = Record<string, never>>(
       params,
     });
   };
+  return wrapped as RouteHandler<TParams>;
 }

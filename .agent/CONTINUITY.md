@@ -368,3 +368,19 @@ Validation final for this pass:
 - Coverage/Testqualität: 564 Dateien und 2741 Tests bestanden; Coverage-Scope enthält die geänderte Knowledge-Ingestion und liegt bei ca. 84,70% Statements, 72,38% Branches, 87,72% Functions und 86,45% Lines.
 - Verifikation: `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build` und `pnpm run test:e2e:smoke` bestanden; Smoke 7 Dateien/11 Tests. Lokales Mem0 und Postgres healthy, `npm run dev` meldete Server ready, `GET /` HTTP 200, kein Mem0-Connection-Error.
 - Push-Status: [TOOL] Commit `09f4de1bac1aea0d30517d924f2ca87645538d97` ist nach `origin/main` gepusht; Worktree enthält danach nur das untracked lokale `.kilo/`-Artefakt.
+
+## [OUTCOMES] 2026-08-17T15:56:00+02:00 [TOOL] Vollständiger App-Review ohne Codeänderungen
+
+- Repository-Stand: `main` bei `bd81bb0`, kein Source-Diff. `pnpm run check`, `pnpm run test` (564 Dateien / 2741 Tests), `pnpm run test:coverage` (84,70% Statements, 72,41% Branches, 87,72% Functions, 86,46% Lines), `pnpm run build`, Smoke-E2E (7 Dateien / 11 Tests) und Browser-CI-Lane (18 / 18) bestanden.
+- Vollständiger Playwright-Browserlauf ist nicht sauber: 42 / 76 bestanden, 34 fehlgeschlagen. Die Fehler konzentrieren sich auf veraltete bzw. nicht vorhandene generische Selektoren in Accessibility, Automation, Knowledge, Ops, Personas, Settings, Tasks, UI-Components und Visual Regression sowie zwei Swarm-Timeouts. Failure-Traces liegen lokal unter `test-results/`.
+- Bestätigte P1/P2-Risiken: `app/api/webhooks/agent-completion/route.ts` akzeptiert bei fehlendem `WEBHOOK_SECRET` ungeprüfte POSTs und exponiert per öffentlichem GET Completion-Daten; `src/server/skills/executeSkill.ts` prüft für eingebaute Handler den persistierten `installed`-Status nicht; mehrere Skill-/Attachment-/Vision-Fetches haben keinen vollständigen SSRF-/Redirect-/Body-Limit-Schutz; WhatsApp-Allowlist vergleicht per `includes`; HTML-Preview liefert potenziell aktives HTML same-origin ohne Sandbox-CSP; npm-/externe Skills laufen mit Prozessumgebung ohne echte Sandbox.
+- Build-Warnung: 13 Turbopack-Meldungen zu sehr breiten dynamischen Dateimustern; Build bleibt erfolgreich, aber Tracing-/Bundle-Performance ist betroffen.
+- Laufzeit: `npm run dev` startete Web, Scheduler und Swarm-Runtime; `/` lieferte 200. Lokaler Mem0-/Postgres-Compose-Stack war healthy und Mem0 `/health` lieferte 200; kein Mem0-Connection-Error im Startlog. Der geschützte `/api/health`-Aufruf ohne Auth lieferte 401.
+
+## [OUTCOMES] 2026-08-17T18:30:00+02:00 [CODE] Alle bestätigten Review-Befunde behoben und nachgeprüft
+
+- Security: Webhook-Signaturen fail-closed und timing-sicher; Completion-GET ohne Taskdaten; Skill-Aktivierung serverseitig erzwungen; SSRF-, Redirect-, Header-, Body-, Pfad-, Symlink- und Preview-Grenzen zentralisiert; WhatsApp-Media-Hosts exakt allowlisted; externe Skills standardmäßig deaktiviert, mit eingeschränkter Umgebung und sicherer Manifest-/Paketpfadvalidierung.
+- UI/E2E: Skip-Link, semantische Navigation, mobile Sidebar, Dialog-/Loading-ARIA und Knowledge-Graph-Verträge korrigiert. Frischer vollständiger Browserlauf: 76/76 Playwright-Tests bestanden; Smoke: 7 Dateien / 11 Tests.
+- Validation: `pnpm run test` 566 Dateien / 2754 Tests bestanden; `pnpm run check` bestanden; `pnpm run test:coverage` bestanden mit 84,73% Statements, 72,43% Branches, 87,79% Functions, 86,47% Lines. Zielmodule liegen bei mindestens ca. 80% Branches: registerSwarmMethods 79,78%, iMessage 100%, runtimePersona 90%, subagentPool 90,91%, toolPolicy 81,82%.
+- Build/Runtime: `pnpm run build` über Webpack erfolgreich und ohne Warnungen. `npm run dev` meldete Gateway/Scheduler ready, `/` HTTP 200; Mem0 `/health` HTTP 200, Container healthy und kein Mem0-Connection-Error im Startlog.
+- Restzustand: Nutzeränderungen bleiben uncommitted erhalten; `.kilo/`, `test-results/.last-run.json` und `tsconfig.tsbuildinfo` wurden nicht bereinigt oder zurückgesetzt.

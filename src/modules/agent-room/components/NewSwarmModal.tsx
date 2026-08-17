@@ -185,14 +185,21 @@ export default function NewSwarmModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="new-swarm-title"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
+    >
       <form
         onSubmit={handleSubmit}
         className="w-full max-w-xl rounded-xl border border-zinc-800 bg-[#0c111f] p-5 text-zinc-200"
       >
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="text-base font-semibold text-white">New Swarm</h2>
+            <h2 id="new-swarm-title" className="text-base font-semibold text-white">
+              New Swarm
+            </h2>
             <p className="mt-1 text-xs text-zinc-400">
               Create a new agent swarm from existing personas.
             </p>

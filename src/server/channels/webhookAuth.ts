@@ -3,7 +3,7 @@
 
 let insecureWebhookWarningLogged = false;
 
-function allowInsecureWebhookFallback(): boolean {
+export function allowInsecureWebhookFallback(): boolean {
   const enabled = process.env.ALLOW_INSECURE_WEBHOOKS === 'true';
   if (!enabled) return false;
   if (process.env.NODE_ENV === 'production') return false;

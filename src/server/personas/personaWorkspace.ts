@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { isPathWithinRoot } from '@/server/security/pathBoundary';
 import { PERSONA_FILE_NAMES, type PersonaFileName } from '@/server/personas/personaTypes';
 
 const WORKSPACE_SUBDIRECTORIES = [
@@ -151,8 +152,7 @@ function resolvePersonaPath(...segments: string[]): string {
   const personasRoot = resolvePersonasRootDir();
   ensurePersonasRoot();
   const resolved = path.resolve(personasRoot, ...segments);
-  const root = personasRoot.endsWith(path.sep) ? personasRoot : `${personasRoot}${path.sep}`;
-  if (resolved !== personasRoot && !resolved.startsWith(root)) {
+  if (!isPathWithinRoot(resolved, personasRoot)) {
     throw new Error('Resolved persona path is outside of persona root.');
   }
   return resolved;

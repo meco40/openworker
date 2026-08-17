@@ -7,7 +7,6 @@ const withBundleAnalyzer = createBundleAnalyzer({
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
   outputFileTracingExcludes: {
     '/*': [
       '.local/**',

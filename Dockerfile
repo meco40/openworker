@@ -1,5 +1,5 @@
 # ─── OpenClaw Gateway Docker Build ────────────────────────────
-# Multi-stage build using Next.js standalone output.
+# Multi-stage build for the custom Next.js + WebSocket server.
 
 # ── Base ───────────────────────────────────────────────────────
 FROM node:22-alpine AS base
@@ -39,9 +39,8 @@ ENV PORT=3000
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy standalone output
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Copy the regular Next.js output used by the custom server entrypoint.
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 
 # Copy TypeScript server entrypoints for custom web/scheduler processes

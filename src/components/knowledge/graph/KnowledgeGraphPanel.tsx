@@ -157,6 +157,17 @@ function KnowledgeGraphCanvas({ payload, loading, error, onReload }: KnowledgeGr
   );
   const hasMoreDetails = Boolean(nodeDetails && nodeDetails.relations.length > detailVisibleCount);
 
+  const exportGraph = useCallback(() => {
+    if (!payload) return;
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'knowledge-graph.json';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }, [payload]);
+
   const graphToRender = useMemo(() => {
     if (!transformed) return null;
     return filterConnectedFlowSubgraph(transformed.nodes, transformed.edges, focusedNodeId);
@@ -188,7 +199,10 @@ function KnowledgeGraphCanvas({ payload, loading, error, onReload }: KnowledgeGr
   const visibleEdges = graphToRender?.edges.length || 0;
 
   return (
-    <section className="flex h-full min-h-[70vh] flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/70">
+    <section
+      data-testid="knowledge-graph-panel"
+      className="flex h-full min-h-[70vh] flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/70"
+    >
       <header className="border-b border-zinc-800 px-4 py-3">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -199,12 +213,25 @@ function KnowledgeGraphCanvas({ payload, loading, error, onReload }: KnowledgeGr
               Dynamischer Entity-Graph mit Zoom, Suche und Kategorien.
             </p>
           </div>
-          <button
-            onClick={() => void onReload()}
-            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
-          >
-            Neu laden
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={exportGraph}
+              disabled={!payload}
+              aria-label="Export knowledge data"
+              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Export
+            </button>
+            <button
+              type="button"
+              onClick={() => void onReload()}
+              aria-label="Reload knowledge graph"
+              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
+            >
+              Neu laden
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -234,9 +261,11 @@ function KnowledgeGraphCanvas({ payload, loading, error, onReload }: KnowledgeGr
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <input
+            type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Node suchen..."
+            aria-label="Search knowledge nodes"
             className="min-w-[220px] flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-cyan-500"
           />
         </div>
@@ -255,6 +284,9 @@ function KnowledgeGraphCanvas({ payload, loading, error, onReload }: KnowledgeGr
             return (
               <button
                 key={category}
+                type="button"
+                aria-pressed={enabled}
+                aria-label={`Filter knowledge nodes by ${category}`}
                 onClick={() =>
                   setEnabledCategories((previous) => {
                     const next = new Set(previous);

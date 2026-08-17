@@ -4,47 +4,10 @@
  */
 
 import { URL } from 'node:url';
-import * as dns from 'node:dns/promises';
+import { fetchWithSsrfGuard, readResponseTextLimited } from '@/server/http/ssrfGuard';
 
 const FETCH_MAX_CHARS = 20_000;
 const FETCH_TIMEOUT_MS = 20_000;
-
-// RFC1918 + loopback + link-local ranges
-const BLOCKED_RANGES = [
-  /^127\./,
-  /^10\./,
-  /^192\.168\./,
-  /^172\.(1[6-9]|2[0-9]|3[01])\./,
-  /^169\.254\./,
-  /^::1$/,
-  /^fc00:/i,
-  /^fe80:/i,
-];
-
-async function assertNotSsrf(hostname: string): Promise<void> {
-  // Direct IP check
-  for (const pattern of BLOCKED_RANGES) {
-    if (pattern.test(hostname)) {
-      throw new Error(`SSRF guard: blocked private/loopback address "${hostname}"`);
-    }
-  }
-  // DNS resolve and check resolved IP
-  try {
-    const addresses = await dns.resolve4(hostname);
-    for (const addr of addresses) {
-      for (const pattern of BLOCKED_RANGES) {
-        if (pattern.test(addr)) {
-          throw new Error(
-            `SSRF guard: hostname "${hostname}" resolves to private address "${addr}"`,
-          );
-        }
-      }
-    }
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith('SSRF guard')) throw err;
-    // DNS resolution failure — let the fetch fail naturally
-  }
-}
 
 function extractTextFromHtml(html: string): string {
   // Remove script/style blocks
@@ -94,26 +57,23 @@ export async function webFetchHandler(args: Record<string, unknown>) {
     return { error: `Unsupported protocol: ${parsed.protocol}` };
   }
 
-  try {
-    await assertNotSsrf(parsed.hostname);
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
-  }
-
   const maxChars = Math.min(Number(args.max_chars) || FETCH_MAX_CHARS, 50_000);
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'openclaw-web-fetch/1.0 (compatible; +https://openclaw.io)',
-        Accept: 'text/html,application/xhtml+xml,text/plain,*/*',
+    const res = await fetchWithSsrfGuard(
+      url,
+      {
+        headers: {
+          'User-Agent': 'openclaw-web-fetch/1.0 (compatible; +https://openclaw.io)',
+          Accept: 'text/html,application/xhtml+xml,text/plain,*/*',
+        },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      redirect: 'follow',
-    });
+      { maxRedirects: 3 },
+    );
 
     const contentType = res.headers.get('content-type') ?? '';
-    const rawBody = await res.text();
+    const rawBody = await readResponseTextLimited(res, 2_000_000);
 
     let content: string;
     if (contentType.includes('text/html')) {

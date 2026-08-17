@@ -300,8 +300,15 @@ const App: React.FC<AppProps> = ({ initialView }) => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0a0a0a] text-zinc-300">
+      <a
+        href="#main"
+        data-testid="skip-link"
+        className="absolute -top-16 left-2 z-50 rounded bg-white px-4 py-2 text-sm font-semibold text-black transition-[top] focus:top-2"
+      >
+        Skip to main content
+      </a>
       <Sidebar activeView={currentView} onViewChange={setCurrentView} />
-      <main className="relative flex flex-1 flex-col overflow-hidden">
+      <main id="main" className="relative flex flex-1 flex-col overflow-hidden">
         <AppShellHeader metricsState={controlPlaneMetricsState} />
         <AppShellViewContent
           currentView={currentView}

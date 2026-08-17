@@ -26,18 +26,15 @@ test.describe('Accessibility', () => {
 
   test('form inputs have labels', async ({ page }) => {
     await page.goto('/');
-    await page
-      .getByRole('button', { name: /Multi-Channel Inbox|Dashboard/i })
-      .first()
-      .click({ timeout: 10000 });
-    const input = page.locator('input[type="text"], input[type="search"]').first();
+    await page.locator('button[data-view="tasks"]').click({ timeout: 10000 });
+    const input = page.getByRole('searchbox', { name: 'Search tasks' });
     await expect(input.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('skip links available', async ({ page }) => {
     await page.goto('/');
     await page.keyboard.press('Tab');
-    const skipLink = page.locator('[href="#main"], [href="#content"], a:has-text("Skip")');
+    const skipLink = page.getByTestId('skip-link');
     await expect(skipLink.first()).toBeVisible({ timeout: 10000 });
   });
 });

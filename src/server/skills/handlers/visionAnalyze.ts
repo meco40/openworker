@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { getRuntimeConfigValue } from '@/server/skills/runtimeConfig';
+import { fetchWithSsrfGuard, readResponseBytesLimited } from '@/server/http/ssrfGuard';
 
 function getServerGeminiKey(): string {
   const key = getRuntimeConfigValue('vision.gemini_api_key') || '';
@@ -23,11 +24,15 @@ export async function visionAnalyzeHandler(args: Record<string, unknown>) {
   let effectiveMime = mimeType;
 
   if (!data && imageUrl) {
-    const response = await fetch(imageUrl);
+    const response = await fetchWithSsrfGuard(imageUrl, undefined, { maxRedirects: 0 });
     if (!response.ok) throw new Error(`Unable to download image (${response.status}).`);
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    const contentType = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
+    if (contentType && !contentType.startsWith('image/')) {
+      throw new Error(`Unable to download image: unexpected content type ${contentType}.`);
+    }
+    const bytes = await readResponseBytesLimited(response, 10 * 1024 * 1024);
     data = Buffer.from(bytes).toString('base64');
-    effectiveMime = response.headers.get('content-type') || mimeType;
+    effectiveMime = contentType || mimeType;
   }
 
   if (!data) {

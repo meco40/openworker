@@ -1,54 +1,34 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+async function openCron(page: Page) {
+  await page.goto('/');
+  await page.locator('button[data-view="cron"]').click({ timeout: 10000 });
+  await expect(page.getByRole('heading', { name: 'Cron' })).toBeVisible({ timeout: 10000 });
+}
 
 test.describe('Automation & Cron', () => {
   test('view automation list', async ({ page }) => {
-    await page.goto('/');
-    await page
-      .getByRole('button', { name: /Automation|Cron|Schedule/i })
-      .first()
-      .click({ timeout: 10000 });
-    await expect(page.locator('body')).toBeVisible();
+    await openCron(page);
+    await expect(page.getByRole('heading', { name: 'Rules' })).toBeVisible();
   });
 
   test('create new automation', async ({ page }) => {
-    await page.goto('/');
-    await page
-      .getByRole('button', { name: /Automation|Cron|Schedule/i })
-      .first()
-      .click({ timeout: 10000 });
-    const newBtn = page.getByRole('button', { name: /New|Create|Add/i }).first();
-    await expect(newBtn).toBeVisible({ timeout: 10000 });
+    await openCron(page);
+    await expect(page.getByRole('button', { name: '+ New Cron Job' })).toBeVisible();
   });
 
   test('configure cron schedule', async ({ page }) => {
-    await page.goto('/');
-    await page
-      .getByRole('button', { name: /Automation|Cron|Schedule/i })
-      .first()
-      .click({ timeout: 10000 });
-    const cronInput = page
-      .locator('[class*="cron"], [data-testid*="cron"], input[type="text"]')
-      .first();
-    await expect(cronInput).toBeVisible({ timeout: 10000 });
+    await openCron(page);
+    await expect(page.getByLabel('Cron Expression')).toBeVisible();
   });
 
   test('run automation manually', async ({ page }) => {
-    await page.goto('/');
-    await page
-      .getByRole('button', { name: /Automation|Cron|Schedule/i })
-      .first()
-      .click({ timeout: 10000 });
-    const runBtn = page.locator('[class*="run"], [data-testid*="run"]').first();
-    await expect(runBtn).toBeVisible({ timeout: 10000 });
+    await openCron(page);
+    await expect(page.getByRole('heading', { name: 'Run History' })).toBeVisible();
   });
 
   test('view automation history', async ({ page }) => {
-    await page.goto('/');
-    await page
-      .getByRole('button', { name: /Automation|Cron|Schedule/i })
-      .first()
-      .click({ timeout: 10000 });
-    const historyBtn = page.locator('[class*="history"], [data-testid*="history"]').first();
-    await expect(historyBtn).toBeVisible({ timeout: 10000 });
+    await openCron(page);
+    await expect(page.getByLabel('Run history depth')).toBeVisible();
   });
 });

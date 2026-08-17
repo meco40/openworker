@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getMessageService } from '@/server/channels/messages/runtime';
 import { getPersonaRepository } from '@/server/personas/personaRepository';
 import {
+  MAX_ATTACHMENT_BYTES,
   persistIncomingAttachment,
   type IncomingMessageAttachmentPayload,
   type StoredMessageAttachment,
@@ -18,6 +19,7 @@ import {
   upsertBridgeAccount,
 } from '@/server/channels/pairing/bridgeAccounts';
 import { getCredentialStore } from '@/server/channels/credentials';
+import { fetchWithSsrfGuard, readResponseBytesLimited } from '@/server/http/ssrfGuard';
 
 export const runtime = 'nodejs';
 
@@ -68,15 +70,15 @@ function resolveAllowFromValues(accountId: string): string[] {
 
 function isSenderAllowed(sender: string, allowFrom: string[]): boolean {
   if (allowFrom.length === 0) {
-    return true;
+    return (
+      process.env.NODE_ENV !== 'production' || process.env.ALLOW_OPEN_WHATSAPP_INBOUND === 'true'
+    );
   }
   const normalizedSender = normalizeSender(sender);
   if (!normalizedSender) {
     return false;
   }
-  return allowFrom.some(
-    (allowed) => normalizedSender.includes(allowed) || allowed.includes(normalizedSender),
-  );
+  return allowFrom.some((allowed) => normalizedSender === allowed);
 }
 
 function buildFallbackMessageId(payload: WhatsAppWebhookPayload, accountId: string): string {
@@ -102,18 +104,25 @@ async function fetchAttachmentDataUrl(
     .split(',')
     .map((entry) => entry.trim().toLowerCase())
     .filter(Boolean);
-  if (allowedHosts.length > 0 && !allowedHosts.includes(parsed.hostname.toLowerCase())) {
+  if (allowedHosts.length === 0) {
+    throw new Error('Remote attachment fetching requires WHATSAPP_WEBHOOK_MEDIA_ALLOWED_HOSTS.');
+  }
+  if (!allowedHosts.includes(parsed.hostname.toLowerCase())) {
     throw new Error(`Attachment host is not allowed: ${parsed.hostname}`);
   }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), MEDIA_FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(parsed.toString(), { signal: controller.signal });
+    const response = await fetchWithSsrfGuard(
+      parsed,
+      { signal: controller.signal },
+      { maxRedirects: 0 },
+    );
     if (!response.ok) {
       throw new Error(`Attachment fetch failed with status ${response.status}.`);
     }
-    const bytes = Buffer.from(await response.arrayBuffer());
+    const bytes = await readResponseBytesLimited(response, MAX_ATTACHMENT_BYTES);
     const contentType =
       declaredType?.trim() ||
       response.headers.get('content-type')?.split(';')[0]?.trim() ||

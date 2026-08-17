@@ -8,6 +8,7 @@ export function buildToolContext(
 ) {
   return {
     bypassApproval,
+    enforceSkillActivation: true,
     workspaceCwd: scope.workspaceCwd,
     conversationId: `master:${runId}`,
     userId: scope.userId,

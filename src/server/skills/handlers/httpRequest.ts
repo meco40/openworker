@@ -4,42 +4,10 @@
  * SSRF guard blocks private/loopback addresses.
  */
 
-import { URL } from 'node:url';
-import * as dns from 'node:dns/promises';
+import { fetchWithSsrfGuard, readResponseBytesLimited } from '@/server/http/ssrfGuard';
 
 const HTTP_TIMEOUT_MS = 30_000;
 const HTTP_BODY_MAX_CHARS = 8_000;
-
-const BLOCKED_RANGES = [
-  /^127\./,
-  /^10\./,
-  /^192\.168\./,
-  /^172\.(1[6-9]|2[0-9]|3[01])\./,
-  /^169\.254\./,
-  /^::1$/,
-  /^fc00:/i,
-  /^fe80:/i,
-];
-
-async function assertNotSsrf(hostname: string): Promise<void> {
-  for (const pattern of BLOCKED_RANGES) {
-    if (pattern.test(hostname)) {
-      throw new Error(`SSRF guard: blocked private/loopback address "${hostname}"`);
-    }
-  }
-  try {
-    const addresses = await dns.resolve4(hostname);
-    for (const addr of addresses) {
-      for (const pattern of BLOCKED_RANGES) {
-        if (pattern.test(addr)) {
-          throw new Error(`SSRF guard: "${hostname}" resolves to private address "${addr}"`);
-        }
-      }
-    }
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith('SSRF guard')) throw err;
-  }
-}
 
 export async function httpRequestHandler(args: Record<string, unknown>) {
   if (String(process.env.OPENCLAW_HTTP_SKILL_ENABLED || 'false').toLowerCase() !== 'true') {
@@ -58,49 +26,38 @@ export async function httpRequestHandler(args: Record<string, unknown>) {
     return { error: `Unsupported HTTP method: ${method}. Allowed: ${ALLOWED_METHODS.join(', ')}` };
   }
 
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return { error: `Invalid URL: ${url}` };
-  }
-
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
-    return { error: `Unsupported protocol: ${parsed.protocol}` };
-  }
-
-  try {
-    await assertNotSsrf(parsed.hostname);
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
-  }
-
   const customHeaders = (args.headers as Record<string, string>) ?? {};
   const body = args.body !== undefined ? JSON.stringify(args.body) : undefined;
 
   try {
-    const res = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': body ? 'application/json' : undefined,
-        'User-Agent': 'openclaw-http-skill/1.0',
-        ...customHeaders,
-      } as HeadersInit,
-      body: body && ['POST', 'PUT', 'PATCH'].includes(method) ? body : undefined,
-      signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
-    });
+    const res = await fetchWithSsrfGuard(
+      url,
+      {
+        method,
+        headers: {
+          'Content-Type': body ? 'application/json' : undefined,
+          'User-Agent': 'openclaw-http-skill/1.0',
+          ...customHeaders,
+        } as HeadersInit,
+        body: body && ['POST', 'PUT', 'PATCH'].includes(method) ? body : undefined,
+        signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
+      },
+      { maxRedirects: 0 },
+    );
 
     const contentType = res.headers.get('content-type') ?? '';
     let responseBody: unknown;
 
+    const responseBytes = await readResponseBytesLimited(res, 1_000_000);
+    const responseText = responseBytes.toString('utf8');
     if (contentType.includes('application/json')) {
       try {
-        responseBody = await res.json();
+        responseBody = JSON.parse(responseText);
       } catch {
-        responseBody = await res.text();
+        responseBody = responseText;
       }
     } else {
-      const text = await res.text();
+      const text = responseText;
       responseBody =
         text.length > HTTP_BODY_MAX_CHARS ? text.slice(0, HTTP_BODY_MAX_CHARS) + '…' : text;
     }
