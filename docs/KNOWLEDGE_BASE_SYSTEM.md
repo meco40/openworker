@@ -96,3 +96,10 @@ npm run lint
 - `docs/SESSION_MANAGEMENT.md`
 - `docs/API_REFERENCE.md`
 - `docs/archive/plans/completed/2026-02-12-knowledge-base-agent-access-implementation.md`
+
+## Kanonisches Weltmodell
+
+Weltwissen (Observations/Assertions/Events) liegt in der kanonischen PostgreSQL-Schicht
+unabhängig von der SQLite-Knowledge-Base (`src/server/world-model/`). Der Chat-Recall
+priorisiert strukturierten World-Model-Kontext; SQLite bleibt für Episoden und Ledger
+verfügbar. Details: `docs/runbooks/WORLD_MODEL_ROLLOUT.md`.

@@ -217,7 +217,10 @@ export class MemoryService {
     query: string,
     limit = 3,
     userId?: string,
-    options?: { mode?: 'semantic' | 'lexical' },
+    options?: {
+      mode?: 'semantic' | 'lexical';
+      memoryTypes?: import('@/core/memory/types').MemoryType[];
+    },
   ): Promise<MemoryRecallResult> {
     return recallDetailed(this.mem0Client, { personaId, query, limit, userId, ...options });
   }

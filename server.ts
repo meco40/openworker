@@ -16,6 +16,7 @@ import {
 import { runGatewayKeepaliveSweep } from './src/server/gateway/keepalive.js';
 import { getPrincipalUserId } from './src/server/auth/principal.js';
 import { assertProductionAuthConfig } from './src/server/auth/productionGuard.js';
+import { assertProductionWorldModelConfig } from './src/server/world-model/productionGuard.js';
 import {
   assertMemoryRuntimeConfiguration,
   ensureMemoryRuntimeReadyForStartup,
@@ -86,6 +87,7 @@ const handle = app.getRequestHandler();
 Promise.resolve()
   .then(async () => {
     assertProductionAuthConfig();
+    assertProductionWorldModelConfig();
     assertMemoryRuntimeConfiguration();
     await ensureMemoryRuntimeReadyForStartup({ component: 'gateway' });
     await bootstrapMessageRuntime();

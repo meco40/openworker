@@ -178,7 +178,9 @@ export async function executeKnowledgeRetrieval({
     const includeSemantic = input.includeSemantic !== false;
     const semantic =
       includeSemantic && memoryService
-        ? await memoryService.recallDetailed(input.personaId, input.query, 3, input.userId)
+        ? await memoryService.recallDetailed(input.personaId, input.query, 3, input.userId, {
+            memoryTypes: input.memoryTypes,
+          })
         : { context: '', matches: [] };
     stageStats.semantic = Math.max(0, semantic.matches.length);
     const semanticContext = buildSemanticContextForQuery(input.query, semantic);

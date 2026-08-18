@@ -74,6 +74,7 @@ export interface IngestConversationWindowInput {
   conversationId: string;
   userId: string;
   personaId: string;
+  workspaceId?: string;
   messages: IngestionWindow['messages'];
   summaryText?: string;
   personaContext?: ExtractionPersonaContext;

@@ -1,0 +1,134 @@
+# World Model Rollout
+
+> Stand: 2026-08-18 · Repo: `e:\web\clawtest`
+
+## Zweck
+
+PostgreSQL/pgvector ist die kanonische Weltmodell-Schicht. SQLite-Knowledge
+und Mem0 bleiben kompatible Projektionen bzw. Recall-Quellen; das Weltmodell
+ist additiv und fail-closed (standardmaessig aus).
+
+## Bestandteile
+
+| Datei                                                   | Inhalt                                                                                                                                                                              |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/server/world-model/config.ts`                      | Env-Konfiguration, `WORLD_MODEL_ENABLED` (default off)                                                                                                                              |
+| `src/server/world-model/db.ts`                          | Lazy-`pg.Pool`-Singleton, Advisory-Lock-Migrations-Runner und Transaktions-Helper                                                                                                   |
+| `src/server/world-model/migrations/001_world_model.sql` | Basisschema (Observations, Assertions bitemporal+Modalitaet, Events/Transitions, Tasks/Transitions, Entities/Relations, Open Loops, Standing Intents, Outbox, Embeddings, Volltext) |
+| `src/server/world-model/migrations/002..004*.sql`       | Shadow-Ledger, scoped Outbox-/Idempotenz-Nachruestung und workspace-scoped Assertions                                                                                               |
+| `src/server/world-model/repositories/*`                 | Repositories pro Aggregat (roh-SQL, Transaktion via Client)                                                                                                                         |
+| `src/server/world-model/services/eventService.ts`       | Plan-/Aenderungs-Referenzfall (Kino/Essen)                                                                                                                                          |
+| `src/server/world-model/services/prospectiveEngine.ts`  | Open-Loop-Follow-ups, Standing-Intent-Matching, Heartbeat                                                                                                                           |
+| `src/server/world-model/outboxDispatcher.ts`            | Transactional-Outbox-Dispatch                                                                                                                                                       |
+| `src/server/world-model/productionGuard.ts`             | Prod-Guard (Canonical URL erforderlich, E2E in Prod verboten)                                                                                                                       |
+| `docker-compose.postgres.yml`                           | Kanonische `pgvector/pgvector:pg17`, Port 5434, DB `clawtest`                                                                                                                       |
+| `.env.local.example`                                    | `WORLD_MODEL_*`-Block                                                                                                                                                               |
+
+## Aktivierung (lokal)
+
+```powershell
+docker compose -f docker-compose.postgres.yml up -d
+# .env.local:
+#   WORLD_MODEL_ENABLED=true
+#   CANONICAL_DATABASE_URL=postgresql://clawtest:clawtest@127.0.0.1:5434/clawtest
+corepack pnpm run dev:scheduler
+```
+
+Der Scheduler ruft `startOutboxDispatcher()` auf, fuehrt Migrationen aus und
+pollt die Outbox. Bei `WORLD_MODEL_ENABLED=false` startet der Dispatcher nicht.
+Outbox-Events werden mit `FOR UPDATE SKIP LOCKED` geclaimt, geleast und mit
+Backoff erneut versucht; Handler müssen deshalb idempotent sein.
+
+## Integrationstest (optional, live PostgreSQL)
+
+```powershell
+$env:WORLD_MODEL_E2E='true' # nur lokal/CI, niemals NODE_ENV=production
+corepack pnpm exec vitest run tests/integration/world-model
+```
+
+Der Kino/Essen-Referenzfall (`event-flow.test.ts`) prueft, dass ein abgesagter
+Plan nicht mit einem unbestätigten neuen Plan verschmilzt und ein Event erst
+durch explizite Bestaetigung `completed` wird.
+
+## Unit-Tests (ohne DB)
+
+```powershell
+corepack pnpm exec vitest run tests/unit/world-model
+```
+
+## Bewusst nicht in Phase 1 (Folge-Phasen)
+
+- Durable Workflows (pg-boss/Hatchet/Temporal) sind noch nicht integriert.
+- Eine externe Graphiti-Instanz ist noch nicht angebunden; der aktuelle
+  `graphiti/shadow.ts` ist ein lokales, idempotentes Shadow-Ledger aus der Outbox.
+
+## Phase 2+3 (2026-08-18): Schreibpfade + Retrieval
+
+- Phase 2: `bridgeChatMessages()` (world-model/bridge.ts) schreibt Chat-Nachrichten als
+  Observations zuerst nach PostgreSQL; aktiv via `WORLD_MODEL_INGESTION_BRIDGE=true`.
+  Eingehangen in `knowledge/ingestion/service.ts` (processWindow), fail-soft.
+- Phase 3: `retrieveContext()` (world-model/retrieval/) priorisiert strukturierte
+  Zustandsabfragen -> PG-Volltext -> pgvector (spaeter). Strukturierte Wahrheit hat
+  Vorrang vor semantischer Aehnlichkeit.
+
+## Phase 5+6 (2026-08-18): Graphiti-Shadow + Mem0-Reduktion
+
+- `GRAPHITI_SHADOW_ENABLED=true` aktiviert das Outbox-gestuetzte lokale
+  Shadow-Ledger (`graphiti/shadow.ts`, Migration 002/003). Es ist nur Messung,
+  keine verbindliche Entscheidung und kein externer Graphiti-Client.
+- `WORLD_MODEL_MEM0_PREFERENCES_ONLY=true` begrenzt den produktiven Mem0-Recall
+  auf `preference`, `avoidance`, `personality_trait` und `workflow_pattern`;
+  faktischer Recall bleibt beim World Model/Knowledge-Layer.
+
+## Phase 7-9 (2026-08-18): Proaktive Sekretärin
+
+Die proaktive Zustellung ist über Outbox-Events und Services umgesetzt und im
+Scheduler verdrahtet. Der Modus wird über `WORLD_MODEL_MODE`
+(`off | shadow | required | canonical`) gesteuert; die Legacy-Booleans bleiben
+während der Migration kompatibel.
+
+### Neue Bestandteile
+
+| Datei                                                           | Inhalt                                                                                        |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------ | -------- | ---------------------------------- |
+| `src/server/world-model/mode.ts`                                | Rollout-Modi `off                                                                             | shadow | required | canonical` + Legacy-Flag-Ableitung |
+| `src/server/world-model/services/followUpPolicy.ts`             | Reine Zustell-Policy für Open Loops (Status, Attempts, Ruhezeiten, Budget, Kanal, Aktivitaet) |
+| `src/server/world-model/services/openLoopService.ts`            | `deliverDueOpenLoops`, atomare Outbox-Enqueue, `resolveOpenLoopAsAnswered`                    |
+| `src/server/world-model/services/standingIntentCompiler.ts`     | NL -> validierter Standing Intent (Template `Wenn X antwortet`)                               |
+| `src/server/world-model/services/standingIntentDispatcher.ts`   | Match -> idempotente Folgeaktion (`proactive.intent.fired`)                                   |
+| `src/server/world-model/runtime/heartbeatRuntime.ts`            | Reconciliation-Herzschlag (overdue Open Loops)                                                |
+| `src/server/world-model/runtime/prospectiveRuntime.ts`          | Scheduler-Takt: Zustellung + Heartbeat                                                        |
+| `src/server/world-model/services/notificationPolicy.ts`         | Kanalübergreifende Benachrichtigungspolitik (Ruhezeiten, Budget, Kanalpraeferenz)             |
+| `src/server/world-model/services/responseCorrelationService.ts` | Antwort -> Kandidat (Kanal/Konversation/Zeitfenster)                                          |
+| `src/server/world-model/services/clarificationService.ts`       | Rueckfrage bei Mehrdeutigkeit statt stiller Zuordnung                                         |
+
+### Verhalten
+
+- Der Scheduler nimmt `WORLD_MODEL_PROSPECTIVE_INTERVAL_MS` (Default 60000) als
+  Takt für `runProspectiveRuntimeOnce()` auf. Der Takt ist `unref()`-ed und
+  wird beim Shutdown gestoppt.
+- `outboxDispatcher` registriert den `proactive.intent.fired`-Handler, damit
+  gefeuerte Standing-Intents als Aktion bestätigt werden.
+- Env-Variablen `WORLD_MODEL_MODE`, `WORLD_MODEL_PROSPECTIVE_INTERVAL_MS` und
+  `WORLD_MODEL_USER_ACTIVE_WINDOW_MS` sind in `.env.local.example` dokumentiert.
+
+### Absicherung
+
+- `Scheduler-Neustart`: Open-Loop-Zustellung läuft über Lease (`SKIP LOCKED`) +
+  Outbox; `asked` wird erst nach bestaetigter Zustellung gesetzt. Kein
+  Doppelversand bei erneutem Tick.
+- `Standing Intent`: `matchStandingIntents` stösst beim Match eine idempotente
+  Folgeaktion über die Outbox an; `fire_count` wird in derselben Transaktion
+  erhöht. Replay derselben Observation feuert nicht doppelt.
+- `Mehrdeutigkeit`: `correlateUserResponse` verlangt ein deterministisches
+  Kanal-/Konversations-Signal; bei mehreren Kandidaten erzeugt
+  `buildClarificationPrompt` eine Rueckfrage.
+
+### Env-Schnellstart
+
+```powershell
+# .env.local
+WORLD_MODEL_ENABLED=true
+WORLD_MODEL_MODE=shadow
+WORLD_MODEL_PROSPECTIVE_INTERVAL_MS=60000
+```

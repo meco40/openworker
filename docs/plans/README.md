@@ -1,13 +1,15 @@
 # Active Plans
 
-Stand: 2026-02-21
+Stand: 2026-08-18
 Zuletzt bereinigt: 2026-03-03
 
 ## In Bearbeitung / offen
 
-1. `docs/plans/2026-02-21-webapp-cleanup-optimization.md`
+1. `docs/plans/2026-08-18-world-model-complete-implementation-plan.md`
+   - Vollständige Umsetzung der kanonischen Memory-, Knowledge-, Retrieval- und Proaktivitätsarchitektur.
+2. `docs/plans/2026-02-21-webapp-cleanup-optimization.md`
    - Aktuelle Bereinigung und technische Optimierung der Webapp.
-2. `docs/plans/2026-02-20-point7-best-case-plus-production-plan.md`
+3. `docs/plans/2026-02-20-point7-best-case-plus-production-plan.md`
    - Produktionsplan fuer den Point-7-Umsetzungsblock.
 
 ## Abgeschlossen (noch nicht archiviert)

@@ -1,4 +1,5 @@
 import type { Mem0Client } from '@/server/memory/mem0';
+import type { MemoryType } from '@/core/memory/types';
 import type { MemoryRecallResult } from '../types';
 import { MEM0_SCORE_THRESHOLD } from '../constants';
 import { normalizeMem0Score } from '../utils/scoring';
@@ -35,6 +36,7 @@ export interface RecallOptions {
   limit?: number;
   userId?: string;
   mode?: 'semantic' | 'lexical';
+  memoryTypes?: MemoryType[];
 }
 
 /**
@@ -90,20 +92,37 @@ export async function recallDetailed(
   client: Mem0Client,
   options: RecallOptions,
 ): Promise<MemoryRecallResult> {
-  const { personaId, query, limit = 3, userId, mode = 'semantic' } = options;
+  const { personaId, query, limit = 3, userId, mode = 'semantic', memoryTypes } = options;
   const scopedUserId = resolveUserId(userId);
   const safeLimit = Math.max(1, limit);
+  const allowedTypes = memoryTypes?.length ? new Set(memoryTypes) : null;
   const lowered = query.trim().toLowerCase();
   const rulesLikeQuery = isRulesLikeQuery(lowered);
 
   if (mode === 'lexical') {
-    const listed = await client.listMemories({
-      userId: scopedUserId,
-      personaId,
-      page: 1,
-      pageSize: Math.max(25, safeLimit * 4),
-      query: query.trim() || undefined,
-    });
+    const listResults = allowedTypes
+      ? await Promise.all(
+          [...allowedTypes].map((type) =>
+            client.listMemories({
+              userId: scopedUserId,
+              personaId,
+              page: 1,
+              pageSize: Math.max(25, safeLimit * 4),
+              query: query.trim() || undefined,
+              type,
+            }),
+          ),
+        )
+      : [
+          await client.listMemories({
+            userId: scopedUserId,
+            personaId,
+            page: 1,
+            pageSize: Math.max(25, safeLimit * 4),
+            query: query.trim() || undefined,
+          }),
+        ];
+    const listed = { memories: listResults.flatMap((result) => result.memories) };
 
     const queryVariants = expandSelfReferenceQuery(query)
       .split('|')
@@ -112,6 +131,7 @@ export async function recallDetailed(
 
     const lexicalMatches = listed.memories
       .map((record) => toMemoryNode(record))
+      .filter((node) => !allowedTypes || allowedTypes.has(node.type))
       .filter((node) => isRecallActive(node, { userId: scopedUserId, personaId }))
       .filter((node) => {
         const content = node.content.toLowerCase();
@@ -141,7 +161,7 @@ export async function recallDetailed(
     userId: scopedUserId,
     personaId,
     query: expandedQuery,
-    limit: safeLimit,
+    limit: allowedTypes ? Math.max(safeLimit * 4, 20) : safeLimit,
   });
 
   let matches = hits
@@ -154,6 +174,7 @@ export async function recallDetailed(
       };
     })
     .filter((entry) => entry.similarity >= MEM0_SCORE_THRESHOLD)
+    .filter((entry) => !allowedTypes || allowedTypes.has(entry.node.type))
     .filter((entry) => isRecallActive(entry.node, { userId: scopedUserId, personaId }))
     .sort((a, b) => b.score - a.score)
     .slice(0, safeLimit);
@@ -161,16 +182,33 @@ export async function recallDetailed(
   const hasRulesFocusedMatch = matches.some((entry) => containsRulesWord(entry.node.content));
 
   if (matches.length === 0 || (rulesLikeQuery && !hasRulesFocusedMatch)) {
-    const listed = await client.listMemories({
-      userId: scopedUserId,
-      personaId,
-      page: 1,
-      pageSize: Math.max(10, safeLimit),
-      query: query.trim() || undefined,
-    });
+    const listResults = allowedTypes
+      ? await Promise.all(
+          [...allowedTypes].map((type) =>
+            client.listMemories({
+              userId: scopedUserId,
+              personaId,
+              page: 1,
+              pageSize: Math.max(10, safeLimit),
+              query: query.trim() || undefined,
+              type,
+            }),
+          ),
+        )
+      : [
+          await client.listMemories({
+            userId: scopedUserId,
+            personaId,
+            page: 1,
+            pageSize: Math.max(10, safeLimit),
+            query: query.trim() || undefined,
+          }),
+        ];
+    const listed = { memories: listResults.flatMap((result) => result.memories) };
 
     const lexicalMatches = listed.memories
       .map((record) => toMemoryNode(record))
+      .filter((node) => !allowedTypes || allowedTypes.has(node.type))
       .filter((node) => isRecallActive(node, { userId: scopedUserId, personaId }))
       .filter((node) => {
         if (!lowered) return true;

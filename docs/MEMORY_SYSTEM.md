@@ -135,3 +135,10 @@ npm run lint
 - `docs/KNOWLEDGE_BASE_SYSTEM.md`
 - `docs/SESSION_MANAGEMENT.md`
 - `docs/API_REFERENCE.md`
+
+## Kanonisches Weltmodell
+
+Strukturierte Wahrheit wird im kanonischen PostgreSQL-Weltmodell gefuehrt
+(`src/server/world-model/`, per `WORLD_MODEL_ENABLED` aktivierbar). Bei
+`WORLD_MODEL_MEM0_PREFERENCES_ONLY=true` bleibt Mem0 auf Präferenz-/Stiltypen
+beschränkt. Details und Aktivierung: `docs/runbooks/WORLD_MODEL_ROLLOUT.md`.

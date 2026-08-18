@@ -10,6 +10,7 @@ import {
 } from './types';
 import { processWindow as processIngestionWindow } from './messageProcessor';
 import { MEM0_MAX_GLOBAL_FAILURES_PER_CYCLE, MEM0_FAILURE_BACKOFF_BASE_MS } from './constants';
+import { bridgeChatMessages } from '@/server/world-model/bridge';
 
 export class KnowledgeIngestionService {
   private readonly minMessagesPerBatch: number;
@@ -55,6 +56,7 @@ export class KnowledgeIngestionService {
       conversationId: input.conversationId,
       userId: input.userId,
       personaId,
+      workspaceId: input.workspaceId,
       fromSeqExclusive,
       toSeqInclusive,
       messages: deltaMessages,
@@ -128,6 +130,20 @@ export class KnowledgeIngestionService {
   }
 
   private async processWindow(window: IngestionWindow) {
+    await bridgeChatMessages({
+      conversationId: window.conversationId,
+      userId: window.userId,
+      personaId: window.personaId,
+      workspaceId: window.workspaceId,
+      messages: window.messages.map((message) => ({
+        userId: window.userId,
+        personaId: window.personaId,
+        conversationId: window.conversationId,
+        seq: Number(message.seq ?? 0),
+        role: message.role,
+        content: message.content,
+      })),
+    });
     const memoryService = this.deps.memoryServiceProvider?.() ?? this.deps.memoryService;
     return processIngestionWindow({
       window,

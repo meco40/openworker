@@ -1,0 +1,21 @@
+services:
+  world-model-postgres:
+    image: pgvector/pgvector:pg17
+    container_name: openclaw-world-model-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: clawtest
+      POSTGRES_USER: clawtest
+      POSTGRES_PASSWORD: clawtest
+    volumes:
+      - world-model-postgres-data:/var/lib/postgresql/data
+    ports:
+      - '5434:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U clawtest -d clawtest']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  world-model-postgres-data:

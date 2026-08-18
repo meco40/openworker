@@ -34,6 +34,7 @@ export interface IngestionWindow {
   conversationId: string;
   userId: string;
   personaId: string;
+  workspaceId?: string;
   fromSeqExclusive: number;
   toSeqInclusive: number;
   messages: StoredMessage[];

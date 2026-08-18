@@ -7,6 +7,7 @@ import type {
 } from '@/server/knowledge/entityGraph';
 import type { KnowledgeEventFilter } from '@/server/knowledge/eventTypes';
 import type { PersonaType } from '@/server/personas/personaTypes';
+import type { MemoryType } from '@/core/memory/types';
 
 export interface MemoryRecallLike {
   recallDetailed: (
@@ -14,7 +15,7 @@ export interface MemoryRecallLike {
     query: string,
     limit?: number,
     userId?: string,
-    options?: { mode?: 'semantic' | 'lexical' },
+    options?: { mode?: 'semantic' | 'lexical'; memoryTypes?: MemoryType[] },
   ) => Promise<{ context: string; matches: Array<{ node: { id: string; content?: string } }> }>;
 }
 
@@ -50,6 +51,7 @@ export interface KnowledgeRetrievalInput {
   query: string;
   /** Disable Mem0 semantic retrieval for this query (e.g., explicit lexical recall commands). */
   includeSemantic?: boolean;
+  memoryTypes?: MemoryType[];
 }
 
 export interface KnowledgeRecallProbeInput {

@@ -13,6 +13,7 @@ export const RECALL_FUSION_TOTAL_BUDGET = 5000;
 
 /** Per-source character budgets. */
 const SOURCE_BUDGETS = {
+  worldModel: 1800,
   knowledge: 1800,
   memory: 1200,
   chat: 2000,
@@ -21,6 +22,8 @@ const SOURCE_BUDGETS = {
 // ── Types ────────────────────────────────────────────────────
 
 export interface RecallSources {
+  /** Canonical PostgreSQL world-model context. */
+  worldModel?: string | null;
   /** Context string from the Knowledge Layer (episodes/ledger). */
   knowledge: string | null;
   /** Context string from Mem0 semantic recall. */
@@ -48,6 +51,12 @@ export function fuseRecallSources(sources: RecallSources): string | null {
   const computedText = sources.computedAnswer?.trim() || '';
   if (computedText) {
     sections.push(`[Computed Answer]\n${computedText}`);
+  }
+
+  // ── Canonical World Model — highest persisted factual priority ──
+  const worldModelText = sources.worldModel?.trim() || '';
+  if (worldModelText) {
+    sections.push(`[World Model]\n${truncate(worldModelText, SOURCE_BUDGETS.worldModel)}`);
   }
 
   // ── Chat History (FTS5) — high-signal for direct recall ──

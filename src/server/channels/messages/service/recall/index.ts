@@ -36,6 +36,9 @@ import { recallFromKnowledge, recallFromChat } from './search';
 import { buildStrictEvidenceReply } from './evidence';
 import { learnFromFeedback } from './learning';
 import { RecallStateManager } from './state';
+import { isMem0PreferencesOnly } from '@/server/world-model/mem0Policy';
+import { formatWorldModelContext, retrieveContext } from '@/server/world-model/retrieval';
+import type { MemoryType } from '@/core/memory/types';
 
 // Re-export types for backward compatibility
 export type { StrictRecallCandidate } from './types';
@@ -91,9 +94,11 @@ export class RecallService {
     if (!shouldRecall) return null;
     const explicitRecallCommand = isExplicitRecallCommand(userInput);
     const startedAt = Date.now();
-    const sourceDurationsMs: Partial<Record<'knowledge' | 'memory' | 'chat', number>> = {};
+    const sourceDurationsMs: Partial<
+      Record<'worldModel' | 'knowledge' | 'memory' | 'chat', number>
+    > = {};
     const measure = async <T>(
-      source: 'knowledge' | 'memory' | 'chat',
+      source: 'worldModel' | 'knowledge' | 'memory' | 'chat',
       fn: () => Promise<T>,
     ): Promise<T> => {
       const sourceStartedAt = Date.now();
@@ -104,27 +109,52 @@ export class RecallService {
       }
     };
 
-    // Parallel recall from all three sources
-    const [knowledgeResult, memoryResult, chatResult] = await Promise.allSettled([
+    const preferencesOnly = isMem0PreferencesOnly();
+    const preferenceMemoryTypes: MemoryType[] = [
+      'preference',
+      'avoidance',
+      'personality_trait',
+      'workflow_pattern',
+    ];
+
+    // Parallel recall from canonical world model and compatible projections.
+    const [worldModelResult, knowledgeResult, memoryResult, chatResult] = await Promise.allSettled([
+      measure('worldModel', async () => {
+        for (const userIdCandidate of memoryUserIds) {
+          const result = await retrieveContext({
+            userId: userIdCandidate,
+            personaId: conversation.personaId!,
+            workspaceId: '',
+            query: userInput,
+          });
+          const context = formatWorldModelContext(result);
+          if (context) return context;
+        }
+        return null;
+      }),
       measure('knowledge', () =>
         recallFromKnowledge(knowledgeRetrievalService, memoryUserIds, conversation, userInput, {
           skipPreIngest: explicitRecallCommand,
-          includeSemantic: !explicitRecallCommand,
+          includeSemantic: !explicitRecallCommand && !preferencesOnly,
         }),
       ),
       measure('memory', () =>
         this.recallFromMemory(memoryUserIds, conversation, userInput, {
           mode: explicitRecallCommand ? 'lexical' : 'semantic',
+          memoryTypes: preferencesOnly ? preferenceMemoryTypes : undefined,
         }),
       ),
       measure('chat', () => this.recallFromChat(conversation, userInput)),
     ]);
 
+    const worldModelContext =
+      worldModelResult.status === 'fulfilled' ? worldModelResult.value : null;
     const knowledgeContext = knowledgeResult.status === 'fulfilled' ? knowledgeResult.value : null;
     const memoryContext = memoryResult.status === 'fulfilled' ? memoryResult.value : null;
     const chatHits = chatResult.status === 'fulfilled' ? chatResult.value : [];
 
     const fused = fuseRecallSources({
+      worldModel: worldModelContext,
       knowledge: knowledgeContext,
       memory: memoryContext,
       chatHits,
@@ -136,7 +166,8 @@ export class RecallService {
     const hasFailure =
       knowledgeResult.status === 'rejected' ||
       memoryResult.status === 'rejected' ||
-      chatResult.status === 'rejected';
+      chatResult.status === 'rejected' ||
+      worldModelResult.status === 'rejected';
     logChatRecallTrace(
       'context.completed',
       {
@@ -154,11 +185,13 @@ export class RecallService {
         memoryUserIdsCount: memoryUserIds.length,
         sourceDurationsMs,
         sourceStatuses: {
+          worldModel: worldModelResult.status,
           knowledge: knowledgeResult.status,
           memory: memoryResult.status,
           chat: chatResult.status,
         },
         hasKnowledgeContext: Boolean(knowledgeContext),
+        hasWorldModelContext: Boolean(worldModelContext),
         hasMemoryContext: Boolean(memoryContext),
         chatHitCount: chatHits.length,
         fusedLength: fused?.length ?? 0,
@@ -222,7 +255,7 @@ export class RecallService {
     memoryUserIds: string[],
     conversation: Conversation,
     userInput: string,
-    options: { mode: 'semantic' | 'lexical' },
+    options: { mode: 'semantic' | 'lexical'; memoryTypes?: MemoryType[] },
   ): Promise<string | null> {
     const personaId = conversation.personaId!;
     for (const userIdCandidate of memoryUserIds) {
@@ -236,7 +269,7 @@ export class RecallService {
           userInput,
           MEMORY_RECALL_LIMIT,
           userIdCandidate,
-          { mode: options.mode },
+          { mode: options.mode, memoryTypes: options.memoryTypes },
         );
         if (recalled.matches.length > 0) {
           this.stateManager.clearMem0ScopeEmptyMarker(personaId, userIdCandidate);
