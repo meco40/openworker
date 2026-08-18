@@ -49,10 +49,11 @@ export class EpisodeRepository {
           source_seq_start,
           source_seq_end,
           source_refs_json,
+          memory_ids_json,
           event_at,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(conversation_id, persona_id, source_seq_start, source_seq_end)
         DO UPDATE SET
           topic_key = excluded.topic_key,
@@ -61,6 +62,7 @@ export class EpisodeRepository {
           episode = excluded.episode,
           facts_json = excluded.facts_json,
           source_refs_json = excluded.source_refs_json,
+          memory_ids_json = excluded.memory_ids_json,
           event_at = excluded.event_at,
           updated_at = excluded.updated_at
       `,
@@ -78,6 +80,7 @@ export class EpisodeRepository {
         sourceSeqStart,
         sourceSeqEnd,
         JSON.stringify(toSourceRefs(input.sourceRefs || [])),
+        JSON.stringify(input.memoryIds || []),
         parseIso(input.eventAt) || null,
         now,
         now,
@@ -143,6 +146,7 @@ export class EpisodeRepository {
       sourceSeqStart: Number(row.source_seq_start || 0),
       sourceSeqEnd: Number(row.source_seq_end || 0),
       sourceRefs: parseJsonArray<{ seq: number; quote: string }>(row.source_refs_json),
+      memoryIds: parseJsonArray<string>(row.memory_ids_json),
       eventAt: parseIso(row.event_at),
       updatedAt: String(row.updated_at || ''),
     };

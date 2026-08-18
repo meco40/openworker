@@ -12,6 +12,7 @@ export interface EpisodeInput {
   filteredNegotiatedTerms: string[];
   filteredOpenPoints: string[];
   filteredActionItems: string[];
+  memoryIds: string[];
 }
 
 /**
@@ -32,6 +33,7 @@ export function upsertEpisodeAndLedger(repo: KnowledgeRepositoryLike, input: Epi
     teaser: extraction.teaser,
     episode: extraction.episode,
     facts,
+    memoryIds: input.memoryIds,
     sourceSeqStart,
     sourceSeqEnd,
     sourceRefs: extraction.meetingLedger.sourceRefs,
@@ -51,6 +53,7 @@ export function upsertEpisodeAndLedger(repo: KnowledgeRepositoryLike, input: Epi
     openPoints: input.filteredOpenPoints,
     actionItems: input.filteredActionItems,
     sourceRefs: extraction.meetingLedger.sourceRefs,
+    memoryIds: input.memoryIds,
     confidence: extraction.meetingLedger.confidence,
   });
 }

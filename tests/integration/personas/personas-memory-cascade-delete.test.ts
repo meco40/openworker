@@ -228,6 +228,7 @@ describe('persona memory cascade delete', () => {
     const knowledgeRepo = getKnowledgeRepository();
     knowledgeRepo.upsertIngestionCheckpoint({
       conversationId: conversation.id,
+      userId: defaultUser,
       personaId,
       lastSeq: 1,
     });
@@ -320,7 +321,9 @@ describe('persona memory cascade delete', () => {
     ).toHaveLength(1);
     expect(knowledgeRepo.listEvents({ userId: defaultUser, personaId })).toHaveLength(1);
     expect(knowledgeRepo.listEntities({ userId: defaultUser, personaId })).toHaveLength(1);
-    expect(knowledgeRepo.getIngestionCheckpoint(conversation.id, personaId)).not.toBeNull();
+    expect(
+      knowledgeRepo.getIngestionCheckpoint(conversation.id, defaultUser, personaId),
+    ).not.toBeNull();
 
     const personaByIdRoute = await loadPersonaByIdRoute();
     const deleteResponse = await personaByIdRoute.DELETE(
@@ -350,7 +353,9 @@ describe('persona memory cascade delete', () => {
     ).toHaveLength(0);
     expect(knowledgeRepo.listEvents({ userId: defaultUser, personaId })).toHaveLength(0);
     expect(knowledgeRepo.listEntities({ userId: defaultUser, personaId })).toHaveLength(0);
-    expect(knowledgeRepo.getIngestionCheckpoint(conversation.id, personaId)).toBeNull();
+    expect(
+      knowledgeRepo.getIngestionCheckpoint(conversation.id, defaultUser, personaId),
+    ).toBeNull();
   }, 30_000);
 
   it('unpairs persona telegram bot when persona is deleted', async () => {

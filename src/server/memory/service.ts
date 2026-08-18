@@ -7,10 +7,15 @@ import { resolveUserId, asVersion } from './validators/typeValidators';
 import { isNotFoundError, isLegacyDeleteNotFoundError } from './utils/errorDetection';
 import { matchesQuery, matchesType } from './utils/queryUtils';
 import { formatTimestamp } from './utils/timestamp';
-import { storeMemory } from './operations/store';
+import { storeMemory as storeMemoryOperation } from './operations/store';
 import { recall, recallDetailed } from './operations/recall';
 import { registerFeedback } from './operations/feedback';
 import { bulkUpdate, bulkDelete, deleteByPersona } from './operations/bulk';
+import {
+  publishMemoryLifecycleChange,
+  type LifecycleSignal,
+  type LifecycleStatus,
+} from './lifecycle';
 
 // Re-export types and error for public API
 export type {
@@ -23,7 +28,20 @@ export type {
 export { MemoryVersionConflictError } from './errors';
 export { detectMemorySubject } from './subject/detector';
 
+export interface MemoryStoreInput {
+  personaId: string;
+  type: MemoryType;
+  content: string;
+  importance: number;
+  userId?: string;
+  metadata?: Record<string, unknown>;
+  signal?: AbortSignal;
+}
+
 export class MemoryService {
+  private readonly idempotencyLocks = new Map<string, Promise<MemoryNode>>();
+  private readonly updateLocks = new Map<string, Promise<MemoryNode | null>>();
+
   constructor(private readonly mem0Client: Mem0Client) {}
 
   private rankNode(node: MemoryNode): number {
@@ -75,6 +93,61 @@ export class MemoryService {
     return nodes;
   }
 
+  /**
+   * Resolve a single node through the already scoped list API. Mem0's direct
+   * GET/history/delete endpoints accept only an opaque id, so this lookup is
+   * the application-owned defense-in-depth boundary for tenant isolation.
+   */
+  private async findScopedRecord(
+    personaId: string,
+    nodeId: string,
+    userId?: string,
+  ): Promise<Mem0MemoryRecord | null> {
+    const scopedUserId = resolveUserId(userId);
+    let page = 1;
+    let fetchedRecords = 0;
+    while (page <= 10_000) {
+      const listed = await this.mem0Client.listMemories({
+        userId: scopedUserId,
+        personaId,
+        page,
+        pageSize: 200,
+      });
+      const match = listed.memories.find((record) => record.id === nodeId);
+      if (match) return match;
+      fetchedRecords += listed.memories.length;
+      if (listed.memories.length === 0 || fetchedRecords >= listed.total) return null;
+      page += 1;
+    }
+    throw new Error('Mem0 pagination exceeded the safety limit while resolving a memory node.');
+  }
+
+  private async findByIdempotencyKey(
+    personaId: string,
+    userId: string | undefined,
+    idempotencyKey: string,
+  ): Promise<MemoryNode | null> {
+    const scopedUserId = resolveUserId(userId);
+    let page = 1;
+    let fetchedRecords = 0;
+    while (page <= 10_000) {
+      const listed = await this.mem0Client.listMemories({
+        userId: scopedUserId,
+        personaId,
+        page,
+        pageSize: 200,
+      });
+      const match = listed.memories.find(
+        (record) => String(record.metadata?.idempotencyKey || '').trim() === idempotencyKey,
+      );
+      if (match) return toMemoryNode(match);
+      fetchedRecords += listed.memories.length;
+      if (listed.memories.length === 0 || fetchedRecords >= listed.total) return null;
+      page += 1;
+    }
+    throw new Error('Mem0 pagination exceeded the safety limit while resolving idempotency.');
+  }
+
   private async resolveNodeVersion(nodeId: string, node: MemoryNode): Promise<number> {
     const metaVersion = Number(node.metadata?.version);
     if (Number.isFinite(metaVersion) && metaVersion >= 1) {
@@ -98,7 +171,7 @@ export class MemoryService {
     metadata?: Record<string, unknown>,
     signal?: AbortSignal,
   ): Promise<MemoryNode> {
-    return storeMemory(this.mem0Client, {
+    return this.storeMemory({
       personaId,
       type,
       content,
@@ -107,6 +180,36 @@ export class MemoryService {
       metadata,
       signal,
     });
+  }
+
+  /** Canonical named-argument API for new production callers. */
+  async storeMemory(input: MemoryStoreInput): Promise<MemoryNode> {
+    const metadata = input.metadata || {};
+    const idempotencyKey = String(metadata.idempotencyKey || '').trim();
+    if (!idempotencyKey) {
+      return storeMemoryOperation(this.mem0Client, input);
+    }
+
+    const lockKey = `${resolveUserId(input.userId)}:${input.personaId}:${idempotencyKey}`;
+    const running = this.idempotencyLocks.get(lockKey);
+    if (running) return running;
+
+    const operation = (async () => {
+      const existing = await this.findByIdempotencyKey(
+        input.personaId,
+        input.userId,
+        idempotencyKey,
+      );
+      return existing || storeMemoryOperation(this.mem0Client, input);
+    })();
+    this.idempotencyLocks.set(lockKey, operation);
+    try {
+      return await operation;
+    } finally {
+      if (this.idempotencyLocks.get(lockKey) === operation) {
+        this.idempotencyLocks.delete(lockKey);
+      }
+    }
   }
 
   async recallDetailed(
@@ -129,7 +232,17 @@ export class MemoryService {
     signal: MemoryFeedbackSignal,
     userId?: string,
   ): Promise<number> {
-    return registerFeedback(this.mem0Client, { personaId, nodeIds, signal, userId });
+    const ownedNodeIds: string[] = [];
+    for (const nodeId of Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)))) {
+      const owned = await this.findScopedRecord(personaId, nodeId, userId);
+      if (owned) ownedNodeIds.push(nodeId);
+    }
+    return registerFeedback(this.mem0Client, {
+      personaId,
+      nodeIds: ownedNodeIds,
+      signal,
+      userId,
+    });
   }
 
   async snapshotWithMeta(
@@ -172,17 +285,27 @@ export class MemoryService {
   }> {
     const page = Math.max(1, Math.floor(input.page));
     const pageSize = Math.max(1, Math.min(200, Math.floor(input.pageSize)));
-    const allNodes = await this.listAllFilteredNodes(personaId, userId, input);
-    const offset = (page - 1) * pageSize;
-    const nodes = allNodes.slice(offset, offset + pageSize);
+    const listed = await this.mem0Client.listMemories({
+      userId: resolveUserId(userId),
+      personaId,
+      page,
+      pageSize,
+      query: input.query?.trim() || undefined,
+      type: input.type,
+    });
+    const mapped = listed.memories
+      .map((record) => toMemoryNode(record))
+      .filter((node) => matchesQuery(node, input.query))
+      .filter((node) => matchesType(node, input.type));
+    const total = listed.memories.length === listed.total ? mapped.length : listed.total;
 
     return {
-      nodes,
+      nodes: mapped,
       pagination: {
         page,
         pageSize,
-        total: allNodes.length,
-        totalPages: Math.max(1, Math.ceil(allNodes.length / pageSize)),
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
       },
     };
   }
@@ -231,6 +354,31 @@ export class MemoryService {
       content?: string;
       importance?: number;
       expectedVersion?: number;
+      metadata?: Record<string, unknown>;
+    },
+    userId?: string,
+  ): Promise<MemoryNode | null> {
+    const lockKey = `${resolveUserId(userId)}:${personaId}:${nodeId}`;
+    const running = this.updateLocks.get(lockKey);
+    if (running) return running;
+    const operation = this.updateUnlocked(personaId, nodeId, input, userId);
+    this.updateLocks.set(lockKey, operation);
+    try {
+      return await operation;
+    } finally {
+      if (this.updateLocks.get(lockKey) === operation) this.updateLocks.delete(lockKey);
+    }
+  }
+
+  private async updateUnlocked(
+    personaId: string,
+    nodeId: string,
+    input: {
+      type?: MemoryType;
+      content?: string;
+      importance?: number;
+      expectedVersion?: number;
+      metadata?: Record<string, unknown>;
     },
     userId?: string,
   ): Promise<MemoryNode | null> {
@@ -238,7 +386,7 @@ export class MemoryService {
 
     let current: Mem0MemoryRecord | null = null;
     try {
-      current = await this.mem0Client.getMemory(nodeId);
+      current = await this.findScopedRecord(personaId, nodeId, scopedUserId);
     } catch (error) {
       if (isNotFoundError(error)) return null;
       throw error;
@@ -257,8 +405,10 @@ export class MemoryService {
       throw new MemoryVersionConflictError(currentVersion);
     }
     const nextVersion = currentVersion + 1;
+    const memoryProvider = this.mem0Client.provider === 'sqlite' ? 'sqlite' : 'mem0';
     const nextMetadata: Record<string, unknown> = {
       ...currentNode.metadata,
+      ...input.metadata,
       type: nextType,
       importance: nextImportance,
       confidence: nextConfidence,
@@ -266,7 +416,7 @@ export class MemoryService {
       version: nextVersion,
       mem0Id: nodeId,
       source: 'mem0',
-      memoryProvider: 'mem0',
+      memoryProvider,
     };
 
     await this.mem0Client.updateMemory(nodeId, {
@@ -275,6 +425,18 @@ export class MemoryService {
       content: nextContent,
       metadata: nextMetadata,
     });
+
+    const lifecycleSignal = String(input.metadata?.lifecycleSignal || '').trim();
+    if (lifecycleSignal) {
+      publishMemoryLifecycleChange({
+        memoryId: nodeId,
+        userId: scopedUserId,
+        personaId,
+        status: String(nextMetadata.lifecycleStatus || 'new') as LifecycleStatus,
+        signal: lifecycleSignal as LifecycleSignal,
+        provider: memoryProvider,
+      });
+    }
 
     const updated: MemoryNode = {
       ...currentNode,
@@ -292,7 +454,7 @@ export class MemoryService {
     if (expectedVersion !== undefined) {
       let latest: Mem0MemoryRecord | null = null;
       try {
-        latest = await this.mem0Client.getMemory(nodeId);
+        latest = await this.findScopedRecord(personaId, nodeId, scopedUserId);
       } catch (error) {
         if (!isNotFoundError(error)) throw error;
       }
@@ -355,7 +517,7 @@ export class MemoryService {
   ): Promise<{ node: MemoryNode; entries: MemoryHistoryRecord[] } | null> {
     let current: Mem0MemoryRecord | null = null;
     try {
-      current = await this.mem0Client.getMemory(nodeId);
+      current = await this.findScopedRecord(personaId, nodeId, userId);
     } catch (error) {
       if (isNotFoundError(error)) return null;
       throw error;
@@ -367,10 +529,6 @@ export class MemoryService {
       if (isNotFoundError(error)) return [];
       throw error;
     });
-    // Keep signature aligned with user-scoped service calls.
-    void personaId;
-    void userId;
-
     return {
       node,
       entries: entries.map((entry, index) => toHistoryRecord(entry, index)),
@@ -379,6 +537,8 @@ export class MemoryService {
 
   async delete(personaId: string, nodeId: string, userId?: string): Promise<boolean> {
     const scopedUserId = resolveUserId(userId);
+    const owned = await this.findScopedRecord(personaId, nodeId, scopedUserId);
+    if (!owned) return false;
     try {
       await this.mem0Client.deleteMemory(nodeId);
       return true;

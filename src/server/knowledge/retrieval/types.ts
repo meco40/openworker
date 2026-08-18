@@ -79,6 +79,8 @@ export interface KnowledgeRetrievalServiceOptions {
   knowledgeRepository: RetrievalKnowledgeRepository;
   /** Optional — when null/undefined, semantic recall is skipped. */
   memoryService?: MemoryRecallLike | null;
+  /** Resolves the current memory runtime after a degraded-startup recovery. */
+  memoryServiceProvider?: () => MemoryRecallLike | null;
   messageRepository: MessageLookupRepository;
   /** Optional callback to look up the stored persona memory type from the persona DB. */
   getPersonaMemoryType?: (personaId: string) => PersonaType | null;

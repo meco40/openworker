@@ -18,7 +18,7 @@ Das Memory-System liefert persona- und user-skopierten Langzeitkontext. Speicher
 
 - **Memory Node**: Eintrag mit `type`, `content`, `importance`, `confidence` und Metadaten
 - **Memory Type**: `fact`, `preference`, `avoidance`, `lesson`, `personality_trait`, `workflow_pattern`
-- **Recall**: Relevante Nodes per Mem0-Score + lexikalischem Fallback
+- **Recall**: Relevante Nodes per Mem0-Score + lexikalischem Fallback; der SQLite-Provider nutzt deterministische lexikalische Suche
 - **Feedback Learning**: Positive/negative Rückmeldung verändert Confidence/Importance
 - **Versionierung**: Optimistische Updates via `expectedVersion`
 
@@ -30,7 +30,7 @@ Das Memory-System liefert persona- und user-skopierten Langzeitkontext. Speicher
 
 - `core/memory/types.ts` - zentrale Typdefinitionen
 - `src/server/memory/service.ts` - Business-Logik
-- `src/server/memory/mem0Client.ts` - Mem0 HTTP-Adapter inkl. Retry/Timeout
+- `src/server/memory/mem0Client.ts` / `src/server/memory/sqliteMemoryClient.ts` - Provider-Adapter
 - `src/server/memory/runtime.ts` - Runtime-Wiring + Produktions-Guards
 - `src/server/memory/userScope.ts` - User-/Channel-Scope-Auflösung
 - `app/api/memory/route.ts` - HTTP-Schnittstelle
@@ -42,6 +42,10 @@ In `production` erzwingt der Runtime-Check:
 - `MEMORY_PROVIDER=mem0`
 - gesetztes `MEM0_BASE_URL`
 - gesetztes `MEM0_API_KEY`
+
+Lokal kann `MEMORY_PROVIDER=sqlite` als dauerhafter, scope-gebundener Fallback
+verwendet werden. Der SQLite-Adapter implementiert denselben Service-Vertrag,
+inklusive CRUD, Historie, Pagination, lexical recall und Idempotenzschlüsseln.
 
 ---
 
@@ -90,18 +94,18 @@ Diese Namen sind **Operationsnamen**, nicht Memory-Typen.
 
 ## 5. Konfiguration
 
-| Variable                   | Beschreibung                         | Standard |
-| -------------------------- | ------------------------------------ | -------- |
-| `MEMORY_PROVIDER`          | Memory-Provider                      | `mem0`   |
-| `MEM0_BASE_URL`            | Mem0 Base URL                        | -        |
-| `MEM0_API_PATH`            | API Prefix                           | `/v1`    |
-| `MEM0_API_KEY`             | Mem0 API Key                         | -        |
-| `MEM0_TIMEOUT_MS`          | Request Timeout                      | `5000`   |
-| `MEM0_READ_TIMEOUT_MS`     | Timeout fuer Mem0-Read-Operationen   | `5000`   |
-| `MEM0_WRITE_TIMEOUT_MS`    | Timeout fuer Mem0-Schreiboperationen | `15000`  |
-| `MEM0_MAX_RETRIES`         | Retries bei transienten HTTP-Fehlern | `3`      |
-| `MEM0_WRITE_MAX_RETRIES`   | Retries bei Mem0-Write-Timeouts      | `1`      |
-| `MEM0_RETRY_BASE_DELAY_MS` | Exponential Backoff Basis (ms)       | `500`    |
+| Variable                   | Beschreibung                           | Standard |
+| -------------------------- | -------------------------------------- | -------- |
+| `MEMORY_PROVIDER`          | Memory-Provider (`mem0` oder `sqlite`) | `mem0`   |
+| `MEM0_BASE_URL`            | Mem0 Base URL                          | -        |
+| `MEM0_API_PATH`            | API Prefix                             | `/v1`    |
+| `MEM0_API_KEY`             | Mem0 API Key                           | -        |
+| `MEM0_TIMEOUT_MS`          | Request Timeout                        | `5000`   |
+| `MEM0_READ_TIMEOUT_MS`     | Timeout fuer Mem0-Read-Operationen     | `5000`   |
+| `MEM0_WRITE_TIMEOUT_MS`    | Timeout fuer Mem0-Schreiboperationen   | `15000`  |
+| `MEM0_MAX_RETRIES`         | Retries bei transienten HTTP-Fehlern   | `3`      |
+| `MEM0_WRITE_MAX_RETRIES`   | Retries bei Mem0-Write-Timeouts        | `1`      |
+| `MEM0_RETRY_BASE_DELAY_MS` | Exponential Backoff Basis (ms)         | `500`    |
 
 ---
 

@@ -37,6 +37,7 @@ export async function executeKnowledgeRetrieval({
   options,
   maxContextTokens,
 }: ExecuteKnowledgeRetrievalArgs): Promise<KnowledgeRetrievalResult> {
+  const memoryService = options.memoryServiceProvider?.() ?? options.memoryService;
   const plan = planKnowledgeQuery(input.query);
   const rulesIntent = isRulesIntent(input.query);
   const topicFilter = plan.topic && plan.topic !== 'ausgehandelt' ? plan.topic : undefined;
@@ -176,8 +177,8 @@ export async function executeKnowledgeRetrieval({
 
     const includeSemantic = input.includeSemantic !== false;
     const semantic =
-      includeSemantic && options.memoryService
-        ? await options.memoryService.recallDetailed(input.personaId, input.query, 3, input.userId)
+      includeSemantic && memoryService
+        ? await memoryService.recallDetailed(input.personaId, input.query, 3, input.userId)
         : { context: '', matches: [] };
     stageStats.semantic = Math.max(0, semantic.matches.length);
     const semanticContext = buildSemanticContextForQuery(input.query, semantic);

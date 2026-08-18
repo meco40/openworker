@@ -221,7 +221,7 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 
 | Variable                               | Beschreibung                                                                         |
 | -------------------------------------- | ------------------------------------------------------------------------------------ |
-| `MEMORY_PROVIDER`                      | Memory-Provider (`mem0`)                                                             |
+| `MEMORY_PROVIDER`                      | Memory-Provider (`mem0` oder `sqlite` lokal)                                         |
 | `MEM0_BASE_URL`                        | Mem0 Base URL                                                                        |
 | `MEM0_API_KEY`                         | Mem0 API Key                                                                         |
 | `MEM0_API_PATH`                        | Mem0 API Pfad (Default `/v1`)                                                        |

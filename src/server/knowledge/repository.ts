@@ -19,6 +19,7 @@ export interface KnowledgeSourceRef {
 
 export interface KnowledgeCheckpoint {
   conversationId: string;
+  userId?: string;
   personaId: string;
   lastSeq: number;
   updatedAt: string;
@@ -26,6 +27,7 @@ export interface KnowledgeCheckpoint {
 
 export interface UpsertKnowledgeCheckpointInput {
   conversationId: string;
+  userId?: string;
   personaId: string;
   lastSeq: number;
 }
@@ -43,6 +45,7 @@ export interface KnowledgeEpisode {
   sourceSeqStart: number;
   sourceSeqEnd: number;
   sourceRefs: KnowledgeSourceRef[];
+  memoryIds?: string[];
   eventAt: string | null;
   updatedAt: string;
 }
@@ -59,6 +62,7 @@ export interface UpsertKnowledgeEpisodeInput {
   sourceSeqStart: number;
   sourceSeqEnd: number;
   sourceRefs: KnowledgeSourceRef[];
+  memoryIds?: string[];
   eventAt?: string | null;
 }
 
@@ -77,6 +81,7 @@ export interface MeetingLedgerEntry {
   actionItems: string[];
   sourceRefs: KnowledgeSourceRef[];
   confidence: number;
+  memoryIds?: string[];
   updatedAt: string;
 }
 
@@ -93,6 +98,7 @@ export interface UpsertMeetingLedgerInput {
   openPoints: string[];
   actionItems: string[];
   sourceRefs: KnowledgeSourceRef[];
+  memoryIds?: string[];
   confidence?: number;
 }
 
@@ -168,7 +174,11 @@ export interface UpsertConversationSummaryInput {
 }
 
 export interface KnowledgeRepository {
-  getIngestionCheckpoint(conversationId: string, personaId: string): KnowledgeCheckpoint | null;
+  getIngestionCheckpoint(
+    conversationId: string,
+    userIdOrPersonaId: string,
+    personaId?: string,
+  ): KnowledgeCheckpoint | null;
   upsertIngestionCheckpoint(input: UpsertKnowledgeCheckpointInput): KnowledgeCheckpoint;
 
   upsertEpisode(input: UpsertKnowledgeEpisodeInput): KnowledgeEpisode;
@@ -187,6 +197,7 @@ export interface KnowledgeRepository {
   getKnowledgeStats(userId: string, personaId: string): KnowledgeStats;
 
   deleteKnowledgeByScope(userId: string, personaId: string): number;
+  listKnowledgeScopes?(): Array<{ userId: string; personaId: string }>;
   pruneKnowledgeBefore(input: {
     userId: string;
     personaId: string;

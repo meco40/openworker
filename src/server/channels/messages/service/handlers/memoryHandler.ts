@@ -71,11 +71,23 @@ export async function handleMemorySave(
       channelType: platform || conversation.channelType,
       externalChatId: externalChatId || conversation.externalChatId || 'default',
     });
-    await getMemoryService().store(conversation.personaId, 'fact', memoryContent, 4, memoryUserId, {
-      subject: 'user',
-      sourceRole: 'user',
-      sourceType: 'manual_save',
-    });
+    const memoryService = getMemoryService();
+    if (typeof memoryService.storeMemory === 'function') {
+      await memoryService.storeMemory({
+        personaId: conversation.personaId,
+        type: 'fact',
+        content: memoryContent,
+        importance: 4,
+        userId: memoryUserId,
+        metadata: { subject: 'user', sourceRole: 'user', sourceType: 'manual_save' },
+      });
+    } else {
+      await memoryService.store(conversation.personaId, 'fact', memoryContent, 4, memoryUserId, {
+        subject: 'user',
+        sourceRole: 'user',
+        sourceType: 'manual_save',
+      });
+    }
     return {
       saved: true,
       message: await sendResponse(

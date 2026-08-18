@@ -6,6 +6,22 @@ import type { MasterInvalidationResource } from '@/shared/eventsTypes';
 export type { MasterInvalidationResource } from '@/shared/eventsTypes';
 
 export interface ServerEventMap {
+  'memory.lifecycle.changed': {
+    memoryId: string;
+    userId: string;
+    personaId: string;
+    status: 'new' | 'confirmed' | 'stale' | 'superseded' | 'rejected';
+    signal:
+      | 'user_confirmed'
+      | 'repeated_in_session'
+      | 'contradicted'
+      | 'corrected_by_user'
+      | 'time_expired'
+      | 'reactivated'
+      | 'garbage_collected';
+    provider: 'mem0' | 'sqlite';
+    at: string;
+  };
   'chat.message.persisted': {
     conversation: Conversation;
     message: StoredMessage;

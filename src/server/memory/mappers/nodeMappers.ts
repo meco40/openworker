@@ -6,6 +6,7 @@ import type { MemoryHistoryRecord } from '../types';
 
 export function toMemoryNode(record: Mem0MemoryRecord): MemoryNode {
   const metadata = record.metadata || {};
+  const memoryProvider = metadata.memoryProvider === 'sqlite' ? 'sqlite' : 'mem0';
   return {
     id: record.id,
     type: asMemoryType(metadata.type),
@@ -17,8 +18,8 @@ export function toMemoryNode(record: Mem0MemoryRecord): MemoryNode {
     metadata: {
       ...metadata,
       mem0Id: (typeof metadata.mem0Id === 'string' && metadata.mem0Id.trim()) || record.id,
-      source: 'mem0',
-      memoryProvider: 'mem0',
+      source: metadata.source === 'sqlite' ? 'sqlite' : 'mem0',
+      memoryProvider,
       lastVerified:
         (typeof metadata.lastVerified === 'string' && metadata.lastVerified) ||
         record.updatedAt ||

@@ -39,6 +39,18 @@ export interface IngestionWindow {
   messages: StoredMessage[];
 }
 
+function getScopedCheckpoint(
+  repository: KnowledgeRepository,
+  conversationId: string,
+  userId: string,
+  personaId: string,
+) {
+  const getter = repository.getIngestionCheckpoint;
+  return getter.length >= 3
+    ? getter.call(repository, conversationId, userId, personaId)
+    : getter.call(repository, conversationId, personaId);
+}
+
 function resolveNextMessages(
   repo: MessageRepository,
   conversation: Conversation,
@@ -85,8 +97,10 @@ export class KnowledgeIngestionCursor {
       const personaId = String(conversation.personaId || '').trim();
       if (!personaId) continue;
 
-      const checkpoint = this.knowledgeRepository.getIngestionCheckpoint(
+      const checkpoint = getScopedCheckpoint(
+        this.knowledgeRepository,
         conversation.id,
+        conversation.userId,
         personaId,
       );
       const fromSeqExclusive = Math.max(0, Number(checkpoint?.lastSeq || 0));
@@ -158,14 +172,17 @@ export class KnowledgeIngestionCursor {
   }
 
   markWindowProcessed(window: IngestionWindow): void {
-    const current = this.knowledgeRepository.getIngestionCheckpoint(
+    const current = getScopedCheckpoint(
+      this.knowledgeRepository,
       window.conversationId,
+      window.userId,
       window.personaId,
     );
     const currentSeq = Math.max(0, Number(current?.lastSeq || 0));
     const nextSeq = Math.max(currentSeq, Math.floor(Number(window.toSeqInclusive || 0)));
     this.knowledgeRepository.upsertIngestionCheckpoint({
       conversationId: window.conversationId,
+      userId: window.userId,
       personaId: window.personaId,
       lastSeq: nextSeq,
     });

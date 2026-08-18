@@ -380,6 +380,12 @@ describe('knowledge runtime', () => {
         listEpisodes: vi.fn(() => []),
       })),
     }));
+    vi.doMock('../../../src/server/memory/runtime', () => ({
+      getMemoryServiceIfReady: () => ({
+        snapshot: vi.fn(async () => []),
+      }),
+      getMemoryService: vi.fn(),
+    }));
 
     globals.__knowledgeRepository = {
       listEpisodes: vi.fn(() => [
@@ -400,6 +406,7 @@ describe('knowledge runtime', () => {
           updatedAt: '2026-01-01T00:00:00.000Z',
         },
       ]),
+      listMeetingLedger: vi.fn(() => []),
     } as unknown as RuntimeGlobals['__knowledgeRepository'];
 
     const runtime = await import('@/server/knowledge/runtime');

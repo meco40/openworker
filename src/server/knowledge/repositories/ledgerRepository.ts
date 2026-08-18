@@ -52,10 +52,11 @@ export class LedgerRepository {
           open_points_json,
           action_items_json,
           source_refs_json,
+          memory_ids_json,
           confidence,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(conversation_id, persona_id, topic_key, event_at)
         DO UPDATE SET
           counterpart = excluded.counterpart,
@@ -65,6 +66,7 @@ export class LedgerRepository {
           open_points_json = excluded.open_points_json,
           action_items_json = excluded.action_items_json,
           source_refs_json = excluded.source_refs_json,
+          memory_ids_json = excluded.memory_ids_json,
           confidence = excluded.confidence,
           updated_at = excluded.updated_at
       `,
@@ -83,6 +85,7 @@ export class LedgerRepository {
         JSON.stringify(toStringArray(input.openPoints || [])),
         JSON.stringify(toStringArray(input.actionItems || [])),
         JSON.stringify(toSourceRefs(input.sourceRefs || [])),
+        JSON.stringify(input.memoryIds || []),
         Number.isFinite(Number(input.confidence))
           ? Math.max(0, Math.min(1, Number(input.confidence)))
           : 0.5,
@@ -150,6 +153,7 @@ export class LedgerRepository {
       openPoints: parseJsonArray<string>(row.open_points_json),
       actionItems: parseJsonArray<string>(row.action_items_json),
       sourceRefs: parseJsonArray<{ seq: number; quote: string }>(row.source_refs_json),
+      memoryIds: parseJsonArray<string>(row.memory_ids_json),
       confidence: Number(row.confidence || 0),
       updatedAt: String(row.updated_at || ''),
     };

@@ -223,9 +223,9 @@ This layer is ephemeral and cleared when the session ends.
 
 Persistent storage with three complementary stores:
 
-1. **Mem0 Cloud**: Semantic vector database for similarity search
+1. **Mem0**: Semantic vector database for similarity search
 2. **Knowledge Repository**: Structured episodic memory (episodes, meeting ledgers)
-3. **SQLite**: Local fallback with identical schema
+3. **SQLite**: Durable local fallback with the same service contract; recall is deterministic lexical search because no embedding service is assumed
 
 ---
 
@@ -606,7 +606,10 @@ Every knowledge retrieval call is logged with stage statistics and token counts,
 
 ### SQLite Backup (Local Fallback)
 
-Local storage with identical schema to Mem0 for offline operation.
+Local durable storage used by `MEMORY_PROVIDER=sqlite` for offline operation.
+The runtime wires it through `SqliteMemoryClient`, not merely through a test
+repository. It provides scoped CRUD, history, pagination, lexical recall and
+idempotent named stores.
 
 ```sql
 CREATE TABLE memory_nodes (
@@ -788,7 +791,7 @@ Querying `"brother"` therefore finds entities aliased as `"Bruder"`, and vice ve
 
 ## Fact Lifecycle
 
-Every fact, event, and entity in the Knowledge Repository passes through a state machine defined in `src/server/knowledge/factLifecycle.ts`. Only **active** facts (`new` or `confirmed`) are returned in recall results — stale, superseded, or rejected facts are silently excluded.
+Every fact, event, and entity in the Knowledge Repository passes through a state machine defined in `src/server/memory/lifecycle.ts` (with a compatibility export at `src/server/knowledge/factLifecycle.ts`). Only **active** facts (`new` or `confirmed`) are returned in recall results — stale, superseded, or rejected facts are excluded before context formatting. Expiry is derived from `expiresAt`; recall emits the `memory.lifecycle.changed` signal and excludes the expired fact.
 
 ### States
 
@@ -826,7 +829,7 @@ type LifecycleSignal =
   | 'garbage_collected'; // low-confidence cleanup → rejected
 ```
 
-The state machine is a pure function `transitionLifecycle(currentStatus, signal)` — no side effects, fully testable in isolation.
+The state transition is a pure function `transitionLifecycle(currentStatus, signal)`. State-changing operations emit `memory.lifecycle.changed`; contradictions, corrections, feedback reactivation, expiry and garbage collection therefore have an observable lifecycle signal.
 
 ---
 
@@ -1273,7 +1276,7 @@ const results = await memoryService.recall({
 
 ### Retention
 
-- No automatic deletion (except via feedback loop)
+- Superseded, stale and rejected nodes never enter recall; cleanup may remove rejected nodes after the lifecycle event has been emitted
 - Manual deletion via `memoryService.delete()`
 - Version history retained indefinitely
 
@@ -1285,7 +1288,7 @@ The guard runs on every ingested message and blocks patterns such as:
 
 - Instructions to override persona behavior (`"Ignore previous instructions..."`)
 - Attempts to exfiltrate stored memories
-- Encoded or obfuscated injection payloads
+- Encoded, Unicode-obfuscated or base64/percent-encoded injection payloads (bounded decoding plus normalized matching)
 
 Blocked messages are rejected before the ingestion pipeline writes them to the repository.
 

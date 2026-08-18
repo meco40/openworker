@@ -32,20 +32,22 @@ describe('SqliteKnowledgeRepository', () => {
 
     repo.upsertIngestionCheckpoint({
       conversationId: 'conv-1',
+      userId: 'user-1',
       personaId: 'persona-1',
       lastSeq: 11,
     });
 
-    const checkpoint = repo.getIngestionCheckpoint('conv-1', 'persona-1');
+    const checkpoint = repo.getIngestionCheckpoint('conv-1', 'user-1', 'persona-1');
     expect(checkpoint?.lastSeq).toBe(11);
 
     repo.upsertIngestionCheckpoint({
       conversationId: 'conv-1',
+      userId: 'user-1',
       personaId: 'persona-1',
       lastSeq: 22,
     });
 
-    const updated = repo.getIngestionCheckpoint('conv-1', 'persona-1');
+    const updated = repo.getIngestionCheckpoint('conv-1', 'user-1', 'persona-1');
     expect(updated?.lastSeq).toBe(22);
   });
 
@@ -204,6 +206,7 @@ describe('SqliteKnowledgeRepository', () => {
     const repo = new SqliteKnowledgeRepository(dbPath);
     repo.upsertIngestionCheckpoint({
       conversationId: 'conv-1',
+      userId: 'user-1',
       personaId: 'persona-1',
       lastSeq: 3,
     });
@@ -301,6 +304,7 @@ describe('SqliteKnowledgeRepository', () => {
     const repo = new SqliteKnowledgeRepository(dbPath);
     repo.upsertIngestionCheckpoint({
       conversationId: 'conv-delete-checkpoint',
+      userId: 'user-1',
       personaId: 'persona-1',
       lastSeq: 1,
     });
@@ -385,7 +389,7 @@ describe('SqliteKnowledgeRepository', () => {
 
     const removed = repo.deleteKnowledgeByScope('user-1', 'persona-1');
     expect(removed).toBeGreaterThanOrEqual(7);
-    expect(repo.getIngestionCheckpoint('conv-delete-checkpoint', 'persona-1')).toBeNull();
+    expect(repo.getIngestionCheckpoint('conv-delete-checkpoint', 'user-1', 'persona-1')).toBeNull();
     expect(repo.listEpisodes({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
     expect(repo.listMeetingLedger({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);
     expect(repo.listRetrievalAudit({ userId: 'user-1', personaId: 'persona-1' })).toHaveLength(0);

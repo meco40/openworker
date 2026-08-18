@@ -110,23 +110,37 @@ export async function processWindow(context: ProcessWindowContext): Promise<Proc
   const facts = processFacts(extraction, window);
   const meetingLedger = processMeetingLedger(extraction, window);
 
-  // Upsert episode and meeting ledger
-  upsertEpisodeAndLedger(repo, {
-    window,
-    extraction,
-    facts,
-    filteredDecisions: meetingLedger.decisions,
-    filteredNegotiatedTerms: meetingLedger.negotiatedTerms,
-    filteredOpenPoints: meetingLedger.openPoints,
-    filteredActionItems: meetingLedger.actionItems,
-  });
-
   // Store facts to Mem0
   const factResult = await storeFacts(memoryService, repo, facts, {
     window,
     extraction,
     dominantEmotion,
     corrections,
+  });
+
+  // Local knowledge artifacts are committed only after all Mem0 facts are
+  // durable. Idempotency keys make a retry safe after a partial external write.
+  if (factResult.pendingCount > 0) {
+    return {
+      factsStored: factResult.memoryIds.length,
+      eventsStored: 0,
+      entitiesCreated: 0,
+      entitiesMerged: 0,
+      taskCompletions: [],
+      mem0FailCount: factResult.failCount,
+      mem0PendingCount: factResult.pendingCount,
+    };
+  }
+
+  upsertEpisodeAndLedger(repo, {
+    window,
+    extraction,
+    facts,
+    memoryIds: factResult.memoryIds,
+    filteredDecisions: meetingLedger.decisions,
+    filteredNegotiatedTerms: meetingLedger.negotiatedTerms,
+    filteredOpenPoints: meetingLedger.openPoints,
+    filteredActionItems: meetingLedger.actionItems,
   });
 
   // Store events
@@ -156,7 +170,7 @@ export async function processWindow(context: ProcessWindowContext): Promise<Proc
   );
 
   return {
-    factsStored: Math.max(0, facts.length - factResult.failCount - factResult.skippedCount),
+    factsStored: factResult.memoryIds.length,
     eventsStored: eventResult.stored,
     entitiesCreated: entityResult.created,
     entitiesMerged: entityResult.merged,

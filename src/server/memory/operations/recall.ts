@@ -6,6 +6,28 @@ import { isRulesLikeQuery, containsRulesWord } from '../utils/queryUtils';
 import { toMemoryNode, toMemoryNodeFromHit } from '../mappers/nodeMappers';
 import { resolveUserId } from '../validators/typeValidators';
 import { formatRecallContextLine } from '../formatters/contextFormatter';
+import {
+  isActiveMemoryMetadata,
+  publishMemoryLifecycleChange,
+  resolveLifecycleStatus,
+} from '@/server/memory/lifecycle';
+
+function isRecallActive(
+  node: ReturnType<typeof toMemoryNode>,
+  input: { userId: string; personaId: string },
+): boolean {
+  const resolved = resolveLifecycleStatus(node.metadata);
+  if (resolved.derivedSignal === 'time_expired') {
+    publishMemoryLifecycleChange({
+      memoryId: node.id,
+      userId: input.userId,
+      personaId: input.personaId,
+      status: 'stale',
+      signal: 'time_expired',
+    });
+  }
+  return isActiveMemoryMetadata(node.metadata);
+}
 
 export interface RecallOptions {
   personaId: string;
@@ -90,6 +112,7 @@ export async function recallDetailed(
 
     const lexicalMatches = listed.memories
       .map((record) => toMemoryNode(record))
+      .filter((node) => isRecallActive(node, { userId: scopedUserId, personaId }))
       .filter((node) => {
         const content = node.content.toLowerCase();
         if (!lowered) return true;
@@ -131,6 +154,7 @@ export async function recallDetailed(
       };
     })
     .filter((entry) => entry.similarity >= MEM0_SCORE_THRESHOLD)
+    .filter((entry) => isRecallActive(entry.node, { userId: scopedUserId, personaId }))
     .sort((a, b) => b.score - a.score)
     .slice(0, safeLimit);
 
@@ -147,6 +171,7 @@ export async function recallDetailed(
 
     const lexicalMatches = listed.memories
       .map((record) => toMemoryNode(record))
+      .filter((node) => isRecallActive(node, { userId: scopedUserId, personaId }))
       .filter((node) => {
         if (!lowered) return true;
         if (node.content.toLowerCase().includes(lowered)) return true;

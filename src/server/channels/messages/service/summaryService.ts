@@ -206,19 +206,33 @@ export class SummaryService {
       const controller = new AbortController();
       let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
       try {
-        const storePromise = getMemoryService().store(
-          conversation.personaId,
-          candidate.type,
-          candidate.content,
-          candidate.importance,
-          memoryUserId,
-          {
-            subject: 'user',
-            sourceRole: 'user',
-            sourceType: 'auto_session',
-          },
-          controller.signal,
-        );
+        const memoryService = getMemoryService();
+        const metadata = {
+          subject: 'user',
+          sourceRole: 'user',
+          sourceType: 'auto_session',
+          idempotencyKey: `auto-session:${conversation.id}:${candidate.content}`,
+        };
+        const storePromise =
+          typeof memoryService.storeMemory === 'function'
+            ? memoryService.storeMemory({
+                personaId: conversation.personaId,
+                type: candidate.type,
+                content: candidate.content,
+                importance: candidate.importance,
+                userId: memoryUserId,
+                metadata,
+                signal: controller.signal,
+              })
+            : memoryService.store(
+                conversation.personaId,
+                candidate.type,
+                candidate.content,
+                candidate.importance,
+                memoryUserId,
+                metadata,
+                controller.signal,
+              );
         storePromise.catch(() => {});
         await Promise.race([
           storePromise,

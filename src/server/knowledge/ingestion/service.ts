@@ -22,6 +22,14 @@ export class KnowledgeIngestionService {
     this.minMessagesPerBatch = Number.isFinite(configured) ? Math.max(1, configured) : 1;
   }
 
+  private getCheckpoint(conversationId: string, userId: string, personaId: string) {
+    const getter = this.deps.knowledgeRepository.getIngestionCheckpoint;
+    if (!getter) return null;
+    return getter.length >= 3
+      ? getter.call(this.deps.knowledgeRepository, conversationId, userId, personaId)
+      : getter.call(this.deps.knowledgeRepository, conversationId, personaId);
+  }
+
   async ingestConversationWindow(input: IngestConversationWindowInput): Promise<void> {
     const personaId = String(input.personaId || '').trim();
     if (!personaId) return;
@@ -31,10 +39,7 @@ export class KnowledgeIngestionService {
       .sort((a, b) => Number(a.seq || 0) - Number(b.seq || 0));
     if (sortedMessages.length === 0) return;
 
-    const checkpoint = this.deps.knowledgeRepository.getIngestionCheckpoint?.(
-      input.conversationId,
-      personaId,
-    );
+    const checkpoint = this.getCheckpoint(input.conversationId, input.userId, personaId);
     const fromSeqExclusive = Math.max(0, Math.floor(Number(checkpoint?.lastSeq || 0)));
     const deltaMessages = sortedMessages.filter(
       (message) => Math.floor(Number(message.seq || 0)) > fromSeqExclusive,
@@ -63,6 +68,7 @@ export class KnowledgeIngestionService {
     }
     this.deps.knowledgeRepository.upsertIngestionCheckpoint?.({
       conversationId: window.conversationId,
+      userId: window.userId,
       personaId: window.personaId,
       lastSeq: window.toSeqInclusive,
     });
@@ -122,11 +128,12 @@ export class KnowledgeIngestionService {
   }
 
   private async processWindow(window: IngestionWindow) {
+    const memoryService = this.deps.memoryServiceProvider?.() ?? this.deps.memoryService;
     return processIngestionWindow({
       window,
       extractor: this.deps.extractor,
       repo: this.deps.knowledgeRepository,
-      memoryService: this.deps.memoryService,
+      memoryService,
       resolvePersonaName: this.deps.resolvePersonaName,
     });
   }

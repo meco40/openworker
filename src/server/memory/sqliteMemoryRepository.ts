@@ -20,6 +20,19 @@ interface MemoryRow {
   metadata_json: string | null;
 }
 
+export interface MemoryNodeWithScope {
+  node: MemoryNode;
+  userId: string;
+  personaId: string;
+}
+
+export interface MemoryNodeHistoryRow {
+  action: string;
+  timestamp: string;
+  content: string;
+  metadata: Record<string, unknown>;
+}
+
 function toNode(row: MemoryRow): MemoryNode {
   return {
     id: row.id,
@@ -61,6 +74,18 @@ export class SqliteMemoryRepository implements MemoryRepository {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+    `);
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS memory_node_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        node_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        content TEXT NOT NULL,
+        metadata_json TEXT NOT NULL DEFAULT '{}'
+      );
+      CREATE INDEX IF NOT EXISTS idx_memory_history_node
+        ON memory_node_history (node_id, id);
     `);
     if (!this.hasColumn('memory_nodes', 'persona_id')) {
       this.db.exec(
@@ -160,19 +185,28 @@ export class SqliteMemoryRepository implements MemoryRepository {
   }
 
   listAllNodes(userId?: string): MemoryNode[] {
+    return this.listAllNodesWithScope(userId).map((entry) => entry.node);
+  }
+
+  listAllNodesWithScope(userId?: string): MemoryNodeWithScope[] {
     const scopedUserId = this.resolveUserId(userId);
-    if (!userId) {
-      const rows = this.db
-        .prepare('SELECT * FROM memory_nodes ORDER BY importance DESC, updated_at DESC')
-        .all() as Array<Record<string, unknown>>;
-      return rows.map((row) => toNode(row as unknown as MemoryRow));
-    }
-    const rows = this.db
-      .prepare(
-        'SELECT * FROM memory_nodes WHERE user_id = ? ORDER BY importance DESC, updated_at DESC',
-      )
-      .all(scopedUserId) as Array<Record<string, unknown>>;
-    return rows.map((row) => toNode(row as unknown as MemoryRow));
+    const rows = userId
+      ? (this.db
+          .prepare(
+            'SELECT * FROM memory_nodes WHERE user_id = ? ORDER BY importance DESC, updated_at DESC',
+          )
+          .all(scopedUserId) as Array<Record<string, unknown>>)
+      : (this.db
+          .prepare('SELECT * FROM memory_nodes ORDER BY importance DESC, updated_at DESC')
+          .all() as Array<Record<string, unknown>>);
+    return rows.map((row) => {
+      const typed = row as Record<string, unknown> & { user_id: string; persona_id: string };
+      return {
+        node: toNode(typed as unknown as MemoryRow),
+        userId: typed.user_id,
+        personaId: typed.persona_id,
+      };
+    });
   }
 
   insertNode(personaId: string, node: MemoryNode, userId?: string): void {
@@ -200,12 +234,13 @@ export class SqliteMemoryRepository implements MemoryRepository {
         now,
         now,
       );
+    this.appendHistory(node.id, 'add', node, now);
   }
 
   updateNode(personaId: string, node: MemoryNode, userId?: string): void {
     const scopedUserId = this.resolveUserId(userId);
     const now = new Date().toISOString();
-    this.db
+    const result = this.db
       .prepare(
         `
         UPDATE memory_nodes
@@ -226,6 +261,52 @@ export class SqliteMemoryRepository implements MemoryRepository {
         scopedUserId,
         personaId,
       );
+    if (Number(result.changes || 0) > 0) {
+      this.appendHistory(node.id, 'update', node, now);
+    }
+  }
+
+  getNodeById(nodeId: string): MemoryNodeWithScope | null {
+    const row = this.db.prepare('SELECT * FROM memory_nodes WHERE id = ? LIMIT 1').get(nodeId) as
+      | (Record<string, unknown> & { user_id: string; persona_id: string })
+      | undefined;
+    if (!row) return null;
+    return {
+      node: toNode(row as unknown as MemoryRow),
+      userId: row.user_id,
+      personaId: row.persona_id,
+    };
+  }
+
+  listNodeHistory(nodeId: string): MemoryNodeHistoryRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT action, timestamp, content, metadata_json
+         FROM memory_node_history
+         WHERE node_id = ?
+         ORDER BY id ASC`,
+      )
+      .all(nodeId) as Array<{
+      action: string;
+      timestamp: string;
+      content: string;
+      metadata_json: string;
+    }>;
+    return rows.map((row) => ({
+      action: row.action,
+      timestamp: row.timestamp,
+      content: row.content,
+      metadata: JSON.parse(row.metadata_json || '{}') as Record<string, unknown>,
+    }));
+  }
+
+  private appendHistory(nodeId: string, action: string, node: MemoryNode, timestamp: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO memory_node_history (node_id, action, timestamp, content, metadata_json)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(nodeId, action, timestamp, node.content, JSON.stringify(node.metadata || {}));
   }
 
   deleteNode(personaId: string, nodeId: string, userId?: string): number {

@@ -12,6 +12,7 @@ import {
 import { isNotFoundError } from '../utils/errorDetection';
 import { toMemoryNode } from '../mappers/nodeMappers';
 import { resolveUserId, asFeedbackCount } from '../validators/typeValidators';
+import { publishMemoryLifecycleChange, transitionLifecycle } from '../lifecycle';
 
 export interface RegisterFeedbackOptions {
   personaId: string;
@@ -44,6 +45,7 @@ export async function registerFeedback(
 ): Promise<number> {
   const { personaId, nodeIds, signal, userId } = options;
   const scopedUserId = resolveUserId(userId);
+  const memoryProvider = client.provider === 'sqlite' ? 'sqlite' : 'mem0';
   const ids = Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)));
   if (ids.length === 0) return 0;
 
@@ -78,11 +80,40 @@ export async function registerFeedback(
       nextFeedbackCount >= FORGET_NEGATIVE_FEEDBACK_THRESHOLD &&
       nextConfidence <= FORGET_CONFIDENCE_THRESHOLD
     ) {
+      await client.updateMemory(nodeId, {
+        userId: scopedUserId,
+        personaId,
+        content: existingNode.content,
+        metadata: {
+          ...existingNode.metadata,
+          lifecycleStatus: 'rejected',
+          lifecycleSignal: 'garbage_collected',
+          version: nextVersion,
+          mem0Id: nodeId,
+        },
+      });
+      publishMemoryLifecycleChange({
+        memoryId: nodeId,
+        userId: scopedUserId,
+        personaId,
+        status: 'rejected',
+        signal: 'garbage_collected',
+        provider: memoryProvider,
+      });
       await client.deleteMemory(nodeId);
       changed += 1;
       continue;
     }
 
+    const existingStatus = String(existingNode.metadata?.lifecycleStatus || 'new') as Parameters<
+      typeof transitionLifecycle
+    >[0];
+    const lifecycleSignal =
+      signal === 'positive' && (existingStatus === 'stale' || existingStatus === 'superseded')
+        ? 'reactivated'
+        : signal === 'positive'
+          ? 'user_confirmed'
+          : undefined;
     await client.updateMemory(nodeId, {
       userId: scopedUserId,
       personaId,
@@ -98,9 +129,25 @@ export async function registerFeedback(
         version: nextVersion,
         mem0Id: nodeId,
         source: 'mem0',
-        memoryProvider: 'mem0',
+        memoryProvider,
+        ...(lifecycleSignal
+          ? {
+              lifecycleSignal,
+              lifecycleStatus: transitionLifecycle(existingStatus, lifecycleSignal),
+            }
+          : {}),
       },
     });
+    if (lifecycleSignal) {
+      publishMemoryLifecycleChange({
+        memoryId: nodeId,
+        userId: scopedUserId,
+        personaId,
+        status: transitionLifecycle(existingStatus, lifecycleSignal),
+        signal: lifecycleSignal,
+        provider: memoryProvider,
+      });
+    }
     changed += 1;
   }
 

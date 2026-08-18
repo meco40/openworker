@@ -2,6 +2,7 @@ import { detectTaskCompletion, type TrackedTask } from '@/server/knowledge/taskT
 import type { IngestionWindow } from '@/server/knowledge/ingestionCursor';
 import type { MemoryServiceLike } from './types';
 import { MEM0_RATE_LIMIT_DELAY_MS, DEFAULT_TOPIC_KEY } from './constants';
+import { createMemoryIdempotencyKey } from '@/server/memory/idempotency';
 
 export interface TaskCompletionResult {
   task: TrackedTask;
@@ -64,22 +65,35 @@ export async function storeTaskCompletions(
 
       try {
         await new Promise((resolve) => setTimeout(resolve, MEM0_RATE_LIMIT_DELAY_MS));
-        await memoryService.store(
-          personaId,
-          'fact',
-          `Aufgabe erledigt: ${completionMatch.task.title}`,
-          4,
-          userId,
-          {
-            topicKey,
+        const taskContent = `Aufgabe erledigt: ${completionMatch.task.title}`;
+        const taskMetadata = {
+          topicKey,
+          conversationId,
+          sourceType: 'task_completion',
+          artifactType: 'task_status',
+          taskTitle: completionMatch.task.title,
+          completionConfidence: completionMatch.matchConfidence,
+          lifecycleStatus: 'confirmed',
+          idempotencyKey: createMemoryIdempotencyKey([
+            'task-completion',
+            userId,
+            personaId,
             conversationId,
-            sourceType: 'task_completion',
-            artifactType: 'task_status',
-            taskTitle: completionMatch.task.title,
-            completionConfidence: completionMatch.matchConfidence,
-            lifecycleStatus: 'confirmed',
-          },
-        );
+            completionMatch.task.title,
+          ]),
+        };
+        if (memoryService.storeMemory) {
+          await memoryService.storeMemory({
+            personaId,
+            type: 'fact',
+            content: taskContent,
+            importance: 4,
+            userId,
+            metadata: taskMetadata,
+          });
+        } else {
+          await memoryService.store(personaId, 'fact', taskContent, 4, userId, taskMetadata);
+        }
         result.stored = true;
       } catch {
         // Task completion Mem0 failures are non-critical

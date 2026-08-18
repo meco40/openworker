@@ -77,6 +77,8 @@ export interface Mem0HistoryEntry {
 }
 
 export interface Mem0Client {
+  /** Identifies the backing store for mapper/health metadata without widening the API. */
+  readonly provider?: 'mem0' | 'sqlite';
   addMemory(input: Mem0MemoryInput, signal?: AbortSignal): Promise<{ id: string | null }>;
   searchMemories(input: Mem0SearchInput): Promise<Mem0SearchHit[]>;
   listMemories(input: Mem0ListInput): Promise<Mem0ListMemoryResult>;

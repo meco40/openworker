@@ -121,6 +121,7 @@ function createKnowledgeIngestionDependencies() {
     extractor: getKnowledgeExtractor(),
     knowledgeRepository: getKnowledgeRepository(),
     memoryService: tryGetMemoryService(),
+    memoryServiceProvider: () => tryGetMemoryService(),
     resolvePersonaName: (personaId: string) => {
       try {
         const persona = getPersonaRepository().getPersona(personaId);
@@ -162,7 +163,8 @@ export async function ensureKnowledgeIngestedForConversation(input: {
   }
 
   const checkpoint =
-    getKnowledgeRepository().getIngestionCheckpoint(conversationId, personaId)?.lastSeq ?? 0;
+    getKnowledgeRepository().getIngestionCheckpoint(conversationId, userId, personaId)?.lastSeq ??
+    0;
   const pendingMessages = messages.filter(
     (message) => Number(message.seq || 0) > checkpoint,
   ).length;
@@ -190,6 +192,7 @@ export function getKnowledgeRetrievalService(): KnowledgeRetrievalService {
       maxContextTokens: config.maxContextTokens,
       knowledgeRepository: getKnowledgeRepository(),
       memoryService: tryGetMemoryService(),
+      memoryServiceProvider: () => tryGetMemoryService(),
       messageRepository: getKnowledgeMessageRepository(),
       getPersonaMemoryType: (personaId: string): PersonaType | null => {
         const persona = getPersonaRepository().getPersona(personaId);
@@ -212,15 +215,20 @@ function getKnowledgeRuntimeLoop(): KnowledgeRuntimeLoop {
       runCleanup: async () => {
         // Scan knowledge episodes for placeholder, stale, and low-relevance content
         const repo = getKnowledgeRepository();
-        const episodes = repo.listEpisodes({ userId: '%', personaId: '%', limit: 50 });
+        const scopes = repo.listKnowledgeScopes
+          ? repo.listKnowledgeScopes()
+          : [{ userId: '%', personaId: '%' }];
         let cleanedCount = 0;
-        for (const episode of episodes) {
-          for (const fact of episode.facts || []) {
-            if (detectPlaceholder(fact) || detectLowRelevance(fact)) {
-              cleanedCount++;
-            }
-            if (episode.updatedAt && detectStaleRelativeTime(fact, episode.updatedAt)) {
-              cleanedCount++;
+        for (const scope of scopes) {
+          const episodes = repo.listEpisodes({ ...scope, limit: 10_000 });
+          for (const episode of episodes) {
+            for (const fact of episode.facts || []) {
+              if (detectPlaceholder(fact) || detectLowRelevance(fact)) {
+                cleanedCount++;
+              }
+              if (episode.updatedAt && detectStaleRelativeTime(fact, episode.updatedAt)) {
+                cleanedCount++;
+              }
             }
           }
         }
@@ -232,19 +240,45 @@ function getKnowledgeRuntimeLoop(): KnowledgeRuntimeLoop {
         // Compare Mem0 entries with knowledge episodes to find orphans
         try {
           const repo = getKnowledgeRepository();
-          const episodes = repo.listEpisodes({ userId: '%', personaId: '%', limit: 100 });
-          const knowledgeEntries = episodes.map((e) => ({
-            id: e.id || '',
-            content: e.teaser || '',
-          }));
-          // Mem0 recall is async — only run if we have knowledge entries
-          if (knowledgeEntries.length > 0) {
-            const report = detectOrphans([], knowledgeEntries);
-            if (report.knowledgeOrphansFound > 0 || report.mem0OrphansFound > 0) {
-              console.log(
-                `[knowledge] reconciliation: ${report.mem0OrphansFound} Mem0 orphans, ${report.knowledgeOrphansFound} knowledge orphans`,
-              );
-            }
+          const memoryService = tryGetMemoryService();
+          let mem0OrphansFound = 0;
+          let knowledgeOrphansFound = 0;
+          const scopes = repo.listKnowledgeScopes
+            ? repo.listKnowledgeScopes()
+            : [{ userId: '%', personaId: '%' }];
+          for (const scope of scopes) {
+            const episodes = repo.listEpisodes({ ...scope, limit: 10_000 });
+            const ledger = repo.listMeetingLedger({ ...scope, limit: 10_000 });
+            const knowledgeEntries = [
+              ...episodes.flatMap((entry) =>
+                (entry.memoryIds || []).map((externalRef) => ({
+                  id: `${entry.id}:${externalRef}`,
+                  content: entry.teaser,
+                  externalRef,
+                })),
+              ),
+              ...ledger.flatMap((entry) =>
+                (entry.memoryIds || []).map((externalRef) => ({
+                  id: `${entry.id}:${externalRef}`,
+                  content: entry.topicKey,
+                  externalRef,
+                })),
+              ),
+            ];
+            const mem0Entries = memoryService
+              ? (await memoryService.snapshot(scope.personaId, scope.userId)).map((entry) => ({
+                  id: entry.id,
+                  content: entry.content,
+                }))
+              : [];
+            const report = detectOrphans(mem0Entries, knowledgeEntries);
+            mem0OrphansFound += report.mem0OrphansFound;
+            knowledgeOrphansFound += report.knowledgeOrphansFound;
+          }
+          if (knowledgeOrphansFound > 0 || mem0OrphansFound > 0) {
+            console.log(
+              `[knowledge] reconciliation: ${mem0OrphansFound} Mem0 orphans, ${knowledgeOrphansFound} knowledge orphans`,
+            );
           }
         } catch (reconcileError) {
           console.warn('[knowledge] reconciliation skipped:', reconcileError);

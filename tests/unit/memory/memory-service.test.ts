@@ -464,10 +464,9 @@ describe('MemoryService (mem0-only)', () => {
       throw new Error('Mem0 request failed with HTTP 500.');
     };
     const service = new MemoryService(client);
+    const stored = await service.store('persona-a', 'fact', 'delete candidate', 3, 'user-a');
 
-    await expect(service.delete('persona-a', 'missing-node', 'user-a')).rejects.toThrow(
-      /HTTP 500/i,
-    );
+    await expect(service.delete('persona-a', stored.id, 'user-a')).rejects.toThrow(/HTTP 500/i);
   });
 
   it('treats known legacy delete 500 NoneType payload error as not-found', async () => {

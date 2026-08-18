@@ -184,6 +184,40 @@ export class RecallService {
   /**
    * Recall from Mem0 semantic memory
    */
+  private logMemoryScopeCompleted(
+    conversation: Conversation,
+    personaId: string,
+    memoryUserId: string,
+    userInput: string,
+    mode: 'semantic' | 'lexical',
+    durationMs: number,
+    matchesCount: number,
+    contextLength: number,
+    emptyScopeMarked: boolean,
+  ): void {
+    const slowThresholdMs = getChatRecallSlowThresholdMs();
+    logChatRecallTrace(
+      'memory.scope_completed',
+      {
+        durationMs,
+        slow: durationMs >= slowThresholdMs,
+        slowThresholdMs,
+        conversationId: conversation.id,
+        channelType: conversation.channelType,
+        externalChatId: conversation.externalChatId || null,
+        personaId,
+        memoryUserId,
+        queryLength: userInput.trim().length,
+        queryPreview: previewRecallText(userInput),
+        mode,
+        matchesCount,
+        contextLength,
+        ...(emptyScopeMarked ? { emptyScopeMarked: true } : {}),
+      },
+      { force: durationMs >= slowThresholdMs },
+    );
+  }
+
   private async recallFromMemory(
     memoryUserIds: string[],
     conversation: Conversation,
@@ -216,54 +250,23 @@ export class RecallService {
         const normalized = normalizeMemoryContext(recalled.context);
         if (normalized) {
           this.stateManager.clearMem0ScopeEmptyMarker(personaId, userIdCandidate);
-          const durationMs = Date.now() - startedAt;
-          const slowThresholdMs = getChatRecallSlowThresholdMs();
-          logChatRecallTrace(
-            'memory.scope_completed',
-            {
-              durationMs,
-              slow: durationMs >= slowThresholdMs,
-              slowThresholdMs,
-              conversationId: conversation.id,
-              channelType: conversation.channelType,
-              externalChatId: conversation.externalChatId || null,
-              personaId,
-              memoryUserId: userIdCandidate,
-              queryLength: userInput.trim().length,
-              queryPreview: previewRecallText(userInput),
-              mode: options.mode,
-              matchesCount: recalled.matches.length,
-              contextLength: normalized.length,
-            },
-            { force: durationMs >= slowThresholdMs },
-          );
-          return normalized;
         }
         if (recalled.matches.length === 0) {
           this.stateManager.markMem0ScopeTemporarilyEmpty(personaId, userIdCandidate);
         }
         const durationMs = Date.now() - startedAt;
-        const slowThresholdMs = getChatRecallSlowThresholdMs();
-        logChatRecallTrace(
-          'memory.scope_completed',
-          {
-            durationMs,
-            slow: durationMs >= slowThresholdMs,
-            slowThresholdMs,
-            conversationId: conversation.id,
-            channelType: conversation.channelType,
-            externalChatId: conversation.externalChatId || null,
-            personaId,
-            memoryUserId: userIdCandidate,
-            queryLength: userInput.trim().length,
-            queryPreview: previewRecallText(userInput),
-            mode: options.mode,
-            matchesCount: recalled.matches.length,
-            contextLength: 0,
-            emptyScopeMarked: recalled.matches.length === 0,
-          },
-          { force: durationMs >= slowThresholdMs },
+        this.logMemoryScopeCompleted(
+          conversation,
+          personaId,
+          userIdCandidate,
+          userInput,
+          options.mode,
+          durationMs,
+          recalled.matches.length,
+          normalized?.length ?? 0,
+          recalled.matches.length === 0,
         );
+        if (normalized) return normalized;
       } catch (error) {
         logChatRecallTrace(
           'memory.scope_failed',

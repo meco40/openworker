@@ -17,13 +17,13 @@ export async function handleMemoryPost(request: Request, userContext: MemoryApiU
 
     if (fcName === 'core_memory_store') {
       const parsed = parseStoreArgs(args);
-      const node = await service.store(
-        parsed.personaId,
-        parsed.type,
-        parsed.content,
-        parsed.importance,
-        userContext.userId,
-      );
+      const node = await service.storeMemory({
+        personaId: parsed.personaId,
+        type: parsed.type,
+        content: parsed.content,
+        importance: parsed.importance,
+        userId: userContext.userId,
+      });
       return NextResponse.json({ ok: true, result: { action: 'store', data: node } });
     }
 

@@ -1,6 +1,7 @@
 import { MemoryService } from '@/server/memory/service';
 import type { Mem0Client } from '@/server/memory/mem0';
 import { createMem0ClientFromEnv } from '@/server/memory/mem0';
+import { SqliteMemoryClient } from '@/server/memory/sqliteMemoryClient';
 
 declare global {
   var __memoryService: MemoryService | undefined;
@@ -88,13 +89,17 @@ export function assertMemoryRuntimeConfiguration(env: EnvLike = process.env as E
 function resolveMem0Client(): Mem0Client | null {
   assertMemoryRuntimeConfiguration();
   if (globalThis.__mem0Client === undefined) {
-    globalThis.__mem0Client = createMem0ClientFromEnv();
+    const provider = String(process.env.MEMORY_PROVIDER || '')
+      .trim()
+      .toLowerCase();
+    globalThis.__mem0Client =
+      provider === 'sqlite' ? new SqliteMemoryClient() : createMem0ClientFromEnv();
   }
   return globalThis.__mem0Client ?? null;
 }
 
 export class MemoryRuntimeUnavailableError extends Error {
-  constructor(message = 'Memory runtime unavailable: Mem0 is not ready.') {
+  constructor(message = 'Memory runtime unavailable: configured provider is not ready.') {
     super(message);
     this.name = 'MemoryRuntimeUnavailableError';
   }
@@ -104,7 +109,7 @@ function getRequiredMem0Client(): Mem0Client {
   const client = resolveMem0Client();
   if (!client) {
     throw new Error(
-      'Invalid memory configuration: Mem0 client unavailable. Set MEMORY_PROVIDER=mem0 and MEM0_BASE_URL.',
+      'Invalid memory configuration: memory client unavailable. Set MEMORY_PROVIDER=mem0 or MEMORY_PROVIDER=sqlite.',
     );
   }
   return client;
@@ -135,9 +140,9 @@ export function getMemoryServiceIfReady(): MemoryService | null {
   return getMemoryService();
 }
 
-export function getMemoryProviderKind(): 'mem0' {
-  getRequiredMem0Client();
-  return 'mem0';
+export function getMemoryProviderKind(): 'mem0' | 'sqlite' {
+  const client = getRequiredMem0Client();
+  return client.provider === 'sqlite' ? 'sqlite' : 'mem0';
 }
 
 export async function assertMemoryRuntimeReady(): Promise<void> {
@@ -154,7 +159,7 @@ export async function assertMemoryRuntimeReady(): Promise<void> {
     setMemoryRuntimeReadyState(false);
     scheduleMemoryRuntimeRecoveryProbe();
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Mem0 connectivity check failed: ${message}`);
+    throw new Error(`Memory provider connectivity check failed: ${message}`);
   }
 }
 

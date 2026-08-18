@@ -59,8 +59,8 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
   // Checkpoint Operations
   // ════════════════════════════════════════════════════════════
 
-  getIngestionCheckpoint(conversationId: string, personaId: string) {
-    return this.checkpointRepo.getIngestionCheckpoint(conversationId, personaId);
+  getIngestionCheckpoint(conversationId: string, userIdOrPersonaId: string, personaId?: string) {
+    return this.checkpointRepo.getIngestionCheckpoint(conversationId, userIdOrPersonaId, personaId);
   }
 
   upsertIngestionCheckpoint(
@@ -145,9 +145,10 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
         `
         SELECT MAX(updated_at) as updated_at
         FROM knowledge_ingestion_checkpoints
+        WHERE user_id = ? AND persona_id = ?
       `,
       )
-      .get() as { updated_at?: string } | undefined;
+      .get(userId, personaId) as { updated_at?: string } | undefined;
 
     const latestIngestionAt = parseIso(latestCheckpoint?.updated_at) || null;
     const ingestionLagMs = latestIngestionAt
@@ -166,8 +167,11 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
   deleteKnowledgeByScope(userId: string, personaId: string): number {
     const tx = this.db.transaction((uid: string, pid: string) => {
       const checkpointDeleted = Number(
-        this.db.prepare('DELETE FROM knowledge_ingestion_checkpoints WHERE persona_id = ?').run(pid)
-          .changes || 0,
+        this.db
+          .prepare(
+            'DELETE FROM knowledge_ingestion_checkpoints WHERE user_id = ? AND persona_id = ?',
+          )
+          .run(uid, pid).changes || 0,
       );
       const episodeDeleted = Number(
         this.db
@@ -213,6 +217,30 @@ export class SqliteKnowledgeRepository implements KnowledgeRepository {
     });
 
     return tx(userId, personaId);
+  }
+
+  listKnowledgeScopes(): Array<{ userId: string; personaId: string }> {
+    const rows = this.db
+      .prepare(
+        `
+        SELECT user_id, persona_id FROM knowledge_episodes
+        UNION
+        SELECT user_id, persona_id FROM knowledge_meeting_ledger
+        UNION
+        SELECT user_id, persona_id FROM knowledge_retrieval_audit
+        UNION
+        SELECT user_id, persona_id FROM knowledge_ingestion_checkpoints
+        UNION
+        SELECT user_id, persona_id FROM knowledge_events
+        UNION
+        SELECT user_id, persona_id FROM knowledge_entities
+        UNION
+        SELECT user_id, persona_id FROM knowledge_conversation_summaries
+        ORDER BY user_id, persona_id
+      `,
+      )
+      .all() as Array<{ user_id: string; persona_id: string }>;
+    return rows.map((row) => ({ userId: row.user_id, personaId: row.persona_id }));
   }
 
   pruneKnowledgeBefore(input: {

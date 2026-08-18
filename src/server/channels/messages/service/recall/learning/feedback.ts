@@ -42,18 +42,31 @@ export async function learnFromFeedback(
     if (feedback === 'negative') {
       const correction = extractCorrectionContent(userInput);
       if (correction) {
-        await getMemoryService().store(
-          conversation.personaId,
-          'fact',
-          correction,
-          5,
-          lastRecallState.userId,
-          {
-            subject: 'user',
-            sourceRole: 'user',
-            sourceType: 'feedback_correction',
-          },
-        );
+        const memoryService = getMemoryService();
+        const metadata = {
+          subject: 'user',
+          sourceRole: 'user',
+          sourceType: 'feedback_correction',
+        };
+        if (typeof memoryService.storeMemory === 'function') {
+          await memoryService.storeMemory({
+            personaId: conversation.personaId,
+            type: 'fact',
+            content: correction,
+            importance: 5,
+            userId: lastRecallState.userId,
+            metadata,
+          });
+        } else {
+          await memoryService.store(
+            conversation.personaId,
+            'fact',
+            correction,
+            5,
+            lastRecallState.userId,
+            metadata,
+          );
+        }
       }
     }
   } catch (error) {

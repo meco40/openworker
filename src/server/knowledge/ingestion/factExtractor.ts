@@ -20,6 +20,7 @@ import {
 import type { MemoryServiceLike, KnowledgeRepositoryLike } from './types';
 import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
 import type { EmotionDetectionResult } from './emotionTracker';
+import { createMemoryIdempotencyKey } from '@/server/memory/idempotency';
 
 export interface CorrectionResult {
   oldValue?: string;
@@ -127,9 +128,14 @@ export async function storeFacts(
   repo: KnowledgeRepositoryLike,
   facts: string[],
   context: FactProcessingContext,
-): Promise<{ failCount: number; skippedCount: number; pendingCount: number }> {
+): Promise<{
+  failCount: number;
+  skippedCount: number;
+  pendingCount: number;
+  memoryIds: string[];
+}> {
   if (!memoryService) {
-    return { failCount: 0, skippedCount: facts.length, pendingCount: facts.length };
+    return { failCount: 0, skippedCount: facts.length, pendingCount: facts.length, memoryIds: [] };
   }
 
   const { window, extraction, dominantEmotion, corrections } = context;
@@ -200,21 +206,80 @@ export async function storeFacts(
         metadata.contradictionType = signal.contradictionType;
         metadata.contradictionConfidence = signal.confidence;
         metadata.supersedes = prev.fact;
-        metadata.supersededFactLifecycleStatus = transitionLifecycle('new', 'contradicted');
+        prev.metadata.lifecycleStatus = transitionLifecycle('new', 'contradicted');
+        prev.metadata.lifecycleSignal = 'contradicted';
+        prev.metadata.supersededBy = fact;
+        metadata.supersededFactLifecycleStatus = prev.metadata.lifecycleStatus;
         break;
       }
     }
 
     if (corrections.length > 0) {
-      lifecycleStatus = transitionLifecycle(lifecycleStatus, 'corrected_by_user');
+      // The correction is the active replacement. The superseded source is
+      // marked above when it is present in the same extraction window.
+      lifecycleStatus = 'confirmed';
+      metadata.lifecycleSignal = 'user_confirmed';
     }
     metadata.lifecycleStatus = lifecycleStatus;
+    metadata.idempotencyKey = createMemoryIdempotencyKey([
+      'knowledge-fact',
+      window.userId,
+      window.personaId,
+      window.conversationId,
+      sourceSeqStart,
+      sourceSeqEnd,
+      fact,
+    ]);
 
     prepared.push({ fact, metadata });
   }
 
   if (prepared.length === 0) {
-    return { failCount: 0, skippedCount, pendingCount: 0 };
+    return { failCount: 0, skippedCount, pendingCount: 0, memoryIds: [] };
+  }
+
+  // Resolve contradictions against already persisted facts as well. This
+  // closes the former batch-only lifecycle gap without trusting raw Mem0 IDs:
+  // the MemoryService applies the same user/persona scope check before update.
+  if (memoryService.listPage && memoryService.update) {
+    try {
+      const existing = await memoryService.listPage(
+        window.personaId,
+        { page: 1, pageSize: 200, type: 'fact' },
+        window.userId,
+      );
+      for (const preparedFact of prepared) {
+        const prior = existing.nodes.find((node) => {
+          const signal = detectContradictionSignal(preparedFact.fact, node.content);
+          return signal.hasContradiction && node.metadata?.lifecycleStatus !== 'superseded';
+        });
+        if (!prior) continue;
+        preparedFact.metadata.contradictionDetected = true;
+        preparedFact.metadata.supersedesMemoryId = prior.id;
+        preparedFact.metadata.lifecycleStatus = 'confirmed';
+        preparedFact.metadata.lifecycleSignal = 'user_confirmed';
+        await memoryService.update(
+          window.personaId,
+          prior.id,
+          {
+            metadata: {
+              lifecycleStatus: 'superseded',
+              lifecycleSignal: 'contradicted',
+              supersededBy: preparedFact.fact,
+              lastVerified: new Date().toISOString(),
+            },
+          },
+          window.userId,
+        );
+      }
+    } catch (error) {
+      // A lifecycle maintenance failure must not turn a successfully stored
+      // fact into a false ingestion failure. It remains visible for retry.
+      console.warn(
+        '[KnowledgeIngestion] persisted contradiction maintenance skipped:',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
   }
 
   // ── Phase 2: store facts sequentially with per-window circuit breaker ──────
@@ -223,6 +288,7 @@ export async function storeFacts(
   let failCount = 0;
   let pendingCount = 0;
   let consecutiveFailures = 0;
+  const memoryIds: string[] = [];
 
   for (let i = 0; i < prepared.length; i++) {
     // Per-window circuit breaker: stop after too many consecutive failures
@@ -239,17 +305,27 @@ export async function storeFacts(
     const controller = new AbortController();
     let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
     try {
-      const storePromise = memoryService.store(
-        window.personaId,
-        'fact',
-        fact,
-        4,
-        window.userId,
-        metadata,
-        controller.signal,
-      );
+      const storePromise = memoryService.storeMemory
+        ? memoryService.storeMemory({
+            personaId: window.personaId,
+            type: 'fact',
+            content: fact,
+            importance: 4,
+            userId: window.userId,
+            metadata,
+            signal: controller.signal,
+          })
+        : memoryService.store(
+            window.personaId,
+            'fact',
+            fact,
+            4,
+            window.userId,
+            metadata,
+            controller.signal,
+          );
       storePromise.catch(() => {});
-      await Promise.race([
+      const stored = await Promise.race([
         storePromise,
         new Promise<never>((_resolve, reject) => {
           timeoutHandle = setTimeout(() => {
@@ -262,6 +338,10 @@ export async function storeFacts(
           }, MEM0_STORE_FACT_TIMEOUT_MS);
         }),
       ]);
+      if (stored && typeof stored === 'object' && 'id' in stored) {
+        const storedId = String((stored as { id?: unknown }).id || '').trim();
+        if (storedId) memoryIds.push(storedId);
+      }
       consecutiveFailures = 0;
     } catch (err) {
       failCount++;
@@ -285,5 +365,5 @@ export async function storeFacts(
     );
   }
 
-  return { failCount, skippedCount, pendingCount };
+  return { failCount, skippedCount, pendingCount, memoryIds };
 }

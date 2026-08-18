@@ -1,4 +1,4 @@
-import type { MemoryService } from '@/server/memory/service';
+import type { MemoryService, MemoryStoreInput } from '@/server/memory/service';
 import type {
   KnowledgeExtractionInput,
   KnowledgeExtractionResult,
@@ -35,6 +35,11 @@ export interface KnowledgeRepositoryLike {
 
 export interface MemoryServiceLike {
   store: (...args: Parameters<MemoryService['store']>) => Promise<unknown>;
+  storeMemory?: (input: MemoryStoreInput) => Promise<unknown>;
+  listPage?: (
+    ...args: Parameters<MemoryService['listPage']>
+  ) => ReturnType<MemoryService['listPage']>;
+  update?: (...args: Parameters<MemoryService['update']>) => ReturnType<MemoryService['update']>;
 }
 
 export interface KnowledgeIngestionServiceDependencies {
@@ -43,6 +48,8 @@ export interface KnowledgeIngestionServiceDependencies {
   knowledgeRepository: KnowledgeRepositoryLike;
   /** Optional — when null/undefined, Mem0 storage is silently skipped. */
   memoryService?: MemoryServiceLike | null;
+  /** Resolves the current memory runtime for every window after recovery. */
+  memoryServiceProvider?: () => MemoryServiceLike | null;
   /** Optional: resolve persona ID → human-readable name (e.g. "Lea"). */
   resolvePersonaName?: (personaId: string) => string | null;
 }

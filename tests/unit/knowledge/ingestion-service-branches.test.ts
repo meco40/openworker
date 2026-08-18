@@ -154,6 +154,7 @@ describe('KnowledgeIngestionService branch coverage', () => {
     expect(upsertMeetingLedger).toHaveBeenCalledTimes(1);
     expect(upsertCheckpoint).toHaveBeenCalledWith({
       conversationId: 'conv-delta',
+      userId: 'user-1',
       personaId: 'persona-1',
       lastSeq: 3,
     });

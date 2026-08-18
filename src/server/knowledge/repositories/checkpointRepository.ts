@@ -3,23 +3,31 @@ import type {
   KnowledgeCheckpoint,
   UpsertKnowledgeCheckpointInput,
 } from '@/server/knowledge/repository';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 
 export class CheckpointRepository {
   constructor(private readonly db: BetterSqlite3.Database) {}
 
-  getIngestionCheckpoint(conversationId: string, personaId: string): KnowledgeCheckpoint | null {
+  getIngestionCheckpoint(
+    conversationId: string,
+    userIdOrPersonaId: string,
+    personaIdArg?: string,
+  ): KnowledgeCheckpoint | null {
+    const userId = personaIdArg ? userIdOrPersonaId : LEGACY_LOCAL_USER_ID;
+    const personaId = personaIdArg || userIdOrPersonaId;
     const row = this.db
       .prepare(
         `
-        SELECT conversation_id, persona_id, last_seq, updated_at
+        SELECT conversation_id, user_id, persona_id, last_seq, updated_at
         FROM knowledge_ingestion_checkpoints
-        WHERE conversation_id = ? AND persona_id = ?
+        WHERE conversation_id = ? AND user_id = ? AND persona_id = ?
         LIMIT 1
       `,
       )
-      .get(conversationId, personaId) as
+      .get(conversationId, userId, personaId) as
       | {
           conversation_id: string;
+          user_id: string;
           persona_id: string;
           last_seq: number;
           updated_at: string;
@@ -30,6 +38,7 @@ export class CheckpointRepository {
 
     return {
       conversationId: row.conversation_id,
+      userId: row.user_id,
       personaId: row.persona_id,
       lastSeq: Number(row.last_seq || 0),
       updatedAt: row.updated_at,
@@ -38,21 +47,23 @@ export class CheckpointRepository {
 
   upsertIngestionCheckpoint(input: UpsertKnowledgeCheckpointInput): KnowledgeCheckpoint {
     const now = new Date().toISOString();
+    const userId = String(input.userId || LEGACY_LOCAL_USER_ID).trim() || LEGACY_LOCAL_USER_ID;
     const lastSeq = Math.max(0, Math.floor(Number(input.lastSeq || 0)));
 
     this.db
       .prepare(
         `
-        INSERT INTO knowledge_ingestion_checkpoints (conversation_id, persona_id, last_seq, updated_at)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(conversation_id, persona_id)
+        INSERT INTO knowledge_ingestion_checkpoints (conversation_id, user_id, persona_id, last_seq, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(conversation_id, user_id, persona_id)
         DO UPDATE SET last_seq = excluded.last_seq, updated_at = excluded.updated_at
       `,
       )
-      .run(input.conversationId, input.personaId, lastSeq, now);
+      .run(input.conversationId, userId, input.personaId, lastSeq, now);
 
     return {
       conversationId: input.conversationId,
+      userId,
       personaId: input.personaId,
       lastSeq,
       updatedAt: now,

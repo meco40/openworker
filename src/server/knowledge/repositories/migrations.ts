@@ -1,16 +1,40 @@
 import type BetterSqlite3 from 'better-sqlite3';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
+
+function hasColumn(db: BetterSqlite3.Database, tableName: string, columnName: string): boolean {
+  const rows = db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+  return rows.some((row) => row.name === columnName);
+}
 
 export function runKnowledgeMigrations(db: BetterSqlite3.Database): void {
   // Checkpoints
+  if (
+    hasColumn(db, 'knowledge_ingestion_checkpoints', 'conversation_id') &&
+    !hasColumn(db, 'knowledge_ingestion_checkpoints', 'user_id')
+  ) {
+    db.exec(
+      'ALTER TABLE knowledge_ingestion_checkpoints RENAME TO knowledge_ingestion_checkpoints_legacy',
+    );
+  }
   db.exec(`
     CREATE TABLE IF NOT EXISTS knowledge_ingestion_checkpoints (
       conversation_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
       persona_id TEXT NOT NULL,
       last_seq INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL,
-      PRIMARY KEY (conversation_id, persona_id)
+      PRIMARY KEY (conversation_id, user_id, persona_id)
     );
   `);
+  if (hasColumn(db, 'knowledge_ingestion_checkpoints_legacy', 'conversation_id')) {
+    db.exec(`
+      INSERT OR IGNORE INTO knowledge_ingestion_checkpoints
+        (conversation_id, user_id, persona_id, last_seq, updated_at)
+      SELECT conversation_id, '${LEGACY_LOCAL_USER_ID}', persona_id, last_seq, updated_at
+      FROM knowledge_ingestion_checkpoints_legacy;
+      DROP TABLE knowledge_ingestion_checkpoints_legacy;
+    `);
+  }
 
   // Episodes
   db.exec(`
@@ -33,6 +57,12 @@ export function runKnowledgeMigrations(db: BetterSqlite3.Database): void {
       UNIQUE(conversation_id, persona_id, source_seq_start, source_seq_end)
     );
   `);
+  if (
+    hasColumn(db, 'knowledge_episodes', 'id') &&
+    !hasColumn(db, 'knowledge_episodes', 'memory_ids_json')
+  ) {
+    db.exec("ALTER TABLE knowledge_episodes ADD COLUMN memory_ids_json TEXT NOT NULL DEFAULT '[]'");
+  }
 
   // Meeting Ledger
   db.exec(`
@@ -56,6 +86,14 @@ export function runKnowledgeMigrations(db: BetterSqlite3.Database): void {
       UNIQUE(conversation_id, persona_id, topic_key, event_at)
     );
   `);
+  if (
+    hasColumn(db, 'knowledge_meeting_ledger', 'id') &&
+    !hasColumn(db, 'knowledge_meeting_ledger', 'memory_ids_json')
+  ) {
+    db.exec(
+      "ALTER TABLE knowledge_meeting_ledger ADD COLUMN memory_ids_json TEXT NOT NULL DEFAULT '[]'",
+    );
+  }
 
   // Retrieval Audit
   db.exec(`
