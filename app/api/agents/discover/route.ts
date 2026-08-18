@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { queryAll } from '@/lib/db';
 import { getOpenClawClient } from '@/lib/openclaw/client';
+import { withUserContext } from '../../_shared/withUserContext';
 import type { Agent, DiscoveredAgent } from '@/lib/types';
+import { hasWorkspaceAccess, normalizeWorkspaceId } from '@/server/auth/workspaceAccess';
 
 // This route must always be dynamic - it queries live runtime state + DB
 export const dynamic = 'force-dynamic';
@@ -18,8 +20,15 @@ interface GatewayAgent {
 }
 
 // GET /api/agents/discover - Discover existing agents from the runtime registry
-export async function GET() {
+export const GET = withUserContext(async ({ request, userContext }) => {
   try {
+    const workspaceId = normalizeWorkspaceId(
+      new URL(request.url).searchParams.get('workspace_id') || 'default',
+    );
+    if (!workspaceId || !hasWorkspaceAccess(userContext, workspaceId)) {
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    }
+
     const client = getOpenClawClient();
 
     if (!client.isConnected()) {
@@ -51,9 +60,10 @@ export async function GET() {
       );
     }
 
-    // Get all agents already imported from runtime registry
+    // Only expose import state for the requested workspace.
     const existingAgents = queryAll<Agent>(
-      `SELECT * FROM agents WHERE gateway_agent_id IS NOT NULL`,
+      `SELECT * FROM agents WHERE gateway_agent_id IS NOT NULL AND workspace_id = ?`,
+      [workspaceId],
     );
     const importedGatewayIds = new Map(existingAgents.map((a) => [a.gateway_agent_id, a.id]));
 
@@ -85,4 +95,4 @@ export async function GET() {
       { status: 500 },
     );
   }
-}
+});

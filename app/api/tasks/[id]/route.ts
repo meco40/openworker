@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { broadcast } from '@/lib/events';
 import { getMissionControlUrl } from '@/lib/config';
 import {
@@ -15,11 +15,21 @@ import {
   TaskNotFoundError,
   updateTask,
 } from '@/server/tasks/taskService';
+import { withUserContext } from '../../_shared/withUserContext';
+import {
+  canAccessTask,
+  getAgentWorkspaceId,
+  getTaskWorkspaceId,
+} from '@/server/auth/workspaceAccess';
+import { getInternalRequestHeaders } from '@/server/auth/internalRequest';
 
 // GET /api/tasks/[id] - Get a single task
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
+    if (!canAccessTask(userContext, id)) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
     const task = getTaskById(id);
     return NextResponse.json(task);
   } catch (error) {
@@ -29,15 +39,27 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.error('Failed to fetch task:', error);
     return NextResponse.json({ error: 'Failed to fetch task' }, { status: 500 });
   }
-}
+});
 
 // PATCH /api/tasks/[id] - Update a task
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withUserContext<{ id: string }>(async ({ request, params, userContext }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
+    if (!canAccessTask(userContext, id)) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
     const parsed = await parseJsonBody(request, UpdateTaskSchema);
     if (!parsed.ok) {
       return parsed.response;
+    }
+    const workspaceId = getTaskWorkspaceId(id);
+    for (const agentId of [parsed.data.assigned_agent_id, parsed.data.updated_by_agent_id]) {
+      if (agentId && (!workspaceId || getAgentWorkspaceId(agentId) !== workspaceId)) {
+        return NextResponse.json(
+          { error: 'Referenced agent must belong to the task workspace' },
+          { status: 400 },
+        );
+      }
     }
 
     const result = updateTask(id, parsed.data);
@@ -57,7 +79,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const missionControlUrl = getMissionControlUrl();
       fetch(`${missionControlUrl}/api/tasks/${id}/dispatch`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getInternalRequestHeaders({ 'Content-Type': 'application/json' }),
       }).catch((err) => {
         console.error('Auto-dispatch failed:', err);
       });
@@ -85,21 +107,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     console.error('Failed to update task:', error);
     return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
   }
-}
+});
 
 // DELETE /api/tasks/[id] - Delete a task
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export const DELETE = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
+    const workspaceId = getTaskWorkspaceId(id);
+    if (!workspaceId || !canAccessTask(userContext, id)) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
     deleteTask(id);
 
     // Broadcast deletion via SSE
     broadcast({
       type: 'task_deleted',
-      payload: { id },
+      payload: { id, workspace_id: workspaceId },
     });
 
     return NextResponse.json({ success: true });
@@ -110,4 +133,4 @@ export async function DELETE(
     console.error('Failed to delete task:', error);
     return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 });
   }
-}
+});

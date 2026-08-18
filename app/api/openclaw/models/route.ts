@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getModelHubService } from '@/server/model-hub/runtime';
 import { PROVIDER_CATALOG } from '@/server/model-hub/providerCatalog';
+import { withUserContext } from '../../_shared/withUserContext';
 
 export const runtime = 'nodejs';
 
@@ -23,7 +24,7 @@ interface OpenClawModelsResponse {
  * Returns available models for Mission Control integrated runtime mode.
  * Source of truth is Model Hub pipeline (`p1`) with fallback provider defaults.
  */
-export async function GET() {
+export const GET = withUserContext(async () => {
   try {
     const payload = buildIntegratedModelInfo();
     return NextResponse.json<OpenClawModelsResponse>(payload);
@@ -34,7 +35,7 @@ export async function GET() {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
-}
+});
 
 function buildIntegratedModelInfo(): ModelInfoResponse {
   const service = getModelHubService();

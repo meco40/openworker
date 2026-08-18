@@ -219,55 +219,57 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 
 ## Wichtige Umgebungsvariablen
 
-| Variable                               | Beschreibung                                                           |
-| -------------------------------------- | ---------------------------------------------------------------------- |
-| `MEMORY_PROVIDER`                      | Memory-Provider (`mem0`)                                               |
-| `MEM0_BASE_URL`                        | Mem0 Base URL                                                          |
-| `MEM0_API_KEY`                         | Mem0 API Key                                                           |
-| `MEM0_API_PATH`                        | Mem0 API Pfad (Default `/v1`)                                          |
-| `MEM0_TIMEOUT_MS`                      | Mem0 Request-Timeout                                                   |
-| `MEM0_MAX_RETRIES`                     | Mem0 Retry-Limit                                                       |
-| `MEM0_RETRY_BASE_DELAY_MS`             | Mem0 Retry-Backoff-Basis                                               |
-| `MEM0_LLM_PROVIDER`                    | Optionales Bootstrap-LLM für mem0-local (ohne Hardcode)                |
-| `MODEL_HUB_ENCRYPTION_KEY`             | Secret-Encryption-Key (in Produktion erforderlich)                     |
-| `OPENAI_OAUTH_CLIENT_ID`               | Optional: eigene OpenAI Codex OAuth Client ID                          |
-| `OPENAI_OAUTH_CLIENT_SECRET`           | Optional: Client Secret für eigenen OAuth-Client                       |
-| `OPENAI_OAUTH_REDIRECT_URI`            | Optional: Redirect URI für Codex OAuth                                 |
-| `OPENAI_OAUTH_SCOPE`                   | Optional: OAuth Scope Override                                         |
-| `OPENAI_OAUTH_AUDIENCE`                | Optional: OAuth Audience Override                                      |
-| `OPENAI_OAUTH_AUTHORIZE_URL`           | Optional: OAuth Authorize URL Override                                 |
-| `OPENAI_OAUTH_TOKEN_URL`               | Optional: OAuth Token URL Override                                     |
-| `MC_API_TOKEN`                         | Optional: Bearer Token für externe Mission Control API Calls           |
-| `WEBHOOK_SECRET`                       | HMAC-Secret für Agent-Completion Webhooks (in Production erforderlich) |
-| `ALLOW_INSECURE_WEBHOOKS`              | Expliziter Non-Production/Test-Fallback für fehlendes Webhook-Secret   |
-| `EXTERNAL_SKILLS_ENABLED`              | Explizite Freigabe für Installation und Ausführung externer Skills     |
-| `WHATSAPP_ALLOW_FROM`                  | Exakte, kommaseparierte WhatsApp-Absender-Allowlist                    |
-| `ALLOW_OPEN_WHATSAPP_INBOUND`          | Explizite Freigabe für offene WhatsApp-Eingänge ohne Allowlist         |
-| `WHATSAPP_WEBHOOK_FETCH_MEDIA`         | Aktiviert entfernten WhatsApp-Medienabruf (standardmäßig deaktiviert)  |
-| `WHATSAPP_WEBHOOK_MEDIA_ALLOWED_HOSTS` | Exakte Host-Allowlist für entfernte WhatsApp-Anhänge                   |
-| `MESSAGES_DB_PATH`                     | Pfad zur Message-SQLite                                                |
-| `MEMORY_DB_PATH`                       | Pfad zur Memory-SQLite                                                 |
-| `PERSONAS_DB_PATH`                     | Pfad zur Persona-SQLite                                                |
-| `PERSONAS_ROOT_PATH`                   | Root für Persona-Dateisystemdaten                                      |
-| `SKILLS_DB_PATH`                       | Pfad zur Skills-SQLite                                                 |
-| `WHATSAPP_BRIDGE_URL`                  | WhatsApp Bridge URL                                                    |
-| `IMESSAGE_BRIDGE_URL`                  | iMessage Bridge URL                                                    |
-| `APP_URL`                              | Öffentliche App-URL (z. B. für Telegram Webhooks)                      |
-| `OPENCLAW_AUTONOMOUS_MAX_TOOL_CALLS`   | Tool-Budget für autonome Build-Ausführung                              |
-| `OPENCLAW_CHAT_STREAM_KEEPALIVE_MS`    | Keepalive-Intervall für `chat.stream`                                  |
-| `OPENCLAW_SHELL_TIMEOUT_MS`            | Laufzeitlimit für `shell_execute`                                      |
-| `OPENCLAW_SHELL_MAX_BUFFER_BYTES`      | Output-Buffer-Limit für `shell_execute`                                |
-| `REQUIRE_AUTH`                         | Auth erzwingen (`true`/`false`, Default in Dev oft `false`)            |
-| `NEXTAUTH_SECRET`                      | Secret für NextAuth-JWT-Signierung                                     |
-| `AUTH_DB_PATH`                         | Pfad zur Auth-SQLite                                                   |
-| `SCHEDULER_HEALTH_TOKEN`               | Bearer-Token für Scheduler-Health-Checks                               |
-| `SWARM_RUNNER`                         | `server` oder `scheduler` — bestimmt, wer Agent-Room-Swarm ausführt    |
-| `AGENT_V2_MAX_REQUESTS_PER_MINUTE`     | WebSocket-Rate-Limit (Default 600)                                     |
-| `OPENCLAW_EXEC_APPROVALS_REQUIRED`     | Ausführungs-Approvals erforderlich (`true`/`false`)                    |
-| `TASK_WORKSPACES_ROOT`                 | Root-Verzeichnis für Task-Workspaces                                   |
-| `TELEGRAM_BOT_TOKEN`                   | Legacy-Fallback für Telegram-Bot (Channel-Outbound)                    |
-| `DISCORD_BOT_TOKEN`                    | Legacy-Fallback für Discord-Bot (Channel-Outbound)                     |
-| `SLACK_BOT_TOKEN`                      | Legacy-Fallback für Slack-Bot (Channel-Outbound)                       |
+| Variable                               | Beschreibung                                                                         |
+| -------------------------------------- | ------------------------------------------------------------------------------------ |
+| `MEMORY_PROVIDER`                      | Memory-Provider (`mem0`)                                                             |
+| `MEM0_BASE_URL`                        | Mem0 Base URL                                                                        |
+| `MEM0_API_KEY`                         | Mem0 API Key                                                                         |
+| `MEM0_API_PATH`                        | Mem0 API Pfad (Default `/v1`)                                                        |
+| `MEM0_TIMEOUT_MS`                      | Mem0 Request-Timeout                                                                 |
+| `MEM0_MAX_RETRIES`                     | Mem0 Retry-Limit                                                                     |
+| `MEM0_RETRY_BASE_DELAY_MS`             | Mem0 Retry-Backoff-Basis                                                             |
+| `MEM0_LLM_PROVIDER`                    | Optionales Bootstrap-LLM für mem0-local (ohne Hardcode)                              |
+| `MODEL_HUB_ENCRYPTION_KEY`             | Secret-Encryption-Key (in Produktion erforderlich)                                   |
+| `OPENAI_OAUTH_CLIENT_ID`               | Optional: eigene OpenAI Codex OAuth Client ID                                        |
+| `OPENAI_OAUTH_CLIENT_SECRET`           | Optional: Client Secret für eigenen OAuth-Client                                     |
+| `OPENAI_OAUTH_REDIRECT_URI`            | Optional: Redirect URI für Codex OAuth                                               |
+| `OPENAI_OAUTH_SCOPE`                   | Optional: OAuth Scope Override                                                       |
+| `OPENAI_OAUTH_AUDIENCE`                | Optional: OAuth Audience Override                                                    |
+| `OPENAI_OAUTH_AUTHORIZE_URL`           | Optional: OAuth Authorize URL Override                                               |
+| `OPENAI_OAUTH_TOKEN_URL`               | Optional: OAuth Token URL Override                                                   |
+| `MC_API_TOKEN`                         | Optional: Bearer Token für externe Mission Control API Calls                         |
+| `WEBHOOK_SECRET`                       | HMAC-Secret für Agent-Completion Webhooks (in Production erforderlich)               |
+| `ALLOW_INSECURE_WEBHOOKS`              | Expliziter Non-Production/Test-Fallback für fehlendes Webhook-Secret                 |
+| `EXTERNAL_SKILLS_ENABLED`              | Explizite Freigabe für Installation und Ausführung externer Skills                   |
+| `WHATSAPP_ALLOW_FROM`                  | Exakte, kommaseparierte WhatsApp-Absender-Allowlist                                  |
+| `ALLOW_OPEN_WHATSAPP_INBOUND`          | Explizite Freigabe für offene WhatsApp-Eingänge ohne Allowlist                       |
+| `WHATSAPP_WEBHOOK_FETCH_MEDIA`         | Aktiviert entfernten WhatsApp-Medienabruf (standardmäßig deaktiviert)                |
+| `WHATSAPP_WEBHOOK_MEDIA_ALLOWED_HOSTS` | Exakte Host-Allowlist für entfernte WhatsApp-Anhänge                                 |
+| `MESSAGES_DB_PATH`                     | Pfad zur Message-SQLite                                                              |
+| `MEMORY_DB_PATH`                       | Pfad zur Memory-SQLite                                                               |
+| `PERSONAS_DB_PATH`                     | Pfad zur Persona-SQLite                                                              |
+| `PERSONAS_ROOT_PATH`                   | Root für Persona-Dateisystemdaten                                                    |
+| `SKILLS_DB_PATH`                       | Pfad zur Skills-SQLite                                                               |
+| `WHATSAPP_BRIDGE_URL`                  | WhatsApp Bridge URL                                                                  |
+| `IMESSAGE_BRIDGE_URL`                  | iMessage Bridge URL                                                                  |
+| `APP_URL`                              | Öffentliche App-URL (z. B. für Telegram Webhooks)                                    |
+| `OPENCLAW_AUTONOMOUS_MAX_TOOL_CALLS`   | Tool-Budget für autonome Build-Ausführung                                            |
+| `OPENCLAW_CHAT_STREAM_KEEPALIVE_MS`    | Keepalive-Intervall für `chat.stream`                                                |
+| `OPENCLAW_SHELL_TIMEOUT_MS`            | Laufzeitlimit für `shell_execute`                                                    |
+| `OPENCLAW_SHELL_MAX_BUFFER_BYTES`      | Output-Buffer-Limit für `shell_execute`                                              |
+| `REQUIRE_AUTH`                         | Auth erzwingen (`true`/`false`, Default in Dev oft `false`)                          |
+| `NEXTAUTH_SECRET`                      | Secret für NextAuth-JWT-Signierung                                                   |
+| `PRINCIPAL_USER_ID`                    | Legacy-Workspace-Besitzer für Migrationen; in Production auf die Auth-User-ID setzen |
+| `AUTH_DB_PATH`                         | Pfad zur Auth-SQLite                                                                 |
+| `E2E_ALLOW_ANONYMOUS_AUTH`             | Nur für explizite loopback-E2E-Prozesse mit `HOSTNAME=127.0.0.1`                     |
+| `SCHEDULER_HEALTH_TOKEN`               | Bearer-Token für Scheduler-Health-Checks                                             |
+| `SWARM_RUNNER`                         | `server` oder `scheduler` — bestimmt, wer Agent-Room-Swarm ausführt                  |
+| `AGENT_V2_MAX_REQUESTS_PER_MINUTE`     | WebSocket-Rate-Limit (Default 600)                                                   |
+| `OPENCLAW_EXEC_APPROVALS_REQUIRED`     | Ausführungs-Approvals erforderlich (`true`/`false`)                                  |
+| `TASK_WORKSPACES_ROOT`                 | Root-Verzeichnis für Task-Workspaces                                                 |
+| `TELEGRAM_BOT_TOKEN`                   | Legacy-Fallback für Telegram-Bot (Channel-Outbound)                                  |
+| `DISCORD_BOT_TOKEN`                    | Legacy-Fallback für Discord-Bot (Channel-Outbound)                                   |
+| `SLACK_BOT_TOKEN`                      | Legacy-Fallback für Slack-Bot (Channel-Outbound)                                     |
 
 Hinweis: Provider-Secrets für den Model-Hub werden über UI/API hinterlegt und verschlüsselt gespeichert (`MODEL_HUB_ENCRYPTION_KEY` erforderlich). Einige Legacy-Fallbacks und Channel-Bot-Token (z. B. `TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `SLACK_BOT_TOKEN`, `GEMINI_API_KEY`) werden weiterhin aus der Umgebung gelesen, sofern konfiguriert.
 

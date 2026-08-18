@@ -16,6 +16,7 @@ import type {
 import { ClawHubCli } from '@/server/clawhub/clawhubCli';
 import { ClawHubRepository, getClawHubRepository } from '@/server/clawhub/clawhubRepository';
 import { buildClawHubPromptBlock } from '@/server/clawhub/clawhubPromptBuilder';
+import { hasService, registerService, resolveService } from '@/server/di/container';
 
 interface ClawHubLockFile {
   skills?: Record<
@@ -285,13 +286,12 @@ export class ClawHubService {
   }
 }
 
-declare global {
-  var __clawHubService: ClawHubService | undefined;
+export function getClawHubService(): ClawHubService {
+  if (!hasService('clawhub.service')) {
+    registerService('clawhub.service', () => new ClawHubService());
+  }
+  return resolveService<ClawHubService>('clawhub.service');
 }
 
-export function getClawHubService(): ClawHubService {
-  if (!globalThis.__clawHubService) {
-    globalThis.__clawHubService = new ClawHubService();
-  }
-  return globalThis.__clawHubService;
-}
+// Register the default factory in the DI container for explicit wiring.
+registerService('clawhub.service', () => new ClawHubService());

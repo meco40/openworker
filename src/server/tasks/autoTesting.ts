@@ -3,6 +3,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { queryAll, run } from '@/lib/db';
 import { getMissionControlUrl, getProjectsPath } from '@/lib/config';
+import { getInternalRequestHeaders } from '@/server/auth/internalRequest';
 
 const MAX_DISCOVERED_HTML_FILES = 20;
 const inFlightAutoTests = new Set<string>();
@@ -169,7 +170,7 @@ export function triggerAutomatedTaskTest(taskId: string): void {
   const missionControlUrl = getMissionControlUrl();
   void fetch(`${missionControlUrl}/api/tasks/${taskId}/test`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getInternalRequestHeaders({ 'Content-Type': 'application/json' }),
   })
     .then(async (response) => {
       if (response.ok) return;

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getOpenClawClient } from '@/lib/openclaw/client';
 import { getDb } from '@/lib/db';
 import { broadcast } from '@/lib/events';
+import { withUserContext } from '../../../_shared/withUserContext';
+import { canAccessSession } from '@/server/auth/workspaceAccess';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -20,9 +22,12 @@ interface AgentRow {
 }
 
 // GET /api/openclaw/sessions/[id] - Get runtime session details
-export async function GET(request: Request, { params }: RouteParams) {
+export const GET = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
+    if (!canAccessSession(userContext, id)) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
     const client = getOpenClawClient();
 
     if (!client.isConnected()) {
@@ -49,12 +54,15 @@ export async function GET(request: Request, { params }: RouteParams) {
     console.error('Failed to get runtime session:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});
 
 // POST /api/openclaw/sessions/[id] - Send a message to a runtime session
-export async function POST(request: Request, { params }: RouteParams) {
+export const POST = withUserContext<{ id: string }>(async ({ request, params, userContext }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
+    if (!canAccessSession(userContext, id)) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
     const body = await request.json();
     const { content } = body;
 
@@ -84,12 +92,15 @@ export async function POST(request: Request, { params }: RouteParams) {
     console.error('Failed to send message to runtime session:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});
 
 // PATCH /api/openclaw/sessions/[id] - Update session status (for completing sub-agents)
-export async function PATCH(request: Request, { params }: RouteParams) {
+export const PATCH = withUserContext<{ id: string }>(async ({ request, params, userContext }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
+    if (!canAccessSession(userContext, id)) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
     const body = await request.json();
     const { status, ended_at } = body;
 
@@ -153,12 +164,15 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     console.error('Failed to update runtime session:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});
 
 // DELETE /api/openclaw/sessions/[id] - Delete a session and its associated agent
-export async function DELETE(request: Request, { params }: RouteParams) {
+export const DELETE = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
+    if (!canAccessSession(userContext, id)) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
     const db = getDb();
 
     // Find session by openclaw_session_id or internal id
@@ -212,4 +226,4 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     console.error('Failed to delete runtime session:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

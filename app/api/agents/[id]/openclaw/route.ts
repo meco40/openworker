@@ -1,19 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { queryOne, run } from '@/lib/db';
 import { getOpenClawClient } from '@/lib/openclaw/client';
+import { withUserContext } from '../../../_shared/withUserContext';
 import type { Agent, OpenClawSession } from '@/lib/types';
+import { hasWorkspaceAccess } from '@/server/auth/workspaceAccess';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
 // GET /api/agents/[id]/openclaw - Get the agent's runtime session
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export const GET = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
 
     const agent = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [id]);
     if (!agent) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+    }
+    if (!hasWorkspaceAccess(userContext, agent.workspace_id)) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
@@ -31,15 +36,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     console.error('Failed to get runtime session:', error);
     return NextResponse.json({ error: 'Failed to get runtime session' }, { status: 500 });
   }
-}
+});
 
 // POST /api/agents/[id]/openclaw - Link agent to runtime (creates session)
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export const POST = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
 
     const agent = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [id]);
     if (!agent) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+    }
+    if (!hasWorkspaceAccess(userContext, agent.workspace_id)) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
@@ -114,15 +122,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     console.error('Failed to link agent to runtime:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});
 
 // DELETE /api/agents/[id]/openclaw - Unlink agent from runtime
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export const DELETE = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
 
     const agent = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [id]);
     if (!agent) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+    }
+    if (!hasWorkspaceAccess(userContext, agent.workspace_id)) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
@@ -164,4 +175,4 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     console.error('Failed to unlink agent from runtime:', error);
     return NextResponse.json({ error: 'Failed to unlink agent from runtime' }, { status: 500 });
   }
-}
+});

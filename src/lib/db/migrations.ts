@@ -392,6 +392,65 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: '013',
+    name: 'add_workspace_memberships',
+    up: (db) => {
+      console.log('[Migration 013] Adding workspace membership table...');
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS workspace_members (
+          workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member')),
+          created_at TEXT DEFAULT (datetime('now')),
+          PRIMARY KEY (workspace_id, user_id)
+        );
+      `);
+
+      db.exec(
+        `CREATE INDEX IF NOT EXISTS idx_workspace_members_user ON workspace_members(user_id, workspace_id)`,
+      );
+
+      // Preserve the existing single-principal installation while keeping
+      // authenticated production access fail-closed for other users.
+      const legacyPrincipal =
+        String(process.env.PRINCIPAL_USER_ID || '').trim() || 'legacy-local-user';
+      db.prepare(
+        `
+          INSERT OR IGNORE INTO workspace_members (workspace_id, user_id, role)
+          SELECT id, ?, 'owner' FROM workspaces
+        `,
+      ).run(legacyPrincipal);
+    },
+  },
+  {
+    id: '014',
+    name: 'add_openclaw_session_workspace',
+    up: (db) => {
+      console.log('[Migration 014] Adding workspace scope to OpenClaw sessions...');
+      const columns = db.prepare('PRAGMA table_info(openclaw_sessions)').all() as Array<{
+        name: string;
+      }>;
+      if (!columns.some((column) => column.name === 'workspace_id')) {
+        db.exec(
+          `ALTER TABLE openclaw_sessions ADD COLUMN workspace_id TEXT REFERENCES workspaces(id)`,
+        );
+      }
+      db.exec(
+        `CREATE INDEX IF NOT EXISTS idx_openclaw_sessions_workspace ON openclaw_sessions(workspace_id)`,
+      );
+      // Existing sessions remain discoverable through their agent/task relation.
+      db.exec(`
+        UPDATE openclaw_sessions
+        SET workspace_id = COALESCE(
+          (SELECT workspace_id FROM agents WHERE agents.id = openclaw_sessions.agent_id),
+          (SELECT workspace_id FROM tasks WHERE tasks.id = openclaw_sessions.task_id)
+        )
+        WHERE workspace_id IS NULL
+      `);
+    },
+  },
 ];
 
 /**

@@ -33,6 +33,7 @@ export interface TaskListFilters {
   status?: string | null;
   businessId?: string | null;
   workspaceId?: string | null;
+  workspaceIds?: string[];
   assignedAgentId?: string | null;
 }
 
@@ -95,6 +96,12 @@ export function listTasks(filters: TaskListFilters) {
   if (filters.workspaceId) {
     sql += ' AND t.workspace_id = ?';
     params.push(filters.workspaceId);
+  } else if (filters.workspaceIds) {
+    if (filters.workspaceIds.length === 0) {
+      return [];
+    }
+    sql += ` AND t.workspace_id IN (${filters.workspaceIds.map(() => '?').join(', ')})`;
+    params.push(...filters.workspaceIds);
   }
   if (filters.assignedAgentId) {
     sql += ' AND t.assigned_agent_id = ?';

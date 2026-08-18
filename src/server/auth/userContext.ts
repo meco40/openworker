@@ -1,5 +1,7 @@
 import type { Session } from 'next-auth';
+import { timingSafeEqual } from 'node:crypto';
 import { getPrincipalUserId } from '@/server/auth/principal';
+import { hasValidInternalRequestToken } from '@/server/auth/internalRequest';
 
 export { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 
@@ -49,10 +51,36 @@ export function shouldUseLocalPrincipalWithoutSessionLookup(
   return process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
 }
 
-export async function resolveRequestUserContext(): Promise<{
+function hasValidApiToken(request: Request | undefined): boolean {
+  const configuredToken = String(process.env.MC_API_TOKEN || '').trim();
+  if (!request || !configuredToken) {
+    return false;
+  }
+
+  const authorization = request.headers.get('authorization') || '';
+  const match = /^Bearer\s+(.+)$/i.exec(authorization);
+  if (!match?.[1]) {
+    return false;
+  }
+
+  const received = Buffer.from(match[1], 'utf8');
+  const expected = Buffer.from(configuredToken, 'utf8');
+  return received.length === expected.length && timingSafeEqual(received, expected);
+}
+
+export async function resolveRequestUserContext(request?: Request): Promise<{
   userId: string;
   authenticated: boolean;
+  service?: boolean;
 } | null> {
+  if (hasValidApiToken(request) || hasValidInternalRequestToken(request)) {
+    return {
+      userId: getPrincipalUserId(),
+      authenticated: true,
+      service: true,
+    };
+  }
+
   const requireAuth = isAuthRequired();
   if (shouldUseLocalPrincipalWithoutSessionLookup(requireAuth)) {
     return {

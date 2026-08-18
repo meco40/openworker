@@ -47,7 +47,7 @@ export function withUserContext<TParams = Record<string, never>>(
     const pathname = new URL(resolvedRequest.url).pathname;
     const shouldTrace = isChatDisplayRequestPath(pathname);
     const authStartedAt = Date.now();
-    const userContext = await resolveRequestUserContext();
+    const userContext = await resolveRequestUserContext(resolvedRequest);
     const authDurationMs = Date.now() - authStartedAt;
     if (shouldTrace) {
       logChatDisplayTrace(
@@ -86,7 +86,7 @@ export function withResolvedUserContext<TParams = Record<string, never>>(
     const pathname = new URL(resolvedRequest.url).pathname;
     const shouldTrace = isChatDisplayRequestPath(pathname);
     const authStartedAt = Date.now();
-    const userContext = await resolveRequestUserContext();
+    const userContext = await resolveRequestUserContext(resolvedRequest);
     const authDurationMs = Date.now() - authStartedAt;
     if (shouldTrace) {
       logChatDisplayTrace(

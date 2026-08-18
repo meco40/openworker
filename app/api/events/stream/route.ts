@@ -3,14 +3,52 @@
  * Clients connect to this endpoint and receive live event broadcasts
  */
 
-import { NextRequest } from 'next/server';
 import { getSseDiagnostics, registerClient, unregisterClient } from '@/lib/events';
+import type { SSEEvent } from '@/lib/types';
+import { withUserContext } from '../../_shared/withUserContext';
+import {
+  getAccessibleWorkspaceIds,
+  getAgentWorkspaceId,
+  getTaskWorkspaceId,
+} from '@/server/auth/workspaceAccess';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+export const GET = withUserContext(async ({ request, userContext }) => {
   const encoder = new TextEncoder();
+  const workspaceIds = new Set(getAccessibleWorkspaceIds(userContext));
+
+  const isVisible = (event: SSEEvent): boolean => {
+    const payload = event.payload as Record<string, unknown>;
+    const workspaceId = typeof payload.workspace_id === 'string' ? payload.workspace_id : null;
+    if (workspaceId) return workspaceIds.has(workspaceId);
+
+    const taskId =
+      typeof payload.taskId === 'string'
+        ? payload.taskId
+        : typeof payload.task_id === 'string'
+          ? payload.task_id
+          : null;
+    if (taskId) {
+      const taskWorkspaceId = getTaskWorkspaceId(taskId);
+      return Boolean(taskWorkspaceId && workspaceIds.has(taskWorkspaceId));
+    }
+
+    const agentId =
+      typeof payload.agentId === 'string'
+        ? payload.agentId
+        : typeof payload.agent_id === 'string'
+          ? payload.agent_id
+          : null;
+    if (agentId) {
+      const agentWorkspaceId = getAgentWorkspaceId(agentId);
+      return Boolean(agentWorkspaceId && workspaceIds.has(agentWorkspaceId));
+    }
+
+    // Only explicitly global events may pass without a resource relation.
+    return false;
+  };
 
   // Create a readable stream for SSE
   const stream = new ReadableStream({
@@ -21,7 +59,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Register this client
-      registerClient(controller);
+      registerClient(controller, isVisible);
 
       // Send initial connection message
       const connectMsg = encoder.encode(`: connected\n\n`);
@@ -67,4 +105,4 @@ export async function GET(request: NextRequest) {
       'X-SSE-Mode': 'single-node-in-memory',
     },
   });
-}
+});

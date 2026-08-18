@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getDb, queryAll, queryOne, run } from '@/lib/db';
 import { getOpenClawClient } from '@/lib/openclaw/client';
 import { broadcast } from '@/lib/events';
 import { extractJSON } from '@/lib/planning-utils';
 import type { Task } from '@/lib/types';
+import { withUserContext } from '../../../_shared/withUserContext';
+import { canAccessTask } from '@/server/auth/workspaceAccess';
 // File system imports removed - using OpenClaw API instead
 
 // Planning session prefix for OpenClaw (must match agent:main: format)
@@ -16,8 +18,11 @@ function buildPlanningSessionKey(taskId: string): string {
 }
 
 // GET /api/tasks/[id]/planning - Get planning state
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id: taskId } = await params;
+export const GET = withUserContext<{ id: string }>(async ({ params, userContext }) => {
+  const { id: taskId } = params;
+  if (!canAccessTask(userContext, taskId)) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+  }
 
   try {
     // Get task
@@ -75,11 +80,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.error('Failed to get planning state:', error);
     return NextResponse.json({ error: 'Failed to get planning state' }, { status: 500 });
   }
-}
+});
 
 // POST /api/tasks/[id]/planning - Start planning session
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id: taskId } = await params;
+export const POST = withUserContext<{ id: string }>(async ({ params, userContext }) => {
+  const { id: taskId } = params;
+  if (!canAccessTask(userContext, taskId)) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+  }
 
   try {
     // Get task
@@ -207,14 +215,14 @@ Respond with ONLY valid JSON in this format:
       { status: 500 },
     );
   }
-}
+});
 
 // DELETE /api/tasks/[id]/planning - Cancel planning session
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { id: taskId } = await params;
+export const DELETE = withUserContext<{ id: string }>(async ({ params, userContext }) => {
+  const { id: taskId } = params;
+  if (!canAccessTask(userContext, taskId)) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+  }
 
   try {
     // Get task to check session key
@@ -261,4 +269,4 @@ export async function DELETE(
       { status: 500 },
     );
   }
-}
+});

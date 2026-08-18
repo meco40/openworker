@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { queryOne, run, getDb } from '@/lib/db';
-import { triggerAutoDispatch } from '@/lib/auto-dispatch';
+import { dispatchTask } from '@/server/tasks/dispatch';
+import { withUserContext } from '../../../../_shared/withUserContext';
+import { canAccessTask } from '@/server/auth/workspaceAccess';
 
 /**
  * POST /api/tasks/[id]/planning/retry-dispatch
@@ -8,8 +10,11 @@ import { triggerAutoDispatch } from '@/lib/auto-dispatch';
  * Retries the auto-dispatch for a completed planning task
  * This endpoint allows users to retry failed dispatches from the UI
  */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id: taskId } = await params;
+export const POST = withUserContext<{ id: string }>(async ({ params, userContext }) => {
+  const { id: taskId } = params;
+  if (!canAccessTask(userContext, taskId)) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+  }
 
   try {
     // Get task details
@@ -53,13 +58,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     ]);
 
     // Trigger the dispatch
-    const result = await triggerAutoDispatch({
-      taskId: task.id,
-      taskTitle: task.title,
-      agentId: task.assigned_agent_id,
-      agentName: agent?.name || 'Unknown Agent',
-      workspaceId: task.workspace_id,
-    });
+    const dispatchResult = await dispatchTask(task.id);
+    const result = {
+      success: dispatchResult.status >= 200 && dispatchResult.status < 300,
+      error:
+        dispatchResult.status >= 200 && dispatchResult.status < 300
+          ? undefined
+          : String(
+              (dispatchResult.body as { error?: unknown; message?: unknown }).error ||
+                (dispatchResult.body as { error?: unknown; message?: unknown }).message ||
+                `Dispatch failed (HTTP ${dispatchResult.status})`,
+            ),
+    };
 
     // Use transaction to ensure atomic updates
     const db = getDb();
@@ -129,4 +139,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       { status: 500 },
     );
   }
-}
+});

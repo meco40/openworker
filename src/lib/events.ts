@@ -12,8 +12,10 @@ import type { SSEEvent } from './types';
 const SSE_MODE = 'single-node-in-memory';
 const MAX_SSE_CLIENTS = Number.parseInt(process.env.SSE_MAX_CLIENTS || '20', 10);
 
+export type SseEventFilter = (event: SSEEvent) => boolean;
+
 // Store active SSE client connections.
-const clients = new Set<ReadableStreamDefaultController>();
+const clients = new Map<ReadableStreamDefaultController, SseEventFilter | undefined>();
 let totalConnections = 0;
 let droppedConnections = 0;
 let broadcastsTotal = 0;
@@ -21,7 +23,7 @@ let lastBroadcastAt: string | null = null;
 let lastEventType: string | null = null;
 
 function pruneOldestClient() {
-  const iterator = clients.values();
+  const iterator = clients.keys();
   const oldest = iterator.next().value as ReadableStreamDefaultController | undefined;
   if (!oldest) return;
   clients.delete(oldest);
@@ -36,12 +38,15 @@ function pruneOldestClient() {
 /**
  * Register a new SSE client connection
  */
-export function registerClient(controller: ReadableStreamDefaultController): void {
+export function registerClient(
+  controller: ReadableStreamDefaultController,
+  filter?: SseEventFilter,
+): void {
   totalConnections += 1;
   if (clients.size >= Math.max(1, MAX_SSE_CLIENTS)) {
     pruneOldestClient();
   }
-  clients.add(controller);
+  clients.set(controller, filter);
 }
 
 /**
@@ -63,8 +68,11 @@ export function broadcast(event: SSEEvent): void {
   lastEventType = event.type;
 
   // Send to all connected clients
-  const clientsArray = Array.from(clients);
-  for (const client of clientsArray) {
+  const clientsArray = Array.from(clients.entries());
+  for (const [client, filter] of clientsArray) {
+    if (filter && !filter(event)) {
+      continue;
+    }
     try {
       client.enqueue(encoded);
     } catch (error) {

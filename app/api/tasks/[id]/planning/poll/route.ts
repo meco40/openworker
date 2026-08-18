@@ -1,6 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { queryOne, run, getDb, queryAll } from '@/lib/db';
 import { broadcast } from '@/lib/events';
+import { withUserContext } from '../../../../_shared/withUserContext';
+import { canAccessTask } from '@/server/auth/workspaceAccess';
+import { getInternalRequestHeaders } from '@/server/auth/internalRequest';
 import { extractJSON, getMessagesFromOpenClaw } from '@/lib/planning-utils';
 import { Task } from '@/lib/types';
 import { fetchWithPolicy } from '@/server/http/fetchWithPolicy';
@@ -171,7 +174,7 @@ async function handlePlanningCompletion(
         dispatchUrl,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getInternalRequestHeaders({ 'Content-Type': 'application/json' }),
         },
         { timeoutMs: 5_000, retries: 1 },
       );
@@ -243,8 +246,11 @@ async function handlePlanningCompletion(
 }
 
 // GET /api/tasks/[id]/planning/poll - Check for new messages from OpenClaw
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id: taskId } = await params;
+export const GET = withUserContext<{ id: string }>(async ({ params, userContext }) => {
+  const { id: taskId } = params;
+  if (!canAccessTask(userContext, taskId)) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+  }
 
   try {
     const task = queryOne<{
@@ -383,4 +389,4 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.error('Failed to poll for updates:', error);
     return NextResponse.json({ error: 'Failed to poll for updates' }, { status: 500 });
   }
-}
+});

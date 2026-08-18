@@ -160,7 +160,8 @@ export interface WorkspaceStats {
 
 export interface OpenClawSession {
   id: string;
-  agent_id: string;
+  agent_id: string | null;
+  workspace_id?: string | null;
   openclaw_session_id: string;
   channel?: string;
   status: string;
@@ -290,5 +291,6 @@ export interface SSEEvent {
       }
     | {
         id: string; // For task_deleted events
+        workspace_id?: string;
       };
 }

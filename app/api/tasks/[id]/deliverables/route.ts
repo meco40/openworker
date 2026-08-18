@@ -3,20 +3,25 @@
  * Endpoints for managing task deliverables (files, URLs, artifacts)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { broadcast } from '@/lib/events';
 import { CreateDeliverableSchema } from '@/lib/validation';
 import { existsSync } from 'node:fs';
 import type { TaskDeliverable } from '@/lib/types';
+import { withUserContext } from '../../../_shared/withUserContext';
+import { canAccessTask } from '@/server/auth/workspaceAccess';
 
 /**
  * GET /api/tasks/[id]/deliverables
  * Retrieve all deliverables for a task
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
-    const { id: taskId } = await params;
+    const { id: taskId } = params;
+    if (!canAccessTask(userContext, taskId)) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
     const db = getDb();
 
     const deliverables = db
@@ -35,15 +40,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.error('Error fetching deliverables:', error);
     return NextResponse.json({ error: 'Failed to fetch deliverables' }, { status: 500 });
   }
-}
+});
 
 /**
  * POST /api/tasks/[id]/deliverables
  * Add a new deliverable to a task
  */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withUserContext<{ id: string }>(async ({ request, params, userContext }) => {
   try {
-    const { id: taskId } = await params;
+    const { id: taskId } = params;
+    if (!canAccessTask(userContext, taskId)) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
     const body = await request.json();
 
     // Validate input with Zod
@@ -113,4 +121,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     console.error('Error creating deliverable:', error);
     return NextResponse.json({ error: 'Failed to create deliverable' }, { status: 500 });
   }
-}
+});

@@ -134,4 +134,27 @@ describe('resolveRequestUserContext', () => {
 
     await expect(resolveRequestUserContext()).rejects.toThrow('Database unavailable');
   });
+
+  it('accepts the configured API token as an authenticated service context', async () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      NODE_ENV: 'production',
+      REQUIRE_AUTH: 'true',
+      MC_API_TOKEN: 'service-token',
+      PRINCIPAL_USER_ID: 'service-principal',
+    };
+
+    const { resolveRequestUserContext } = await import('@/server/auth/userContext');
+    const context = await resolveRequestUserContext(
+      new Request('http://localhost/api/tasks', {
+        headers: { Authorization: 'Bearer service-token' },
+      }),
+    );
+
+    expect(context).toEqual({
+      userId: 'service-principal',
+      authenticated: true,
+      service: true,
+    });
+  });
 });

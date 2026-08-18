@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 
 import { startAutomationRuntime, stopAutomationRuntime } from './src/server/automation/runtime';
+import { assertProductionAuthConfig } from './src/server/auth/productionGuard';
 import {
   assertMemoryRuntimeConfiguration,
   ensureMemoryRuntimeReadyForStartup,
@@ -36,6 +37,7 @@ function shutdown(): void {
 console.log(`[automation-scheduler] starting with instance ${instanceId}`);
 
 async function bootstrap(): Promise<void> {
+  assertProductionAuthConfig();
   assertMemoryRuntimeConfiguration();
   await ensureMemoryRuntimeReadyForStartup({ component: 'scheduler' });
 

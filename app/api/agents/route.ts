@@ -4,23 +4,33 @@ import { CreateAgentSchema } from '@/lib/validation';
 import type { Agent } from '@/lib/types';
 import { parseJsonBody } from '../_shared/parseJsonBody';
 import { withUserContext } from '../_shared/withUserContext';
+import {
+  getAccessibleWorkspaceIds,
+  hasWorkspaceAccess,
+  normalizeWorkspaceId,
+} from '@/server/auth/workspaceAccess';
 
 export const runtime = 'nodejs';
 
-export const GET = withUserContext(async ({ request }) => {
+export const GET = withUserContext(async ({ request, userContext }) => {
   try {
     const workspaceId = new URL(request.url).searchParams.get('workspace_id');
 
-    const agents = workspaceId
+    if (workspaceId && !hasWorkspaceAccess(userContext, workspaceId)) {
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    }
+
+    const accessibleWorkspaceIds = workspaceId
+      ? [workspaceId]
+      : getAccessibleWorkspaceIds(userContext);
+    const agents = accessibleWorkspaceIds.length
       ? queryAll<Agent>(
-          `
-          SELECT * FROM agents WHERE workspace_id = ? ORDER BY is_master DESC, name ASC
-        `,
-          [workspaceId],
+          `SELECT * FROM agents WHERE workspace_id IN (${accessibleWorkspaceIds
+            .map(() => '?')
+            .join(', ')}) ORDER BY is_master DESC, name ASC`,
+          accessibleWorkspaceIds,
         )
-      : queryAll<Agent>(`
-          SELECT * FROM agents ORDER BY is_master DESC, name ASC
-        `);
+      : [];
 
     return NextResponse.json(agents);
   } catch (error) {
@@ -29,7 +39,7 @@ export const GET = withUserContext(async ({ request }) => {
   }
 });
 
-export const POST = withUserContext(async ({ request }) => {
+export const POST = withUserContext(async ({ request, userContext }) => {
   try {
     const parsed = await parseJsonBody(request, CreateAgentSchema);
     if (!parsed.ok) {
@@ -39,6 +49,10 @@ export const POST = withUserContext(async ({ request }) => {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const body = parsed.data;
+    const workspaceId = normalizeWorkspaceId(body.workspace_id || 'default');
+    if (!workspaceId || !hasWorkspaceAccess(userContext, workspaceId)) {
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    }
 
     run(
       `INSERT INTO agents (id, name, role, description, avatar_emoji, is_master, workspace_id, soul_md, user_md, agents_md, model, created_at, updated_at)
@@ -50,7 +64,7 @@ export const POST = withUserContext(async ({ request }) => {
         body.description?.trim() || null,
         body.avatar_emoji?.trim() || '🤖',
         body.is_master ? 1 : 0,
-        body.workspace_id || 'default',
+        workspaceId,
         body.soul_md || null,
         body.user_md || null,
         body.agents_md || null,

@@ -3,17 +3,22 @@
  * Register OpenClaw sub-agent sessions for tasks
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { broadcast } from '@/lib/events';
+import { withUserContext } from '../../../_shared/withUserContext';
+import { canAccessTask } from '@/server/auth/workspaceAccess';
 
 /**
  * POST /api/tasks/[id]/subagent
  * Register a sub-agent session for a task
  */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withUserContext<{ id: string }>(async ({ request, params, userContext }) => {
   try {
-    const { id: taskId } = await params;
+    const { id: taskId } = params;
+    if (!canAccessTask(userContext, taskId)) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
     const body = await request.json();
 
     const { openclaw_session_id, agent_name } = body;
@@ -31,9 +36,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (agent_name) {
       // Check if agent already exists
-      const existingAgent = db.prepare('SELECT id FROM agents WHERE name = ?').get(agent_name) as
-        | { id: string }
+      const task = db.prepare('SELECT workspace_id FROM tasks WHERE id = ?').get(taskId) as
+        | { workspace_id: string }
         | undefined;
+      const existingAgent = db
+        .prepare('SELECT id FROM agents WHERE name = ? AND workspace_id = ?')
+        .get(agent_name, task?.workspace_id || 'default') as { id: string } | undefined;
 
       if (existingAgent) {
         agentId = existingAgent.id;
@@ -42,10 +50,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         agentId = crypto.randomUUID();
         db.prepare(
           `
-          INSERT INTO agents (id, name, role, description, status)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO agents (id, name, role, description, status, workspace_id)
+          VALUES (?, ?, ?, ?, ?, ?)
         `,
-        ).run(agentId, agent_name, 'Sub-Agent', 'Automatically created sub-agent', 'working');
+        ).run(
+          agentId,
+          agent_name,
+          'Sub-Agent',
+          'Automatically created sub-agent',
+          'working',
+          task?.workspace_id || 'default',
+        );
       }
     }
 
@@ -82,15 +97,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     console.error('Error registering sub-agent:', error);
     return NextResponse.json({ error: 'Failed to register sub-agent' }, { status: 500 });
   }
-}
+});
 
 /**
  * GET /api/tasks/[id]/subagent
  * Get all sub-agent sessions for a task
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
-    const { id: taskId } = await params;
+    const { id: taskId } = params;
+    if (!canAccessTask(userContext, taskId)) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
     const db = getDb();
 
     const sessions = db
@@ -113,4 +131,4 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.error('Error fetching sub-agents:', error);
     return NextResponse.json({ error: 'Failed to fetch sub-agents' }, { status: 500 });
   }
-}
+});

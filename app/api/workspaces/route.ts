@@ -4,6 +4,7 @@ import { CreateWorkspaceSchema } from '@/lib/validation';
 import type { TaskStatus, Workspace, WorkspaceStats } from '@/lib/types';
 import { parseJsonBody } from '../_shared/parseJsonBody';
 import { withUserContext } from '../_shared/withUserContext';
+import { getAccessibleWorkspaceIds, grantWorkspaceOwner } from '@/server/auth/workspaceAccess';
 
 export const runtime = 'nodejs';
 
@@ -14,18 +15,24 @@ function generateSlug(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
-export const GET = withUserContext(async ({ request }) => {
+export const GET = withUserContext(async ({ request, userContext }) => {
   const includeStats = new URL(request.url).searchParams.get('stats') === 'true';
 
   try {
     const db = getDb();
 
+    const accessibleIds = getAccessibleWorkspaceIds(userContext);
+    const workspaces = accessibleIds.length
+      ? (db
+          .prepare(
+            `SELECT * FROM workspaces WHERE id IN (${accessibleIds.map(() => '?').join(', ')}) ORDER BY name`,
+          )
+          .all(...accessibleIds) as Workspace[])
+      : [];
+
     if (!includeStats) {
-      const workspaces = db.prepare('SELECT * FROM workspaces ORDER BY name').all();
       return NextResponse.json(workspaces);
     }
-
-    const workspaces = db.prepare('SELECT * FROM workspaces ORDER BY name').all() as Workspace[];
 
     const stats: WorkspaceStats[] = workspaces.map((workspace) => {
       const taskCounts = db
@@ -77,7 +84,7 @@ export const GET = withUserContext(async ({ request }) => {
   }
 });
 
-export const POST = withUserContext(async ({ request }) => {
+export const POST = withUserContext(async ({ request, userContext }) => {
   try {
     const parsed = await parseJsonBody(request, CreateWorkspaceSchema);
     if (!parsed.ok) {
@@ -105,6 +112,8 @@ export const POST = withUserContext(async ({ request }) => {
       VALUES (?, ?, ?, ?, ?)
     `,
     ).run(id, name, slug, description, icon);
+
+    grantWorkspaceOwner(id, userContext.userId);
 
     const workspace = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id);
     return NextResponse.json(workspace, { status: 201 });

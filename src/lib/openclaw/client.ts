@@ -353,16 +353,21 @@ export class OpenClawClient extends EventEmitter {
     });
   }
 
-  async createSession(channel: string, peer?: string): Promise<OpenClawSessionInfo> {
+  async createSession(
+    channel: string,
+    peer?: string,
+    workspaceId?: string,
+  ): Promise<OpenClawSessionInfo> {
     const openclawSessionId =
       normalizeString(peer) || `mission-control-session-${Date.now().toString(36)}`;
     const now = new Date().toISOString();
 
     run(
-      `INSERT INTO openclaw_sessions (id, openclaw_session_id, channel, status, session_type, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO openclaw_sessions (id, workspace_id, openclaw_session_id, channel, status, session_type, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         randomUUID(),
+        workspaceId || null,
         openclawSessionId,
         normalizeString(channel) || 'mission-control',
         'active',

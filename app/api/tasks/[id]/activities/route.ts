@@ -3,11 +3,17 @@
  * Endpoints for logging and retrieving task activities
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { broadcast } from '@/lib/events';
 import { CreateActivitySchema } from '@/lib/validation';
 import type { TaskActivity } from '@/lib/types';
+import { withUserContext } from '../../../_shared/withUserContext';
+import {
+  canAccessTask,
+  getAgentWorkspaceId,
+  getTaskWorkspaceId,
+} from '@/server/auth/workspaceAccess';
 
 interface ActivityRow {
   id: string;
@@ -25,9 +31,12 @@ interface ActivityRow {
  * GET /api/tasks/[id]/activities
  * Retrieve all activities for a task
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
-    const { id: taskId } = await params;
+    const { id: taskId } = params;
+    if (!canAccessTask(userContext, taskId)) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
     const db = getDb();
 
     // Get activities with agent info
@@ -78,15 +87,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.error('Error fetching activities:', error);
     return NextResponse.json({ error: 'Failed to fetch activities' }, { status: 500 });
   }
-}
+});
 
 /**
  * POST /api/tasks/[id]/activities
  * Log a new activity for a task
  */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withUserContext<{ id: string }>(async ({ request, params, userContext }) => {
   try {
-    const { id: taskId } = await params;
+    const { id: taskId } = params;
+    if (!canAccessTask(userContext, taskId)) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
     const body = await request.json();
 
     // Validate input with Zod
@@ -99,6 +111,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const { activity_type, message, agent_id, metadata } = validation.data;
+
+    if (agent_id) {
+      const taskWorkspaceId = getTaskWorkspaceId(taskId);
+      const agentWorkspaceId = getAgentWorkspaceId(agent_id);
+      if (taskWorkspaceId && agentWorkspaceId && agentWorkspaceId !== taskWorkspaceId) {
+        return NextResponse.json(
+          { error: 'Referenced agent must belong to the task workspace' },
+          { status: 400 },
+        );
+      }
+    }
 
     const db = getDb();
     const id = crypto.randomUUID();
@@ -191,4 +214,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     console.error('Error creating activity:', error);
     return NextResponse.json({ error: 'Failed to create activity' }, { status: 500 });
   }
-}
+});

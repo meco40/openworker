@@ -1,10 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getOpenClawClient } from '@/lib/openclaw/client';
+import { withUserContext } from '../../../../_shared/withUserContext';
+import { canAccessTask } from '@/server/auth/workspaceAccess';
 
 // POST /api/tasks/[id]/planning/answer - Submit an answer and get next question
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id: taskId } = await params;
+export const POST = withUserContext<{ id: string }>(async ({ request, params, userContext }) => {
+  const { id: taskId } = params;
+  if (!canAccessTask(userContext, taskId)) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+  }
 
   try {
     const body = await request.json();
@@ -51,7 +56,7 @@ For another question, respond with JSON:
     {"id": "B", "label": "Option B"},
     {"id": "other", "label": "Other"}
   ]
-}
+});
 
 If planning is complete, respond with JSON:
 {
@@ -135,4 +140,4 @@ If planning is complete, respond with JSON:
       { status: 500 },
     );
   }
-}
+});

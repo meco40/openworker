@@ -377,6 +377,15 @@ Validation final for this pass:
 - Build-Warnung: 13 Turbopack-Meldungen zu sehr breiten dynamischen Dateimustern; Build bleibt erfolgreich, aber Tracing-/Bundle-Performance ist betroffen.
 - Laufzeit: `npm run dev` startete Web, Scheduler und Swarm-Runtime; `/` lieferte 200. Lokaler Mem0-/Postgres-Compose-Stack war healthy und Mem0 `/health` lieferte 200; kein Mem0-Connection-Error im Startlog. Der geschützte `/api/health`-Aufruf ohne Auth lieferte 401.
 
+## [OUTCOMES] 2026-08-18T01:48:00+02:00 [CODE] Alle 4 verbleibenden Review-Empfehlungen umgesetzt
+
+- **Empfehlung 1 (P1, Agents-Routen absichern)**: `/api/agents/discover`, `/api/agents/import`, `/api/agents/[id]/openclaw` nutzen jetzt `withUserContext`. `agents/import` bindet `workspace_id` an den authentifizierten User (`${userId}:${workspace}`) und verhindert Cross-Tenant-Zugriffe.
+- **Empfehlung 2 (P1, Konsistente User-Context-Checks)**: `/api/tasks`, `/api/openclaw/sessions`, `/api/events` nutzen jetzt `withUserContext` - konsistent zur Master-/Automation-Route-Familie.
+- **Empfehlung 3 (P2, REQUIRE_AUTH in Produktion erzwingen)**: Neuer `src/server/auth/productionGuard.ts` mit `assertProductionAuthConfig()`, eingebunden in `server.ts` und `scheduler.ts`. In Produktion wird der Start verweigert, wenn `REQUIRE_AUTH !== 'true'` oder `NEXTAUTH_SECRET`/`AUTH_SECRET` fehlt.
+- **Empfehlung 4 (P3, DI einführen)**: Neuer `src/server/di/container.ts` mit `registerService`/`resolveService`/`resetContainer`/`clearContainer`. `clawhubService.ts` ist als erstes Kernmodul integriert (Factory-Registrierung + Getter-Fallback).
+- **Neue Tests** (2 Dateien / 12 Tests): `tests/unit/auth/production-guard.test.ts` (6 Tests, alle Guard-Pfade), `tests/unit/di/container.test.ts` (6 Tests, alle Container-Operationen).
+- **Validierung**: `pnpm run check` ✅ (Typecheck, Oxlint 0 Warnungen/0 Fehler, Prettier), `pnpm run test` ✅ 572 Dateien / 2880 Tests (vorher 570/2868, +2 Dateien +12 Tests), `pnpm run build` ✅ (Next.js 16.1.6 webpack, erfolgreich in 8.8min, 52 statische Seiten).
+
 ## [OUTCOMES] 2026-08-18T00:33:00+02:00 [CODE] Branch-Coverage der 4 Service-Layer-Zielmodule auf ≥80% gehoben
 
 - **Empfehlung aus App-Review umgesetzt**: Branch-Coverage auf 80% für die 4 identifizierten Service-Layer-Dateien gehoben.
@@ -395,3 +404,11 @@ Validation final for this pass:
 - Validation: `pnpm run test` 566 Dateien / 2754 Tests bestanden; `pnpm run check` bestanden; `pnpm run test:coverage` bestanden mit 84,73% Statements, 72,43% Branches, 87,79% Functions, 86,47% Lines. Zielmodule liegen bei mindestens ca. 80% Branches: registerSwarmMethods 79,78%, iMessage 100%, runtimePersona 90%, subagentPool 90,91%, toolPolicy 81,82%.
 - Build/Runtime: `pnpm run build` über Webpack erfolgreich und ohne Warnungen. `npm run dev` meldete Gateway/Scheduler ready, `/` HTTP 200; Mem0 `/health` HTTP 200, Container healthy und kein Mem0-Connection-Error im Startlog.
 - Restzustand: Nutzeränderungen bleiben uncommitted erhalten; `.kilo/`, `test-results/.last-run.json` und `tsconfig.tsbuildinfo` wurden nicht bereinigt oder zurückgesetzt.
+
+## [OUTCOMES] 2026-08-18T02:29:10+02:00 [CODE] [TOOL] Auth-/Workspace-Review finalisiert
+
+- Die frühere Bewertung der vier Empfehlungen war unvollständig. Die künstliche Agent-Workspace-ID `${userId}:${workspace}` wurde superseded: Workspace-IDs bleiben stabil und Zugriff wird über `workspace_members` geprüft; Migrationen 013/014 decken Memberships und OpenClaw-Session-Workspaces ab.
+- Agents-, Tasks-, OpenClaw-, Events- und Workspace-Routen inklusive Detail-/Unterpfaden und SSE-Stream sind mit `withUserContext` und Workspace-Ownership-Prüfungen geschützt. Interne Server-Aufrufe nutzen einen process-lokalen Header bzw. `MC_API_TOKEN`.
+- Produktions-Auth-Guard bleibt fail-closed; die einzige anonyme E2E-Ausnahme ist explizit `E2E_ALLOW_ANONYMOUS_AUTH=true` und auf Loopback beschränkt. ClawHub nutzt den DI-Container statt `globalThis`.
+- `pnpm run check` ✅, `pnpm run test` ✅ 573 Dateien / 2883 Tests, `pnpm run build` ✅ Next.js-Webpack-Build einschließlich 52 statischer Seiten.
+- `npm run dev` startete Web und Scheduler; Gateway meldete `Server ready`. Mem0 meldete lokal weiterhin Timeouts, weil die Docker-Engine/Compose-Pipe trotz laufendem Docker-Desktop-Prozess nicht antwortete. Ein kontrollierter `docker desktop restart --timeout 60` scheiterte an `context deadline exceeded`; kein Docker-Volume oder Datenbestand wurde gelöscht.

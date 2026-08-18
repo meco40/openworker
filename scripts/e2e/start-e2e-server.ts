@@ -88,6 +88,7 @@ async function main(): Promise<void> {
   env.HOSTNAME = '127.0.0.1';
   env.PORT = String(appPort);
   env.REQUIRE_AUTH = 'false';
+  env.E2E_ALLOW_ANONYMOUS_AUTH = 'true';
   env.MODEL_HUB_TEST_MODE = '1';
   env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'false';
   env.MEMORY_PROVIDER = 'mem0';

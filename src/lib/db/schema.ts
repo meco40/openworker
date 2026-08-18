@@ -21,6 +21,17 @@ CREATE TABLE IF NOT EXISTS workspaces (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Workspace membership and ownership
+CREATE TABLE IF NOT EXISTS workspace_members (
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member')),
+  created_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (workspace_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_workspace_members_user ON workspace_members(user_id, workspace_id);
+
 -- Agents table
 CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY,
@@ -115,6 +126,7 @@ CREATE TABLE IF NOT EXISTS businesses (
 CREATE TABLE IF NOT EXISTS openclaw_sessions (
   id TEXT PRIMARY KEY,
   agent_id TEXT REFERENCES agents(id),
+  workspace_id TEXT REFERENCES workspaces(id),
   openclaw_session_id TEXT NOT NULL,
   channel TEXT,
   status TEXT DEFAULT 'active',

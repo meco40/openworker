@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getOpenClawClient } from '@/lib/openclaw/client';
+import { withUserContext } from '../../_shared/withUserContext';
+import { getAccessibleSessionCount } from '@/server/auth/workspaceAccess';
 
 // GET /api/openclaw/status - Compatibility status endpoint for Mission Control runtime
-export async function GET() {
+export const GET = withUserContext(async ({ userContext }) => {
   try {
     const client = getOpenClawClient();
     const runtimeUrl = client.getGatewayUrl();
@@ -27,8 +29,7 @@ export async function GET() {
 
     let sessionsCount = 0;
     try {
-      const sessions = await client.listSessions();
-      sessionsCount = sessions.length;
+      sessionsCount = getAccessibleSessionCount(userContext);
     } catch (error) {
       console.warn('Mission Control runtime session probe failed:', error);
     }
@@ -50,4 +51,4 @@ export async function GET() {
       { status: 500 },
     );
   }
-}
+});

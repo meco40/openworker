@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { queryOne, queryAll, run, transaction } from '@/lib/db';
+import { withUserContext } from '../../_shared/withUserContext';
 import type { Agent } from '@/lib/types';
+import { hasWorkspaceAccess, normalizeWorkspaceId } from '@/server/auth/workspaceAccess';
 
 interface ImportAgentRequest {
   gateway_agent_id: string;
@@ -14,7 +16,7 @@ interface ImportRequest {
 }
 
 // POST /api/agents/import - Import one or more agents from the runtime registry
-export async function POST(request: NextRequest) {
+export const POST = withUserContext(async ({ request, userContext }) => {
   try {
     const body: ImportRequest = await request.json();
 
@@ -35,9 +37,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check for conflicts (already imported)
+    const workspaceIds = new Set<string>();
+    for (const agentReq of body.agents) {
+      const workspaceId = normalizeWorkspaceId(agentReq.workspace_id || 'default');
+      if (!workspaceId || !hasWorkspaceAccess(userContext, workspaceId)) {
+        return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+      }
+      workspaceIds.add(workspaceId);
+    }
+
+    const workspaceIdList = [...workspaceIds];
+    // Check for conflicts only in workspaces the caller can access.
     const existingImports = queryAll<Agent>(
-      `SELECT * FROM agents WHERE gateway_agent_id IS NOT NULL`,
+      `SELECT * FROM agents WHERE gateway_agent_id IS NOT NULL AND workspace_id IN (${workspaceIdList
+        .map(() => '?')
+        .join(', ')})`,
+      workspaceIdList,
     );
     const importedGatewayIds = new Set(existingImports.map((a) => a.gateway_agent_id));
 
@@ -61,7 +76,10 @@ export async function POST(request: NextRequest) {
         }
 
         const id = crypto.randomUUID();
-        const workspaceId = agentReq.workspace_id || 'default';
+        const workspaceId = normalizeWorkspaceId(agentReq.workspace_id || 'default');
+        if (!workspaceId) {
+          throw new Error('Invalid workspace');
+        }
 
         run(
           `INSERT INTO agents (id, name, role, description, avatar_emoji, is_master, workspace_id, model, source, gateway_agent_id, created_at, updated_at)
@@ -107,4 +125,4 @@ export async function POST(request: NextRequest) {
     console.error('Failed to import agents:', error);
     return NextResponse.json({ error: 'Failed to import agents' }, { status: 500 });
   }
-}
+});

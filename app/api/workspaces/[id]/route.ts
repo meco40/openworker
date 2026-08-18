@@ -3,10 +3,11 @@ import { getDb } from '@/lib/db';
 import { UpdateWorkspaceSchema } from '@/lib/validation';
 import { parseJsonBody } from '../../_shared/parseJsonBody';
 import { withUserContext } from '../../_shared/withUserContext';
+import { hasWorkspaceAccess } from '@/server/auth/workspaceAccess';
 
 export const runtime = 'nodejs';
 
-export const GET = withUserContext<{ id: string }>(async ({ params }) => {
+export const GET = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   const db = getDb();
 
   try {
@@ -17,6 +18,9 @@ export const GET = withUserContext<{ id: string }>(async ({ params }) => {
     if (!workspace) {
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
     }
+    if (!hasWorkspaceAccess(userContext, String((workspace as { id: string }).id))) {
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    }
 
     return NextResponse.json(workspace);
   } catch (error) {
@@ -25,7 +29,7 @@ export const GET = withUserContext<{ id: string }>(async ({ params }) => {
   }
 });
 
-export const PATCH = withUserContext<{ id: string }>(async ({ request, params }) => {
+export const PATCH = withUserContext<{ id: string }>(async ({ request, params, userContext }) => {
   try {
     const parsed = await parseJsonBody(request, UpdateWorkspaceSchema);
     if (!parsed.ok) {
@@ -37,6 +41,9 @@ export const PATCH = withUserContext<{ id: string }>(async ({ request, params })
 
     const existing = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(params.id);
     if (!existing) {
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    }
+    if (!hasWorkspaceAccess(userContext, String((existing as { id: string }).id))) {
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
     }
 
@@ -72,7 +79,7 @@ export const PATCH = withUserContext<{ id: string }>(async ({ request, params })
   }
 });
 
-export const DELETE = withUserContext<{ id: string }>(async ({ params }) => {
+export const DELETE = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
     const db = getDb();
 
@@ -82,6 +89,9 @@ export const DELETE = withUserContext<{ id: string }>(async ({ params }) => {
 
     const existing = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(params.id);
     if (!existing) {
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    }
+    if (!hasWorkspaceAccess(userContext, String((existing as { id: string }).id))) {
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
     }
 

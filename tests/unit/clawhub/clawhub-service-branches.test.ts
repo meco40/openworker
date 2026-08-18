@@ -465,16 +465,11 @@ describe('ClawHubService branch coverage', () => {
   });
 
   describe('getClawHubService', () => {
-    it('returns singleton instance', () => {
-      const original = (globalThis as { __clawHubService?: unknown }).__clawHubService;
-      (globalThis as { __clawHubService?: unknown }).__clawHubService = undefined;
-
+    it('returns the container-managed instance', () => {
       const first = getClawHubService();
       const second = getClawHubService();
 
       expect(first).toBe(second);
-
-      (globalThis as { __clawHubService?: unknown }).__clawHubService = original;
     });
   });
 });

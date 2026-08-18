@@ -4,13 +4,17 @@ import { UpdateAgentSchema } from '@/lib/validation';
 import type { Agent } from '@/lib/types';
 import { parseJsonBody } from '../../_shared/parseJsonBody';
 import { withUserContext } from '../../_shared/withUserContext';
+import { canAccessAgent } from '@/server/auth/workspaceAccess';
 
 export const runtime = 'nodejs';
 
-export const GET = withUserContext<{ id: string }>(async ({ params }) => {
+export const GET = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
     const agent = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [params.id]);
     if (!agent) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+    }
+    if (!canAccessAgent(userContext, params.id)) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
@@ -21,7 +25,7 @@ export const GET = withUserContext<{ id: string }>(async ({ params }) => {
   }
 });
 
-export const PATCH = withUserContext<{ id: string }>(async ({ request, params }) => {
+export const PATCH = withUserContext<{ id: string }>(async ({ request, params, userContext }) => {
   try {
     const parsed = await parseJsonBody(request, UpdateAgentSchema);
     if (!parsed.ok) {
@@ -31,6 +35,9 @@ export const PATCH = withUserContext<{ id: string }>(async ({ request, params })
     const body = parsed.data;
     const existing = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [params.id]);
     if (!existing) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+    }
+    if (!canAccessAgent(userContext, params.id)) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
@@ -108,10 +115,13 @@ export const PATCH = withUserContext<{ id: string }>(async ({ request, params })
   }
 });
 
-export const DELETE = withUserContext<{ id: string }>(async ({ params }) => {
+export const DELETE = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   try {
     const existing = queryOne<Agent>('SELECT * FROM agents WHERE id = ?', [params.id]);
     if (!existing) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+    }
+    if (!canAccessAgent(userContext, params.id)) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
