@@ -7,7 +7,14 @@
       "display": "Core API",
       "contract": "docs/contracts/CORE_API_AGENT_CONTRACT.md",
       "tests": ["tests/contract/public-api.contract.test.ts"],
-      "paths": ["app/api/**", "src/server/**", "src/lib/db/**"],
+      "paths": [
+        "app/api/**",
+        "src/server/**",
+        "src/lib/db/**",
+        "src/lib/events.ts",
+        "src/lib/openclaw/**",
+        "src/lib/types.ts"
+      ],
       "owner": "team-core",
       "systemDoc": "docs/CORE_HANDBOOK.md",
       "scenarios": ["core-api-health"],
@@ -201,7 +208,12 @@
       "display": "Mission Control",
       "contract": "docs/contracts/MISSION_CONTROL_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/mission-control-run-feedback.spec.ts"],
-      "paths": ["src/modules/mission-control/**", "app/api/master/**", "src/server/master/**"],
+      "paths": [
+        "src/modules/mission-control/**",
+        "src/components/DiscoverAgentsModal.tsx",
+        "app/api/master/**",
+        "src/server/master/**"
+      ],
       "owner": "team-master",
       "systemDoc": "docs/MASTER_AGENT_SYSTEM.md",
       "scenarios": ["master-run-feedback"],

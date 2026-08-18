@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getPersonaWithFiles = vi.fn(() => ({ id: 'persona-1', userId: 'user-1', files: [] }));
 
@@ -11,6 +11,13 @@ vi.mock('@/server/auth/userContext', () => ({
 }));
 
 describe('personas route lazy-loading behavior', () => {
+  beforeEach(() => {
+    // unit-fast runs without module isolation; clear a route imported by an
+    // earlier contract test before installing the lazy-loading mocks.
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
   afterEach(() => {
     vi.resetModules();
     vi.doUnmock('@/server/model-hub/runtime');

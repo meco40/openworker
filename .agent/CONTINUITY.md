@@ -412,3 +412,9 @@ Validation final for this pass:
 - Produktions-Auth-Guard bleibt fail-closed; die einzige anonyme E2E-Ausnahme ist explizit `E2E_ALLOW_ANONYMOUS_AUTH=true` und auf Loopback beschränkt. ClawHub nutzt den DI-Container statt `globalThis`.
 - `pnpm run check` ✅, `pnpm run test` ✅ 573 Dateien / 2883 Tests, `pnpm run build` ✅ Next.js-Webpack-Build einschließlich 52 statischer Seiten.
 - `npm run dev` startete Web und Scheduler; Gateway meldete `Server ready`. Mem0 meldete lokal weiterhin Timeouts, weil die Docker-Engine/Compose-Pipe trotz laufendem Docker-Desktop-Prozess nicht antwortete. Ein kontrollierter `docker desktop restart --timeout 60` scheiterte an `context deadline exceeded`; kein Docker-Volume oder Datenbestand wurde gelöscht.
+
+## [OUTCOMES] 2026-08-18T02:38:41+02:00 [CODE] [TOOL] GitHub Actions CI-Fehler behoben
+
+- GitHub Actions Run `32084753889` auf Commit `3aaaa4e` hatte drei Ursachen: ein instabiler `unit-fast`-Contract-Test erhielt wegen gemeinsamem Modul-Cache `401` statt `200`, vier Dateien waren nicht in `DOMAIN_REGISTRY` erfasst, und der High-Risk-Commit hatte keinen `Human-Approval`-Trailer.
+- Der Persona-Lazy-Import-Test leert nun vor dem dynamischen Import den nicht isolierten Vitest-Modul-Cache. `DOMAIN_REGISTRY.json` ordnet `DiscoverAgentsModal`, `events`, `openclaw/client` und `types` ihren Domains zu.
+- Lokale Validierung nach dem Fix: `pnpm run check` ✅, `pnpm run test` ✅ 573 Dateien / 2883 Tests, Main-Policy für den Folgeänderungsumfang ✅.
