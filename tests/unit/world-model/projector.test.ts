@@ -95,7 +95,7 @@ describe('world-model projector', () => {
     expect(projection.confidenceSummary.total).toBeGreaterThan(0);
   });
 
-  it('maps confirmations to observed modality only for confident events', () => {
+  it('does not promote unrelated facts to observed from an event confirmation', () => {
     const withConf = {
       ...baseResult,
       events: [
@@ -112,6 +112,6 @@ describe('world-model projector', () => {
       personaId: 'p',
       workspaceId: 'w',
     });
-    expect(projection.assertions.every((a) => a.modality === 'observed')).toBe(true);
+    expect(projection.assertions.every((a) => a.modality === 'reported')).toBe(true);
   });
 });

@@ -17,6 +17,18 @@ vi.mock('@/server/world-model/retrieval/structured', () => ({
 vi.mock('@/server/world-model/retrieval/fulltext', () => ({
   fullTextSearchAssertions: (...args: unknown[]) => fullText(...args),
 }));
+vi.mock('@/server/world-model/retrieval/assertions', () => ({
+  searchAssertions: vi.fn().mockResolvedValue([]),
+}));
+vi.mock('@/server/world-model/retrieval/tasks', () => ({
+  searchTasks: vi.fn().mockResolvedValue([]),
+}));
+vi.mock('@/server/world-model/retrieval/relations', () => ({
+  searchRelations: vi.fn().mockResolvedValue([]),
+}));
+vi.mock('@/server/world-model/retrieval/openLoops', () => ({
+  searchOpenLoops: vi.fn().mockResolvedValue([]),
+}));
 
 describe('retrieveContext', () => {
   beforeEach(() => {
@@ -35,14 +47,14 @@ describe('retrieveContext', () => {
     expect(findStructured).not.toHaveBeenCalled();
   });
 
-  it('prioritises structured state over fulltext', async () => {
+  it('retains structured state as the highest-priority source in the aggregate', async () => {
     findStructured.mockResolvedValue([
       { id: 'e1', title: 'Kino', status: 'cancelled', timeline: [] },
     ]);
     const result = await retrieveContext({ userId: 'u', personaId: 'p', query: 'kino' });
     expect(result.source).toBe('structured');
     expect(result.structured).toHaveLength(1);
-    expect(fullText).not.toHaveBeenCalled();
+    expect(fullText).toHaveBeenCalled();
   });
 
   it('falls back to fulltext when no structured hit exists', async () => {

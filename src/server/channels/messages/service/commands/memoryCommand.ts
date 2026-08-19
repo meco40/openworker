@@ -4,6 +4,7 @@ import { extractMemorySaveContent } from '../types';
 import { getMemoryService } from '@/server/memory/runtime';
 import { resolveMemoryScopedUserId } from '@/server/memory/userScope';
 import type { CommandHandlerDeps } from './types';
+import { isMem0FactualWriteBlocked } from '@/server/world-model/mem0Policy';
 
 export async function handleMemorySave(
   conversation: Conversation,
@@ -36,6 +37,18 @@ export async function handleMemorySave(
       message: await sendResponse(
         conversation,
         '⚠️ Keine Persona aktiv. Bitte zuerst eine Persona wählen, dann `Speichere ab: ...` nutzen.',
+        platform,
+        externalChatId,
+      ),
+    };
+  }
+
+  if (isMem0FactualWriteBlocked()) {
+    return {
+      saved: false,
+      message: await sendResponse(
+        conversation,
+        '⚠️ Im Canonical-Modus werden faktische Memories direkt in PostgreSQL gespeichert. Bitte nutze die Knowledge-Ingestion oder Mission Control.',
         platform,
         externalChatId,
       ),

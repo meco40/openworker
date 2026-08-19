@@ -3,7 +3,7 @@ import { getCredentialStore } from '@/server/channels/credentials';
 /**
  * Delivers a message to Slack via chat.postMessage API.
  */
-export async function deliverSlack(channelId: string, text: string): Promise<void> {
+export async function deliverSlack(channelId: string, text: string): Promise<string | undefined> {
   const token =
     getCredentialStore().getCredential('slack', 'bot_token') || process.env.SLACK_BOT_TOKEN;
   if (!token) {
@@ -23,10 +23,11 @@ export async function deliverSlack(channelId: string, text: string): Promise<voi
     }),
   });
 
-  const data = (await response.json()) as { ok?: boolean; error?: string };
+  const data = (await response.json()) as { ok?: boolean; error?: string; ts?: string };
   if (!response.ok || !data.ok) {
     throw new Error(
       `Slack delivery failed: ${data.error || response.statusText || 'unknown error'}`,
     );
   }
+  return data.ts;
 }

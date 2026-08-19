@@ -15,6 +15,7 @@ import {
 } from '@/server/diagnostics/autoSessionMemoryTrace';
 import { getServerEventBus } from '@/server/events/runtime';
 import { isInlineKnowledgeIngestionEnabled } from '@/server/knowledge/inlineIngestionPolicy';
+import { isMem0TypeAllowed } from '@/server/world-model/mem0Policy';
 
 export class SummaryService {
   private summaryRefreshInFlight = new Set<string>();
@@ -169,7 +170,9 @@ export class SummaryService {
       return;
     }
 
-    const candidates = buildAutoMemoryCandidates(messages);
+    const candidates = buildAutoMemoryCandidates(messages).filter((candidate) =>
+      isMem0TypeAllowed(candidate.type),
+    );
     if (candidates.length === 0) {
       logAutoSessionMemoryTrace('summary.skip', {
         conversationId: conversation.id,

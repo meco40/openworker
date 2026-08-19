@@ -206,8 +206,90 @@ export async function listDueOpenLoops(
        AND status IN ('open','scheduled')
        AND (trigger_at IS NULL OR trigger_at <= $4)
        AND (do_not_ask_before IS NULL OR do_not_ask_before <= $4)
+       AND (next_attempt_at IS NULL OR next_attempt_at <= $4)
+       AND (locked_until IS NULL OR locked_until <= $4)
      ORDER BY COALESCE(trigger_at, created_at) ASC LIMIT $5`,
     [userId, personaId, workspaceId, at, limit],
+  );
+  return result.rows.map(toOpenLoop);
+}
+
+/**
+ * Claims the next due open loop with `FOR UPDATE SKIP LOCKED`. Sets a short
+ * lease so concurrent workers do not claim the same loop. Returns null if no
+ * due loop is available.
+ */
+export async function claimDueOpenLoop(
+  userId: string,
+  personaId: string,
+  at: string,
+  workspaceId = '',
+  leaseBy: string,
+  leaseDurationMs = 60_000,
+  db: WorldModelQueryExecutor = getWorldModelDb(),
+): Promise<OpenLoopRecord | null> {
+  const leaseUntil = new Date(new Date(at).getTime() + leaseDurationMs).toISOString();
+  const result = await db.query<OpenLoopRow>(
+    `UPDATE world_model_open_loops
+     SET locked_by = $6,
+         locked_until = $7,
+         updated_at = now()
+     WHERE id = (
+       SELECT id FROM world_model_open_loops
+       WHERE user_id = $1 AND persona_id = $2 AND workspace_id = $3
+         AND status IN ('open','scheduled')
+         AND (trigger_at IS NULL OR trigger_at <= $4)
+         AND (do_not_ask_before IS NULL OR do_not_ask_before <= $4)
+         AND (next_attempt_at IS NULL OR next_attempt_at <= $4)
+         AND (locked_until IS NULL OR locked_until <= $4)
+       ORDER BY COALESCE(trigger_at, created_at) ASC
+       FOR UPDATE SKIP LOCKED
+       LIMIT 1
+     )
+     RETURNING id, user_id, persona_id, workspace_id, type, status, subject_id, question,
+               missing_information, importance, trigger_at, do_not_ask_before, last_checked_at,
+               deduplication_key, max_attempts, attempts, last_asked_at, resolved_observation_id,
+               note, created_at, updated_at`,
+    [userId, personaId, workspaceId, at, leaseUntil, leaseBy, leaseUntil],
+  );
+  return result.rows[0] ? toOpenLoop(result.rows[0]) : null;
+}
+
+export async function releaseOpenLoopLease(
+  loopId: string,
+  nextAttemptAt: string | null,
+  db: WorldModelQueryExecutor = getWorldModelDb(),
+): Promise<void> {
+  await db.query(
+    `UPDATE world_model_open_loops
+     SET locked_by = NULL,
+         locked_until = NULL,
+         next_attempt_at = COALESCE($2, next_attempt_at),
+         updated_at = now()
+     WHERE id = $1`,
+    [loopId, nextAttemptAt],
+  );
+}
+
+/** Returns loops waiting for a response after successful delivery. */
+export async function listAskedOpenLoops(
+  userId: string,
+  personaId: string,
+  workspaceId = '',
+  limit = 100,
+  db: WorldModelQueryExecutor = getWorldModelDb(),
+): Promise<OpenLoopRecord[]> {
+  const result = await db.query<OpenLoopRow>(
+    `SELECT id, user_id, persona_id, workspace_id, type, status, subject_id, question,
+            missing_information, importance, trigger_at, do_not_ask_before, last_checked_at,
+            deduplication_key, max_attempts, attempts, last_asked_at, resolved_observation_id,
+            note, created_at, updated_at
+     FROM world_model_open_loops
+     WHERE user_id = $1 AND persona_id = $2 AND workspace_id = $3
+       AND status = 'asked' AND last_asked_at IS NOT NULL
+     ORDER BY last_asked_at DESC
+     LIMIT $4`,
+    [userId, personaId, workspaceId, limit],
   );
   return result.rows.map(toOpenLoop);
 }
@@ -340,7 +422,7 @@ export async function registerStandingIntentFire(
 }
 
 export async function markOpenLoopAsked(
-  loop: OpenLoopRecord,
+  loopId: string,
   now: string,
   db: WorldModelQueryExecutor = getWorldModelDb(),
 ): Promise<void> {
@@ -352,6 +434,24 @@ export async function markOpenLoopAsked(
          updated_at = now()
      WHERE id = $1 AND status IN ('open','scheduled')
        AND (do_not_ask_before IS NULL OR do_not_ask_before <= $2)`,
-    [loop.id, now],
+    [loopId, now],
   );
+}
+
+export async function countAskedOpenLoopsToday(
+  userId: string,
+  personaId: string,
+  workspaceId = '',
+  db: WorldModelQueryExecutor = getWorldModelDb(),
+): Promise<number> {
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const result = await db.query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count
+     FROM world_model_open_loops
+     WHERE user_id = $1 AND persona_id = $2 AND workspace_id = $3
+       AND last_asked_at >= $4`,
+    [userId, personaId, workspaceId, startOfDay.toISOString()],
+  );
+  return Number(result.rows[0]?.count ?? 0);
 }

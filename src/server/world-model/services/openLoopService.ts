@@ -1,12 +1,17 @@
 import { withWorldModelTransaction } from '@/server/world-model/db';
 import { enqueueOutboxEvent } from '@/server/world-model/repositories/outboxRepository';
 import {
+  claimDueOpenLoop,
+  countAskedOpenLoopsToday,
   listDueOpenLoops,
   markOpenLoopAsked,
+  releaseOpenLoopLease,
   updateOpenLoopStatus,
 } from '@/server/world-model/repositories/prospectiveRepository';
 import type { OpenLoopRecord } from '@/server/world-model/types';
 import { decideOpenLoopDelivery } from '@/server/world-model/services/followUpPolicy';
+import { decideNotification } from '@/server/world-model/services/notificationPolicy';
+import { getWorldModelConfig } from '@/server/world-model/config';
 
 export interface ChannelDeliveryResult {
   ok: boolean;
@@ -31,19 +36,34 @@ export interface OpenLoopServiceDeps {
     at: string,
     workspaceId: string,
   ) => Promise<OpenLoopRecord[]>;
+  claimDueOpenLoop?: (
+    userId: string,
+    personaId: string,
+    at: string,
+    workspaceId: string,
+    leaseBy: string,
+    leaseDurationMs: number,
+  ) => Promise<OpenLoopRecord | null>;
+  countAskedOpenLoopsToday?: (
+    userId: string,
+    personaId: string,
+    workspaceId: string,
+  ) => Promise<number>;
   decideDelivery: (
     loop: OpenLoopRecord,
     ctx: DeliveryPolicyContext,
   ) => { allow: boolean; reason: string };
   deliver: (loop: OpenLoopRecord) => Promise<ChannelDeliveryResult>;
-  markAsked: (loop: OpenLoopRecord, now: string) => Promise<void>;
+  markAsked: (loopId: string, now: string) => Promise<void>;
   enqueueDelivery: (loop: OpenLoopRecord) => Promise<void>;
+  releaseLease?: (loopId: string, nextAttemptAt: string | null) => Promise<void>;
   now?: () => string;
 }
 
 export interface DeliverDueOpenLoopsResult {
   totalDue: number;
   delivered: number;
+  enqueued: number;
   rejected: number;
   failed: number;
   reasons: Record<string, number>;
@@ -63,23 +83,71 @@ export async function deliverDueOpenLoops(
   const deps = typeof workspaceIdOrDeps === 'string' ? depsOverride : workspaceIdOrDeps;
   const now = deps?.now?.() ?? new Date().toISOString();
   const listDue = deps?.listDueOpenLoops ?? defaultListDueOpenLoops;
+  const claim = deps?.claimDueOpenLoop ?? defaultClaimDueOpenLoop;
+  const countToday = deps?.countAskedOpenLoopsToday ?? countAskedOpenLoopsToday;
   const decide = deps?.decideDelivery ?? decideOpenLoopDelivery;
   const deliver = deps?.deliver ?? defaultDeliverUnavailable;
   const markAsked = deps?.markAsked ?? markOpenLoopAsked;
   const enqueue = deps?.enqueueDelivery ?? defaultEnqueue;
+  const releaseLease = deps?.releaseLease ?? defaultReleaseOpenLoopLease;
+  const hasDirectDelivery = Boolean(deps?.deliver);
 
   const due = await listDue(userId, personaId, now, workspaceId);
   const result: DeliverDueOpenLoopsResult = {
     totalDue: due.length,
     delivered: 0,
+    enqueued: 0,
     rejected: 0,
     failed: 0,
     reasons: {},
   };
 
-  for (const loop of due) {
-    const decision = decide(loop, { now });
+  const config = getWorldModelConfig();
+  const deliveredToday = await countToday(userId, personaId, workspaceId);
+  const policyCtx: DeliveryPolicyContext = {
+    now,
+    quietHours: config.quietHours ?? undefined,
+    dailyBudget: config.dailyProactiveBudget,
+    deliveredToday,
+  };
+  const notificationConfig = {
+    quietHours: config.quietHours ?? undefined,
+    dailyBudget: config.dailyProactiveBudget,
+  };
+
+  for (const dueLoop of due) {
+    // Claim one loop atomically with SKIP LOCKED so concurrent workers or
+    // scheduler restarts never double-deliver the same follow-up.
+    const loop = await claim(
+      dueLoop.userId,
+      dueLoop.personaId,
+      now,
+      dueLoop.workspaceId ?? workspaceId,
+      'scheduler',
+      60_000,
+    );
+    if (!loop) continue;
+
+    const decision = decide(loop, policyCtx);
+
+    // Notification-Policy (Ruhezeiten/Budget/Kanal) ergänzend anwenden.
+    const notifDecision = decideNotification(
+      {
+        now,
+        channel: loop.type,
+        counts: { deliveredToday },
+      },
+      notificationConfig,
+    );
+    if (!notifDecision.allow) {
+      await releaseLease(loop.id, calculateRetryAt(now, loop.attempts));
+      result.rejected += 1;
+      result.reasons[notifDecision.reason] = (result.reasons[notifDecision.reason] ?? 0) + 1;
+      continue;
+    }
+
     if (!decision.allow) {
+      await releaseLease(loop.id, calculateRetryAt(now, loop.attempts));
       result.rejected += 1;
       result.reasons[decision.reason] = (result.reasons[decision.reason] ?? 0) + 1;
       continue;
@@ -88,23 +156,39 @@ export async function deliverDueOpenLoops(
     try {
       await enqueue(loop);
     } catch {
+      await releaseLease(loop.id, calculateRetryAt(now, loop.attempts));
       result.failed += 1;
       result.reasons.enqueue_failed = (result.reasons.enqueue_failed ?? 0) + 1;
       continue;
     }
 
+    // The production runtime only enqueues. The outbox handler is the sole
+    // sender and marks the loop as asked after a provider receipt exists.
+    // Direct delivery remains available for explicitly injected integrations.
+    if (!hasDirectDelivery) {
+      await releaseLease(loop.id, null);
+      result.enqueued += 1;
+      continue;
+    }
+
     const delivery = await deliver(loop);
     if (!delivery.ok) {
+      await releaseLease(loop.id, calculateRetryAt(now, loop.attempts));
       result.failed += 1;
       result.reasons.delivery_failed = (result.reasons.delivery_failed ?? 0) + 1;
       continue;
     }
 
-    await markAsked(loop, now);
+    await markAsked(loop.id, now);
     result.delivered += 1;
   }
 
   return result;
+}
+
+function calculateRetryAt(now: string, attempts: number): string {
+  const backoffMs = Math.min(6 * 60 * 60 * 1000, 60_000 * 2 ** Math.min(attempts, 8));
+  return new Date(new Date(now).getTime() + backoffMs).toISOString();
 }
 
 function defaultListDueOpenLoops(
@@ -116,12 +200,27 @@ function defaultListDueOpenLoops(
   return listDueOpenLoops(userId, personaId, at, workspaceId);
 }
 
+function defaultClaimDueOpenLoop(
+  userId: string,
+  personaId: string,
+  at: string,
+  workspaceId: string,
+  leaseBy: string,
+  leaseDurationMs: number,
+): Promise<OpenLoopRecord | null> {
+  return claimDueOpenLoop(userId, personaId, at, workspaceId, leaseBy, leaseDurationMs);
+}
+
 /**
  * Fallback when no real channel deliverer is provided: marks as failed so the
  * caller can detect misconfiguration instead of silently skipping.
  */
 async function defaultDeliverUnavailable(_loop: OpenLoopRecord): Promise<ChannelDeliveryResult> {
   return { ok: false };
+}
+
+function defaultReleaseOpenLoopLease(loopId: string, nextAttemptAt: string | null): Promise<void> {
+  return releaseOpenLoopLease(loopId, nextAttemptAt);
 }
 
 /**
@@ -174,7 +273,7 @@ export async function enqueueAndMarkAsked(loop: OpenLoopRecord, now: string): Pr
       },
       client,
     );
-    await markOpenLoopAsked(loop, now, client);
+    await markOpenLoopAsked(loop.id, now, client);
   });
 }
 
@@ -188,6 +287,24 @@ export async function resolveOpenLoopAsAnswered(
     note,
     lastCheckedAt: new Date().toISOString(),
   });
+}
+
+export async function resolveOpenLoopAsAnsweredInTx(
+  loopId: string,
+  observationId: string | undefined,
+  note: string | undefined,
+  db: Parameters<typeof updateOpenLoopStatus>[3],
+): Promise<void> {
+  await updateOpenLoopStatus(
+    loopId,
+    'answered',
+    {
+      resolvedObservationId: observationId,
+      note,
+      lastCheckedAt: new Date().toISOString(),
+    },
+    db,
+  );
 }
 
 export async function claimAndDeliverDueOpenLoopsWithinTransaction(
@@ -215,6 +332,7 @@ export async function claimAndDeliverDueOpenLoopsWithinTransaction(
     return {
       totalDue: due.length,
       delivered: 0,
+      enqueued: due.length,
       rejected: 0,
       failed: 0,
       reasons: {},

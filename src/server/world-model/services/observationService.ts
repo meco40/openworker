@@ -1,8 +1,9 @@
 import { withWorldModelTransaction } from '@/server/world-model/db';
 import { insertObservationWithResult } from '@/server/world-model/repositories/observationRepository';
 import { enqueueOutboxEvent } from '@/server/world-model/repositories/outboxRepository';
-import { sameScope, type WorldModelScope } from '@/server/world-model/scope';
+import { sameScope, scopeKey, type WorldModelScope } from '@/server/world-model/scope';
 import type { Observation, ObservationInput } from '@/server/world-model/types';
+import { getWorldModelConfig } from '@/server/world-model/config';
 
 export interface RecordObservationResult {
   observation: Observation;
@@ -28,9 +29,19 @@ export async function recordObservation(
   if (scope && !sameScope(scope, input)) {
     throw new Error('[world-model] observation scope mismatch');
   }
+  const config = getWorldModelConfig();
+  if (
+    config.mode === 'canonical' &&
+    config.canaryScopes.length > 0 &&
+    !config.canaryScopes.includes(scopeKey(input))
+  ) {
+    throw new Error(
+      `[world-model] canonical canary scope denied for ${scopeKey(input)}; add the scope to WORLD_MODEL_CANARY_SCOPES before writing`,
+    );
+  }
   return withWorldModelTransaction(async (client) => {
     const result = await insertObservationWithResult(input, client);
-    if (result.created) {
+    if (result.created && (config.graphitiShadowEnabled || config.graphitiBackendEnabled)) {
       await enqueueOutboxEvent(
         {
           eventType: 'world.observation.created',
@@ -49,7 +60,7 @@ export async function recordObservation(
       );
     }
     return result;
-  });
+  }, scope ?? input);
 }
 
 /**

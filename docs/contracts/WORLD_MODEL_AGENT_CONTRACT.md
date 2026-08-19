@@ -1,6 +1,10 @@
 # World Model Agent Contract
 
-Stand: 2026-08-18
+Stand: 2026-08-19
+
+## Metadata
+
+- Last Reviewed: 2026-08-19
 
 ## Zweck
 
@@ -27,7 +31,7 @@ im Verzeichnis `src/server/world-model/` implementiert.
 | Projektionen  | Mem0, Graphiti und Embeddings sind vollstaendig neu aufbaubar                     |
 | Proaktivitaet | Kein Versand ohne erneute Zustaende-, Ruhezeiten- und Budgetpruefung              |
 
-## Eigenmutzer (Single Writer pro Domaene)
+## Eigentümer (Single Writer pro Domäne)
 
 | Domaene                   | Autoritativer Service                      |
 | ------------------------- | ------------------------------------------ |
@@ -42,6 +46,20 @@ im Verzeichnis `src/server/world-model/` implementiert.
 Repositories duerfen keine fachlichen Statusuebergaenge nachbilden. API-Routen,
 Knowledge-Ingestion, Tool-Runner und Scheduler verwenden dieselben Services.
 
+## API- und Migrationsmatrix
+
+Bestehende öffentliche Schnittstellen bleiben kompatibel. Neue kanonische
+Zustände werden gespiegelt, bis der jeweilige Scope den Cutover-Gates genügt.
+
+| Bestehender Pfad                       | Kanonische Verdrahtung                                                 | Übergangsregel                                                                                                            |
+| -------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Eingehende Channel-Nachricht           | `handleInbound` → Knowledge-Ingestion → `ObservationService`/Projector | Raw Message bleibt erhalten; SQLite/Mem0 sind abgeleitete Projektionen bzw. Pending-Retry                                 |
+| `POST /api/tasks` und Task-Statusroute | Mission-Control-Task-Mirror → `CanonicalTaskService`                   | Bestehende Task-API bleibt unverändert; Statusübergänge erzeugen scoped Outbox-/Transition-Evidenz                        |
+| Master-Tool-Ausführung                 | `masterActionBridge`/`ActionService`                                   | Attempt und Receipt werden vor `succeeded` persistiert; externe Provider-ID bleibt optional, bis der Provider sie liefert |
+| Scheduler/Open Loops                   | Lease → `proactive.question.requested` → Delivery Receipt              | `asked` erst nach bestätigter Zustellung; fehlende Kanalbindung bleibt sichtbar fehlgeschlagen                            |
+| Knowledge-/Memory-Recall               | `retrieveContext` mit World-Model-Priorität                            | Legacy-Recall bleibt als Kompatibilitätspfad aktiv, bis Canonical-Parität und Audit nachgewiesen sind                     |
+| Automation API                         | Bestehende Automation- und Run-Verträge                                | Keine stille Statusumstellung; Migration erfolgt über dokumentierte Outbox-/Task-Projektion                               |
+
 ## Rollout-Modi
 
 `WORLD_MODEL_MODE` ist einer von `off | shadow | required | canonical`.
@@ -52,6 +70,14 @@ Knowledge-Ingestion, Tool-Runner und Scheduler verwenden dieselben Services.
 | `shadow`    | World Model wird fail-soft befuellt; Abweichungen werden gemessen                          |
 | `required`  | Observation und kanonische Projektion muessen erfolgreich sein; alte Stores bleiben lesbar |
 | `canonical` | PostgreSQL ist verbindlich; alte Stores werden ausschliesslich aus der Outbox projiziert   |
+
+## Runtime-Credentials
+
+Web/API und Scheduler verwenden getrennte PostgreSQL-URLs. `WORLD_MODEL_RUNTIME_ROLE=app`
+wählt `WORLD_MODEL_APP_DATABASE_URL`; `WORLD_MODEL_RUNTIME_ROLE=worker` wählt
+`WORLD_MODEL_WORKER_DATABASE_URL`. Diese URLs sollen auf die in Migration 006
+angelegten Rollen `world_model_app` bzw. `world_model_worker` zeigen. Die bisherige
+`CANONICAL_DATABASE_URL` bleibt ein lokaler Entwicklungs-/Migrationsfallback.
 
 ## Proaktive Zustellung (Phasen 7-9)
 

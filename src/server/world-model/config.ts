@@ -8,6 +8,7 @@ import {
 
 export interface WorldModelConfig {
   enabled: boolean;
+  runtimeRole: 'app' | 'worker';
   databaseUrl: string;
   poolMax: number;
   poolIdleTimeoutMs: number;
@@ -17,10 +18,14 @@ export interface WorldModelConfig {
   heartbeatIntervalMs: number;
   e2eEnabled: boolean;
   graphitiShadowEnabled: boolean;
+  graphitiBackendEnabled: boolean;
   mem0PreferencesOnly: boolean;
   mode: WorldModelMode;
   prospectiveIntervalMs: number;
   userActiveWindowMs: number;
+  dailyProactiveBudget: number;
+  quietHours: { start: number; end: number } | null;
+  canaryScopes: string[];
 }
 
 type EnvLike = Record<string, string | undefined>;
@@ -29,6 +34,7 @@ const DEFAULT_DATABASE_URL = 'postgresql://clawtest:clawtest@127.0.0.1:5434/claw
 
 export const WORLD_MODEL_DEFAULT_CONFIG: WorldModelConfig = {
   enabled: false,
+  runtimeRole: 'app',
   databaseUrl: DEFAULT_DATABASE_URL,
   poolMax: 10,
   poolIdleTimeoutMs: 30_000,
@@ -38,10 +44,14 @@ export const WORLD_MODEL_DEFAULT_CONFIG: WorldModelConfig = {
   heartbeatIntervalMs: 60_000,
   e2eEnabled: false,
   graphitiShadowEnabled: false,
+  graphitiBackendEnabled: false,
   mem0PreferencesOnly: false,
   mode: 'off',
   prospectiveIntervalMs: 60_000,
   userActiveWindowMs: 300_000,
+  dailyProactiveBudget: 10,
+  quietHours: null,
+  canaryScopes: [],
 };
 
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
@@ -63,6 +73,13 @@ function parseNumber(
   return Math.min(max, Math.max(min, Math.round(parsed)));
 }
 
+function parseCanaryScopes(value: string | undefined): string[] {
+  return String(value || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 export function resolveWorldModelConfig(env: EnvLike = process.env as EnvLike): WorldModelConfig {
   const legacyEnabled = parseBoolean(env.WORLD_MODEL_ENABLED, WORLD_MODEL_DEFAULT_CONFIG.enabled);
   const legacyBridgeEnabled = parseBoolean(
@@ -80,11 +97,20 @@ export function resolveWorldModelConfig(env: EnvLike = process.env as EnvLike): 
         ingestionBridgeEnabled: legacyBridgeEnabled,
         mem0PreferencesOnly: legacyMem0PreferencesOnly,
       });
+  const runtimeRole = env.WORLD_MODEL_RUNTIME_ROLE === 'worker' ? 'worker' : 'app';
+  const roleDatabaseUrl =
+    runtimeRole === 'worker'
+      ? env.WORLD_MODEL_WORKER_DATABASE_URL
+      : env.WORLD_MODEL_APP_DATABASE_URL;
 
   return {
     enabled: legacyEnabled || isWorldModelActive(mode),
+    runtimeRole,
     databaseUrl:
-      env.CANONICAL_DATABASE_URL || env.DATABASE_URL || WORLD_MODEL_DEFAULT_CONFIG.databaseUrl,
+      roleDatabaseUrl ||
+      env.CANONICAL_DATABASE_URL ||
+      env.DATABASE_URL ||
+      WORLD_MODEL_DEFAULT_CONFIG.databaseUrl,
     poolMax: parseNumber(env.WORLD_MODEL_POOL_MAX, WORLD_MODEL_DEFAULT_CONFIG.poolMax, 1, 100),
     poolIdleTimeoutMs: parseNumber(
       env.WORLD_MODEL_POOL_IDLE_TIMEOUT_MS,
@@ -116,6 +142,10 @@ export function resolveWorldModelConfig(env: EnvLike = process.env as EnvLike): 
       env.GRAPHITI_SHADOW_ENABLED,
       WORLD_MODEL_DEFAULT_CONFIG.graphitiShadowEnabled,
     ),
+    graphitiBackendEnabled: parseBoolean(
+      env.GRAPHITI_PROJECTOR_ENABLED ?? env.GRAPHITI_ENABLED,
+      WORLD_MODEL_DEFAULT_CONFIG.graphitiBackendEnabled,
+    ),
     mem0PreferencesOnly: legacyMem0PreferencesOnly || isWorldModelCanonical(mode),
     mode,
     prospectiveIntervalMs: parseNumber(
@@ -130,7 +160,24 @@ export function resolveWorldModelConfig(env: EnvLike = process.env as EnvLike): 
       1_000,
       3_600_000,
     ),
+    dailyProactiveBudget: parseNumber(
+      env.WORLD_MODEL_DAILY_PROACTIVE_BUDGET,
+      WORLD_MODEL_DEFAULT_CONFIG.dailyProactiveBudget,
+      0,
+      10_000,
+    ),
+    quietHours: parseQuietHours(env.WORLD_MODEL_QUIET_HOURS),
+    canaryScopes: parseCanaryScopes(env.WORLD_MODEL_CANARY_SCOPES),
   };
+}
+
+function parseQuietHours(value: string | undefined): { start: number; end: number } | null {
+  if (!value) return WORLD_MODEL_DEFAULT_CONFIG.quietHours;
+  const parts = value.split('-').map((p) => Number(p.trim()));
+  if (parts.length !== 2 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [start, end] = parts;
+  if (start < 0 || start > 23 || end < 0 || end > 23) return null;
+  return { start, end };
 }
 
 export function getWorldModelConfig(): WorldModelConfig {

@@ -62,11 +62,16 @@ corepack pnpm exec vitest run tests/unit/world-model
 - Eine externe Graphiti-Instanz ist noch nicht angebunden; der aktuelle
   `graphiti/shadow.ts` ist ein lokales, idempotentes Shadow-Ledger aus der Outbox.
 
-## Phase 2+3 (2026-08-18): Schreibpfade + Retrieval
+## Phase 2+3 (2026-08-19): Schreibpfade + Retrieval
 
-- Phase 2: `bridgeChatMessages()` (world-model/bridge.ts) schreibt Chat-Nachrichten als
-  Observations zuerst nach PostgreSQL; aktiv via `WORLD_MODEL_INGESTION_BRIDGE=true`.
-  Eingehangen in `knowledge/ingestion/service.ts` (processWindow), fail-soft.
+- Der Live-Inbound- und -Outboundpfad ruft nach dem SQLite-Commit
+  `bridgeStoredChatMessage()` auf. Die persistierte Nachrichten-ID wird als
+  stabile `sourceId` verwendet; Backfill und `world-model:rekey-chat-sources`
+  nutzen dieselbe Identität. Der Legacy-Knowledge-Window-Pfad bleibt als
+  kompatibler, fail-soft Backfill-/Batchpfad bestehen.
+- `WORLD_MODEL_DISPATCH_SCOPES` kann zusätzliche scheduler-only Scopes
+  enthalten. Für Chat-Scopes entdeckt der Dispatcher die Scopes aus SQLite und
+  führt jeden Outbox-Batch unter dem passenden RLS-Kontext aus.
 - Phase 3: `retrieveContext()` (world-model/retrieval/) priorisiert strukturierte
   Zustandsabfragen -> PG-Volltext -> pgvector (spaeter). Strukturierte Wahrheit hat
   Vorrang vor semantischer Aehnlichkeit.
@@ -132,3 +137,21 @@ WORLD_MODEL_ENABLED=true
 WORLD_MODEL_MODE=shadow
 WORLD_MODEL_PROSPECTIVE_INTERVAL_MS=60000
 ```
+
+## Rebuild-, Reconcile- und Betriebsnachweise
+
+Live-Rebuilds werden immer scoped ausgeführt, damit RLS keinen unscoped Lauf
+fälschlich als Erfolg erscheinen lässt:
+
+```powershell
+pnpm run world-model:reconcile -- --scope all --output docs/audits/world-model/reconcile-current-all-final.json
+pnpm run world-model:rebuild-projections -- --type embeddings --scope <user:persona:workspace> --batch-size 25
+pnpm run world-model:rebuild-projections -- --type graphiti --scope <user:persona:workspace> --batch-size 25
+pnpm run world-model:graphiti-evaluate -- --scope all --output docs/audits/world-model/graphiti-recall-drift-current.json
+```
+
+Der Reconcile-Lauf verwendet einen Source-Snapshot. Der Graphiti-Rebuild ist
+transportseitig erfolgreich, aber Graphiti bleibt Shadow, bis der separate
+Recall-/Precision-Report die Schwellenwerte erfüllt. Export/Restore des
+kanonischen Scopes ist lokal manifest-gehasht; externe Provider müssen ihren
+eigenen Lösch-/Restore-Nachweis liefern.

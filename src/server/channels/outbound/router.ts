@@ -4,9 +4,9 @@ import { deliverWhatsApp } from '@/server/channels/outbound/whatsapp';
 import { deliverDiscord } from '@/server/channels/outbound/discord';
 import { deliveriMessage } from '@/server/channels/outbound/imessage';
 import { deliverSlack } from '@/server/channels/outbound/slack';
-import type { ChannelKey } from '@/server/channels/adapters/types';
+import type { ChannelKey, OutboundDeliveryReceipt } from '@/server/channels/adapters/types';
 import { getAdapter, registerAdapter } from '@/server/channels/routing/adapterRegistry';
-import { routeOutbound } from '@/server/channels/routing/outboundRouter';
+import { routeOutboundWithReceipt } from '@/server/channels/routing/outboundRouter';
 
 let defaultAdaptersRegistered = false;
 
@@ -39,35 +39,48 @@ function ensureDefaultAdapters(): void {
   if (!getAdapter('telegram')) {
     registerAdapter({
       channel: 'telegram',
-      send: async ({ externalChatId, content, metadata }) =>
-        deliverTelegram(externalChatId, content, {
+      send: async ({ externalChatId, content, metadata }) => {
+        const providerMessageId = await deliverTelegram(externalChatId, content, {
           personaId: metadata?.personaId as string | undefined,
-        }),
+        });
+        return { providerId: 'telegram', providerMessageId, deliveredAt: new Date().toISOString() };
+      },
     });
   }
   if (!getAdapter('whatsapp')) {
     registerAdapter({
       channel: 'whatsapp',
-      send: async ({ externalChatId, content, metadata }) =>
-        deliverWhatsApp(externalChatId, content, metadata),
+      send: async ({ externalChatId, content, metadata }) => {
+        const providerMessageId = await deliverWhatsApp(externalChatId, content, metadata);
+        return { providerId: 'whatsapp', providerMessageId, deliveredAt: new Date().toISOString() };
+      },
     });
   }
   if (!getAdapter('discord')) {
     registerAdapter({
       channel: 'discord',
-      send: async ({ externalChatId, content }) => deliverDiscord(externalChatId, content),
+      send: async ({ externalChatId, content }) => {
+        const providerMessageId = await deliverDiscord(externalChatId, content);
+        return { providerId: 'discord', providerMessageId, deliveredAt: new Date().toISOString() };
+      },
     });
   }
   if (!getAdapter('imessage')) {
     registerAdapter({
       channel: 'imessage',
-      send: async ({ externalChatId, content }) => deliveriMessage(externalChatId, content),
+      send: async ({ externalChatId, content }) => {
+        const providerMessageId = await deliveriMessage(externalChatId, content);
+        return { providerId: 'imessage', providerMessageId, deliveredAt: new Date().toISOString() };
+      },
     });
   }
   if (!getAdapter('slack')) {
     registerAdapter({
       channel: 'slack',
-      send: async ({ externalChatId, content }) => deliverSlack(externalChatId, content),
+      send: async ({ externalChatId, content }) => {
+        const providerMessageId = await deliverSlack(externalChatId, content);
+        return { providerId: 'slack', providerMessageId, deliveredAt: new Date().toISOString() };
+      },
     });
   }
 
@@ -83,25 +96,44 @@ export async function deliverOutbound(
   content: string,
   options?: { personaId?: string },
 ): Promise<void> {
+  await deliverOutboundWithReceipt(platform, externalChatId, content, options);
+}
+
+export async function deliverOutboundWithReceipt(
+  platform: ChannelType,
+  externalChatId: string,
+  content: string,
+  options?: { personaId?: string },
+): Promise<(OutboundDeliveryReceipt & { channel: ChannelType; target: string }) | null> {
   ensureDefaultAdapters();
 
   const channel = toChannelKey(platform);
   if (!channel) {
     console.warn(`Outbound delivery not implemented for platform: ${platform}`);
-    return;
+    return null;
   }
 
   if (channel === 'webchat') {
     // WebChat relies on WS broadcast, no external delivery needed.
-    return;
+    return {
+      providerId: platform,
+      channel: platform,
+      target: externalChatId,
+      deliveredAt: new Date().toISOString(),
+    };
   }
 
   if (channel === 'agent_room') {
     // Agent Room is fully isolated; WS streaming handles all output.
-    return;
+    return {
+      providerId: platform,
+      channel: platform,
+      target: externalChatId,
+      deliveredAt: new Date().toISOString(),
+    };
   }
 
-  const routed = await routeOutbound({
+  const routed = await routeOutboundWithReceipt({
     channel,
     externalChatId,
     content,
@@ -109,5 +141,7 @@ export async function deliverOutbound(
   });
   if (!routed) {
     console.warn(`No outbound adapter registered for platform: ${platform}`);
+    return null;
   }
+  return { ...routed, channel: platform, target: externalChatId };
 }

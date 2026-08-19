@@ -1,12 +1,13 @@
 import { getWorldModelConfig } from '@/server/world-model/config';
-import { getWorldModelDb, withWorldModelTransaction } from '@/server/world-model/db';
-import { insertObservationWithResult } from '@/server/world-model/repositories/observationRepository';
-import { enqueueOutboxEvent } from '@/server/world-model/repositories/outboxRepository';
+import { recordObservation } from '@/server/world-model/services/observationService';
+import { getWorldModelDb, runWithWorldModelScope } from '@/server/world-model/db';
 import { matchStandingIntents } from '@/server/world-model/services/prospectiveEngine';
+import { processIncomingStandingIntents } from '@/server/world-model/services/standingIntentCompiler';
 import type { ObservationInput } from '@/server/world-model/types';
 import { isWorldModelRequired } from '@/server/world-model/mode';
 
 interface BridgeChatMessage {
+  id?: string;
   userId: string;
   personaId: string;
   conversationId: string;
@@ -26,7 +27,24 @@ interface BridgeChatMessage {
  * (fail-soft). Mem0 und die SQLite-Knowledge-Base bleiben kompatible
  * Projektionen. Standing Intents koennen auf neue Observations reagieren.
  */
-export async function bridgeChatMessages(input: {
+export function bridgeChatMessages(input: {
+  conversationId: string;
+  userId: string;
+  personaId: string;
+  workspaceId?: string;
+  messages: BridgeChatMessage[];
+}): Promise<{ written: number; skipped: number }> {
+  return runWithWorldModelScope(
+    {
+      userId: input.userId,
+      personaId: input.personaId,
+      workspaceId: input.workspaceId ?? '',
+    },
+    () => bridgeChatMessagesInScope(input),
+  );
+}
+
+async function bridgeChatMessagesInScope(input: {
   conversationId: string;
   userId: string;
   personaId: string;
@@ -58,7 +76,7 @@ export async function bridgeChatMessages(input: {
         personaId: input.personaId,
         workspaceId: input.workspaceId ?? '',
         sourceType: 'chat_message',
-        sourceId: message.sourceId ?? `${message.conversationId}:${message.seq}`,
+        sourceId: message.sourceId ?? message.id ?? `${message.conversationId}:${message.seq}`,
         occurredAt: message.createdAt ?? new Date().toISOString(),
         payload: {
           conversationId: message.conversationId,
@@ -68,30 +86,24 @@ export async function bridgeChatMessages(input: {
           ...(message.channelType ? { channelType: message.channelType } : {}),
           ...(message.senderId ? { senderId: message.senderId } : {}),
         },
-        sourceAuthority: message.role === 'assistant' ? 'persona' : 'user',
+        sourceAuthority:
+          message.role === 'assistant' || message.role === 'agent' ? 'persona' : 'user',
       };
-      const { observation, created } = await withWorldModelTransaction(async (db) => {
-        const result = await insertObservationWithResult(observationInput, db);
-        if (result.created) {
-          await enqueueOutboxEvent(
-            {
-              eventType: 'world.observation.created',
-              aggregateType: 'observation',
-              aggregateId: result.observation.id,
-              payload: {
-                userId: input.userId,
-                personaId: input.personaId,
-                workspaceId: input.workspaceId ?? '',
-                text,
-                channelType: message.channelType,
-                senderId: message.senderId,
-              },
-            },
-            db,
-          );
-        }
-        return result;
+      const { observation, created } = await recordObservation(observationInput, {
+        userId: input.userId,
+        personaId: input.personaId,
+        workspaceId: input.workspaceId ?? '',
       });
+      // Neue Standing-Intent-Aussagen aus Chat-Nachrichten extrahieren.
+      await processIncomingStandingIntents({
+        userId: input.userId,
+        personaId: input.personaId,
+        workspaceId: input.workspaceId ?? '',
+        text: text,
+      }).catch((error) => {
+        console.error('[world-model:bridge] standing-intent compilation failed:', error);
+      });
+
       if (created) {
         // Standing Intents werden erst nach dem Commit auf neue Observations geprueft.
         await matchStandingIntents(observation).catch((error) => {

@@ -1,10 +1,10 @@
-import type { ChannelKey } from '@/server/channels/adapters/types';
+import type { ChannelKey, OutboundDeliveryReceipt } from '@/server/channels/adapters/types';
 import type { InboundEnvelope } from '@/server/channels/inbound/envelope';
 import type { OutboundRouteCommand } from '@/server/channels/routing/outboundRouter';
 
 export interface ChannelAdapter {
   channel: ChannelKey;
-  send?: (command: OutboundRouteCommand) => Promise<void>;
+  send?: (command: OutboundRouteCommand) => Promise<void | OutboundDeliveryReceipt>;
   receive?: (envelope: InboundEnvelope) => Promise<void>;
 }
 

@@ -54,7 +54,11 @@ export const POST = withUserContext(async ({ request, userContext }) => {
       }
     }
 
-    const created = createTask({ ...parsed.data, workspace_id: workspaceId });
+    const created = createTask({
+      ...parsed.data,
+      workspace_id: workspaceId,
+      userId: userContext.userId,
+    });
 
     // Broadcast task creation via SSE
     if (created) {

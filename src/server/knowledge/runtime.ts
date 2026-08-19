@@ -29,7 +29,7 @@ declare global {
   var __knowledgeRuntimeLoop: KnowledgeRuntimeLoop | undefined;
 }
 
-function getKnowledgeMessageRepository(): MessageRepository {
+export function getKnowledgeMessageRepository(): MessageRepository {
   const sharedRepository = globalThis.__messageRepository as MessageRepository | undefined;
   if (sharedRepository) return sharedRepository;
 
@@ -120,6 +120,7 @@ function createKnowledgeIngestionDependencies() {
     cursor: getKnowledgeIngestionCursor(),
     extractor: getKnowledgeExtractor(),
     knowledgeRepository: getKnowledgeRepository(),
+    messageRepository: getKnowledgeMessageRepository(),
     memoryService: tryGetMemoryService(),
     memoryServiceProvider: () => tryGetMemoryService(),
     resolvePersonaName: (personaId: string) => {

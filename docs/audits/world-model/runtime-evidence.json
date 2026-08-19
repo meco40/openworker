@@ -1,0 +1,210 @@
+{
+  "generatedAt": "2026-08-19T15:51:05.740Z",
+  "evidenceClass": "synthetic-marker",
+  "productionData": false,
+  "runtimeOverrides": ["WORLD_MODEL_E2E=true", "GRAPHITI_SHADOW_ENABLED=true"],
+  "marker": "wm-evidence-1787154665343",
+  "scope": {
+    "userId": "wm-evidence-1787154665343",
+    "personaId": "evidence-assistant",
+    "workspaceId": "ws-evidence"
+  },
+  "phases": [
+    {
+      "phase": "admin:migrations",
+      "startedAt": "2026-08-19T15:51:05.343Z",
+      "detail": {
+        "appliedMigrations": []
+      },
+      "finishedAt": "2026-08-19T15:51:05.374Z"
+    },
+    {
+      "phase": "app:canonical-write",
+      "startedAt": "2026-08-19T15:51:05.374Z",
+      "detail": {
+        "observationCreated": true,
+        "observationReplayCreated": false,
+        "sameObservationId": true,
+        "processWindowPass1": {
+          "worldModelProjected": true,
+          "factsStored": 0,
+          "mem0PendingCount": 0,
+          "eventsStored": 1,
+          "entitiesCreated": 2,
+          "taskCompletions": 0
+        },
+        "processWindowPass2": {
+          "worldModelProjected": true,
+          "factsStored": 0,
+          "mem0PendingCount": 0
+        },
+        "checkpointLastSeq": 3
+      },
+      "finishedAt": "2026-08-19T15:51:05.568Z"
+    },
+    {
+      "phase": "worker:dispatch-and-retry",
+      "startedAt": "2026-08-19T15:51:05.568Z",
+      "detail": {
+        "dispatched": 2,
+        "retry": {
+          "selected": 1,
+          "succeeded": 1,
+          "failed": 0
+        }
+      },
+      "finishedAt": "2026-08-19T15:51:05.619Z"
+    },
+    {
+      "phase": "verify:counts",
+      "startedAt": "2026-08-19T15:51:05.619Z",
+      "detail": {
+        "observations": 2,
+        "entities": 3,
+        "relations": 1,
+        "assertions": 1,
+        "events": 1,
+        "eventTransitions": 1,
+        "tasks": 1,
+        "openLoops": 1,
+        "outboxDispatched": 2,
+        "outboxPending": 0,
+        "graphitiShadow": 2,
+        "projectionPendingOpen": 0,
+        "projectionPendingSucceeded": 1,
+        "ingestionCheckpoints": 1
+      },
+      "finishedAt": "2026-08-19T15:51:05.656Z"
+    }
+  ],
+  "checks": [
+    {
+      "name": "admin migration pass completed",
+      "passed": true,
+      "detail": "runWorldModelMigrations executed as admin"
+    },
+    {
+      "name": "observation write idempotent (replay returns same row, created=false)",
+      "passed": true,
+      "detail": "{\"created\":true,\"replayCreated\":false}"
+    },
+    {
+      "name": "canonical ingestion projected on both passes",
+      "passed": true,
+      "detail": "{\"worldModelProjected\":true,\"factsStored\":0,\"mem0PendingCount\":0,\"eventsStored\":1,\"entitiesCreated\":2,\"taskCompletions\":0}"
+    },
+    {
+      "name": "canonical factual Mem0 writes are blocked",
+      "passed": true,
+      "detail": "{\"factsStored\":0,\"mem0PendingCount\":0}"
+    },
+    {
+      "name": "worker dispatched scoped outbox events",
+      "passed": true,
+      "detail": "dispatched=2"
+    },
+    {
+      "name": "worker drained retryable projections without failures",
+      "passed": true,
+      "detail": "{\"selected\":1,\"succeeded\":1,\"failed\":0}"
+    },
+    {
+      "name": "observations written (direct + window)",
+      "passed": true,
+      "detail": "=2"
+    },
+    {
+      "name": "entities upserted",
+      "passed": true,
+      "detail": "=3"
+    },
+    {
+      "name": "relations created",
+      "passed": true,
+      "detail": "=1"
+    },
+    {
+      "name": "assertions created",
+      "passed": true,
+      "detail": "=1"
+    },
+    {
+      "name": "events created (replay-stable)",
+      "passed": true,
+      "detail": "=1"
+    },
+    {
+      "name": "event transitions recorded",
+      "passed": true,
+      "detail": "=1"
+    },
+    {
+      "name": "tasks created from action items",
+      "passed": true,
+      "detail": "=1"
+    },
+    {
+      "name": "open loops created from open points",
+      "passed": true,
+      "detail": "=1"
+    },
+    {
+      "name": "outbox fully dispatched",
+      "passed": true,
+      "detail": "{\"dispatched\":2,\"pending\":0}"
+    },
+    {
+      "name": "graphiti shadow ledger fed via outbox",
+      "passed": true,
+      "detail": "=2"
+    },
+    {
+      "name": "retryable projections succeeded",
+      "passed": true,
+      "detail": "{\"open\":0,\"succeeded\":1}"
+    },
+    {
+      "name": "ingestion checkpoint persisted",
+      "passed": true,
+      "detail": "=1"
+    },
+    {
+      "name": "sqlite knowledge projection contains episode",
+      "passed": true,
+      "detail": "episodes=1"
+    },
+    {
+      "name": "mem0 reachable for factual projection",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "synthetic marker cleanup",
+      "passed": true,
+      "detail": "{\"worldModelRows\":16,\"sqliteEpisodes\":5,\"mem0Deleted\":true}"
+    }
+  ],
+  "counts": {
+    "observations": 2,
+    "entities": 3,
+    "relations": 1,
+    "assertions": 1,
+    "events": 1,
+    "eventTransitions": 1,
+    "tasks": 1,
+    "openLoops": 1,
+    "outboxDispatched": 2,
+    "outboxPending": 0,
+    "graphitiShadow": 2,
+    "projectionPendingOpen": 0,
+    "projectionPendingSucceeded": 1,
+    "ingestionCheckpoints": 1,
+    "sqliteEpisodes": 1
+  },
+  "cleanup": {
+    "worldModelRows": 16,
+    "sqliteEpisodes": 5,
+    "mem0Deleted": true
+  },
+  "ok": true
+}

@@ -221,4 +221,35 @@ export class MessageQueries {
       .get(conversationId, clientMessageId) as Record<string, unknown> | undefined;
     return row ? toMessage(row) : null;
   }
+
+  markMessagesMemoryPending(messageIds: string[], pending: boolean, errorMessage?: string): void {
+    const ids = [...new Set(messageIds.map((id) => String(id || '').trim()).filter(Boolean))];
+    if (ids.length === 0) return;
+    const update = this.db.transaction(() => {
+      for (const id of ids) {
+        const row = this.db.prepare('SELECT metadata FROM messages WHERE id = ?').get(id) as
+          | { metadata?: string | null }
+          | undefined;
+        if (!row) continue;
+        let metadata: Record<string, unknown> = {};
+        if (row.metadata) {
+          try {
+            const parsed = JSON.parse(row.metadata) as unknown;
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              metadata = parsed as Record<string, unknown>;
+            }
+          } catch {
+            metadata = { legacyMetadata: row.metadata };
+          }
+        }
+        metadata.memoryStatus = pending ? 'memory_pending' : 'projected';
+        metadata.worldModelProjectionError = pending ? errorMessage?.slice(0, 1000) : undefined;
+        if (!pending) delete metadata.worldModelProjectionError;
+        this.db
+          .prepare('UPDATE messages SET metadata = ? WHERE id = ?')
+          .run(JSON.stringify(metadata), id);
+      }
+    });
+    update();
+  }
 }

@@ -3,6 +3,7 @@ import type { IngestionWindow } from '@/server/knowledge/ingestionCursor';
 import type { MemoryServiceLike } from './types';
 import { MEM0_RATE_LIMIT_DELAY_MS, DEFAULT_TOPIC_KEY } from './constants';
 import { createMemoryIdempotencyKey } from '@/server/memory/idempotency';
+import { isMem0FactualWriteBlocked } from '@/server/world-model/mem0Policy';
 
 export interface TaskCompletionResult {
   task: TrackedTask;
@@ -27,6 +28,12 @@ export async function storeTaskCompletions(
   context: TaskCompletionContext,
 ): Promise<TaskCompletionResult[]> {
   if (!memoryService || actionItems.length === 0) {
+    return [];
+  }
+
+  // Im Canonical-Modus werden Task-Erledigungen als kanonische Task-Transition
+  // persistiert, nicht als faktischer Mem0-Eintrag.
+  if (isMem0FactualWriteBlocked()) {
     return [];
   }
 

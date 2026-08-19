@@ -5,6 +5,7 @@ export interface CorrelatableTarget {
   targetType: CorrelatableTargetType;
   channel?: string;
   conversationId?: string;
+  externalChatId?: string | null;
   askedAt?: string;
   windowMs?: number;
 }
@@ -12,6 +13,7 @@ export interface CorrelatableTarget {
 export interface InboundUserMessage {
   channel: string;
   conversationId?: string;
+  externalChatId?: string | null;
   text: string;
   receivedAt: string;
 }
@@ -42,12 +44,19 @@ export function correlateUserResponse(
     if (candidate.conversationId && candidate.conversationId === message.conversationId) {
       score += 3;
     }
+    if (
+      candidate.externalChatId &&
+      message.externalChatId &&
+      candidate.externalChatId === message.externalChatId
+    ) {
+      score += 4;
+    }
     const askedAt = candidate.askedAt ?? '';
     const windowMs = candidate.windowMs ?? defaultWindowMs;
-    if (
-      askedAt &&
-      new Date(message.receivedAt).getTime() - new Date(askedAt).getTime() <= windowMs
-    ) {
+    const deltaMs = askedAt
+      ? new Date(message.receivedAt).getTime() - new Date(askedAt).getTime()
+      : null;
+    if (deltaMs !== null && deltaMs >= 0 && deltaMs <= windowMs) {
       score += 2;
     }
     return { candidate, score };

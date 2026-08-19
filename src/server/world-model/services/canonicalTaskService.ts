@@ -1,7 +1,7 @@
 import type { TaskStatus } from '@/server/world-model/types';
 
 const ALLOWED_TASK_TRANSITIONS: Record<TaskStatus, readonly TaskStatus[]> = {
-  proposed: ['planned', 'cancelled', 'in_progress'],
+  proposed: ['planned', 'cancelled', 'in_progress', 'completed'],
   planned: ['in_progress', 'waiting', 'cancelled', 'failed'],
   in_progress: ['completed', 'failed', 'waiting', 'cancelled'],
   waiting: ['in_progress', 'cancelled', 'failed', 'completed'],

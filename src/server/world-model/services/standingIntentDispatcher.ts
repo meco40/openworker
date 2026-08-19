@@ -1,4 +1,6 @@
 import { enqueueOutboxEvent } from '@/server/world-model/repositories/outboxRepository';
+import { insertOpenLoop } from '@/server/world-model/repositories/prospectiveRepository';
+import { executeAction } from '@/server/world-model/services/actionService';
 import type { WorldModelQueryExecutor } from '@/server/world-model/db';
 import type { Observation, StandingIntentRecord } from '@/server/world-model/types';
 
@@ -18,6 +20,53 @@ export interface StandingIntentDispatchResult {
   dispatched: boolean;
   outboxEventId?: string;
   created: boolean;
+}
+
+/**
+ * Materializes a fired intent as a canonical follow-up action. The later
+ * channel delivery is still handled by the outbox, but the action attempt
+ * records that the requested reminder/follow-up was created exactly once.
+ */
+export async function executeStandingIntentFollowUp(input: {
+  intentId: string;
+  userId: string;
+  personaId: string;
+  workspaceId?: string;
+  description: string;
+  firingObservationId: string;
+}): Promise<void> {
+  const result = await executeAction({
+    scope: {
+      userId: input.userId,
+      personaId: input.personaId,
+      workspaceId: input.workspaceId ?? '',
+    },
+    actionType: 'standing_intent.follow_up',
+    idempotencyKey: `standing-intent-action:${input.intentId}:${input.firingObservationId}`,
+    correlationId: input.firingObservationId,
+    run: async () => {
+      const loop = await insertOpenLoop({
+        userId: input.userId,
+        personaId: input.personaId,
+        workspaceId: input.workspaceId ?? '',
+        type: 'promised_follow_up',
+        question: `Erinnerung: ${input.description}`,
+        deduplicationKey: `standing-intent-follow-up:${input.intentId}:${input.firingObservationId}`,
+      });
+      return {
+        ok: true,
+        result: {
+          providerId: 'world-model',
+          target: `open-loop:${loop.id}`,
+          timestamp: new Date().toISOString(),
+          payload: { intentId: input.intentId, firingObservationId: input.firingObservationId },
+        },
+      };
+    },
+  });
+  if (!result.succeeded) {
+    throw new Error(result.error ?? 'standing intent follow-up action failed');
+  }
 }
 
 export async function dispatchStandingIntentAction(

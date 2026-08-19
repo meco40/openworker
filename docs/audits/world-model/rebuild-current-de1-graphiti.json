@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-08-19T21:25:50.553Z",
+  "type": "graphiti",
+  "scope": "legacy-local-user:de1e771b-32e7-4ec7-9123-c842577bc18b:",
+  "dryRun": false,
+  "resume": false,
+  "batchSize": 25,
+  "phases": {
+    "graphiti": {
+      "nodesCreated": 276,
+      "edgesCreated": 11,
+      "processedEvents": 271,
+      "byStage": {
+        "observations": 257,
+        "assertions": 11,
+        "events": 3,
+        "relations": 0
+      }
+    }
+  },
+  "ok": true,
+  "finishedAt": "2026-08-19T21:26:08.758Z"
+}

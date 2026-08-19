@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-08-19T21:16:02.848Z",
+  "type": "embeddings",
+  "scope": "legacy-local-user:de1e771b-32e7-4ec7-9123-c842577bc18b:",
+  "dryRun": false,
+  "resume": false,
+  "batchSize": 25,
+  "phases": {
+    "embeddings": {
+      "collected": 264,
+      "processed": 264,
+      "created": 0
+    }
+  },
+  "ok": true,
+  "finishedAt": "2026-08-19T21:16:03.581Z"
+}

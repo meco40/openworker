@@ -36,7 +36,7 @@ export async function collectDueFollowUps(
 }
 
 export async function markFollowUpAsked(loop: OpenLoopRecord, now: string): Promise<void> {
-  await markOpenLoopAsked(loop, now);
+  await markOpenLoopAsked(loop.id, now);
 }
 
 export async function resolveFollowUp(

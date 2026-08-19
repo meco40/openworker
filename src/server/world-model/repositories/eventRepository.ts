@@ -23,6 +23,7 @@ interface EventRow {
   created_at: string;
   updated_at: string;
   idempotency_key?: string | null;
+  replaces_event_id?: string | null;
 }
 
 interface TransitionRow {
@@ -53,6 +54,7 @@ function toEvent(row: EventRow): EventRecord {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     idempotencyKey: row.idempotency_key ?? undefined,
+    replacesEventId: row.replaces_event_id ?? undefined,
   };
 }
 
@@ -76,13 +78,13 @@ export async function insertEvent(
   const result = await db.query<EventRow>(
     `INSERT INTO world_model_events
       (user_id, persona_id, workspace_id, title, event_type, subject_entity_id,
-       counterpart_entity_id, scheduled_for, ends_at, status, observed_at, idempotency_key)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       counterpart_entity_id, scheduled_for, ends_at, status, observed_at, idempotency_key, replaces_event_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      ON CONFLICT (user_id, persona_id, workspace_id, idempotency_key)
        WHERE idempotency_key IS NOT NULL DO UPDATE SET updated_at = world_model_events.updated_at
      RETURNING id, user_id, persona_id, workspace_id, title, event_type, subject_entity_id,
                counterpart_entity_id, scheduled_for, ends_at, status, observed_at,
-               created_at, updated_at, idempotency_key`,
+               created_at, updated_at, idempotency_key, replaces_event_id`,
     [
       input.userId,
       input.personaId,
@@ -96,6 +98,7 @@ export async function insertEvent(
       input.status ?? 'planned',
       input.observedAt ?? null,
       input.idempotencyKey ?? null,
+      input.replacesEventId ?? null,
     ],
   );
   return toEvent(result.rows[0]);
@@ -118,8 +121,9 @@ export async function getEventById(
   }
   const result = await db.query<EventRow>(
     `SELECT id, user_id, persona_id, workspace_id, title, event_type, subject_entity_id,
-            counterpart_entity_id, scheduled_for, ends_at, status, observed_at, created_at, updated_at
-     FROM world_model_events WHERE ${conditions.join(' AND ')}`,
+             counterpart_entity_id, scheduled_for, ends_at, status, observed_at, created_at, updated_at,
+             idempotency_key, replaces_event_id
+       FROM world_model_events WHERE ${conditions.join(' AND ')}`,
     values,
   );
   return result.rows[0] ? toEvent(result.rows[0]) : null;

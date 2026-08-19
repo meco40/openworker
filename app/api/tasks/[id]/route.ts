@@ -62,7 +62,7 @@ export const PATCH = withUserContext<{ id: string }>(async ({ request, params, u
       }
     }
 
-    const result = updateTask(id, parsed.data);
+    const result = updateTask(id, { ...parsed.data, userId: userContext.userId });
     const hydratedTask = result.task;
 
     // Broadcast task update via SSE
@@ -117,7 +117,7 @@ export const DELETE = withUserContext<{ id: string }>(async ({ params, userConte
     if (!workspaceId || !canAccessTask(userContext, id)) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
-    deleteTask(id);
+    deleteTask(id, userContext.userId);
 
     // Broadcast deletion via SSE
     broadcast({

@@ -1,0 +1,16 @@
+{
+  "generatedAt": "2026-08-19T21:23:09.831Z",
+  "scope": {
+    "userId": "legacy-local-user",
+    "personaId": "de1e771b-32e7-4ec7-9123-c842577bc18b",
+    "workspaceId": ""
+  },
+  "requestedMode": "canonical",
+  "currentMode": "canonical",
+  "canaryScopes": ["legacy-local-user:de1e771b-32e7-4ec7-9123-c842577bc18b:"],
+  "canaryScopeAllowed": true,
+  "transitions": ["off", "shadow", "required", "canonical"],
+  "rollbackMode": "shadow",
+  "applyRequiredOutsideTool": true,
+  "ok": true
+}

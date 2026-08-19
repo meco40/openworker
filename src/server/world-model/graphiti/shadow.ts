@@ -5,6 +5,8 @@ export interface ShadowEdgeInput {
   sourceOutboxEventId: string;
   userId: string;
   personaId: string;
+  workspaceId: string;
+  sourceAggregate: string;
   sourceEntity: string;
   targetEntity?: string;
   relationType: string;
@@ -24,19 +26,22 @@ export async function insertShadowEdge(input: ShadowEdgeInput): Promise<void> {
   const db = getWorldModelDb();
   await db.query(
     `INSERT INTO world_model_graphiti_shadow
-      (source_outbox_event_id, user_id, persona_id, source_entity, target_entity, relation_type, confidence,
-       evidence_observation_id, valid_from, valid_to, shadow_episode)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      (source_outbox_event_id, user_id, persona_id, workspace_id, source_entity, target_entity,
+       relation_type, confidence, evidence_observation_id, source_aggregate, valid_from, valid_to,
+       shadow_episode)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      ON CONFLICT (source_outbox_event_id) DO NOTHING`,
     [
       input.sourceOutboxEventId,
       input.userId,
       input.personaId,
+      input.workspaceId,
       input.sourceEntity,
       input.targetEntity ?? null,
       input.relationType,
       input.confidence ?? 1,
       input.evidenceObservationId ?? null,
+      input.sourceAggregate,
       input.validFrom ?? null,
       input.validTo ?? null,
       JSON.stringify(input.shadowEpisode ?? {}),
@@ -54,6 +59,7 @@ export function createGraphitiShadowHandler() {
     const payload = (event.payload ?? {}) as Record<string, unknown>;
     const userId = String(payload.userId ?? '');
     const personaId = String(payload.personaId ?? '');
+    const workspaceId = String(payload.workspaceId ?? event.workspaceId ?? '');
     const text = String(payload.text ?? '');
     const sourceEntity = String(payload.sourceEntity ?? (userId || 'user'));
     const targetEntity = payload.targetEntity
@@ -63,6 +69,8 @@ export function createGraphitiShadowHandler() {
       sourceOutboxEventId: event.id,
       userId,
       personaId,
+      workspaceId,
+      sourceAggregate: event.aggregateType,
       sourceEntity,
       targetEntity,
       relationType: String(payload.relationType ?? 'mentions'),
@@ -73,7 +81,11 @@ export function createGraphitiShadowHandler() {
   };
 }
 
-export async function countShadowEdges(userId?: string, personaId?: string): Promise<number> {
+export async function countShadowEdges(
+  userId?: string,
+  personaId?: string,
+  workspaceId?: string,
+): Promise<number> {
   const db = getWorldModelDb();
   const params: string[] = [];
   const conditions: string[] = [];
@@ -84,6 +96,10 @@ export async function countShadowEdges(userId?: string, personaId?: string): Pro
   if (personaId) {
     params.push(personaId);
     conditions.push(`persona_id = $${params.length}`);
+  }
+  if (workspaceId !== undefined) {
+    params.push(workspaceId);
+    conditions.push(`workspace_id = $${params.length}`);
   }
   const where = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
   const result = await db.query<{ count: string }>(

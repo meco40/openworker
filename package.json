@@ -51,12 +51,29 @@
     "knowledge:ingest": "node --import tsx scripts/trigger-knowledge-ingestion.ts",
     "attachments:consistency": "node --import tsx scripts/attachments-consistency.ts",
     "smoke:chat-cli-approval": "node --import tsx scripts/smoke-chat-cli-approval.ts",
+    "world-model:backfill": "node --import tsx scripts/world-model-backfill.ts",
+    "world-model:reconcile": "node --import tsx scripts/world-model-reconcile.ts",
+    "world-model:rebuild-projections": "node --import tsx scripts/world-model-rebuild-projections.ts",
+    "world-model:graphiti-evaluate": "node --import tsx scripts/world-model-graphiti-evaluate.ts",
+    "world-model:provision-roles": "node --import tsx scripts/world-model-provision-roles.ts",
+    "world-model:verify-rls": "node --import tsx scripts/world-model-verify-rls.ts",
+    "world-model:runtime-evidence": "node --import tsx scripts/world-model-runtime-evidence.ts",
+    "world-model:drill": "node --import tsx scripts/world-model-failure-drill.ts",
+    "world-model:lifecycle": "node --import tsx scripts/world-model-lifecycle.ts",
+    "world-model:rollout-gate": "node --import tsx scripts/world-model-rollout-gate.ts",
+    "world-model:rekey-chat-sources": "node --import tsx scripts/world-model-rekey-chat-sources.ts",
+    "world-model:benchmark-embeddings": "node --import tsx scripts/world-model-benchmark-embeddings.ts",
+    "mem0:audit": "node --import tsx scripts/mem0-factual-memory-audit.ts",
     "avatar:sync-headaudio": "node scripts/avatar/sync-headaudio-assets.mjs",
     "avatar:validate": "node scripts/avatar/validate-master-avatar.mjs",
     "mem0:local:up": "docker compose --env-file .env.local -f docker-compose.mem0-local.yml up -d --build",
     "mem0:local:down": "docker compose --env-file .env.local -f docker-compose.mem0-local.yml down",
     "mem0:local:logs": "docker compose --env-file .env.local -f docker-compose.mem0-local.yml logs -f mem0-local mem0-postgres",
     "mem0:local:ps": "docker compose --env-file .env.local -f docker-compose.mem0-local.yml ps",
+    "graphiti:local:up": "docker compose --env-file .env.local -f docker-compose.graphiti.yml up -d",
+    "graphiti:local:down": "docker compose --env-file .env.local -f docker-compose.graphiti.yml down",
+    "graphiti:local:logs": "docker compose --env-file .env.local -f docker-compose.graphiti.yml logs -f graphiti graphiti-neo4j",
+    "graphiti:local:ps": "docker compose --env-file .env.local -f docker-compose.graphiti.yml ps",
     "dev:stack": "npm run dev",
     "speckit:help": "pwsh -File .specify/scripts/powershell/check-prerequisites.ps1 -Help",
     "speckit:new": "pwsh -File .specify/scripts/powershell/create-new-feature.ps1",
@@ -69,7 +86,7 @@
     "@google/genai": "^1.42.0",
     "@met4citizen/headaudio": "0.1.0",
     "@met4citizen/talkinghead": "1.7.0",
-    "@next/env": "^16.1.6",
+    "@next/env": "^16.3.1",
     "@types/three": "^0.183.1",
     "@xyflow/react": "^12.10.0",
     "better-sqlite3": "^12.6.2",
@@ -77,24 +94,24 @@
     "css-tree": "^3.1.0",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.575.0",
-    "mermaid": "^11.12.3",
-    "next": "^16.1.6",
-    "next-auth": "^4.24.13",
-    "nodemailer": "^7.0.13",
+    "mermaid": "^11.17.0",
+    "next": "^16.3.1",
+    "next-auth": "^4.24.15",
+    "nodemailer": "^9.0.5",
     "pg": "^8.23.0",
     "playwright": "^1.58.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "recharts": "^3.7.0",
     "three": "^0.183.2",
-    "tsx": "^4.21.0",
-    "ws": "^8.19.0",
-    "yaml": "^2.8.2",
+    "tsx": "^4.23.12",
+    "ws": "^8.21.3",
+    "yaml": "^2.9.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@next/bundle-analyzer": "^16.1.6",
+    "@next/bundle-analyzer": "^16.3.1",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
@@ -102,32 +119,28 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/css-tree": "^2.3.11",
     "@types/node": "^22.19.10",
-    "@types/nodemailer": "^7.0.11",
+    "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.2.13",
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
-    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/coverage-v8": "^4.1.11",
     "cross-env": "^10.1.0",
     "eslint-plugin-security": "^4.0.0",
-    "eslint-plugin-sonarjs": "^4.0.0",
+    "eslint-plugin-sonarjs": "^4.2.0",
     "eslint-plugin-unused-imports": "^4.4.1",
     "husky": "^9.1.7",
     "jsdom": "^28.1.0",
-    "knip": "^5.83.1",
+    "knip": "^6.32.2",
     "lint-staged": "^16.2.7",
     "oxlint": "^1.48.0",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.26",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.8.2",
-    "vitest": "^4.0.18"
-  },
-  "overrides": {
-    "glob": "^13.0.6",
-    "minimatch": "^10.2.1",
-    "rimraf": "^6.1.3"
+    "vite": "^7.3.6",
+    "vitest": "^4.1.11"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": [
@@ -151,12 +164,24 @@
     ]
   },
   "pnpm": {
+    "overrides": {
+      "glob": "^13.0.6",
+      "minimatch": "^10.2.6",
+      "rimraf": "^6.1.3",
+      "protobufjs": "^7.6.5",
+      "undici": "^7.29.0"
+    },
     "onlyBuiltDependencies": [
       "better-sqlite3",
       "esbuild",
       "protobufjs",
       "sharp"
-    ]
+    ],
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "nodemailer": "^9.0.5"
+      }
+    }
   },
   "packageManager": "pnpm@10.30.1+sha512.3590e550d5384caa39bd5c7c739f72270234b2f6059e13018f975c313b1eb9fefcc09714048765d4d9efe961382c312e624572c0420762bdc5d5940cdf9be73a"
 }

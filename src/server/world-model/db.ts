@@ -1,11 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 import { Pool, type QueryResult, type QueryResultRow } from 'pg';
 
 import { getWorldModelConfig } from '@/server/world-model/config';
+import type { WorldModelScope } from '@/server/world-model/scope';
 
 const POOL_LOG_TAG = '[world-model:db]';
+const scopeStorage = new AsyncLocalStorage<WorldModelScope>();
 
 declare global {
   // eslint-disable-next-line no-var
@@ -22,6 +25,63 @@ export interface WorldModelQueryExecutor {
     text: string,
     values?: unknown[],
   ) => Promise<QueryResult<T>>;
+}
+
+function normalizedScope(scope: WorldModelScope): Required<WorldModelScope> {
+  return {
+    userId: scope.userId,
+    personaId: scope.personaId,
+    workspaceId: scope.workspaceId ?? '',
+  };
+}
+
+async function setDatabaseScope(
+  client: { query: WorldModelQueryExecutor['query'] },
+  scope: WorldModelScope,
+): Promise<void> {
+  const value = normalizedScope(scope);
+  await client.query('SELECT world_model_set_scope($1, $2, $3)', [
+    value.userId,
+    value.personaId,
+    value.workspaceId,
+  ]);
+}
+
+/** Runs database work with the tenant scope used by the RLS policies. */
+export function runWithWorldModelScope<T>(
+  scope: WorldModelScope,
+  callback: () => Promise<T>,
+): Promise<T> {
+  return scopeStorage.run(normalizedScope(scope), callback);
+}
+
+export function getWorldModelScope(): WorldModelScope | undefined {
+  return scopeStorage.getStore();
+}
+
+async function queryWithScope<T extends QueryResultRow = QueryResultRow>(
+  pool: Pool,
+  text: string,
+  values: unknown[] | undefined,
+  scope: WorldModelScope,
+): Promise<QueryResult<T>> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await setDatabaseScope(client, scope);
+    const result = await client.query<T>(text, values);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error(POOL_LOG_TAG, 'scoped query rollback failed:', rollbackError);
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 function buildPool(): Pool {
@@ -44,7 +104,10 @@ export function getWorldModelDb(): WorldModelDb {
   const pool = globalThis.__worldModelPool;
   return {
     pool,
-    query: (text, values) => pool.query(text, values),
+    query: (text, values) => {
+      const scope = getWorldModelScope();
+      return scope ? queryWithScope(pool, text, values, scope) : pool.query(text, values);
+    },
   };
 }
 
@@ -103,49 +166,66 @@ async function applyMigrations(client: WorldModelQueryExecutor): Promise<string[
 }
 
 export async function runWorldModelMigrations(): Promise<string[]> {
-  const db = getWorldModelDb();
-  const usable = await isConnectionUsable(db.pool);
-  if (!usable) {
-    throw new Error(
-      `${POOL_LOG_TAG} canonical PostgreSQL is not reachable at ${getWorldModelConfig().databaseUrl}`,
-    );
-  }
-  const client = await db.pool.connect();
+  const adminUrl = process.env.WORLD_MODEL_ADMIN_DATABASE_URL?.trim();
+  const pool = adminUrl
+    ? new Pool({ connectionString: adminUrl, max: 2, idleTimeoutMillis: 5000 })
+    : getWorldModelDb().pool;
+  const isDedicatedAdminPool = Boolean(adminUrl);
+
   try {
-    await client.query('SELECT pg_advisory_lock(hashtext($1))', [
-      'clawtest:world-model:migrations',
-    ]);
-    return await applyMigrations(client);
-  } finally {
+    const usable = await isConnectionUsable(pool);
+    if (!usable) {
+      throw new Error(
+        `${POOL_LOG_TAG} canonical PostgreSQL is not reachable at ${adminUrl || getWorldModelConfig().databaseUrl}`,
+      );
+    }
+    const client = await pool.connect();
     try {
-      await client.query('SELECT pg_advisory_unlock(hashtext($1))', [
+      await client.query('SELECT pg_advisory_lock(hashtext($1))', [
         'clawtest:world-model:migrations',
       ]);
+      return await applyMigrations(client);
     } finally {
-      client.release();
+      try {
+        await client.query('SELECT pg_advisory_unlock(hashtext($1))', [
+          'clawtest:world-model:migrations',
+        ]);
+      } finally {
+        client.release();
+      }
+    }
+  } finally {
+    if (isDedicatedAdminPool) {
+      await pool.end();
     }
   }
 }
 
 export async function withWorldModelTransaction<T>(
   callback: (db: WorldModelQueryExecutor) => Promise<T>,
+  scope?: WorldModelScope,
 ): Promise<T> {
-  const client = await getWorldModelDb().pool.connect();
-  try {
-    await client.query('BEGIN');
-    const result = await callback(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
+  const activeScope = scope ?? getWorldModelScope();
+  const run = async (): Promise<T> => {
+    const client = await getWorldModelDb().pool.connect();
     try {
-      await client.query('ROLLBACK');
-    } catch (rollbackError) {
-      console.error(POOL_LOG_TAG, 'transaction rollback failed:', rollbackError);
+      await client.query('BEGIN');
+      if (activeScope) await setDatabaseScope(client, activeScope);
+      const result = await callback(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error(POOL_LOG_TAG, 'transaction rollback failed:', rollbackError);
+      }
+      throw error;
+    } finally {
+      client.release();
     }
-    throw error;
-  } finally {
-    client.release();
-  }
+  };
+  return activeScope ? scopeStorage.run(normalizedScope(activeScope), run) : run();
 }
 
 export async function resetWorldModelDbForTests(): Promise<void> {

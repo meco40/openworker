@@ -33,7 +33,7 @@ describe('executeAction', () => {
       run: async () => ({ ok: true }),
     });
     expect(result).toMatchObject({ attemptId: 'a1', created: true, succeeded: true });
-    expect(finish).toHaveBeenCalledWith('a1', 'succeeded');
+    expect(finish).toHaveBeenCalledWith('a1', 'succeeded', undefined);
   });
 
   it('does not re-run a previous attempt (idempotency)', async () => {
@@ -66,6 +66,6 @@ describe('executeAction', () => {
     });
     expect(result.succeeded).toBe(false);
     expect(result.error).toBe('SMTP down');
-    expect(finish).toHaveBeenCalledWith('a2', 'failed');
+    expect(finish).toHaveBeenCalledWith('a2', 'failed', undefined);
   });
 });

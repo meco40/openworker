@@ -1,0 +1,87 @@
+{
+  "generatedAt": "2026-08-19T21:07:09.310Z",
+  "sourceSnapshotAt": "2026-08-19T21:07:09.417Z",
+  "mode": "canonical",
+  "scope": "legacy-local-user:de1e771b-32e7-4ec7-9123-c842577bc18b:",
+  "rows": [
+    {
+      "domain": "observations",
+      "oldCount": 251,
+      "newCount": 258,
+      "difference": 7,
+      "status": "error",
+      "details": "chat_message observations vs SQLite message snapshot at 2026-08-19T21:07:09.417Z; total canonical observations including derived sources=264"
+    },
+    {
+      "domain": "assertions",
+      "oldCount": 2,
+      "newCount": 2,
+      "difference": 0,
+      "status": "ok",
+      "details": "canonical active=2; historical superseded=9, retracted=0"
+    },
+    {
+      "domain": "events",
+      "oldCount": 3,
+      "newCount": 3,
+      "difference": 0,
+      "status": "ok",
+      "details": "canonical total=3; cancelled historical=0"
+    },
+    {
+      "domain": "open_loops (active)",
+      "oldCount": 7,
+      "newCount": 7,
+      "difference": 0,
+      "status": "ok",
+      "details": "active open loops"
+    },
+    {
+      "domain": "tasks",
+      "oldCount": 0,
+      "newCount": 0,
+      "difference": 0,
+      "status": "ok",
+      "details": "legacy Mission-Control mirror=0, sqlite=0; derived internal tasks=0"
+    },
+    {
+      "domain": "embeddings",
+      "oldCount": 271,
+      "newCount": 271,
+      "difference": 0,
+      "status": "ok",
+      "details": "targets=271, stored=271, without_text=0"
+    },
+    {
+      "domain": "projection_pending",
+      "oldCount": 0,
+      "newCount": 0,
+      "difference": 0,
+      "status": "ok",
+      "details": "pending=0, failed=0"
+    },
+    {
+      "domain": "delivery_receipts",
+      "oldCount": 0,
+      "newCount": 0,
+      "difference": 0,
+      "status": "ok",
+      "details": "provider acknowledgements inventory; no legacy row mapping exists"
+    },
+    {
+      "domain": "outbox",
+      "oldCount": 0,
+      "newCount": 103,
+      "difference": 103,
+      "status": "warn",
+      "details": "pending=103, failed=0"
+    }
+  ],
+  "overall": "error",
+  "errors": [],
+  "hashes": {
+    "assertions": ["6d099543310b6e303be722a4d48603c0"],
+    "events": ["7f466d437aba0d6dfed4f6794b95a2f2"],
+    "tasks": ["d41d8cd98f00b204e9800998ecf8427e"]
+  }
+}

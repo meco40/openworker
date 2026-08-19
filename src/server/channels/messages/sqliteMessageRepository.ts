@@ -136,6 +136,10 @@ export class SqliteMessageRepository implements MessageRepository {
     return this.messageQueries.saveMessage(input);
   }
 
+  markMessagesMemoryPending(messageIds: string[], pending: boolean, errorMessage?: string): void {
+    return this.messageQueries.markMessagesMemoryPending(messageIds, pending, errorMessage);
+  }
+
   getMessage(id: string, userId?: string): StoredMessage | null {
     return this.messageQueries.getMessage(id, userId);
   }

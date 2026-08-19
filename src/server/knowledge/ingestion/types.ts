@@ -6,6 +6,7 @@ import type {
 import type { IngestionWindow } from '@/server/knowledge/ingestionCursor';
 import type { KnowledgeRepository } from '@/server/knowledge/repository';
 import type { ExtractionPersonaContext } from '@/server/knowledge/prompts';
+import type { MessageRepository } from '@/server/channels/messages/repository';
 
 export interface IngestionCursorLike {
   getPendingWindows(limitConversations?: number): IngestionWindow[];
@@ -50,6 +51,7 @@ export interface KnowledgeIngestionServiceDependencies {
   memoryService?: MemoryServiceLike | null;
   /** Resolves the current memory runtime for every window after recovery. */
   memoryServiceProvider?: () => MemoryServiceLike | null;
+  messageRepository?: Pick<MessageRepository, 'markMessagesMemoryPending'>;
   /** Optional: resolve persona ID → human-readable name (e.g. "Lea"). */
   resolvePersonaName?: (personaId: string) => string | null;
 }

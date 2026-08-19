@@ -71,6 +71,7 @@ export interface MessageRepository {
   updateConversationTitle(id: string, title: string): void;
 
   saveMessage(input: SaveMessageInput): StoredMessage;
+  markMessagesMemoryPending?(messageIds: string[], pending: boolean, errorMessage?: string): void;
   getMessage?(id: string, userId?: string): StoredMessage | null;
   listMessages(
     conversationId: string,

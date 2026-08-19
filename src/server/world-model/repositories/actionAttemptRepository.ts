@@ -1,12 +1,20 @@
 import { getWorldModelDb, type WorldModelQueryExecutor } from '@/server/world-model/db';
 import type { WorldModelScope } from '@/server/world-model/scope';
 
+export interface ToolActionResult {
+  providerId?: string;
+  target?: string;
+  timestamp?: string;
+  payload?: unknown;
+}
+
 export interface ActionAttemptInput {
   scope: WorldModelScope;
   taskId?: string;
   actionType: string;
   idempotencyKey: string;
   correlationId?: string;
+  result?: ToolActionResult;
 }
 
 export interface ActionAttemptRecord {
@@ -21,6 +29,7 @@ export interface ActionAttemptRecord {
   correlationId: string | null;
   startedAt: string;
   finishedAt: string | null;
+  result?: ToolActionResult;
 }
 
 interface ActionAttemptRow {
@@ -37,8 +46,8 @@ interface ActionAttemptRow {
   finished_at: string | null;
 }
 
-function toAttempt(row: ActionAttemptRow): ActionAttemptRecord {
-  return {
+function toAttempt(row: ActionAttemptRow & { output?: unknown }): ActionAttemptRecord {
+  const record: ActionAttemptRecord = {
     id: row.id,
     taskId: row.task_id,
     userId: row.user_id,
@@ -51,10 +60,17 @@ function toAttempt(row: ActionAttemptRow): ActionAttemptRecord {
     startedAt: row.started_at,
     finishedAt: row.finished_at,
   };
+  if (row.output && typeof row.output === 'object' && row.output !== null) {
+    const output = row.output as Record<string, unknown>;
+    if (output.result && typeof output.result === 'object') {
+      record.result = output.result as ToolActionResult;
+    }
+  }
+  return record;
 }
 
 const SELECT = `id, task_id, user_id, persona_id, workspace_id, action_type, status,
-  idempotency_key, correlation_id, started_at, finished_at`;
+  idempotency_key, correlation_id, started_at, finished_at, output`;
 
 /**
  * Legt einen idempotenten Action Attempt an. Falls ein Attempt mit demselben
@@ -105,11 +121,16 @@ export async function startActionAttempt(
 export async function finishActionAttempt(
   id: string,
   status: 'succeeded' | 'failed' | 'aborted',
+  result?: ToolActionResult,
   db: WorldModelQueryExecutor = getWorldModelDb(),
 ): Promise<void> {
   await db.query(
-    `UPDATE world_model_action_attempts SET status = $2, finished_at = now()
+    `UPDATE world_model_action_attempts
+     SET status = $2, finished_at = now(),
+         output = CASE WHEN $3::jsonb IS NOT NULL
+           THEN output || jsonb_build_object('result', $3::jsonb)
+           ELSE output END
      WHERE id = $1 AND status = 'started'`,
-    [id, status],
+    [id, status, result ? JSON.stringify(result) : null],
   );
 }

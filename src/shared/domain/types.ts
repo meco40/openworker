@@ -94,6 +94,8 @@ export interface Conversation {
   channelType: ChannelType;
   externalChatId: string | null;
   userId: string;
+  /** Optional until the legacy SQLite conversation schema carries workspace_id. */
+  workspaceId?: string;
   title: string;
   modelOverride: string | null;
   personaId: string | null;

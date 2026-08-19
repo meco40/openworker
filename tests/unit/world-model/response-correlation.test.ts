@@ -128,4 +128,25 @@ describe('correlateUserResponse', () => {
     );
     expect(decision.match).toBeNull();
   });
+
+  it('does not award a time-window score to a message sent before the question', () => {
+    const decision = correlateUserResponse(
+      {
+        channel: 'slack',
+        conversationId: 'other',
+        text: 'ja',
+        receivedAt: '2026-08-18T11:59:00.000Z',
+      },
+      [
+        target({
+          id: 'future-question',
+          channel: 'telegram',
+          conversationId: 'different',
+          askedAt: '2026-08-18T12:00:00.000Z',
+        }),
+      ],
+    );
+    expect(decision.match).toBeNull();
+    expect(decision.reason).toBe('none');
+  });
 });

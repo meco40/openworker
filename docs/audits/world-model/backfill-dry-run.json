@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-08-19T15:58:10.514Z",
+  "options": {
+    "dryRun": true,
+    "batchSize": 50,
+    "resume": false,
+    "output": "docs/audits/world-model/backfill-dry-run.json"
+  },
+  "stats": {
+    "observationsWritten": 0,
+    "observationsSkipped": 0,
+    "assertionsCreated": 0,
+    "eventsCreated": 0,
+    "entitiesUpserted": 0,
+    "tasksMirrored": 0,
+    "actionAttemptsMirrored": 0,
+    "errors": [],
+    "generatedAt": "2026-08-19T15:58:10.514Z",
+    "phases": {
+      "messages": {
+        "selected": 587,
+        "processed": 0,
+        "skipped": 0,
+        "failed": 0
+      },
+      "knowledgeEpisodes": {
+        "selected": 11,
+        "processed": 0,
+        "skipped": 0,
+        "failed": 0
+      },
+      "knowledgeLedger": {
+        "selected": 11,
+        "processed": 0,
+        "skipped": 0,
+        "failed": 0
+      },
+      "tasks": {
+        "selected": 0,
+        "processed": 0,
+        "skipped": 0,
+        "failed": 0
+      },
+      "toolActions": {
+        "selected": 3,
+        "processed": 0,
+        "skipped": 0,
+        "failed": 0
+      }
+    }
+  }
+}

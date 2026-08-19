@@ -18,6 +18,14 @@ import { createInboundContextStage } from './stages/createInboundContextStage';
 import { routeCommandStage } from './stages/routeCommandStage';
 import { prepareDispatchStage } from './stages/prepareDispatchStage';
 import { dispatchModelStage } from './stages/dispatchModelStage';
+import {
+  correlateInboundResponse,
+  looksLikeResponse,
+} from '@/server/world-model/services/inboundResponseCorrelation';
+import { getWorldModelConfig } from '@/server/world-model/config';
+import { recordObservation } from '@/server/world-model/services/observationService';
+import { isWorldModelRequired } from '@/server/world-model/mode';
+import { bridgeStoredChatMessage } from '@/server/world-model/liveChatBridge';
 
 export interface HandleInboundDeps {
   repo: MessageRepository;
@@ -78,6 +86,71 @@ export async function handleInboundMessage(
 
   try {
     const context = createInboundContextStage(deps, params);
+
+    // The persisted message id is the canonical source identity used by both
+    // live ingestion and backfill. In canonical mode a failed write is
+    // propagated by the bridge; shadow/off remain fail-soft.
+    await bridgeStoredChatMessage({
+      conversation: context.effectiveConversation,
+      message: context.userMsg,
+    });
+
+    // --- World-Model Response Correlation (Phase 9) ---
+    // Prueft, ob die eingehende Nachricht eine Antwort auf eine proaktive
+    // Frage (Open Loop) oder ein Event-Follow-up ist. Bei einem Treffer wird
+    // der Zustand atomar aktualisiert, bevor das LLM antwortet.
+    if (looksLikeResponse(params.content)) {
+      const worldModelConfig = getWorldModelConfig();
+      if (
+        (worldModelConfig.enabled || worldModelConfig.e2eEnabled) &&
+        context.effectiveConversation.personaId
+      ) {
+        let observationId: string | undefined;
+        const observationSourceId = context.userMsg.id;
+        try {
+          const observation = await recordObservation(
+            {
+              userId: context.effectiveConversation.userId,
+              personaId: context.effectiveConversation.personaId ?? '',
+              workspaceId: context.effectiveConversation.workspaceId ?? '',
+              sourceType: 'chat_message',
+              sourceId: observationSourceId,
+              occurredAt: new Date().toISOString(),
+              payload: {
+                conversationId: context.effectiveConversation.id,
+                seq: context.userMsg.seq,
+                role: 'user',
+                text: params.content,
+                channelType: params.platform,
+                externalChatId: params.externalChatId,
+                externalMsgId: params.externalMsgId,
+              },
+              sourceAuthority: 'user',
+            },
+            {
+              userId: context.effectiveConversation.userId,
+              personaId: context.effectiveConversation.personaId ?? '',
+              workspaceId: context.effectiveConversation.workspaceId ?? '',
+            },
+          );
+          observationId = observation.observation.id;
+        } catch (error) {
+          if (isWorldModelRequired(worldModelConfig.mode)) throw error;
+          console.error('[world-model:correlation] inbound observation failed:', error);
+        }
+        await correlateInboundResponse({
+          conversation: context.effectiveConversation,
+          userMessage: {
+            text: params.content,
+            receivedAt: new Date().toISOString(),
+            observationId,
+            sourceId: observationSourceId,
+          },
+        }).catch((error) => {
+          console.error('[world-model:correlation] inbound correlation failed:', error);
+        });
+      }
+    }
 
     const routed = await routeCommandStage({
       deps,

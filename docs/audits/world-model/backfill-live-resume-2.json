@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-08-19T16:23:01.807Z",
+  "options": {
+    "dryRun": false,
+    "batchSize": 50,
+    "resume": true,
+    "output": "docs/audits/world-model/backfill-live-resume-2.json"
+  },
+  "stats": {
+    "observationsWritten": 8,
+    "observationsSkipped": 0,
+    "assertionsCreated": 0,
+    "eventsCreated": 0,
+    "entitiesUpserted": 0,
+    "tasksMirrored": 0,
+    "actionAttemptsMirrored": 0,
+    "errors": [],
+    "generatedAt": "2026-08-19T16:23:01.807Z",
+    "phases": {
+      "messages": {
+        "selected": 8,
+        "processed": 8,
+        "skipped": 0,
+        "failed": 0
+      },
+      "knowledge": {
+        "selected": 0,
+        "processed": 0,
+        "skipped": 0,
+        "failed": 0
+      },
+      "tasks": {
+        "selected": 0,
+        "processed": 0,
+        "skipped": 0,
+        "failed": 0
+      },
+      "toolActions": {
+        "selected": 3,
+        "processed": 0,
+        "skipped": 0,
+        "failed": 0
+      }
+    }
+  }
+}

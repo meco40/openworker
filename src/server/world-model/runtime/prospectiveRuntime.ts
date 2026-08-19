@@ -36,11 +36,12 @@ export async function runProspectiveRuntimeOnce(
     ).catch(() => ({
       totalDue: 0,
       delivered: 0,
+      enqueued: 0,
       rejected: 0,
       failed: 0,
       reasons: {},
     }));
-    totalDelivered += result.delivered;
+    totalDelivered += result.delivered + result.enqueued;
   }
 
   const heartbeat = await scanHeartbeat().catch(() => ({

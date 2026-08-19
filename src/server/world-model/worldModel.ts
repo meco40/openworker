@@ -9,6 +9,8 @@ export * from '@/server/world-model/types';
 
 export {
   getWorldModelDb,
+  runWithWorldModelScope,
+  getWorldModelScope,
   runWorldModelMigrations,
   closeWorldModelDb,
   withWorldModelTransaction,
@@ -41,6 +43,7 @@ export {
   findEntityByName,
   insertRelation,
   listActiveRelations,
+  listRelationHistory,
 } from '@/server/world-model/repositories/entityRepository';
 
 export {
@@ -69,8 +72,17 @@ export {
   suppressInactiveBeforeLowerSource,
 } from '@/server/world-model/retrieval/hybridRanker';
 export { buildEmbeddingText, hashText } from '@/server/world-model/embeddings/embeddingText';
+export { getConfiguredEmbeddingProvider } from '@/server/world-model/embeddings/provider';
 export { summarizeWorldModelMetrics, worldModelHealthStatus } from '@/server/world-model/metrics';
-export { buildScopeWhere, retentionCutoffDays } from '@/server/world-model/dataLifecycle';
+export {
+  buildScopeWhere,
+  retentionCutoffDays,
+  exportWorldModelScope,
+  hashWorldModelExport,
+  restoreWorldModelScope,
+  deleteWorldModelScope,
+  purgeWorldModelRetention,
+} from '@/server/world-model/dataLifecycle';
 export {
   classifyEventUtterance,
   pickEventCandidate,
@@ -88,6 +100,7 @@ export {
 } from '@/server/world-model/repositories/assertionRepository';
 export {
   assertFact,
+  supersedeFact,
   denyFact,
   confirmFact,
   retractFact,
@@ -113,11 +126,13 @@ export {
 export {
   deliverDueOpenLoops,
   resolveOpenLoopAsAnswered,
+  resolveOpenLoopAsAnsweredInTx,
 } from '@/server/world-model/services/openLoopService';
 export { compileStandingIntent } from '@/server/world-model/services/standingIntentCompiler';
 export {
   dispatchStandingIntentAction,
   buildIntentFiredHandler,
+  executeStandingIntentFollowUp,
 } from '@/server/world-model/services/standingIntentDispatcher';
 export { scanHeartbeat, heartbeatNeedsAction } from '@/server/world-model/runtime/heartbeatRuntime';
 export { runProspectiveRuntimeOnce } from '@/server/world-model/runtime/prospectiveRuntime';
@@ -134,4 +149,107 @@ export {
   createGraphitiShadowHandler,
   countShadowEdges,
 } from '@/server/world-model/graphiti/shadow';
-export { isMem0PrimaryMemory, isMem0PreferencesOnly } from '@/server/world-model/mem0Policy';
+export {
+  isMem0PrimaryMemory,
+  isMem0PreferencesOnly,
+  isMem0FactualWriteBlocked,
+  allowedMem0Types,
+  isMem0TypeAllowed,
+} from '@/server/world-model/mem0Policy';
+export {
+  deliverProactiveQuestion,
+  deliverIntentFiredNotification,
+  createProactiveQuestionHandler,
+  createProactiveIntentFiredHandler,
+} from '@/server/world-model/services/proactiveChannelDelivery';
+export {
+  correlateInboundResponse,
+  looksLikeResponse,
+} from '@/server/world-model/services/inboundResponseCorrelation';
+export {
+  mirrorTaskCreation,
+  mirrorTaskStatusChange,
+  mirrorTaskDeletion,
+  projectMissionControlTaskCreated,
+  projectMissionControlTaskStatusChanged,
+  projectMissionControlTaskDeleted,
+  executeMissionControlAction,
+  validateTaskTransition,
+} from '@/server/world-model/services/missionControlBridge';
+export {
+  collectEmbeddingTargets,
+  processEmbeddingBatch,
+  runEmbeddingWorkerOnce,
+  startEmbeddingWorker,
+} from '@/server/world-model/embeddings/embeddingWorker';
+export {
+  vectorSearch,
+  isVectorSearchAvailable,
+  countEmbeddings,
+} from '@/server/world-model/retrieval/vector';
+export {
+  addGraphitiMessages,
+  checkGraphitiHealth,
+  upsertGraphitiNodes,
+  upsertGraphitiEdges,
+  clearGraphitiScope,
+  resetGraphitiCircuit,
+} from '@/server/world-model/graphiti/client';
+export {
+  projectOutboxEvent,
+  createGraphitiProjectorHandler,
+  rebuildGraphitiFromPostgres,
+} from '@/server/world-model/graphiti/projector';
+export { evaluateGraphitiValue } from '@/server/world-model/graphiti/evaluator';
+export { consolidateMemory } from '@/server/world-model/consolidation/service';
+export {
+  CONSOLIDATION_POLICY_VERSION,
+  validateConsolidationPolicy,
+  normalizedSourceObservationIds,
+} from '@/server/world-model/consolidation/policy';
+export {
+  upsertWorldModelIngestionCheckpoint,
+  getWorldModelIngestionCheckpoint,
+} from '@/server/world-model/repositories/ingestionCheckpointRepository';
+export {
+  enqueueProjectionPending,
+  listDueProjectionPending,
+  markProjectionPendingSucceeded,
+  markProjectionPendingFailed,
+} from '@/server/world-model/repositories/projectionPendingRepository';
+export {
+  insertDeliveryReceipt,
+  getDeliveryReceiptByOutboxEventId,
+} from '@/server/world-model/repositories/deliveryReceiptRepository';
+export {
+  insertTask,
+  updateTaskStatus,
+  updateTaskStatusByExternalId,
+  getTaskById,
+  getTaskByExternalId,
+  listActiveTasks,
+  completeTaskWithEvidence,
+  completeTaskByTitle,
+} from '@/server/world-model/repositories/taskRepository';
+export {
+  resolveEntity,
+  createEntityWithAliases,
+} from '@/server/world-model/services/entityService';
+export { processIncomingStandingIntents } from '@/server/world-model/services/standingIntentCompiler';
+export {
+  runProjectionRetryOnce,
+  startProjectionRetryWorker,
+} from '@/server/world-model/services/projectionRetryWorker';
+export {
+  searchAssertions,
+  type AssertionRetrievalHit,
+} from '@/server/world-model/retrieval/assertions';
+export { searchTasks, type TaskRetrievalHit } from '@/server/world-model/retrieval/tasks';
+export {
+  searchRelations,
+  type RelationRetrievalHit,
+} from '@/server/world-model/retrieval/relations';
+export {
+  searchOpenLoops,
+  type OpenLoopRetrievalHit,
+} from '@/server/world-model/retrieval/openLoops';

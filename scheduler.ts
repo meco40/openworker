@@ -20,7 +20,9 @@ import {
   stopOutboxDispatcher,
 } from './src/server/world-model/outboxDispatcher';
 import { runProspectiveRuntimeOnce } from './src/server/world-model/runtime/prospectiveRuntime';
+import { startEmbeddingWorker } from './src/server/world-model/embeddings/embeddingWorker';
 import { getWorldModelConfig } from './src/server/world-model/config';
+import { startProjectionRetryWorker } from './src/server/world-model/services/projectionRetryWorker';
 
 const require = createRequire(import.meta.url);
 const { loadEnvConfig } = require('@next/env') as {
@@ -31,12 +33,22 @@ loadEnvConfig(process.cwd());
 const instanceId = process.env.SCHEDULER_INSTANCE_ID || `scheduler-${process.pid}`;
 const swarmRunner = process.env.SWARM_RUNNER || 'server';
 let prospectiveTimer: ReturnType<typeof setInterval> | null = null;
+let embeddingWorker: { stop: () => void } | null = null;
+let projectionRetryWorker: { stop: () => void } | null = null;
 
 function shutdown(): void {
   console.log('[automation-scheduler] shutting down...');
   if (prospectiveTimer) {
     clearInterval(prospectiveTimer);
     prospectiveTimer = null;
+  }
+  if (embeddingWorker) {
+    embeddingWorker.stop();
+    embeddingWorker = null;
+  }
+  if (projectionRetryWorker) {
+    projectionRetryWorker.stop();
+    projectionRetryWorker = null;
   }
   stopKnowledgeRuntimeLoop();
   stopAutomationRuntime();
@@ -74,6 +86,12 @@ async function bootstrap(): Promise<void> {
     });
   }, prospectiveTimerMs);
   prospectiveTimer.unref();
+
+  // Start the embedding worker for pgvector population.
+  embeddingWorker = startEmbeddingWorker({}, 30_000);
+  console.log('[automation-scheduler] world-model embedding worker started');
+  projectionRetryWorker = startProjectionRetryWorker(30_000);
+  console.log('[automation-scheduler] world-model projection retry worker started');
 
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);

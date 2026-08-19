@@ -74,4 +74,14 @@ describe('outbox dispatcher', () => {
     expect(markFailed).toHaveBeenCalledWith('e', 'boom', expect.any(String));
     expect(markDispatched).not.toHaveBeenCalled();
   });
+
+  it('does not register the same keyed handler twice', async () => {
+    const handler = vi.fn(async () => {});
+    registerOutboxHandler('keyed.event', handler, 'stable-handler');
+    registerOutboxHandler('keyed.event', handler, 'stable-handler');
+    claimPending.mockResolvedValue([event({ eventType: 'keyed.event' })]);
+
+    await expect(dispatchOutboxOnce()).resolves.toBe(1);
+    expect(handler).toHaveBeenCalledOnce();
+  });
 });

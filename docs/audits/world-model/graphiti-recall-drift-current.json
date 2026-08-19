@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-08-19T22:34:58.653Z",
+  "evidenceClass": "graphiti-historical-recall-evaluation",
+  "scopeSelection": "all",
+  "thresholds": {
+    "recall": 0.9,
+    "precision": 0.9
+  },
+  "qualityPassed": false,
+  "activationRecommendation": "shadow",
+  "evaluations": [
+    {
+      "scope": "legacy-local-user:de1e771b-32e7-4ec7-9123-c842577bc18b:",
+      "graphitiReachable": true,
+      "shadowEdgeCount": 103,
+      "structuredHitCount": 5,
+      "evaluatedTargetCount": 5,
+      "graphitiFactCount": 25,
+      "matchedStructuredCount": 0,
+      "precision": 0,
+      "recall": 0,
+      "overlapRate": 0,
+      "recommendation": "shadow"
+    },
+    {
+      "scope": "legacy-local-user:52694068-f8ab-42fb-b40e-7438ec5f7a29:",
+      "graphitiReachable": true,
+      "shadowEdgeCount": 0,
+      "structuredHitCount": 8,
+      "evaluatedTargetCount": 8,
+      "graphitiFactCount": 40,
+      "matchedStructuredCount": 4,
+      "precision": 0.1,
+      "recall": 0.5,
+      "overlapRate": 0.5,
+      "recommendation": "shadow"
+    },
+    {
+      "scope": "legacy-local-user:326e3a5b-bdcb-41b2-b851-e425ab1b3223:",
+      "graphitiReachable": true,
+      "shadowEdgeCount": 0,
+      "structuredHitCount": 18,
+      "evaluatedTargetCount": 18,
+      "graphitiFactCount": 90,
+      "matchedStructuredCount": 6,
+      "precision": 0.06666666666666667,
+      "recall": 0.3333333333333333,
+      "overlapRate": 0.3333333333333333,
+      "recommendation": "shadow"
+    }
+  ],
+  "limitations": [
+    "Graphiti is a derived projection; PostgreSQL remains the system of record.",
+    "A rebuild can be transport-complete while recall quality remains below the activation threshold.",
+    "Provider-wide Mem0 and external channel/provider receipts are outside this local report."
+  ]
+}

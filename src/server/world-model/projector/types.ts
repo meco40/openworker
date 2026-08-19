@@ -15,6 +15,7 @@ export interface ProjectedEvent {
   scheduledFor?: string;
   endsAt?: string;
   status: EventStatus;
+  replacesEventId?: string;
   sourceMessageSeq: number;
 }
 
@@ -22,6 +23,7 @@ export interface ProjectedEntity {
   canonicalName: string;
   category: string;
   owner: 'persona' | 'user' | 'shared';
+  aliases?: string[];
   sourceMessageSeq: number;
 }
 

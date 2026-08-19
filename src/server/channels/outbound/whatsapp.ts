@@ -7,11 +7,11 @@ export async function deliverWhatsApp(
   scopedChatId: string,
   text: string,
   metadata?: Record<string, unknown>,
-): Promise<void> {
+): Promise<string | undefined> {
   const bridgeUrl = process.env.WHATSAPP_BRIDGE_URL;
   if (!bridgeUrl) {
     console.error('WHATSAPP_BRIDGE_URL not configured.');
-    return;
+    return undefined;
   }
 
   const scoped = parseScopedBridgeExternalChatId(scopedChatId);
@@ -32,4 +32,9 @@ export async function deliverWhatsApp(
   if (!response.ok) {
     throw new Error(`WhatsApp delivery failed with status ${response.status}`);
   }
+  const body = (await response.json().catch(() => ({}))) as {
+    messageId?: string;
+    id?: string;
+  };
+  return body.messageId ?? body.id;
 }

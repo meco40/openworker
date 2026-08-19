@@ -1,5 +1,6 @@
 import { getWorldModelConfig } from '@/server/world-model/config';
-import type { StandingIntentInput } from '@/server/world-model/types';
+import { insertStandingIntent } from '@/server/world-model/repositories/prospectiveRepository';
+import type { StandingIntentInput, StandingIntentRecord } from '@/server/world-model/types';
 
 /**
  * Compiles natural-language statements like
@@ -79,4 +80,39 @@ function nullableIntent(input: {
 
 export function isStandingIntentCompilerAvailable(): boolean {
   return COMPILER_ENABLED && getWorldModelConfig().enabled;
+}
+
+/**
+ * Verdrahtet den Compiler in den eingehenden Nachrichtenpfad (chats).
+ * Extrahiert Standing-Intent-Aussagen aus Chat-Nachrichten und persistiert
+ * sie als validierte `world_model_standing_intents`.
+ *
+ * Nur affirmative Aussagen im If/Wenn-Muster werden verarbeitet. Die Funktion
+ * ist idempotent (deduplication_key).
+ */
+export async function processIncomingStandingIntents(input: {
+  userId: string;
+  personaId: string;
+  workspaceId?: string;
+  text: string;
+}): Promise<StandingIntentRecord[] | null> {
+  const config = getWorldModelConfig();
+  if (!config.enabled && !config.e2eEnabled) return null;
+  if (!COMPILER_ENABLED) return null;
+
+  const compiled = compileStandingIntent({
+    userId: input.userId,
+    personaId: input.personaId,
+    workspaceId: input.workspaceId,
+    statement: input.text,
+  });
+  if (compiled.matchedTemplate === 'none') return null;
+
+  try {
+    const record = await insertStandingIntent(compiled.input);
+    return [record];
+  } catch (error) {
+    console.error('[world-model:standing-intent] persistence failed:', error);
+    return null;
+  }
 }

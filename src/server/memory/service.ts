@@ -8,7 +8,7 @@ import { isNotFoundError, isLegacyDeleteNotFoundError } from './utils/errorDetec
 import { matchesQuery, matchesType } from './utils/queryUtils';
 import { formatTimestamp } from './utils/timestamp';
 import { storeMemory as storeMemoryOperation } from './operations/store';
-import { recall, recallDetailed } from './operations/recall';
+import { recallDetailed } from './operations/recall';
 import { registerFeedback } from './operations/feedback';
 import { bulkUpdate, bulkDelete, deleteByPersona } from './operations/bulk';
 import {
@@ -16,6 +16,7 @@ import {
   type LifecycleSignal,
   type LifecycleStatus,
 } from './lifecycle';
+import { isMem0TypeAllowed, allowedMem0Types } from '@/server/world-model/mem0Policy';
 
 // Re-export types and error for public API
 export type {
@@ -184,6 +185,11 @@ export class MemoryService {
 
   /** Canonical named-argument API for new production callers. */
   async storeMemory(input: MemoryStoreInput): Promise<MemoryNode> {
+    if (!isMem0TypeAllowed(input.type)) {
+      throw new Error(
+        `[memory] type '${input.type}' is blocked by the active World-Model Mem0 policy`,
+      );
+    }
     const metadata = input.metadata || {};
     const idempotencyKey = String(metadata.idempotencyKey || '').trim();
     if (!idempotencyKey) {
@@ -222,11 +228,20 @@ export class MemoryService {
       memoryTypes?: import('@/core/memory/types').MemoryType[];
     },
   ): Promise<MemoryRecallResult> {
-    return recallDetailed(this.mem0Client, { personaId, query, limit, userId, ...options });
+    const memoryTypes = options?.memoryTypes ?? (allowedMem0Types() as MemoryType[]);
+    return recallDetailed(this.mem0Client, {
+      personaId,
+      query,
+      limit,
+      userId,
+      ...options,
+      memoryTypes,
+    });
   }
 
   async recall(personaId: string, query: string, limit = 3, userId?: string): Promise<string> {
-    return recall(this.mem0Client, { personaId, query, limit, userId });
+    const result = await this.recallDetailed(personaId, query, limit, userId);
+    return result.context;
   }
 
   async registerFeedback(

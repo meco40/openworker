@@ -4,6 +4,12 @@
   "scenarios": [
     {
       "runner": "vitest",
+      "id": "cinema-dinner",
+      "domains": ["world-model"],
+      "command": "pnpm run test -- tests/integration/world-model/cinema-dinner-language-flow.test.ts"
+    },
+    {
+      "runner": "vitest",
       "id": "core-api-health",
       "domains": ["core-api"],
       "command": "pnpm run test -- tests/integration/app-smoke.test.ts"

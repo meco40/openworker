@@ -25,20 +25,37 @@ function isValidModelHubProfileId(value: string): boolean {
 
 async function deletePersonaDependencies(personaId: string, userId: string): Promise<void> {
   const [
+    { getWorldModelConfig },
+    { deleteWorldModelScope },
+    { clearGraphitiScope },
     { getMemoryService },
     { getMessageRepository, getMessageService },
     { getKnowledgeRepository },
     { unpairPersonaTelegram },
   ] = await Promise.all([
+    import('@/server/world-model/config'),
+    import('@/server/world-model/dataLifecycle'),
+    import('@/server/world-model/graphiti/client'),
     import('@/server/memory/runtime'),
     import('@/server/channels/messages/runtime'),
     import('@/server/knowledge/runtime'),
     import('@/server/telegram/personaTelegramPairing'),
   ]);
 
+  const worldModelConfig = getWorldModelConfig();
+  if (worldModelConfig.graphitiBackendEnabled) {
+    // Delete the derived graph before deleting canonical rows. A Graphiti
+    // failure aborts the persona delete instead of leaving remote PII behind.
+    await clearGraphitiScope(userId, personaId, '');
+  }
+
   // Mem0 is the privacy-critical remote store. Delete it first and let errors
   // abort the operation so the route never reports success with orphaned data.
   await getMemoryService().deleteByPersona(personaId, userId);
+
+  if (worldModelConfig.enabled || worldModelConfig.e2eEnabled) {
+    await deleteWorldModelScope({ userId, personaId, workspaceId: '' });
+  }
 
   const messageService = getMessageService();
   const messageRepository = getMessageRepository();

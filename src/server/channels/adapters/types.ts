@@ -13,3 +13,9 @@ export interface ChannelCapabilities {
   supportsPairing: boolean;
   supportsStreaming: boolean;
 }
+
+export interface OutboundDeliveryReceipt {
+  providerId?: string;
+  providerMessageId?: string;
+  deliveredAt: string;
+}

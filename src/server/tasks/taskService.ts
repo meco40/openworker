@@ -3,6 +3,11 @@ import type { Agent, Task } from '@/lib/types';
 import { CreateTaskSchema, UpdateTaskSchema } from '@/lib/validation';
 import { deleteTaskWorkspace, ensureTaskWorkspace } from '@/server/tasks/taskWorkspace';
 import { hydrateTaskRelations, type TaskRowWithJoins } from '@/server/tasks/taskHydration';
+import {
+  mirrorTaskCreation,
+  mirrorTaskStatusChange,
+  mirrorTaskDeletion,
+} from '@/server/world-model/services/missionControlBridge';
 import type { z } from 'zod';
 
 type CreateTaskInput = z.infer<typeof CreateTaskSchema>;
@@ -42,6 +47,10 @@ export interface UpdateTaskResult {
   shouldDispatch: boolean;
   shouldAutoTest: boolean;
   previousTitle: string;
+}
+
+function worldModelPersonaId(): string {
+  return String(process.env.WORLD_MODEL_DEFAULT_PERSONA_ID || '').trim() || 'default';
 }
 
 function getTaskWithRelations(taskId: string) {
@@ -121,7 +130,7 @@ export function getTaskById(taskId: string) {
   return task;
 }
 
-export function createTask(data: CreateTaskInput) {
+export function createTask(data: CreateTaskInput & { userId?: string }) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const workspaceId = data.workspace_id || 'default';
@@ -176,7 +185,28 @@ export function createTask(data: CreateTaskInput) {
       );
     });
 
-    return getTaskWithRelations(id);
+    const created = getTaskWithRelations(id);
+
+    // World-Model-Spiegelung (fail-soft im shadow-Modus)
+    if (created) {
+      const worldModelUserId = String(data.userId || 'default').trim() || 'default';
+      void mirrorTaskCreation({
+        taskId: id,
+        userId: worldModelUserId,
+        // Mission Control agent IDs are not World-Model persona IDs. Keep the
+        // identity mapping explicit until the auth/task context exposes one.
+        personaId: worldModelPersonaId(),
+        workspaceId,
+        title: data.title,
+        status,
+        assignedAgentId: data.assigned_agent_id ?? undefined,
+        dueDate: data.due_date ?? undefined,
+      }).catch((error) => {
+        console.error('[world-model:mission-control] task creation mirror failed:', error);
+      });
+    }
+
+    return created;
   } catch (error) {
     if (workspaceCreated) {
       try {
@@ -191,7 +221,7 @@ export function createTask(data: CreateTaskInput) {
 
 export function updateTask(
   taskId: string,
-  data: UpdateTaskInput & { updated_by_agent_id?: string },
+  data: UpdateTaskInput & { updated_by_agent_id?: string; userId?: string },
 ): UpdateTaskResult {
   const existing = queryOne<Task>('SELECT * FROM tasks WHERE id = ?', [taskId]);
   if (!existing) {
@@ -296,15 +326,37 @@ export function updateTask(
   values.push(taskId);
   run(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`, values);
 
+  const updated = getTaskWithRelations(taskId);
+
+  // World-Model-Spiegelung (fail-soft im shadow-Modus)
+  if (data.status !== undefined && data.status !== existing.status && updated) {
+    const worldModelUserId = String(data.userId || 'default').trim() || 'default';
+    void mirrorTaskStatusChange(
+      {
+        taskId,
+        userId: worldModelUserId,
+        personaId: worldModelPersonaId(),
+        workspaceId: updated.workspace_id ?? 'default',
+        title: updated.title,
+        status: data.status,
+        assignedAgentId: updated.assigned_agent_id ?? undefined,
+        dueDate: updated.due_date ?? undefined,
+      },
+      existing.status,
+    ).catch((error) => {
+      console.error('[world-model:mission-control] task status mirror failed:', error);
+    });
+  }
+
   return {
-    task: getTaskWithRelations(taskId),
+    task: updated,
     shouldDispatch,
     shouldAutoTest,
     previousTitle: existing.title,
   };
 }
 
-export function deleteTask(taskId: string) {
+export function deleteTask(taskId: string, userId = 'default') {
   const existing = queryOne<Task>('SELECT * FROM tasks WHERE id = ?', [taskId]);
   if (!existing) {
     throw new TaskNotFoundError();
@@ -316,5 +368,15 @@ export function deleteTask(taskId: string) {
     run('UPDATE conversations SET task_id = NULL WHERE task_id = ?', [taskId]);
     run('DELETE FROM tasks WHERE id = ?', [taskId]);
     deleteTaskWorkspace(taskId);
+  });
+
+  // World-Model-Spiegelung (fail-soft im shadow-Modus)
+  void mirrorTaskDeletion(
+    taskId,
+    String(userId || 'default').trim() || 'default',
+    'default',
+    existing.workspace_id ?? 'default',
+  ).catch((error) => {
+    console.error('[world-model:mission-control] task deletion mirror failed:', error);
   });
 }

@@ -136,6 +136,40 @@ describe('SqliteMessageRepository', () => {
       expect(parsed.model).toBe('gemini-2.0');
     });
 
+    it('marks messages as memory_pending and clears the marker after projection', () => {
+      const first = repo.saveMessage({
+        conversationId: conv.id,
+        role: 'user',
+        content: 'Pending knowledge',
+        platform: ChannelType.TELEGRAM,
+        metadata: { source: 'telegram' },
+      });
+      const second = repo.saveMessage({
+        conversationId: conv.id,
+        role: 'agent',
+        content: 'Reply',
+        platform: ChannelType.TELEGRAM,
+      });
+
+      repo.markMessagesMemoryPending([first.id, second.id], true, 'PostgreSQL unavailable');
+      const pending = repo.listMessages(conv.id);
+      expect(JSON.parse(pending[0].metadata!)).toMatchObject({
+        source: 'telegram',
+        memoryStatus: 'memory_pending',
+        worldModelProjectionError: 'PostgreSQL unavailable',
+      });
+      expect(JSON.parse(pending[1].metadata!)).toMatchObject({
+        memoryStatus: 'memory_pending',
+      });
+
+      repo.markMessagesMemoryPending([first.id, second.id], false);
+      const projected = repo.listMessages(conv.id);
+      expect(JSON.parse(projected[0].metadata!)).toEqual({
+        source: 'telegram',
+        memoryStatus: 'projected',
+      });
+    });
+
     it('lists messages in chronological order', () => {
       repo.saveMessage({
         conversationId: conv.id,

@@ -84,6 +84,7 @@ export interface EventInput {
   status?: EventStatus;
   observedAt?: string;
   idempotencyKey?: string;
+  replacesEventId?: string;
 }
 
 export interface EventRecord extends EventInput {
@@ -91,6 +92,7 @@ export interface EventRecord extends EventInput {
   status: EventStatus;
   createdAt: string;
   updatedAt: string;
+  replacesEventId?: string;
 }
 
 export interface EventTransitionInput {

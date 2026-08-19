@@ -60,9 +60,21 @@ export function detectTaskCompletion(
     const keywords = task.title.split(/\s+/).filter((w) => w.length > 3);
     if (keywords.length === 0) continue;
 
-    const matchCount = keywords.filter((k) => lower.includes(k.toLowerCase())).length;
+    const messageWords = lower.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    const matchCount = keywords.filter((keyword) => {
+      const normalized = keyword.toLowerCase();
+      return (
+        lower.includes(normalized) ||
+        messageWords.some(
+          (word) =>
+            word.length >= 5 &&
+            normalized.length >= 5 &&
+            (word.startsWith(normalized.slice(0, 5)) || normalized.startsWith(word.slice(0, 5))),
+        )
+      );
+    }).length;
 
-    if (matchCount >= keywords.length * 0.5) {
+    if (matchCount >= Math.max(1, Math.ceil(keywords.length * 0.5))) {
       return { task, matchConfidence: 0.7 };
     }
   }

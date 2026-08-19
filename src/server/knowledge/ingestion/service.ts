@@ -10,7 +10,8 @@ import {
 } from './types';
 import { processWindow as processIngestionWindow } from './messageProcessor';
 import { MEM0_MAX_GLOBAL_FAILURES_PER_CYCLE, MEM0_FAILURE_BACKOFF_BASE_MS } from './constants';
-import { bridgeChatMessages } from '@/server/world-model/bridge';
+import { getWorldModelConfig } from '@/server/world-model/config';
+import { upsertWorldModelIngestionCheckpoint } from '@/server/world-model/repositories/ingestionCheckpointRepository';
 
 export class KnowledgeIngestionService {
   private readonly minMessagesPerBatch: number;
@@ -63,10 +64,22 @@ export class KnowledgeIngestionService {
     };
 
     const result = await this.processWindow(window);
-    if (result.mem0PendingCount > 0) {
+    const wmConfig = getWorldModelConfig();
+    if (result.mem0PendingCount > 0 && !wmConfig.enabled && !wmConfig.e2eEnabled) {
       throw new Error(
         `Mem0 persistence incomplete: ${result.mem0PendingCount} fact(s) remain pending; ingestion checkpoint was not advanced.`,
       );
+    }
+    if (result.worldModelProjected) {
+      await upsertWorldModelIngestionCheckpoint({
+        conversationId: window.conversationId,
+        userId: window.userId,
+        personaId: window.personaId,
+        workspaceId: window.workspaceId ?? '',
+        lastSeq: window.toSeqInclusive,
+        sourceWindowId: `${window.conversationId}:${window.fromSeqExclusive + 1}-${window.toSeqInclusive}`,
+        committedObservationId: result.worldModelObservationId,
+      });
     }
     this.deps.knowledgeRepository.upsertIngestionCheckpoint?.({
       conversationId: window.conversationId,
@@ -105,13 +118,26 @@ export class KnowledgeIngestionService {
           );
         }
 
-        if (result.mem0PendingCount > 0) {
+        const wmConfigLoop = getWorldModelConfig();
+        if (result.mem0PendingCount > 0 && !wmConfigLoop.enabled && !wmConfigLoop.e2eEnabled) {
           errors.push({
             conversationId: window.conversationId,
             personaId: window.personaId,
             reason: `Mem0 persistence incomplete: ${result.mem0PendingCount} fact(s) remain pending; window will be retried.`,
           });
           continue;
+        }
+
+        if (result.worldModelProjected) {
+          await upsertWorldModelIngestionCheckpoint({
+            conversationId: window.conversationId,
+            userId: window.userId,
+            personaId: window.personaId,
+            workspaceId: window.workspaceId ?? '',
+            lastSeq: window.toSeqInclusive,
+            sourceWindowId: `${window.conversationId}:${window.fromSeqExclusive + 1}-${window.toSeqInclusive}`,
+            committedObservationId: result.worldModelObservationId,
+          });
         }
 
         this.deps.cursor.markWindowProcessed(window);
@@ -130,20 +156,6 @@ export class KnowledgeIngestionService {
   }
 
   private async processWindow(window: IngestionWindow) {
-    await bridgeChatMessages({
-      conversationId: window.conversationId,
-      userId: window.userId,
-      personaId: window.personaId,
-      workspaceId: window.workspaceId,
-      messages: window.messages.map((message) => ({
-        userId: window.userId,
-        personaId: window.personaId,
-        conversationId: window.conversationId,
-        seq: Number(message.seq ?? 0),
-        role: message.role,
-        content: message.content,
-      })),
-    });
     const memoryService = this.deps.memoryServiceProvider?.() ?? this.deps.memoryService;
     return processIngestionWindow({
       window,
@@ -151,6 +163,9 @@ export class KnowledgeIngestionService {
       repo: this.deps.knowledgeRepository,
       memoryService,
       resolvePersonaName: this.deps.resolvePersonaName,
+      markMessagesMemoryPending: this.deps.messageRepository?.markMessagesMemoryPending?.bind(
+        this.deps.messageRepository,
+      ),
     });
   }
 }

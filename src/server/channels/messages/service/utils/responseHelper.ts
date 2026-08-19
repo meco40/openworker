@@ -8,6 +8,7 @@ import { buildInboxItemFromConversation, emitInboxUpdated } from '@/server/chann
 import type { HistoryManager } from '@/server/channels/messages/historyManager';
 import type { SubagentManager } from '@/server/channels/messages/service/subagentManager';
 import type { ToolManager } from '@/server/channels/messages/service/toolManager';
+import { bridgeStoredChatMessage } from '@/server/world-model/liveChatBridge';
 
 export interface CommandHandlerDeps {
   subagentManager: SubagentManager;
@@ -55,6 +56,8 @@ export function createSendResponse(historyManager: HistoryManager) {
       conversation,
       message: agentMsg,
     });
+
+    await bridgeStoredChatMessage({ conversation, message: agentMsg });
 
     broadcastToUser(conversation.userId, GatewayEvents.CHAT_MESSAGE, agentMsg);
     emitInboxUpdated({

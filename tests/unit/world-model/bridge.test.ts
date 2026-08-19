@@ -46,6 +46,7 @@ describe('bridgeChatMessages', () => {
     }));
     vi.doMock('@/server/world-model/db', () => ({
       getWorldModelDb: () => ({ query: vi.fn() }),
+      runWithWorldModelScope: (_scope: unknown, callback: () => Promise<unknown>) => callback(),
       withWorldModelTransaction: async (callback: (db: unknown) => Promise<unknown>) =>
         callback({ query: vi.fn() }),
     }));
@@ -131,6 +132,20 @@ describe('bridgeChatMessages', () => {
     expect(result).toEqual({ written: 1, skipped: 0 });
     expect(insertObservationWithResult).toHaveBeenCalledTimes(1);
     expect(matchIntent).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the persisted message id as the idempotent source identity', async () => {
+    await bridgeChatMessages({
+      conversationId: 'c',
+      userId: 'u',
+      personaId: 'p',
+      messages: [{ ...msg(), id: 'stored-message-1' }],
+    });
+
+    expect(insertObservationWithResult.mock.calls[0]?.[0]).toMatchObject({
+      sourceType: 'chat_message',
+      sourceId: 'stored-message-1',
+    });
   });
 
   it('is fail-soft when the observation write throws', async () => {

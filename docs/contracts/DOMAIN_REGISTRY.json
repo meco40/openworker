@@ -44,6 +44,30 @@
     },
     {
       "risk": "high",
+      "display": "World Model",
+      "contract": "docs/contracts/WORLD_MODEL_AGENT_CONTRACT.md",
+      "tests": [
+        "tests/integration/world-model/event-flow.test.ts",
+        "tests/integration/world-model/outbox-flow.test.ts",
+        "tests/integration/world-model/projector-flow.test.ts",
+        "tests/integration/world-model/rls.test.ts",
+        "tests/integration/world-model/scope-and-history.test.ts"
+      ],
+      "paths": [
+        "src/server/world-model/**",
+        "scripts/world-model-backfill.ts",
+        "scripts/world-model-reconcile.ts",
+        "scripts/world-model-rebuild-projections.ts",
+        "scripts/world-model-failure-drill.ts",
+        "scripts/mem0-factual-memory-audit.ts"
+      ],
+      "owner": "team-core",
+      "systemDoc": "docs/README.md",
+      "scenarios": ["cinema-dinner"],
+      "id": "world-model"
+    },
+    {
+      "risk": "high",
       "display": "Memory",
       "contract": "docs/contracts/MEMORY_AGENT_CONTRACT.md",
       "tests": ["tests/integration/memory/memory-route.test.ts"],

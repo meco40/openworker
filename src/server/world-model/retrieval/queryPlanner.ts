@@ -79,6 +79,37 @@ function detectTimeWindow(text: string, now: Date): TimeWindow | undefined {
   return undefined;
 }
 
+function isTwoDigitTimePart(part: string): boolean {
+  return part.length === 2 && [...part].every((character) => character >= '0' && character <= '9');
+}
+
+function detectAsOf(text: string, now: Date): { valid?: string; known?: string } {
+  const marker = /(?:as\s+of|zum\s+zeitpunkt|stand)\s+/i.exec(text);
+  if (marker) {
+    const remainder = text.slice(marker.index + marker[0].length);
+    const datePart = remainder.slice(0, 10);
+    let isoValue = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(datePart) ? datePart : '';
+    const separator = remainder[10];
+    if (isoValue && (separator === 'T' || separator === 't' || separator === ' ')) {
+      const timePart = remainder.slice(11).split(/\s+/)[0] ?? '';
+      const timeParts = timePart.split(':');
+      if (
+        (timeParts.length === 2 || timeParts.length === 3) &&
+        timeParts.every(isTwoDigitTimePart)
+      ) {
+        isoValue = `${datePart}T${timePart}`;
+      }
+    }
+    const parsed = new Date(isoValue);
+    if (!Number.isNaN(parsed.getTime()))
+      return { valid: parsed.toISOString(), known: parsed.toISOString() };
+  }
+  if (/damals|zu dem zeitpunkt|damaliger wissensstand/i.test(text)) {
+    return { known: now.toISOString() };
+  }
+  return {};
+}
+
 function detectIntent(text: string): PlannedQuery['intent'] {
   if (
     /was (habe ich|hab ich|habe|wurde|ist) .*(gemacht|getan|passiert|geworden|essen|war)/.test(text)
@@ -100,9 +131,13 @@ function detectIntent(text: string): PlannedQuery['intent'] {
 export function planQuery(input: QueryPlanInput): PlannedQuery {
   const now = input.now ? new Date(input.now) : new Date();
   const text = input.text.trim();
+  const asOf = detectAsOf(text, now);
   return {
     timeWindow: detectTimeWindow(text, now),
     intent: detectIntent(text.toLowerCase()),
+    asOfValidTime: asOf.valid,
+    asOfKnownTime: asOf.known,
+    entity: extractEntityMention(text),
   };
 }
 

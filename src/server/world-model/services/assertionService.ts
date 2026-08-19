@@ -38,6 +38,13 @@ export async function assertFact(input: AssertionServiceInput) {
   });
 }
 
+/** Explicit replacement operation for callers that want to distinguish a
+ * corrected fact from an ordinary repeat assertion. The repository closes the
+ * active predecessor and stores the supersession link. */
+export async function supersedeFact(input: AssertionServiceInput) {
+  return assertFact(input);
+}
+
 export async function denyFact(input: AssertionServiceInput, reason?: string) {
   await retractAssertionIfPlausible(input, reason);
   return insertAssertion({

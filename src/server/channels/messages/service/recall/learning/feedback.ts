@@ -10,6 +10,7 @@ import {
   MEMORY_FEEDBACK_WINDOW_MS,
   type LastRecallState,
 } from '../../types';
+import { isMem0FactualWriteBlocked } from '@/server/world-model/mem0Policy';
 
 /**
  * Learn from user feedback about memory recall
@@ -39,7 +40,7 @@ export async function learnFromFeedback(
       lastRecallState.userId,
     );
 
-    if (feedback === 'negative') {
+    if (feedback === 'negative' && !isMem0FactualWriteBlocked()) {
       const correction = extractCorrectionContent(userInput);
       if (correction) {
         const memoryService = getMemoryService();

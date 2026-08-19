@@ -153,7 +153,7 @@ export async function deliverTelegram(
   target: string,
   text: string,
   options: TelegramTextOptions = {},
-): Promise<void> {
+): Promise<string | undefined> {
   const parsedTarget = parseTelegramTarget(target);
   const chatId = parsedTarget.chatId;
   const normalizedThreadId =
@@ -166,6 +166,7 @@ export async function deliverTelegram(
 
   const formatted = formatTelegramText(text);
   const chunks = splitTelegramMessage(formatted);
+  let lastMessageId: string | undefined;
 
   for (let index = 0; index < chunks.length; index += 1) {
     const chunk = chunks[index];
@@ -186,13 +187,20 @@ export async function deliverTelegram(
     );
 
     if (!response) {
-      return;
+      return lastMessageId;
     }
+    const body = (await (typeof response.json === 'function'
+      ? response.json().catch(() => ({}))
+      : Promise.resolve({}))) as {
+      result?: { message_id?: string | number };
+      description?: string;
+    };
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(`Telegram delivery failed: ${JSON.stringify(error)}`);
+      throw new Error(`Telegram delivery failed: ${JSON.stringify(body)}`);
     }
+    if (body.result?.message_id !== undefined) lastMessageId = String(body.result.message_id);
   }
+  return lastMessageId;
 }
 
 export async function editTelegramMessage(

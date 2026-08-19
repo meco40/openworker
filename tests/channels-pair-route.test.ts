@@ -94,7 +94,13 @@ describe('channel pair route requests', () => {
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } },
         ),
-      );
+      )
+      .mockImplementation(async () => {
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      });
 
     const response = await pairPost(makeRequest({ channel: 'telegram', token: 'abc' }));
     const json = await response.json();

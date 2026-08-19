@@ -26,8 +26,15 @@ export const MEM0_FAILURE_BACKOFF_BASE_MS = 2000;
  * Per-fact timeout for a single Mem0 store call in the knowledge ingestion
  * pipeline. Facts are stored sequentially, so this bounds each individual
  * request and prevents a stalled call from blocking the complete window.
+ * Mem0 performs LLM fact extraction and embedding generation per add call,
+ * which legitimately takes 20-40s on a cold local stack; 15s was below the
+ * real latency and produced false timeouts (the server completed the write).
+ * Override via MEM0_STORE_FACT_TIMEOUT_MS.
  */
-export const MEM0_STORE_FACT_TIMEOUT_MS = 15000;
+export const MEM0_STORE_FACT_TIMEOUT_MS = (() => {
+  const parsed = Number(process.env.MEM0_STORE_FACT_TIMEOUT_MS ?? 60_000);
+  return Number.isFinite(parsed) ? Math.min(300_000, Math.max(1_000, parsed)) : 60_000;
+})();
 
 /**
  * Default confidence value for entity relations.

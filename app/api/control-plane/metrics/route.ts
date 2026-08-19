@@ -69,6 +69,38 @@ export const GET = withResolvedUserContext(async ({ userContext }) => {
       }
     }
 
+    // World Model metrics (Phase 15)
+    let worldModelMetrics: {
+      mode: string;
+      status: string;
+      pendingObservations: number;
+      outboxDeadLetters: number;
+      outboxAgeMs: number;
+      dueOpenLoops: number;
+      projectionLagMs: number;
+      embeddingsTotal: number;
+      graphitiReachable?: boolean;
+    } | null = null;
+
+    try {
+      const { getWorldModelMetrics, worldModelHealthStatus } =
+        await import('@/server/world-model/metrics');
+      const wmMetrics = await getWorldModelMetrics();
+      worldModelMetrics = {
+        mode: wmMetrics.mode,
+        status: worldModelHealthStatus(wmMetrics),
+        pendingObservations: wmMetrics.pendingObservations,
+        outboxDeadLetters: wmMetrics.outboxDeadLetters,
+        outboxAgeMs: wmMetrics.outboxAgeMs,
+        dueOpenLoops: wmMetrics.dueOpenLoops,
+        projectionLagMs: wmMetrics.projectionLagMs,
+        embeddingsTotal: wmMetrics.embeddingsTotal,
+        graphitiReachable: wmMetrics.graphitiReachable,
+      };
+    } catch {
+      // World Model may not be enabled or DB unavailable — skip
+    }
+
     return Response.json({
       ok: true,
       metrics: {
@@ -82,6 +114,7 @@ export const GET = withResolvedUserContext(async ({ userContext }) => {
         inbox: getInboxObservabilitySnapshot(),
         rooms: null,
         knowledge: knowledgeMetrics,
+        worldModel: worldModelMetrics,
         generatedAt: new Date().toISOString(),
       },
     });

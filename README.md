@@ -270,6 +270,13 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | `TELEGRAM_BOT_TOKEN`                   | Legacy-Fallback für Telegram-Bot (Channel-Outbound)                                  |
 | `DISCORD_BOT_TOKEN`                    | Legacy-Fallback für Discord-Bot (Channel-Outbound)                                   |
 | `SLACK_BOT_TOKEN`                      | Legacy-Fallback für Slack-Bot (Channel-Outbound)                                     |
+| `WORLD_MODEL_MODE`                     | World-Model-Rollout (`off`, `shadow`, `required`, `canonical`)                       |
+| `WORLD_MODEL_APP_DATABASE_URL`         | Scoped PostgreSQL-Credential für Web/API (`world_model_app`)                         |
+| `WORLD_MODEL_WORKER_DATABASE_URL`      | Scoped PostgreSQL-Credential für Scheduler/Worker (`world_model_worker`)             |
+| `WORLD_MODEL_RUNTIME_ROLE`             | Laufzeitrolle (`app` oder `worker`); wählt die passende World-Model-URL              |
+| `WORLD_MODEL_DEFAULT_PERSONA_ID`       | Explizite Persona-Zuordnung für Legacy-Mission-Control-Task-Spiegelung               |
+| `EMBEDDING_API_URL`                    | Embedding-API für pgvector (alternativ `OPENAI_BASE_URL` plus API-Key)               |
+| `GRAPHITI_PROJECTOR_ENABLED`           | Explizite Aktivierung des Graphiti-Projektors; benötigt `GRAPHITI_BASE_URL`          |
 
 Hinweis: Provider-Secrets für den Model-Hub werden über UI/API hinterlegt und verschlüsselt gespeichert (`MODEL_HUB_ENCRYPTION_KEY` erforderlich). Einige Legacy-Fallbacks und Channel-Bot-Token (z. B. `TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `SLACK_BOT_TOKEN`, `GEMINI_API_KEY`) werden weiterhin aus der Umgebung gelesen, sofern konfiguriert.
 

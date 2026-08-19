@@ -16,6 +16,7 @@ import {
 import type {
   EventRecord,
   EventStatus,
+  EventTransition,
   EventTransitionInput,
   ObservationInput,
 } from '@/server/world-model/types';
@@ -69,78 +70,141 @@ async function cancelOrResolveOutcomeLoop(
   }
 }
 
-async function applyEventStatusChange(
-  input: { eventId: string; toStatus: EventStatus; observation: ObservationInput; reason?: string },
+export interface ApplyEventStatusChangeInput {
+  eventId: string;
+  toStatus: EventStatus;
+  observation: ObservationInput;
+  reason?: string;
+}
+
+async function fetchOrInsertEventTransition(
+  db: WorldModelQueryExecutor,
+  eventId: string,
+  sourceObservationId: string,
+  toStatus: EventStatus,
+  build: () => Promise<EventTransition>,
+): Promise<EventTransition> {
+  const existing = await db.query<{
+    id: string;
+    event_id: string;
+    from_status: EventStatus | null;
+    to_status: EventStatus;
+    reason: string | null;
+    source_observation_id: string | null;
+    confidence: number;
+    transitioned_at: string;
+  }>(
+    `SELECT id, event_id, from_status, to_status, reason, source_observation_id, confidence, transitioned_at
+     FROM world_model_event_transitions
+     WHERE event_id = $1 AND source_observation_id = $2 AND to_status = $3
+     LIMIT 1`,
+    [eventId, sourceObservationId, toStatus],
+  );
+  if (existing.rows[0]) {
+    const row = existing.rows[0];
+    return {
+      id: row.id,
+      eventId: row.event_id,
+      fromStatus: row.from_status ?? undefined,
+      toStatus: row.to_status,
+      reason: row.reason ?? undefined,
+      sourceObservationId: row.source_observation_id ?? undefined,
+      confidence: row.confidence,
+      transitionedAt: row.transitioned_at,
+    };
+  }
+  return build();
+}
+
+async function applyEventStatusChangeInTx(
+  input: ApplyEventStatusChangeInput,
   allowOutcome: boolean,
+  db: WorldModelQueryExecutor,
 ): Promise<PlanChangeResult> {
   if ((input.toStatus === 'completed' || input.toStatus === 'no_show') && !allowOutcome) {
     throw new Error('[world-model] completed/no_show requires confirmEventOutcome()');
   }
 
-  return withWorldModelTransaction(async (db) => {
-    const event = await getEventById(input.eventId, input.observation, db);
-    if (!event) return { kind: 'not_found' };
-    if (event.status === input.toStatus) return { kind: 'unchanged', event };
-    if (!ALLOWED_STATUS_TRANSITIONS[event.status].includes(input.toStatus)) {
-      throw new Error(
-        `[world-model] invalid event transition ${event.status} -> ${input.toStatus}`,
-      );
-    }
+  const event = await getEventById(input.eventId, input.observation, db);
+  if (!event) return { kind: 'not_found' };
+  if (event.status === input.toStatus) return { kind: 'unchanged', event };
+  if (!ALLOWED_STATUS_TRANSITIONS[event.status].includes(input.toStatus)) {
+    throw new Error(`[world-model] invalid event transition ${event.status} -> ${input.toStatus}`);
+  }
 
-    const observationResult = await insertObservationWithResult(input.observation, db);
-    const observation = observationResult.observation;
-    const transition = await insertEventTransition(
-      {
-        eventId: event.id,
-        fromStatus: event.status,
-        toStatus: input.toStatus,
-        reason: input.reason,
-        sourceObservationId: observation.id,
-      },
-      db,
-    );
-    await updateEventStatus(event.id, input.toStatus, observation.occurredAt, db);
-    const updated = await getEventById(event.id, input.observation, db);
-    if (!updated) return { kind: 'not_found' };
-
-    if (
-      input.toStatus === 'cancelled' ||
-      input.toStatus === 'completed' ||
-      input.toStatus === 'no_show'
-    ) {
-      await cancelOrResolveOutcomeLoop(updated, input.toStatus, db);
-    }
-    await enqueueOutboxEvent(
-      {
-        eventType: 'world.event.status_changed',
-        aggregateType: 'event',
-        aggregateId: updated.id,
-        payload: {
-          userId: updated.userId,
-          personaId: updated.personaId,
-          workspaceId: updated.workspaceId ?? '',
+  const observationResult = await insertObservationWithResult(input.observation, db);
+  const observation = observationResult.observation;
+  const transition = await fetchOrInsertEventTransition(
+    db,
+    event.id,
+    observation.id,
+    input.toStatus,
+    () =>
+      insertEventTransition(
+        {
+          eventId: event.id,
           fromStatus: event.status,
-          toStatus: updated.status,
-          observationId: observation.id,
+          toStatus: input.toStatus,
+          reason: input.reason,
+          sourceObservationId: observation.id,
         },
+        db,
+      ),
+  );
+  await updateEventStatus(event.id, input.toStatus, observation.occurredAt, db);
+  const updated = await getEventById(event.id, input.observation, db);
+  if (!updated) return { kind: 'not_found' };
+
+  if (
+    input.toStatus === 'cancelled' ||
+    input.toStatus === 'completed' ||
+    input.toStatus === 'no_show'
+  ) {
+    await cancelOrResolveOutcomeLoop(updated, input.toStatus, db);
+  }
+  await enqueueOutboxEvent(
+    {
+      eventType: 'world.event.status_changed',
+      aggregateType: 'event',
+      aggregateId: updated.id,
+      payload: {
+        userId: updated.userId,
+        personaId: updated.personaId,
+        workspaceId: updated.workspaceId ?? '',
+        fromStatus: event.status,
+        toStatus: updated.status,
+        observationId: observation.id,
       },
-      db,
-    );
-    return { kind: input.toStatus, event: updated, transition };
-  });
+    },
+    db,
+  );
+  return { kind: input.toStatus, event: updated, transition };
+}
+
+async function applyEventStatusChange(
+  input: ApplyEventStatusChangeInput,
+  allowOutcome: boolean,
+): Promise<PlanChangeResult> {
+  return withWorldModelTransaction(async (db) =>
+    applyEventStatusChangeInTx(input, allowOutcome, db),
+  );
 }
 
 /**
  * A plan change can cancel or advance a plan, but outcome states require
  * explicit evidence through confirmEventOutcome().
  */
-export async function applyPlanChange(input: {
-  eventId: string;
-  toStatus: EventStatus;
-  observation: ObservationInput;
-  reason?: string;
-}): Promise<PlanChangeResult> {
+export async function applyPlanChange(
+  input: ApplyEventStatusChangeInput,
+): Promise<PlanChangeResult> {
   return applyEventStatusChange(input, false);
+}
+
+export async function applyPlanChangeInTx(
+  input: ApplyEventStatusChangeInput,
+  db: WorldModelQueryExecutor,
+): Promise<PlanChangeResult> {
+  return applyEventStatusChangeInTx(input, false, db);
 }
 
 export interface PlannedEventWithFollowup {
@@ -257,11 +321,15 @@ export async function planEvent(input: {
   });
 }
 
-export async function confirmEventOutcome(input: {
+export interface ConfirmEventOutcomeInput {
   eventId: string;
   observation: ObservationInput;
   outcome: 'completed' | 'no_show';
-}): Promise<PlanChangeResult> {
+}
+
+export async function confirmEventOutcome(
+  input: ConfirmEventOutcomeInput,
+): Promise<PlanChangeResult> {
   return applyEventStatusChange(
     {
       eventId: input.eventId,
@@ -270,6 +338,22 @@ export async function confirmEventOutcome(input: {
       reason: `outcome confirmed as ${input.outcome}`,
     },
     true,
+  );
+}
+
+export async function confirmEventOutcomeInTx(
+  input: ConfirmEventOutcomeInput,
+  db: WorldModelQueryExecutor,
+): Promise<PlanChangeResult> {
+  return applyEventStatusChangeInTx(
+    {
+      eventId: input.eventId,
+      toStatus: input.outcome,
+      observation: input.observation,
+      reason: `outcome confirmed as ${input.outcome}`,
+    },
+    true,
+    db,
   );
 }
 

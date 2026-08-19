@@ -21,6 +21,7 @@ import type { MemoryServiceLike, KnowledgeRepositoryLike } from './types';
 import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
 import type { EmotionDetectionResult } from './emotionTracker';
 import { createMemoryIdempotencyKey } from '@/server/memory/idempotency';
+import { isMem0FactualWriteBlocked } from '@/server/world-model/mem0Policy';
 
 export interface CorrectionResult {
   oldValue?: string;
@@ -285,6 +286,25 @@ export async function storeFacts(
   // ── Phase 2: store facts sequentially with per-window circuit breaker ──────
   // Sequential execution ensures at most 1 in-flight Mem0 call at a time,
   // preventing connection pool exhaustion.
+  // Im Canonical-Modus werden faktische Facts nicht mehr nach Mem0 geschrieben;
+  // PostgreSQL ist die verbindliche Wahrheit. Das Speichern gilt hier als
+  // erfolgreich projiziert, damit der Checkpoint weiterlaufen kann.
+  if (isMem0FactualWriteBlocked()) {
+    const blockedCount = prepared.length;
+    if (blockedCount > 0) {
+      console.log(
+        `[KnowledgeIngestion] canonical mode: blocked ${blockedCount} factual Mem0 write(s); ` +
+          `facts are already canonical in PostgreSQL`,
+      );
+    }
+    return {
+      failCount: 0,
+      skippedCount: skippedCount + blockedCount,
+      pendingCount: 0,
+      memoryIds: [],
+    };
+  }
+
   let failCount = 0;
   let pendingCount = 0;
   let consecutiveFailures = 0;

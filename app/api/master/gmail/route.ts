@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getMasterRepository } from '@/server/master/runtime';
 import { resolveMasterUserId, resolveScopeFromRequest } from '@/server/master/http';
-import { executeGmailAction } from '@/server/master/connectors/gmail/actions';
+import { executeGmailAction, type GmailAction } from '@/server/master/connectors/gmail/actions';
 import { storeConnectorSecret } from '@/server/master/connectors/secretStore';
 import { revokeConnectorSecret } from '@/server/master/connectors/secretPolicies';
+import { buildIdempotencyKey } from '@/server/master/execution/idempotency';
+import { bridgeMasterAction } from '@/server/world-model/services/masterActionBridge';
 import type { ApprovalDecision } from '@/server/master/types';
 
 export const runtime = 'nodejs';
@@ -65,16 +67,30 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const result = await executeGmailAction(getMasterRepository(), {
+
+    // Approval negotiation must stay outside the canonical action attempt:
+    // an unapproved send is not an executed action and must remain retryable.
+    const approvalPending = body.action === 'send' && !body.decision;
+    const denied = body.action === 'send' && body.decision === 'deny';
+    const actionInput = {
       scope,
       runId: body.runId,
       stepId: body.stepId,
-      action: body.action,
+      action: body.action as GmailAction,
       query: body.query,
       draft: body.draft,
       decision: body.decision,
       fingerprint: body.fingerprint,
-    });
+    };
+
+    const result =
+      approvalPending || denied
+        ? await executeGmailAction(getMasterRepository(), actionInput)
+        : await executeGmailActionThroughWorldModel({
+            userId,
+            scope,
+            input: actionInput,
+          });
     if (result.approvalRequired) {
       return NextResponse.json(result, { status: 202 });
     }
@@ -86,4 +102,55 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Failed to execute gmail action';
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
+}
+
+async function executeGmailActionThroughWorldModel(input: {
+  userId: string;
+  scope: ReturnType<typeof resolveScopeFromRequest>;
+  input: Parameters<typeof executeGmailAction>[1];
+}): Promise<{ ok: boolean; approvalRequired?: boolean; result?: unknown; error?: string }> {
+  const idempotencyKey = buildIdempotencyKey({
+    runId: input.input.runId,
+    stepId: input.input.stepId,
+    actionType: `gmail.${input.input.action}`,
+    actionPayload: JSON.stringify({
+      action: input.input.action,
+      query: input.input.query,
+      draft: input.input.draft,
+      decision: input.input.decision,
+      fingerprint: input.input.fingerprint,
+    }),
+  });
+  const bridged = await bridgeMasterAction({
+    userId: input.userId,
+    personaId: input.scope.personaId,
+    workspaceId: input.scope.workspaceId,
+    taskId: input.input.runId,
+    actionType: `gmail.${input.input.action}`,
+    idempotencyKey,
+    correlationId: input.input.runId,
+    run: async () => {
+      const result = await executeGmailAction(getMasterRepository(), input.input);
+      return {
+        ok: result.ok,
+        error: result.error,
+        result: result.result,
+        receipt: {
+          providerId: 'gmail',
+          target: input.input.draft?.to ?? input.input.query ?? input.input.action,
+          timestamp: new Date().toISOString(),
+          payload: {
+            action: input.input.action,
+            result: result.result,
+          },
+        },
+      };
+    },
+  });
+
+  return {
+    ok: bridged.succeeded,
+    result: bridged.result,
+    error: bridged.error,
+  };
 }

@@ -5,6 +5,7 @@ import { MasterActionLedgerService } from '@/server/master/execution/actionLedge
 import { GmailClient } from '@/server/master/connectors/gmail/client';
 import { loadGmailOAuthState } from '@/server/master/connectors/gmail/oauth';
 import type { GmailDraftInput } from '@/server/master/connectors/gmail/types';
+import { bridgeMasterAction } from '@/server/world-model/services/masterActionBridge';
 
 export type GmailAction = 'read' | 'search' | 'draft' | 'send';
 
@@ -65,13 +66,33 @@ export async function executeGmailAction(
     actionPayload: JSON.stringify(input.draft),
   });
   const ledger = new MasterActionLedgerService(repo);
-  const executed = await ledger.executeExactlyOnce({
-    scope: input.scope,
-    runId: input.runId,
-    stepId: input.stepId,
-    actionType: 'gmail.send',
-    idempotencyKey,
-    execute: async () => client.sendMessage(mailboxKey, input.draft!),
-  });
-  return { ok: true, result: executed.result };
+
+  try {
+    const bridged = await bridgeMasterAction({
+      userId: input.scope.userId,
+      workspaceId: input.scope.workspaceId,
+      taskId: input.runId,
+      actionType: 'gmail.send',
+      idempotencyKey,
+      run: async () => {
+        const executed = await ledger.executeExactlyOnce({
+          scope: input.scope,
+          runId: input.runId,
+          stepId: input.stepId,
+          actionType: 'gmail.send',
+          idempotencyKey,
+          execute: async () => client.sendMessage(mailboxKey, input.draft!),
+        });
+        return { ok: true, result: executed.result };
+      },
+    });
+    return { ok: bridged.succeeded, result: bridged.result, error: bridged.error };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: `Canonical World-Model bridge failed; Gmail send was not executed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    };
+  }
 }
