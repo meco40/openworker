@@ -188,6 +188,22 @@ jobs:
     name: Unit + Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      world-model-postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: clawtest
+          POSTGRES_USER: clawtest
+          POSTGRES_PASSWORD: clawtest
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U clawtest -d clawtest"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      GRAPHITI_SHADOW_E2E: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -1,6 +1,10 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { evaluateGraphitiValue } from '@/server/world-model/graphiti/evaluator';
-import { closeWorldModelDb, runWithWorldModelScope } from '@/server/world-model/db';
+import {
+  closeWorldModelDb,
+  runWithWorldModelScope,
+  runWorldModelMigrations,
+} from '@/server/world-model/db';
 import { insertShadowEdge } from '@/server/world-model/graphiti/shadow';
 import { insertEvent } from '@/server/world-model/repositories/eventRepository';
 import {
@@ -16,8 +20,13 @@ const testScope = {
   personaId: 'test_eval_persona',
   workspaceId: 'test_eval_workspace',
 };
+const enabled = process.env.GRAPHITI_SHADOW_E2E === 'true';
 
-describe('Graphiti Shadow Comparison & Evaluation Integration', () => {
+describe.skipIf(!enabled)('Graphiti Shadow Comparison & Evaluation Integration', () => {
+  beforeAll(async () => {
+    await runWorldModelMigrations();
+  });
+
   afterAll(async () => {
     if (process.env.GRAPHITI_E2E === 'true') {
       await clearGraphitiScope(testScope.userId, testScope.personaId, testScope.workspaceId).catch(
