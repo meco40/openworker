@@ -3,7 +3,8 @@ import { getWorldModelConfig } from '@/server/world-model/config';
 /**
  * Phase 14: Mem0-Reduktions-Policy.
  *
- * - `isMem0PrimaryMemory()`: Mem0 ist noch die faktische Wahrheit (Legacy/Shadow).
+ * - `isMem0PrimaryMemory()`: true only for the explicit legacy/compatibility
+ *   configuration; canonical PostgreSQL is the source of truth otherwise.
  * - `isMem0PreferencesOnly()`: Mem0 speichert nur Praeferenzen/Stil/Gewohnheiten.
  * - `isMem0FactualWriteBlocked()`: Im Canonical-Modus duerfen keine faktischen
  *   Facts/Events/Tasks mehr nach Mem0 geschrieben werden.

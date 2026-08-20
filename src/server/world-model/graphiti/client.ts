@@ -25,6 +25,8 @@ export interface GraphitiEdge {
   source: string;
   target: string;
   type: string;
+  sourceLabel?: string;
+  targetLabel?: string;
   properties?: Record<string, unknown>;
 }
 
@@ -44,6 +46,14 @@ export interface GraphitiHealthStatus {
   nodeCount?: number;
   edgeCount?: number;
   error?: string;
+}
+
+export interface GraphitiQueueStatus {
+  pendingJobs: number;
+  activeJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  workers: number;
 }
 
 export interface GraphitiFact {
@@ -168,6 +178,7 @@ async function withRetries<T>(label: string, operation: () => Promise<T>): Promi
 
 function toGraphitiMessage(message: GraphitiMessage): Record<string, unknown> {
   return {
+    ...(message.uuid ? { uuid: message.uuid } : {}),
     name: message.name ?? '',
     content: message.content,
     role_type: message.roleType ?? 'system',
@@ -177,22 +188,36 @@ function toGraphitiMessage(message: GraphitiMessage): Record<string, unknown> {
   };
 }
 
+function deduplicateGraphitiMessages(messages: GraphitiMessage[]): GraphitiMessage[] {
+  const seen = new Set<string>();
+  return messages.filter((message) => {
+    const key = message.uuid
+      ? `uuid:${message.uuid}`
+      : `content:${message.name ?? ''}\u0000${message.content}\u0000${message.timestamp ?? ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /** Executes the official Graphiti REST message ingestion endpoint. */
 export async function addGraphitiMessages(
   groupId: string,
   messages: GraphitiMessage[],
 ): Promise<{ accepted: number }> {
   if (!groupId || messages.length === 0) return { accepted: 0 };
+  const uniqueMessages = deduplicateGraphitiMessages(messages);
+  if (uniqueMessages.length === 0) return { accepted: 0 };
   const config = getClientConfig();
   return withRetries('Graphiti message ingestion', async () => {
     const { response } = await requestGraphiti<{ success?: boolean }>(config, '/messages', {
       method: 'POST',
       body: JSON.stringify({
         group_id: groupId,
-        messages: messages.map(toGraphitiMessage),
+        messages: uniqueMessages.map(toGraphitiMessage),
       }),
     });
-    return { accepted: messages.length };
+    return { accepted: uniqueMessages.length };
   });
 }
 
@@ -259,6 +284,57 @@ export async function checkGraphitiHealth(): Promise<GraphitiHealthStatus> {
   }
 }
 
+/** Returns the patched ingest queue status for rebuild completion checks. */
+export async function getGraphitiQueueStatus(): Promise<GraphitiQueueStatus> {
+  const config = getClientConfig();
+  return withRetries('Graphiti queue status', async () => {
+    const { body } = await requestGraphiti<{
+      pending_jobs?: unknown;
+      active_jobs?: unknown;
+      completed_jobs?: unknown;
+      failed_jobs?: unknown;
+      workers?: unknown;
+    }>(config, '/queue-status');
+    return {
+      pendingJobs: Number(body.pending_jobs ?? 0),
+      activeJobs: Number(body.active_jobs ?? 0),
+      completedJobs: Number(body.completed_jobs ?? 0),
+      failedJobs: Number(body.failed_jobs ?? 0),
+      workers: Number(body.workers ?? 0),
+    };
+  });
+}
+
+export async function waitForGraphitiQueue(
+  input: {
+    timeoutMs?: number;
+    pollMs?: number;
+    baselineFailedJobs?: number;
+  } = {},
+): Promise<GraphitiQueueStatus> {
+  const timeoutMs = Math.max(
+    10_000,
+    Number(input.timeoutMs ?? process.env.GRAPHITI_QUEUE_DRAIN_TIMEOUT_MS) || 600_000,
+  );
+  const pollMs = Math.max(250, Number(input.pollMs) || 1_000);
+  const startedAt = Date.now();
+  const initial = await getGraphitiQueueStatus();
+  const baselineFailedJobs = input.baselineFailedJobs ?? initial.failedJobs;
+  while (Date.now() - startedAt <= timeoutMs) {
+    const status = await getGraphitiQueueStatus();
+    if (status.pendingJobs === 0 && status.activeJobs === 0) {
+      if (status.failedJobs > baselineFailedJobs) {
+        throw new Error(
+          `Graphiti queue drained with ${status.failedJobs - baselineFailedJobs} failed job(s).`,
+        );
+      }
+      return status;
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
+  throw new Error(`Graphiti queue did not drain within ${timeoutMs}ms.`);
+}
+
 /** Upserts entity nodes through the official Graphiti REST endpoint. */
 export async function upsertGraphitiNodes(
   nodes: GraphitiNode[],
@@ -292,15 +368,55 @@ export async function upsertGraphitiEdges(
   edges: GraphitiEdge[],
 ): Promise<{ created: number; updated: number }> {
   const messages = edges.map((edge) => ({
-    uuid: `edge:${edge.source}:${edge.type}:${edge.target}`,
+    uuid: `edge:${createHash('sha256')
+      .update(`${edge.source}\u0000${edge.type}\u0000${edge.target}`, 'utf8')
+      .digest('hex')
+      .slice(0, 32)}`,
     name: edge.type,
-    content: `${edge.source} -[${edge.type}]-> ${edge.target}${edge.properties ? ` ${JSON.stringify(edge.properties)}` : ''}`,
+    content: buildRelationEpisodeContent(edge),
     roleType: 'system' as const,
-    sourceDescription: 'OpenClaw World Model relation projection',
+    sourceDescription: `OpenClaw World Model relation projection (${edge.type})`,
   }));
   const groupId = String(edges[0]?.properties?.segment ?? 'openclaw');
   const result = await addGraphitiMessages(groupId, messages);
   return { created: result.accepted, updated: 0 };
+}
+
+function humanizeRelationType(value: string): string {
+  return value
+    .trim()
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('en-US');
+}
+
+function buildRelationEpisodeContent(edge: GraphitiEdge): string {
+  const source = edge.sourceLabel?.trim() || edge.source;
+  const target = edge.targetLabel?.trim() || edge.target;
+  const relation = humanizeRelationType(edge.type);
+  const phrase = relation.startsWith('responsible ')
+    ? `is ${relation}`
+    : relation.startsWith('is ') ||
+        relation.startsWith('has ') ||
+        relation.startsWith('can ') ||
+        relation.startsWith('works ') ||
+        relation.startsWith('lives ') ||
+        relation.startsWith('located ') ||
+        relation.startsWith('likes ') ||
+        relation.startsWith('knows ') ||
+        relation.startsWith('manages ') ||
+        relation.startsWith('uses ') ||
+        relation.startsWith('prefers ')
+      ? relation
+      : `has relation "${relation}" to`;
+  const metadata = edge.properties
+    ? Object.entries(edge.properties)
+        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+        .map(([key, value]) => `${key}=${String(value)}`)
+        .join('; ')
+    : '';
+  return `"${source}" ${phrase} "${target}".${metadata ? ` Structured metadata: ${metadata}.` : ''}`;
 }
 
 /** Deletes all Graphiti data for one World-Model scope/group. */

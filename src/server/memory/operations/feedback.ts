@@ -25,13 +25,14 @@ async function resolveNodeVersion(
   client: Mem0Client,
   nodeId: string,
   node: MemoryNode,
+  scope?: { userId: string; personaId: string; workspaceId?: string },
 ): Promise<number> {
   const metaVersion = Number(node.metadata?.version);
   if (Number.isFinite(metaVersion) && metaVersion >= 1) {
     return Math.floor(metaVersion);
   }
   try {
-    const history = await client.getMemoryHistory(nodeId);
+    const history = await client.getMemoryHistory(nodeId, scope);
     if (history.length > 0) return history.length;
   } catch (error) {
     if (!isNotFoundError(error)) throw error;
@@ -45,15 +46,16 @@ export async function registerFeedback(
 ): Promise<number> {
   const { personaId, nodeIds, signal, userId } = options;
   const scopedUserId = resolveUserId(userId);
-  const memoryProvider = client.provider === 'sqlite' ? 'sqlite' : 'mem0';
+  const memoryProvider = client.provider ?? 'mem0';
   const ids = Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)));
   if (ids.length === 0) return 0;
 
   let changed = 0;
   for (const nodeId of ids) {
+    const scope = { userId: scopedUserId, personaId };
     let record: Mem0MemoryRecord | null = null;
     try {
-      record = await client.getMemory(nodeId);
+      record = await client.getMemory(nodeId, scope);
     } catch (error) {
       if (isNotFoundError(error)) continue;
       throw error;
@@ -64,7 +66,7 @@ export async function registerFeedback(
     const confidenceDelta = signal === 'positive' ? 0.15 : -0.2;
     const importanceDelta = signal === 'positive' ? 1 : -1;
     const nextFeedbackCount = asFeedbackCount(existingNode.metadata?.feedbackCount) + 1;
-    const currentVersion = await resolveNodeVersion(client, nodeId, existingNode);
+    const currentVersion = await resolveNodeVersion(client, nodeId, existingNode, scope);
     const nextVersion = currentVersion + 1;
     const nextConfidence = Math.min(
       MAX_CONFIDENCE,
@@ -80,18 +82,22 @@ export async function registerFeedback(
       nextFeedbackCount >= FORGET_NEGATIVE_FEEDBACK_THRESHOLD &&
       nextConfidence <= FORGET_CONFIDENCE_THRESHOLD
     ) {
-      await client.updateMemory(nodeId, {
-        userId: scopedUserId,
-        personaId,
-        content: existingNode.content,
-        metadata: {
-          ...existingNode.metadata,
-          lifecycleStatus: 'rejected',
-          lifecycleSignal: 'garbage_collected',
-          version: nextVersion,
-          mem0Id: nodeId,
+      await client.updateMemory(
+        nodeId,
+        {
+          userId: scopedUserId,
+          personaId,
+          content: existingNode.content,
+          metadata: {
+            ...existingNode.metadata,
+            lifecycleStatus: 'rejected',
+            lifecycleSignal: 'garbage_collected',
+            version: nextVersion,
+            mem0Id: nodeId,
+          },
         },
-      });
+        scope,
+      );
       publishMemoryLifecycleChange({
         memoryId: nodeId,
         userId: scopedUserId,
@@ -100,7 +106,7 @@ export async function registerFeedback(
         signal: 'garbage_collected',
         provider: memoryProvider,
       });
-      await client.deleteMemory(nodeId);
+      await client.deleteMemory(nodeId, scope);
       changed += 1;
       continue;
     }
@@ -114,30 +120,34 @@ export async function registerFeedback(
         : signal === 'positive'
           ? 'user_confirmed'
           : undefined;
-    await client.updateMemory(nodeId, {
-      userId: scopedUserId,
-      personaId,
-      content: existingNode.content,
-      metadata: {
-        ...existingNode.metadata,
-        type: existingNode.type,
-        importance: nextImportance,
-        confidence: nextConfidence,
-        lastVerified: new Date().toISOString(),
-        lastFeedback: signal,
-        feedbackCount: nextFeedbackCount,
-        version: nextVersion,
-        mem0Id: nodeId,
-        source: 'mem0',
-        memoryProvider,
-        ...(lifecycleSignal
-          ? {
-              lifecycleSignal,
-              lifecycleStatus: transitionLifecycle(existingStatus, lifecycleSignal),
-            }
-          : {}),
+    await client.updateMemory(
+      nodeId,
+      {
+        userId: scopedUserId,
+        personaId,
+        content: existingNode.content,
+        metadata: {
+          ...existingNode.metadata,
+          type: existingNode.type,
+          importance: nextImportance,
+          confidence: nextConfidence,
+          lastVerified: new Date().toISOString(),
+          lastFeedback: signal,
+          feedbackCount: nextFeedbackCount,
+          version: nextVersion,
+          mem0Id: nodeId,
+          source: memoryProvider,
+          memoryProvider,
+          ...(lifecycleSignal
+            ? {
+                lifecycleSignal,
+                lifecycleStatus: transitionLifecycle(existingStatus, lifecycleSignal),
+              }
+            : {}),
+        },
       },
-    });
+      scope,
+    );
     if (lifecycleSignal) {
       publishMemoryLifecycleChange({
         memoryId: nodeId,

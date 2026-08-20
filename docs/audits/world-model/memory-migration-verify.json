@@ -1,0 +1,74 @@
+{
+  "generatedAt": "2026-08-20T04:01:56.920Z",
+  "mode": "dry-run",
+  "sourceProvider": "mem0",
+  "destinationProvider": "postgres",
+  "providerWideListSupported": false,
+  "coverage": {
+    "discoveredScopes": 5,
+    "limitation": "Mem0 has no provider-wide list endpoint; only explicit or application-discovered scopes are covered."
+  },
+  "scopes": [
+    {
+      "scope": {
+        "userId": "legacy-local-user",
+        "personaId": "326e3a5b-bdcb-41b2-b851-e425ab1b3223",
+        "workspaceId": ""
+      },
+      "sourceMemories": 0,
+      "migrated": 0,
+      "alreadyPresent": 0,
+      "errors": []
+    },
+    {
+      "scope": {
+        "userId": "legacy-local-user",
+        "personaId": "52694068-f8ab-42fb-b40e-7438ec5f7a29",
+        "workspaceId": ""
+      },
+      "sourceMemories": 0,
+      "migrated": 0,
+      "alreadyPresent": 0,
+      "errors": []
+    },
+    {
+      "scope": {
+        "userId": "legacy-local-user",
+        "personaId": "de1e771b-32e7-4ec7-9123-c842577bc18b",
+        "workspaceId": ""
+      },
+      "sourceMemories": 0,
+      "migrated": 0,
+      "alreadyPresent": 0,
+      "errors": []
+    },
+    {
+      "scope": {
+        "userId": "legacy-local-user",
+        "personaId": "default",
+        "workspaceId": "persona:af2117d2-6015-4282-8c01-9589263e823a:default"
+      },
+      "sourceMemories": 0,
+      "migrated": 0,
+      "alreadyPresent": 0,
+      "errors": []
+    },
+    {
+      "scope": {
+        "userId": "user-pipeline",
+        "personaId": "persona-pipeline",
+        "workspaceId": ""
+      },
+      "sourceMemories": 0,
+      "migrated": 0,
+      "alreadyPresent": 0,
+      "errors": []
+    }
+  ],
+  "totals": {
+    "sourceMemories": 0,
+    "migrated": 0,
+    "alreadyPresent": 0,
+    "errors": 0
+  }
+}

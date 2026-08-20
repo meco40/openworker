@@ -56,7 +56,7 @@ export async function fileReadHandler(args: Record<string, unknown>) {
   const inputPath = String(args.path || '').trim();
   if (!inputPath) throw new Error('file_read requires a non-empty path.');
   const resolvedPath = ensureWorkspacePath(inputPath);
-  const realPath = await realpath(resolvedPath);
+  const realPath = await realpath(/* turbopackIgnore: true */ resolvedPath);
   if (!isPathWithinRoot(realPath, WORKSPACE_ROOT)) {
     throw new Error('Path escapes workspace root through a symbolic link.');
   }

@@ -82,7 +82,7 @@ export function publishMemoryLifecycleChange(input: {
   personaId: string;
   status: LifecycleStatus;
   signal: LifecycleSignal;
-  provider?: 'mem0' | 'sqlite';
+  provider?: 'postgres' | 'mem0' | 'sqlite';
 }): void {
   getServerEventBus().publish('memory.lifecycle.changed', {
     ...input,

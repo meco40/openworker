@@ -1,8 +1,15 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { startManagedOllama, stopManagedOllama } from './ollama-lifecycle.mjs';
+
+const require = createRequire(import.meta.url);
+const { loadEnvConfig } = require('@next/env');
+loadEnvConfig(process.cwd());
 
 function resolveNpmCliPath() {
   const envPath = String(process.env.npm_execpath || '').trim();
@@ -52,6 +59,7 @@ const packageManager = resolvePackageManagerInvocation();
 const children = [];
 let shuttingDown = false;
 let exitCode = 0;
+let ollamaProcess = null;
 
 function startChild(name, args) {
   const commandArgs = [...packageManager.baseArgs, ...args];
@@ -91,10 +99,14 @@ function terminateChild(proc) {
 
   setTimeout(() => {
     if (proc.exitCode !== null || proc.killed) return;
-    try {
-      proc.kill('SIGKILL');
-    } catch {
-      // ignore
+    if (process.platform === 'win32' && proc.pid) {
+      spawn('taskkill.exe', ['/PID', String(proc.pid), '/T', '/F'], { stdio: 'ignore' });
+    } else {
+      try {
+        proc.kill('SIGKILL');
+      } catch {
+        // ignore
+      }
     }
   }, 2000).unref();
 }
@@ -106,12 +118,13 @@ function shutdown(code = 0) {
   for (const child of children) {
     terminateChild(child.proc);
   }
+  const ollamaStop = stopManagedOllama(ollamaProcess).catch(() => {});
 
   const watcher = setInterval(() => {
     const allExited = children.every((child) => child.proc.exitCode !== null || child.proc.killed);
     if (!allExited) return;
     clearInterval(watcher);
-    process.exit(exitCode);
+    void ollamaStop.finally(() => process.exit(exitCode));
   }, 100);
   watcher.unref();
 }
@@ -119,5 +132,23 @@ function shutdown(code = 0) {
 process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
-startChild('web', ['run', 'dev:web']);
-startChild('scheduler', ['run', 'dev:scheduler']);
+async function main() {
+  ollamaProcess = await startManagedOllama();
+  if (ollamaProcess) {
+    children.push({ name: 'ollama', proc: ollamaProcess });
+    ollamaProcess.once('exit', (code, signal) => {
+      if (shuttingDown) return;
+      console.error(
+        `[dev-stack] ollama exited with code=${code ?? 'none'} signal=${signal ?? 'none'}`,
+      );
+      shutdown(1);
+    });
+  }
+  startChild('web', ['run', 'dev:web']);
+  startChild('scheduler', ['run', 'dev:scheduler']);
+}
+
+main().catch((error) => {
+  console.error('[dev-stack] startup failed:', error);
+  shutdown(1);
+});

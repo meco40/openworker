@@ -37,7 +37,7 @@ export async function testDeliverable(
 
   try {
     if (!isUrlDeliverable) {
-      if (!testPath || !existsSync(testPath)) {
+      if (!testPath || !existsSync(/* turbopackIgnore: true */ testPath)) {
         return {
           passed: false,
           deliverable: {
@@ -77,7 +77,7 @@ export async function testDeliverable(
         };
       }
 
-      const htmlContent = readFileSync(testPath, 'utf-8');
+      const htmlContent = readFileSync(/* turbopackIgnore: true */ testPath, 'utf-8');
       cssErrors = extractAndValidateCss(htmlContent);
     }
 
@@ -86,7 +86,7 @@ export async function testDeliverable(
       if (isHttpUrl(testPath)) {
         testUrl = testPath;
       } else {
-        if (!existsSync(testPath)) {
+        if (!existsSync(/* turbopackIgnore: true */ testPath)) {
           return {
             passed: false,
             deliverable: {

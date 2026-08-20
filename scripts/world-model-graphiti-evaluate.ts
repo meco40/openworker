@@ -102,8 +102,8 @@ async function main(): Promise<void> {
   const qualityPassed = evaluations.every(
     (result) =>
       result.graphitiReachable &&
-      result.recall >= options.recallThreshold &&
-      result.precision >= options.precisionThreshold,
+      result.recallAtK >= options.recallThreshold &&
+      result.precisionAtK >= options.precisionThreshold,
   );
   const report = {
     generatedAt: new Date().toISOString(),

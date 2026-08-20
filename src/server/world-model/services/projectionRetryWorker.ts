@@ -1,4 +1,4 @@
-import { getMemoryService } from '@/server/memory/runtime';
+import { getMemoryProviderKind, getMemoryService } from '@/server/memory/runtime';
 import { getWorldModelDb } from '@/server/world-model/db';
 import { isMem0FactualWriteBlocked } from '@/server/world-model/mem0Policy';
 import { normalizeExtraction } from '@/server/world-model/projector/normalizeExtraction';
@@ -89,7 +89,7 @@ async function retryWorldModelWindow(record: ProjectionPendingRecord): Promise<v
 }
 
 async function retryMem0Facts(record: ProjectionPendingRecord): Promise<void> {
-  if (isMem0FactualWriteBlocked()) {
+  if (getMemoryProviderKind() === 'mem0' && isMem0FactualWriteBlocked()) {
     throw new Error('Mem0 factual projection is disabled in canonical mode');
   }
   const memoryService = getMemoryService();

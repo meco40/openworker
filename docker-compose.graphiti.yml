@@ -30,14 +30,41 @@ services:
     environment:
       OPENAI_API_KEY: ${GRAPHITI_OPENAI_API_KEY:?GRAPHITI_OPENAI_API_KEY must be set}
       OPENAI_BASE_URL: ${GRAPHITI_OPENAI_BASE_URL:-https://api.openai.com/v1}
-      MODEL_NAME: ${GRAPHITI_MODEL_NAME:-openai/gpt-4.1-mini}
-      EMBEDDING_MODEL_NAME: ${GRAPHITI_EMBEDDING_MODEL_NAME:-qwen/qwen3-embedding-8b}
+      EMBEDDING_BASE_URL: ${GRAPHITI_EMBEDDING_BASE_URL:-https://api.openai.com/v1}
+      MODEL_NAME: ${GRAPHITI_MODEL_NAME:-openai/gpt-4o-mini}
+      # Small model used by graphiti_core for cheap subtasks (upstream default
+      # gpt-4.1-nano). Empty = same as MODEL_NAME.
+      SMALL_MODEL_NAME: ${GRAPHITI_SMALL_MODEL_NAME:-}
+      EMBEDDING_MODEL_NAME: ${GRAPHITI_EMBEDDING_MODEL_NAME:-text-embedding-v4}
+      # DashScope text-embedding-v4 returns native 2048-dimensional vectors;
+      # the mounted patch chunks embedding batches to <=10 items (DashScope
+      # limit). Existing Graphiti data is rebuilt from PostgreSQL after an
+      # embedding-model switch.
+      EMBEDDING_DIM: ${GRAPHITI_EMBEDDING_DIM:-2048}
       NEO4J_URI: bolt://graphiti-neo4j:7687
       NEO4J_USER: ${GRAPHITI_NEO4J_USER:-neo4j}
       NEO4J_PASSWORD: ${GRAPHITI_NEO4J_PASSWORD:-change-me-local}
       NEO4J_PORT: 7687
       db_backend: neo4j
       PORT: 8000
+      # LLM output budget for extraction/dedup calls. The mounted
+      # docker/graphiti patch wires this env var into the LLM client.
+      MAX_TOKENS: ${GRAPHITI_LLM_MAX_TOKENS:-16384}
+      # graphiti_core reads SEMAPHORE_LIMIT for max concurrent LLM calls.
+      # Keep low (e.g. 2) for rate-limited free-tier providers; the DashScope
+      # setup runs with a higher value via GRAPHITI_SEMAPHORE_LIMIT.
+      SEMAPHORE_LIMIT: ${GRAPHITI_SEMAPHORE_LIMIT:-2}
+      # Concurrent ingest-queue workers. Upstream Graphiti processes the
+      # message queue with a single worker; the mounted docker/graphiti/
+      # ingest.py patch spawns this many so a full rebuild does not serialize
+      # every episode across every scope behind one worker.
+      QUEUE_WORKERS: ${GRAPHITI_QUEUE_WORKERS:-4}
+    volumes:
+      # OpenClaw patches against the pinned 0.22.0 server (see docker/graphiti/).
+      - ./docker/graphiti/config.py:/app/graph_service/config.py:ro
+      - ./docker/graphiti/retrieve.py:/app/graph_service/dto/retrieve.py:ro
+      - ./docker/graphiti/zep_graphiti.py:/app/graph_service/zep_graphiti.py:ro
+      - ./docker/graphiti/ingest.py:/app/graph_service/routers/ingest.py:ro
     ports:
       - '8001:8000'
     healthcheck:

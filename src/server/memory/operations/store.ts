@@ -14,6 +14,7 @@ import {
 
 export interface StoreMemoryOptions {
   personaId: string;
+  workspaceId?: string;
   type: MemoryType;
   content: string;
   importance: number;
@@ -27,14 +28,14 @@ export async function storeMemory(
   client: Mem0Client,
   options: StoreMemoryOptions,
 ): Promise<MemoryNode> {
-  const { personaId, type, content, importance, userId, metadata, signal } = options;
+  const { personaId, workspaceId, type, content, importance, userId, metadata, signal } = options;
   const normalizedContent = normalizeMemoryContent(content);
   const poisoningCheck = checkMemoryPoisoning(normalizedContent);
   if (poisoningCheck.riskLevel === 'blocked') {
     throw new Error(poisoningCheck.reason || 'Memory content rejected by poisoning guard.');
   }
   const scopedUserId = resolveUserId(userId);
-  const memoryProvider = client.provider === 'sqlite' ? 'sqlite' : 'mem0';
+  const memoryProvider = client.provider ?? 'mem0';
   const extraMetadata =
     metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
   const nowIso = new Date().toISOString();
@@ -43,6 +44,7 @@ export async function storeMemory(
     {
       userId: scopedUserId,
       personaId,
+      workspaceId,
       content: normalizedContent,
       metadata: {
         ...extraMetadata,
@@ -87,7 +89,7 @@ export async function storeMemory(
     metadata: {
       ...extraMetadata,
       mem0Id: result.id,
-      source: 'mem0',
+      source: memoryProvider,
       memoryProvider,
       lifecycleStatus: extraMetadata.lifecycleStatus || 'new',
       version: 1,

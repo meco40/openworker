@@ -184,7 +184,7 @@ export async function processManagerHandler(
       shellArgs = ['-c', command];
     }
 
-    const child = spawn(shell, shellArgs, {
+    const child = spawn(/* turbopackIgnore: true */ shell, shellArgs, {
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       detached: false,

@@ -140,7 +140,7 @@ export function runAttachmentConsistencyAudit(
 function loadPersonaSlugMap(): Map<string, string> {
   const map = new Map<string, string>();
   const personasDbPath = process.env.PERSONAS_DB_PATH || '.local/personas.db';
-  if (!fs.existsSync(personasDbPath)) return map;
+  if (!fs.existsSync(/* turbopackIgnore: true */ personasDbPath)) return map;
 
   const db = openSqliteDatabase({ dbPath: personasDbPath });
   try {
@@ -174,7 +174,7 @@ function parseMetadataObject(metadata: string): Record<string, unknown> {
 function resolveIfExists(storagePath: string): string | null {
   try {
     const absolutePath = resolveStoredAttachmentPath(storagePath);
-    if (!fs.existsSync(absolutePath)) {
+    if (!fs.existsSync(/* turbopackIgnore: true */ absolutePath)) {
       return null;
     }
     return absolutePath;

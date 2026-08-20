@@ -1,5 +1,5 @@
 import type { MemoryNode, MemoryType } from '@/core/memory/types';
-import type { Mem0Client, Mem0MemoryRecord } from '@/server/memory/mem0';
+import type { Mem0Client, Mem0MemoryRecord, Mem0Scope } from '@/server/memory/mem0';
 import type { MemoryFeedbackSignal, MemoryRecallResult, MemoryHistoryRecord } from './types';
 import { MemoryVersionConflictError } from './errors';
 import { toMemoryNode, toHistoryRecord } from './mappers/nodeMappers';
@@ -31,6 +31,7 @@ export { detectMemorySubject } from './subject/detector';
 
 export interface MemoryStoreInput {
   personaId: string;
+  workspaceId?: string;
   type: MemoryType;
   content: string;
   importance: number;
@@ -44,6 +45,10 @@ export class MemoryService {
   private readonly updateLocks = new Map<string, Promise<MemoryNode | null>>();
 
   constructor(private readonly mem0Client: Mem0Client) {}
+
+  private provider(): NonNullable<Mem0Client['provider']> {
+    return this.mem0Client.provider ?? 'mem0';
+  }
 
   private rankNode(node: MemoryNode): number {
     const timestamp = String(node.metadata?.lastVerified || '').trim();
@@ -149,13 +154,17 @@ export class MemoryService {
     throw new Error('Mem0 pagination exceeded the safety limit while resolving idempotency.');
   }
 
-  private async resolveNodeVersion(nodeId: string, node: MemoryNode): Promise<number> {
+  private async resolveNodeVersion(
+    nodeId: string,
+    node: MemoryNode,
+    scope?: Mem0Scope,
+  ): Promise<number> {
     const metaVersion = Number(node.metadata?.version);
     if (Number.isFinite(metaVersion) && metaVersion >= 1) {
       return Math.floor(metaVersion);
     }
     try {
-      const history = await this.mem0Client.getMemoryHistory(nodeId);
+      const history = await this.mem0Client.getMemoryHistory(nodeId, scope);
       if (history.length > 0) return history.length;
     } catch (error) {
       if (!isNotFoundError(error)) throw error;
@@ -185,7 +194,7 @@ export class MemoryService {
 
   /** Canonical named-argument API for new production callers. */
   async storeMemory(input: MemoryStoreInput): Promise<MemoryNode> {
-    if (!isMem0TypeAllowed(input.type)) {
+    if (this.provider() === 'mem0' && !isMem0TypeAllowed(input.type)) {
       throw new Error(
         `[memory] type '${input.type}' is blocked by the active World-Model Mem0 policy`,
       );
@@ -228,7 +237,9 @@ export class MemoryService {
       memoryTypes?: import('@/core/memory/types').MemoryType[];
     },
   ): Promise<MemoryRecallResult> {
-    const memoryTypes = options?.memoryTypes ?? (allowedMem0Types() as MemoryType[]);
+    const memoryTypes =
+      options?.memoryTypes ??
+      (this.provider() === 'mem0' ? (allowedMem0Types() as MemoryType[]) : undefined);
     return recallDetailed(this.mem0Client, {
       personaId,
       query,
@@ -276,6 +287,17 @@ export class MemoryService {
   }
 
   async count(personaId?: string, userId?: string): Promise<number> {
+    const countMemories = (
+      this.mem0Client as Mem0Client & {
+        countMemories?: (input: {
+          userId?: string;
+          personaId?: string;
+          workspaceId?: string;
+        }) => Promise<number>;
+      }
+    ).countMemories;
+    if (countMemories) return countMemories({ userId, personaId });
+
     const scopedUserId = resolveUserId(userId);
     const listed = await this.mem0Client.listMemories({
       userId: scopedUserId,
@@ -416,14 +438,19 @@ export class MemoryService {
     const nextContent = input.content ?? currentNode.content;
     const nextImportance = input.importance ?? currentNode.importance;
     const nextConfidence = currentNode.confidence;
-    const currentVersion = await this.resolveNodeVersion(nodeId, currentNode);
+    const scope: Mem0Scope = {
+      userId: scopedUserId,
+      personaId,
+      workspaceId: String(currentNode.metadata?.workspaceId || ''),
+    };
+    const currentVersion = await this.resolveNodeVersion(nodeId, currentNode, scope);
     const expectedVersion =
       input.expectedVersion === undefined ? undefined : asVersion(input.expectedVersion, NaN);
     if (expectedVersion !== undefined && expectedVersion !== currentVersion) {
       throw new MemoryVersionConflictError(currentVersion);
     }
     const nextVersion = currentVersion + 1;
-    const memoryProvider = this.mem0Client.provider === 'sqlite' ? 'sqlite' : 'mem0';
+    const memoryProvider = this.provider();
     const nextMetadata: Record<string, unknown> = {
       ...currentNode.metadata,
       ...input.metadata,
@@ -433,16 +460,21 @@ export class MemoryService {
       lastVerified: new Date().toISOString(),
       version: nextVersion,
       mem0Id: nodeId,
-      source: 'mem0',
+      source: memoryProvider,
       memoryProvider,
     };
 
-    await this.mem0Client.updateMemory(nodeId, {
-      userId: scopedUserId,
-      personaId,
-      content: nextContent,
-      metadata: nextMetadata,
-    });
+    await this.mem0Client.updateMemory(
+      nodeId,
+      {
+        userId: scopedUserId,
+        personaId,
+        workspaceId: scope.workspaceId,
+        content: nextContent,
+        metadata: nextMetadata,
+      },
+      scope,
+    );
 
     const lifecycleSignal = String(input.metadata?.lifecycleSignal || '').trim();
     if (lifecycleSignal) {
@@ -478,7 +510,7 @@ export class MemoryService {
       }
       if (latest) {
         const latestNode = toMemoryNode(latest);
-        const latestVersion = await this.resolveNodeVersion(nodeId, latestNode);
+        const latestVersion = await this.resolveNodeVersion(nodeId, latestNode, scope);
         if (latestVersion !== nextVersion) {
           throw new MemoryVersionConflictError(latestVersion);
         }
@@ -543,10 +575,16 @@ export class MemoryService {
     if (!current) return null;
 
     const node = toMemoryNode(current);
-    const entries = await this.mem0Client.getMemoryHistory(nodeId).catch((error) => {
-      if (isNotFoundError(error)) return [];
-      throw error;
-    });
+    const entries = await this.mem0Client
+      .getMemoryHistory(nodeId, {
+        userId: resolveUserId(userId),
+        personaId,
+        workspaceId: String(node.metadata?.workspaceId || ''),
+      })
+      .catch((error) => {
+        if (isNotFoundError(error)) return [];
+        throw error;
+      });
     return {
       node,
       entries: entries.map((entry, index) => toHistoryRecord(entry, index)),
@@ -558,7 +596,7 @@ export class MemoryService {
     const owned = await this.findScopedRecord(personaId, nodeId, scopedUserId);
     if (!owned) return false;
     try {
-      await this.mem0Client.deleteMemory(nodeId);
+      await this.mem0Client.deleteMemory(nodeId, { userId: scopedUserId, personaId });
       return true;
     } catch (error) {
       if (!isNotFoundError(error) && !isLegacyDeleteNotFoundError(error)) throw error;
@@ -571,7 +609,7 @@ export class MemoryService {
       if (!rewritten) return false;
 
       try {
-        await this.mem0Client.deleteMemory(rewritten.id);
+        await this.mem0Client.deleteMemory(rewritten.id, { userId: scopedUserId, personaId });
         return true;
       } catch (secondError) {
         if (isNotFoundError(secondError)) return false;

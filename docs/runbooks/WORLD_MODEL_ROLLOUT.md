@@ -1,35 +1,39 @@
 # World Model Rollout
 
-> Stand: 2026-08-18 · Repo: `e:\web\clawtest`
+> Stand: 2026-08-20 · Repo: `e:\web\clawtest`
 
 ## Zweck
 
-PostgreSQL/pgvector ist die kanonische Weltmodell-Schicht. SQLite-Knowledge
-und Mem0 bleiben kompatible Projektionen bzw. Recall-Quellen; das Weltmodell
-ist additiv und fail-closed (standardmaessig aus).
+PostgreSQL/pgvector ist die kanonische Weltmodell- und Memory-Schicht.
+`world_model_memory_items` und seine Historie ersetzen Mem0 als
+Anwendungssystem of Record. SQLite-Knowledge, Mem0 und Graphiti bleiben
+wiederaufbaubare Projektionen bzw. explizite Kompatibilitätspfade.
 
 ## Bestandteile
 
-| Datei                                                   | Inhalt                                                                                                                                                                              |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/server/world-model/config.ts`                      | Env-Konfiguration, `WORLD_MODEL_ENABLED` (default off)                                                                                                                              |
-| `src/server/world-model/db.ts`                          | Lazy-`pg.Pool`-Singleton, Advisory-Lock-Migrations-Runner und Transaktions-Helper                                                                                                   |
-| `src/server/world-model/migrations/001_world_model.sql` | Basisschema (Observations, Assertions bitemporal+Modalitaet, Events/Transitions, Tasks/Transitions, Entities/Relations, Open Loops, Standing Intents, Outbox, Embeddings, Volltext) |
-| `src/server/world-model/migrations/002..004*.sql`       | Shadow-Ledger, scoped Outbox-/Idempotenz-Nachruestung und workspace-scoped Assertions                                                                                               |
-| `src/server/world-model/repositories/*`                 | Repositories pro Aggregat (roh-SQL, Transaktion via Client)                                                                                                                         |
-| `src/server/world-model/services/eventService.ts`       | Plan-/Aenderungs-Referenzfall (Kino/Essen)                                                                                                                                          |
-| `src/server/world-model/services/prospectiveEngine.ts`  | Open-Loop-Follow-ups, Standing-Intent-Matching, Heartbeat                                                                                                                           |
-| `src/server/world-model/outboxDispatcher.ts`            | Transactional-Outbox-Dispatch                                                                                                                                                       |
-| `src/server/world-model/productionGuard.ts`             | Prod-Guard (Canonical URL erforderlich, E2E in Prod verboten)                                                                                                                       |
-| `docker-compose.postgres.yml`                           | Kanonische `pgvector/pgvector:pg17`, Port 5434, DB `clawtest`                                                                                                                       |
-| `.env.local.example`                                    | `WORLD_MODEL_*`-Block                                                                                                                                                               |
+| Datei                                                        | Inhalt                                                                                                                                                                              |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/server/world-model/config.ts`                           | Env-Konfiguration, `WORLD_MODEL_ENABLED` (default off)                                                                                                                              |
+| `src/server/world-model/db.ts`                               | Lazy-`pg.Pool`-Singleton, Advisory-Lock-Migrations-Runner und Transaktions-Helper                                                                                                   |
+| `src/server/world-model/migrations/001_world_model.sql`      | Basisschema (Observations, Assertions bitemporal+Modalitaet, Events/Transitions, Tasks/Transitions, Entities/Relations, Open Loops, Standing Intents, Outbox, Embeddings, Volltext) |
+| `src/server/world-model/migrations/016_canonical_memory.sql` | Kanonische Memory-Items, Historie, RLS, Idempotenz, Soft Delete und aggregierter Count                                                                                              |
+| `src/server/world-model/migrations/002..004*.sql`            | Shadow-Ledger, scoped Outbox-/Idempotenz-Nachruestung und workspace-scoped Assertions                                                                                               |
+| `src/server/world-model/repositories/*`                      | Repositories pro Aggregat (roh-SQL, Transaktion via Client)                                                                                                                         |
+| `src/server/world-model/services/eventService.ts`            | Plan-/Aenderungs-Referenzfall (Kino/Essen)                                                                                                                                          |
+| `src/server/world-model/services/prospectiveEngine.ts`       | Open-Loop-Follow-ups, Standing-Intent-Matching, Heartbeat                                                                                                                           |
+| `src/server/world-model/outboxDispatcher.ts`                 | Transactional-Outbox-Dispatch                                                                                                                                                       |
+| `src/server/world-model/productionGuard.ts`                  | Prod-Guard (Canonical URL erforderlich, E2E in Prod verboten)                                                                                                                       |
+| `docker-compose.postgres.yml`                                | Kanonische `pgvector/pgvector:pg17`, Port 5434, DB `clawtest`                                                                                                                       |
+| `.env.local.example`                                         | `WORLD_MODEL_*`-Block                                                                                                                                                               |
 
 ## Aktivierung (lokal)
 
 ```powershell
 docker compose -f docker-compose.postgres.yml up -d
 # .env.local:
+#   MEMORY_PROVIDER=postgres
 #   WORLD_MODEL_ENABLED=true
+#   WORLD_MODEL_MODE=canonical
 #   CANONICAL_DATABASE_URL=postgresql://clawtest:clawtest@127.0.0.1:5434/clawtest
 corepack pnpm run dev:scheduler
 ```
@@ -81,9 +85,26 @@ corepack pnpm exec vitest run tests/unit/world-model
 - `GRAPHITI_SHADOW_ENABLED=true` aktiviert das Outbox-gestuetzte lokale
   Shadow-Ledger (`graphiti/shadow.ts`, Migration 002/003). Es ist nur Messung,
   keine verbindliche Entscheidung und kein externer Graphiti-Client.
-- `WORLD_MODEL_MEM0_PREFERENCES_ONLY=true` begrenzt den produktiven Mem0-Recall
-  auf `preference`, `avoidance`, `personality_trait` und `workflow_pattern`;
-  faktischer Recall bleibt beim World Model/Knowledge-Layer.
+- Im kanonischen PostgreSQL-Modus ist Mem0 nicht für Runtime-CRUD oder Recall
+  erforderlich. `WORLD_MODEL_MEM0_PREFERENCES_ONLY=true` bleibt nur für einen
+  ausdrücklich aktivierten Mem0-Legacy-Provider relevant.
+
+## Kanonische Memory-Migration
+
+Mem0-Daten werden vor dem Abschalten des Legacy-Containers über den
+idempotenten Backfill importiert:
+
+```powershell
+pnpm run memory:migrate-to-postgres -- --scope all --apply --output docs/audits/world-model/memory-migration-current.json
+pnpm run memory:migrate-to-postgres -- --scope all --output docs/audits/world-model/memory-migration-verify.json
+```
+
+Der Bericht weist die bekannten Scopes, Quellmenge, importierte Datensätze und
+Fehler aus. Mem0 kann keine globale Scope-Liste liefern; unbekannte externe
+Scopes müssen deshalb ausdrücklich über `--scope` oder
+`WORLD_MODEL_MIGRATION_SCOPES` ergänzt werden. Erst wenn der Verify-Lauf ohne
+Fehler ist und `MEMORY_PROVIDER=postgres` aktiv ist, darf Mem0 aus dem
+Normalbetrieb entfernt werden.
 
 ## Phase 7-9 (2026-08-18): Proaktive Sekretärin
 

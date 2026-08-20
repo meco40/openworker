@@ -8,6 +8,14 @@ const EMBEDDING_PROFILE_ID = 'p1-embeddings';
 const DEFAULT_SYNC_TIMEOUT_MS = 10_000;
 const MEM0_PGVECTOR_HNSW_MAX_DIMS = 2000;
 
+function isEnabled(value: string | undefined): boolean {
+  return ['1', 'true', 'yes', 'on'].includes(
+    String(value ?? '')
+      .trim()
+      .toLowerCase(),
+  );
+}
+
 interface Mem0ProviderPayload {
   provider: string;
   config: Record<string, unknown>;
@@ -418,7 +426,7 @@ export async function syncMem0EmbedderFromModelHub(
       modelName: normalizedModelName,
     };
   }
-  if (embeddingDims > MEM0_PGVECTOR_HNSW_MAX_DIMS) {
+  if (isEnabled(env.MEM0_VECTOR_HNSW) && embeddingDims > MEM0_PGVECTOR_HNSW_MAX_DIMS) {
     return {
       ok: false,
       error:

@@ -1,35 +1,35 @@
 # World Model Agent Contract
 
-Stand: 2026-08-19
+Stand: 2026-08-20
 
 ## Metadata
 
-- Last Reviewed: 2026-08-19
+- Last Reviewed: 2026-08-20
 
 ## Zweck
 
 Dieser Vertrag beschreibt das kanonische World Model als System of Record fuer
-strukturierte Wahrheit und proaktives Verhalten der persoenlichen 24-Stunden-
-Sekretaerin. Er definiert Zuständigkeiten, Invarianten und Eigentümerschaft
-zwischen Raw Messages, World Model, Mission Control, SQLite Knowledge, Mem0 und
-Graphiti. Er ist Teil der Zielarchitektur
+strukturierte Wahrheit, generische Langzeit-Memory und proaktives Verhalten der
+persoenlichen 24-Stunden-Sekretaerin. Er definiert Zuständigkeiten, Invarianten
+und Eigentümerschaft zwischen Raw Messages, World Model, Mission Control,
+SQLite Knowledge, Mem0 und Graphiti. Er ist Teil der Zielarchitektur
 (`docs/memory-knowledge-target-architecture.md`) und wird durch die Services
 im Verzeichnis `src/server/world-model/` implementiert.
 
 ## Unverhandelbare Invarianten
 
-| Invariante    | Verbindliche Regel                                                                |
-| ------------- | --------------------------------------------------------------------------------- |
-| Wahrheit      | Strukturierter Zustand wird ausschliesslich ueber World-Model-Services veraendert |
-| Historie      | Korrekturen schliessen alte Gueltigkeit; sie loeschen keine Evidenz               |
-| Zeit          | `valid_*` beschreibt die Welt, `known_*` den Wissensstand des Systems             |
-| Scope         | Jeder Zugriff verwendet `user_id + persona_id + workspace_id`                     |
-| Provenienz    | Jede Behauptung und Transition verweist auf mindestens eine Observation           |
-| Idempotenz    | Replay derselben Quelle erzeugt keine Duplikate und keine zweite Aktion           |
-| Aktionen      | `completed` oder `sent` erfordert ein reales Tool- oder Nutzerergebnis            |
-| Retrieval     | Strukturierte aktive Wahrheit schlaegt semantische Aehnlichkeit                   |
-| Projektionen  | Mem0, Graphiti und Embeddings sind vollstaendig neu aufbaubar                     |
-| Proaktivitaet | Kein Versand ohne erneute Zustaende-, Ruhezeiten- und Budgetpruefung              |
+| Invariante    | Verbindliche Regel                                                                            |
+| ------------- | --------------------------------------------------------------------------------------------- |
+| Wahrheit      | Strukturierter Zustand wird ausschliesslich ueber World-Model-Services veraendert             |
+| Historie      | Korrekturen schliessen alte Gueltigkeit; sie loeschen keine Evidenz                           |
+| Zeit          | `valid_*` beschreibt die Welt, `known_*` den Wissensstand des Systems                         |
+| Scope         | Jeder Zugriff verwendet `user_id + persona_id + workspace_id`                                 |
+| Provenienz    | Jede Behauptung und Transition verweist auf mindestens eine Observation                       |
+| Idempotenz    | Replay derselben Quelle erzeugt keine Duplikate und keine zweite Aktion                       |
+| Aktionen      | `completed` oder `sent` erfordert ein reales Tool- oder Nutzerergebnis                        |
+| Retrieval     | Strukturierte aktive Wahrheit schlaegt semantische Aehnlichkeit                               |
+| Projektionen  | Mem0, Graphiti und Embeddings sind vollstaendig neu aufbaubar; PostgreSQL bleibt die Wahrheit |
+| Proaktivitaet | Kein Versand ohne erneute Zustaende-, Ruhezeiten- und Budgetpruefung                          |
 
 ## Eigentümer (Single Writer pro Domäne)
 
@@ -42,6 +42,7 @@ im Verzeichnis `src/server/world-model/` implementiert.
 | Tasks und Action Attempts | `CanonicalTaskService` und `ActionService` |
 | Open Loops                | `OpenLoopService`                          |
 | Standing Intents          | `StandingIntentService`                    |
+| Generische Memory         | `MemoryService` → `PostgresMemoryClient`   |
 
 Repositories duerfen keine fachlichen Statusuebergaenge nachbilden. API-Routen,
 Knowledge-Ingestion, Tool-Runner und Scheduler verwenden dieselben Services.
@@ -57,19 +58,19 @@ Zustände werden gespiegelt, bis der jeweilige Scope den Cutover-Gates genügt.
 | `POST /api/tasks` und Task-Statusroute | Mission-Control-Task-Mirror → `CanonicalTaskService`                   | Bestehende Task-API bleibt unverändert; Statusübergänge erzeugen scoped Outbox-/Transition-Evidenz                        |
 | Master-Tool-Ausführung                 | `masterActionBridge`/`ActionService`                                   | Attempt und Receipt werden vor `succeeded` persistiert; externe Provider-ID bleibt optional, bis der Provider sie liefert |
 | Scheduler/Open Loops                   | Lease → `proactive.question.requested` → Delivery Receipt              | `asked` erst nach bestätigter Zustellung; fehlende Kanalbindung bleibt sichtbar fehlgeschlagen                            |
-| Knowledge-/Memory-Recall               | `retrieveContext` mit World-Model-Priorität                            | Legacy-Recall bleibt als Kompatibilitätspfad aktiv, bis Canonical-Parität und Audit nachgewiesen sind                     |
+| Knowledge-/Memory-Recall               | `retrieveContext` + kanonischer PostgreSQL-Memory-Adapter              | Mem0 ist nur ein expliziter Legacy-/Migrationspfad; neue Writes gehen nicht nach Mem0                                     |
 | Automation API                         | Bestehende Automation- und Run-Verträge                                | Keine stille Statusumstellung; Migration erfolgt über dokumentierte Outbox-/Task-Projektion                               |
 
 ## Rollout-Modi
 
 `WORLD_MODEL_MODE` ist einer von `off | shadow | required | canonical`.
 
-| Modus       | Verhalten                                                                                  |
-| ----------- | ------------------------------------------------------------------------------------------ |
-| `off`       | Alter Pfad, World Model nicht beteiligt                                                    |
-| `shadow`    | World Model wird fail-soft befuellt; Abweichungen werden gemessen                          |
-| `required`  | Observation und kanonische Projektion muessen erfolgreich sein; alte Stores bleiben lesbar |
-| `canonical` | PostgreSQL ist verbindlich; alte Stores werden ausschliesslich aus der Outbox projiziert   |
+| Modus       | Verhalten                                                                                                   |
+| ----------- | ----------------------------------------------------------------------------------------------------------- |
+| `off`       | Alter Pfad, World Model nicht beteiligt                                                                     |
+| `shadow`    | World Model wird fail-soft befuellt; Abweichungen werden gemessen                                           |
+| `required`  | Observation und kanonische Projektion muessen erfolgreich sein; alte Stores bleiben lesbar                  |
+| `canonical` | PostgreSQL ist verbindlich; alte Stores werden ausschliesslich aus der Outbox projiziert; Mem0 ist optional |
 
 ## Runtime-Credentials
 

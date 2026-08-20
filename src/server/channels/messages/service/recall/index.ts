@@ -14,7 +14,7 @@
 import type { Conversation, StoredMessage } from '@/server/channels/messages/repository';
 import type { SearchMessagesOptions } from '@/server/channels/messages/repository/types';
 import { ChannelType } from '@/shared/domain/types';
-import { getMemoryService } from '@/server/memory/runtime';
+import { getMemoryProviderKind, getMemoryService } from '@/server/memory/runtime';
 import { resolveKnowledgeConfig } from '@/server/knowledge/config';
 import { getKnowledgeRetrievalService } from '@/server/knowledge/runtime';
 import { resolveMemoryUserIdCandidates } from '@/server/memory/userScope';
@@ -109,7 +109,13 @@ export class RecallService {
       }
     };
 
-    const preferencesOnly = isMem0PreferencesOnly();
+    let preferencesOnly = isMem0PreferencesOnly();
+    try {
+      preferencesOnly = preferencesOnly && getMemoryProviderKind() === 'mem0';
+    } catch {
+      // Unit/test doubles may expose only getMemoryService. Keep the legacy
+      // preference gate in that isolated compatibility case.
+    }
     const preferenceMemoryTypes: MemoryType[] = [
       'preference',
       'avoidance',

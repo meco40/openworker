@@ -20,6 +20,10 @@ describe('next config output tracing excludes', () => {
 
     expect(rootExcludes).toContain('.local/**');
     expect(rootExcludes).toContain('.local/**/*.db');
+    expect(rootExcludes).toContain('coverage/**');
+    expect(rootExcludes).toContain('playwright-report/**');
+    expect(rootExcludes).toContain('test-results/**');
+    expect(rootExcludes).toContain('dist/**');
     expect(rootExcludes).toContain('tests/**');
     expect(rootExcludes).toContain('docs/**');
   });

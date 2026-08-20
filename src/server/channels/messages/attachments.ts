@@ -64,7 +64,7 @@ function toBase64Url(value: string): string {
 
 function getAttachmentRootDir(): string {
   const configured = process.env.CHAT_ATTACHMENTS_DIR?.trim();
-  return path.resolve(configured || DEFAULT_ATTACHMENT_ROOT);
+  return path.resolve(/* turbopackIgnore: true */ configured || DEFAULT_ATTACHMENT_ROOT);
 }
 
 function ensureWithinRoot(candidatePath: string): string {
@@ -191,7 +191,7 @@ export function resolveStoredAttachmentPath(storagePath: string): string {
 
 export function readStoredAttachmentBuffer(attachment: StoredMessageAttachment): Buffer {
   const resolvedPath = resolveStoredAttachmentPath(attachment.storagePath);
-  return fs.readFileSync(resolvedPath);
+  return fs.readFileSync(/* turbopackIgnore: true */ resolvedPath);
 }
 
 export function readStoredAttachmentAsDataUrl(attachment: StoredMessageAttachment): string | null {

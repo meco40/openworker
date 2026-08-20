@@ -928,10 +928,14 @@ HOSTNAME=0.0.0.0
 NEXTAUTH_SECRET=your-secret-key
 REQUIRE_AUTH=false|true
 
-# Memory
-MEMORY_PROVIDER=mem0|sqlite
-MEM0_BASE_URL=https://api.mem0.ai
-MEM0_API_KEY=your-mem0-key
+# Memory (canonical)
+MEMORY_PROVIDER=postgres
+WORLD_MODEL_MODE=canonical
+CANONICAL_DATABASE_URL=postgresql://<world-model-runtime>:<password>@<host>:5432/<database>
+# Optional legacy migration/compatibility only:
+# MEMORY_PROVIDER=mem0
+# MEM0_BASE_URL=https://api.mem0.ai
+# MEM0_API_KEY=your-mem0-key
 
 # Model Hub
 OPENAI_API_KEY=...

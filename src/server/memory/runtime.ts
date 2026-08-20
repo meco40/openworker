@@ -2,6 +2,8 @@ import { MemoryService } from '@/server/memory/service';
 import type { Mem0Client } from '@/server/memory/mem0';
 import { createMem0ClientFromEnv } from '@/server/memory/mem0';
 import { SqliteMemoryClient } from '@/server/memory/sqliteMemoryClient';
+import { PostgresMemoryClient } from '@/server/memory/postgresMemoryClient';
+import { resolveWorldModelConfig } from '@/server/world-model/config';
 
 declare global {
   var __memoryService: MemoryService | undefined;
@@ -18,6 +20,18 @@ const MEM0_RUNTIME_PROBE_PERSONA_ID = 'mem0-runtime-probe';
 const DEFAULT_STARTUP_RETRY_DELAY_MS = 1500;
 const DEFAULT_RECOVERY_RETRY_DELAY_MS = 5000;
 const MAX_RECOVERY_RETRY_DELAY_MS = 60_000;
+
+function configuredProvider(env: EnvLike = process.env as EnvLike): 'postgres' | 'mem0' | 'sqlite' {
+  const explicit = String(env.MEMORY_PROVIDER || '')
+    .trim()
+    .toLowerCase();
+  if (explicit === 'postgres' || explicit === 'world-model' || explicit === 'world_model') {
+    return 'postgres';
+  }
+  if (explicit === 'sqlite') return 'sqlite';
+  if (explicit === 'mem0') return 'mem0';
+  return resolveWorldModelConfig(env).mode === 'canonical' ? 'postgres' : 'mem0';
+}
 
 function isProductionEnv(env: EnvLike = process.env as EnvLike): boolean {
   return (
@@ -64,11 +78,20 @@ function scheduleMemoryRuntimeRecoveryProbe(): void {
 export function assertMemoryRuntimeConfiguration(env: EnvLike = process.env as EnvLike): void {
   if (!isProductionEnv(env)) return;
 
-  const provider = String(env.MEMORY_PROVIDER || '')
-    .trim()
-    .toLowerCase();
+  const provider = configuredProvider(env);
+  if (provider === 'postgres') {
+    const worldModel = resolveWorldModelConfig(env);
+    if (!worldModel.enabled || worldModel.mode !== 'canonical') {
+      throw new Error(
+        'Invalid memory configuration: MEMORY_PROVIDER=postgres requires WORLD_MODEL_MODE=canonical and an enabled World Model.',
+      );
+    }
+    return;
+  }
   if (provider !== 'mem0') {
-    throw new Error('Invalid memory configuration: production requires MEMORY_PROVIDER=mem0.');
+    throw new Error(
+      'Invalid memory configuration: production requires MEMORY_PROVIDER=postgres (canonical) or explicit MEMORY_PROVIDER=mem0 (legacy).',
+    );
   }
 
   const baseUrl = String(env.MEM0_BASE_URL || '').trim();
@@ -86,14 +109,16 @@ export function assertMemoryRuntimeConfiguration(env: EnvLike = process.env as E
   }
 }
 
-function resolveMem0Client(): Mem0Client | null {
+function resolveMemoryClient(): Mem0Client | null {
   assertMemoryRuntimeConfiguration();
   if (globalThis.__mem0Client === undefined) {
-    const provider = String(process.env.MEMORY_PROVIDER || '')
-      .trim()
-      .toLowerCase();
+    const provider = configuredProvider();
     globalThis.__mem0Client =
-      provider === 'sqlite' ? new SqliteMemoryClient() : createMem0ClientFromEnv();
+      provider === 'postgres'
+        ? new PostgresMemoryClient()
+        : provider === 'sqlite'
+          ? new SqliteMemoryClient()
+          : createMem0ClientFromEnv();
   }
   return globalThis.__mem0Client ?? null;
 }
@@ -105,11 +130,11 @@ export class MemoryRuntimeUnavailableError extends Error {
   }
 }
 
-function getRequiredMem0Client(): Mem0Client {
-  const client = resolveMem0Client();
+function getRequiredMemoryClient(): Mem0Client {
+  const client = resolveMemoryClient();
   if (!client) {
     throw new Error(
-      'Invalid memory configuration: memory client unavailable. Set MEMORY_PROVIDER=mem0 or MEMORY_PROVIDER=sqlite.',
+      'Invalid memory configuration: memory client unavailable. Set MEMORY_PROVIDER=postgres, mem0, or sqlite.',
     );
   }
   return client;
@@ -121,7 +146,7 @@ export function getMemoryService(): MemoryService {
     throw new MemoryRuntimeUnavailableError();
   }
   if (!globalThis.__memoryService) {
-    globalThis.__memoryService = new MemoryService(getRequiredMem0Client());
+    globalThis.__memoryService = new MemoryService(getRequiredMemoryClient());
   }
   return globalThis.__memoryService;
 }
@@ -140,13 +165,12 @@ export function getMemoryServiceIfReady(): MemoryService | null {
   return getMemoryService();
 }
 
-export function getMemoryProviderKind(): 'mem0' | 'sqlite' {
-  const client = getRequiredMem0Client();
-  return client.provider === 'sqlite' ? 'sqlite' : 'mem0';
+export function getMemoryProviderKind(): 'postgres' | 'mem0' | 'sqlite' {
+  return getRequiredMemoryClient().provider ?? 'mem0';
 }
 
 export async function assertMemoryRuntimeReady(): Promise<void> {
-  const client = getRequiredMem0Client();
+  const client = getRequiredMemoryClient();
   try {
     await client.listMemories({
       userId: MEM0_RUNTIME_PROBE_USER_ID,
@@ -184,7 +208,7 @@ export async function ensureMemoryRuntimeReadyForStartup(options?: {
       await assertMemoryRuntimeReady();
       if (attempt > 0) {
         console.info(
-          `[memory-runtime] ${component} Mem0 connectivity ready after retry ${attempt}/${retries}`,
+          `[memory-runtime] ${component} memory provider connectivity ready after retry ${attempt}/${retries}`,
         );
       }
       setMemoryRuntimeReadyState(true);
@@ -195,7 +219,7 @@ export async function ensureMemoryRuntimeReadyForStartup(options?: {
       const attemptLabel = `${attempt + 1}/${retries + 1}`;
       if (attempt < retries) {
         console.warn(
-          `[memory-runtime] ${component} Mem0 readiness probe failed (${attemptLabel}): ${message}. Retrying in ${retryDelayMs}ms...`,
+          `[memory-runtime] ${component} memory provider readiness probe failed (${attemptLabel}): ${message}. Retrying in ${retryDelayMs}ms...`,
         );
         await sleep(retryDelayMs);
         continue;
@@ -206,7 +230,7 @@ export async function ensureMemoryRuntimeReadyForStartup(options?: {
       }
 
       console.warn(
-        `[memory-runtime] ${component} continuing without confirmed Mem0 readiness after ${attemptLabel}: ${message}`,
+        `[memory-runtime] ${component} continuing without confirmed memory provider readiness after ${attemptLabel}: ${message}`,
       );
       setMemoryRuntimeReadyState(false);
       scheduleMemoryRuntimeRecoveryProbe();

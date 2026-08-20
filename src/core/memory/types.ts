@@ -23,7 +23,7 @@ export interface MemoryNode {
     feedbackCount?: number;
     version?: number;
     mem0Id?: string;
-    memoryProvider?: 'sqlite' | 'mem0';
+    memoryProvider?: 'postgres' | 'sqlite' | 'mem0';
   };
 }
 

@@ -49,7 +49,10 @@ services:
       MEM0_EMBEDDER_MODEL: ${MEM0_EMBEDDER_MODEL:-}
       MEM0_EMBEDDER_API_KEY: ${MEM0_EMBEDDER_API_KEY:-}
       MEM0_EMBEDDER_BASE_URL: ${MEM0_EMBEDDER_BASE_URL:-}
-      MEM0_EMBEDDING_DIMS: ${MEM0_EMBEDDING_DIMS:-768}
+      MEM0_EMBEDDING_DIMS: ${MEM0_EMBEDDING_DIMS:-2048}
+      # pgvector HNSW supports at most 2000 dimensions. Nemotron returns
+      # native 2048-dimensional vectors, so Mem0 uses exact vector search.
+      MEM0_VECTOR_HNSW: ${MEM0_VECTOR_HNSW:-false}
     volumes:
       - mem0-history-data:/app/history
     ports:

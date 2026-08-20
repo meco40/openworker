@@ -8,8 +8,30 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
+from psycopg2 import sql
+import psycopg2
 
 from mem0 import Memory
+from mem0.embeddings.openai import OpenAIEmbedding
+
+
+def _embed_openai_as_float(self: Any, text: str, memory_action: Any = None) -> List[float]:
+    """Use float vectors because NVIDIA OpenRouter rejects base64 encoding."""
+    normalized_text = text.replace("\n", " ")
+    response = self.client.embeddings.create(
+        input=[normalized_text],
+        model=self.config.model,
+        dimensions=self.config.embedding_dims,
+        encoding_format="float",
+    )
+    return response.data[0].embedding
+
+
+# mem0 0.1.118 delegates to the current OpenAI SDK without specifying an
+# encoding format. Newer SDKs then request base64 by default, which NVIDIA's
+# OpenRouter embedding endpoint rejects. Keep the provider contract intact and
+# only override the encoding at the local adapter boundary.
+OpenAIEmbedding.embed = _embed_openai_as_float
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 load_dotenv()
@@ -40,6 +62,12 @@ MEM0_EMBEDDER_PROVIDER = os.environ.get("MEM0_EMBEDDER_PROVIDER", "").strip().lo
 MEM0_EMBEDDER_MODEL = os.environ.get("MEM0_EMBEDDER_MODEL", "").strip()
 MEM0_EMBEDDER_API_KEY = os.environ.get("MEM0_EMBEDDER_API_KEY", "").strip()
 MEM0_EMBEDDER_BASE_URL = os.environ.get("MEM0_EMBEDDER_BASE_URL", "").strip()
+MEM0_VECTOR_HNSW = os.environ.get("MEM0_VECTOR_HNSW", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 if not MEM0_API_KEY:
     raise RuntimeError("MEM0_API_KEY is required.")
@@ -54,7 +82,139 @@ def _parse_positive_int(name: str, default: int) -> int:
     return parsed if parsed > 0 else default
 
 
-MEM0_EMBEDDING_DIMS = _parse_positive_int("MEM0_EMBEDDING_DIMS", 768)
+MEM0_EMBEDDING_DIMS = _parse_positive_int("MEM0_EMBEDDING_DIMS", 2048)
+
+
+def _ensure_vector_schema_compatibility() -> None:
+    """Keep Mem0's primary and migration collections compatible with the model.
+
+    Mem0 creates the pgvector column from its configured dimensions, but an
+    existing collection keeps its old typmod across container restarts. The
+    primary collection is only migrated when empty. The migration collection
+    contains internal user-identity payloads, so its old vectors are cleared
+    while preserving those payloads before changing the typmod.
+    """
+
+    def drop_hnsw_indexes(cursor: Any, table_oid: int) -> None:
+        cursor.execute(
+            """
+            SELECT n.nspname, i.relname
+            FROM pg_index AS x
+            JOIN pg_class AS i ON i.oid = x.indexrelid
+            JOIN pg_namespace AS n ON n.oid = i.relnamespace
+            WHERE x.indrelid = %s
+              AND pg_get_indexdef(x.indexrelid) ILIKE '%%USING hnsw%%'
+            """,
+            (table_oid,),
+        )
+        for schema_name, index_name in cursor.fetchall():
+            cursor.execute(
+                sql.SQL("DROP INDEX IF EXISTS {}.{}").format(
+                    sql.Identifier(str(schema_name)),
+                    sql.Identifier(str(index_name)),
+                )
+            )
+            logging.info(
+                "Dropped incompatible Mem0 HNSW index %s.%s.",
+                schema_name,
+                index_name,
+            )
+
+    connection = psycopg2.connect(
+        host=POSTGRES_HOST,
+        port=POSTGRES_PORT,
+        dbname=POSTGRES_DB,
+        user=POSTGRES_USER,
+        password=POSTGRES_PASSWORD,
+    )
+    try:
+        with connection:
+            with connection.cursor() as cursor:
+                migration_collection = f"{POSTGRES_COLLECTION_NAME}migrations"
+                collection_names = [POSTGRES_COLLECTION_NAME]
+                if migration_collection != POSTGRES_COLLECTION_NAME:
+                    collection_names.append(migration_collection)
+
+                for collection_name in collection_names:
+                    cursor.execute(
+                        """
+                        SELECT c.oid
+                        FROM pg_class AS c
+                        JOIN pg_namespace AS n ON n.oid = c.relnamespace
+                        WHERE n.nspname = 'public' AND c.relname = %s
+                        """,
+                        (collection_name,),
+                    )
+                    table_row = cursor.fetchone()
+                    if table_row is None:
+                        continue
+
+                    table_oid = int(table_row[0])
+                    cursor.execute(
+                        """
+                        SELECT format_type(a.atttypid, a.atttypmod)
+                        FROM pg_attribute AS a
+                        WHERE a.attrelid = %s
+                          AND a.attname = 'vector'
+                          AND NOT a.attisdropped
+                        """,
+                        (table_oid,),
+                    )
+                    vector_row = cursor.fetchone()
+                    if vector_row is None:
+                        continue
+
+                    actual_type = str(vector_row[0]).strip().lower()
+                    expected_type = f"vector({MEM0_EMBEDDING_DIMS})"
+                    if actual_type != expected_type:
+                        if collection_name == migration_collection:
+                            cursor.execute(
+                                sql.SQL("UPDATE {}.{} SET vector = NULL").format(
+                                    sql.Identifier("public"),
+                                    sql.Identifier(collection_name),
+                                )
+                            )
+                            logging.info(
+                                "Cleared %s internal vectors before migrating from %s to %s.",
+                                collection_name,
+                                actual_type,
+                                expected_type,
+                            )
+                        else:
+                            cursor.execute(
+                                sql.SQL("SELECT count(*) FROM {}.{}").format(
+                                    sql.Identifier("public"),
+                                    sql.Identifier(collection_name),
+                                )
+                            )
+                            row_count = int(cursor.fetchone()[0])
+                            if row_count > 0:
+                                raise RuntimeError(
+                                    f"Mem0 collection {collection_name!r} has {row_count} "
+                                    f"rows with {actual_type}; migrate/re-embed before using "
+                                    f"{expected_type}."
+                                )
+                        drop_hnsw_indexes(cursor, table_oid)
+                        cursor.execute(
+                            sql.SQL("ALTER TABLE {}.{} ALTER COLUMN vector TYPE vector({})").format(
+                                sql.Identifier("public"),
+                                sql.Identifier(collection_name),
+                                sql.SQL(str(MEM0_EMBEDDING_DIMS)),
+                            )
+                        )
+                        logging.info(
+                            "Migrated Mem0 vector column %s from %s to %s.",
+                            collection_name,
+                            actual_type,
+                            expected_type,
+                        )
+                    elif not MEM0_VECTOR_HNSW:
+                        drop_hnsw_indexes(cursor, table_oid)
+    finally:
+        connection.close()
+
+
+_ensure_vector_schema_compatibility()
 
 
 BASE_CONFIG_TEMPLATE = {
@@ -69,6 +229,7 @@ BASE_CONFIG_TEMPLATE = {
             "password": POSTGRES_PASSWORD,
             "collection_name": POSTGRES_COLLECTION_NAME,
             "embedding_model_dims": MEM0_EMBEDDING_DIMS,
+            "hnsw": MEM0_VECTOR_HNSW,
         },
     },
     "history_db_path": HISTORY_DB_PATH,

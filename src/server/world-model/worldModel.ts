@@ -190,6 +190,8 @@ export {
 export {
   addGraphitiMessages,
   checkGraphitiHealth,
+  getGraphitiQueueStatus,
+  waitForGraphitiQueue,
   upsertGraphitiNodes,
   upsertGraphitiEdges,
   clearGraphitiScope,
@@ -201,6 +203,12 @@ export {
   rebuildGraphitiFromPostgres,
 } from '@/server/world-model/graphiti/projector';
 export { evaluateGraphitiValue } from '@/server/world-model/graphiti/evaluator';
+export {
+  buildGraphitiQueryVariants,
+  deduplicateGraphitiFacts,
+  rankGraphitiFacts,
+  searchGraphitiFactsWithRerank,
+} from '@/server/world-model/graphiti/retrieval';
 export { consolidateMemory } from '@/server/world-model/consolidation/service';
 export {
   CONSOLIDATION_POLICY_VERSION,

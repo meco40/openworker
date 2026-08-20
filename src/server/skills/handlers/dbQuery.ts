@@ -1,11 +1,11 @@
 import path from 'node:path';
 import { realpath } from 'node:fs/promises';
+import { WORKSPACE_ROOT } from '@/server/config/gateway/constants';
 import { getRuntimeConfigValue } from '@/server/skills/runtimeConfig';
 import { openSqliteDatabase } from '@/server/db/sqlite';
 import { assertPathWithinRoot } from '@/server/security/pathBoundary';
 
 const MAX_RESULT_ROWS = 200;
-const WORKSPACE_ROOT = path.resolve('.');
 
 function ensureWorkspacePath(userPath: string): string {
   const resolved = path.resolve(WORKSPACE_ROOT, userPath);
@@ -27,7 +27,7 @@ export async function dbQueryHandler(args: Record<string, unknown>) {
   }
 
   const resolved = ensureWorkspacePath(dbPath);
-  const realPath = await realpath(resolved);
+  const realPath = await realpath(/* turbopackIgnore: true */ resolved);
   const safeRealPath = assertPathWithinRoot(realPath, WORKSPACE_ROOT);
   const db = openSqliteDatabase({ dbPath: safeRealPath, readonly: true, enableWal: false });
   try {

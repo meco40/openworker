@@ -151,13 +151,13 @@ export function ensureTaskWorkspace(taskId: string, type = 'general'): string {
 
 export function deleteTaskWorkspace(taskId: string): void {
   const rootPath = resolveTaskWorkspacesRoot();
-  if (!fs.existsSync(rootPath)) return;
+  if (!fs.existsSync(/* turbopackIgnore: true */ rootPath)) return;
 
   const candidateDirs = new Set<string>();
   const deterministicDir = resolveTaskWorkspaceDirectory(taskId);
   candidateDirs.add(deterministicDir);
 
-  const entries = fs.readdirSync(rootPath, { withFileTypes: true });
+  const entries = fs.readdirSync(/* turbopackIgnore: true */ rootPath, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const dirPath = `${rootPath}${path.sep}${entry.name}`;
@@ -168,7 +168,7 @@ export function deleteTaskWorkspace(taskId: string): void {
   }
 
   for (const dirPath of candidateDirs) {
-    if (!fs.existsSync(dirPath)) continue;
+    if (!fs.existsSync(/* turbopackIgnore: true */ dirPath)) continue;
     fs.rmSync(dirPath, { recursive: true, force: true });
   }
 }
@@ -185,7 +185,7 @@ export function cleanupOrphanTaskWorkspaces(
   activeTaskIds: Iterable<string>,
 ): TaskWorkspaceCleanupReport {
   const rootPath = resolveTaskWorkspacesRoot();
-  if (!fs.existsSync(rootPath)) {
+  if (!fs.existsSync(/* turbopackIgnore: true */ rootPath)) {
     return {
       scanned: 0,
       removed: 0,
@@ -210,7 +210,7 @@ export function cleanupOrphanTaskWorkspaces(
     }
   }
 
-  const entries = fs.readdirSync(rootPath, { withFileTypes: true });
+  const entries = fs.readdirSync(/* turbopackIgnore: true */ rootPath, { withFileTypes: true });
   let scanned = 0;
   let removed = 0;
   let kept = 0;

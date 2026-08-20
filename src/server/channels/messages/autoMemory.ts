@@ -1,7 +1,6 @@
 import type { MemoryType } from '@/core/memory/types';
 import type { StoredMessage } from '@/server/channels/messages/repository';
 import { detectRecurrence } from '@/server/knowledge/recurrenceDetector';
-import { isMem0TypeAllowed } from '@/server/world-model/mem0Policy';
 
 export interface AutoMemoryCandidate {
   type: MemoryType;
@@ -82,8 +81,7 @@ function classifyCandidate(content: string): AutoMemoryCandidate | null {
   const hasDateMarker = containsDateMarker(lower);
 
   if (hasEventKeyword || hasClockTime || hasDateMarker) {
-    const candidate: AutoMemoryCandidate = { type: 'fact', content: clipText(text), importance: 4 };
-    return isMem0TypeAllowed(candidate.type) ? candidate : null;
+    return { type: 'fact', content: clipText(text), importance: 4 };
   }
 
   if (

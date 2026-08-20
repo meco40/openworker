@@ -2,8 +2,10 @@ import { getWorldModelDb, runWithWorldModelScope } from '@/server/world-model/db
 import {
   addGraphitiMessages,
   graphitiGroupId,
+  getGraphitiQueueStatus,
   upsertGraphitiNodes,
   upsertGraphitiEdges,
+  waitForGraphitiQueue,
   type GraphitiNode,
   type GraphitiEdge,
   type GraphitiMessage,
@@ -84,7 +86,7 @@ export async function projectOutboxEvent(event: OutboxEvent): Promise<Projection
 
         const result = await addGraphitiMessages(segment, [
           {
-            uuid: event.aggregateId,
+            uuid: `observation:${event.aggregateId}`,
             name: 'world-model-observation',
             content: text,
             roleType: 'system',
@@ -123,6 +125,8 @@ export async function projectOutboxEvent(event: OutboxEvent): Promise<Projection
           source: subjectNode.id,
           target: objectNode.id,
           type: predicate,
+          sourceLabel: subjectNode.label,
+          targetLabel: objectNode.label,
           properties: {
             segment,
             confidence: payload.confidence,
@@ -157,7 +161,7 @@ export async function projectOutboxEvent(event: OutboxEvent): Promise<Projection
           .join('; ');
         const result = await addGraphitiMessages(segment, [
           {
-            uuid: event.aggregateId,
+            uuid: `event:${event.aggregateId}`,
             name: title,
             content: eventDetails ? `${title} (${eventDetails})` : title,
             roleType: 'system',
@@ -196,6 +200,8 @@ export async function projectOutboxEvent(event: OutboxEvent): Promise<Projection
           source: sourceNode.id,
           target: targetNode.id,
           type: relationType,
+          sourceLabel: sourceNode.label,
+          targetLabel: targetNode.label,
           properties: {
             segment,
             confidence: payload.confidence,
@@ -325,6 +331,7 @@ function toRebuildObservationMessage(row: RebuildRow): GraphitiMessage | null {
   const text = boundedGraphitiText(observationText(row.payload));
   if (!text) return null;
   return {
+    uuid: `observation:${row.id}`,
     name: 'world-model-observation',
     content: text,
     roleType: 'system',
@@ -383,6 +390,7 @@ async function rebuildGraphitiFromPostgresInScope(input: {
     personaId: input.personaId,
     workspaceId: input.workspaceId,
   };
+  const queueBaseline = await getGraphitiQueueStatus();
 
   if (!input.resume) await resetRebuildCheckpoints(db, scope);
 
@@ -480,5 +488,6 @@ async function rebuildGraphitiFromPostgresInScope(input: {
     }
   }
 
+  await waitForGraphitiQueue({ baselineFailedJobs: queueBaseline.failedJobs });
   return result;
 }

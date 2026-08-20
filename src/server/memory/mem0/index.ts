@@ -16,6 +16,8 @@ export type {
   Mem0ListMemoryResult,
   Mem0HistoryEntry,
   Mem0Client,
+  Mem0Scope,
+  MemoryProviderKind,
   EnvLike,
   RequestOptions,
   RequestInit,

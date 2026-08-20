@@ -124,7 +124,7 @@ describe('memory runtime configuration', () => {
 
     expect(getMemoryRuntimeReadyState()).toBe(false);
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('gateway continuing without confirmed Mem0 readiness'),
+      expect.stringContaining('gateway continuing without confirmed memory provider readiness'),
     );
   });
 
@@ -146,7 +146,7 @@ describe('memory runtime configuration', () => {
 
     expect(listMemories).toHaveBeenCalledTimes(3);
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('scheduler Mem0 readiness probe failed'),
+      expect.stringContaining('scheduler memory provider readiness probe failed'),
     );
   });
 
@@ -178,10 +178,10 @@ describe('memory runtime configuration', () => {
     expect(getMemoryRuntimeReadyState()).toBe(true);
     expect(listMemories).toHaveBeenCalledTimes(2);
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('gateway Mem0 readiness probe failed'),
+      expect.stringContaining('gateway memory provider readiness probe failed'),
     );
     expect(infoSpy).toHaveBeenCalledWith(
-      expect.stringContaining('gateway Mem0 connectivity ready after retry 1/2'),
+      expect.stringContaining('gateway memory provider connectivity ready after retry 1/2'),
     );
   });
 

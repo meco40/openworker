@@ -17,7 +17,7 @@ export function getDb(): Database.Database {
     db = null;
   }
   if (!db) {
-    const isNewDb = !fs.existsSync(targetPath);
+    const isNewDb = !fs.existsSync(/* turbopackIgnore: true */ targetPath);
 
     db = new Database(targetPath);
     db.pragma('journal_mode = WAL');

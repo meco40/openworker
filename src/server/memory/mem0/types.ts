@@ -23,6 +23,7 @@ export interface Mem0ClientConfig {
 export interface Mem0MemoryInput {
   userId: string;
   personaId: string;
+  workspaceId?: string;
   content: string;
   metadata: Record<string, unknown>;
 }
@@ -30,6 +31,7 @@ export interface Mem0MemoryInput {
 export interface Mem0SearchInput {
   userId: string;
   personaId: string;
+  workspaceId?: string;
   query: string;
   limit: number;
   /** Optional metadata filters passed through to the Mem0 search endpoint. */
@@ -39,6 +41,7 @@ export interface Mem0SearchInput {
 export interface Mem0ListInput {
   userId: string;
   personaId?: string;
+  workspaceId?: string;
   page: number;
   pageSize: number;
   query?: string;
@@ -76,16 +79,27 @@ export interface Mem0HistoryEntry {
   raw: Record<string, unknown>;
 }
 
+export interface Mem0Scope {
+  userId: string;
+  personaId: string;
+  workspaceId?: string;
+}
+
+export type MemoryProviderKind = 'postgres' | 'mem0' | 'sqlite';
+
 export interface Mem0Client {
   /** Identifies the backing store for mapper/health metadata without widening the API. */
-  readonly provider?: 'mem0' | 'sqlite';
-  addMemory(input: Mem0MemoryInput, signal?: AbortSignal): Promise<{ id: string | null }>;
+  readonly provider?: MemoryProviderKind;
+  addMemory(
+    input: Mem0MemoryInput,
+    signal?: AbortSignal,
+  ): Promise<{ id: string | null; created?: boolean }>;
   searchMemories(input: Mem0SearchInput): Promise<Mem0SearchHit[]>;
   listMemories(input: Mem0ListInput): Promise<Mem0ListMemoryResult>;
-  getMemory(id: string): Promise<Mem0MemoryRecord | null>;
-  getMemoryHistory(id: string): Promise<Mem0HistoryEntry[]>;
-  updateMemory(id: string, input: Mem0MemoryInput): Promise<void>;
-  deleteMemory(id: string): Promise<void>;
+  getMemory(id: string, scope?: Mem0Scope): Promise<Mem0MemoryRecord | null>;
+  getMemoryHistory(id: string, scope?: Mem0Scope): Promise<Mem0HistoryEntry[]>;
+  updateMemory(id: string, input: Mem0MemoryInput, scope?: Mem0Scope): Promise<void>;
+  deleteMemory(id: string, scope?: Mem0Scope): Promise<void>;
   deleteMemoriesByFilter(input: { userId: string; personaId: string }): Promise<number>;
 }
 

@@ -4,7 +4,20 @@ This document describes the complete memory system architecture, covering the fu
 
 ## Overview
 
-The memory system is a multi-layered architecture that enables the AI assistant to maintain context across conversations and learn from interactions. It combines **semantic vector search** (Mem0) with **structured episodic memory** (Knowledge Repository) and **local backup storage** (SQLite).
+The memory system is a multi-layered architecture that enables the AI assistant to maintain context across conversations and learn from interactions. PostgreSQL/pgvector in the World Model is the canonical system of record for memory items, structured facts, embeddings and history. Graphiti, Knowledge and Mem0 are derived or compatibility projections; SQLite remains a local legacy fallback.
+
+## Current canonical state
+
+`MEMORY_PROVIDER=postgres` is the standard runtime. CRUD, history, feedback,
+idempotency and semantic recall for generic memory nodes are persisted in
+`world_model_memory_items` and `world_model_memory_item_history`. The embedding
+worker stores versioned vectors in `world_model_embeddings` with
+`target_type=memory`, using the active Model-Hub embedding profile.
+
+Mem0 is not required for normal operation. The explicit migration command
+`pnpm run memory:migrate-to-postgres -- --scope all --apply` imports known Mem0
+scopes idempotently and writes a coverage report. Because Mem0 has no
+provider-wide list endpoint, a report must retain its scope-coverage limitation.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -29,7 +42,7 @@ The memory system is a multi-layered architecture that enables the AI assistant 
 │  │                  │   │                              │   │    SEARCH   │ │
 │  │ Skip if trivial: │   │ resolveEntity("mein Bruder") │   │             │ │
 │  │ "ok", "thanks",  │   │  → KnowledgeEntity: Max      │   │ ┌─────────┐ │ │
-│  │ "yes", "hello"   │   │                              │   │ │  MEM0   │ │ │
+│  │ "yes", "hello"   │   │                              │   │ │POSTGRES │ │ │
 │  │                  │   │ resolvePronouns("er")        │   │ │Semantic │ │ │
 │  │ → skip retrieval │   │  → "Max"                     │   │ │ Search  │ │ │
 │  │                  │   │                              │   │ │score≥0.3│ │ │
@@ -95,8 +108,8 @@ The memory system is a multi-layered architecture that enables the AI assistant 
 │  ╠═══════════════════════════════════════════════════════════════════════╣ │
 │  ║                                                                       ║ │
 │  ║  ┌─────────────────────┐   ┌──────────────────────────────────────┐  ║  │
-│  ║  │    MEM0 CLOUD       │   │         KNOWLEDGE REPOSITORY         │  ║  │
-│  ║  │  (Semantic Memory)  │   │                                      │  ║  │
+│  ║  │ POSTGRESQL WORLD MODEL │   │      KNOWLEDGE REPOSITORY        │  ║  │
+│  ║  │  (Canonical Memory)    │   │                                  │  ║  │
 │  ║  │                     │   │  Phase 1  Episodes (topicKey, facts) │  ║  │
 │  ║  │ Vector embeddings   │   │           Meeting Ledgers            │  ║  │
 │  ║  │ Similarity search   │   │           (decisions, actionItems)   │  ║  │
@@ -221,11 +234,12 @@ This layer is ephemeral and cleared when the session ends.
 
 ### Layer 2: Long-Term Memory
 
-Persistent storage with three complementary stores:
+Persistent storage has one canonical store and optional projections:
 
-1. **Mem0**: Semantic vector database for similarity search
-2. **Knowledge Repository**: Structured episodic memory (episodes, meeting ledgers)
-3. **SQLite**: Durable local fallback with the same service contract; recall is deterministic lexical search because no embedding service is assumed
+1. **PostgreSQL World Model**: Canonical memory items, structured truth, history and pgvector search
+2. **Knowledge Repository**: Derived/compatible episodic memory and meeting ledgers
+3. **Mem0**: Optional legacy compatibility projection and migration source
+4. **SQLite**: Durable local fallback for explicitly configured legacy/offline operation
 
 ---
 
@@ -264,7 +278,7 @@ const resolved = knowledgeRepo.resolveEntity('mein Bruder', { userId, personaId 
 // Subsequent queries are scoped to episodes/ledgers where counterpart = 'ent-abc'
 ```
 
-**Self-Reference Query Expansion**: `MemoryService` additionally expands perspective pronouns before the Mem0 search. When the user asks `"Was kannst du?"`, the query is also sent as `"Was kann ich?"` — ensuring persona self-reference memories (stored in first-person) surface for second-person queries and vice versa.
+**Self-Reference Query Expansion**: `MemoryService` additionally expands perspective pronouns before the canonical PostgreSQL search. When the user asks `"Was kannst du?"`, the query is also sent as `"Was kann ich?"` — ensuring persona self-reference memories (stored in first-person) surface for second-person queries and vice versa.
 
 ```typescript
 // Implemented in MemoryService.expandSelfReferenceQuery()
@@ -286,12 +300,12 @@ This classification prevents the LLM from confusing persona self-memories with f
 
 When retrieval is warranted, three sources are queried in parallel:
 
-#### A. Mem0 Semantic Search
+#### A. PostgreSQL/pgvector Semantic Search
 
 ```typescript
 // Query is converted to vector embedding
 // Similarity search against stored memory vectors
-const mem0Results = await mem0Client.search({
+const postgresResults = await memoryService.recall({
   query: userInput,
   userId: scope.userId,
   personaId: scope.personaId,
@@ -501,9 +515,22 @@ async function ingestConversationWindow(messages: Message[]) {
 
 ## Long-Term Memory Stores
 
-### Mem0 Cloud (Semantic Memory)
+### PostgreSQL World Model (Canonical Memory)
 
-Primary storage for vector-based semantic search.
+Primary storage for vector-based semantic search and generic long-term memory.
+The canonical tables are `world_model_memory_items` and
+`world_model_memory_item_history`; vectors are rebuilt into
+`world_model_embeddings` by the World-Model embedding worker.
+
+The existing `MemoryService` keeps its public API stable while its default
+adapter is `PostgresMemoryClient`. The Mem0-shaped contract is retained only
+for source compatibility with older callers.
+
+### Mem0 Compatibility Projection (Optional)
+
+Mem0 is no longer authoritative and is not required by the PostgreSQL runtime.
+It may be started temporarily to migrate a known scope or to support an
+explicit legacy deployment. New application writes must use PostgreSQL.
 
 **Capabilities**:
 
@@ -606,7 +633,8 @@ Every knowledge retrieval call is logged with stage statistics and token counts,
 
 ### SQLite Backup (Local Fallback)
 
-Local durable storage used by `MEMORY_PROVIDER=sqlite` for offline operation.
+Local durable storage used only by an explicit `MEMORY_PROVIDER=sqlite` legacy
+or offline deployment.
 The runtime wires it through `SqliteMemoryClient`, not merely through a test
 repository. It provides scoped CRUD, history, pagination, lexical recall and
 idempotent named stores.
@@ -1115,15 +1143,16 @@ const result = await knowledgeRetrieval.buildContext({
 
 #### Core Memory Settings
 
-| Variable                   | Description                           | Required         | Default |
-| -------------------------- | ------------------------------------- | ---------------- | ------- |
-| `MEMORY_PROVIDER`          | Storage provider (`mem0` or `sqlite`) | Yes              | -       |
-| `MEM0_BASE_URL`            | Mem0 API base URL                     | If provider=mem0 | -       |
-| `MEM0_API_KEY`             | Mem0 API authentication key           | If provider=mem0 | -       |
-| `MEM0_API_PATH`            | API version path                      | No               | `/v1`   |
-| `MEM0_TIMEOUT_MS`          | Request timeout in milliseconds       | No               | `5000`  |
-| `MEM0_MAX_RETRIES`         | Number of retry attempts              | No               | `0`     |
-| `MEM0_RETRY_BASE_DELAY_MS` | Base delay for exponential backoff    | No               | `500`   |
+| Variable                   | Description                                       | Required                      | Default                             |
+| -------------------------- | ------------------------------------------------- | ----------------------------- | ----------------------------------- |
+| `MEMORY_PROVIDER`          | Storage provider (`postgres`, `mem0` or `sqlite`) | Yes                           | `postgres` in the canonical example |
+| `CANONICAL_DATABASE_URL`   | PostgreSQL/pgvector connection URL                | If provider=postgres          | -                                   |
+| `MEM0_BASE_URL`            | Optional legacy Mem0 API base URL                 | If provider=mem0 or migration | -                                   |
+| `MEM0_API_KEY`             | Optional legacy Mem0 API token                    | If provider=mem0 or migration | -                                   |
+| `MEM0_API_PATH`            | API version path                                  | No                            | `/v1`                               |
+| `MEM0_TIMEOUT_MS`          | Request timeout in milliseconds                   | No                            | `5000`                              |
+| `MEM0_MAX_RETRIES`         | Number of retry attempts                          | No                            | `0`                                 |
+| `MEM0_RETRY_BASE_DELAY_MS` | Base delay for exponential backoff                | No                            | `500`                               |
 
 #### SQLite Settings
 
@@ -1198,9 +1227,9 @@ Not-found conditions are **not** signaled by exceptions — affected methods ret
 | Error                        | Cause                                           | Handling                                                           |
 | ---------------------------- | ----------------------------------------------- | ------------------------------------------------------------------ |
 | `MemoryVersionConflictError` | `expectedVersion` doesn’t match current version | Thrown by `update()` and `restoreFromHistory()` — reload and retry |
-| `Mem0ConnectionError`        | Cannot reach Mem0 service                       | Fall back to SQLite if available                                   |
-| `Mem0TimeoutError`           | Request exceeded timeout                        | Retry with exponential backoff                                     |
-| `Mem0AuthenticationError`    | Invalid API key                                 | Log error and fail fast                                            |
+| `Mem0ConnectionError`        | Explicit legacy Mem0 is unavailable             | Abort legacy path; canonical PostgreSQL is unaffected              |
+| `Mem0TimeoutError`           | Explicit legacy request exceeded timeout        | Retry with exponential backoff                                     |
+| `Mem0AuthenticationError`    | Explicit legacy API key is invalid              | Log error and fail fast                                            |
 
 ### Retry Logic
 
@@ -1232,7 +1261,7 @@ Non-retried errors:
 ### Recall Pipeline Optimization
 
 1. **Decision Gate**: Skipping retrieval for trivial inputs saves ~100-200ms
-2. **Parallel Search**: Simultaneous Mem0 + Knowledge queries reduce latency
+2. **Parallel Search**: Simultaneous PostgreSQL + Knowledge queries reduce latency
 3. **Caching**: Recently recalled memories are cached per conversation
 4. **Early Termination**: Search stops when sufficient high-quality results found
 
@@ -1240,7 +1269,7 @@ Non-retried errors:
 
 1. **Batching**: Multiple auto-memories are batched into single write
 2. **Async Ingestion**: Knowledge extraction runs asynchronously
-3. **Lazy Sync**: SQLite sync with Mem0 is deferred when possible
+3. **Lazy Projection**: Graphiti/Knowledge projections are rebuilt asynchronously
 
 ### Query Patterns
 

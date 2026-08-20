@@ -19,7 +19,7 @@ export interface ServerEventMap {
       | 'time_expired'
       | 'reactivated'
       | 'garbage_collected';
-    provider: 'mem0' | 'sqlite';
+    provider: 'postgres' | 'mem0' | 'sqlite';
     at: string;
   };
   'chat.message.persisted': {

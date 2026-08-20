@@ -300,11 +300,9 @@ services:
       MESSAGES_DB_PATH: /app/.local/messages.db
       MEMORY_DB_PATH: /app/.local/memory.db
       # Memory Service
-      MEMORY_PROVIDER: ${MEMORY_PROVIDER:-mem0}
-      MEM0_BASE_URL: ${MEM0_BASE_URL}
-      MEM0_API_KEY: ${MEM0_API_KEY}
-      MEM0_API_PATH: ${MEM0_API_PATH:-/v1}
-      MEM0_TIMEOUT_MS: ${MEM0_TIMEOUT_MS:-5000}
+      MEMORY_PROVIDER: ${MEMORY_PROVIDER:-postgres}
+      WORLD_MODEL_MODE: ${WORLD_MODEL_MODE:-canonical}
+      WORLD_MODEL_APP_DATABASE_URL: ${WORLD_MODEL_APP_DATABASE_URL}
       # AI Provider
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       MEMORY_EMBEDDING_MODEL: ${MEMORY_EMBEDDING_MODEL}
@@ -356,9 +354,9 @@ services:
       MESSAGES_DB_PATH: /app/.local/messages.db
       MEMORY_DB_PATH: /app/.local/memory.db
       # Memory Service
-      MEMORY_PROVIDER: ${MEMORY_PROVIDER:-mem0}
-      MEM0_BASE_URL: ${MEM0_BASE_URL}
-      MEM0_API_KEY: ${MEM0_API_KEY}
+      MEMORY_PROVIDER: ${MEMORY_PROVIDER:-postgres}
+      WORLD_MODEL_MODE: ${WORLD_MODEL_MODE:-canonical}
+      WORLD_MODEL_WORKER_DATABASE_URL: ${WORLD_MODEL_WORKER_DATABASE_URL}
       # AI Provider
       GEMINI_API_KEY: ${GEMINI_API_KEY}
     volumes:
@@ -617,15 +615,16 @@ sudo systemctl restart openclaw-web.service
 
 ### Memory Service Configuration
 
-| Variable                   | Default | Required | Description                                     |
-| -------------------------- | ------- | -------- | ----------------------------------------------- |
-| `MEMORY_PROVIDER`          | `mem0`  | No       | Memory backend: `mem0`, `sqlite`                |
-| `MEM0_BASE_URL`            | -       | Yes\*    | Mem0 API base URL (\*required if provider=mem0) |
-| `MEM0_API_KEY`             | -       | No       | Mem0 API authentication token                   |
-| `MEM0_API_PATH`            | `/v1`   | No       | Mem0 API version path                           |
-| `MEM0_TIMEOUT_MS`          | `5000`  | No       | Request timeout in milliseconds                 |
-| `MEM0_MAX_RETRIES`         | `3`     | No       | Number of retry attempts                        |
-| `MEM0_RETRY_BASE_DELAY_MS` | `1000`  | No       | Base delay for exponential backoff              |
+| Variable                   | Default    | Required | Description                                                              |
+| -------------------------- | ---------- | -------- | ------------------------------------------------------------------------ |
+| `MEMORY_PROVIDER`          | `postgres` | Yes      | Canonical backend: `postgres`; `mem0`/`sqlite` are explicit legacy modes |
+| `CANONICAL_DATABASE_URL`   | -          | Yes\*    | PostgreSQL/pgvector URL (\*or explicit app/worker URL)                   |
+| `MEM0_BASE_URL`            | -          | Yes\*    | Legacy Mem0 URL (\*only if provider=mem0 or migration)                   |
+| `MEM0_API_KEY`             | -          | Yes\*    | Legacy Mem0 token (\*only if provider=mem0 or migration)                 |
+| `MEM0_API_PATH`            | `/v1`      | No       | Mem0 API version path                                                    |
+| `MEM0_TIMEOUT_MS`          | `5000`     | No       | Request timeout in milliseconds                                          |
+| `MEM0_MAX_RETRIES`         | `3`        | No       | Number of retry attempts                                                 |
+| `MEM0_RETRY_BASE_DELAY_MS` | `1000`     | No       | Base delay for exponential backoff                                       |
 
 ### AI Provider Configuration
 
@@ -683,11 +682,11 @@ PORT=3000
 MESSAGES_DB_PATH=/opt/openclaw/.local/messages.db
 MEMORY_DB_PATH=/opt/openclaw/.local/memory.db
 
-# Memory Service
-MEMORY_PROVIDER=mem0
-MEM0_BASE_URL=https://api.mem0.ai
-MEM0_API_KEY=your-mem0-api-key
-MEM0_TIMEOUT_MS=5000
+# Memory Service (canonical PostgreSQL)
+MEMORY_PROVIDER=postgres
+WORLD_MODEL_MODE=canonical
+WORLD_MODEL_APP_DATABASE_URL=postgresql://world_model_app:<password>@<host>:5432/<database>
+WORLD_MODEL_WORKER_DATABASE_URL=postgresql://world_model_worker:<password>@<host>:5432/<database>
 
 # AI Provider
 GEMINI_API_KEY=your-gemini-api-key
@@ -1537,26 +1536,25 @@ echo "REINDEX;" | sqlite3 /opt/openclaw/.local/messages.db
 echo "VACUUM;" | sqlite3 /opt/openclaw/.local/messages.db
 ```
 
-### Memory (Mem0) Connection Issues
+### Memory (PostgreSQL) Connection Issues
 
 **Symptoms:** AI responses lack context, memory errors in logs
 
 ```bash
-# Test Mem0 connectivity
-curl -H "Authorization: Token $MEM0_API_KEY" \
-     "$MEM0_BASE_URL/v1/memories/?user_id=test"
+# Test canonical PostgreSQL connectivity and migration state
+psql "$CANONICAL_DATABASE_URL" -c "SELECT current_user, to_regclass('public.world_model_memory_items');"
 
 # Check environment
 echo $MEMORY_PROVIDER
-echo $MEM0_BASE_URL
+echo $CANONICAL_DATABASE_URL
 ```
 
 **Solutions:**
 
-1. Verify `MEM0_BASE_URL` is reachable from server
-2. Check `MEMORY_PROVIDER=mem0` is set
-3. Verify API key has correct permissions
-4. For production, Mem0 configuration is mandatory
+1. Verify the PostgreSQL URL and `world_model_app`/`world_model_worker` role permissions
+2. Check `MEMORY_PROVIDER=postgres` and `WORLD_MODEL_MODE=canonical`
+3. Run the World-Model migration runner before starting the application
+4. Use `memory:migrate-to-postgres` only for an explicit legacy Mem0 inventory
 
 ### WebSocket Connection Problems
 

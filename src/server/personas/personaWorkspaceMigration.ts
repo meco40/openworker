@@ -88,7 +88,7 @@ export function migrateLegacyAttachmentsToPersonaWorkspaces(): {
         } catch {
           sourcePath = path.resolve(LEGACY_CHAT_UPLOADS_ROOT, storagePath);
         }
-        if (!fs.existsSync(sourcePath)) {
+        if (!fs.existsSync(/* turbopackIgnore: true */ sourcePath)) {
           return attachment;
         }
 

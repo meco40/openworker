@@ -37,6 +37,31 @@ describe('autoMemory candidate builder', () => {
     expect(candidates.some((item) => item.type === 'fact')).toBe(true);
   });
 
+  it('keeps factual candidates when PostgreSQL is the canonical memory provider', () => {
+    const previous = process.env.WORLD_MODEL_MODE;
+    process.env.WORLD_MODEL_MODE = 'canonical';
+
+    try {
+      const candidates = buildAutoMemoryCandidates([
+        msg('user', 'Morgen um 15:00 habe ich einen Zahnarzttermin.'),
+      ]);
+
+      expect(candidates).toEqual([
+        {
+          type: 'fact',
+          content: 'Morgen um 15:00 habe ich einen Zahnarzttermin.',
+          importance: 4,
+        },
+      ]);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.WORLD_MODEL_MODE;
+      } else {
+        process.env.WORLD_MODEL_MODE = previous;
+      }
+    }
+  });
+
   it('skips explicit save trigger content to avoid duplicate auto-store', () => {
     const candidates = buildAutoMemoryCandidates([
       msg('user', 'Speichere ab: Ich trinke Kaffee immer schwarz.'),

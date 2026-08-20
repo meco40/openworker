@@ -1,4 +1,4 @@
-export type EmbeddingTargetType = 'assertion' | 'event' | 'task' | 'entity' | 'episode';
+export type EmbeddingTargetType = 'assertion' | 'event' | 'task' | 'entity' | 'episode' | 'memory';
 
 /**
  * Baut den Embedding-Text für ein Ziel. Versioniert über `projection_version`,

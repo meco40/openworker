@@ -20,7 +20,7 @@ import {
  */
 
 export interface EmbeddingTarget {
-  targetType: 'observation' | 'assertion' | 'event' | 'task' | 'entity' | 'episode';
+  targetType: 'observation' | 'assertion' | 'event' | 'task' | 'entity' | 'episode' | 'memory';
   targetId: string;
   scope: WorldModelScope;
   text: string;
@@ -103,6 +103,33 @@ async function collectEmbeddingTargetsInScope(
       if (built.text) {
         targets.push({
           targetType: 'observation',
+          targetId: row.id,
+          scope: { userId: row.user_id, personaId: row.persona_id, workspaceId: row.workspace_id },
+          text: built.text,
+          textHash: built.textHash,
+        });
+      }
+    }
+
+    const memoryRows = await db.query<{
+      id: string;
+      user_id: string;
+      persona_id: string;
+      workspace_id: string;
+      content: string;
+    }>(
+      `SELECT m.id, m.user_id, m.persona_id, m.workspace_id, m.content
+       FROM world_model_memory_items m
+       WHERE m.deleted_at IS NULL
+       ${scope ? 'AND m.user_id = $1 AND m.persona_id = $2 AND m.workspace_id = $3' : ''}
+       ORDER BY m.updated_at DESC LIMIT ${scope ? '$4' : '$1'}`,
+      scope ? [scope.userId, scope.personaId, scope.workspaceId ?? '', limit] : [limit],
+    );
+    for (const row of memoryRows.rows) {
+      const built = buildEmbeddingText({ targetType: 'memory', content: [row.content] });
+      if (built.text) {
+        targets.push({
+          targetType: 'memory',
           targetId: row.id,
           scope: { userId: row.user_id, personaId: row.persona_id, workspaceId: row.workspace_id },
           text: built.text,
