@@ -233,6 +233,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Prepare World Model PostgreSQL schema
+        run: pnpm exec tsx -e "import { runWorldModelMigrations } from './src/server/world-model/db'; (async () => console.log(await runWorldModelMigrations()))();"
+
       - name: Cache Vitest
         uses: actions/cache@v4
         with:

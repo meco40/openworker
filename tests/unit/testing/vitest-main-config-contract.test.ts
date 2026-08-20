@@ -62,6 +62,7 @@ describe('main vitest config', () => {
       'tests/unit/channels/message-service-*.test.ts',
       'tests/unit/channels/telegram-*.test.ts',
       'tests/unit/server/summaryService-perf.test.ts',
+      'tests/unit/world-model/retrieval.test.ts',
       'tests/unit/components/**/*.test.{ts,tsx}',
     ]);
 
@@ -70,6 +71,7 @@ describe('main vitest config', () => {
       'tests/unit/channels/message-service-*.test.ts',
       'tests/unit/channels/telegram-*.test.ts',
       'tests/unit/server/summaryService-perf.test.ts',
+      'tests/unit/world-model/retrieval.test.ts',
     ]);
 
     expect(coreIsolatedConfig.isolate).toBe(true);

@@ -22,6 +22,7 @@
 ## [PROGRESS]
 
 - 2026-08-20T18:35:00+02:00 [TOOL] GitHub Blocking Gates root cause isolated: the test job had no PostgreSQL service while `graphiti-shadow-comparison.test.ts` ran unconditionally; CI now provisions `pgvector/pg17`, enables only the dedicated `GRAPHITI_SHADOW_E2E` scenario, and the test performs its own migrations before execution. Global `WORLD_MODEL_E2E` activation was rejected because it enables unrelated suites with shared-state failures; CI keeps the existing default DB URL so isolated environment-guard tests remain valid. Local full suite passed (608 files, 3036 tests); commit/push pending.
+- 2026-08-20T18:45:00+02:00 [TOOL] First pushed CI fix removed the PostgreSQL connection failure, but GitHub exposed a separate `unit-fast` module-mock leak: `tests/unit/world-model/retrieval.test.ts` inherited a DB mock without `runWithWorldModelScope`. The test is now assigned to `unit-isolated`, and CI initializes PostgreSQL migrations before the full suite. A follow-up commit/push is required.
 
 - 2026-08-18T21:40:00+02:00 [TOOL] Ist-Zustand erfasst: World Model Fundament (Phasen 0-6 teilweise vorhanden).
 - 2026-08-18T22:08:00+02:00 [CODE] Phasen 7-9 (Proaktive Sekretaerin): Open-Loop-Zustellung, Standing Intents, Heartbeat, Antwortkorrelation, Klärung, Benachrichtigungspolitik + Scheduler-Verdrahtung + Outbox-Handler + Env-Doku.
