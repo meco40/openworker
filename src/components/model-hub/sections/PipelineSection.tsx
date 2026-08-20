@@ -8,16 +8,22 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
   pipeline,
   isLoadingEmbeddingPipeline,
   embeddingPipeline,
+  isLoadingGraphitiPipeline = false,
+  graphitiPipeline = [],
   providerLookup,
   providerAccounts,
   onOpenAddModelModal,
   onOpenAddEmbeddingModelModal,
+  onOpenAddGraphitiModelModal = () => {},
   onToggleModelStatus,
   onMoveModel,
   onRemoveModelFromPipeline,
   onToggleEmbeddingModelStatus,
   onMoveEmbeddingModel,
   onRemoveEmbeddingModelFromPipeline,
+  onToggleGraphitiModelStatus = () => {},
+  onMoveGraphitiModel = () => {},
+  onRemoveGraphitiModelFromPipeline = () => {},
   isLoadingAccounts,
   deletingAccountId,
   onSetDeletingAccountId,
@@ -26,6 +32,9 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
 }) => {
   const hasEmbeddingCapableAccount = providerAccounts.some((account) =>
     providerLookup.get(account.providerId)?.capabilities.includes('embeddings'),
+  );
+  const hasGraphitiCapableAccount = providerAccounts.some((account) =>
+    providerLookup.get(account.providerId)?.capabilities.includes('chat'),
   );
 
   return (
@@ -119,10 +128,53 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
         />
       </div>
 
+      <div className="mt-8 flex items-center justify-between gap-4 px-2">
+        <h3 className="flex items-center space-x-2 text-xs font-black tracking-[0.2em] text-zinc-500 uppercase">
+          <svg
+            className="h-4 w-4 text-amber-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M5 5h14v14H5zM8 9h8M8 13h5"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span>Active Graphiti JSON Model</span>
+        </h3>
+        <button
+          onClick={onOpenAddGraphitiModelModal}
+          disabled={!hasGraphitiCapableAccount}
+          className="rounded-xl bg-amber-600 px-4 py-2 text-[10px] font-black tracking-widest text-white uppercase transition-all hover:bg-amber-500 disabled:bg-zinc-800 disabled:text-zinc-600"
+        >
+          Graphiti JSON hinzufügen
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        <PipelineCards
+          isLoading={isLoadingGraphitiPipeline}
+          models={graphitiPipeline}
+          showPrimaryBadge
+          emptyTitle="Kein Graphiti JSON-Modell konfiguriert"
+          emptyDescription="Füge ein Chat-Modell hinzu, das Graphiti für strukturierte JSON-Extraktion verwenden soll."
+          providerLookup={providerLookup}
+          providerAccounts={providerAccounts}
+          onToggleStatus={onToggleGraphitiModelStatus}
+          onMove={onMoveGraphitiModel}
+          onRemove={onRemoveGraphitiModelFromPipeline}
+          probeRateLimitsByAccountId={probeRateLimitsByAccountId}
+        />
+      </div>
+
       <ProviderAccountsPanel
         providerAccounts={providerAccounts}
         providerLookup={providerLookup}
         pipeline={pipeline}
+        additionalPipelines={[embeddingPipeline, graphitiPipeline]}
         isLoadingAccounts={isLoadingAccounts}
         deletingAccountId={deletingAccountId}
         onSetDeletingAccountId={onSetDeletingAccountId}

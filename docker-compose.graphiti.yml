@@ -28,13 +28,18 @@ services:
       graphiti-neo4j:
         condition: service_healthy
     environment:
-      OPENAI_API_KEY: ${GRAPHITI_OPENAI_API_KEY:?GRAPHITI_OPENAI_API_KEY must be set}
-      OPENAI_BASE_URL: ${GRAPHITI_OPENAI_BASE_URL:-https://api.openai.com/v1}
+      # Graphiti talks to the app's internal Model-Hub adapter. The actual
+      # provider OAuth secret stays encrypted in the app's Model-Hub database.
+      OPENAI_API_KEY: ${GRAPHITI_MODEL_HUB_TOKEN:?GRAPHITI_MODEL_HUB_TOKEN must be set}
+      OPENAI_BASE_URL: ${GRAPHITI_OPENAI_BASE_URL:-http://host.docker.internal:3000/api/internal/model-hub/graphiti/v1}
+      EMBEDDING_API_KEY: ${GRAPHITI_EMBEDDING_API_KEY:?GRAPHITI_EMBEDDING_API_KEY must be set}
       EMBEDDING_BASE_URL: ${GRAPHITI_EMBEDDING_BASE_URL:-https://api.openai.com/v1}
-      MODEL_NAME: ${GRAPHITI_MODEL_NAME:-openai/gpt-4o-mini}
+      # These are transport names only. The app adapter resolves the active
+      # Model Hub entry from the fixed p1-graphiti profile for every request.
+      MODEL_NAME: ${GRAPHITI_MODEL_NAME:-graphiti-json}
       # Small model used by graphiti_core for cheap subtasks (upstream default
       # gpt-4.1-nano). Empty = same as MODEL_NAME.
-      SMALL_MODEL_NAME: ${GRAPHITI_SMALL_MODEL_NAME:-}
+      SMALL_MODEL_NAME: ${GRAPHITI_SMALL_MODEL_NAME:-graphiti-json}
       EMBEDDING_MODEL_NAME: ${GRAPHITI_EMBEDDING_MODEL_NAME:-text-embedding-v4}
       # DashScope text-embedding-v4 returns native 2048-dimensional vectors;
       # the mounted patch chunks embedding batches to <=10 items (DashScope
@@ -59,6 +64,9 @@ services:
       # ingest.py patch spawns this many so a full rebuild does not serialize
       # every episode across every scope behind one worker.
       QUEUE_WORKERS: ${GRAPHITI_QUEUE_WORKERS:-4}
+      # Bound one LLM/Graphiti episode so a provider stall cannot block the
+      # queue forever. Failed jobs remain visible through /queue-status.
+      QUEUE_JOB_TIMEOUT_SECONDS: ${GRAPHITI_QUEUE_JOB_TIMEOUT_SECONDS:-300}
     volumes:
       # OpenClaw patches against the pinned 0.22.0 server (see docker/graphiti/).
       - ./docker/graphiti/config.py:/app/graph_service/config.py:ro

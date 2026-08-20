@@ -11,8 +11,10 @@ Der lokal verifizierte Stand vom 2026-08-20 ist:
 
 - Healthcheck, Message, Search und scoped Clear funktionieren gegen den lokalen
   Stack.
-- `GRAPHITI_PROJECTOR_ENABLED=false` bleibt aktiv, bis der historische Async-
-  Queue-Abschluss und das Recall-/Precision-Gate abgenommen sind.
+- `GRAPHITI_PROJECTOR_ENABLED=true` ist im lokalen `.env.local` für die
+  Live-Projektion aktiviert. `GRAPHITI_RECALL_ENABLED=false` bleibt bewusst
+  aktiv, bis der historische Async-Queue-Abschluss und das Recall-/Precision-
+  Gate abgenommen sind.
 - Der Ingest-Queue-Worker der gepinnten `zepai/graphiti`-Version verarbeitete
   Nachrichten seriell mit genau einem Worker-Task, und ein einziger nicht
   abgefangener Fehler in `add_episode` (z. B. ein LLM-Fehler) beendete diesen
@@ -20,7 +22,7 @@ Der lokal verifizierte Stand vom 2026-08-20 ist:
   gemountete Patch `docker/graphiti/ingest.py` behebt beides: `QUEUE_WORKERS`
   (Default 4) parallele Worker statt einem, und fehlgeschlagene Episoden
   werden geloggt und übersprungen statt den Worker stillzulegen.
-- Historischer Blocker (2026-08-20, inzwischen gelöst): Die gepinnte
+- Historischer Provider-Blocker (2026-08-20, inzwischen gelöst): Die gepinnte
   `graphiti_core`-Version fragt für die Relation-/Dedup-Extraktion
   (`extract_edges`) intern fest `max_tokens=16384` an — dieser Wert ist im
   installierten Paket hartkodiert und wird von `GRAPHITI_LLM_MAX_TOKENS`
@@ -31,8 +33,9 @@ Der lokal verifizierte Stand vom 2026-08-20 ist:
   von Modellwahl oder Retry-Anzahl; ein voller Rebuild erzeugte dadurch 82
   Entitätsknoten, aber **0 Kanten** (97 Warteschlangen-Jobs, 93 mit HTTP 402
   fehlgeschlagen). Beleg: `docs/audits/world-model/graphiti-queue-completion-current.json`.
-  **Gelöst durch den Wechsel auf Alibaba DashScope** (OpenAI-kompatibler
-  Endpunkt, LLM `qwen-plus`, Embedding `text-embedding-v4`); die
+  **Der damalige Lauf wurde durch Alibaba DashScope** (OpenAI-kompatibler
+  Endpunkt, LLM `qwen-plus`, Embedding `text-embedding-v4`) aus dem
+  OpenRouter-Problem herausgeführt; die
   dortige Free-Tier-Alternative auf OpenRouter (`z-ai/glm-5.2:free`,
   `nvidia/nemotron-3.5-lightning:free`) scheiterte am account-weiten
   Free-Tageskontingent von 1.000 Requests/Tag (429, `X-RateLimit-Remaining: 0`).
@@ -42,6 +45,12 @@ Der lokal verifizierte Stand vom 2026-08-20 ist:
   der Schwelle von 0,90 für Recall oder Precision liegt.
 - Der Evaluator empfiehlt nur bei erreichbarem Backend und ausreichender
   Trefferqualität `enable`; sonst bleibt der Zustand `shadow` oder `fallback`.
+- Der aktive Graphiti-LLM-Pfad läuft jetzt über den internen Model-Hub-Adapter
+  der App und das getrennte Profil `p1-graphiti`. Das Profil kann in der
+  Model-Hub-Oberfläche aus verbundenen Chat-Providern befüllt, priorisiert,
+  deaktiviert und entfernt werden. Graphiti erhält dafür nur ein lokales
+  Bearer-Token; Provider-Secrets bleiben verschlüsselt in der Model-Hub-
+  Datenbank.
 
 ## Unterstützter lokaler Stack
 
@@ -59,41 +68,31 @@ gelöscht.
 
 ## Ollama-Lifecycle der lokalen App
 
-Der normale lokale Start `pnpm run dev` lädt `.env.local`, startet vor Web und
-Scheduler genau einen von der App verwalteten Ollama-Server und stellt sicher,
-dass `OLLAMA_MODEL` (Standard `qwen3:8b`) vorhanden ist. Mit
-`OLLAMA_LIFECYCLE_EXCLUSIVE=true` übernimmt der Dev-Stack den konfigurierten
-Ollama-Port; ein dort laufender Ollama-`serve`-Prozess wird beim App-Start
-beendet und durch den App-eigenen Prozess ersetzt. Beim App-Exit werden Web,
-Scheduler und Ollama gemeinsam beendet. Das Modell bleibt als lokaler
-Festplattenbestand installiert, verursacht außerhalb der laufenden App aber
-keinen Ollama-Prozess und keine Inferenz.
-
-Die Lifecycle-Schalter sind `OLLAMA_LIFECYCLE_ENABLED`,
-`OLLAMA_LIFECYCLE_EXCLUSIVE`, `OLLAMA_MODEL`, `OLLAMA_HOST`,
-`OLLAMA_NUM_PARALLEL`, `OLLAMA_CONTEXT_LENGTH` und `OLLAMA_KEEP_ALIVE`. Beim
-Start führt der Dev-Stack zusätzlich eine minimale lokale Warm-up-Inferenz mit
-`keep_alive=-1` aus und prüft `/api/ps`; dadurch ist der GPU-/CPU-Anteil des
-Modells bereits vor der ersten Graphiti-Anfrage sichtbar. Beim externen
-Graphiti-LLM kann der Lifecycle mit `OLLAMA_LIFECYCLE_ENABLED=false` deaktiviert
-werden.
+Der lokale App-Start verwaltet Ollama nicht. `pnpm run dev` startet
+ausschließlich Web und Scheduler; es prüft, startet, wärmt oder beendet keinen
+Ollama-Prozess. Graphiti verwendet den internen Model-Hub-Adapter und nicht den
+Ollama-Endpunkt auf Port `11434`. Ein eventuell noch installiertes Qwen-Modell
+wird nicht gelöscht, aber beim App-Start weder geladen noch für Graphiti-
+Inferenz verwendet.
 
 ## Konfiguration
 
 ```env
 GRAPHITI_BASE_URL=http://127.0.0.1:8001
 GRAPHITI_SHADOW_ENABLED=true
-GRAPHITI_PROJECTOR_ENABLED=false
+GRAPHITI_PROJECTOR_ENABLED=true
+GRAPHITI_RECALL_ENABLED=false
 GRAPHITI_TIMEOUT_MS=10000
 GRAPHITI_MAX_RETRIES=2
 GRAPHITI_MAX_MESSAGE_CHARS=1200
 GRAPHITI_LLM_MAX_TOKENS=16384
 GRAPHITI_QUEUE_WORKERS=1
 GRAPHITI_SEMAPHORE_LIMIT=1
-GRAPHITI_OPENAI_BASE_URL=http://host.docker.internal:11434/v1
+GRAPHITI_MODEL_HUB_TOKEN=<lokales-internes-bearer-token>
+GRAPHITI_OPENAI_BASE_URL=http://host.docker.internal:3000/api/internal/model-hub/graphiti/v1
 GRAPHITI_EMBEDDING_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-GRAPHITI_MODEL_NAME=qwen3:8b
-GRAPHITI_SMALL_MODEL_NAME=qwen3:8b
+GRAPHITI_MODEL_NAME=graphiti-json
+GRAPHITI_SMALL_MODEL_NAME=graphiti-json
 GRAPHITI_EMBEDDING_MODEL_NAME=text-embedding-v4
 GRAPHITI_EMBEDDING_DIM=2048
 GRAPHITI_SEARCH_CANDIDATES=20
@@ -101,31 +100,44 @@ GRAPHITI_SEARCH_RESULTS=5
 GRAPHITI_QUERY_VARIANTS=3
 ```
 
-Der Compose-Stack verlangt `GRAPHITI_OPENAI_API_KEY` zur Laufzeit. Secrets
-werden ausschließlich über die Umgebung injiziert und nicht in Repo, Plan oder
-Report geschrieben. Modell und Embedding-Modell sind über
-`GRAPHITI_MODEL_NAME` und `GRAPHITI_EMBEDDING_MODEL_NAME` überschreibbar. Der
+Der Compose-Stack verwendet `GRAPHITI_MODEL_HUB_TOKEN` als internes Bearer-Token
+für den Adapter. Provider-Secrets werden ausschließlich im Model Hub gehalten
+und nicht in den Graphiti-Container kopiert oder in Repo, Plan oder Report
+geschrieben. `GRAPHITI_MODEL_NAME` und `GRAPHITI_SMALL_MODEL_NAME` sind nur
+Transportnamen; die tatsächliche LLM-Auswahl kommt dynamisch aus
+`p1-graphiti`. Das Embedding-Modell ist über
+`GRAPHITI_EMBEDDING_MODEL_NAME` überschreibbar. Der
 gemountete Server-Patch baut den OpenAI-kompatiblen Embedder mit diesem Modell
 und `GRAPHITI_EMBEDDING_DIM` tatsächlich auf; die Variable wird nicht nur als
 Dokumentationswert weitergereicht.
 
-**Provider-Stand 2026-08-20:** Der aktuelle Graphiti-LLM-Zweig läuft lokal über
-Ollama mit `qwen3:8b` auf der GTX 1080. Der Embedding-Zweig bleibt absichtlich
-getrennt und nutzt DashScope `text-embedding-v4` mit 2048 Dimensionen. Der
-frühere DashScope-LLM-Stand `qwen-plus` bleibt als verifizierter Fallback
-dokumentiert. Der Wegzug von OpenRouter war notwendig, weil der hinterlegte
-Schlüssel 16k-Token-Anfragen kostenpflichtiger Modelle mit HTTP 402 ablehnte
-und das account-weite Free-Tageskontingent erschöpft war.
+**Provider-Stand 2026-08-20:** Der Graphiti-LLM-Zweig ist auf den Online-Model-
+Hub-Pfad umgestellt. Graphiti ruft
+`http://host.docker.internal:3000/api/internal/model-hub/graphiti/v1` auf; der
+Adapter liest ausschließlich das aktive Profil `p1-graphiti` und dispatcht das
+Modell mit höchster Priorität. Mehrere aktive Einträge bilden den Fallback in
+Prioritätsreihenfolge. Das Profil ist unabhängig von `p1` und
+`p1-embeddings`; ohne aktives Graphiti-Modell antwortet der Adapter mit HTTP 503. Für Codex-Modelle sollte die Graphiti-Pipeline `reasoning_effort=off`
+verwenden. Der Embedding-Zweig bleibt absichtlich getrennt und nutzt DashScope
+`text-embedding-v4` mit 2048 Dimensionen.
 
 Die Endpunkte sind absichtlich getrennt:
-`GRAPHITI_OPENAI_BASE_URL=http://host.docker.internal:11434/v1` und
-`GRAPHITI_MODEL_NAME=qwen3:8b` zeigen auf Ollama, während
+`GRAPHITI_OPENAI_BASE_URL=http://host.docker.internal:3000/api/internal/model-hub/graphiti/v1`
+und `GRAPHITI_MODEL_NAME=graphiti-json` zeigen auf den Model-Hub-Adapter, während
 `GRAPHITI_EMBEDDING_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
-das bestehende `text-embedding-v4` mit 2048 Dimensionen beibehält. Der lokale
-Qwen-Adapter setzt über die OpenAI-kompatible API
-`reasoning_effort=none`, weil Qwen3 sonst seine Thinking-Tokens für die
-Graphiti-Extraktion verbraucht. Für die GTX 1080 werden
-`GRAPHITI_SEMAPHORE_LIMIT=1` und `GRAPHITI_QUEUE_WORKERS=1` empfohlen.
+das bestehende `text-embedding-v4` mit 2048 Dimensionen beibehält. Für den
+Online-Provider bleiben `GRAPHITI_SEMAPHORE_LIMIT=1` und
+`GRAPHITI_QUEUE_WORKERS=1` zunächst bewusst konservativ.
+
+Der Adapter liegt unter
+`app/api/internal/model-hub/graphiti/[...path]/route.ts`. Der globale API-Proxy
+lässt diesen Pfad nur bis zur eigenen Token-Prüfung passieren; Graphiti muss
+`Authorization: Bearer $GRAPHITI_MODEL_HUB_TOKEN` senden. Der Adapter akzeptiert
+nur `/v1/chat/completions`, sucht das aktive Profil `p1-graphiti` und führt den
+Fallback innerhalb dieser Graphiti-Pipeline in Prioritätsreihenfolge aus.
+`response_format` wird bis zum
+Codex-Responses-Adapter durchgereicht, damit Graphitis Pydantic-Schemata nicht
+in freie, formal inkompatible JSON-Antworten umfallen.
 
 Zwei providerbedingte Patch-Pflichten sind zu beachten:
 
@@ -153,6 +165,9 @@ seriell verarbeitet; verdrahtet über den gemounteten
 `docker/graphiti/ingest.py`-Patch, der zugleich sicherstellt, dass eine
 fehlgeschlagene Episode den betroffenen Worker nicht dauerhaft stilllegt
 (Upstream-Fehler: der Worker-Loop fing keine Exceptions ab).
+Jeder einzelne Job ist zusätzlich über `GRAPHITI_QUEUE_JOB_TIMEOUT_SECONDS`
+(Default 300 Sekunden) begrenzt; ein Provider-Hänger blockiert die Queue damit
+nicht dauerhaft.
 
 Für das Retrieval werden pro Anfrage bis zu 20 Graphiti-Kandidaten geladen,
 anschließend lokal dedupliziert und auf fünf Ergebnisse gerankt. Bis zu drei
@@ -164,21 +179,21 @@ Qualitätsmessung validiert die Top-k-Ergebnisse weiterhin gegen PostgreSQL und
 berichtet zusätzlich Recall@k, Precision@k, MRR sowie — wenn der gepatchte
 REST-Response die UUIDs liefert — Provenienztreffer.
 
-Für die 8-GB-GPU sind ein Queue-Worker und ein paralleler LLM-Aufruf der
-belastbare Standard. Bei einem stärkeren lokalen oder externen Provider kann
-beides nach einem neuen Benchmark erhöht werden. Die Queue meldet
+Ein Queue-Worker und ein paralleler LLM-Aufruf bleiben zunächst der belastbare
+Standard. Nach einem Online-Provider-Benchmark kann beides erhöht werden. Die Queue meldet
 abgeschlossene und fehlgeschlagene Episoden über `/queue-status`; ein Rebuild
 wird erst nach leerer Queue und ohne neue Fehljobs als erfolgreich bezeichnet.
 
-**Wichtige Einschränkung:** Die pinned `graphiti_core`-Version fragt für die
-Relation-/Dedup-Extraktion (`extract_edges`) intern fest `max_tokens=16384`
-an — dieser Wert ist im Paket hartkodiert (`edge_operations.py`) und wird von
-`GRAPHITI_LLM_MAX_TOKENS` **nicht** beeinflusst. Für diesen konkreten Aufruf
-lässt sich das Budget also nur durch einen zusätzlichen Bibliothekspatch
-ändern, nicht per Umgebungsvariable.
+**Wichtige Implementierungsgrenze:** Die gepinnte `graphiti_core`-Version fragt
+für die Relation-/Dedup-Extraktion (`extract_edges`) intern fest
+`max_tokens=16384` an. `GRAPHITI_LLM_MAX_TOKENS` beeinflusst diesen Override
+nicht. Der Online-Model-Hub-Adapter übernimmt diese Anfrage über den
+serverseitigen Codex-Dispatch; die installierte Graphiti-Bibliothek wird dabei
+nicht verändert.
 
-Für die Extraktion wird aktuell `qwen3:8b` über Ollama verwendet; der Wert ist
-in `.env.local` explizit gesetzt. Historischer Verlauf der Modellwahl:
+Der aktuelle Extraktionspfad verwendet `gpt-5.6-luna` über den Model Hub;
+der Wert ist in `.env.local` und der aktiven Pipeline explizit gesetzt.
+Historischer Verlauf der Modellwahl:
 `qwen-plus` über DashScope war stabil, `gpt-4.1-mini` ließ einzelne
 Relation-/Dedup-Prompts auch mit einem 32k-Budget unvollständig; der
 OpenRouter-Schlüssel lehnte danach `gpt-4o-mini`-Anfragen mit 16k-Budget per
@@ -199,10 +214,12 @@ oder Parse-Fehler im Container-Log sind ein Signal für einen Modellwechsel
 Der vollständig dokumentierte 402-Blocker des OpenRouter-Schlüssels
 (vollständiger Rebuild-Lauf am 2026-08-20, 93 von 97 Warteschlangen-Jobs mit
 HTTP 402 `"requested up to 16384 tokens, but can only afford ~14.463"`
-fehlgeschlagen, 82 Entitätsknoten ohne Kanten) ist durch den Provider-Wechsel
-auf DashScope aufgelöst. Rebuild-Reports weisen Fehleranzahl und betroffene
-Stufe pro Scope aus, statt einen unvollständigen Lauf stillschweigend als
-Erfolg zu werten.
+fehlgeschlagen, 82 Entitätsknoten ohne Kanten) ist für den damaligen
+Providerlauf durch DashScope aufgelöst. Der frühere lokale Ollama-Pfad ist
+deaktiviert; die alten Qwen-Smoke- und Laufzeitdaten bleiben historische
+Evidenz und sind keine aktuelle Konfiguration. Rebuild-Reports weisen
+Fehleranzahl und betroffene Stufe pro Scope aus, statt einen unvollständigen
+Lauf stillschweigend als Erfolg zu werten.
 
 ## Scope- und Group-Strategie
 

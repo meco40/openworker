@@ -8,7 +8,7 @@ import type {
 
 interface AddModelModalProps {
   isOpen: boolean;
-  mode: 'pipeline' | 'embedding';
+  mode: 'pipeline' | 'embedding' | 'graphiti';
   providerAccounts: ProviderAccount[];
   providerLookup: Map<string, ProviderCatalogEntry>;
   selectedAccountId: string;
@@ -57,6 +57,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
 }) => {
   if (!isOpen) return null;
   const isEmbeddingMode = mode === 'embedding';
+  const isGraphitiMode = mode === 'graphiti';
   const isCodexAccount = selectedAccount?.providerId === 'openai-codex';
 
   return (
@@ -65,12 +66,18 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-2xl font-black tracking-tight text-white uppercase">
-              {isEmbeddingMode ? 'Embedding-Modell hinzufügen' : 'Modell hinzufügen'}
+              {isEmbeddingMode
+                ? 'Embedding-Modell hinzufügen'
+                : isGraphitiMode
+                  ? 'Graphiti JSON-Modell hinzufügen'
+                  : 'Modell hinzufügen'}
             </h3>
             <p className="mt-1 text-sm text-zinc-500">
               {isEmbeddingMode
                 ? 'Embedding-Account wählen → Modell auswählen → Priorität → Speichern'
-                : 'Account wählen → Modell auswählen → Priorität → Speichern'}
+                : isGraphitiMode
+                  ? 'Chat-Account wählen → JSON-Modell auswählen → Priorität → Speichern'
+                  : 'Account wählen → Modell auswählen → Priorität → Speichern'}
             </p>
           </div>
           <button
@@ -247,7 +254,11 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
             disabled={!selectedAccount || !selectedModelId}
             className="rounded-xl bg-indigo-600 px-6 py-3 text-[10px] font-black tracking-widest text-white uppercase transition-all hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600"
           >
-            {isEmbeddingMode ? 'Als Embedding speichern' : 'Speichern & Aktivieren'}
+            {isEmbeddingMode
+              ? 'Als Embedding speichern'
+              : isGraphitiMode
+                ? 'Als Graphiti JSON speichern'
+                : 'Speichern & Aktivieren'}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { GRAPHITI_PROFILE_ID } from '@/components/model-hub/constants';
 import type {
   CodexThinkingLevel,
   FetchedModel,
@@ -39,23 +40,28 @@ export interface UseModelHubReturn {
   isLoadingPipeline: boolean;
   embeddingPipeline: import('@/components/model-hub/types').PipelineModel[];
   isLoadingEmbeddingPipeline: boolean;
-  removeModelFromPipeline: (modelId: string, mode: 'pipeline' | 'embedding') => Promise<void>;
+  graphitiPipeline: import('@/components/model-hub/types').PipelineModel[];
+  isLoadingGraphitiPipeline: boolean;
+  removeModelFromPipeline: (
+    modelId: string,
+    mode: 'pipeline' | 'embedding' | 'graphiti',
+  ) => Promise<void>;
   toggleModelStatus: (
     modelId: string,
     currentStatus: string,
-    mode: 'pipeline' | 'embedding',
+    mode: 'pipeline' | 'embedding' | 'graphiti',
   ) => Promise<void>;
   moveModelInPipeline: (
     modelId: string,
     direction: 'up' | 'down',
-    mode: 'pipeline' | 'embedding',
+    mode: 'pipeline' | 'embedding' | 'graphiti',
   ) => Promise<void>;
 
   // Add model modal-related
   isAddModelOpen: boolean;
   setIsAddModelOpen: (open: boolean) => void;
-  addModelMode: 'pipeline' | 'embedding';
-  setAddModelMode: (mode: 'pipeline' | 'embedding') => void;
+  addModelMode: 'pipeline' | 'embedding' | 'graphiti';
+  setAddModelMode: (mode: 'pipeline' | 'embedding' | 'graphiti') => void;
   selectedAccountId: string;
   setSelectedAccountId: (id: string) => void;
   selectedModelId: string;
@@ -71,8 +77,11 @@ export interface UseModelHubReturn {
   filteredLiveModels: FetchedModel[];
   selectableAccounts: ProviderAccount[];
   selectedAccount: ProviderAccount | null;
-  openAddModelModal: (mode: 'pipeline' | 'embedding') => void;
-  fetchLiveModelsForAccount: (accountId: string, mode?: 'pipeline' | 'embedding') => Promise<void>;
+  openAddModelModal: (mode: 'pipeline' | 'embedding' | 'graphiti') => void;
+  fetchLiveModelsForAccount: (
+    accountId: string,
+    mode?: 'pipeline' | 'embedding' | 'graphiti',
+  ) => Promise<void>;
   saveAddedModel: () => Promise<void>;
 
   // Account management
@@ -104,7 +113,9 @@ export function useModelHub(): UseModelHubReturn {
   const { reloadBoth } = pipeline;
 
   const [isAddModelOpen, setIsAddModelOpen] = useState(false);
-  const [addModelMode, setAddModelMode] = useState<'pipeline' | 'embedding'>('pipeline');
+  const [addModelMode, setAddModelMode] = useState<'pipeline' | 'embedding' | 'graphiti'>(
+    'pipeline',
+  );
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [selectedModelId, setSelectedModelId] = useState('');
   const [selectedReasoningEffort, setSelectedReasoningEffort] =
@@ -134,9 +145,22 @@ export function useModelHub(): UseModelHubReturn {
     [providers.providerAccounts, providers.providerLookup],
   );
 
+  const graphitiCapableAccounts = useMemo(
+    () =>
+      providers.providerAccounts.filter((account) =>
+        providers.providerLookup.get(account.providerId)?.capabilities.includes('chat'),
+      ),
+    [providers.providerAccounts, providers.providerLookup],
+  );
+
   const selectableAccounts = useMemo(
-    () => (addModelMode === 'embedding' ? embeddingCapableAccounts : providers.providerAccounts),
-    [addModelMode, embeddingCapableAccounts, providers.providerAccounts],
+    () =>
+      addModelMode === 'embedding'
+        ? embeddingCapableAccounts
+        : addModelMode === 'graphiti'
+          ? graphitiCapableAccounts
+          : providers.providerAccounts,
+    [addModelMode, embeddingCapableAccounts, graphitiCapableAccounts, providers.providerAccounts],
   );
 
   const selectedAccount = useMemo(
@@ -154,7 +178,7 @@ export function useModelHub(): UseModelHubReturn {
   // Wrapper for removeModelFromPipeline with error handling
   const handleRemoveModelFromPipeline = async (
     modelId: string,
-    mode: 'pipeline' | 'embedding' = 'pipeline',
+    mode: 'pipeline' | 'embedding' | 'graphiti' = 'pipeline',
   ) => {
     await pipeline.removeModelFromPipeline(modelId, mode, (errorMsg) => {
       providers.setProbeResult(errorMsg);
@@ -165,7 +189,7 @@ export function useModelHub(): UseModelHubReturn {
   const handleToggleModelStatus = async (
     modelId: string,
     currentStatus: string,
-    mode: 'pipeline' | 'embedding' = 'pipeline',
+    mode: 'pipeline' | 'embedding' | 'graphiti' = 'pipeline',
   ) => {
     await pipeline.toggleModelStatus(modelId, currentStatus, mode, (errorMsg) => {
       providers.setProbeResult(errorMsg);
@@ -176,7 +200,7 @@ export function useModelHub(): UseModelHubReturn {
   const handleMoveModelInPipeline = async (
     modelId: string,
     direction: 'up' | 'down',
-    mode: 'pipeline' | 'embedding' = 'pipeline',
+    mode: 'pipeline' | 'embedding' | 'graphiti' = 'pipeline',
   ) => {
     await pipeline.moveModelInPipeline(modelId, direction, mode, (errorMsg) => {
       providers.setProbeResult(errorMsg);
@@ -214,14 +238,20 @@ export function useModelHub(): UseModelHubReturn {
     await providers.loadAccounts();
   };
 
-  function openAddModelModal(mode: 'pipeline' | 'embedding') {
+  function openAddModelModal(mode: 'pipeline' | 'embedding' | 'graphiti') {
     const accountsForMode =
-      mode === 'embedding' ? embeddingCapableAccounts : providers.providerAccounts;
+      mode === 'embedding'
+        ? embeddingCapableAccounts
+        : mode === 'graphiti'
+          ? graphitiCapableAccounts
+          : providers.providerAccounts;
     if (accountsForMode.length === 0) {
       providers.setProbeResult(
         mode === 'embedding'
           ? 'Bitte zuerst einen Embeddings-fähigen Provider-Account verbinden.'
-          : 'Bitte zuerst einen Provider-Account verbinden.',
+          : mode === 'graphiti'
+            ? 'Bitte zuerst einen Chat-fähigen Provider-Account verbinden.'
+            : 'Bitte zuerst einen Provider-Account verbinden.',
       );
       return;
     }
@@ -229,9 +259,13 @@ export function useModelHub(): UseModelHubReturn {
     const initial = accountsForMode[0];
     setSelectedAccountId(initial.id);
     setSelectedModelId('');
-    setSelectedReasoningEffort('high');
+    setSelectedReasoningEffort(mode === 'graphiti' ? 'off' : 'high');
     setSelectedPriority(
-      (mode === 'embedding' ? pipeline.embeddingPipeline.length : pipeline.pipeline.length) + 1,
+      (mode === 'embedding'
+        ? pipeline.embeddingPipeline.length
+        : mode === 'graphiti'
+          ? pipeline.graphitiPipeline.length
+          : pipeline.pipeline.length) + 1,
     );
     setIsAddModelOpen(true);
     void fetchLiveModelsForAccount(initial.id, mode);
@@ -239,7 +273,7 @@ export function useModelHub(): UseModelHubReturn {
 
   async function fetchLiveModelsForAccount(
     accountId: string,
-    mode: 'pipeline' | 'embedding' = addModelMode,
+    mode: 'pipeline' | 'embedding' | 'graphiti' = addModelMode,
   ) {
     setIsLoadingModels(true);
     setLiveModels([]);
@@ -273,7 +307,12 @@ export function useModelHub(): UseModelHubReturn {
 
   async function saveAddedModel() {
     if (!selectedAccount || !selectedModelId) return;
-    const profileId = addModelMode === 'embedding' ? 'p1-embeddings' : 'p1';
+    const profileId =
+      addModelMode === 'embedding'
+        ? 'p1-embeddings'
+        : addModelMode === 'graphiti'
+          ? GRAPHITI_PROFILE_ID
+          : 'p1';
     try {
       const response = await fetch('/api/model-hub/pipeline', {
         method: 'POST',
@@ -285,7 +324,8 @@ export function useModelHub(): UseModelHubReturn {
           providerId: selectedAccount.providerId,
           modelName: selectedModelId,
           reasoningEffort:
-            addModelMode === 'pipeline' && selectedAccount.providerId === 'openai-codex'
+            (addModelMode === 'pipeline' || addModelMode === 'graphiti') &&
+            selectedAccount.providerId === 'openai-codex'
               ? selectedReasoningEffort
               : undefined,
           priority: selectedPriority,
@@ -297,6 +337,8 @@ export function useModelHub(): UseModelHubReturn {
       setSelectedModelId('');
       if (addModelMode === 'embedding') {
         await pipeline.loadEmbeddingPipeline();
+      } else if (addModelMode === 'graphiti') {
+        await pipeline.loadGraphitiPipeline();
       } else {
         await pipeline.loadPipeline();
       }
@@ -336,6 +378,8 @@ export function useModelHub(): UseModelHubReturn {
     isLoadingPipeline: pipeline.isLoadingPipeline,
     embeddingPipeline: pipeline.embeddingPipeline,
     isLoadingEmbeddingPipeline: pipeline.isLoadingEmbeddingPipeline,
+    graphitiPipeline: pipeline.graphitiPipeline,
+    isLoadingGraphitiPipeline: pipeline.isLoadingGraphitiPipeline,
     removeModelFromPipeline: handleRemoveModelFromPipeline,
     toggleModelStatus: handleToggleModelStatus,
     moveModelInPipeline: handleMoveModelInPipeline,

@@ -55,6 +55,7 @@ type ModelHubService = ReturnType<typeof getModelHubService>;
 
 const DEFAULT_PROFILE = 'p1';
 const EMBEDDING_PROFILE_ID = 'p1-embeddings';
+const GRAPHITI_PROFILE_ID = 'p1-graphiti';
 const PIPELINE_REASONING_EFFORTS = new Set<PipelineReasoningEffort>([
   'off',
   'minimal',
@@ -202,14 +203,20 @@ export const GET = withUserContext(async ({ request }) => {
   try {
     const url = new URL(request.url);
     const includeEmbeddings = url.searchParams.get('includeEmbeddings') === 'true';
+    const includeGraphiti = url.searchParams.get('includeGraphiti') === 'true';
     const profileId = url.searchParams.get('profileId')?.trim() || DEFAULT_PROFILE;
 
     const service = getModelHubService();
     const models = service.listPipeline(profileId);
 
-    if (includeEmbeddings) {
-      const embeddingModels = service.listPipeline(EMBEDDING_PROFILE_ID);
-      return NextResponse.json({ ok: true, profileId, models, embeddingModels });
+    if (includeEmbeddings || includeGraphiti) {
+      const embeddingModels = includeEmbeddings
+        ? service.listPipeline(EMBEDDING_PROFILE_ID)
+        : undefined;
+      const graphitiModels = includeGraphiti
+        ? service.listPipeline(GRAPHITI_PROFILE_ID)
+        : undefined;
+      return NextResponse.json({ ok: true, profileId, models, embeddingModels, graphitiModels });
     }
 
     return NextResponse.json({ ok: true, profileId, models });

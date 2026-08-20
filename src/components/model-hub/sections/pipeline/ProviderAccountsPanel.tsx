@@ -14,6 +14,7 @@ export function ProviderAccountsPanel({
   providerAccounts,
   providerLookup,
   pipeline,
+  additionalPipelines = [],
   isLoadingAccounts,
   deletingAccountId,
   onSetDeletingAccountId,
@@ -33,9 +34,9 @@ export function ProviderAccountsPanel({
       ) : (
         providerAccounts.map((account) => {
           const provider = providerLookup.get(account.providerId);
-          const modelsInPipeline = pipeline.filter(
-            (model) => model.accountId === account.id,
-          ).length;
+          const modelsInPipeline = [pipeline, ...additionalPipelines]
+            .flat()
+            .filter((model) => model.accountId === account.id).length;
           return (
             <div
               key={account.id}

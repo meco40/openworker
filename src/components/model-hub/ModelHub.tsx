@@ -35,6 +35,8 @@ const ModelHub: React.FC = () => {
     isLoadingPipeline,
     embeddingPipeline,
     isLoadingEmbeddingPipeline,
+    graphitiPipeline,
+    isLoadingGraphitiPipeline,
     removeModelFromPipeline,
     toggleModelStatus,
     moveModelInPipeline,
@@ -108,10 +110,13 @@ const ModelHub: React.FC = () => {
           pipeline={pipeline}
           isLoadingEmbeddingPipeline={isLoadingEmbeddingPipeline}
           embeddingPipeline={embeddingPipeline}
+          isLoadingGraphitiPipeline={isLoadingGraphitiPipeline}
+          graphitiPipeline={graphitiPipeline}
           providerLookup={providerLookup}
           providerAccounts={providerAccounts}
           onOpenAddModelModal={() => openAddModelModal('pipeline')}
           onOpenAddEmbeddingModelModal={() => openAddModelModal('embedding')}
+          onOpenAddGraphitiModelModal={() => openAddModelModal('graphiti')}
           onToggleModelStatus={(modelId, currentStatus) =>
             void toggleModelStatus(modelId, currentStatus, 'pipeline')
           }
@@ -127,6 +132,15 @@ const ModelHub: React.FC = () => {
           }
           onRemoveEmbeddingModelFromPipeline={(modelId) =>
             void removeModelFromPipeline(modelId, 'embedding')
+          }
+          onToggleGraphitiModelStatus={(modelId, currentStatus) =>
+            void toggleModelStatus(modelId, currentStatus, 'graphiti')
+          }
+          onMoveGraphitiModel={(modelId, direction) =>
+            void moveModelInPipeline(modelId, direction, 'graphiti')
+          }
+          onRemoveGraphitiModelFromPipeline={(modelId) =>
+            void removeModelFromPipeline(modelId, 'graphiti')
           }
           isLoadingAccounts={isLoadingAccounts}
           deletingAccountId={deletingAccountId}
@@ -171,8 +185,8 @@ const ModelHub: React.FC = () => {
         onSelectedAccountIdChange={(accountId) => {
           setSelectedAccountId(accountId);
           const nextAccount = selectableAccounts.find((account) => account.id === accountId);
-          if (addModelMode === 'pipeline' && nextAccount?.providerId === 'openai-codex') {
-            setSelectedReasoningEffort('high');
+          if (nextAccount?.providerId === 'openai-codex') {
+            setSelectedReasoningEffort(addModelMode === 'graphiti' ? 'off' : 'high');
           }
         }}
         selectedAccount={selectedAccount}
@@ -193,7 +207,13 @@ const ModelHub: React.FC = () => {
         onSelectedReasoningEffortChange={setSelectedReasoningEffort}
         selectedPriority={selectedPriority}
         onSelectedPriorityChange={setSelectedPriority}
-        pipelineLength={addModelMode === 'embedding' ? embeddingPipeline.length : pipeline.length}
+        pipelineLength={
+          addModelMode === 'embedding'
+            ? embeddingPipeline.length
+            : addModelMode === 'graphiti'
+              ? graphitiPipeline.length
+              : pipeline.length
+        }
         onSave={() => {
           void saveAddedModel();
         }}

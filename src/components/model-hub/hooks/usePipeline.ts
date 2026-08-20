@@ -1,6 +1,12 @@
 import { useCallback, useState } from 'react';
-import { EMBEDDING_PROFILE_ID, PROFILE_ID } from '@/components/model-hub/constants';
+import {
+  EMBEDDING_PROFILE_ID,
+  GRAPHITI_PROFILE_ID,
+  PROFILE_ID,
+} from '@/components/model-hub/constants';
 import type { ApiResponse, PipelineModel } from '@/components/model-hub/types';
+
+export type PipelineMode = 'pipeline' | 'embedding' | 'graphiti';
 
 export interface UsePipelineReturn {
   // Regular pipeline
@@ -13,22 +19,27 @@ export interface UsePipelineReturn {
   isLoadingEmbeddingPipeline: boolean;
   loadEmbeddingPipeline: () => Promise<void>;
 
+  // Graphiti JSON pipeline
+  graphitiPipeline: PipelineModel[];
+  isLoadingGraphitiPipeline: boolean;
+  loadGraphitiPipeline: () => Promise<void>;
+
   // Operations
   removeModelFromPipeline: (
     modelId: string,
-    mode: 'pipeline' | 'embedding',
+    mode: PipelineMode,
     onError: (message: string) => void,
   ) => Promise<void>;
   toggleModelStatus: (
     modelId: string,
     currentStatus: string,
-    mode: 'pipeline' | 'embedding',
+    mode: PipelineMode,
     onError: (message: string) => void,
   ) => Promise<void>;
   moveModelInPipeline: (
     modelId: string,
     direction: 'up' | 'down',
-    mode: 'pipeline' | 'embedding',
+    mode: PipelineMode,
     onError: (message: string) => void,
   ) => Promise<void>;
   reloadBoth: () => Promise<void>;
@@ -39,6 +50,8 @@ export function usePipeline(): UsePipelineReturn {
   const [isLoadingPipeline, setIsLoadingPipeline] = useState(true);
   const [embeddingPipeline, setEmbeddingPipeline] = useState<PipelineModel[]>([]);
   const [isLoadingEmbeddingPipeline, setIsLoadingEmbeddingPipeline] = useState(true);
+  const [graphitiPipeline, setGraphitiPipeline] = useState<PipelineModel[]>([]);
+  const [isLoadingGraphitiPipeline, setIsLoadingGraphitiPipeline] = useState(true);
 
   const loadPipelineByProfile = useCallback(
     async (
@@ -73,24 +86,39 @@ export function usePipeline(): UsePipelineReturn {
     );
   }, [loadPipelineByProfile]);
 
+  const loadGraphitiPipeline = useCallback(async () => {
+    await loadPipelineByProfile(
+      GRAPHITI_PROFILE_ID,
+      setGraphitiPipeline,
+      setIsLoadingGraphitiPipeline,
+    );
+  }, [loadPipelineByProfile]);
+
   const loadBothPipelines = useCallback(async () => {
     setIsLoadingPipeline(true);
     setIsLoadingEmbeddingPipeline(true);
+    setIsLoadingGraphitiPipeline(true);
     try {
-      const response = await fetch('/api/model-hub/pipeline?includeEmbeddings=true');
+      const response = await fetch(
+        '/api/model-hub/pipeline?includeEmbeddings=true&includeGraphiti=true',
+      );
       const data = (await response.json()) as ApiResponse & {
         models?: PipelineModel[];
         embeddingModels?: PipelineModel[];
+        graphitiModels?: PipelineModel[];
       };
       if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
       setPipeline(data.models ?? []);
       setEmbeddingPipeline(data.embeddingModels ?? []);
+      setGraphitiPipeline(data.graphitiModels ?? []);
     } catch {
       setPipeline([]);
       setEmbeddingPipeline([]);
+      setGraphitiPipeline([]);
     } finally {
       setIsLoadingPipeline(false);
       setIsLoadingEmbeddingPipeline(false);
+      setIsLoadingGraphitiPipeline(false);
     }
   }, []);
 
@@ -100,7 +128,7 @@ export function usePipeline(): UsePipelineReturn {
 
   async function removeModelFromPipeline(
     modelId: string,
-    mode: 'pipeline' | 'embedding' = 'pipeline',
+    mode: PipelineMode = 'pipeline',
     onError: (message: string) => void,
   ) {
     try {
@@ -113,6 +141,8 @@ export function usePipeline(): UsePipelineReturn {
       if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
       if (mode === 'embedding') {
         await loadEmbeddingPipeline();
+      } else if (mode === 'graphiti') {
+        await loadGraphitiPipeline();
       } else {
         await loadPipeline();
       }
@@ -124,7 +154,7 @@ export function usePipeline(): UsePipelineReturn {
   async function toggleModelStatus(
     modelId: string,
     currentStatus: string,
-    mode: 'pipeline' | 'embedding' = 'pipeline',
+    mode: PipelineMode = 'pipeline',
     onError: (message: string) => void,
   ) {
     const newStatus = currentStatus === 'active' ? 'offline' : 'active';
@@ -138,6 +168,8 @@ export function usePipeline(): UsePipelineReturn {
       if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
       if (mode === 'embedding') {
         await loadEmbeddingPipeline();
+      } else if (mode === 'graphiti') {
+        await loadGraphitiPipeline();
       } else {
         await loadPipeline();
       }
@@ -149,11 +181,16 @@ export function usePipeline(): UsePipelineReturn {
   async function moveModelInPipeline(
     modelId: string,
     direction: 'up' | 'down',
-    mode: 'pipeline' | 'embedding' = 'pipeline',
+    mode: PipelineMode = 'pipeline',
     onError: (message: string) => void,
   ) {
     try {
-      const profileId = mode === 'embedding' ? EMBEDDING_PROFILE_ID : PROFILE_ID;
+      const profileId =
+        mode === 'embedding'
+          ? EMBEDDING_PROFILE_ID
+          : mode === 'graphiti'
+            ? GRAPHITI_PROFILE_ID
+            : PROFILE_ID;
       const response = await fetch('/api/model-hub/pipeline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -163,6 +200,8 @@ export function usePipeline(): UsePipelineReturn {
       if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
       if (mode === 'embedding') {
         await loadEmbeddingPipeline();
+      } else if (mode === 'graphiti') {
+        await loadGraphitiPipeline();
       } else {
         await loadPipeline();
       }
@@ -178,6 +217,9 @@ export function usePipeline(): UsePipelineReturn {
     embeddingPipeline,
     isLoadingEmbeddingPipeline,
     loadEmbeddingPipeline,
+    graphitiPipeline,
+    isLoadingGraphitiPipeline,
+    loadGraphitiPipeline,
     removeModelFromPipeline,
     toggleModelStatus,
     moveModelInPipeline,
