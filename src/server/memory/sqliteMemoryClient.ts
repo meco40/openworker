@@ -40,6 +40,11 @@ function toRecord(scoped: MemoryNodeWithScope, score: number | null = null): Mem
   };
 }
 
+function matchesWorkspace(entry: MemoryNodeWithScope, workspaceId?: string): boolean {
+  if (workspaceId === undefined) return true;
+  return String(entry.node.metadata?.workspaceId || '') === workspaceId;
+}
+
 function nodeFromInput(id: string, input: Mem0MemoryInput): MemoryNode {
   const metadata = input.metadata || {};
   const type = String(metadata.type || 'fact') as MemoryType;
@@ -94,6 +99,7 @@ export class SqliteMemoryClient implements Mem0Client {
     const records = this.repository
       .listAllNodesWithScope(resolveUserId(input.userId))
       .filter((entry) => entry.personaId === input.personaId)
+      .filter((entry) => matchesWorkspace(entry, input.workspaceId))
       .map((entry) => ({ entry, score: scoreContent(entry.node.content, input.query) }))
       .filter(({ score }) => score > 0)
       .sort(
@@ -111,6 +117,26 @@ export class SqliteMemoryClient implements Mem0Client {
   async listMemories(input: Mem0ListInput): Promise<Mem0ListMemoryResult> {
     const userId = resolveUserId(input.userId);
     if (input.personaId) {
+      if (input.workspaceId !== undefined) {
+        const all = this.repository
+          .listAllNodesWithScope(userId)
+          .filter((entry) => entry.personaId === input.personaId)
+          .filter((entry) => matchesWorkspace(entry, input.workspaceId))
+          .filter((entry) => !input.type || entry.node.type === input.type)
+          .filter(
+            (entry) =>
+              !input.query || entry.node.content.toLowerCase().includes(input.query.toLowerCase()),
+          );
+        const page = Math.max(1, Math.floor(input.page));
+        const pageSize = Math.max(1, Math.min(200, Math.floor(input.pageSize)));
+        const start = (page - 1) * pageSize;
+        return {
+          memories: all.slice(start, start + pageSize).map((entry) => toRecord(entry)),
+          total: all.length,
+          page,
+          pageSize,
+        };
+      }
       const page = this.repository.listNodesPage(
         input.personaId,
         {
@@ -129,7 +155,9 @@ export class SqliteMemoryClient implements Mem0Client {
       };
     }
 
-    const all = this.repository.listAllNodesWithScope(userId);
+    const all = this.repository
+      .listAllNodesWithScope(userId)
+      .filter((entry) => matchesWorkspace(entry, input.workspaceId));
     const page = Math.max(1, Math.floor(input.page));
     const pageSize = Math.max(1, Math.min(200, Math.floor(input.pageSize)));
     const start = (page - 1) * pageSize;
@@ -141,8 +169,20 @@ export class SqliteMemoryClient implements Mem0Client {
     };
   }
 
-  async getMemory(id: string): Promise<Mem0MemoryRecord | null> {
+  async getMemory(
+    id: string,
+    scope?: { userId: string; personaId: string; workspaceId?: string },
+  ): Promise<Mem0MemoryRecord | null> {
     const found = this.repository.getNodeById(id);
+    if (
+      found &&
+      scope &&
+      (found.userId !== resolveUserId(scope.userId) ||
+        found.personaId !== scope.personaId ||
+        !matchesWorkspace(found, scope.workspaceId))
+    ) {
+      return null;
+    }
     return found ? toRecord(found) : null;
   }
 
@@ -159,19 +199,47 @@ export class SqliteMemoryClient implements Mem0Client {
   async updateMemory(id: string, input: Mem0MemoryInput): Promise<void> {
     const found = this.repository.getNodeById(id);
     if (!found) throw new Error(`Memory node not found: ${id}`);
-    if (found.userId !== resolveUserId(input.userId) || found.personaId !== input.personaId) {
+    if (
+      found.userId !== resolveUserId(input.userId) ||
+      found.personaId !== input.personaId ||
+      !matchesWorkspace(found, input.workspaceId)
+    ) {
       throw new Error('Memory node scope mismatch.');
     }
     this.repository.updateNode(input.personaId, nodeFromInput(id, input), input.userId);
   }
 
-  async deleteMemory(id: string): Promise<void> {
+  async deleteMemory(
+    id: string,
+    scope?: { userId: string; personaId: string; workspaceId?: string },
+  ): Promise<void> {
     const found = this.repository.getNodeById(id);
     if (!found) throw new Error(`Memory node not found: ${id}`);
+    if (
+      scope &&
+      (found.userId !== resolveUserId(scope.userId) ||
+        found.personaId !== scope.personaId ||
+        !matchesWorkspace(found, scope.workspaceId))
+    ) {
+      throw new Error('Memory node scope mismatch.');
+    }
     this.repository.deleteNode(found.personaId, id, found.userId);
   }
 
-  async deleteMemoriesByFilter(input: { userId: string; personaId: string }): Promise<number> {
-    return this.repository.deleteByPersona(input.personaId, input.userId);
+  async deleteMemoriesByFilter(input: {
+    userId: string;
+    personaId: string;
+    workspaceId?: string;
+  }): Promise<number> {
+    if (input.workspaceId === undefined) {
+      return this.repository.deleteByPersona(input.personaId, input.userId);
+    }
+    const entries = this.repository
+      .listAllNodesWithScope(resolveUserId(input.userId))
+      .filter((entry) => entry.personaId === input.personaId)
+      .filter((entry) => matchesWorkspace(entry, input.workspaceId));
+    for (const entry of entries)
+      this.repository.deleteNode(entry.personaId, entry.node.id, entry.userId);
+    return entries.length;
   }
 }

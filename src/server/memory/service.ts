@@ -59,6 +59,7 @@ export class MemoryService {
   private async listAllFilteredNodes(
     personaId: string | undefined,
     userId: string | undefined,
+    workspaceId: string | undefined,
     input: { query?: string; type?: MemoryType },
   ): Promise<MemoryNode[]> {
     const scopedUserId = resolveUserId(userId);
@@ -72,6 +73,7 @@ export class MemoryService {
       const listed = await this.mem0Client.listMemories({
         userId: scopedUserId,
         personaId,
+        workspaceId,
         page,
         pageSize: apiPageSize,
         query: input.query?.trim() || undefined,
@@ -108,14 +110,20 @@ export class MemoryService {
     personaId: string,
     nodeId: string,
     userId?: string,
+    workspaceId?: string,
   ): Promise<Mem0MemoryRecord | null> {
     const scopedUserId = resolveUserId(userId);
+    const scope: Mem0Scope = { userId: scopedUserId, personaId, workspaceId };
+    if (this.provider() === 'postgres') {
+      return this.mem0Client.getMemory(nodeId, scope);
+    }
     let page = 1;
     let fetchedRecords = 0;
     while (page <= 10_000) {
       const listed = await this.mem0Client.listMemories({
         userId: scopedUserId,
         personaId,
+        workspaceId,
         page,
         pageSize: 200,
       });
@@ -132,6 +140,7 @@ export class MemoryService {
     personaId: string,
     userId: string | undefined,
     idempotencyKey: string,
+    workspaceId?: string,
   ): Promise<MemoryNode | null> {
     const scopedUserId = resolveUserId(userId);
     let page = 1;
@@ -140,6 +149,7 @@ export class MemoryService {
       const listed = await this.mem0Client.listMemories({
         userId: scopedUserId,
         personaId,
+        workspaceId,
         page,
         pageSize: 200,
       });
@@ -205,7 +215,7 @@ export class MemoryService {
       return storeMemoryOperation(this.mem0Client, input);
     }
 
-    const lockKey = `${resolveUserId(input.userId)}:${input.personaId}:${idempotencyKey}`;
+    const lockKey = `${resolveUserId(input.userId)}:${input.personaId}:${input.workspaceId || ''}:${idempotencyKey}`;
     const running = this.idempotencyLocks.get(lockKey);
     if (running) return running;
 
@@ -214,6 +224,7 @@ export class MemoryService {
         input.personaId,
         input.userId,
         idempotencyKey,
+        input.workspaceId,
       );
       return existing || storeMemoryOperation(this.mem0Client, input);
     })();
@@ -235,6 +246,7 @@ export class MemoryService {
     options?: {
       mode?: 'semantic' | 'lexical';
       memoryTypes?: import('@/core/memory/types').MemoryType[];
+      workspaceId?: string;
     },
   ): Promise<MemoryRecallResult> {
     const memoryTypes =
@@ -250,8 +262,14 @@ export class MemoryService {
     });
   }
 
-  async recall(personaId: string, query: string, limit = 3, userId?: string): Promise<string> {
-    const result = await this.recallDetailed(personaId, query, limit, userId);
+  async recall(
+    personaId: string,
+    query: string,
+    limit = 3,
+    userId?: string,
+    workspaceId?: string,
+  ): Promise<string> {
+    const result = await this.recallDetailed(personaId, query, limit, userId, { workspaceId });
     return result.context;
   }
 
@@ -260,10 +278,11 @@ export class MemoryService {
     nodeIds: string[],
     signal: MemoryFeedbackSignal,
     userId?: string,
+    workspaceId?: string,
   ): Promise<number> {
     const ownedNodeIds: string[] = [];
     for (const nodeId of Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)))) {
-      const owned = await this.findScopedRecord(personaId, nodeId, userId);
+      const owned = await this.findScopedRecord(personaId, nodeId, userId, workspaceId);
       if (owned) ownedNodeIds.push(nodeId);
     }
     return registerFeedback(this.mem0Client, {
@@ -271,22 +290,24 @@ export class MemoryService {
       nodeIds: ownedNodeIds,
       signal,
       userId,
+      workspaceId,
     });
   }
 
   async snapshotWithMeta(
     personaId?: string,
     userId?: string,
+    workspaceId?: string,
   ): Promise<{ nodes: MemoryNode[]; total: number; truncated: boolean }> {
-    const nodes = await this.listAllFilteredNodes(personaId, userId, {});
+    const nodes = await this.listAllFilteredNodes(personaId, userId, workspaceId, {});
     return { nodes, total: nodes.length, truncated: false };
   }
 
-  async snapshot(personaId?: string, userId?: string): Promise<MemoryNode[]> {
-    return (await this.snapshotWithMeta(personaId, userId)).nodes;
+  async snapshot(personaId?: string, userId?: string, workspaceId?: string): Promise<MemoryNode[]> {
+    return (await this.snapshotWithMeta(personaId, userId, workspaceId)).nodes;
   }
 
-  async count(personaId?: string, userId?: string): Promise<number> {
+  async count(personaId?: string, userId?: string, workspaceId?: string): Promise<number> {
     const countMemories = (
       this.mem0Client as Mem0Client & {
         countMemories?: (input: {
@@ -296,12 +317,13 @@ export class MemoryService {
         }) => Promise<number>;
       }
     ).countMemories;
-    if (countMemories) return countMemories({ userId, personaId });
+    if (countMemories) return countMemories({ userId, personaId, workspaceId });
 
     const scopedUserId = resolveUserId(userId);
     const listed = await this.mem0Client.listMemories({
       userId: scopedUserId,
       personaId,
+      workspaceId,
       page: 1,
       pageSize: 1,
     });
@@ -319,6 +341,7 @@ export class MemoryService {
       type?: MemoryType;
     },
     userId?: string,
+    workspaceId?: string,
   ): Promise<{
     nodes: MemoryNode[];
     pagination: { page: number; pageSize: number; total: number; totalPages: number };
@@ -328,6 +351,7 @@ export class MemoryService {
     const listed = await this.mem0Client.listMemories({
       userId: resolveUserId(userId),
       personaId,
+      workspaceId,
       page,
       pageSize,
       query: input.query?.trim() || undefined,
@@ -354,12 +378,15 @@ export class MemoryService {
     personaId: string,
     userScopes: string[],
     input: { page: number; pageSize: number; query?: string; type?: MemoryType },
+    workspaceId?: string,
   ): Promise<{
     nodes: MemoryNode[];
     pagination: { page: number; pageSize: number; total: number; totalPages: number };
   }> {
     const scopedNodes = await Promise.all(
-      userScopes.map((scopeUserId) => this.listAllFilteredNodes(personaId, scopeUserId, input)),
+      userScopes.map((scopeUserId) =>
+        this.listAllFilteredNodes(personaId, scopeUserId, workspaceId, input),
+      ),
     );
     const byId = new Map<string, MemoryNode>();
     for (const node of scopedNodes.flat()) {
@@ -397,11 +424,12 @@ export class MemoryService {
       metadata?: Record<string, unknown>;
     },
     userId?: string,
+    workspaceId?: string,
   ): Promise<MemoryNode | null> {
-    const lockKey = `${resolveUserId(userId)}:${personaId}:${nodeId}`;
+    const lockKey = `${resolveUserId(userId)}:${personaId}:${workspaceId || ''}:${nodeId}`;
     const running = this.updateLocks.get(lockKey);
     if (running) return running;
-    const operation = this.updateUnlocked(personaId, nodeId, input, userId);
+    const operation = this.updateUnlocked(personaId, nodeId, input, userId, workspaceId);
     this.updateLocks.set(lockKey, operation);
     try {
       return await operation;
@@ -421,12 +449,13 @@ export class MemoryService {
       metadata?: Record<string, unknown>;
     },
     userId?: string,
+    workspaceId?: string,
   ): Promise<MemoryNode | null> {
     const scopedUserId = resolveUserId(userId);
 
     let current: Mem0MemoryRecord | null = null;
     try {
-      current = await this.findScopedRecord(personaId, nodeId, scopedUserId);
+      current = await this.findScopedRecord(personaId, nodeId, scopedUserId, workspaceId);
     } catch (error) {
       if (isNotFoundError(error)) return null;
       throw error;
@@ -441,7 +470,7 @@ export class MemoryService {
     const scope: Mem0Scope = {
       userId: scopedUserId,
       personaId,
-      workspaceId: String(currentNode.metadata?.workspaceId || ''),
+      workspaceId: workspaceId ?? String(currentNode.metadata?.workspaceId || ''),
     };
     const currentVersion = await this.resolveNodeVersion(nodeId, currentNode, scope);
     const expectedVersion =
@@ -464,6 +493,10 @@ export class MemoryService {
       memoryProvider,
     };
 
+    const updateMetadata =
+      memoryProvider === 'postgres'
+        ? { ...nextMetadata, expectedVersion: currentVersion }
+        : nextMetadata;
     await this.mem0Client.updateMemory(
       nodeId,
       {
@@ -471,7 +504,7 @@ export class MemoryService {
         personaId,
         workspaceId: scope.workspaceId,
         content: nextContent,
-        metadata: nextMetadata,
+        metadata: updateMetadata,
       },
       scope,
     );
@@ -504,7 +537,7 @@ export class MemoryService {
     if (expectedVersion !== undefined) {
       let latest: Mem0MemoryRecord | null = null;
       try {
-        latest = await this.findScopedRecord(personaId, nodeId, scopedUserId);
+        latest = await this.findScopedRecord(personaId, nodeId, scopedUserId, workspaceId);
       } catch (error) {
         if (!isNotFoundError(error)) throw error;
       }
@@ -533,8 +566,9 @@ export class MemoryService {
     nodeId: string,
     input: { restoreIndex: number; expectedVersion?: number },
     userId?: string,
+    workspaceId?: string,
   ): Promise<MemoryNode | null> {
-    const snapshot = await this.history(personaId, nodeId, userId);
+    const snapshot = await this.history(personaId, nodeId, userId, workspaceId);
     if (!snapshot) return null;
 
     const index = Math.floor(input.restoreIndex);
@@ -557,6 +591,7 @@ export class MemoryService {
         expectedVersion: input.expectedVersion,
       },
       userId,
+      workspaceId,
     );
   }
 
@@ -564,10 +599,11 @@ export class MemoryService {
     personaId: string,
     nodeId: string,
     userId?: string,
+    workspaceId?: string,
   ): Promise<{ node: MemoryNode; entries: MemoryHistoryRecord[] } | null> {
     let current: Mem0MemoryRecord | null = null;
     try {
-      current = await this.findScopedRecord(personaId, nodeId, userId);
+      current = await this.findScopedRecord(personaId, nodeId, userId, workspaceId);
     } catch (error) {
       if (isNotFoundError(error)) return null;
       throw error;
@@ -579,7 +615,7 @@ export class MemoryService {
       .getMemoryHistory(nodeId, {
         userId: resolveUserId(userId),
         personaId,
-        workspaceId: String(node.metadata?.workspaceId || ''),
+        workspaceId: workspaceId ?? String(node.metadata?.workspaceId || ''),
       })
       .catch((error) => {
         if (isNotFoundError(error)) return [];
@@ -591,17 +627,22 @@ export class MemoryService {
     };
   }
 
-  async delete(personaId: string, nodeId: string, userId?: string): Promise<boolean> {
+  async delete(
+    personaId: string,
+    nodeId: string,
+    userId?: string,
+    workspaceId?: string,
+  ): Promise<boolean> {
     const scopedUserId = resolveUserId(userId);
-    const owned = await this.findScopedRecord(personaId, nodeId, scopedUserId);
+    const owned = await this.findScopedRecord(personaId, nodeId, scopedUserId, workspaceId);
     if (!owned) return false;
     try {
-      await this.mem0Client.deleteMemory(nodeId, { userId: scopedUserId, personaId });
+      await this.mem0Client.deleteMemory(nodeId, { userId: scopedUserId, personaId, workspaceId });
       return true;
     } catch (error) {
       if (!isNotFoundError(error) && !isLegacyDeleteNotFoundError(error)) throw error;
 
-      const nodes = await this.snapshot(personaId, scopedUserId);
+      const nodes = await this.snapshot(personaId, scopedUserId, workspaceId);
       const rewritten = nodes.find((node) => {
         const sourceId = String(node.metadata?.mem0Id || '').trim();
         return sourceId === nodeId;
@@ -609,7 +650,11 @@ export class MemoryService {
       if (!rewritten) return false;
 
       try {
-        await this.mem0Client.deleteMemory(rewritten.id, { userId: scopedUserId, personaId });
+        await this.mem0Client.deleteMemory(rewritten.id, {
+          userId: scopedUserId,
+          personaId,
+          workspaceId,
+        });
         return true;
       } catch (secondError) {
         if (isNotFoundError(secondError)) return false;
@@ -623,24 +668,32 @@ export class MemoryService {
     nodeIds: string[],
     updates: { type?: MemoryType; importance?: number },
     userId?: string,
+    workspaceId?: string,
   ): Promise<number> {
-    return bulkUpdate((pid, nid, input, uid) => this.update(pid, nid, input, uid), {
+    return bulkUpdate((pid, nid, input, uid, wid) => this.update(pid, nid, input, uid, wid), {
       personaId,
       nodeIds,
       updates,
       userId,
+      workspaceId,
     });
   }
 
-  async bulkDelete(personaId: string, nodeIds: string[], userId?: string): Promise<number> {
-    return bulkDelete((pid, nid, uid) => this.delete(pid, nid, uid), {
+  async bulkDelete(
+    personaId: string,
+    nodeIds: string[],
+    userId?: string,
+    workspaceId?: string,
+  ): Promise<number> {
+    return bulkDelete((pid, nid, uid, wid) => this.delete(pid, nid, uid, wid), {
       personaId,
       nodeIds,
       userId,
+      workspaceId,
     });
   }
 
-  async deleteByPersona(personaId: string, userId?: string): Promise<number> {
-    return deleteByPersona(this.mem0Client, personaId, userId);
+  async deleteByPersona(personaId: string, userId?: string, workspaceId?: string): Promise<number> {
+    return deleteByPersona(this.mem0Client, personaId, userId, workspaceId);
   }
 }

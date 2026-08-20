@@ -8,6 +8,7 @@ import {
   getReadyMemoryService,
   parseFlag,
   parseOptionalType,
+  parseOptionalWorkspaceId,
   parsePersonaId,
   rankNodeTimestamp,
   resolveMemoryReadUserScopes,
@@ -17,6 +18,7 @@ export async function handleMemoryGet(request: Request, userContext: MemoryApiUs
   try {
     const url = new URL(request.url);
     const personaId = parsePersonaId(url.searchParams.get('personaId'));
+    const workspaceId = parseOptionalWorkspaceId(url.searchParams.get('workspaceId'));
     const nodeId = String(url.searchParams.get('id') || '').trim();
     const includeHistory = parseFlag(url.searchParams.get('history'));
     const pageParam = url.searchParams.get('page');
@@ -50,7 +52,7 @@ export async function handleMemoryGet(request: Request, userContext: MemoryApiUs
       if (!nodeId) {
         throw new ValidationError('id is required when history is requested.');
       }
-      const result = await service.history(personaId, nodeId, primaryUserScope);
+      const result = await service.history(personaId, nodeId, primaryUserScope, workspaceId);
       if (!result) {
         return NextResponse.json({ ok: false, error: 'Memory node not found.' }, { status: 404 });
       }
@@ -63,14 +65,16 @@ export async function handleMemoryGet(request: Request, userContext: MemoryApiUs
       const input = { page, pageSize, query: query || undefined, type };
       const result =
         userScopes.length > 1
-          ? await service.listPageAcrossScopes(personaId, userScopes, input)
-          : await service.listPage(personaId, input, primaryUserScope);
+          ? await service.listPageAcrossScopes(personaId, userScopes, input, workspaceId)
+          : await service.listPage(personaId, input, primaryUserScope, workspaceId);
       return NextResponse.json({ ok: true, nodes: result.nodes, pagination: result.pagination });
     }
 
     if (userScopes.length > 1) {
       const snapshots = await Promise.all(
-        userScopes.map((scopeUserId) => service.snapshotWithMeta(personaId, scopeUserId)),
+        userScopes.map((scopeUserId) =>
+          service.snapshotWithMeta(personaId, scopeUserId, workspaceId),
+        ),
       );
       const merged = dedupeById(snapshots.flatMap((snapshot) => snapshot.nodes)).sort(
         (a, b) => rankNodeTimestamp(b) - rankNodeTimestamp(a),
@@ -82,7 +86,7 @@ export async function handleMemoryGet(request: Request, userContext: MemoryApiUs
       });
     }
 
-    const snapshot = await service.snapshotWithMeta(personaId, primaryUserScope);
+    const snapshot = await service.snapshotWithMeta(personaId, primaryUserScope, workspaceId);
     return NextResponse.json({
       ok: true,
       nodes: snapshot.nodes,

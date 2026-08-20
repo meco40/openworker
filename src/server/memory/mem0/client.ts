@@ -62,6 +62,7 @@ class HttpMem0Client implements Mem0Client {
   public readonly deleteMemoriesByFilter: (input: {
     userId: string;
     personaId: string;
+    workspaceId?: string;
   }) => Promise<number>;
 
   constructor(config: Mem0ClientConfig, fetchImpl: typeof fetch) {

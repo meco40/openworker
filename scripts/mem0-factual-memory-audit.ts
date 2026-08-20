@@ -2,11 +2,9 @@
 /**
  * Mem0 factual-memory audit.
  *
- * The Mem0 API has no provider-wide list endpoint. `--scope all` therefore
- * inventories every scope known to the application (World Model, messages
- * and local master records where available) and audits each of them. The
- * report states this coverage explicitly instead of claiming an impossible
- * global provider inventory.
+ * A local Mem0 deployment exposes an authenticated admin inventory endpoint
+ * for this audit. External providers without that endpoint remain explicitly
+ * limited to known application scopes.
  */
 
 import { createRequire } from 'node:module';
@@ -49,17 +47,39 @@ interface ScopeAuditResult {
   migratedIds: string[];
 }
 
+interface ProviderMemory {
+  id: string;
+  payload: Record<string, unknown>;
+}
+
+interface ProviderWideAudit {
+  endpoint: string;
+  providerWideListSupported: boolean;
+  recordsAvailable: number;
+  recordsAudited: number;
+  scopes: number;
+  preferences: number;
+  factual: number;
+  personalityTraits: number;
+  workflowPatterns: number;
+  avoidances: number;
+  lessons: number;
+  uncategorized: number;
+  errors: string[];
+}
+
 interface AuditReport {
   generatedAt: string;
-  evidenceClass: 'mem0-known-scope-inventory';
+  evidenceClass: 'mem0-known-scope-inventory' | 'mem0-provider-wide-inventory';
   provider: string;
   requestedScope: string;
   coverage: {
     knownApplicationScopes: number;
     auditedScopes: number;
-    providerWideListSupported: false;
+    providerWideListSupported: boolean;
     limitation: string;
   };
+  providerWide: ProviderWideAudit;
   scopes: ScopeAuditResult[];
   totals: Omit<ScopeAuditResult, 'scope' | 'errors' | 'migratedIds'> & { errors: number };
 }
@@ -128,8 +148,8 @@ function parseScope(value: string): AuditScope {
   return { userId, personaId, workspaceId };
 }
 
-function scopeKey(scope: Pick<AuditScope, 'userId' | 'personaId'>): string {
-  return `${scope.userId}\u0000${scope.personaId}`;
+function scopeKey(scope: AuditScope): string {
+  return `${scope.userId}\u0000${scope.personaId}\u0000${scope.workspaceId ?? ''}`;
 }
 
 function classifyMemory(content: string, type?: string): string {
@@ -154,6 +174,98 @@ function classifyMemory(content: string, type?: string): string {
 function addScope(scopes: Map<string, AuditScope>, scope: AuditScope): void {
   const key = scopeKey(scope);
   if (!scopes.has(key)) scopes.set(key, scope);
+}
+
+function providerPayloadMemory(item: ProviderMemory): {
+  scope: AuditScope;
+  content: string;
+  type?: string;
+} | null {
+  const payload = item.payload || {};
+  const nestedMetadata =
+    payload.metadata && typeof payload.metadata === 'object' && !Array.isArray(payload.metadata)
+      ? (payload.metadata as Record<string, unknown>)
+      : {};
+  const content = String(
+    payload.memory ?? payload.data ?? payload.content ?? payload.text ?? '',
+  ).trim();
+  const userId = String(payload.user_id ?? payload.userId ?? '').trim();
+  const personaId = String(payload.agent_id ?? payload.agentId ?? payload.run_id ?? '').trim();
+  const workspaceId = String(
+    nestedMetadata.workspaceId ?? payload.workspace_id ?? payload.workspaceId ?? '',
+  ).trim();
+  if (!content || !userId || !personaId) return null;
+  return {
+    scope: { userId, personaId, workspaceId },
+    content,
+    type: String(nestedMetadata.type ?? payload.type ?? '').trim() || undefined,
+  };
+}
+
+async function fetchProviderWideInventory(): Promise<{
+  endpoint: string;
+  supported: boolean;
+  records: ProviderMemory[];
+  errors: string[];
+}> {
+  const baseUrl = String(process.env.MEM0_BASE_URL || '')
+    .trim()
+    .replace(/\/+$/, '');
+  const apiKey = String(process.env.MEM0_API_KEY || '').trim();
+  const endpoint = `${baseUrl.replace(/\/v1$/i, '')}/admin/memories`;
+  if (!baseUrl || !apiKey) {
+    return {
+      endpoint,
+      supported: false,
+      records: [],
+      errors: ['MEM0_BASE_URL or MEM0_API_KEY is missing.'],
+    };
+  }
+  const records: ProviderMemory[] = [];
+  const pageSize = 500;
+  let page = 1;
+  try {
+    while (true) {
+      const response = await fetch(`${endpoint}?page=${page}&page_size=${pageSize}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      if (response.status === 403 || response.status === 404) {
+        return {
+          endpoint,
+          supported: false,
+          records: [],
+          errors: [`Provider-wide endpoint returned HTTP ${response.status}.`],
+        };
+      }
+      if (!response.ok) throw new Error(`Provider-wide endpoint returned HTTP ${response.status}.`);
+      const body = (await response.json()) as {
+        items?: unknown;
+        total?: unknown;
+        page?: unknown;
+      };
+      const items = Array.isArray(body.items)
+        ? body.items.flatMap((item) => {
+            if (!item || typeof item !== 'object') return [];
+            const value = item as Record<string, unknown>;
+            const payload = value.payload;
+            if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return [];
+            return [{ id: String(value.id ?? ''), payload: payload as Record<string, unknown> }];
+          })
+        : [];
+      records.push(...items);
+      const total = Number(body.total ?? records.length);
+      if (items.length === 0 || records.length >= total) break;
+      page += 1;
+    }
+    return { endpoint, supported: true, records, errors: [] };
+  } catch (error) {
+    return {
+      endpoint,
+      supported: false,
+      records,
+      errors: [error instanceof Error ? error.message : String(error)],
+    };
+  }
 }
 
 async function discoverKnownScopes(): Promise<AuditScope[]> {
@@ -326,11 +438,49 @@ async function runAudit(options: AuditOptions): Promise<AuditReport> {
     options.scope && options.scope !== 'all'
       ? [parseScope(options.scope)]
       : await discoverKnownScopes();
+  const providerInventory = await fetchProviderWideInventory();
   const scopes = options.scope && options.scope !== 'all' ? knownScopes : knownScopes;
   const results: ScopeAuditResult[] = [];
   for (const scope of scopes) {
     console.log(`Auditing ${scope.userId}:${scope.personaId}:${scope.workspaceId}`);
     results.push(await auditScope(options, scope));
+  }
+
+  const providerScopes = new Map<string, AuditScope>();
+  let providerRecordsAudited = 0;
+  const providerClassification = {
+    preferences: 0,
+    factual: 0,
+    personalityTraits: 0,
+    workflowPatterns: 0,
+    avoidances: 0,
+    lessons: 0,
+    uncategorized: 0,
+  };
+  for (const record of providerInventory.records) {
+    const parsed = providerPayloadMemory(record);
+    if (!parsed) continue;
+    if (options.scope && options.scope !== 'all') {
+      const requested = knownScopes[0];
+      if (
+        requested &&
+        (parsed.scope.userId !== requested.userId ||
+          parsed.scope.personaId !== requested.personaId ||
+          parsed.scope.workspaceId !== requested.workspaceId)
+      ) {
+        continue;
+      }
+    }
+    addScope(providerScopes, parsed.scope);
+    providerRecordsAudited += 1;
+    const classification = classifyMemory(parsed.content, parsed.type);
+    if (classification === 'preference') providerClassification.preferences += 1;
+    else if (classification === 'factual') providerClassification.factual += 1;
+    else if (classification === 'personality_trait') providerClassification.personalityTraits += 1;
+    else if (classification === 'workflow_pattern') providerClassification.workflowPatterns += 1;
+    else if (classification === 'avoidance') providerClassification.avoidances += 1;
+    else if (classification === 'lesson') providerClassification.lessons += 1;
+    else providerClassification.uncategorized += 1;
   }
 
   const totals = results.reduce<AuditReport['totals']>(
@@ -361,15 +511,27 @@ async function runAudit(options: AuditOptions): Promise<AuditReport> {
   );
   return {
     generatedAt: new Date().toISOString(),
-    evidenceClass: 'mem0-known-scope-inventory',
+    evidenceClass: providerInventory.supported
+      ? 'mem0-provider-wide-inventory'
+      : 'mem0-known-scope-inventory',
     provider: process.env.MEMORY_PROVIDER || 'unknown',
     requestedScope: options.scope || 'all',
     coverage: {
       knownApplicationScopes: knownScopes.length,
       auditedScopes: results.length,
-      providerWideListSupported: false,
-      limitation:
-        'Mem0 has no provider-wide list endpoint; unknown scopes outside application inventory cannot be ruled out.',
+      providerWideListSupported: providerInventory.supported,
+      limitation: providerInventory.supported
+        ? 'Provider-wide local admin inventory was enumerated; migration remains explicit and scope-limited.'
+        : 'Provider-wide inventory is unavailable; unknown scopes outside application inventory cannot be ruled out.',
+    },
+    providerWide: {
+      endpoint: providerInventory.endpoint,
+      providerWideListSupported: providerInventory.supported,
+      recordsAvailable: providerInventory.records.length,
+      recordsAudited: providerRecordsAudited,
+      scopes: providerScopes.size,
+      ...providerClassification,
+      errors: providerInventory.errors,
     },
     scopes: results,
     totals,

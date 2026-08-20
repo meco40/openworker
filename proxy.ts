@@ -19,6 +19,9 @@ const PUBLIC_API_PREFIXES = [
   '/api/channels/whatsapp/webhook',
   '/api/channels/imessage/webhook',
   '/api/health/scheduler',
+  // Graphiti authenticates this internal adapter with its own bearer token;
+  // do not require a browser session or the general MC_API_TOKEN here.
+  '/api/internal/model-hub/graphiti',
 ];
 
 function hasPathPrefix(pathname: string, prefix: string): boolean {

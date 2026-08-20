@@ -37,6 +37,8 @@ import { buildStrictEvidenceReply } from './evidence';
 import { learnFromFeedback } from './learning';
 import { RecallStateManager } from './state';
 import { isMem0PreferencesOnly } from '@/server/world-model/mem0Policy';
+import { isWorldModelCanonical } from '@/server/world-model/mode';
+import { getWorldModelConfig } from '@/server/world-model/config';
 import { formatWorldModelContext, retrieveContext } from '@/server/world-model/retrieval';
 import type { MemoryType } from '@/core/memory/types';
 
@@ -85,8 +87,11 @@ export class RecallService {
     });
 
     const knowledgeConfig = resolveKnowledgeConfig();
+    const worldModelConfig = getWorldModelConfig();
     const knowledgeRetrievalService =
-      knowledgeConfig.layerEnabled && knowledgeConfig.retrievalEnabled
+      knowledgeConfig.layerEnabled &&
+      knowledgeConfig.retrievalEnabled &&
+      !isWorldModelCanonical(worldModelConfig.mode)
         ? getKnowledgeRetrievalService()
         : null;
 
@@ -130,7 +135,7 @@ export class RecallService {
           const result = await retrieveContext({
             userId: userIdCandidate,
             personaId: conversation.personaId!,
-            workspaceId: '',
+            workspaceId: conversation.workspaceId ?? '',
             query: userInput,
           });
           const context = formatWorldModelContext(result);
@@ -265,7 +270,13 @@ export class RecallService {
   ): Promise<string | null> {
     const personaId = conversation.personaId!;
     for (const userIdCandidate of memoryUserIds) {
-      if (this.stateManager.isMem0ScopeTemporarilyEmpty(personaId, userIdCandidate)) {
+      if (
+        this.stateManager.isMem0ScopeTemporarilyEmpty(
+          personaId,
+          userIdCandidate,
+          conversation.workspaceId,
+        )
+      ) {
         continue;
       }
       const startedAt = Date.now();
@@ -275,10 +286,18 @@ export class RecallService {
           userInput,
           MEMORY_RECALL_LIMIT,
           userIdCandidate,
-          { mode: options.mode, memoryTypes: options.memoryTypes },
+          {
+            mode: options.mode,
+            memoryTypes: options.memoryTypes,
+            workspaceId: conversation.workspaceId,
+          },
         );
         if (recalled.matches.length > 0) {
-          this.stateManager.clearMem0ScopeEmptyMarker(personaId, userIdCandidate);
+          this.stateManager.clearMem0ScopeEmptyMarker(
+            personaId,
+            userIdCandidate,
+            conversation.workspaceId,
+          );
           this.stateManager.setState(conversation.id, {
             personaId,
             userId: userIdCandidate,
@@ -288,10 +307,18 @@ export class RecallService {
         }
         const normalized = normalizeMemoryContext(recalled.context);
         if (normalized) {
-          this.stateManager.clearMem0ScopeEmptyMarker(personaId, userIdCandidate);
+          this.stateManager.clearMem0ScopeEmptyMarker(
+            personaId,
+            userIdCandidate,
+            conversation.workspaceId,
+          );
         }
         if (recalled.matches.length === 0) {
-          this.stateManager.markMem0ScopeTemporarilyEmpty(personaId, userIdCandidate);
+          this.stateManager.markMem0ScopeTemporarilyEmpty(
+            personaId,
+            userIdCandidate,
+            conversation.workspaceId,
+          );
         }
         const durationMs = Date.now() - startedAt;
         this.logMemoryScopeCompleted(

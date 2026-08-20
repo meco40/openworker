@@ -32,6 +32,7 @@ function isRecallActive(
 
 export interface RecallOptions {
   personaId: string;
+  workspaceId?: string;
   query: string;
   limit?: number;
   userId?: string;
@@ -92,7 +93,15 @@ export async function recallDetailed(
   client: Mem0Client,
   options: RecallOptions,
 ): Promise<MemoryRecallResult> {
-  const { personaId, query, limit = 3, userId, mode = 'semantic', memoryTypes } = options;
+  const {
+    personaId,
+    workspaceId,
+    query,
+    limit = 3,
+    userId,
+    mode = 'semantic',
+    memoryTypes,
+  } = options;
   const scopedUserId = resolveUserId(userId);
   const safeLimit = Math.max(1, limit);
   const allowedTypes = memoryTypes?.length ? new Set(memoryTypes) : null;
@@ -106,6 +115,7 @@ export async function recallDetailed(
             client.listMemories({
               userId: scopedUserId,
               personaId,
+              workspaceId,
               page: 1,
               pageSize: Math.max(25, safeLimit * 4),
               query: query.trim() || undefined,
@@ -117,6 +127,7 @@ export async function recallDetailed(
           await client.listMemories({
             userId: scopedUserId,
             personaId,
+            workspaceId,
             page: 1,
             pageSize: Math.max(25, safeLimit * 4),
             query: query.trim() || undefined,
@@ -160,6 +171,7 @@ export async function recallDetailed(
   const hits = await client.searchMemories({
     userId: scopedUserId,
     personaId,
+    workspaceId,
     query: expandedQuery,
     limit: allowedTypes ? Math.max(safeLimit * 4, 20) : safeLimit,
   });
@@ -188,6 +200,7 @@ export async function recallDetailed(
             client.listMemories({
               userId: scopedUserId,
               personaId,
+              workspaceId,
               page: 1,
               pageSize: Math.max(10, safeLimit),
               query: query.trim() || undefined,
@@ -199,6 +212,7 @@ export async function recallDetailed(
           await client.listMemories({
             userId: scopedUserId,
             personaId,
+            workspaceId,
             page: 1,
             pageSize: Math.max(10, safeLimit),
             query: query.trim() || undefined,

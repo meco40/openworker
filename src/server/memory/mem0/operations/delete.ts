@@ -43,6 +43,7 @@ export function createDeleteByFilterOperation(
   return async function deleteMemoriesByFilter(input: {
     userId: string;
     personaId: string;
+    workspaceId?: string;
   }): Promise<number> {
     try {
       const payload = await request(
@@ -52,6 +53,7 @@ export function createDeleteByFilterOperation(
           body: {
             user_id: input.userId,
             agent_id: input.personaId,
+            ...(input.workspaceId ? { workspace_id: input.workspaceId } : {}),
           },
         },
         {
@@ -65,10 +67,8 @@ export function createDeleteByFilterOperation(
       if (!isLegacyDeleteFilterError(error)) throw error;
     }
 
-    const params = new URLSearchParams({
-      user_id: input.userId,
-      agent_id: input.personaId,
-    });
+    const params = new URLSearchParams({ user_id: input.userId, agent_id: input.personaId });
+    if (input.workspaceId) params.set('workspace_id', input.workspaceId);
     const fallbackPayload = await request(
       `/memories?${params.toString()}`,
       {

@@ -93,7 +93,7 @@ export function dispatchOutboxOnceInScope(
 }
 
 async function dispatchKnownScopes(batchSize?: number): Promise<number> {
-  const scopes = listRuntimeWorldModelScopes();
+  const scopes = await listRuntimeWorldModelScopes();
   let handled = 0;
   for (const scope of scopes) {
     handled += await dispatchOutboxOnceInScope(scope, batchSize);
@@ -123,6 +123,8 @@ export async function startOutboxDispatcher(): Promise<void> {
       'world.assertion.created',
       'world.event.created',
       'world.relation.created',
+      'world.task.created',
+      'world.task.status_changed',
     ] as const) {
       registerOutboxHandler(eventType, graphitiHandler, 'world-model:graphiti-projector');
     }

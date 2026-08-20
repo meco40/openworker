@@ -6,6 +6,7 @@ import {
   getReadyMemoryService,
   isDeleteAllConfirmed,
   parsePersonaId,
+  parseOptionalWorkspaceId,
 } from './shared';
 import type { MemoryApiUserContext } from './types';
 
@@ -13,11 +14,14 @@ export async function handleMemoryDelete(request: Request, userContext: MemoryAp
   try {
     const url = new URL(request.url);
     const personaId = parsePersonaId(url.searchParams.get('personaId'));
+    const workspaceId = parseOptionalWorkspaceId(url.searchParams.get('workspaceId'));
     const nodeId = String(url.searchParams.get('id') || '').trim();
     const service = getReadyMemoryService();
 
     if (nodeId) {
-      const deleted = (await service.delete(personaId, nodeId, userContext.userId)) ? 1 : 0;
+      const deleted = (await service.delete(personaId, nodeId, userContext.userId, workspaceId))
+        ? 1
+        : 0;
       return NextResponse.json({ ok: true, deleted });
     }
 
@@ -27,7 +31,7 @@ export async function handleMemoryDelete(request: Request, userContext: MemoryAp
       );
     }
 
-    const deleted = await service.deleteByPersona(personaId, userContext.userId);
+    const deleted = await service.deleteByPersona(personaId, userContext.userId, workspaceId);
     return NextResponse.json({ ok: true, deleted });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid request.';

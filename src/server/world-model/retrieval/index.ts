@@ -24,8 +24,11 @@ import {
   type RankCandidate,
   type RankSource,
 } from '@/server/world-model/retrieval/hybridRanker';
+import { graphitiGroupId } from '@/server/world-model/graphiti/client';
+import { searchGraphitiFactsWithRerank } from '@/server/world-model/graphiti/retrieval';
+import type { GraphitiFact } from '@/server/world-model/graphiti/client';
 
-export type RetrievalSource = 'structured' | 'fulltext' | 'vector' | 'none';
+export type RetrievalSource = 'structured' | 'fulltext' | 'vector' | 'graphiti' | 'none';
 export type { PlannedQuery };
 
 export interface RetrievalContextResult {
@@ -39,6 +42,7 @@ export interface RetrievalContextResult {
   tasks?: Awaited<ReturnType<typeof searchTasks>>;
   relations?: Awaited<ReturnType<typeof searchRelations>>;
   openLoops?: OpenLoopRetrievalHit[];
+  graphiti?: GraphitiFact[];
 }
 
 function statusFilterForIntent(intent: PlannedQuery['intent']): string[] | undefined {
@@ -183,6 +187,23 @@ async function retrieveContextInScope(
     }
   }
 
+  let graphiti: GraphitiFact[] = [];
+  if (config.graphitiRecallEnabled && config.graphitiBackendEnabled) {
+    try {
+      graphiti = await searchGraphitiFactsWithRerank(
+        graphitiGroupId(input.userId, input.personaId, workspaceId),
+        {
+          text: input.query,
+          terms: [plan.entity || input.query],
+        },
+        { maxResults: limit },
+      );
+    } catch (error) {
+      // Graphiti is derived and must never make canonical retrieval fail.
+      console.warn('[world-model:retrieval] Graphiti recall unavailable:', error);
+    }
+  }
+
   const candidates: RankCandidate[] = [
     ...structured.map((e) => ({
       id: e.id,
@@ -225,9 +246,11 @@ async function retrieveContextInScope(
           relations.length > 0 ||
           openLoops.length > 0
         ? 'fulltext'
-        : vector.length > 0
-          ? 'vector'
-          : 'none';
+        : graphiti.length > 0
+          ? 'graphiti'
+          : vector.length > 0
+            ? 'vector'
+            : 'none';
 
   const source: RetrievalSource = finalRanked.length > 0 ? finalRanked[0].source : fallbackSource;
   return {
@@ -240,47 +263,66 @@ async function retrieveContextInScope(
     tasks,
     relations,
     openLoops,
+    graphiti,
   };
 }
 
 export function formatWorldModelContext(result: RetrievalContextResult): string | null {
   const lines: string[] = [];
+  const seen = new Set<string>();
+  const add = (key: string, line: string): void => {
+    if (seen.has(key)) return;
+    seen.add(key);
+    lines.push(line);
+  };
   for (const event of result.structured) {
     const schedule = [event.scheduledFor, event.endsAt].filter(Boolean).join(' - ');
     const timeline = event.timeline
       .map((point) => `${point.toStatus}${point.reason ? ` (${point.reason})` : ''}`)
       .join(' -> ');
-    lines.push(
+    add(
+      `event:${event.id}`,
       `- Event: ${event.title}; status=${event.status}${schedule ? `; time=${schedule}` : ''}${timeline ? `; history=${timeline}` : ''}`,
     );
   }
   for (const hit of result.fullText) {
-    lines.push(
+    add(
+      `assertion:${hit.id}`,
       `- Assertion [${hit.id}]: ${hit.predicate} = ${hit.objectValue}; modality=${hit.modality}; status=${hit.status}; confidence=${hit.confidence}${hit.sourceObservationId ? `; source=${hit.sourceObservationId}` : ''}`,
     );
   }
   for (const assertion of result.assertions ?? []) {
-    lines.push(
+    add(
+      `assertion:${assertion.id}`,
       `- Assertion [${assertion.id}]: ${assertion.subjectName} ${assertion.predicate} = ${assertion.objectValue}; modality=${assertion.modality}; status=${assertion.status}; confidence=${assertion.confidence}${assertion.sourceObservationId ? `; source=${assertion.sourceObservationId}` : ''}`,
     );
   }
   for (const task of result.tasks ?? []) {
-    lines.push(
+    add(
+      `task:${task.id}`,
       `- Task: ${task.title}; status=${task.status}${task.dueAt ? `; due=${task.dueAt}` : ''}`,
     );
   }
   for (const relation of result.relations ?? []) {
-    lines.push(
+    add(
+      `relation:${relation.id}`,
       `- Relation [${relation.id}]: ${relation.sourceEntityName} ${relation.relationType} ${relation.targetEntityName}; confidence=${relation.confidence}`,
     );
   }
   for (const loop of result.openLoops ?? []) {
-    lines.push(
+    add(
+      `loop:${loop.id}`,
       `- Open loop [${loop.id}]: ${loop.type}; status=${loop.status}; question=${loop.question ?? ''}`,
     );
   }
   for (const hit of result.vector) {
-    lines.push(`- Semantic evidence [${hit.targetId}]: ${hit.text}; similarity=${hit.similarity}`);
+    add(
+      `vector:${hit.targetType}:${hit.targetId}`,
+      `- Semantic evidence [${hit.targetId}]: ${hit.text}; similarity=${hit.similarity}`,
+    );
+  }
+  for (const fact of result.graphiti ?? []) {
+    add(`graphiti:${fact.uuid ?? fact.fact}`, `- Graphiti derived fact: ${fact.fact}`);
   }
   return lines.length > 0 ? lines.join('\n') : null;
 }

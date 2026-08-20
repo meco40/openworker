@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
-const DEFAULT_MODEL = 'qwen3:8b';
+const DEFAULT_MODEL = 'qwen2.5:7b';
 const DEFAULT_HOST = '0.0.0.0:11434';
 const DEFAULT_PORT = 11434;
 const STARTUP_TIMEOUT_MS = 60_000;
@@ -265,10 +265,7 @@ async function warmModel(apiUrl, model) {
  * during app shutdown.
  */
 export async function startManagedOllama() {
-  if (!shouldManageOllama()) {
-    console.log('[ollama] lifecycle disabled because Graphiti is not configured for Ollama');
-    return null;
-  }
+  if (!shouldManageOllama()) return null;
 
   const port = resolvePort();
   const apiUrl = resolveApiUrl(port);

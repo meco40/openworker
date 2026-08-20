@@ -347,6 +347,60 @@ def require_admin_endpoints_enabled() -> None:
         raise HTTPException(status_code=403, detail="Admin endpoints are disabled.")
 
 
+def _provider_wide_memories(page: int, page_size: int) -> Dict[str, Any]:
+    """Return the local provider inventory without applying an application scope.
+
+    This is deliberately an authenticated, local-admin endpoint. It exists for
+    migration/audit accounting only; normal runtime reads and writes continue
+    to use the regular Mem0 API contract.
+    """
+    safe_page = max(1, int(page))
+    safe_page_size = min(500, max(1, int(page_size)))
+    offset = (safe_page - 1) * safe_page_size
+    connection = psycopg2.connect(
+        host=POSTGRES_HOST,
+        port=POSTGRES_PORT,
+        dbname=POSTGRES_DB,
+        user=POSTGRES_USER,
+        password=POSTGRES_PASSWORD,
+    )
+    try:
+        with connection.cursor() as cursor:
+            table = sql.Identifier("public", POSTGRES_COLLECTION_NAME)
+            cursor.execute(sql.SQL("SELECT count(*) FROM {} WHERE payload IS NOT NULL").format(table))
+            total = int(cursor.fetchone()[0])
+            cursor.execute(
+                sql.SQL(
+                    "SELECT id::text, payload FROM {} "
+                    "WHERE payload IS NOT NULL ORDER BY id::text OFFSET %s LIMIT %s"
+                ).format(table),
+                (offset, safe_page_size),
+            )
+            items = [{"id": row[0], "payload": row[1]} for row in cursor.fetchall()]
+            return {
+                "items": items,
+                "total": total,
+                "page": safe_page,
+                "page_size": safe_page_size,
+                "collection": POSTGRES_COLLECTION_NAME,
+                "provider_wide": True,
+            }
+    except psycopg2.Error as error:
+        logging.exception("Provider-wide Mem0 inventory failed.")
+        raise HTTPException(status_code=503, detail=f"Provider inventory unavailable: {error}")
+    finally:
+        connection.close()
+
+
+@app.get(
+    "/admin/memories",
+    summary="Enumerate the local Mem0 provider for migration/audit",
+    dependencies=[Depends(require_api_key), Depends(require_admin_endpoints_enabled)],
+)
+def admin_memories(page: int = 1, page_size: int = 500):
+    return _provider_wide_memories(page, page_size)
+
+
 class Message(BaseModel):
     role: str = Field(..., description="Role of the message (user or assistant).")
     content: str = Field(..., description="Message content.")

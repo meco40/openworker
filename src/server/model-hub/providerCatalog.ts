@@ -1,4 +1,5 @@
 import type { ProviderCatalogEntry } from '@/server/model-hub/types';
+import { CODEX_MODEL_SEED } from '@/server/model-hub/Models/openai-codex/constants';
 
 export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
   {
@@ -18,7 +19,7 @@ export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
     authMethods: ['api_key'],
     endpointType: 'openai-native',
     capabilities: ['chat', 'tools', 'vision', 'audio', 'embeddings'],
-    defaultModels: ['gpt-4.1', 'gpt-4.1-mini', 'o4-mini'],
+    defaultModels: ['gpt-5.6', 'gpt-5.6-terra', 'gpt-5.6-luna'],
     apiBaseUrl: 'https://api.openai.com/v1',
     docsUrl: 'https://platform.openai.com/docs/api-reference',
   },
@@ -29,15 +30,7 @@ export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
     authMethods: ['oauth'],
     endpointType: 'openai-native',
     capabilities: ['chat', 'tools', 'vision', 'audio'],
-    defaultModels: [
-      'gpt-5.3-codex',
-      'gpt-5.2-codex',
-      'gpt-5.2',
-      'gpt-5.1',
-      'gpt-5.1-codex',
-      'gpt-5.1-codex-mini',
-      'gpt-5.1-codex-max',
-    ],
+    defaultModels: [...CODEX_MODEL_SEED],
     apiBaseUrl: 'https://chatgpt.com/backend-api',
     docsUrl: 'https://platform.openai.com/docs/guides/codex',
   },

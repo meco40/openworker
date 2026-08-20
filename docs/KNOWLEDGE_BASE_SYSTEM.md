@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer internen Knowledge-Layer und Ingestion-Pipeline.
 - Scope: Episode-Ingestion, Ledger-Persistenz, Retrieval, Runtime-Loop, Token-Budgeting.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-02-21
+- Last Reviewed: 2026-08-20
 - Related Runbooks: N/A
 
 ---
@@ -36,7 +36,7 @@ Der Knowledge-Layer erweitert den Chat um strukturierte Wissensartefakte aus Kon
 - `src/server/knowledge/retrievalService.ts` - Recall/Ranking
 - `src/server/knowledge/queryPlanner.ts` - Query-Planung
 - `src/server/knowledge/extractor.ts` - Modellgestützte Extraktion
-- `src/server/knowledge/sqliteKnowledgeRepository.ts` - Persistenz
+- `src/server/knowledge/sqliteKnowledgeRepository.ts` - abgeleitete SQLite-Kompatibilitätsprojektion
 
 ### 2.2 Laufzeitintegration
 
@@ -49,6 +49,18 @@ Die Hauptintegration erfolgt intern im Chat-/Memory-Flow:
 Zusaetzlich existiert eine dedizierte Read-API fuer Graph-Visualisierung:
 
 - `GET /api/knowledge/graph` (mit `personaId`, optional `limit`, `edgeLimit`)
+
+Im `WORLD_MODEL_MODE=canonical`-Modus ist PostgreSQL die kanonische Wahrheit:
+
+- `projectWindow()` schreibt Observations, Assertions, Events, Entities und
+  Tasks in PostgreSQL.
+- Generische Fakten werden über `MemoryService` in
+  `world_model_memory_items` gespeichert.
+- SQLite schreibt weiterhin Episoden/Ledger als abgeleitete, retrybare
+  Kompatibilitätsprojektion; es entscheidet weder über Wahrheit noch über den
+  primären Chat-Recall.
+- Der kanonische Recall nutzt `retrieveContext()`; der alte SQLite-
+  `KnowledgeRetrievalService` ist dort bewusst deaktiviert.
 
 ---
 
@@ -101,5 +113,6 @@ npm run lint
 
 Weltwissen (Observations/Assertions/Events) liegt in der kanonischen PostgreSQL-Schicht
 unabhängig von der SQLite-Knowledge-Base (`src/server/world-model/`). Der Chat-Recall
-priorisiert strukturierten World-Model-Kontext; SQLite bleibt für Episoden und Ledger
-verfügbar. Details: `docs/runbooks/WORLD_MODEL_ROLLOUT.md`.
+priorisiert strukturierten World-Model-Kontext; SQLite bleibt als abgeleitete
+Episoden-/Ledger-Projektion verfügbar, ist aber keine Quelle der Wahrheit. Details:
+`docs/runbooks/WORLD_MODEL_ROLLOUT.md`.

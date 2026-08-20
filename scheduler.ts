@@ -21,6 +21,7 @@ import {
 } from './src/server/world-model/outboxDispatcher';
 import { runProspectiveRuntimeOnce } from './src/server/world-model/runtime/prospectiveRuntime';
 import { startEmbeddingWorker } from './src/server/world-model/embeddings/embeddingWorker';
+import { listRuntimeWorldModelScopes } from './src/server/world-model/runtime/scopeDiscovery';
 import { getWorldModelConfig } from './src/server/world-model/config';
 import { startProjectionRetryWorker } from './src/server/world-model/services/projectionRetryWorker';
 
@@ -88,7 +89,7 @@ async function bootstrap(): Promise<void> {
   prospectiveTimer.unref();
 
   // Start the embedding worker for pgvector population.
-  embeddingWorker = startEmbeddingWorker({}, 30_000);
+  embeddingWorker = startEmbeddingWorker({}, 30_000, listRuntimeWorldModelScopes);
   console.log('[automation-scheduler] world-model embedding worker started');
   projectionRetryWorker = startProjectionRetryWorker(30_000);
   console.log('[automation-scheduler] world-model projection retry worker started');

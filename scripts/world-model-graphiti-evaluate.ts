@@ -83,7 +83,7 @@ async function main(): Promise<void> {
   const scopes =
     options.scope && options.scope !== 'all'
       ? [parseScope(options.scope)]
-      : listRuntimeWorldModelScopes();
+      : await listRuntimeWorldModelScopes();
   if (scopes.length === 0) throw new Error('No runtime scopes were discovered.');
 
   const evaluations = [];

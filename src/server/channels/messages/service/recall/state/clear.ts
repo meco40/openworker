@@ -36,15 +36,15 @@ export class RecallStateManager {
   /**
    * Generate cache key for Mem0 scope
    */
-  private getMem0ScopeKey(personaId: string, userId: string): string {
-    return `${personaId}::${userId}`;
+  private getMem0ScopeKey(personaId: string, userId: string, workspaceId?: string): string {
+    return `${personaId}::${userId}::${workspaceId ?? ''}`;
   }
 
   /**
    * Check if Mem0 scope is temporarily marked as empty
    */
-  isMem0ScopeTemporarilyEmpty(personaId: string, userId: string): boolean {
-    const key = this.getMem0ScopeKey(personaId, userId);
+  isMem0ScopeTemporarilyEmpty(personaId: string, userId: string, workspaceId?: string): boolean {
+    const key = this.getMem0ScopeKey(personaId, userId, workspaceId);
     const expiresAt = this.emptyMem0ScopeCache.get(key);
     if (!expiresAt) return false;
     if (expiresAt <= Date.now()) {
@@ -57,16 +57,16 @@ export class RecallStateManager {
   /**
    * Mark Mem0 scope as temporarily empty
    */
-  markMem0ScopeTemporarilyEmpty(personaId: string, userId: string): void {
-    const key = this.getMem0ScopeKey(personaId, userId);
+  markMem0ScopeTemporarilyEmpty(personaId: string, userId: string, workspaceId?: string): void {
+    const key = this.getMem0ScopeKey(personaId, userId, workspaceId);
     this.emptyMem0ScopeCache.set(key, Date.now() + MEM0_EMPTY_SCOPE_TTL_MS);
   }
 
   /**
    * Clear the empty marker for a Mem0 scope
    */
-  clearMem0ScopeEmptyMarker(personaId: string, userId: string): void {
-    const key = this.getMem0ScopeKey(personaId, userId);
+  clearMem0ScopeEmptyMarker(personaId: string, userId: string, workspaceId?: string): void {
+    const key = this.getMem0ScopeKey(personaId, userId, workspaceId);
     this.emptyMem0ScopeCache.delete(key);
   }
 }

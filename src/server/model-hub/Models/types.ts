@@ -55,6 +55,8 @@ export interface GatewayRequest {
   systemInstruction?: string;
   tools?: unknown[];
   responseMimeType?: string;
+  /** Provider-native structured output format, when the caller supplies one. */
+  responseFormat?: unknown;
   auditContext?: GatewayAuditContext;
 }
 

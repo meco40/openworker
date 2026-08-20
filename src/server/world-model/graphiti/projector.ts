@@ -34,6 +34,8 @@ const SUPPORTED_EVENT_TYPES = new Set([
   'world.assertion.created',
   'world.event.created',
   'world.relation.created',
+  'world.task.created',
+  'world.task.status_changed',
 ]);
 
 function boundedGraphitiText(value: string, maxChars = 1_200): string {
@@ -131,8 +133,10 @@ export async function projectOutboxEvent(event: OutboxEvent): Promise<Projection
             segment,
             confidence: payload.confidence,
             validFrom: payload.validFrom,
+            validTo: payload.validTo,
             sourceObservationId: payload.sourceObservationId,
             eventId: event.id,
+            createdAt: event.createdAt,
           },
         };
         const nodeResult = await upsertGraphitiNodes([subjectNode, objectNode]);
@@ -152,28 +156,50 @@ export async function projectOutboxEvent(event: OutboxEvent): Promise<Projection
         if (!title)
           return { nodesCreated: 0, nodesUpdated: 0, edgesCreated: 0, edgesUpdated: 0, skipped: 1 };
 
-        const eventDetails = [
-          eventType ? `type=${eventType}` : '',
-          payload.status ? `status=${String(payload.status)}` : '',
-          payload.scheduledFor ? `scheduledFor=${String(payload.scheduledFor)}` : '',
-        ]
-          .filter(Boolean)
-          .join('; ');
-        const result = await addGraphitiMessages(segment, [
-          {
-            uuid: `event:${event.aggregateId}`,
-            name: title,
-            content: eventDetails ? `${title} (${eventDetails})` : title,
-            roleType: 'system',
-            timestamp: event.createdAt,
-            sourceDescription: `OpenClaw World Model event ${event.aggregateId}`,
+        const status = String(payload.status ?? '').trim();
+        const scheduledFor = String(payload.scheduledFor ?? '').trim();
+        const rootNode: GraphitiNode = {
+          id: `root:events:${segment}`,
+          label: 'OpenClaw events',
+          properties: { segment, category: 'event-root' },
+        };
+        const eventNode: GraphitiNode = {
+          id: `event:${event.aggregateId}:${segment}`,
+          label: title,
+          properties: { segment, category: 'event', eventType, status, scheduledFor },
+        };
+        const edge: GraphitiEdge = {
+          source: rootNode.id,
+          target: eventNode.id,
+          type: 'event',
+          name: eventType || 'event',
+          sourceLabel: rootNode.label,
+          targetLabel: title,
+          fact: [
+            title,
+            eventType ? `Type: ${eventType}.` : '',
+            status ? `Status: ${status}.` : '',
+            scheduledFor ? `Scheduled for: ${scheduledFor}.` : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+          properties: {
+            segment,
+            eventId: event.aggregateId,
+            eventType,
+            status,
+            scheduledFor,
+            createdAt: event.createdAt,
+            validFrom: scheduledFor || undefined,
           },
-        ]);
+        };
+        const nodeResult = await upsertGraphitiNodes([rootNode, eventNode]);
+        const edgeResult = await upsertGraphitiEdges([edge]);
         return {
-          nodesCreated: result.accepted,
-          nodesUpdated: 0,
-          edgesCreated: 0,
-          edgesUpdated: 0,
+          nodesCreated: nodeResult.created,
+          nodesUpdated: nodeResult.updated,
+          edgesCreated: edgeResult.created,
+          edgesUpdated: edgeResult.updated,
           skipped: 0,
         };
       }
@@ -206,10 +232,60 @@ export async function projectOutboxEvent(event: OutboxEvent): Promise<Projection
             segment,
             confidence: payload.confidence,
             validFrom: payload.validFrom,
+            validTo: payload.validTo,
             eventId: event.id,
+            createdAt: event.createdAt,
           },
         };
         const nodeResult = await upsertGraphitiNodes([sourceNode, targetNode]);
+        const edgeResult = await upsertGraphitiEdges([edge]);
+        return {
+          nodesCreated: nodeResult.created,
+          nodesUpdated: nodeResult.updated,
+          edgesCreated: edgeResult.created,
+          edgesUpdated: edgeResult.updated,
+          skipped: 0,
+        };
+      }
+
+      case 'world.task.created':
+      case 'world.task.status_changed': {
+        const taskId = String(payload.taskId ?? event.aggregateId).trim();
+        const title = String(payload.title ?? '').trim();
+        const status = String(payload.status ?? payload.newStatus ?? '').trim();
+        if (!taskId || !title) {
+          return { nodesCreated: 0, nodesUpdated: 0, edgesCreated: 0, edgesUpdated: 0, skipped: 1 };
+        }
+        const dueDate = String(payload.dueDate ?? payload.dueAt ?? '').trim();
+        const rootNode: GraphitiNode = {
+          id: `root:tasks:${segment}`,
+          label: 'OpenClaw tasks',
+          properties: { segment, category: 'task-root' },
+        };
+        const taskNode: GraphitiNode = {
+          id: `task:${taskId}:${segment}`,
+          label: title,
+          properties: { segment, category: 'task', taskId, status, dueDate },
+        };
+        const edge: GraphitiEdge = {
+          source: rootNode.id,
+          target: taskNode.id,
+          type: 'task',
+          name: 'task',
+          sourceLabel: rootNode.label,
+          targetLabel: title,
+          fact: [title, status ? `Status: ${status}.` : '', dueDate ? `Due: ${dueDate}.` : '']
+            .filter(Boolean)
+            .join(' '),
+          properties: {
+            segment,
+            taskId,
+            status,
+            dueDate,
+            createdAt: event.createdAt,
+          },
+        };
+        const nodeResult = await upsertGraphitiNodes([rootNode, taskNode]);
         const edgeResult = await upsertGraphitiEdges([edge]);
         return {
           nodesCreated: nodeResult.created,
@@ -238,7 +314,7 @@ export function createGraphitiProjectorHandler(): (event: OutboxEvent) => Promis
   };
 }
 
-type GraphitiRebuildStage = 'observations' | 'assertions' | 'events' | 'relations';
+type GraphitiRebuildStage = 'observations' | 'assertions' | 'events' | 'tasks' | 'relations';
 
 interface RebuildRow {
   id: string;
@@ -309,7 +385,9 @@ function toRebuildEvent(stage: GraphitiRebuildStage, row: RebuildRow): OutboxEve
           ? 'world.assertion.created'
           : stage === 'events'
             ? 'world.event.created'
-            : 'world.relation.created',
+            : stage === 'tasks'
+              ? 'world.task.created'
+              : 'world.relation.created',
     aggregateType: stage.slice(0, -1),
     aggregateId: row.id,
     userId: row.user_id,
@@ -380,7 +458,7 @@ async function rebuildGraphitiFromPostgresInScope(input: {
     nodesCreated: 0,
     edgesCreated: 0,
     processedEvents: 0,
-    byStage: { observations: 0, assertions: 0, events: 0, relations: 0 } as Record<
+    byStage: { observations: 0, assertions: 0, events: 0, tasks: 0, relations: 0 } as Record<
       GraphitiRebuildStage,
       number
     >,
@@ -395,8 +473,8 @@ async function rebuildGraphitiFromPostgresInScope(input: {
   if (!input.resume) await resetRebuildCheckpoints(db, scope);
 
   const stages: GraphitiRebuildStage[] = input.includeObservations
-    ? ['observations', 'assertions', 'events', 'relations']
-    : ['assertions', 'events', 'relations'];
+    ? ['observations', 'assertions', 'events', 'tasks', 'relations']
+    : ['assertions', 'events', 'tasks', 'relations'];
   for (const stage of stages) {
     let checkpoint = await getRebuildCheckpoint(db, scope, stage);
     while (true) {
@@ -407,7 +485,9 @@ async function rebuildGraphitiFromPostgresInScope(input: {
             ? 'r.id'
             : stage === 'events'
               ? 'e.id'
-              : 'o.id';
+              : stage === 'tasks'
+                ? 't.id'
+                : 'o.id';
       const after = checkpoint.lastId ? ` AND ${afterColumn} > $4` : '';
       const params = checkpoint.lastId
         ? [scope.userId, scope.personaId, scope.workspaceId, checkpoint.lastId, batchSize]
@@ -423,7 +503,7 @@ async function rebuildGraphitiFromPostgresInScope(input: {
         query = `SELECT a.id, a.user_id, a.persona_id, a.workspace_id, a.created_at,
             jsonb_build_object('subject', s.canonical_name, 'subjectCategory', s.category,
               'predicate', a.predicate, 'objectValue', COALESCE(a.object_value, o.canonical_name),
-              'confidence', a.confidence, 'validFrom', a.valid_from,
+              'confidence', a.confidence, 'validFrom', a.valid_from, 'validTo', a.valid_to,
               'sourceObservationId', a.source_observation_id) AS payload
           FROM world_model_assertions a
           JOIN world_model_entities s ON s.id = a.subject_id
@@ -437,11 +517,19 @@ async function rebuildGraphitiFromPostgresInScope(input: {
           FROM world_model_events e
           WHERE e.user_id = $1 AND e.persona_id = $2 AND e.workspace_id = $3${after}
           ORDER BY e.id ASC LIMIT ${limitParam}`;
+      } else if (stage === 'tasks') {
+        query = `SELECT t.id, t.user_id, t.persona_id, t.workspace_id, t.created_at,
+            jsonb_build_object('taskId', t.id, 'title', t.title, 'status', t.status,
+              'dueAt', t.due_at) AS payload
+          FROM world_model_tasks t
+          WHERE t.user_id = $1 AND t.persona_id = $2 AND t.workspace_id = $3${after}
+          ORDER BY t.id ASC LIMIT ${limitParam}`;
       } else {
         query = `SELECT r.id, r.user_id, r.persona_id, r.workspace_id, r.known_from AS created_at,
             jsonb_build_object('sourceEntity', s.canonical_name, 'targetEntity', t.canonical_name,
               'relationType', r.relation_type, 'confidence', r.confidence,
-              'validFrom', r.valid_from, 'sourceObservationId', r.source_observation_id) AS payload
+              'validFrom', r.valid_from, 'validTo', r.valid_to,
+              'sourceObservationId', r.source_observation_id) AS payload
           FROM world_model_entity_relations r
           JOIN world_model_entities s ON s.id = r.source_entity_id
           JOIN world_model_entities t ON t.id = r.target_entity_id

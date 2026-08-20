@@ -132,7 +132,7 @@ describe('world-model Graphiti REST client', () => {
   it('maps node, relation, and scope operations to supported endpoints', async () => {
     fetchMock
       .mockResolvedValueOnce(new Response('{}', { status: 202 }))
-      .mockResolvedValueOnce(new Response('{}', { status: 202 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 201 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     await upsertGraphitiNodes([
@@ -154,7 +154,7 @@ describe('world-model Graphiti REST client', () => {
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       'http://graphiti.test/entity-node',
-      'http://graphiti.test/messages',
+      'http://graphiti.test/entity-edge',
       `http://graphiti.test/group/${encodeURIComponent(graphitiGroupId('u', 'p', 'w'))}`,
     ]);
     expect(fetchMock.mock.calls[0]?.[1]).toEqual(
@@ -170,9 +170,15 @@ describe('world-model Graphiti REST client', () => {
     );
     const edgeRequest = fetchMock.mock.calls[1]?.[1] as RequestInit;
     const edgeBody = JSON.parse(String(edgeRequest.body)) as {
-      messages: Array<{ content: string }>;
+      source_node_uuid: string;
+      target_node_uuid: string;
+      fact: string;
     };
-    expect(edgeBody.messages[0]?.content).toContain('"node-1" has relation "knows" to "node-2"');
+    expect(edgeBody).toMatchObject({
+      source_node_uuid: 'node-1',
+      target_node_uuid: 'node-2',
+    });
+    expect(edgeBody.fact).toContain('"node-1" has relation "knows" to "node-2"');
     expect(fetchMock.mock.calls[2]?.[1]).toEqual(expect.objectContaining({ method: 'DELETE' }));
   });
 });

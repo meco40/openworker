@@ -19,6 +19,7 @@ export async function handleMemoryPost(request: Request, userContext: MemoryApiU
       const parsed = parseStoreArgs(args);
       const node = await service.storeMemory({
         personaId: parsed.personaId,
+        workspaceId: parsed.workspaceId,
         type: parsed.type,
         content: parsed.content,
         importance: parsed.importance,
@@ -34,6 +35,7 @@ export async function handleMemoryPost(request: Request, userContext: MemoryApiU
         parsed.query,
         parsed.limit,
         userContext.userId,
+        parsed.workspaceId,
       );
       return NextResponse.json({ ok: true, result: { action: 'recall', data: context } });
     }

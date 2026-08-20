@@ -67,14 +67,18 @@ async function collectEmbeddingTargetsInScope(
 ): Promise<EmbeddingTarget[]> {
   const db = getWorldModelDb();
   const targets: EmbeddingTarget[] = [];
+  // Keep each canonical target type represented in a batch. A single global
+  // LIMIT otherwise lets the newest observations starve memories, assertions,
+  // entities, events and tasks indefinitely.
+  const perTypeLimit = Math.max(1, Math.ceil(Math.max(1, limit) / 6));
 
   try {
     const scopeFilter = scope
       ? ' AND o.user_id = $1 AND o.persona_id = $2 AND o.workspace_id = $3'
       : '';
     const scopeParams = scope
-      ? [scope.userId, scope.personaId, scope.workspaceId ?? '', limit]
-      : [limit];
+      ? [scope.userId, scope.personaId, scope.workspaceId ?? '', perTypeLimit]
+      : [perTypeLimit];
     const limitParam = scope ? '$4' : '$1';
 
     // Observations. Bestehende Zeilen werden bewusst ebenfalls eingesammelt:
@@ -123,7 +127,9 @@ async function collectEmbeddingTargetsInScope(
        WHERE m.deleted_at IS NULL
        ${scope ? 'AND m.user_id = $1 AND m.persona_id = $2 AND m.workspace_id = $3' : ''}
        ORDER BY m.updated_at DESC LIMIT ${scope ? '$4' : '$1'}`,
-      scope ? [scope.userId, scope.personaId, scope.workspaceId ?? '', limit] : [limit],
+      scope
+        ? [scope.userId, scope.personaId, scope.workspaceId ?? '', perTypeLimit]
+        : [perTypeLimit],
     );
     for (const row of memoryRows.rows) {
       const built = buildEmbeddingText({ targetType: 'memory', content: [row.content] });
@@ -152,7 +158,9 @@ async function collectEmbeddingTargetsInScope(
        WHERE a.status = 'active' AND a.known_to IS NULL
        ${scope ? 'AND a.user_id = $1 AND a.persona_id = $2 AND a.workspace_id = $3' : ''}
        ORDER BY a.known_from DESC LIMIT ${scope ? '$4' : '$1'}`,
-      scope ? [scope.userId, scope.personaId, scope.workspaceId ?? '', limit] : [limit],
+      scope
+        ? [scope.userId, scope.personaId, scope.workspaceId ?? '', perTypeLimit]
+        : [perTypeLimit],
     );
     for (const row of assertionRows.rows) {
       const text = `${row.predicate}: ${row.object_value ?? ''}`.trim();
@@ -179,7 +187,9 @@ async function collectEmbeddingTargetsInScope(
        FROM world_model_entities e
        WHERE 1=1 ${scope ? 'AND e.user_id = $1 AND e.persona_id = $2 AND e.workspace_id = $3' : ''}
        ORDER BY e.created_at ASC LIMIT ${scope ? '$4' : '$1'}`,
-      scope ? [scope.userId, scope.personaId, scope.workspaceId ?? '', limit] : [limit],
+      scope
+        ? [scope.userId, scope.personaId, scope.workspaceId ?? '', perTypeLimit]
+        : [perTypeLimit],
     );
     for (const row of entityRows.rows) {
       const text = `${row.canonical_name} (${row.category})`;
@@ -205,7 +215,9 @@ async function collectEmbeddingTargetsInScope(
        FROM world_model_events e
        WHERE 1=1 ${scope ? 'AND e.user_id = $1 AND e.persona_id = $2 AND e.workspace_id = $3' : ''}
        ORDER BY e.updated_at DESC LIMIT ${scope ? '$4' : '$1'}`,
-      scope ? [scope.userId, scope.personaId, scope.workspaceId ?? '', limit] : [limit],
+      scope
+        ? [scope.userId, scope.personaId, scope.workspaceId ?? '', perTypeLimit]
+        : [perTypeLimit],
     );
     for (const row of eventRows.rows) {
       const text = `${row.title} (${row.event_type}) status=${row.status}`;
@@ -230,7 +242,9 @@ async function collectEmbeddingTargetsInScope(
        FROM world_model_tasks t
        WHERE 1=1 ${scope ? 'AND t.user_id = $1 AND t.persona_id = $2 AND t.workspace_id = $3' : ''}
        ORDER BY t.updated_at DESC LIMIT ${scope ? '$4' : '$1'}`,
-      scope ? [scope.userId, scope.personaId, scope.workspaceId ?? '', limit] : [limit],
+      scope
+        ? [scope.userId, scope.personaId, scope.workspaceId ?? '', perTypeLimit]
+        : [perTypeLimit],
     );
     for (const row of taskRows.rows) {
       const text = `${row.title} status=${row.status}`;
@@ -403,16 +417,48 @@ export async function runEmbeddingWorkerOnce(
 export function startEmbeddingWorker(
   deps: EmbeddingWorkerDeps = {},
   intervalMs = 30_000,
+  scopeProvider?: () => WorldModelScope[] | Promise<WorldModelScope[]>,
 ): { stop: () => void } {
   const config = getWorldModelConfig();
   if (!config.enabled && !config.e2eEnabled) {
     return { stop: () => {} };
   }
 
+  let tickInFlight = false;
+  const tick = async (): Promise<void> => {
+    const scopes = (await scopeProvider?.()) ?? [];
+    if (scopeProvider && scopes.length === 0) {
+      console.warn('[world-model:embeddings] no runtime scopes discovered; skipping unscoped tick');
+      return;
+    }
+    if (scopeProvider) {
+      await Promise.all(
+        scopes.map((scope) =>
+          runEmbeddingWorkerOnce(deps, scope).catch((error) => {
+            console.error(
+              `[world-model:embeddings] scoped worker tick failed for ${scope.userId}/${scope.personaId}/${scope.workspaceId ?? ''}:`,
+              error,
+            );
+          }),
+        ),
+      );
+      return;
+    }
+    await runEmbeddingWorkerOnce(deps);
+  };
   const timer = setInterval(() => {
-    void runEmbeddingWorkerOnce(deps).catch((error) => {
-      console.error('[world-model:embeddings] worker tick failed:', error);
-    });
+    if (tickInFlight) {
+      console.warn('[world-model:embeddings] previous worker tick still running; skipping overlap');
+      return;
+    }
+    tickInFlight = true;
+    void tick()
+      .catch((error) => {
+        console.error('[world-model:embeddings] worker tick failed:', error);
+      })
+      .finally(() => {
+        tickInFlight = false;
+      });
   }, intervalMs);
   timer.unref();
 

@@ -132,7 +132,7 @@ describe('model-hub pipeline route reorder', () => {
         profileId: 'p1',
         accountId,
         providerId: 'openai-codex',
-        modelName: 'gpt-5.3-codex',
+        modelName: 'gpt-5.6',
         priority: 1,
         reasoningEffort: 'xhigh',
       }),
@@ -150,7 +150,59 @@ describe('model-hub pipeline route reorder', () => {
       models?: Array<{ modelName: string; reasoningEffort?: string }>;
     };
     expect(getResponse.status).toBe(200);
-    expect(getJson.models?.[0]?.modelName).toBe('gpt-5.3-codex');
+    expect(getJson.models?.[0]?.modelName).toBe('gpt-5.6');
     expect(getJson.models?.[0]?.reasoningEffort).toBe('xhigh');
+  });
+
+  it('stores and returns the isolated Graphiti JSON profile', async () => {
+    process.env.MODEL_HUB_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
+    const dbPath = path.join(getTestArtifactsRoot(), 'model-hub.pipeline-route.graphiti.db');
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    process.env.MODEL_HUB_DB_PATH = dbPath;
+    (globalThis as { __modelHubRepository?: unknown }).__modelHubRepository = undefined;
+    (globalThis as { __modelHubService?: unknown }).__modelHubService = undefined;
+
+    const accountResponse = await createAccount(
+      new Request('http://localhost/api/model-hub/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          providerId: 'openrouter',
+          label: 'Graphiti Provider',
+          authMethod: 'api_key',
+          secret: 'sk-graphiti-test',
+        }),
+      }),
+    );
+    const accountJson = (await accountResponse.json()) as { account?: { id?: string } };
+    const accountId = accountJson.account?.id;
+    expect(accountId).toBeTruthy();
+
+    const addResponse = await mutatePipeline(
+      buildJsonRequest({
+        action: 'add',
+        profileId: 'p1-graphiti',
+        accountId,
+        providerId: 'openrouter',
+        modelName: 'provider/json-model',
+        priority: 1,
+      }),
+    );
+    expect(addResponse.status).toBe(200);
+
+    const getResponse = await getPipeline(
+      new Request(
+        'http://localhost/api/model-hub/pipeline?includeEmbeddings=true&includeGraphiti=true',
+      ),
+    );
+    const getJson = (await getResponse.json()) as {
+      graphitiModels?: Array<{ profileId: string; modelName: string }>;
+    };
+    expect(getJson.graphitiModels).toEqual([
+      expect.objectContaining({
+        profileId: 'p1-graphiti',
+        modelName: 'provider/json-model',
+      }),
+    ]);
   });
 });

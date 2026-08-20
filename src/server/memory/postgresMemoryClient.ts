@@ -19,6 +19,7 @@ import {
 } from '@/server/world-model/db';
 import { getConfiguredEmbeddingProvider } from '@/server/world-model/embeddings/provider';
 import { vectorSearch } from '@/server/world-model/retrieval/vector';
+import { MemoryVersionConflictError } from './errors';
 
 type DbTimestamp = string | Date | null | undefined;
 
@@ -97,6 +98,7 @@ function rowMetadata(row: CanonicalMemoryRow): Record<string, unknown> {
     source: text(metadata(row.metadata).source) || 'postgres',
     memoryProvider: 'postgres' satisfies MemoryProviderKind,
     memoryId: row.id,
+    ...(row.workspace_id ? { workspaceId: row.workspace_id } : {}),
     ...(row.legacy_provider_id ? { legacyProviderId: row.legacy_provider_id } : {}),
     lastVerified: timestamp(row.updated_at),
   };
@@ -162,6 +164,8 @@ export class PostgresMemoryClient implements Mem0Client {
     const confidence = Math.min(1, Math.max(0.1, Number(inputMetadata.confidence) || 0.3));
     const lifecycleStatus = text(inputMetadata.lifecycleStatus) || 'new';
     const version = Math.max(1, Math.floor(Number(inputMetadata.version) || 1));
+    const sourceObservationId =
+      text(inputMetadata.sourceObservationId || inputMetadata.source_observation_id) || null;
 
     const canonical = await withWorldModelTransaction(async (db) => {
       if (idempotencyKey) {
@@ -189,8 +193,9 @@ export class PostgresMemoryClient implements Mem0Client {
         `INSERT INTO world_model_memory_items
           (id, user_id, persona_id, workspace_id, memory_type, content,
            importance, confidence, lifecycle_status, version, metadata,
-           idempotency_key, legacy_provider, legacy_provider_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14)
+           idempotency_key, legacy_provider, legacy_provider_id, source_observation_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15)
+         ON CONFLICT DO NOTHING
          RETURNING id`,
         [
           id,
@@ -207,8 +212,31 @@ export class PostgresMemoryClient implements Mem0Client {
           idempotencyKey,
           legacyProvider,
           legacyProviderId,
+          sourceObservationId,
         ],
       );
+      if (!inserted.rows[0]?.id) {
+        const conflict = await db.query<{ id: string }>(
+          `SELECT id FROM world_model_memory_items
+           WHERE user_id = $1 AND persona_id = $2 AND workspace_id = $3
+             AND deleted_at IS NULL
+             AND (
+               ($4::text IS NOT NULL AND idempotency_key = $4)
+               OR ($5::text IS NOT NULL AND legacy_provider = $5 AND legacy_provider_id = $6)
+             )
+           LIMIT 1`,
+          [
+            scope.userId,
+            scope.personaId,
+            scope.workspaceId,
+            idempotencyKey,
+            legacyProvider,
+            legacyProviderId,
+          ],
+        );
+        if (conflict.rows[0]?.id) return { id: conflict.rows[0].id, created: false };
+        throw new Error('Canonical memory insert conflicted with an unknown unique constraint.');
+      }
       await db.query(
         `INSERT INTO world_model_memory_item_history
           (memory_id, user_id, persona_id, workspace_id, action, version, content, metadata)
@@ -223,7 +251,7 @@ export class PostgresMemoryClient implements Mem0Client {
           JSON.stringify(inputMetadata),
         ],
       );
-      return { id: inserted.rows[0]!.id, created: true };
+      return { id: inserted.rows[0].id, created: true };
     }, scope);
 
     return canonical;
@@ -403,10 +431,14 @@ export class PostgresMemoryClient implements Mem0Client {
       );
       const row = current.rows[0];
       if (!row) throw new Error(`Memory node not found: ${id}`);
-      const version = Math.max(
-        1,
-        Math.floor(Number(inputMetadata.version) || Number(row.version) + 1),
-      );
+      const suppliedExpectedVersion = Number(inputMetadata.expectedVersion);
+      const expectedVersion = Number.isFinite(suppliedExpectedVersion)
+        ? Math.floor(suppliedExpectedVersion)
+        : Number(row.version);
+      if (expectedVersion !== Number(row.version)) {
+        throw new MemoryVersionConflictError(Number(row.version));
+      }
+      const version = Number(row.version) + 1;
       const memoryType = text(inputMetadata.type) || row.memory_type;
       const importance = Math.min(
         5,
@@ -417,11 +449,13 @@ export class PostgresMemoryClient implements Mem0Client {
         Math.max(0.1, Number(inputMetadata.confidence) || Number(row.confidence)),
       );
       const lifecycleStatus = text(inputMetadata.lifecycleStatus) || row.lifecycle_status;
+      const persistedMetadata = { ...inputMetadata };
+      delete persistedMetadata.expectedVersion;
       await db.query(
         `UPDATE world_model_memory_items
          SET memory_type = $1, content = $2, importance = $3, confidence = $4,
              lifecycle_status = $5, version = $6, metadata = $7::jsonb, updated_at = now()
-         WHERE id = $8`,
+        WHERE id = $8 AND version = $9`,
         [
           memoryType,
           input.content,
@@ -429,10 +463,20 @@ export class PostgresMemoryClient implements Mem0Client {
           confidence,
           lifecycleStatus,
           version,
-          JSON.stringify(inputMetadata),
+          JSON.stringify(persistedMetadata),
           id,
+          expectedVersion,
         ],
       );
+      const updated = await db.query(
+        `SELECT 1 FROM world_model_memory_items
+         WHERE id = $1 AND user_id = $2 AND persona_id = $3 AND workspace_id = $4
+           AND version = $5`,
+        [id, resolved.userId, resolved.personaId, resolved.workspaceId, version],
+      );
+      if (updated.rowCount !== 1) {
+        throw new MemoryVersionConflictError(Number(row.version));
+      }
       await db.query(
         `INSERT INTO world_model_memory_item_history
           (memory_id, user_id, persona_id, workspace_id, action, version, content, metadata)
@@ -444,7 +488,7 @@ export class PostgresMemoryClient implements Mem0Client {
           resolved.workspaceId,
           version,
           input.content,
-          JSON.stringify(inputMetadata),
+          JSON.stringify(persistedMetadata),
         ],
       );
     }, resolved);
@@ -452,6 +496,9 @@ export class PostgresMemoryClient implements Mem0Client {
 
   async deleteMemory(id: string, scope?: Mem0Scope): Promise<void> {
     const resolved = scope ? scopeFrom(scope) : undefined;
+    if (!resolved) {
+      throw new Error('Scoped canonical memory deletion requires user, persona, and workspace.');
+    }
     const execute = async (): Promise<void> => {
       await withWorldModelTransaction(async (db) => {
         const current = await db.query<CanonicalMemoryRow>(
@@ -479,8 +526,17 @@ export class PostgresMemoryClient implements Mem0Client {
           version: nextVersion,
         };
         await db.query(
-          `UPDATE world_model_memory_items SET deleted_at = now(), version = $1, metadata = $2::jsonb, updated_at = now() WHERE id = $3`,
-          [nextVersion, JSON.stringify(nextMetadata), id],
+          `UPDATE world_model_memory_items
+           SET deleted_at = now(), version = $1, metadata = $2::jsonb, updated_at = now()
+           WHERE id = $3 AND user_id = $4 AND persona_id = $5 AND workspace_id = $6`,
+          [
+            nextVersion,
+            JSON.stringify(nextMetadata),
+            id,
+            rowScope.userId,
+            rowScope.personaId,
+            rowScope.workspaceId,
+          ],
         );
         await db.query(
           `INSERT INTO world_model_memory_item_history
@@ -497,15 +553,21 @@ export class PostgresMemoryClient implements Mem0Client {
           ],
         );
         await db.query(
-          `DELETE FROM world_model_embeddings WHERE target_type = 'memory' AND target_id = $1`,
-          [id],
+          `DELETE FROM world_model_embeddings
+           WHERE target_type = 'memory' AND target_id = $1
+             AND user_id = $2 AND persona_id = $3 AND workspace_id = $4`,
+          [id, rowScope.userId, rowScope.personaId, rowScope.workspaceId],
         );
       }, resolved);
     };
     return execute();
   }
 
-  async deleteMemoriesByFilter(input: { userId: string; personaId: string }): Promise<number> {
+  async deleteMemoriesByFilter(input: {
+    userId: string;
+    personaId: string;
+    workspaceId?: string;
+  }): Promise<number> {
     const scope = scopeFrom(input);
     return withWorldModelTransaction(async (db) => {
       const current = await db.query<CanonicalMemoryRow>(
@@ -526,8 +588,17 @@ export class PostgresMemoryClient implements Mem0Client {
           version: nextVersion,
         };
         await db.query(
-          `UPDATE world_model_memory_items SET deleted_at = now(), version = $1, metadata = $2::jsonb, updated_at = now() WHERE id = $3`,
-          [nextVersion, JSON.stringify(nextMetadata), row.id],
+          `UPDATE world_model_memory_items
+           SET deleted_at = now(), version = $1, metadata = $2::jsonb, updated_at = now()
+           WHERE id = $3 AND user_id = $4 AND persona_id = $5 AND workspace_id = $6`,
+          [
+            nextVersion,
+            JSON.stringify(nextMetadata),
+            row.id,
+            scope.userId,
+            scope.personaId,
+            scope.workspaceId,
+          ],
         );
         await db.query(
           `INSERT INTO world_model_memory_item_history

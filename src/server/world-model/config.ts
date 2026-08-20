@@ -19,6 +19,7 @@ export interface WorldModelConfig {
   e2eEnabled: boolean;
   graphitiShadowEnabled: boolean;
   graphitiBackendEnabled: boolean;
+  graphitiRecallEnabled: boolean;
   mem0PreferencesOnly: boolean;
   mode: WorldModelMode;
   prospectiveIntervalMs: number;
@@ -45,6 +46,7 @@ export const WORLD_MODEL_DEFAULT_CONFIG: WorldModelConfig = {
   e2eEnabled: false,
   graphitiShadowEnabled: false,
   graphitiBackendEnabled: false,
+  graphitiRecallEnabled: false,
   mem0PreferencesOnly: false,
   mode: 'off',
   prospectiveIntervalMs: 60_000,
@@ -145,6 +147,12 @@ export function resolveWorldModelConfig(env: EnvLike = process.env as EnvLike): 
     graphitiBackendEnabled: parseBoolean(
       env.GRAPHITI_PROJECTOR_ENABLED ?? env.GRAPHITI_ENABLED,
       WORLD_MODEL_DEFAULT_CONFIG.graphitiBackendEnabled,
+    ),
+    // Recall is a separate explicit gate. Projection may run in shadow/live
+    // mode while Graphiti quality is still being measured.
+    graphitiRecallEnabled: parseBoolean(
+      env.GRAPHITI_RECALL_ENABLED,
+      WORLD_MODEL_DEFAULT_CONFIG.graphitiRecallEnabled,
     ),
     mem0PreferencesOnly: legacyMem0PreferencesOnly || isWorldModelCanonical(mode),
     mode,

@@ -64,8 +64,9 @@ describe('model-hub account models route', () => {
     expect(Array.isArray(json.models)).toBe(true);
     expect(json.models.length).toBeGreaterThan(0);
     const ids = (json.models as Array<{ id: string }>).map((model) => model.id);
+    expect(ids).toContain('gpt-5.6');
     expect(ids).toContain('gpt-5.3-codex');
-    expect(ids).toContain('gpt-5.1-codex');
+    expect(ids).not.toContain('gpt-5.2-codex');
 
     global.fetch = originalFetch;
   });

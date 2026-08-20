@@ -221,7 +221,7 @@ interface ProviderAccountView {
 
 ### Pipeline
 
-A pipeline is an ordered list of models for a specific profile. The system tries each model in priority order until one succeeds:
+A pipeline is an ordered list of models for a specific profile. The system tries each model in priority order until one succeeds. The UI uses three isolated profiles: `p1` for normal chat, `p1-embeddings` for vector generation, and `p1-graphiti` for Graphiti structured JSON extraction:
 
 ```typescript
 interface PipelineModelEntry {
@@ -237,6 +237,12 @@ interface PipelineModelEntry {
   updatedAt: string;
 }
 ```
+
+The Graphiti adapter reads only `p1-graphiti`. It does not reuse the chat or
+embedding profile and returns HTTP 503 when that profile has no active entry.
+The Graphiti section in the Model Hub UI accepts connected chat-capable
+provider accounts and supports the same add, status, priority, and remove
+operations as the other profiles.
 
 ### Reasoning Effort Mapping
 
@@ -318,22 +324,22 @@ The system supports 14 AI providers with varying authentication methods and capa
 
 ### Provider Matrix
 
-| Provider               | Auth           | Endpoint            | Capabilities                           | Default Models                                       |
-| ---------------------- | -------------- | ------------------- | -------------------------------------- | ---------------------------------------------------- |
-| **Google Gemini**      | API Key        | `gemini-native`     | chat, tools, vision, audio, embeddings | `gemini-2.5-flash`, `gemini-2.5-pro`                 |
-| **OpenAI**             | API Key        | `openai-native`     | chat, tools, vision, audio, embeddings | `gpt-4.1`, `gpt-4.1-mini`, `o4-mini`                 |
-| **OpenAI Codex**       | OAuth          | `openai-native`     | chat, tools, vision, audio             | `gpt-5.3-codex`, `gpt-5.2-codex`, `gpt-5.2`          |
-| **Anthropic**          | API Key        | `anthropic-native`  | chat, tools, vision                    | `claude-sonnet-4-5`, `claude-3-7-sonnet-latest`      |
-| **OpenRouter**         | API Key, OAuth | `openai-compatible` | chat, tools, vision                    | `openai/gpt-4.1-mini`, `anthropic/claude-3.7-sonnet` |
-| **Ollama**             | None, API Key  | `openai-compatible` | chat, tools, vision, embeddings        | `llama3.2`, `qwen2.5-coder`                          |
-| **LM Studio**          | None, API Key  | `openai-compatible` | chat, tools, vision                    | `qwen2.5-coder-7b-instruct`                          |
-| **xAI**                | API Key        | `xai-native`        | chat, tools                            | `grok-4`, `grok-3`                                   |
-| **Mistral**            | API Key        | `mistral-native`    | chat, tools, embeddings                | `mistral-large-latest`, `ministral-8b-latest`        |
-| **Cohere**             | API Key        | `cohere-native`     | chat, tools, embeddings                | `command-a-03-2025`, `command-r-plus`                |
-| **Z.AI**               | API Key        | `openai-compatible` | chat, tools, vision                    | `glm-4.5`, `glm-4.5-air`                             |
-| **Kimi Code**          | API Key        | `openai-compatible` | chat, tools                            | `kimi-for-coding`                                    |
-| **ByteDance ModelArk** | API Key        | `openai-compatible` | chat, tools                            | `doubao-1-5-lite-32k`, `doubao-1-5-pro-32k`          |
-| **GitHub Copilot**     | OAuth, API Key | `github-native`     | chat, code_pairing                     | (dynamic)                                            |
+| Provider               | Auth           | Endpoint            | Capabilities                           | Default Models                                                             |
+| ---------------------- | -------------- | ------------------- | -------------------------------------- | -------------------------------------------------------------------------- |
+| **Google Gemini**      | API Key        | `gemini-native`     | chat, tools, vision, audio, embeddings | `gemini-2.5-flash`, `gemini-2.5-pro`                                       |
+| **OpenAI**             | API Key        | `openai-native`     | chat, tools, vision, audio, embeddings | `gpt-5.6`, `gpt-5.6-terra`, `gpt-5.6-luna`                                 |
+| **OpenAI Codex**       | OAuth          | `openai-native`     | chat, tools, vision, audio             | `gpt-5.6`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.3-codex` |
+| **Anthropic**          | API Key        | `anthropic-native`  | chat, tools, vision                    | `claude-sonnet-4-5`, `claude-3-7-sonnet-latest`                            |
+| **OpenRouter**         | API Key, OAuth | `openai-compatible` | chat, tools, vision                    | `openai/gpt-4.1-mini`, `anthropic/claude-3.7-sonnet`                       |
+| **Ollama**             | None, API Key  | `openai-compatible` | chat, tools, vision, embeddings        | `llama3.2`, `qwen2.5-coder`                                                |
+| **LM Studio**          | None, API Key  | `openai-compatible` | chat, tools, vision                    | `qwen2.5-coder-7b-instruct`                                                |
+| **xAI**                | API Key        | `xai-native`        | chat, tools                            | `grok-4`, `grok-3`                                                         |
+| **Mistral**            | API Key        | `mistral-native`    | chat, tools, embeddings                | `mistral-large-latest`, `ministral-8b-latest`                              |
+| **Cohere**             | API Key        | `cohere-native`     | chat, tools, embeddings                | `command-a-03-2025`, `command-r-plus`                                      |
+| **Z.AI**               | API Key        | `openai-compatible` | chat, tools, vision                    | `glm-4.5`, `glm-4.5-air`                                                   |
+| **Kimi Code**          | API Key        | `openai-compatible` | chat, tools                            | `kimi-for-coding`                                                          |
+| **ByteDance ModelArk** | API Key        | `openai-compatible` | chat, tools                            | `doubao-1-5-lite-32k`, `doubao-1-5-pro-32k`                                |
+| **GitHub Copilot**     | OAuth, API Key | `github-native`     | chat, code_pairing                     | (dynamic)                                                                  |
 
 ### Endpoint Types
 
@@ -974,10 +980,13 @@ const geminiProviderAdapter: ProviderAdapter = {
 | ------ | ------------------------------------------------ | ----------------------------------------------- |
 | `GET`  | `/api/model-hub/pipeline?profileId=p1`           | Get pipeline for profile                        |
 | `GET`  | `/api/model-hub/pipeline?includeEmbeddings=true` | Get default + embedding pipeline in one request |
+| `GET`  | `/api/model-hub/pipeline?includeGraphiti=true`   | Get default + Graphiti JSON pipeline            |
 | `PUT`  | `/api/model-hub/pipeline`                        | Replace entire pipeline                         |
 | `POST` | `/api/model-hub/pipeline`                        | Add/remove/update/reorder                       |
 
-`includeEmbeddings=true` liefert `models` (Standardprofil) und zusaetzlich `embeddingModels` (`p1-embeddings`) im selben Response-Body.
+`includeEmbeddings=true` liefert `models` (Standardprofil) und zusaetzlich
+`embeddingModels` (`p1-embeddings`). `includeGraphiti=true` liefert zusätzlich
+`graphitiModels` (`p1-graphiti`) im selben Response-Body.
 
 **POST Actions:**
 

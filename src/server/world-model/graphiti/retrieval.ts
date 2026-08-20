@@ -206,7 +206,11 @@ export async function searchGraphitiFactsWithRerank(
     candidates.push(...(await searchGraphitiFacts(groupId, variant, maxCandidates)));
   }
 
+  // Never expose low-confidence semantic noise to the application context.
+  // The evaluator uses the same gate, so the runtime and quality report share
+  // one relevance contract.
   return rankGraphitiFacts(input, candidates, options)
+    .filter((candidate) => isRelevantRankedGraphitiFact(candidate))
     .slice(0, maxResults)
     .map((candidate) => candidate.fact);
 }

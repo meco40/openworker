@@ -5,8 +5,6 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { startManagedOllama, stopManagedOllama } from './ollama-lifecycle.mjs';
-
 const require = createRequire(import.meta.url);
 const { loadEnvConfig } = require('@next/env');
 loadEnvConfig(process.cwd());
@@ -59,7 +57,6 @@ const packageManager = resolvePackageManagerInvocation();
 const children = [];
 let shuttingDown = false;
 let exitCode = 0;
-let ollamaProcess = null;
 
 function startChild(name, args) {
   const commandArgs = [...packageManager.baseArgs, ...args];
@@ -118,13 +115,12 @@ function shutdown(code = 0) {
   for (const child of children) {
     terminateChild(child.proc);
   }
-  const ollamaStop = stopManagedOllama(ollamaProcess).catch(() => {});
 
   const watcher = setInterval(() => {
     const allExited = children.every((child) => child.proc.exitCode !== null || child.proc.killed);
     if (!allExited) return;
     clearInterval(watcher);
-    void ollamaStop.finally(() => process.exit(exitCode));
+    process.exit(exitCode);
   }, 100);
   watcher.unref();
 }
@@ -133,17 +129,6 @@ process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
 async function main() {
-  ollamaProcess = await startManagedOllama();
-  if (ollamaProcess) {
-    children.push({ name: 'ollama', proc: ollamaProcess });
-    ollamaProcess.once('exit', (code, signal) => {
-      if (shuttingDown) return;
-      console.error(
-        `[dev-stack] ollama exited with code=${code ?? 'none'} signal=${signal ?? 'none'}`,
-      );
-      shutdown(1);
-    });
-  }
   startChild('web', ['run', 'dev:web']);
   startChild('scheduler', ['run', 'dev:scheduler']);
 }

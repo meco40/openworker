@@ -21,6 +21,9 @@ Das Memory-System liefert persona-, user- und workspace-skopierten Langzeitkonte
 - **Recall**: Relevante Nodes per PostgreSQL/pgvector-Score + Volltext-Fallback; Mem0 ist nur ein expliziter Legacy-Provider
 - **Feedback Learning**: Positive/negative Rückmeldung verändert Confidence/Importance
 - **Versionierung**: Optimistische Updates via `expectedVersion`
+- **Workspace-Isolation**: Kanonische Lese-/Schreib-/Delete-Pfade führen `userId`,
+  `personaId` und `workspaceId`; PostgreSQL schützt Updates zusätzlich per
+  Versions-CAS.
 
 ---
 
@@ -46,6 +49,10 @@ Im kanonischen `production`-Betrieb erzwingt der Runtime-Check:
 Mem0 kann nur durch eine ausdrückliche Legacy-Konfiguration aktiviert werden;
 SQLite bleibt ein scope-gebundener Offline-Fallback. Beide Adapter
 implementieren denselben Service-Vertrag, sind aber nicht kanonisch.
+
+Im `WORLD_MODEL_MODE=canonical`-Modus verwendet der Chat-Recall SQLite nicht.
+SQLite darf nur als wiederaufbaubare Episode-/Ledger-Projektion für bestehende
+UI- und Migrationskompatibilität laufen.
 
 ---
 
@@ -75,6 +82,7 @@ Diese Namen sind **Operationsnamen**, nicht Memory-Typen.
 - `personaId` (erforderlich)
 - `id` + `history=true` für Historie
 - `page`, `pageSize`, `query`, `type` für Pagination/Filter
+- `workspaceId` zur vollständigen Scope-Isolation
 
 ### POST Body (Beispiel)
 
@@ -107,6 +115,11 @@ Diese Namen sind **Operationsnamen**, nicht Memory-Typen.
 | `MEM0_MAX_RETRIES`         | Retries bei transienten HTTP-Fehlern               | `3`        |
 | `MEM0_WRITE_MAX_RETRIES`   | Retries bei Mem0-Write-Timeouts                    | `1`        |
 | `MEM0_RETRY_BASE_DELAY_MS` | Exponential Backoff Basis (ms)                     | `500`      |
+
+Der lokale Legacy-Container unterstützt bei `MEM0_ALLOW_ADMIN_ENDPOINTS=true`
+den geschützten Audit-Endpunkt `GET /admin/memories?page=...&page_size=...`.
+Er ist nur für providerweite Migration/Audit-Inventur vorgesehen; der normale
+kanonische Runtime-Pfad nutzt ihn nicht.
 
 ---
 

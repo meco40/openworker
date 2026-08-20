@@ -100,7 +100,11 @@ export interface Mem0Client {
   getMemoryHistory(id: string, scope?: Mem0Scope): Promise<Mem0HistoryEntry[]>;
   updateMemory(id: string, input: Mem0MemoryInput, scope?: Mem0Scope): Promise<void>;
   deleteMemory(id: string, scope?: Mem0Scope): Promise<void>;
-  deleteMemoriesByFilter(input: { userId: string; personaId: string }): Promise<number>;
+  deleteMemoriesByFilter(input: {
+    userId: string;
+    personaId: string;
+    workspaceId?: string;
+  }): Promise<number>;
 }
 
 /** Environment-like object for configuration */

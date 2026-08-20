@@ -45,6 +45,11 @@ tests/integration/memory/test-memory-*.db
 tests/integration/memory/test-memory-*.db-shm
 tests/integration/memory/test-memory-*.db-wal
 
+# Generated audit reports and runtime artifacts
+/docs/audits/
+__pycache__/
+*.py[cod]
+
 # Keep source code directories named "logs" tracked.
 !app/api/logs/
 !app/api/logs/**

@@ -18,15 +18,31 @@
 # Mounted over /app/graph_service/routers/ingest.py via docker-compose.graphiti.yml.
 import asyncio
 from contextlib import asynccontextmanager
+from datetime import datetime
 from functools import partial
+from typing import Any
 
 from fastapi import APIRouter, FastAPI, status
 from graphiti_core.nodes import EpisodeType  # type: ignore
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data  # type: ignore
+from pydantic import BaseModel, Field
 
 from graph_service.config import get_settings
 from graph_service.dto import AddEntityNodeRequest, AddMessagesRequest, Message, Result
 from graph_service.zep_graphiti import ZepGraphitiDep
+
+
+class AddEntityEdgeRequest(BaseModel):
+    uuid: str = Field(..., min_length=1)
+    group_id: str = Field(..., min_length=1)
+    source_node_uuid: str = Field(..., min_length=1)
+    target_node_uuid: str = Field(..., min_length=1)
+    name: str = Field(..., min_length=1)
+    fact: str = Field(..., min_length=1)
+    created_at: datetime
+    valid_at: datetime | None = None
+    invalid_at: datetime | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
 
 class AsyncWorker:
@@ -46,7 +62,7 @@ class AsyncWorker:
                 break
             self.active_jobs += 1
             try:
-                await job()
+                await asyncio.wait_for(job(), timeout=get_settings().queue_job_timeout_seconds)
                 self.completed_jobs += 1
             except asyncio.CancelledError:
                 raise
@@ -65,7 +81,10 @@ class AsyncWorker:
         for task in self.tasks:
             task.cancel()
         for task in self.tasks:
-            await task
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
         self.tasks = []
         while not self.queue.empty():
             self.queue.get_nowait()
@@ -129,6 +148,26 @@ async def add_entity_node(
         summary=request.summary,
     )
     return node
+
+
+@router.post('/entity-edge', status_code=status.HTTP_201_CREATED)
+async def add_entity_edge(
+    request: AddEntityEdgeRequest,
+    graphiti: ZepGraphitiDep,
+):
+    await graphiti.save_entity_edge(
+        uuid=request.uuid,
+        group_id=request.group_id,
+        source_node_uuid=request.source_node_uuid,
+        target_node_uuid=request.target_node_uuid,
+        name=request.name,
+        fact=request.fact,
+        created_at=request.created_at,
+        valid_at=request.valid_at,
+        invalid_at=request.invalid_at,
+        attributes=request.attributes,
+    )
+    return Result(message='Entity edge saved', success=True)
 
 
 @router.delete('/entity-edge/{uuid}', status_code=status.HTTP_200_OK)

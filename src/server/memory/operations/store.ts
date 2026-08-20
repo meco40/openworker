@@ -88,6 +88,7 @@ export async function storeMemory(
     timestamp: formatTimestamp(),
     metadata: {
       ...extraMetadata,
+      ...(workspaceId ? { workspaceId } : {}),
       mem0Id: result.id,
       source: memoryProvider,
       memoryProvider,

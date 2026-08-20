@@ -169,12 +169,27 @@ export async function GET(): Promise<NextResponse> {
     const db = getWorldModelDb();
     const embResult = await db.query<{ total: string; without_embedding: string }>(
       `SELECT
-         (SELECT COUNT(*) FROM world_model_observations) AS total,
-         (SELECT COUNT(*) FROM world_model_observations o
-          WHERE NOT EXISTS (
-            SELECT 1 FROM world_model_embeddings e
-            WHERE e.target_type = 'observation' AND e.target_id = o.id
-          )) AS without_embedding`,
+         COUNT(*) AS total,
+         COUNT(*) FILTER (WHERE NOT EXISTS (
+           SELECT 1 FROM world_model_embeddings e
+           WHERE e.target_type = targets.target_type AND e.target_id = targets.target_id
+         )) AS without_embedding
+       FROM (
+         SELECT 'observation'::text AS target_type, id::text AS target_id
+           FROM world_model_observations
+         UNION ALL
+         SELECT 'assertion'::text, id::text FROM world_model_assertions
+          WHERE status = 'active' AND known_to IS NULL
+         UNION ALL
+         SELECT 'event'::text, id::text FROM world_model_events
+         UNION ALL
+         SELECT 'task'::text, id::text FROM world_model_tasks
+         UNION ALL
+         SELECT 'entity'::text, id::text FROM world_model_entities
+         UNION ALL
+         SELECT 'memory'::text, id::text FROM world_model_memory_items
+          WHERE deleted_at IS NULL
+       ) AS targets`,
     );
     const total = Number(embResult.rows[0]?.total ?? 0);
     const without = Number(embResult.rows[0]?.without_embedding ?? 0);
@@ -182,7 +197,7 @@ export async function GET(): Promise<NextResponse> {
     checks.embeddings = {
       status:
         total > 0 && without / total > 0.5 ? 'degraded' : providerConfigured ? 'ok' : 'degraded',
-      detail: `${total - without}/${total} embedded; provider=${providerConfigured ? 'configured' : 'missing'}`,
+      detail: `${total - without}/${total} canonical targets embedded; provider=${providerConfigured ? 'configured' : 'missing'}`,
     };
     if (checks.embeddings.status === 'degraded' && overall === 'healthy') {
       overall = 'degraded';

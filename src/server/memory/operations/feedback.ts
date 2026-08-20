@@ -19,6 +19,7 @@ export interface RegisterFeedbackOptions {
   nodeIds: string[];
   signal: MemoryFeedbackSignal;
   userId?: string;
+  workspaceId?: string;
 }
 
 async function resolveNodeVersion(
@@ -44,7 +45,7 @@ export async function registerFeedback(
   client: Mem0Client,
   options: RegisterFeedbackOptions,
 ): Promise<number> {
-  const { personaId, nodeIds, signal, userId } = options;
+  const { personaId, nodeIds, signal, userId, workspaceId } = options;
   const scopedUserId = resolveUserId(userId);
   const memoryProvider = client.provider ?? 'mem0';
   const ids = Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)));
@@ -52,7 +53,7 @@ export async function registerFeedback(
 
   let changed = 0;
   for (const nodeId of ids) {
-    const scope = { userId: scopedUserId, personaId };
+    const scope = { userId: scopedUserId, personaId, workspaceId };
     let record: Mem0MemoryRecord | null = null;
     try {
       record = await client.getMemory(nodeId, scope);
@@ -87,6 +88,7 @@ export async function registerFeedback(
         {
           userId: scopedUserId,
           personaId,
+          workspaceId,
           content: existingNode.content,
           metadata: {
             ...existingNode.metadata,
@@ -125,6 +127,7 @@ export async function registerFeedback(
       {
         userId: scopedUserId,
         personaId,
+        workspaceId,
         content: existingNode.content,
         metadata: {
           ...existingNode.metadata,

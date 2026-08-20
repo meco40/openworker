@@ -104,7 +104,7 @@ async function recallFromMemoryDetailed(
         userInput,
         MEMORY_RECALL_LIMIT,
         userIdCandidate,
-        { mode: options.mode },
+        { mode: options.mode, workspaceId: conversation.workspaceId },
       );
       if (recalled.matches.length > 0) {
         return recalled;

@@ -14,7 +14,12 @@ export async function handleMemoryPatch(request: Request, userContext: MemoryApi
     const service = getReadyMemoryService();
 
     if (parsed.action === 'delete') {
-      const affected = await service.bulkDelete(parsed.personaId, parsed.ids, userContext.userId);
+      const affected = await service.bulkDelete(
+        parsed.personaId,
+        parsed.ids,
+        userContext.userId,
+        parsed.workspaceId,
+      );
       return NextResponse.json({ ok: true, action: 'delete', affected });
     }
 
@@ -23,6 +28,7 @@ export async function handleMemoryPatch(request: Request, userContext: MemoryApi
       parsed.ids,
       parsed.updates,
       userContext.userId,
+      parsed.workspaceId,
     );
     return NextResponse.json({ ok: true, action: 'update', affected });
   } catch (error) {

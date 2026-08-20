@@ -31,18 +31,37 @@ describe('openai-codex model fetching', () => {
         authMethods: ['oauth'],
         endpointType: 'openai-native',
         capabilities: ['chat'],
-        defaultModels: ['gpt-5.3-codex', 'gpt-5.2-codex'],
+        defaultModels: [],
       },
       account: {} as never,
     });
 
     const ids = (models ?? []).map((model) => model.id);
-    expect(ids).toContain('gpt-5.3-codex');
-    expect(ids).toContain('gpt-5.2-codex');
-    expect(ids).toContain('gpt-5.2');
-    expect(ids).toContain('gpt-5.1');
-    expect(ids).toContain('gpt-5.1-codex-mini');
-    expect(ids).toContain('gpt-5.1-codex-max');
+    expect(ids).toEqual([
+      'gpt-5.6',
+      'gpt-5.6-sol',
+      'gpt-5.6-terra',
+      'gpt-5.6-luna',
+      'gpt-5.5',
+      'gpt-5.5-pro',
+      'gpt-5.4',
+      'gpt-5.4-pro',
+      'gpt-5.4-mini',
+      'gpt-5.4-nano',
+      'gpt-5.3-codex',
+      'gpt-5.2',
+      'gpt-5.2-pro',
+      'gpt-5.1',
+      'gpt-5',
+      'gpt-5-mini',
+      'gpt-5-nano',
+      'gpt-5-pro',
+      'gpt-4.1',
+      'gpt-4.1-mini',
+      'gpt-4o-mini',
+    ]);
+    expect(ids).not.toContain('gpt-5.2-codex');
+    expect(ids).not.toContain('gpt-5.1-codex');
   });
 
   it('keeps custom provider default models while adding codex seeds', async () => {
@@ -57,15 +76,15 @@ describe('openai-codex model fetching', () => {
         authMethods: ['oauth'],
         endpointType: 'openai-native',
         capabilities: ['chat'],
-        defaultModels: ['gpt-6-preview-codex'],
+        defaultModels: ['custom-codex-preview'],
       },
       account: {} as never,
     });
 
     const ids = (models ?? []).map((model) => model.id);
-    expect(ids).toContain('gpt-6-preview-codex');
+    expect(ids).toContain('custom-codex-preview');
+    expect(ids).toContain('gpt-5.6');
     expect(ids).toContain('gpt-5.3-codex');
-    expect(ids).toContain('gpt-5.1');
   });
 
   it('dispatches codex requests to chatgpt backend with codex headers', async () => {

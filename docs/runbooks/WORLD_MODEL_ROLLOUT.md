@@ -11,20 +11,21 @@ wiederaufbaubare Projektionen bzw. explizite Kompatibilitätspfade.
 
 ## Bestandteile
 
-| Datei                                                        | Inhalt                                                                                                                                                                              |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/server/world-model/config.ts`                           | Env-Konfiguration, `WORLD_MODEL_ENABLED` (default off)                                                                                                                              |
-| `src/server/world-model/db.ts`                               | Lazy-`pg.Pool`-Singleton, Advisory-Lock-Migrations-Runner und Transaktions-Helper                                                                                                   |
-| `src/server/world-model/migrations/001_world_model.sql`      | Basisschema (Observations, Assertions bitemporal+Modalitaet, Events/Transitions, Tasks/Transitions, Entities/Relations, Open Loops, Standing Intents, Outbox, Embeddings, Volltext) |
-| `src/server/world-model/migrations/016_canonical_memory.sql` | Kanonische Memory-Items, Historie, RLS, Idempotenz, Soft Delete und aggregierter Count                                                                                              |
-| `src/server/world-model/migrations/002..004*.sql`            | Shadow-Ledger, scoped Outbox-/Idempotenz-Nachruestung und workspace-scoped Assertions                                                                                               |
-| `src/server/world-model/repositories/*`                      | Repositories pro Aggregat (roh-SQL, Transaktion via Client)                                                                                                                         |
-| `src/server/world-model/services/eventService.ts`            | Plan-/Aenderungs-Referenzfall (Kino/Essen)                                                                                                                                          |
-| `src/server/world-model/services/prospectiveEngine.ts`       | Open-Loop-Follow-ups, Standing-Intent-Matching, Heartbeat                                                                                                                           |
-| `src/server/world-model/outboxDispatcher.ts`                 | Transactional-Outbox-Dispatch                                                                                                                                                       |
-| `src/server/world-model/productionGuard.ts`                  | Prod-Guard (Canonical URL erforderlich, E2E in Prod verboten)                                                                                                                       |
-| `docker-compose.postgres.yml`                                | Kanonische `pgvector/pgvector:pg17`, Port 5434, DB `clawtest`                                                                                                                       |
-| `.env.local.example`                                         | `WORLD_MODEL_*`-Block                                                                                                                                                               |
+| Datei                                                                  | Inhalt                                                                                                                                                                              |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/server/world-model/config.ts`                                     | Env-Konfiguration, `WORLD_MODEL_ENABLED` (default off)                                                                                                                              |
+| `src/server/world-model/db.ts`                                         | Lazy-`pg.Pool`-Singleton, Advisory-Lock-Migrations-Runner und Transaktions-Helper                                                                                                   |
+| `src/server/world-model/migrations/001_world_model.sql`                | Basisschema (Observations, Assertions bitemporal+Modalitaet, Events/Transitions, Tasks/Transitions, Entities/Relations, Open Loops, Standing Intents, Outbox, Embeddings, Volltext) |
+| `src/server/world-model/migrations/016_canonical_memory.sql`           | Kanonische Memory-Items, Historie, RLS, Idempotenz, Soft Delete und aggregierter Count                                                                                              |
+| `src/server/world-model/migrations/017_canonical_memory_integrity.sql` | Lifecycle-Constraint und Source-Observation-Index                                                                                                                                   |
+| `src/server/world-model/migrations/002..004*.sql`                      | Shadow-Ledger, scoped Outbox-/Idempotenz-Nachruestung und workspace-scoped Assertions                                                                                               |
+| `src/server/world-model/repositories/*`                                | Repositories pro Aggregat (roh-SQL, Transaktion via Client)                                                                                                                         |
+| `src/server/world-model/services/eventService.ts`                      | Plan-/Aenderungs-Referenzfall (Kino/Essen)                                                                                                                                          |
+| `src/server/world-model/services/prospectiveEngine.ts`                 | Open-Loop-Follow-ups, Standing-Intent-Matching, Heartbeat                                                                                                                           |
+| `src/server/world-model/outboxDispatcher.ts`                           | Transactional-Outbox-Dispatch                                                                                                                                                       |
+| `src/server/world-model/productionGuard.ts`                            | Prod-Guard (Canonical URL erforderlich, E2E in Prod verboten)                                                                                                                       |
+| `docker-compose.postgres.yml`                                          | Kanonische `pgvector/pgvector:pg17`, Port 5434, DB `clawtest`                                                                                                                       |
+| `.env.local.example`                                                   | `WORLD_MODEL_*`-Block                                                                                                                                                               |
 
 ## Aktivierung (lokal)
 
@@ -60,11 +61,13 @@ durch explizite Bestaetigung `completed` wird.
 corepack pnpm exec vitest run tests/unit/world-model
 ```
 
-## Bewusst nicht in Phase 1 (Folge-Phasen)
+## Abgrenzung
 
-- Durable Workflows (pg-boss/Hatchet/Temporal) sind noch nicht integriert.
-- Eine externe Graphiti-Instanz ist noch nicht angebunden; der aktuelle
-  `graphiti/shadow.ts` ist ein lokales, idempotentes Shadow-Ledger aus der Outbox.
+- Durable Workflows (pg-boss/Hatchet/Temporal) sind nicht erforderlich für die
+  kanonische Memory-/World-Model-Funktion und bleiben separat.
+- Graphiti ist als abgeleitete REST-/Neo4j-Projektion lokal angebunden. Die
+  Projektion kann live aktiviert werden; Recall bleibt bis zum Qualitäts-Gate
+  (`GRAPHITI_RECALL_ENABLED=false`) bewusst deaktiviert.
 
 ## Phase 2+3 (2026-08-19): Schreibpfade + Retrieval
 
@@ -80,11 +83,16 @@ corepack pnpm exec vitest run tests/unit/world-model
   Zustandsabfragen -> PG-Volltext -> pgvector (spaeter). Strukturierte Wahrheit hat
   Vorrang vor semantischer Aehnlichkeit.
 
-## Phase 5+6 (2026-08-18): Graphiti-Shadow + Mem0-Reduktion
+## Graphiti-Projektion und Recall-Gate
 
-- `GRAPHITI_SHADOW_ENABLED=true` aktiviert das Outbox-gestuetzte lokale
-  Shadow-Ledger (`graphiti/shadow.ts`, Migration 002/003). Es ist nur Messung,
-  keine verbindliche Entscheidung und kein externer Graphiti-Client.
+- `GRAPHITI_PROJECTOR_ENABLED=true` registriert den Live-Projektor am
+  transactional Outbox; PostgreSQL bleibt auch dann die Quelle der Wahrheit.
+- `GRAPHITI_SHADOW_ENABLED=true` aktiviert zusätzlich das lokale Shadow-Ledger
+  für Drift-/Transportmessung.
+- `GRAPHITI_RECALL_ENABLED=true` ist ein separater Schalter. Er darf erst nach
+  `world-model:graphiti-evaluate -- --require-quality` aktiviert werden. Die
+  Runtime verwendet denselben lokalen Reranker und Relevanzfilter wie der
+  Evaluator und fällt bei Graphiti-Fehlern auf PostgreSQL zurück.
 - Im kanonischen PostgreSQL-Modus ist Mem0 nicht für Runtime-CRUD oder Recall
   erforderlich. `WORLD_MODEL_MEM0_PREFERENCES_ONLY=true` bleibt nur für einen
   ausdrücklich aktivierten Mem0-Legacy-Provider relevant.
@@ -100,11 +108,12 @@ pnpm run memory:migrate-to-postgres -- --scope all --output docs/audits/world-mo
 ```
 
 Der Bericht weist die bekannten Scopes, Quellmenge, importierte Datensätze und
-Fehler aus. Mem0 kann keine globale Scope-Liste liefern; unbekannte externe
-Scopes müssen deshalb ausdrücklich über `--scope` oder
-`WORLD_MODEL_MIGRATION_SCOPES` ergänzt werden. Erst wenn der Verify-Lauf ohne
-Fehler ist und `MEMORY_PROVIDER=postgres` aktiv ist, darf Mem0 aus dem
-Normalbetrieb entfernt werden.
+Fehler aus. Der lokale Mem0-Container bietet für einen providerweiten
+Factual-Audit zusätzlich `GET /admin/memories`; externe Mem0-Provider ohne
+diesen Endpoint bleiben ausdrücklich scope-begrenzt. Erst wenn der Verify-Lauf
+ohne Fehler ist, der providerweite Audit (falls verfügbar) abgeschlossen ist
+und `MEMORY_PROVIDER=postgres` aktiv ist, darf Mem0 aus dem Normalbetrieb
+entfernt werden.
 
 ## Phase 7-9 (2026-08-18): Proaktive Sekretärin
 
@@ -172,7 +181,9 @@ pnpm run world-model:graphiti-evaluate -- --scope all --output docs/audits/world
 ```
 
 Der Reconcile-Lauf verwendet einen Source-Snapshot. Der Graphiti-Rebuild ist
-transportseitig erfolgreich, aber Graphiti bleibt Shadow, bis der separate
-Recall-/Precision-Report die Schwellenwerte erfüllt. Export/Restore des
-kanonischen Scopes ist lokal manifest-gehasht; externe Provider müssen ihren
-eigenen Lösch-/Restore-Nachweis liefern.
+transportseitig wiederaufbaubar, aber Graphiti-Recall bleibt Shadow, bis der
+separate Recall-/Precision-Report die Schwellenwerte erfüllt. Der Embedding-
+Worker läuft im Scheduler pro entdecktem Runtime-Scope und verarbeitet die
+kanonischen Zieltypen fair. Export/Restore des kanonischen Scopes ist lokal
+manifest-gehasht; externe Provider müssen ihren eigenen Lösch-/Restore-
+Nachweis liefern.

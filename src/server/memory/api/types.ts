@@ -8,6 +8,7 @@ export interface MemoryPostBody {
 
 export interface ParsedStoreArgs {
   personaId: string;
+  workspaceId?: string;
   type: MemoryType;
   content: string;
   importance: number;
@@ -15,12 +16,14 @@ export interface ParsedStoreArgs {
 
 export interface ParsedRecallArgs {
   personaId: string;
+  workspaceId?: string;
   query: string;
   limit: number;
 }
 
 export interface ParsedUpdateBody {
   personaId: string;
+  workspaceId?: string;
   id: string;
   type?: MemoryType;
   content?: string;
@@ -31,6 +34,7 @@ export interface ParsedUpdateBody {
 
 export interface ParsedBulkBody {
   personaId: string;
+  workspaceId?: string;
   ids: string[];
   action: 'update' | 'delete';
   updates: { type?: MemoryType; importance?: number };

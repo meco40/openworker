@@ -23,6 +23,7 @@ export async function handleMemoryPut(request: Request, userContext: MemoryApiUs
               expectedVersion: parsed.expectedVersion,
             },
             userContext.userId,
+            parsed.workspaceId,
           )
         : await service.update(
             parsed.personaId,
@@ -34,6 +35,7 @@ export async function handleMemoryPut(request: Request, userContext: MemoryApiUs
               expectedVersion: parsed.expectedVersion,
             },
             userContext.userId,
+            parsed.workspaceId,
           );
 
     if (!node) {

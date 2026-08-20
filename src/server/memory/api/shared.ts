@@ -36,6 +36,7 @@ export function getReadyMemoryService() {
 
 export function parseStoreArgs(raw: Record<string, unknown>): ParsedStoreArgs {
   const personaId = parsePersonaId(raw.personaId);
+  const workspaceId = parseOptionalWorkspaceId(raw.workspaceId);
   const type = String(raw.type || '').trim() as MemoryType;
   const content = String(raw.content || '').trim();
   const importanceRaw = Number(raw.importance ?? 3);
@@ -49,18 +50,32 @@ export function parseStoreArgs(raw: Record<string, unknown>): ParsedStoreArgs {
   if (!content) {
     throw new ValidationError('content is required.');
   }
-  return { personaId, type, content, importance };
+  return { personaId, workspaceId, type, content, importance };
 }
 
 export function parseRecallArgs(raw: Record<string, unknown>): ParsedRecallArgs {
   const personaId = parsePersonaId(raw.personaId);
+  const workspaceId = parseOptionalWorkspaceId(raw.workspaceId);
   const query = String(raw.query || '').trim();
   const limitRaw = Number(raw.limit ?? 3);
   const limit = Number.isFinite(limitRaw) ? Math.min(20, Math.max(1, Math.floor(limitRaw))) : 3;
   if (!query) {
     throw new ValidationError('query is required.');
   }
-  return { personaId, query, limit };
+  return { personaId, workspaceId, query, limit };
+}
+
+export function parseOptionalWorkspaceId(raw: unknown): string | undefined {
+  const workspaceId = String(raw ?? '').trim();
+  if (!workspaceId) return undefined;
+  const containsControlCharacter = [...workspaceId].some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 0x1f || code === 0x7f;
+  });
+  if (workspaceId.length > 255 || containsControlCharacter) {
+    throw new ValidationError('workspaceId is invalid.');
+  }
+  return workspaceId;
 }
 
 export function parsePersonaId(raw: unknown): string {
@@ -82,8 +97,9 @@ export function parseMemoryNodeId(raw: unknown): string {
 export function parseUpdateBody(raw: Record<string, unknown>): ParsedUpdateBody {
   const personaId = parsePersonaId(raw.personaId);
   const id = parseMemoryNodeId(raw.id);
+  const workspaceId = parseOptionalWorkspaceId(raw.workspaceId);
 
-  const next: ParsedUpdateBody = { personaId, id };
+  const next: ParsedUpdateBody = { personaId, workspaceId, id };
 
   if (raw.type !== undefined) {
     const type = String(raw.type || '').trim() as MemoryType;
@@ -166,6 +182,7 @@ export function parseOptionalType(raw: unknown): MemoryType | undefined {
 
 export function parseBulkBody(raw: Record<string, unknown>): ParsedBulkBody {
   const personaId = parsePersonaId(raw.personaId);
+  const workspaceId = parseOptionalWorkspaceId(raw.workspaceId);
   const idsRaw = Array.isArray(raw.ids) ? raw.ids : [];
   const ids = Array.from(
     new Set(idsRaw.map((id) => String(id || '').trim()).filter((id) => id.length > 0)),
@@ -194,7 +211,7 @@ export function parseBulkBody(raw: Record<string, unknown>): ParsedBulkBody {
     throw new ValidationError('Bulk update requires at least one update field.');
   }
 
-  return { personaId, ids, action, updates };
+  return { personaId, workspaceId, ids, action, updates };
 }
 
 export function isDeleteAllConfirmed(raw: unknown): boolean {

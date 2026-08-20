@@ -3,6 +3,8 @@
 # client (env `MAX_TOKENS`) so larger extraction payloads are not truncated.
 # Mounted over /app/graph_service/zep_graphiti.py via docker-compose.graphiti.yml.
 import logging
+import os
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException
@@ -12,6 +14,7 @@ from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig  
 from graphiti_core.errors import EdgeNotFoundError, GroupsEdgesNotFoundError, NodeNotFoundError
 from graphiti_core.llm_client import LLMClient, LLMConfig, OpenAIClient  # type: ignore
 from graphiti_core.nodes import EntityNode, EpisodicNode  # type: ignore
+from graphiti_core.utils.bulk_utils import add_nodes_and_edges_bulk  # type: ignore
 
 from graph_service.config import ZepEnvDep
 from graph_service.dto import FactResult
@@ -48,7 +51,33 @@ class OpenRouterEmbedder(OpenAIEmbedder):
 
 
 class LocalQwenClient(OpenAIClient):
-    """OpenAI-compatible client with Ollama's Qwen thinking disabled."""
+    """OpenAI-compatible client with Ollama's Qwen thinking disabled.
+
+    Ollama's OpenAI-compatible endpoint does not reliably translate
+    ``reasoning_effort='none'`` into the native Qwen/Ollama ``think`` option.
+    The nested ``options.think=false`` field is forwarded through the SDK's
+    ``extra_body`` hook and prevents the structured Graphiti prompts from
+    consuming the complete output budget with hidden reasoning.
+    """
+
+    async def generate_response(
+        self, messages, response_model=None, max_tokens=None, model_size=None
+    ):
+        # graphiti_core hard-codes 16384 for edge extraction. That is safe for
+        # hosted providers but makes a local Qwen worker spend minutes on
+        # hidden/retry output. Keep the local path bounded while leaving the
+        # external OpenAIClient path untouched.
+        try:
+            configured_limit = int(os.getenv('OLLAMA_GRAPHITI_MAX_TOKENS', '4096'))
+        except ValueError:
+            configured_limit = 4096
+        local_limit = max(512, configured_limit)
+        requested = self.max_tokens if max_tokens is None else max_tokens
+        bounded = min(requested, local_limit)
+        kwargs = {'response_model': response_model, 'max_tokens': bounded}
+        if model_size is not None:
+            kwargs['model_size'] = model_size
+        return await super().generate_response(messages, **kwargs)
 
     async def _create_structured_completion(
         self, model, messages, temperature, max_tokens, response_model
@@ -60,6 +89,7 @@ class LocalQwenClient(OpenAIClient):
             max_tokens=max_tokens,
             response_format=response_model,
             reasoning_effort='none',
+            extra_body={'options': {'think': False}},
         )
 
     async def _create_completion(
@@ -72,6 +102,7 @@ class LocalQwenClient(OpenAIClient):
             max_tokens=max_tokens,
             response_format={'type': 'json_object'},
             reasoning_effort='none',
+            extra_body={'options': {'think': False}},
         )
 
 
@@ -122,6 +153,43 @@ class ZepGraphiti(Graphiti):
         await new_node.save(self.driver)
         return new_node
 
+    async def save_entity_edge(
+        self,
+        *,
+        uuid: str,
+        group_id: str,
+        source_node_uuid: str,
+        target_node_uuid: str,
+        name: str,
+        fact: str,
+        created_at: datetime,
+        valid_at: datetime | None = None,
+        invalid_at: datetime | None = None,
+        attributes: dict[str, object] | None = None,
+    ):
+        """Persist a canonical structured edge without LLM extraction."""
+        try:
+            await EntityNode.get_by_uuid(self.driver, source_node_uuid)
+            await EntityNode.get_by_uuid(self.driver, target_node_uuid)
+        except NodeNotFoundError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+        edge = EntityEdge(
+            uuid=uuid,
+            group_id=group_id,
+            source_node_uuid=source_node_uuid,
+            target_node_uuid=target_node_uuid,
+            created_at=created_at,
+            name=name,
+            fact=fact,
+            valid_at=valid_at,
+            invalid_at=invalid_at,
+            attributes=attributes or {},
+        )
+        await edge.generate_embedding(self.embedder)
+        await add_nodes_and_edges_bulk(self.driver, [], [], [], [edge], self.embedder)
+        return edge
+
     async def get_entity_edge(self, uuid: str):
         try:
             edge = await EntityEdge.get_by_uuid(self.driver, uuid)
@@ -169,7 +237,7 @@ async def get_graphiti(settings: ZepEnvDep):
         config=OpenAIEmbedderConfig(
             embedding_model=settings.embedding_model_name or 'text-embedding-3-small',
             embedding_dim=settings.embedding_dim,
-            api_key=settings.openai_api_key,
+            api_key=settings.embedding_api_key or settings.openai_api_key,
             base_url=settings.embedding_base_url or settings.openai_base_url,
         )
     )

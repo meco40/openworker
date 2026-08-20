@@ -4,8 +4,8 @@ import { createHash } from 'node:crypto';
  * Phase 12: Graphiti REST client.
  *
  * Graphiti remains a derived projection. The client targets the official
- * graph-service contract (`/healthcheck`, `/messages`, `/entity-node`, and
- * `/group/{group_id}`); PostgreSQL remains the system of record.
+ * graph-service contract plus the mounted deterministic structured-edge
+ * route; PostgreSQL remains the system of record.
  */
 
 export interface GraphitiClientConfig {
@@ -22,11 +22,14 @@ export interface GraphitiNode {
 }
 
 export interface GraphitiEdge {
+  uuid?: string;
   source: string;
   target: string;
   type: string;
   sourceLabel?: string;
   targetLabel?: string;
+  name?: string;
+  fact?: string;
   properties?: Record<string, unknown>;
 }
 
@@ -359,27 +362,59 @@ export async function upsertGraphitiNodes(
   return { created, updated: 0 };
 }
 
-/**
- * Graphiti's REST service does not expose a raw edge-upsert route. Represent
- * an explicit relation as a deterministic message so Graphiti extracts and
- * stores the temporal edge using its supported ingestion path.
- */
+function optionalDate(value: unknown): string | undefined {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString();
+  if (typeof value === 'string' && value.trim()) return value;
+  return undefined;
+}
+
+function structuredEdgeAttributes(properties: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(properties).filter(
+      ([key]) => !['segment', 'validFrom', 'validTo', 'createdAt'].includes(key),
+    ),
+  );
+}
+
 export async function upsertGraphitiEdges(
   edges: GraphitiEdge[],
 ): Promise<{ created: number; updated: number }> {
-  const messages = edges.map((edge) => ({
-    uuid: `edge:${createHash('sha256')
-      .update(`${edge.source}\u0000${edge.type}\u0000${edge.target}`, 'utf8')
-      .digest('hex')
-      .slice(0, 32)}`,
-    name: edge.type,
-    content: buildRelationEpisodeContent(edge),
-    roleType: 'system' as const,
-    sourceDescription: `OpenClaw World Model relation projection (${edge.type})`,
-  }));
-  const groupId = String(edges[0]?.properties?.segment ?? 'openclaw');
-  const result = await addGraphitiMessages(groupId, messages);
-  return { created: result.accepted, updated: 0 };
+  let created = 0;
+  for (const edge of edges) {
+    const properties = edge.properties ?? {};
+    const groupId = String(properties.segment ?? '');
+    if (!groupId) continue;
+    const uuid =
+      edge.uuid ??
+      `edge:${createHash('sha256')
+        .update(`${edge.source}\u0000${edge.type}\u0000${edge.target}`, 'utf8')
+        .digest('hex')
+        .slice(0, 32)}`;
+    const config = getClientConfig();
+    await withRetries(`Graphiti edge ${uuid}`, async () => {
+      await requestGraphiti(config, '/entity-edge', {
+        method: 'POST',
+        body: JSON.stringify({
+          uuid,
+          group_id: groupId,
+          source_node_uuid: edge.source,
+          target_node_uuid: edge.target,
+          name: edge.name ?? edge.type,
+          fact: buildRelationEpisodeContent(edge),
+          created_at: optionalDate(properties.createdAt) ?? new Date().toISOString(),
+          ...(optionalDate(properties.validFrom)
+            ? { valid_at: optionalDate(properties.validFrom) }
+            : {}),
+          ...(optionalDate(properties.validTo)
+            ? { invalid_at: optionalDate(properties.validTo) }
+            : {}),
+          attributes: structuredEdgeAttributes(properties),
+        }),
+      });
+    });
+    created += 1;
+  }
+  return { created, updated: 0 };
 }
 
 function humanizeRelationType(value: string): string {
@@ -392,6 +427,7 @@ function humanizeRelationType(value: string): string {
 }
 
 function buildRelationEpisodeContent(edge: GraphitiEdge): string {
+  if (edge.fact?.trim()) return edge.fact.trim();
   const source = edge.sourceLabel?.trim() || edge.source;
   const target = edge.targetLabel?.trim() || edge.target;
   const relation = humanizeRelationType(edge.type);
@@ -412,7 +448,13 @@ function buildRelationEpisodeContent(edge: GraphitiEdge): string {
       : `has relation "${relation}" to`;
   const metadata = edge.properties
     ? Object.entries(edge.properties)
-        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+        .filter(
+          ([key, value]) =>
+            !['segment', 'sourceObservationId', 'eventId', 'createdAt'].includes(key) &&
+            value !== undefined &&
+            value !== null &&
+            value !== '',
+        )
         .map(([key, value]) => `${key}=${String(value)}`)
         .join('; ')
     : '';

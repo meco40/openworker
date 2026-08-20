@@ -7,12 +7,14 @@ export interface BulkUpdateOptions {
   nodeIds: string[];
   updates: { type?: MemoryType; importance?: number };
   userId?: string;
+  workspaceId?: string;
 }
 
 export interface BulkDeleteOptions {
   personaId: string;
   nodeIds: string[];
   userId?: string;
+  workspaceId?: string;
 }
 
 export type UpdateFn = (
@@ -20,12 +22,18 @@ export type UpdateFn = (
   nodeId: string,
   input: { type?: MemoryType; content?: string; importance?: number; expectedVersion?: number },
   userId?: string,
+  workspaceId?: string,
 ) => Promise<{ id: string } | null>;
 
-export type DeleteFn = (personaId: string, nodeId: string, userId?: string) => Promise<boolean>;
+export type DeleteFn = (
+  personaId: string,
+  nodeId: string,
+  userId?: string,
+  workspaceId?: string,
+) => Promise<boolean>;
 
 export async function bulkUpdate(updateFn: UpdateFn, options: BulkUpdateOptions): Promise<number> {
-  const { personaId, nodeIds, updates, userId } = options;
+  const { personaId, nodeIds, updates, userId, workspaceId } = options;
   let changed = 0;
   for (const nodeId of Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)))) {
     const updated = await updateFn(
@@ -36,6 +44,7 @@ export async function bulkUpdate(updateFn: UpdateFn, options: BulkUpdateOptions)
         importance: updates.importance,
       },
       userId,
+      workspaceId,
     );
     if (updated) changed += 1;
   }
@@ -43,10 +52,10 @@ export async function bulkUpdate(updateFn: UpdateFn, options: BulkUpdateOptions)
 }
 
 export async function bulkDelete(deleteFn: DeleteFn, options: BulkDeleteOptions): Promise<number> {
-  const { personaId, nodeIds, userId } = options;
+  const { personaId, nodeIds, userId, workspaceId } = options;
   let changed = 0;
   for (const nodeId of Array.from(new Set(nodeIds.map((id) => id.trim()).filter(Boolean)))) {
-    const deleted = await deleteFn(personaId, nodeId, userId);
+    const deleted = await deleteFn(personaId, nodeId, userId, workspaceId);
     if (deleted) changed += 1;
   }
   return changed;
@@ -56,7 +65,8 @@ export async function deleteByPersona(
   client: Mem0Client,
   personaId: string,
   userId?: string,
+  workspaceId?: string,
 ): Promise<number> {
   const scopedUserId = resolveUserId(userId);
-  return client.deleteMemoriesByFilter({ userId: scopedUserId, personaId });
+  return client.deleteMemoriesByFilter({ userId: scopedUserId, personaId, workspaceId });
 }
