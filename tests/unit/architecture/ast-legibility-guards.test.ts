@@ -91,10 +91,7 @@ describe('AST architecture guards', () => {
 
   it('prevents forbidden import directions', () => {
     const sharedFiles = collectFiles(path.resolve(ROOT, 'src/shared'));
-    const uiFiles = [
-      ...collectFiles(path.resolve(ROOT, 'src/modules/chat')),
-      ...collectFiles(path.resolve(ROOT, 'src/modules/mission-control')),
-    ];
+    const uiFiles = [...collectFiles(path.resolve(ROOT, 'src/modules/chat'))];
     const violations: string[] = [];
 
     for (const filePath of sharedFiles) {

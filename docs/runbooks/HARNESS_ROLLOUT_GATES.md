@@ -35,11 +35,10 @@ Verbindliche Steuerung der 4-Wochen-Harness-Rollout-Phasen mit harten Exit-Gates
    - `ENGINEERING_INGEST_TOKEN` (muss dem Runtime-Token entsprechen)
 3. Wenn URL oder Token fehlen, laufen Workflows report-only und posten keinen Snapshot-Ingest.
 
-## Live dashboard
+## Engineering metrics API
 
-1. UI-Route: `/mission-control/engineering-rollout`
-2. Datenquelle: `GET /api/stats/engineering`
-3. Zweck: Woche-1-4 Exit-Gates, Baseline-Delta, KPI-Drift, Go/No-Go-Empfehlung.
+1. Endpoint: `GET /api/stats/engineering`
+2. Zweck: Woche-1-4 Exit-Gates, Baseline-Delta, KPI-Drift, Go/No-Go-Empfehlung.
 
 ## Weekly matrix
 

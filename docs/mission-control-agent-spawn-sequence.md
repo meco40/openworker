@@ -6,7 +6,7 @@
 sequenceDiagram
     autonumber
     participant User
-    participant UI as TaskModal/PlanningTab
+    participant UI as Task Manager/PlanningTab
     participant TasksAPI as /api/tasks
     participant PlanningAPI as /api/tasks/{id}/planning(+poll/+answer)
     participant DB as SQLite

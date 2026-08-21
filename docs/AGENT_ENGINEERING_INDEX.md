@@ -38,7 +38,3 @@
 
 - `GET /api/stats/engineering`
 - `POST /api/internal/stats/engineering/snapshots`
-
-2. UI:
-
-- `/mission-control/engineering-rollout` (Live-Template fuer Woche-1-4 Rollout-Steuerung)

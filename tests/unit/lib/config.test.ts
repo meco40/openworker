@@ -1,277 +1,46 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { getMissionControlUrl, getProjectsPath } from '@/lib/config';
 
-// Mock localStorage for client-side tests
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: vi.fn((key: string) => store[key] ?? null),
-    setItem: vi.fn((key: string, value: string) => {
-      store[key] = value;
-    }),
-    removeItem: vi.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: vi.fn(() => {
-      store = {};
-    }),
-    get length() {
-      return Object.keys(store).length;
-    },
-    key: vi.fn((index: number) => Object.keys(store)[index] ?? null),
-    get store() {
-      return store;
-    },
-  };
-})();
+const originalMissionControlUrl = process.env.MISSION_CONTROL_URL;
+const originalProjectsPath = process.env.PROJECTS_PATH;
+const originalPort = process.env.PORT;
 
-// Helper to reset modules and get fresh imports
-async function getFreshConfigModule(mockWindow: boolean) {
-  vi.resetModules();
+function restoreEnvironment(): void {
+  if (originalMissionControlUrl === undefined) delete process.env.MISSION_CONTROL_URL;
+  else process.env.MISSION_CONTROL_URL = originalMissionControlUrl;
 
-  if (mockWindow) {
-    (globalThis as Record<string, unknown>).window = {
-      location: {
-        origin: 'http://localhost:3000',
-        href: 'http://localhost:3000',
-        protocol: 'http:',
-        host: 'localhost:3000',
-        hostname: 'localhost',
-        port: '3000',
-        pathname: '/',
-        search: '',
-        hash: '',
-        ancestorOrigins: [] as unknown as DOMStringList,
-        assign: vi.fn(),
-        replace: vi.fn(),
-        reload: vi.fn(),
-      },
-    } as unknown as Window;
-    (globalThis as Record<string, unknown>).localStorage = localStorageMock;
-  } else {
-    delete (globalThis as Record<string, unknown>).window;
-    delete (globalThis as Record<string, unknown>).localStorage;
-  }
+  if (originalProjectsPath === undefined) delete process.env.PROJECTS_PATH;
+  else process.env.PROJECTS_PATH = originalProjectsPath;
 
-  return import('@/lib/config');
+  if (originalPort === undefined) delete process.env.PORT;
+  else process.env.PORT = originalPort;
 }
 
-describe('Config Management', () => {
-  beforeEach(() => {
-    localStorageMock.clear();
-    vi.clearAllMocks();
+describe('runtime path configuration', () => {
+  afterEach(restoreEnvironment);
+
+  it('uses the configured callback URL', () => {
+    process.env.MISSION_CONTROL_URL = 'https://runtime.example.com';
+
+    expect(getMissionControlUrl()).toBe('https://runtime.example.com');
   });
 
-  afterEach(() => {
-    vi.resetModules();
-    delete (globalThis as Record<string, unknown>).window;
-    delete (globalThis as Record<string, unknown>).localStorage;
+  it('falls back to the local callback URL and configured port', () => {
+    delete process.env.MISSION_CONTROL_URL;
+    process.env.PORT = '4000';
+
+    expect(getMissionControlUrl()).toBe('http://localhost:4000');
   });
 
-  describe('getConfig', () => {
-    it('returns defaults on server side (no window)', async () => {
-      const { getConfig } = await getFreshConfigModule(false);
+  it('uses the configured projects path', () => {
+    process.env.PROJECTS_PATH = 'C:/runtime/projects';
 
-      const config = getConfig();
-
-      expect(config.workspaceBasePath).toBe('~/Documents/Shared');
-      expect(config.projectsPath).toBe('~/Documents/Shared/projects');
-      expect(config.defaultProjectName).toBe('mission-control');
-    });
-
-    it('returns defaults when localStorage is empty', async () => {
-      const { getConfig } = await getFreshConfigModule(true);
-
-      const config = getConfig();
-
-      expect(config.workspaceBasePath).toBe('~/Documents/Shared');
-      expect(config.projectsPath).toBe('~/Documents/Shared/projects');
-    });
-
-    it('merges stored config with defaults', async () => {
-      localStorageMock.setItem(
-        'mission-control-config',
-        JSON.stringify({
-          workspaceBasePath: '/custom/workspace',
-          defaultProjectName: 'custom-project',
-        }),
-      );
-
-      const { getConfig } = await getFreshConfigModule(true);
-
-      const config = getConfig();
-
-      expect(config.workspaceBasePath).toBe('/custom/workspace');
-      expect(config.defaultProjectName).toBe('custom-project');
-      // Falls back to default
-      expect(config.projectsPath).toBe('~/Documents/Shared/projects');
-    });
-
-    it('handles corrupted localStorage data gracefully', async () => {
-      localStorageMock.setItem('mission-control-config', 'not-valid-json');
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      const { getConfig } = await getFreshConfigModule(true);
-
-      const config = getConfig();
-
-      // Should return defaults when parsing fails
-      expect(config.workspaceBasePath).toBe('~/Documents/Shared');
-      expect(consoleErrorSpy).toHaveBeenCalled();
-    });
+    expect(getProjectsPath()).toBe('C:/runtime/projects');
   });
 
-  describe('updateConfig', () => {
-    it('throws on server side', async () => {
-      const { updateConfig } = await getFreshConfigModule(false);
+  it('falls back to the shared projects path', () => {
+    delete process.env.PROJECTS_PATH;
 
-      expect(() => updateConfig({ workspaceBasePath: '/new/path' })).toThrow(
-        'Cannot update config on server side',
-      );
-    });
-
-    it('validates workspaceBasePath is not empty', async () => {
-      const { updateConfig } = await getFreshConfigModule(true);
-
-      expect(() => updateConfig({ workspaceBasePath: '' })).toThrow(
-        'Workspace base path cannot be empty',
-      );
-      expect(() => updateConfig({ workspaceBasePath: '   ' })).toThrow(
-        'Workspace base path cannot be empty',
-      );
-    });
-
-    it('validates missionControlUrl is a valid URL', async () => {
-      const { updateConfig } = await getFreshConfigModule(true);
-
-      expect(() => updateConfig({ missionControlUrl: 'not-a-url' })).toThrow(
-        'Invalid Mission Control URL',
-      );
-    });
-
-    it('accepts valid URLs', async () => {
-      const { updateConfig, getConfig } = await getFreshConfigModule(true);
-
-      updateConfig({ missionControlUrl: 'https://api.example.com' });
-
-      const config = getConfig();
-      expect(config.missionControlUrl).toBe('https://api.example.com');
-    });
-
-    it('saves valid updates to localStorage', async () => {
-      const { updateConfig, getConfig } = await getFreshConfigModule(true);
-
-      updateConfig({
-        workspaceBasePath: '/valid/path',
-        defaultProjectName: 'test-project',
-      });
-
-      const stored = localStorageMock.getItem('mission-control-config');
-      expect(stored).toBeDefined();
-      const parsed = JSON.parse(stored!);
-      expect(parsed.workspaceBasePath).toBe('/valid/path');
-      expect(parsed.defaultProjectName).toBe('test-project');
-    });
-  });
-
-  describe('resetConfig', () => {
-    it('throws on server side', async () => {
-      const { resetConfig } = await getFreshConfigModule(false);
-
-      expect(() => resetConfig()).toThrow('Cannot reset config on server side');
-    });
-
-    it('removes config from localStorage', async () => {
-      localStorageMock.setItem(
-        'mission-control-config',
-        JSON.stringify({ workspaceBasePath: '/stored' }),
-      );
-
-      const { resetConfig, getConfig } = await getFreshConfigModule(true);
-
-      resetConfig();
-
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('mission-control-config');
-      const config = getConfig();
-      expect(config.workspaceBasePath).toBe('~/Documents/Shared');
-    });
-  });
-
-  describe('getMissionControlUrl', () => {
-    it('uses env var on server side', async () => {
-      const originalEnv = process.env.MISSION_CONTROL_URL;
-      process.env.MISSION_CONTROL_URL = 'https://env-server.example.com';
-
-      const { getMissionControlUrl } = await getFreshConfigModule(false);
-
-      const url = getMissionControlUrl();
-      expect(url).toBe('https://env-server.example.com');
-
-      process.env.MISSION_CONTROL_URL = originalEnv;
-    });
-
-    it('falls back to localhost with PORT on server side', async () => {
-      const originalEnvUrl = process.env.MISSION_CONTROL_URL;
-      const originalPort = process.env.PORT;
-      delete process.env.MISSION_CONTROL_URL;
-      process.env.PORT = '4000';
-
-      const { getMissionControlUrl } = await getFreshConfigModule(false);
-
-      const url = getMissionControlUrl();
-      expect(url).toBe('http://localhost:4000');
-
-      process.env.PORT = originalPort;
-      if (originalEnvUrl) process.env.MISSION_CONTROL_URL = originalEnvUrl;
-    });
-
-    it('uses config on client side', async () => {
-      localStorageMock.setItem(
-        'mission-control-config',
-        JSON.stringify({ missionControlUrl: 'https://client-config.example.com' }),
-      );
-
-      const { getMissionControlUrl } = await getFreshConfigModule(true);
-
-      const url = getMissionControlUrl();
-      expect(url).toBe('https://client-config.example.com');
-    });
-  });
-
-  describe('getProjectsPath', () => {
-    it('uses env var on server side', async () => {
-      const originalEnv = process.env.PROJECTS_PATH;
-      process.env.PROJECTS_PATH = '/env/projects';
-
-      const { getProjectsPath } = await getFreshConfigModule(false);
-
-      const path = getProjectsPath();
-      expect(path).toBe('/env/projects');
-
-      process.env.PROJECTS_PATH = originalEnv;
-    });
-
-    it('falls back to default on server side', async () => {
-      const originalEnv = process.env.PROJECTS_PATH;
-      delete process.env.PROJECTS_PATH;
-
-      const { getProjectsPath } = await getFreshConfigModule(false);
-
-      const path = getProjectsPath();
-      expect(path).toBe('~/Documents/Shared/projects');
-
-      if (originalEnv) process.env.PROJECTS_PATH = originalEnv;
-    });
-
-    it('uses config on client side', async () => {
-      localStorageMock.setItem(
-        'mission-control-config',
-        JSON.stringify({ projectsPath: '/client/projects' }),
-      );
-
-      const { getProjectsPath } = await getFreshConfigModule(true);
-
-      const path = getProjectsPath();
-      expect(path).toBe('/client/projects');
-    });
+    expect(getProjectsPath()).toBe('~/Documents/Shared/projects');
   });
 });

@@ -85,15 +85,7 @@ Quellen: `app/api/stats/engineering/route.ts`, `app/api/stats/route.ts`, `app/ap
 - Rollout-Zustand: `rollout.phase`, `rollout.exitGates`, `rollout.recommendation`, `rollout.baselineId`
 - Harness-Observability: `domainCoverage`, `scenarioSuccessRates`, `worktreeHarness`, `criticalFailAutoReverts`
 
-### 2.7 Mission Control Rollout Dashboard
-
-| Typ | Pfad                                   | Zweck                                                             |
-| --- | -------------------------------------- | ----------------------------------------------------------------- |
-| UI  | `/mission-control/engineering-rollout` | Kompakte Live-Sicht fuer Woche-1-4-Gates, KPI-Status und Go/No-Go |
-
-Quellen: `app/mission-control/engineering-rollout/page.tsx`, `src/components/stats/EngineeringRolloutDashboard.tsx`
-
-### 2.8 Master Metrics
+### 2.7 Master Metrics
 
 | Methode | Pfad                  | Zweck                                                   |
 | ------- | --------------------- | ------------------------------------------------------- |

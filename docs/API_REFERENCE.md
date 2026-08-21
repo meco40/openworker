@@ -16,39 +16,38 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 
 - Basis: `/api`
 - Quelle: exportierte Methoden in `app/api/**/route.ts`
-- Anzahl Routen: 111
+- Anzahl Routen: 110
 
 ## Domain Summary
 
-| Domain          | Routes |
-| --------------- | -----: |
-| agents          |      5 |
-| auth            |      1 |
-| automations     |      6 |
-| channels        |     13 |
-| clawhub         |      6 |
-| config          |      1 |
-| control-plane   |      1 |
-| debug           |      3 |
-| doctor          |      1 |
-| events          |      2 |
-| files           |      2 |
-| health          |      2 |
-| knowledge       |      1 |
-| logs            |      2 |
-| master          |     17 |
-| memory          |      1 |
-| mission-control |      1 |
-| model-hub       |     10 |
-| openclaw        |      4 |
-| ops             |      3 |
-| personas        |      4 |
-| security        |      2 |
-| skills          |      5 |
-| stats           |      3 |
-| tasks           |     11 |
-| webhooks        |      1 |
-| workspaces      |      2 |
+| Domain        | Routes |
+| ------------- | -----: |
+| agents        |      5 |
+| auth          |      1 |
+| automations   |      6 |
+| channels      |     13 |
+| clawhub       |      6 |
+| config        |      1 |
+| control-plane |      1 |
+| debug         |      3 |
+| doctor        |      1 |
+| events        |      2 |
+| files         |      2 |
+| health        |      2 |
+| knowledge     |      1 |
+| logs          |      2 |
+| master        |     17 |
+| memory        |      1 |
+| model-hub     |     10 |
+| openclaw      |      4 |
+| ops           |      3 |
+| personas      |      4 |
+| security      |      2 |
+| skills        |      5 |
+| stats         |      3 |
+| tasks         |     11 |
+| webhooks      |      1 |
+| workspaces    |      2 |
 
 ## Route Catalog
 
@@ -207,12 +206,6 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | Methods                       | Route       |
 | ----------------------------- | ----------- |
 | GET, POST, PUT, PATCH, DELETE | /api/memory |
-
-### /api/mission-control
-
-| Methods | Route                       |
-| ------- | --------------------------- |
-| GET     | /api/mission-control/status |
 
 ### /api/model-hub
 

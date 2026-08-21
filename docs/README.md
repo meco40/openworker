@@ -73,9 +73,9 @@ Historische Analysen, Reports und ersetzte Plaene liegen unter `docs/archive/`.
 - **[docs/plans/README.md](plans/README.md)**
 - **[docs/DOCUMENTATION_AUDIT_2026-02-21.md](DOCUMENTATION_AUDIT_2026-02-21.md)** (historischer Audit mit Addendum)
 
-## 7) Live Ops Entry
+## 7) Live Ops API
 
-- Mission Control Rollout Dashboard: `/mission-control/engineering-rollout`
+- Engineering-Observability und Rollout-KPIs: `/api/stats/engineering`
 
 ## 8) Archiv
 

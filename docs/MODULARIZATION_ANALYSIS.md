@@ -6,6 +6,8 @@
 
 After completing Priority 1 and 2 modularization (14 files, 10,353 lines → ~2,275 lines), there are still **25+ files** that should be modularized to maintain code quality and maintainability.
 
+> The former Mission Control page and its UI-only components were removed on 2026-08-21 and are omitted from this inventory.
+
 ## Priority 3 Candidates (>400 lines)
 
 ### 🔴 High Priority (>600 lines)
@@ -34,30 +36,28 @@ After completing Priority 1 and 2 modularization (14 files, 10,353 lines → ~2,
 | 15  | `src/components/model-hub/sections/PipelineSection.tsx`            | 454   | React Component | 🟠       |
 | 16  | `src/server/model-hub/Models/xai/index.ts`                         | 451   | Model Provider  | 🟠       |
 | 17  | `src/server/channels/messages/repository/queries/agentRoom.ts`     | 447   | Queries         | 🟠       |
-| 18  | `src/components/TaskModal.tsx`                                     | 431   | React Component | 🟠       |
-| 19  | `src/lib/openclaw/client.ts`                                       | 430   | Client          | 🟠       |
-| 20  | `src/components/knowledge/graph/KnowledgeGraphPanel.tsx`           | 423   | React Component | 🟠       |
-| 21  | `src/modules/cron/components/CronView.tsx`                         | 422   | React Component | 🟠       |
-| 22  | `src/server/memory/mem0EmbedderSync.ts`                            | 420   | Service         | 🟠       |
-| 23  | `src/modules/rooms/components/RoomDetailPanel.tsx`                 | 414   | React Component | 🟠       |
-| 24  | `src/modules/ops/components/NodesView.tsx`                         | 412   | React Component | 🟠       |
-| 25  | `src/server/knowledge/repositories/entityRepository.ts`            | 406   | Repository      | 🟠       |
+| 18  | `src/lib/openclaw/client.ts`                                       | 430   | Client          | 🟠       |
+| 19  | `src/components/knowledge/graph/KnowledgeGraphPanel.tsx`           | 423   | React Component | 🟠       |
+| 20  | `src/modules/cron/components/CronView.tsx`                         | 422   | React Component | 🟠       |
+| 21  | `src/server/memory/mem0EmbedderSync.ts`                            | 420   | Service         | 🟠       |
+| 22  | `src/modules/rooms/components/RoomDetailPanel.tsx`                 | 414   | React Component | 🟠       |
+| 23  | `src/modules/ops/components/NodesView.tsx`                         | 412   | React Component | 🟠       |
+| 24  | `src/server/knowledge/repositories/entityRepository.ts`            | 406   | Repository      | 🟠       |
 
 ### 🟡 Lower Priority (350-400 lines)
 
 | #   | File                                                      | Lines | Type            | Priority |
 | --- | --------------------------------------------------------- | ----- | --------------- | -------- |
-| 26  | `src/server/channels/messages/sqliteMessageRepository.ts` | 395   | Repository      | 🟡       |
-| 27  | `src/server/channels/telegram/modelSelection.ts`          | 385   | Service         | 🟡       |
-| 28  | `src/components/model-hub/hooks/useModelHub.ts`           | 384   | Hook            | 🟡       |
-| 29  | `src/server/model-hub/Models/anthropic/index.ts`          | 384   | Model Provider  | 🟡       |
-| 30  | `src/components/model-hub/hooks/useProviders.ts`          | 384   | Hook            | 🟡       |
-| 31  | `src/server/knowledge/sqliteKnowledgeRepository.ts`       | 381   | Repository      | 🟡       |
-| 32  | `src/modules/chat/components/ChatMainPane.tsx`            | 379   | React Component | 🟡       |
-| 33  | `src/server/memory/service.ts`                            | 375   | Service         | 🟡       |
-| 34  | `src/modules/agent-room/components/NewSwarmModal.tsx`     | 374   | React Component | 🟡       |
-| 35  | `src/components/AgentModal.tsx`                           | 371   | React Component | 🟡       |
-| 36  | `src/server/knowledge/extractor.ts`                       | 368   | Service         | 🟡       |
+| 25  | `src/server/channels/messages/sqliteMessageRepository.ts` | 395   | Repository      | 🟡       |
+| 26  | `src/server/channels/telegram/modelSelection.ts`          | 385   | Service         | 🟡       |
+| 27  | `src/components/model-hub/hooks/useModelHub.ts`           | 384   | Hook            | 🟡       |
+| 28  | `src/server/model-hub/Models/anthropic/index.ts`          | 384   | Model Provider  | 🟡       |
+| 29  | `src/components/model-hub/hooks/useProviders.ts`          | 384   | Hook            | 🟡       |
+| 30  | `src/server/knowledge/sqliteKnowledgeRepository.ts`       | 381   | Repository      | 🟡       |
+| 31  | `src/modules/chat/components/ChatMainPane.tsx`            | 379   | React Component | 🟡       |
+| 32  | `src/server/memory/service.ts`                            | 375   | Service         | 🟡       |
+| 33  | `src/modules/agent-room/components/NewSwarmModal.tsx`     | 374   | React Component | 🟡       |
+| 34  | `src/server/knowledge/extractor.ts`                       | 368   | Service         | 🟡       |
 
 ## Category Breakdown
 
@@ -90,8 +90,7 @@ After completing Priority 1 and 2 modularization (14 files, 10,353 lines → ~2,
 1. `PlanningTab.tsx` (759 lines)
 2. `StatsView.tsx` (741 lines)
 3. `ChannelPairing.tsx` (699 lines)
-4. `TaskModal.tsx` (431 lines)
-5. `KnowledgeGraphPanel.tsx` (423 lines)
+4. `KnowledgeGraphPanel.tsx` (423 lines)
 
 ### Phase 2: Backend Services
 

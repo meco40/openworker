@@ -61,11 +61,8 @@ describe('agent legibility guards', () => {
     expect(violations).toEqual([]);
   });
 
-  it('prevents direct server imports inside chat and mission-control UI modules', () => {
-    const files = [
-      ...collectFiles(path.resolve(ROOT, 'src/modules/chat')),
-      ...collectFiles(path.resolve(ROOT, 'src/modules/mission-control')),
-    ];
+  it('prevents direct server imports inside chat UI modules', () => {
+    const files = [...collectFiles(path.resolve(ROOT, 'src/modules/chat'))];
     const violations: string[] = [];
 
     for (const file of files) {

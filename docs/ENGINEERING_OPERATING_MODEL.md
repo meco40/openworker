@@ -108,10 +108,6 @@ Der `Main Guardian` reagiert auf fehlgeschlagene Blocking-Gates auf `main`:
 - `GET /api/stats/engineering` (KPIs, Rollout-Status, Harness-Observability)
 - `POST /api/internal/stats/engineering/snapshots` (internal ingest)
 
-2. UI:
-
-- `GET /mission-control/engineering-rollout` (kompaktes Live-Dashboard fuer Woche-1-4 und Go/No-Go)
-
 ## Flag-Matrix und Rollback
 
 1. Flags:

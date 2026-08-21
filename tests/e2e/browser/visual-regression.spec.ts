@@ -19,12 +19,6 @@ test.describe('Visual Regression', () => {
     await expect(page.locator('[data-testid="chat-input"]')).toBeVisible({ timeout: 10000 });
   });
 
-  test('settings page renders correctly', async ({ page }) => {
-    await page.goto('/mission-control/settings');
-    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
-  });
-
   test('memory view renders correctly', async ({ page }) => {
     await page.goto('/');
     await page.locator('button[data-view="memory"]').click({ timeout: 10000 });

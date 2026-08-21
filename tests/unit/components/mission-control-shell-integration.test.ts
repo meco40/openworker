@@ -1,12 +1,15 @@
 import { createElement } from 'react';
+import fs from 'node:fs';
+import path from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import Sidebar from '@/components/Sidebar';
-import MissionControlView from '@/modules/mission-control/components/MissionControlView';
 import { View } from '@/shared/domain/types';
 
-describe('Mission Control shell integration', () => {
-  it('exposes Mission Control navigation in the sidebar', () => {
+const ROOT = process.cwd();
+
+describe('Mission Control removal', () => {
+  it('does not expose the removed page in the sidebar', () => {
     const html = renderToStaticMarkup(
       createElement(Sidebar, {
         activeView: View.DASHBOARD,
@@ -18,12 +21,24 @@ describe('Mission Control shell integration', () => {
       ([, label]) => label,
     );
 
-    expect(navLabels).toContain('Mission Control');
+    expect(navLabels).not.toContain('Mission Control');
+    expect(html).not.toContain('data-view="mission_control"');
+    expect(Object.values(View)).not.toContain('mission_control');
   });
 
-  it('renders Mission Control iframe target', () => {
-    const html = renderToStaticMarkup(createElement(MissionControlView));
-    expect(html).toContain('src="/mission-control"');
-    expect(html).toContain('title="Mission Control"');
+  it('does not leave the removed route or shell module registered', () => {
+    expect(fs.existsSync(path.join(ROOT, 'app/mission-control/page.tsx'))).toBe(false);
+    expect(
+      fs.existsSync(
+        path.join(ROOT, 'src/modules/mission-control/components/MissionControlView.tsx'),
+      ),
+    ).toBe(false);
+
+    const shellSource = fs.readFileSync(
+      path.join(ROOT, 'src/modules/app-shell/components/AppShellViewContent.tsx'),
+      'utf8',
+    );
+    expect(shellSource).not.toContain('MissionControlView');
+    expect(shellSource).not.toContain('View.MISSION_CONTROL');
   });
 });
