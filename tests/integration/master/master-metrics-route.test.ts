@@ -50,7 +50,7 @@ describe('master metrics route', () => {
 
     try {
       const runtime = await import('@/server/master/runtime');
-      runtime.resetMasterRepositoryForTests();
+      await runtime.resetMasterRepositoryForTests();
     } catch {
       // ignore
     }

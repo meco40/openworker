@@ -11,7 +11,9 @@ import {
   addGraphitiMessages,
   clearGraphitiScope,
   graphitiGroupId,
+  getGraphitiQueueStatus,
   searchGraphitiFacts,
+  waitForGraphitiQueue,
 } from '@/server/world-model/graphiti/client';
 import { deleteWorldModelScope } from '@/server/world-model/dataLifecycle';
 
@@ -81,6 +83,7 @@ describe.skipIf(!enabled)('Graphiti Shadow Comparison & Evaluation Integration',
         workspaceId: 'integration',
       };
       const groupId = graphitiGroupId(scope.userId, scope.personaId, scope.workspaceId);
+      const queueBefore = await getGraphitiQueueStatus();
       await addGraphitiMessages(groupId, [
         {
           name: 'graphiti-e2e',
@@ -90,18 +93,23 @@ describe.skipIf(!enabled)('Graphiti Shadow Comparison & Evaluation Integration',
           sourceDescription: 'World Model Graphiti integration test',
         },
       ]);
-      let facts: Awaited<ReturnType<typeof searchGraphitiFacts>> = [];
-      for (let attempt = 0; attempt < 18; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 5_000));
-        facts = await searchGraphitiFacts(groupId, 'Alice responsible World Model integration', 10);
-        if (facts.length > 0) break;
-      }
+      const queueAfter = await waitForGraphitiQueue({
+        timeoutMs: Number(process.env.GRAPHITI_E2E_QUEUE_TIMEOUT_MS) || 240_000,
+        pollMs: 1_000,
+        baselineFailedJobs: queueBefore.failedJobs,
+      });
+      expect(queueAfter.completedJobs).toBeGreaterThan(queueBefore.completedJobs);
+      const facts = await searchGraphitiFacts(
+        groupId,
+        'Alice responsible World Model integration',
+        10,
+      );
       expect(facts.length).toBeGreaterThan(0);
       await clearGraphitiScope(scope.userId, scope.personaId, scope.workspaceId);
       expect(
         await searchGraphitiFacts(groupId, 'Alice responsible World Model integration', 10),
       ).toEqual([]);
     },
-    120_000,
+    300_000,
   );
 });

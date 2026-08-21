@@ -53,7 +53,7 @@ describe('master feedback route', () => {
 
     try {
       const runtime = await import('@/server/master/runtime');
-      runtime.resetMasterRepositoryForTests();
+      await runtime.resetMasterRepositoryForTests();
     } catch {
       // ignore if not imported
     }

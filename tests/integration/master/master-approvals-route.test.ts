@@ -21,7 +21,7 @@ describe('master approvals routes', () => {
 
     try {
       const runtime = await import('@/server/master/runtime');
-      runtime.resetMasterRepositoryForTests();
+      await runtime.resetMasterRepositoryForTests();
     } catch {
       // ignore cleanup if runtime was not imported
     }

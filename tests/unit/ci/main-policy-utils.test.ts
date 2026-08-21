@@ -36,12 +36,18 @@ describe('main policy utilities', () => {
   it('maps changed files to registry domains', () => {
     const registry = loadDomainRegistry();
     const matches = classifyChangedDomains(
-      ['src/server/memory/service.ts', 'app/api/model-hub/pipeline/route.ts'],
+      [
+        'src/server/memory/service.ts',
+        'app/api/model-hub/pipeline/route.ts',
+        'app/mission-control/page.tsx',
+        'src/modules/app-shell/components/AppShellViewContent.tsx',
+      ],
       registry,
     );
 
     expect(matches.has('memory')).toBe(true);
     expect(matches.has('model-hub')).toBe(true);
+    expect(matches.has('mission-control')).toBe(true);
   });
 
   it('keeps scenario ids unique', () => {

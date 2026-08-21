@@ -161,7 +161,7 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
   return (
     <div className="flex-1 overflow-auto p-6">
       {currentView === View.DASHBOARD && (
-        <ViewErrorBoundary label="Control Plane">
+        <ViewErrorBoundary key={currentView} label="Control Plane">
           <Dashboard
             state={{ ...gatewayState, scheduledTasks }}
             metricsState={controlPlaneMetricsState}
@@ -169,12 +169,12 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
         </ViewErrorBoundary>
       )}
       {currentView === View.MODELS && (
-        <ViewErrorBoundary label="AI Model Hub">
+        <ViewErrorBoundary key={currentView} label="AI Model Hub">
           <ModelHub />
         </ViewErrorBoundary>
       )}
       {currentView === View.CHAT && (
-        <ViewErrorBoundary label="Multi-Channel Inbox">
+        <ViewErrorBoundary key={currentView} label="Multi-Channel Inbox">
           <ChatInterface
             messages={messages}
             onSendMessage={onSendMessage}
@@ -192,7 +192,7 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
         </ViewErrorBoundary>
       )}
       {currentView === View.CHANNELS && (
-        <ViewErrorBoundary label="Messenger Coupling">
+        <ViewErrorBoundary key={currentView} label="Messenger Coupling">
           <ChannelPairing
             coupledChannels={coupledChannels}
             onUpdateCoupling={onUpdateCoupling}
@@ -201,92 +201,92 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
         </ViewErrorBoundary>
       )}
       {currentView === View.SKILLS && (
-        <ViewErrorBoundary label="Skill Registry">
+        <ViewErrorBoundary key={currentView} label="Skill Registry">
           <SkillsRegistry skills={skills} setSkills={setSkills} />
         </ViewErrorBoundary>
       )}
       {currentView === View.TASKS && (
-        <ViewErrorBoundary label="Task Monitor">
+        <ViewErrorBoundary key={currentView} label="Task Monitor">
           <TaskManagerView />
         </ViewErrorBoundary>
       )}
       {currentView === View.INSTANCES && (
-        <ViewErrorBoundary label="Instances">
+        <ViewErrorBoundary key={currentView} label="Instances">
           <InstancesView />
         </ViewErrorBoundary>
       )}
       {currentView === View.SESSIONS && (
-        <ViewErrorBoundary label="Sessions">
+        <ViewErrorBoundary key={currentView} label="Sessions">
           <SessionsView />
         </ViewErrorBoundary>
       )}
       {currentView === View.CRON && (
-        <ViewErrorBoundary label="Cron">
+        <ViewErrorBoundary key={currentView} label="Cron">
           <CronView />
         </ViewErrorBoundary>
       )}
       {currentView === View.NODES && (
-        <ViewErrorBoundary label="Nodes">
+        <ViewErrorBoundary key={currentView} label="Nodes">
           <NodesView />
         </ViewErrorBoundary>
       )}
       {currentView === View.LOGS && (
-        <ViewErrorBoundary label="System Logs">
+        <ViewErrorBoundary key={currentView} label="System Logs">
           <LogsView />
         </ViewErrorBoundary>
       )}
       {currentView === View.SECURITY && (
-        <ViewErrorBoundary label="Security Panel">
+        <ViewErrorBoundary key={currentView} label="Security Panel">
           <SecurityView />
         </ViewErrorBoundary>
       )}
       {currentView === View.CONFIG && (
-        <ViewErrorBoundary label="Gateway Config">
+        <ViewErrorBoundary key={currentView} label="Gateway Config">
           <ConfigEditor />
         </ViewErrorBoundary>
       )}
       {currentView === View.PROFILE && (
-        <ViewErrorBoundary label="Operator Profile">
+        <ViewErrorBoundary key={currentView} label="Operator Profile">
           <ProfileView metricsState={controlPlaneMetricsState} />
         </ViewErrorBoundary>
       )}
       {currentView === View.EXPOSURE && (
-        <ViewErrorBoundary label="Remote Exposure">
+        <ViewErrorBoundary key={currentView} label="Remote Exposure">
           <ExposureManager />
         </ViewErrorBoundary>
       )}
       {currentView === View.STATS && (
-        <ViewErrorBoundary label="Usage Stats">
+        <ViewErrorBoundary key={currentView} label="Usage Stats">
           <StatsView />
         </ViewErrorBoundary>
       )}
       {currentView === View.PERSONAS && (
-        <ViewErrorBoundary label="Agent Personas">
+        <ViewErrorBoundary key={currentView} label="Agent Personas">
           <PersonasView />
         </ViewErrorBoundary>
       )}
       {currentView === View.MEMORY && (
-        <ViewErrorBoundary label="Memory">
+        <ViewErrorBoundary key={currentView} label="Memory">
           <MemoryView />
         </ViewErrorBoundary>
       )}
       {currentView === View.KNOWLEDGE && (
-        <ViewErrorBoundary label="Knowledge">
+        <ViewErrorBoundary key={currentView} label="Knowledge">
           <KnowledgeView />
         </ViewErrorBoundary>
       )}
       {currentView === View.DEBUGGER && (
-        <ViewErrorBoundary label="Conversation Debugger">
+        <ViewErrorBoundary key={currentView} label="Conversation Debugger">
           <ConversationDebuggerView />
         </ViewErrorBoundary>
       )}
       {currentView === View.AGENT_ROOM && (
-        <ViewErrorBoundary label="Agent Room">
+        <ViewErrorBoundary key={currentView} label="Agent Room">
           <AgentRoomView />
         </ViewErrorBoundary>
       )}
       {currentView === View.MASTER && (
-        <ViewErrorBoundary label="Master">
+        <ViewErrorBoundary key={currentView} label="Master">
           <MasterView />
         </ViewErrorBoundary>
       )}

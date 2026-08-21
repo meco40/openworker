@@ -3,9 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 describe('mem0 policy (Phase 6)', () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
+    vi.resetModules();
+    vi.doUnmock('@/server/world-model/config');
+    vi.doUnmock('@/server/world-model/mode');
   });
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.resetModules();
+    vi.doUnmock('@/server/world-model/config');
+    vi.doUnmock('@/server/world-model/mode');
   });
 
   it('treats mem0 as primary memory by default', async () => {

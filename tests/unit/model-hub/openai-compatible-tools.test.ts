@@ -106,4 +106,48 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
     expect(resolveModelHubGatewayTimeoutMs).toHaveBeenCalledWith({ hasTools: false });
     expect(fetchWithTimeout.mock.calls[0]?.[2]).toBe(60_000);
   });
+
+  it('forwards structured response formats to OpenAI-compatible providers', async () => {
+    const fetchWithTimeout = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '{"entities":[]}' } }],
+          model: 'json-model',
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+    vi.doMock('../../../src/server/model-hub/Models/shared/http', () => ({
+      fetchWithTimeout,
+      resolveModelHubGatewayTimeoutMs: vi.fn(() => 60_000),
+    }));
+
+    const { dispatchOpenAICompatibleChat } =
+      await import('@/server/model-hub/Models/shared/openai-compatible');
+
+    await dispatchOpenAICompatibleChat('https://api.example.com/v1', 'sk-test', 'openrouter', {
+      model: 'json-model',
+      messages: [{ role: 'user', content: 'return JSON' }],
+      responseFormat: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'entities',
+          schema: { type: 'object', properties: { entities: { type: 'array' } } },
+          strict: true,
+        },
+      },
+    });
+
+    const body = JSON.parse(String(fetchWithTimeout.mock.calls[0]?.[1]?.body)) as {
+      response_format?: Record<string, unknown>;
+    };
+    expect(body.response_format).toEqual({
+      type: 'json_schema',
+      json_schema: {
+        name: 'entities',
+        schema: { type: 'object', properties: { entities: { type: 'array' } } },
+        strict: true,
+      },
+    });
+  });
 });

@@ -50,7 +50,7 @@ describe('master gmail route', () => {
 
     try {
       const runtime = await import('@/server/master/runtime');
-      runtime.resetMasterRepositoryForTests();
+      await runtime.resetMasterRepositoryForTests();
     } catch {
       // ignore
     }

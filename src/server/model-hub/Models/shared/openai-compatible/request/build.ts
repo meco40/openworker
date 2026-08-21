@@ -9,6 +9,32 @@ import {
 import { DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE } from '../constants';
 import type { AttachmentItem, BuildMessageResult } from '../types';
 
+function mapResponseFormat(
+  value: unknown,
+  responseMimeType?: string,
+): Record<string, unknown> | undefined {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const typed = value as {
+      type?: unknown;
+      json_schema?: { name?: unknown; schema?: unknown; strict?: unknown };
+    };
+
+    if (typed.type === 'json_object') return { type: 'json_object' };
+    if (typed.type === 'json_schema' && typed.json_schema?.name && typed.json_schema.schema) {
+      return {
+        type: 'json_schema',
+        json_schema: {
+          name: String(typed.json_schema.name),
+          schema: typed.json_schema.schema,
+          strict: typed.json_schema.strict !== false,
+        },
+      };
+    }
+  }
+
+  return responseMimeType === 'application/json' ? { type: 'json_object' } : undefined;
+}
+
 function findLatestUserAttachmentIndex(messages: GatewayRequest['messages']): number {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
@@ -119,6 +145,11 @@ export function buildRequestBody(
 
   if (Array.isArray(request.tools) && request.tools.length > 0) {
     body.tools = request.tools;
+  }
+
+  const responseFormat = mapResponseFormat(request.responseFormat, request.responseMimeType);
+  if (responseFormat) {
+    body.response_format = responseFormat;
   }
 
   if (request.reasoning_effort && (providerId === 'openai' || providerId === 'openai-codex')) {

@@ -52,7 +52,7 @@ describe('master run execution actions route', () => {
 
     try {
       const runtime = await import('@/server/master/runtime');
-      runtime.resetMasterRepositoryForTests();
+      await runtime.resetMasterRepositoryForTests();
     } catch {
       // ignore if runtime not loaded
     }

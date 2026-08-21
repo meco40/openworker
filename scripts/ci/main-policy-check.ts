@@ -28,7 +28,7 @@ function getChangedFiles(): string[] {
   if (before && !/^0+$/.test(before)) {
     filesRaw = git(`diff --name-only ${before} ${sha}`);
   } else {
-    filesRaw = git(`show --name-only --pretty='' ${sha}`);
+    filesRaw = git(`show --name-only --pretty=format: ${sha}`);
   }
 
   return filesRaw

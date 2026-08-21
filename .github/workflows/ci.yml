@@ -202,8 +202,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
-    env:
-      GRAPHITI_SHADOW_E2E: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -234,7 +232,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Prepare World Model PostgreSQL schema
-        run: pnpm exec tsx -e "import { runWorldModelMigrations } from './src/server/world-model/db'; (async () => console.log(await runWorldModelMigrations()))();"
+        run: pnpm exec tsx -e "import { closeWorldModelDb, runWorldModelMigrations } from './src/server/world-model/db'; (async () => { try { console.log(await runWorldModelMigrations()); } finally { await closeWorldModelDb(); } })();"
 
       - name: Cache Vitest
         uses: actions/cache@v4
@@ -246,6 +244,12 @@ jobs:
 
       - name: Run unit and integration tests
         run: pnpm run test
+
+      - name: Run World Model PostgreSQL integration tests
+        env:
+          WORLD_MODEL_E2E: 'true'
+          GRAPHITI_SHADOW_E2E: 'true'
+        run: pnpm exec vitest run tests/integration/world-model
 
   test-components:
     name: Component Tests

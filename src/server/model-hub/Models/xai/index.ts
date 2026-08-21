@@ -62,6 +62,30 @@ interface XAIUsage {
 
 const XAI_BASE_URL = 'https://api.x.ai/v1';
 
+function mapResponseFormat(
+  value: unknown,
+  responseMimeType?: string,
+): Record<string, unknown> | undefined {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const typed = value as {
+      type?: unknown;
+      json_schema?: { name?: unknown; schema?: unknown; strict?: unknown };
+    };
+
+    if (typed.type === 'json_object') return { type: 'json_object' };
+    if (typed.type === 'json_schema' && typed.json_schema?.name && typed.json_schema.schema) {
+      return {
+        type: 'json_schema',
+        name: String(typed.json_schema.name),
+        schema: typed.json_schema.schema,
+        strict: typed.json_schema.strict !== false,
+      };
+    }
+  }
+
+  return responseMimeType === 'application/json' ? { type: 'json_object' } : undefined;
+}
+
 function isImageAttachment(mimeType: string): boolean {
   return mimeType.trim().toLowerCase().startsWith('image/');
 }
@@ -353,8 +377,13 @@ const xAIProviderAdapter: ProviderAdapter = {
       };
 
       if (request.max_tokens) {
-        body.max_tokens = request.max_tokens;
+        // xAI's native Responses API names this field max_output_tokens;
+        // max_tokens is only valid on its Chat Completions endpoint.
+        body.max_output_tokens = request.max_tokens;
       }
+
+      const responseFormat = mapResponseFormat(request.responseFormat, request.responseMimeType);
+      if (responseFormat) body.text = { format: responseFormat };
 
       if (request.temperature !== undefined) {
         body.temperature = request.temperature;

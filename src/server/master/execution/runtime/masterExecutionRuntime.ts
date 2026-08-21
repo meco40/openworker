@@ -29,8 +29,8 @@ export class MasterExecutionRuntime {
     const claimed = this.repo.claimRun(scope, runId, this.ownerId, leaseExpiresAt);
     if (!claimed) return false;
     const promise = this.execute(scope, runId).finally(() => {
-      this.repo.releaseRunLease(scope, runId, this.ownerId);
       this.running.delete(key);
+      this.repo.releaseRunLease(scope, runId, this.ownerId);
     });
     this.running.set(key, promise);
     return true;
@@ -58,6 +58,12 @@ export class MasterExecutionRuntime {
     const pending = this.running.get(key);
     if (pending) {
       await pending;
+    }
+  }
+
+  async waitForAllRuns(): Promise<void> {
+    while (this.running.size > 0) {
+      await Promise.allSettled(this.running.values());
     }
   }
 

@@ -25,8 +25,14 @@ export function getMasterRepository(): SqliteMasterRepository {
   return globalThis.__masterRepository;
 }
 
-export function resetMasterRepositoryForTests(): void {
+export async function resetMasterRepositoryForTests(): Promise<void> {
   stopMasterMaintenanceScheduler();
+
+  const executionRuntime = globalThis.__masterExecutionRuntime;
+  if (executionRuntime) {
+    await executionRuntime.waitForAllRuns();
+  }
+
   globalThis.__masterExecutionRuntime = undefined;
   globalThis.__masterOrchestrator = undefined;
   if (globalThis.__masterRepository) {

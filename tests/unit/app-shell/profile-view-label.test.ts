@@ -10,7 +10,7 @@ describe('AppShell profile view label', () => {
     );
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    expect(content).toContain('<ViewErrorBoundary label="Operator Profile">');
+    expect(content).toMatch(/<ViewErrorBoundary\b[^>]*label="Operator Profile"/);
     expect(content).not.toContain('<ViewErrorBoundary label="SaaS Identity">');
   });
 });

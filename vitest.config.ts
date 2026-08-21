@@ -30,6 +30,10 @@ export default defineConfig({
             'tests/unit/channels/message-service-*.test.ts',
             'tests/unit/channels/telegram-*.test.ts',
             'tests/unit/server/summaryService-perf.test.ts',
+            // The lifecycle test observes a process-global event bus. Keep it
+            // isolated so module mocks from the fast lane cannot replace the
+            // bus instance observed by the test subscriber.
+            'tests/unit/memory/lifecycle.test.ts',
             'tests/unit/world-model/retrieval.test.ts',
             'tests/unit/components/**/*.test.{ts,tsx}',
           ],
@@ -44,6 +48,7 @@ export default defineConfig({
             'tests/unit/channels/message-service-*.test.ts',
             'tests/unit/channels/telegram-*.test.ts',
             'tests/unit/server/summaryService-perf.test.ts',
+            'tests/unit/memory/lifecycle.test.ts',
             'tests/unit/world-model/retrieval.test.ts',
           ],
         },

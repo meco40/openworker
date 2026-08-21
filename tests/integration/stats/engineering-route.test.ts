@@ -54,7 +54,7 @@ describe('GET /api/stats/engineering', () => {
 
     try {
       const runtime = await import('@/server/master/runtime');
-      runtime.resetMasterRepositoryForTests();
+      await runtime.resetMasterRepositoryForTests();
     } catch {
       // ignore reset errors in teardown
     }

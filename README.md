@@ -129,8 +129,12 @@ pnpm run lint
 # TypeScript-Typprüfung
 pnpm run typecheck
 
-# Tests (Unit + Integration, ohne E2E)
+# Tests (Unit + Integration, ohne externe World-Model-Dienste)
 pnpm run test
+
+# World-Model-Integration mit lokalem PostgreSQL
+$env:WORLD_MODEL_E2E='true'
+corepack pnpm exec vitest run tests/integration/world-model
 
 # E2E Baseline (Alias auf Smoke-Lane)
 pnpm run test:e2e
