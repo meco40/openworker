@@ -53,4 +53,5 @@ export interface FetchedModel {
   owned_by?: string;
   context_window?: number;
   created?: number;
+  billing?: 'free' | 'paid';
 }

@@ -158,12 +158,22 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
                     }`}
                   >
                     <div>
-                      <div className="text-sm font-medium">{model.id}</div>
+                      <div className="text-sm font-medium">{model.name}</div>
                       {model.name !== model.id && (
-                        <div className="text-[10px] text-zinc-500">{model.name}</div>
+                        <div className="text-[10px] text-zinc-500">{model.id}</div>
                       )}
                     </div>
                     <div className="flex items-center space-x-2">
+                      {model.billing === 'free' && (
+                        <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-emerald-400 uppercase">
+                          Free
+                        </span>
+                      )}
+                      {model.billing === 'paid' && (
+                        <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-amber-400 uppercase">
+                          Paid
+                        </span>
+                      )}
                       {model.context_window && (
                         <span className="font-mono text-[9px] text-zinc-600">
                           {Math.round(model.context_window / 1000)}K ctx

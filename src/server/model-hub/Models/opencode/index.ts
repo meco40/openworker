@@ -4,13 +4,19 @@ import {
   fetchOpenAICompatibleModels,
   testOpenAICompatibleModelsEndpoint,
 } from '@/server/model-hub/Models/shared/openai-compatible';
+import { enrichOpenCodeModels, fetchOpenCodeModelMetadata } from './metadata';
 
 const openCodeProviderAdapter: ProviderAdapter = {
   id: 'opencode',
 
-  fetchModels: ({ provider, secret }) => {
+  fetchModels: async ({ provider, secret }) => {
     if (!provider.apiBaseUrl) return Promise.resolve([]);
-    return fetchOpenAICompatibleModels(provider.apiBaseUrl, secret, 'opencode');
+
+    const models = await fetchOpenAICompatibleModels(provider.apiBaseUrl, secret, 'opencode');
+    if (models.length === 0) return models;
+
+    const metadata = await fetchOpenCodeModelMetadata();
+    return enrichOpenCodeModels(models, metadata);
   },
 
   testConnectivity: ({ provider, secret }) => {

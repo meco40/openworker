@@ -25,33 +25,71 @@ afterEach(() => {
 
 describe('OpenCode provider adapter', () => {
   it('maps the OpenCode models response into Model Hub models', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          object: 'list',
-          data: [
-            { id: 'big-pickle', owned_by: 'opencode', created: 1787365504 },
-            { id: 'deepseek-v4-pro', owned_by: 'opencode' },
-          ],
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
-      ),
-    );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            object: 'list',
+            data: [
+              { id: 'big-pickle', owned_by: 'opencode', created: 1787365504 },
+              { id: 'x-preview-f-free', owned_by: 'opencode' },
+              { id: 'deepseek-v4-pro', owned_by: 'opencode' },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            opencode: {
+              models: {
+                'big-pickle': {
+                  name: 'Big Pickle',
+                  limit: { context: 200000 },
+                  cost: { input: 0, output: 0 },
+                },
+                'x-preview-f-free': {
+                  name: 'Ox Alpha Free (Unlimited)',
+                  cost: { input: 0, output: 0, cache_read: 0 },
+                },
+                'deepseek-v4-pro': {
+                  name: 'DeepSeek V4 Pro',
+                  cost: { input: 0.5, output: 2 },
+                },
+              },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
 
     await expect(openCodeProviderAdapter.fetchModels?.(context)).resolves.toEqual([
       {
         id: 'big-pickle',
-        name: 'big-pickle',
+        name: 'Big Pickle',
         provider: 'opencode',
         owned_by: 'opencode',
         created: 1787365504,
+        context_window: 200000,
+        billing: 'free',
       },
       {
-        id: 'deepseek-v4-pro',
-        name: 'deepseek-v4-pro',
+        id: 'x-preview-f-free',
+        name: 'Ox Alpha Free',
         provider: 'opencode',
         owned_by: 'opencode',
         created: undefined,
+        billing: 'free',
+      },
+      {
+        id: 'deepseek-v4-pro',
+        name: 'DeepSeek V4 Pro',
+        provider: 'opencode',
+        owned_by: 'opencode',
+        created: undefined,
+        billing: 'paid',
       },
     ]);
 
@@ -60,6 +98,58 @@ describe('OpenCode provider adapter', () => {
       expect.objectContaining({
         method: 'GET',
         headers: { Authorization: 'Bearer oc-sk-test' },
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://models.dev/api.json',
+      expect.objectContaining({
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      }),
+    );
+  });
+
+  it('keeps the live models when metadata is unavailable without guessing paid status', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              { id: 'x-preview-f-free', owned_by: 'opencode' },
+              { id: 'future-model', owned_by: 'opencode' },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockRejectedValueOnce(new Error('metadata unavailable'));
+
+    await expect(openCodeProviderAdapter.fetchModels?.(context)).resolves.toEqual([
+      {
+        id: 'x-preview-f-free',
+        name: 'Ox Alpha Free',
+        provider: 'opencode',
+        owned_by: 'opencode',
+        created: undefined,
+        billing: 'free',
+      },
+      {
+        id: 'future-model',
+        name: 'future-model',
+        provider: 'opencode',
+        owned_by: 'opencode',
+        created: undefined,
+        billing: undefined,
+      },
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://models.dev/api.json',
+      expect.objectContaining({
+        method: 'GET',
+        headers: { Accept: 'application/json' },
       }),
     );
   });
