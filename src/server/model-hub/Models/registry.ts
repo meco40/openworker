@@ -10,6 +10,7 @@ import mistralProviderAdapter from '@/server/model-hub/Models/mistral';
 import openAIProviderAdapter from '@/server/model-hub/Models/openai';
 import openAICodexProviderAdapter from '@/server/model-hub/Models/openai-codex';
 import ollamaProviderAdapter from '@/server/model-hub/Models/ollama';
+import openCodeProviderAdapter from '@/server/model-hub/Models/opencode';
 import openRouterProviderAdapter from '@/server/model-hub/Models/openrouter';
 import xAIProviderAdapter from '@/server/model-hub/Models/xai';
 import zaiProviderAdapter from '@/server/model-hub/Models/zai';
@@ -19,6 +20,7 @@ const providerAdapters: Record<string, ProviderAdapter> = {
   [openAIProviderAdapter.id]: openAIProviderAdapter,
   [openAICodexProviderAdapter.id]: openAICodexProviderAdapter,
   [anthropicProviderAdapter.id]: anthropicProviderAdapter,
+  [openCodeProviderAdapter.id]: openCodeProviderAdapter,
   [openRouterProviderAdapter.id]: openRouterProviderAdapter,
   [ollamaProviderAdapter.id]: ollamaProviderAdapter,
   [lmStudioProviderAdapter.id]: lmStudioProviderAdapter,

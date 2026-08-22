@@ -98,6 +98,41 @@ describe('model-hub connectivity adapters', () => {
     global.fetch = originalFetch;
   });
 
+  it('calls OpenCode models endpoint for opencode provider', async () => {
+    const originalFetch = global.fetch;
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          object: 'list',
+          data: [{ id: 'big-pickle', owned_by: 'opencode' }],
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await testProviderAccountConnectivity(
+      buildAccount('opencode', 'oc-sk-test'),
+      KEY,
+    );
+    expect(result.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const firstCallUrl = String(
+      (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0],
+    );
+    expect(firstCallUrl).toBe('https://opencode.ai/zen/v1/models');
+    const firstCallInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls[0]?.[1] as {
+      headers?: Record<string, string>;
+    };
+    expect(firstCallInit?.headers?.Authorization).toBe('Bearer oc-sk-test');
+
+    global.fetch = originalFetch;
+  });
+
   it('routes kimi keys to kimi code endpoint and normalizes Bearer prefix', async () => {
     const originalFetch = global.fetch;
     const fetchMock = vi.fn(async () => {

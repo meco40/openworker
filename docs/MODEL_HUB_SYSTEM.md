@@ -267,7 +267,7 @@ Pipeline reasoning effort is mapped to provider-specific values:
 src/server/model-hub/
 ├── index.ts                    # Public API exports
 ├── types.ts                    # Core type definitions
-├── providerCatalog.ts          # Provider definitions (14 providers)
+├── providerCatalog.ts          # Provider definitions (15 providers)
 ├── repository.ts               # Repository interfaces
 ├── service.ts                  # ModelHubService implementation
 ├── runtime.ts                  # Singleton management
@@ -285,7 +285,7 @@ src/server/model-hub/
 src/server/model-hub/Models/
 ├── index.ts                    # Adapter exports
 ├── types.ts                    # Adapter interfaces
-├── registry.ts                 # Adapter registry (14 adapters)
+├── registry.ts                 # Adapter registry (15 adapters)
 ├── shared/
 │   ├── http.ts                # HTTP utilities with timeout
 │   └── openaiCompatible.ts    # OpenAI-compatible dispatch
@@ -320,7 +320,7 @@ app/api/model-hub/
 
 ## Provider Catalog
 
-The system supports 14 AI providers with varying authentication methods and capabilities:
+The system supports 15 AI providers with varying authentication methods and capabilities:
 
 ### Provider Matrix
 
@@ -331,6 +331,7 @@ The system supports 14 AI providers with varying authentication methods and capa
 | **OpenAI Codex**       | OAuth          | `openai-native`     | chat, tools, vision, audio             | `gpt-5.6`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.3-codex` |
 | **Anthropic**          | API Key        | `anthropic-native`  | chat, tools, vision                    | `claude-sonnet-4-5`, `claude-3-7-sonnet-latest`                            |
 | **OpenRouter**         | API Key, OAuth | `openai-compatible` | chat, tools, vision                    | `openai/gpt-4.1-mini`, `anthropic/claude-3.7-sonnet`                       |
+| **OpenCode**           | API Key        | `openai-compatible` | chat, tools                            | `big-pickle`, `deepseek-v4-pro`, `glm-5`, `kimi-k2.5`                      |
 | **Ollama**             | None, API Key  | `openai-compatible` | chat, tools, vision, embeddings        | `llama3.2`, `qwen2.5-coder`                                                |
 | **LM Studio**          | None, API Key  | `openai-compatible` | chat, tools, vision                    | `qwen2.5-coder-7b-instruct`                                                |
 | **xAI**                | API Key        | `xai-native`        | chat, tools                            | `grok-4`, `grok-3`                                                         |
@@ -343,17 +344,22 @@ The system supports 14 AI providers with varying authentication methods and capa
 
 ### Endpoint Types
 
-| Type                | Description                         | Providers                                            |
-| ------------------- | ----------------------------------- | ---------------------------------------------------- |
-| `gemini-native`     | Google GenAI SDK                    | Gemini                                               |
-| `openai-native`     | OpenAI SDK / REST                   | OpenAI, OpenAI Codex                                 |
-| `anthropic-native`  | Anthropic Messages API              | Anthropic                                            |
-| `xai-native`        | xAI REST API                        | xAI                                                  |
-| `mistral-native`    | Mistral AI API                      | Mistral                                              |
-| `cohere-native`     | Cohere v2 API                       | Cohere                                               |
-| `copilot-native`    | GitHub Copilot API                  | GitHub Copilot                                       |
-| `github-native`     | GitHub REST API                     | GitHub Copilot                                       |
-| `openai-compatible` | OpenAI-compatible /chat/completions | OpenRouter, Ollama, LM Studio, Z.AI, Kimi, ByteDance |
+| Type                | Description                         | Providers                                                      |
+| ------------------- | ----------------------------------- | -------------------------------------------------------------- |
+| `gemini-native`     | Google GenAI SDK                    | Gemini                                                         |
+| `openai-native`     | OpenAI SDK / REST                   | OpenAI, OpenAI Codex                                           |
+| `anthropic-native`  | Anthropic Messages API              | Anthropic                                                      |
+| `xai-native`        | xAI REST API                        | xAI                                                            |
+| `mistral-native`    | Mistral AI API                      | Mistral                                                        |
+| `cohere-native`     | Cohere v2 API                       | Cohere                                                         |
+| `copilot-native`    | GitHub Copilot API                  | GitHub Copilot                                                 |
+| `github-native`     | GitHub REST API                     | GitHub Copilot                                                 |
+| `openai-compatible` | OpenAI-compatible /chat/completions | OpenRouter, OpenCode, Ollama, LM Studio, Z.AI, Kimi, ByteDance |
+
+OpenCode additionally exposes model-specific `/responses` and `/messages`
+endpoints. The current Model Hub OpenCode adapter intentionally targets the
+OpenAI-compatible `/chat/completions` path; models that require another wire
+API need a dedicated protocol adapter before they can be used reliably.
 
 ### Capability Definitions
 
@@ -805,6 +811,7 @@ const providerAdapters: Record<string, ProviderAdapter> = {
   openai: openAIProviderAdapter,
   'openai-codex': openAICodexProviderAdapter,
   anthropic: anthropicProviderAdapter,
+  opencode: openCodeProviderAdapter,
   openrouter: openRouterProviderAdapter,
   ollama: ollamaProviderAdapter,
   lmstudio: lmStudioProviderAdapter,

@@ -57,6 +57,17 @@ export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
     docsUrl: 'https://openrouter.ai/docs/quickstart',
   },
   {
+    id: 'opencode',
+    name: 'OpenCode',
+    icon: 'OC',
+    authMethods: ['api_key'],
+    endpointType: 'openai-compatible',
+    capabilities: ['chat', 'tools'],
+    defaultModels: ['big-pickle', 'deepseek-v4-pro', 'glm-5', 'kimi-k2.5'],
+    apiBaseUrl: 'https://opencode.ai/zen/v1',
+    docsUrl: 'https://opencode.ai/docs/zen',
+  },
+  {
     id: 'ollama',
     name: 'Ollama (Local)',
     icon: 'OL',

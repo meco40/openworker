@@ -11,6 +11,7 @@ describe('provider catalog coverage', () => {
       'lmstudio',
       'gemini',
       'openrouter',
+      'opencode',
       'zai',
       'kimi',
       'bytedance',
@@ -30,12 +31,16 @@ describe('provider catalog coverage', () => {
     const openai = PROVIDER_CATALOG.find((provider) => provider.id === 'openai');
     const openaiCodex = PROVIDER_CATALOG.find((provider) => provider.id === 'openai-codex');
     const openrouter = PROVIDER_CATALOG.find((provider) => provider.id === 'openrouter');
+    const opencode = PROVIDER_CATALOG.find((provider) => provider.id === 'opencode');
     const github = PROVIDER_CATALOG.find((provider) => provider.id === 'github-copilot');
     const anthropic = PROVIDER_CATALOG.find((provider) => provider.id === 'anthropic');
 
     expect(openai?.authMethods.includes('oauth')).toBe(false);
     expect(openaiCodex?.authMethods.includes('oauth')).toBe(true);
     expect(openrouter?.authMethods.includes('oauth')).toBe(true);
+    expect(opencode?.authMethods).toEqual(['api_key']);
+    expect(opencode?.endpointType).toBe('openai-compatible');
+    expect(opencode?.apiBaseUrl).toBe('https://opencode.ai/zen/v1');
     expect(github?.authMethods.includes('oauth')).toBe(true);
     expect(anthropic?.authMethods.includes('oauth')).toBe(false);
   });
