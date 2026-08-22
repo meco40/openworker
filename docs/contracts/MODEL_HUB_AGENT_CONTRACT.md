@@ -3,7 +3,7 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Model Hub.
-- Scope: "app/api/model-hub/**", "src/server/model-hub/**", "src/components/model-hub/\*\*".
+- Scope: "app/api/model-hub/**", "src/server/model-hub/**", "src/components/model-hub/\*\*", "src/shared/contracts/modelHub.ts".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
 - Last Reviewed: 2026-08-17
 

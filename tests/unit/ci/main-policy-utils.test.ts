@@ -39,6 +39,7 @@ describe('main policy utilities', () => {
       [
         'src/server/memory/service.ts',
         'app/api/model-hub/pipeline/route.ts',
+        'src/shared/contracts/modelHub.ts',
         'app/mission-control/page.tsx',
         'src/modules/app-shell/components/AppShellViewContent.tsx',
       ],

@@ -93,7 +93,12 @@
       "display": "Model Hub",
       "contract": "docs/contracts/MODEL_HUB_AGENT_CONTRACT.md",
       "tests": ["tests/integration/model-hub/pipeline-route.test.ts"],
-      "paths": ["app/api/model-hub/**", "src/server/model-hub/**", "src/components/model-hub/**"],
+      "paths": [
+        "app/api/model-hub/**",
+        "src/server/model-hub/**",
+        "src/components/model-hub/**",
+        "src/shared/contracts/modelHub.ts"
+      ],
       "owner": "team-modelhub",
       "systemDoc": "docs/MODEL_HUB_SYSTEM.md",
       "scenarios": ["model-hub-pipeline"],
