@@ -1,7 +1,7 @@
 services:
   world-model-postgres:
     image: pgvector/pgvector:pg17
-    container_name: openclaw-world-model-postgres
+    container_name: betaclaw-world-model-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: clawtest

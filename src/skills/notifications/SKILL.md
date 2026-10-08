@@ -3,7 +3,7 @@ id: notifications
 emoji: 🔔
 requires:
   env:
-    - OPENCLAW_NOTIFICATIONS_ENABLED
+    - BETACLAW_NOTIFICATIONS_ENABLED
 ---
 
 Use this skill to send notifications to the user via various channels.

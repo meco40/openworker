@@ -174,7 +174,7 @@ interface BuiltInToolDefinition {
 
 | Source     | Description                      | Example                |
 | ---------- | -------------------------------- | ---------------------- |
-| `built-in` | Shipped with OpenClaw Gateway    | browser, filesystem    |
+| `built-in` | Shipped with BetaClaw Gateway    | browser, filesystem    |
 | `github`   | Installed from GitHub repository | `owner/repo#branch`    |
 | `npm`      | Installed from npm registry      | `package-name`         |
 | `manual`   | Direct manifest JSON upload      | Custom API-only skills |
@@ -508,7 +508,7 @@ Executes shell commands with security restrictions.
 - Blocked tokens: `rm -rf`, `shutdown`, `mkfs`, `powershell -enc`, etc.
 - Timeout: 15 seconds
 - Max output: 1MB
-- If `OPENCLAW_EXEC_APPROVALS_REQUIRED=true`, command execution requires interactive approval.
+- If `BETACLAW_EXEC_APPROVALS_REQUIRED=true`, command execution requires interactive approval.
 
 #### `process-manager` - Managed Process Runtime
 
@@ -524,7 +524,7 @@ Starts/stops/background-manages long-running processes with the same command-pol
 **Security:**
 
 - `action=start` validates command policy via `evaluateNodeCommandPolicy(...)`
-- Same approval gate as `shell_execute` when `OPENCLAW_EXEC_APPROVALS_REQUIRED=true`
+- Same approval gate as `shell_execute` when `BETACLAW_EXEC_APPROVALS_REQUIRED=true`
 - `action=start` requires a non-empty `command`
 
 #### `github` - GitHub Manager
@@ -599,7 +599,7 @@ Runs multiple runtime tool calls in parallel via one dispatcher call.
 
 ### Compatibility Skills (Opt-In)
 
-The runtime also exposes compatibility function names to support legacy/OpenClaw-style tool prompts.
+The runtime also exposes compatibility function names to support legacy/BetaClaw-style tool prompts.
 
 | Function Name(s)                                                                         | Runtime Handler / Behavior                          |
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------- |

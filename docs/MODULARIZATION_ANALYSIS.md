@@ -36,7 +36,7 @@ After completing Priority 1 and 2 modularization (14 files, 10,353 lines → ~2,
 | 15  | `src/components/model-hub/sections/PipelineSection.tsx`            | 454   | React Component | 🟠       |
 | 16  | `src/server/model-hub/Models/xai/index.ts`                         | 451   | Model Provider  | 🟠       |
 | 17  | `src/server/channels/messages/repository/queries/agentRoom.ts`     | 447   | Queries         | 🟠       |
-| 18  | `src/lib/openclaw/client.ts`                                       | 430   | Client          | 🟠       |
+| 18  | `src/lib/betaclaw/client.ts`                                       | 430   | Client          | 🟠       |
 | 19  | `src/components/knowledge/graph/KnowledgeGraphPanel.tsx`           | 423   | React Component | 🟠       |
 | 20  | `src/modules/cron/components/CronView.tsx`                         | 422   | React Component | 🟠       |
 | 21  | `src/server/memory/mem0EmbedderSync.ts`                            | 420   | Service         | 🟠       |

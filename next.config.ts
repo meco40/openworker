@@ -50,7 +50,7 @@ const nextConfig: NextConfig = {
       '.local/**/*.db-shm',
       '.local/**/*.db-wal',
       '**/.codex/**',
-      '**/.openclaw/**',
+      '**/.betaclaw/**',
       'demo/**',
       'backups/**',
       'workspaces/**',

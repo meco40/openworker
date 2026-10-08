@@ -19,7 +19,7 @@ export function useConfig() {
   const [validationFieldPath, setValidationFieldPath] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
   const [compatibilityWarnings, setCompatibilityWarnings] = useState<ConfigWarning[]>([]);
-  const [configPath, setConfigPath] = useState('~/.openclaw/openclaw.json');
+  const [configPath, setConfigPath] = useState('~/.betaclaw/betaclaw.json');
   const [configSource, setConfigSource] = useState<'default' | 'file' | 'unknown'>('unknown');
   const [showDiffPreview, setShowDiffPreview] = useState(false);
   const [pendingParsedConfig, setPendingParsedConfig] = useState<Record<string, unknown> | null>(
@@ -49,7 +49,7 @@ export function useConfig() {
       setConfig(toJsonString(payload.config));
       setBaselineConfig(payload.config);
       setBaselineRevision(String(payload.revision || ''));
-      setConfigPath(payload.displayPath || '~/.openclaw/openclaw.json');
+      setConfigPath(payload.displayPath || '~/.betaclaw/betaclaw.json');
       setConfigSource(payload.source || 'unknown');
       setCompatibilityWarnings(payload.warnings || []);
       setValidationError(null);
@@ -162,7 +162,7 @@ export function useConfig() {
       setConfig(toJsonString(payload.config));
       setBaselineConfig(payload.config);
       setBaselineRevision(String(payload.revision || ''));
-      setConfigPath(payload.displayPath || '~/.openclaw/openclaw.json');
+      setConfigPath(payload.displayPath || '~/.betaclaw/betaclaw.json');
       setConfigSource(payload.source || 'file');
       setCompatibilityWarnings(payload.warnings || []);
       setValidationError(null);

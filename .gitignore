@@ -12,11 +12,26 @@ package-lock.json
 dist
 dist-ssr
 *.local
-.env
+.env*
+!.env.example
+!.env.*.example
 .next
 .next/
 coverage/
 .local
+/output/
+/test-results/
+/backups/
+/.agent/
+/.claude/
+/.claude.json
+/.codex/environments/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
 /workspaces/*
 !/workspaces/.gitkeep
 # Editor directories and files
@@ -56,8 +71,14 @@ __pycache__/
 !app/api/logs/**
 !components/logs/
 !components/logs/**
+!src/components/logs/
+!src/components/logs/**
 
 *.tsbuildinfo
 
 # pnpm store created by containerized e2e runs
 /.pnpm-store/
+
+# Unused legacy avatar assets without verified license provenance
+/public/models/hologram-female.glb
+/public/models/hologram-female-face.gltf

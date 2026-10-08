@@ -24,7 +24,7 @@ export const MEMORY_PERSONA_TYPE_LABELS: Record<MemoryPersonaType, string> = {
   assistant: 'Assistent',
 };
 
-/** Valid persona file names (analogous to OpenClaw workspace bootstrap files) */
+/** Valid persona file names (analogous to BetaClaw workspace bootstrap files) */
 export type PersonaFileName =
   | 'SOUL.md'
   | 'IDENTITY.md'

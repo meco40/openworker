@@ -107,10 +107,10 @@ function getApprovalTokenFromMessage(metadataRaw: string | null): string {
 describe('MessageService /approve and /deny command flow', () => {
   let repo: SqliteMessageRepository;
   let service: MessageService;
-  const previousApprovalsRequired = process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+  const previousApprovalsRequired = process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
 
   beforeEach(() => {
-    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'true';
+    process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'true';
     repo = new SqliteMessageRepository(':memory:');
     service = new MessageService(repo);
     dispatchWithFallbackMock.mockClear();
@@ -183,9 +183,9 @@ describe('MessageService /approve and /deny command flow', () => {
 
   afterEach(() => {
     if (previousApprovalsRequired === undefined) {
-      delete process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+      delete process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
     } else {
-      process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = previousApprovalsRequired;
+      process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = previousApprovalsRequired;
     }
   });
 });

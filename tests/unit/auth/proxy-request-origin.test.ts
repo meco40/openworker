@@ -8,7 +8,7 @@ vi.mock('next-auth/jwt', () => ({
 }));
 
 // What server.ts does for a loopback socket peer. LAN peers never get the marker.
-const LOOPBACK_SOCKET = { 'x-openclaw-client-loopback': '1' } as const;
+const LOOPBACK_SOCKET = { 'x-betaclaw-client-loopback': '1' } as const;
 const ORIGINAL_ENV = { ...process.env };
 
 type EnvOverrides = Record<string, string | undefined>;

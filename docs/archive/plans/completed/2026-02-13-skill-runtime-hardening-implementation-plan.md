@@ -510,7 +510,7 @@ git commit -m "feat: harden external skill execution with sandbox guards and tel
 **Files:**
 
 - Modify: `docs/SKILLS_SYSTEM.md`
-- Modify: `docs/plans/2026-02-13-openclaw-tooling-transfer-review.md`
+- Modify: `docs/plans/2026-02-13-betaclaw-tooling-transfer-review.md`
 - Create: `docs/architecture/skills-runtime-registry.md`
 - Create: `docs/runbooks/skills-runtime-production-rollout.md`
 
@@ -546,7 +546,7 @@ Expected: PASS.
 **Step 4: Commit**
 
 ```bash
-git add docs/SKILLS_SYSTEM.md docs/plans/2026-02-13-openclaw-tooling-transfer-review.md docs/architecture/skills-runtime-registry.md docs/runbooks/skills-runtime-production-rollout.md
+git add docs/SKILLS_SYSTEM.md docs/plans/2026-02-13-betaclaw-tooling-transfer-review.md docs/architecture/skills-runtime-registry.md docs/runbooks/skills-runtime-production-rollout.md
 git commit -m "docs: add skill runtime registry and policy architecture notes"
 ```
 

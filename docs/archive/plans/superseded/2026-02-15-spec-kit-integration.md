@@ -4,7 +4,7 @@
 
 **Goal:** Integriere `github/spec-kit` in dieses Repo, sodass Features konsistent spec-driven umgesetzt werden.
 
-**Architecture:** Nutze das offizielle `codex + powershell`-Template als Basis, ergänze projektspezifische Governance und passe Templates auf die bestehende OpenClaw-Struktur an. Fokus auf minimale Upstream-Abweichungen.
+**Architecture:** Nutze das offizielle `codex + powershell`-Template als Basis, ergänze projektspezifische Governance und passe Templates auf die bestehende BetaClaw-Struktur an. Fokus auf minimale Upstream-Abweichungen.
 
 **Tech Stack:** PowerShell Scripts, Markdown Templates, npm Scripts
 

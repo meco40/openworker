@@ -34,25 +34,25 @@ export function toGatewayConfigDisplayPath(configPath: string): string {
 }
 
 export function resolveGatewayConfigPath(): string {
-  const configuredPath = process.env.OPENCLAW_CONFIG_PATH;
+  const configuredPath = process.env.BETACLAW_CONFIG_PATH;
   if (typeof configuredPath === 'string' && configuredPath.trim().length > 0) {
     const trimmedPath = configuredPath.trim();
     const normalized = trimmedPath.replace(/\\/g, '/');
 
     if (path.isAbsolute(trimmedPath)) return trimmedPath;
-    if (normalized.startsWith('.local/') || normalized.startsWith('.openclaw/')) {
+    if (normalized.startsWith('.local/') || normalized.startsWith('.betaclaw/')) {
       return path.resolve(WORKSPACE_ROOT, normalized);
     }
     return path.resolve(WORKSPACE_ROOT, '.local', normalized);
   }
 
   const homeDir = resolveHomeDirFromEnv();
-  if (homeDir) return path.join(homeDir, '.openclaw', 'openclaw.json');
-  return path.resolve(WORKSPACE_ROOT, '.local', 'openclaw.json');
+  if (homeDir) return path.join(homeDir, '.betaclaw', 'betaclaw.json');
+  return path.resolve(WORKSPACE_ROOT, '.local', 'betaclaw.json');
 }
 
 export function resolveGatewayConfigBackend(): 'db' | 'file' {
-  const raw = String(process.env.OPENCLAW_CONFIG_BACKEND || 'db')
+  const raw = String(process.env.BETACLAW_CONFIG_BACKEND || 'db')
     .trim()
     .toLowerCase();
   return raw === 'file' ? 'file' : 'db';

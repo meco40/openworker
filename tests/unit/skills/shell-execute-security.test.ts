@@ -24,8 +24,8 @@ describe('shellExecuteHandler security', () => {
   });
 
   it('requires approval when exec approvals are enabled', async () => {
-    const previous = process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
-    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'true';
+    const previous = process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
+    process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'true';
     const marker = `approval-test-${Date.now()}`;
     try {
       await expect(shellExecuteHandler({ command: `echo ${marker}` })).rejects.toThrow(
@@ -33,16 +33,16 @@ describe('shellExecuteHandler security', () => {
       );
     } finally {
       if (previous === undefined) {
-        delete process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+        delete process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
       } else {
-        process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = previous;
+        process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = previous;
       }
     }
   });
 
   it('accepts bypassApproval for already granted interactive approvals', async () => {
-    const previous = process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
-    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'true';
+    const previous = process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
+    process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'true';
     const marker = `approval-bypass-${Date.now()}`;
     try {
       const result = (await shellExecuteHandler(
@@ -53,9 +53,9 @@ describe('shellExecuteHandler security', () => {
       expect(String(result.stdout || '')).toContain(marker);
     } finally {
       if (previous === undefined) {
-        delete process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+        delete process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
       } else {
-        process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = previous;
+        process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = previous;
       }
     }
   });

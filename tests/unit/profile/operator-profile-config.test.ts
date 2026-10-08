@@ -12,8 +12,8 @@ describe('operatorProfileConfig', () => {
       gateway: { port: 8080, host: '127.0.0.1', logLevel: 'info' },
     });
 
-    expect(parsed.displayName).toBe('OpenClaw Operator');
-    expect(parsed.primaryContact).toBe('operator@openclaw.io');
+    expect(parsed.displayName).toBe('BetaClaw Operator');
+    expect(parsed.primaryContact).toBe('operator@betaclaw.io');
     expect(parsed.localUuid).toBe('');
     expect(parsed.workspaceSlots).toBe(12);
     expect(parsed.dailyTokenBudget).toBe(250_000);

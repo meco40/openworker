@@ -4,7 +4,7 @@ import { broadcast } from '@/lib/events';
 import { withUserContext } from '../../../../_shared/withUserContext';
 import { canAccessTask } from '@/server/auth/workspaceAccess';
 import { getInternalRequestHeaders } from '@/server/auth/internalRequest';
-import { extractJSON, getMessagesFromOpenClaw } from '@/lib/planning-utils';
+import { extractJSON, getMessagesFromBetaClaw } from '@/lib/planning-utils';
 import { Task } from '@/lib/types';
 import { fetchWithPolicy } from '@/server/http/fetchWithPolicy';
 
@@ -245,7 +245,7 @@ async function handlePlanningCompletion(
   return { firstAgentId, parsed, dispatchError };
 }
 
-// GET /api/tasks/[id]/planning/poll - Check for new messages from OpenClaw
+// GET /api/tasks/[id]/planning/poll - Check for new messages from BetaClaw
 export const GET = withUserContext<{ id: string }>(async ({ params, userContext }) => {
   const { id: taskId } = params;
   if (!canAccessTask(userContext, taskId)) {
@@ -282,7 +282,7 @@ export const GET = withUserContext<{ id: string }>(async ({ params, userContext 
     const messages: PlanningMessage[] = task.planning_messages
       ? (JSON.parse(task.planning_messages) as PlanningMessage[])
       : [];
-    // Count only assistant messages for comparison, since OpenClaw only returns assistant messages
+    // Count only assistant messages for comparison, since BetaClaw only returns assistant messages
     const initialAssistantCount = messages.filter((m) => m.role === 'assistant').length;
 
     console.log(
@@ -295,19 +295,19 @@ export const GET = withUserContext<{ id: string }>(async ({ params, userContext 
       'assistant messages',
     );
 
-    // Check OpenClaw for new messages (lightweight check, not a loop)
-    const openclawMessages = await getMessagesFromOpenClaw(task.planning_session_key);
+    // Check BetaClaw for new messages (lightweight check, not a loop)
+    const betaclawMessages = await getMessagesFromBetaClaw(task.planning_session_key);
 
     console.log(
       '[Planning Poll] Comparison: stored_assistant=',
       initialAssistantCount,
-      'openclaw_assistant=',
-      openclawMessages.length,
+      'betaclaw_assistant=',
+      betaclawMessages.length,
     );
 
-    if (openclawMessages.length > initialAssistantCount) {
+    if (betaclawMessages.length > initialAssistantCount) {
       let currentQuestion = null;
-      const newMessages = openclawMessages.slice(initialAssistantCount);
+      const newMessages = betaclawMessages.slice(initialAssistantCount);
       console.log('[Planning Poll] Processing', newMessages.length, 'new messages');
 
       // Find new assistant messages

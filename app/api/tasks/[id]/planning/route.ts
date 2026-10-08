@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getDb, queryAll, queryOne, run } from '@/lib/db';
-import { getOpenClawClient } from '@/lib/openclaw/client';
+import { getBetaClawClient } from '@/lib/betaclaw/client';
 import { broadcast } from '@/lib/events';
 import { extractJSON } from '@/lib/planning-utils';
 import type { Task } from '@/lib/types';
 import { withUserContext } from '../../../_shared/withUserContext';
 import { canAccessTask } from '@/server/auth/workspaceAccess';
-// File system imports removed - using OpenClaw API instead
+// File system imports removed - using BetaClaw API instead
 
-// Planning session prefix for OpenClaw (must match agent:main: format)
+// Planning session prefix for BetaClaw (must match agent:main: format)
 const PLANNING_SESSION_PREFIX = 'agent:main:planning';
 
 function buildPlanningSessionKey(taskId: string): string {
@@ -174,8 +174,8 @@ Respond with ONLY valid JSON in this format:
   ]
 }`;
 
-    // Connect to OpenClaw and send the planning request
-    const client = getOpenClawClient();
+    // Connect to BetaClaw and send the planning request
+    const client = getBetaClawClient();
     if (!client.isConnected()) {
       await client.connect();
     }
@@ -201,7 +201,7 @@ Respond with ONLY valid JSON in this format:
       .run(sessionKey, JSON.stringify(messages), taskId);
 
     // Return immediately - frontend will poll for updates
-    // This eliminates the aggressive polling loop that was making 30+ OpenClaw API calls
+    // This eliminates the aggressive polling loop that was making 30+ BetaClaw API calls
     return NextResponse.json({
       success: true,
       sessionKey,

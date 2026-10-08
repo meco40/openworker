@@ -99,10 +99,10 @@ export function canAccessSession(userContext: RequestUserContext, sessionId: str
   const session = queryOne<{ workspace_id: string | null }>(
     `
       SELECT COALESCE(s.workspace_id, a.workspace_id, t.workspace_id) AS workspace_id
-      FROM openclaw_sessions s
+      FROM betaclaw_sessions s
       LEFT JOIN agents a ON a.id = s.agent_id
       LEFT JOIN tasks t ON t.id = s.task_id
-      WHERE s.openclaw_session_id = ? OR s.id = ?
+      WHERE s.betaclaw_session_id = ? OR s.id = ?
       LIMIT 1
     `,
     [sessionId, sessionId],
@@ -124,7 +124,7 @@ export function getAccessibleSessionCount(userContext: RequestUserContext): numb
 
   const row = queryOne<{ count: number }>(
     `SELECT COUNT(*) AS count
-     FROM openclaw_sessions
+     FROM betaclaw_sessions
      WHERE workspace_id IN (${placeholders})`,
     ids,
   );

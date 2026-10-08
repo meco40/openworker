@@ -7,4 +7,4 @@ export const AUTO_DISCONNECT_DELAY_MS = 200;
 
 export const DEFAULT_VOICE = 'Ara';
 export const MASTER_INSTRUCTIONS =
-  'Du bist OpenClaw Master Agent - ein hochentwickelter KI-Assistent. Antworte praezise und hilfreich, bevorzugt auf Deutsch, ausser der Nutzer spricht eine andere Sprache.';
+  'Du bist BetaClaw Master Agent - ein hochentwickelter KI-Assistent. Antworte praezise und hilfreich, bevorzugt auf Deutsch, ausser der Nutzer spricht eine andere Sprache.';

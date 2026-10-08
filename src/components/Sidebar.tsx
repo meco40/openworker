@@ -181,7 +181,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   );
 
   const navigation = (testId: string) => (
-    <nav data-testid={testId} aria-label="OpenClaw sections" className="space-y-1">
+    <nav data-testid={testId} aria-label="BetaClaw sections" className="space-y-1">
       {SIDEBAR_ITEMS.map((item) => (
         <button
           type="button"
@@ -250,7 +250,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="mx-auto flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gradient-to-br from-indigo-600 to-violet-700 text-xl font-black text-white">
               C
             </div>
-            <span className="text-lg font-bold tracking-tight text-white">OpenClaw</span>
+            <span className="text-lg font-bold tracking-tight text-white">BetaClaw</span>
           </div>
 
           {navigation('app-navigation')}
@@ -289,7 +289,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   id="mobile-navigation-title"
                   className="text-base font-bold tracking-tight text-white"
                 >
-                  OpenClaw navigation
+                  BetaClaw navigation
                 </span>
               </div>
               <button

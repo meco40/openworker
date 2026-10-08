@@ -12,7 +12,7 @@ Validiert lokal den kompletten Flow:
 - Server laeuft (`npm run dev` oder `npm run start`)
 - `shell_execute` Skill ist installiert (optional zusaetzlich `process_manager`)
 - Fuer echten Approval-Flow:
-  - `OPENCLAW_EXEC_APPROVALS_REQUIRED=true`
+  - `BETACLAW_EXEC_APPROVALS_REQUIRED=true`
 
 ## Quick Start
 

@@ -4,7 +4,7 @@
  * Useful when the agent detects corrupted state, hung connections, or memory growth
  * that can only be resolved by restarting the server process.
  *
- * ⚠️  OWNER-ONLY: The caller's userId must match OPENCLAW_OWNER_USER_ID or
+ * ⚠️  OWNER-ONLY: The caller's userId must match BETACLAW_OWNER_USER_ID or
  *     PRINCIPAL_USER_ID (env). All other callers receive an authorisation error.
  *
  * Actions:
@@ -24,7 +24,7 @@ const formatMegabytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} 
 
 function isOwnerUser(userId: string): boolean {
   const ownerEnv =
-    (process.env['OPENCLAW_OWNER_USER_ID'] || '').trim() ||
+    (process.env.BETACLAW_OWNER_USER_ID || '').trim() ||
     (process.env['PRINCIPAL_USER_ID'] || '').trim();
   if (!ownerEnv) {
     // No owner configured — deny by default to avoid accidental open access
@@ -55,7 +55,7 @@ export async function gatewaySelfHealHandler(
       ok: false,
       error:
         'Unauthorised: gateway_self_heal requires owner-level access. ' +
-        'Set OPENCLAW_OWNER_USER_ID or PRINCIPAL_USER_ID env variable.',
+        'Set BETACLAW_OWNER_USER_ID or PRINCIPAL_USER_ID env variable.',
     };
   }
 

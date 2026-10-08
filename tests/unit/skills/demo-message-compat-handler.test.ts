@@ -9,8 +9,8 @@ beforeEach(() => {
   callMock.mockReset();
   deleteMessageMock.mockReset();
 
-  vi.doMock('@/lib/openclaw/client', () => ({
-    getOpenClawClient: () => ({ call: callMock }),
+  vi.doMock('@/lib/betaclaw/client', () => ({
+    getBetaClawClient: () => ({ call: callMock }),
   }));
 
   vi.doMock('@/server/channels/messages/runtime', () => ({

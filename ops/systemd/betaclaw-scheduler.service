@@ -1,0 +1,22 @@
+[Unit]
+Description=BetaClaw Automation Scheduler
+After=network.target betaclaw-web.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/betaclaw
+Environment=NODE_ENV=production
+Environment=SCHEDULER_INSTANCE_ID=scheduler-1
+Environment=AUTOMATION_TICK_INTERVAL_MS=15000
+Environment=AUTOMATION_LEASE_TTL_MS=30000
+Environment=AUTOMATION_MAX_ATTEMPTS=3
+Environment=AUTOMATION_RETRY_BACKOFF_MS=30000,120000,600000
+Environment=AUTOMATION_AUTO_PAUSE_FAILURES=10
+ExecStart=/usr/bin/env node --import tsx /opt/betaclaw/scheduler.ts
+Restart=always
+RestartSec=5
+User=betaclaw
+Group=betaclaw
+
+[Install]
+WantedBy=multi-user.target

@@ -85,7 +85,7 @@ describe('PersonaContext system persona guard', () => {
   });
 
   it('clears stored Master selections and refuses to activate Master directly', async () => {
-    localStorage.setItem('openclaw-active-persona', 'master-1');
+    localStorage.setItem('betaclaw-active-persona', 'master-1');
 
     render(
       <PersonaProvider>
@@ -100,7 +100,7 @@ describe('PersonaContext system persona guard', () => {
     await waitFor(() => {
       expect(screen.getByTestId('active-persona').textContent).toBe('none');
     });
-    expect(localStorage.getItem('openclaw-active-persona')).toBeNull();
+    expect(localStorage.getItem('betaclaw-active-persona')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /select master/i }));
     await waitFor(() => {

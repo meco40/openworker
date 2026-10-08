@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthUserStore } from '@/server/auth/userStore';
 
 const tempDbPaths: string[] = [];
@@ -62,6 +62,7 @@ function withAuthEnv(
 }
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const dbPath of tempDbPaths.splice(0, tempDbPaths.length)) {
     if (fs.existsSync(dbPath)) {
       fs.unlinkSync(dbPath);
@@ -70,6 +71,67 @@ afterEach(() => {
 });
 
 describe('AuthUserStore', () => {
+  it('does not create an implicit admin in development', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    const dbPath = path.join(os.tmpdir(), `auth-user-store-${crypto.randomUUID()}.db`);
+    tempDbPaths.push(dbPath);
+    withAuthEnv({}, () => {
+      const store = new AuthUserStore(dbPath);
+      const db = new BetterSqlite3(dbPath);
+      expect(db.prepare('SELECT id FROM auth_users').all()).toEqual([]);
+      db.close();
+      store.close();
+    });
+  });
+
+  it('requires explicit credentials for the first production admin', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const dbPath = path.join(os.tmpdir(), `auth-user-store-${crypto.randomUUID()}.db`);
+    tempDbPaths.push(dbPath);
+    withAuthEnv({}, () => {
+      expect(() => new AuthUserStore(dbPath)).toThrow('for the first admin');
+    });
+  });
+
+  it.each([
+    { email: 'admin@example.test', password: '' },
+    { email: '', password: 'unique-bootstrap-password' },
+    { email: 'admin@example.test', password: 'admin1234' },
+  ])('rejects incomplete or publicly known bootstrap credentials', (credentials) => {
+    const dbPath = path.join(os.tmpdir(), `auth-user-store-${crypto.randomUUID()}.db`);
+    tempDbPaths.push(dbPath);
+    withAuthEnv(credentials, () => expect(() => new AuthUserStore(dbPath)).toThrow());
+  });
+
+  it('blocks an old default password and recovers that account with explicit credentials', () => {
+    const dbPath = path.join(os.tmpdir(), `auth-user-store-${crypto.randomUUID()}.db`);
+    tempDbPaths.push(dbPath);
+    withAuthEnv({}, () => {
+      const store = new AuthUserStore(dbPath);
+      const db = new BetterSqlite3(dbPath);
+      const now = new Date().toISOString();
+      db.prepare('INSERT INTO auth_users VALUES (?, ?, ?, ?, ?, ?)').run(
+        'old-admin',
+        'admin@local.dev',
+        'Old Admin',
+        crypto.createHash('sha256').update('admin1234').digest('hex'),
+        now,
+        now,
+      );
+      expect(store.verifyCredentials('admin@local.dev', 'admin1234')).toBeNull();
+      db.close();
+      store.close();
+    });
+    withAuthEnv({ email: 'admin@local.dev', password: 'unique-bootstrap-password' }, () => {
+      const store = new AuthUserStore(dbPath);
+      expect(store.verifyCredentials('admin@local.dev', 'unique-bootstrap-password')?.id).toBe(
+        'old-admin',
+      );
+      expect(store.verifyCredentials('admin@local.dev', 'admin1234')).toBeNull();
+      store.close();
+    });
+  });
+
   it('stores default user password with a scrypt hash format', () => {
     const dbPath = path.join(os.tmpdir(), `auth-user-store-${Date.now()}-a.db`);
     tempDbPaths.push(dbPath);
@@ -92,6 +154,14 @@ describe('AuthUserStore', () => {
 
         reader.close();
         (store as unknown as { close?: () => void }).close?.();
+        vi.stubEnv('NODE_ENV', 'production');
+        withAuthEnv({}, () => {
+          const reopened = new AuthUserStore(dbPath);
+          expect(
+            reopened.verifyCredentials('security-test@local.dev', 'Secur3Password!'),
+          ).not.toBeNull();
+          reopened.close();
+        });
       },
     );
   });

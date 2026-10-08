@@ -115,7 +115,7 @@ describe('master runtime persona config', () => {
     expect(dispatchWithFallback).toHaveBeenNthCalledWith(
       1,
       'ops-team',
-      '0123456789abcdef0123456789abcdef',
+      'test-only-encryption-key-32bytes',
       expect.objectContaining({
         messages: [
           expect.objectContaining({
@@ -128,7 +128,7 @@ describe('master runtime persona config', () => {
     expect(dispatchWithFallback).toHaveBeenNthCalledWith(
       2,
       'ops-team',
-      '0123456789abcdef0123456789abcdef',
+      'test-only-encryption-key-32bytes',
       expect.objectContaining({
         messages: [
           expect.objectContaining({

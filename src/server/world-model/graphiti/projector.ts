@@ -93,7 +93,7 @@ export async function projectOutboxEvent(event: OutboxEvent): Promise<Projection
             content: text,
             roleType: 'system',
             timestamp: event.createdAt,
-            sourceDescription: `OpenClaw World Model observation ${event.aggregateId}`,
+            sourceDescription: `BetaClaw World Model observation ${event.aggregateId}`,
           },
         ]);
         return {
@@ -160,7 +160,7 @@ export async function projectOutboxEvent(event: OutboxEvent): Promise<Projection
         const scheduledFor = String(payload.scheduledFor ?? '').trim();
         const rootNode: GraphitiNode = {
           id: `root:events:${segment}`,
-          label: 'OpenClaw events',
+          label: 'BetaClaw events',
           properties: { segment, category: 'event-root' },
         };
         const eventNode: GraphitiNode = {
@@ -259,7 +259,7 @@ export async function projectOutboxEvent(event: OutboxEvent): Promise<Projection
         const dueDate = String(payload.dueDate ?? payload.dueAt ?? '').trim();
         const rootNode: GraphitiNode = {
           id: `root:tasks:${segment}`,
-          label: 'OpenClaw tasks',
+          label: 'BetaClaw tasks',
           properties: { segment, category: 'task-root' },
         };
         const taskNode: GraphitiNode = {
@@ -414,7 +414,7 @@ function toRebuildObservationMessage(row: RebuildRow): GraphitiMessage | null {
     content: text,
     roleType: 'system',
     timestamp: row.created_at,
-    sourceDescription: `OpenClaw World Model observation ${row.id}`,
+    sourceDescription: `BetaClaw World Model observation ${row.id}`,
   };
 }
 

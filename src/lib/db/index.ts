@@ -27,12 +27,15 @@ export function getDb(): Database.Database {
     db.pragma('mmap_size = 134217728');
     db.pragma('temp_store = MEMORY');
 
-    // Initialize base schema (creates tables if they don't exist)
-    db.exec(schema);
-
-    // Run migrations for schema updates
-    // This handles both new and existing databases
-    runMigrations(db);
+    try {
+      // Initialize base schema (creates tables if they don't exist).
+      db.exec(schema);
+      runMigrations(db);
+    } catch (error) {
+      db.close();
+      db = null;
+      throw error;
+    }
 
     if (isNewDb) {
       console.log('[DB] New database created at:', targetPath);

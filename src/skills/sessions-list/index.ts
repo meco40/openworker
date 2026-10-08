@@ -4,7 +4,7 @@ import { executeSkillApi } from '@/skills/runtime-client';
 const manifest: SkillManifest = {
   id: 'sessions-list',
   name: 'Sessions List (Compat)',
-  description: 'List sessions visible in OpenClaw integrated mode.',
+  description: 'List sessions visible in BetaClaw integrated mode.',
   version: '1.0.0',
   category: 'Compatibility',
   functionName: 'sessions_list',

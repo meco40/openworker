@@ -1,8 +1,8 @@
 # Gateway WebSocket Architektur — Integrationsbericht
 
-**Datum:** 2026-02-11  
-**Feature:** #1 aus OPENCLAW_FUNKTIONSANALYSE.md  
-**Priorität:** ⭐⭐⭐⭐⭐ Kritisch  
+**Datum:** 2026-02-11
+**Feature:** #1 aus BETACLAW_FUNKTIONSANALYSE.md
+**Priorität:** ⭐⭐⭐⭐⭐ Kritisch
 **Status:** Vollständig implementiert, validiert und auf WS-only konsolidiert (SSE-Legacy entfernt)
 
 ---

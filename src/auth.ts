@@ -3,7 +3,7 @@ import Credentials from 'next-auth/providers/credentials';
 import { getAuthUserStore } from '@/server/auth/userStore';
 import { getLoginRateLimiter, resolveClientIp } from '@/server/auth/loginRateLimiter';
 
-const LOCAL_DEVELOPMENT_AUTH_SECRET = 'openclaw-local-nextauth-secret';
+const LOCAL_DEVELOPMENT_AUTH_SECRET = 'betaclaw-local-nextauth-secret';
 let insecureSecretWarningLogged = false;
 
 function resolveNextAuthSecret(): string {

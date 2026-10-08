@@ -57,7 +57,7 @@ describe('bridge account helpers', () => {
     const req = new Request('https://example.local/webhook?accountId=query', {
       method: 'POST',
       headers: {
-        'x-openclaw-account-id': 'header',
+        'x-betaclaw-account-id': 'header',
       },
       body: '{}',
     });

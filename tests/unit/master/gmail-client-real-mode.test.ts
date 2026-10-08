@@ -2,19 +2,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GmailClient } from '@/server/master/connectors/gmail/client';
 
 describe('gmail client real mode', () => {
-  const originalMode = process.env.OPENCLAW_MASTER_GMAIL_MODE;
+  const originalMode = process.env.BETACLAW_MASTER_GMAIL_MODE;
 
   afterEach(() => {
     vi.restoreAllMocks();
     if (originalMode === undefined) {
-      delete process.env.OPENCLAW_MASTER_GMAIL_MODE;
+      delete process.env.BETACLAW_MASTER_GMAIL_MODE;
     } else {
-      process.env.OPENCLAW_MASTER_GMAIL_MODE = originalMode;
+      process.env.BETACLAW_MASTER_GMAIL_MODE = originalMode;
     }
   });
 
   it('fetches detailed message metadata/body and tolerates per-message failures', async () => {
-    process.env.OPENCLAW_MASTER_GMAIL_MODE = 'real';
+    process.env.BETACLAW_MASTER_GMAIL_MODE = 'real';
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockImplementation(async (url: string | URL | Request) => {

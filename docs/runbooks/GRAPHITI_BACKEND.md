@@ -59,7 +59,7 @@ Der lokal verifizierte Stand vom 2026-08-20 ist:
 | Graph-Datenbank | Neo4j Community `5.26.2`                               | Property-Graph                      |
 | Graph-Engine    | offizielles `zepai/graphiti`-Image, per Digest gepinnt | temporale Extraktion und Suche      |
 | API             | Container intern `8000`, lokal `http://127.0.0.1:8001` | Health, Messages, Search, Clear     |
-| Projektion      | OpenClaw Outbox-Worker                                 | asynchrone Ableitung aus PostgreSQL |
+| Projektion      | BetaClaw Outbox-Worker                                 | asynchrone Ableitung aus PostgreSQL |
 
 Die exakte Image-Referenz, Ports und Volumes stehen in
 `docker-compose.graphiti.yml`. Der Stack verwendet getrennte lokale Neo4j-
@@ -227,11 +227,11 @@ Lauf stillschweigend als Erfolg zu werten.
 ## Scope- und Group-Strategie
 
 Graphiti akzeptiert in der verwendeten Version keine beliebigen
-`user:persona:workspace`-Strings als Group-ID. OpenClaw bildet den vollständigen
+`user:persona:workspace`-Strings als Group-ID. BetaClaw bildet den vollständigen
 Scope deshalb deterministisch auf eine sichere ID ab:
 
 ```text
-openclaw-<sha256(userId + NUL + personaId + NUL + workspaceId)[:32]>
+betaclaw-<sha256(userId + NUL + personaId + NUL + workspaceId)[:32]>
 ```
 
 Die ursprünglichen Scope-Werte bleiben Bestandteil jedes kanonischen Outbox-

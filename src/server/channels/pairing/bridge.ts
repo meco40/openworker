@@ -68,7 +68,7 @@ export async function registerBridgeWebhook(params: {
         secret: webhookSecret,
         headers: {
           'x-webhook-secret': webhookSecret,
-          'x-openclaw-account-id': accountId,
+          'x-betaclaw-account-id': accountId,
         },
       }),
     });

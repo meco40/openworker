@@ -42,7 +42,7 @@ describe('whatsapp outbound delivery', () => {
     expect(body.accountId).toBe('sales');
     expect(body.message).toBe('hello');
     expect((options as RequestInit).headers).toMatchObject({
-      'x-openclaw-account-id': 'sales',
+      'x-betaclaw-account-id': 'sales',
     });
   });
 });

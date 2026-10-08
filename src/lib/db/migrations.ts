@@ -200,7 +200,7 @@ const migrations: Migration[] = [
 
       const agentsInfo = db.prepare('PRAGMA table_info(agents)').all() as { name: string }[];
 
-      // Add source column: 'local' for MC-created, 'gateway' for imported from OpenClaw Gateway
+      // Add source column: 'local' for MC-created, 'gateway' for imported from BetaClaw Gateway
       if (!agentsInfo.some((col) => col.name === 'source')) {
         db.exec(`ALTER TABLE agents ADD COLUMN source TEXT DEFAULT 'local'`);
         console.log('[Migration 007] Added source to agents');
@@ -426,26 +426,26 @@ const migrations: Migration[] = [
   },
   {
     id: '014',
-    name: 'add_openclaw_session_workspace',
+    name: 'add_betaclaw_session_workspace',
     up: (db) => {
-      console.log('[Migration 014] Adding workspace scope to OpenClaw sessions...');
-      const columns = db.prepare('PRAGMA table_info(openclaw_sessions)').all() as Array<{
+      console.log('[Migration 014] Adding workspace scope to BetaClaw sessions...');
+      const columns = db.prepare('PRAGMA table_info(betaclaw_sessions)').all() as Array<{
         name: string;
       }>;
       if (!columns.some((column) => column.name === 'workspace_id')) {
         db.exec(
-          `ALTER TABLE openclaw_sessions ADD COLUMN workspace_id TEXT REFERENCES workspaces(id)`,
+          `ALTER TABLE betaclaw_sessions ADD COLUMN workspace_id TEXT REFERENCES workspaces(id)`,
         );
       }
       db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_openclaw_sessions_workspace ON openclaw_sessions(workspace_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_betaclaw_sessions_workspace ON betaclaw_sessions(workspace_id)`,
       );
       // Existing sessions remain discoverable through their agent/task relation.
       db.exec(`
-        UPDATE openclaw_sessions
+        UPDATE betaclaw_sessions
         SET workspace_id = COALESCE(
-          (SELECT workspace_id FROM agents WHERE agents.id = openclaw_sessions.agent_id),
-          (SELECT workspace_id FROM tasks WHERE tasks.id = openclaw_sessions.task_id)
+          (SELECT workspace_id FROM agents WHERE agents.id = betaclaw_sessions.agent_id),
+          (SELECT workspace_id FROM tasks WHERE tasks.id = betaclaw_sessions.task_id)
         )
         WHERE workspace_id IS NULL
       `);

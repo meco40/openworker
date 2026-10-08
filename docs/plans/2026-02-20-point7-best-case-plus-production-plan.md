@@ -219,7 +219,7 @@ git commit -m "feat: expand cron run history depth with bounded limits"
 
 **Files:**
 
-- Modify: `docs/OPENCLAW_WEBAPP_VERGLEICH_UND_UMSETZUNG_2026-02-20.md`
+- Modify: `docs/BETACLAW_WEBAPP_VERGLEICH_UND_UMSETZUNG_2026-02-20.md`
 
 **Step 1: Run full verification for affected scope**
 
@@ -242,6 +242,6 @@ Expected: all commands pass.
 Run:
 
 ```bash
-git add docs/OPENCLAW_WEBAPP_VERGLEICH_UND_UMSETZUNG_2026-02-20.md docs/plans/2026-02-20-point7-best-case-plus-production-plan.md
+git add docs/BETACLAW_WEBAPP_VERGLEICH_UND_UMSETZUNG_2026-02-20.md docs/plans/2026-02-20-point7-best-case-plus-production-plan.md
 git commit -m "docs: update point 7 to best-case-plus with implementation status"
 ```

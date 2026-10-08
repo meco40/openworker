@@ -9,7 +9,7 @@ export async function executeDispatch(
   context: PreparedDispatchContext,
 ): Promise<DispatchExecutionResult> {
   const { task, session, taskMessage, client } = context;
-  const sessionKey = `agent:main:${session.openclaw_session_id}`;
+  const sessionKey = `agent:main:${session.betaclaw_session_id}`;
   let sendResult: DispatchChatSendResult | null = null;
 
   for (let attempt = 1; attempt <= MAX_DISPATCH_ATTEMPTS; attempt += 1) {

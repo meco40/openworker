@@ -23,7 +23,7 @@ const STABLE_DATABASE_NAMES = new Set([
   'gateway-config.db',
   'master.db',
   'model-hub.db',
-  'openclaw.db',
+  'betaclaw.db',
   'skills.db',
   'clawhub.db',
   'logs.db',

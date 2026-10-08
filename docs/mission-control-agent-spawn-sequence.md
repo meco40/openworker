@@ -10,7 +10,7 @@ sequenceDiagram
     participant TasksAPI as /api/tasks
     participant PlanningAPI as /api/tasks/{id}/planning(+poll/+answer)
     participant DB as SQLite
-    participant Runtime as OpenClawClient (integrated)
+    participant Runtime as BetaClawClient (integrated)
     participant DispatchAPI as /api/tasks/{id}/dispatch
 
     User->>UI: Neue Task mit "Planning Mode"
@@ -35,7 +35,7 @@ sequenceDiagram
         PlanningAPI->>DB: INSERT INTO agents (...) for each planned agent
         PlanningAPI->>DB: UPDATE task.assigned_agent_id = firstAgentId
         PlanningAPI->>DispatchAPI: POST /api/tasks/{id}/dispatch
-        DispatchAPI->>DB: create/find openclaw_session
+        DispatchAPI->>DB: create/find betaclaw_session
         DispatchAPI->>Runtime: chat.send(task assignment)
         DispatchAPI->>DB: UPDATE task.status=in_progress, agent.status=working
         DispatchAPI-->>PlanningAPI: success
@@ -58,11 +58,11 @@ sequenceDiagram
     participant SSE as SSE Broadcast
     participant UI as Sessions/Live Feed
 
-    Orchestrator->>SubAPI: POST {openclaw_session_id, agent_name}
+    Orchestrator->>SubAPI: POST {betaclaw_session_id, agent_name}
     alt agent_name unbekannt
         SubAPI->>DB: INSERT agents(role='Sub-Agent')
     end
-    SubAPI->>DB: INSERT openclaw_sessions(session_type='subagent')
+    SubAPI->>DB: INSERT betaclaw_sessions(session_type='subagent')
     SubAPI->>SSE: event agent_spawned
     SSE-->>UI: Sub-Agent erscheint in Session/Feed
 ```

@@ -1,6 +1,6 @@
 /**
  * http_request handler — Generic HTTP client for API calls.
- * Gated by OPENCLAW_HTTP_SKILL_ENABLED=true.
+ * Gated by BETACLAW_HTTP_SKILL_ENABLED=true.
  * SSRF guard blocks private/loopback addresses.
  */
 
@@ -10,10 +10,10 @@ const HTTP_TIMEOUT_MS = 30_000;
 const HTTP_BODY_MAX_CHARS = 8_000;
 
 export async function httpRequestHandler(args: Record<string, unknown>) {
-  if (String(process.env.OPENCLAW_HTTP_SKILL_ENABLED || 'false').toLowerCase() !== 'true') {
+  if (String(process.env.BETACLAW_HTTP_SKILL_ENABLED || 'false').toLowerCase() !== 'true') {
     return {
       error:
-        'http_request skill is disabled. Set OPENCLAW_HTTP_SKILL_ENABLED=true in your environment to enable it.',
+        'http_request skill is disabled. Set BETACLAW_HTTP_SKILL_ENABLED=true in your environment to enable it.',
     };
   }
 
@@ -36,7 +36,7 @@ export async function httpRequestHandler(args: Record<string, unknown>) {
         method,
         headers: {
           'Content-Type': body ? 'application/json' : undefined,
-          'User-Agent': 'openclaw-http-skill/1.0',
+          'User-Agent': 'betaclaw-http-skill/1.0',
           ...customHeaders,
         } as HeadersInit,
         body: body && ['POST', 'PUT', 'PATCH'].includes(method) ? body : undefined,

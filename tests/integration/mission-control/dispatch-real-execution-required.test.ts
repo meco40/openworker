@@ -66,8 +66,8 @@ describe('Mission Control dispatch real execution guard', () => {
       }),
     }));
 
-    vi.doMock('@/lib/openclaw/client', () => ({
-      getOpenClawClient: () => ({
+    vi.doMock('@/lib/betaclaw/client', () => ({
+      getBetaClawClient: () => ({
         isConnected: () => true,
         connect: async () => {},
         call: async () => ({
@@ -203,8 +203,8 @@ describe('Mission Control dispatch real execution guard', () => {
       }),
     }));
 
-    vi.doMock('@/lib/openclaw/client', () => ({
-      getOpenClawClient: () => ({
+    vi.doMock('@/lib/betaclaw/client', () => ({
+      getBetaClawClient: () => ({
         isConnected: () => true,
         connect: async () => {},
         call: async () => ({
@@ -298,8 +298,8 @@ describe('Mission Control dispatch real execution guard', () => {
       }),
     }));
 
-    vi.doMock('@/lib/openclaw/client', () => ({
-      getOpenClawClient: () => ({
+    vi.doMock('@/lib/betaclaw/client', () => ({
+      getBetaClawClient: () => ({
         isConnected: () => true,
         connect: async () => {},
         call: async () => ({
@@ -398,8 +398,8 @@ describe('Mission Control dispatch real execution guard', () => {
       agentMetadata: { ok: false },
     }));
 
-    vi.doMock('@/lib/openclaw/client', () => ({
-      getOpenClawClient: () => ({
+    vi.doMock('@/lib/betaclaw/client', () => ({
+      getBetaClawClient: () => ({
         isConnected: () => true,
         connect: async () => {},
         call: callSpy,
@@ -485,8 +485,8 @@ describe('Mission Control dispatch real execution guard', () => {
         agentMetadata: { ok: true, executedToolCalls: 1 },
       });
 
-    vi.doMock('@/lib/openclaw/client', () => ({
-      getOpenClawClient: () => ({
+    vi.doMock('@/lib/betaclaw/client', () => ({
+      getBetaClawClient: () => ({
         isConnected: () => true,
         connect: async () => {},
         call: callSpy,

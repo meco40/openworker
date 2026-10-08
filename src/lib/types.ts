@@ -158,11 +158,11 @@ export interface WorkspaceStats {
   agentCount: number;
 }
 
-export interface OpenClawSession {
+export interface BetaClawSession {
   id: string;
   agent_id: string | null;
   workspace_id?: string | null;
-  openclaw_session_id: string;
+  betaclaw_session_id: string;
   channel?: string;
   status: string;
   session_type: 'persistent' | 'subagent';
@@ -237,8 +237,8 @@ export interface SendMessageRequest {
   metadata?: string;
 }
 
-// OpenClaw WebSocket message types
-export interface OpenClawMessage {
+// BetaClaw WebSocket message types
+export interface BetaClawMessage {
   id?: number;
   method?: string;
   params?: Record<string, unknown>;
@@ -246,7 +246,7 @@ export interface OpenClawMessage {
   error?: { code: number; message: string };
 }
 
-export interface OpenClawSessionInfo {
+export interface BetaClawSessionInfo {
   id: string;
   channel: string;
   peer?: string;
@@ -254,16 +254,16 @@ export interface OpenClawSessionInfo {
   status: string;
 }
 
-// OpenClaw history message format (from Gateway)
-export interface OpenClawHistoryMessage {
+// BetaClaw history message format (from Gateway)
+export interface BetaClawHistoryMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp?: string;
 }
 
-// Agent with OpenClaw session info (extended for UI use)
-export interface AgentWithOpenClaw extends Agent {
-  openclawSession?: OpenClawSession | null;
+// Agent with BetaClaw session info (extended for UI use)
+export interface AgentWithBetaClaw extends Agent {
+  betaclawSession?: BetaClawSession | null;
 }
 
 // Real-time SSE event types

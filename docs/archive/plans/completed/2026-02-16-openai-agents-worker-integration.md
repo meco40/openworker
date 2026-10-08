@@ -558,7 +558,7 @@ git commit -m "feat(worker): enforce security, budget, governance, and ha contro
 - Create: `docs/runbooks/openai-worker-data-governance.md`
 - Create: `.github/workflows/openai-worker-ci.yml`
 - Create: `tests/load/worker-openai-load.test.ts`
-- Modify: `docs/openai-agents-sdk-vs-openclaw-tiefenanalyse.md`
+- Modify: `docs/openai-agents-sdk-vs-betaclaw-tiefenanalyse.md`
 - Modify: `package.json`
 - Test: `tests/e2e/worker/orchestra-lifecycle.e2e.test.ts`
 
@@ -601,7 +601,7 @@ Add scripts like:
 **Step 5: Commit**
 
 ```bash
-git add docs/runbooks/openai-worker-local-runbook.md docs/runbooks/openai-worker-rollout.md docs/runbooks/openai-worker-data-governance.md .github/workflows/openai-worker-ci.yml tests/load/worker-openai-load.test.ts docs/openai-agents-sdk-vs-openclaw-tiefenanalyse.md package.json tests/e2e/worker/orchestra-lifecycle.e2e.test.ts
+git add docs/runbooks/openai-worker-local-runbook.md docs/runbooks/openai-worker-rollout.md docs/runbooks/openai-worker-data-governance.md .github/workflows/openai-worker-ci.yml tests/load/worker-openai-load.test.ts docs/openai-agents-sdk-vs-betaclaw-tiefenanalyse.md package.json tests/e2e/worker/orchestra-lifecycle.e2e.test.ts
 git commit -m "docs(worker): finalize runbooks, ci, and load validation for openai runtime"
 ```
 

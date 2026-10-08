@@ -38,8 +38,8 @@ const openRouterProviderAdapter: ProviderAdapter = {
   dispatchGateway: ({ secret }, request, options) =>
     dispatchOpenAICompatibleChat('https://openrouter.ai/api/v1', secret, 'openrouter', request, {
       extraHeaders: {
-        'HTTP-Referer': 'https://openclaw.app',
-        'X-Title': 'OpenClaw',
+        'HTTP-Referer': 'https://github.com/meco40/openworker',
+        'X-Title': 'BetaClaw',
       },
       signal: options?.signal,
       onStreamDelta: options?.onStreamDelta,

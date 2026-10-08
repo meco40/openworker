@@ -8,7 +8,7 @@ function popOption(args: string[], name: string): string | undefined {
 }
 
 function printChannelsHelp(): void {
-  console.log(`openclaw channels <command>
+  console.log(`betaclaw channels <command>
 
 Commands:
   list [--url <ws-url>]                         List channel bindings + capabilities

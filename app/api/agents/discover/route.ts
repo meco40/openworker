@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { queryAll } from '@/lib/db';
-import { getOpenClawClient } from '@/lib/openclaw/client';
+import { getBetaClawClient } from '@/lib/betaclaw/client';
 import { withUserContext } from '../../_shared/withUserContext';
 import type { Agent, DiscoveredAgent } from '@/lib/types';
 import { hasWorkspaceAccess, normalizeWorkspaceId } from '@/server/auth/workspaceAccess';
@@ -29,7 +29,7 @@ export const GET = withUserContext(async ({ request, userContext }) => {
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
     }
 
-    const client = getOpenClawClient();
+    const client = getBetaClawClient();
 
     if (!client.isConnected()) {
       try {

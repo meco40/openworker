@@ -363,7 +363,7 @@ export function deleteTask(taskId: string, userId = 'default') {
   }
 
   transaction(() => {
-    run('DELETE FROM openclaw_sessions WHERE task_id = ?', [taskId]);
+    run('DELETE FROM betaclaw_sessions WHERE task_id = ?', [taskId]);
     run('DELETE FROM events WHERE task_id = ?', [taskId]);
     run('UPDATE conversations SET task_id = NULL WHERE task_id = ?', [taskId]);
     run('DELETE FROM tasks WHERE id = ?', [taskId]);

@@ -162,8 +162,8 @@ describe('master run execution actions route', () => {
   });
 
   it('pauses run in awaiting approval when runtime requests shell approval', async () => {
-    const prevApprovals = process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
-    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'true';
+    const prevApprovals = process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
+    process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'true';
     try {
       const { getPersonaRepository } = await import('@/server/personas/personaRepository');
       const persona = getPersonaRepository().createPersona({
@@ -215,9 +215,9 @@ describe('master run execution actions route', () => {
       expect(tickPayload.run.pausedForApproval).toBe(true);
     } finally {
       if (prevApprovals === undefined) {
-        delete process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+        delete process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
       } else {
-        process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = prevApprovals;
+        process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = prevApprovals;
       }
     }
   });

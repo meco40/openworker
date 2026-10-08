@@ -11,7 +11,7 @@ const payload: KnowledgeGraphApiPayload = {
       { id: 'n1', label: 'Atlas', category: 'project', owner: 'persona', aliasCount: 2 },
       { id: 'n2', label: 'Claude', category: 'assistant', owner: 'shared', aliasCount: 0 },
       { id: 'n3', label: 'LanceDB', category: 'tool', owner: 'user', aliasCount: 1 },
-      { id: 'n4', label: 'OpenClaw', category: 'organization', owner: 'shared', aliasCount: 0 },
+      { id: 'n4', label: 'BetaClaw', category: 'organization', owner: 'shared', aliasCount: 0 },
     ],
     edges: [
       { id: 'e1', source: 'n1', target: 'n2', relationType: 'uses', confidence: 0.9 },

@@ -1,7 +1,7 @@
 services:
   mem0-postgres:
     image: pgvector/pgvector:pg17
-    container_name: openclaw-mem0-postgres
+    container_name: betaclaw-mem0-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: mem0
@@ -22,7 +22,7 @@ services:
     build:
       context: docker/mem0-local
       dockerfile: Dockerfile
-    container_name: openclaw-mem0-local
+    container_name: betaclaw-mem0-local
     restart: unless-stopped
     depends_on:
       mem0-postgres:

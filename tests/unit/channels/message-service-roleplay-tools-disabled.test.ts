@@ -192,7 +192,7 @@ describe('MessageService roleplay persona tool policy', () => {
     dispatchSkillMock.mockClear();
     isCommandApprovedMock.mockReset();
     isCommandApprovedMock.mockReturnValue(false);
-    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'false';
+    process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'false';
   });
 
   it('blocks /shell commands for roleplay personas', async () => {

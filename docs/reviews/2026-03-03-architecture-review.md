@@ -1,4 +1,4 @@
-# Architecture & Code Review — OpenClaw Gateway Control Plane
+# Architecture & Code Review — BetaClaw Gateway Control Plane
 
 **Datum:** 2026-03-03  
 **Reviewer:** Senior Staff Engineer (AI-Assisted Review)  
@@ -14,7 +14,7 @@
 | 🔴  | **Security**    | `proxy.ts` ist totes Code — kein `middleware.ts` existiert; API-Token-Schutz für 7 Route-Gruppen ist inaktiv            |
 | 🔴  | **Security**    | `LoginForm.tsx` pre-populiert Standardzugangsdaten (`admin@local.dev` / `admin1234`) als React-State-Defaults           |
 | 🔴  | **Security**    | `REQUIRE_AUTH=false` als Systemstandard — alle API-Routen ohne Login erreichbar                                         |
-| 🔴  | **Security**    | Hardcoded JWT-Fallback-Secret (`openclaw-local-nextauth-secret`) in `src/auth.ts` + `server.ts`                         |
+| 🔴  | **Security**    | Hardcoded JWT-Fallback-Secret (`betaclaw-local-nextauth-secret`) in `src/auth.ts` + `server.ts`                         |
 | 🟡  | **Architektur** | `App.tsx` ist eine ~323-Zeilen Monolith-Clientkomponente mit 10+ Hooks + direktem Prop-Drilling; fehlende State-Schicht |
 | 🟡  | **Bundle**      | `mermaid`, `three`, `@xyflow/react`, `recharts` ohne Dynamic Import — laden immer, egal welcher View aktiv ist          |
 | 🟡  | **Reliability** | In-Memory Rate-Limiting und SSE-Client-Registry (Module-Level `Set`) — nicht multi-process-sicher                       |
@@ -330,7 +330,7 @@ export const config = {
   matcher: [
     '/api/tasks/:path*', // ← UNGESCHÜTZT
     '/api/agents/:path*', // ← UNGESCHÜTZT
-    '/api/openclaw/:path*', // ← UNGESCHÜTZT
+    '/api/betaclaw/:path*', // ← UNGESCHÜTZT
     '/api/events/:path*', // ← UNGESCHÜTZT
     '/api/files/:path*', // ← UNGESCHÜTZT
     '/api/workspaces/:path*', // ← UNGESCHÜTZT
@@ -383,12 +383,12 @@ const [password, setPassword] = useState(isDev ? 'admin1234' : '');
 **Problem:** In `src/auth.ts` Zeile 5 und `server.ts` Zeile 41:
 
 ```typescript
-const LOCAL_DEVELOPMENT_AUTH_SECRET = 'openclaw-local-nextauth-secret';
+const LOCAL_DEVELOPMENT_AUTH_SECRET = 'betaclaw-local-nextauth-secret';
 // server.ts:
 const SECRET =
   process.env.NEXTAUTH_SECRET?.trim() ||
   process.env.AUTH_SECRET?.trim() ||
-  'openclaw-local-nextauth-secret';
+  'betaclaw-local-nextauth-secret';
 ```
 
 Wenn weder `NEXTAUTH_SECRET` noch `AUTH_SECRET` gesetzt sind, werden JWTs mit einem **bekannten, öffentlichen** String signiert. Ein Angreifer kann gültige Session-Tokens fälschen.
@@ -403,7 +403,7 @@ function resolveNextAuthSecret(): string {
       throw new Error('NEXTAUTH_SECRET must be set in production!');
     }
     console.warn('[auth] WARNING: Using insecure dev-only JWT secret.');
-    return 'openclaw-local-nextauth-secret';
+    return 'betaclaw-local-nextauth-secret';
   }
   return secret;
 }
@@ -640,4 +640,4 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
 ---
 
-_Generiert: 2026-03-03 · OpenClaw Gateway Control Plane Review_
+_Generiert: 2026-03-03 · BetaClaw Gateway Control Plane Review_

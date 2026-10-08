@@ -96,7 +96,7 @@ const AppShellHeader: React.FC<AppShellHeaderProps> = ({
     <header className="z-10 flex h-16 items-center justify-between border-b border-zinc-800 bg-[#0c0c0c] pr-3 pl-16 md:px-6">
       <div className="flex min-w-0 items-center gap-2 sm:gap-4">
         <h1 className="truncate text-sm font-bold tracking-tight text-white sm:text-lg">
-          OpenClaw Gateway
+          BetaClaw Gateway
         </h1>
         <div
           role="status"

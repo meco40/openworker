@@ -7,6 +7,7 @@ const repoRoot = process.cwd();
 const targetDir = path.join(repoRoot, 'public', 'vendor', 'headaudio');
 const targetWorklet = path.join(targetDir, 'headworklet.mjs');
 const targetModel = path.join(targetDir, 'model-en-mixed.bin');
+const targetLicense = path.join(targetDir, 'LICENSE');
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
@@ -31,6 +32,7 @@ function main() {
   ensureDir(targetDir);
   copyOrThrow(sourceWorklet, targetWorklet);
   copyOrThrow(sourceModel, targetModel);
+  copyOrThrow(path.join(packageRoot, 'LICENSE'), targetLicense);
 
   process.stdout.write(
     `[avatar:sync-headaudio] Synced ${path.relative(repoRoot, targetWorklet)} and ${path.relative(repoRoot, targetModel)}\n`,

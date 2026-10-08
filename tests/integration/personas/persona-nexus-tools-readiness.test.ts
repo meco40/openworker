@@ -36,7 +36,7 @@ describe('Persona Nexus tool readiness', () => {
   const previousSqlitePath = process.env.SQLITE_DB_PATH;
   const previousSkillsDbPath = process.env.SKILLS_DB_PATH;
   const previousGeminiKey = process.env.GEMINI_API_KEY;
-  const previousApprovalsRequired = process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+  const previousApprovalsRequired = process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
 
   beforeAll(async () => {
     const localDir = getTestArtifactsRoot();
@@ -51,7 +51,7 @@ describe('Persona Nexus tool readiness', () => {
 
     process.env.SQLITE_DB_PATH = dbPath;
     process.env.GEMINI_API_KEY = 'test-gemini-key';
-    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'false';
+    process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'false';
 
     const repository = await getSkillRepository();
     repository.setInstalled('github-manager', true);
@@ -256,9 +256,9 @@ describe('Persona Nexus tool readiness', () => {
       process.env.GEMINI_API_KEY = previousGeminiKey;
     }
     if (previousApprovalsRequired === undefined) {
-      delete process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+      delete process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
     } else {
-      process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = previousApprovalsRequired;
+      process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = previousApprovalsRequired;
     }
   });
 });

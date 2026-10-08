@@ -1,8 +1,8 @@
-# OpenClaw WebApp - Einfache Beschreibung
+# BetaClaw WebApp - Einfache Beschreibung
 
 ## Was ist diese WebApp?
 
-OpenClaw ist eine WebApp fuer KI-Chat, Automatisierung und Betrieb.
+BetaClaw ist eine WebApp fuer KI-Chat, Automatisierung und Betrieb.
 Du kannst mehrere Messenger verbinden, mit Personas arbeiten, Projekte steuern und KI-Modelle verwalten.
 
 Die App ist wie ein zentrales Control Center fuer:

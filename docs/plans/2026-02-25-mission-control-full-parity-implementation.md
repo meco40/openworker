@@ -4,7 +4,7 @@
 
 **Goal:** Implementiere `crshdn/mission-control` funktionsgleich in dieses System, inklusive neuem Sidebar-Menuepunkt `Mission Control`, produktionsreifem Backend und vollständiger Realtime- und Security-Haertung.
 
-**Architecture:** Wir integrieren Mission Control als neue AppShell-View und bauen die Domain serverseitig auf bestehender OpenClaw-Infrastruktur (`agent-v2`, Gateway WS, vorhandene Auth- und Runtime-Patterns) auf. Persistenz bleibt in der existierenden SQLite (`MESSAGES_DB_PATH`) mit additiven Migrationen und klarer State-Machine fuer Task-Lifecycle und Planning/Dispatch.
+**Architecture:** Wir integrieren Mission Control als neue AppShell-View und bauen die Domain serverseitig auf bestehender BetaClaw-Infrastruktur (`agent-v2`, Gateway WS, vorhandene Auth- und Runtime-Patterns) auf. Persistenz bleibt in der existierenden SQLite (`MESSAGES_DB_PATH`) mit additiven Migrationen und klarer State-Machine fuer Task-Lifecycle und Planning/Dispatch.
 
 **Tech Stack:** Next.js App Router (`app/api`), React 19, TypeScript, better-sqlite3, bestehendes Gateway (`/ws`, `/ws-agent-v2`), SSE fuer Mission-Feed, Vitest.
 
@@ -12,7 +12,7 @@
 
 ## Execution Context (bereits umgesetzt)
 
-- Worktree: `C:\Users\djm2k\.config\superpowers\worktrees\clawtest\mission-control-parity-2026-02-25`
+- Worktree: `<local-worktree>/mission-control-parity-2026-02-25`
 - Branch: `plan/mission-control-parity-2026-02-25`
 - Upstream baseline fuer Paritaet: `crshdn/mission-control` @ `5ccc27a4d65baab169db4a423155f093255fc046` (2026-02-19)
 
@@ -23,7 +23,7 @@
 1. Kanban mit 7 Statusspalten (`planning, inbox, assigned, in_progress, testing, review, done`) inkl. Drag-and-Drop.
 2. AI Planning Q&A Flow (Fragen stellen, Antworten sammeln, Approval/Retry/Cancel, auto dispatch).
 3. Agent Discovery/Import aus Gateway.
-4. OpenClaw Session/Uptime/Model-Proxies.
+4. BetaClaw Session/Uptime/Model-Proxies.
 5. Live Event Feed (SSE) + UI updates in Echtzeit.
 6. Workspace Verwaltung + Datei Upload/Download/Preview/Reveal.
 7. Activities + Deliverables pro Task.
@@ -38,7 +38,7 @@
 - Keine neue Datenbank: Mission-Control Tabellen in bestehende `messages.db`.
 - Realtime dual-path: Gateway Events fuer interne UI + SSE fuer Mission-Control Feed APIs.
 - Statuswechsel nur ueber zentrale State-Machine (kein freies, unvalidiertes Dragging).
-- API-Kompatibilitaet zum Upstream (`/api/tasks`, `/api/agents`, `/api/openclaw`, `/api/events`, `/api/workspaces`, `/api/files`, `/api/webhooks/agent-completion`).
+- API-Kompatibilitaet zum Upstream (`/api/tasks`, `/api/agents`, `/api/betaclaw`, `/api/events`, `/api/workspaces`, `/api/files`, `/api/webhooks/agent-completion`).
 - AppShell bekommt neue View `MISSION_CONTROL` und Sidebar Label `Mission Control`.
 - Rollout erfolgt ueber Feature-Flag + stufenweise Aktivierung (dark launch -> canary -> full rollout) mit dokumentiertem Rollback-Runbook.
 
@@ -359,7 +359,7 @@ git commit -m "feat(mission-control): add workspaces api and stats"
 
 ---
 
-### Task 7: Agents + OpenClaw APIs (`/api/agents`, `/api/openclaw/*`)
+### Task 7: Agents + BetaClaw APIs (`/api/agents`, `/api/betaclaw/*`)
 
 **Files:**
 
@@ -367,15 +367,15 @@ git commit -m "feat(mission-control): add workspaces api and stats"
 - Create: `app/api/agents/[id]/route.ts`
 - Create: `app/api/agents/discover/route.ts`
 - Create: `app/api/agents/import/route.ts`
-- Create: `app/api/agents/[id]/openclaw/route.ts`
-- Create: `app/api/openclaw/status/route.ts`
-- Create: `app/api/openclaw/models/route.ts`
-- Create: `app/api/openclaw/orchestra/route.ts`
-- Create: `app/api/openclaw/sessions/route.ts`
-- Create: `app/api/openclaw/sessions/[id]/route.ts`
-- Create: `app/api/openclaw/sessions/[id]/history/route.ts`
-- Create: `src/server/mission-control/openclawClient.ts`
-- Test: `tests/integration/mission-control/agents-openclaw-api.test.ts`
+- Create: `app/api/agents/[id]/betaclaw/route.ts`
+- Create: `app/api/betaclaw/status/route.ts`
+- Create: `app/api/betaclaw/models/route.ts`
+- Create: `app/api/betaclaw/orchestra/route.ts`
+- Create: `app/api/betaclaw/sessions/route.ts`
+- Create: `app/api/betaclaw/sessions/[id]/route.ts`
+- Create: `app/api/betaclaw/sessions/[id]/history/route.ts`
+- Create: `src/server/mission-control/betaclawClient.ts`
+- Test: `tests/integration/mission-control/agents-betaclaw-api.test.ts`
 
 **Step 1: Write failing integration tests**
 
@@ -383,23 +383,23 @@ Cover discover/import/list agents and status/sessions proxy behavior.
 
 **Step 2: Run tests to verify failure**
 
-Run: `pnpm vitest run tests/integration/mission-control/agents-openclaw-api.test.ts`
+Run: `pnpm vitest run tests/integration/mission-control/agents-betaclaw-api.test.ts`
 Expected: FAIL.
 
-**Step 3: Implement OpenClaw bridge + routes**
+**Step 3: Implement BetaClaw bridge + routes**
 
 Reuse existing gateway credentials and auth context.
 
 **Step 4: Run tests to verify pass**
 
-Run: `pnpm vitest run tests/integration/mission-control/agents-openclaw-api.test.ts`
+Run: `pnpm vitest run tests/integration/mission-control/agents-betaclaw-api.test.ts`
 Expected: PASS.
 
 **Step 5: Commit**
 
 ```bash
-git add app/api/agents app/api/openclaw src/server/mission-control/openclawClient.ts tests/integration/mission-control/agents-openclaw-api.test.ts
-git commit -m "feat(mission-control): add agents and openclaw parity endpoints"
+git add app/api/agents app/api/betaclaw src/server/mission-control/betaclawClient.ts tests/integration/mission-control/agents-betaclaw-api.test.ts
+git commit -m "feat(mission-control): add agents and betaclaw parity endpoints"
 ```
 
 ---
@@ -596,7 +596,7 @@ git commit -m "feat(mission-control): add app-shell view and sidebar navigation"
 - Create: `app/middleware.ts`
 - Modify: `app/api/tasks/**`
 - Modify: `app/api/agents/**`
-- Modify: `app/api/openclaw/**`
+- Modify: `app/api/betaclaw/**`
 - Modify: `app/api/files/**`
 - Modify: `app/api/events/**`
 - Test: `tests/integration/mission-control/security.test.ts`
@@ -631,7 +631,7 @@ Expected: PASS.
 **Step 5: Commit**
 
 ```bash
-git add src/server/mission-control/auth.ts src/server/mission-control/validation.ts app/middleware.ts app/api/tasks app/api/agents app/api/openclaw app/api/files app/api/events tests/integration/mission-control/security.test.ts
+git add src/server/mission-control/auth.ts src/server/mission-control/validation.ts app/middleware.ts app/api/tasks app/api/agents app/api/betaclaw app/api/files app/api/events tests/integration/mission-control/security.test.ts
 git commit -m "feat(mission-control): harden mission endpoints and middleware security"
 ```
 
@@ -652,8 +652,8 @@ git commit -m "feat(mission-control): harden mission endpoints and middleware se
 
 Assert required vars and sane defaults:
 
-- `OPENCLAW_GATEWAY_URL`
-- `OPENCLAW_GATEWAY_TOKEN`
+- `BETACLAW_GATEWAY_URL`
+- `BETACLAW_GATEWAY_TOKEN`
 - `MC_API_TOKEN` (optional)
 - `WEBHOOK_SECRET` (optional but required when webhook enabled)
 
@@ -866,7 +866,7 @@ git commit -m "docs(mission-control): add canary rollout and rollback drill"
 - Mission Control deckt alle upstream Features funktional ab.
 - APIs sind upstream-kompatibel und auth-hardened.
 - Persistenz ist in vorhandener `messages.db` integriert (keine zweite DB).
-- Planning + Dispatch funktionieren ueber bestehenden OpenClaw/agent-v2 Stack.
+- Planning + Dispatch funktionieren ueber bestehenden BetaClaw/agent-v2 Stack.
 - Realtime updates laufen stabil ueber SSE + Gateway Events.
 - Docker + Runbook + troubleshooting sind dokumentiert.
 - Migrationen sind rollout-sicher (snapshot, rollback-path, compatibility checks).

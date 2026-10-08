@@ -1,4 +1,4 @@
-# OpenClaw - Architecture Overview
+# BetaClaw - Architecture Overview
 
 > Status: 2026-02-22 - Reflects implemented codebase state.
 

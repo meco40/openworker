@@ -20,7 +20,7 @@ export interface LogEntry {
 export type LevelFilter = 'all' | 'debug' | 'info' | 'warn' | 'error';
 export type DiagnosticsStatus = 'ok' | 'degraded' | 'critical' | 'unknown';
 export const DIAGNOSTICS_REFRESH_INTERVAL_MS = 180000;
-export const MEMORY_DIAGNOSTICS_STORAGE_KEY = 'openclaw-memory-diagnostics-enabled';
+export const MEMORY_DIAGNOSTICS_STORAGE_KEY = 'betaclaw-memory-diagnostics-enabled';
 
 export interface HealthSummary {
   ok: number;

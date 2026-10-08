@@ -1,7 +1,7 @@
 services:
   graphiti-neo4j:
     image: neo4j:5.26.2
-    container_name: openclaw-graphiti-neo4j
+    container_name: betaclaw-graphiti-neo4j
     restart: unless-stopped
     environment:
       NEO4J_AUTH: ${GRAPHITI_NEO4J_USER:-neo4j}/${GRAPHITI_NEO4J_PASSWORD:-change-me-local}
@@ -23,7 +23,7 @@ services:
     # The published 0.22.1 tag is currently unavailable on Docker Hub.
     # Pin the currently published official image by digest for reproducibility.
     image: zepai/graphiti@sha256:76d14f30afc65d2f914637d67d0c0631a7e779e2740be1ae99b9dc0c5876d2da
-    container_name: openclaw-graphiti
+    container_name: betaclaw-graphiti
     restart: unless-stopped
     depends_on:
       graphiti-neo4j:
@@ -69,7 +69,7 @@ services:
       # queue forever. Failed jobs remain visible through /queue-status.
       QUEUE_JOB_TIMEOUT_SECONDS: ${GRAPHITI_QUEUE_JOB_TIMEOUT_SECONDS:-300}
     volumes:
-      # OpenClaw patches against the pinned 0.22.0 server (see docker/graphiti/).
+      # BetaClaw patches against the pinned 0.22.0 server (see docker/graphiti/).
       - ./docker/graphiti/config.py:/app/graph_service/config.py:ro
       - ./docker/graphiti/retrieve.py:/app/graph_service/dto/retrieve.py:ro
       - ./docker/graphiti/zep_graphiti.py:/app/graph_service/zep_graphiti.py:ro

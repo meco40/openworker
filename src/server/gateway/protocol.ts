@@ -1,6 +1,6 @@
 // ─── Gateway Protocol Types ──────────────────────────────────
 // JSON-RPC-like framing for WebSocket communication.
-// Adapted from OpenClaw demo gateway protocol.
+// Adapted from BetaClaw demo gateway protocol.
 
 export {
   type RequestFrame,

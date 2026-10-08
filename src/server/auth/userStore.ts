@@ -15,6 +15,8 @@ export interface AuthUser {
   name: string;
 }
 
+const publicDefaultPasswordHash = crypto.createHash('sha256').update('admin1234').digest('hex');
+
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString('hex');
   const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
@@ -66,8 +68,13 @@ export class AuthUserStore {
 
   constructor(dbPath = process.env.AUTH_DB_PATH || '.local/auth.db') {
     this.db = openSqliteDatabase({ dbPath });
-    this.migrate();
-    this.ensureDefaultUser();
+    try {
+      this.migrate();
+      this.ensureDefaultUser();
+    } catch (error) {
+      this.db.close();
+      throw error;
+    }
   }
 
   private migrate(): void {
@@ -129,15 +136,38 @@ export class AuthUserStore {
   }
 
   private ensureDefaultUser(): void {
-    const email = (process.env.AUTH_DEFAULT_EMAIL || 'admin@local.dev').trim().toLowerCase();
-    const password = (process.env.AUTH_DEFAULT_PASSWORD || 'admin1234').trim();
+    const email = (process.env.AUTH_DEFAULT_EMAIL || '').trim().toLowerCase();
+    const password = (process.env.AUTH_DEFAULT_PASSWORD || '').trim();
     const name = (process.env.AUTH_DEFAULT_NAME || 'Local Admin').trim();
 
     if (!email || !password) {
+      if (email || password) {
+        throw new Error('Set both AUTH_DEFAULT_EMAIL and AUTH_DEFAULT_PASSWORD.');
+      }
+      if (
+        process.env.NODE_ENV === 'production' &&
+        !this.db.prepare('SELECT 1 FROM auth_users LIMIT 1').get()
+      ) {
+        throw new Error(
+          'Configure AUTH_DEFAULT_EMAIL and AUTH_DEFAULT_PASSWORD for the first admin.',
+        );
+      }
       return;
+    }
+    if (verifyPasswordHash(password, publicDefaultPasswordHash).ok) {
+      throw new Error('The public default admin password is unsafe; choose a unique password.');
     }
 
     const now = new Date().toISOString();
+    const existing = this.db
+      .prepare('SELECT id, password_hash FROM auth_users WHERE email = ?')
+      .get(email) as { id: string; password_hash: string } | undefined;
+    // Explicit bootstrap credentials can recover an old default account without deleting it.
+    if (existing && verifyPasswordHash('admin1234', existing.password_hash).ok) {
+      this.db
+        .prepare('UPDATE auth_users SET password_hash = ?, updated_at = ? WHERE id = ?')
+        .run(hashPassword(password), now, existing.id);
+    }
     this.db
       .prepare(
         `
@@ -164,6 +194,7 @@ export class AuthUserStore {
   }
 
   verifyCredentials(email: string, password: string): AuthUser | null {
+    if (verifyPasswordHash(password, publicDefaultPasswordHash).ok) return null;
     const normalized = email.trim().toLowerCase();
     const row = this.db
       .prepare('SELECT id, email, name, password_hash FROM auth_users WHERE email = ?')

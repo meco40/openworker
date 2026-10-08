@@ -122,12 +122,12 @@ CREATE TABLE IF NOT EXISTS businesses (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
--- OpenClaw session mapping
-CREATE TABLE IF NOT EXISTS openclaw_sessions (
+-- BetaClaw session mapping
+CREATE TABLE IF NOT EXISTS betaclaw_sessions (
   id TEXT PRIMARY KEY,
   agent_id TEXT REFERENCES agents(id),
   workspace_id TEXT REFERENCES workspaces(id),
-  openclaw_session_id TEXT NOT NULL,
+  betaclaw_session_id TEXT NOT NULL,
   channel TEXT,
   status TEXT DEFAULT 'active',
   session_type TEXT DEFAULT 'persistent',
@@ -169,5 +169,5 @@ CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status);
 CREATE INDEX IF NOT EXISTS idx_activities_task ON task_activities(task_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_deliverables_task ON task_deliverables(task_id);
-CREATE INDEX IF NOT EXISTS idx_openclaw_sessions_task ON openclaw_sessions(task_id);
+CREATE INDEX IF NOT EXISTS idx_betaclaw_sessions_task ON betaclaw_sessions(task_id);
 `;

@@ -181,7 +181,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
     if (isMasterSystemPersona(selectedPersona)) {
       setActivePersona(null);
       setActivePersonaIdState(null);
-      localStorage.removeItem('openclaw-active-persona');
+      localStorage.removeItem('betaclaw-active-persona');
     }
   }, [activePersonaId, personas]);
 
@@ -193,9 +193,9 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       setActivePersonaIdState(normalizedId);
       // Persist selection to localStorage for page reloads
       if (normalizedId) {
-        localStorage.setItem('openclaw-active-persona', normalizedId);
+        localStorage.setItem('betaclaw-active-persona', normalizedId);
       } else {
-        localStorage.removeItem('openclaw-active-persona');
+        localStorage.removeItem('betaclaw-active-persona');
       }
     },
     [personas],
@@ -203,7 +203,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
 
   // Restore from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem('openclaw-active-persona');
+    const stored = localStorage.getItem('betaclaw-active-persona');
     if (stored) {
       setActivePersonaIdState(stored);
     }

@@ -5,7 +5,7 @@ import { runGatewayCli } from '@/cli/gateway-cli';
 import { runNodeCli } from '@/cli/node-cli';
 
 function printHelp(): void {
-  console.log(`openclaw <command>
+  console.log(`betaclaw <command>
 
 Commands:
   gateway      Gateway runtime and RPC commands
@@ -13,10 +13,10 @@ Commands:
   node         Local command runtime with approvals
 
 Examples:
-  openclaw gateway run
-  openclaw gateway chat --message "Hallo"
-  openclaw channels list
-  openclaw node run --command "Get-ChildItem"
+  betaclaw gateway run
+  betaclaw gateway chat --message "Hallo"
+  betaclaw channels list
+  betaclaw node run --command "Get-ChildItem"
 `);
 }
 

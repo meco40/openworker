@@ -45,5 +45,13 @@ This copies from installed `@met4citizen/headaudio` package:
 
 - `dist/headworklet.min.mjs` -> `public/vendor/headaudio/headworklet.mjs`
 - `dist/model-en-mixed.bin` -> `public/vendor/headaudio/model-en-mixed.bin`
+- `LICENSE` -> `public/vendor/headaudio/LICENSE`
 
 The sync command is also executed on `postinstall`.
+
+## Licenses
+
+HeadAudio's MIT notice is copied together with its assets. The current runtime
+avatar derives from the Ready Player Me `brunette.glb` example and is licensed
+under CC BY-NC 4.0, independently of the project's MIT code license. See
+[third-party notices](../../THIRD_PARTY_NOTICES.md) before commercial use.

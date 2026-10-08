@@ -30,11 +30,11 @@ describe('next config output tracing excludes', () => {
     ]);
   });
 
-  it('excludes local codex/openclaw home directories from standalone tracing', () => {
+  it('excludes local codex/betaclaw home directories from standalone tracing', () => {
     const rootExcludes = getRootTraceExcludes();
 
     expect(rootExcludes).toContain('**/.codex/**');
-    expect(rootExcludes).toContain('**/.openclaw/**');
+    expect(rootExcludes).toContain('**/.betaclaw/**');
   });
 
   it('excludes heavy local workspace artifacts from standalone tracing', () => {

@@ -5,7 +5,7 @@ Status: Brainstorming-Draft
 
 ## 1) Ausgangslage
 
-OpenClaw hat bereits eine funktionierende Model-Pipeline mit Fallback:
+BetaClaw hat bereits eine funktionierende Model-Pipeline mit Fallback:
 
 - Laufzeit: `ModelHubService.dispatchWithFallback()` in `src/server/model-hub/service.ts`
 - Persistenz: `model_hub_pipeline` in SQLite (`src/server/model-hub/repositories/sqliteModelHubRepository.ts`)

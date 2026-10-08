@@ -34,8 +34,8 @@ describe('Mission Control full flow: create -> planning -> answer -> dispatch ->
       }),
     }));
 
-    vi.doMock('@/lib/openclaw/client', () => ({
-      getOpenClawClient: () => ({
+    vi.doMock('@/lib/betaclaw/client', () => ({
+      getBetaClawClient: () => ({
         isConnected: () => true,
         connect: async () => {},
         call: async (_method: string, payload: { idempotencyKey?: string }) => {
@@ -63,7 +63,7 @@ describe('Mission Control full flow: create -> planning -> answer -> dispatch ->
         await vi.importActual<typeof import('@/lib/planning-utils')>('@/lib/planning-utils');
       return {
         ...actual,
-        getMessagesFromOpenClaw: vi.fn(async () => {
+        getMessagesFromBetaClaw: vi.fn(async () => {
           pollCallCount += 1;
           if (pollCallCount === 1) {
             return [

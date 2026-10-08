@@ -4,7 +4,7 @@
  * Extracts the YAML frontmatter block (between `---` delimiters) and the
  * markdown body, validates required fields, and returns a typed ParsedSkillMd.
  *
- * Uses the `yaml` package (same as the OpenClaw demo) for reliable YAML
+ * Uses the `yaml` package (same as the BetaClaw demo) for reliable YAML
  * parsing with a JSON-compatible schema.
  */
 

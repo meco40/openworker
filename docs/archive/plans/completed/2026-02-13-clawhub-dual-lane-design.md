@@ -2,7 +2,7 @@
 
 ## Goal
 
-Integrate ClawHub into the current OpenClaw Gateway Control Plane with low regression risk, while preserving the existing executable tool-skill runtime.
+Integrate ClawHub into the current BetaClaw Gateway Control Plane with low regression risk, while preserving the existing executable tool-skill runtime.
 
 The target is split into two phases:
 
@@ -311,7 +311,7 @@ Phase 1.5 additional controls:
 
 - Automatic conversion of `SKILL.md` into executable function tools
 - publish/login flows in UI
-- full OpenClaw parity for every advanced skill lifecycle feature
+- full BetaClaw parity for every advanced skill lifecycle feature
 
 ## Final Recommendation
 
@@ -320,4 +320,4 @@ Proceed with:
 1. Phase 1.0 implementation first (management lane, no runtime breakage).
 2. Immediate follow-up Phase 1.5 (minimal prompt hydration for actual behavioral value).
 
-This is the best trade-off between delivery speed, system safety, and long-term alignment with OpenClaw-style skill behavior.
+This is the best trade-off between delivery speed, system safety, and long-term alignment with BetaClaw-style skill behavior.

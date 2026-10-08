@@ -52,8 +52,8 @@ describe('Mission Control planning poll auto-dispatch', () => {
       }),
     }));
 
-    vi.doMock('@/lib/openclaw/client', () => ({
-      getOpenClawClient: () => ({
+    vi.doMock('@/lib/betaclaw/client', () => ({
+      getBetaClawClient: () => ({
         isConnected: () => true,
         connect: async () => {},
         call: async () => ({
@@ -69,7 +69,7 @@ describe('Mission Control planning poll auto-dispatch', () => {
         await vi.importActual<typeof import('@/lib/planning-utils')>('@/lib/planning-utils');
       return {
         ...actual,
-        getMessagesFromOpenClaw: vi.fn(async () => [
+        getMessagesFromBetaClaw: vi.fn(async () => [
           {
             role: 'assistant',
             content: JSON.stringify({

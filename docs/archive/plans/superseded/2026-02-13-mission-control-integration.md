@@ -1,4 +1,4 @@
-# Mission-Control-Workflow Integration für OpenClaw Worker
+# Mission-Control-Workflow Integration für BetaClaw Worker
 
 **Datum:** 2026-02-13
 **Status:** Geplant

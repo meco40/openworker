@@ -1,4 +1,4 @@
-import type { Agent, OpenClawSession, Task } from '@/lib/types';
+import type { Agent, BetaClawSession, Task } from '@/lib/types';
 
 export interface DispatchHttpResponse {
   status: number;
@@ -33,7 +33,7 @@ export interface PreparedDispatchContext {
   taskId: string;
   task: DispatchTaskRow;
   agent: Agent;
-  session: OpenClawSession;
+  session: BetaClawSession;
   now: string;
   taskMessage: string;
   taskProjectDir: string;

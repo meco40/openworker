@@ -3,7 +3,7 @@
 **Version:** 1.1.0  
 **Last Updated:** 2026-03-03
 
-This document provides comprehensive guidance for deploying, operating, and maintaining OpenClaw Gateway in production environments. It covers deployment topologies, Docker configuration, systemd services, monitoring, backup strategies, and operational procedures.
+This document provides comprehensive guidance for deploying, operating, and maintaining BetaClaw Gateway in production environments. It covers deployment topologies, Docker configuration, systemd services, monitoring, backup strategies, and operational procedures.
 
 ### 2026-03-03 Update: Master Agent Runtime
 
@@ -40,7 +40,7 @@ Siehe Abschnitt [Master Agent Operations](#master-agent-operations).
 
 ## Overview
 
-OpenClaw Gateway is a multi-service Node.js application comprising:
+BetaClaw Gateway is a multi-service Node.js application comprising:
 
 - **Web Service**: HTTP API, WebSocket gateway, and frontend serving
 - **Scheduler Service**: Background job processing and automation execution
@@ -68,7 +68,7 @@ OpenClaw Gateway is a multi-service Node.js application comprising:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           OPENCLAW GATEWAY DEPLOYMENT                           │
+│                           BETACLAW GATEWAY DEPLOYMENT                           │
 │                           Production Architecture                               │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
@@ -287,7 +287,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: runner
-    container_name: openclaw-web
+    container_name: betaclaw-web
     restart: unless-stopped
     ports:
       - '${PORT:-3000}:3000'
@@ -312,10 +312,10 @@ services:
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET}
       DISCORD_PUBLIC_KEY: ${DISCORD_PUBLIC_KEY}
     volumes:
-      - openclaw-data:/app/.local
+      - betaclaw-data:/app/.local
       - /etc/localtime:/etc/localtime:ro
     networks:
-      - openclaw-network
+      - betaclaw-network
     healthcheck:
       test: ['CMD', 'curl', '-fsS', 'http://localhost:3000/api/health']
       interval: 30s
@@ -339,7 +339,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: runner
-    container_name: openclaw-scheduler
+    container_name: betaclaw-scheduler
     restart: unless-stopped
     command: ['node', '--import', 'tsx', 'scheduler.ts']
     environment:
@@ -360,10 +360,10 @@ services:
       # AI Provider
       GEMINI_API_KEY: ${GEMINI_API_KEY}
     volumes:
-      - openclaw-data:/app/.local
+      - betaclaw-data:/app/.local
       - /etc/localtime:/etc/localtime:ro
     networks:
-      - openclaw-network
+      - betaclaw-network
     depends_on:
       web:
         condition: service_healthy
@@ -381,7 +381,7 @@ services:
   # ==========================================================================
   backup:
     image: alpine:latest
-    container_name: openclaw-backup
+    container_name: betaclaw-backup
     restart: unless-stopped
     command: >
       sh -c "
@@ -389,7 +389,7 @@ services:
         crond -f
       "
     volumes:
-      - openclaw-data:/data:ro
+      - betaclaw-data:/data:ro
       - ./backups:/backup
       - ./scripts/backup.sh:/backup/backup.sh:ro
     environment:
@@ -401,14 +401,14 @@ services:
 # Volumes
 # ============================================================================
 volumes:
-  openclaw-data:
+  betaclaw-data:
     driver: local
 
 # ============================================================================
 # Networks
 # ============================================================================
 networks:
-  openclaw-network:
+  betaclaw-network:
     driver: bridge
     ipam:
       config:
@@ -419,7 +419,7 @@ networks:
 
 ```bash
 # Build image
-docker build -t openclaw-gateway:latest .
+docker build -t betaclaw-gateway:latest .
 
 # Run with docker compose
 docker compose up -d
@@ -432,7 +432,7 @@ docker compose logs -f scheduler
 docker compose up -d --scale web=3
 
 # Backup volume
-docker run --rm -v openclaw_openclaw-data:/data -v $(pwd)/backups:/backup alpine tar czf /backup/backup-$(date +%Y%m%d).tar.gz -C /data .
+docker run --rm -v betaclaw_betaclaw-data:/data -v $(pwd)/backups:/backup alpine tar czf /backup/backup-$(date +%Y%m%d).tar.gz -C /data .
 ```
 
 ---
@@ -443,38 +443,38 @@ docker run --rm -v openclaw_openclaw-data:/data -v $(pwd)/backups:/backup alpine
 
 ```bash
 # Create dedicated user
-sudo useradd -r -s /bin/false -d /opt/openclaw -m openclaw
+sudo useradd -r -s /bin/false -d /opt/betaclaw -m betaclaw
 
 # Create directory structure
-sudo mkdir -p /opt/openclaw/{.local,logs,backups}
-sudo chown -R openclaw:openclaw /opt/openclaw
+sudo mkdir -p /opt/betaclaw/{.local,logs,backups}
+sudo chown -R betaclaw:betaclaw /opt/betaclaw
 
 # Set permissions
-sudo chmod 750 /opt/openclaw
-sudo chmod 755 /opt/openclaw/.local
+sudo chmod 750 /opt/betaclaw
+sudo chmod 755 /opt/betaclaw/.local
 ```
 
-### openclaw-web.service
+### betaclaw-web.service
 
 ```ini
 [Unit]
-Description=OpenClaw Gateway Web Service
-Documentation=https://github.com/openclaw/gateway
+Description=BetaClaw Gateway Web Service
+Documentation=https://github.com/meco40/openworker
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=openclaw
-Group=openclaw
-WorkingDirectory=/opt/openclaw
+User=betaclaw
+Group=betaclaw
+WorkingDirectory=/opt/betaclaw
 
 # Environment
 Environment="NODE_ENV=production"
 Environment="PORT=3000"
 Environment="HOSTNAME=0.0.0.0"
 Environment="SWARM_RUNNER=server"
-EnvironmentFile=-/opt/openclaw/.env
+EnvironmentFile=-/opt/betaclaw/.env
 
 # Execution
 ExecStart=/usr/bin/node --import tsx server.ts
@@ -494,40 +494,40 @@ LimitNPROC=4096
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/openclaw/.local /opt/openclaw/logs
+ReadWritePaths=/opt/betaclaw/.local /opt/betaclaw/logs
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
 
 # Logging
-StandardOutput=append:/opt/openclaw/logs/web.log
-StandardError=append:/opt/openclaw/logs/web.error.log
-SyslogIdentifier=openclaw-web
+StandardOutput=append:/opt/betaclaw/logs/web.log
+StandardError=append:/opt/betaclaw/logs/web.error.log
+SyslogIdentifier=betaclaw-web
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-### openclaw-scheduler.service
+### betaclaw-scheduler.service
 
 ```ini
 [Unit]
-Description=OpenClaw Gateway Scheduler Service
-Documentation=https://github.com/openclaw/gateway
-After=network-online.target openclaw-web.service
+Description=BetaClaw Gateway Scheduler Service
+Documentation=https://github.com/meco40/openworker
+After=network-online.target betaclaw-web.service
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=openclaw
-Group=openclaw
-WorkingDirectory=/opt/openclaw
+User=betaclaw
+Group=betaclaw
+WorkingDirectory=/opt/betaclaw
 
 # Environment
 Environment="NODE_ENV=production"
 Environment="SWARM_RUNNER=scheduler"
 Environment="SCHEDULER_INSTANCE_ID=scheduler-1"
-EnvironmentFile=-/opt/openclaw/.env
+EnvironmentFile=-/opt/betaclaw/.env
 
 # Execution
 ExecStart=/usr/bin/node --import tsx scheduler.ts
@@ -547,15 +547,15 @@ LimitNPROC=4096
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/openclaw/.local /opt/openclaw/logs
+ReadWritePaths=/opt/betaclaw/.local /opt/betaclaw/logs
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
 
 # Logging
-StandardOutput=append:/opt/openclaw/logs/scheduler.log
-StandardError=append:/opt/openclaw/logs/scheduler.error.log
-SyslogIdentifier=openclaw-scheduler
+StandardOutput=append:/opt/betaclaw/logs/scheduler.log
+StandardError=append:/opt/betaclaw/logs/scheduler.error.log
+SyslogIdentifier=betaclaw-scheduler
 
 [Install]
 WantedBy=multi-user.target
@@ -568,23 +568,23 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reload
 
 # Enable services
-sudo systemctl enable openclaw-web.service
-sudo systemctl enable openclaw-scheduler.service
+sudo systemctl enable betaclaw-web.service
+sudo systemctl enable betaclaw-scheduler.service
 
 # Start services
-sudo systemctl start openclaw-web.service
-sudo systemctl start openclaw-scheduler.service
+sudo systemctl start betaclaw-web.service
+sudo systemctl start betaclaw-scheduler.service
 
 # Check status
-sudo systemctl status openclaw-web.service
-sudo systemctl status openclaw-scheduler.service
+sudo systemctl status betaclaw-web.service
+sudo systemctl status betaclaw-scheduler.service
 
 # View logs
-sudo journalctl -u openclaw-web -f
-sudo journalctl -u openclaw-scheduler -f
+sudo journalctl -u betaclaw-web -f
+sudo journalctl -u betaclaw-scheduler -f
 
 # Restart services
-sudo systemctl restart openclaw-web.service
+sudo systemctl restart betaclaw-web.service
 ```
 
 ---
@@ -666,7 +666,7 @@ sudo systemctl restart openclaw-web.service
 
 ```bash
 # =============================================================================
-# OpenClaw Gateway - Production Environment Configuration
+# BetaClaw Gateway - Production Environment Configuration
 # =============================================================================
 
 # Core
@@ -679,8 +679,8 @@ PORT=3000
 # SCHEDULER_INSTANCE_ID=scheduler-1
 
 # Database
-MESSAGES_DB_PATH=/opt/openclaw/.local/messages.db
-MEMORY_DB_PATH=/opt/openclaw/.local/memory.db
+MESSAGES_DB_PATH=/opt/betaclaw/.local/messages.db
+MEMORY_DB_PATH=/opt/betaclaw/.local/memory.db
 
 # Memory Service (canonical PostgreSQL)
 MEMORY_PROVIDER=postgres
@@ -814,23 +814,23 @@ Key metrics to monitor:
 
 ```yaml
 groups:
-  - name: openclaw-alerts
+  - name: betaclaw-alerts
     rules:
-      - alert: OpenClawWebDown
-        expr: up{job="openclaw-web"} == 0
+      - alert: BetaClawWebDown
+        expr: up{job="betaclaw-web"} == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: 'OpenClaw web service is down'
+          summary: 'BetaClaw web service is down'
 
-      - alert: OpenClawSchedulerDown
+      - alert: BetaClawSchedulerDown
         expr: time() - scheduler_last_heartbeat_seconds > 120
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: 'OpenClaw scheduler is not heartbeating'
+          summary: 'BetaClaw scheduler is not heartbeating'
 
       - alert: HighErrorRate
         expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
@@ -854,21 +854,21 @@ ALERT_WEBHOOK="${ALERT_WEBHOOK_URL}"
 
 # Check web service
 if ! curl -fsS "$WEB_URL" > /dev/null; then
-    echo "$(date): Web service unhealthy" | tee -a /opt/openclaw/logs/monitor.log
+    echo "$(date): Web service unhealthy" | tee -a /opt/betaclaw/logs/monitor.log
     # Send alert
-    curl -X POST "$ALERT_WEBHOOK" -d '{"text":"OpenClaw web service unhealthy"}'
+    curl -X POST "$ALERT_WEBHOOK" -d '{"text":"BetaClaw web service unhealthy"}'
 fi
 
 # Check scheduler heartbeat endpoint
 if [ -n "$SCHEDULER_TOKEN" ]; then
     if ! curl -fsS -H "x-scheduler-health-token: $SCHEDULER_TOKEN" "$SCHEDULER_URL" > /dev/null; then
-        echo "$(date): Scheduler heartbeat endpoint unhealthy" | tee -a /opt/openclaw/logs/monitor.log
-        curl -X POST "$ALERT_WEBHOOK" -d '{"text":"OpenClaw scheduler heartbeat endpoint unhealthy"}'
+        echo "$(date): Scheduler heartbeat endpoint unhealthy" | tee -a /opt/betaclaw/logs/monitor.log
+        curl -X POST "$ALERT_WEBHOOK" -d '{"text":"BetaClaw scheduler heartbeat endpoint unhealthy"}'
     fi
 else
     if ! curl -fsS "$SCHEDULER_URL" > /dev/null; then
-        echo "$(date): Scheduler heartbeat endpoint unhealthy" | tee -a /opt/openclaw/logs/monitor.log
-        curl -X POST "$ALERT_WEBHOOK" -d '{"text":"OpenClaw scheduler heartbeat endpoint unhealthy"}'
+        echo "$(date): Scheduler heartbeat endpoint unhealthy" | tee -a /opt/betaclaw/logs/monitor.log
+        curl -X POST "$ALERT_WEBHOOK" -d '{"text":"BetaClaw scheduler heartbeat endpoint unhealthy"}'
     fi
 fi
 ```
@@ -998,7 +998,7 @@ Der Gmail-Connector nutzt gespeicherte Connector-Secrets pro Scope (`gmail`) und
 
 ```bash
 # auto | mock | real
-OPENCLAW_MASTER_GMAIL_MODE=real
+BETACLAW_MASTER_GMAIL_MODE=real
 
 # Optional: Detailabrufe bei list/search steuern (1=true, 0=false)
 MASTER_GMAIL_FETCH_DETAILS=1
@@ -1070,13 +1070,13 @@ pnpm run test -- tests/unit/master tests/integration/master
 
 ```bash
 #!/bin/bash
-# backup.sh - Automated backup script for OpenClaw Gateway
+# backup.sh - Automated backup script for BetaClaw Gateway
 
 set -euo pipefail
 
 # Configuration
-DATA_DIR="/opt/openclaw/.local"
-BACKUP_DIR="/opt/openclaw/backups"
+DATA_DIR="/opt/betaclaw/.local"
+BACKUP_DIR="/opt/betaclaw/backups"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 DATE=$(date +%Y-%m-%d)
@@ -1107,7 +1107,7 @@ backup_database() {
 
 # Function: Full data directory backup
 backup_full() {
-    local archive_path="$BACKUP_DIR/openclaw_full_${TIMESTAMP}.tar.gz"
+    local archive_path="$BACKUP_DIR/betaclaw_full_${TIMESTAMP}.tar.gz"
 
     log "Creating full backup archive..."
     tar -czf "$archive_path" -C "$DATA_DIR" .
@@ -1174,7 +1174,7 @@ fi
 
 set -euo pipefail
 
-DATA_DIR="/opt/openclaw/.local"
+DATA_DIR="/opt/betaclaw/.local"
 BACKUP_FILE=$1
 
 if [ ! -f "$BACKUP_FILE" ]; then
@@ -1183,8 +1183,8 @@ if [ ! -f "$BACKUP_FILE" ]; then
 fi
 
 # Stop services
-sudo systemctl stop openclaw-web
-sudo systemctl stop openclaw-scheduler
+sudo systemctl stop betaclaw-web
+sudo systemctl stop betaclaw-scheduler
 
 # Create restore point of current database
 cp "$DATA_DIR/messages.db" "$DATA_DIR/messages.db.pre-restore.$(date +%s)"
@@ -1197,7 +1197,7 @@ else
 fi
 
 # Set ownership
-sudo chown openclaw:openclaw "$DATA_DIR/messages.db"
+sudo chown betaclaw:betaclaw "$DATA_DIR/messages.db"
 
 # Verify database integrity
 if sqlite3 "$DATA_DIR/messages.db" "PRAGMA integrity_check;" | grep -q "ok"; then
@@ -1208,8 +1208,8 @@ else
 fi
 
 # Start services
-sudo systemctl start openclaw-web
-sudo systemctl start openclaw-scheduler
+sudo systemctl start betaclaw-web
+sudo systemctl start betaclaw-scheduler
 
 echo "Restore completed successfully"
 ```
@@ -1231,51 +1231,51 @@ echo "Restore completed successfully"
 
    ```bash
    # Download latest backup from S3
-   aws s3 cp s3://bucket/backups/openclaw_full_latest.tar.gz /tmp/
+   aws s3 cp s3://bucket/backups/betaclaw_full_latest.tar.gz /tmp/
 
    # Extract to data directory
-   sudo mkdir -p /opt/openclaw/.local
-   sudo tar -xzf /tmp/openclaw_full_latest.tar.gz -C /opt/openclaw/.local
-   sudo chown -R openclaw:openclaw /opt/openclaw
+   sudo mkdir -p /opt/betaclaw/.local
+   sudo tar -xzf /tmp/betaclaw_full_latest.tar.gz -C /opt/betaclaw/.local
+   sudo chown -R betaclaw:betaclaw /opt/betaclaw
    ```
 
 3. **Deploy application**
 
    ```bash
    # Clone repository
-   git clone https://github.com/openclaw/gateway.git /opt/openclaw
-   cd /opt/openclaw
+   git clone https://github.com/meco40/openworker /opt/betaclaw
+   cd /opt/betaclaw
 
    # Install dependencies
    pnpm install --frozen-lockfile --omit=dev
 
    # Copy environment
-   cp /tmp/.env /opt/openclaw/.env
+   cp /tmp/.env /opt/betaclaw/.env
    ```
 
 4. **Start services**
    ```bash
-   sudo systemctl enable --now openclaw-web
-   sudo systemctl enable --now openclaw-scheduler
+   sudo systemctl enable --now betaclaw-web
+   sudo systemctl enable --now betaclaw-scheduler
    ```
 
 **Scenario 2: Database Corruption**
 
 ```bash
 # 1. Stop services
-sudo systemctl stop openclaw-web openclaw-scheduler
+sudo systemctl stop betaclaw-web betaclaw-scheduler
 
 # 2. Check corruption
-sqlite3 /opt/openclaw/.local/messages.db "PRAGMA integrity_check;"
+sqlite3 /opt/betaclaw/.local/messages.db "PRAGMA integrity_check;"
 
 # 3. Attempt repair
-sqlite3 /opt/openclaw/.local/messages.db ".recover" | sqlite3 /opt/openclaw/.local/messages.db.recovered
+sqlite3 /opt/betaclaw/.local/messages.db ".recover" | sqlite3 /opt/betaclaw/.local/messages.db.recovered
 
 # 4. If repair fails, restore from backup
-./restore.sh /opt/openclaw/backups/messages_20260217_000000.db.gz
+./restore.sh /opt/betaclaw/backups/messages_20260217_000000.db.gz
 
 # 5. Start services
-sudo systemctl start openclaw-web openclaw-scheduler
+sudo systemctl start betaclaw-web betaclaw-scheduler
 ```
 
 ---
@@ -1303,7 +1303,7 @@ services:
 **Load Balancer Configuration (Nginx):**
 
 ```nginx
-upstream openclaw_backend {
+upstream betaclaw_backend {
     least_conn;
     server web1:3000 max_fails=3 fail_timeout=30s;
     server web2:3000 max_fails=3 fail_timeout=30s;
@@ -1312,10 +1312,10 @@ upstream openclaw_backend {
 
 server {
     listen 80;
-    server_name openclaw.example.com;
+    server_name betaclaw.example.com;
 
     location / {
-        proxy_pass http://openclaw_backend;
+        proxy_pass http://betaclaw_backend;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -1355,9 +1355,9 @@ SQLite limitations for high-scale deployments:
 
 ```bash
 # SQLite optimizations
-echo "PRAGMA journal_mode=WAL;" | sqlite3 /opt/openclaw/.local/messages.db
-echo "PRAGMA synchronous=NORMAL;" | sqlite3 /opt/openclaw/.local/messages.db
-echo "PRAGMA cache_size=-64000;" | sqlite3 /opt/openclaw/.local/messages.db
+echo "PRAGMA journal_mode=WAL;" | sqlite3 /opt/betaclaw/.local/messages.db
+echo "PRAGMA synchronous=NORMAL;" | sqlite3 /opt/betaclaw/.local/messages.db
+echo "PRAGMA cache_size=-64000;" | sqlite3 /opt/betaclaw/.local/messages.db
 
 # Node.js optimizations
 export NODE_OPTIONS="--max-old-space-size=4096"
@@ -1388,13 +1388,13 @@ sudo iptables -A INPUT -p tcp --dport 3000 -j DROP
 
 ```bash
 # Secure data directory
-sudo chown -R openclaw:openclaw /opt/openclaw
-sudo chmod 750 /opt/openclaw
-sudo chmod 700 /opt/openclaw/.local
-sudo chmod 600 /opt/openclaw/.env
+sudo chown -R betaclaw:betaclaw /opt/betaclaw
+sudo chmod 750 /opt/betaclaw
+sudo chmod 700 /opt/betaclaw/.local
+sudo chmod 600 /opt/betaclaw/.env
 
 # Secure backups
-sudo chmod 700 /opt/openclaw/backups
+sudo chmod 700 /opt/betaclaw/backups
 ```
 
 ### Secrets Management
@@ -1402,9 +1402,9 @@ sudo chmod 700 /opt/openclaw/backups
 **Option 1: Environment Files (Basic)**
 
 ```bash
-# /opt/openclaw/.env
-# Mode 600, owned by root:openclaw
-setfacl -m u:openclaw:r /opt/openclaw/.env
+# /opt/betaclaw/.env
+# Mode 600, owned by root:betaclaw
+setfacl -m u:betaclaw:r /opt/betaclaw/.env
 ```
 
 **Option 2: Docker Secrets (Swarm)**
@@ -1427,7 +1427,7 @@ services:
 
 ```bash
 # Retrieve secrets at runtime
-export GEMINI_API_KEY=$(vault kv get -field=key secret/openclaw/gemini)
+export GEMINI_API_KEY=$(vault kv get -field=key secret/betaclaw/gemini)
 ```
 
 ### SSL/TLS Configuration
@@ -1436,10 +1436,10 @@ export GEMINI_API_KEY=$(vault kv get -field=key secret/openclaw/gemini)
 # Nginx SSL configuration
 server {
     listen 443 ssl http2;
-    server_name openclaw.example.com;
+    server_name betaclaw.example.com;
 
-    ssl_certificate /etc/letsencrypt/live/openclaw.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/openclaw.example.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/betaclaw.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/betaclaw.example.com/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
     ssl_prefer_server_ciphers on;
@@ -1482,17 +1482,17 @@ server {
 
 ```bash
 # 1. Check service logs
-sudo journalctl -u openclaw-web -n 100 --no-pager
+sudo journalctl -u betaclaw-web -n 100 --no-pager
 
 # 2. Check environment variables
-sudo cat /opt/openclaw/.env
+sudo cat /opt/betaclaw/.env
 
 # 3. Verify file permissions
-ls -la /opt/openclaw/
-ls -la /opt/openclaw/.local/
+ls -la /opt/betaclaw/
+ls -la /opt/betaclaw/.local/
 
 # 4. Test configuration
-sudo -u openclaw node --import tsx -e "console.log('Node.js works')"
+sudo -u betaclaw node --import tsx -e "console.log('Node.js works')"
 
 # 5. Check port availability
 sudo ss -tlnp | grep 3000
@@ -1503,7 +1503,7 @@ sudo ss -tlnp | grep 3000
 | Cause             | Solution                                   |
 | ----------------- | ------------------------------------------ |
 | Missing API key   | Add required `*_API_KEY` to `.env`         |
-| Permission denied | `chown -R openclaw:openclaw /opt/openclaw` |
+| Permission denied | `chown -R betaclaw:betaclaw /opt/betaclaw` |
 | Port in use       | Change `PORT` or stop conflicting service  |
 | Database locked   | Check for zombie processes                 |
 
@@ -1513,27 +1513,27 @@ sudo ss -tlnp | grep 3000
 
 ```bash
 # Check for locks
-lsof /opt/openclaw/.local/messages.db
+lsof /opt/betaclaw/.local/messages.db
 
 # Force WAL checkpoint
-echo "PRAGMA wal_checkpoint(TRUNCATE);" | sqlite3 /opt/openclaw/.local/messages.db
+echo "PRAGMA wal_checkpoint(TRUNCATE);" | sqlite3 /opt/betaclaw/.local/messages.db
 
 # If corrupted, restore from backup
-./restore.sh /opt/openclaw/backups/messages_latest.db.gz
+./restore.sh /opt/betaclaw/backups/messages_latest.db.gz
 ```
 
 **Symptom:** Slow queries
 
 ```bash
 # Enable query logging
-echo "PRAGMA query_only=ON;" | sqlite3 /opt/openclaw/.local/messages.db
+echo "PRAGMA query_only=ON;" | sqlite3 /opt/betaclaw/.local/messages.db
 
 # Analyze and optimize
-echo "ANALYZE;" | sqlite3 /opt/openclaw/.local/messages.db
-echo "REINDEX;" | sqlite3 /opt/openclaw/.local/messages.db
+echo "ANALYZE;" | sqlite3 /opt/betaclaw/.local/messages.db
+echo "REINDEX;" | sqlite3 /opt/betaclaw/.local/messages.db
 
 # Vacuum to reclaim space
-echo "VACUUM;" | sqlite3 /opt/openclaw/.local/messages.db
+echo "VACUUM;" | sqlite3 /opt/betaclaw/.local/messages.db
 ```
 
 ### Memory (PostgreSQL) Connection Issues
@@ -1589,7 +1589,7 @@ node --expose-gc --max-old-space-size=4096 server.ts
 # Use Chrome DevTools to profile
 
 # Restart with memory limit
-systemctl edit openclaw-web
+systemctl edit betaclaw-web
 # Add: Environment="NODE_OPTIONS=--max-old-space-size=2048"
 ```
 
@@ -1603,10 +1603,10 @@ curl -i http://localhost:3000/api/health/scheduler
 curl -fsS http://localhost:3000/api/health/scheduler | jq .
 
 # View scheduler logs
-sudo journalctl -u openclaw-scheduler -f
+sudo journalctl -u betaclaw-scheduler -f
 
 # Restart scheduler
-sudo systemctl restart openclaw-scheduler
+sudo systemctl restart betaclaw-scheduler
 ```
 
 ### Channel Integration Failures
@@ -1627,24 +1627,24 @@ sudo systemctl restart openclaw-scheduler
 #!/bin/bash
 # daily-check.sh
 
-echo "=== OpenClaw Daily Health Check ==="
+echo "=== BetaClaw Daily Health Check ==="
 
 # Service status
-systemctl is-active openclaw-web || echo "ALERT: Web service down"
-systemctl is-active openclaw-scheduler || echo "ALERT: Scheduler down"
+systemctl is-active betaclaw-web || echo "ALERT: Web service down"
+systemctl is-active betaclaw-scheduler || echo "ALERT: Scheduler down"
 
 # Disk space
-DISK_USAGE=$(df /opt/openclaw | tail -1 | awk '{print $5}' | tr -d '%')
+DISK_USAGE=$(df /opt/betaclaw | tail -1 | awk '{print $5}' | tr -d '%')
 if [ "$DISK_USAGE" -gt 80 ]; then
     echo "WARNING: Disk usage at ${DISK_USAGE}%"
 fi
 
 # Database size
-DB_SIZE=$(du -h /opt/openclaw/.local/messages.db | cut -f1)
+DB_SIZE=$(du -h /opt/betaclaw/.local/messages.db | cut -f1)
 echo "Database size: $DB_SIZE"
 
 # Recent errors
-ERROR_COUNT=$(journalctl -u openclaw-web --since "24 hours ago" | grep -c ERROR || echo 0)
+ERROR_COUNT=$(journalctl -u betaclaw-web --since "24 hours ago" | grep -c ERROR || echo 0)
 echo "Errors in last 24h: $ERROR_COUNT"
 ```
 
@@ -1658,39 +1658,39 @@ echo "=== Weekly Maintenance ==="
 
 # 1. Database maintenance
 echo "Optimizing database..."
-sqlite3 /opt/openclaw/.local/messages.db "VACUUM;"
-sqlite3 /opt/openclaw/.local/messages.db "REINDEX;"
-sqlite3 /opt/openclaw/.local/messages.db "ANALYZE;"
+sqlite3 /opt/betaclaw/.local/messages.db "VACUUM;"
+sqlite3 /opt/betaclaw/.local/messages.db "REINDEX;"
+sqlite3 /opt/betaclaw/.local/messages.db "ANALYZE;"
 
 # 2. Log rotation
-logrotate -f /etc/logrotate.d/openclaw
+logrotate -f /etc/logrotate.d/betaclaw
 
 # 3. Cleanup old backups
-find /opt/openclaw/backups -name "*.gz" -mtime +30 -delete
+find /opt/betaclaw/backups -name "*.gz" -mtime +30 -delete
 
 # 4. Update packages
 apt-get update && apt-get upgrade -y
 
 # 5. Restart services (if needed)
-# systemctl restart openclaw-web
+# systemctl restart betaclaw-web
 ```
 
 ### Log Rotation
 
 ```bash
-# /etc/logrotate.d/openclaw
-/opt/openclaw/logs/*.log {
+# /etc/logrotate.d/betaclaw
+/opt/betaclaw/logs/*.log {
     daily
     missingok
     rotate 14
     compress
     delaycompress
     notifempty
-    create 0640 openclaw openclaw
+    create 0640 betaclaw betaclaw
     sharedscripts
     postrotate
-        systemctl reload openclaw-web
-        systemctl reload openclaw-scheduler
+        systemctl reload betaclaw-web
+        systemctl reload betaclaw-scheduler
     endscript
 }
 ```
@@ -1714,24 +1714,24 @@ apt-get update && apt-get upgrade -y
 # upgrade.sh
 
 VERSION=$1
-BACKUP_DIR="/opt/openclaw/backups/pre-upgrade-$(date +%Y%m%d)"
+BACKUP_DIR="/opt/betaclaw/backups/pre-upgrade-$(date +%Y%m%d)"
 
 echo "Starting upgrade to version $VERSION"
 
 # 1. Create pre-upgrade backup
 mkdir -p "$BACKUP_DIR"
-tar -czf "$BACKUP_DIR/data.tar.gz" -C /opt/openclaw/.local .
-cp /opt/openclaw/.env "$BACKUP_DIR/"
+tar -czf "$BACKUP_DIR/data.tar.gz" -C /opt/betaclaw/.local .
+cp /opt/betaclaw/.env "$BACKUP_DIR/"
 
 # 2. Stop services
-sudo systemctl stop openclaw-scheduler
-sudo systemctl stop openclaw-web
+sudo systemctl stop betaclaw-scheduler
+sudo systemctl stop betaclaw-web
 
 # 3. Backup current code
-tar -czf "$BACKUP_DIR/code.tar.gz" -C /opt/openclaw --exclude=.local --exclude=logs --exclude=node_modules .
+tar -czf "$BACKUP_DIR/code.tar.gz" -C /opt/betaclaw --exclude=.local --exclude=logs --exclude=node_modules .
 
 # 4. Update code
-cd /opt/openclaw
+cd /opt/betaclaw
 git fetch origin
 git checkout "$VERSION"
 
@@ -1746,9 +1746,9 @@ pnpm install --frozen-lockfile --omit=dev
 pnpm run build
 
 # 8. Start services
-sudo systemctl start openclaw-web
+sudo systemctl start betaclaw-web
 sleep 5
-sudo systemctl start openclaw-scheduler
+sudo systemctl start betaclaw-scheduler
 
 # 9. Health check
 sleep 10
@@ -1772,21 +1772,21 @@ ROLLBACK_VERSION=$1
 echo "Rolling back to $ROLLBACK_VERSION"
 
 # 1. Stop services
-sudo systemctl stop openclaw-scheduler
-sudo systemctl stop openclaw-web
+sudo systemctl stop betaclaw-scheduler
+sudo systemctl stop betaclaw-web
 
 # 2. Restore code
-cd /opt/openclaw
+cd /opt/betaclaw
 git checkout "$ROLLBACK_VERSION"
 pnpm install --frozen-lockfile --omit=dev
 pnpm run build
 
 # 3. Restore data (if needed)
-# tar -xzf /opt/openclaw/backups/pre-upgrade-XXXX/data.tar.gz -C /opt/openclaw/.local
+# tar -xzf /opt/betaclaw/backups/pre-upgrade-XXXX/data.tar.gz -C /opt/betaclaw/.local
 
 # 4. Start services
-sudo systemctl start openclaw-web
-sudo systemctl start openclaw-scheduler
+sudo systemctl start betaclaw-web
+sudo systemctl start betaclaw-scheduler
 
 echo "Rollback completed"
 ```
@@ -1795,16 +1795,16 @@ echo "Rollback completed"
 
 ```bash
 # Check current schema version
-sqlite3 /opt/openclaw/.local/messages.db "PRAGMA user_version;"
+sqlite3 /opt/betaclaw/.local/messages.db "PRAGMA user_version;"
 
 # Apply migrations in order
 for migration in migrations/*.sql; do
     echo "Applying $migration..."
-    sqlite3 /opt/openclaw/.local/messages.db < "$migration"
+    sqlite3 /opt/betaclaw/.local/messages.db < "$migration"
 done
 
 # Update schema version
-sqlite3 /opt/openclaw/.local/messages.db "PRAGMA user_version = 2;"
+sqlite3 /opt/betaclaw/.local/messages.db "PRAGMA user_version = 2;"
 ```
 
 ---

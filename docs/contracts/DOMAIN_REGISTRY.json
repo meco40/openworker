@@ -12,7 +12,7 @@
         "src/server/**",
         "src/lib/db/**",
         "src/lib/events.ts",
-        "src/lib/openclaw/**",
+        "src/lib/betaclaw/**",
         "src/lib/types.ts"
       ],
       "owner": "team-core",

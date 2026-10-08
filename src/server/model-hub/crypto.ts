@@ -8,7 +8,7 @@ export interface EncryptedSecretPayload {
   tag: string;
 }
 
-function normalizeKey(input: string): Buffer {
+export function normalizeKey(input: string): Buffer {
   const trimmed = input.trim();
   if (/^[0-9a-fA-F]{64}$/.test(trimmed)) {
     return Buffer.from(trimmed, 'hex');

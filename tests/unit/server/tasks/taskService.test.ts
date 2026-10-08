@@ -262,7 +262,7 @@ describe('taskService', () => {
     it('deletes related records', () => {
       mockQueryOne.mockReturnValue(baseTask);
       deleteTask('1');
-      expect(mockRun).toHaveBeenCalledWith('DELETE FROM openclaw_sessions WHERE task_id = ?', [
+      expect(mockRun).toHaveBeenCalledWith('DELETE FROM betaclaw_sessions WHERE task_id = ?', [
         '1',
       ]);
       expect(mockRun).toHaveBeenCalledWith('DELETE FROM events WHERE task_id = ?', ['1']);

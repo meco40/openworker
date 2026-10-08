@@ -73,7 +73,7 @@ export const WhatsAppHandler: React.FC<WhatsAppHandlerProps> = ({
       <div className="animate-in fade-in flex flex-col items-center gap-6 py-4 duration-300">
         <div className="relative h-44 w-44 overflow-hidden rounded-2xl bg-white p-3 shadow-2xl">
           <Image
-            src="https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=openclaw-wa-link"
+            src="https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=betaclaw-wa-link"
             alt="QR Code"
             fill
             unoptimized

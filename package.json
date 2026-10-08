@@ -1,6 +1,7 @@
 {
-  "name": "openclaw-gateway-control-plane",
+  "name": "betaclaw-gateway-control-plane",
   "private": true,
+  "license": "MIT",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

@@ -17,7 +17,7 @@ function popFlag(args: string[], name: string): boolean {
 }
 
 function printGatewayHelp(): void {
-  console.log(`openclaw gateway <command>
+  console.log(`betaclaw gateway <command>
 
 Commands:
   run                            Start local web/gateway server

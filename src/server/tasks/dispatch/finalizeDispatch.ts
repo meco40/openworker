@@ -18,7 +18,7 @@ function buildDispatchSuccessPayload(params: PreparedDispatchContext): Record<st
     success: true,
     task_id: task.id,
     agent_id: agent.id,
-    session_id: session.openclaw_session_id,
+    session_id: session.betaclaw_session_id,
     message: 'Task dispatched to agent',
   };
 }
@@ -100,7 +100,7 @@ export function finalizeDispatch(
         success: true,
         task_id: task.id,
         agent_id: agent.id,
-        session_id: session.openclaw_session_id,
+        session_id: session.betaclaw_session_id,
         completed: true,
         new_status: 'testing',
         summary: completionSummary,

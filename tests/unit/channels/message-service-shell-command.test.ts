@@ -184,7 +184,7 @@ describe('MessageService shell-command route', () => {
     isCommandApprovedMock.mockReset();
     isCommandApprovedMock.mockReturnValue(false);
     shellInstalled = true;
-    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'false';
+    process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'false';
   });
 
   it('executes /shell directly when shell skill is installed', async () => {
@@ -225,7 +225,7 @@ describe('MessageService shell-command route', () => {
   });
 
   it('returns approval_required metadata for /shell when approvals are required', async () => {
-    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'true';
+    process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'true';
     const service = new MessageService(buildRepository());
     const result = await service.handleInbound(
       ChannelType.WEBCHAT,

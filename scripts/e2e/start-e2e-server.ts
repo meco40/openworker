@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
@@ -90,12 +91,12 @@ async function main(): Promise<void> {
   env.REQUIRE_AUTH = 'false';
   env.E2E_ALLOW_ANONYMOUS_AUTH = 'true';
   env.MODEL_HUB_TEST_MODE = '1';
-  env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'false';
+  env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'false';
   env.MEMORY_PROVIDER = 'mem0';
   env.MEM0_BASE_URL = `http://127.0.0.1:${mem0Port}`;
   env.MEM0_API_KEY = env.MEM0_API_KEY || 'test-mem0-key';
   env.MEM0_API_PATH = '/v1';
-  env.MODEL_HUB_ENCRYPTION_KEY = env.MODEL_HUB_ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef';
+  env.MODEL_HUB_ENCRYPTION_KEY = env.MODEL_HUB_ENCRYPTION_KEY || randomBytes(32).toString('hex');
   env.MESSAGES_DB_PATH = path.join(tempDir, 'messages.db');
   env.PERSONAS_DB_PATH = path.join(tempDir, 'personas.db');
   env.MEMORY_DB_PATH = path.join(tempDir, 'memory.db');

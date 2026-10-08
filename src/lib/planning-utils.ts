@@ -1,4 +1,4 @@
-import { getOpenClawClient } from './openclaw/client';
+import { getBetaClawClient } from './betaclaw/client';
 
 // Maximum input length for extractJSON to prevent ReDoS attacks
 const MAX_EXTRACT_JSON_LENGTH = 1_000_000; // 1MB
@@ -49,14 +49,14 @@ export function extractJSON(text: string): object | null {
 }
 
 /**
- * Get messages from OpenClaw API for a given session.
+ * Get messages from BetaClaw API for a given session.
  * Returns assistant messages with text content extracted.
  */
-export async function getMessagesFromOpenClaw(
+export async function getMessagesFromBetaClaw(
   sessionKey: string,
 ): Promise<Array<{ role: string; content: string }>> {
   try {
-    const client = getOpenClawClient();
+    const client = getBetaClawClient();
     if (!client.isConnected()) {
       await client.connect();
     }
@@ -88,7 +88,7 @@ export async function getMessagesFromOpenClaw(
 
     return messages;
   } catch (err) {
-    console.error('[Planning Utils] Failed to get messages from OpenClaw:', err);
+    console.error('[Planning Utils] Failed to get messages from BetaClaw:', err);
     return [];
   }
 }

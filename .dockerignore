@@ -1,13 +1,27 @@
 # ─── Docker Ignore ────────────────────────────────────────────
 node_modules
 .next
+.worktrees
+.pnpm-store
+.playwright-cli
+.playwright-mcp
+coverage
+dist
+output
+playwright-report
+test-results
+workspaces
 .git
 .gitignore
 *.md
 !README.md
+!THIRD_PARTY_NOTICES.md
 .local
 .env.local
 .env.*.local
+.env
+*.db
+*.db-*
 backups
 demo/
 docs
@@ -16,3 +30,14 @@ vitest.config.ts
 eslint.config.js
 .vscode
 *.log
+
+# Private environment, local tool settings and database files
+.env*
+.agent
+.claude
+.claude.json
+.codex/environments
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*

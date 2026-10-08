@@ -9,7 +9,7 @@ Validieren, dass Conversation-scope Projektverwaltung, Guard-Approval und Worksp
 - Gateway läuft lokal.
 - Ein User mit aktiver Persona ist verfügbar.
 - Telegram Channel Binding ist verbunden.
-- Optional: `OPENCLAW_EXEC_APPROVALS_REQUIRED=true` für `/shell`-Approval-Checks.
+- Optional: `BETACLAW_EXEC_APPROVALS_REQUIRED=true` für `/shell`-Approval-Checks.
 
 ## Test A: Projekt anlegen in WebUI und im gleichen Conversation-Kontext nutzen
 

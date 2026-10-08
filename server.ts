@@ -73,7 +73,7 @@ function resolveAuthSecret(): string {
   console.warn(
     '[SECURITY WARNING] NEXTAUTH_SECRET is not configured. Falling back to a local development secret.',
   );
-  return 'openclaw-local-nextauth-secret';
+  return 'betaclaw-local-nextauth-secret';
 }
 
 const SECRET = resolveAuthSecret();

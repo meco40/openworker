@@ -29,7 +29,7 @@ interface GithubSearchResponse {
 function getGithubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
-    'User-Agent': 'openclaw-gateway',
+    'User-Agent': 'betaclaw-gateway',
   };
   const token = getRuntimeConfigValue('github-manager.github_token');
   if (token) {

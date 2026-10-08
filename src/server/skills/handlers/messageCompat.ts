@@ -1,4 +1,4 @@
-import { getOpenClawClient } from '@/lib/openclaw/client';
+import { getBetaClawClient } from '@/lib/betaclaw/client';
 import type { SkillDispatchContext } from '@/server/skills/types';
 
 function readString(value: unknown): string {
@@ -28,7 +28,7 @@ export async function messageCompatHandler(
   context?: SkillDispatchContext,
 ) {
   const action = (readString(args.action) || 'send').toLowerCase();
-  const client = getOpenClawClient();
+  const client = getBetaClawClient();
 
   if (action === 'send') {
     const sessionKey = resolveSessionKey(args);

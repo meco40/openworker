@@ -112,7 +112,7 @@ function resetCircuitAfterSuccess(): void {
  */
 export function graphitiGroupId(userId: string, personaId: string, workspaceId: string): string {
   const canonicalScope = `${userId}\u0000${personaId}\u0000${workspaceId}`;
-  return `openclaw-${createHash('sha256').update(canonicalScope, 'utf8').digest('hex').slice(0, 32)}`;
+  return `betaclaw-${createHash('sha256').update(canonicalScope, 'utf8').digest('hex').slice(0, 32)}`;
 }
 
 function buildHeaders(config: GraphitiClientConfig): Record<string, string> {
@@ -187,7 +187,7 @@ function toGraphitiMessage(message: GraphitiMessage): Record<string, unknown> {
     role_type: message.roleType ?? 'system',
     role: message.role ?? null,
     timestamp: message.timestamp ?? new Date().toISOString(),
-    source_description: message.sourceDescription ?? 'OpenClaw World Model',
+    source_description: message.sourceDescription ?? 'BetaClaw World Model',
   };
 }
 
@@ -346,7 +346,7 @@ export async function upsertGraphitiNodes(
   let created = 0;
   for (const node of nodes) {
     await withRetries(`Graphiti node ${node.id}`, async () => {
-      const groupId = String(node.properties.segment ?? 'openclaw');
+      const groupId = String(node.properties.segment ?? 'betaclaw');
       await requestGraphiti(config, '/entity-node', {
         method: 'POST',
         body: JSON.stringify({

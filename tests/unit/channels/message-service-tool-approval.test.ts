@@ -191,10 +191,10 @@ function buildRepository(personaId: string | null): MessageRepository {
 }
 
 describe('MessageService tool approval flow', () => {
-  const previousApprovalsRequired = process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+  const previousApprovalsRequired = process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
 
   beforeEach(() => {
-    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'true';
+    process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'true';
     dispatchWithFallbackMock.mockReset();
     dispatchSkillMock.mockClear();
     approveCommandMock.mockClear();
@@ -204,9 +204,9 @@ describe('MessageService tool approval flow', () => {
 
   afterEach(() => {
     if (previousApprovalsRequired === undefined) {
-      delete process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+      delete process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
     } else {
-      process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = previousApprovalsRequired;
+      process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = previousApprovalsRequired;
     }
   });
 

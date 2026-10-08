@@ -1,4 +1,4 @@
-# ─── OpenClaw Gateway Docker Build ────────────────────────────
+# ─── BetaClaw Gateway Docker Build ────────────────────────────
 # Multi-stage build for the custom Next.js + WebSocket server.
 
 # ── Base ───────────────────────────────────────────────────────
@@ -23,10 +23,12 @@ FROM base AS builder
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
+COPY scripts/avatar/sync-headaudio-assets.mjs ./scripts/avatar/sync-headaudio-assets.mjs
 RUN pnpm install --frozen-lockfile
 
 COPY . .
-RUN pnpm run build
+# NextAuth is evaluated during prerender; the runtime stage gets its real secret separately.
+RUN NEXTAUTH_SECRET=build-only-not-for-runtime pnpm run build
 
 # ── Stage 3: Production ────────────────────────────────────────
 FROM node:22-alpine AS runner

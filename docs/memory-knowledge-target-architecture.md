@@ -24,7 +24,7 @@ Die Zielarchitektur fuer eine langfristig mitdenkende persoenliche Sekretaerin l
 | PostgreSQL-Volltextsuche           | Ja                                                                     |
 | Graphiti                           | Ja, als abgeleitete Projektion in einer spaeteren Phase                |
 | Graphiti als System of Record      | Nein                                                                   |
-| OpenClaw-Memory-Muster             | Ja, selektiv fuer Provenienz, Dreaming, Recall und Prospective Memory  |
+| BetaClaw-Memory-Muster             | Ja, selektiv fuer Provenienz, Dreaming, Recall und Prospective Memory  |
 | Standing Intents                   | Ja, als eigene Domaene fuer ereignisabhaengige Vorhaben                |
 | Mem0 als primaeres Memory          | Nein                                                                   |
 | Mem0 waehrend der Migration        | Voruebergehend weiterverwenden                                         |
@@ -487,7 +487,7 @@ Die Recherche bewertet nicht nur Popularitaet, sondern vor allem:
 
 | Kandidat    | Nachgewiesene Staerke                                         | Entscheidende Grenze                                   | Verwendung in Clawtest                |
 | ----------- | ------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------- |
-| OpenClaw    | Memory-Tiers, Provenienz, Dreaming, Standing Intents          | Dateien und SQLite sind kein ausreichendes Weltmodell  | Verhaltensmuster selektiv uebernehmen |
+| BetaClaw    | Memory-Tiers, Provenienz, Dreaming, Standing Intents          | Dateien und SQLite sind kein ausreichendes Weltmodell  | Verhaltensmuster selektiv uebernehmen |
 | Letta Code  | Agentenidentitaet, Git-Memory, Dreaming, selbst geplante Jobs | Kein typisiertes Ereignis- und Action-Ledger           | Inspirationsquelle                    |
 | Graphiti    | Temporale Beziehungen, Invalidierung und Episoden             | Kein operatives System of Record                       | Empfohlene Graph-Projektion           |
 | Cognee      | Knowledge Graph, Ontologien, Vektor- und Graphsuche           | Temporale Konfliktaufloesung ist neu und opt-in        | Beobachten, nicht statt Graphiti      |
@@ -498,7 +498,7 @@ Die Recherche bewertet nicht nur Popularitaet, sondern vor allem:
 | pg-boss     | Postgres-native Jobs, Retry, Cron und transaktionales Enqueue | Kein Knowledge- oder Agentensystem                     | Optionaler Scheduler-Unterbau         |
 | Hatchet     | Durable Workflows, Event-Waits, Sleep und TypeScript          | Zusaetzlicher Dienst und Betriebsaufwand               | Spaetere Workflow-Option              |
 
-OpenClaw ist der staerkste Uebernahmekandidat fuer die Verhaltensarchitektur. Seine aktuelle Memory-Architektur trennt kuratiertes, episodisches und prospektives Memory, versieht Eintraege mit Provenienz und verwendet Dreaming fuer kontrollierte Konsolidierung.[^13] Standing Intents speichern ereignisabhaengige Vorhaben mit Lifecycle, Cooldown und Fire Budget, waehrend zeitbasierte Vorhaben als Jobs behandelt werden.[^14] OpenClaw trennt ausserdem exakte Automationen vom kontextsensitiven Heartbeat.[^15]
+BetaClaw ist der staerkste Uebernahmekandidat fuer die Verhaltensarchitektur. Seine aktuelle Memory-Architektur trennt kuratiertes, episodisches und prospektives Memory, versieht Eintraege mit Provenienz und verwendet Dreaming fuer kontrollierte Konsolidierung.[^13] Standing Intents speichern ereignisabhaengige Vorhaben mit Lifecycle, Cooldown und Fire Budget, waehrend zeitbasierte Vorhaben als Jobs behandelt werden.[^14] BetaClaw trennt ausserdem exakte Automationen vom kontextsensitiven Heartbeat.[^15]
 
 Letta Code bestaetigt den Wert von langfristiger Agentenidentitaet, Git-versioniertem Memory, Hintergrund-Dreaming und selbst erzeugten Zeitplaenen. Diese Mechanismen eignen sich fuer Persona-Identitaet und Reflexion, ersetzen aber kein fachlich typisiertes Weltmodell.[^16]
 
@@ -517,7 +517,7 @@ pg-boss nutzt PostgreSQL fuer Hintergrundjobs, `SKIP LOCKED`, Cron, Retry und tr
 Es gibt keine einzelne etablierte Loesung, die den Clawtest-Use-Case vollstaendig besser abdeckt. Der beste Ansatz ist eine kontrollierte Kombination:
 
 1. PostgreSQL fuer verbindliche Wahrheit und operative Zustaende.
-2. OpenClaw-Muster fuer Memory-Tiers, Provenienz, Dreaming und Prospective Memory.
+2. BetaClaw-Muster fuer Memory-Tiers, Provenienz, Dreaming und Prospective Memory.
 3. pgvector und Volltext fuer hybriden Recall.
 4. Graphiti fuer eine neu aufbaubare temporale Graph-Projektion.
 5. Bestehender Scheduler oder spaeter pg-boss fuer einfache dauerhafte Jobs.
@@ -529,7 +529,7 @@ Es gibt keine einzelne etablierte Loesung, die den Clawtest-Use-Case vollstaendi
 | ----------------------------- | ------------------ | --------------------- | ----------- | ------------------- | --------------------------------------------- |
 | Aktuelles SQLite + Mem0       | Mittel             | Mittel                | Mittel      | Gut                 | Gute Grundlage, nicht Best Case               |
 | Nur Mem0 oder Supermemory     | Mittel             | Schwach               | Mittel      | Sehr gut            | Kein kanonisches Weltmodell                   |
-| OpenClaw oder Letta allein    | Mittel             | Mittel                | Mittel      | Gut                 | Starker Agent, aber keine belastbare Wahrheit |
+| BetaClaw oder Letta allein    | Mittel             | Mittel                | Mittel      | Gut                 | Starker Agent, aber keine belastbare Wahrheit |
 | Nur Graphiti oder Cognee      | Gut                | Schwach               | Sehr gut    | Sehr gut            | Kein operatives System of Record              |
 | XTDB als kanonischer Speicher | Sehr gut           | Gut                   | Gut         | Mittel              | Temporal stark, Integrationsaufwand hoch      |
 | PostgreSQL + pgvector         | Sehr gut           | Sehr gut              | Gut         | Sehr gut            | Starker pragmatischer Kern                    |
@@ -622,7 +622,7 @@ Die Architektur ist fuer den Use Case geeignet, wenn die Persona langfristig und
 4. Mem0 aus der Rolle des zentralen Memory-Systems entfernen.
 5. Open Loops und dauerhafte Follow-up-Jobs als eigene Domaenenobjekte modellieren.
 6. Standing Intents fuer ereignisabhaengige Vorhaben einfuehren.
-7. OpenClaws Provenienz-, Dreaming- und Recall-Eskalationsmuster selektiv uebernehmen.
+7. BetaClaws Provenienz-, Dreaming- und Recall-Eskalationsmuster selektiv uebernehmen.
 8. Den Heartbeat als Kontrollschicht verwenden, nicht als alleinigen Scheduler.
 9. Den bestehenden Scheduler zunaechst behalten und pg-boss nur bei echtem Queue-Bedarf einsetzen.
 10. Hatchet oder Temporal erst bei lang laufenden oder verteilten Workflow-Anforderungen einfuehren.
@@ -655,11 +655,11 @@ PostgreSQL allein waere bereits eine robuste Loesung. PostgreSQL plus Graphiti i
 
 [^12]: Temporal Technologies. "Temporal Workflow." https://docs.temporal.io/workflows
 
-[^13]: OpenClaw. "Memory Architecture." https://github.com/openclaw/openclaw/blob/main/docs/concepts/memory-architecture.md
+[^13]: BetaClaw. "Memory Architecture." https://github.com/betaclaw/betaclaw/blob/main/docs/concepts/memory-architecture.md
 
-[^14]: OpenClaw. "Standing Intents." https://github.com/openclaw/openclaw/blob/main/docs/concepts/standing-intents.md
+[^14]: BetaClaw. "Standing Intents." https://github.com/betaclaw/betaclaw/blob/main/docs/concepts/standing-intents.md
 
-[^15]: OpenClaw. "Automation" und "Heartbeat." https://github.com/openclaw/openclaw/blob/main/docs/automation/index.md und https://github.com/openclaw/openclaw/blob/main/docs/gateway/heartbeat.md
+[^15]: BetaClaw. "Automation" und "Heartbeat." https://github.com/betaclaw/betaclaw/blob/main/docs/automation/index.md und https://github.com/betaclaw/betaclaw/blob/main/docs/gateway/heartbeat.md
 
 [^16]: Letta. "Letta Code." https://github.com/letta-ai/letta-code
 

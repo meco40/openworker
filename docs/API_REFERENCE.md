@@ -39,7 +39,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | master        |     17 |
 | memory        |      1 |
 | model-hub     |     10 |
-| openclaw      |      4 |
+| betaclaw      |      4 |
 | ops           |      3 |
 | personas      |      4 |
 | security      |      2 |
@@ -57,7 +57,7 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | ------------------ | ------------------------- |
 | GET, POST          | /api/agents               |
 | GET, PATCH, DELETE | /api/agents/[id]          |
-| GET, POST, DELETE  | /api/agents/[id]/openclaw |
+| GET, POST, DELETE  | /api/agents/[id]/betaclaw |
 | GET                | /api/agents/discover      |
 | POST               | /api/agents/import        |
 
@@ -222,14 +222,14 @@ Diese Referenz beschreibt den **aktuellen** API-Stand der Codebasis.
 | GET, POST, PUT | /api/model-hub/pipeline                    |
 | GET            | /api/model-hub/providers                   |
 
-### /api/openclaw
+### /api/betaclaw
 
 | Methods                  | Route                       |
 | ------------------------ | --------------------------- |
-| GET                      | /api/openclaw/models        |
-| GET, POST                | /api/openclaw/sessions      |
-| GET, POST, PATCH, DELETE | /api/openclaw/sessions/[id] |
-| GET                      | /api/openclaw/status        |
+| GET                      | /api/betaclaw/models        |
+| GET, POST                | /api/betaclaw/sessions      |
+| GET, POST, PATCH, DELETE | /api/betaclaw/sessions/[id] |
+| GET                      | /api/betaclaw/status        |
 
 ### /api/ops
 

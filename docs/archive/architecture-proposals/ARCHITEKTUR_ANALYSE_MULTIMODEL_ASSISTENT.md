@@ -2,7 +2,7 @@
 
 > **Datum:** 10. Februar 2026  
 > **Revision:** v2 – Verfeinerung Super-Intelligenz + Worker-Delegation  
-> **Aktueller Stand:** OpenClaw Gateway v1.2.5
+> **Aktueller Stand:** BetaClaw Gateway v1.2.5
 
 ---
 
@@ -257,7 +257,7 @@ PROBLEM: Zwei getrennte Welten, die nicht kommunizieren
 **Aktuell** (`services/gateway.ts` Zeile 222-235):
 
 ```
-System-Instruction = "Du bist der OpenClaw Gateway Proactive Agent..."
+System-Instruction = "Du bist der BetaClaw Gateway Proactive Agent..."
 → Keine Unterscheidung zwischen Frage und Aufgabe
 → Alles wird inline beantwortet
 ```
@@ -268,7 +268,7 @@ System-Instruction = "Du bist der OpenClaw Gateway Proactive Agent..."
 // services/gateway.ts — ERWEITERTE SYSTEM INSTRUCTION
 
 export const SYSTEM_INSTRUCTION = `
-Du bist die OpenClaw Super-Intelligenz — der zentrale Koordinator eines
+Du bist die BetaClaw Super-Intelligenz — der zentrale Koordinator eines
 persönlichen Assistenten-Systems.
 
 ═══════════════════════════════════════════════════════
@@ -784,7 +784,7 @@ Worker → Super-Intelligenz:
     • Welches Projekt meinst du?
     • Sollen Unit-Tests oder E2E-Tests entstehen?"
 
-User: "Das aktuelle OpenClaw-Projekt, Unit-Tests bitte"
+User: "Das aktuelle BetaClaw-Projekt, Unit-Tests bitte"
 
 🧠 Super-Intelligenz → Worker:
    → Antwort weiterleiten

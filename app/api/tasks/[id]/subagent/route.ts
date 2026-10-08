@@ -1,6 +1,6 @@
 /**
  * Subagent Registration API
- * Register OpenClaw sub-agent sessions for tasks
+ * Register BetaClaw sub-agent sessions for tasks
  */
 
 import { NextResponse } from 'next/server';
@@ -21,10 +21,10 @@ export const POST = withUserContext<{ id: string }>(async ({ request, params, us
     }
     const body = await request.json();
 
-    const { openclaw_session_id, agent_name } = body;
+    const { betaclaw_session_id, agent_name } = body;
 
-    if (!openclaw_session_id) {
-      return NextResponse.json({ error: 'openclaw_session_id is required' }, { status: 400 });
+    if (!betaclaw_session_id) {
+      return NextResponse.json({ error: 'betaclaw_session_id is required' }, { status: 400 });
     }
 
     const db = getDb();
@@ -64,20 +64,20 @@ export const POST = withUserContext<{ id: string }>(async ({ request, params, us
       }
     }
 
-    // Insert OpenClaw session record
+    // Insert BetaClaw session record
     db.prepare(
       `
-      INSERT INTO openclaw_sessions 
-        (id, agent_id, openclaw_session_id, session_type, task_id, status)
+      INSERT INTO betaclaw_sessions
+        (id, agent_id, betaclaw_session_id, session_type, task_id, status)
       VALUES (?, ?, ?, ?, ?, ?)
     `,
-    ).run(sessionId, agentId, openclaw_session_id, 'subagent', taskId, 'active');
+    ).run(sessionId, agentId, betaclaw_session_id, 'subagent', taskId, 'active');
 
     // Get the created session
     const session = db
       .prepare(
         `
-      SELECT * FROM openclaw_sessions WHERE id = ?
+      SELECT * FROM betaclaw_sessions WHERE id = ?
     `,
       )
       .get(sessionId);
@@ -87,7 +87,7 @@ export const POST = withUserContext<{ id: string }>(async ({ request, params, us
       type: 'agent_spawned',
       payload: {
         taskId,
-        sessionId: openclaw_session_id,
+        sessionId: betaclaw_session_id,
         agentName: agent_name,
       },
     });
@@ -118,7 +118,7 @@ export const GET = withUserContext<{ id: string }>(async ({ params, userContext 
         s.*,
         a.name as agent_name,
         a.avatar_emoji as agent_avatar_emoji
-      FROM openclaw_sessions s
+      FROM betaclaw_sessions s
       LEFT JOIN agents a ON s.agent_id = a.id
       WHERE s.task_id = ? AND s.session_type = 'subagent'
       ORDER BY s.created_at DESC

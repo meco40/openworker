@@ -1,7 +1,7 @@
 import { queryAll, queryOne, run } from '@/lib/db';
 import { getMissionControlUrl, getProjectsPath } from '@/lib/config';
-import { getOpenClawClient } from '@/lib/openclaw/client';
-import type { Agent, OpenClawSession } from '@/lib/types';
+import { getBetaClawClient } from '@/lib/betaclaw/client';
+import type { Agent, BetaClawSession } from '@/lib/types';
 import { buildDispatchTaskMessage } from './message';
 import type { DispatchPreparationResult, DispatchTaskRow } from './types';
 
@@ -101,7 +101,7 @@ export async function prepareDispatch(taskId: string): Promise<DispatchPreparati
     };
   }
 
-  const client = getOpenClawClient();
+  const client = getBetaClawClient();
   if (!client.isConnected()) {
     try {
       await client.connect();
@@ -118,22 +118,22 @@ export async function prepareDispatch(taskId: string): Promise<DispatchPreparati
   }
 
   const now = new Date().toISOString();
-  let session = queryOne<OpenClawSession>(
-    'SELECT * FROM openclaw_sessions WHERE agent_id = ? AND status = ?',
+  let session = queryOne<BetaClawSession>(
+    'SELECT * FROM betaclaw_sessions WHERE agent_id = ? AND status = ?',
     [agent.id, 'active'],
   );
 
   if (!session) {
     const sessionId = crypto.randomUUID();
-    const openclawSessionId = `mission-control-${agent.name.toLowerCase().replace(/\s+/g, '-')}`;
+    const betaclawSessionId = `mission-control-${agent.name.toLowerCase().replace(/\s+/g, '-')}`;
 
     run(
-      `INSERT INTO openclaw_sessions (id, agent_id, openclaw_session_id, channel, status, created_at, updated_at)
+      `INSERT INTO betaclaw_sessions (id, agent_id, betaclaw_session_id, channel, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [sessionId, agent.id, openclawSessionId, 'mission-control', 'active', now, now],
+      [sessionId, agent.id, betaclawSessionId, 'mission-control', 'active', now, now],
     );
 
-    session = queryOne<OpenClawSession>('SELECT * FROM openclaw_sessions WHERE id = ?', [
+    session = queryOne<BetaClawSession>('SELECT * FROM betaclaw_sessions WHERE id = ?', [
       sessionId,
     ]);
 

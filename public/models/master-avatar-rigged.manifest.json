@@ -1,6 +1,8 @@
 {
   "name": "master-avatar-rigged",
   "version": "1.0.0",
+  "license": "CC-BY-NC-4.0",
+  "attribution": "Ready Player Me; example distributed by Mika Suominen / met4citizen",
   "source": {
     "blend": "assets/avatar/master-avatar.blend",
     "sourceGlb": "assets/avatar/master-avatar-source.glb",

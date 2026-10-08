@@ -11,7 +11,7 @@ Sync Impact Report
 - Follow-up TODOs: None
 -->
 
-# OpenClaw Gateway Control Plane Constitution
+# BetaClaw Gateway Control Plane Constitution
 
 ## Core Principles
 

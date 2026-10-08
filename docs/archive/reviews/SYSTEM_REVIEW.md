@@ -1,10 +1,10 @@
-# 🔍 OpenClaw Gateway – Vollständiger System-Review
+# 🔍 BetaClaw Gateway – Vollständiger System-Review
 
 > **Erstellt:** 10. Februar 2026  
 > **Letztes Update:** 11. Februar 2026 (v1.2.6 – WebSocket Gateway, Auth, Worker, Stats)  
 > **Version:** v1.2.6  
 > **Plattform:** Next.js 16 (App Router) · React 19 · TypeScript 5.8 (strict)  
-> **Paketname:** `openclaw-gateway-control-plane`
+> **Paketname:** `betaclaw-gateway-control-plane`
 >
 > **Archiv-Hinweis (2026-02-15):** Diese Analyse beschreibt einen historischen Stand. Aktive Zielarchitektur ist Single-Principal-Sicherheit ohne Team-Collaboration-UI.
 
@@ -37,7 +37,7 @@
 
 ## 1. Executive Summary
 
-**OpenClaw Gateway** ist eine umfassende **AI Gateway Control Plane** – ein webbasiertes Management-Dashboard zur Steuerung eines intelligenten, multi-channel AI-Assistenten. Die Anwendung ermöglicht:
+**BetaClaw Gateway** ist eine umfassende **AI Gateway Control Plane** – ein webbasiertes Management-Dashboard zur Steuerung eines intelligenten, multi-channel AI-Assistenten. Die Anwendung ermöglicht:
 
 - **Multi-Provider AI Routing** mit automatischem Fallback über 13 AI-Provider
 - **Multi-Channel Messaging** über Telegram, WhatsApp, Slack, Discord, iMessage, Signal, Teams und WebChat
@@ -1062,7 +1062,7 @@ queued → planning → executing → [waiting_approval] → review → complete
 
 | Metrik                      | Wert                                                                                                   |
 | --------------------------- | ------------------------------------------------------------------------------------------------------ |
-| **Projekt-Name**            | `openclaw-gateway-control-plane`                                                                       |
+| **Projekt-Name**            | `betaclaw-gateway-control-plane`                                                                       |
 | **Framework**               | Next.js 16.1.6 + React 19.2.4                                                                          |
 | **Sprache**                 | TypeScript 5.8.2 (strict mode)                                                                         |
 | **Runtime**                 | Custom Server (`tsx`) + WebSocket (`ws`)                                                               |

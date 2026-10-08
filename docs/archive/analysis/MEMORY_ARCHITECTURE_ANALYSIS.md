@@ -1,4 +1,4 @@
-# Memory-Architektur Analyse: OpenClaw Gateway
+# Memory-Architektur Analyse: BetaClaw Gateway
 
 **Datum:** 2026-02-16 (IST-Stand, korrigiert)  
 **Ziel:** Optimierung für 24-Stunden-Begleiter mit totalem Recall

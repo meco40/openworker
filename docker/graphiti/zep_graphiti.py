@@ -1,4 +1,4 @@
-# OpenClaw patch of the pinned zepai/graphiti server module.
+# BetaClaw patch of the pinned zepai/graphiti server module.
 # Diff vs. upstream: `get_graphiti` applies `settings.max_tokens` to the LLM
 # client (env `MAX_TOKENS`) so larger extraction payloads are not truncated.
 # Mounted over /app/graph_service/zep_graphiti.py via docker-compose.graphiti.yml.

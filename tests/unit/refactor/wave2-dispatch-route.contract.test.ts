@@ -14,7 +14,7 @@ describe('wave2 dispatch route modularization contracts', () => {
     expect(routeSource).toContain('dispatchTask(');
     expect(routeSource).not.toContain('function classifyDispatchFailure(');
     expect(routeSource).not.toContain('TASK_COMPLETE:');
-    expect(routeSource).not.toContain('openclaw_sessions');
+    expect(routeSource).not.toContain('betaclaw_sessions');
   });
 
   it('splits dispatch flow into prepare, execute and finalize use-cases', () => {

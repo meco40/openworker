@@ -24,7 +24,7 @@ export async function deliverWhatsApp(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-openclaw-account-id': accountId,
+      'x-betaclaw-account-id': accountId,
     },
     body: JSON.stringify({ to: chatId, message: text, accountId, metadata }),
   });

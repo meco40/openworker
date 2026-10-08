@@ -20,10 +20,8 @@ export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = sanitizeCallbackUrl(searchParams.get('callbackUrl'));
-  const isDev = process.env.NODE_ENV !== 'production';
-
-  const [email, setEmail] = useState(isDev ? 'admin@local.dev' : '');
-  const [password, setPassword] = useState(isDev ? 'admin1234' : '');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,11 +54,6 @@ export default function LoginForm() {
         className="w-full max-w-sm space-y-4 rounded-xl border border-zinc-800 bg-zinc-950 p-6"
       >
         <h1 className="text-xl font-semibold">Sign In</h1>
-        {isDev ? (
-          <p className="text-sm text-zinc-400">
-            Standard lokal: <code>admin@local.dev</code> / <code>admin1234</code>
-          </p>
-        ) : null}
 
         <label className="block space-y-1 text-sm">
           <span>Email</span>

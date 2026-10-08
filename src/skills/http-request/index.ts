@@ -11,7 +11,7 @@ const manifest: SkillManifest = {
   tool: {
     name: 'http_request',
     description:
-      'Make an HTTP request to an external API. Supports GET, POST, PUT, PATCH, DELETE, HEAD. Can send JSON bodies and custom headers. Use for REST API calls, webhooks, or any HTTP interaction. Requires OPENCLAW_HTTP_SKILL_ENABLED=true.',
+      'Make an HTTP request to an external API. Supports GET, POST, PUT, PATCH, DELETE, HEAD. Can send JSON bodies and custom headers. Use for REST API calls, webhooks, or any HTTP interaction. Requires BETACLAW_HTTP_SKILL_ENABLED=true.',
     parameters: {
       type: 'object',
       properties: {

@@ -128,11 +128,11 @@ For build intent with active project:
 Tool loop reliability:
 
 - Empty final responses are replaced by structured statuses (`tool_limit_reached`, `empty_model_response`) instead of `(empty response)`.
-- Autonomous build mode uses a higher tool-call budget (default `120`, configurable via `OPENCLAW_AUTONOMOUS_MAX_TOOL_CALLS` up to hard cap `500`).
+- Autonomous build mode uses a higher tool-call budget (default `120`, configurable via `BETACLAW_AUTONOMOUS_MAX_TOOL_CALLS` up to hard cap `500`).
 - Repeated identical failed tool calls are short-circuited with `tool_stuck_repetition` to prevent infinite retry loops.
 - `shell_execute` runtime for build-heavy tasks is configurable via:
-  - `OPENCLAW_SHELL_TIMEOUT_MS` (default `600000`)
-  - `OPENCLAW_SHELL_MAX_BUFFER_BYTES` (default `10000000`)
+  - `BETACLAW_SHELL_TIMEOUT_MS` (default `600000`)
+  - `BETACLAW_SHELL_MAX_BUFFER_BYTES` (default `10000000`)
 
 ---
 

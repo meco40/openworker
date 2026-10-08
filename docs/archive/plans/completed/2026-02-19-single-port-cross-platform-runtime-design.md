@@ -176,7 +176,7 @@ Nachteile:
 5. Risiko: Unvollstaendige Uebernahme aus `demo` fuehrt zu Funktionsluecken.
    - Gegenmassnahme: Vollstaendigkeits-Checklist pro Modul und Blocker-Gate fuer offene Kompatibilitaetsfixes.
 
-## 11. Uebernahme aus `demo` (OpenClaw)
+## 11. Uebernahme aus `demo` (BetaClaw)
 
 Dieser Plan wird erweitert: Neben Single-Port-Betrieb wird der produktive Kern
 aus `demo` uebernommen, damit der Hauptchat, lokale CLI-Ausfuehrung und Channel-

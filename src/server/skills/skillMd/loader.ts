@@ -4,9 +4,9 @@
  *
  * Sources (highest priority last, overrides same `id`):
  *   1. bundled  — src/skills/*\/SKILL.md  (ships with the app)
- *   2. user     — ~/.config/openclaw/skills/*\/SKILL.md
+ *   2. user     — ~/.config/betaclaw/skills/*\/SKILL.md
  *   3. workspace — {cwd}/skills/*\/SKILL.md
- *   4. env-override — $OPENCLAW_SKILLS_DIR/*\/SKILL.md
+ *   4. env-override — $BETACLAW_SKILLS_DIR/*\/SKILL.md
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -109,9 +109,9 @@ function tryParseSkillMd(filePath: string, source: SkillSource): ParsedSkillMd |
  */
 export function loadAllSkillMd(opts?: LoadSkillsOptions): ParsedSkillMd[] {
   const bundledDir = resolveBundledSkillsDir();
-  const userDir = path.join(homedir(), '.config', 'openclaw', 'skills');
+  const userDir = path.join(homedir(), '.config', 'betaclaw', 'skills');
   const wsDir = opts?.workspaceCwd ? path.join(opts.workspaceCwd, 'skills') : null;
-  const envDir = process.env.OPENCLAW_SKILLS_DIR ?? null;
+  const envDir = process.env.BETACLAW_SKILLS_DIR ?? null;
 
   const cacheKey = [bundledDir, userDir, wsDir ?? '', envDir ?? ''].join('|');
 

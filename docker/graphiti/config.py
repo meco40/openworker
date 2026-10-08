@@ -1,4 +1,4 @@
-# OpenClaw patch of the pinned zepai/graphiti server config.
+# BetaClaw patch of the pinned zepai/graphiti server config.
 # Diff vs. upstream: adds the `max_tokens` setting (env `MAX_TOKENS`) so the
 # LLM output budget can be raised for larger extraction payloads, and a
 # `queue_workers` setting (env `QUEUE_WORKERS`) consumed by the patched

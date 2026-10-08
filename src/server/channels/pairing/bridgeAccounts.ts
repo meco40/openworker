@@ -209,7 +209,7 @@ export function resolveBridgeAccountIdFromRequest(params: {
   bodyAccountId?: unknown;
 }): string {
   const bodyAccountId = typeof params.bodyAccountId === 'string' ? params.bodyAccountId : undefined;
-  const headerAccountId = params.request.headers.get('x-openclaw-account-id') || undefined;
+  const headerAccountId = params.request.headers.get('x-betaclaw-account-id') || undefined;
   const urlAccountId = new URL(params.request.url).searchParams.get('accountId') || undefined;
   return normalizeBridgeAccountId(bodyAccountId || headerAccountId || urlAccountId);
 }

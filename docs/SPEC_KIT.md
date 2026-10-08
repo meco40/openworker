@@ -1,4 +1,4 @@
-# Spec Kit Workflow (OpenClaw)
+# Spec Kit Workflow (BetaClaw)
 
 Diese Codebase nutzt jetzt `spec-kit` (Codex + PowerShell Template) für
 spec-driven Entwicklung.

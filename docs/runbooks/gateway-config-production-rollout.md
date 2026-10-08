@@ -9,7 +9,7 @@
 
 ## Rollout Strategy
 
-1. Deploy behind feature flag `OPENCLAW_CONFIG_REVISION_ENFORCED=true` in staging first.
+1. Deploy behind feature flag `BETACLAW_CONFIG_REVISION_ENFORCED=true` in staging first.
 2. Run canary on 10% of sessions for 30 minutes.
 3. Monitor conflict (`409`) rate and save failure rates.
 4. Roll out to 100% if conflict rate remains stable.
@@ -18,7 +18,7 @@
 
 1. Disable revision enforcement feature flag.
 2. Redeploy previous build.
-3. Restore latest backup file (`openclaw.json.bak`) if config corruption is suspected.
+3. Restore latest backup file (`betaclaw.json.bak`) if config corruption is suspected.
 
 ## Incident Triage
 

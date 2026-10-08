@@ -3,7 +3,7 @@ import { fetchWithSsrfGuard, readResponseTextLimited } from '@/server/http/ssrfG
 export async function browserSnapshotHandler(args: Record<string, unknown>) {
   const url = String(args.url || '').trim() || 'https://example.com';
   const response = await fetchWithSsrfGuard(url, {
-    headers: { 'User-Agent': 'openclaw-browser-skill' },
+    headers: { 'User-Agent': 'betaclaw-browser-skill' },
   });
   if (!response.ok) throw new Error(`Failed to fetch URL (${response.status}).`);
   const html = await readResponseTextLimited(response, 1_000_000);

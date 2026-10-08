@@ -68,7 +68,7 @@ describe('proxy middleware branches', () => {
     const sameOriginResponse = await proxy(
       new NextRequest('http://localhost/api/private', {
         headers: {
-          'x-openclaw-client-loopback': '1',
+          'x-betaclaw-client-loopback': '1',
           host: 'localhost',
           origin: 'http://localhost',
         },
@@ -136,7 +136,7 @@ describe('proxy middleware branches', () => {
     const allowed = await proxy(
       new NextRequest('http://localhost/api/private', {
         headers: {
-          'x-openclaw-client-loopback': '1',
+          'x-betaclaw-client-loopback': '1',
           host: 'localhost',
           referer: 'http://localhost/page',
         },

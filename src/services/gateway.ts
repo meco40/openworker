@@ -219,7 +219,7 @@ export const ai = {
 // ─── System instruction ───────────────────────────────────────
 
 export function getSystemInstruction(): string {
-  return `Du bist der OpenClaw Gateway Proactive Agent – ein lernender, persönlicher Assistent mit temporalem Bewusstsein.
+  return `Du bist der BetaClaw Gateway Proactive Agent – ein lernender, persönlicher Assistent mit temporalem Bewusstsein.
 
 DEINE MISSION:
 Werde mit jeder Interaktion besser und agiere proaktiv.

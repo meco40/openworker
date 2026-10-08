@@ -64,7 +64,8 @@ export async function webFetchHandler(args: Record<string, unknown>) {
       url,
       {
         headers: {
-          'User-Agent': 'openclaw-web-fetch/1.0 (compatible; +https://openclaw.io)',
+          'User-Agent':
+            'betaclaw-web-fetch/1.0 (compatible; +https://github.com/meco40/openworker)',
           Accept: 'text/html,application/xhtml+xml,text/plain,*/*',
         },
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),

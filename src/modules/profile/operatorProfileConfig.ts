@@ -17,8 +17,8 @@ export interface OperatorUsageSnapshot {
 }
 
 const DEFAULT_OPERATOR_PROFILE: OperatorProfileState = {
-  displayName: 'OpenClaw Operator',
-  primaryContact: 'operator@openclaw.io',
+  displayName: 'BetaClaw Operator',
+  primaryContact: 'operator@betaclaw.io',
   localUuid: '',
   workspaceSlots: 12,
   dailyTokenBudget: 250_000,

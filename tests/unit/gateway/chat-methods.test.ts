@@ -31,14 +31,14 @@ function makeRequest(
 }
 
 describe('gateway chat methods', () => {
-  const previousKeepaliveMs = process.env.OPENCLAW_CHAT_STREAM_KEEPALIVE_MS;
+  const previousKeepaliveMs = process.env.BETACLAW_CHAT_STREAM_KEEPALIVE_MS;
 
   afterEach(() => {
     vi.useRealTimers();
     if (previousKeepaliveMs === undefined) {
-      delete process.env.OPENCLAW_CHAT_STREAM_KEEPALIVE_MS;
+      delete process.env.BETACLAW_CHAT_STREAM_KEEPALIVE_MS;
     } else {
-      process.env.OPENCLAW_CHAT_STREAM_KEEPALIVE_MS = previousKeepaliveMs;
+      process.env.BETACLAW_CHAT_STREAM_KEEPALIVE_MS = previousKeepaliveMs;
     }
   });
 
@@ -166,7 +166,7 @@ describe('gateway chat methods', () => {
   it('emits keepalive stream frames during long chat.stream handling', async () => {
     vi.useFakeTimers();
     vi.resetModules();
-    process.env.OPENCLAW_CHAT_STREAM_KEEPALIVE_MS = '1000';
+    process.env.BETACLAW_CHAT_STREAM_KEEPALIVE_MS = '1000';
 
     const handleWebUIMessage = vi.fn(
       async (

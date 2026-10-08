@@ -15,7 +15,7 @@ const DEFAULT_ENV_PATHS: Array<{ key: string; segments: string[] }> = [
   { key: 'MEMORY_DB_PATH', segments: ['db', 'memory.test.db'] },
   { key: 'KNOWLEDGE_DB_PATH', segments: ['db', 'knowledge.test.db'] },
   { key: 'MASTER_DB_PATH', segments: ['db', 'master.test.db'] },
-  { key: 'OPENCLAW_CONFIG_PATH', segments: ['db', 'gateway-config.test.json'] },
+  { key: 'BETACLAW_CONFIG_PATH', segments: ['db', 'gateway-config.test.json'] },
   { key: 'PERSONAS_ROOT_PATH', segments: ['personas'] },
   { key: 'CHAT_ATTACHMENTS_DIR', segments: ['uploads', 'chat'] },
   { key: 'TASK_WORKSPACES_ROOT', segments: ['workspaces'] },

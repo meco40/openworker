@@ -1,7 +1,7 @@
 # SKILL.md System — Implementation Notes
 
 **Date:** 2026-02-24  
-**Scope:** Migrate the OpenClaw demo's SKILL.md-based skill metadata system into the main project.
+**Scope:** Migrate the BetaClaw demo's SKILL.md-based skill metadata system into the main project.
 
 ---
 
@@ -23,7 +23,7 @@ Das Demo-Projekt verwendet `SKILL.md`-Dateien, um Skill-Metadaten (Emoji, OS-Ein
 
 - Standalone `SKILL.md` mit vollständigem `tool:` YAML-Block
 - Kein TypeScript notwendig
-- Unterstützt eigene Skills in `~/.config/openclaw/skills/` oder per `OPENCLAW_SKILLS_DIR`
+- Unterstützt eigene Skills in `~/.config/betaclaw/skills/` oder per `BETACLAW_SKILLS_DIR`
 
 ---
 
@@ -66,11 +66,11 @@ Erstellt für alle Built-in Skills:
 | subagents               | 🤖    | alle OS                               |
 | multi-tool-use-parallel | ⚡    | alle OS                               |
 | process-manager         | ⚙️    | alle OS                               |
-| gateway-self-heal       | 🔧    | `env: OPENCLAW_OWNER_USER_ID`         |
+| gateway-self-heal       | 🔧    | `env: BETACLAW_OWNER_USER_ID`         |
 | web-search              | 🔎    | `env: BRAVE_API_KEY`                  |
 | web-fetch               | 🌍    | alle OS                               |
-| http-request            | 🔗    | `env: OPENCLAW_HTTP_SKILL_ENABLED`    |
-| notifications           | 🔔    | `env: OPENCLAW_NOTIFICATIONS_ENABLED` |
+| http-request            | 🔗    | `env: BETACLAW_HTTP_SKILL_ENABLED`    |
+| notifications           | 🔔    | `env: BETACLAW_NOTIFICATIONS_ENABLED` |
 | pdf-generate            | 📄    | alle OS                               |
 
 ---

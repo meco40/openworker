@@ -3,7 +3,7 @@ id: gateway-self-heal
 emoji: 🔧
 requires:
   env:
-    - OPENCLAW_OWNER_USER_ID
+    - BETACLAW_OWNER_USER_ID
 ---
 
 Use this skill to diagnose and repair gateway connectivity issues.

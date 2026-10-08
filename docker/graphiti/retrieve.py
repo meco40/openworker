@@ -1,4 +1,4 @@
-"""OpenClaw patch for Graphiti search response provenance.
+"""BetaClaw patch for Graphiti search response provenance.
 
 The upstream REST DTO drops the source and target entity UUIDs even though the
 search layer already returns them. They are additive response fields and let

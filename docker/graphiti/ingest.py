@@ -1,4 +1,4 @@
-# OpenClaw patch of the pinned zepai/graphiti server ingest router.
+# BetaClaw patch of the pinned zepai/graphiti server ingest router.
 # Diff vs. upstream, two fixes:
 # 1. `AsyncWorker` ran a single worker task, so every queued episode (across
 #    every group/scope) was processed one at a time. This patch spawns

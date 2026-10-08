@@ -1,0 +1,13 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Exact synthetic values in regression tests and historical documentation; no path exclusions"
+regexTarget = "secret"
+regexes = [
+  '''^0123456789abcdef0123456789abcdef$''',
+  '''^(test|e2e)-mem0-key$''',
+  '''^env\.MEM0_API_KEY$''',
+  '''^sk_test_ABC1234567$''',
+  '''^eyJhbGciOiJIUzI1NiIs(\.\.\.)?$''',
+]

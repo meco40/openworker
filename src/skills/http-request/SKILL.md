@@ -3,7 +3,7 @@ id: http-request
 emoji: 🔗
 requires:
   env:
-    - OPENCLAW_HTTP_SKILL_ENABLED
+    - BETACLAW_HTTP_SKILL_ENABLED
 ---
 
 Use this skill to make arbitrary HTTP requests to external APIs.

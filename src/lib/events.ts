@@ -6,7 +6,7 @@
 import type { SSEEvent } from './types';
 
 /**
- * OpenClaw runs single-node for local usage.
+ * BetaClaw runs single-node for local usage.
  * This broadcaster intentionally uses in-memory state and is not multi-process safe.
  */
 const SSE_MODE = 'single-node-in-memory';

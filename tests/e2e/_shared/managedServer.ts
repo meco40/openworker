@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import net from 'node:net';
 import os from 'node:os';
@@ -127,8 +128,8 @@ export class ManagedServer {
       MEM0_API_KEY: 'test-mem0-key',
       MEM0_API_PATH: '/v1',
       MODEL_HUB_TEST_MODE: '1',
-      MODEL_HUB_ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef',
-      OPENCLAW_EXEC_APPROVALS_REQUIRED: 'false',
+      MODEL_HUB_ENCRYPTION_KEY: randomBytes(32).toString('hex'),
+      BETACLAW_EXEC_APPROVALS_REQUIRED: 'false',
       MESSAGES_DB_PATH: path.join(this.tempDir, 'messages.db'),
       PERSONAS_DB_PATH: path.join(this.tempDir, 'personas.db'),
       MEMORY_DB_PATH: path.join(this.tempDir, 'memory.db'),

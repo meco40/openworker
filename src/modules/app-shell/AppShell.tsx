@@ -12,7 +12,7 @@ interface AppShellProps {
 
 const AppShell: React.FC<AppShellProps> = ({ initialView }) => {
   return (
-    <ErrorBoundary label="OpenClaw Gateway" fullPage>
+    <ErrorBoundary label="BetaClaw Gateway" fullPage>
       <PersonaProvider>
         <App initialView={initialView} />
       </PersonaProvider>

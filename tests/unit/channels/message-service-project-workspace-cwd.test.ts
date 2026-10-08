@@ -138,12 +138,12 @@ vi.mock('../../../src/server/gateway/exec-approval-manager', async () => {
 });
 
 describe('MessageService active project workspaceCwd wiring', () => {
-  const previousApprovalsRequired = process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+  const previousApprovalsRequired = process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
   let repo: SqliteMessageRepository;
   let service: MessageService;
 
   beforeEach(async () => {
-    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'false';
+    process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'false';
     repo = new SqliteMessageRepository(':memory:');
     service = new MessageService(repo);
     dispatchWithFallbackMock.mockReset();
@@ -168,9 +168,9 @@ describe('MessageService active project workspaceCwd wiring', () => {
 
   afterEach(() => {
     if (previousApprovalsRequired === undefined) {
-      delete process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+      delete process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
     } else {
-      process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = previousApprovalsRequired;
+      process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = previousApprovalsRequired;
     }
   });
 
@@ -259,7 +259,7 @@ describe('MessageService active project workspaceCwd wiring', () => {
   });
 
   it('passes active project workspaceCwd during approval replay', async () => {
-    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'true';
+    process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'true';
     const workspacePath = getActiveWorkspacePath();
 
     const blocked = await service.handleInbound(

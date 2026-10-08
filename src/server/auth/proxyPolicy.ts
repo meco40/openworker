@@ -8,7 +8,7 @@
  * binds 127.0.0.1 because plain `next dev` cannot strip a client-sent marker.
  */
 
-export const CLIENT_LOOPBACK_HEADER = 'x-openclaw-client-loopback';
+export const CLIENT_LOOPBACK_HEADER = 'x-betaclaw-client-loopback';
 
 export interface BrowserRequestHeaders {
   host: string | null | undefined;

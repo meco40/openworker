@@ -2,13 +2,13 @@
 
 **Status:** 2026-03-03  
 **Version:** 1.1.0  
-**Purpose:** Authoritative technical reference for the OpenClaw Gateway Control Plane codebase
+**Purpose:** Authoritative technical reference for the BetaClaw Gateway Control Plane codebase
 
 ---
 
 ## Overview
 
-This document serves as the **single source of truth** for the OpenClaw Gateway Control Plane architecture, development practices, and operational procedures. It provides comprehensive guidance for developers, operators, and maintainers working with the system.
+This document serves as the **single source of truth** for the BetaClaw Gateway Control Plane architecture, development practices, and operational procedures. It provides comprehensive guidance for developers, operators, and maintainers working with the system.
 
 Historical analyses, deprecated designs, and completed implementation plans are archived in `docs/archive/`.
 
@@ -43,7 +43,7 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                           OPENCLAW GATEWAY CONTROL PLANE                                │
+│                           BETACLAW GATEWAY CONTROL PLANE                                │
 │                              System Architecture Overview                               │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 
@@ -192,7 +192,7 @@ Historical analyses, deprecated designs, and completed implementation plans are 
 ## Project Structure
 
 ```
-openclaw-gateway-control-plane/
+betaclaw-gateway-control-plane/
 │
 ├── app/                                    # Next.js App Router
 │   ├── api/                               # API route handlers

@@ -66,7 +66,7 @@ async function searchViaDuckDuckGo(
     skip_disambig: '1',
   });
   const res = await fetch(`https://api.duckduckgo.com/?${params}`, {
-    headers: { 'User-Agent': 'openclaw-web-search/1.0' },
+    headers: { 'User-Agent': 'betaclaw-web-search/1.0' },
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) throw new Error(`DuckDuckGo API error: ${res.status}`);

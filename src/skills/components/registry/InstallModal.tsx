@@ -94,7 +94,7 @@ export const InstallModal: React.FC<InstallModalProps> = ({
               tab === 'github'
                 ? 'https://github.com/user/skill-repo'
                 : tab === 'npm'
-                  ? '@openclaw/skill-weather'
+                  ? '@betaclaw/skill-weather'
                   : 'calendar'
             }
             className="w-full rounded-xl border border-zinc-700 bg-zinc-800 p-4 font-mono text-sm text-zinc-300 focus:border-indigo-500 focus:outline-none"

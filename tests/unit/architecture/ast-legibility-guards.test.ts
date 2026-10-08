@@ -5,14 +5,14 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = process.cwd();
 const LEGACY_ROUTE_DB_EXCEPTIONS = new Set([
-  'app/api/agents/[id]/openclaw/route.ts',
+  'app/api/agents/[id]/betaclaw/route.ts',
   'app/api/agents/[id]/route.ts',
   'app/api/agents/discover/route.ts',
   'app/api/agents/import/route.ts',
   'app/api/agents/route.ts',
   'app/api/events/route.ts',
-  'app/api/openclaw/sessions/[id]/route.ts',
-  'app/api/openclaw/sessions/route.ts',
+  'app/api/betaclaw/sessions/[id]/route.ts',
+  'app/api/betaclaw/sessions/route.ts',
   'app/api/tasks/[id]/activities/route.ts',
   'app/api/tasks/[id]/deliverables/route.ts',
   'app/api/tasks/[id]/planning/answer/route.ts',

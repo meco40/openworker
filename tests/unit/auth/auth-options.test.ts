@@ -48,7 +48,7 @@ describe('auth options secret resolution', () => {
     const { authOptions } = await import('@/auth');
 
     expect(typeof authOptions.secret).toBe('string');
-    expect(authOptions.secret).toBe('openclaw-local-nextauth-secret');
+    expect(authOptions.secret).toBe('betaclaw-local-nextauth-secret');
   });
 
   it('fails closed in production when no env secret exists', async () => {

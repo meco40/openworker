@@ -132,7 +132,7 @@ export async function processManagerHandler(
     }
 
     const requiresApproval =
-      String(process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
+      String(process.env.BETACLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
     if (
       requiresApproval &&
       !context?.bypassApproval &&

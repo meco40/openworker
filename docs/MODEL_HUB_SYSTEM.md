@@ -736,24 +736,11 @@ function maskSecret(secret: string): string {
 }
 ```
 
-### Development Fallback
+### Required encryption key
 
-In non-production environments, a development key is used if no environment variable is set:
+Development and production require an explicit `MODEL_HUB_ENCRYPTION_KEY`. Generate 32 random bytes (64 hex characters), for example with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. Invalid lengths and the published sample key, including its hex encoding, are rejected outside tests. Only `NODE_ENV=test` permits an isolated test fallback.
 
-```typescript
-const DEV_FALLBACK_KEY = '0123456789abcdef0123456789abcdef';
-
-export function getModelHubEncryptionKey(): string {
-  const key = process.env.MODEL_HUB_ENCRYPTION_KEY?.trim();
-  if (key && key.length > 0) return key;
-
-  if (process.env.NODE_ENV !== 'production') {
-    return DEV_FALLBACK_KEY; // 32 bytes
-  }
-
-  throw new Error('Missing MODEL_HUB_ENCRYPTION_KEY');
-}
-```
+When rotating a key with existing data, decrypt account credentials and OAuth refresh tokens with the old key and re-encrypt them with the new key in a database transaction. Verify round trips before updating the environment; changing only the environment value makes existing encrypted credentials unreadable. Keep any recovery backup private and outside Git.
 
 ### OAuth State Security
 
@@ -1074,9 +1061,9 @@ interface GatewayResponse {
 
 #### Required
 
-| Variable                   | Description                      | Example                            |
-| -------------------------- | -------------------------------- | ---------------------------------- |
-| `MODEL_HUB_ENCRYPTION_KEY` | 32-byte or 64-hex encryption key | `0123456789abcdef0123456789abcdef` |
+| Variable                   | Description                      | Example                |
+| -------------------------- | -------------------------------- | ---------------------- |
+| `MODEL_HUB_ENCRYPTION_KEY` | 32-byte or 64-hex encryption key | `<unique 32-byte key>` |
 
 #### Provider API Keys (Optional)
 

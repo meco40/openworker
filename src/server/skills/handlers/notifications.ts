@@ -4,7 +4,7 @@
  * webhook_send(url, payload, headers?)       — POST JSON to an arbitrary URL
  * email_send(to, subject, body, from?)       — Send email via SMTP (nodemailer)
  *
- * Gated by env: OPENCLAW_NOTIFICATIONS_ENABLED=true
+ * Gated by env: BETACLAW_NOTIFICATIONS_ENABLED=true
  * SMTP config: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
  */
 
@@ -31,8 +31,8 @@ async function sendWebhook(
   payload: unknown,
   headers: Record<string, string> = {},
 ): Promise<Record<string, unknown>> {
-  if (process.env.OPENCLAW_NOTIFICATIONS_ENABLED !== 'true') {
-    return { error: 'Webhook skill disabled. Set OPENCLAW_NOTIFICATIONS_ENABLED=true to enable.' };
+  if (process.env.BETACLAW_NOTIFICATIONS_ENABLED !== 'true') {
+    return { error: 'Webhook skill disabled. Set BETACLAW_NOTIFICATIONS_ENABLED=true to enable.' };
   }
 
   const response = await fetchWithSsrfGuard(
@@ -62,8 +62,8 @@ async function sendEmail(
   body: string,
   from?: string,
 ): Promise<Record<string, unknown>> {
-  if (process.env.OPENCLAW_NOTIFICATIONS_ENABLED !== 'true') {
-    return { error: 'Email skill disabled. Set OPENCLAW_NOTIFICATIONS_ENABLED=true to enable.' };
+  if (process.env.BETACLAW_NOTIFICATIONS_ENABLED !== 'true') {
+    return { error: 'Email skill disabled. Set BETACLAW_NOTIFICATIONS_ENABLED=true to enable.' };
   }
 
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;

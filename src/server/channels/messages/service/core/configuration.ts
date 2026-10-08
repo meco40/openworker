@@ -24,14 +24,14 @@ export function getSubagentMaxActivePerConversation(): number {
  * Check if interactive tool approval is required
  */
 export function requiresInteractiveToolApproval(): boolean {
-  return String(process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
+  return String(process.env.BETACLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
 }
 
 /**
  * Resolve maximum tool calls for autonomous builds
  */
 export function resolveAutonomousBuildMaxToolCalls(): number {
-  const raw = Number.parseInt(String(process.env.OPENCLAW_AUTONOMOUS_MAX_TOOL_CALLS || ''), 10);
+  const raw = Number.parseInt(String(process.env.BETACLAW_AUTONOMOUS_MAX_TOOL_CALLS || ''), 10);
   if (!Number.isFinite(raw) || raw <= 0) {
     return AUTONOMOUS_BUILD_MAX_TOOL_CALLS;
   }

@@ -1,4 +1,4 @@
-import { getOpenClawClient } from '@/lib/openclaw/client';
+import { getBetaClawClient } from '@/lib/betaclaw/client';
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -44,7 +44,7 @@ function findSessionById(sessions: unknown[], sessionId: string): Record<string,
 }
 
 export async function agentsListHandler(_args: Record<string, unknown>) {
-  const client = getOpenClawClient();
+  const client = getBetaClawClient();
   const agents = normalizeListPayload(await client.call('agents.list', {}));
   return {
     agents,
@@ -53,7 +53,7 @@ export async function agentsListHandler(_args: Record<string, unknown>) {
 }
 
 export async function sessionsListHandler(args: Record<string, unknown>) {
-  const client = getOpenClawClient();
+  const client = getBetaClawClient();
   const sessions = normalizeListPayload(await client.call('sessions.list', {}));
 
   const limit = readNumber(args.limit);
@@ -72,7 +72,7 @@ export async function sessionsHistoryHandler(args: Record<string, unknown>) {
     throw new Error('sessions_history requires sessionId.');
   }
 
-  const client = getOpenClawClient();
+  const client = getBetaClawClient();
   const messages = normalizeListPayload(
     await client.call('sessions.history', { session_id: sessionId }),
   );
@@ -95,7 +95,7 @@ export async function sessionsSendHandler(args: Record<string, unknown>) {
     throw new Error('sessions_send requires content.');
   }
 
-  const client = getOpenClawClient();
+  const client = getBetaClawClient();
   const result = await client.call('sessions.send', {
     session_id: sessionId,
     content,
@@ -108,7 +108,7 @@ export async function sessionsSendHandler(args: Record<string, unknown>) {
 }
 
 export async function sessionsSpawnHandler(args: Record<string, unknown>) {
-  const client = getOpenClawClient();
+  const client = getBetaClawClient();
 
   const channel = readString(args.channel) || 'mission-control';
   const peer = readString(args.peer) || readString(args.label) || undefined;
@@ -133,7 +133,7 @@ export async function sessionsSpawnHandler(args: Record<string, unknown>) {
 }
 
 export async function sessionStatusHandler(args: Record<string, unknown>) {
-  const client = getOpenClawClient();
+  const client = getBetaClawClient();
   const listed = normalizeListPayload(await client.call('sessions.list', {}));
   const requestedSessionId = resolveSessionId(args);
   const fallback = listed[0];

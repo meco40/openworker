@@ -1,8 +1,7 @@
 import { ModelHubService } from '@/server/model-hub/service';
 import { SqliteModelHubRepository } from '@/server/model-hub/repositories/sqliteModelHubRepository';
 import type { GatewayRequest, GatewayResponse } from '@/server/model-hub/gateway';
-
-const DEV_FALLBACK_KEY = '0123456789abcdef0123456789abcdef';
+import { normalizeKey } from '@/server/model-hub/crypto';
 
 declare global {
   var __modelHubRepository: SqliteModelHubRepository | undefined;
@@ -110,10 +109,21 @@ function buildTestModeService(): ModelHubService {
 
 export function getModelHubEncryptionKey(): string {
   const key = process.env.MODEL_HUB_ENCRYPTION_KEY?.trim();
-  if (key && key.length > 0) return key;
+  if (key) {
+    const bytes = normalizeKey(key);
+    if (
+      process.env.NODE_ENV !== 'test' &&
+      bytes.equals(Buffer.from('0123456789abcdef0123456789abcdef'))
+    ) {
+      throw new Error(
+        'Public example MODEL_HUB_ENCRYPTION_KEY is unsafe; rotate existing secrets.',
+      );
+    }
+    return key;
+  }
 
-  if (process.env.NODE_ENV !== 'production') {
-    return DEV_FALLBACK_KEY;
+  if (process.env.NODE_ENV === 'test') {
+    return 'test-only-encryption-key-32bytes';
   }
 
   throw new Error('Missing MODEL_HUB_ENCRYPTION_KEY');

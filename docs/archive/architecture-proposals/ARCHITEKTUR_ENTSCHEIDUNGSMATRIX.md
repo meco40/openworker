@@ -1,7 +1,7 @@
 # Architektur-Entscheidungsmatrix
 
 Stand: 10.02.2026  
-Projekt: `openclaw-gateway-control-plane`
+Projekt: `betaclaw-gateway-control-plane`
 
 ## Ziel
 

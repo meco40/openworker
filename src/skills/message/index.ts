@@ -10,7 +10,7 @@ const manifest: SkillManifest = {
   functionName: 'message',
   tool: {
     name: 'message',
-    description: 'Send, read, or delete messages through integrated OpenClaw APIs.',
+    description: 'Send, read, or delete messages through integrated BetaClaw APIs.',
     parameters: {
       type: 'object',
       properties: {

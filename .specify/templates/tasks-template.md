@@ -22,7 +22,7 @@ description: 'Task list template for feature implementation'
 
 ## Path Conventions
 
-- **OpenClaw layout**: `app/`, `components/`, `lib/`, `services/`, `src/`, `tests/` at repository root
+- **BetaClaw layout**: `app/`, `components/`, `lib/`, `services/`, `src/`, `tests/` at repository root
 - Use the existing feature location instead of introducing new top-level stacks
 - Always include exact file paths from this repository in every task
 

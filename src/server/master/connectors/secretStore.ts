@@ -9,7 +9,7 @@ let cachedSecretKey: Buffer | null = null;
 
 function resolveSecretKey(): Buffer {
   if (cachedSecretKey) return cachedSecretKey;
-  const configured = String(process.env.OPENCLAW_MASTER_SECRET_KEY || '').trim();
+  const configured = String(process.env.BETACLAW_MASTER_SECRET_KEY || '').trim();
   if (configured) {
     const base64Candidate = Buffer.from(configured, 'base64');
     if (base64Candidate.length === 32) {
@@ -24,7 +24,7 @@ function resolveSecretKey(): Buffer {
     cachedSecretKey = crypto.createHash('sha256').update(configured).digest();
     return cachedSecretKey;
   }
-  cachedSecretKey = crypto.createHash('sha256').update(`openclaw-master:${process.cwd()}`).digest();
+  cachedSecretKey = crypto.createHash('sha256').update(`betaclaw-master:${process.cwd()}`).digest();
   return cachedSecretKey;
 }
 

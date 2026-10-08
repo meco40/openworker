@@ -1,6 +1,6 @@
 # Architektur & Module
 
-Das OpenClaw Gateway folgt einer strengen modularen Architektur, um Wartbarkeit und Skalierbarkeit zu gewährleisten.
+Das BetaClaw Gateway folgt einer strengen modularen Architektur, um Wartbarkeit und Skalierbarkeit zu gewährleisten.
 
 ## 1. Modularitäts-Prinzip
 

@@ -38,8 +38,8 @@ describe('Mission Control planning route session key', () => {
       conversationId: 'conv-1',
     }));
 
-    vi.doMock('@/lib/openclaw/client', () => ({
-      getOpenClawClient: () => ({
+    vi.doMock('@/lib/betaclaw/client', () => ({
+      getBetaClawClient: () => ({
         isConnected: () => true,
         connect: async () => {},
         call: callMock,

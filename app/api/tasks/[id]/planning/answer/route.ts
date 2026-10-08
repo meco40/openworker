@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { getOpenClawClient } from '@/lib/openclaw/client';
+import { getBetaClawClient } from '@/lib/betaclaw/client';
 import { withUserContext } from '../../../../_shared/withUserContext';
 import { canAccessTask } from '@/server/auth/workspaceAccess';
 
@@ -87,15 +87,15 @@ If planning is complete, respond with JSON:
     const messages = task.planning_messages ? JSON.parse(task.planning_messages) : [];
     messages.push({ role: 'user', content: answerText, timestamp: Date.now() });
 
-    // Connect to OpenClaw and send the answer
-    const client = getOpenClawClient();
+    // Connect to BetaClaw and send the answer
+    const client = getBetaClawClient();
     if (!client.isConnected()) {
-      console.log('[Planning Answer] Connecting to OpenClaw...');
+      console.log('[Planning Answer] Connecting to BetaClaw...');
       await client.connect();
     }
 
     console.log(
-      '[Planning Answer] Sending answer to OpenClaw, session:',
+      '[Planning Answer] Sending answer to BetaClaw, session:',
       task.planning_session_key,
     );
     console.log('[Planning Answer] Answer text:', answerText);
@@ -108,7 +108,7 @@ If planning is complete, respond with JSON:
       });
       console.log('[Planning Answer] Send successful, result:', sendResult);
     } catch (sendError) {
-      console.error('[Planning Answer] Failed to send to OpenClaw:', sendError);
+      console.error('[Planning Answer] Failed to send to BetaClaw:', sendError);
       return NextResponse.json(
         { error: 'Failed to send answer to orchestrator: ' + (sendError as Error).message },
         { status: 500 },
@@ -124,9 +124,9 @@ If planning is complete, respond with JSON:
       )
       .run(JSON.stringify(messages), taskId);
 
-    // Poll for response via OpenClaw API - removed aggressive polling
+    // Poll for response via BetaClaw API - removed aggressive polling
     // Return immediately and let frontend poll for updates
-    // This eliminates 30 OpenClaw API calls per answer submission
+    // This eliminates 30 BetaClaw API calls per answer submission
 
     return NextResponse.json({
       success: true,

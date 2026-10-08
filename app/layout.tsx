@@ -4,8 +4,8 @@ import { AppClientProviders } from '@/components/providers/AppClientProviders';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'OpenClaw Gateway',
-  description: 'OpenClaw Gateway Control Plane',
+  title: 'BetaClaw Gateway',
+  description: 'BetaClaw Gateway Control Plane',
 };
 
 export default function RootLayout({

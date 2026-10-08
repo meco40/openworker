@@ -6,13 +6,13 @@ beforeEach(() => {
   vi.resetModules();
   callMock.mockReset();
 
-  vi.doMock('@/lib/openclaw/client', () => ({
-    getOpenClawClient: () => ({ call: callMock }),
+  vi.doMock('@/lib/betaclaw/client', () => ({
+    getBetaClawClient: () => ({ call: callMock }),
   }));
 });
 
 describe('session/agent compat handlers', () => {
-  it('maps sessions and agents tool calls to OpenClaw client methods', async () => {
+  it('maps sessions and agents tool calls to BetaClaw client methods', async () => {
     const {
       agentsListHandler,
       sessionStatusHandler,

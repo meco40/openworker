@@ -293,7 +293,7 @@ export default function MasterEntryPage({
 
       {/* ── Top label ────────────────────────────────────────────────────── */}
       <p className="relative z-10 mb-2 text-xs font-semibold tracking-[0.25em] text-cyan-500/70 uppercase">
-        OpenClaw Master Agent
+        BetaClaw Master Agent
       </p>
 
       {/* ── Particle face ────────────────────────────────────────────────── */}

@@ -19,7 +19,7 @@ describe('Sidebar mobile navigation', () => {
       fireEvent.click(trigger);
 
       expect(trigger).toHaveAttribute('aria-expanded', 'true');
-      expect(screen.getByRole('dialog', { name: 'OpenClaw navigation' })).toHaveAttribute(
+      expect(screen.getByRole('dialog', { name: 'BetaClaw navigation' })).toHaveAttribute(
         'aria-modal',
         'true',
       );

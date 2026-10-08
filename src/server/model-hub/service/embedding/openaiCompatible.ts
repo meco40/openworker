@@ -78,8 +78,8 @@ export async function dispatchOpenAICompatibleEmbedding(
     headers.Authorization = `Bearer ${normalizedSecret}`;
   }
   if (providerId === 'openrouter') {
-    headers['HTTP-Referer'] = 'https://openclaw.app';
-    headers['X-Title'] = 'OpenClaw';
+    headers['HTTP-Referer'] = 'https://github.com/meco40/openworker';
+    headers['X-Title'] = 'BetaClaw';
   }
 
   const response = await fetchWithTimeout(

@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: openclaw-web
+    container_name: betaclaw-web
     restart: always
     # Published on all host interfaces. Login is enforced (REQUIRE_AUTH=true):
     # productionGuard refuses to start without it and without NEXTAUTH_SECRET.
@@ -16,6 +16,9 @@ services:
       SWARM_RUNNER: scheduler
       REQUIRE_AUTH: ${REQUIRE_AUTH:-true}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set, run compose with --env-file .env.local}
+      AUTH_DEFAULT_EMAIL: ${AUTH_DEFAULT_EMAIL:-}
+      AUTH_DEFAULT_PASSWORD: ${AUTH_DEFAULT_PASSWORD:-}
+      AUTH_DEFAULT_NAME: ${AUTH_DEFAULT_NAME:-Admin}
       MC_API_TOKEN: ${MC_API_TOKEN:-}
       SCHEDULER_HEALTH_TOKEN: ${SCHEDULER_HEALTH_TOKEN:-}
       MEMORY_PROVIDER: mem0
@@ -38,7 +41,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: openclaw-scheduler
+    container_name: betaclaw-scheduler
     restart: always
     command: ['node', '--import', 'tsx', 'scheduler.ts']
     environment:
@@ -48,6 +51,9 @@ services:
       # Same auth guard as web (src/server/auth/productionGuard.ts).
       REQUIRE_AUTH: ${REQUIRE_AUTH:-true}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set, run compose with --env-file .env.local}
+      AUTH_DEFAULT_EMAIL: ${AUTH_DEFAULT_EMAIL:-}
+      AUTH_DEFAULT_PASSWORD: ${AUTH_DEFAULT_PASSWORD:-}
+      AUTH_DEFAULT_NAME: ${AUTH_DEFAULT_NAME:-Admin}
       MC_API_TOKEN: ${MC_API_TOKEN:-}
       MEMORY_PROVIDER: mem0
       MEM0_BASE_URL: ${MEM0_CONTAINER_BASE_URL:-http://host.docker.internal:8010}

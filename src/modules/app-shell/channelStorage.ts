@@ -1,6 +1,6 @@
 import type { CoupledChannel } from '@/shared/domain/types';
 
-export const COUPLED_CHANNELS_STORAGE_KEY = 'openclaw.coupledChannels.v1';
+export const COUPLED_CHANNELS_STORAGE_KEY = 'betaclaw.coupledChannels.v1';
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 

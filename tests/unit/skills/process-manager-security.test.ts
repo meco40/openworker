@@ -23,8 +23,8 @@ describe('processManagerHandler security', () => {
   });
 
   it('requires approval when exec approvals are enabled', async () => {
-    const previous = process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
-    process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = 'true';
+    const previous = process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
+    process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'true';
     const marker = `process-approval-${Date.now()}`;
     try {
       const result = (await processManagerHandler({
@@ -36,9 +36,9 @@ describe('processManagerHandler security', () => {
       expect(String(result.error || '')).toContain('Command requires approval.');
     } finally {
       if (previous === undefined) {
-        delete process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED;
+        delete process.env.BETACLAW_EXEC_APPROVALS_REQUIRED;
       } else {
-        process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED = previous;
+        process.env.BETACLAW_EXEC_APPROVALS_REQUIRED = previous;
       }
     }
   });

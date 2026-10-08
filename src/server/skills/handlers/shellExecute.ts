@@ -33,13 +33,13 @@ export function resolveShellExecutionOptionsFromEnv(): {
   timeoutMs: number;
   maxBufferBytes: number;
 } {
-  const timeoutRaw = Number.parseInt(String(process.env.OPENCLAW_SHELL_TIMEOUT_MS || ''), 10);
+  const timeoutRaw = Number.parseInt(String(process.env.BETACLAW_SHELL_TIMEOUT_MS || ''), 10);
   const timeoutMs = Number.isFinite(timeoutRaw)
     ? Math.max(MIN_SHELL_TIMEOUT_MS, Math.min(MAX_SHELL_TIMEOUT_MS, timeoutRaw))
     : DEFAULT_SHELL_TIMEOUT_MS;
 
   const maxBufferRaw = Number.parseInt(
-    String(process.env.OPENCLAW_SHELL_MAX_BUFFER_BYTES || ''),
+    String(process.env.BETACLAW_SHELL_MAX_BUFFER_BYTES || ''),
     10,
   );
   const maxBufferBytes = Number.isFinite(maxBufferRaw)
@@ -94,7 +94,7 @@ export async function shellExecuteHandler(
   }
 
   const requiresApproval =
-    String(process.env.OPENCLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
+    String(process.env.BETACLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
   if (
     requiresApproval &&
     !context?.bypassApproval &&

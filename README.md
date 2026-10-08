@@ -1,4 +1,4 @@
-# OpenClaw Gateway Control Plane
+# BetaClaw Gateway Control Plane
 
 **Stand:** 2026-08-17
 **Version:** 0.0.0
@@ -7,7 +7,7 @@
 
 ## Überblick
 
-OpenClaw Gateway ist eine **Next.js-basierte Multi-Channel-KI-Plattform** mit Unterstützung für:
+BetaClaw Gateway ist eine **Next.js-basierte Multi-Channel-KI-Plattform** mit Unterstützung für:
 
 - **Omnichannel-Messaging** (Telegram, WhatsApp, Discord, iMessage, Slack, WebChat)
 - **Persistente Chat-Konversationen** mit Persona-Bindung und Streaming-Tool-Loop
@@ -20,6 +20,8 @@ OpenClaw Gateway ist eine **Next.js-basierte Multi-Channel-KI-Plattform** mit Un
 ---
 
 ## Schnellstart
+
+Bestehende Installationen: [Hinweise zur BetaClaw-Umbenennung](docs/runbooks/betaclaw-rename.md).
 
 ### Voraussetzungen
 
@@ -58,7 +60,29 @@ pnpm run dev:scheduler
 - `MEM0_API_KEY=local-mem0-dev-token` (oder eigener Token)
 - `MEM0_API_PATH=/` (der gebündelte `mem0-local`-Dienst nutzt keinen `/v1`-Prefix)
 - `GEMINI_API_KEY=<key>` (für mem0-local Bootstrap, sofern im Stack verwendet)
-- `MODEL_HUB_ENCRYPTION_KEY=<32-byte-key>` (für Model-Hub-Secrets; empfohlen)
+- `MODEL_HUB_ENCRYPTION_KEY=<32-byte-key>` (für Model-Hub-Secrets; erforderlich, eigener Zufallswert)
+
+### Schlüssel und erster Login
+
+Erzeuge einen eigenen Model-Hub-Schlüssel und trage ihn in `.env.local` ein:
+
+```bash
+
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+
+```
+
+Der Schlüssel muss 32 Bytes lang sein (64 Hex-Zeichen sind zulässig). Der veröffentlichte Beispielschlüssel wird abgelehnt. Nur isolierte Unit-Tests erlauben einen Test-Fallback. Bei vorhandenen Model-Hub-Konten müssen gespeicherte Secrets vor einem Schlüsselwechsel mit dem alten Schlüssel entschlüsselt und mit dem neuen erneut verschlüsselt werden; ein bloßer Austausch der Variable macht sie unlesbar.
+
+Für den ersten lokalen oder produktiven Login setze `AUTH_DEFAULT_EMAIL` und ein eigenes `AUTH_DEFAULT_PASSWORD`, optional `AUTH_DEFAULT_NAME`. Es gibt keine voreingestellten Login-Daten. Ein bestehendes Konto mit dem früheren öffentlichen Standardpasswort wird bei explizit konfigurierten, sicheren Bootstrap-Daten aktualisiert; andere bestehende Passwörter bleiben erhalten. In Produktion verweigert eine leere Benutzerverwaltung die Initialisierung ohne Bootstrap-Daten. Verwende für Produktion außerdem `REQUIRE_AUTH=true` und einen eigenen `NEXTAUTH_SECRET`.
+
+Private Umgebungsdateien, Datenbanken, interne Agent-Notizen und Testausgaben gehören nicht in Git. Der Workflow `Secret Scan` prüft alle erreichbaren Commits mit Gitleaks. Ein lokaler Scan nutzt dieselbe Konfiguration:
+
+```bash
+
+docker run --rm --network none -v "${PWD}:/repo:ro" zricethezav/gitleaks:v8.30.1 git /repo --config /repo/.gitleaks.toml --log-opts=--all --redact --ignore-gitleaks-allow --no-banner
+
+```
 
 ### Produktion
 
@@ -233,7 +257,7 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | `MEM0_MAX_RETRIES`                     | Mem0 Retry-Limit                                                                     |
 | `MEM0_RETRY_BASE_DELAY_MS`             | Mem0 Retry-Backoff-Basis                                                             |
 | `MEM0_LLM_PROVIDER`                    | Optionales Bootstrap-LLM für mem0-local (ohne Hardcode)                              |
-| `MODEL_HUB_ENCRYPTION_KEY`             | Secret-Encryption-Key (in Produktion erforderlich)                                   |
+| `MODEL_HUB_ENCRYPTION_KEY`             | Secret-Encryption-Key (in Entwicklung und Produktion erforderlich)                   |
 | `OPENAI_OAUTH_CLIENT_ID`               | Optional: eigene OpenAI Codex OAuth Client ID                                        |
 | `OPENAI_OAUTH_CLIENT_SECRET`           | Optional: Client Secret für eigenen OAuth-Client                                     |
 | `OPENAI_OAUTH_REDIRECT_URI`            | Optional: Redirect URI für Codex OAuth                                               |
@@ -257,10 +281,10 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | `WHATSAPP_BRIDGE_URL`                  | WhatsApp Bridge URL                                                                  |
 | `IMESSAGE_BRIDGE_URL`                  | iMessage Bridge URL                                                                  |
 | `APP_URL`                              | Öffentliche App-URL (z. B. für Telegram Webhooks)                                    |
-| `OPENCLAW_AUTONOMOUS_MAX_TOOL_CALLS`   | Tool-Budget für autonome Build-Ausführung                                            |
-| `OPENCLAW_CHAT_STREAM_KEEPALIVE_MS`    | Keepalive-Intervall für `chat.stream`                                                |
-| `OPENCLAW_SHELL_TIMEOUT_MS`            | Laufzeitlimit für `shell_execute`                                                    |
-| `OPENCLAW_SHELL_MAX_BUFFER_BYTES`      | Output-Buffer-Limit für `shell_execute`                                              |
+| `BETACLAW_AUTONOMOUS_MAX_TOOL_CALLS`   | Tool-Budget für autonome Build-Ausführung                                            |
+| `BETACLAW_CHAT_STREAM_KEEPALIVE_MS`    | Keepalive-Intervall für `chat.stream`                                                |
+| `BETACLAW_SHELL_TIMEOUT_MS`            | Laufzeitlimit für `shell_execute`                                                    |
+| `BETACLAW_SHELL_MAX_BUFFER_BYTES`      | Output-Buffer-Limit für `shell_execute`                                              |
 | `REQUIRE_AUTH`                         | Auth erzwingen (`true`/`false`, Default `false`; siehe Netzwerkzugriff)              |
 | `HOSTNAME`                             | Bind-Adresse des Servers (Default `127.0.0.1`; Docker/Compose setzen `0.0.0.0`)      |
 | `NEXTAUTH_SECRET`                      | Secret für NextAuth-JWT-Signierung                                                   |
@@ -270,7 +294,7 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | `SCHEDULER_HEALTH_TOKEN`               | Bearer-Token für Scheduler-Health-Checks                                             |
 | `SWARM_RUNNER`                         | `server` oder `scheduler` — bestimmt, wer Agent-Room-Swarm ausführt                  |
 | `AGENT_V2_MAX_REQUESTS_PER_MINUTE`     | WebSocket-Rate-Limit (Default 600)                                                   |
-| `OPENCLAW_EXEC_APPROVALS_REQUIRED`     | Ausführungs-Approvals erforderlich (`true`/`false`)                                  |
+| `BETACLAW_EXEC_APPROVALS_REQUIRED`     | Ausführungs-Approvals erforderlich (`true`/`false`)                                  |
 | `TASK_WORKSPACES_ROOT`                 | Root-Verzeichnis für Task-Workspaces                                                 |
 | `TELEGRAM_BOT_TOKEN`                   | Legacy-Fallback für Telegram-Bot (Channel-Outbound)                                  |
 | `DISCORD_BOT_TOKEN`                    | Legacy-Fallback für Discord-Bot (Channel-Outbound)                                   |
@@ -315,7 +339,9 @@ Single endpoint path: `/ws` (clients must use `?protocol=v2`)
 
 ## Lizenz
 
-Proprietär - Alle Rechte vorbehalten.
+Eigener Projektcode ist unter der [MIT-Lizenz](LICENSE) frei nutzbar, veränderbar und weiterverteilbar.
+
+Fremdcode und Assets behalten ihre eigenen Lizenzen; siehe [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Der mitgelieferte Ready-Player-Me-Avatar ist auf nichtkommerzielle Nutzung beschränkt (CC BY-NC 4.0). Für kommerzielle Nutzung muss er durch ein passend lizenziertes Modell ersetzt werden.
 
 ---
 

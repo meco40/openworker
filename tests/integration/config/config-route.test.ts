@@ -43,8 +43,8 @@ describe('/api/config route', () => {
     if (fs.existsSync(`${configPath}.bak`)) {
       fs.unlinkSync(`${configPath}.bak`);
     }
-    process.env.OPENCLAW_CONFIG_PATH = configPath;
-    process.env.OPENCLAW_CONFIG_BACKEND = 'file';
+    process.env.BETACLAW_CONFIG_PATH = configPath;
+    process.env.BETACLAW_CONFIG_BACKEND = 'file';
   });
 
   afterEach(() => {
@@ -54,8 +54,8 @@ describe('/api/config route', () => {
     if (fs.existsSync(`${configPath}.bak`)) {
       fs.unlinkSync(`${configPath}.bak`);
     }
-    delete process.env.OPENCLAW_CONFIG_PATH;
-    delete process.env.OPENCLAW_CONFIG_BACKEND;
+    delete process.env.BETACLAW_CONFIG_PATH;
+    delete process.env.BETACLAW_CONFIG_BACKEND;
     vi.restoreAllMocks();
     vi.resetModules();
   });

@@ -6,7 +6,7 @@ import {
   ensureTaskDeliverablesFromProjectDir,
   triggerAutomatedTaskTest,
 } from '@/server/tasks/autoTesting';
-import type { Task, OpenClawSession } from '@/lib/types';
+import type { Task, BetaClawSession } from '@/lib/types';
 
 /**
  * Verify HMAC-SHA256 signature of webhook request
@@ -131,8 +131,8 @@ export async function POST(request: NextRequest) {
       const summary = completionMatch[1].trim();
 
       // Find agent by session
-      const session = queryOne<OpenClawSession>(
-        'SELECT * FROM openclaw_sessions WHERE openclaw_session_id = ? AND status = ?',
+      const session = queryOne<BetaClawSession>(
+        'SELECT * FROM betaclaw_sessions WHERE betaclaw_session_id = ? AND status = ?',
         [body.session_id, 'active'],
       );
 

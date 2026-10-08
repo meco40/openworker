@@ -756,7 +756,7 @@ Legend: `S` 1-2 days, `M` 3-5 days, `L` 6-10 days.
 
 ```typescript
 interface UserFaceProfile {
-  userId: string; // Links to OpenClaw user account
+  userId: string; // Links to BetaClaw user account
   displayName: string;
   // Face embeddings (multiple angles for robustness)
   faceEmbeddings: FaceEmbedding[]; // Array for different angles/lighting

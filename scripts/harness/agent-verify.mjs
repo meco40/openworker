@@ -185,7 +185,7 @@ function buildIsolatedEnv(baseEnv, artifactDir, worktreeId) {
     MEMORY_DB_PATH: resolve(dbRoot, 'memory.db'),
     KNOWLEDGE_DB_PATH: resolve(dbRoot, 'knowledge.db'),
     MASTER_DB_PATH: resolve(dbRoot, 'master.db'),
-    OPENCLAW_CONFIG_PATH: resolve(dbRoot, 'gateway-config.json'),
+    BETACLAW_CONFIG_PATH: resolve(dbRoot, 'gateway-config.json'),
     PERSONAS_ROOT_PATH: personasRoot,
     CHAT_ATTACHMENTS_DIR: uploadsRoot,
     TASK_WORKSPACES_ROOT: workspacesRoot,

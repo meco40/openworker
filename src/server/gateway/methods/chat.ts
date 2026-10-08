@@ -17,7 +17,7 @@ const MIN_STREAM_KEEPALIVE_MS = 1_000;
 const MAX_STREAM_KEEPALIVE_MS = 60_000;
 
 function resolveStreamKeepaliveMs(): number {
-  const raw = Number.parseInt(String(process.env.OPENCLAW_CHAT_STREAM_KEEPALIVE_MS || ''), 10);
+  const raw = Number.parseInt(String(process.env.BETACLAW_CHAT_STREAM_KEEPALIVE_MS || ''), 10);
   if (!Number.isFinite(raw) || raw <= 0) {
     return DEFAULT_STREAM_KEEPALIVE_MS;
   }

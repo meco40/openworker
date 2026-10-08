@@ -1,4 +1,4 @@
-# Copilot Instructions — OpenClaw Gateway Control Plane
+# Copilot Instructions — BetaClaw Gateway Control Plane
 
 ## Architecture Overview
 

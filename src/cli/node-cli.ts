@@ -24,7 +24,7 @@ function popFlag(args: string[], name: string): boolean {
 }
 
 function printNodeHelp(): void {
-  console.log(`openclaw node <command>
+  console.log(`betaclaw node <command>
 
 Commands:
   run [--command "<cmd>"] [--yes] [--remember] [<cmd...>]

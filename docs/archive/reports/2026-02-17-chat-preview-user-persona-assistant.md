@@ -2,15 +2,18 @@
 
 Status: **Nur Vorschau, noch nicht in DB angelegt**.
 
+Synthetisches Testszenario: Die Dialoge sind Mock-Daten und kein Export realer
+Unterhaltungen. Die Namen und Situationen dienen ausschließlich der Simulation.
+
 Teilnehmer:
 
-- User: Meco
+- User: Testnutzer A
 - Persona/Agentin: Lea (persönliche Assistentin, wie eine reale Sekretärin)
 
 ## Tag 1 - 2026-02-08 (Sonntag)
 
 - 08:12 User: Guten Morgen Lea, ich sitze mit Kaffee am Küchentisch und sortiere meine Woche.
-- 08:13 Lea: Guten Morgen Meco. Ich bin auch schon wach, ich mache mir gerade Haferbrei und Schwarztee.
+- 08:13 Lea: Guten Morgen Testnutzer A. Ich bin auch schon wach, ich mache mir gerade Haferbrei und Schwarztee.
 - 08:14 User: Kannst du die Woche grob strukturieren? Montag Projektmeeting, Dienstag Zahnarzt, Freitag Fahrt nach Hamburg.
 - 08:16 Lea: Klar. Ich plane Montag 10:00 Projektmeeting, Dienstag 14:30 Zahnarzt, Freitag 15:40 Zug nach Hamburg.
 - 08:18 User: Perfekt. Ich will morgens vor 09:00 keine Calls.
@@ -127,7 +130,7 @@ Teilnehmer:
 - 20:40 User: Angekommen. Zimmer ist ruhig, danke.
 - 20:41 Lea: Freut mich. Iss etwas Leichtes, morgen hast du früh Termin.
 - 21:05 User: Mache ich. Gute Nacht.
-- 21:06 Lea: Gute Nacht Meco.
+- 21:06 Lea: Gute Nacht Testnutzer A.
 - 23:58 User: Ich bin wieder wach geworden. Hotelbett ist okay, Kopf aber laut.
 - 23:59 Lea: Notiert. Auch auf Reisen bleibt das Schlafmuster instabil.
 
@@ -281,7 +284,7 @@ Hinweis: Dieser Abschnitt erweitert den bestehenden Verlauf mit deutlich mehr Di
 ### Zusatzchat Tag 1 - 2026-02-08
 
 - 07:10 User: Morgen Lea, kurzer Startcheck: Heute liegt der Schwerpunkt auf Wochenplanung und Priorisierung, und ich möchte den Tag bewusst ruhiger beginnen, weil ich sonst zu früh in Hektik rutsche.
-- 07:12 Lea: Guten Morgen Meco, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
+- 07:12 Lea: Guten Morgen Testnutzer A, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
 - 07:44 User: Schlafstatus heute: Einschlafen erst nach 01:30.
 - 07:46 Lea: Ich habe den Schlafstatus für heute protokolliert und markiere die Entwicklung explizit, damit wir später nicht nur Einzelereignisse sehen, sondern eine belastbare Linie über mehrere Tage bekommen.
 - 08:18 User: Bitte achte darauf, dass die Regel mit keinen Calls vor 09:00 weiterhin strikt aktiv bleibt, weil mich frühe Meetings in meiner aktuellen Phase mehr kosten als sie bringen.
@@ -324,7 +327,7 @@ Hinweis: Dieser Abschnitt erweitert den bestehenden Verlauf mit deutlich mehr Di
 ### Zusatzchat Tag 2 - 2026-02-09
 
 - 07:10 User: Morgen Lea, kurzer Startcheck: Heute liegt der Schwerpunkt auf Hotelwahl und Reiseplanung, und ich möchte den Tag bewusst ruhiger beginnen, weil ich sonst zu früh in Hektik rutsche.
-- 07:12 Lea: Guten Morgen Meco, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
+- 07:12 Lea: Guten Morgen Testnutzer A, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
 - 07:44 User: Schlafstatus heute: nur etwa 4 Stunden Schlaf.
 - 07:46 Lea: Ich habe den Schlafstatus für heute protokolliert und markiere die Entwicklung explizit, damit wir später nicht nur Einzelereignisse sehen, sondern eine belastbare Linie über mehrere Tage bekommen.
 - 08:18 User: Bitte achte darauf, dass die Regel mit keinen Calls vor 09:00 weiterhin strikt aktiv bleibt, weil mich frühe Meetings in meiner aktuellen Phase mehr kosten als sie bringen.
@@ -367,7 +370,7 @@ Hinweis: Dieser Abschnitt erweitert den bestehenden Verlauf mit deutlich mehr Di
 ### Zusatzchat Tag 3 - 2026-02-10
 
 - 07:10 User: Morgen Lea, kurzer Startcheck: Heute liegt der Schwerpunkt auf Zahnarzttermin und Entlastung, und ich möchte den Tag bewusst ruhiger beginnen, weil ich sonst zu früh in Hektik rutsche.
-- 07:12 Lea: Guten Morgen Meco, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
+- 07:12 Lea: Guten Morgen Testnutzer A, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
 - 07:44 User: Schlafstatus heute: zweite Nacht mit Gedankenrasen.
 - 07:46 Lea: Ich habe den Schlafstatus für heute protokolliert und markiere die Entwicklung explizit, damit wir später nicht nur Einzelereignisse sehen, sondern eine belastbare Linie über mehrere Tage bekommen.
 - 08:18 User: Bitte achte darauf, dass die Regel mit keinen Calls vor 09:00 weiterhin strikt aktiv bleibt, weil mich frühe Meetings in meiner aktuellen Phase mehr kosten als sie bringen.
@@ -410,7 +413,7 @@ Hinweis: Dieser Abschnitt erweitert den bestehenden Verlauf mit deutlich mehr Di
 ### Zusatzchat Tag 4 - 2026-02-11
 
 - 07:10 User: Morgen Lea, kurzer Startcheck: Heute liegt der Schwerpunkt auf Schulfest und emotionale Stabilisierung, und ich möchte den Tag bewusst ruhiger beginnen, weil ich sonst zu früh in Hektik rutsche.
-- 07:12 Lea: Guten Morgen Meco, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
+- 07:12 Lea: Guten Morgen Testnutzer A, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
 - 07:44 User: Schlafstatus heute: etwas besser, aber weiter spät müde.
 - 07:46 Lea: Ich habe den Schlafstatus für heute protokolliert und markiere die Entwicklung explizit, damit wir später nicht nur Einzelereignisse sehen, sondern eine belastbare Linie über mehrere Tage bekommen.
 - 08:18 User: Bitte achte darauf, dass die Regel mit keinen Calls vor 09:00 weiterhin strikt aktiv bleibt, weil mich frühe Meetings in meiner aktuellen Phase mehr kosten als sie bringen.
@@ -453,7 +456,7 @@ Hinweis: Dieser Abschnitt erweitert den bestehenden Verlauf mit deutlich mehr Di
 ### Zusatzchat Tag 5 - 2026-02-12
 
 - 07:10 User: Morgen Lea, kurzer Startcheck: Heute liegt der Schwerpunkt auf Packen und Beziehungsgespräch vorbereiten, und ich möchte den Tag bewusst ruhiger beginnen, weil ich sonst zu früh in Hektik rutsche.
-- 07:12 Lea: Guten Morgen Meco, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
+- 07:12 Lea: Guten Morgen Testnutzer A, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
 - 07:44 User: Schlafstatus heute: dritte problematische Nacht in der Woche.
 - 07:46 Lea: Ich habe den Schlafstatus für heute protokolliert und markiere die Entwicklung explizit, damit wir später nicht nur Einzelereignisse sehen, sondern eine belastbare Linie über mehrere Tage bekommen.
 - 08:18 User: Bitte achte darauf, dass die Regel mit keinen Calls vor 09:00 weiterhin strikt aktiv bleibt, weil mich frühe Meetings in meiner aktuellen Phase mehr kosten als sie bringen.
@@ -496,7 +499,7 @@ Hinweis: Dieser Abschnitt erweitert den bestehenden Verlauf mit deutlich mehr Di
 ### Zusatzchat Tag 6 - 2026-02-13
 
 - 07:10 User: Morgen Lea, kurzer Startcheck: Heute liegt der Schwerpunkt auf Hamburg-Reise und Arbeitsfokus, und ich möchte den Tag bewusst ruhiger beginnen, weil ich sonst zu früh in Hektik rutsche.
-- 07:12 Lea: Guten Morgen Meco, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
+- 07:12 Lea: Guten Morgen Testnutzer A, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
 - 07:44 User: Schlafstatus heute: nachts im Hotel wieder aufgewacht.
 - 07:46 Lea: Ich habe den Schlafstatus für heute protokolliert und markiere die Entwicklung explizit, damit wir später nicht nur Einzelereignisse sehen, sondern eine belastbare Linie über mehrere Tage bekommen.
 - 08:18 User: Bitte achte darauf, dass die Regel mit keinen Calls vor 09:00 weiterhin strikt aktiv bleibt, weil mich frühe Meetings in meiner aktuellen Phase mehr kosten als sie bringen.
@@ -539,7 +542,7 @@ Hinweis: Dieser Abschnitt erweitert den bestehenden Verlauf mit deutlich mehr Di
 ### Zusatzchat Tag 7 - 2026-02-14
 
 - 07:10 User: Morgen Lea, kurzer Startcheck: Heute liegt der Schwerpunkt auf Kundentermin und Selbstbild, und ich möchte den Tag bewusst ruhiger beginnen, weil ich sonst zu früh in Hektik rutsche.
-- 07:12 Lea: Guten Morgen Meco, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
+- 07:12 Lea: Guten Morgen Testnutzer A, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
 - 07:44 User: Schlafstatus heute: unruhig trotz Erfolg am Tag.
 - 07:46 Lea: Ich habe den Schlafstatus für heute protokolliert und markiere die Entwicklung explizit, damit wir später nicht nur Einzelereignisse sehen, sondern eine belastbare Linie über mehrere Tage bekommen.
 - 08:18 User: Bitte achte darauf, dass die Regel mit keinen Calls vor 09:00 weiterhin strikt aktiv bleibt, weil mich frühe Meetings in meiner aktuellen Phase mehr kosten als sie bringen.
@@ -573,7 +576,7 @@ Hinweis: Dieser Abschnitt erweitert den bestehenden Verlauf mit deutlich mehr Di
 - 16:14 User: Ich will, dass wir über Wochen sehen können, ob diese kleinen Änderungen wirken, weil ich oft zu schnell aufgebe, wenn nach zwei Tagen noch nicht alles perfekt ist, obwohl nachhaltige Stabilität ja eher aus konsequenter Wiederholung als aus einem einzelnen starken Tag entsteht.
 - 16:16 Lea: Genau so messen wir es: nicht über ein Gefühl am Morgen, sondern über mehrere Marker mit Datum, Uhrzeit und Kontext, damit Fortschritt sichtbar wird, auch wenn er langsam und nicht linear verläuft.
 - 16:48 User: Lass den Tagesabschluss kurz machen: Was ist heute der Kernpunkt, den wir behalten sollen?
-- 16:50 Lea: Kernpunkt heute: Kundentermin und Selbstbild, verbunden mit dem Muster unruhig trotz Erfolg am Tag und dem Beziehungskontext Meco fühlt sich emotional leer.
+- 16:50 Lea: Kernpunkt heute: Kundentermin und Selbstbild, verbunden mit dem Muster unruhig trotz Erfolg am Tag und dem Beziehungskontext Testnutzer A fühlt sich emotional leer.
 - 17:22 User: Prüffrage für später: Wenn ich dich morgen nach den wichtigsten Fakten frage, musst du sie in korrekter Reihenfolge mit Korrekturen und Zeitbezug liefern können.
 - 17:24 Lea: Das kann ich leisten, weil ich neben den Fakten auch den zeitlichen Verlauf speichere, inklusive der Korrekturen und der Stelle, an der sie im Verlauf explizit bestätigt wurden.
 - 17:56 User: Danke, das fühlt sich heute deutlich strukturierter an, auch wenn nicht alles leicht ist.
@@ -582,7 +585,7 @@ Hinweis: Dieser Abschnitt erweitert den bestehenden Verlauf mit deutlich mehr Di
 ### Zusatzchat Tag 8 - 2026-02-15
 
 - 07:10 User: Morgen Lea, kurzer Startcheck: Heute liegt der Schwerpunkt auf Rückkehr und tiefes Beziehungsgespräch, und ich möchte den Tag bewusst ruhiger beginnen, weil ich sonst zu früh in Hektik rutsche.
-- 07:12 Lea: Guten Morgen Meco, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
+- 07:12 Lea: Guten Morgen Testnutzer A, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
 - 07:44 User: Schlafstatus heute: vierte Nacht mit Kopfkino.
 - 07:46 Lea: Ich habe den Schlafstatus für heute protokolliert und markiere die Entwicklung explizit, damit wir später nicht nur Einzelereignisse sehen, sondern eine belastbare Linie über mehrere Tage bekommen.
 - 08:18 User: Bitte achte darauf, dass die Regel mit keinen Calls vor 09:00 weiterhin strikt aktiv bleibt, weil mich frühe Meetings in meiner aktuellen Phase mehr kosten als sie bringen.
@@ -625,7 +628,7 @@ Hinweis: Dieser Abschnitt erweitert den bestehenden Verlauf mit deutlich mehr Di
 ### Zusatzchat Tag 9 - 2026-02-16
 
 - 07:10 User: Morgen Lea, kurzer Startcheck: Heute liegt der Schwerpunkt auf Wirtschaft, Börse und konkrete Zahlen, und ich möchte den Tag bewusst ruhiger beginnen, weil ich sonst zu früh in Hektik rutsche.
-- 07:12 Lea: Guten Morgen Meco, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
+- 07:12 Lea: Guten Morgen Testnutzer A, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
 - 07:44 User: Schlafstatus heute: Ziel: früheres Licht-aus um 23:00.
 - 07:46 Lea: Ich habe den Schlafstatus für heute protokolliert und markiere die Entwicklung explizit, damit wir später nicht nur Einzelereignisse sehen, sondern eine belastbare Linie über mehrere Tage bekommen.
 - 08:18 User: Bitte achte darauf, dass die Regel mit keinen Calls vor 09:00 weiterhin strikt aktiv bleibt, weil mich frühe Meetings in meiner aktuellen Phase mehr kosten als sie bringen.
@@ -668,7 +671,7 @@ Hinweis: Dieser Abschnitt erweitert den bestehenden Verlauf mit deutlich mehr Di
 ### Zusatzchat Tag 10 - 2026-02-17
 
 - 07:10 User: Morgen Lea, kurzer Startcheck: Heute liegt der Schwerpunkt auf Memory-Rückblick und Verifikation, und ich möchte den Tag bewusst ruhiger beginnen, weil ich sonst zu früh in Hektik rutsche.
-- 07:12 Lea: Guten Morgen Meco, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
+- 07:12 Lea: Guten Morgen Testnutzer A, ich übernehme den ruhigen Start für dich und halte den ersten Block frei von Nebengeräuschen, damit du nicht sofort mit offenen Schleifen in den Tag gehst.
 - 07:44 User: Schlafstatus heute: Muster über mehrere Tage klar erkannt.
 - 07:46 Lea: Ich habe den Schlafstatus für heute protokolliert und markiere die Entwicklung explizit, damit wir später nicht nur Einzelereignisse sehen, sondern eine belastbare Linie über mehrere Tage bekommen.
 - 08:18 User: Bitte achte darauf, dass die Regel mit keinen Calls vor 09:00 weiterhin strikt aktiv bleibt, weil mich frühe Meetings in meiner aktuellen Phase mehr kosten als sie bringen.

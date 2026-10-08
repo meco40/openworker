@@ -5,7 +5,7 @@ const mailbox = new Map<string, GmailMessage[]>();
 const MAX_BODY_CHARS = 4000;
 
 function isMockMode(accessToken: string): boolean {
-  const mode = String(process.env.OPENCLAW_MASTER_GMAIL_MODE || 'auto').toLowerCase();
+  const mode = String(process.env.BETACLAW_MASTER_GMAIL_MODE || 'auto').toLowerCase();
   if (mode === 'mock') return true;
   if (mode === 'real') return false;
   if (accessToken.startsWith('mock:')) return true;

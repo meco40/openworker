@@ -4,14 +4,14 @@ import { executeSkillApi } from '@/skills/runtime-client';
 const manifest: SkillManifest = {
   id: 'notifications',
   name: 'Notifications',
-  description: 'Sendet Webhooks und E-Mails. Erfordert OPENCLAW_NOTIFICATIONS_ENABLED=true.',
+  description: 'Sendet Webhooks und E-Mails. Erfordert BETACLAW_NOTIFICATIONS_ENABLED=true.',
   version: '1.0.0',
   category: 'Automation',
   functionName: 'notifications',
   tool: {
     name: 'notifications',
     description:
-      'Send notifications via webhook or email. Use action="webhook_send" to POST JSON to a URL, or action="email_send" to send an email. Requires OPENCLAW_NOTIFICATIONS_ENABLED=true environment variable.',
+      'Send notifications via webhook or email. Use action="webhook_send" to POST JSON to a URL, or action="email_send" to send an email. Requires BETACLAW_NOTIFICATIONS_ENABLED=true environment variable.',
     parameters: {
       type: 'object',
       properties: {

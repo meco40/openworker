@@ -1,6 +1,6 @@
 # Sicherheitskonzept
 
-Sicherheit hat im OpenClaw Gateway oberste Priorität, da autonome Agenten potenziell sensible Systembefehle ausführen können.
+Sicherheit hat im BetaClaw Gateway oberste Priorität, da autonome Agenten potenziell sensible Systembefehle ausführen können.
 
 ## 1. Kommando-Whitelist
 
@@ -12,7 +12,7 @@ Alle vom Agenten angeforderten Terminal-Befehle werden gegen eine Whitelist in `
 
 ## 2. Sandbox-Isolierung
 
-Jeder Worker-Node operiert in einem isolierten logischen Workspace. Der Zugriff auf das Host-Dateisystem ist auf das Verzeichnis `~/.openclaw/workspaces/` beschränkt.
+Jeder Worker-Node operiert in einem isolierten logischen Workspace. Der Zugriff auf das Host-Dateisystem ist auf das Verzeichnis `~/.betaclaw/workspaces/` beschränkt.
 
 ## 3. Remote Exposure
 
