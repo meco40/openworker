@@ -15,8 +15,8 @@ declare global {
 }
 
 type EnvLike = Record<string, string | undefined>;
-const MEM0_RUNTIME_PROBE_USER_ID = 'mem0-runtime-probe';
-const MEM0_RUNTIME_PROBE_PERSONA_ID = 'mem0-runtime-probe';
+const MEMORY_RUNTIME_PROBE_USER_ID = 'memory-runtime-probe';
+const MEMORY_RUNTIME_PROBE_PERSONA_ID = 'memory-runtime-probe';
 const DEFAULT_STARTUP_RETRY_DELAY_MS = 1500;
 const DEFAULT_RECOVERY_RETRY_DELAY_MS = 5000;
 const MAX_RECOVERY_RETRY_DELAY_MS = 60_000;
@@ -173,8 +173,8 @@ export async function assertMemoryRuntimeReady(): Promise<void> {
   const client = getRequiredMemoryClient();
   try {
     await client.listMemories({
-      userId: MEM0_RUNTIME_PROBE_USER_ID,
-      personaId: MEM0_RUNTIME_PROBE_PERSONA_ID,
+      userId: MEMORY_RUNTIME_PROBE_USER_ID,
+      personaId: MEMORY_RUNTIME_PROBE_PERSONA_ID,
       page: 1,
       pageSize: 1,
     });

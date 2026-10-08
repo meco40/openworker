@@ -91,8 +91,8 @@ describe('memory runtime configuration', () => {
     await expect(assertMemoryRuntimeReady()).resolves.toBeUndefined();
     expect(getMemoryRuntimeReadyState()).toBe(true);
     expect(listMemories).toHaveBeenCalledWith({
-      userId: 'mem0-runtime-probe',
-      personaId: 'mem0-runtime-probe',
+      userId: 'memory-runtime-probe',
+      personaId: 'memory-runtime-probe',
       page: 1,
       pageSize: 1,
     });

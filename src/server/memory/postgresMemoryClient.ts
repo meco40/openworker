@@ -17,7 +17,10 @@ import {
   runWithWorldModelScope,
   withWorldModelTransaction,
 } from '@/server/world-model/db';
-import { getConfiguredEmbeddingProvider } from '@/server/world-model/embeddings/provider';
+import {
+  generateEmbeddingOnce,
+  getConfiguredEmbeddingProvider,
+} from '@/server/world-model/embeddings/provider';
 import { vectorSearch } from '@/server/world-model/retrieval/vector';
 import { MemoryVersionConflictError } from './errors';
 
@@ -264,7 +267,7 @@ export class PostgresMemoryClient implements Mem0Client {
       const provider = getConfiguredEmbeddingProvider();
       if (provider && input.query.trim()) {
         try {
-          const queryEmbedding = await provider.generateEmbedding(input.query);
+          const queryEmbedding = await generateEmbeddingOnce(provider, input.query);
           const vectorHits = await vectorSearch(
             queryEmbedding,
             scope.userId,
@@ -272,6 +275,7 @@ export class PostgresMemoryClient implements Mem0Client {
             scope.workspaceId,
             Math.max(20, Math.min(100, limit * 5)),
             0.2,
+            { include: ['memory'], activeMemoryOnly: true },
           );
           const relevant = vectorHits.filter((hit) => hit.targetType === 'memory');
           if (relevant.length > 0) {
@@ -284,6 +288,7 @@ export class PostgresMemoryClient implements Mem0Client {
                FROM world_model_memory_items
                WHERE id::text = ANY($1::text[])
                  AND user_id = $2 AND persona_id = $3 AND workspace_id = $4
+                 AND lifecycle_status IN ('new', 'confirmed')
                  AND deleted_at IS NULL`,
               [ids, scope.userId, scope.personaId, scope.workspaceId],
             );
@@ -313,6 +318,7 @@ export class PostgresMemoryClient implements Mem0Client {
          FROM world_model_memory_items
          WHERE user_id = $1 AND persona_id = $2 AND workspace_id = $3
            AND deleted_at IS NULL
+           AND lifecycle_status IN ('new', 'confirmed')
            AND ($4 = '' OR content ILIKE '%' || $4 || '%'
                 OR to_tsvector('simple', content) @@ plainto_tsquery('simple', $4))
          ORDER BY updated_at DESC
@@ -527,7 +533,8 @@ export class PostgresMemoryClient implements Mem0Client {
         };
         await db.query(
           `UPDATE world_model_memory_items
-           SET deleted_at = now(), version = $1, metadata = $2::jsonb, updated_at = now()
+           SET deleted_at = now(), lifecycle_status = 'deleted', version = $1,
+               metadata = $2::jsonb, updated_at = now()
            WHERE id = $3 AND user_id = $4 AND persona_id = $5 AND workspace_id = $6`,
           [
             nextVersion,
@@ -589,7 +596,8 @@ export class PostgresMemoryClient implements Mem0Client {
         };
         await db.query(
           `UPDATE world_model_memory_items
-           SET deleted_at = now(), version = $1, metadata = $2::jsonb, updated_at = now()
+           SET deleted_at = now(), lifecycle_status = 'deleted', version = $1,
+               metadata = $2::jsonb, updated_at = now()
            WHERE id = $3 AND user_id = $4 AND persona_id = $5 AND workspace_id = $6`,
           [
             nextVersion,

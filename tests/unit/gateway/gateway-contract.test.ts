@@ -19,6 +19,17 @@ describe('Gateway API contract', () => {
     expect(source).toContain('webpack: true');
   });
 
+  it('starts the custom Next server in an explicit development environment', () => {
+    const packagePath = path.join(process.cwd(), 'package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
+
+    expect(packageJson.scripts?.['dev:web']).toBe(
+      'cross-env NODE_ENV=development tsx watch server.ts',
+    );
+  });
+
   describe('Chat request body', () => {
     it('has required fields for pipeline dispatch', () => {
       const body = {

@@ -29,7 +29,11 @@ const ChatConversationList: React.FC<ChatConversationListProps> = ({
   availableChannels,
 }) => {
   return (
-    <div className="flex w-64 flex-col border-r border-zinc-800 bg-zinc-950/50">
+    <div
+      data-testid="chat-conversation-list"
+      aria-label="Conversation list"
+      className="flex h-full w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950/50 max-md:w-full max-md:border-r-0"
+    >
       <div className="flex h-16 items-center justify-between border-b border-zinc-800 px-4">
         <h3 className="text-xs font-bold tracking-widest text-zinc-400 uppercase">Conversations</h3>
         <button
@@ -51,7 +55,7 @@ const ChatConversationList: React.FC<ChatConversationListProps> = ({
         onChannelChange={onChannelFilterChange}
         onSearchChange={onSearchQueryChange}
       />
-      <div className="flex-1 space-y-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
         {conversations.length === 0 && (
           <div className="px-4 py-8 text-center">
             <span className="text-[10px] tracking-widest text-zinc-600 uppercase">

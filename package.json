@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-stack.mjs",
-    "dev:web": "tsx watch server.ts",
+    "dev:web": "cross-env NODE_ENV=development tsx watch server.ts",
     "dev:scheduler": "tsx watch scheduler.ts",
     "dev:next": "next dev",
     "cli": "node --import tsx src/cli/program.ts",
@@ -93,8 +93,6 @@
     "better-sqlite3": "^12.6.2",
     "cron-parser": "^5.5.0",
     "css-tree": "^3.1.0",
-    "date-fns": "^4.1.0",
-    "lucide-react": "^0.575.0",
     "mermaid": "^11.17.0",
     "next": "^16.3.1",
     "next-auth": "^4.24.15",
@@ -108,8 +106,7 @@
     "tsx": "^4.23.12",
     "ws": "^8.21.3",
     "yaml": "^2.9.0",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.11"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.3.1",

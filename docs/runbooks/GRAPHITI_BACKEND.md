@@ -117,8 +117,11 @@ Hub-Pfad umgestellt. Graphiti ruft
 Adapter liest ausschließlich das aktive Profil `p1-graphiti` und dispatcht das
 Modell mit höchster Priorität. Mehrere aktive Einträge bilden den Fallback in
 Prioritätsreihenfolge. Das Profil ist unabhängig von `p1` und
-`p1-embeddings`; ohne aktives Graphiti-Modell antwortet der Adapter mit HTTP 503. Für Codex-Modelle sollte die Graphiti-Pipeline `reasoning_effort=off`
-verwenden. Der Embedding-Zweig bleibt absichtlich getrennt und nutzt DashScope
+`p1-embeddings`; ohne aktives Graphiti-Modell antwortet der Adapter mit HTTP 503.
+Die Graphiti-Pipeline kann `off` und `low` pro Pipeline-Eintrag speichern. Für
+OpenCode wird `off` als `reasoning_effort=none` und `low` als
+`reasoning_effort=low` an den OpenAI-kompatiblen Endpoint weitergegeben; bei
+Codex bleibt `off` eine Auslassung des Reasoning-Feldes. Der Embedding-Zweig bleibt absichtlich getrennt und nutzt DashScope
 `text-embedding-v4` mit 2048 Dimensionen.
 
 Die Endpunkte sind absichtlich getrennt:

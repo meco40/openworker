@@ -63,9 +63,6 @@ const ConfigEditor = dynamic(() => import('@/components/ConfigEditor'), {
 const ProfileView = dynamic(() => import('@/components/ProfileView'), {
   loading: loading('Operator Profile'),
 });
-const ExposureManager = dynamic(() => import('@/components/ExposureManager'), {
-  loading: loading('Remote Exposure'),
-});
 const StatsView = dynamic(() => import('@/components/stats/StatsView'), {
   loading: loading('Usage Stats'),
 });
@@ -159,11 +156,12 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
   onSimulateIncoming,
 }) => {
   return (
-    <div className="flex-1 overflow-auto p-6">
+    <div className="min-h-0 min-w-0 flex-1 overflow-auto p-4 sm:p-6">
       {currentView === View.DASHBOARD && (
         <ViewErrorBoundary key={currentView} label="Control Plane">
           <Dashboard
-            state={{ ...gatewayState, scheduledTasks }}
+            state={gatewayState}
+            scheduledTasks={scheduledTasks}
             metricsState={controlPlaneMetricsState}
           />
         </ViewErrorBoundary>
@@ -248,11 +246,6 @@ const AppShellViewContent: React.FC<AppShellViewContentProps> = ({
       {currentView === View.PROFILE && (
         <ViewErrorBoundary key={currentView} label="Operator Profile">
           <ProfileView metricsState={controlPlaneMetricsState} />
-        </ViewErrorBoundary>
-      )}
-      {currentView === View.EXPOSURE && (
-        <ViewErrorBoundary key={currentView} label="Remote Exposure">
-          <ExposureManager />
         </ViewErrorBoundary>
       )}
       {currentView === View.STATS && (

@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Referenz fuer den Memory-Layer und dessen Betriebsverhalten.
 - Scope: Memory-Erfassung, Recall, Feedback-Learning, Versionierung und API-Anbindung.
 - Source of Truth: This is the active system documentation for this domain and overrides archived documents on conflicts.
-- Last Reviewed: 2026-08-20
+- Last Reviewed: 2026-09-12
 - Related Runbooks: N/A
 
 ---
@@ -24,6 +24,9 @@ Das Memory-System liefert persona-, user- und workspace-skopierten Langzeitkonte
 - **Workspace-Isolation**: Kanonische Lese-/Schreib-/Delete-Pfade führen `userId`,
   `personaId` und `workspaceId`; PostgreSQL schützt Updates zusätzlich per
   Versions-CAS.
+- **Lifecycle-Isolation**: Recall liest in PostgreSQL nur `new`/`confirmed`;
+  `stale`, `superseded`, `rejected` und gelöschte Einträge erreichen den
+  Prompt nicht.
 
 ---
 
@@ -83,6 +86,23 @@ Diese Namen sind **Operationsnamen**, nicht Memory-Typen.
 - `id` + `history=true` für Historie
 - `page`, `pageSize`, `query`, `type` für Pagination/Filter
 - `workspaceId` zur vollständigen Scope-Isolation
+
+Offset-Pagination ist auf die ersten 10.000 gefilterten Ergebnisse begrenzt.
+Die kanonische Multi-Scope-Ansicht lädt pro Scope nur den für die Zielseite
+nötigen sortierten Präfix. `preview=true&limit=...` ist der begrenzte Pfad für Shell-
+und Dashboard-Zähler. Der alte GET-Aufruf ohne Pagination bleibt kompatibel,
+ist aber auf die neuesten 200 Einträge begrenzt und kennzeichnet weitere
+Ergebnisse mit `truncated=true`.
+
+Im kanonischen Chat-Recall bleiben die Quellen getrennt: generische Memory-
+Vektoren werden ausschließlich über den lifecycle-bewussten Memory-Pfad
+formatiert; der World-Model-Vektorpfad liefert nur strukturierte Evidenz.
+Identische parallele Query-Embeddings werden während des laufenden Requests
+zusammengeführt, aber nicht dauerhaft gecacht.
+Auch die internen World-Model-Lanes (Events, Volltext, typisierte Domänen,
+Vektor und optional Graphiti) starten parallel und fallen unabhängig aus; eine
+nicht erreichbare Projektion verwirft damit keine Treffer der kanonischen
+Quellen.
 
 ### POST Body (Beispiel)
 

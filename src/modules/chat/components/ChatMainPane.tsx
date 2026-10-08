@@ -23,6 +23,7 @@ interface ChatMainPaneProps {
     decision: ChatApprovalDecision,
   ) => void;
   scrollRef: React.RefObject<HTMLDivElement | null>;
+  onBackToConversations?: () => void;
 }
 
 const ChatMainPane: React.FC<ChatMainPaneProps> = ({
@@ -33,6 +34,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
   onDeleteMessage,
   onRespondApproval,
   scrollRef,
+  onBackToConversations,
 }) => {
   const activeMeta = activeConversation ? getPlatformMeta(activeConversation.channelType) : null;
   const { activePersona, personas, activePersonaId, setActivePersonaId } = usePersona();
@@ -184,15 +186,31 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
 
   return (
     <>
-      <header className="z-20 flex h-16 items-center justify-between border-b border-zinc-800 bg-zinc-950/80 px-6 backdrop-blur-2xl">
-        <div className="flex items-center space-x-4">
+      <header className="z-20 flex min-h-16 flex-wrap items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950/80 px-3 py-2 backdrop-blur-2xl sm:h-16 sm:flex-nowrap sm:px-6 sm:py-0">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
+          <button
+            type="button"
+            onClick={onBackToConversations}
+            aria-label="Zurück zu den Conversations"
+            title="Zurück zu den Conversations"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-zinc-700 text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 sm:hidden"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="m15 18-6-6 6-6"
+              />
+            </svg>
+          </button>
           {activeConversation ? (
             <>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-violet-500/30 bg-violet-600/20 text-violet-400">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet-500/30 bg-violet-600/20 text-violet-400">
                 {activeMeta?.icon}
               </div>
-              <div>
-                <h3 className="text-sm font-bold tracking-tight text-white">
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-bold tracking-tight text-white">
                   {activeConversation.title}
                 </h3>
                 <div className="flex items-center space-x-2">
@@ -210,8 +228,8 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900/70 px-1.5 py-1">
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+          <div className="flex min-w-0 flex-1 items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900/70 px-1.5 py-1 sm:flex-none">
             <input
               type="text"
               aria-label="In Konversation suchen"
@@ -230,9 +248,9 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                 }
                 handleFindNext();
               }}
-              className="w-48 rounded-md border border-transparent bg-transparent px-2 py-0.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-500 focus:border-zinc-500"
+              className="w-full min-w-0 rounded-md border border-transparent bg-transparent px-2 py-0.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-500 focus:border-zinc-500 sm:w-48"
             />
-            <span className="min-w-[56px] text-center text-[10px] font-semibold text-zinc-400">
+            <span className="hidden min-w-[56px] text-center text-[10px] font-semibold text-zinc-400 sm:block">
               {totalSearchMatches <= 0
                 ? '0 / 0'
                 : `${activeSearchMatchIndex + 1} / ${totalSearchMatches}`}
@@ -258,7 +276,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
           </div>
 
           <div
-            className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${streamDebugClass}`}
+            className={`hidden rounded-lg border px-2 py-1 text-[10px] font-semibold lg:block ${streamDebugClass}`}
           >
             {streamDebugLabel}
           </div>
@@ -266,9 +284,10 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
           {/* Persona Switcher */}
           <div ref={dropdownRef} className="relative">
             <button
+              type="button"
               onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
               data-testid="persona-dropdown-toggle"
-              className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
+              className={`flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
                 activePersona
                   ? 'border-indigo-500/30 bg-indigo-600/15 text-indigo-300 hover:bg-indigo-600/25'
                   : 'border-zinc-700 bg-zinc-800/50 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300'
@@ -293,11 +312,12 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                 className="absolute top-full right-0 z-50 mt-1 w-56 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl"
               >
                 <button
+                  type="button"
                   onClick={() => {
                     setActivePersonaId(null);
                     setShowPersonaDropdown(false);
                   }}
-                  className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
+                  className={`flex min-h-11 w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-inset ${
                     !activePersonaId
                       ? 'bg-indigo-600/20 text-white'
                       : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
@@ -308,12 +328,13 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
                 </button>
                 {selectablePersonas.map((p) => (
                   <button
+                    type="button"
                     key={p.id}
                     onClick={() => {
                       setActivePersonaId(p.id);
                       setShowPersonaDropdown(false);
                     }}
-                    className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
+                    className={`flex min-h-11 w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-inset ${
                       activePersonaId === p.id
                         ? 'bg-indigo-600/20 text-white'
                         : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'

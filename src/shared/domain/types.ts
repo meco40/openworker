@@ -120,16 +120,8 @@ export interface ScheduledTask {
 }
 
 export interface GatewayState {
-  version: string;
-  uptime: number;
-  cpuUsage: number;
-  memoryUsage: number;
-  activeSessions: number;
-  totalTokens: number;
   eventHistory: SystemLog[];
-  trafficData: { name: string; tokens: number }[];
   memoryEntries: MemoryEntry[];
-  scheduledTasks: ScheduledTask[];
 }
 
 export interface ControlPlaneMetrics {
@@ -198,7 +190,6 @@ export enum View {
   CHAT = 'chat',
   CONFIG = 'config',
   SKILLS = 'skills',
-  EXPOSURE = 'exposure',
   CHANNELS = 'channels',
   LOGS = 'logs',
   STATS = 'stats',

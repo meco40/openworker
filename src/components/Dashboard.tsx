@@ -1,10 +1,19 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { ControlPlaneMetricsState, GatewayState, ScheduledTask } from '@/shared/domain/types';
 import { buildPersonalityMatrix } from '@/lib/personalityMatrix';
-import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts';
+
+const PersonalityRadar = dynamic(() => import('@/components/dashboard/PersonalityRadar'), {
+  loading: () => (
+    <div role="status" className="flex h-64 items-center justify-center text-[11px] text-zinc-500">
+      Loading behavior signals…
+    </div>
+  ),
+});
 
 interface DashboardProps {
-  state: GatewayState & { scheduledTasks?: ScheduledTask[] };
+  state: GatewayState;
+  scheduledTasks: ScheduledTask[];
   metricsState: ControlPlaneMetricsState;
 }
 
@@ -21,17 +30,32 @@ function formatNumber(value: number): string {
   return value.toLocaleString('de-DE');
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ state, metricsState }) => {
-  const scheduled = state.scheduledTasks || [];
-  const sortedScheduled = [...scheduled].sort(
-    (a, b) => new Date(a.targetTime).getTime() - new Date(b.targetTime).getTime(),
+const Dashboard: React.FC<DashboardProps> = ({ state, scheduledTasks, metricsState }) => {
+  const sortedScheduled = useMemo(
+    () =>
+      [...scheduledTasks].sort(
+        (a, b) => new Date(a.targetTime).getTime() - new Date(b.targetTime).getTime(),
+      ),
+    [scheduledTasks],
   );
 
-  const personalityMatrix = buildPersonalityMatrix({
-    memoryEntries: state.memoryEntries,
-    scheduledTasks: scheduled,
-  });
+  const personalityMatrix = useMemo(
+    () =>
+      buildPersonalityMatrix({
+        memoryEntries: state.memoryEntries,
+        scheduledTasks,
+      }),
+    [scheduledTasks, state.memoryEntries],
+  );
   const personalityStats = personalityMatrix.stats;
+  const hasPersonalityData = state.memoryEntries.length > 0 || scheduledTasks.length > 0;
+  const pendingTaskCount = useMemo(
+    () => scheduledTasks.filter((task) => task.status === 'pending').length,
+    [scheduledTasks],
+  );
+  const personalitySummary = personalityStats
+    .map((stat) => `${stat.subject} ${stat.A} of ${stat.fullMark}`)
+    .join(', ');
 
   const metrics = metricsState.metrics;
 
@@ -63,9 +87,9 @@ const Dashboard: React.FC<DashboardProps> = ({ state, metricsState }) => {
   return (
     <div className="animate-in fade-in space-y-6 duration-700">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {topCards.map((card, i) => (
+        {topCards.map((card) => (
           <div
-            key={i}
+            key={card.label}
             className="group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 shadow-lg transition-all hover:border-violet-500/30"
           >
             <div className="absolute top-0 right-0 -mt-8 -mr-8 h-16 w-16 rounded-full bg-violet-500/5 blur-2xl" />
@@ -74,6 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, metricsState }) => {
                 {card.label}
               </span>
               <svg
+                aria-hidden="true"
                 className="h-5 w-5 text-violet-500 transition-transform group-hover:scale-110"
                 fill="none"
                 stroke="currentColor"
@@ -96,12 +121,12 @@ const Dashboard: React.FC<DashboardProps> = ({ state, metricsState }) => {
               <span>Temporal Task Monitor</span>
             </h3>
             <div className="font-mono text-[9px] text-zinc-500 uppercase">
-              Cron Scheduler Active
+              {pendingTaskCount} pending {pendingTaskCount === 1 ? 'task' : 'tasks'}
             </div>
           </div>
 
           <div className="scrollbar-hide max-h-[300px] flex-1 space-y-3 overflow-y-auto">
-            {scheduled.length === 0 ? (
+            {scheduledTasks.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center p-12 text-center">
                 <span className="text-[10px] font-black text-zinc-600 uppercase">
                   No pro-active tasks queued.
@@ -150,31 +175,44 @@ const Dashboard: React.FC<DashboardProps> = ({ state, metricsState }) => {
               <span>Personality Matrix</span>
             </h3>
           </div>
-          <div className="min-h-[200px] w-full">
-            <ResponsiveContainer width="100%" height={256}>
-              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={personalityStats}>
-                <PolarGrid stroke="#27272a" />
-                <PolarAngleAxis
-                  dataKey="subject"
-                  tick={{ fill: '#71717a', fontSize: 9, fontWeight: 'bold' }}
+          {hasPersonalityData ? (
+            <>
+              <div
+                className="min-h-[200px] w-full"
+                role="img"
+                aria-label={`Personality Matrix: ${personalitySummary}`}
+              >
+                <PersonalityRadar stats={personalityStats} />
+              </div>
+              <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/40 p-3">
+                <div className="mb-1 text-[9px] font-black tracking-widest text-zinc-500 uppercase">
+                  Current Focus
+                </div>
+                <div className="text-[11px] text-zinc-300 italic">{personalityMatrix.focus}</div>
+              </div>
+            </>
+          ) : (
+            <div className="flex min-h-64 flex-1 flex-col items-center justify-center px-4 text-center">
+              <svg
+                aria-hidden="true"
+                className="mb-4 h-8 w-8 text-zinc-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M4 18 8.5 9l4 5L16 7l4 11M5 18h14"
                 />
-                <Radar
-                  name="Evolution"
-                  dataKey="A"
-                  stroke="#8b5cf6"
-                  fill="#8b5cf6"
-                  fillOpacity={0.4}
-                  isAnimationActive={false}
-                />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/40 p-3">
-            <div className="mb-1 text-[9px] font-black tracking-widest text-zinc-500 uppercase">
-              Current Focus
+              </svg>
+              <div className="text-xs font-semibold text-zinc-300">No behavior signals yet</div>
+              <div className="mt-2 max-w-56 text-[11px] leading-relaxed text-zinc-500">
+                Memory and scheduled tasks will populate this view when data is available.
+              </div>
             </div>
-            <div className="text-[11px] text-zinc-300 italic">{personalityMatrix.focus}</div>
-          </div>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,12 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/server/world-model/embeddings/provider', () => ({
+  getConfiguredEmbeddingProvider: () => null,
+  generateEmbeddingOnce: vi.fn(),
+}));
 
 import { PostgresMemoryClient } from '@/server/memory/postgresMemoryClient';
+import { vectorSearch } from '@/server/world-model/retrieval/vector';
 import {
   closeWorldModelDb,
   runWorldModelMigrations,
@@ -68,5 +74,70 @@ describe.skipIf(!enabled)('canonical PostgreSQL memory', () => {
     await client.deleteMemory(created.id, scope);
     expect((await client.listMemories({ ...scope, page: 1, pageSize: 10 })).total).toBe(0);
     expect(await client.getMemoryHistory(created.id, scope)).toHaveLength(3);
+    const deletedRow = await withWorldModelTransaction(
+      (db) =>
+        db.query<{ lifecycle_status: string }>(
+          'SELECT lifecycle_status FROM world_model_memory_items WHERE id = $1',
+          [created.id],
+        ),
+      scope,
+    );
+    expect(deletedRow.rows[0]?.lifecycle_status).toBe('deleted');
+  });
+
+  it('excludes inactive lifecycle states from canonical recall', async () => {
+    const client = new PostgresMemoryClient();
+    const active = await client.addMemory({
+      ...scope,
+      content: 'Lifecycle recall marker active',
+      metadata: {
+        type: 'fact',
+        lifecycleStatus: 'confirmed',
+        idempotencyKey: `${marker}:active`,
+      },
+    });
+    const stale = await client.addMemory({
+      ...scope,
+      content: 'Lifecycle recall marker stale',
+      metadata: {
+        type: 'fact',
+        lifecycleStatus: 'stale',
+        idempotencyKey: `${marker}:stale`,
+      },
+    });
+
+    const recalled = await client.searchMemories({
+      ...scope,
+      query: 'Lifecycle recall marker',
+      limit: 10,
+    });
+
+    expect(recalled.map((entry) => entry.id)).toContain(active.id);
+    expect(recalled.map((entry) => entry.id)).not.toContain(stale.id);
+
+    await withWorldModelTransaction(
+      (db) =>
+        db.query(
+          `INSERT INTO world_model_embeddings
+            (target_type, target_id, user_id, persona_id, workspace_id, model,
+             model_version, embedding, target_content)
+           VALUES
+            ('memory', $1, $3, $4, $5, 'test', '1', '[1,0]'::vector, 'active'),
+            ('memory', $2, $3, $4, $5, 'test', '1', '[1,0]'::vector, 'stale')`,
+          [active.id, stale.id, scope.userId, scope.personaId, scope.workspaceId],
+        ),
+      scope,
+    );
+    const vectorHits = await vectorSearch(
+      [1, 0],
+      scope.userId,
+      scope.personaId,
+      scope.workspaceId,
+      10,
+      0,
+      { include: ['memory'], activeMemoryOnly: true },
+    );
+    expect(vectorHits.map((entry) => entry.targetId)).toContain(active.id);
+    expect(vectorHits.map((entry) => entry.targetId)).not.toContain(stale.id);
   });
 });

@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@import '@xyflow/react/dist/style.css';
 
 @theme {
   --color-mc-bg: #0d1117;
@@ -79,6 +78,12 @@ body {
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
   animation-delay: var(--knowledge-drift-delay, 0s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knowledge-node--drift {
+    animation: none;
+  }
 }
 
 @keyframes knowledgeNodeDrift {

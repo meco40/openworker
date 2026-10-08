@@ -111,45 +111,50 @@ export async function collectWorldModelMetrics(
     deliveryReceipts: 0,
   };
 
-  try {
-    const obsResult = await db.query<{ count: string }>(
-      `SELECT COUNT(*) AS count
+  await Promise.all([
+    (async () => {
+      try {
+        const obsResult = await db.query<{ count: string }>(
+          `SELECT COUNT(*) AS count
        FROM world_model_observations
        WHERE received_at < now() - interval '5 minutes'`,
-    );
-    result.pendingObservations = Number(obsResult.rows[0]?.count ?? 0);
-  } catch (error) {
-    console.error('[world-model:metrics] pending observations query failed:', error);
-  }
-
-  try {
-    const projectionResult = await db.query<{ pending: string; failed: string }>(
-      `SELECT COUNT(*) FILTER (WHERE status = 'pending') AS pending,
+        );
+        result.pendingObservations = Number(obsResult.rows[0]?.count ?? 0);
+      } catch (error) {
+        console.error('[world-model:metrics] pending observations query failed:', error);
+      }
+    })(),
+    (async () => {
+      try {
+        const projectionResult = await db.query<{ pending: string; failed: string }>(
+          `SELECT COUNT(*) FILTER (WHERE status = 'pending') AS pending,
               COUNT(*) FILTER (WHERE status = 'failed') AS failed
        FROM world_model_projection_pending`,
-    );
-    result.pendingProjections = Number(projectionResult.rows[0]?.pending ?? 0);
-    result.failedProjections = Number(projectionResult.rows[0]?.failed ?? 0);
-  } catch (error) {
-    console.error('[world-model:metrics] pending projection query failed:', error);
-  }
-
-  try {
-    const receiptResult = await db.query<{ count: string }>(
-      `SELECT COUNT(*) AS count FROM world_model_delivery_receipts`,
-    );
-    result.deliveryReceipts = Number(receiptResult.rows[0]?.count ?? 0);
-  } catch (error) {
-    console.error('[world-model:metrics] delivery receipt query failed:', error);
-  }
-
-  try {
-    const outboxResult = await db.query<{
-      pending: string;
-      failed: string;
-      oldest_age_ms: string | null;
-    }>(
-      `SELECT
+        );
+        result.pendingProjections = Number(projectionResult.rows[0]?.pending ?? 0);
+        result.failedProjections = Number(projectionResult.rows[0]?.failed ?? 0);
+      } catch (error) {
+        console.error('[world-model:metrics] pending projection query failed:', error);
+      }
+    })(),
+    (async () => {
+      try {
+        const receiptResult = await db.query<{ count: string }>(
+          `SELECT COUNT(*) AS count FROM world_model_delivery_receipts`,
+        );
+        result.deliveryReceipts = Number(receiptResult.rows[0]?.count ?? 0);
+      } catch (error) {
+        console.error('[world-model:metrics] delivery receipt query failed:', error);
+      }
+    })(),
+    (async () => {
+      try {
+        const outboxResult = await db.query<{
+          pending: string;
+          failed: string;
+          oldest_age_ms: string | null;
+        }>(
+          `SELECT
          COUNT(*) FILTER (WHERE status = 'pending') AS pending,
          COUNT(*) FILTER (WHERE status = 'failed') AS failed,
          COALESCE(
@@ -158,52 +163,57 @@ export async function collectWorldModelMetrics(
          )::text AS oldest_age_ms
        FROM world_model_outbox_events
        WHERE status IN ('pending', 'failed')`,
-    );
-    result.outboxPending = Number(outboxResult.rows[0]?.pending ?? 0);
-    result.outboxFailed = Number(outboxResult.rows[0]?.failed ?? 0);
-    result.outboxAgeMs = Math.round(Number(outboxResult.rows[0]?.oldest_age_ms ?? 0));
-  } catch (error) {
-    console.error('[world-model:metrics] outbox query failed:', error);
-  }
-
-  try {
-    const loopResult = await db.query<{ count: string }>(
-      `SELECT COUNT(*) AS count
+        );
+        result.outboxPending = Number(outboxResult.rows[0]?.pending ?? 0);
+        result.outboxFailed = Number(outboxResult.rows[0]?.failed ?? 0);
+        result.outboxAgeMs = Math.round(Number(outboxResult.rows[0]?.oldest_age_ms ?? 0));
+      } catch (error) {
+        console.error('[world-model:metrics] outbox query failed:', error);
+      }
+    })(),
+    (async () => {
+      try {
+        const loopResult = await db.query<{ count: string }>(
+          `SELECT COUNT(*) AS count
        FROM world_model_open_loops
        WHERE status IN ('open', 'scheduled')
          AND (trigger_at IS NULL OR trigger_at <= now())`,
-    );
-    result.dueOpenLoops = Number(loopResult.rows[0]?.count ?? 0);
-  } catch (error) {
-    console.error('[world-model:metrics] open loops query failed:', error);
-  }
-
-  try {
-    const lagResult = await db.query<{ max_lag_ms: string | null }>(
-      `SELECT
+        );
+        result.dueOpenLoops = Number(loopResult.rows[0]?.count ?? 0);
+      } catch (error) {
+        console.error('[world-model:metrics] open loops query failed:', error);
+      }
+    })(),
+    (async () => {
+      try {
+        const lagResult = await db.query<{ max_lag_ms: string | null }>(
+          `SELECT
          COALESCE(
            EXTRACT(EPOCH FROM (now() - MAX(received_at))) * 1000,
            0
          )::text AS max_lag_ms
        FROM world_model_observations`,
-    );
-    result.projectionLagMs = Math.round(Number(lagResult.rows[0]?.max_lag_ms ?? 0));
-  } catch (error) {
-    console.error('[world-model:metrics] projection lag query failed:', error);
-  }
-
-  try {
-    const embResult = await db.query<{ total: string; without_text: string }>(
-      `SELECT
+        );
+        result.projectionLagMs = Math.round(Number(lagResult.rows[0]?.max_lag_ms ?? 0));
+      } catch (error) {
+        console.error('[world-model:metrics] projection lag query failed:', error);
+      }
+    })(),
+    (async () => {
+      try {
+        const embResult = await db.query<{ total: string; without_text: string }>(
+          `SELECT
          COUNT(*) AS total,
          COUNT(*) FILTER (WHERE target_content IS NULL OR target_content = '') AS without_text
        FROM world_model_embeddings`,
-    );
-    result.embeddingsTotal = Number(embResult.rows[0]?.total ?? 0);
-    result.embeddingsWithoutText = Number(embResult.rows[0]?.without_text ?? 0);
-  } catch (error) {
-    console.error('[world-model:metrics] embeddings query failed:', error);
-  }
+        );
+        result.embeddingsTotal = Number(embResult.rows[0]?.total ?? 0);
+        result.embeddingsWithoutText = Number(embResult.rows[0]?.without_text ?? 0);
+      } catch (error) {
+        console.error('[world-model:metrics] embeddings query failed:', error);
+      }
+    })(),
+  ]);
 
   return result;
 }

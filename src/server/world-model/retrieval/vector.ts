@@ -37,6 +37,11 @@ export async function vectorSearch(
   workspaceId: string,
   limit = 10,
   minSimilarity = 0.5,
+  targetFilter?: {
+    include?: readonly string[];
+    exclude?: readonly string[];
+    activeMemoryOnly?: boolean;
+  },
 ): Promise<VectorHit[]> {
   const config = getWorldModelConfig();
   if (!config.enabled && !config.e2eEnabled) return [];
@@ -65,9 +70,35 @@ export async function vectorSearch(
          AND e.persona_id = $3
          AND e.workspace_id = $4
          AND 1 - (e.embedding <=> $1::vector) >= $5
+         AND ($7::text[] IS NULL OR e.target_type = ANY($7::text[]))
+         AND ($8::text[] IS NULL OR NOT (e.target_type = ANY($8::text[])))
+         AND (
+           $9::boolean = false
+           OR e.target_type <> 'memory'
+           OR EXISTS (
+             SELECT 1
+             FROM world_model_memory_items m
+             WHERE m.id::text = e.target_id
+               AND m.user_id = e.user_id
+               AND m.persona_id = e.persona_id
+               AND m.workspace_id = e.workspace_id
+               AND m.deleted_at IS NULL
+               AND m.lifecycle_status IN ('new', 'confirmed')
+           )
+         )
        ORDER BY e.embedding <=> $1::vector
        LIMIT $6`,
-      [embeddingJson, userId, personaId, workspaceId, minSimilarity, limit],
+      [
+        embeddingJson,
+        userId,
+        personaId,
+        workspaceId,
+        minSimilarity,
+        limit,
+        targetFilter?.include?.length ? [...targetFilter.include] : null,
+        targetFilter?.exclude?.length ? [...targetFilter.exclude] : null,
+        targetFilter?.activeMemoryOnly === true,
+      ],
     );
 
     return result.rows.map((row) => ({

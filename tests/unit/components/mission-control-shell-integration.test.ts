@@ -24,6 +24,14 @@ describe('Mission Control removal', () => {
     expect(navLabels).not.toContain('Mission Control');
     expect(html).not.toContain('data-view="mission_control"');
     expect(Object.values(View)).not.toContain('mission_control');
+    expect(html).not.toContain('macOS Node');
+    expect(html).not.toContain('iOS Node');
+    expect(html).not.toContain('Node: Localhost');
+    expect(html).not.toContain('v1.2.4');
+    expect(html).toContain('Gateway');
+    expect(html).toContain('role="status"');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('min-h-11');
   });
 
   it('does not leave the removed route or shell module registered', () => {

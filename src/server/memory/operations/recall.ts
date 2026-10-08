@@ -57,8 +57,20 @@ function expandSelfReferenceQuery(query: string): string {
   const expansions: string[] = [query];
 
   if (hasDu) {
-    // Expand du → ich (all cases)
+    // Conjugated verb pairs must be replaced before the pronoun itself.
     const expanded = query
+      .replace(/\bkannst du\b/gi, 'kann ich')
+      .replace(/\bdu kannst\b/gi, 'ich kann')
+      .replace(/\bhast du\b/gi, 'habe ich')
+      .replace(/\bdu hast\b/gi, 'ich habe')
+      .replace(/\bbist du\b/gi, 'bin ich')
+      .replace(/\bdu bist\b/gi, 'ich bin')
+      .replace(/\bwillst du\b/gi, 'will ich')
+      .replace(/\bdu willst\b/gi, 'ich will')
+      .replace(/\bmagst du\b/gi, 'mag ich')
+      .replace(/\bdu magst\b/gi, 'ich mag')
+      .replace(/\bmöchtest du\b/gi, 'möchte ich')
+      .replace(/\bdu möchtest\b/gi, 'ich möchte')
       .replace(/\bdu\b/gi, 'ich')
       .replace(/\bdein\b/gi, 'mein')
       .replace(/\bdeine\b/gi, 'meine')
@@ -72,8 +84,19 @@ function expandSelfReferenceQuery(query: string): string {
   }
 
   if (hasIch) {
-    // Expand ich → du (all cases, for completeness)
     const expanded = query
+      .replace(/\bkann ich\b/gi, 'kannst du')
+      .replace(/\bich kann\b/gi, 'du kannst')
+      .replace(/\bhabe ich\b/gi, 'hast du')
+      .replace(/\bich habe\b/gi, 'du hast')
+      .replace(/\bbin ich\b/gi, 'bist du')
+      .replace(/\bich bin\b/gi, 'du bist')
+      .replace(/\bwill ich\b/gi, 'willst du')
+      .replace(/\bich will\b/gi, 'du willst')
+      .replace(/\bmag ich\b/gi, 'magst du')
+      .replace(/\bich mag\b/gi, 'du magst')
+      .replace(/\bmöchte ich\b/gi, 'möchtest du')
+      .replace(/\bich möchte\b/gi, 'du möchtest')
       .replace(/\bich\b/gi, 'du')
       .replace(/\bmein\b/gi, 'dein')
       .replace(/\bmeine\b/gi, 'deine')
@@ -87,6 +110,41 @@ function expandSelfReferenceQuery(query: string): string {
   }
 
   return expansions.join(' | ');
+}
+
+async function listLexicalCandidates(input: {
+  client: Mem0Client;
+  userId: string;
+  personaId: string;
+  workspaceId?: string;
+  queryVariants: string[];
+  allowedTypes: Set<MemoryType> | null;
+  pageSize: number;
+}) {
+  const queries = input.queryVariants.length > 0 ? input.queryVariants : [undefined];
+  const types: Array<MemoryType | undefined> = input.allowedTypes
+    ? [...input.allowedTypes]
+    : [undefined];
+  const pages = await Promise.all(
+    types.flatMap((type) =>
+      queries.map((query) =>
+        input.client.listMemories({
+          userId: input.userId,
+          personaId: input.personaId,
+          workspaceId: input.workspaceId,
+          page: 1,
+          pageSize: input.pageSize,
+          query,
+          type,
+        }),
+      ),
+    ),
+  );
+  const byId = new Map<string, (typeof pages)[number]['memories'][number]>();
+  for (const memory of pages.flatMap((page) => page.memories)) {
+    if (!byId.has(memory.id)) byId.set(memory.id, memory);
+  }
+  return Array.from(byId.values());
 }
 
 export async function recallDetailed(
@@ -103,44 +161,27 @@ export async function recallDetailed(
     memoryTypes,
   } = options;
   const scopedUserId = resolveUserId(userId);
-  const safeLimit = Math.max(1, limit);
+  const safeLimit = Math.max(1, Math.min(200, Math.floor(Number.isFinite(limit) ? limit : 3)));
   const allowedTypes = memoryTypes?.length ? new Set(memoryTypes) : null;
   const lowered = query.trim().toLowerCase();
   const rulesLikeQuery = isRulesLikeQuery(lowered);
+  const queryVariants = expandSelfReferenceQuery(query)
+    .split('|')
+    .map((variant) => variant.trim().toLowerCase())
+    .filter((variant) => variant.length > 0);
 
   if (mode === 'lexical') {
-    const listResults = allowedTypes
-      ? await Promise.all(
-          [...allowedTypes].map((type) =>
-            client.listMemories({
-              userId: scopedUserId,
-              personaId,
-              workspaceId,
-              page: 1,
-              pageSize: Math.max(25, safeLimit * 4),
-              query: query.trim() || undefined,
-              type,
-            }),
-          ),
-        )
-      : [
-          await client.listMemories({
-            userId: scopedUserId,
-            personaId,
-            workspaceId,
-            page: 1,
-            pageSize: Math.max(25, safeLimit * 4),
-            query: query.trim() || undefined,
-          }),
-        ];
-    const listed = { memories: listResults.flatMap((result) => result.memories) };
+    const listed = await listLexicalCandidates({
+      client,
+      userId: scopedUserId,
+      personaId,
+      workspaceId,
+      queryVariants,
+      allowedTypes,
+      pageSize: Math.max(25, safeLimit * 4),
+    });
 
-    const queryVariants = expandSelfReferenceQuery(query)
-      .split('|')
-      .map((variant) => variant.trim().toLowerCase())
-      .filter((variant) => variant.length > 0);
-
-    const lexicalMatches = listed.memories
+    const lexicalMatches = listed
       .map((record) => toMemoryNode(record))
       .filter((node) => !allowedTypes || allowedTypes.has(node.type))
       .filter((node) => isRecallActive(node, { userId: scopedUserId, personaId }))
@@ -172,7 +213,10 @@ export async function recallDetailed(
     userId: scopedUserId,
     personaId,
     workspaceId,
-    query: expandedQuery,
+    // PostgreSQL semantic search uses the original natural-language query;
+    // perspective variants belong to the lexical fallback and would otherwise
+    // degrade the embedding while preventing cross-source request deduplication.
+    query: client.provider === 'postgres' ? query : expandedQuery,
     limit: allowedTypes ? Math.max(safeLimit * 4, 20) : safeLimit,
   });
 
@@ -194,39 +238,25 @@ export async function recallDetailed(
   const hasRulesFocusedMatch = matches.some((entry) => containsRulesWord(entry.node.content));
 
   if (matches.length === 0 || (rulesLikeQuery && !hasRulesFocusedMatch)) {
-    const listResults = allowedTypes
-      ? await Promise.all(
-          [...allowedTypes].map((type) =>
-            client.listMemories({
-              userId: scopedUserId,
-              personaId,
-              workspaceId,
-              page: 1,
-              pageSize: Math.max(10, safeLimit),
-              query: query.trim() || undefined,
-              type,
-            }),
-          ),
-        )
-      : [
-          await client.listMemories({
-            userId: scopedUserId,
-            personaId,
-            workspaceId,
-            page: 1,
-            pageSize: Math.max(10, safeLimit),
-            query: query.trim() || undefined,
-          }),
-        ];
-    const listed = { memories: listResults.flatMap((result) => result.memories) };
+    const listed = await listLexicalCandidates({
+      client,
+      userId: scopedUserId,
+      personaId,
+      workspaceId,
+      queryVariants,
+      allowedTypes,
+      pageSize: Math.max(10, safeLimit),
+    });
 
-    const lexicalMatches = listed.memories
+    const lexicalMatches = listed
       .map((record) => toMemoryNode(record))
       .filter((node) => !allowedTypes || allowedTypes.has(node.type))
       .filter((node) => isRecallActive(node, { userId: scopedUserId, personaId }))
       .filter((node) => {
         if (!lowered) return true;
-        if (node.content.toLowerCase().includes(lowered)) return true;
+        if (queryVariants.some((variant) => node.content.toLowerCase().includes(variant))) {
+          return true;
+        }
         if (rulesLikeQuery && containsRulesWord(node.content)) return true;
         return false;
       })

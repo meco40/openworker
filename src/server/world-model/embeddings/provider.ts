@@ -7,6 +7,32 @@ export interface EmbeddingProvider {
   generateEmbedding(text: string): Promise<number[]>;
 }
 
+const inFlightEmbeddings = new Map<string, Promise<number[]>>();
+
+/**
+ * Deduplicates identical concurrent embedding requests across recall sources.
+ * Entries exist only while the provider call is running, so query text is not
+ * retained as a cache and failures never poison later requests.
+ */
+export async function generateEmbeddingOnce(
+  provider: EmbeddingProvider,
+  text: string,
+): Promise<number[]> {
+  const key = `${provider.model}\u0000${provider.modelVersion}\u0000${text}`;
+  const running = inFlightEmbeddings.get(key);
+  if (running) return running;
+
+  const operation = provider.generateEmbedding(text);
+  inFlightEmbeddings.set(key, operation);
+  try {
+    return await operation;
+  } finally {
+    if (inFlightEmbeddings.get(key) === operation) {
+      inFlightEmbeddings.delete(key);
+    }
+  }
+}
+
 function resolveModelHubEmbeddingProvider(): EmbeddingProvider | null {
   try {
     const service = getModelHubService();

@@ -16,7 +16,7 @@ function resolveTodayRange(): { from: string; to: string } {
   return { from: from.toISOString(), to: now.toISOString() };
 }
 
-export const GET = withResolvedUserContext(async ({ userContext }) => {
+export const GET = withResolvedUserContext(async ({ request, userContext }) => {
   try {
     const uptimeSeconds = Math.floor(process.uptime());
     const ramUsageBytes = process.memoryUsage().rss;
@@ -25,11 +25,56 @@ export const GET = withResolvedUserContext(async ({ userContext }) => {
 
     const { from, to } = resolveTodayRange();
     const tokensToday = getTokenUsageRepository().getTotalTokens(from, to).totalTokens;
+    const vectorNodeCountPromise = resolveVectorNodeCountSafe(userContext?.userId);
 
-    const vectorNodeCount = await resolveVectorNodeCountSafe(userContext?.userId);
+    if (new URL(request.url).searchParams.get('scope') === 'shell') {
+      const vectorNodeCount = await vectorNodeCountPromise;
+      return Response.json({
+        ok: true,
+        metrics: {
+          uptimeSeconds,
+          activeWsSessions,
+          tokensToday,
+          vectorNodeCount,
+          ramUsageBytes,
+          generatedAt: new Date().toISOString(),
+        },
+      });
+    }
+
     const metricsUserId = userContext?.userId || LEGACY_LOCAL_USER_ID;
     const agentRoomMetrics =
       getMessageRepository().getAgentRoomSwarmMetrics?.(metricsUserId) || null;
+
+    const optionalImportsPromise = Promise.allSettled([
+      import('@/server/automation/runtime'),
+      import('@/server/knowledge/runtime').then((mod) => ({
+        getKnowledgeRepository: mod.getKnowledgeRepository,
+      })),
+    ]);
+    const worldModelMetricsPromise = (async () => {
+      try {
+        const { getWorldModelMetrics, worldModelHealthStatus } =
+          await import('@/server/world-model/metrics');
+        const metrics = await getWorldModelMetrics();
+        return {
+          mode: metrics.mode,
+          status: worldModelHealthStatus(metrics),
+          pendingObservations: metrics.pendingObservations,
+          outboxDeadLetters: metrics.outboxDeadLetters,
+          outboxAgeMs: metrics.outboxAgeMs,
+          dueOpenLoops: metrics.dueOpenLoops,
+          projectionLagMs: metrics.projectionLagMs,
+          embeddingsTotal: metrics.embeddingsTotal,
+          graphitiReachable: metrics.graphitiReachable,
+        };
+      } catch {
+        return null;
+      }
+    })();
+
+    const [vectorNodeCount, [automationImport, knowledgeImport], worldModelMetrics] =
+      await Promise.all([vectorNodeCountPromise, optionalImportsPromise, worldModelMetricsPromise]);
 
     let automationMetrics: {
       activeRules: number;
@@ -38,13 +83,6 @@ export const GET = withResolvedUserContext(async ({ userContext }) => {
       deadLetterRuns: number;
       leaseAgeSeconds: number | null;
     } | null = null;
-
-    const [automationImport, knowledgeImport] = await Promise.allSettled([
-      import('@/server/automation/runtime'),
-      import('@/server/knowledge/runtime').then((mod) => ({
-        getKnowledgeRepository: mod.getKnowledgeRepository,
-      })),
-    ]);
 
     if (automationImport.status === 'fulfilled') {
       automationMetrics = automationImport.value.getAutomationService().getMetrics();
@@ -67,38 +105,6 @@ export const GET = withResolvedUserContext(async ({ userContext }) => {
       } catch {
         // Knowledge layer may not be initialized — skip metrics
       }
-    }
-
-    // World Model metrics (Phase 15)
-    let worldModelMetrics: {
-      mode: string;
-      status: string;
-      pendingObservations: number;
-      outboxDeadLetters: number;
-      outboxAgeMs: number;
-      dueOpenLoops: number;
-      projectionLagMs: number;
-      embeddingsTotal: number;
-      graphitiReachable?: boolean;
-    } | null = null;
-
-    try {
-      const { getWorldModelMetrics, worldModelHealthStatus } =
-        await import('@/server/world-model/metrics');
-      const wmMetrics = await getWorldModelMetrics();
-      worldModelMetrics = {
-        mode: wmMetrics.mode,
-        status: worldModelHealthStatus(wmMetrics),
-        pendingObservations: wmMetrics.pendingObservations,
-        outboxDeadLetters: wmMetrics.outboxDeadLetters,
-        outboxAgeMs: wmMetrics.outboxAgeMs,
-        dueOpenLoops: wmMetrics.dueOpenLoops,
-        projectionLagMs: wmMetrics.projectionLagMs,
-        embeddingsTotal: wmMetrics.embeddingsTotal,
-        graphitiReachable: wmMetrics.graphitiReachable,
-      };
-    } catch {
-      // World Model may not be enabled or DB unavailable — skip
     }
 
     return Response.json({

@@ -9,7 +9,7 @@ interface MemoryCallResponse {
   error?: string;
 }
 
-interface MemorySnapshotResponse {
+interface MemoryListResponse {
   ok: boolean;
   nodes?: MemoryNode[];
   error?: string;
@@ -51,23 +51,28 @@ export const handleCoreMemoryCall = async (
   }
 };
 
-export const getMemorySnapshot = async (personaId?: string | null): Promise<MemoryNode[]> => {
+export const getMemoryPreview = async (
+  personaId?: string | null,
+  limit = 50,
+): Promise<MemoryNode[]> => {
   if (!personaId) {
     return [];
   }
 
+  const safeLimit = Math.max(1, Math.min(200, Math.floor(Number.isFinite(limit) ? limit : 50)));
   try {
-    const response = await fetch(`/api/memory?personaId=${encodeURIComponent(personaId)}`, {
-      method: 'GET',
-    });
-    const payload = (await response.json()) as MemorySnapshotResponse;
+    const response = await fetch(
+      `/api/memory?personaId=${encodeURIComponent(personaId)}&preview=1&limit=${safeLimit}`,
+      { method: 'GET' },
+    );
+    const payload = (await response.json()) as MemoryListResponse;
     if (!response.ok || !payload.ok || !Array.isArray(payload.nodes)) {
-      console.warn('Memory snapshot failed:', payload.error || `HTTP ${response.status}`);
+      console.warn('Memory preview failed:', payload.error || `HTTP ${response.status}`);
       return [];
     }
     return payload.nodes;
   } catch (error) {
-    console.warn('Memory snapshot request failed:', error);
+    console.warn('Memory preview request failed:', error);
     return [];
   }
 };

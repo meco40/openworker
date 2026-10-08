@@ -35,6 +35,8 @@ export default defineConfig({
             // bus instance observed by the test subscriber.
             'tests/unit/memory/lifecycle.test.ts',
             'tests/unit/world-model/retrieval.test.ts',
+            // This adapter spies on process-global fetch while other provider tests do the same.
+            'tests/unit/model-hub/opencode-adapter.test.ts',
             'tests/unit/components/**/*.test.{ts,tsx}',
           ],
         },
@@ -50,6 +52,7 @@ export default defineConfig({
             'tests/unit/server/summaryService-perf.test.ts',
             'tests/unit/memory/lifecycle.test.ts',
             'tests/unit/world-model/retrieval.test.ts',
+            'tests/unit/model-hub/opencode-adapter.test.ts',
           ],
         },
       },

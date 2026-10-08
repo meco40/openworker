@@ -1,11 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ControlPlaneMetrics, ControlPlaneMetricsState } from '@/shared/domain/types';
+import { requestControlPlaneMetrics } from '@/modules/app-shell/controlPlaneMetricsClient';
 
-interface ControlPlaneMetricsResponse {
-  ok: boolean;
-  metrics?: ControlPlaneMetrics;
-  error?: string;
-}
+const METRICS_REFRESH_INTERVAL_MS = 30_000;
 
 export function useControlPlaneMetrics(): ControlPlaneMetricsState & {
   refresh: () => Promise<void>;
@@ -14,17 +11,16 @@ export function useControlPlaneMetrics(): ControlPlaneMetricsState & {
   const [loading, setLoading] = useState(true);
   const [stale, setStale] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const metricsRef = useRef<ControlPlaneMetrics | null>(null);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    if (!metricsRef.current) {
+      setLoading(true);
+    }
     try {
-      const response = await fetch('/api/control-plane/metrics', { cache: 'no-store' });
-      const payload = (await response.json()) as ControlPlaneMetricsResponse;
-      if (!response.ok || !payload.ok || !payload.metrics) {
-        throw new Error(payload.error || `HTTP ${response.status}`);
-      }
-
-      setMetrics(payload.metrics);
+      const metrics = await requestControlPlaneMetrics();
+      metricsRef.current = metrics;
+      setMetrics(metrics);
       setStale(false);
       setError(null);
     } catch (requestError) {
@@ -41,7 +37,22 @@ export function useControlPlaneMetrics(): ControlPlaneMetricsState & {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refresh();
+      }
+    };
+
+    refreshWhenVisible();
+    const intervalId = window.setInterval(refreshWhenVisible, METRICS_REFRESH_INTERVAL_MS);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshWhenVisible);
+    };
   }, [refresh]);
 
   return {

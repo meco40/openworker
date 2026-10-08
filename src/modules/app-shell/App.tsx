@@ -30,6 +30,7 @@ import AppShellHeader from '@/modules/app-shell/components/AppShellHeader';
 import AppShellViewContent from '@/modules/app-shell/components/AppShellViewContent';
 import { usePersona } from '@/modules/personas/PersonaContext';
 import { getGatewayClient } from '@/modules/gateway/ws-client';
+import { useGatewayConnection } from '@/modules/gateway/useGatewayConnection';
 import { useConfirmDialog } from '@/components/shared/ConfirmDialogProvider';
 
 const DEFAULT_CHAT_STREAM_DEBUG: ChatStreamDebugState = {
@@ -86,7 +87,10 @@ const App: React.FC<AppProps> = ({ initialView }) => {
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId;
   }, [activeConversationId]);
-  const { gatewayState, addEventLog, updateMemoryDisplay } = useGatewayState();
+  const { gatewayState, addEventLog, updateMemoryDisplay } = useGatewayState({
+    loadMemory: currentView === View.DASHBOARD,
+  });
+  const { state: gatewayConnectionState } = useGatewayConnection();
   const { scheduledTasks, setScheduledTasks } = useTaskScheduler({ addEventLog, setMessages });
   const controlPlaneMetricsState = useControlPlaneMetrics();
   const { isAgentTyping: isRuntimeAgentTyping, handleAgentResponse } = useAgentRuntime({
@@ -299,7 +303,7 @@ const App: React.FC<AppProps> = ({ initialView }) => {
   });
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#0a0a0a] text-zinc-300">
+    <div className="flex h-dvh w-full overflow-hidden bg-[#0a0a0a] text-zinc-300">
       <a
         href="#main"
         data-testid="skip-link"
@@ -307,9 +311,20 @@ const App: React.FC<AppProps> = ({ initialView }) => {
       >
         Skip to main content
       </a>
-      <Sidebar activeView={currentView} onViewChange={setCurrentView} />
-      <main id="main" className="relative flex flex-1 flex-col overflow-hidden">
-        <AppShellHeader metricsState={controlPlaneMetricsState} />
+      <Sidebar
+        activeView={currentView}
+        onViewChange={setCurrentView}
+        gatewayConnectionState={gatewayConnectionState}
+      />
+      <main
+        id="main"
+        tabIndex={-1}
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden focus:outline-none"
+      >
+        <AppShellHeader
+          metricsState={controlPlaneMetricsState}
+          gatewayConnectionState={gatewayConnectionState}
+        />
         <AppShellViewContent
           currentView={currentView}
           gatewayState={gatewayState}

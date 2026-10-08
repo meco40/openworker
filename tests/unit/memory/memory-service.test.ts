@@ -228,6 +228,48 @@ describe('MemoryService (mem0-only)', () => {
     expect(context).toContain('[Type: fact] alpha fallback memory');
   });
 
+  it('uses self-reference variants in semantic lexical fallback queries', async () => {
+    const client = createInMemoryMem0Client();
+    const service = new MemoryService(client);
+    const stored = await service.store('persona-a', 'fact', 'ich mag Orangensaft', 4, 'user-a');
+    client.searchMemories = async () => [
+      {
+        id: stored.id,
+        content: stored.content,
+        score: 0.1,
+        metadata: stored.metadata || {},
+      },
+    ];
+
+    const context = await service.recall('persona-a', 'du mag Orangensaft', 3, 'user-a');
+
+    expect(context).toContain('ich mag Orangensaft');
+  });
+
+  it('keeps canonical semantic queries natural and reserves variants for lexical fallback', async () => {
+    const searchMemories = vi.fn(async () => [] as Mem0SearchHit[]);
+    const listMemories = vi.fn(
+      async (input: Mem0ListInput): Promise<Mem0ListMemoryResult> => ({
+        memories: [],
+        total: 0,
+        page: input.page,
+        pageSize: input.pageSize,
+      }),
+    );
+    const service = new MemoryService({
+      provider: 'postgres',
+      searchMemories,
+      listMemories,
+    } as unknown as Mem0Client);
+
+    await service.recallDetailed('persona-a', 'Was magst du?', 3, 'user-a');
+
+    expect(searchMemories).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'Was magst du?' }),
+    );
+    expect(listMemories).toHaveBeenCalledWith(expect.objectContaining({ query: 'was mag ich?' }));
+  });
+
   it('annotates first-person memories as assistant self-reference in recall context', async () => {
     const service = new MemoryService(createInMemoryMem0Client());
     await service.store('persona-a', 'preference', 'Ich mag Orangensaft', 4, 'user-a');
@@ -292,6 +334,62 @@ describe('MemoryService (mem0-only)', () => {
     );
     expect(filtered.nodes).toHaveLength(1);
     expect(filtered.nodes[0].content).toBe('gamma');
+  });
+
+  it('loads a bounded cross-scope preview without walking later pages', async () => {
+    const client = createInMemoryMem0Client();
+    const service = new MemoryService(client);
+    await service.store('persona-a', 'fact', 'legacy memory', 3, 'user-a');
+    await service.store('persona-a', 'fact', 'channel memory one', 3, 'user-b');
+    await service.store('persona-a', 'lesson', 'channel memory two', 3, 'user-b');
+
+    const listSpy = vi.spyOn(client, 'listMemories');
+    const preview = await service.listPreviewAcrossScopes('persona-a', ['user-a', 'user-b'], 2);
+
+    expect(preview.nodes).toHaveLength(2);
+    expect(preview.truncated).toBe(true);
+    expect(listSpy).toHaveBeenCalledTimes(2);
+    expect(listSpy.mock.calls.every(([input]) => input.page === 1 && input.pageSize === 2)).toBe(
+      true,
+    );
+  });
+
+  it('builds a cross-scope page from the required prefix instead of full snapshots', async () => {
+    const listMemories = vi.fn(async (input: Mem0ListInput): Promise<Mem0ListMemoryResult> => {
+      const offset = (input.page - 1) * input.pageSize;
+      return {
+        memories: Array.from({ length: input.pageSize }, (_, index) => ({
+          id: `${input.userId}-${offset + index}`,
+          content: `memory ${input.userId} ${offset + index}`,
+          score: null,
+          metadata: {
+            type: 'fact',
+            lastVerified: new Date(Date.UTC(2026, 0, 1, 0, 0, offset + index)).toISOString(),
+          },
+        })),
+        total: 10_000,
+        page: input.page,
+        pageSize: input.pageSize,
+      };
+    });
+    const service = new MemoryService({
+      provider: 'postgres',
+      listMemories,
+    } as unknown as Mem0Client);
+
+    const result = await service.listPageAcrossScopes('persona-a', ['user-a', 'user-b', 'user-a'], {
+      page: 2,
+      pageSize: 25,
+    });
+
+    expect(result.nodes).toHaveLength(25);
+    expect(result.pagination).toEqual({ page: 2, pageSize: 25, total: 20_000, totalPages: 800 });
+    expect(listMemories).toHaveBeenCalledTimes(2);
+    expect(
+      listMemories.mock.calls.every(
+        ([input]) => input.page === 1 && input.pageSize === 50 && input.personaId === 'persona-a',
+      ),
+    ).toBe(true);
   });
 
   it('returns memory count via lightweight first-page metadata lookup', async () => {

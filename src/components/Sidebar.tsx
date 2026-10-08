@@ -1,10 +1,12 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from '@/shared/domain/types';
 import ConnectionStatus from '@/components/ConnectionStatus';
+import type { ConnectionState } from '@/modules/gateway/ws-client';
 
 interface SidebarProps {
   activeView: View;
   onViewChange: (view: View) => void;
+  gatewayConnectionState?: ConnectionState;
 }
 
 interface SidebarItem {
@@ -113,79 +115,216 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  activeView,
+  onViewChange,
+  gatewayConnectionState = 'disconnected',
+}) => {
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
+  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileCloseRef = useRef<HTMLButtonElement>(null);
+  const mobileDrawerRef = useRef<HTMLElement>(null);
+
+  const closeMobileNavigation = useCallback(() => {
+    setMobileNavigationOpen(false);
+    window.requestAnimationFrame(() => mobileTriggerRef.current?.focus());
+  }, []);
+
+  useEffect(() => {
+    if (!mobileNavigationOpen) {
+      return;
+    }
+
+    mobileCloseRef.current?.focus();
+    const handleKeyboardNavigation = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeMobileNavigation();
+        return;
+      }
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        mobileDrawerRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements.at(-1);
+      if (!firstElement || !lastElement) {
+        return;
+      }
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyboardNavigation);
+    return () => window.removeEventListener('keydown', handleKeyboardNavigation);
+  }, [closeMobileNavigation, mobileNavigationOpen]);
+
   const handleViewChange = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       const nextView = event.currentTarget.dataset.view as View | undefined;
       if (nextView) {
         onViewChange(nextView);
+        setMobileNavigationOpen(false);
+        window.requestAnimationFrame(() => document.getElementById('main')?.focus());
       }
     },
     [onViewChange],
   );
 
+  const navigation = (testId: string) => (
+    <nav data-testid={testId} aria-label="OpenClaw sections" className="space-y-1">
+      {SIDEBAR_ITEMS.map((item) => (
+        <button
+          type="button"
+          key={item.id}
+          data-view={item.id}
+          aria-label={item.label}
+          aria-current={activeView === item.id ? 'page' : undefined}
+          title={item.label}
+          onClick={handleViewChange}
+          className={`flex min-h-11 w-full items-center space-x-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0c0c] ${
+            activeView === item.id
+              ? 'bg-zinc-800 text-white shadow-lg'
+              : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-white'
+          }`}
+        >
+          <svg
+            aria-hidden="true"
+            className="h-5 w-5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+          </svg>
+          <span className="font-medium">{item.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+
   return (
-    <aside
-      data-testid="app-sidebar"
-      aria-label="Primary navigation"
-      className="z-20 flex w-64 flex-col border-r border-zinc-800 bg-[#0c0c0c] max-md:w-16"
-    >
-      <div className="flex flex-1 flex-col overflow-y-auto p-6 max-md:p-2">
-        <div className="mb-8 flex items-center space-x-2">
-          <div className="mx-auto flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gradient-to-br from-indigo-600 to-violet-700 text-xl font-black text-white">
-            C
+    <>
+      <button
+        ref={mobileTriggerRef}
+        type="button"
+        data-testid="mobile-navigation-trigger"
+        aria-label="Open navigation"
+        aria-controls="mobile-navigation"
+        aria-expanded={mobileNavigationOpen}
+        onClick={() => setMobileNavigationOpen(true)}
+        className="fixed top-2 left-2 z-30 inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-zinc-800 bg-[#0c0c0c] text-zinc-200 shadow-lg transition-colors hover:border-zinc-700 hover:bg-zinc-900 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-black md:hidden"
+      >
+        <svg
+          aria-hidden="true"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 6h16M4 12h16M4 18h16"
+          />
+        </svg>
+      </button>
+
+      <aside
+        data-testid="app-sidebar"
+        aria-label="Primary navigation"
+        className="z-20 hidden w-64 flex-col border-r border-zinc-800 bg-[#0c0c0c] md:flex"
+      >
+        <div className="flex flex-1 flex-col overflow-y-auto p-6">
+          <div className="mb-8 flex items-center space-x-2">
+            <div className="mx-auto flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gradient-to-br from-indigo-600 to-violet-700 text-xl font-black text-white">
+              C
+            </div>
+            <span className="text-lg font-bold tracking-tight text-white">OpenClaw</span>
           </div>
-          <span className="text-lg font-bold tracking-tight text-white max-md:hidden">
-            OpenClaw
-          </span>
-        </div>
 
-        <nav data-testid="app-navigation" aria-label="OpenClaw sections" className="space-y-1">
-          {SIDEBAR_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              data-view={item.id}
-              aria-label={item.label}
-              onClick={handleViewChange}
-              className={`flex w-full items-center space-x-3 rounded-md px-3 py-2.5 text-sm transition-all duration-200 max-md:justify-center max-md:px-2 ${
-                activeView === item.id
-                  ? 'bg-zinc-800 text-white shadow-lg'
-                  : 'text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300'
-              }`}
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
-              </svg>
-              <span className="font-medium max-md:hidden">{item.label}</span>
-            </button>
-          ))}
-        </nav>
+          {navigation('app-navigation')}
 
-        <div className="mt-8 max-md:hidden">
-          <h4 className="mb-4 px-3 text-[10px] font-bold tracking-widest text-zinc-600 uppercase">
-            Companion Apps
-          </h4>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between rounded border border-zinc-800 bg-zinc-900/50 px-3 py-2">
-              <span className="text-xs text-zinc-400">macOS Node</span>
-              <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            </div>
-            <div className="flex items-center justify-between rounded border border-zinc-800 bg-zinc-900/50 px-3 py-2 opacity-50">
-              <span className="text-xs text-zinc-400">iOS Node</span>
-              <span className="h-2 w-2 rounded-full bg-zinc-600" />
-            </div>
-            <ConnectionStatus />
+          <div className="mt-8">
+            <h4 className="mb-4 px-3 text-[10px] font-bold tracking-widest text-zinc-600 uppercase">
+              Runtime
+            </h4>
+            <ConnectionStatus state={gatewayConnectionState} />
           </div>
         </div>
-      </div>
+      </aside>
 
-      <div className="space-y-2 border-t border-zinc-800 bg-[#0c0c0c] p-4">
-        <div className="flex items-center justify-between px-2 pt-2 font-mono text-[10px] text-zinc-600 uppercase">
-          <span>Node: Localhost</span>
-          <span className="text-emerald-500">v1.2.4</span>
+      {mobileNavigationOpen && (
+        <div className="fixed inset-0 z-40 md:hidden" data-testid="mobile-navigation-layer">
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+            onClick={closeMobileNavigation}
+          />
+          <aside
+            ref={mobileDrawerRef}
+            id="mobile-navigation"
+            data-testid="mobile-navigation-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-navigation-title"
+            className="absolute inset-y-0 left-0 flex w-[min(20rem,calc(100vw-3rem))] flex-col border-r border-zinc-800 bg-[#0c0c0c] shadow-2xl"
+          >
+            <div className="flex min-h-16 items-center justify-between border-b border-zinc-800 px-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-indigo-600 to-violet-700 text-xl font-black text-white">
+                  C
+                </div>
+                <span
+                  id="mobile-navigation-title"
+                  className="text-base font-bold tracking-tight text-white"
+                >
+                  OpenClaw navigation
+                </span>
+              </div>
+              <button
+                ref={mobileCloseRef}
+                type="button"
+                aria-label="Close navigation"
+                onClick={closeMobileNavigation}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white focus-visible:ring-2 focus-visible:ring-violet-500"
+              >
+                <svg
+                  aria-hidden="true"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18 18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              {navigation('mobile-app-navigation')}
+              <div className="mt-6 border-t border-zinc-800 pt-6">
+                <ConnectionStatus state={gatewayConnectionState} />
+              </div>
+            </div>
+          </aside>
         </div>
-      </div>
-    </aside>
+      )}
+    </>
   );
 };
 

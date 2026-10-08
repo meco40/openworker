@@ -59,6 +59,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
   const isEmbeddingMode = mode === 'embedding';
   const isGraphitiMode = mode === 'graphiti';
   const isCodexAccount = selectedAccount?.providerId === 'openai-codex';
+  const supportsReasoningSetting = !isEmbeddingMode && (isCodexAccount || isGraphitiMode);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
@@ -208,7 +209,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
           </div>
 
           <div>
-            {!isEmbeddingMode && isCodexAccount && (
+            {supportsReasoningSetting && (
               <div className="mb-6">
                 <div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
                   Step 3: Denkstufe
@@ -234,7 +235,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
             )}
 
             <div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
-              Step {!isEmbeddingMode && isCodexAccount ? '4' : '3'}: Priorität
+              Step {supportsReasoningSetting ? '4' : '3'}: Priorität
             </div>
             <select
               value={selectedPriority}

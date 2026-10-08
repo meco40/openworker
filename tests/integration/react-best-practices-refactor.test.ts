@@ -41,6 +41,17 @@ describe('react/next best-practices refactor', () => {
     );
   });
 
+  it('does not load chart and graph libraries in the initial global bundle', () => {
+    const dashboard = read('src/components/Dashboard.tsx');
+    const globalsCss = read('app/globals.css');
+    const knowledgeGraph = read('src/components/knowledge/graph/KnowledgeGraphPanel.tsx');
+
+    expect(dashboard).not.toContain("from 'recharts'");
+    expect(dashboard).toContain("dynamic(() => import('@/components/dashboard/PersonalityRadar')");
+    expect(globalsCss).not.toContain('@xyflow/react/dist/style.css');
+    expect(knowledgeGraph).toContain("import '@xyflow/react/dist/style.css';");
+  });
+
   it('uses local system font stacks and avoids Google font runtime dependencies', () => {
     const layout = read('app/layout.tsx');
     const globalsCss = read('app/globals.css');
@@ -72,8 +83,9 @@ describe('react/next best-practices refactor', () => {
     const metricsRoute = read('app/api/control-plane/metrics/route.ts');
 
     expect(skillRoute).toContain('const [body, repo] = await Promise.all([');
-    expect(metricsRoute).toContain(
-      'const [automationImport, knowledgeImport] = await Promise.allSettled([',
+    expect(metricsRoute).toContain('const optionalImportsPromise = Promise.allSettled([');
+    expect(metricsRoute).toMatch(
+      /await Promise\.all\(\[\s*vectorNodeCountPromise,\s*optionalImportsPromise,\s*worldModelMetricsPromise,?\s*\]\)/,
     );
   });
 
@@ -85,7 +97,7 @@ describe('react/next best-practices refactor', () => {
   it('avoids mutating sort in Dashboard render path', () => {
     const dashboard = read('src/components/Dashboard.tsx');
     expect(dashboard).not.toContain('scheduled.sort(');
-    expect(dashboard).toContain('[...scheduled].sort(');
+    expect(dashboard).toContain('[...scheduledTasks].sort(');
   });
 
   it('keeps worker view detached from the main app shell', () => {
@@ -105,6 +117,8 @@ describe('react/next best-practices refactor', () => {
     expect(app).toContain('useState<Record<string, CoupledChannel>>(() => {');
     expect(conversationSync).toContain('useState<Message[]>(() => [])');
     expect(gatewayState).toContain('useState<GatewayState>(() => createInitialGatewayState())');
+    expect(gatewayState).not.toContain('cpuUsage:');
+    expect(gatewayState).not.toContain('trafficData:');
   });
 
   it('uses server-derived initial view and avoids startup config fetch in client app shell', () => {
@@ -123,6 +137,16 @@ describe('react/next best-practices refactor', () => {
     expect(app).toContain('initialView: View');
   });
 
+  it('refreshes shell metrics only while the document is visible', () => {
+    const metricsHook = read('src/modules/app-shell/useControlPlaneMetrics.ts');
+
+    expect(metricsHook).toContain('METRICS_REFRESH_INTERVAL_MS = 30_000');
+    expect(metricsHook).toContain("document.visibilityState === 'visible'");
+    expect(metricsHook).toContain("document.addEventListener('visibilitychange'");
+    expect(metricsHook).toContain("window.addEventListener('focus'");
+    expect(metricsHook).toContain('window.clearInterval(intervalId)');
+  });
+
   it('loads chat/persona/skills data only when required by active view', () => {
     const app = read('src/modules/app-shell/App.tsx');
     const conversationSync = read('src/modules/app-shell/useConversationSync.ts');
@@ -130,6 +154,7 @@ describe('react/next best-practices refactor', () => {
     const personaContext = read('src/modules/personas/PersonaContext.tsx');
 
     expect(app).toContain('const shouldEnableChatData = currentView === View.CHAT;');
+    expect(app).toContain('loadMemory: currentView === View.DASHBOARD,');
     expect(app).toContain('enabled: shouldEnableChatData');
     expect(conversationSync).toContain('enabled: boolean');
     expect(conversationSync).toContain('if (!enabled) {');

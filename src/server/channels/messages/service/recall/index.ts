@@ -114,13 +114,14 @@ export class RecallService {
       }
     };
 
-    let preferencesOnly = isMem0PreferencesOnly();
+    let memoryProvider: 'postgres' | 'mem0' | 'sqlite' = 'mem0';
     try {
-      preferencesOnly = preferencesOnly && getMemoryProviderKind() === 'mem0';
+      memoryProvider = getMemoryProviderKind();
     } catch {
-      // Unit/test doubles may expose only getMemoryService. Keep the legacy
-      // preference gate in that isolated compatibility case.
+      // Unit/test doubles may expose only getMemoryService. Preserve the
+      // legacy behavior in that isolated compatibility case.
     }
+    const preferencesOnly = isMem0PreferencesOnly() && memoryProvider === 'mem0';
     const preferenceMemoryTypes: MemoryType[] = [
       'preference',
       'avoidance',
@@ -153,6 +154,7 @@ export class RecallService {
         this.recallFromMemory(memoryUserIds, conversation, userInput, {
           mode: explicitRecallCommand ? 'lexical' : 'semantic',
           memoryTypes: preferencesOnly ? preferenceMemoryTypes : undefined,
+          cacheEmptyScopes: memoryProvider === 'mem0',
         }),
       ),
       measure('chat', () => this.recallFromChat(conversation, userInput)),
@@ -225,9 +227,7 @@ export class RecallService {
     return buildStrictEvidenceReply(conversation, userInput, isMemoryEnabled, chatHits);
   }
 
-  /**
-   * Recall from Mem0 semantic memory
-   */
+  /** Recall from the configured long-term memory provider. */
   private logMemoryScopeCompleted(
     conversation: Conversation,
     personaId: string,
@@ -266,11 +266,16 @@ export class RecallService {
     memoryUserIds: string[],
     conversation: Conversation,
     userInput: string,
-    options: { mode: 'semantic' | 'lexical'; memoryTypes?: MemoryType[] },
+    options: {
+      mode: 'semantic' | 'lexical';
+      memoryTypes?: MemoryType[];
+      cacheEmptyScopes: boolean;
+    },
   ): Promise<string | null> {
     const personaId = conversation.personaId!;
     for (const userIdCandidate of memoryUserIds) {
       if (
+        options.cacheEmptyScopes &&
         this.stateManager.isMem0ScopeTemporarilyEmpty(
           personaId,
           userIdCandidate,
@@ -292,7 +297,7 @@ export class RecallService {
             workspaceId: conversation.workspaceId,
           },
         );
-        if (recalled.matches.length > 0) {
+        if (options.cacheEmptyScopes && recalled.matches.length > 0) {
           this.stateManager.clearMem0ScopeEmptyMarker(
             personaId,
             userIdCandidate,
@@ -306,14 +311,14 @@ export class RecallService {
           });
         }
         const normalized = normalizeMemoryContext(recalled.context);
-        if (normalized) {
+        if (options.cacheEmptyScopes && normalized) {
           this.stateManager.clearMem0ScopeEmptyMarker(
             personaId,
             userIdCandidate,
             conversation.workspaceId,
           );
         }
-        if (recalled.matches.length === 0) {
+        if (options.cacheEmptyScopes && recalled.matches.length === 0) {
           this.stateManager.markMem0ScopeTemporarilyEmpty(
             personaId,
             userIdCandidate,
@@ -330,7 +335,7 @@ export class RecallService {
           durationMs,
           recalled.matches.length,
           normalized?.length ?? 0,
-          recalled.matches.length === 0,
+          options.cacheEmptyScopes && recalled.matches.length === 0,
         );
         if (normalized) return normalized;
       } catch (error) {

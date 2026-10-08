@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DELETE_ALL_CONFIRM_TOKEN,
   ValidationError,
-  dedupeById,
   isDeleteAllConfirmed,
   parseBulkBody,
   parseFlag,
@@ -12,7 +11,6 @@ import {
   parseRecallArgs,
   parseStoreArgs,
   parseUpdateBody,
-  rankNodeTimestamp,
   resolveMemoryReadUserScopes,
 } from '@/server/memory/api/shared';
 
@@ -352,37 +350,6 @@ describe('memory/api/shared branch coverage', () => {
       const result = resolveMemoryReadUserScopes('legacy-local-user', 'p1');
       expect(result).toEqual(['legacy-local-user']);
       consoleWarnSpy.mockRestore();
-    });
-  });
-
-  describe('dedupeById', () => {
-    it('dedupes by id keeping last', () => {
-      const rows = [
-        { id: 'a', v: 1 },
-        { id: 'b', v: 2 },
-        { id: 'a', v: 3 },
-      ];
-      const result = dedupeById(rows);
-      expect(result).toHaveLength(2);
-      expect(result.find((r) => r.id === 'a')?.v).toBe(3);
-    });
-
-    it('skips rows without id', () => {
-      const rows = [{ id: 'a' }, { id: '' }, { id: 'b' }];
-      expect(dedupeById(rows)).toHaveLength(2);
-    });
-  });
-
-  describe('rankNodeTimestamp', () => {
-    it('returns parsed timestamp', () => {
-      const node = { metadata: { lastVerified: '2026-01-01T00:00:00.000Z' } };
-      expect(rankNodeTimestamp(node)).toBe(Date.parse('2026-01-01T00:00:00.000Z'));
-    });
-
-    it('returns 0 for invalid or missing timestamp', () => {
-      expect(rankNodeTimestamp({ metadata: { lastVerified: 'bogus' } })).toBe(0);
-      expect(rankNodeTimestamp({ metadata: {} })).toBe(0);
-      expect(rankNodeTimestamp({})).toBe(0);
     });
   });
 });

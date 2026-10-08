@@ -14,7 +14,10 @@ import {
   type OpenLoopRetrievalHit,
 } from '@/server/world-model/retrieval/openLoops';
 import { vectorSearch, type VectorHit } from '@/server/world-model/retrieval/vector';
-import { getConfiguredEmbeddingProvider } from '@/server/world-model/embeddings/provider';
+import {
+  generateEmbeddingOnce,
+  getConfiguredEmbeddingProvider,
+} from '@/server/world-model/embeddings/provider';
 import { getWorldModelConfig } from '@/server/world-model/config';
 import { planQuery, type PlannedQuery } from '@/server/world-model/retrieval/queryPlanner';
 import { runWithWorldModelScope } from '@/server/world-model/db';
@@ -101,7 +104,9 @@ async function retrieveContextInScope(
   const workspaceId = input.workspaceId ?? '';
   const plan = planQuery({ text: input.query });
 
-  const structured = await findStructuredEvents({
+  // All lanes are independent and are aggregated below. Start them together so
+  // canonical recall latency is bounded by the slowest source, not their sum.
+  const structuredPromise = findStructuredEvents({
     userId: input.userId,
     personaId: input.personaId,
     workspaceId,
@@ -113,84 +118,89 @@ async function retrieveContextInScope(
       | undefined,
     validAsOf: input.asOfValidTime ?? plan.asOfValidTime,
     knownAsOf: input.asOfKnownTime ?? plan.asOfKnownTime,
+  }).catch((error) => {
+    console.error('[world-model:retrieval] structured event search failed:', error);
+    return [] as StructuredEventHit[];
   });
-
-  const fullText = await fullTextSearchAssertions(
+  const fullTextPromise = fullTextSearchAssertions(
     input.userId,
     input.personaId,
     workspaceId,
     input.query,
     limit,
     { knownAsOf: input.asOfKnownTime ?? plan.asOfKnownTime },
-  );
-
-  // Domain results are aggregated instead of returning early so a prompt can
-  // carry structured truth, evidence and open loops together.
-  let assertions: Awaited<ReturnType<typeof searchAssertions>> = [];
-  let tasks: Awaited<ReturnType<typeof searchTasks>> = [];
-  let relations: Awaited<ReturnType<typeof searchRelations>> = [];
-  let openLoops: OpenLoopRetrievalHit[] = [];
-  try {
-    [assertions, tasks, relations, openLoops] = await Promise.all([
-      searchAssertions({
-        userId: input.userId,
-        personaId: input.personaId,
-        workspaceId,
-        query: plan.entity || input.query,
-        knownAsOf: input.asOfKnownTime ?? plan.asOfKnownTime,
-        validAsOf: input.asOfValidTime ?? plan.asOfValidTime,
-        limit,
-      }),
-      searchTasks({
-        userId: input.userId,
-        personaId: input.personaId,
-        workspaceId,
-        query: plan.entity || input.query,
-        knownAsOf: input.asOfKnownTime ?? plan.asOfKnownTime,
-        limit,
-      }),
-      searchRelations({
-        userId: input.userId,
-        personaId: input.personaId,
-        workspaceId,
-        entityName: plan.entity || input.query,
-        validAsOf: plan.asOfValidTime,
-        knownAsOf: input.asOfKnownTime ?? plan.asOfKnownTime,
-        limit,
-      }),
-      searchOpenLoops({
-        userId: input.userId,
-        personaId: input.personaId,
-        workspaceId,
-        query: plan.entity || input.query,
-        limit,
-      }),
-    ]);
-  } catch (error) {
+  ).catch((error) => {
+    console.error('[world-model:retrieval] full-text search failed:', error);
+    return [] as FullTextHit[];
+  });
+  const domainPromise: Promise<
+    [
+      Awaited<ReturnType<typeof searchAssertions>>,
+      Awaited<ReturnType<typeof searchTasks>>,
+      Awaited<ReturnType<typeof searchRelations>>,
+      OpenLoopRetrievalHit[],
+    ]
+  > = Promise.all([
+    searchAssertions({
+      userId: input.userId,
+      personaId: input.personaId,
+      workspaceId,
+      query: plan.entity || input.query,
+      knownAsOf: input.asOfKnownTime ?? plan.asOfKnownTime,
+      validAsOf: input.asOfValidTime ?? plan.asOfValidTime,
+      limit,
+    }),
+    searchTasks({
+      userId: input.userId,
+      personaId: input.personaId,
+      workspaceId,
+      query: plan.entity || input.query,
+      knownAsOf: input.asOfKnownTime ?? plan.asOfKnownTime,
+      limit,
+    }),
+    searchRelations({
+      userId: input.userId,
+      personaId: input.personaId,
+      workspaceId,
+      entityName: plan.entity || input.query,
+      validAsOf: plan.asOfValidTime,
+      knownAsOf: input.asOfKnownTime ?? plan.asOfKnownTime,
+      limit,
+    }),
+    searchOpenLoops({
+      userId: input.userId,
+      personaId: input.personaId,
+      workspaceId,
+      query: plan.entity || input.query,
+      limit,
+    }),
+  ]).catch((error) => {
     console.error('[world-model:retrieval] structured domain search failed:', error);
-  }
-
-  let vector: VectorHit[] = [];
-  const provider = getConfiguredEmbeddingProvider();
-  if (provider) {
+    return [[], [], [], []];
+  });
+  const vectorPromise = (async (): Promise<VectorHit[]> => {
+    const provider = getConfiguredEmbeddingProvider();
+    if (!provider) return [];
     try {
-      const queryEmbedding = await provider.generateEmbedding(input.query);
-      vector = await vectorSearch(
+      const queryEmbedding = await generateEmbeddingOnce(provider, input.query);
+      return await vectorSearch(
         queryEmbedding,
         input.userId,
         input.personaId,
         workspaceId,
         limit,
+        0.5,
+        { exclude: ['memory'] },
       );
     } catch (error) {
       console.warn('[world-model:retrieval] vector search unavailable:', error);
+      return [];
     }
-  }
-
-  let graphiti: GraphitiFact[] = [];
-  if (config.graphitiRecallEnabled && config.graphitiBackendEnabled) {
+  })();
+  const graphitiPromise = (async (): Promise<GraphitiFact[]> => {
+    if (!config.graphitiRecallEnabled || !config.graphitiBackendEnabled) return [];
     try {
-      graphiti = await searchGraphitiFactsWithRerank(
+      return await searchGraphitiFactsWithRerank(
         graphitiGroupId(input.userId, input.personaId, workspaceId),
         {
           text: input.query,
@@ -201,8 +211,18 @@ async function retrieveContextInScope(
     } catch (error) {
       // Graphiti is derived and must never make canonical retrieval fail.
       console.warn('[world-model:retrieval] Graphiti recall unavailable:', error);
+      return [];
     }
-  }
+  })();
+
+  const [structured, fullText, domain, vector, graphiti] = await Promise.all([
+    structuredPromise,
+    fullTextPromise,
+    domainPromise,
+    vectorPromise,
+    graphitiPromise,
+  ]);
+  const [assertions, tasks, relations, openLoops] = domain;
 
   const candidates: RankCandidate[] = [
     ...structured.map((e) => ({

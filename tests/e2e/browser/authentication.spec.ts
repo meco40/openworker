@@ -8,8 +8,7 @@ test.describe('Authentication & User Management', () => {
 
   test('navigation bar is visible', async ({ page }) => {
     await page.goto('/');
-    const nav = page.locator('nav, [class*="nav"], [data-testid*="nav"]');
-    await expect(nav.first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('app-navigation')).toBeVisible({ timeout: 10000 });
   });
 
   test('user can access dashboard', async ({ page }) => {

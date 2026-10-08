@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import type {
   ChatApprovalDecision,
   ChannelType,
@@ -53,6 +53,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   isTyping,
   chatStreamDebug,
 }) => {
+  const [mobilePane, setMobilePane] = useState<'list' | 'detail'>('list');
+
+  useEffect(() => {
+    if (!activeConversationId) {
+      setMobilePane('list');
+    }
+  }, [activeConversationId]);
+
+  const handleSelectConversation = useCallback(
+    (conversationId: string) => {
+      onSelectConversation(conversationId);
+      setMobilePane('detail');
+    },
+    [onSelectConversation],
+  );
+
+  const handleNewConversation = useCallback(() => {
+    void onNewConversation();
+    setMobilePane('detail');
+  }, [onNewConversation]);
+
+  const handleBackToConversations = useCallback(() => {
+    setMobilePane('list');
+  }, []);
+
   const {
     activeConversation,
     input,
@@ -90,7 +115,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   return (
     <div
-      className={`relative flex h-full overflow-hidden rounded-2xl border bg-[#0a0a0a] shadow-2xl transition-all ${
+      className={`relative flex h-full min-h-0 min-w-0 overflow-hidden rounded-2xl border bg-[#0a0a0a] shadow-2xl transition-all ${
         isDragOver ? 'border-violet-500/50 ring-2 ring-violet-500/20' : 'border-zinc-800'
       }`}
       onDragOver={handleDragOver}
@@ -99,20 +124,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     >
       {isDragOver && <ChatDragOverlay />}
 
-      <ChatConversationList
-        conversations={visibleConversations}
-        activeConversationId={activeConversationId}
-        onSelectConversation={onSelectConversation}
-        onNewConversation={onNewConversation}
-        onDeleteConversation={onDeleteConversation}
-        channelFilter={channelFilter}
-        onChannelFilterChange={setChannelFilter}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-        availableChannels={availableChannels}
-      />
+      <div
+        className={`flex min-h-0 shrink-0 max-md:w-full ${mobilePane === 'detail' ? 'max-md:hidden' : ''}`}
+      >
+        <ChatConversationList
+          conversations={visibleConversations}
+          activeConversationId={activeConversationId}
+          onSelectConversation={handleSelectConversation}
+          onNewConversation={handleNewConversation}
+          onDeleteConversation={onDeleteConversation}
+          channelFilter={channelFilter}
+          onChannelFilterChange={setChannelFilter}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+          availableChannels={availableChannels}
+        />
+      </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div
+        className={`flex min-h-0 min-w-0 flex-1 flex-col ${mobilePane === 'list' ? 'max-md:hidden' : ''}`}
+      >
         <ChatMainPane
           activeConversation={activeConversation}
           messages={messages}
@@ -121,6 +152,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           onDeleteMessage={onDeleteMessage}
           onRespondApproval={onRespondApproval}
           scrollRef={scrollRef}
+          onBackToConversations={handleBackToConversations}
         />
         <ChatInputArea
           activeConversation={activeConversation}

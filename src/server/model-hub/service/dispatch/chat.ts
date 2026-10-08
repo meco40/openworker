@@ -76,6 +76,7 @@ export async function dispatchWithFallback(
         );
         const preferredReasoningEffort = mapPipelineReasoningEffort(
           preferredTarget.reasoningEffort,
+          preferredTarget.providerId,
         );
         const preferredResult = await dispatchGatewayRequest(
           usablePreferredAccount,
@@ -125,7 +126,10 @@ export async function dispatchWithFallback(
     const account = repository.getAccountRecordById(entry.accountId);
     if (!account) continue;
     const usableAccount = await maybeRefreshOpenAICodexAccount(repository, account, encryptionKey);
-    const pipelineReasoningEffort = mapPipelineReasoningEffort(entry.reasoningEffort);
+    const pipelineReasoningEffort = mapPipelineReasoningEffort(
+      entry.reasoningEffort,
+      entry.providerId,
+    );
 
     const result = await dispatchGatewayRequest(
       usableAccount,

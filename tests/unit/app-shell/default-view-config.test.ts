@@ -3,7 +3,7 @@ import { View } from '@/shared/domain/types';
 import { resolveDefaultViewFromConfig } from '@/server/config/uiRuntimeConfig';
 import { resolveViewFromConfig } from '@/shared/config/uiSchema';
 
-const invalidViewValues = ['invalid-view', 'teams', 'agents'] as const;
+const invalidViewValues = ['invalid-view', 'teams', 'agents', 'exposure'] as const;
 const fallbackResolvers = [
   ['resolveViewFromConfig', (value: string) => resolveViewFromConfig(value)],
   [

@@ -102,6 +102,56 @@ export class MemoryService {
   }
 
   /**
+   * Reads only the newest prefix required to build a cross-scope page. A node
+   * below that prefix in one scope cannot enter the same-sized global prefix,
+   * because that scope already has enough newer nodes ahead of it.
+   */
+  private async listFilteredNodesUpTo(
+    personaId: string,
+    userId: string,
+    workspaceId: string | undefined,
+    input: { query?: string; type?: MemoryType },
+    targetCount: number,
+  ): Promise<{ nodes: MemoryNode[]; total: number }> {
+    const pageSize = Math.max(1, Math.min(200, Math.floor(targetCount)));
+    const nodes: MemoryNode[] = [];
+    let page = 1;
+    let fetchedRecords = 0;
+    let reportedTotal = 0;
+
+    while (nodes.length < targetCount && page <= 10_000) {
+      const listed = await this.mem0Client.listMemories({
+        userId: resolveUserId(userId),
+        personaId,
+        workspaceId,
+        page,
+        pageSize,
+        query: input.query?.trim() || undefined,
+        type: input.type,
+      });
+      reportedTotal = Number.isFinite(listed.total)
+        ? Math.max(0, Math.floor(listed.total))
+        : fetchedRecords + listed.memories.length;
+      nodes.push(
+        ...listed.memories
+          .map((record) => toMemoryNode(record))
+          .filter((node) => matchesQuery(node, input.query))
+          .filter((node) => matchesType(node, input.type)),
+      );
+      fetchedRecords += listed.memories.length;
+
+      if (listed.memories.length === 0 || fetchedRecords >= reportedTotal) break;
+      page += 1;
+    }
+
+    if (page > 10_000) {
+      throw new Error('Memory pagination exceeded the safety limit while building a page.');
+    }
+
+    return { nodes: nodes.slice(0, targetCount), total: reportedTotal };
+  }
+
+  /**
    * Resolve a single node through the already scoped list API. Mem0's direct
    * GET/history/delete endpoints accept only an opaque id, so this lookup is
    * the application-owned defense-in-depth boundary for tenant isolation.
@@ -294,17 +344,8 @@ export class MemoryService {
     });
   }
 
-  async snapshotWithMeta(
-    personaId?: string,
-    userId?: string,
-    workspaceId?: string,
-  ): Promise<{ nodes: MemoryNode[]; total: number; truncated: boolean }> {
-    const nodes = await this.listAllFilteredNodes(personaId, userId, workspaceId, {});
-    return { nodes, total: nodes.length, truncated: false };
-  }
-
   async snapshot(personaId?: string, userId?: string, workspaceId?: string): Promise<MemoryNode[]> {
-    return (await this.snapshotWithMeta(personaId, userId, workspaceId)).nodes;
+    return this.listAllFilteredNodes(personaId, userId, workspaceId, {});
   }
 
   async count(personaId?: string, userId?: string, workspaceId?: string): Promise<number> {
@@ -374,6 +415,39 @@ export class MemoryService {
     };
   }
 
+  async listPreviewAcrossScopes(
+    personaId: string,
+    userScopes: string[],
+    limit: number,
+    workspaceId?: string,
+  ): Promise<{ nodes: MemoryNode[]; truncated: boolean }> {
+    const pageSize = Math.max(1, Math.min(200, Math.floor(Number.isFinite(limit) ? limit : 50)));
+    const scopes = Array.from(new Set(userScopes.map((scope) => scope.trim()).filter(Boolean)));
+    const scopedPages = await Promise.all(
+      scopes.map((scopeUserId) =>
+        this.listPage(personaId, { page: 1, pageSize }, scopeUserId, workspaceId),
+      ),
+    );
+    const byId = new Map<string, MemoryNode>();
+    for (const page of scopedPages) {
+      for (const node of page.nodes) {
+        const existing = byId.get(node.id);
+        if (!existing || this.rankNode(node) >= this.rankNode(existing)) {
+          byId.set(node.id, node);
+        }
+      }
+    }
+
+    const nodes = Array.from(byId.values()).sort(
+      (a, b) => this.rankNode(b) - this.rankNode(a) || a.id.localeCompare(b.id),
+    );
+    return {
+      nodes: nodes.slice(0, pageSize),
+      truncated:
+        nodes.length > pageSize || scopedPages.some((page) => page.pagination.total > pageSize),
+    };
+  }
+
   async listPageAcrossScopes(
     personaId: string,
     userScopes: string[],
@@ -383,13 +457,33 @@ export class MemoryService {
     nodes: MemoryNode[];
     pagination: { page: number; pageSize: number; total: number; totalPages: number };
   }> {
-    const scopedNodes = await Promise.all(
-      userScopes.map((scopeUserId) =>
-        this.listAllFilteredNodes(personaId, scopeUserId, workspaceId, input),
-      ),
-    );
+    const page = Math.max(1, Math.floor(input.page));
+    const pageSize = Math.max(1, Math.min(200, Math.floor(input.pageSize)));
+    const offset = (page - 1) * pageSize;
+    const targetCount = offset + pageSize;
+    const scopes = Array.from(new Set(userScopes.map((scope) => scope.trim()).filter(Boolean)));
+    const scopedResults =
+      this.provider() === 'postgres'
+        ? await Promise.all(
+            scopes.map((scopeUserId) =>
+              this.listFilteredNodesUpTo(personaId, scopeUserId, workspaceId, input, targetCount),
+            ),
+          )
+        : await Promise.all(
+            scopes.map(async (scopeUserId) => {
+              // Legacy providers do not guarantee the canonical updated-at
+              // ordering across pages, so preserve exact pagination there.
+              const nodes = await this.listAllFilteredNodes(
+                personaId,
+                scopeUserId,
+                workspaceId,
+                input,
+              );
+              return { nodes, total: nodes.length };
+            }),
+          );
     const byId = new Map<string, MemoryNode>();
-    for (const node of scopedNodes.flat()) {
+    for (const node of scopedResults.flatMap((result) => result.nodes)) {
       const existing = byId.get(node.id);
       if (!existing || this.rankNode(node) >= this.rankNode(existing)) {
         byId.set(node.id, node);
@@ -399,16 +493,17 @@ export class MemoryService {
     const allNodes = Array.from(byId.values()).sort(
       (a, b) => this.rankNode(b) - this.rankNode(a) || a.id.localeCompare(b.id),
     );
-    const page = Math.max(1, Math.floor(input.page));
-    const pageSize = Math.max(1, Math.min(200, Math.floor(input.pageSize)));
-    const offset = (page - 1) * pageSize;
+    const total =
+      this.provider() === 'postgres'
+        ? scopedResults.reduce((sum, result) => sum + result.total, 0)
+        : allNodes.length;
     return {
       nodes: allNodes.slice(offset, offset + pageSize),
       pagination: {
         page,
         pageSize,
-        total: allNodes.length,
-        totalPages: Math.max(1, Math.ceil(allNodes.length / pageSize)),
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
       },
     };
   }

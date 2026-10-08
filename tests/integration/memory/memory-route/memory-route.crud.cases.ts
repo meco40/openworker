@@ -33,6 +33,33 @@ describe('/api/memory route', () => {
     expect(listJson.nodes[0].content).toBe('persist-me');
   });
 
+  it('returns a bounded preview without requiring a full snapshot', async () => {
+    for (const [content, type] of [
+      ['preview-a', 'fact'],
+      ['preview-b', 'preference'],
+      ['preview-c', 'lesson'],
+    ]) {
+      await POST(
+        makePostRequest({
+          fcName: 'core_memory_store',
+          args: { personaId, type, content, importance: 3 },
+        }),
+      );
+    }
+
+    const previewResponse = await GET(
+      new Request(
+        `http://localhost/api/memory?personaId=${encodeURIComponent(personaId)}&preview=1&limit=2`,
+      ),
+    );
+    const previewJson = await previewResponse.json();
+
+    expect(previewResponse.status).toBe(200);
+    expect(previewJson.ok).toBe(true);
+    expect(previewJson.nodes).toHaveLength(2);
+    expect(previewJson.truncated).toBe(true);
+  });
+
   it('includes channel-scoped memory for legacy web user when channel conversation exists', async () => {
     const telegramExternalChatId = '1527785051';
     const channelScopedUserId = `channel:telegram:${telegramExternalChatId}`;

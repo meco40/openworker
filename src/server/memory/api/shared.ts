@@ -18,7 +18,8 @@ const ALLOWED_TYPES: MemoryType[] = [
 ];
 
 export const DELETE_ALL_CONFIRM_TOKEN = 'delete-all-memory';
-export const MEMORY_RUNTIME_UNAVAILABLE_MESSAGE = 'Memory runtime unavailable: Mem0 is not ready.';
+export const MEMORY_RUNTIME_UNAVAILABLE_MESSAGE =
+  'Memory runtime unavailable: the configured provider is not ready.';
 
 export function getReadyMemoryService() {
   const runtimeWithOptional = memoryRuntime as typeof memoryRuntime & {
@@ -245,19 +246,4 @@ export function resolveMemoryReadUserScopes(baseUserId: string, personaId: strin
   }
 
   return Array.from(scopes);
-}
-
-export function dedupeById<T extends { id: string }>(rows: T[]): T[] {
-  const deduped = new Map<string, T>();
-  for (const row of rows) {
-    if (!row?.id) continue;
-    deduped.set(row.id, row);
-  }
-  return Array.from(deduped.values());
-}
-
-export function rankNodeTimestamp(node: { metadata?: Record<string, unknown> }): number {
-  const iso = String(node.metadata?.lastVerified || '').trim();
-  const parsed = Date.parse(iso);
-  return Number.isFinite(parsed) ? parsed : 0;
 }

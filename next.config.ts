@@ -7,6 +7,23 @@ const withBundleAnalyzer = createBundleAnalyzer({
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
+  webpack(config, { dev }) {
+    if (dev) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        ignored: [
+          '**/.local/**',
+          '**/.playwright-cli/**',
+          '**/coverage/**',
+          '**/output/**',
+          '**/playwright-report/**',
+          '**/test-results/**',
+        ],
+      };
+    }
+    return config;
+  },
   outputFileTracingExcludes: {
     '/*': [
       '.local/**',

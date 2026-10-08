@@ -278,7 +278,12 @@ const resolved = knowledgeRepo.resolveEntity('mein Bruder', { userId, personaId 
 // Subsequent queries are scoped to episodes/ledgers where counterpart = 'ent-abc'
 ```
 
-**Self-Reference Query Expansion**: `MemoryService` additionally expands perspective pronouns before the canonical PostgreSQL search. When the user asks `"Was kannst du?"`, the query is also sent as `"Was kann ich?"` — ensuring persona self-reference memories (stored in first-person) surface for second-person queries and vice versa.
+**Self-Reference Query Expansion**: `MemoryService` expands perspective pronouns
+for the deterministic lexical fallback. Canonical PostgreSQL semantic search
+keeps the original natural-language query, while the fallback additionally
+searches variants such as `"Was kann ich?"` for `"Was kannst du?"`. This avoids
+degrading the embedding and still surfaces first-person persona memories for
+second-person queries and vice versa.
 
 ```typescript
 // Implemented in MemoryService.expandSelfReferenceQuery()
@@ -298,7 +303,14 @@ This classification prevents the LLM from confusing persona self-memories with f
 
 ### Stage 3: Parallel Search
 
-When retrieval is warranted, three sources are queried in parallel:
+When retrieval is warranted, World Model, generic Memory, compatible Knowledge,
+and chat history are queried in parallel. In canonical mode Knowledge remains a
+compatibility projection and does not duplicate canonical truth.
+
+Within the World Model, structured events, assertion full-text, typed domain
+searches, vectors, and optional Graphiti are also started together. Each lane is
+failure-isolated, so the aggregate remains useful when a derived or individual
+search backend is unavailable.
 
 #### A. PostgreSQL/pgvector Semantic Search
 
@@ -316,9 +328,18 @@ const postgresResults = await memoryService.recall({
 **How it works**:
 
 1. Query text is embedded into a vector
-2. Vector similarity search against all stored memory embeddings
-3. Results filtered by minimum similarity score (0.3)
-4. Ranked by relevance to the query
+2. Vector similarity search against active generic memory embeddings only;
+   inactive rows are excluded in SQL before ranking and `LIMIT`
+3. Database and service lifecycle filters exclude stale, superseded, rejected,
+   and deleted nodes before prompt construction
+4. Results filtered by minimum similarity score (0.3)
+5. Ranked by relevance to the query
+
+The structured World-Model vector lane explicitly excludes generic `memory`
+targets, because those targets are retrieved and lifecycle-checked by
+`MemoryService`. Both parallel lanes share an in-flight embedding request for
+identical model/version/query tuples; the result is removed immediately after
+completion rather than retained as a cross-request cache.
 
 #### B. Knowledge Retrieval
 

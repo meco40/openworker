@@ -19,17 +19,21 @@ test.describe('Responsive Design', () => {
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
   });
 
-  test('sidebar collapses on mobile', async ({ page }) => {
+  test('mobile navigation uses a labelled drawer without reserving content width', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto('/');
-    const sidebar = page.getByTestId('app-sidebar');
-    await expect(sidebar.first()).toBeVisible({ timeout: 10000 });
-  });
+    await expect(page.getByTestId('app-sidebar')).toBeHidden();
+    const trigger = page.getByTestId('mobile-navigation-trigger');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await trigger.click();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('mobile-navigation-drawer')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Multi-Channel Inbox' })).toBeVisible();
 
-  test('navigation adapts to screen size', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto('/');
-    const nav = page.getByTestId('app-navigation');
-    await expect(nav).toBeVisible({ timeout: 10000 });
+    await page.getByRole('button', { name: 'Close navigation' }).click();
+    await expect(page.getByTestId('mobile-navigation-drawer')).toBeHidden();
+    await expect(trigger).toBeFocused();
   });
 });

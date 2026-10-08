@@ -5,16 +5,8 @@ import Dashboard from '@/components/Dashboard';
 import { type ControlPlaneMetricsState, type GatewayState } from '@/shared/domain/types';
 
 const baseState: GatewayState = {
-  version: 'test',
-  uptime: 0,
-  cpuUsage: 0,
-  memoryUsage: 0,
-  activeSessions: 0,
-  totalTokens: 0,
   eventHistory: [],
-  trafficData: [],
   memoryEntries: [],
-  scheduledTasks: [],
 };
 
 const baseMetricsState: ControlPlaneMetricsState = {
@@ -32,6 +24,7 @@ describe('Dashboard chart sizing', () => {
       renderToStaticMarkup(
         createElement(Dashboard, {
           state: baseState,
+          scheduledTasks: [],
           metricsState: baseMetricsState,
         }),
       );
@@ -43,5 +36,20 @@ describe('Dashboard chart sizing', () => {
       );
       warnSpy.mockRestore();
     }
+  });
+
+  it('shows an honest empty state instead of an empty radar chart', () => {
+    const html = renderToStaticMarkup(
+      createElement(Dashboard, {
+        state: baseState,
+        scheduledTasks: [],
+        metricsState: baseMetricsState,
+      }),
+    );
+
+    expect(html).toContain('No behavior signals yet');
+    expect(html).not.toContain('role="img"');
+    expect(html).toContain('0 pending tasks');
+    expect(html).not.toContain('Cron Scheduler Active');
   });
 });

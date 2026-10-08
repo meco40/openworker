@@ -64,6 +64,7 @@ describe('main vitest config', () => {
       'tests/unit/server/summaryService-perf.test.ts',
       'tests/unit/memory/lifecycle.test.ts',
       'tests/unit/world-model/retrieval.test.ts',
+      'tests/unit/model-hub/opencode-adapter.test.ts',
       'tests/unit/components/**/*.test.{ts,tsx}',
     ]);
 
@@ -74,6 +75,7 @@ describe('main vitest config', () => {
       'tests/unit/server/summaryService-perf.test.ts',
       'tests/unit/memory/lifecycle.test.ts',
       'tests/unit/world-model/retrieval.test.ts',
+      'tests/unit/model-hub/opencode-adapter.test.ts',
     ]);
 
     expect(coreIsolatedConfig.isolate).toBe(true);

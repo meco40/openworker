@@ -1,4 +1,4 @@
-import type { GatewayState, MemoryEntry, ScheduledTask } from '@/shared/domain/types';
+import type { MemoryEntry, ScheduledTask } from '@/shared/domain/types';
 
 export interface PersonalityStat {
   subject: 'Communication' | 'Workflows' | 'Boundaries' | 'Time Awareness' | 'Proactivity';
@@ -11,7 +11,10 @@ export interface PersonalityMatrixResult {
   focus: string;
 }
 
-type PersonalityMatrixSource = Pick<GatewayState, 'memoryEntries' | 'scheduledTasks'>;
+type PersonalityMatrixSource = {
+  memoryEntries?: MemoryEntry[];
+  scheduledTasks?: ScheduledTask[];
+};
 
 const DAY_IN_MS = 86_400_000;
 

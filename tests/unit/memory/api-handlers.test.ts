@@ -12,7 +12,7 @@ describe('memory api handlers', () => {
     setMemoryRuntimeReadyStateForTests(undefined);
   });
 
-  it('returns an empty degraded snapshot when memory GET runs without mem0 readiness', async () => {
+  it('returns an empty degraded snapshot when the memory provider is not ready', async () => {
     setMemoryRuntimeReadyStateForTests(false);
     const { handleMemoryGet } = await import('@/server/memory/api/getHandler');
 
@@ -36,7 +36,7 @@ describe('memory api handlers', () => {
     });
   });
 
-  it('returns 503 for memory POST mutations when mem0 is degraded', async () => {
+  it('returns 503 for memory POST mutations when the provider is degraded', async () => {
     setMemoryRuntimeReadyStateForTests(false);
     const { handleMemoryPost } = await import('@/server/memory/api/postHandler');
 
@@ -61,5 +61,31 @@ describe('memory api handlers', () => {
     expect(response.status).toBe(503);
     expect(payload.ok).toBe(false);
     expect(String(payload.error || '')).toMatch(/memory runtime unavailable/i);
+  });
+
+  it('rejects offset pagination beyond the bounded result window', async () => {
+    const { handleMemoryGet } = await import('@/server/memory/api/getHandler');
+
+    const response = await handleMemoryGet(
+      new Request('http://localhost/api/memory?personaId=persona-test&page=501&pageSize=20'),
+      { userId: 'legacy-local-user', authenticated: true },
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(String(payload.error || '')).toMatch(/first 10,000 results/i);
+  });
+
+  it('rejects a page whose end crosses the bounded result window', async () => {
+    const { handleMemoryGet } = await import('@/server/memory/api/getHandler');
+
+    const response = await handleMemoryGet(
+      new Request('http://localhost/api/memory?personaId=persona-test&page=51&pageSize=199'),
+      { userId: 'legacy-local-user', authenticated: true },
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(String(payload.error || '')).toMatch(/first 10,000 results/i);
   });
 });

@@ -237,6 +237,30 @@ describe('GET /api/control-plane/metrics', () => {
     expect(typeof payload.metrics?.generatedAt).toBe('string');
   });
 
+  it('returns only metrics consumed by the app shell for shell-scoped requests', async () => {
+    const { GET } = await import('../../app/api/control-plane/metrics/route');
+    const response = await GET(
+      new Request('http://localhost/api/control-plane/metrics?scope=shell'),
+    );
+    const payload = (await response.json()) as {
+      ok: boolean;
+      metrics: Record<string, unknown>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(Object.keys(payload.metrics).sort()).toEqual(
+      [
+        'activeWsSessions',
+        'generatedAt',
+        'ramUsageBytes',
+        'tokensToday',
+        'uptimeSeconds',
+        'vectorNodeCount',
+      ].sort(),
+    );
+  });
+
   it('counts vector nodes for the resolved request user context', async () => {
     const scopedUserId = 'metrics-user-scoped';
     const { getMemoryService } = await import('@/server/memory/runtime');

@@ -152,8 +152,20 @@ export function buildRequestBody(
     body.response_format = responseFormat;
   }
 
-  if (request.reasoning_effort && (providerId === 'openai' || providerId === 'openai-codex')) {
+  if (
+    request.reasoning_effort &&
+    (providerId === 'openai' || providerId === 'openai-codex' || providerId === 'opencode')
+  ) {
     body.reasoning_effort = request.reasoning_effort;
+  }
+
+  // Nemotron 3.5 Lightning exposes its actual thinking switch through the
+  // OpenAI-compatible chat-template kwargs. Keep reasoning_effort as the
+  // gateway-level setting, but also make the native on/off intent explicit.
+  if (providerId === 'opencode' && request.reasoning_effort) {
+    body.chat_template_kwargs = {
+      enable_thinking: request.reasoning_effort !== 'none',
+    };
   }
 
   return body;

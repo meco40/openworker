@@ -93,10 +93,14 @@ export function tryExtractBatchPayloadAsEmbedContent(
 
 export function mapPipelineReasoningEffort(
   reasoningEffort?: PipelineReasoningEffort,
+  providerId?: string,
 ): GatewayRequest['reasoning_effort'] | undefined {
-  if (!reasoningEffort || reasoningEffort === 'off') {
+  if (!reasoningEffort) {
     return undefined;
   }
+  // OpenCode's OpenAI-compatible endpoint uses `none` to disable reasoning.
+  // Other providers retain the historical omission semantics for `off`.
+  if (reasoningEffort === 'off') return providerId === 'opencode' ? 'none' : undefined;
   if (reasoningEffort === 'minimal') {
     return 'low';
   }

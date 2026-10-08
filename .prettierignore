@@ -15,3 +15,5 @@ public/models/*.gltf
 public/models/*.glb
 test-results/**
 playwright-report/**
+output/**
+.playwright-cli/**

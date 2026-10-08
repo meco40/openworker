@@ -1,24 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { GatewayState, SystemLog } from '@/shared/domain/types';
-import { getMemorySnapshot } from '@/core/memory';
+import { getMemoryPreview } from '@/core/memory';
 import { usePersona } from '@/modules/personas/PersonaContext';
 
 function createInitialGatewayState(): GatewayState {
   return {
-    version: '1.2.5-proactive',
-    uptime: 0,
-    cpuUsage: 12,
-    memoryUsage: 256,
-    activeSessions: 1,
-    totalTokens: 0,
     eventHistory: [],
-    trafficData: Array.from({ length: 12 }, (_, index) => ({ name: `${index * 2}:00`, tokens: 0 })),
     memoryEntries: [],
-    scheduledTasks: [],
   };
 }
 
-export function useGatewayState() {
+const MEMORY_PREVIEW_LIMIT = 50;
+
+interface UseGatewayStateOptions {
+  loadMemory?: boolean;
+}
+
+export function useGatewayState({ loadMemory = true }: UseGatewayStateOptions = {}) {
   const [gatewayState, setGatewayState] = useState<GatewayState>(() => createInitialGatewayState());
   const { activePersonaId } = usePersona();
 
@@ -40,7 +38,7 @@ export function useGatewayState() {
   }, []);
 
   const updateMemoryDisplay = useCallback(async () => {
-    const nodes = await getMemorySnapshot(activePersonaId);
+    const nodes = await getMemoryPreview(activePersonaId, MEMORY_PREVIEW_LIMIT);
     setGatewayState((previous) => ({
       ...previous,
       memoryEntries: nodes.map((node) => ({
@@ -67,8 +65,12 @@ export function useGatewayState() {
   }, []);
 
   useEffect(() => {
+    if (!loadMemory) {
+      return;
+    }
+
     void updateMemoryDisplay();
-  }, [updateMemoryDisplay]);
+  }, [loadMemory, updateMemoryDisplay]);
 
   return {
     gatewayState,

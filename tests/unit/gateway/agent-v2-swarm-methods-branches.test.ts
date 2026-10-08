@@ -86,6 +86,7 @@ describe('agent.v2.swarm methods', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     registered.clear();
+    vi.stubEnv('AGENT_ROOM_ENABLED', 'true');
     mocks.registerMethod.mockImplementation((method: string, handler: Handler) => {
       registered.set(method, handler);
     });
@@ -102,6 +103,7 @@ describe('agent.v2.swarm methods', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.resetModules();
   });
 

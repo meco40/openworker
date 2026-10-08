@@ -6,6 +6,7 @@ const CHANNEL = 'telegram';
 const POLL_INTERVAL_MS = 2_000;
 const POLLING_LEASE_TTL_MS = 30_000;
 const POLLING_CONFLICT_COOLDOWN_MS = 30_000;
+const POLLING_STANDBY_RETRY_MS = 10_000;
 const POLLING_OWNER_KEY = 'polling_owner';
 const POLLING_LEASE_UNTIL_KEY = 'polling_lease_until';
 
@@ -90,6 +91,25 @@ declare global {
   var __telegramPollingActive: boolean | undefined;
   var __telegramPollingInstanceId: string | undefined;
   var __telegramPollingConflictUntilMs: number | undefined;
+  var __telegramPollingStandbyTimer: ReturnType<typeof setTimeout> | undefined;
+}
+
+// A lease left by a crashed/restarted runtime must not permanently block polling.
+function scheduleStandbyRetry(): void {
+  if (globalThis.__telegramPollingStandbyTimer) return;
+  const timer = setTimeout(() => {
+    globalThis.__telegramPollingStandbyTimer = undefined;
+    void startTelegramPolling();
+  }, POLLING_STANDBY_RETRY_MS);
+  timer.unref?.();
+  globalThis.__telegramPollingStandbyTimer = timer;
+}
+
+function clearStandbyRetry(): void {
+  if (globalThis.__telegramPollingStandbyTimer) {
+    clearTimeout(globalThis.__telegramPollingStandbyTimer);
+    globalThis.__telegramPollingStandbyTimer = undefined;
+  }
 }
 
 export async function startTelegramPolling(): Promise<void> {
@@ -99,6 +119,7 @@ export async function startTelegramPolling(): Promise<void> {
   }
   const conflictUntilMs = globalThis.__telegramPollingConflictUntilMs || 0;
   if (Date.now() < conflictUntilMs) {
+    scheduleStandbyRetry();
     return;
   }
 
@@ -124,7 +145,8 @@ export async function startTelegramPolling(): Promise<void> {
     POLLING_LEASE_TTL_MS,
   );
   if (!hasLease) {
-    console.log('[Telegram Polling] Another runtime owns polling lease; skipping start.');
+    console.log('[Telegram Polling] Another runtime owns polling lease; will retry.');
+    scheduleStandbyRetry();
     return;
   }
 
@@ -147,6 +169,7 @@ export async function startTelegramPolling(): Promise<void> {
 }
 
 export function stopTelegramPolling(): void {
+  clearStandbyRetry();
   globalThis.__telegramPollingActive = false;
   if (globalThis.__telegramPollingTimer) {
     clearTimeout(globalThis.__telegramPollingTimer);
@@ -182,6 +205,7 @@ async function pollOnce(): Promise<void> {
   if (!leaseOk) {
     console.log('[Telegram Polling] Lease lost; stopping local poller.');
     stopTelegramPolling();
+    scheduleStandbyRetry();
     return;
   }
 
@@ -216,6 +240,7 @@ async function pollOnce(): Promise<void> {
         );
         globalThis.__telegramPollingConflictUntilMs = Date.now() + POLLING_CONFLICT_COOLDOWN_MS;
         stopTelegramPolling();
+        scheduleStandbyRetry();
       }
       return;
     }
@@ -225,22 +250,38 @@ async function pollOnce(): Promise<void> {
       return;
     }
 
-    let maxUpdateId = offset;
-    for (const update of data.result) {
-      if (update.update_id >= maxUpdateId) {
-        maxUpdateId = update.update_id + 1;
-      }
+    // Agent runs triggered by an update can outlast the lease TTL.
+    const leaseHeartbeat = setInterval(() => {
+      store.renewLease(
+        CHANNEL,
+        POLLING_OWNER_KEY,
+        POLLING_LEASE_UNTIL_KEY,
+        ownerId,
+        POLLING_LEASE_TTL_MS,
+      );
+    }, POLLING_LEASE_TTL_MS / 3);
+    leaseHeartbeat.unref?.();
 
-      if (update.message || update.callback_query) {
-        try {
-          await processTelegramInboundUpdate(update);
-        } catch (err) {
-          console.error('[Telegram Polling] Error processing update:', err);
+    let maxUpdateId = offset;
+    try {
+      for (const update of data.result) {
+        if (update.update_id >= maxUpdateId) {
+          maxUpdateId = update.update_id + 1;
+        }
+        // Persist before processing: a restart mid agent-run must not replay the update.
+        store.setCredential(CHANNEL, 'polling_offset', String(maxUpdateId));
+
+        if (update.message || update.callback_query) {
+          try {
+            await processTelegramInboundUpdate(update);
+          } catch (err) {
+            console.error('[Telegram Polling] Error processing update:', err);
+          }
         }
       }
+    } finally {
+      clearInterval(leaseHeartbeat);
     }
-
-    store.setCredential(CHANNEL, 'polling_offset', String(maxUpdateId));
   } catch (err) {
     console.error('[Telegram Polling] Fetch error:', err);
   }

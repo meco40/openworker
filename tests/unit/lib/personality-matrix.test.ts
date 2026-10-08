@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GatewayState, MemoryEntry, ScheduledTask } from '@/shared/domain/types';
+import type { MemoryEntry, ScheduledTask } from '@/shared/domain/types';
 import { buildPersonalityMatrix } from '@/lib/personalityMatrix';
 
 function memoryEntry(overrides: Partial<MemoryEntry>): MemoryEntry {
@@ -24,16 +24,13 @@ function task(overrides: Partial<ScheduledTask>): ScheduledTask {
   } as ScheduledTask;
 }
 
-function gatewayState(overrides: Partial<GatewayState>): GatewayState {
+interface MatrixSource {
+  memoryEntries: MemoryEntry[];
+  scheduledTasks: ScheduledTask[];
+}
+
+function matrixSource(overrides: Partial<MatrixSource>): MatrixSource {
   return {
-    version: 'test',
-    uptime: 0,
-    cpuUsage: 0,
-    memoryUsage: 0,
-    activeSessions: 0,
-    totalTokens: 0,
-    eventHistory: [],
-    trafficData: [],
     memoryEntries: [],
     scheduledTasks: [],
     ...overrides,
@@ -43,7 +40,7 @@ function gatewayState(overrides: Partial<GatewayState>): GatewayState {
 describe('buildPersonalityMatrix', () => {
   it('returns zeroed stats when no memory entries and no scheduled tasks exist', () => {
     const now = new Date('2026-02-14T12:00:00.000Z');
-    const state = gatewayState({
+    const state = matrixSource({
       memoryEntries: [],
       scheduledTasks: [],
     });
@@ -57,7 +54,7 @@ describe('buildPersonalityMatrix', () => {
 
   it('keeps every score inside 0..100 even with extreme input volume', () => {
     const now = new Date('2026-02-14T12:00:00.000Z');
-    const state = gatewayState({
+    const state = matrixSource({
       memoryEntries: Array.from({ length: 80 }, (_, i) =>
         memoryEntry({
           id: `mem-${i}`,
@@ -87,7 +84,7 @@ describe('buildPersonalityMatrix', () => {
 
   it('weights recent memory higher than very old memory', () => {
     const now = new Date('2026-02-14T12:00:00.000Z');
-    const recent = gatewayState({
+    const recent = matrixSource({
       memoryEntries: [
         memoryEntry({
           type: 'preference',
@@ -96,7 +93,7 @@ describe('buildPersonalityMatrix', () => {
         }),
       ],
     });
-    const old = gatewayState({
+    const old = matrixSource({
       memoryEntries: [
         memoryEntry({
           type: 'preference',
@@ -120,7 +117,7 @@ describe('buildPersonalityMatrix', () => {
 
   it('uses semantically clear axis labels and derives focus from the weakest dimension', () => {
     const now = new Date('2026-02-14T12:00:00.000Z');
-    const state = gatewayState({
+    const state = matrixSource({
       memoryEntries: [
         memoryEntry({
           type: 'preference',

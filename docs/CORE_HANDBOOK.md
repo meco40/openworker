@@ -215,7 +215,6 @@ openclaw-gateway-control-plane/
 │   │   ├── chat/                          # Chat interface components
 │   │   ├── config/                        # Config UI module
 │   │   ├── cron/                          # Automation scheduling UI
-│   │   ├── exposure/                      # Exposure/analytics module
 │   │   ├── gateway/                       # WebSocket client connection
 │   │   ├── master/                        # Master Agent UI
 │   │   ├── ops/                           # Ops dashboard module

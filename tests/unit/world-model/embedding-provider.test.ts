@@ -9,9 +9,12 @@ vi.mock('@/server/model-hub/runtime', () => modelHubMocks);
 
 type GetConfiguredEmbeddingProvider =
   typeof import('@/server/world-model/embeddings/provider').getConfiguredEmbeddingProvider;
+type GenerateEmbeddingOnce =
+  typeof import('@/server/world-model/embeddings/provider').generateEmbeddingOnce;
 
 describe('world-model embedding provider', () => {
   let getConfiguredEmbeddingProvider: GetConfiguredEmbeddingProvider;
+  let generateEmbeddingOnce: GenerateEmbeddingOnce;
   const originalEmbeddingApiUrl = process.env.EMBEDDING_API_URL;
   const originalEmbeddingApiKey = process.env.EMBEDDING_API_KEY;
   const originalOpenAiBaseUrl = process.env.OPENAI_BASE_URL;
@@ -29,7 +32,8 @@ describe('world-model embedding provider', () => {
   });
 
   beforeEach(async () => {
-    ({ getConfiguredEmbeddingProvider } = await import('@/server/world-model/embeddings/provider'));
+    ({ getConfiguredEmbeddingProvider, generateEmbeddingOnce } =
+      await import('@/server/world-model/embeddings/provider'));
   });
 
   afterEach(() => {
@@ -104,5 +108,27 @@ describe('world-model embedding provider', () => {
     await expect(provider?.generateEmbedding('hello world')).rejects.toThrow(
       'Model Hub embedding failed: provider unavailable',
     );
+  });
+
+  it('deduplicates concurrent identical embeddings without retaining a result cache', async () => {
+    let release!: (value: number[]) => void;
+    const pending = new Promise<number[]>((resolve) => {
+      release = resolve;
+    });
+    const generateEmbedding = vi.fn(() => pending);
+    const provider = { model: 'embed-test', modelVersion: '1', generateEmbedding };
+
+    const first = generateEmbeddingOnce(provider, 'same query');
+    const second = generateEmbeddingOnce(provider, 'same query');
+    expect(generateEmbedding).toHaveBeenCalledTimes(1);
+
+    release([0.1, 0.2]);
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      [0.1, 0.2],
+      [0.1, 0.2],
+    ]);
+
+    await expect(generateEmbeddingOnce(provider, 'same query')).resolves.toEqual([0.1, 0.2]);
+    expect(generateEmbedding).toHaveBeenCalledTimes(2);
   });
 });

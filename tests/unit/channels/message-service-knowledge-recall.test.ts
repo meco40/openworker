@@ -41,6 +41,9 @@ const memoryRecallDetailedMock = vi.hoisted(() =>
     matches: [] as RecallMatch[],
   })),
 );
+const memoryProviderKindMock = vi.hoisted(() =>
+  vi.fn<() => 'postgres' | 'mem0' | 'sqlite'>(() => 'mem0'),
+);
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
   getModelHubService: () => ({
@@ -58,6 +61,7 @@ vi.mock('../../../src/server/gateway/broadcast', () => ({
 }));
 
 vi.mock('../../../src/server/memory/runtime', () => ({
+  getMemoryProviderKind: memoryProviderKindMock,
   getMemoryService: () => ({
     store: vi.fn(async () => ({ id: 'mem-1' })),
     recallDetailed: memoryRecallDetailedMock,
@@ -169,6 +173,8 @@ describe('MessageService knowledge recall integration', () => {
     knowledgeShouldTriggerRecallMock.mockResolvedValue(false);
     ensureKnowledgeIngestedForConversationMock.mockClear();
     memoryRecallDetailedMock.mockClear();
+    memoryProviderKindMock.mockReset();
+    memoryProviderKindMock.mockReturnValue('mem0');
     delete process.env.RECALL_STRICT_EVIDENCE;
     delete process.env.KNOWLEDGE_PRE_INGEST_ON_RECALL;
   });
@@ -452,6 +458,34 @@ describe('MessageService knowledge recall integration', () => {
     );
 
     expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache empty canonical PostgreSQL scopes across messages', async () => {
+    memoryProviderKindMock.mockReturnValue('postgres');
+    const service = new MessageService(buildRepository('persona-1', 'legacy-local-user'));
+    memoryRecallDetailedMock.mockResolvedValue({
+      context: 'No relevant memories found.',
+      matches: [],
+    });
+
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Erinnerst du dich an unsere Regeln von gestern?',
+      undefined,
+      undefined,
+      'legacy-local-user',
+    );
+    await service.handleInbound(
+      ChannelType.WEBCHAT,
+      'default',
+      'Erinnerst du dich nochmal an unsere Regeln von gestern?',
+      undefined,
+      undefined,
+      'legacy-local-user',
+    );
+
+    expect(memoryRecallDetailedMock).toHaveBeenCalledTimes(2);
   });
 
   it('returns strict evidence-based fallback when recall topic is missing in conflicting evening statements', async () => {
