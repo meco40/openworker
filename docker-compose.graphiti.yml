@@ -8,9 +8,10 @@ services:
     volumes:
       - graphiti-neo4j-data-526:/data
       - graphiti-neo4j-logs-526:/logs
+    # Loopback only: the Neo4j default password must not be reachable from the LAN.
     ports:
-      - '7475:7474'
-      - '7688:7687'
+      - '127.0.0.1:7475:7474'
+      - '127.0.0.1:7688:7687'
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:7474 || exit 1']
       interval: 10s
@@ -73,8 +74,9 @@ services:
       - ./docker/graphiti/retrieve.py:/app/graph_service/dto/retrieve.py:ro
       - ./docker/graphiti/zep_graphiti.py:/app/graph_service/zep_graphiti.py:ro
       - ./docker/graphiti/ingest.py:/app/graph_service/routers/ingest.py:ro
+    # Loopback only (host app uses GRAPHITI_BASE_URL=http://127.0.0.1:8001).
     ports:
-      - '8001:8000'
+      - '127.0.0.1:8001:8000'
     healthcheck:
       test:
         [

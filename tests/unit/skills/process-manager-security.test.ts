@@ -51,8 +51,10 @@ describe('processManagerHandler security', () => {
     const command = process.platform === 'win32' ? '(Get-Location).Path' : 'pwd';
 
     try {
+      // Wait for the short-lived command to exit: the default 2s start window can return
+      // while the child still has workspaceDir as its cwd, which blocks deletion on Windows.
       const startResult = (await processManagerHandler(
-        { action: 'start', command },
+        { action: 'start', command, start_timeout_ms: 10_000 },
         { workspaceCwd: workspaceDir },
       )) as { ok: boolean; result?: string };
 
@@ -67,7 +69,14 @@ describe('processManagerHandler security', () => {
       expect(String(escapeResult.error || '')).toContain('cwd must stay within workspace root.');
     } finally {
       delete process.env.PERSONAS_ROOT_PATH;
-      fs.rmSync(personasRoot, { recursive: true, force: true });
+      killAllManagedProcesses();
+      // Windows reports EPERM while a process still holds the directory; retry until released.
+      await fs.promises.rm(personasRoot, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 100,
+      });
     }
   });
 });

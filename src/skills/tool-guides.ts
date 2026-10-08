@@ -53,7 +53,8 @@ const BUILT_IN_GUIDES: Record<string, BaseGuide> = {
     ],
   },
   'shell-access': {
-    whatItIs: 'Safe Shell executes PowerShell commands with timeout and policy-based blocking.',
+    whatItIs:
+      'Shell runs commands on the host (PowerShell on Windows, /bin/sh elsewhere) in the workspace directory with a timeout. Not sandboxed; set OPENCLAW_EXEC_APPROVALS_REQUIRED=true to require approval.',
     whatItCanDo: [
       'Run local checks like tests, linting, and build commands.',
       'Inspect files, git state, and environment outputs.',

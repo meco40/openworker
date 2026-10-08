@@ -15,6 +15,13 @@ import {
 } from './src/server/gateway/constants.js';
 import { runGatewayKeepaliveSweep } from './src/server/gateway/keepalive.js';
 import { getPrincipalUserId } from './src/server/auth/principal.js';
+import {
+  applyClientLoopbackMarker,
+  isCrossSiteBrowserRequest,
+  isLoopbackAddress,
+  shouldAllowAnonymousLocalPrincipal,
+  type BrowserRequestHeaders,
+} from './src/server/auth/proxyPolicy.js';
 import { assertProductionAuthConfig } from './src/server/auth/productionGuard.js';
 import { assertProductionWorldModelConfig } from './src/server/world-model/productionGuard.js';
 import {
@@ -40,7 +47,8 @@ const { loadEnvConfig } = require('@next/env') as {
 loadEnvConfig(process.cwd());
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = process.env.HOSTNAME || '0.0.0.0';
+// Loopback by default; Docker/compose opt into 0.0.0.0 explicitly via HOSTNAME.
+const hostname = process.env.HOSTNAME || '127.0.0.1';
 const port = parseInt(process.env.PORT || '3000', 10);
 
 const REQUIRE_AUTH = String(process.env.REQUIRE_AUTH || 'false').toLowerCase() === 'true';
@@ -97,6 +105,8 @@ Promise.resolve()
     const handleNextUpgrade = app.getUpgradeHandler();
 
     const server = createServer((req, res) => {
+      // Trust the socket peer only: a client-sent loopback marker is discarded here.
+      applyClientLoopbackMarker(req.headers, req.socket.remoteAddress);
       handle(req, res);
     });
 
@@ -130,6 +140,18 @@ Promise.resolve()
         socket.destroy();
         return;
       }
+      const browser: BrowserRequestHeaders = {
+        host: req.headers.host,
+        origin: req.headers.origin,
+        referer: req.headers.referer,
+        secFetchSite: req.headers['sec-fetch-site'],
+      };
+      // Cross-site WebSocket hijacking: a page on another origin must not open /ws with the user's cookies.
+      if (isCrossSiteBrowserRequest(browser)) {
+        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+        socket.destroy();
+        return;
+      }
       const protocolParam = url.searchParams.get('protocol');
       if (protocolParam !== 'v2') {
         socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
@@ -145,8 +167,15 @@ Promise.resolve()
 
         if (token && typeof token.id === 'string') {
           userId = token.id;
-        } else if (!REQUIRE_AUTH) {
-          // No login required — fall back to configured single principal.
+        } else if (
+          shouldAllowAnonymousLocalPrincipal({
+            requireAuth: REQUIRE_AUTH,
+            mcApiTokenConfigured: Boolean(process.env.MC_API_TOKEN),
+            socketLoopback: isLoopbackAddress(req.socket.remoteAddress),
+            browser,
+          })
+        ) {
+          // No login required and a loopback-only local client — fall back to the configured single principal.
           userId = getPrincipalUserId();
         } else {
           console.warn(

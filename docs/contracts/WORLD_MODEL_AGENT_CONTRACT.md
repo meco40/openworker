@@ -1,10 +1,10 @@
 # World Model Agent Contract
 
-Stand: 2026-08-20
+Stand: 2026-10-08
 
 ## Metadata
 
-- Last Reviewed: 2026-08-20
+- Last Reviewed: 2026-10-08
 
 ## Zweck
 
@@ -33,16 +33,21 @@ im Verzeichnis `src/server/world-model/` implementiert.
 
 ## Eigentümer (Single Writer pro Domäne)
 
-| Domaene                   | Autoritativer Service                      |
-| ------------------------- | ------------------------------------------ |
-| Observations              | `ObservationService`                       |
-| Assertions                | `AssertionService`                         |
-| Events                    | `EventService`                             |
-| Entities und Relations    | `EntityService`                            |
-| Tasks und Action Attempts | `CanonicalTaskService` und `ActionService` |
-| Open Loops                | `OpenLoopService`                          |
-| Standing Intents          | `StandingIntentService`                    |
-| Generische Memory         | `MemoryService` → `PostgresMemoryClient`   |
+Die Module liegen unter `src/server/world-model/services/`, sofern nicht anders angegeben.
+Die Service-Namen in den folgenden Abschnitten bezeichnen diese Module.
+
+| Domaene                   | Autoritatives Modul                                                                                 |
+| ------------------------- | --------------------------------------------------------------------------------------------------- |
+| Observations              | `observationService.ts`                                                                             |
+| Assertions                | `assertionService.ts`                                                                               |
+| Events                    | `eventService.ts`                                                                                   |
+| Entities und Relations    | `entityService.ts`                                                                                  |
+| Tasks und Action Attempts | `canonicalTaskService.ts` und `actionService.ts`                                                    |
+| Open Loops                | `openLoopService.ts`                                                                                |
+| Standing Intents          | `standingIntentCompiler.ts` und `standingIntentDispatcher.ts`                                       |
+| Generische Memory         | `src/server/memory/service.ts` (`MemoryService`) → `postgresMemoryClient.ts` (`src/server/memory/`) |
+
+Die kanonische Memory-Tabelle ist `world_model_memory_items` (Migrationen 016 bis 018).
 
 Repositories duerfen keine fachlichen Statusuebergaenge nachbilden. API-Routen,
 Knowledge-Ingestion, Tool-Runner und Scheduler verwenden dieselben Services.

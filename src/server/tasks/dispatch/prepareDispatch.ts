@@ -94,7 +94,7 @@ export async function prepareDispatch(taskId: string): Promise<DispatchPreparati
         status: 409,
         body: {
           error:
-            'Cannot dispatch task: no execution tools are installed. Enable at least one skill (e.g. Safe Shell) and retry.',
+            'Cannot dispatch task: no execution tools are installed. Enable at least one skill (e.g. Shell) and retry.',
           code: 'no_installed_tools',
         },
       },

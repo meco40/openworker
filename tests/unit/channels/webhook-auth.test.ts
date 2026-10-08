@@ -33,6 +33,18 @@ describe('verifyTelegramWebhook', () => {
     expect(verifyTelegramWebhook(req, 'abc123')).toBe(false);
   });
 
+  it('rejects a header that is a prefix or extension of the secret', () => {
+    expect(
+      verifyTelegramWebhook(makeRequest({ 'x-telegram-bot-api-secret-token': 'abc' }), 'abc123'),
+    ).toBe(false);
+    expect(
+      verifyTelegramWebhook(
+        makeRequest({ 'x-telegram-bot-api-secret-token': 'abc123456' }),
+        'abc123',
+      ),
+    ).toBe(false);
+  });
+
   it('fails closed when secret is empty', () => {
     const req = makeRequest();
     expect(verifyTelegramWebhook(req, '')).toBe(false);
@@ -61,6 +73,13 @@ describe('verifySharedSecret', () => {
   it('rejects when header is missing', () => {
     const req = makeRequest();
     expect(verifySharedSecret(req, 'my-secret')).toBe(false);
+  });
+
+  it('rejects a header of different length than the secret', () => {
+    expect(verifySharedSecret(makeRequest({ 'x-webhook-secret': 'my' }), 'my-secret')).toBe(false);
+    expect(
+      verifySharedSecret(makeRequest({ 'x-webhook-secret': 'my-secret-extra' }), 'my-secret'),
+    ).toBe(false);
   });
 
   it('fails closed when expected secret is empty', () => {

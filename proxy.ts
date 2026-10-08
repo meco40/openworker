@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { shouldAllowApiRequestWithoutToken } from './src/server/auth/proxyPolicy';
+import {
+  CLIENT_LOOPBACK_HEADER,
+  shouldAllowAnonymousLocalPrincipal,
+  type BrowserRequestHeaders,
+} from './src/server/auth/proxyPolicy';
 
 const MC_API_TOKEN = process.env.MC_API_TOKEN;
 
@@ -32,55 +36,13 @@ function isPublicApiPath(pathname: string): boolean {
   return PUBLIC_API_PREFIXES.some((prefix) => hasPathPrefix(pathname, prefix));
 }
 
-/**
- * Check if a request originates from the same host (browser UI).
- * Same-origin browser requests include a Referer or Origin header
- * pointing to the MC server itself. Server-side render fetches
- * (Next.js RSC) come from the same process and have no Origin.
- */
-function isSameOriginRequest(request: NextRequest): boolean {
-  const host = request.headers.get('host');
-  if (!host) return false;
-
-  // Server-side fetches from Next.js (no origin/referer) — same process
-  const origin = request.headers.get('origin');
-  const referer = request.headers.get('referer');
-
-  // If neither origin nor referer is set, this is likely a server-side
-  // fetch or a direct curl. Require auth for these (external API calls).
-  if (!origin && !referer) return false;
-
-  // Check if Origin matches the host
-  if (origin) {
-    try {
-      const originUrl = new URL(origin);
-      if (originUrl.host === host) return true;
-    } catch {
-      // Invalid origin header
-    }
-  }
-
-  // Check if Referer matches the host
-  if (referer) {
-    try {
-      const refererUrl = new URL(referer);
-      if (refererUrl.host === host) return true;
-    } catch {
-      // Invalid referer header
-    }
-  }
-
-  return false;
-}
-
-function isLoopbackHostRequest(request: NextRequest): boolean {
-  const hostname = request.nextUrl.hostname.toLowerCase();
-  return (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '::1' ||
-    hostname === '[::1]'
-  );
+function browserRequestHeaders(request: NextRequest): BrowserRequestHeaders {
+  return {
+    host: request.headers.get('host'),
+    origin: request.headers.get('origin'),
+    referer: request.headers.get('referer'),
+    secFetchSite: request.headers.get('sec-fetch-site'),
+  };
 }
 
 function constantTimeEqual(left: string, right: string): boolean {
@@ -189,8 +151,7 @@ export async function proxy(request: NextRequest) {
         'demo.blocked',
         NextResponse.json(
           {
-            error:
-              'Demo mode — this is a read-only instance. Visit github.com/crshdn/mission-control to run your own!',
+            error: 'Demo mode — this is a read-only instance. Write operations are disabled.',
           },
           { status: 403 },
         ),
@@ -200,24 +161,20 @@ export async function proxy(request: NextRequest) {
     return finish('demo.read', NextResponse.next(), { decision: 'allowed-demo-read' });
   }
 
-  const sameOrigin = isSameOriginRequest(request);
-  const loopbackHost = isLoopbackHostRequest(request);
-
-  if (!REQUIRE_AUTH && sameOrigin) {
-    return finish('same-origin', NextResponse.next(), {
-      decision: 'same-origin',
-      sameOrigin,
-      loopbackHost,
+  // Anonymous local principal, decided from the socket marker set by server.ts and
+  // request headers only. Checked before the session lookup, as before.
+  const socketLoopback = request.headers.get(CLIENT_LOOPBACK_HEADER) === '1';
+  if (
+    shouldAllowAnonymousLocalPrincipal({
       requireAuth: REQUIRE_AUTH,
-      skippedSessionTokenCheck: true,
-    });
-  }
-
-  if (!REQUIRE_AUTH && !MC_API_TOKEN && loopbackHost) {
+      mcApiTokenConfigured: Boolean(MC_API_TOKEN),
+      socketLoopback,
+      browser: browserRequestHeaders(request),
+    })
+  ) {
     return finish('local.principal', NextResponse.next(), {
       decision: 'local-principal',
-      sameOrigin,
-      loopbackHost,
+      socketLoopback,
       requireAuth: REQUIRE_AUTH,
       skippedSessionTokenCheck: true,
     });
@@ -242,28 +199,12 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!MC_API_TOKEN) {
-    if (
-      shouldAllowApiRequestWithoutToken({
-        requireAuth: REQUIRE_AUTH,
-        hasSession,
-        sameOrigin,
-        loopbackHost,
-      })
-    ) {
-      return finish('local.principal', NextResponse.next(), {
-        decision: 'local-principal',
-        sameOrigin,
-        loopbackHost,
-        requireAuth: REQUIRE_AUTH,
-      });
-    }
     return finish(
       'unauthorized.no-token',
       NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
       {
         decision: 'unauthorized-no-token',
-        sameOrigin,
-        loopbackHost,
+        socketLoopback,
         requireAuth: REQUIRE_AUTH,
       },
     );

@@ -261,10 +261,14 @@ kanonischen Write blockieren.
 ## Start, Status und Logs
 
 ```powershell
-docker compose -f docker-compose.graphiti.yml up -d
-docker compose -f docker-compose.graphiti.yml ps
-docker compose -f docker-compose.graphiti.yml logs --tail=200 graphiti
+docker compose --env-file .env.local -f docker-compose.graphiti.yml up -d
+docker compose --env-file .env.local -f docker-compose.graphiti.yml ps
+docker compose --env-file .env.local -f docker-compose.graphiti.yml logs --tail=200 graphiti
 ```
+
+Die Compose-Datei verlangt `GRAPHITI_MODEL_HUB_TOKEN` und `GRAPHITI_EMBEDDING_API_KEY`
+aus `.env.local` (`--env-file` oder `pnpm run graphiti:local:up`). Die Ports (Neo4j
+`7475`/`7688`, API `8001`) sind nur auf `127.0.0.1` veröffentlicht.
 
 Vor einem historischen Lauf zunächst einen Dry-Run/Scope festlegen. Keine
 globalen Lösch- oder Truncate-Befehle verwenden. Nach jedem Lauf Healthcheck,

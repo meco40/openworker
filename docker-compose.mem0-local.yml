@@ -9,8 +9,9 @@ services:
       POSTGRES_PASSWORD: mem0
     volumes:
       - mem0-postgres-data:/var/lib/postgresql/data
+    # Loopback only: default DB credentials must not be reachable from the LAN.
     ports:
-      - '5433:5432'
+      - '127.0.0.1:5433:5432'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U mem0 -d mem0']
       interval: 10s
@@ -55,8 +56,10 @@ services:
       MEM0_VECTOR_HNSW: ${MEM0_VECTOR_HNSW:-false}
     volumes:
       - mem0-history-data:/app/history
+    # Loopback only. web/scheduler containers reach it via host.docker.internal:8010
+    # (Docker Desktop forwards that to host loopback; verified on Windows).
     ports:
-      - '8010:8000'
+      - '127.0.0.1:8010:8000'
     healthcheck:
       test:
         [

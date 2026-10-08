@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { POST as executeSkillPost } from '../app/api/skills/execute/route';
 import { getTestArtifactsRoot } from './helpers/testArtifacts';
 import { getSkillRepository } from '@/server/skills/skillRepository';
@@ -15,12 +15,20 @@ function makeRequest(body: Record<string, unknown>) {
 }
 
 describe('skills execute route requests', () => {
+  const previousPlaywrightCliPath = process.env.PLAYWRIGHT_CLI_PATH;
+
   beforeAll(async () => {
     const localDir = getTestArtifactsRoot();
     fs.mkdirSync(localDir, { recursive: true });
     const dbPath = path.join(localDir, 'skills.db');
     process.env.SQLITE_DB_PATH = dbPath;
     process.env.SKILLS_DB_PATH = dbPath;
+
+    // Fake Playwright CLI so the playwright_cli case neither depends on the installed
+    // playwright package nor falls back to `npx`, which can hit the network on cold start.
+    const fakePlaywrightCli = path.join(localDir, 'fake-playwright-cli.cjs');
+    fs.writeFileSync(fakePlaywrightCli, "console.log('Version 0.0.0-test');\n");
+    process.env.PLAYWRIGHT_CLI_PATH = fakePlaywrightCli;
 
     const db = new BetterSqlite3(dbPath);
     db.exec(
@@ -101,8 +109,16 @@ describe('skills execute route requests', () => {
     expect(json.ok).toBe(true);
     expect(typeof json.result.exitCode).toBe('number');
     expect(`${String(json.result.stdout || '')}\n${String(json.result.stderr || '')}`).toContain(
-      'Version',
+      'Version 0.0.0-test',
     );
+  });
+
+  afterAll(() => {
+    if (previousPlaywrightCliPath === undefined) {
+      delete process.env.PLAYWRIGHT_CLI_PATH;
+    } else {
+      process.env.PLAYWRIGHT_CLI_PATH = previousPlaywrightCliPath;
+    }
   });
 
   it('handles github_query request', async () => {

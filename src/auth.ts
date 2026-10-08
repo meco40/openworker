@@ -1,6 +1,7 @@
 import { getServerSession, type NextAuthOptions } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { getAuthUserStore } from '@/server/auth/userStore';
+import { getLoginRateLimiter, resolveClientIp } from '@/server/auth/loginRateLimiter';
 
 const LOCAL_DEVELOPMENT_AUTH_SECRET = 'openclaw-local-nextauth-secret';
 let insecureSecretWarningLogged = false;
@@ -49,7 +50,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         const email = String(credentials?.email || '')
           .trim()
           .toLowerCase();
@@ -59,10 +60,23 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const user = getAuthUserStore().verifyCredentials(email, password);
-        if (!user) {
+        // Locked-out and wrong-credential attempts return the same null, so the response
+        // does not reveal whether an account exists.
+        const limiter = getLoginRateLimiter();
+        const emailKey = `email:${email.slice(0, 254)}`;
+        const ip = resolveClientIp(req?.headers);
+        const keys = ip ? [emailKey, `ip:${ip}`] : [emailKey];
+        if (keys.some((key) => limiter.isBlocked(key))) {
           return null;
         }
+
+        const user = getAuthUserStore().verifyCredentials(email, password);
+        if (!user) {
+          for (const key of keys) limiter.recordFailure(key);
+          return null;
+        }
+
+        limiter.reset(emailKey);
 
         return {
           id: user.id,

@@ -21,14 +21,25 @@ function hashPassword(password: string): string {
   return `scrypt$${salt}$${derivedKey}`;
 }
 
+// Used for unknown emails so the response time does not reveal which accounts exist.
+let dummyHash: string | undefined;
+function getDummyHash(): string {
+  dummyHash ??= hashPassword(crypto.randomBytes(16).toString('hex'));
+  return dummyHash;
+}
+
 function verifyPasswordHash(
   password: string,
   storedHash: string,
 ): { ok: boolean; needsUpgrade: boolean } {
   // Legacy fallback for existing local dev hashes.
   if (/^[a-f0-9]{64}$/i.test(storedHash)) {
-    const legacyHash = crypto.createHash('sha256').update(password).digest('hex');
-    return { ok: storedHash === legacyHash, needsUpgrade: true };
+    const legacyBuffer = crypto.createHash('sha256').update(password).digest();
+    const storedBuffer = Buffer.from(storedHash, 'hex');
+    const ok =
+      storedBuffer.length === legacyBuffer.length &&
+      crypto.timingSafeEqual(storedBuffer, legacyBuffer);
+    return { ok, needsUpgrade: true };
   }
 
   const [scheme, salt, derived] = storedHash.split('$');
@@ -158,7 +169,10 @@ export class AuthUserStore {
       .prepare('SELECT id, email, name, password_hash FROM auth_users WHERE email = ?')
       .get(normalized) as AuthUserRecord | undefined;
 
-    if (!row) return null;
+    if (!row) {
+      verifyPasswordHash(password, getDummyHash());
+      return null;
+    }
     const verification = verifyPasswordHash(password, row.password_hash);
     if (!verification.ok) return null;
 

@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: openclaw-web
     restart: always
+    # Published on all host interfaces. Login is enforced (REQUIRE_AUTH=true):
+    # productionGuard refuses to start without it and without NEXTAUTH_SECRET.
     ports:
       - '3000:3000'
     environment:
@@ -12,9 +14,13 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
       SWARM_RUNNER: scheduler
+      REQUIRE_AUTH: ${REQUIRE_AUTH:-true}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set, run compose with --env-file .env.local}
+      MC_API_TOKEN: ${MC_API_TOKEN:-}
       SCHEDULER_HEALTH_TOKEN: ${SCHEDULER_HEALTH_TOKEN:-}
       MEMORY_PROVIDER: mem0
-      MEM0_BASE_URL: ${MEM0_BASE_URL}
+      # 127.0.0.1 inside a container is the container itself; mem0 runs on the host.
+      MEM0_BASE_URL: ${MEM0_CONTAINER_BASE_URL:-http://host.docker.internal:8010}
       MEM0_API_KEY: ${MEM0_API_KEY}
       MEM0_API_PATH: ${MEM0_API_PATH:-/v1}
       MEM0_TIMEOUT_MS: ${MEM0_TIMEOUT_MS:-5000}
@@ -39,8 +45,12 @@ services:
       NODE_ENV: production
       SCHEDULER_INSTANCE_ID: scheduler-1
       SWARM_RUNNER: scheduler
+      # Same auth guard as web (src/server/auth/productionGuard.ts).
+      REQUIRE_AUTH: ${REQUIRE_AUTH:-true}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set, run compose with --env-file .env.local}
+      MC_API_TOKEN: ${MC_API_TOKEN:-}
       MEMORY_PROVIDER: mem0
-      MEM0_BASE_URL: ${MEM0_BASE_URL}
+      MEM0_BASE_URL: ${MEM0_CONTAINER_BASE_URL:-http://host.docker.internal:8010}
       MEM0_API_KEY: ${MEM0_API_KEY}
       MEM0_API_PATH: ${MEM0_API_PATH:-/v1}
       MEM0_TIMEOUT_MS: ${MEM0_TIMEOUT_MS:-5000}

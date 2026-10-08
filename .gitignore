@@ -58,3 +58,6 @@ __pycache__/
 !components/logs/**
 
 *.tsbuildinfo
+
+# pnpm store created by containerized e2e runs
+/.pnpm-store/

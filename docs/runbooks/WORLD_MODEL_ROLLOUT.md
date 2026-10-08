@@ -25,7 +25,7 @@ wiederaufbaubare Projektionen bzw. explizite Kompatibilitätspfade.
 | `src/server/world-model/services/prospectiveEngine.ts`                 | Open-Loop-Follow-ups, Standing-Intent-Matching, Heartbeat                                                                                                                           |
 | `src/server/world-model/outboxDispatcher.ts`                           | Transactional-Outbox-Dispatch                                                                                                                                                       |
 | `src/server/world-model/productionGuard.ts`                            | Prod-Guard (Canonical URL erforderlich, E2E in Prod verboten)                                                                                                                       |
-| `docker-compose.postgres.yml`                                          | Kanonische `pgvector/pgvector:pg17`, Port 5434, DB `clawtest`                                                                                                                       |
+| `docker-compose.postgres.yml`                                          | Kanonische `pgvector/pgvector:pg17`, Port 5434 (nur 127.0.0.1), DB `clawtest`                                                                                                       |
 | `.env.local.example`                                                   | `WORLD_MODEL_*`-Block                                                                                                                                                               |
 
 ## Aktivierung (lokal)

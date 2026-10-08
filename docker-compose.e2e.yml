@@ -6,7 +6,13 @@ services:
       - ./:/workspace
       - e2e_smoke_node_modules:/workspace/node_modules
       - e2e_smoke_next:/workspace/.next
-    command: ['sh', '-lc', 'npm ci && npm run build && npm run test:e2e:smoke']
+    # Repo is pnpm-only (no package-lock.json); activate the pinned pnpm like the Dockerfile.
+    command:
+      [
+        'sh',
+        '-lc',
+        'corepack enable && corepack prepare pnpm@10.30.1 --activate && pnpm install --frozen-lockfile && pnpm run build && pnpm run test:e2e:smoke',
+      ]
 
   e2e-browser:
     image: mcr.microsoft.com/playwright:v1.58.2-noble
@@ -18,7 +24,12 @@ services:
     environment:
       CI: '1'
       PLAYWRIGHT_PORT: '3000'
-    command: ['sh', '-lc', 'npm ci && npm run build && npm run test:e2e:browser']
+    command:
+      [
+        'sh',
+        '-lc',
+        'corepack enable && corepack prepare pnpm@10.30.1 --activate && pnpm install --frozen-lockfile && pnpm run build && pnpm run test:e2e:browser',
+      ]
 
 volumes:
   e2e_smoke_node_modules:

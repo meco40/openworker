@@ -78,7 +78,7 @@ npm run build        # next build (production)
 | Variable                                      | Purpose                                                                 |
 | --------------------------------------------- | ----------------------------------------------------------------------- |
 | `GEMINI_API_KEY`                              | Required — primary AI provider key                                      |
-| `REQUIRE_AUTH`                                | `true` to enforce NextAuth login (default: `false`)                     |
+| `REQUIRE_AUTH`                                | `true` to enforce login (default `false`: loopback-only anonymous)      |
 | `NEXTAUTH_SECRET` / `AUTH_SECRET`             | JWT signing secret                                                      |
 | `ROOMS_RUNNER`                                | `scheduler` or `server` — controls which process runs room orchestrator |
 | `MEMORY_DB_PATH`                              | SQLite path for persistent core memory                                  |

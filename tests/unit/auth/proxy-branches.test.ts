@@ -51,7 +51,7 @@ describe('proxy middleware branches', () => {
     expect(allowedRead.status).toBe(200);
   });
 
-  it('allows public api paths, authenticated sessions, and same-origin browser requests', async () => {
+  it('allows public api paths, authenticated sessions, and loopback same-origin browser requests', async () => {
     const { proxy } = await import('../../../proxy');
 
     const publicResponse = await proxy(
@@ -63,10 +63,12 @@ describe('proxy middleware branches', () => {
     const sessionResponse = await proxy(new NextRequest('http://localhost/api/private'));
     expect(sessionResponse.status).toBe(200);
 
-    getTokenMock.mockRejectedValueOnce(new Error('token failure'));
+    // server.ts marks loopback socket peers; the same-origin browser request is then
+    // allowed before any session lookup.
     const sameOriginResponse = await proxy(
       new NextRequest('http://localhost/api/private', {
         headers: {
+          'x-openclaw-client-loopback': '1',
           host: 'localhost',
           origin: 'http://localhost',
         },
@@ -134,11 +136,23 @@ describe('proxy middleware branches', () => {
     const allowed = await proxy(
       new NextRequest('http://localhost/api/private', {
         headers: {
+          'x-openclaw-client-loopback': '1',
           host: 'localhost',
           referer: 'http://localhost/page',
         },
       }),
     );
     expect(allowed.status).toBe(200);
+
+    // Without the socket marker (non-loopback peer) the same headers are refused.
+    const spoofed = await proxy(
+      new NextRequest('http://localhost/api/private', {
+        headers: {
+          host: 'localhost',
+          referer: 'http://localhost/page',
+        },
+      }),
+    );
+    expect(spoofed.status).toBe(401);
   });
 });

@@ -125,13 +125,15 @@ pnpm run test:e2e:live
 
 Use containerized flows instead of host package/system changes.
 
-Production-like stack:
+Production-like stack (`--env-file .env.local` is required: the root `.env` has no `NEXTAUTH_SECRET`):
 
 ```powershell
-docker compose up -d --build web scheduler
-docker compose logs -f web scheduler
-docker compose down
+docker compose --env-file .env.local up -d --build web scheduler
+docker compose --env-file .env.local logs -f web scheduler
+docker compose --env-file .env.local down
 ```
+
+`web` and `scheduler` refuse to start unless `REQUIRE_AUTH=true` (compose default) and `NEXTAUTH_SECRET` are set. Start mem0 first (`pnpm run mem0:local:up`): the containers reach it at `http://host.docker.internal:8010` (override with `MEM0_CONTAINER_BASE_URL`), and the scheduler's startup check fails while mem0 is unreachable.
 
 E2E in containers:
 

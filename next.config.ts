@@ -8,6 +8,24 @@ const withBundleAnalyzer = createBundleAnalyzer({
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
+  async headers() {
+    // Deliberately no script-src/style-src/connect-src: Next inline scripts, HMR and
+    // three.js/mermaid would break. No Permissions-Policy: audio/microphone features are used.
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          {
+            key: 'Content-Security-Policy',
+            value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+          },
+        ],
+      },
+    ];
+  },
   webpack(config, { dev }) {
     if (dev) {
       config.watchOptions = {

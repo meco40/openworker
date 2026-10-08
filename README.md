@@ -241,7 +241,7 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | `OPENAI_OAUTH_AUDIENCE`                | Optional: OAuth Audience Override                                                    |
 | `OPENAI_OAUTH_AUTHORIZE_URL`           | Optional: OAuth Authorize URL Override                                               |
 | `OPENAI_OAUTH_TOKEN_URL`               | Optional: OAuth Token URL Override                                                   |
-| `MC_API_TOKEN`                         | Optional: Bearer Token für externe Mission Control API Calls                         |
+| `MC_API_TOKEN`                         | Optional: Bearer-Token für die Mission-Control-API (siehe Netzwerkzugriff)           |
 | `WEBHOOK_SECRET`                       | HMAC-Secret für Agent-Completion Webhooks (in Production erforderlich)               |
 | `ALLOW_INSECURE_WEBHOOKS`              | Expliziter Non-Production/Test-Fallback für fehlendes Webhook-Secret                 |
 | `EXTERNAL_SKILLS_ENABLED`              | Explizite Freigabe für Installation und Ausführung externer Skills                   |
@@ -261,7 +261,8 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | `OPENCLAW_CHAT_STREAM_KEEPALIVE_MS`    | Keepalive-Intervall für `chat.stream`                                                |
 | `OPENCLAW_SHELL_TIMEOUT_MS`            | Laufzeitlimit für `shell_execute`                                                    |
 | `OPENCLAW_SHELL_MAX_BUFFER_BYTES`      | Output-Buffer-Limit für `shell_execute`                                              |
-| `REQUIRE_AUTH`                         | Auth erzwingen (`true`/`false`, Default in Dev oft `false`)                          |
+| `REQUIRE_AUTH`                         | Auth erzwingen (`true`/`false`, Default `false`; siehe Netzwerkzugriff)              |
+| `HOSTNAME`                             | Bind-Adresse des Servers (Default `127.0.0.1`; Docker/Compose setzen `0.0.0.0`)      |
 | `NEXTAUTH_SECRET`                      | Secret für NextAuth-JWT-Signierung                                                   |
 | `PRINCIPAL_USER_ID`                    | Legacy-Workspace-Besitzer für Migrationen; in Production auf die Auth-User-ID setzen |
 | `AUTH_DB_PATH`                         | Pfad zur Auth-SQLite                                                                 |
@@ -284,6 +285,18 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 
 Hinweis: Provider-Secrets für den Model-Hub werden über UI/API hinterlegt und verschlüsselt gespeichert (`MODEL_HUB_ENCRYPTION_KEY` erforderlich). Einige Legacy-Fallbacks und Channel-Bot-Token (z. B. `TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `SLACK_BOT_TOKEN`, `GEMINI_API_KEY`) werden weiterhin aus der Umgebung gelesen, sofern konfiguriert.
 
+### Netzwerkzugriff und Authentifizierung
+
+Der Server bindet ohne `HOSTNAME` nur an `127.0.0.1`. Anonymer Zugriff ohne Login (`REQUIRE_AUTH=false`) wird nur akzeptiert, wenn alle Bedingungen gelten:
+
+- Die TCP-Verbindung kommt von einer Loopback-Adresse (`127.0.0.0/8`, `::1`). `Host`- oder `Origin`-Header allein reichen nicht, da sie jeder Client setzen kann.
+- Der `Host` nennt `localhost`, `127.0.0.1`, `[::1]` oder eine `*.localhost`-Domain. Dadurch scheitern DNS-Rebinding-Angriffe.
+- Die Anfrage kommt nicht aus einem fremden Browser-Origin (`Sec-Fetch-Site`, `Origin` oder `Referer` nennen einen anderen Host).
+
+Ist `MC_API_TOKEN` gesetzt, ist anonymer Zugriff nur noch für same-origin Browser-UI möglich. Alle anderen Clients benötigen `Authorization: Bearer <token>`.
+
+**Hinter einem Reverse Proxy, über Tailscale oder im LAN** muss `REQUIRE_AUTH=true` gesetzt oder `MC_API_TOKEN` verwendet werden. Andernfalls wird der Zugriff abgelehnt. Der Reverse Proxy muss den `Host`-Header unverändert weiterreichen (z. B. nginx `proxy_set_header Host $host;`), sonst lehnt der WebSocket-Upgrade auf `/ws` die Verbindung mit `403` ab.
+
 ---
 
 ## WebSocket Gateway
@@ -292,6 +305,7 @@ Single endpoint path: `/ws` (clients must use `?protocol=v2`)
 
 - **Verwendet**: `ws://localhost:3000/ws?protocol=v2`
 - `protocol=v2` muss explizit gesetzt sein, sonst antwortet der Server mit `400 Bad Request`.
+- Browser-Handshakes aus einem fremden Origin werden mit `403 Forbidden` abgelehnt. Ohne Login akzeptiert `/ws` nur Loopback-Clients; siehe [Netzwerkzugriff und Authentifizierung](#netzwerkzugriff-und-authentifizierung).
 
 ### Rate Limits
 
