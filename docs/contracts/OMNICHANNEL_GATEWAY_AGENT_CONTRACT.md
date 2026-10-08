@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Omnichannel Gateway.
-- Scope: "src/server/gateway/**", "app/api/channels/**", "src/modules/gateway/\*\*".
+- Scope: "src/server/gateway/**", "app/api/channels/**", "src/modules/gateway/**", "src/cli/**", "src/services/gateway.ts", "src/shared/gatewayTypes.ts", "src/messenger/\*\*", "src/components/ExposureManager.tsx".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-10-09
 
 ---
 

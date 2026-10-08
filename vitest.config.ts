@@ -37,6 +37,8 @@ export default defineConfig({
             'tests/unit/world-model/retrieval.test.ts',
             // This adapter spies on process-global fetch while other provider tests do the same.
             'tests/unit/model-hub/opencode-adapter.test.ts',
+            // This test owns a persona repository and changes its process-global paths.
+            'tests/unit/master/execution-runtime/master-runtime-persona-config.test.ts',
             'tests/unit/components/**/*.test.{ts,tsx}',
           ],
         },
@@ -53,6 +55,7 @@ export default defineConfig({
             'tests/unit/memory/lifecycle.test.ts',
             'tests/unit/world-model/retrieval.test.ts',
             'tests/unit/model-hub/opencode-adapter.test.ts',
+            'tests/unit/master/execution-runtime/master-runtime-persona-config.test.ts',
           ],
         },
       },

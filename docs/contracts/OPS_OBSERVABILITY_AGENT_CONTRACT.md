@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Ops Observability.
-- Scope: "app/api/stats/**", "src/components/stats/**", "src/server/stats/\*\*".
+- Scope: "app/api/stats/**", "src/components/stats/**", "src/server/stats/**", "src/components/logs/**", "src/components/ActivityLog.tsx".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-10-09
 
 ---
 

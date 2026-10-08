@@ -86,7 +86,9 @@ export function useDiagnostics() {
       const summary = summarizeHealthChecks(payload.checks);
       setHealthDiagnostics({
         status:
-          summary !== null ? toHealthDiagnosticsStatus(summary) : parseDiagnosticsStatus(payload.status),
+          summary !== null
+            ? toHealthDiagnosticsStatus(summary)
+            : parseDiagnosticsStatus(payload.status),
         summary,
         issues: extractHealthIssues(payload.checks),
         generatedAt: payload.generatedAt || null,

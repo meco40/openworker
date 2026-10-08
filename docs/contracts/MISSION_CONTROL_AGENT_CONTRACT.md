@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Änderungen im Mission-Control-Bereich.
-- Scope: `app/mission-control`, `app/api/master`, `app/api/tasks`, `src/modules/mission-control`, `src/server/master`.
+- Scope: "src/modules/mission-control/**", "app/mission-control/**", "src/components/Sidebar.tsx", "src/lib/config.ts", "src/modules/app-shell/**", "app/layout.tsx", "app/globals.css", "app/icon.svg", "src/components/Dashboard.tsx", "src/components/DeliverablesList.tsx", "src/components/config/**", "src/components/planning/**", "src/lib/planning-utils.ts", "src/shared/domain/types.ts", "app/api/master/**", "src/server/master/\*\*".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-10-09
 
 ---
 
@@ -20,6 +20,7 @@
 1. `app/api/master/*` fuer Request-Validierung und Delegation.
 2. `src/server/master/*` fuer Orchestrierung, Repository-Logik, Verifikation.
 3. `src/modules/mission-control/*` fuer UI-Interaktion ohne Infrastruktur-Execution.
+4. Die Shell-, Dashboard-, Konfigurations- und Planungsoberflächen aus `DOMAIN_REGISTRY.json` fuer lokale UI-Logik.
 
 ## Verbotene Muster
 

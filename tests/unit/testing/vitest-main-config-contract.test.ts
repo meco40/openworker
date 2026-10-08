@@ -65,6 +65,7 @@ describe('main vitest config', () => {
       'tests/unit/memory/lifecycle.test.ts',
       'tests/unit/world-model/retrieval.test.ts',
       'tests/unit/model-hub/opencode-adapter.test.ts',
+      'tests/unit/master/execution-runtime/master-runtime-persona-config.test.ts',
       'tests/unit/components/**/*.test.{ts,tsx}',
     ]);
 
@@ -76,6 +77,7 @@ describe('main vitest config', () => {
       'tests/unit/memory/lifecycle.test.ts',
       'tests/unit/world-model/retrieval.test.ts',
       'tests/unit/model-hub/opencode-adapter.test.ts',
+      'tests/unit/master/execution-runtime/master-runtime-persona-config.test.ts',
     ]);
 
     expect(coreIsolatedConfig.isolate).toBe(true);

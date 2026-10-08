@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-03-05T11:10:00Z",
+  "generatedAt": "2026-10-08T22:40:59Z",
   "domains": [
     {
       "risk": "high",
@@ -25,7 +25,7 @@
       "display": "Auth",
       "contract": "docs/contracts/AUTH_AGENT_CONTRACT.md",
       "tests": ["tests/integration/channels/omnichannel-security.contract.test.ts"],
-      "paths": ["src/auth.ts", "app/api/auth/**", "src/server/auth/**"],
+      "paths": ["src/auth.ts", "app/api/auth/**", "app/login/**", "src/server/auth/**"],
       "owner": "team-security",
       "systemDoc": "docs/AUTH_SYSTEM.md",
       "scenarios": ["auth-session-guard"],
@@ -36,7 +36,11 @@
       "display": "Session",
       "contract": "docs/contracts/SESSION_AGENT_CONTRACT.md",
       "tests": ["tests/integration/persistent-chat-session-v2.contract.test.ts"],
-      "paths": ["app/api/channels/state/**", "src/server/channels/**"],
+      "paths": [
+        "app/api/channels/state/**",
+        "src/server/channels/**",
+        "src/components/SessionsList.tsx"
+      ],
       "owner": "team-security",
       "systemDoc": "docs/SESSION_MANAGEMENT.md",
       "scenarios": ["auth-session-guard"],
@@ -82,7 +86,16 @@
       "display": "Omnichannel Gateway",
       "contract": "docs/contracts/OMNICHANNEL_GATEWAY_AGENT_CONTRACT.md",
       "tests": ["tests/unit/gateway/gateway-contract.test.ts"],
-      "paths": ["src/server/gateway/**", "app/api/channels/**", "src/modules/gateway/**"],
+      "paths": [
+        "src/server/gateway/**",
+        "app/api/channels/**",
+        "src/modules/gateway/**",
+        "src/cli/**",
+        "src/services/gateway.ts",
+        "src/shared/gatewayTypes.ts",
+        "src/messenger/**",
+        "src/components/ExposureManager.tsx"
+      ],
       "owner": "team-gateway",
       "systemDoc": "docs/OMNICHANNEL_GATEWAY_SYSTEM.md",
       "scenarios": ["gateway-rpc-core"],
@@ -109,7 +122,15 @@
       "display": "Persona Rooms",
       "contract": "docs/contracts/PERSONA_ROOMS_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/chat-queue-and-persona.spec.ts"],
-      "paths": ["app/api/personas/**", "src/server/personas/**"],
+      "paths": [
+        "app/api/personas/**",
+        "src/server/personas/**",
+        "src/modules/personas/**",
+        "src/modules/profile/**",
+        "src/shared/personaTypes.ts",
+        "src/lib/personalityMatrix.ts",
+        "src/components/dashboard/PersonalityRadar.tsx"
+      ],
       "owner": "team-chat",
       "systemDoc": "docs/PERSONA_ROOMS_SYSTEM.md",
       "scenarios": ["persona-rooms-isolation"],
@@ -120,7 +141,13 @@
       "display": "Ops Observability",
       "contract": "docs/contracts/OPS_OBSERVABILITY_AGENT_CONTRACT.md",
       "tests": ["tests/integration/stats/engineering-route.test.ts"],
-      "paths": ["app/api/stats/**", "src/components/stats/**", "src/server/stats/**"],
+      "paths": [
+        "app/api/stats/**",
+        "src/components/stats/**",
+        "src/server/stats/**",
+        "src/components/logs/**",
+        "src/components/ActivityLog.tsx"
+      ],
       "owner": "team-ops",
       "systemDoc": "docs/OPS_OBSERVABILITY_SYSTEM.md",
       "scenarios": ["ops-engineering-stats"],
@@ -164,7 +191,7 @@
       "display": "Knowledge Base",
       "contract": "docs/contracts/KNOWLEDGE_BASE_AGENT_CONTRACT.md",
       "tests": ["tests/unit/knowledge/retrieval-service/retrieval-service.harness.ts"],
-      "paths": ["src/server/knowledge/**"],
+      "paths": ["src/server/knowledge/**", "src/components/knowledge/**"],
       "owner": "team-knowledge",
       "systemDoc": "docs/KNOWLEDGE_BASE_SYSTEM.md",
       "scenarios": ["knowledge-retrieval-guard"],
@@ -226,7 +253,13 @@
       "display": "Chat",
       "contract": "docs/contracts/CHAT_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/chat-smoke.spec.ts"],
-      "paths": ["src/modules/chat/**", "app/api/channels/**", "src/server/channels/messages/**"],
+      "paths": [
+        "src/modules/chat/**",
+        "app/api/channels/**",
+        "src/server/channels/messages/**",
+        "src/components/ChatInterface.tsx",
+        "src/components/ConnectionStatus.tsx"
+      ],
       "owner": "team-chat",
       "systemDoc": "docs/OMNICHANNEL_GATEWAY_SYSTEM.md",
       "scenarios": ["chat-stream"],
@@ -243,6 +276,14 @@
         "src/components/Sidebar.tsx",
         "src/lib/config.ts",
         "src/modules/app-shell/**",
+        "app/layout.tsx",
+        "app/globals.css",
+        "app/icon.svg",
+        "src/components/Dashboard.tsx",
+        "src/components/DeliverablesList.tsx",
+        "src/components/config/**",
+        "src/components/planning/**",
+        "src/lib/planning-utils.ts",
         "src/shared/domain/types.ts",
         "app/api/master/**",
         "src/server/master/**"

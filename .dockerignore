@@ -2,6 +2,8 @@
 node_modules
 .next
 .worktrees
+.tmp
+.superpowers
 .pnpm-store
 .playwright-cli
 .playwright-mcp
@@ -36,7 +38,7 @@ eslint.config.js
 .agent
 .claude
 .claude.json
-.codex/environments
+.codex
 *.sqlite
 *.sqlite-*
 *.sqlite3

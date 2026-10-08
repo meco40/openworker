@@ -24,7 +24,7 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
 COPY scripts/avatar/sync-headaudio-assets.mjs ./scripts/avatar/sync-headaudio-assets.mjs
-RUN pnpm install --frozen-lockfile
+RUN pnpm config set node-linker hoisted && pnpm install --frozen-lockfile
 
 COPY . .
 # NextAuth is evaluated during prerender; the runtime stage gets its real secret separately.
@@ -37,6 +37,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+ENV DATABASE_PATH=/app/.local/mission-control.db
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
@@ -48,14 +49,17 @@ COPY --from=builder /app/public ./public
 # Copy TypeScript server entrypoints for custom web/scheduler processes
 COPY --from=builder /app/server.ts ./server.ts
 COPY --from=builder /app/scheduler.ts ./scheduler.ts
-COPY --from=builder /app/types.ts ./types.ts
+COPY --from=builder /app/tsconfig.json /app/package.json /app/LICENSE /app/THIRD_PARTY_NOTICES.md ./
 COPY --from=builder /app/src ./src
 
 # Complete flattened production dependency graph for custom entrypoints.
 COPY --from=deps /app/node_modules ./node_modules
+# The production install skips scripts; reuse the builder's matching native SQLite binding.
+COPY --from=builder /app/node_modules/better-sqlite3/build/Release/better_sqlite3.node ./node_modules/better-sqlite3/build/Release/better_sqlite3.node
 
 # Create data directory for SQLite (mount as volume)
-RUN mkdir -p /app/.local && chown nextjs:nodejs /app/.local
+RUN mkdir -p /app/.local /app/workspaces /app/.next/cache && \
+    chown -R nextjs:nodejs /app/.local /app/workspaces /app/.next/cache
 
 USER nextjs
 

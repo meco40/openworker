@@ -13,8 +13,26 @@ interface UseLogsOptions {
   streamBufferLimit: number;
 }
 
+function resolveFallbackCursor(entries: LogEntry[]): string | null {
+  return entries.length > 0 ? (entries[0]?.createdAt ?? null) : null;
+}
+
+function mergeUniqueLogs(older: LogEntry[], existing: LogEntry[]): LogEntry[] {
+  const next: LogEntry[] = [];
+  const seenIds = new Set<string>();
+  for (const entry of [...older, ...existing]) {
+    if (seenIds.has(entry.id)) {
+      continue;
+    }
+    seenIds.add(entry.id);
+    next.push(entry);
+  }
+  return next;
+}
+
 export function useLogs(options: UseLogsOptions) {
-  const { levelFilter, sourceFilter, categoryFilter, search, historyLimit, streamBufferLimit } = options;
+  const { levelFilter, sourceFilter, categoryFilter, search, historyLimit, streamBufferLimit } =
+    options;
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [sources, setSources] = useState<string[]>([]);
@@ -35,23 +53,6 @@ export function useLogs(options: UseLogsOptions) {
   const safeStreamBufferLimit = Number.isFinite(streamBufferLimit)
     ? Math.min(5000, Math.max(100, Math.floor(streamBufferLimit)))
     : 1000;
-
-  function resolveFallbackCursor(entries: LogEntry[]): string | null {
-    return entries.length > 0 ? entries[0]?.createdAt ?? null : null;
-  }
-
-  function mergeUniqueLogs(older: LogEntry[], existing: LogEntry[]): LogEntry[] {
-    const next: LogEntry[] = [];
-    const seenIds = new Set<string>();
-    for (const entry of [...older, ...existing]) {
-      if (seenIds.has(entry.id)) {
-        continue;
-      }
-      seenIds.add(entry.id);
-      next.push(entry);
-    }
-    return next;
-  }
 
   interface LogsResponsePayload {
     ok?: boolean;
@@ -222,9 +223,7 @@ export function useLogs(options: UseLogsOptions) {
         const entry = payload as LogEntry;
         setLogs((prev) => {
           const next = [...prev, entry];
-          return next.length > safeStreamBufferLimit
-            ? next.slice(-safeStreamBufferLimit)
-            : next;
+          return next.length > safeStreamBufferLimit ? next.slice(-safeStreamBufferLimit) : next;
         });
         setTotalCount((c) => c + 1);
 

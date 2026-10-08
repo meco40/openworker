@@ -174,7 +174,9 @@ function parseHealthCheckStatus(value: unknown): HealthCheckStatusSnapshot | nul
   return null;
 }
 
-export function summarizeHealthChecks(checks: HealthCheckSnapshot[] | undefined): HealthSummary | null {
+export function summarizeHealthChecks(
+  checks: HealthCheckSnapshot[] | undefined,
+): HealthSummary | null {
   if (!Array.isArray(checks)) return null;
 
   const summary: HealthSummary = { ok: 0, warning: 0, critical: 0, skipped: 0 };

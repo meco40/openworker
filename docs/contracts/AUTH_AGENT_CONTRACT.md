@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Auth.
-- Scope: "src/auth.ts", "app/api/auth/**", "src/server/auth/**".
+- Scope: "src/auth.ts", "app/api/auth/**", "app/login/**", "src/server/auth/\*\*".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-10-09
 
 ---
 

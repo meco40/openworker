@@ -20,9 +20,10 @@ export const LogRow: React.FC<LogRowProps> = ({ log, isCopied, onCopy }) => {
   const sourceColor = SOURCE_COLORS[log.source] || 'text-indigo-400';
 
   return (
-    <div
+    <button
+      type="button"
       onClick={() => onCopy(log)}
-      className={`group flex cursor-pointer items-start px-4 py-1.5 transition-colors hover:bg-zinc-900/50 ${
+      className={`group flex w-full cursor-pointer items-start px-4 py-1.5 text-left transition-colors hover:bg-zinc-900/50 ${
         log.level === 'error' ? 'bg-rose-500/[0.03]' : ''
       }`}
       title="Click to copy"
@@ -45,6 +46,6 @@ export const LogRow: React.FC<LogRowProps> = ({ log, isCopied, onCopy }) => {
           relativeTime(log.createdAt)
         )}
       </span>
-    </div>
+    </button>
   );
 };

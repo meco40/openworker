@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Session.
-- Scope: "app/api/channels/state/**", "src/server/channels/**".
+- Scope: "app/api/channels/state/**", "src/server/channels/**", "src/components/SessionsList.tsx".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-10-09
 
 ---
 

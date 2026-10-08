@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Änderungen im Chat-/Omnichannel-Pfad.
-- Scope: `src/modules/chat`, `app/api/channels`, `src/server/channels/messages`, relevante Gateway-Methoden.
+- Scope: "src/modules/chat/**", "app/api/channels/**", "src/server/channels/messages/\*\*", "src/components/ChatInterface.tsx", "src/components/ConnectionStatus.tsx".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-10-09
 
 ---
 
@@ -20,6 +20,7 @@
 1. `src/modules/chat/*` fuer UI/UX und lokale State-Logik.
 2. `app/api/channels/*` fuer HTTP-Entrypoints.
 3. `src/server/channels/messages/*` fuer Routing, Recall, Dispatch und Attachments.
+4. `src/components/ChatInterface.tsx` und `src/components/ConnectionStatus.tsx` fuer Chat- und Verbindungsanzeige.
 
 ## Verbotene Muster
 

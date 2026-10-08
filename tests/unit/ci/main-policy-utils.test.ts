@@ -42,6 +42,12 @@ describe('main policy utilities', () => {
         'src/shared/contracts/modelHub.ts',
         'app/mission-control/page.tsx',
         'src/modules/app-shell/components/AppShellViewContent.tsx',
+        'app/login/LoginForm.tsx',
+        'src/cli/gateway-cli.ts',
+        'src/components/logs/hooks/useDiagnostics.ts',
+        'src/modules/personas/PersonaContext.tsx',
+        'src/components/knowledge/graph/KnowledgeGraphPanel.tsx',
+        'src/components/ChatInterface.tsx',
       ],
       registry,
     );
@@ -49,6 +55,12 @@ describe('main policy utilities', () => {
     expect(matches.has('memory')).toBe(true);
     expect(matches.has('model-hub')).toBe(true);
     expect(matches.has('mission-control')).toBe(true);
+    expect(matches.has('auth')).toBe(true);
+    expect(matches.has('omnichannel-gateway')).toBe(true);
+    expect(matches.has('ops-observability')).toBe(true);
+    expect(matches.has('persona-rooms')).toBe(true);
+    expect(matches.has('knowledge-base')).toBe(true);
+    expect(matches.has('chat')).toBe(true);
   });
 
   it('keeps scenario ids unique', () => {
