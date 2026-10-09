@@ -53,11 +53,8 @@ Regeln:
 
 Regel: Async-Fehler erzeugen innerhalb von 24h einen Follow-up-Task mit Owner.
 
-3. Rollout Exit Gates (main-only Push Gate):
-
-- `Rollout Exit Gates` (`.github/workflows/harness-rollout-gates.yml`)
-- 4-Wochen-Phasenmodell via `config/harness-rollout-gates.json`
-- im Enforcement-Modus blockiert ein roter Rollout-Gate-Status den Push-Check
+3. Rollout Exit Gates: seit 2026-10-09 entfernt (kein Required Check, keine Workflows).
+   `config/harness-rollout-gates.json` ist veraltet (Phasenfenster seit 2026-04-05 abgelaufen).
 
 ## Guardian-Verhalten
 
@@ -80,10 +77,7 @@ Der `Main Guardian` reagiert auf fehlgeschlagene Blocking-Gates auf `main`:
 - Durchsatz- und Stabilitätsmetriken reviewen
 - Top-3 Reibungspunkte mit klaren Gegenmassnahmen planen
 
-3. Go/No-Go:
-
-- `Harness Go No-Go` Workflow laeuft taeglich und entscheidet nur an den fixen Decision Dates.
-- Empfehlung wird als dedupliziertes Decision-Issue dokumentiert (`go|hold|rollback-hardening`).
+3. Go/No-Go: seit 2026-10-09 entfernt (Workflow `Harness Go No-Go` geloescht).
 
 ## Observability und Retention
 
@@ -112,21 +106,13 @@ Der `Main Guardian` reagiert auf fehlgeschlagene Blocking-Gates auf `main`:
 
 1. Flags:
 
-- `ROLLOUT_GATES_ENFORCE` (`0|1`)
-- `GO_NO_GO_ENFORCE` (`0|1`)
 - `MAIN_GUARDIAN_AUTOREVERT_ENABLED` (`0|1`, Standard `1`)
 - `ENGINEERING_INGEST_ENABLED` (`0|1`)
 - `ASYNC_SLA_AUTOMATION_ENABLED` (`0|1`)
 - `CLEANUP_DRAFT_PR_ENABLED` (`0|1`)
 - `ENGINEERING_ALERTS_ENABLED` (`0|1`)
 
-2. Rollout-Reihenfolge:
+2. Rollback-Reihenfolge:
 
-- Woche 1 report-only
-- Woche 2-4 enforce
-
-3. Rollback-Reihenfolge:
-
-- `GO_NO_GO_ENFORCE=0`
-- `ROLLOUT_GATES_ENFORCE=0`
 - optional `MAIN_GUARDIAN_AUTOREVERT_ENABLED=0`
+- (`ROLLOUT_GATES_ENFORCE` und `GO_NO_GO_ENFORCE` entfallen mit den Workflows.)

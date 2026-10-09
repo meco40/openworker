@@ -9,12 +9,12 @@ Deterministische Behandlung von Harness- und Guardian-Incidents im main-only Mod
 1. `Async SLA Audit` markiert ein Issue mit `sla-breached`.
 2. `Main Guardian` erstellt ein Incident-Issue (`harness-guardian`).
 3. `GET /api/stats/engineering` zeigt `asyncFailureSlaBreaches > 0` oder `criticalFailAutoReverts > 0`.
-4. `Rollout Exit Gates` erzeugt/aktualisiert `harness-rollout` Issues.
-5. `Harness Go No-Go` erzeugt Decision-Issues und `go-no-go` Follow-up-Issues.
+
+(Hinweis: Rollout Exit Gates und Harness Go No-Go wurden am 2026-10-09 entfernt und erzeugen keine Issues mehr.)
 
 ## Daily Triage (15 min)
 
-1. Offene `async-failure`, `harness-guardian`, `harness-rollout` und `go-no-go` Issues sichten.
+1. Offene `async-failure` und `harness-guardian` Issues sichten.
 2. Owner, ETA und naechsten konkreten Fix-Schritt im Issue dokumentieren.
 3. Wiederkehrende Fehler als Flaky-Kandidat markieren.
 
@@ -27,9 +27,6 @@ Deterministische Behandlung von Harness- und Guardian-Incidents im main-only Mod
 ## Rollback Toggles (hart)
 
 1. Sofortmassnahme bei anhaltenden Fehlalarmen:
-
-- `GO_NO_GO_ENFORCE=0`
-- `ROLLOUT_GATES_ENFORCE=0`
 
 2. Nur bei anhaltender Fehl-Revert-Kaskade:
 
