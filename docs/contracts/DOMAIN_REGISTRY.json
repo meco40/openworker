@@ -206,6 +206,8 @@
       "tests": ["tests/integration/channels/omnichannel-security.contract.test.ts"],
       "paths": [
         "src/server/auth/**",
+        "src/server/security/**",
+        "src/modules/security/**",
         "src/server/master/safety.ts",
         "src/server/skills/handlers/**"
       ],
