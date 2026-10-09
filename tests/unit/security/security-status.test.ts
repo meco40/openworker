@@ -245,7 +245,7 @@ describe('security status snapshot', () => {
 
       const isolation = checks.checks.find((check) => check.id === 'isolation');
       expect(isolation?.status).toBe('ok');
-      expect(isolation?.detail).toContain('isoliert');
+      expect(isolation?.detail).toContain('blockiert');
     });
   });
 

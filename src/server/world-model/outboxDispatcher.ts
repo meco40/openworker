@@ -108,7 +108,7 @@ export async function startOutboxDispatcher(): Promise<void> {
   if (dispatcherTimer) return;
   const e2eAllowed = config.e2eEnabled && process.env.NODE_ENV !== 'production';
   if (!config.enabled && !e2eAllowed) return;
-  await runWorldModelMigrations();
+  if (process.env.NODE_ENV !== 'production') await runWorldModelMigrations();
   if (config.graphitiShadowEnabled) {
     registerOutboxHandler(
       'world.observation.created',

@@ -1,5 +1,6 @@
 import { getMemoryProviderKind, getMemoryService } from '@/server/memory/runtime';
-import { getWorldModelDb } from '@/server/world-model/db';
+import { getWorldModelDb, runWithWorldModelScope } from '@/server/world-model/db';
+import { listRuntimeWorldModelScopes } from '@/server/world-model/runtime/scopeDiscovery';
 import { isMem0FactualWriteBlocked } from '@/server/world-model/mem0Policy';
 import { normalizeExtraction } from '@/server/world-model/projector/normalizeExtraction';
 import { projectWindow } from '@/server/world-model/projector/projectWindow';
@@ -220,9 +221,15 @@ export async function runProjectionRetryOnce(
 
 export function startProjectionRetryWorker(intervalMs = 30_000): { stop: () => void } {
   const timer = setInterval(() => {
-    void runProjectionRetryOnce().catch((error) => {
-      console.error('[world-model:projection-retry] worker tick failed:', error);
-    });
+    void listRuntimeWorldModelScopes()
+      .then(async (scopes) => {
+        for (const scope of scopes) {
+          await runWithWorldModelScope(scope, () => runProjectionRetryOnce());
+        }
+      })
+      .catch((error) => {
+        console.error('[world-model:projection-retry] worker tick failed:', error);
+      });
   }, intervalMs);
   timer.unref();
   return { stop: () => clearInterval(timer) };

@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getWorldModelDb } from '@/server/world-model/db';
+import { getWorldModelConfig } from '@/server/world-model/config';
 import type { WorldModelScope } from '@/server/world-model/scope';
 
 function parseConfiguredScopes(): WorldModelScope[] {
@@ -46,25 +47,26 @@ export async function listRuntimeWorldModelScopes(): Promise<WorldModelScope[]> 
   // the canonical tables are visible without a tenant session. Dedicated
   // worker roles intentionally see no rows for this unscoped query; their
   // explicit WORLD_MODEL_DISPATCH_SCOPES remain the safe discovery path.
-  try {
-    const db = getWorldModelDb();
-    const rows = await db.query<{ user_id: string; persona_id: string; workspace_id: string }>(
-      `SELECT DISTINCT user_id, persona_id, workspace_id FROM world_model_observations
+  if (getWorldModelConfig().runtimeRole !== 'worker')
+    try {
+      const db = getWorldModelDb();
+      const rows = await db.query<{ user_id: string; persona_id: string; workspace_id: string }>(
+        `SELECT DISTINCT user_id, persona_id, workspace_id FROM world_model_observations
        UNION SELECT DISTINCT user_id, persona_id, workspace_id FROM world_model_memory_items
        UNION SELECT DISTINCT user_id, persona_id, workspace_id FROM world_model_entities
        UNION SELECT DISTINCT user_id, persona_id, workspace_id FROM world_model_events
        UNION SELECT DISTINCT user_id, persona_id, workspace_id FROM world_model_tasks`,
-    );
-    candidates.push(
-      ...rows.rows.map((row) => ({
-        userId: row.user_id,
-        personaId: row.persona_id,
-        workspaceId: row.workspace_id,
-      })),
-    );
-  } catch (error) {
-    console.warn('[world-model:scope-discovery] canonical scope scan unavailable:', error);
-  }
+      );
+      candidates.push(
+        ...rows.rows.map((row) => ({
+          userId: row.user_id,
+          personaId: row.persona_id,
+          workspaceId: row.workspace_id,
+        })),
+      );
+    } catch (error) {
+      console.warn('[world-model:scope-discovery] canonical scope scan unavailable:', error);
+    }
 
   const seen = new Set<string>();
   return candidates.filter((scope) => {

@@ -59,6 +59,8 @@
       ],
       "paths": [
         "src/server/world-model/**",
+        "scripts/world-model-migrate.ts",
+        "scripts/world-model-provision-roles.ts",
         "scripts/world-model-backfill.ts",
         "scripts/world-model-reconcile.ts",
         "scripts/world-model-rebuild-projections.ts",

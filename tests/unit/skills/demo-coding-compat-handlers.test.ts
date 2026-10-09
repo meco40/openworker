@@ -76,4 +76,34 @@ describe('coding compat handlers', () => {
     };
     expect(patched.content).toContain('hola');
   });
+
+  it('rejects read, write, edit and patch paths that follow an external symlink', async () => {
+    const workspace = createWorkspace();
+    const outside = createWorkspace();
+    workspaces.push(workspace, outside);
+    fs.writeFileSync(path.join(outside, 'canary.txt'), 'private');
+    fs.symlinkSync(
+      outside,
+      path.join(workspace, 'link'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    const context = { workspaceCwd: workspace };
+    await expect(readCompatHandler({ path: 'link/canary.txt' }, context)).rejects.toThrow(
+      'symbolic link',
+    );
+    await expect(
+      writeCompatHandler({ path: 'link/new/note.txt', content: 'bad' }, context),
+    ).rejects.toThrow('symbolic link');
+    await expect(
+      editCompatHandler({ path: 'link/canary.txt', old: 'private', new: 'bad' }, context),
+    ).rejects.toThrow('symbolic link');
+    await expect(
+      applyPatchCompatHandler(
+        { input: '*** Begin Patch\n*** Add File: link/new.txt\n+bad\n*** End Patch' },
+        context,
+      ),
+    ).rejects.toThrow('symbolic link');
+    expect(fs.readFileSync(path.join(outside, 'canary.txt'), 'utf8')).toBe('private');
+    expect(fs.existsSync(path.join(outside, 'new'))).toBe(false);
+  });
 });

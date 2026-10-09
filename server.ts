@@ -4,6 +4,7 @@
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import next from 'next';
+import { websocketTokenRequest } from './src/server/auth/websocketTokenRequest.js';
 import { WebSocketServer } from 'ws';
 import { getToken } from 'next-auth/jwt';
 import { handleConnection, getClientRegistry, broadcast } from './src/server/gateway/index.js';
@@ -162,7 +163,10 @@ Promise.resolve()
 
       try {
         // Authenticate via NextAuth JWT cookie (same origin, same port)
-        const token = await getToken({ req: req as never, secret: SECRET });
+        const token = await getToken({
+          req: websocketTokenRequest(req),
+          secret: SECRET,
+        });
         let userId: string;
 
         if (token && typeof token.id === 'string') {

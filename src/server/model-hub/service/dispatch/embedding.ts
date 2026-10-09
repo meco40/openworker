@@ -53,12 +53,19 @@ export async function dispatchEmbedding(
     if (provider.apiBaseUrl) {
       const { decryptSecret } = await import('@/server/model-hub/crypto');
       const secret = decryptSecret(record.encryptedSecret, encryptionKey);
-      if (!secret?.trim()) {
+      if (
+        !secret?.trim() &&
+        !(record.authMethod === 'none' && provider.authMethods.includes('none'))
+      ) {
         return { error: `${provider.id} account secret is missing or empty.` };
       }
       return await dispatchOpenAICompatibleEmbedding(
         provider.id,
-        provider.apiBaseUrl,
+        provider.id === 'ollama'
+          ? `${(process.env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\/$/, '')}/v1`
+          : provider.id === 'lmstudio'
+            ? process.env.LMSTUDIO_BASE_URL || provider.apiBaseUrl
+            : provider.apiBaseUrl,
         secret,
         input.operation,
         input.payload,

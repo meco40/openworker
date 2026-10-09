@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { resolveSkillExecutionCwd } from '@/server/skills/handlers/executionCwd';
+import {
+  assertRealPathWithinRoot,
+  resolveSkillExecutionCwd,
+} from '@/server/skills/handlers/executionCwd';
 import type { SkillDispatchContext } from '@/server/skills/types';
 
 function normalizePathForCompare(value: string): string {
@@ -37,6 +40,7 @@ export function resolveWorkspacePath(
   if (!isWithinRoot(resolvedPath, workspaceRoot)) {
     throw new Error('Path must stay inside workspace root.');
   }
+  assertRealPathWithinRoot(resolvedPath, workspaceRoot);
 
   const relativePath = path.relative(workspaceRoot, resolvedPath).replace(/\\/g, '/');
   return {

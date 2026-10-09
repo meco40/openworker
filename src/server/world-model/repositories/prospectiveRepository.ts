@@ -19,17 +19,17 @@ interface OpenLoopRow {
   question: string | null;
   missing_information: string | null;
   importance: number;
-  trigger_at: string | null;
-  do_not_ask_before: string | null;
-  last_checked_at: string | null;
+  trigger_at: string | Date | null;
+  do_not_ask_before: string | Date | null;
+  last_checked_at: string | Date | null;
   deduplication_key: string;
   max_attempts: number;
   attempts: number;
-  last_asked_at: string | null;
+  last_asked_at: string | Date | null;
   resolved_observation_id: string | null;
   note: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
 }
 
 interface IntentRow {
@@ -44,16 +44,21 @@ interface IntentRow {
   channel_scope: string | null;
   sender_scope: string | null;
   status: StandingIntentStatus;
-  expires_at: string | null;
-  cooldown_until: string | null;
+  expires_at: string | Date | null;
+  cooldown_until: string | Date | null;
   cooldown_ms: number;
   fire_count: number;
   max_fires: number;
-  last_fired_at: string | null;
+  last_fired_at: string | Date | null;
   deduplication_key: string;
   note: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
+}
+
+function timestamp(value: string | Date | null | undefined): string | undefined {
+  if (value instanceof Date) return value.toISOString();
+  return value ?? undefined;
 }
 
 function toOpenLoop(row: OpenLoopRow): OpenLoopRecord {
@@ -69,16 +74,16 @@ function toOpenLoop(row: OpenLoopRow): OpenLoopRecord {
     question: row.question ?? undefined,
     missingInformation: row.missing_information ?? undefined,
     importance: row.importance,
-    triggerAt: row.trigger_at ?? undefined,
-    doNotAskBefore: row.do_not_ask_before ?? undefined,
-    lastCheckedAt: row.last_checked_at ?? undefined,
+    triggerAt: timestamp(row.trigger_at),
+    doNotAskBefore: timestamp(row.do_not_ask_before),
+    lastCheckedAt: timestamp(row.last_checked_at),
     deduplicationKey: row.deduplication_key,
     maxAttempts: row.max_attempts,
-    lastAskedAt: row.last_asked_at ?? undefined,
+    lastAskedAt: timestamp(row.last_asked_at),
     resolvedObservationId: row.resolved_observation_id ?? undefined,
     note: row.note ?? undefined,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: timestamp(row.created_at)!,
+    updatedAt: timestamp(row.updated_at)!,
   };
 }
 
@@ -95,15 +100,15 @@ function toIntent(row: IntentRow): StandingIntentRecord {
     channelScope: row.channel_scope ?? undefined,
     senderScope: row.sender_scope ?? undefined,
     status: row.status,
-    expiresAt: row.expires_at ?? undefined,
-    cooldownUntil: row.cooldown_until ?? undefined,
+    expiresAt: timestamp(row.expires_at),
+    cooldownUntil: timestamp(row.cooldown_until),
     cooldownMs: row.cooldown_ms,
     fireCount: row.fire_count,
     maxFires: row.max_fires,
-    lastFiredAt: row.last_fired_at ?? undefined,
+    lastFiredAt: timestamp(row.last_fired_at),
     deduplicationKey: row.deduplication_key,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: timestamp(row.created_at)!,
+    updatedAt: timestamp(row.updated_at)!,
   };
 }
 
@@ -231,8 +236,8 @@ export async function claimDueOpenLoop(
   const leaseUntil = new Date(new Date(at).getTime() + leaseDurationMs).toISOString();
   const result = await db.query<OpenLoopRow>(
     `UPDATE world_model_open_loops
-     SET locked_by = $6,
-         locked_until = $7,
+     SET locked_by = $5,
+         locked_until = $6,
          updated_at = now()
      WHERE id = (
        SELECT id FROM world_model_open_loops
@@ -250,7 +255,7 @@ export async function claimDueOpenLoop(
                missing_information, importance, trigger_at, do_not_ask_before, last_checked_at,
                deduplication_key, max_attempts, attempts, last_asked_at, resolved_observation_id,
                note, created_at, updated_at`,
-    [userId, personaId, workspaceId, at, leaseUntil, leaseBy, leaseUntil],
+    [userId, personaId, workspaceId, at, leaseBy, leaseUntil],
   );
   return result.rows[0] ? toOpenLoop(result.rows[0]) : null;
 }
@@ -412,9 +417,9 @@ export async function registerStandingIntentFire(
          cooldown_until = CASE WHEN cooldown_ms > 0
            THEN ($2::timestamptz + make_interval(secs => cooldown_ms / 1000.0)) ELSE cooldown_until END,
          status = CASE
-           WHEN max_fires > 0 AND fire_count + 1 >= max_fires THEN 'done'
-           WHEN cooldown_ms > 0 THEN 'cooldown'
-           ELSE 'armed' END,
+           WHEN max_fires > 0 AND fire_count + 1 >= max_fires THEN 'done'::world_model_standing_intent_status
+           WHEN cooldown_ms > 0 THEN 'cooldown'::world_model_standing_intent_status
+           ELSE 'armed'::world_model_standing_intent_status END,
          updated_at = now()
      WHERE id = $1`,
     [id, now],
@@ -430,7 +435,10 @@ export async function markOpenLoopAsked(
     `UPDATE world_model_open_loops
      SET attempts = attempts + 1,
          last_asked_at = $2,
-         status = CASE WHEN attempts + 1 >= max_attempts THEN 'expired' ELSE 'asked' END,
+         status = CASE
+           WHEN attempts + 1 >= max_attempts THEN 'expired'::world_model_open_loop_status
+           ELSE 'asked'::world_model_open_loop_status
+         END,
          updated_at = now()
      WHERE id = $1 AND status IN ('open','scheduled')
        AND (do_not_ask_before IS NULL OR do_not_ask_before <= $2)`,

@@ -80,7 +80,7 @@ function buildEncryptionCheck(appUrl: string, secureCrypto: boolean): SecurityCh
   if (!secureCrypto) {
     return {
       id: 'encryption',
-      label: 'E2E Encryption',
+      label: 'HTTPS / WebCrypto',
       status: 'critical',
       detail: 'WebCrypto ist nicht verfügbar.',
     };
@@ -89,7 +89,7 @@ function buildEncryptionCheck(appUrl: string, secureCrypto: boolean): SecurityCh
   if (!appUrl.startsWith('https://')) {
     return {
       id: 'encryption',
-      label: 'E2E Encryption',
+      label: 'HTTPS / WebCrypto',
       status: 'warning',
       detail: `Transport ist nicht HTTPS (${appUrl || 'nicht konfiguriert'}).`,
     };
@@ -97,7 +97,7 @@ function buildEncryptionCheck(appUrl: string, secureCrypto: boolean): SecurityCh
 
   return {
     id: 'encryption',
-    label: 'E2E Encryption',
+    label: 'HTTPS / WebCrypto',
     status: 'ok',
     detail: `HTTPS aktiv (${appUrl}).`,
   };
@@ -125,7 +125,7 @@ function buildIsolationCheck(commands: CommandPermission[]): SecurityCheck {
   if (hasDangerousCommandEnabled(commands)) {
     return {
       id: 'isolation',
-      label: 'Task Isolation',
+      label: 'Command Policy',
       status: 'critical',
       detail: 'Gefährliche Shell-Kommandos sind aktiviert.',
     };
@@ -135,7 +135,7 @@ function buildIsolationCheck(commands: CommandPermission[]): SecurityCheck {
   if (blockedHighRisk === 0) {
     return {
       id: 'isolation',
-      label: 'Task Isolation',
+      label: 'Command Policy',
       status: 'warning',
       detail: 'Keine High-Risk-Regel blockiert.',
     };
@@ -143,9 +143,9 @@ function buildIsolationCheck(commands: CommandPermission[]): SecurityCheck {
 
   return {
     id: 'isolation',
-    label: 'Task Isolation',
+    label: 'Command Policy',
     status: 'ok',
-    detail: `${blockedHighRisk} High-Risk-Regel(n) isoliert.`,
+    detail: `${blockedHighRisk} High-Risk-Regel(n) blockiert; keine Prozess-Sandbox.`,
   };
 }
 

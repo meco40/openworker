@@ -29,4 +29,9 @@
 
 ## Pflicht-Tests
 
+Der separate HTTP/WebSocket-Server parst Node-Request-Cookies vor `getToken`.
+Session-Signatur, sichere Cookie-Namen und Cookie-Chunks bleiben durch NextAuth
+geprüft. `tests/unit/auth/websocket-session-cookie.test.ts` und
+`pnpm run test:e2e:production` prüfen diese Grenze inklusive echter Anmeldung.
+
 1. tests/integration/channels/omnichannel-security.contract.test.ts

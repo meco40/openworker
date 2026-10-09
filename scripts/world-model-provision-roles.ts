@@ -49,6 +49,9 @@ const APP_TABLES = [
 ];
 
 const WORKER_TABLES = [
+  ...APP_TABLES,
+  'world_model_memory_items',
+  'world_model_memory_item_history',
   'world_model_outbox_events',
   'world_model_projection_pending',
   'world_model_delivery_receipts',

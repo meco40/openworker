@@ -1,7 +1,8 @@
 import { getWorldModelConfig } from '@/server/world-model/config';
 import { deliverDueOpenLoops } from '@/server/world-model/services/openLoopService';
 import { scanHeartbeat } from '@/server/world-model/runtime/heartbeatRuntime';
-import { listActiveProspectiveScopes } from '@/server/world-model/repositories/prospectiveRepository';
+import { listRuntimeWorldModelScopes } from '@/server/world-model/runtime/scopeDiscovery';
+import { runWithWorldModelScope } from '@/server/world-model/db';
 
 export interface ProspectiveRuntimeDeps {
   isActive?: () => boolean;
@@ -26,13 +27,11 @@ export async function runProspectiveRuntimeOnce(
 
   const scopes = deps.listUserPersonaScopes
     ? await deps.listUserPersonaScopes()
-    : await listActiveProspectiveScopes();
+    : await listRuntimeWorldModelScopes();
   let totalDelivered = 0;
   for (const scope of scopes) {
-    const result = await deliverDueOpenLoops(
-      scope.userId,
-      scope.personaId,
-      scope.workspaceId,
+    const result = await runWithWorldModelScope(scope, () =>
+      deliverDueOpenLoops(scope.userId, scope.personaId, scope.workspaceId),
     ).catch(() => ({
       totalDue: 0,
       delivered: 0,
@@ -44,15 +43,19 @@ export async function runProspectiveRuntimeOnce(
     totalDelivered += result.delivered + result.enqueued;
   }
 
-  const heartbeat = await scanHeartbeat().catch(() => ({
-    overdueOpenLoops: [],
-    needsReconcile: false,
-    scannedAt: new Date().toISOString(),
-  }));
+  const heartbeats = await Promise.all(
+    scopes.map((scope) =>
+      runWithWorldModelScope(scope, () => scanHeartbeat()).catch(() => ({
+        overdueOpenLoops: [],
+        needsReconcile: false,
+        scannedAt: new Date().toISOString(),
+      })),
+    ),
+  );
 
   return {
     openLoopsDelivered: totalDelivered,
-    heartbeatReconcile: heartbeat.needsReconcile,
+    heartbeatReconcile: heartbeats.some((heartbeat) => heartbeat.needsReconcile),
     scopes: scopes.length,
   };
 }

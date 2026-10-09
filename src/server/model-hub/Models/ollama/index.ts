@@ -2,8 +2,9 @@ import type { FetchedModel, ProviderAdapter } from '@/server/model-hub/Models/ty
 import { dispatchOpenAICompatibleChat } from '@/server/model-hub/Models/shared/openai-compatible';
 import { fetchWithTimeout } from '@/server/model-hub/Models/shared/http';
 
-const OLLAMA_OPENAI_BASE_URL = 'http://localhost:11434/v1';
-const OLLAMA_TAGS_URL = 'http://localhost:11434/api/tags';
+function ollamaBaseUrl(): string {
+  return (process.env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\/$/, '');
+}
 
 function mapDefaultModels(defaultModels: string[]): FetchedModel[] {
   return defaultModels.map((id) => ({
@@ -31,7 +32,7 @@ async function fetchOllamaTags(secret: string): Promise<FetchedModel[]> {
   }
 
   const response = await fetchWithTimeout(
-    OLLAMA_TAGS_URL,
+    `${ollamaBaseUrl()}/api/tags`,
     {
       method: 'GET',
       headers,
@@ -76,7 +77,7 @@ const ollamaProviderAdapter: ProviderAdapter = {
         }`,
       })),
   dispatchGateway: ({ secret }, request, options) =>
-    dispatchOpenAICompatibleChat(OLLAMA_OPENAI_BASE_URL, secret, 'ollama', request, {
+    dispatchOpenAICompatibleChat(`${ollamaBaseUrl()}/v1`, secret, 'ollama', request, {
       signal: options?.signal,
       onStreamDelta: options?.onStreamDelta,
     }),

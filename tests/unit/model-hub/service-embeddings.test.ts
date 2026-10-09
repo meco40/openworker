@@ -125,8 +125,45 @@ async function setupService(options?: {
 describe('ModelHubService.dispatchEmbedding', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     vi.resetModules();
   });
+
+  it.each(['ollama', 'lmstudio'])(
+    'uses the configured %s endpoint without an API key',
+    async (providerId) => {
+      const record = { ...buildAccountRecord(providerId), authMethod: 'none' as const };
+      const repository = createMockRepository({
+        listPipelineModels: vi.fn().mockReturnValue([
+          {
+            ...buildEmbeddingPipelineEntry(record.id),
+            providerId,
+            modelName: 'local-embedding',
+          },
+        ]),
+        getAccountRecordById: vi.fn().mockReturnValue(record),
+      });
+      vi.stubEnv('OLLAMA_BASE_URL', 'http://model-host:11434/');
+      vi.stubEnv('LMSTUDIO_BASE_URL', 'http://model-host:1234/v1');
+      const fetchMock = vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ data: [{ embedding: [0.1, 0.2] }] }),
+      }));
+      vi.stubGlobal('fetch', fetchMock);
+      const { service } = await setupService({ repository, decryptSecretReturn: '' });
+      expect(
+        await service.dispatchEmbedding('enc-key', {
+          operation: 'embedContent',
+          payload: { contents: ['local memory'] },
+        }),
+      ).toEqual({ embedding: { values: [0.1, 0.2] } });
+      expect(fetchMock).toHaveBeenCalledWith(
+        `http://model-host:${providerId === 'ollama' ? '11434' : '1234'}/v1/embeddings`,
+        expect.objectContaining({ headers: { 'Content-Type': 'application/json' } }),
+      );
+    },
+  );
 
   it('returns error when no embedding model is configured', async () => {
     const repository = createMockRepository();

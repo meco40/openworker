@@ -2,7 +2,7 @@
 # Multi-stage build for the custom Next.js + WebSocket server.
 
 # ── Base ───────────────────────────────────────────────────────
-FROM node:22-alpine AS base
+FROM node:22-bookworm-slim AS base
 ENV HUSKY=0
 RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
 
@@ -31,16 +31,19 @@ COPY . .
 RUN NEXTAUTH_SECRET=build-only-not-for-runtime pnpm run build
 
 # ── Stage 3: Production ────────────────────────────────────────
-FROM node:22-alpine AS runner
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 ENV DATABASE_PATH=/app/.local/mission-control.db
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs --create-home nextjs && \
+    apt-get update && apt-get install -y --no-install-recommends python3 wget ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy the regular Next.js output used by the custom server entrypoint.
 COPY --from=builder /app/.next ./.next
@@ -51,11 +54,14 @@ COPY --from=builder /app/server.ts ./server.ts
 COPY --from=builder /app/scheduler.ts ./scheduler.ts
 COPY --from=builder /app/tsconfig.json /app/package.json /app/LICENSE /app/THIRD_PARTY_NOTICES.md ./
 COPY --from=builder /app/src ./src
+COPY --from=builder /app/scripts ./scripts
 
 # Complete flattened production dependency graph for custom entrypoints.
 COPY --from=deps /app/node_modules ./node_modules
 # The production install skips scripts; reuse the builder's matching native SQLite binding.
 COPY --from=builder /app/node_modules/better-sqlite3/build/Release/better_sqlite3.node ./node_modules/better-sqlite3/build/Release/better_sqlite3.node
+RUN node node_modules/playwright/cli.js install --with-deps chromium && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create data directory for SQLite (mount as volume)
 RUN mkdir -p /app/.local /app/workspaces /app/.next/cache && \

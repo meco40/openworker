@@ -1,7 +1,7 @@
 # BetaClaw Gateway Control Plane
 
-**Stand:** 2026-08-17
-**Version:** 0.0.0
+**Stand:** 2026-10-09
+**Version:** 0.1.0
 
 ---
 
@@ -25,42 +25,108 @@ Bestehende Installationen: [Hinweise zur BetaClaw-Umbenennung](docs/runbooks/bet
 
 ### Voraussetzungen
 
-- Node.js 22+
-- pnpm (Source of Truth fuer Lockfile/CI)
-- Docker Desktop (für lokalen Mem0-Stack)
+Für den empfohlenen Selfhosting-Start genügen Git und Docker mit Compose v2.
+Für native Entwicklung zusätzlich Node.js 22.22.1+ und pnpm 10.30.1;
+der Commit-Hook benötigt Git 2.32+.
 
-### Installation
+### Installation und erster Start (Docker)
+
+Klonen und in den Projektordner wechseln. Kopiere dann `.env.local.example` nach
+`.env.local` (`Copy-Item` unter PowerShell, `cp` unter Linux/macOS). Setze eigene,
+unterschiedliche Werte für:
+
+- `NEXTAUTH_SECRET` und `MODEL_HUB_ENCRYPTION_KEY`: jeweils 64 zufällige Hex-Zeichen.
+- `POSTGRES_PASSWORD`, `WORLD_MODEL_APP_ROLE_PASSWORD` und
+  `WORLD_MODEL_WORKER_ROLE_PASSWORD`: jeweils eigene zufällige Hex-Werte
+  (URL-sicher, da sie in Datenbank-URLs eingesetzt werden).
+- `AUTH_DEFAULT_EMAIL` und `AUTH_DEFAULT_PASSWORD`: dein erster Admin-Login.
+
+Einen Hex-Wert erzeugst du ohne lokale Node-Installation mit:
 
 ```bash
-# Abhängigkeiten installieren
-pnpm install
-
-# Environment-Variablen setzen (Windows PowerShell)
-Copy-Item .env.local.example .env.local
-# Editiere .env.local
+docker run --rm node:22-bookworm-slim node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-### Lokale Entwicklung
+Führe den Befehl für jedes Secret separat aus. Veröffentliche die Werte niemals.
+Anschließend:
 
 ```bash
-# Lokalen Mem0-Stack starten (Postgres + mem0 API)
-pnpm run mem0:local:up
+docker compose --env-file .env.local up -d --build
+docker compose --env-file .env.local ps
+```
 
-# Web-Server starten
+Compose startet PostgreSQL, führt die Migrationen aus, provisioniert getrennte
+App-/Worker-Rollen und startet danach Web-App und Scheduler. Der Admin-Zugang
+bleibt ausschließlich im Migrationsdienst. Das Image enthält Python 3 und den
+zur installierten Playwright-Version passenden Chromium-Browser.
+Daten, Persona-Dateien und Workspaces liegen in persistenten Compose-Volumes;
+vorhandene Host-Daten unter `.local` werden nicht automatisch importiert.
+
+Öffne [http://localhost:3000](http://localhost:3000) und melde dich mit deinem
+Admin-Konto an. Verbinde unter **Model Hub** einen Provider, wähle im Profil
+`p1` ein Modell und aktiviere es. Lege eine Persona an oder wähle eine vorhandene
+Persona, starte einen Chat und prüfe eine Antwort. Memory-/Embedding-Funktionen
+benötigen zusätzlich ein aktives kompatibles Modell im Profil `p1-embeddings`.
+Die Anmeldung ist eingeschaltet; Code-/Befehlsausführung benötigt eine Freigabe.
+Mem0 und Graphiti sind für diesen Standardstart nicht erforderlich.
+
+Für Ollama/LM Studio auf dem Docker-Host verwendet Compose
+`host.docker.internal`. Bei einem anderen Server setze `OLLAMA_BASE_URL`
+(Ollama-Wurzel ohne `/v1`) bzw. `LMSTUDIO_BASE_URL` (mit `/v1`).
+Der lokale Modellserver muss für den Container erreichbar sein.
+
+Die App ist standardmäßig nur auf Host-Loopback veröffentlicht. Für Zugriff
+über eine Domain nutze einen HTTPS-Reverse-Proxy mit WebSocket-Unterstützung
+und setze `NEXTAUTH_URL` auf diese Domain. Passe die Portbindung bewusst an.
+Selfhosting mit vertrauenswürdigem Betreiber ist der unterstützte Umfang:
+Befehlsregeln und Freigaben sind keine Sandbox für fremden Code.
+
+Logs und Stoppen:
+
+```bash
+docker compose --env-file .env.local logs --tail 100 web scheduler migrate
+docker compose --env-file .env.local down
+```
+
+`down` erhält die Datenvolumes. `down -v` löscht sie und ist kein Upgrade-Schritt.
+Vor Updates alle drei Volumes sichern und ein Restore prüfen. Nach Wechsel auf
+einen neuen Stand erneut `up -d --build` ausführen; dabei läuft der separate
+Migrationsdienst vor der Anwendung.
+
+### Native Entwicklung
+
+Die reproduzierbare Prüfung des Docker-Erststarts läuft mit
+`pnpm run test:e2e:production` (Node.js und Docker erforderlich). Sie baut das
+Image, erstellt eine eigene leere Datenbank, prüft echte Anmeldung, WebSocket,
+Chat-Persistenz, Embeddings, Scheduler und Python/Chromium und räumt anschließend
+nur ihre eigenen Testvolumes auf. Der Modellserver ist dabei ein lokales
+HTTP-Testfixture; die Antwortqualität eines externen KI-Modells wird damit nicht bewertet.
+
+```powershell
+pnpm install --frozen-lockfile
+Copy-Item .env.local.example .env.local
+# Secrets und den ersten Admin wie oben setzen.
+docker compose -f docker-compose.postgres.yml up -d
+pnpm run world-model:migrate
 pnpm run dev
-
-# Scheduler starten (optional, für Automations-Läufe und Scheduler-Health)
+# In einem zweiten Terminal:
 pnpm run dev:scheduler
 ```
 
-`pnpm run dev` prüft Mem0 beim Start mit mehreren Versuchen. In der Entwicklung startet der Stack nach erfolglosen Versuchen im degradierten Modus; Memory-Schreib- und Recall-Aktionen bleiben dann solange nicht verfügbar, bis Mem0 wieder bereit ist. Für den lokalen Stack sind in `.env.local` mindestens diese Werte nötig:
+Dieser Entwicklungsweg nutzt `CANONICAL_DATABASE_URL` aus der Vorlage und
+eine lokale Datenbankverbindung. Für Produktion gelten die getrennten Rollen
+des Docker-Starts. Python/Browser-Tools bei nativer Entwicklung benötigen
+Python 3 bzw. `pnpm exec playwright install chromium`.
 
-- `MEMORY_PROVIDER=mem0` (oder `sqlite` für lokalen SQLite-Fallback)
-- `MEM0_BASE_URL=http://127.0.0.1:8010`
-- `MEM0_API_KEY=local-mem0-dev-token` (oder eigener Token)
-- `MEM0_API_PATH=/` (der gebündelte `mem0-local`-Dienst nutzt keinen `/v1`-Prefix)
-- `GEMINI_API_KEY=<key>` (für mem0-local Bootstrap, sofern im Stack verwendet)
-- `MODEL_HUB_ENCRYPTION_KEY=<32-byte-key>` (für Model-Hub-Secrets; erforderlich, eigener Zufallswert)
+### Optionaler Mem0-Kompatibilitätsbetrieb
+
+Der Standard-Memory-Provider ist PostgreSQL/canonical. Mem0 ist nur für einen
+ausdrücklich konfigurierten Kompatibilitäts-/Migrationslauf nötig. Setze dann
+`MEMORY_PROVIDER=mem0`, URL, API-Key und Pfad `/`. Vor einem Produktionsstart
+müssen sowohl `MEM0_LLM_*` als auch `MEM0_EMBEDDER_*` konfiguriert sein und
+`/health` HTTP 200 liefern; eine laufende, aber unkonfigurierte Mem0-API genügt
+nicht. In der Entwicklung darf der Gateway für die erste Model-Hub-Konfiguration
+degradiert starten. Der Standard-Compose-Pfad benötigt diesen Umweg nicht.
 
 ### Schlüssel und erster Login
 
@@ -85,6 +151,10 @@ docker run --rm --network none -v "${PWD}:/repo:ro" zricethezav/gitleaks:v8.30.1
 ```
 
 ### Produktion
+
+Der empfohlene Produktionsweg ist der Docker-Schnellstart oben. Für einen
+nativen Start müssen die Migrationen mit einem getrennten Admin-Zugang vor
+dem Start ausgeführt sein und die Runtime-Verbindungen dedizierte Rollen nutzen:
 
 ```bash
 # Build

@@ -55,30 +55,32 @@ When a request depends on recency (e.g., "latest", "current", "today", "as of no
 - If the repo has no container workflow, create a minimal one.
 - Keep repo-specific container details in the repo’s `AGENTS.md`.
 
-## Repository workflows and commands (`D:\web\clawtest`)
+## Repository workflows and commands (`E:\web\clawtest`)
 
 Use these workflows by default for this repository.
 
 ### Environment bootstrap
 
 ```powershell
-pnpm install
+pnpm install --frozen-lockfile
 Copy-Item .env.local.example .env.local
 ```
 
 Required local memory settings in `.env.local`:
 
-- `MEMORY_PROVIDER=mem0`
-- `MEM0_BASE_URL=http://127.0.0.1:8010`
-- `MEM0_API_KEY=local-mem0-dev-token` (or local override)
+- `MEMORY_PROVIDER=postgres`
+- `WORLD_MODEL_ENABLED=true`, `WORLD_MODEL_MODE=canonical`
+- `CANONICAL_DATABASE_URL` as in the example for the local development database
+- Own `NEXTAUTH_SECRET`, `AUTH_DEFAULT_EMAIL`, `AUTH_DEFAULT_PASSWORD`
 - `MODEL_HUB_ENCRYPTION_KEY=<32-byte-key>`
 
 ### Local development workflow (preferred)
 
-1. Start local mem0 services:
+1. Start the local development PostgreSQL database and migrate it:
 
 ```powershell
-pnpm run mem0:local:up
+docker compose -f docker-compose.postgres.yml up -d
+pnpm run world-model:migrate
 ```
 
 2. Start app development stack:
@@ -93,7 +95,9 @@ pnpm run dev
 pnpm run dev:scheduler
 ```
 
-Useful runtime helpers:
+Optional Mem0 compatibility runs require explicit `MEMORY_PROVIDER=mem0`, URL,
+API key and configured LLM/embedding providers. See README for that branch.
+Mem0 is not a prerequisite for the canonical workflow. Optional runtime helpers:
 
 ```powershell
 pnpm run mem0:local:logs
@@ -118,6 +122,7 @@ E2E lanes:
 ```powershell
 pnpm run test:e2e:smoke
 pnpm run test:e2e:browser
+pnpm run test:e2e:production
 pnpm run test:e2e:live
 ```
 
@@ -125,7 +130,9 @@ pnpm run test:e2e:live
 
 Use containerized flows instead of host package/system changes.
 
-Production-like stack (`--env-file .env.local` is required: the root `.env` has no `NEXTAUTH_SECRET`):
+Production-like stack: set all unique secrets and first-admin credentials listed
+in README in `.env.local`. Compose requires them and keeps admin DB credentials
+in the separate migration service:
 
 ```powershell
 docker compose --env-file .env.local up -d --build web scheduler
@@ -133,7 +140,13 @@ docker compose --env-file .env.local logs -f web scheduler
 docker compose --env-file .env.local down
 ```
 
-`web` and `scheduler` refuse to start unless `REQUIRE_AUTH=true` (compose default) and `NEXTAUTH_SECRET` are set. Start mem0 first (`pnpm run mem0:local:up`): the containers reach it at `http://host.docker.internal:8010` (override with `MEM0_CONTAINER_BASE_URL`), and the scheduler's startup check fails while mem0 is unreachable.
+Compose starts PostgreSQL, migrations/role provisioning, web and scheduler in
+that order. Runtime roles are `world_model_app` and `world_model_worker`; their
+RLS grants are tested separately. Three named volumes hold persistent data;
+`down` preserves them. Follow README's backup/restore requirement before upgrades.
+The public production smoke creates its own isolated project and empty volumes,
+verifies real login/WebSocket/chat/embeddings and Python/Chromium, then removes
+only that project's volumes. Its HTTP model fixture is not a live-model quality test.
 
 E2E in containers:
 

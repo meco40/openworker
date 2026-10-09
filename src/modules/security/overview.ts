@@ -43,14 +43,14 @@ export function buildCommandSecurityChecks(commands: CommandPermission[]): Secur
     },
     {
       id: 'isolation',
-      label: 'Task Isolation',
+      label: 'Command Policy',
       status: isolationStatus,
       detail:
         isolationStatus === 'critical'
           ? 'Gefährliche Shell-Kommandos sind aktiviert.'
           : isolationStatus === 'warning'
             ? 'Keine High-Risk-Regel blockiert.'
-            : `${blockedHighRisk} High-Risk-Regel(n) isoliert.`,
+            : `${blockedHighRisk} High-Risk-Regel(n) blockiert; keine Prozess-Sandbox.`,
     },
   ];
 }

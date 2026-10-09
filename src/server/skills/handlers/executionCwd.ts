@@ -15,11 +15,31 @@ export function resolveSkillExecutionCwd(context?: SkillDispatchContext): string
     throw new Error('workspaceCwd must resolve inside persona workspace root.');
   }
 
+  fs.mkdirSync(personasRoot, { recursive: true });
+  assertRealPathWithinRoot(resolvedRequested, personasRoot);
   fs.mkdirSync(resolvedRequested, { recursive: true });
-  return resolvedRequested;
+  return fs.realpathSync(resolvedRequested);
 }
 
-function isWithinRoot(candidate: string, root: string): boolean {
+export function assertRealPathWithinRoot(candidate: string, root: string): void {
+  let existing = candidate;
+  for (;;) {
+    try {
+      fs.lstatSync(existing);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      const parent = path.dirname(existing);
+      if (parent === existing) throw error;
+      existing = parent;
+    }
+  }
+  if (!isWithinRoot(fs.realpathSync(existing), fs.realpathSync(root))) {
+    throw new Error('Path escapes workspace root through a symbolic link.');
+  }
+}
+
+export function isWithinRoot(candidate: string, root: string): boolean {
   const normalizedCandidate = normalizePath(candidate);
   const normalizedRoot = normalizePath(root);
   if (normalizedCandidate === normalizedRoot) return true;

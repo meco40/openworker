@@ -3,6 +3,7 @@ import type { ChannelType, Skill } from '@/shared/domain/types';
 import type { Conversation } from '@/server/channels/messages/repository';
 import { approveCommand, isCommandApproved } from '@/server/gateway/exec-approval-manager';
 import { evaluateNodeCommandPolicy } from '@/server/gateway/node-command-policy';
+import { buildPythonCommand } from '@/server/skills/handlers/pythonExecute';
 import { getSkillRepository } from '@/server/skills/skillRepository';
 import {
   assertPlaywrightSubcommandAllowed,
@@ -167,6 +168,7 @@ export class ToolManager {
     const commandApprovalTool =
       normalizedFunctionName === 'shell_execute' ||
       normalizedFunctionName === 'playwright_cli' ||
+      normalizedFunctionName === 'python_execute' ||
       normalizedFunctionName === 'process_manager';
 
     if (!installedFunctions.has(functionName)) {
@@ -181,6 +183,8 @@ export class ToolManager {
       try {
         if (normalizedFunctionName === 'shell_execute') {
           command = String(args.command || '').trim();
+        } else if (normalizedFunctionName === 'python_execute') {
+          command = buildPythonCommand(String(args.code || '').trim());
         } else if (normalizedFunctionName === 'playwright_cli') {
           command = buildPlaywrightCliCommand(
             (() => {

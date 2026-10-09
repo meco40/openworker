@@ -5,20 +5,22 @@ import {
   testOpenAICompatibleModelsEndpoint,
 } from '@/server/model-hub/Models/shared/openai-compatible';
 
-const LMSTUDIO_BASE_URL = 'http://localhost:1234/v1';
+function lmStudioBaseUrl(): string {
+  return (process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1').replace(/\/$/, '');
+}
 
 const lmStudioProviderAdapter: ProviderAdapter = {
   id: 'lmstudio',
-  fetchModels: ({ secret }) => fetchOpenAICompatibleModels(LMSTUDIO_BASE_URL, secret, 'lmstudio'),
+  fetchModels: ({ secret }) => fetchOpenAICompatibleModels(lmStudioBaseUrl(), secret, 'lmstudio'),
   testConnectivity: ({ secret }) =>
     testOpenAICompatibleModelsEndpoint(
-      LMSTUDIO_BASE_URL,
+      lmStudioBaseUrl(),
       secret,
       'LM Studio connectivity verified.',
       'LM Studio connectivity failed: ',
     ),
   dispatchGateway: ({ secret }, request, options) =>
-    dispatchOpenAICompatibleChat(LMSTUDIO_BASE_URL, secret, 'lmstudio', request, {
+    dispatchOpenAICompatibleChat(lmStudioBaseUrl(), secret, 'lmstudio', request, {
       signal: options?.signal,
       onStreamDelta: options?.onStreamDelta,
     }),

@@ -5,7 +5,7 @@
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Security.
 - Scope: "src/server/auth/**", "src/server/master/safety.ts", "src/server/skills/handlers/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-10-09
 
 ---
 
@@ -28,5 +28,13 @@
 3. Aenderungen an High-Risk-Flaechen ohne erforderliche Human-Approval.
 
 ## Pflicht-Tests
+
+Python-Ausführung benötigt dieselbe Policy/Freigabe wie Shell-Ausführung;
+die Freigabeidentität enthält den Hash des exakten Codes. Direkte und
+verschachtelte Aufrufe prüfen die Freigabe auch im Handler. Coding-Compat-Pfade
+validieren reale Pfade und den existierenden Parent neuer Dateien. Diese
+Prüfungen sind keine OS-Sandbox und schließen Symlink-Rennen nicht vollständig aus.
+Sicherheitsanzeigen beschreiben HTTPS/WebCrypto und Command Policy, keine E2E-
+Verschlüsselung oder Prozessisolation.
 
 1. tests/integration/channels/omnichannel-security.contract.test.ts

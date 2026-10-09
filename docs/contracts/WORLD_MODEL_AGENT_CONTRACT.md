@@ -1,10 +1,10 @@
 # World Model Agent Contract
 
-Stand: 2026-10-08
+Stand: 2026-10-09
 
 ## Metadata
 
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-10-09
 
 ## Zweck
 
@@ -53,6 +53,16 @@ Repositories duerfen keine fachlichen Statusuebergaenge nachbilden. API-Routen,
 Knowledge-Ingestion, Tool-Runner und Scheduler verwenden dieselben Services.
 
 ## API- und Migrationsmatrix
+
+In Produktion führt ein separater Admin-Migrationsdienst `world-model:migrate`
+und die Rollen-Provisionierung aus. App und Scheduler führen keine DDL aus.
+Migration 019 gewährt dem Worker die benötigten Tabellenrechte; RLS bleibt aktiv.
+Worker verarbeiten explizit gescopte Aufträge. Scopes stammen aus dem gemeinsamen
+Chat-Speicher oder `WORLD_MODEL_DISPATCH_SCOPES`; reine externe Scopes ohne
+Chat-Konversation müssen dort explizit eingetragen sein. Der Worker erhält kein
+unbeschränktes Leserecht und keine Schema-CREATE-Berechtigung.
+`runtime-worker-role.test.ts` prüft echte SQL-Schreib-/Transition-Pfade und
+Scope-Isolation unter der Worker-Rolle.
 
 Bestehende öffentliche Schnittstellen bleiben kompatibel. Neue kanonische
 Zustände werden gespiegelt, bis der jeweilige Scope den Cutover-Gates genügt.

@@ -1,84 +1,113 @@
 services:
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: betaclaw-web
-    restart: always
-    # Published on all host interfaces. Login is enforced (REQUIRE_AUTH=true):
-    # productionGuard refuses to start without it and without NEXTAUTH_SECRET.
-    ports:
-      - '3000:3000'
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
     environment:
+      POSTGRES_DB: betaclaw
+      POSTGRES_USER: betaclaw_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a unique POSTGRES_PASSWORD in .env.local}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U betaclaw_admin -d betaclaw']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    build: .
+    image: betaclaw-local
+    restart: 'no'
+    command:
+      [
+        'sh',
+        '-c',
+        'node --import tsx scripts/world-model-migrate.ts && node --import tsx scripts/world-model-provision-roles.ts --apply',
+      ]
+    environment:
+      WORLD_MODEL_ADMIN_DATABASE_URL: postgresql://betaclaw_admin:${POSTGRES_PASSWORD}@postgres:5432/betaclaw
+      WORLD_MODEL_APP_ROLE_PASSWORD: ${WORLD_MODEL_APP_ROLE_PASSWORD:?Set a unique WORLD_MODEL_APP_ROLE_PASSWORD}
+      WORLD_MODEL_WORKER_ROLE_PASSWORD: ${WORLD_MODEL_WORKER_ROLE_PASSWORD:?Set a different WORLD_MODEL_WORKER_ROLE_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build: .
+    image: betaclaw-local
+    restart: unless-stopped
+    init: true
+    ports:
+      - '127.0.0.1:3000:3000'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    environment: &runtime
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
       PORT: 3000
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      APP_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       SWARM_RUNNER: scheduler
-      REQUIRE_AUTH: ${REQUIRE_AUTH:-true}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set, run compose with --env-file .env.local}
-      AUTH_DEFAULT_EMAIL: ${AUTH_DEFAULT_EMAIL:-}
-      AUTH_DEFAULT_PASSWORD: ${AUTH_DEFAULT_PASSWORD:-}
+      REQUIRE_AUTH: 'true'
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set a unique NEXTAUTH_SECRET}
+      MODEL_HUB_ENCRYPTION_KEY: ${MODEL_HUB_ENCRYPTION_KEY:?Set a unique MODEL_HUB_ENCRYPTION_KEY}
+      AUTH_DEFAULT_EMAIL: ${AUTH_DEFAULT_EMAIL:?Set AUTH_DEFAULT_EMAIL}
+      AUTH_DEFAULT_PASSWORD: ${AUTH_DEFAULT_PASSWORD:?Set AUTH_DEFAULT_PASSWORD}
       AUTH_DEFAULT_NAME: ${AUTH_DEFAULT_NAME:-Admin}
-      MC_API_TOKEN: ${MC_API_TOKEN:-}
+      BETACLAW_EXEC_APPROVALS_REQUIRED: 'true'
+      MEMORY_PROVIDER: postgres
+      WORLD_MODEL_ENABLED: 'true'
+      WORLD_MODEL_MODE: canonical
+      WORLD_MODEL_RUNTIME_ROLE: app
+      WORLD_MODEL_APP_DATABASE_URL: postgresql://world_model_app:${WORLD_MODEL_APP_ROLE_PASSWORD}@postgres:5432/betaclaw
+      WORLD_MODEL_WORKER_DATABASE_URL: postgresql://world_model_worker:${WORLD_MODEL_WORKER_ROLE_PASSWORD}@postgres:5432/betaclaw
+      WORLD_MODEL_DISPATCH_SCOPES: ${WORLD_MODEL_DISPATCH_SCOPES:-}
       SCHEDULER_HEALTH_TOKEN: ${SCHEDULER_HEALTH_TOKEN:-}
-      MEMORY_PROVIDER: mem0
-      # 127.0.0.1 inside a container is the container itself; mem0 runs on the host.
-      MEM0_BASE_URL: ${MEM0_CONTAINER_BASE_URL:-http://host.docker.internal:8010}
-      MEM0_API_KEY: ${MEM0_API_KEY}
-      MEM0_API_PATH: ${MEM0_API_PATH:-/v1}
-      MEM0_TIMEOUT_MS: ${MEM0_TIMEOUT_MS:-5000}
-      MODEL_HUB_ENCRYPTION_KEY: ${MODEL_HUB_ENCRYPTION_KEY}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      LMSTUDIO_BASE_URL: ${LMSTUDIO_BASE_URL:-http://host.docker.internal:1234/v1}
     volumes:
-      - ./.local:/app/.local
+      - app-data:/app/.local
+      - workspaces:/app/workspaces
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/']
-      interval: 30s
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://127.0.0.1:3000/login']
+      interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 10s
+      retries: 10
+      start_period: 30s
 
   scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: betaclaw-scheduler
-    restart: always
+    build: .
+    image: betaclaw-local
+    restart: unless-stopped
+    init: true
     command: ['node', '--import', 'tsx', 'scheduler.ts']
     environment:
-      NODE_ENV: production
+      <<: *runtime
+      WORLD_MODEL_RUNTIME_ROLE: worker
       SCHEDULER_INSTANCE_ID: scheduler-1
-      SWARM_RUNNER: scheduler
-      # Same auth guard as web (src/server/auth/productionGuard.ts).
-      REQUIRE_AUTH: ${REQUIRE_AUTH:-true}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set, run compose with --env-file .env.local}
-      AUTH_DEFAULT_EMAIL: ${AUTH_DEFAULT_EMAIL:-}
-      AUTH_DEFAULT_PASSWORD: ${AUTH_DEFAULT_PASSWORD:-}
-      AUTH_DEFAULT_NAME: ${AUTH_DEFAULT_NAME:-Admin}
-      MC_API_TOKEN: ${MC_API_TOKEN:-}
-      MEMORY_PROVIDER: mem0
-      MEM0_BASE_URL: ${MEM0_CONTAINER_BASE_URL:-http://host.docker.internal:8010}
-      MEM0_API_KEY: ${MEM0_API_KEY}
-      MEM0_API_PATH: ${MEM0_API_PATH:-/v1}
-      MEM0_TIMEOUT_MS: ${MEM0_TIMEOUT_MS:-5000}
-      MODEL_HUB_ENCRYPTION_KEY: ${MODEL_HUB_ENCRYPTION_KEY}
-      AUTOMATION_TICK_INTERVAL_MS: 15000
-      AUTOMATION_LEASE_TTL_MS: 30000
-      AUTOMATION_MAX_ATTEMPTS: 3
-      AUTOMATION_RETRY_BACKOFF_MS: 30000,120000,600000
-      AUTOMATION_AUTO_PAUSE_FAILURES: 10
-      SCHEDULER_HEALTH_TOKEN: ${SCHEDULER_HEALTH_TOKEN:-}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     volumes:
-      - ./.local:/app/.local
+      - app-data:/app/.local
+      - workspaces:/app/workspaces
     depends_on:
       web:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test:
         [
           'CMD-SHELL',
-          'if [ -n "$SCHEDULER_HEALTH_TOKEN" ]; then wget --no-verbose --tries=1 --header="x-scheduler-health-token: $SCHEDULER_HEALTH_TOKEN" --spider http://web:3000/api/health/scheduler; else wget --no-verbose --tries=1 --spider http://web:3000/api/health/scheduler; fi',
+          'if [ -n "$$SCHEDULER_HEALTH_TOKEN" ]; then wget --no-verbose --tries=1 --header="x-scheduler-health-token: $$SCHEDULER_HEALTH_TOKEN" --spider http://web:3000/api/health/scheduler; else wget --no-verbose --tries=1 --spider http://web:3000/api/health/scheduler; fi',
         ]
-      interval: 30s
+      interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 20s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  postgres-data:
+  app-data:
+  workspaces:
