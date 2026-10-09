@@ -97,7 +97,8 @@ function detectAsOf(text: string, now: Date): { valid?: string; known?: string }
         (timeParts.length === 2 || timeParts.length === 3) &&
         timeParts.every(isTwoDigitTimePart)
       ) {
-        isoValue = `${datePart}T${timePart}`;
+        // Offset-less date-times would be parsed as local time; as-of values are UTC.
+        isoValue = `${datePart}T${timePart}Z`;
       }
     }
     const parsed = new Date(isoValue);

@@ -74,6 +74,11 @@ function positiveNumber(value: unknown): number | undefined {
   return value;
 }
 
+function nonNegativeNumber(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return undefined;
+  return value;
+}
+
 function responseFormatMimeType(value: unknown): string | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const type = (value as { type?: unknown }).type;
@@ -144,7 +149,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
 
   let body: OpenAIChatBody;
   try {
-    body = (await request.json()) as OpenAIChatBody;
+    const parsed: unknown = await request.json();
+    body =
+      parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as OpenAIChatBody)
+        : {};
   } catch {
     return errorResponse('Request body must be valid JSON.', 400);
   }
@@ -169,7 +178,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     {
       messages,
       max_tokens: positiveNumber(body.max_tokens),
-      temperature: positiveNumber(body.temperature),
+      temperature: nonNegativeNumber(body.temperature),
       // Graphiti receives structured JSON. The selected profile is separate
       // from both the chat and embedding profiles, so its active priority
       // order is the only source of truth for this consumer.

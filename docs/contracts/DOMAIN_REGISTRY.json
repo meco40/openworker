@@ -110,6 +110,7 @@
       "tests": ["tests/integration/model-hub/pipeline-route.test.ts"],
       "paths": [
         "app/api/model-hub/**",
+        "app/api/internal/model-hub/**",
         "src/server/model-hub/**",
         "src/components/model-hub/**",
         "src/shared/contracts/modelHub.ts"

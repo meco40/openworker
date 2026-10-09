@@ -34,7 +34,7 @@ export async function insertDeliveryReceipt(
     target: string;
     provider_id: string | null;
     provider_message_id: string | null;
-    delivered_at: string;
+    delivered_at: string | Date;
     payload: Record<string, unknown>;
   }>(
     `INSERT INTO world_model_delivery_receipts
@@ -74,7 +74,8 @@ export async function insertDeliveryReceipt(
     target: row.target,
     providerId: row.provider_id,
     providerMessageId: row.provider_message_id,
-    deliveredAt: row.delivered_at,
+    deliveredAt:
+      row.delivered_at instanceof Date ? row.delivered_at.toISOString() : row.delivered_at,
     payload: row.payload ?? {},
   };
 }
@@ -94,7 +95,7 @@ export async function getDeliveryReceiptByOutboxEventId(
     target: string;
     provider_id: string | null;
     provider_message_id: string | null;
-    delivered_at: string;
+    delivered_at: string | Date;
     payload: Record<string, unknown>;
   }>(
     `SELECT id, outbox_event_id, open_loop_id, user_id, persona_id, workspace_id,
@@ -115,7 +116,8 @@ export async function getDeliveryReceiptByOutboxEventId(
     target: row.target,
     providerId: row.provider_id,
     providerMessageId: row.provider_message_id,
-    deliveredAt: row.delivered_at,
+    deliveredAt:
+      row.delivered_at instanceof Date ? row.delivered_at.toISOString() : row.delivered_at,
     payload: row.payload ?? {},
   };
 }
@@ -135,7 +137,7 @@ export async function getLatestDeliveryReceiptByOpenLoopId(
     target: string;
     provider_id: string | null;
     provider_message_id: string | null;
-    delivered_at: string;
+    delivered_at: string | Date;
     payload: Record<string, unknown>;
   }>(
     `SELECT id, outbox_event_id, open_loop_id, user_id, persona_id, workspace_id,
@@ -157,7 +159,8 @@ export async function getLatestDeliveryReceiptByOpenLoopId(
     target: row.target,
     providerId: row.provider_id,
     providerMessageId: row.provider_message_id,
-    deliveredAt: row.delivered_at,
+    deliveredAt:
+      row.delivered_at instanceof Date ? row.delivered_at.toISOString() : row.delivered_at,
     payload: row.payload ?? {},
   };
 }

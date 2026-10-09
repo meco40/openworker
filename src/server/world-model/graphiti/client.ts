@@ -450,7 +450,14 @@ function buildRelationEpisodeContent(edge: GraphitiEdge): string {
     ? Object.entries(edge.properties)
         .filter(
           ([key, value]) =>
-            !['segment', 'sourceObservationId', 'eventId', 'createdAt'].includes(key) &&
+            ![
+              'segment',
+              'sourceObservationId',
+              'eventId',
+              'createdAt',
+              'validFrom',
+              'validTo',
+            ].includes(key) &&
             value !== undefined &&
             value !== null &&
             value !== '',
