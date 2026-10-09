@@ -9,6 +9,7 @@ import type {
   Mem0SearchHit,
   Mem0SearchInput,
 } from '@/server/memory/mem0';
+import { getServerEventBus } from '@/server/events/runtime';
 import { MemoryService } from '@/server/memory/service';
 
 function scopeKey(userId: string, personaId: string): string {
@@ -29,6 +30,10 @@ function defaultRecord(id: string, input: Mem0MemoryInput): Mem0MemoryRecord {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+}
+
+function timestampAtMinute(minute: number): string {
+  return new Date(Date.UTC(2026, 9, 8, 10, minute)).toISOString();
 }
 
 function createInMemoryMem0Client(): Mem0Client {
@@ -659,5 +664,379 @@ describe('MemoryService (mem0-only)', () => {
     expect(new Set([...firstPage.nodes, ...secondPage.nodes].map((node) => node.content))).toEqual(
       new Set(['legacy memory', 'channel memory one', 'channel memory two']),
     );
+  });
+
+  it('reuses concurrent and previously stored memories with the same idempotency key', async () => {
+    const client = createInMemoryMem0Client();
+    const addMemory = vi.spyOn(client, 'addMemory');
+    const service = new MemoryService(client);
+    const input = {
+      personaId: 'persona-a',
+      type: 'fact' as const,
+      content: 'one logical memory',
+      importance: 4,
+      userId: 'user-a',
+      metadata: { idempotencyKey: 'request-42' },
+    };
+
+    const [first, concurrent] = await Promise.all([
+      service.storeMemory(input),
+      service.storeMemory(input),
+    ]);
+    const repeated = await service.storeMemory(input);
+
+    expect(concurrent.id).toBe(first.id);
+    expect(repeated.id).toBe(first.id);
+    expect(addMemory).toHaveBeenCalledOnce();
+  });
+
+  it('uses scoped PostgreSQL reads and optimistic versions when updating lifecycle state', async () => {
+    const initial = defaultRecord('postgres-memory', {
+      userId: 'user-a',
+      personaId: 'persona-a',
+      workspaceId: 'workspace-a',
+      content: 'before update',
+      metadata: { type: 'fact', importance: 3, confidence: 0.8, version: 4 },
+    });
+    let persisted = initial;
+    const getMemory = vi.fn(async () => persisted);
+    const updateMemory = vi.fn(async (_id: string, input: Mem0MemoryInput) => {
+      persisted = {
+        ...persisted,
+        content: input.content,
+        metadata: input.metadata,
+        updatedAt: '2026-10-08T10:00:00.000Z',
+      };
+    });
+    const client = {
+      provider: 'postgres',
+      getMemory,
+      updateMemory,
+    } as unknown as Mem0Client;
+    const service = new MemoryService(client);
+    const events: Array<{ memoryId: string; status: string; signal: string }> = [];
+    const unsubscribe = getServerEventBus().subscribe('memory.lifecycle.changed', (event) => {
+      events.push({ memoryId: event.memoryId, status: event.status, signal: event.signal });
+    });
+
+    try {
+      const updated = await service.update(
+        'persona-a',
+        'postgres-memory',
+        {
+          content: 'after update',
+          expectedVersion: 4,
+          metadata: { lifecycleSignal: 'user_confirmed' },
+        },
+        'user-a',
+        'workspace-a',
+      );
+
+      expect(updated).toMatchObject({ content: 'after update', metadata: { version: 5 } });
+    } finally {
+      unsubscribe();
+    }
+
+    expect(getMemory).toHaveBeenCalledTimes(2);
+    expect(getMemory).toHaveBeenCalledWith('postgres-memory', {
+      userId: 'user-a',
+      personaId: 'persona-a',
+      workspaceId: 'workspace-a',
+    });
+    expect(updateMemory).toHaveBeenCalledWith(
+      'postgres-memory',
+      expect.objectContaining({
+        content: 'after update',
+        metadata: expect.objectContaining({
+          expectedVersion: 4,
+          version: 5,
+          memoryProvider: 'postgres',
+        }),
+      }),
+      expect.objectContaining({ workspaceId: 'workspace-a' }),
+    );
+    expect(events).toContainEqual({
+      memoryId: 'postgres-memory',
+      status: 'new',
+      signal: 'user_confirmed',
+    });
+  });
+
+  it('returns no update for an unowned PostgreSQL memory', async () => {
+    const getMemory = vi.fn(async () => null);
+    const updateMemory = vi.fn();
+    const service = new MemoryService({
+      provider: 'postgres',
+      getMemory,
+      updateMemory,
+    } as unknown as Mem0Client);
+
+    await expect(
+      service.update('persona-a', 'other-user-memory', { content: 'change' }, 'user-a'),
+    ).resolves.toBeNull();
+    expect(updateMemory).not.toHaveBeenCalled();
+  });
+
+  it('uses returned totals only when finite and falls back to rows for legacy providers', async () => {
+    const row = defaultRecord('listed-memory', {
+      userId: 'user-a',
+      personaId: 'persona-a',
+      content: 'listed memory',
+      metadata: { type: 'fact', importance: 3 },
+    });
+    const service = new MemoryService({
+      listMemories: async (input: Mem0ListInput) => ({
+        memories: [row],
+        total: Number.NaN,
+        page: input.page,
+        pageSize: input.pageSize,
+      }),
+    } as unknown as Mem0Client);
+
+    await expect(service.count('persona-a', 'user-a')).resolves.toBe(1);
+    await expect(service.snapshot('persona-a', 'user-a')).resolves.toMatchObject([
+      { id: 'listed-memory', content: 'listed memory' },
+    ]);
+  });
+
+  it('deduplicates overlapping preview scopes and keeps the newest record', async () => {
+    const recordsByUser: Record<string, Mem0MemoryRecord[]> = {
+      'user-a': [
+        defaultRecord('shared', {
+          userId: 'user-a',
+          personaId: 'persona-a',
+          content: 'older copy',
+          metadata: { type: 'fact', lastVerified: timestampAtMinute(1) },
+        }),
+        defaultRecord('a-memory', {
+          userId: 'user-a',
+          personaId: 'persona-a',
+          content: 'alpha',
+          metadata: { type: 'fact', lastVerified: timestampAtMinute(3) },
+        }),
+      ],
+      'user-b': [
+        defaultRecord('shared', {
+          userId: 'user-b',
+          personaId: 'persona-a',
+          content: 'newer copy',
+          metadata: { type: 'fact', lastVerified: timestampAtMinute(2) },
+        }),
+        defaultRecord('b-memory', {
+          userId: 'user-b',
+          personaId: 'persona-a',
+          content: 'beta',
+          metadata: { type: 'fact', lastVerified: 'invalid timestamp' },
+        }),
+      ],
+    };
+    const service = new MemoryService({
+      listMemories: async (input: Mem0ListInput) => ({
+        memories: recordsByUser[input.userId] || [],
+        total: (recordsByUser[input.userId] || []).length,
+        page: input.page,
+        pageSize: input.pageSize,
+      }),
+    } as unknown as Mem0Client);
+
+    const preview = await service.listPreviewAcrossScopes('persona-a', ['user-a', 'user-b'], 3);
+
+    expect(preview.nodes.map((node) => node.id)).toEqual(['a-memory', 'shared', 'b-memory']);
+    expect(preview.nodes[1]?.content).toBe('newer copy');
+    expect(preview.truncated).toBe(false);
+  });
+
+  it('handles missing history, not-found history responses, and invalid restore entries', async () => {
+    const client = createInMemoryMem0Client();
+    const service = new MemoryService(client);
+
+    await expect(service.history('persona-a', 'missing', 'user-a')).resolves.toBeNull();
+    await expect(
+      service.restoreFromHistory('persona-a', 'missing', { restoreIndex: 0 }, 'user-a'),
+    ).resolves.toBeNull();
+
+    const stored = await service.store('persona-a', 'fact', 'current content', 3, 'user-a');
+    const history = vi.spyOn(client, 'getMemoryHistory');
+    history.mockRejectedValueOnce(new Error('Mem0 request failed with HTTP 404.'));
+    await expect(service.history('persona-a', stored.id, 'user-a')).resolves.toMatchObject({
+      entries: [],
+    });
+
+    history.mockResolvedValueOnce([{ action: 'update', content: '  ', metadata: {}, raw: {} }]);
+    await expect(
+      service.restoreFromHistory('persona-a', stored.id, { restoreIndex: 0 }, 'user-a'),
+    ).rejects.toThrow('no restorable content');
+
+    history.mockResolvedValueOnce([
+      { action: 'update', content: 'older content', metadata: {}, raw: {} },
+    ]);
+    await expect(
+      service.restoreFromHistory('persona-a', stored.id, { restoreIndex: 1 }, 'user-a'),
+    ).rejects.toThrow('Invalid restore index');
+
+    history.mockRejectedValueOnce(new Error('Mem0 request failed with HTTP 500.'));
+    await expect(service.history('persona-a', stored.id, 'user-a')).rejects.toThrow('HTTP 500');
+  });
+
+  it('recovers from a legacy delete 404 by retrying the rewritten node id', async () => {
+    const client = createInMemoryMem0Client();
+    const service = new MemoryService(client);
+    const stored = await service.store('persona-a', 'fact', 'legacy deletion', 3, 'user-a');
+    const deleteMemory = vi.spyOn(client, 'deleteMemory');
+    deleteMemory.mockImplementationOnce(async () => {
+      throw new Error('Mem0 request failed with HTTP 404.');
+    });
+
+    await expect(service.delete('persona-a', stored.id, 'user-a')).resolves.toBe(true);
+    expect(deleteMemory).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns false when a legacy delete cannot find or retry the rewritten record', async () => {
+    const client = createInMemoryMem0Client();
+    const service = new MemoryService(client);
+    const aliased = await client.addMemory({
+      userId: 'user-a',
+      personaId: 'persona-a',
+      content: 'legacy alias',
+      metadata: { type: 'fact', mem0Id: 'different-source-id' },
+    });
+    const deleteMemory = vi
+      .spyOn(client, 'deleteMemory')
+      .mockRejectedValue(new Error('Mem0 request failed with HTTP 404.'));
+
+    await expect(service.delete('persona-a', aliased.id!, 'user-a')).resolves.toBe(false);
+    expect(deleteMemory).toHaveBeenCalledOnce();
+  });
+
+  it('uses the provider count endpoint and reads all reported snapshot pages', async () => {
+    const records = [
+      defaultRecord('page-one', {
+        userId: 'user-a',
+        personaId: 'persona-a',
+        content: 'first page memory',
+        metadata: { type: 'fact', importance: 3 },
+      }),
+      defaultRecord('page-two', {
+        userId: 'user-a',
+        personaId: 'persona-a',
+        content: 'second page memory',
+        metadata: { type: 'fact', importance: 3 },
+      }),
+    ];
+    const countMemories = vi.fn(async () => 2);
+    const listMemories = vi.fn(
+      async (input: Mem0ListInput): Promise<Mem0ListMemoryResult> => ({
+        memories: input.page === 1 ? [records[0]!] : [records[1]!],
+        total: 2,
+        page: input.page,
+        pageSize: input.pageSize,
+      }),
+    );
+    const service = new MemoryService({
+      provider: 'mem0',
+      countMemories,
+      listMemories,
+    } as unknown as Mem0Client);
+
+    await expect(service.count('persona-a', 'user-a')).resolves.toBe(2);
+    await expect(service.snapshot('persona-a', 'user-a')).resolves.toMatchObject([
+      { id: 'page-one', content: 'first page memory' },
+      { id: 'page-two', content: 'second page memory' },
+    ]);
+
+    expect(countMemories).toHaveBeenCalledWith({
+      userId: 'user-a',
+      personaId: 'persona-a',
+      workspaceId: undefined,
+    });
+    expect(listMemories.mock.calls.map(([input]) => input.page)).toEqual([1, 2]);
+  });
+
+  it('deduplicates concurrent updates and derives a missing version from history', async () => {
+    const current = defaultRecord('legacy-version', {
+      userId: 'user-a',
+      personaId: 'persona-a',
+      content: 'before',
+      metadata: { type: 'fact', importance: 3, confidence: 0.8 },
+    });
+    const getMemory = vi.fn(async () => current);
+    const getMemoryHistory = vi.fn(async () => [
+      { action: 'create', content: 'before', metadata: {}, raw: {} },
+      { action: 'update', content: 'before', metadata: {}, raw: {} },
+    ]);
+    let releaseUpdate: (() => void) | undefined;
+    const updateGate = new Promise<void>((resolve) => {
+      releaseUpdate = resolve;
+    });
+    const updateMemory = vi.fn(async () => updateGate);
+    const service = new MemoryService({
+      provider: 'postgres',
+      getMemory,
+      getMemoryHistory,
+      updateMemory,
+    } as unknown as Mem0Client);
+
+    const first = service.update('persona-a', current.id!, { content: 'after' }, 'user-a');
+    await vi.waitFor(() => expect(getMemory).toHaveBeenCalledOnce());
+    const concurrent = service.update('persona-a', current.id!, { content: 'ignored' }, 'user-a');
+    releaseUpdate?.();
+    const [updated, shared] = await Promise.all([first, concurrent]);
+
+    expect(updated).toEqual(shared);
+    expect(updated).toMatchObject({ content: 'after', metadata: { version: 3 } });
+    expect(getMemory).toHaveBeenCalledOnce();
+    expect(getMemoryHistory).toHaveBeenCalledOnce();
+    expect(updateMemory).toHaveBeenCalledOnce();
+  });
+
+  it('uses the finite fallback page size and preserves the newest duplicate across preview scopes', async () => {
+    const newest = defaultRecord('shared-preview', {
+      userId: 'user-a',
+      personaId: 'persona-a',
+      content: 'newest copy',
+      metadata: { type: 'fact', lastVerified: timestampAtMinute(2) },
+    });
+    const older = defaultRecord('shared-preview', {
+      userId: 'user-b',
+      personaId: 'persona-a',
+      content: 'older copy',
+      metadata: { type: 'fact', lastVerified: timestampAtMinute(1) },
+    });
+    const listMemories = vi.fn(
+      async (input: Mem0ListInput): Promise<Mem0ListMemoryResult> => ({
+        memories: [input.userId === 'user-a' ? newest : older],
+        total: 1,
+        page: input.page,
+        pageSize: input.pageSize,
+      }),
+    );
+    const service = new MemoryService({ listMemories } as unknown as Mem0Client);
+
+    const preview = await service.listPreviewAcrossScopes(
+      'persona-a',
+      [' user-a ', 'user-b', 'user-a', '  '],
+      Number.NaN,
+    );
+
+    expect(preview.nodes).toHaveLength(1);
+    expect(preview.nodes[0]).toMatchObject({ id: 'shared-preview', content: 'newest copy' });
+    expect(preview.truncated).toBe(false);
+    expect(listMemories).toHaveBeenCalledTimes(2);
+    expect(listMemories.mock.calls.every(([input]) => input.pageSize === 50)).toBe(true);
+  });
+
+  it('rejects restoring an empty history entry before writing it', async () => {
+    const client = createInMemoryMem0Client();
+    const service = new MemoryService(client);
+    const stored = await service.store('persona-a', 'fact', 'current content', 3, 'user-a');
+    const updateMemory = vi.spyOn(client, 'updateMemory');
+    vi.spyOn(client, 'getMemoryHistory').mockResolvedValueOnce([
+      { action: 'update', content: '', metadata: {}, raw: {} },
+    ]);
+
+    await expect(
+      service.restoreFromHistory('persona-a', stored.id, { restoreIndex: 0 }, 'user-a'),
+    ).rejects.toThrow('no restorable content');
+    expect(updateMemory).not.toHaveBeenCalled();
   });
 });

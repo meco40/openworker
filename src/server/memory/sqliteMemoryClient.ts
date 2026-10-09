@@ -61,6 +61,7 @@ function nodeFromInput(id: string, input: Mem0MemoryInput): MemoryNode {
     timestamp,
     metadata: {
       ...metadata,
+      ...(input.workspaceId !== undefined ? { workspaceId: input.workspaceId } : {}),
       source: 'sqlite',
       memoryProvider: 'sqlite',
       mem0Id: id,

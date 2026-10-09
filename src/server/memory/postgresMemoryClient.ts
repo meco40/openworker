@@ -513,19 +513,15 @@ export class PostgresMemoryClient implements Mem0Client {
                   idempotency_key, legacy_provider, legacy_provider_id,
                   created_at, updated_at
            FROM world_model_memory_items
-           WHERE id = $1 ${resolved ? 'AND user_id = $2 AND persona_id = $3 AND workspace_id = $4' : ''}
+           WHERE id = $1 AND user_id = $2 AND persona_id = $3 AND workspace_id = $4
              AND deleted_at IS NULL
            FOR UPDATE`,
-          resolved ? [id, resolved.userId, resolved.personaId, resolved.workspaceId] : [id],
+          [id, resolved.userId, resolved.personaId, resolved.workspaceId],
         );
         const row = current.rows[0];
         if (!row) throw new Error(`Memory node not found: ${id}`);
         const nextVersion = Number(row.version) + 1;
-        const rowScope = resolved ?? {
-          userId: row.user_id,
-          personaId: row.persona_id,
-          workspaceId: row.workspace_id,
-        };
+        const rowScope = resolved;
         const nextMetadata = {
           ...metadata(row.metadata),
           lifecycleStatus: 'deleted',

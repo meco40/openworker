@@ -94,6 +94,7 @@ describe('syncMem0EmbedderFromModelHub', () => {
   afterEach(() => {
     process.env = originalEnv;
     globalThis.fetch = originalFetch;
+    vi.useRealTimers();
   });
 
   it('skips sync when memory provider is not mem0', async () => {
@@ -303,5 +304,246 @@ describe('syncMem0EmbedderFromModelHub', () => {
         },
       },
     });
+  });
+
+  it('syncs Gemini llm models after removing the models prefix', async () => {
+    mocks.listPipeline.mockImplementation((profileId: string) =>
+      profileId === 'p1'
+        ? [buildLlmPipelineEntry({ providerId: 'gemini', modelName: 'models/gemini-2.5-flash' })]
+        : [],
+    );
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount({ providerId: 'gemini' }));
+    mocks.decryptSecret.mockReturnValue('gemini-secret');
+
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(null, { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { syncMem0LlmFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const result = await syncMem0LlmFromModelHub();
+
+    expect(result).toMatchObject({ ok: true, providerId: 'gemini', modelName: 'gemini-2.5-flash' });
+    const init = fetchMock.mock.calls[0]?.[1];
+    expect(JSON.parse(String(init?.body))).toEqual({
+      llm: {
+        provider: 'gemini',
+        config: { api_key: 'gemini-secret', model: 'gemini-2.5-flash', temperature: 0.2 },
+      },
+    });
+  });
+
+  it('returns actionable LLM errors for missing models, credentials, and providers', async () => {
+    const { syncMem0LlmFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    mocks.listPipeline.mockReturnValue([]);
+    expect((await syncMem0LlmFromModelHub()).error).toContain('No active llm model');
+
+    mocks.listPipeline.mockReturnValue([buildLlmPipelineEntry({ modelName: '  ' })]);
+    expect((await syncMem0LlmFromModelHub()).error).toContain('No llm model name');
+
+    mocks.listPipeline.mockReturnValue([buildLlmPipelineEntry()]);
+    mocks.getUsableAccountById.mockResolvedValue(null);
+    expect((await syncMem0LlmFromModelHub()).error).toContain('account acc-1 not found');
+
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount());
+    mocks.decryptSecret.mockReturnValue('  ');
+    expect((await syncMem0LlmFromModelHub()).error).toContain('secret missing');
+
+    mocks.decryptSecret.mockReturnValue('secret');
+    mocks.listPipeline.mockReturnValue([buildLlmPipelineEntry({ providerId: 'unknown-provider' })]);
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount({ providerId: 'unknown-provider' }));
+    expect((await syncMem0LlmFromModelHub()).error).toContain(
+      'provider "unknown-provider" is not supported',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('returns explicit errors when an embedding model, account, secret, or supported provider is missing', async () => {
+    const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry({ modelName: '' })]);
+    expect((await syncMem0EmbedderFromModelHub()).error).toContain('No embedding model name');
+
+    mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry()]);
+    mocks.getUsableAccountById.mockResolvedValue(null);
+    expect((await syncMem0EmbedderFromModelHub()).error).toContain('account acc-1 not found');
+
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount());
+    mocks.decryptSecret.mockReturnValue(' ');
+    expect((await syncMem0EmbedderFromModelHub()).error).toContain('secret missing');
+
+    mocks.decryptSecret.mockReturnValue('secret');
+    mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry({ providerId: 'opencode' })]);
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount({ providerId: 'opencode' }));
+    expect((await syncMem0EmbedderFromModelHub()).error).toContain(
+      'provider "opencode" is not supported',
+    );
+
+    mocks.listPipeline.mockReturnValue([
+      buildEmbeddingPipelineEntry({ providerId: 'unknown-provider' }),
+    ]);
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount({ providerId: 'unknown-provider' }));
+    expect((await syncMem0EmbedderFromModelHub()).error).toContain(
+      'provider "unknown-provider" is not supported',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('skips LLM sync when Mem0 credentials are not configured', async () => {
+    process.env.MEM0_API_KEY = '';
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { syncMem0LlmFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const result = await syncMem0LlmFromModelHub();
+
+    expect(result).toMatchObject({ ok: false, skipped: true });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('uses the requested dimension hint when the probe returns no usable embedding', async () => {
+    process.env.MEM0_EMBEDDING_DIMS = '1536';
+    mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry()]);
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount());
+    mocks.dispatchEmbedding.mockResolvedValue({ embedding: { values: [] } });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(null, { status: 200 })),
+    );
+
+    const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const result = await syncMem0EmbedderFromModelHub();
+
+    expect(result).toMatchObject({ ok: true, embeddingDims: 1536 });
+  });
+
+  it('uses the requested dimension hint when the embedding probe reports an error', async () => {
+    process.env.MEM0_EMBEDDING_DIMS = '768';
+    mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry()]);
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount());
+    mocks.dispatchEmbedding.mockResolvedValue({ error: 'provider temporarily unavailable' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(null, { status: 200 })),
+    );
+
+    const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const result = await syncMem0EmbedderFromModelHub();
+
+    expect(result).toMatchObject({ ok: true, embeddingDims: 768 });
+  });
+
+  it('fails when neither the embedding probe nor a dimension hint provides a size', async () => {
+    mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry()]);
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount());
+    mocks.dispatchEmbedding.mockResolvedValue({ embedding: null });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const result = await syncMem0EmbedderFromModelHub();
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('Unable to determine embedding dimensions');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects dimensions beyond the configured pgvector HNSW limit', async () => {
+    process.env.MEM0_EMBEDDING_DIMS = '2048';
+    process.env.MEM0_VECTOR_HNSW = 'yes';
+    mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry()]);
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount());
+    mocks.dispatchEmbedding.mockResolvedValue({ embedding: { values: Array(2048).fill(0.1) } });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const result = await syncMem0EmbedderFromModelHub();
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('exceeds Mem0 pgvector/hnsw limit');
+    expect(result.embeddingDims).toBe(2048);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('returns Mem0 HTTP errors with the response body', async () => {
+    mocks.listPipeline.mockImplementation((profileId: string) =>
+      profileId === 'p1' ? [buildLlmPipelineEntry()] : [],
+    );
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount());
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('service unavailable', { status: 503 })),
+    );
+
+    const { syncMem0LlmFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const result = await syncMem0LlmFromModelHub();
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('Mem0 sync failed with HTTP 503: service unavailable');
+  });
+
+  it('returns network failures from the Mem0 request', async () => {
+    mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry()]);
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount());
+    mocks.dispatchEmbedding.mockResolvedValue({ embedding: { values: [0.1] } });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Promise.reject(new Error('connection refused'))),
+    );
+
+    const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const result = await syncMem0EmbedderFromModelHub();
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('connection refused');
+  });
+
+  it('handles non-Error Mem0 request failures', async () => {
+    mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry()]);
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount());
+    mocks.dispatchEmbedding.mockResolvedValue({ embedding: { values: [0.1] } });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Promise.reject('network failure')),
+    );
+
+    const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const result = await syncMem0EmbedderFromModelHub();
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('Unknown Mem0 sync error');
+  });
+
+  it('reports Mem0 request timeouts', async () => {
+    vi.useFakeTimers();
+    process.env.MEM0_EMBEDDER_SYNC_TIMEOUT_MS = '5';
+    mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry()]);
+    mocks.getUsableAccountById.mockResolvedValue(buildAccount());
+    mocks.dispatchEmbedding.mockResolvedValue({ embedding: { values: [0.1, 0.2] } });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () =>
+              reject(new DOMException('Aborted', 'AbortError')),
+            );
+          }),
+      ),
+    );
+
+    const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
+    const pending = syncMem0EmbedderFromModelHub();
+    await vi.advanceTimersByTimeAsync(5);
+    const result = await pending;
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('Mem0 sync timeout after 5ms.');
   });
 });

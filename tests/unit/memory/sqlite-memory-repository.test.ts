@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { MemoryNode } from '@/core/memory/types';
+import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
+import { openSqliteDatabase } from '@/server/db/sqlite';
 import { SqliteMemoryRepository } from '@/server/memory/sqliteMemoryRepository';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
@@ -203,5 +205,192 @@ describe('SqliteMemoryRepository', () => {
       const nodes = repo2.listNodes(personaA);
       expect(nodes[0].id).toBe('mem-migrate-check');
     }).not.toThrow();
+  });
+
+  it('migrates legacy tables that do not yet have persona and user scope columns', () => {
+    const legacy = openSqliteDatabase({ dbPath });
+    legacy.exec(`
+      CREATE TABLE memory_nodes (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        content TEXT NOT NULL,
+        embedding_json TEXT NOT NULL DEFAULT '[]',
+        importance INTEGER NOT NULL,
+        confidence REAL NOT NULL,
+        timestamp TEXT NOT NULL,
+        metadata_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      INSERT INTO memory_nodes (
+        id, type, content, embedding_json, importance, confidence, timestamp, metadata_json,
+        created_at, updated_at
+      ) VALUES ('legacy-memory', 'fact', 'legacy content', '[]', 3, 0.5, '2026-01-01', NULL,
+        '2026-01-01', '2026-01-01');
+    `);
+    legacy.close();
+
+    const repo = new SqliteMemoryRepository(dbPath);
+    const records = repo.listAllNodesWithScope();
+
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      userId: LEGACY_LOCAL_USER_ID,
+      personaId: 'persona-default',
+      node: { id: 'legacy-memory', content: 'legacy content' },
+    });
+  });
+
+  it('uses MESSAGES_DB_PATH when MEMORY_DB_PATH is empty', () => {
+    const originalMemoryPath = process.env.MEMORY_DB_PATH;
+    const originalMessagesPath = process.env.MESSAGES_DB_PATH;
+    process.env.MEMORY_DB_PATH = '';
+    process.env.MESSAGES_DB_PATH = dbPath;
+
+    try {
+      const repo = new SqliteMemoryRepository();
+      repo.insertNode(personaA, createNode({ id: 'env-path-node' }));
+
+      expect(repo.listNodes(personaA)[0]?.id).toBe('env-path-node');
+    } finally {
+      if (originalMemoryPath === undefined) delete process.env.MEMORY_DB_PATH;
+      else process.env.MEMORY_DB_PATH = originalMemoryPath;
+      if (originalMessagesPath === undefined) delete process.env.MESSAGES_DB_PATH;
+      else process.env.MESSAGES_DB_PATH = originalMessagesPath;
+    }
+  });
+
+  it('returns zero for empty and unmatched bulk mutations', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+
+    expect(repo.updateMany(personaA, [], { type: 'fact' })).toBe(0);
+    expect(repo.updateMany(personaA, ['mem-missing'], {})).toBe(0);
+    expect(repo.updateMany(personaA, ['mem-missing'], { type: 'lesson' })).toBe(0);
+    expect(repo.deleteMany(personaA, ['  ', ''])).toBe(0);
+    expect(repo.deleteMany(personaA, ['mem-missing'])).toBe(0);
+    expect(repo.updateNode(personaA, createNode({ id: 'mem-missing' }))).toBeUndefined();
+    expect(repo.listNodeHistory('mem-missing')).toEqual([]);
+    expect(repo.deleteNode(personaA, 'mem-missing')).toBe(0);
+    expect(repo.deleteByPersona(personaA)).toBe(0);
+  });
+
+  it('normalizes empty legacy JSON fields and returns zero-size storage snapshots', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+    repo.insertNode(
+      personaA,
+      createNode({ id: 'empty-legacy', content: '', embedding: [], metadata: undefined }),
+    );
+    const rawDb = openSqliteDatabase({ dbPath });
+    rawDb
+      .prepare('UPDATE memory_nodes SET embedding_json = ? WHERE id = ?')
+      .run('', 'empty-legacy');
+    rawDb
+      .prepare('UPDATE memory_node_history SET metadata_json = ? WHERE node_id = ?')
+      .run('', 'empty-legacy');
+    rawDb.close();
+
+    expect(repo.listNodes(personaA)[0]?.embedding).toEqual([]);
+    expect(repo.listNodeHistory('empty-legacy')[0]?.metadata).toEqual({});
+    expect(repo.getStorageSnapshot(Number.NaN, personaA)).toEqual({
+      summary: {
+        totalNodes: 1,
+        totalBytes: 0,
+        contentBytes: 0,
+        embeddingBytes: 0,
+        metadataBytes: 0,
+      },
+      byType: [
+        {
+          type: 'fact',
+          count: 1,
+          contentBytes: 0,
+          embeddingBytes: 0,
+          metadataBytes: 0,
+          totalBytes: 0,
+        },
+      ],
+      largestNodes: [
+        {
+          id: 'empty-legacy',
+          type: 'fact',
+          contentBytes: 0,
+          embeddingBytes: 0,
+          metadataBytes: 0,
+          totalBytes: 0,
+        },
+      ],
+    });
+    expect(repo.getStorageSnapshot(0).summary.totalNodes).toBe(1);
+  });
+
+  it('applies page filters and clamps invalid pagination values', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+    repo.insertNode(personaA, createNode({ id: 'page-fact', type: 'fact', content: 'alpha' }));
+    repo.insertNode(
+      personaA,
+      createNode({ id: 'page-preference', type: 'preference', content: 'beta' }),
+    );
+
+    const filtered = repo.listNodesPage(personaA, {
+      page: 0,
+      pageSize: 500,
+      type: 'fact',
+      query: '  alpha  ',
+    });
+    const unfiltered = repo.listNodesPage(personaA, { page: 1, pageSize: 10, query: '   ' });
+
+    expect(filtered).toMatchObject({ total: 1, nodes: [{ id: 'page-fact' }] });
+    expect(unfiltered.total).toBe(2);
+    expect(repo.listNodesPage(personaA, { page: 1, pageSize: 10, query: 'missing' })).toMatchObject(
+      {
+        total: 0,
+        nodes: [],
+      },
+    );
+  });
+
+  it('looks up nodes by ID and scopes all-node reads when a user is supplied', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+    repo.insertNode(personaA, createNode({ id: 'user-a-node' }), 'user-a');
+    repo.insertNode(personaB, createNode({ id: 'user-b-node' }), 'user-b');
+
+    expect(repo.getNodeById('user-a-node')).toMatchObject({
+      userId: 'user-a',
+      personaId: personaA,
+      node: { id: 'user-a-node' },
+    });
+    expect(repo.getNodeById('missing')).toBeNull();
+    expect(repo.listAllNodesWithScope('user-a').map(({ node }) => node.id)).toEqual([
+      'user-a-node',
+    ]);
+  });
+
+  it('uses empty embeddings for legacy nodes that omit embedding data', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+    const node = {
+      ...createNode({ id: 'embedding-omitted' }),
+      embedding: undefined,
+    } as unknown as MemoryNode;
+
+    repo.insertNode(personaA, node);
+    repo.updateNode(personaA, node);
+
+    expect(repo.listNodes(personaA)[0]?.embedding).toEqual([]);
+  });
+
+  it('returns zero summaries for an empty database', () => {
+    const repo = new SqliteMemoryRepository(dbPath);
+
+    expect(repo.getStorageSnapshot()).toEqual({
+      summary: {
+        totalNodes: 0,
+        totalBytes: 0,
+        contentBytes: 0,
+        embeddingBytes: 0,
+        metadataBytes: 0,
+      },
+      byType: [],
+      largestNodes: [],
+    });
   });
 });
