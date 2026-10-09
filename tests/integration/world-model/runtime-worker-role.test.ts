@@ -12,6 +12,7 @@ import {
   insertStandingIntent,
   registerStandingIntentFire,
 } from '@/server/world-model/repositories/prospectiveRepository';
+import { getWorldModelConfig } from '@/server/world-model/config';
 
 const enabled = process.env.WORLD_MODEL_E2E === 'true';
 const marker = `runtime-worker-${Date.now()}`;
@@ -22,7 +23,7 @@ describe.skipIf(!enabled)('provisioned worker privileges and scope', () => {
     await runWorldModelMigrations();
     client = new Client({
       connectionString:
-        process.env.WORLD_MODEL_ADMIN_DATABASE_URL || process.env.CANONICAL_DATABASE_URL,
+        process.env.WORLD_MODEL_ADMIN_DATABASE_URL || getWorldModelConfig().databaseUrl,
     });
     await client.connect();
   });
