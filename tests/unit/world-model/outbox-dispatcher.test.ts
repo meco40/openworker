@@ -1,87 +1,291 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { dispatchOutboxOnce, registerOutboxHandler } from '@/server/world-model/outboxDispatcher';
-import type { OutboxEvent } from '@/server/world-model/types';
-
-const claimPending = vi.fn();
-const markDispatched = vi.fn();
-const markFailed = vi.fn();
-
-vi.mock('@/server/world-model/repositories/outboxRepository', () => ({
-  claimPendingOutboxEvents: (...args: unknown[]) => claimPending(...args),
-  markOutboxDispatched: (...args: unknown[]) => markDispatched(...args),
-  markOutboxFailed: (...args: unknown[]) => markFailed(...args),
-  enqueueOutboxEvent: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  config: {
+    enabled: false,
+    e2eEnabled: false,
+    graphitiShadowEnabled: false,
+    graphitiBackendEnabled: false,
+    outboxBatchSize: 100,
+    outboxPollIntervalMs: 60_000,
+  },
+  getWorldModelConfig: vi.fn(),
+  closeWorldModelDb: vi.fn(),
+  runWithWorldModelScope: vi.fn(),
+  runWorldModelMigrations: vi.fn(),
+  createGraphitiShadowHandler: vi.fn(),
+  createGraphitiProjectorHandler: vi.fn(),
+  createProactiveQuestionHandler: vi.fn(),
+  createProactiveIntentFiredHandler: vi.fn(),
+  projectMissionControlTaskCreated: vi.fn(),
+  projectMissionControlTaskDeleted: vi.fn(),
+  projectMissionControlTaskStatusChanged: vi.fn(),
+  claimPendingOutboxEvents: vi.fn(),
+  markOutboxDispatched: vi.fn(),
+  markOutboxFailed: vi.fn(),
+  listRuntimeWorldModelScopes: vi.fn(),
 }));
 
 vi.mock('@/server/world-model/config', () => ({
-  getWorldModelConfig: () => ({ outboxBatchSize: 100 }),
+  getWorldModelConfig: mocks.getWorldModelConfig,
 }));
-
 vi.mock('@/server/world-model/db', () => ({
-  getWorldModelDb: vi.fn(() => ({ pool: { end: vi.fn(async () => {}) }, query: vi.fn() })),
-  runWorldModelMigrations: vi.fn(async () => []),
+  closeWorldModelDb: mocks.closeWorldModelDb,
+  runWithWorldModelScope: mocks.runWithWorldModelScope,
+  runWorldModelMigrations: mocks.runWorldModelMigrations,
+}));
+vi.mock('@/server/world-model/graphiti/shadow', () => ({
+  createGraphitiShadowHandler: mocks.createGraphitiShadowHandler,
+}));
+vi.mock('@/server/world-model/graphiti/projector', () => ({
+  createGraphitiProjectorHandler: mocks.createGraphitiProjectorHandler,
+}));
+vi.mock('@/server/world-model/services/proactiveChannelDelivery', () => ({
+  createProactiveQuestionHandler: mocks.createProactiveQuestionHandler,
+  createProactiveIntentFiredHandler: mocks.createProactiveIntentFiredHandler,
+}));
+vi.mock('@/server/world-model/services/missionControlBridge', () => ({
+  projectMissionControlTaskCreated: mocks.projectMissionControlTaskCreated,
+  projectMissionControlTaskDeleted: mocks.projectMissionControlTaskDeleted,
+  projectMissionControlTaskStatusChanged: mocks.projectMissionControlTaskStatusChanged,
+}));
+vi.mock('@/server/world-model/repositories/outboxRepository', () => ({
+  claimPendingOutboxEvents: mocks.claimPendingOutboxEvents,
+  markOutboxDispatched: mocks.markOutboxDispatched,
+  markOutboxFailed: mocks.markOutboxFailed,
+}));
+vi.mock('@/server/world-model/runtime/scopeDiscovery', () => ({
+  listRuntimeWorldModelScopes: mocks.listRuntimeWorldModelScopes,
 }));
 
-function event(partial: Partial<OutboxEvent>): OutboxEvent {
+import {
+  dispatchOutboxOnce,
+  dispatchOutboxOnceInScope,
+  registerOutboxHandler,
+  startOutboxDispatcher,
+  stopOutboxDispatcher,
+} from '@/server/world-model/outboxDispatcher';
+import type { OutboxEvent } from '@/server/world-model/types';
+
+function event(partial: Partial<OutboxEvent> = {}): OutboxEvent {
   return {
-    id: 'e',
+    id: 'event-1',
     eventType: 'test.event',
     aggregateType: 'event',
-    aggregateId: 'a',
+    aggregateId: 'aggregate-1',
     payload: {},
     status: 'pending',
     attempts: 0,
-    createdAt: '2026-08-18T12:00:00.000Z',
+    createdAt: '2026-10-08T09:00:00.000Z',
     ...partial,
   };
 }
 
-describe('outbox dispatcher', () => {
-  beforeEach(() => {
-    claimPending.mockReset();
-    markDispatched.mockReset();
-    markFailed.mockReset();
+beforeEach(async () => {
+  mocks.closeWorldModelDb.mockImplementation(async () => {});
+  await stopOutboxDispatcher();
+  vi.resetAllMocks();
+  Object.assign(mocks.config, {
+    enabled: false,
+    e2eEnabled: false,
+    graphitiShadowEnabled: false,
+    graphitiBackendEnabled: false,
+    outboxBatchSize: 100,
+    outboxPollIntervalMs: 60_000,
   });
+  mocks.getWorldModelConfig.mockImplementation(() => ({ ...mocks.config }));
+  mocks.closeWorldModelDb.mockImplementation(async () => {});
+  mocks.runWithWorldModelScope.mockImplementation(
+    async (_scope: unknown, callback: () => unknown) => callback(),
+  );
+  mocks.runWorldModelMigrations.mockResolvedValue([]);
+  mocks.createGraphitiShadowHandler.mockReturnValue(vi.fn(async () => {}));
+  mocks.createGraphitiProjectorHandler.mockReturnValue(vi.fn(async () => {}));
+  mocks.createProactiveQuestionHandler.mockReturnValue(vi.fn(async () => {}));
+  mocks.createProactiveIntentFiredHandler.mockReturnValue(vi.fn(async () => {}));
+  mocks.projectMissionControlTaskCreated.mockImplementation(async () => {});
+  mocks.projectMissionControlTaskDeleted.mockImplementation(async () => {});
+  mocks.projectMissionControlTaskStatusChanged.mockImplementation(async () => {});
+  mocks.claimPendingOutboxEvents.mockResolvedValue([]);
+  mocks.markOutboxDispatched.mockImplementation(async () => {});
+  mocks.markOutboxFailed.mockImplementation(async () => {});
+  mocks.listRuntimeWorldModelScopes.mockResolvedValue([]);
+});
 
-  it('keeps events visible as failed when no handler is registered', async () => {
-    claimPending.mockResolvedValue([event({})]);
-    const handled = await dispatchOutboxOnce();
-    expect(handled).toBe(0);
-    expect(markDispatched).not.toHaveBeenCalled();
-    expect(markFailed).toHaveBeenCalledWith(
-      'e',
-      '[world-model:outbox] no handler registered for test.event',
+afterEach(async () => {
+  await stopOutboxDispatcher();
+  vi.unstubAllEnvs();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+describe('outbox dispatcher', () => {
+  it('fails events with no handler and acknowledges all handlers on success', async () => {
+    const ok = vi.fn(async () => {});
+    registerOutboxHandler('test.success', ok);
+    mocks.claimPendingOutboxEvents.mockResolvedValue([
+      event({ id: 'no-handler', eventType: 'test.missing' }),
+      event({ id: 'handled', eventType: 'test.success' }),
+    ]);
+
+    await expect(dispatchOutboxOnce(7)).resolves.toBe(1);
+    expect(mocks.claimPendingOutboxEvents).toHaveBeenCalledWith(7, expect.any(String));
+    expect(mocks.markOutboxFailed).toHaveBeenCalledWith(
+      'no-handler',
+      '[world-model:outbox] no handler registered for test.missing',
       expect.any(String),
     );
+    expect(ok).toHaveBeenCalledWith(expect.objectContaining({ id: 'handled' }));
+    expect(mocks.markOutboxDispatched).toHaveBeenCalledWith('handled', expect.any(String));
   });
 
-  it('runs a registered handler and acknowledges on success', async () => {
-    registerOutboxHandler('test.event', async () => {});
-    claimPending.mockResolvedValue([event({})]);
-    const handled = await dispatchOutboxOnce();
-    expect(handled).toBe(1);
-    expect(markDispatched).toHaveBeenCalledWith('e', expect.any(String));
+  it('runs multiple handlers together and normalizes non-Error failures', async () => {
+    const first = vi.fn(async () => {});
+    const second = vi.fn().mockRejectedValue('transport down');
+    registerOutboxHandler('test.multiple', first);
+    registerOutboxHandler('test.multiple', second);
+    mocks.claimPendingOutboxEvents.mockResolvedValue([event({ eventType: 'test.multiple' })]);
+
+    await expect(dispatchOutboxOnce()).resolves.toBe(0);
+    expect(first).toHaveBeenCalledOnce();
+    expect(second).toHaveBeenCalledOnce();
+    expect(mocks.markOutboxFailed).toHaveBeenCalledWith(
+      'event-1',
+      'transport down',
+      expect.any(String),
+    );
+    expect(mocks.markOutboxDispatched).not.toHaveBeenCalled();
   });
 
-  it('marks an event failed when its handler throws', async () => {
-    registerOutboxHandler('test.event', async () => {
-      throw new Error('boom');
-    });
-    claimPending.mockResolvedValue([event({})]);
-    const handled = await dispatchOutboxOnce();
-    expect(handled).toBe(0);
-    expect(markFailed).toHaveBeenCalledWith('e', 'boom', expect.any(String));
-    expect(markDispatched).not.toHaveBeenCalled();
-  });
-
-  it('does not register the same keyed handler twice', async () => {
+  it('deduplicates a keyed registration, keeps distinct keys, and counts empty batches', async () => {
     const handler = vi.fn(async () => {});
-    registerOutboxHandler('keyed.event', handler, 'stable-handler');
-    registerOutboxHandler('keyed.event', handler, 'stable-handler');
-    claimPending.mockResolvedValue([event({ eventType: 'keyed.event' })]);
+    const duplicate = vi.fn(async () => {});
+    registerOutboxHandler('test.keyed', handler, 'stable');
+    registerOutboxHandler('test.keyed', duplicate, 'stable');
+    registerOutboxHandler('test.keyed', duplicate, 'second');
+    mocks.claimPendingOutboxEvents.mockResolvedValue([event({ eventType: 'test.keyed' })]);
 
     await expect(dispatchOutboxOnce()).resolves.toBe(1);
     expect(handler).toHaveBeenCalledOnce();
+    expect(duplicate).toHaveBeenCalledOnce();
+
+    mocks.claimPendingOutboxEvents.mockResolvedValue([]);
+    await expect(dispatchOutboxOnce()).resolves.toBe(0);
+  });
+
+  it('releases its in-flight guard after an error and ignores overlapping ticks', async () => {
+    mocks.claimPendingOutboxEvents.mockRejectedValueOnce(new Error('database unavailable'));
+    await expect(dispatchOutboxOnce()).rejects.toThrow('database unavailable');
+    mocks.claimPendingOutboxEvents.mockResolvedValueOnce([]);
+    await expect(dispatchOutboxOnce()).resolves.toBe(0);
+
+    let release!: (rows: OutboxEvent[]) => void;
+    mocks.claimPendingOutboxEvents.mockImplementationOnce(
+      () => new Promise<OutboxEvent[]>((resolve) => (release = resolve)),
+    );
+    const first = dispatchOutboxOnce();
+    await Promise.resolve();
+    await expect(dispatchOutboxOnce()).resolves.toBe(0);
+    release([]);
+    await expect(first).resolves.toBe(0);
+  });
+
+  it('dispatches under the requested RLS scope', async () => {
+    const scope = { userId: 'user-a', personaId: 'assistant', workspaceId: 'space-a' };
+    await expect(dispatchOutboxOnceInScope(scope, 5)).resolves.toBe(0);
+    expect(mocks.runWithWorldModelScope).toHaveBeenCalledWith(scope, expect.any(Function));
+  });
+
+  it('does not start when disabled or when the E2E bypass is used in production', async () => {
+    await startOutboxDispatcher();
+    expect(mocks.runWorldModelMigrations).not.toHaveBeenCalled();
+
+    mocks.config.e2eEnabled = true;
+    vi.stubEnv('NODE_ENV', 'production');
+    await startOutboxDispatcher();
+    expect(mocks.runWorldModelMigrations).not.toHaveBeenCalled();
+  });
+
+  it('starts in development E2E mode, registers core handlers once, and stops cleanly', async () => {
+    mocks.config.e2eEnabled = true;
+    mocks.listRuntimeWorldModelScopes.mockResolvedValue([
+      { userId: 'user-a', personaId: 'assistant', workspaceId: 'space-a' },
+      { userId: 'user-b', personaId: 'assistant', workspaceId: 'space-b' },
+    ]);
+    mocks.claimPendingOutboxEvents
+      .mockResolvedValueOnce([
+        event({ eventType: 'proactive.question.requested' }),
+        event({ id: 'intent', eventType: 'proactive.intent.fired' }),
+        event({ id: 'task-created', eventType: 'world.task.created' }),
+        event({ id: 'task-status', eventType: 'world.task.status_changed' }),
+        event({ id: 'task-deleted', eventType: 'world.task.deleted' }),
+      ])
+      .mockResolvedValueOnce([]);
+    const interval = vi.spyOn(globalThis, 'setInterval');
+
+    await startOutboxDispatcher();
+    await startOutboxDispatcher();
+
+    expect(mocks.runWorldModelMigrations).toHaveBeenCalledOnce();
+    expect(mocks.createProactiveQuestionHandler).toHaveBeenCalledOnce();
+    expect(mocks.createProactiveIntentFiredHandler).toHaveBeenCalledOnce();
+    expect(mocks.projectMissionControlTaskCreated).toHaveBeenCalledOnce();
+    expect(mocks.projectMissionControlTaskStatusChanged).toHaveBeenCalledOnce();
+    expect(mocks.projectMissionControlTaskDeleted).toHaveBeenCalledOnce();
+    expect(mocks.listRuntimeWorldModelScopes).toHaveBeenCalledOnce();
+    expect(mocks.runWithWorldModelScope).toHaveBeenCalledTimes(2);
+    expect(mocks.claimPendingOutboxEvents).toHaveBeenCalledTimes(2);
+    expect(interval).toHaveBeenCalledOnce();
+
+    mocks.closeWorldModelDb.mockRejectedValueOnce(new Error('already closed'));
+    await expect(stopOutboxDispatcher()).resolves.toBeUndefined();
+    await expect(stopOutboxDispatcher()).resolves.toBeUndefined();
+  });
+
+  it('registers Graphiti handlers for each enabled event family', async () => {
+    mocks.config.enabled = true;
+    mocks.config.graphitiShadowEnabled = true;
+    mocks.config.graphitiBackendEnabled = true;
+    const graphitiShadow = vi.fn(async () => {});
+    const graphitiProjector = vi.fn(async () => {});
+    mocks.createGraphitiShadowHandler.mockReturnValue(graphitiShadow);
+    mocks.createGraphitiProjectorHandler.mockReturnValue(graphitiProjector);
+    mocks.listRuntimeWorldModelScopes.mockResolvedValue([
+      { userId: 'user-a', personaId: 'assistant', workspaceId: 'space-a' },
+    ]);
+    mocks.claimPendingOutboxEvents.mockResolvedValue([
+      event({ id: 'observation', eventType: 'world.observation.created' }),
+      event({ id: 'assertion', eventType: 'world.assertion.created' }),
+      event({ id: 'task', eventType: 'world.task.created' }),
+      event({ id: 'status', eventType: 'world.task.status_changed' }),
+      event({ id: 'relation', eventType: 'world.relation.created' }),
+      event({ id: 'world-event', eventType: 'world.event.created' }),
+    ]);
+
+    await startOutboxDispatcher();
+
+    expect(graphitiShadow).toHaveBeenCalledWith(expect.objectContaining({ id: 'observation' }));
+    expect(graphitiProjector).toHaveBeenCalledTimes(6);
+    expect(mocks.markOutboxDispatched).toHaveBeenCalledTimes(6);
+  });
+
+  it('continues after initial dispatch errors and logs the failed tick', async () => {
+    vi.useFakeTimers();
+    mocks.config.enabled = true;
+    mocks.listRuntimeWorldModelScopes.mockRejectedValueOnce(new Error('initial scan failed'));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(startOutboxDispatcher()).resolves.toBeUndefined();
+    expect(error).toHaveBeenCalledWith(
+      '[world-model:outbox] initial dispatch failed:',
+      expect.any(Error),
+    );
+
+    mocks.listRuntimeWorldModelScopes.mockRejectedValue(new Error('tick failed'));
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(error).toHaveBeenCalledWith(
+      '[world-model:outbox] dispatch tick failed:',
+      expect.any(Error),
+    );
   });
 });
