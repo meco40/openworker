@@ -5,7 +5,7 @@
 //! are part of the contract the logs view depends on.
 
 use axum::extract::{Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -13,6 +13,7 @@ use serde::Deserialize;
 
 use betaclaw_core::logging::repository::{LogCategory, LogFilter, LogLevel};
 
+use crate::auth_gate::{unauthorized_response, user_id_from_headers};
 use crate::state::SharedState;
 
 const DEFAULT_LIMIT: usize = 200;
@@ -49,7 +50,14 @@ fn parse_limit(raw: Option<&str>) -> usize {
 }
 
 /// `GET /api/logs`
-async fn list_logs(State(state): State<SharedState>, Query(query): Query<ListQuery>) -> Response {
+async fn list_logs(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Query(query): Query<ListQuery>,
+) -> Response {
+    if user_id_from_headers(&headers).is_none() {
+        return unauthorized_response();
+    }
     let guard = match state.logs.try_lock() {
         Ok(guard) => guard,
         Err(_) => return database_busy(),
@@ -135,7 +143,10 @@ async fn list_logs(State(state): State<SharedState>, Query(query): Query<ListQue
 }
 
 /// `DELETE /api/logs`
-async fn clear_logs(State(state): State<SharedState>) -> Response {
+async fn clear_logs(State(state): State<SharedState>, headers: HeaderMap) -> Response {
+    if user_id_from_headers(&headers).is_none() {
+        return unauthorized_response();
+    }
     let guard = match state.logs.try_lock() {
         Ok(guard) => guard,
         Err(_) => return database_busy(),
@@ -158,7 +169,14 @@ pub struct IngestBody {
 }
 
 /// `POST /api/logs/ingest`
-async fn ingest(State(state): State<SharedState>, Json(body): Json<IngestBody>) -> Response {
+async fn ingest(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Json(body): Json<IngestBody>,
+) -> Response {
+    if user_id_from_headers(&headers).is_none() {
+        return unauthorized_response();
+    }
     let (Some(event_type), Some(message)) = (
         body.event_type.filter(|value| !value.is_empty()),
         body.message.filter(|value| !value.is_empty()),
@@ -209,6 +227,8 @@ fn server_error(error: &betaclaw_core::logging::repository::LogRepositoryError) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::routes::test_support::{send, state_in, ScratchDir};
+    use axum::http::Method;
 
     #[test]
     fn limit_is_clamped_like_typescript() {
@@ -229,5 +249,34 @@ mod tests {
         };
         assert!(query.sources.is_some());
         assert!(query.categories.is_none());
+    }
+
+    #[tokio::test]
+    async fn list_without_user_context_is_unauthorized() {
+        let scratch = ScratchDir::new();
+        let state = state_in(&scratch);
+        let (status, body) = send(&state, Method::GET, "/api/logs", None, None).await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert_eq!(body["error"], "Unauthorized");
+    }
+
+    #[tokio::test]
+    async fn clear_without_user_context_is_unauthorized() {
+        let scratch = ScratchDir::new();
+        let state = state_in(&scratch);
+        let (status, body) = send(&state, Method::DELETE, "/api/logs", None, None).await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert_eq!(body["error"], "Unauthorized");
+    }
+
+    #[tokio::test]
+    async fn ingest_without_user_context_is_unauthorized() {
+        let scratch = ScratchDir::new();
+        let state = state_in(&scratch);
+        let body = r#"{"type":"SYS","message":"probe"}"#;
+        let (status, response) =
+            send(&state, Method::POST, "/api/logs/ingest", None, Some(body)).await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert_eq!(response["error"], "Unauthorized");
     }
 }
