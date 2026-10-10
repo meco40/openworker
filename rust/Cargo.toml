@@ -1,0 +1,53 @@
+[workspace]
+resolver = "2"
+members = ["crates/betaclaw-core", "crates/betaclaw-gateway"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.94"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+aes-gcm = "0.11"
+anyhow = "1"
+axum = { version = "0.8", features = ["http1", "json", "query", "tokio", "ws"] }
+base64 = "0.23"
+bytes = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+getrandom = "0.3"
+hkdf = "0.13"
+http = "1"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["client", "http1", "server"] }
+hyper-util = { version = "0.1", features = ["client", "client-legacy", "http1", "server", "tokio"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "stream", "charset", "http2"] }
+# Needed by the OpenAI Codex rate-limit header parsers in S4c, which contain
+# word boundaries, alternation and capture groups that cannot be hand-written.
+regex = "1"
+rusqlite = { version = "0.40", features = ["bundled"] }
+scrypt = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = "0.11"
+subtle = "2"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.7", features = ["limit", "trace", "util"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 2

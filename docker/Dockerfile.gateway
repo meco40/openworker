@@ -1,0 +1,73 @@
+# ─── BetaClaw Rust Gateway Docker Build ─────────────────────────
+# Multi-stage build for the axum-based gateway that owns the public listener.
+#
+# The runtime base is debian:bookworm-slim, the same Debian release as the
+# node:22-bookworm-slim UI image, so the shared `app-data` and `workspaces`
+# volumes and the on-disk SQLite files stay compatible across both processes.
+
+# ── Stage 1: Dependencies ─────────────────────────────────────
+# Compiles the third-party dependency graph against placeholder crates so the
+# layer survives source-only edits. The placeholders live outside `rust/` and
+# are swapped out by a real copy of the workspace, which keeps the two stages
+# from writing into the same paths.
+FROM rust:1.94-bookworm AS deps
+WORKDIR /cache
+ENV CARGO_HOME=/cache/.cargo
+
+COPY rust/Cargo.toml rust/Cargo.lock rust/rust-toolchain.toml /workspace/rust/
+RUN mkdir -p /workspace/rust/crates/betaclaw-core/src /workspace/rust/crates/betaclaw-gateway/src \
+    && : > /workspace/rust/crates/betaclaw-core/src/lib.rs \
+    && printf 'fn main() {}\n' > /workspace/rust/crates/betaclaw-gateway/src/main.rs \
+    && : > /workspace/rust/crates/betaclaw-gateway/src/lib.rs \
+    && cd /workspace/rust \
+    && cargo build --release --locked 2>&1 | tail -5
+
+# ── Stage 2: Build ─────────────────────────────────────────────
+FROM deps AS builder
+
+# Real sources replace the placeholders entirely, so cargo sees fresh mtimes and
+# rebuilds only the two workspace crates.
+COPY rust /workspace/rust
+
+RUN cd /workspace/rust \
+    && cargo build --release --locked --bin betaclaw-gateway 2>&1 | tail -10 \
+    && strip /workspace/rust/target/release/betaclaw-gateway
+
+# ── Stage 3: Runtime ───────────────────────────────────────────
+FROM debian:bookworm-slim AS runner
+
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+ENV RUST_LOG=info
+ENV WORKSPACE_ROOT=/app
+ENV DATABASE_PATH=/app/.local/mission-control.db
+ENV LOGS_DB_PATH=/app/.local/logs.db
+ENV MESSAGES_DB_PATH=/app/.local/messages.db
+ENV AUTH_DB_PATH=/app/.local/auth.db
+ENV GATEWAY_CONFIG_DB_PATH=/app/.local/gateway-config.db
+ENV GATEWAY_UPSTREAM_ORIGIN=http://127.0.0.1:3001
+
+RUN groupadd --gid 1001 gateway \
+    && useradd --uid 1001 --gid gateway --create-home --shell /usr/sbin/nologin gateway \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /workspace/rust/target/release/betaclaw-gateway /usr/local/bin/betaclaw-gateway
+
+# The log repository writes here; the UI process and the scheduler mount the same
+# volume, so the ownership must match the node image's uid 1001.
+RUN mkdir -p /app/.local /app/workspaces \
+    && chown -R gateway:gateway /app/.local /app/workspaces
+
+USER gateway
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=10 \
+    CMD curl --fail --silent --show-error http://127.0.0.1:3000/__rust/health || exit 1
+
+CMD ["betaclaw-gateway"]
