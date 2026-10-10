@@ -457,6 +457,28 @@ mod tests {
     }
 
     #[test]
+    fn config_db_default_tracks_cwd_when_it_differs_from_the_workspace_root() {
+        // `paths.ts:67` resolves the default with
+        // `path.resolve('.local/gateway-config.db')`, i.e. against the process
+        // cwd. WORKSPACE_ROOT only decides relative overrides. This is the
+        // contract `GatewayConfig::from_env` must go through the PathResolver
+        // for, instead of `resolve_db_path`.
+        let mut paths = resolver("/work");
+        paths.cwd = "/srv/gateway".into();
+        assert_eq!(
+            paths.resolve_config_db_path(),
+            "/srv/gateway/.local/gateway-config.db"
+        );
+
+        paths.config_db_path_env = Some("data/gateway.db".into());
+        assert_eq!(
+            paths.resolve_config_db_path(),
+            "/work/data/gateway.db",
+            "relative overrides stay workspace-relative"
+        );
+    }
+
+    #[test]
     fn display_path_prefers_home_then_cwd_then_basename() {
         let mut paths = resolver("/work");
         paths.home_dir = Some("/work/home/dev".into());

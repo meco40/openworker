@@ -178,11 +178,10 @@ impl GatewayConfig {
                 &workspace_root,
             ),
             auth_db_path: resolve_db_path("AUTH_DB_PATH", ".local/auth.db", &workspace_root),
-            gateway_config_db_path: resolve_db_path(
-                "GATEWAY_CONFIG_DB_PATH",
-                ".local/gateway-config.db",
-                &workspace_root,
-            ),
+            // Not `resolve_db_path`: `resolveGatewayConfigDbPath` in
+            // `paths.ts:61-68` resolves the default against the process cwd,
+            // not the workspace root. The PathResolver mirrors that.
+            gateway_config_db_path: gateway_config_paths.resolve_config_db_path(),
             gateway_config_backend: gateway_config_paths.resolve_backend(),
             gateway_config_path: gateway_config_paths.resolve_config_path(),
             personas_db_path: resolve_db_path(
