@@ -14,7 +14,7 @@ sein, aber keine Backend-Geschäftslogik mehr enthalten.
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Backend-Logik | `src/server` 77.362 LOC in 731 Dateien: channels 15.647, world-model 11.371, knowledge 8.714, master 7.235, model-hub 5.787, memory 5.739, skills 4.469, agent-v2 3.042, stats 2.426, gateway 2.202, tasks 2.117, automation 1.568                                                                                                                                                                                          |
 | HTTP          | 113 `app/api/**/route.ts` (10.566 LOC). Gate `proxy.ts` nur für `/api/*`. 81/113 `withUserContext`, 32 handgerollt (`resolveMasterUserId`, `resolveAutomationUserId`, Webhook-HMAC, interne Token)                                                                                                                                                                                                                          |
-| WebSocket     | `server.ts:120-213`. Endpunkt `/ws?protocol=v2`, JSON-Frames `req`/`res`/`event`/`stream`, 39 Methoden, 29 Events, 5 Verbindungen/User (429), 16 MB Payload, 600 req/min, Backpressure >1,5 MB → 1008, Tick 30 s, Ping/Pong-Sweep                                                                                                                                                                                           |
+| WebSocket     | `server.ts:120-213`. Endpunkt `/ws?protocol=v2`, JSON-Frames `req`/`res`/`event`/`stream`, 38 Methoden, 29 Events, 5 Verbindungen/User (429), 16 MB Payload, 600 req/min, Backpressure >1,5 MB → 1008, Tick 30 s, Ping/Pong-Sweep                                                                                                                                                                                           |
 | Auth          | NextAuth v4 Credentials + JWT. Session-Cookie ist JWE `dir`/`A256GCM`, Key = HKDF-SHA256(`NEXTAUTH_SECRET`, salt=Cookie-Name, info=`NextAuth.js Generated Encryption Key (…)`, 32 B). Users in `.local/auth.db`, scrypt (N=16384, r=8, p=1, 64 B) mit Legacy-SHA256-Upgrade. Login-Limiter 10 Fehlversuche/15 min pro E-Mail und IP. `proxyPolicy.ts` erzwingt Loopback-Peer + Host + Fetch-Metadata                        |
 | Persistenz    | SQLite (`better-sqlite3`) ca. 19 DBs mit TS-Code-Migrationen (`_migrations`), Pragmas WAL/foreign_keys/busy_timeout 30 s (`src/server/db/sqlite.ts:41-77`). PostgreSQL/pgvector nur World-Model (`src/server/world-model/db.ts`), 19 `.sql`-Dateien + `_world_model_migrations` + `pg_advisory_lock`, RLS-Rollen `world_model_app`/`world_model_worker`, Tenant-Scope über `world_model_set_scope($1,$2,$3)` je Transaktion |
 | Scheduler     | `scheduler.ts`: Automation-Tick 15 s, Knowledge-Ingestion, Outbox-Dispatcher 10 s, Prospective-Runtime, Embedding-Worker 30 s, Projection-Retry 30 s, Swarm-Orchestrator über `SWARM_RUNNER`. Lease in `automation_scheduler_lease`                                                                                                                                                                                         |
@@ -94,6 +94,29 @@ ihrem Ort und werden von Rust mit demselben Advisory-Lock-Verfahren angewendet.
 Pro Slice gilt: Die TypeScript-Implementierung bleibt bestehen, bis Vertrags- und
 Integrationstests die Parität belegen. Das Entfernungskriterium wird nach jedem Slice in
 dieser Datei fortgeschrieben.
+
+**Slice-Status** (Legende: ✅ abgeschlossen · 🚧 in Arbeit · ▢ offen)
+
+| Slice | Thema                                                              | Status |
+| ----- | ------------------------------------------------------------------ | ------ |
+| S0    | Fundament                                                          | ✅     |
+| S1    | Transport, Auth, Gateway-WS, Observability                         | ✅     |
+| S2    | Config, Gateway-Config, Personas, Security-Routen                  | ✅     |
+| S3    | Messages/Conversations/Inbox/Sessions-Store                        | ✅     |
+| S4    | Model Hub                                                          | 🚧     |
+| S5    | Memory                                                             | ▢      |
+| S6    | World Model                                                        | ▢      |
+| S7    | Knowledge                                                          | ▢      |
+| S8    | Chat-Dispatch, Recall, Subagents, Tool-Loop                        | ▢      |
+| S9    | Master                                                             | ▢      |
+| S10   | Tasks, Workspaces, Agents, Automation                              | ▢      |
+| S11   | Skills-Handler und Exec-Freigaben                                  | ▢      |
+| S12   | Stats, Clawhub, Proactive, Debug, Files, Ops, Agent-v2, Agent-Room | ▢      |
+| S13   | Endzustand                                                         | ▢      |
+
+Der Feingrad je Slice (welche Routen/Methoden migriert sind, welche bewusst beim Proxy
+bleiben) steht in den Fortschrittsnotizen in Abschnitt 7. Die offenen Abweichungen sind
+im Register „Offene Punkte" am Ende von Abschnitt 7 gebündelt.
 
 ## 5. Slice S0 und S1 im Detail
 
@@ -428,6 +451,80 @@ Test `cursor_walks_through_the_pages`: `totalMatched` zählt ab dem Cursor, wie
 `COUNT(*) OVER()` in `queries/inbox.ts`. Beides ist behoben, der Port selbst
 war korrekt.
 
+### 2026-10-10 — Paritäts-Harness und S4-Vorbereitung
+
+**Verifikations-Harness verallgemeinert**
+
+- `scripts/verify/parity/` ersetzt das monolithische Einzelskript: `harness.mjs`
+  (HTTP-Roundtrip gegen Rust über `GATEWAY_BASE_URL` oder `docker exec`,
+  key-reihenfolge-unabhängiger JSON-Vergleich), `run.mjs` (führt alle
+  `families/*.mjs` aus) und die Familien `logs.mjs` und `config.mjs`.
+- `scripts/verify/logs-parity.mjs` ist nur noch ein dünner Wrapper um die
+  logs-Familie; der Ablauf bleibt identisch. `pnpm verify:route-parity` führt
+  alle Familien aus. Regel: jede migrierte Routenfamilie bekommt eine Familie,
+  CI läuft sie alle — ein Slice ist erst fertig, wenn seine Familie grün ist.
+- Die config-Familie deckt Laden mit Redaktion, revisionsgesichertes Speichern,
+  Secret-Rückgewinnung, Persistenz, Stale-Revision und Validierungsfehler ab und
+  ist zustandsneutral (die Mutation aus Schritt 2 wird in Schritt 4
+  zurückgesetzt).
+- Neue CI-Stufe „Route parity against the release binary": startet das
+  Release-Binary in einer Scratch-Umgebung (`GATEWAY_BASE_URL`) und ruft
+  `pnpm run verify:route-parity`.
+
+**S4-Vorbereitung: Gemini-Traffic-Fixture**
+
+- `scripts/fixtures/record-gemini-traffic.mjs` patcht `fetch` vor dem Import des
+  Adapters und fährt den TypeScript-Adapter (`@google/genai`) über fünf Pfade:
+  `fetchModels ok/401`, `testConnectivity ping`, `dispatchGateway text` und
+  `dispatchGateway function call`. Er schreibt
+  `rust/crates/betaclaw-gateway/tests/fixtures/gemini/exchanges.json`.
+- Die Request-Seite ist das Oracle: die SDK-Serialisierung von
+  `systemInstruction` (als Content-Objekt), `contents`-Rollenmapping, `tools`
+  (`functionDeclarations`, `OBJECT`/`STRING`) und `generationConfig` ist gepinnt,
+  damit eine SDK-Aktualisierung laut scheitert (`FIXTURE-FEHLER`) statt still in
+  die Fixture zu driften. `pnpm fixtures:gemini-traffic` ist Teil der
+  CI-Fixture-Frische (`git diff --exit-code`).
+
+**S2-offener Punkt geschlossen: Config-DB-Standardpfad**
+
+- `GatewayConfig::from_env` leitet `gateway_config_db_path` jetzt über
+  `PathResolver::resolve_config_db_path()` ab statt über `resolve_db_path`.
+  Der Standard löst damit wie `resolveGatewayConfigDbPath` (`paths.ts:61-68`)
+  gegen das Prozess-cwd auf, nicht gegen `WORKSPACE_ROOT`; relative Overrides
+  bleiben workspace-relativ. Test
+  `config_db_default_tracks_cwd_when_it_differs_from_the_workspace_root`.
+
+**Verifikation**
+
+| Prüfung                                   | Ergebnis                           |
+| ----------------------------------------- | ---------------------------------- |
+| `cargo test -p betaclaw-core` (Container) | 450 grün, 0 rot (inkl. neuem Test) |
+| `pnpm run rust:fmt:check`                 | sauber                             |
+| `pnpm run typecheck`                      | grün                               |
+| `record-gemini-traffic.mjs`               | 5 Exchanges, deterministisch       |
+
+**Offen**
+
+- Das volle Rust-Gate (`rust:clippy`, Workspace-Tests) und `pnpm run lint` /
+  `pnpm run check` sind für diesen Schritt noch nicht gelaufen; sie gehören in
+  den S4-Abschluss.
+
+### Offene Punkte (konsolidiert)
+
+Register der bewusst offenen Abweichungen und Nacharbeiten, damit sie
+slice-übergreifend nachverfolgbar bleiben.
+
+| ID   | Punkt                                                                                                                                              | Herkunft         | Status                   |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------------------ |
+| OP-1 | `DELETE /api/channels/conversations` bricht in TS die laufende Generierung ab und leert Summary-/Recall-Zustand; der Zustand liegt im Node-Prozess | S3               | offen bis S8             |
+| OP-2 | TS-Metriken und Trace-Logs (`recordInbox*`, `logChatDisplayTrace`) fehlen; `resync` hat keine Wirkung                                              | S3               | offen bis S8             |
+| OP-3 | Ungültiges JSON im Body: Rust-Text von `serde_json` weicht vom V8-Text ab (Personas S2, Messages S3); Status und Form stimmen                      | S2/S3            | bewusst, akzeptiert      |
+| OP-4 | `GET /api/channels/messages?limit=abc`: TS reicht `NaN` durch, Rust nimmt 100                                                                      | S3               | bewusst, akzeptiert      |
+| OP-5 | `PATCH` mit `modelOverride` als Zahl: Rust schreibt die Zahl als Text                                                                              | S3               | bewusst, akzeptiert      |
+| OP-6 | Config-DB-Standardpfad löste gegen `WORKSPACE_ROOT` statt cwd auf                                                                                  | S2-Nacharbeit    | geschlossen (siehe oben) |
+| OP-7 | Alte Datei `crates/betaclaw-gateway/.local/gateway-config.db` liegt noch auf der Platte                                                            | S2-Testisolation | manuell löschbar         |
+| OP-8 | Testname `agrees_with_the_gateway_crate_implementation` (`revision.rs`) passt nicht mehr zum Inhalt                                                | S2-Testisolation | Umbenennen offen         |
+
 ## 8. Befehle
 
 ```powershell
@@ -438,7 +535,9 @@ pnpm rust:clippy            # clippy mit -D warnings
 pnpm rust:fmt:check         # cargo fmt --check
 pnpm fixtures:security-rules    # SECURITY_RULES nach Rust exportieren
 pnpm fixtures:nextauth-token    # Session-Token-Fixture aus dem echten next-auth
+pnpm fixtures:gemini-traffic    # Gemini-HTTP-Traffic als Rust-Fixture aufzeichnen
 pnpm verify:logs-parity     # Rust gegen TypeScript auf /api/logs
+pnpm verify:route-parity    # alle Paritätsfamilien (logs, config) gegen den Gateway
 ```
 
 Der Container-Smoke für die HTTP- und WS-Verträge:
