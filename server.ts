@@ -17,7 +17,7 @@ import {
 import { runGatewayKeepaliveSweep } from './src/server/gateway/keepalive.js';
 import { getPrincipalUserId } from './src/server/auth/principal.js';
 import {
-  applyClientLoopbackMarker,
+  applyLoopbackMarkerForTopology,
   isCrossSiteBrowserRequest,
   isLoopbackAddress,
   shouldAllowAnonymousLocalPrincipal,
@@ -51,6 +51,20 @@ const dev = process.env.NODE_ENV !== 'production';
 // Loopback by default; Docker/compose opt into 0.0.0.0 explicitly via HOSTNAME.
 const hostname = process.env.HOSTNAME || '127.0.0.1';
 const port = parseInt(process.env.PORT || '3000', 10);
+
+// During the Rust migration the axum gateway owns the public listener and this
+// process moves to the internal UI port. It then serves only the UI and the API
+// routes that have not been migrated yet, and never terminates a WebSocket.
+// See docs/RUST_MIGRATION.md.
+const WS_DISABLED = String(process.env.BETACLAW_DISABLE_WS || '').toLowerCase() === 'true';
+
+// Set only when this process sits behind the Rust gateway, which re-derives the
+// marker from its own socket peer and forwards it. The UI process must keep that
+// forwarded value untouched, because its own peer is always the gateway and would
+// therefore report "loopback" for every single request. See
+// `applyLoopbackMarkerForTopology` in src/server/auth/proxyPolicy.ts.
+const TRUST_PROXY_LOOPBACK_MARKER =
+  String(process.env.TRUST_PROXY_LOOPBACK_MARKER || '').toLowerCase() === 'true';
 
 const REQUIRE_AUTH = String(process.env.REQUIRE_AUTH || 'false').toLowerCase() === 'true';
 
@@ -93,6 +107,125 @@ const app = next({
 });
 const handle = app.getRequestHandler();
 
+/**
+ * Mounts the legacy Node WebSocket gateway on /ws.
+ *
+ * Only used while `BETACLAW_DISABLE_WS` is unset. Once the Rust gateway owns
+ * /ws this path is unreachable and is removed together with the remaining
+ * gateway methods, in slice S13. See docs/RUST_MIGRATION.md.
+ */
+async function mountWebSocketServer(
+  server: import('node:http').Server,
+  nextApp: typeof app,
+  nextDev: boolean,
+  bindHost: string,
+  bindPort: number,
+  secret: string,
+  requireAuth: boolean,
+): Promise<void> {
+  const handleNextUpgrade = nextApp.getUpgradeHandler();
+
+  const wss = new WebSocketServer({
+    noServer: true,
+    maxPayload: MAX_PAYLOAD_BYTES,
+  });
+
+  server.on('upgrade', async (req, socket, head) => {
+    let url: URL;
+    try {
+      url = new URL(req.url || '/', `http://${bindHost}:${bindPort}`);
+    } catch {
+      socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    const { pathname } = url;
+
+    // In dev mode Next.js uses its own websocket upgrade paths (HMR).
+    // Delegate all non-gateway upgrades so the browser does not fall back to hard reload loops.
+    if (nextDev && pathname !== '/ws') {
+      handleNextUpgrade(req, socket, head);
+      return;
+    }
+
+    if (pathname !== '/ws') {
+      socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+    const browser: BrowserRequestHeaders = {
+      host: req.headers.host,
+      origin: req.headers.origin,
+      referer: req.headers.referer,
+      secFetchSite: req.headers['sec-fetch-site'],
+    };
+    // Cross-site WebSocket hijacking: a page on another origin must not open /ws with the user's cookies.
+    if (isCrossSiteBrowserRequest(browser)) {
+      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+    const protocolParam = url.searchParams.get('protocol');
+    if (protocolParam !== 'v2') {
+      socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+    const protocol: MethodNamespace = protocolParam;
+
+    try {
+      // Authenticate via NextAuth JWT cookie (same origin, same port)
+      const token = await getToken({
+        req: websocketTokenRequest(req),
+        secret,
+      });
+      let userId: string;
+
+      if (token && typeof token.id === 'string') {
+        userId = token.id;
+      } else if (
+        shouldAllowAnonymousLocalPrincipal({
+          requireAuth,
+          mcApiTokenConfigured: Boolean(process.env.MC_API_TOKEN),
+          socketLoopback: isLoopbackAddress(req.socket.remoteAddress),
+          browser,
+        })
+      ) {
+        // No login required and a loopback-only local client — fall back to the configured single principal.
+        userId = getPrincipalUserId();
+      } else {
+        console.warn(
+          '[gateway] WS auth failed — no valid token (cookie present:',
+          !!req.headers.cookie,
+          ')',
+        );
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+
+      // Check connection limit per user
+      const registry = getClientRegistry();
+      const existing = registry.getByUserId(userId);
+      if (existing.length >= MAX_CONNECTIONS_PER_USER) {
+        socket.write('HTTP/1.1 429 Too Many Connections\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit('connection', ws, req);
+        handleConnection(ws, userId, protocol);
+      });
+    } catch (err) {
+      console.error('[gateway] Upgrade auth error:', err);
+      socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+      socket.destroy();
+    }
+  });
+}
+
 Promise.resolve()
   .then(async () => {
     assertProductionAuthConfig();
@@ -102,121 +235,37 @@ Promise.resolve()
     await bootstrapMessageRuntime();
     await app.prepare();
   })
-  .then(() => {
-    const handleNextUpgrade = app.getUpgradeHandler();
-
+  .then(async () => {
     const server = createServer((req, res) => {
-      // Trust the socket peer only: a client-sent loopback marker is discarded here.
-      applyClientLoopbackMarker(req.headers, req.socket.remoteAddress);
+      applyLoopbackMarkerForTopology(
+        req.headers,
+        req.socket.remoteAddress,
+        TRUST_PROXY_LOOPBACK_MARKER,
+      );
       handle(req, res);
     });
 
-    const wss = new WebSocketServer({
-      noServer: true,
-      maxPayload: MAX_PAYLOAD_BYTES,
-    });
-
-    // ─── WebSocket Upgrade ─────────────────────────────────────
-    server.on('upgrade', async (req, socket, head) => {
-      let url: URL;
-      try {
-        url = new URL(req.url || '/', `http://${hostname}:${port}`);
-      } catch {
-        socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
-        socket.destroy();
-        return;
-      }
-
-      const { pathname } = url;
-
-      // In dev mode Next.js uses its own websocket upgrade paths (HMR).
-      // Delegate all non-gateway upgrades so the browser does not fall back to hard reload loops.
-      if (dev && pathname !== '/ws') {
-        handleNextUpgrade(req, socket, head);
-        return;
-      }
-
-      if (pathname !== '/ws') {
+    if (WS_DISABLED) {
+      // The Rust gateway terminates /ws. Reject any stray upgrade here so a
+      // misrouted client fails loudly instead of hanging.
+      server.on('upgrade', (_req, socket) => {
         socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
         socket.destroy();
-        return;
-      }
-      const browser: BrowserRequestHeaders = {
-        host: req.headers.host,
-        origin: req.headers.origin,
-        referer: req.headers.referer,
-        secFetchSite: req.headers['sec-fetch-site'],
-      };
-      // Cross-site WebSocket hijacking: a page on another origin must not open /ws with the user's cookies.
-      if (isCrossSiteBrowserRequest(browser)) {
-        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-        socket.destroy();
-        return;
-      }
-      const protocolParam = url.searchParams.get('protocol');
-      if (protocolParam !== 'v2') {
-        socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
-        socket.destroy();
-        return;
-      }
-      const protocol: MethodNamespace = protocolParam;
-
-      try {
-        // Authenticate via NextAuth JWT cookie (same origin, same port)
-        const token = await getToken({
-          req: websocketTokenRequest(req),
-          secret: SECRET,
-        });
-        let userId: string;
-
-        if (token && typeof token.id === 'string') {
-          userId = token.id;
-        } else if (
-          shouldAllowAnonymousLocalPrincipal({
-            requireAuth: REQUIRE_AUTH,
-            mcApiTokenConfigured: Boolean(process.env.MC_API_TOKEN),
-            socketLoopback: isLoopbackAddress(req.socket.remoteAddress),
-            browser,
-          })
-        ) {
-          // No login required and a loopback-only local client — fall back to the configured single principal.
-          userId = getPrincipalUserId();
-        } else {
-          console.warn(
-            '[gateway] WS auth failed — no valid token (cookie present:',
-            !!req.headers.cookie,
-            ')',
-          );
-          socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-          socket.destroy();
-          return;
-        }
-
-        // Check connection limit per user
-        const registry = getClientRegistry();
-        const existing = registry.getByUserId(userId);
-        if (existing.length >= MAX_CONNECTIONS_PER_USER) {
-          socket.write('HTTP/1.1 429 Too Many Connections\r\n\r\n');
-          socket.destroy();
-          return;
-        }
-
-        wss.handleUpgrade(req, socket, head, (ws) => {
-          wss.emit('connection', ws, req);
-          handleConnection(ws, userId, protocol);
-        });
-      } catch (err) {
-        console.error('[gateway] Upgrade auth error:', err);
-        socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
-        socket.destroy();
-      }
-    });
+      });
+      console.log('[gateway] WebSocket disabled — the Rust gateway owns /ws');
+    } else {
+      await mountWebSocketServer(server, app, dev, hostname, port, SECRET, REQUIRE_AUTH);
+    }
 
     // ─── Tick / Keepalive ──────────────────────────────────────
-    const tickInterval = setInterval(() => {
-      broadcast('tick', { ts: Date.now() });
-      runGatewayKeepaliveSweep();
-    }, TICK_INTERVAL_MS);
+    // The Rust gateway owns the tick and the keepalive sweep while it owns /ws,
+    // so this process must not run a second heartbeat.
+    const tickInterval = WS_DISABLED
+      ? null
+      : setInterval(() => {
+          broadcast('tick', { ts: Date.now() });
+          runGatewayKeepaliveSweep();
+        }, TICK_INTERVAL_MS);
 
     // ─── Persona Telegram Bot Polling ─────────────────────────
     async function startPersonaBotPollers(): Promise<void> {
@@ -243,7 +292,7 @@ Promise.resolve()
     // ─── Graceful Shutdown ─────────────────────────────────────
     function shutdown() {
       console.log('[gateway] Shutting down...');
-      clearInterval(tickInterval);
+      if (tickInterval) clearInterval(tickInterval);
       stopAllPersonaBotPolling();
       stopSwarmOrchestratorRuntime();
       taskWorkspaceCleanupRuntime.stop();
@@ -277,12 +326,14 @@ Promise.resolve()
         // safe to ignore
       }
 
-      const registry = getClientRegistry();
-      for (const client of registry.getAll()) {
-        try {
-          client.socket.close(1001, 'server shutting down');
-        } catch {
-          // ignore
+      if (!WS_DISABLED) {
+        const registry = getClientRegistry();
+        for (const client of registry.getAll()) {
+          try {
+            client.socket.close(1001, 'server shutting down');
+          } catch {
+            // ignore
+          }
         }
       }
 
@@ -300,8 +351,13 @@ Promise.resolve()
 
     // ─── Start ─────────────────────────────────────────────────
     server.listen(port, hostname, () => {
-      console.log(`[gateway] Server ready on http://${hostname}:${port}`);
-      console.log(`[gateway] WebSocket endpoint: ws://${hostname}:${port}/ws?protocol=v2`);
+      const role = WS_DISABLED ? 'Next.js UI (proxied by the Rust gateway)' : 'gateway';
+      console.log(`[server] ${role} ready on http://${hostname}:${port}`);
+      if (WS_DISABLED) {
+        console.log('[server] /ws is terminated by the Rust gateway, not by this process');
+      } else {
+        console.log(`[gateway] WebSocket endpoint: ws://${hostname}:${port}/ws?protocol=v2`);
+      }
     });
   })
   .catch((error: unknown) => {

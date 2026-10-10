@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CLIENT_LOOPBACK_HEADER,
   applyClientLoopbackMarker,
+  applyLoopbackMarkerForTopology,
   isCrossSiteBrowserRequest,
   isLoopbackAddress,
   isLoopbackHostHeader,
@@ -228,5 +229,38 @@ describe('applyClientLoopbackMarker', () => {
     applyClientLoopbackMarker(headers, null);
 
     expect(headers[CLIENT_LOOPBACK_HEADER]).toBeUndefined();
+  });
+});
+
+describe('applyLoopbackMarkerForTopology', () => {
+  it('derives the marker from the socket peer when this process owns the listener', () => {
+    const loopback: Record<string, string | string[] | undefined> = {};
+    const lan: Record<string, string | string[] | undefined> = {
+      [CLIENT_LOOPBACK_HEADER]: '1',
+    };
+
+    applyLoopbackMarkerForTopology(loopback, LOOPBACK_PEER, false);
+    applyLoopbackMarkerForTopology(lan, LAN_PEER, false);
+
+    expect(loopback[CLIENT_LOOPBACK_HEADER]).toBe('1');
+    // A spoofed value must still be discarded in the direct topology.
+    expect(lan[CLIENT_LOOPBACK_HEADER]).toBeUndefined();
+  });
+
+  // Regression test. Behind the gateway the local peer is always the gateway,
+  // which is loopback. Re-deriving the marker here would mark every request as
+  // loopback and invert the documented "missing marker fails closed" invariant.
+  it('keeps a forwarded marker untouched and does not invent one', () => {
+    const forwardedLoopback: Record<string, string | string[] | undefined> = {
+      [CLIENT_LOOPBACK_HEADER]: '1',
+    };
+    const nothingForwarded: Record<string, string | string[] | undefined> = {};
+
+    applyLoopbackMarkerForTopology(forwardedLoopback, LOOPBACK_PEER, true);
+    applyLoopbackMarkerForTopology(nothingForwarded, LOOPBACK_PEER, true);
+
+    expect(forwardedLoopback[CLIENT_LOOPBACK_HEADER]).toBe('1');
+    // Must stay absent so the policy check fails closed.
+    expect(nothingForwarded[CLIENT_LOOPBACK_HEADER]).toBeUndefined();
   });
 });

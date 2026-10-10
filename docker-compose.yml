@@ -1,3 +1,46 @@
+# ─── BetaClaw Control Plane ──────────────────────────────────────
+#
+# Topology during the Rust migration (see docs/RUST_MIGRATION.md):
+#
+#   browser / CLI ──► gateway (Rust, axum)  :3000  public listener
+#                       ├── /ws    native WebSocket gateway
+#                       ├── /api/* routes already migrated to Rust
+#                       └── everything else ──► web-ui (Next.js) :3001
+#
+# `gateway` owns the public port from slice S0 onwards, so the auth gate and the
+# tenant scope live in exactly one process and ws://host:3000/ws?protocol=v2 is
+# unchanged for the browser client and the CLI. `web-ui` is internal only and
+# disappears as a proxy target in slice S13, when Next.js only serves UI assets.
+
+# Shared runtime environment. The Rust gateway and the Node UI process read the
+# same variables so the session cookie, the loopback marker and the database
+# paths stay consistent across the two implementations.
+x-betaclaw-runtime-env: &runtime-env
+  NODE_ENV: production
+  HOSTNAME: 0.0.0.0
+  # The OAuth callback origin. When GATEWAY_PUBLISHED_PORT is changed, set
+  # NEXTAUTH_URL and APP_URL to the matching host so callbacks resolve.
+  NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+  APP_URL: ${APP_URL:-http://localhost:3000}
+  SWARM_RUNNER: scheduler
+  REQUIRE_AUTH: 'true'
+  NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set a unique NEXTAUTH_SECRET}
+  MODEL_HUB_ENCRYPTION_KEY: ${MODEL_HUB_ENCRYPTION_KEY:?Set a unique MODEL_HUB_ENCRYPTION_KEY}
+  AUTH_DEFAULT_EMAIL: ${AUTH_DEFAULT_EMAIL:?Set AUTH_DEFAULT_EMAIL}
+  AUTH_DEFAULT_PASSWORD: ${AUTH_DEFAULT_PASSWORD:?Set AUTH_DEFAULT_PASSWORD}
+  AUTH_DEFAULT_NAME: ${AUTH_DEFAULT_NAME:-Admin}
+  BETACLAW_EXEC_APPROVALS_REQUIRED: 'true'
+  MEMORY_PROVIDER: postgres
+  WORLD_MODEL_ENABLED: 'true'
+  WORLD_MODEL_MODE: canonical
+  WORLD_MODEL_RUNTIME_ROLE: app
+  WORLD_MODEL_APP_DATABASE_URL: postgresql://world_model_app:${WORLD_MODEL_APP_ROLE_PASSWORD}@postgres:5432/betaclaw
+  WORLD_MODEL_WORKER_DATABASE_URL: postgresql://world_model_worker:${WORLD_MODEL_WORKER_ROLE_PASSWORD}@postgres:5432/betaclaw
+  WORLD_MODEL_DISPATCH_SCOPES: ${WORLD_MODEL_DISPATCH_SCOPES:-}
+  SCHEDULER_HEALTH_TOKEN: ${SCHEDULER_HEALTH_TOKEN:-}
+  OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+  LMSTUDIO_BASE_URL: ${LMSTUDIO_BASE_URL:-http://host.docker.internal:1234/v1}
+
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -32,39 +75,67 @@ services:
       postgres:
         condition: service_healthy
 
-  web:
+  # Rust gateway. Owns the public listener, the WebSocket upgrade, the auth gate
+  # and every API route that has been migrated so far.
+  #
+  # Only the published host port is configurable. The container always listens on
+  # 3000, so `web-ui` and the scheduler keep a fixed upstream target. Set
+  # GATEWAY_PUBLISHED_PORT in `.env.local` when another application already
+  # occupies 3000 on this machine; NEXTAUTH_URL has to be adapted to match,
+  # because it is the OAuth callback origin.
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    image: betaclaw-gateway-local
+    restart: unless-stopped
+    init: true
+    ports:
+      - '127.0.0.1:${GATEWAY_PUBLISHED_PORT:-3000}:3000'
+    environment:
+      <<: *runtime-env
+      PORT: '3000'
+      # Inside the container the upstream UI process is reachable by service name.
+      GATEWAY_UPSTREAM_ORIGIN: http://web-ui:3001
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - app-data:/app/.local
+      - workspaces:/app/workspaces
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      web-ui:
+        condition: service_started
+    healthcheck:
+      test:
+        ['CMD', 'curl', '--fail', '--silent', '--show-error', 'http://127.0.0.1:3000/__rust/health']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Next.js UI plus the API routes that have not been migrated yet. Internal
+  # only: it no longer publishes a port and must not be reached directly.
+  web-ui:
     build: .
     image: betaclaw-local
     restart: unless-stopped
     init: true
-    ports:
-      - '127.0.0.1:3000:3000'
+    expose:
+      - '3001'
+    command: ['node', '--import', 'tsx', 'server.ts']
     extra_hosts:
       - 'host.docker.internal:host-gateway'
-    environment: &runtime
-      NODE_ENV: production
-      HOSTNAME: 0.0.0.0
-      PORT: 3000
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
-      APP_URL: ${NEXTAUTH_URL:-http://localhost:3000}
-      SWARM_RUNNER: scheduler
-      REQUIRE_AUTH: 'true'
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set a unique NEXTAUTH_SECRET}
-      MODEL_HUB_ENCRYPTION_KEY: ${MODEL_HUB_ENCRYPTION_KEY:?Set a unique MODEL_HUB_ENCRYPTION_KEY}
-      AUTH_DEFAULT_EMAIL: ${AUTH_DEFAULT_EMAIL:?Set AUTH_DEFAULT_EMAIL}
-      AUTH_DEFAULT_PASSWORD: ${AUTH_DEFAULT_PASSWORD:?Set AUTH_DEFAULT_PASSWORD}
-      AUTH_DEFAULT_NAME: ${AUTH_DEFAULT_NAME:-Admin}
-      BETACLAW_EXEC_APPROVALS_REQUIRED: 'true'
-      MEMORY_PROVIDER: postgres
-      WORLD_MODEL_ENABLED: 'true'
-      WORLD_MODEL_MODE: canonical
-      WORLD_MODEL_RUNTIME_ROLE: app
-      WORLD_MODEL_APP_DATABASE_URL: postgresql://world_model_app:${WORLD_MODEL_APP_ROLE_PASSWORD}@postgres:5432/betaclaw
-      WORLD_MODEL_WORKER_DATABASE_URL: postgresql://world_model_worker:${WORLD_MODEL_WORKER_ROLE_PASSWORD}@postgres:5432/betaclaw
-      WORLD_MODEL_DISPATCH_SCOPES: ${WORLD_MODEL_DISPATCH_SCOPES:-}
-      SCHEDULER_HEALTH_TOKEN: ${SCHEDULER_HEALTH_TOKEN:-}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      LMSTUDIO_BASE_URL: ${LMSTUDIO_BASE_URL:-http://host.docker.internal:1234/v1}
+    environment:
+      <<: *runtime-env
+      PORT: '3001'
+      # The UI process never accepts the /ws upgrade during the migration; the
+      # Rust gateway terminates it. server.ts only uses this to skip its own
+      # WebSocket server.
+      BETACLAW_DISABLE_WS: 'true'
+      # Set by the gateway through the socket-derived marker; the UI must never
+      # trust a value supplied by the browser.
+      TRUST_PROXY_LOOPBACK_MARKER: 'true'
     volumes:
       - app-data:/app/.local
       - workspaces:/app/workspaces
@@ -72,7 +143,7 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://127.0.0.1:3000/login']
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://127.0.0.1:3001/login']
       interval: 15s
       timeout: 5s
       retries: 10
@@ -85,22 +156,24 @@ services:
     init: true
     command: ['node', '--import', 'tsx', 'scheduler.ts']
     environment:
-      <<: *runtime
+      <<: *runtime-env
       WORLD_MODEL_RUNTIME_ROLE: worker
       SCHEDULER_INSTANCE_ID: scheduler-1
+      # The scheduler health probe moved behind the gateway's public port.
+      APP_URL: http://gateway:3000
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     volumes:
       - app-data:/app/.local
       - workspaces:/app/workspaces
     depends_on:
-      web:
+      gateway:
         condition: service_healthy
     healthcheck:
       test:
         [
           'CMD-SHELL',
-          'if [ -n "$$SCHEDULER_HEALTH_TOKEN" ]; then wget --no-verbose --tries=1 --header="x-scheduler-health-token: $$SCHEDULER_HEALTH_TOKEN" --spider http://web:3000/api/health/scheduler; else wget --no-verbose --tries=1 --spider http://web:3000/api/health/scheduler; fi',
+          'if [ -n "$$SCHEDULER_HEALTH_TOKEN" ]; then wget --no-verbose --tries=1 --header="x-scheduler-health-token: $$SCHEDULER_HEALTH_TOKEN" --spider http://gateway:3000/api/health/scheduler; else wget --no-verbose --tries=1 --spider http://gateway:3000/api/health/scheduler; fi',
         ]
       interval: 15s
       timeout: 5s

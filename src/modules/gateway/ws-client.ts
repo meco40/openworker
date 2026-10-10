@@ -345,6 +345,11 @@ export class GatewayClient {
             frame.error?.message ?? 'Unknown error',
           ) as GatewayClientRequestError;
           requestError.code = frame.error?.code;
+          // Mirror the success path (see requestStream): a stream handler that
+          // is never cleared leaks one entry per failed stream request. This
+          // matters now that Rust answers unimplemented methods with an
+          // INVALID_REQUEST res frame instead of streaming.
+          this.streamHandlers.delete(frame.id);
           pending.reject(requestError);
         }
         break;

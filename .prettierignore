@@ -18,3 +18,6 @@ playwright-report/**
 output/**
 .playwright-cli/**
 /.pnpm-store/
+# Rust build artifacts are formatted by `cargo fmt`, not by Prettier.
+rust/target
+rust/Cargo.lock

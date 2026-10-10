@@ -83,17 +83,39 @@ docker compose -f docker-compose.postgres.yml up -d
 pnpm run world-model:migrate
 ```
 
-2. Start app development stack:
+2. Build the Rust gateway binary once, then start the development stack:
 
 ```powershell
+pnpm run rust:build
+docker create --name betaclaw-gateway-extract betaclaw-gateway-local
+docker cp betaclaw-gateway-extract:/workspace/rust/target/release/betaclaw-gateway rust/target/release/
+docker rm betaclaw-gateway-extract
 pnpm run dev
 ```
 
-3. Start scheduler when automation behavior is in scope:
+`pnpm run dev` starts the Rust gateway on `127.0.0.1:3000`, the Next.js UI on
+port 3001 and the scheduler. The gateway owns the public listener and reverse
+proxies every route that has not been migrated yet. `pnpm run dev:node` keeps
+the previous Node-only stack available for debugging.
 
-```powershell
-pnpm run dev:scheduler
-```
+#### Port conflicts
+
+Port 3000 is only the default, not a fixed contract, because it is frequently
+taken by another application on the machine.
+
+- Development stack: set `GATEWAY_PORT` (or `PORT`) to a free port.
+  `pnpm run dev` probes the port first and aborts with instructions instead of
+  letting the gateway die with a bare "address in use".
+- Compose: set `GATEWAY_PUBLISHED_PORT` in `.env.local`. Only the published host
+  port changes; the container still listens on 3000, so the internal upstream
+  wiring is unaffected.
+- When the published port differs from 3000, also set `NEXTAUTH_URL` and
+  `APP_URL` to the matching origin, because they are the OAuth callback origin.
+- The browser derives its WebSocket URL from the page origin, so no client or
+  frontend configuration has to change for a different port.
+
+3. Start the scheduler separately only when `pnpm run dev:scheduler` is needed
+   for a focused automation run. The default `pnpm run dev` already includes it.
 
 Optional Mem0 compatibility runs require explicit `MEMORY_PROVIDER=mem0`, URL,
 API key and configured LLM/embedding providers. See README for that branch.
@@ -105,6 +127,26 @@ pnpm run mem0:local:ps
 pnpm run mem0:local:down
 ```
 
+### Rust backend rules
+
+The backend is being migrated to Rust. The plan, the slice order and the
+per-slice removal criteria live in `docs/RUST_MIGRATION.md`. While that migration
+is in progress:
+
+- Do not add a Rust dependency when an existing crate in the workspace already
+  covers the need. Check `rust/Cargo.toml` first.
+- Port behaviour, not just signatures. Every Rust module names the TypeScript
+  file it mirrors so drift is reviewable.
+- Verify foreign details instead of assuming them. Session cookies are checked
+  against a fixture generated with the real `next-auth@4.24.15`; shared constants
+  are generated, not transcribed. After changing either, regenerate the fixture
+  and confirm CI's freshness check passes.
+- Never weaken a security boundary: loopback marker, origin policy, RLS scope,
+  exec approvals, webhook signatures and secret handling stay as they are in the
+  TypeScript implementation.
+- Never install a Rust toolchain on the host. Run `cargo` through the pinned
+  container image.
+
 ### Validation workflow (after code changes)
 
 Run focused checks first, then full checks before completion:
@@ -115,6 +157,18 @@ pnpm run lint
 pnpm run test
 pnpm run check
 pnpm run build
+
+# Rust backend
+pnpm run rust:fmt:check
+pnpm run rust:clippy
+pnpm run rust:test
+```
+
+When a slice changes a route that both implementations serve, run the parity
+check as well:
+
+```powershell
+pnpm run verify:logs-parity
 ```
 
 E2E lanes:
@@ -135,15 +189,19 @@ in README in `.env.local`. Compose requires them and keeps admin DB credentials
 in the separate migration service:
 
 ```powershell
-docker compose --env-file .env.local up -d --build web scheduler
-docker compose --env-file .env.local logs -f web scheduler
+docker compose --env-file .env.local up -d --build gateway web-ui scheduler
+docker compose --env-file .env.local logs -f gateway web-ui scheduler
 docker compose --env-file .env.local down
 ```
 
-Compose starts PostgreSQL, migrations/role provisioning, web and scheduler in
-that order. Runtime roles are `world_model_app` and `world_model_worker`; their
-RLS grants are tested separately. Three named volumes hold persistent data;
-`down` preserves them. Follow README's backup/restore requirement before upgrades.
+Compose starts PostgreSQL, migrations and role provisioning, then the Rust
+gateway, the Next.js UI and the scheduler. The gateway is the only service that
+publishes a port; `web-ui` stays internal on 3001. Use
+`GATEWAY_PUBLISHED_PORT` when port 3000 is occupied (see the port conflicts
+section above). Runtime roles are
+`world_model_app` and `world_model_worker`; their RLS grants are tested
+separately. Three named volumes hold persistent data; `down` preserves them.
+Follow README's backup/restore requirement before upgrades.
 The public production smoke creates its own isolated project and empty volumes,
 verifies real login/WebSocket/chat/embeddings and Python/Chromium, then removes
 only that project's volumes. Its HTTP model fixture is not a live-model quality test.
@@ -176,34 +234,11 @@ pnpm run workspaces:cleanup
   4. Whether the request depends on **recency** (if yes, apply the "Accuracy, recency, and sourcing" rules).
   5. If requirements are ambiguous, ask targeted clarifying questions before making irreversible changes.
 
-## CONTINUITY.md (REQUIRED)
+## Migrationsstand
 
-Maintain a single continuity file for the current workspace: `.agent/CONTINUITY.md`.
+Der Stand der Backend-Migration nach Rust wird in `docs/RUST_MIGRATION.md` gepflegt. Dort werden Slices, Testzahlen und offene Punkte in Abschnitt 7 ergänzt. Es gibt keine separate Zustandsdatei mehr. Stand und Begründung kommen aus der Git-Historie und dieser Datei.
 
-- `.agent/CONTINUITY.md` is a living document and canonical briefing designed to survive compaction; do not rely on earlier chat/tool output unless it's reflected there.
-
-- At the start of each assistant turn: read `.agent/CONTINUITY.md` before acting.
-
-### File Format
-
-Update `.agent/CONTINUITY.md` only when there is a meaningful delta in:
-
-- `[PLANS]`: "Plans Log" is a guide for the next contributor as much as checklists for you.
-- `[DECISIONS]`: "Decisions Log" is used to record all decisions made.
-- `[PROGRESS]`: "Progress Log" is used to record course changes mid-implementation, documenting why and reflecting upon the implications.
-- `[DISCOVERIES]`: "Discoveries Log" is for when when you discover optimizer behavior, performance tradeoffs, unexpected bugs, or inverse/unapply semantics that shaped your approach, capture those observations with short evidence snippets (test output is ideal.
-- `[OUTCOMES]`: "Outcomes Log" is used at completion of a major task or the full plan, summarizing what was achieved, what remains, and lessons learned.
-
-### Anti-drift / anti-bloat rules
-
-- Facts only, no transcripts, no raw logs.
-- Every entry must include:
-  - a date in ISO timestamp (e.g., `2026-01-13T09:42Z`)
-  - a provenance tag: `[USER]`, `[CODE]`, `[TOOL]`, `[ASSUMPTION]`
-  - If unknown, write `UNCONFIRMED` (never guess). If something changes, supersede it explicitly (don't silently rewrite history).
-- Keep the file bounded, short and high-signal (anti-bloat).
-- If sections begin to become bloated, compress older items into milestone (`[MILESTONE]`) bullets.
-- Do a Automatic prettier format only on that md file.
+Keine Zeitstempel-/Provenienz-Vorgaben mehr.
 
 ## Definition of done
 
@@ -218,4 +253,4 @@ A task is done when:
 - documentation is updated exhaustively for impacted areas,
 - impact is explained (what changed, where, why),
 - follow-ups are listed if anything was intentionally left out.
-- `.agent/CONTINUITY.md` is updated if the change materially affects goal/state/decisions.
+- docs/RUST_MIGRATION.md ist aktualisiert, wenn sich Slice-Stand, Testzahl oder offene Punkte ändern.

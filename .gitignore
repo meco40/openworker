@@ -79,6 +79,11 @@ __pycache__/
 # pnpm store created by containerized e2e runs
 /.pnpm-store/
 
+# Rust build artifacts. The release binary is produced inside a container and
+# extracted into rust/target/release by `pnpm run rust:build`.
+rust/target/
+rust/**/target/
+
 # Unused legacy avatar assets without verified license provenance
 /public/models/hologram-female.glb
 /public/models/hologram-female-face.gltf
