@@ -1,0 +1,231 @@
+{
+  "exchanges": [
+    {
+      "scenario": "fetchModels ok",
+      "request": {
+        "method": "GET",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models?key=[REDACTED]&pageSize=100",
+        "headers": {},
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "models": [
+            {
+              "name": "models/gemini-2.5-flash",
+              "displayName": "Gemini 2.5 Flash",
+              "inputTokenLimit": 1048576
+            },
+            {
+              "name": "models/gemini-2.5-pro",
+              "displayName": "Gemini 2.5 Pro",
+              "inputTokenLimit": 1048576
+            },
+            {
+              "name": "models/embedding-001",
+              "displayName": "Embedding 001"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "scenario": "fetchModels 401",
+      "request": {
+        "method": "GET",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models?key=[REDACTED]&pageSize=100",
+        "headers": {},
+        "body": null
+      },
+      "response": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": 401,
+            "message": "API key not valid. Please pass a valid API key.",
+            "status": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    {
+      "scenario": "testConnectivity ping",
+      "request": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "headers": {
+          "content-type": "application/json",
+          "x-goog-api-key": "[REDACTED]"
+        },
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "Ping"
+                }
+              ],
+              "role": "user"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {
+                    "text": "pong"
+                  }
+                ],
+                "role": "model"
+              },
+              "finishReason": "STOP"
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 3,
+            "candidatesTokenCount": 1,
+            "totalTokenCount": 4
+          },
+          "modelVersion": "gemini-2.5-flash"
+        }
+      }
+    },
+    {
+      "scenario": "dispatchGateway text",
+      "request": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "headers": {
+          "content-type": "application/json",
+          "x-goog-api-key": "[REDACTED]"
+        },
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "Say pong"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "You are a test."
+              }
+            ],
+            "role": "user"
+          },
+          "generationConfig": {
+            "temperature": 0.5,
+            "maxOutputTokens": 64
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {
+                    "text": "pong"
+                  }
+                ],
+                "role": "model"
+              },
+              "finishReason": "STOP"
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 3,
+            "candidatesTokenCount": 1,
+            "totalTokenCount": 4
+          },
+          "modelVersion": "gemini-2.5-flash"
+        }
+      }
+    },
+    {
+      "scenario": "dispatchGateway function call",
+      "request": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "headers": {
+          "content-type": "application/json",
+          "x-goog-api-key": "[REDACTED]"
+        },
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "Wetter in Berlin?"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "get_weather",
+                  "description": "Current weather for a city",
+                  "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                      "city": {
+                        "type": "STRING",
+                        "description": "City name"
+                      }
+                    },
+                    "required": ["city"]
+                  }
+                }
+              ]
+            }
+          ],
+          "generationConfig": {}
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {
+                    "functionCall": {
+                      "name": "get_weather",
+                      "args": {
+                        "city": "Berlin"
+                      }
+                    }
+                  }
+                ],
+                "role": "model"
+              },
+              "finishReason": "STOP"
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 9,
+            "candidatesTokenCount": 5,
+            "totalTokenCount": 14
+          }
+        }
+      }
+    }
+  ]
+}

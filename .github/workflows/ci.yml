@@ -218,6 +218,7 @@ jobs:
         run: |
           pnpm run fixtures:security-rules
           pnpm run fixtures:nextauth-token
+          pnpm run fixtures:gemini-traffic
           git diff --exit-code -- rust/crates/betaclaw-gateway/src/fixtures rust/crates/betaclaw-gateway/tests/fixtures
 
       - name: Check formatting
@@ -235,6 +236,32 @@ jobs:
       - name: Build release binary
         working-directory: rust
         run: cargo build --release --locked
+
+      - name: Route parity against the release binary
+        env:
+          GATEWAY_BASE_URL: http://127.0.0.1:3999
+        run: |
+          SCRATCH="$(mktemp -d)"
+          PORT=3999 \
+          NODE_ENV=development \
+          REQUIRE_AUTH=false \
+          WORKSPACE_ROOT="$SCRATCH" \
+          GATEWAY_CONFIG_DB_PATH="$SCRATCH/.local/gateway-config.db" \
+          LOGS_DB_PATH="$SCRATCH/.local/logs.db" \
+          ./rust/target/release/betaclaw-gateway &
+          GATEWAY_PID=$!
+          cleanup() { kill "$GATEWAY_PID" 2>/dev/null || true; rm -rf "$SCRATCH"; }
+          trap cleanup EXIT
+
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3999/__rust/health >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3999/__rust/health >/dev/null
+
+          pnpm run verify:route-parity
 
   test-unit:
     name: Unit + Integration Tests
