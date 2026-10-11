@@ -52,6 +52,21 @@ impl From<rusqlite::Error> for MemoryError {
     }
 }
 
+/// A PostgreSQL seam failure is a storage failure.
+///
+/// The World-Model slice moved `PgExecutor`/`PgSession` and the two scoped
+/// wrappers into `world_model::db`, where they report
+/// [`PgError`](crate::world_model::db::PgError) instead of a memory error so the
+/// World-Model module does not depend on this slice. This conversion keeps every
+/// `?` in `memory/postgres.rs` working and keeps the observed error kind: the
+/// TypeScript provider also logs a `pg` error as a storage failure
+/// (`postgresMemoryClient.ts:304-309`).
+impl From<crate::world_model::db::PgError> for MemoryError {
+    fn from(error: crate::world_model::db::PgError) -> Self {
+        MemoryError::Storage(error.into_message())
+    }
+}
+
 impl From<serde_json::Error> for MemoryError {
     fn from(error: serde_json::Error) -> Self {
         MemoryError::Storage(format!("JSON error: {error}"))

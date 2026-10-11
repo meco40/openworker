@@ -192,6 +192,19 @@ pub fn encrypt_secret_with_iv(
     })
 }
 
+/// Port of `encryptSecret` (`crypto.ts:30`) with the `crypto.randomBytes(12)` IV.
+///
+/// `service/provider/connect.ts:9` and `service/provider/refresh.ts:34-35` both
+/// call the IV-less `encryptSecret`; this is that function, wired to the same
+/// CSPRNG the PKCE and nonce draws use.
+pub fn encrypt_secret(secret: &str, key: &str) -> Result<EncryptedSecretPayload, CryptoError> {
+    let iv: [u8; NONCE_LEN] = random_bytes(NONCE_LEN)?
+        .as_slice()
+        .try_into()
+        .map_err(|_| CryptoError::RandomUnavailable)?;
+    encrypt_secret_with_iv(secret, key, "default", &iv)
+}
+
 /// Port of `toBase64Url` (`oauth.ts:14`): base64url without padding.
 pub fn to_base64_url(bytes: &[u8]) -> String {
     URL_SAFE_NO_PAD.encode(bytes)
@@ -397,5 +410,20 @@ mod tests {
         let first = random_bytes(NONCE_BYTES).expect("csprng");
         let second = random_bytes(NONCE_BYTES).expect("csprng");
         assert_ne!(first, second);
+    }
+
+    /// `encryptSecret` (the IV-less form used by `connect.ts` and `refresh.ts`)
+    /// round-trips and draws a fresh IV each time.
+    #[test]
+    fn encrypt_secret_round_trips_with_a_fresh_iv() {
+        let first = encrypt_secret(PLAINTEXT, UTF8_KEY).expect("encrypt");
+        let second = encrypt_secret(PLAINTEXT, UTF8_KEY).expect("encrypt");
+        assert_eq!(first.alg, "aes-256-gcm");
+        assert_eq!(first.key_id, "default");
+        assert_ne!(first.iv, second.iv);
+        assert_eq!(
+            decrypt_secret(&first, UTF8_KEY).expect("decrypt"),
+            PLAINTEXT
+        );
     }
 }

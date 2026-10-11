@@ -1,7 +1,7 @@
 # Backend-Migration nach Rust
 
 Status: in Umsetzung · Worktree `E:\web\clawtest-rust` (Branch `rust`, von `6dcdd322`)
-Letzte Aktualisierung: 2026-10-10
+Letzte Aktualisierung: 2026-10-11
 
 Ziel: Das produktive Backend gehört Rust. HTTP, WebSocket, Auth, Geschäftslogik,
 Datenzugriff, Integrationen sowie Scheduler und Hintergrundjobs. Next.js/React/TypeScript
@@ -95,28 +95,64 @@ Pro Slice gilt: Die TypeScript-Implementierung bleibt bestehen, bis Vertrags- un
 Integrationstests die Parität belegen. Das Entfernungskriterium wird nach jedem Slice in
 dieser Datei fortgeschrieben.
 
-**Slice-Status** (Legende: ✅ abgeschlossen · 🚧 in Arbeit · ▢ offen)
+### Abschlusskriterien pro Slice
 
-| Slice | Thema                                                              | Status |
-| ----- | ------------------------------------------------------------------ | ------ |
-| S0    | Fundament                                                          | ✅     |
-| S1    | Transport, Auth, Gateway-WS, Observability                         | ✅     |
-| S2    | Config, Gateway-Config, Personas, Security-Routen                  | ✅     |
-| S3    | Messages/Conversations/Inbox/Sessions-Store                        | ✅     |
-| S4    | Model Hub                                                          | ✅     |
-| S5    | Memory                                                             | ✅     |
-| S6    | World Model                                                        | ▢      |
-| S7    | Knowledge                                                          | ▢      |
-| S8    | Chat-Dispatch, Recall, Subagents, Tool-Loop                        | ▢      |
-| S9    | Master                                                             | ▢      |
-| S10   | Tasks, Workspaces, Agents, Automation                              | ▢      |
-| S11   | Skills-Handler und Exec-Freigaben                                  | ▢      |
-| S12   | Stats, Clawhub, Proactive, Debug, Files, Ops, Agent-v2, Agent-Room | ▢      |
-| S13   | Endzustand                                                         | ▢      |
+Jeder Slice wird anhand von vier unabhängigen Kriterien bewertet. Ein Slice ist erst
+**abgeschlossen, wenn alle vier Kriterien erfüllt und belegt sind**. Eine vorhandene
+Rust-Datei, grüne Unit-Tests oder ein konfigurierter Rust-Listener reichen dafür nicht.
 
-Der Feingrad je Slice (welche Routen/Methoden migriert sind, welche bewusst beim Proxy
-bleiben) steht in den Fortschrittsnotizen in Abschnitt 7. Die offenen Abweichungen sind
-im Register „Offene Punkte" am Ende von Abschnitt 7 gebündelt.
+| Kriterium             | Erfüllt, wenn …                                                                                                                                                   | Erforderlicher Nachweis                                                                                                                                                                                                          |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Code portiert         | Der vereinbarte Funktionsumfang einschließlich Fehlerpfaden vollständig in Rust vorliegt; fehlende Methoden, Platzhalter und Teilportierungen sind geschlossen.   | Quellenzuordnung, geprüfter Umfang sowie erfolgreiche relevante Tests, Formatierung, Clippy und Build.                                                                                                                           |
+| Runtime angeschlossen | Die echten Aufrufer den Rust-Code über Routen, WS-Methoden oder Worker erreichen und produktive Transport-, Datenbank- und Lifecycle-Implementierungen verwenden. | Ausführbarer Integrationspfad mit realer Persistenz bzw. Transport; Test-Doubles allein genügen nicht. Ein transparenter HTTP-Proxy belegt keine Rust-Implementierung.                                                           |
+| Verhalten verglichen  | TypeScript und Rust für denselben Umfang bei gleichen Eingaben gleiches beobachtbares Verhalten zeigen.                                                           | Vertrags-/Differenztests für Antworten, Fehler und Seiteneffekte; je nach Slice auch Auth/RLS, Abbruch, Streaming, Transaktionen, Wiederholung und Neustart. Migrierte HTTP-Routenfamilien benötigen eine grüne Paritätsfamilie. |
+| Umschaltung erprobt   | Der betreffende Pfad tatsächlich auf Rust umgeschaltet, im Zielbetrieb geprüft und der Rückweg erprobt wurde.                                                     | Umgebung, Revision, Datum, E2E-/Smoke-Ergebnis und Rückfallnachweis; vor Entfernung einer alten Route zusätzlich eine störungsfreie produktive Release-Phase gemäß `rust/crates/betaclaw-gateway/src/routes/mod.rs`.             |
+
+**Statuswerte:** `erfüllt` = Nachweis deckt den vollständigen Umfang ab;
+`teilweise` = Implementierung oder Nachweis deckt nur einen Teil ab;
+`offen` = bekannte fehlende Umsetzung;
+`nicht belegt` = kein ausreichender Nachweis dokumentiert (keine Aussage über einen Fehlschlag).
+
+Bewusste Verhaltensabweichungen müssen im Register mit betroffenen Fällen und
+Begründung festgehalten und im Vergleich explizit geprüft werden. Offene funktionale
+Abweichungen verhindern den Abschluss. Verschobene Funktionen brauchen einen benannten
+Ziel-Slice und bleiben als Abhängigkeit sichtbar; eine fehlende Zuordnung gilt nicht
+als erledigt. Fortschritt nach Dateizahl, LOC oder Testzahl ist kein Abschlusskriterium.
+
+### Statusmatrix
+
+Stand: 2026-10-11. Grundlage sind der aktuelle Code und die in Abschnitt 7 dokumentierten
+Nachweise. Frühere Angaben „abgeschlossen“ für S0–S5 werden durch diese Matrix ersetzt;
+historische Prüfergebnisse bleiben erhalten. Es wird kein neuer Live-Test behauptet.
+
+| Slice | Thema                                                              | Code portiert | Runtime angeschlossen | Verhalten verglichen | Umschaltung erprobt | Beleg / verbleibende Grenze                                                                                                                     |
+| ----- | ------------------------------------------------------------------ | ------------- | --------------------- | -------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| S0    | Fundament                                                          | erfüllt       | erfüllt               | teilweise            | nicht belegt        | Gateway, Proxy und Compose verdrahtet; Container-Smoke in Abschnitt 7. Kein vollständiger Umschalt-/Rückfallnachweis.                           |
+| S1    | Transport, Auth, Gateway-WS, Observability                         | erfüllt       | erfüllt               | teilweise            | nicht belegt        | Logs-Parität, Auth-Fixtures und Transporttests vorhanden; kein vollständiger Vergleich des S1-Umfangs dokumentiert. `chat.*` gehört zu S8.      |
+| S2    | Config, Gateway-Config, Personas, Security                         | teilweise     | teilweise             | teilweise            | nicht belegt        | Config-Paritätsfamilie vorhanden; Persona-Schreib-/Template-Routen weiter im Proxy, vollständige Routenparität fehlt.                           |
+| S3    | Messages, Conversations, Inbox, Sessions-Store                     | teilweise     | teilweise             | nicht belegt         | nicht belegt        | Stores und ausgewählte Routen nativ; Abbruch/Recall und Metriken offen (OP-1/OP-2), keine eigene HTTP-Paritätsfamilie.                          |
+| S4    | Model Hub                                                          | teilweise     | offen                 | teilweise            | nicht belegt        | 15 Adapter und Gemini-Fixture vorhanden; API/Runtime, OAuth/Refresh und produktiver HTTP-Transport fehlen (OP-9/OP-11/OP-12/OP-16).             |
+| S5    | Memory                                                             | teilweise     | offen                 | nicht belegt         | nicht belegt        | Provider und Service-Tests vorhanden; Runtime/API und Randmodule offen (OP-10/OP-13). Unit-Tests belegen keine vollständige TS/Rust-Parität.    |
+| S6    | World Model                                                        | teilweise     | offen                 | nicht belegt         | nicht belegt        | Repositories und Teilbereiche portiert; Services, Worker, Factory/Bridges fehlen. Keine vollständige Vertrags-/Live-Integrationsparität belegt. |
+| S7    | Knowledge                                                          | offen         | offen                 | nicht belegt         | nicht belegt        | Im Plan offen.                                                                                                                                  |
+| S8    | Chat-Dispatch, Recall, Subagents, Tool-Loop                        | offen         | offen                 | nicht belegt         | nicht belegt        | `chat.send`, `chat.stream` und `chat.abort` fehlen im Rust-Dispatcher.                                                                          |
+| S9    | Master                                                             | offen         | offen                 | nicht belegt         | nicht belegt        | Im Plan offen.                                                                                                                                  |
+| S10   | Tasks, Workspaces, Agents, Automation                              | offen         | offen                 | nicht belegt         | nicht belegt        | Im Plan offen.                                                                                                                                  |
+| S11   | Skills-Handler und Exec-Freigaben                                  | offen         | offen                 | nicht belegt         | nicht belegt        | Im Plan offen.                                                                                                                                  |
+| S12   | Stats, Clawhub, Proactive, Debug, Files, Ops, Agent-v2, Agent-Room | offen         | offen                 | nicht belegt         | nicht belegt        | Im Plan offen.                                                                                                                                  |
+| S13   | Endzustand                                                         | offen         | offen                 | nicht belegt         | nicht belegt        | Rust-Scheduler, endgültige Umschaltung und Entfernung des TS-Backends stehen aus.                                                               |
+
+Die Runtime-Bewertung von S0/S1 betrifft nur deren beschriebenen Umfang: Ein nativer
+WS-Transport bedeutet keinen funktionsfähigen Rust-Chat. Fehlende WS-Methoden werden
+derzeit mit `Unknown method` beantwortet, nicht an TypeScript weitergereicht
+(`rust/crates/betaclaw-gateway/src/gateway_methods.rs`).
+
+Bei jeder Statusänderung wird in Abschnitt 7 ein Nachweis mit Slice, Kriterium,
+genauem Funktionsumfang, Revision (bei lokalen Änderungen einschließlich Dirty-Status),
+Datum, Umgebung, Befehl/Test und Ergebnis ergänzt. Restlücken verweisen auf das
+Register „Offene Punkte“. Alte Ergebnisse werden nicht auf neueren Code übertragen.
+Die in Abschnitt 7 beschriebenen Routen-/Methodengrenzen bleiben maßgeblich; offene
+Slice-Zuordnungen werden durch diese Statuskorrektur nicht stillschweigend entschieden.
 
 ## 5. Slice S0 und S1 im Detail
 
@@ -202,7 +238,19 @@ fassen Memory, Knowledge und Stats an und gehören in S5 bis S7.
 
 ## 7. Fortschrittsnotizen
 
-### 2026-10-10 — S0 und S1 abgeschlossen
+### 2026-10-11 — Abschlusskriterien und Statusmatrix korrigiert
+
+- Umfang: Dokumentation für S0–S13; Worktree `E:\web\clawtest-rust`, Basis
+  `3ec489e5`, mit uncommittierten S6-Änderungen. Keine Runtime-Umschaltung.
+- Die vier Kriterien in Abschnitt 4 ersetzen die pauschalen Abschlussmarkierungen.
+  Grundlage sind die bisherigen Prüfnotizen, der Gateway-Router und -Dispatcher
+  sowie OP-1 bis OP-16. Fehlende Nachweise sind ausdrücklich als solche markiert.
+- Dokumentationsprüfung: Prettier für diesen Plan und `.agent/CONTINUITY.md` sowie
+  `git diff --check -- docs/RUST_MIGRATION.md` erfolgreich. Der Container konnte
+  die Windows-Installation von Prettier nicht auflösen; verwendet wurde die bereits
+  installierte lokale Version. Keine neuen Backend-, Paritäts- oder Live-Tests.
+
+### 2026-10-10 — S0 und S1 implementiert (historischer Stand)
 
 **S0 Fundament**
 
@@ -509,7 +557,7 @@ war korrekt.
   `pnpm run check` sind für diesen Schritt noch nicht gelaufen; sie gehören in
   den S4-Abschluss.
 
-### 2026-10-10 — S4 Model Hub und S5 Memory abgeschlossen
+### 2026-10-10 — S4 Model Hub und S5 Memory: Bibliotheksport (historischer Stand)
 
 **S4 Model Hub: 15 von 15 Katalog-Einträgen auflösen**
 
@@ -517,14 +565,14 @@ war korrekt.
   `get_provider_adapter` auf; `DEFERRED_PROVIDER_IDS` ist leer
   (`model_hub/providers/mod.rs:143` und `:165`). Ein neues Assert
   (`providers/mod.rs:188-192`, „S4 is closed: no catalog entry is deferred any
-  more") macht den Slice-Abschluss zu einer Testaussage statt zu Prosa.
+  more") belegt die Katalogabdeckung, nicht den vollständigen Slice-Abschluss.
 - Neu in diesem Schnitt: `providers/cohere.rs` (1377 Zeilen, Cohere v2 mit eigener
   `message.content[]`/`usage.tokens`-Form, hartem 60-s-Dispatch-Timeout und
   statischer Modell-Discovery über `/v2/models`) und
   `providers/openai_codex/**` (20 Dateien, 5036 Zeilen: eigenes
   Responses-Wire-Format gegen `chatgpt.com/backend-api/codex/responses`,
   SSE-Parser, `chatgpt-account-id`-Header aus dem Access-Token-JWT,
-  Usage- und Rate-Limit-Parser). Beide sind **end-to-end nativ**, also ohne
+  Usage- und Rate-Limit-Parser). Beide verwenden **eigene Rust-Adapter**, also ohne
   Nutzung der gemeinsamen OpenAI-kompatiblen Schicht.
 - `service/**` (`gateway.rs`, `chat.rs`, `embedding.rs`, `pipeline.rs`,
   `refresh.rs`) war schon portiert; die Behauptung im Header von

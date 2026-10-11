@@ -9,12 +9,14 @@ pub mod config;
 pub mod db;
 pub mod gateway;
 pub mod gateway_config;
+pub mod js;
 pub mod logging;
 pub mod memory;
 pub mod messages_store;
 pub mod model_hub;
 pub mod personas;
 pub mod security;
+pub mod world_model;
 
 /// Formats an error without ever including secret values from the environment.
 ///

@@ -7,6 +7,7 @@
 
 pub mod auth_gate;
 pub mod gateway_methods;
+pub mod model_hub_transport;
 pub mod proxy;
 pub mod routes;
 pub mod state;

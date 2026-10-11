@@ -6,15 +6,15 @@
 //!
 //! The TypeScript function reaches for two implicit collaborators — the JWT
 //! expiry check and the token refresh, both from `src/server/model-hub/codexAuth.ts`.
-//! That module is not ported yet (it is an HTTP client for the OpenAI Codex
-//! token endpoint and belongs with the `openai-codex` adapter), so both are
-//! injected through [`CodexTokenRefresher`] instead of being duplicated here.
-//! The default implementation reports "not expiring soon", which makes the port
-//! behave exactly like TypeScript in the overwhelmingly common case of an
-//! account whose access token is still valid; a refresh-capable implementation
-//! drops in without touching the control flow below.
+//! That module is now ported ([`crate::model_hub::codex_auth`], closing OP-12), so
+//! both are injected through [`CodexTokenRefresher`]: [`OpenAICodexTokenRefresher`]
+//! is the production wiring over an [`HttpTransport`], and [`NoCodexRefresh`] is
+//! the no-op fallback for tests. The trait is part of this module because it is
+//! the seam the dispatch path consumes.
 
 use crate::model_hub::crypto::{decrypt_secret, encrypt_secret_with_iv, mask_secret, random_bytes};
+use crate::model_hub::env::EnvOverrides;
+use crate::model_hub::http::{BoxFuture, HttpTransport};
 use crate::model_hub::repository::ModelHubRepository;
 use crate::model_hub::types::{
     EncryptedSecretPayloadJson, ProviderAccountRecord, ProviderAuthMethod,
@@ -44,10 +44,17 @@ pub trait CodexTokenRefresher: Send + Sync {
     fn is_jwt_expiring_soon(&self, access_token: &str) -> bool;
 
     /// `refreshOpenAICodexToken(refreshToken)`.
-    fn refresh(&self, refresh_token: &str) -> Result<RefreshedCodexToken, String>;
+    ///
+    /// Returns a boxed future so a real HTTP refresh can be awaited without
+    /// pulling `async-trait` into the workspace; the default implementation is
+    /// still a synchronous `Err`.
+    fn refresh<'a>(
+        &'a self,
+        refresh_token: &'a str,
+    ) -> BoxFuture<'a, Result<RefreshedCodexToken, String>>;
 }
 
-/// The default: no refresh happens, because `codexAuth.ts` is not ported.
+/// The fallback used by tests and by callers that do not wire a transport.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NoCodexRefresh;
 
@@ -56,8 +63,52 @@ impl CodexTokenRefresher for NoCodexRefresh {
         false
     }
 
-    fn refresh(&self, _refresh_token: &str) -> Result<RefreshedCodexToken, String> {
-        Err("OpenAI Codex token refresh is not available in this build.".to_string())
+    fn refresh<'a>(
+        &'a self,
+        _refresh_token: &'a str,
+    ) -> BoxFuture<'a, Result<RefreshedCodexToken, String>> {
+        Box::pin(async {
+            Err("OpenAI Codex token refresh is not available in this build.".to_string())
+        })
+    }
+}
+
+/// The production refresher: `codexAuth.ts` over an injected transport.
+///
+/// It closes OP-12 — `service/provider/refresh.ts` now has a real, non-no-op
+/// implementation of the two collaborators. Construct it where the gateway owns
+/// the HTTP client.
+pub struct OpenAICodexTokenRefresher<'a> {
+    pub transport: &'a dyn HttpTransport,
+    pub env: &'a EnvOverrides,
+}
+
+impl CodexTokenRefresher for OpenAICodexTokenRefresher<'_> {
+    fn is_jwt_expiring_soon(&self, access_token: &str) -> bool {
+        crate::model_hub::codex_auth::is_jwt_expiring_soon(
+            access_token,
+            crate::model_hub::codex_auth::DEFAULT_EXPIRY_BUFFER_SECONDS,
+        )
+    }
+
+    fn refresh<'a>(
+        &'a self,
+        refresh_token: &'a str,
+    ) -> BoxFuture<'a, Result<RefreshedCodexToken, String>> {
+        Box::pin(async move {
+            crate::model_hub::codex_auth::refresh_open_ai_codex_token(
+                self.transport,
+                refresh_token,
+                self.env,
+                crate::model_hub::oauth::now_ms(),
+            )
+            .await
+            .map(|refreshed| RefreshedCodexToken {
+                access_token: refreshed.access_token,
+                refresh_token: refreshed.refresh_token,
+            })
+            .map_err(|error| error.to_string())
+        })
     }
 }
 
@@ -94,7 +145,7 @@ pub async fn maybe_refresh_open_ai_codex_account(
         return Ok(account.clone());
     }
 
-    let refreshed = match refresher.refresh(&current_refresh_token) {
+    let refreshed = match refresher.refresh(&current_refresh_token).await {
         Ok(refreshed) => refreshed,
         // `catch { return account }` — a failed refresh is never fatal.
         Err(_) => return Ok(account.clone()),
@@ -238,10 +289,15 @@ mod tests {
             fn is_jwt_expiring_soon(&self, _access_token: &str) -> bool {
                 true
             }
-            fn refresh(&self, _refresh_token: &str) -> Result<RefreshedCodexToken, String> {
-                Ok(RefreshedCodexToken {
-                    access_token: "new-access".to_string(),
-                    refresh_token: "new-refresh".to_string(),
+            fn refresh<'a>(
+                &'a self,
+                _refresh_token: &'a str,
+            ) -> BoxFuture<'a, Result<RefreshedCodexToken, String>> {
+                Box::pin(async {
+                    Ok(RefreshedCodexToken {
+                        access_token: "new-access".to_string(),
+                        refresh_token: "new-refresh".to_string(),
+                    })
                 })
             }
         }
@@ -270,8 +326,11 @@ mod tests {
             fn is_jwt_expiring_soon(&self, _access_token: &str) -> bool {
                 true
             }
-            fn refresh(&self, _refresh_token: &str) -> Result<RefreshedCodexToken, String> {
-                Err("refresh failed".to_string())
+            fn refresh<'a>(
+                &'a self,
+                _refresh_token: &'a str,
+            ) -> BoxFuture<'a, Result<RefreshedCodexToken, String>> {
+                Box::pin(async { Err("refresh failed".to_string()) })
             }
         }
 

@@ -23,6 +23,7 @@ use serde_json::Value;
 
 use crate::model_hub::http::AbortSignal;
 use crate::model_hub::openai_compatible::StreamDeltaCallback;
+use crate::model_hub::types::ProviderAuthMethod;
 
 /// `EMBEDDING_PROFILE_ID` from `service/utils.ts:3`.
 pub const EMBEDDING_PROFILE_ID: &str = "p1-embeddings";
@@ -100,6 +101,19 @@ impl fmt::Display for EmbeddingOperation {
 pub struct EmbeddingInput {
     pub operation: EmbeddingOperation,
     pub payload: Value,
+}
+
+/// `ConnectProviderAccountInput` from `service/types.ts:21-28`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectProviderAccountInput {
+    pub provider_id: String,
+    pub label: String,
+    pub auth_method: ProviderAuthMethod,
+    pub secret: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_token: Option<String>,
+    pub encryption_key: String,
 }
 
 /// `DispatchWithFallbackOptions` from `service/types.ts:48-52`.

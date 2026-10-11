@@ -1,13 +1,16 @@
 //! Port of `src/server/model-hub/service/pipeline/get.ts`.
 //!
-//! Only `listPipeline` is ported here: it is the one pipeline read the dispatch
-//! path and the four callers that gate slice S4a need. The write operations of
-//! `service/pipeline/update.ts` (`addModelToPipeline`, `removeModelFromPipeline`,
-//! `updateModelStatus`, `movePipelineModel`) are exercised by the pipeline
-//! routes and stay with the route slice, because they exist only to serve them.
+//! The four reads/writes of `get.ts`: `listPipeline` (`get.ts:7-12`),
+//! `addModelToPipeline` (`get.ts:14-19`), `removeModelFromPipeline`
+//! (`get.ts:21-23`) and `updateModelStatus` (`get.ts:25-31`).
+//!
+//! `service/pipeline/update.ts` (`movePipelineModel`, `replacePipeline`) lives in
+//! the child module [`update`].
+
+pub mod update;
 
 use crate::model_hub::repository::{ModelHubRepository, RepositoryError};
-use crate::model_hub::types::PipelineModelEntry;
+use crate::model_hub::types::{CreatePipelineModelInput, PipelineModelEntry, PipelineStatus};
 
 /// `listPipeline(repository, profileId)` from `pipeline/get.ts:7-12`.
 ///
@@ -20,6 +23,31 @@ pub fn list_pipeline(
     profile_id: &str,
 ) -> Result<Vec<PipelineModelEntry>, RepositoryError> {
     repository.list_pipeline_models(profile_id)
+}
+
+/// `addModelToPipeline(repository, input)` from `pipeline/get.ts:14-19`.
+pub fn add_model_to_pipeline(
+    repository: &dyn ModelHubRepository,
+    input: CreatePipelineModelInput,
+) -> Result<PipelineModelEntry, RepositoryError> {
+    repository.add_pipeline_model(input)
+}
+
+/// `removeModelFromPipeline(repository, modelId)` from `pipeline/get.ts:21-23`.
+pub fn remove_model_from_pipeline(
+    repository: &dyn ModelHubRepository,
+    model_id: &str,
+) -> Result<bool, RepositoryError> {
+    repository.remove_pipeline_model(model_id)
+}
+
+/// `updateModelStatus(repository, modelId, status)` from `pipeline/get.ts:25-31`.
+pub fn update_model_status(
+    repository: &dyn ModelHubRepository,
+    model_id: &str,
+    status: PipelineStatus,
+) -> Result<(), RepositoryError> {
+    repository.update_pipeline_model_status(model_id, status)
 }
 
 #[cfg(test)]

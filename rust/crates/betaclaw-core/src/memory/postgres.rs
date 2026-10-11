@@ -28,7 +28,7 @@
 //! | `postgresMemoryClient.ts:503-567` (`deleteMemory`)              | [`PostgresMemoryClient::delete_memory`] |
 //! | `postgresMemoryClient.ts:569-630` (`deleteMemoriesByFilter`)    | [`PostgresMemoryClient::delete_memories_by_filter`] |
 //! | `postgresMemoryClient.ts:632-650` (`countMemories`)             | [`PostgresMemoryClient::count_memories`] |
-//! | `world-model/db.ts:30-48` (`normalizedScope`, `setDatabaseScope`) | [`NormalizedScope`], [`set_database_scope`] |
+//! | `world-model/db.ts:30-48` (`normalizedScope`, `setDatabaseScope`) | [`NormalizedScope`], [`crate::world_model::db::set_database_scope`] (S6) |
 //! | `world-model/db.ts:51-85` (`runWithWorldModelScope`, `queryWithScope`) | [`scoped_query`] |
 //! | `world-model/db.ts:204-229` (`withWorldModelTransaction`)       | [`run_scoped`] |
 //! | `world-model/retrieval/vector.ts:33-116` (`vectorSearch`)       | [`PostgresMemoryClient::vector_search`], [`VectorHit`] |
@@ -172,7 +172,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use serde_json::{Map, Number, Value};
+use serde_json::{Number, Value};
 use uuid::Uuid;
 
 use crate::memory::errors::{pick_record, trimmed_text, MemoryError};
@@ -202,151 +202,38 @@ const UNKNOWN_INSERT_CONFLICT: &str =
 /// `postgresMemoryClient.ts:439` and `:522`.
 const MEMORY_NOT_FOUND_PREFIX: &str = "Memory node not found: ";
 
-/// Returned by [`drive_sync`] on a current-thread tokio runtime, which cannot be
-/// blocked without dead-locking it.
-const SYNC_BRIDGE_MESSAGE: &str = "PostgresMemoryClient cannot be driven synchronously from a \
-current-thread tokio runtime; call the async methods instead.";
+// ─── The PostgreSQL seam (moved to the World Model slice in S6) ─────────────
 
-/// The failure of [`UnconfiguredPgExecutor`]: the caller handed over no pool.
-pub const UNCONFIGURED_EXECUTOR_MESSAGE: &str =
-    "No PostgreSQL executor is configured for the canonical memory provider.";
-
-/// One positional parameter of a `pg` statement.
+/// The seam types now live in `world_model/db.rs`.
 ///
-/// The variants mirror what the TypeScript passes (`values` of every
-/// `db.query(text, values)` call in `postgresMemoryClient.ts:180-626`): `string`,
-/// `number`, `boolean`, `null` and `string[]`. `pg` encodes every parameter as
-/// text and leaves the type to the statement — the explicit casts (`$11::jsonb`,
-/// `$1::vector`, `$4::text[]`, `$9::boolean`) are part of the SQL text, and the
-/// rest is inferred from the column context. A driver binds the variants that
-/// way; the distinction the contract tests assert is the JavaScript one, so an
-/// integral number is [`PgValue::Int64`] and a fractional one
-/// [`PgValue::Float64`] (see `postgresMemoryClient.ts:210-213` and `:465-475`).
-#[derive(Debug, Clone, PartialEq)]
-pub enum PgValue {
-    /// `null` — `pg` sends it as a NULL of unknown type for the casts to fix.
-    Null,
-    Text(String),
-    Int64(i64),
-    Float64(f64),
-    Bool(bool),
-    /// `$4::text[]` / `ANY($1::text[])` parameters.
-    TextArray(Vec<String>),
-}
-
-impl PgValue {
-    pub fn text(value: impl Into<String>) -> Self {
-        PgValue::Text(value.into())
-    }
-
-    pub fn int(value: i64) -> Self {
-        PgValue::Int64(value)
-    }
-
-    pub fn float(value: f64) -> Self {
-        PgValue::Float64(value)
-    }
-
-    pub fn boolean(value: bool) -> Self {
-        PgValue::Bool(value)
-    }
-
-    pub fn text_array(values: Vec<String>) -> Self {
-        PgValue::TextArray(values)
-    }
-
-    /// `value || null` — a `None` is the `null` the TypeScript forwards, not an
-    /// omitted parameter, because positional binding requires every placeholder.
-    pub fn nullable_text(value: Option<String>) -> Self {
-        match value {
-            Some(text) => PgValue::Text(text),
-            None => PgValue::Null,
-        }
-    }
-
-    /// `include?.length ? [...include] : null` — `retrieval/vector.ts:98-99`.
-    pub fn nullable_text_array(values: Option<Vec<String>>) -> Self {
-        match values {
-            Some(values) => PgValue::TextArray(values),
-            None => PgValue::Null,
-        }
-    }
-}
-
-/// One statement of the port: the SQL text and the positional parameters.
+/// Until S6 this file declared them, because the memory provider was the first
+/// port that needed a pool. The module header of that version promised the move
+/// (`postgres.rs` "the seam is deliberately reversible") and the TypeScript home
+/// of the seam has always been `world-model/db.ts:18-28`. S6 performed it; every
+/// name below is the same definition as before, so nothing in this file — or in
+/// its 222 tests — changed shape. The only difference is the error type:
+/// `world_model::db::PgError` instead of `MemoryError`, which
+/// [`crate::memory::errors`] converts in one `From` implementation.
 ///
-/// `pg` receives exactly this pair in `query(text, values)`; the port keeps them
-/// together so a caller can log or replay a statement without reassembling it.
-#[derive(Debug, Clone, PartialEq)]
-pub struct PgStatement {
-    pub sql: String,
-    pub params: Vec<PgValue>,
-}
+/// [`PgRow`] and [`PgQueryResult`] keep their extra memory-only accessor here,
+/// because no World-Model statement needs it.
+pub use crate::world_model::db::{
+    drive_sync, NoQueryEmbedder, NormalizedScope, PgError, PgExecutor, PgQueryResult, PgRow,
+    PgSession, PgStatement, PgValue, QueryEmbedder, UnconfiguredPgExecutor, SQL_BEGIN, SQL_COMMIT,
+    SQL_ROLLBACK, SQL_SET_SCOPE, SYNC_BRIDGE_MESSAGE, UNCONFIGURED_EXECUTOR_MESSAGE,
+};
 
-impl PgStatement {
-    /// A parameterless statement — `BEGIN`, `COMMIT`, `ROLLBACK`
-    /// (`db.ts:70,73,77,212,215,219`) and the scope call's siblings.
-    pub fn new(sql: impl Into<String>) -> Self {
-        Self {
-            sql: sql.into(),
-            params: Vec::new(),
-        }
-    }
+/// The `(db) => …` callback of the memory provider: the same shape as
+/// [`crate::world_model::db::ScopedBody`], with this provider's error type.
+type ScopedBody<T> =
+    Box<dyn FnOnce(Arc<dyn PgSession>) -> BoxFuture<'static, Result<T, MemoryError>> + Send>;
 
-    pub fn with_params(sql: impl Into<String>, params: Vec<PgValue>) -> Self {
-        Self {
-            sql: sql.into(),
-            params,
-        }
-    }
-}
-
-/// `QueryResultRow` from `pg` — the untyped column map of one row.
-///
-/// `CanonicalMemoryRow` (`postgresMemoryClient.ts:29-46`) and
-/// `CanonicalHistoryRow` (`:48-54`) are the column contracts of the two shapes
-/// the port reads; the accessors below read them by name, exactly like
-/// TypeScript property access does.
-pub type PgRow = Map<String, Value>;
-
-/// `QueryResult` from `pg`, reduced to what the statements of the client read.
-///
-/// `rowCount` is the row count of a `SELECT` and the affected count of a write,
-/// which is what `updateMemory` compares against `1`
-/// (`postgresMemoryClient.ts:483`).
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct PgQueryResult {
-    pub rows: Vec<PgRow>,
-    pub row_count: i64,
-}
-
+/// `result.rows[0]?.id` — `postgresMemoryClient.ts:182`, `:192`, `:221`, `:240`.
 impl PgQueryResult {
-    pub fn empty() -> Self {
-        Self::default()
-    }
-
-    /// A result whose `rowCount` is `rows.length`, like `pg` reports a `SELECT`.
-    pub fn from_rows(rows: Vec<PgRow>) -> Self {
-        Self {
-            row_count: rows.len() as i64,
-            rows,
-        }
-    }
-
-    /// A result without rows — an `UPDATE`/`INSERT`/`DELETE` reply.
-    pub fn affected(row_count: i64) -> Self {
-        Self {
-            rows: Vec::new(),
-            row_count,
-        }
-    }
-
-    /// `result.rows[0]`.
-    pub fn first(&self) -> Option<&PgRow> {
-        self.rows.first()
-    }
-
-    /// `result.rows[0]?.id` — `postgresMemoryClient.ts:182`, `:192`, `:221`, `:240`.
+    /// The first row's `id` as text, or `None` when there is no row or no id.
+    ///
+    /// The memory-only extension of [`crate::world_model::db::PgQueryResult`]
+    /// (see the note above); `first()` itself comes from the World-Model module.
     pub fn first_id(&self) -> Option<String> {
         self.first()
             .and_then(|row| row.get("id"))
@@ -355,84 +242,11 @@ impl PgQueryResult {
     }
 }
 
-/// One checked-out connection — `pg`'s `PoolClient`.
-///
-/// The methods are async and take `&self`, so an implementation can hand out an
-/// `Arc` of itself (`sqlx`'s `PoolConnection` works exactly like that).
-pub trait PgSession: Send + Sync {
-    /// `client.query(text, values)` of `db.ts:72`, `:214` and `:72`'s siblings.
-    fn query<'a>(
-        &'a self,
-        statement: PgStatement,
-    ) -> BoxFuture<'a, Result<PgQueryResult, MemoryError>>;
+// The seam traits (`PgSession`, `PgExecutor`) and `UnconfiguredPgExecutor` now
+// come from `world_model::db` — see the re-export block above.
 
-    /// `client.release()` in the `finally` block of `db.ts:83` and `db.ts:225`.
-    ///
-    /// An implementation that returns the connection to its pool when the
-    /// [`Arc`] is dropped (the `sqlx` behaviour) answers with an empty body; the
-    /// port calls it on every path, so a recording implementation can assert it.
-    fn release(&self);
-}
-
-/// The seam between this port and a real PostgreSQL pool — `pg`'s `Pool`.
-///
-/// Two capabilities, because `db.ts` uses exactly two: `pool.connect()` inside
-/// the scoped wrappers and `pool.query()` on the unscoped path of
-/// `countMemories` (`db.ts:107-110`).
-pub trait PgExecutor: Send + Sync {
-    /// `pool.connect()` — `db.ts:68`, `:182`, `:210`.
-    fn connect<'a>(&'a self) -> BoxFuture<'a, Result<Arc<dyn PgSession>, MemoryError>>;
-
-    /// `pool.query(text, values)` — `db.ts:109`, the no-scope branch.
-    fn query<'a>(
-        &'a self,
-        statement: PgStatement,
-    ) -> BoxFuture<'a, Result<PgQueryResult, MemoryError>>;
-}
-
-/// An executor that fails every statement, mirroring
-/// [`UnreachableTransport`](crate::model_hub::http::UnreachableTransport).
-///
-/// The PostgreSQL stack arrives with S6; until a caller injects a real pool this
-/// keeps the failure explicit instead of silently returning rows.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct UnconfiguredPgExecutor;
-
-impl PgExecutor for UnconfiguredPgExecutor {
-    fn connect<'a>(&'a self) -> BoxFuture<'a, Result<Arc<dyn PgSession>, MemoryError>> {
-        Box::pin(async { Err(MemoryError::storage(UNCONFIGURED_EXECUTOR_MESSAGE)) })
-    }
-
-    fn query<'a>(
-        &'a self,
-        _statement: PgStatement,
-    ) -> BoxFuture<'a, Result<PgQueryResult, MemoryError>> {
-        Box::pin(async { Err(MemoryError::storage(UNCONFIGURED_EXECUTOR_MESSAGE)) })
-    }
-}
-
-/// The embedding step of the semantic search branch of `searchMemories`.
-///
-/// `postgresMemoryClient.ts:267-270` reads
-/// `getConfiguredEmbeddingProvider()` (sync, `provider.ts:92-95`) and then awaits
-/// `generateEmbeddingOnce(provider, input.query)` (`provider.ts:17-34`). The port
-/// folds the two into one call: `Ok(None)` is "no provider is configured" — the
-/// `if (provider && …)` guard of `:268` — and `Err` is the throw the surrounding
-/// `catch` of `:304-309` logs before the lexical fallback.
-pub trait QueryEmbedder: Send + Sync {
-    fn embed<'a>(&'a self, text: &'a str) -> BoxFuture<'a, Result<Option<Vec<f64>>, MemoryError>>;
-}
-
-/// The embedder of an installation without a configured provider: every query
-/// takes the lexical path, like `getConfiguredEmbeddingProvider() === null`.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct NoQueryEmbedder;
-
-impl QueryEmbedder for NoQueryEmbedder {
-    fn embed<'a>(&'a self, _text: &'a str) -> BoxFuture<'a, Result<Option<Vec<f64>>, MemoryError>> {
-        Box::pin(async { Ok(None) })
-    }
-}
+// `QueryEmbedder` and `NoQueryEmbedder` also come from `world_model::db`; the
+// embedding provider of `embeddings/provider.ts` is a World-Model concept.
 
 /// `VectorHit` from `world-model/retrieval/vector.ts:14-21`.
 #[derive(Debug, Clone, PartialEq)]
@@ -472,19 +286,8 @@ importance, confidence, lifecycle_status, version, metadata,
 idempotency_key, legacy_provider, legacy_provider_id,
 created_at, updated_at";
 
-/// `BEGIN` — `world-model/db.ts:70`, `:154`, `:212`.
-const SQL_BEGIN: &str = "BEGIN";
-/// `COMMIT` — `world-model/db.ts:73`, `:158`, `:215`.
-const SQL_COMMIT: &str = "COMMIT";
-/// `ROLLBACK` — `world-model/db.ts:77`, `:161`, `:219`.
-const SQL_ROLLBACK: &str = "ROLLBACK";
-
-/// `setDatabaseScope` — `world-model/db.ts:43-47`.
-///
-/// `docs/RUST_MIGRATION.md:199-201`: this statement must precede the work of
-/// every scoped transaction, because the RLS policies read the session settings
-/// it sets.
-const SQL_SET_SCOPE: &str = "SELECT world_model_set_scope($1, $2, $3)";
+// `BEGIN`, `COMMIT`, `ROLLBACK` and the scope call come from `world_model::db`
+// (`SQL_BEGIN`, `SQL_COMMIT`, `SQL_ROLLBACK`, `SQL_SET_SCOPE`).
 
 /// `addMemory` idempotency pre-check — `postgresMemoryClient.ts:176-179`.
 const SQL_ADD_MEMORY_IDEMPOTENCY: &str = "\
@@ -699,19 +502,8 @@ OFFSET ${next} LIMIT ${limit}"
 
 // ─── Scope ──────────────────────────────────────────────────────────────────
 
-/// `Required<Mem0Scope>` — what `normalizedScope` produces (`db.ts:30-36`) and
-/// what `scopeFrom` returns (`postgresMemoryClient.ts:72-82`).
-///
-/// The three fields are the three parameters of
-/// `world_model_set_scope($1, $2, $3)` and therefore the tenant key of every RLS
-/// policy: an empty `workspace_id` is still an explicit `''`, never a missing
-/// parameter (see `normalizedScope`, which fills the optional workspace).
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct NormalizedScope {
-    pub user_id: String,
-    pub persona_id: String,
-    pub workspace_id: String,
-}
+// `NormalizedScope` (`Required<Mem0Scope>`, `db.ts:30-36`) now lives in
+// `world_model::db`; the memory slice re-exports it above.
 
 /// `scopeFrom({ userId, personaId, workspaceId })` —
 /// `postgresMemoryClient.ts:72-82`.
@@ -762,88 +554,43 @@ fn scope_from_memory_input(input: &Mem0MemoryInput, scope: Option<&Mem0Scope>) -
     scope_from_parts(&input.user_id, &input.persona_id, Some(&workspace_id))
 }
 
-/// `setDatabaseScope(client, scope)` — `world-model/db.ts:38-48`.
-///
-/// The single statement that makes the RLS policies of the following work see
-/// this tenant (`docs/RUST_MIGRATION.md:199-201`).
-async fn set_database_scope(
-    session: &dyn PgSession,
-    scope: &NormalizedScope,
-) -> Result<(), MemoryError> {
-    session
-        .query(PgStatement::with_params(
-            SQL_SET_SCOPE,
-            vec![
-                PgValue::text(scope.user_id.as_str()),
-                PgValue::text(scope.persona_id.as_str()),
-                PgValue::text(scope.workspace_id.as_str()),
-            ],
-        ))
-        .await
-        .map(|_| ())
-}
-
 // ─── Transactions ───────────────────────────────────────────────────────────
+//
+// `setDatabaseScope`, `withWorldModelTransaction` and `queryWithScope` are the
+// wrappers of `world-model/db.ts`. They now live in `world_model::db` as
+// `set_database_scope`, `run_scoped` and `scoped_query`, because they are the
+// shared contract of every World-Model repository and not a memory detail.
+// Their behaviour is unchanged.
+//
+// The `pg` seam reports `world_model::db::PgError`, while this provider keeps
+// `MemoryError` as its error surface. The two adapters below are the only
+// difference: they delegate and let the generic error parameter of the shared
+// wrappers convert the kind, which [`crate::memory::errors`] maps to
+// `MemoryError::Storage` — the same kind the TypeScript provider produces for a
+// `pg` failure. `setDatabaseScope` needs no adapter: it is only ever called
+// inside `run_scoped`.
 
-/// The `(db) => …` callback of `withWorldModelTransaction` (`db.ts:204-207`),
-/// boxed so the port can hand the session over as an owned [`Arc`] — the
-/// `db.ts` callback receives the `PoolClient` of the transaction in the same way.
-type ScopedBody<T> =
-    Box<dyn FnOnce(Arc<dyn PgSession>) -> BoxFuture<'static, Result<T, MemoryError>> + Send>;
-
-/// `withWorldModelTransaction(callback, scope)` — `world-model/db.ts:204-229`.
-///
-/// Acquire a connection, run `BEGIN` → scope → work → `COMMIT`, roll back on
-/// failure and always release, like the `try`/`catch`/`finally` of the source.
+/// `withWorldModelTransaction(callback, scope)` — delegates to
+/// [`crate::world_model::db::run_scoped`].
 async fn run_scoped<T: Send + 'static>(
     executor: &dyn PgExecutor,
     scope: Option<&NormalizedScope>,
     body: ScopedBody<T>,
 ) -> Result<T, MemoryError> {
-    let session = executor.connect().await?;
-    let outcome = scoped_transaction(Arc::clone(&session), scope, body).await;
-    if outcome.is_err() {
-        // `catch (error) { try { await client.query('ROLLBACK') } catch … }` —
-        // a failing rollback must not replace the original error (`db.ts:217-222`).
-        let _ = session.query(PgStatement::new(SQL_ROLLBACK)).await;
-    }
-    session.release();
-    outcome
+    crate::world_model::db::run_scoped::<T, MemoryError>(executor, scope, body).await
 }
 
-/// The `try` block of [`run_scoped`], split out so the `?` chain stays readable.
-async fn scoped_transaction<T: Send + 'static>(
-    session: Arc<dyn PgSession>,
-    scope: Option<&NormalizedScope>,
-    body: ScopedBody<T>,
-) -> Result<T, MemoryError> {
-    session.query(PgStatement::new(SQL_BEGIN)).await?;
-    if let Some(scope) = scope {
-        set_database_scope(session.as_ref(), scope).await?;
-    }
-    let value = body(Arc::clone(&session)).await?;
-    session.query(PgStatement::new(SQL_COMMIT)).await?;
-    Ok(value)
-}
-
-/// `queryWithScope(pool, text, values, scope)` — `world-model/db.ts:62-85`.
-///
-/// The shape of every statement the client runs while
-/// `runWithWorldModelScope` is active: one statement, its own scoped
-/// transaction, because the TypeScript wraps each `getWorldModelDb().query(...)`
-/// call individually (`db.ts:107-110`).
+/// `queryWithScope(pool, text, values, scope)` — delegates to
+/// [`crate::world_model::db::scoped_query`].
 async fn scoped_query(
     executor: &dyn PgExecutor,
     scope: &NormalizedScope,
     statement: PgStatement,
 ) -> Result<PgQueryResult, MemoryError> {
-    run_scoped(
-        executor,
-        Some(scope),
-        Box::new(move |session| Box::pin(async move { session.query(statement).await })),
-    )
-    .await
+    crate::world_model::db::scoped_query::<MemoryError>(executor, scope, statement).await
 }
+// above, because they are the shared contract of every World-Model repository
+// and not a memory detail. Their behaviour is unchanged.
 
 // ─── Values ─────────────────────────────────────────────────────────────────
 
@@ -1980,33 +1727,10 @@ fn to_hit(record: Mem0MemoryRecord) -> Mem0SearchHit {
 
 // ─── The synchronous `Mem0Client` contract ──────────────────────────────────
 
-/// Drives one operation future to completion for the synchronous [`Mem0Client`]
-/// contract (deviation 8).
-///
-/// Three cases, exactly like the bridge of `Mem0HttpClient`:
-///
-/// * inside a multi-threaded runtime the current worker is released with
-///   `block_in_place` and the future is driven through the runtime handle;
-/// * inside a current-thread runtime the driver *is* the calling thread, so
-///   blocking would dead-lock it — [`SYNC_BRIDGE_MESSAGE`] is returned and the
-///   caller has to use the async methods;
-/// * outside any runtime a temporary current-thread runtime is created, which is
-///   what a plain `#[test]` or a blocking gateway thread does.
-fn drive_sync<T>(future: impl std::future::Future<Output = T>) -> Result<T, MemoryError> {
-    match tokio::runtime::Handle::try_current() {
-        Ok(handle) if handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread => {
-            Ok(tokio::task::block_in_place(|| handle.block_on(future)))
-        }
-        Ok(_) => Err(MemoryError::message(SYNC_BRIDGE_MESSAGE)),
-        Err(_) => {
-            let runtime = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .map_err(|error| MemoryError::storage(format!("tokio runtime: {error}")))?;
-            Ok(runtime.block_on(future))
-        }
-    }
-}
+// `drive_sync` (the Rust-only bridge for the synchronous `Mem0Client` contract)
+// moved to `world_model::db`, because the World-Model services bridge the same
+// way; it is re-exported above and still returns the same
+// `SYNC_BRIDGE_MESSAGE` text on a current-thread runtime.
 
 /// `PostgresMemoryClient` as the provider the rest of the slice consumes.
 ///
@@ -2095,8 +1819,8 @@ mod tests {
     }
 
     /// The scripted answer of one statement: a result or the failure the driver
-    /// would report as `MemoryError::Storage`.
-    type Reply = Box<dyn Fn(&PgStatement) -> Result<PgQueryResult, MemoryError> + Send + Sync>;
+    /// would report, which the provider converts to `MemoryError::Storage`.
+    type Reply = Box<dyn Fn(&PgStatement) -> Result<PgQueryResult, PgError> + Send + Sync>;
 
     struct FakeSession {
         state: Arc<FakeState>,
@@ -2107,7 +1831,7 @@ mod tests {
         fn query<'a>(
             &'a self,
             statement: PgStatement,
-        ) -> BoxFuture<'a, Result<PgQueryResult, MemoryError>> {
+        ) -> BoxFuture<'a, Result<PgQueryResult, PgError>> {
             let state = Arc::clone(&self.state);
             let reply = Arc::clone(&self.reply);
             Box::pin(async move {
@@ -2134,7 +1858,7 @@ mod tests {
 
     impl FakeExecutor {
         fn new(
-            reply: impl Fn(&PgStatement) -> Result<PgQueryResult, MemoryError> + Send + Sync + 'static,
+            reply: impl Fn(&PgStatement) -> Result<PgQueryResult, PgError> + Send + Sync + 'static,
         ) -> Self {
             Self {
                 state: Arc::new(FakeState::default()),
@@ -2175,7 +1899,7 @@ mod tests {
     }
 
     impl PgExecutor for FakeExecutor {
-        fn connect<'a>(&'a self) -> BoxFuture<'a, Result<Arc<dyn PgSession>, MemoryError>> {
+        fn connect<'a>(&'a self) -> BoxFuture<'a, Result<Arc<dyn PgSession>, PgError>> {
             let state = Arc::clone(&self.state);
             let reply = Arc::clone(&self.reply);
             Box::pin(
@@ -2186,7 +1910,7 @@ mod tests {
         fn query<'a>(
             &'a self,
             statement: PgStatement,
-        ) -> BoxFuture<'a, Result<PgQueryResult, MemoryError>> {
+        ) -> BoxFuture<'a, Result<PgQueryResult, PgError>> {
             let state = Arc::clone(&self.state);
             let reply = Arc::clone(&self.reply);
             Box::pin(async move {
@@ -2205,15 +1929,15 @@ mod tests {
     struct FailingExecutor;
 
     impl PgExecutor for FailingExecutor {
-        fn connect<'a>(&'a self) -> BoxFuture<'a, Result<Arc<dyn PgSession>, MemoryError>> {
-            Box::pin(async { Err(MemoryError::storage("connection refused")) })
+        fn connect<'a>(&'a self) -> BoxFuture<'a, Result<Arc<dyn PgSession>, PgError>> {
+            Box::pin(async { Err(PgError::new("connection refused")) })
         }
 
         fn query<'a>(
             &'a self,
             _statement: PgStatement,
-        ) -> BoxFuture<'a, Result<PgQueryResult, MemoryError>> {
-            Box::pin(async { Err(MemoryError::storage("connection refused")) })
+        ) -> BoxFuture<'a, Result<PgQueryResult, PgError>> {
+            Box::pin(async { Err(PgError::new("connection refused")) })
         }
     }
 
@@ -2255,16 +1979,13 @@ mod tests {
     }
 
     impl QueryEmbedder for RecordingEmbedder {
-        fn embed<'a>(
-            &'a self,
-            text: &'a str,
-        ) -> BoxFuture<'a, Result<Option<Vec<f64>>, MemoryError>> {
+        fn embed<'a>(&'a self, text: &'a str) -> BoxFuture<'a, Result<Option<Vec<f64>>, PgError>> {
             self.seen
                 .lock()
                 .expect("embedder log")
                 .push(text.to_string());
             let result = if self.fails {
-                Err(MemoryError::message("embedding unavailable"))
+                Err(PgError::new("embedding unavailable"))
             } else {
                 Ok(self.embedding.clone())
             };
@@ -3638,7 +3359,7 @@ persona_id = $2 AND workspace_id = $3 AND deleted_at IS NULL AND content ILIKE '
     async fn a_failing_statement_rolls_back_and_releases_the_connection() {
         let executor = Arc::new(FakeExecutor::new(|statement| {
             if statement.sql == SQL_ADD_MEMORY_INSERT {
-                return Err(MemoryError::storage(
+                return Err(PgError::new(
                     "duplicate key value violates unique constraint",
                 ));
             }

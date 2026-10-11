@@ -139,6 +139,7 @@ use std::time::Duration;
 use http::Method;
 use serde_json::{json, Map, Value};
 
+use crate::js::js_number_str;
 use crate::memory::errors::{pick_number, pick_record, pick_string, MemoryError};
 use crate::memory::sqlite::client::Mem0Client;
 use crate::memory::types::{
@@ -314,39 +315,6 @@ fn first_truthy_number<const N: usize>(values: [f64; N]) -> Option<f64> {
     values
         .into_iter()
         .find(|value| *value != 0.0 && !value.is_nan())
-}
-
-/// `Number(text)` for the environment strings of `client.ts:299-322`.
-///
-/// Reproduced: surrounding whitespace is trimmed, `''` is `0`,
-/// `'Infinity'`/`'-Infinity'` are the infinities (JavaScript matches those
-/// spellings case-sensitively), the `0x`/`0b`/`0o` literals parse in their base,
-/// and everything else that `f64::from_str` would accept but JavaScript rejects
-/// (`inf`, `infinity`, `nan`, any case) is `NaN`.
-fn js_number_str(text: &str) -> f64 {
-    let trimmed = text.trim();
-    if trimmed.is_empty() {
-        return 0.0;
-    }
-    match trimmed {
-        "Infinity" | "+Infinity" => return f64::INFINITY,
-        "-Infinity" => return f64::NEG_INFINITY,
-        _ => {}
-    }
-    let lowered = trimmed.to_ascii_lowercase();
-    for (prefix, radix) in [("0x", 16), ("0b", 2), ("0o", 8)] {
-        if let Some(digits) = lowered.strip_prefix(prefix) {
-            return u64::from_str_radix(digits, radix)
-                .map(|value| value as f64)
-                .unwrap_or(f64::NAN);
-        }
-    }
-    match lowered.as_str() {
-        // `Number('inf')` is `NaN`; Rust's `f64::from_str` returns infinity.
-        "inf" | "+inf" | "infinity" | "+infinity" | "-inf" | "-infinity" | "nan" | "+nan"
-        | "-nan" => f64::NAN,
-        _ => trimmed.parse::<f64>().unwrap_or(f64::NAN),
-    }
 }
 
 /// `Number(value)` for a JSON value, with [`js_number_str`] in the string case.
