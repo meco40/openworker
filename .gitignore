@@ -48,6 +48,7 @@ coverage/
 
 .worktrees/
 .tmp/
+.cargo-logs/
 .playwright-mcp/
 .playwright-cli/
 playwright-report/
