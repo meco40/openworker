@@ -12,8 +12,7 @@
 //! [`CODEX_MODEL_SEED`] is duplicated here *and* in
 //! [`crate::model_hub::provider_catalog::CODEX_MODEL_SEED`], because the catalog
 //! spreads the same list into `defaultModels` (`providerCatalog.ts:33`). The
-//! catalog module documents that duplication as an S4c obligation; the
-//! consistency test lives with the catalog copy.
+//! catalog module documents that duplication and owns the consistency test.
 
 /// `CODEX_BASE_URL` from `constants.ts:1`.
 pub const CODEX_BASE_URL: &str = "https://chatgpt.com/backend-api";

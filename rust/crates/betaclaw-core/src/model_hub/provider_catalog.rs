@@ -13,7 +13,7 @@
 //! `openai-codex` spreads `CODEX_MODEL_SEED` from
 //! `src/server/model-hub/Models/openai-codex/constants.ts:12-34`. The seed is
 //! duplicated here rather than imported so this module has no dependency on the
-//! Codex adapter; S4c must keep both lists in sync.
+//! Codex adapter; the two lists must stay in sync.
 
 use std::sync::LazyLock;
 

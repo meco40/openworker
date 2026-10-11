@@ -231,7 +231,7 @@ pub enum HttpError {
 /// The seam between the provider adapters and a real HTTP client.
 ///
 /// `betaclaw-core` has no HTTP client dependency; the gateway crate owns
-/// `reqwest`/`hyper` and implements this trait in S4b.
+/// `reqwest`/`hyper` and still owes this trait (OP-16).
 pub trait HttpTransport: Send + Sync {
     fn send<'a>(&'a self, request: HttpRequest) -> BoxFuture<'a, Result<HttpResponse, HttpError>>;
 }

@@ -12,7 +12,7 @@
 //! | [`ollama`], [`opencode`] | own model discovery, OpenAI-compatible dispatch |
 //! | [`openai`], [`openrouter`], [`lmstudio`], [`mistral`], [`kimi`], [`zai`], [`bytedance`] | pure configuration of the shared OpenAI-compatible layer |
 //!
-//! `cohere` and `openai-codex` were the last two entries; they landed in S4b/S4c.
+//! `cohere` and `openai-codex` were the last two entries and closed S4.
 //! [`DEFERRED_PROVIDER_IDS`] is therefore empty, and the two lists together cover
 //! all fifteen catalog ids.
 //!

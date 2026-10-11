@@ -262,8 +262,9 @@ struct ToolCallAccumulator {
 /// The TypeScript version reads the body incrementally and splits on `\n\n`. This
 /// accumulator performs exactly the same split-and-fold, but the caller decides
 /// how much text to push at a time, so the gateway can feed it chunk by chunk once
-/// the streaming client lands in S4b. Feeding the whole body in one `push` — which
-/// is what this slice does — yields the same text, usage and tool calls.
+/// the streaming client is wired to a real transport (OP-16). Feeding the whole
+/// body in one `push` — which is what this slice does — yields the same text,
+/// usage and tool calls.
 #[derive(Debug, Default)]
 pub struct SseAccumulator {
     buffer: String,
@@ -783,7 +784,7 @@ mod tests {
     }
 
     /// Feeding the accumulator one byte at a time must produce the same result as
-    /// one big push, which is what makes the incremental client in S4b safe.
+    /// one big push, which is what makes a later incremental client safe.
     #[test]
     fn incremental_and_batched_parsing_agree() {
         let body = concat!(

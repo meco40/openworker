@@ -534,10 +534,10 @@ war korrekt.
   sind gegen die `HttpTransport`-Naht getestet. Die **produktive**
   `HttpTransport`-Implementierung fehlt weiterhin — im Workspace existieren nur
   Test-Doubles und der Platzhalter `UnreachableTransport` (`http.rs:235`, `:244`;
-  kein `reqwest`-Impl in `betaclaw-gateway`). Der Kommentar `http.rs:234`
-  verschiebt sie auf „S4b", ein Label, das der Plan nicht kennt. Solange sie
-  fehlt, ist `dispatch_gateway` außerhalb der Tests nicht aufrufbar — das ist
-  OP-16, nicht Teil dieses Abschlusses.
+  kein `reqwest`-Impl in `betaclaw-gateway`). Der Kommentar `http.rs:233-234`
+  benennt die Lücke jetzt als offenen Punkt statt als „S4b" — ein Slice-Label,
+  das der Plan nicht kennt. Solange sie fehlt, ist `dispatch_gateway` außerhalb
+  der Tests nicht aufrufbar — das ist OP-16, nicht Teil dieses Abschlusses.
 
 **S5 Memory: 18 Module, 49 Service-Tests**
 
@@ -678,7 +678,7 @@ slice-übergreifend nachverfolgbar bleiben.
 | OP-13 | Memory-Randmodule ohne Gegenstück: `mem0EmbedderSync.ts:263,346`, `src/core/memory/index.ts:18,54`, `src/core/memory/gemini.ts:3,29`                                                                                                                                                                                                                                                                        | S5               | offen bis S6/S7                     |
 | OP-14 | S4/S5 migrieren keine Route, also gibt es keine neue Paritätsfamilie; `/api/model-hub/**` und `/api/memory` laufen weiter über den Proxy                                                                                                                                                                                                                                                                    | S4/S5            | bewusst, akzeptiert                 |
 | OP-15 | `Mem0Client`/`MemoryRepository` liegen in `memory/sqlite/` statt in provider-neutralen Modulen; Verschiebung ohne Formänderung offen                                                                                                                                                                                                                                                                        | S5               | offen, formstabil                   |
-| OP-16 | Produktive `HttpTransport`-Implementierung fehlt: nur Test-Doubles und `UnreachableTransport` (`http.rs:244`), kein `reqwest`-Impl in `betaclaw-gateway`. `dispatch_gateway` ist außerhalb der Tests nicht aufrufbar; `http.rs:234` verschiebt sie auf ein „S4b", das der Plan nicht kennt                                                                                                                  | S4               | offen bis S8                        |
+| OP-16 | Produktive `HttpTransport`-Implementierung fehlt: nur Test-Doubles und `UnreachableTransport` (`http.rs:244`), kein `reqwest`-Impl in `betaclaw-gateway`. `dispatch_gateway` ist außerhalb der Tests nicht aufrufbar; die Kommentare nennen dafür jetzt OP-16 statt eines „S4b", das der Plan nicht kennt                                                                                                   | S4               | offen bis S8                        |
 
 ## 8. Befehle
 
