@@ -23,8 +23,14 @@ http-body-util = "0.1"
 hyper = { version = "1", features = ["client", "http1", "server"] }
 hyper-util = { version = "0.1", features = ["client", "client-legacy", "http1", "server", "tokio"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "stream", "charset", "http2"] }
-# Needed by the OpenAI Codex rate-limit header parsers in S4c, which contain
-# word boundaries, alternation and capture groups that cannot be hand-written.
+# Needed by the Memory modules (word boundaries, alternation and status-code
+# patterns in `memory/poisoning.rs`, `memory/subject.rs`, `memory/mem0.rs`,
+# `memory/errors.rs`, `memory/service.rs`, `memory/sqlite/client.rs`) and by the
+# Model Hub files that hand-port JavaScript patterns
+# (`openai_compatible/utils.rs`, `providers/anthropic.rs`,
+# `providers/opencode.rs`, `providers/openai_codex/parsers/rate_limit_parser.rs`):
+# they contain word boundaries, alternation and capture groups that cannot be
+# hand-written.
 regex = "1"
 rusqlite = { version = "0.40", features = ["bundled"] }
 scrypt = "0.12"

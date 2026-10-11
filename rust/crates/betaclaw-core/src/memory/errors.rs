@@ -104,13 +104,17 @@ pub fn pick_string(value: Option<&serde_json::Value>) -> Option<String> {
 /// `pickNumber` from `mem0/utils/index.ts:28-32`.
 pub fn pick_number(value: Option<&serde_json::Value>) -> Option<f64> {
     match value {
-        Some(serde_json::Value::Number(number)) => number.as_f64().filter(|value| value.is_finite()),
+        Some(serde_json::Value::Number(number)) => {
+            number.as_f64().filter(|value| value.is_finite())
+        }
         _ => None,
     }
 }
 
 /// `pickRecord` from `mem0/utils/index.ts:10-16`.
-pub fn pick_record(value: Option<&serde_json::Value>) -> serde_json::Map<String, serde_json::Value> {
+pub fn pick_record(
+    value: Option<&serde_json::Value>,
+) -> serde_json::Map<String, serde_json::Value> {
     match value {
         Some(serde_json::Value::Object(map)) => map.clone(),
         _ => serde_json::Map::new(),
@@ -145,7 +149,9 @@ mod tests {
         let not_found = MemoryError::message("Mem0 request failed with HTTP 404.");
         assert!(is_not_found_error(&not_found));
         assert!(!is_not_found_error(&MemoryError::message("HTTP 500")));
-        assert!(!is_not_found_error(&MemoryError::message("no status at all")));
+        assert!(!is_not_found_error(&MemoryError::message(
+            "no status at all"
+        )));
     }
 
     /// The legacy delete path needs *both* a 500 and a payload-shaped message.

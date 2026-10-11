@@ -80,7 +80,7 @@ ihrem Ort und werden von Rust mit demselben Advisory-Lock-Verfahren angewendet.
 | S1  | Transport, Auth, Gateway-WS, Observability                         | ca. 3k    | JWE-Auth, scrypt, SQLite, WS-Framing/Registry/Broadcast/Keepalive, Rate-Limits, Event-Bus. `/api/logs*`, `/api/security/*` |
 | S2  | Config, Gateway-Config, Personas, Security-Routen                  | ca. 3k    | kleine isolierte DBs, Sicherheits-Flags                                                                                    |
 | S3  | Messages/Conversations/Inbox/Sessions-Store                        | ca. 6k    | reine SQLite-Repos, trägt Chat und Agent-Room                                                                              |
-| S4  | Model Hub                                                          | ca. 5.8k  | 16 Provider, Pipeline, Crypto, Embeddings. Mechanischster Code, entsperrt alles LLM-abhängige                              |
+| S4  | Model Hub                                                          | ca. 5.8k  | 15 Provider, Pipeline, Crypto, Embeddings. Mechanischster Code, entsperrt alles LLM-abhängige                              |
 | S5  | Memory                                                             | ca. 5.7k  | postgres/sqlite/mem0 Provider                                                                                              |
 | S6  | World Model                                                        | ca. 11.4k | pg-Repos, Retrieval, Projector, Outbox, Graphiti-Client                                                                    |
 | S7  | Knowledge                                                          | ca. 8.7k  | Ingestion, Retrieval, Repos                                                                                                |
@@ -103,8 +103,8 @@ dieser Datei fortgeschrieben.
 | S1    | Transport, Auth, Gateway-WS, Observability                         | ✅     |
 | S2    | Config, Gateway-Config, Personas, Security-Routen                  | ✅     |
 | S3    | Messages/Conversations/Inbox/Sessions-Store                        | ✅     |
-| S4    | Model Hub                                                          | 🚧     |
-| S5    | Memory                                                             | ▢      |
+| S4    | Model Hub                                                          | ✅     |
+| S5    | Memory                                                             | ✅     |
 | S6    | World Model                                                        | ▢      |
 | S7    | Knowledge                                                          | ▢      |
 | S8    | Chat-Dispatch, Recall, Subagents, Tool-Loop                        | ▢      |
@@ -509,21 +509,176 @@ war korrekt.
   `pnpm run check` sind für diesen Schritt noch nicht gelaufen; sie gehören in
   den S4-Abschluss.
 
+### 2026-10-10 — S4 Model Hub und S5 Memory abgeschlossen
+
+**S4 Model Hub: 15 von 15 Katalog-Einträgen auflösen**
+
+- Jede ID aus `src/server/model-hub/Models/registry.ts:19-33` löst jetzt über
+  `get_provider_adapter` auf; `DEFERRED_PROVIDER_IDS` ist leer
+  (`model_hub/providers/mod.rs:143` und `:165`). Ein neues Assert
+  (`providers/mod.rs:188-192`, „S4 is closed: no catalog entry is deferred any
+  more") macht den Slice-Abschluss zu einer Testaussage statt zu Prosa.
+- Neu in diesem Schnitt: `providers/cohere.rs` (1377 Zeilen, Cohere v2 mit eigener
+  `message.content[]`/`usage.tokens`-Form, hartem 60-s-Dispatch-Timeout und
+  statischer Modell-Discovery über `/v2/models`) und
+  `providers/openai_codex/**` (20 Dateien, 5036 Zeilen: eigenes
+  Responses-Wire-Format gegen `chatgpt.com/backend-api/codex/responses`,
+  SSE-Parser, `chatgpt-account-id`-Header aus dem Access-Token-JWT,
+  Usage- und Rate-Limit-Parser). Beide sind **end-to-end nativ**, also ohne
+  Nutzung der gemeinsamen OpenAI-kompatiblen Schicht.
+- `service/**` (`gateway.rs`, `chat.rs`, `embedding.rs`, `pipeline.rs`,
+  `refresh.rs`) war schon portiert; die Behauptung im Header von
+  `model_hub/mod.rs`, `gateway.ts` und `service/**` fehlten noch, war Doku-Drift
+  und ist korrigiert.
+- Der Slice schließt die **Adapter-Ebene**: jede ID löst auf, und alle 15 Adapter
+  sind gegen die `HttpTransport`-Naht getestet. Die **produktive**
+  `HttpTransport`-Implementierung fehlt weiterhin — im Workspace existieren nur
+  Test-Doubles und der Platzhalter `UnreachableTransport` (`http.rs:235`, `:244`;
+  kein `reqwest`-Impl in `betaclaw-gateway`). Der Kommentar `http.rs:234`
+  verschiebt sie auf „S4b", ein Label, das der Plan nicht kennt. Solange sie
+  fehlt, ist `dispatch_gateway` außerhalb der Tests nicht aufrufbar — das ist
+  OP-16, nicht Teil dieses Abschlusses.
+
+**S5 Memory: 18 Module, 49 Service-Tests**
+
+- Der Modulumfang umfasst `src/server/memory/**` (45 TS-Dateien) plus
+  `src/core/memory/types.ts`. `postgres` läuft weiter über den injizierten
+  `PgExecutor`, weil `betaclaw-core` erst in S6 einen PostgreSQL-Treiber erhält
+  (`memory/postgres.rs:46-70`, `UnconfiguredPgExecutor` `:210-211`).
+- `runtime.ts` und `api/**` bleiben außerhalb des Slices. Der Migrationsplan
+  ordnet sie keinem Slice zu — das ist als offener Punkt OP-10 registriert,
+  nicht als erledigt verbucht.
+
+**Die fünf roten Tests waren Testfehler, keine Implementierungsfehler**
+
+Alle fünf lagen in `memory/service.rs` und prüften den Rückgabe-Node auf
+Schlüssel, die dort laut TypeScript nie stehen:
+
+| Test                                                         | Ursache                                                                                                 | Beleg                                                                                                 |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `store_persists_the_normalised_node_with_the_provider_stamp` | `type` steht nur im Write-Payload                                                                       | `operations/store.ts:49-61` vs. Rückgabe `:89-98`                                                     |
+| `a_suspicious_memory_is_flagged_and_still_stored`            | `securityFlag`/`securityReason` ebenso nur im Payload                                                   | `store.ts:51-53` vs. `:89-98`                                                                         |
+| `positive_feedback_raises_confidence_and_confirms_the_node`  | erwartete `0.45` statt des IEEE-754-Werts `0.3 + 0.15 = 0.44999999999999996`                            | `operations/feedback.ts:72-75` rundet nicht; `constants.ts:1-2` (`0.1`/`1.0`) clampt nicht auf `0.45` |
+| `update_applies_the_patch_and_bumps_the_version`             | `source` wird nach dem Overlay gestempelt, der Provider-Name gewinnt                                    | `service.ts:578-589`                                                                                  |
+| `the_postgres_provider_reads_a_prefix_and_sums_the_totals`   | `expectedVersion` steht nur im Write-Payload; der Postgres-Pfad liest nur `offset + pageSize` pro Scope | `service.ts:591-594`, `:619-630`, `:465-499`                                                          |
+
+Die Tests lesen den geschriebenen Datensatz jetzt über `service.history(...)`
+zurück und prüfen damit die Payload-Seite. Sie sind damit schärfer, nicht
+schwächer: die Testzahl bleibt 49, es gibt kein `#[ignore]` und keine
+abgeschwächte Assertion.
+
+**Ein echter S4-Fallout, behoben**
+
+`model_hub::service::gateway::tests::a_provider_without_adapter_and_base_url_is_reported`
+benutzte `cohere` als Beispiel für einen Provider **ohne** Adapter — genau die
+Prämisse, die dieser Schnitt beseitigt hat. Der Zweig ist jetzt der Guard für einen
+künftigen Katalogeintrag; die Antwortbildung liegt in `adapter_missing_response`
+(`service/gateway.rs:175-184`) und wird mit der literalen Form eines solchen
+Eintrags gepinnt. Der Guard ist nicht überflüssig: `getProviderAdapter` fällt in
+TypeScript genauso, wenn ein Adapter-Modul im Build fehlt (`registry.ts:36-38`).
+
+**Testlücken der sechs dünn getesteten Adapter geschlossen**
+
+Der Audit zählte sechs Adapter ohne einen einzigen Testfall
+(`providers/bytedance.rs`, `lmstudio.rs`, `mistral.rs`, `openai.rs`,
+`openrouter.rs`, `zai.rs`, je 0/0). Sie haben jetzt 32 Testfälle (7/6/4/4/5/6).
+Jeder pinnt eine provider-spezifische Abweichung gegen die gemeinsame
+OpenAI-kompatible Schicht und zitiert das TS-Original mit Zeile, geprüft gegen die
+Quelle: das hart kodierte ModelArk-Modell ohne Netzzugriff
+(`bytedance/index.ts:8-14`), die verbatim interpolierten Secrets im Ping von
+ByteDance (`:25`) und Z.AI (`zai/index.ts:22`) gegenüber der normalisierten
+Dispatch-Seite (`normalizeBearerSecret`), der `/key`-Probe-Endpunkt von
+OpenRouter (`openrouter/index.ts:28`) und sein eigenes Modell-Mapping (`:19-24`),
+der doppelte Slash-Schnitt von LM Studio (`lmstudio/index.ts:9` plus
+`normalizeBaseUrl`), die `HTTP <status>`-Fallbacks der Fehlertexte sowie die
+Kopfzeilen-Symmetrie: OpenRouter sendet zwei Attributions-Header
+(`:40-43`), OpenAI und Mistral keinen zusätzlichen (`openai/index.ts:19-23`).
+
+**Doku-Drift korrigiert**
+
+Der Vollständigkeitsaudit fand 22 Doku-Drift-Funde; die Modul-Header und
+Zitatzeilen sind in diesem Schnitt berichtigt (Tabelle „15 of 15" statt
+„7 of 15", `service`- und `embedding`-Zeilen ergänzt, `memory/mod.rs`-Zuordnungen
+für `retrieval/vector.ts`, `errorDetection.ts`, `idempotency.ts`, `repository.ts`
+und `mem0/index.ts`, Zitate `registry.ts`, `constants.ts`, `modelFetcher.ts`,
+`connectivity.ts` und `providerCatalog.ts`). Ein Fund derselben Klasse lag
+außerhalb der Audit-Liste und ist hier mitbehoben:
+`model_hub/service/gateway.rs:173` zitierte `registry.ts:37-39`, real ist
+`registry.ts:36-38`. Der Audit hat dabei eine
+Kataloggröße doppelt bestätigt — `registry.ts:19-33` hat 15 Adapter-Einträge,
+`providerCatalog.ts` 15 Einträge und `catalog_ids()` 15 (`provider_catalog.rs:289`)
+— deshalb steht die S4-Planzeile jetzt auf „15 Provider" (`:83`) statt „16".
+
+**Verifikation**
+
+| Prüfung                                                           | Ergebnis                      |
+| ----------------------------------------------------------------- | ----------------------------- |
+| `cargo test -p betaclaw-core --all-targets` (Container rust:1.94) | 998 grün, 0 rot, 0 ignored    |
+| `cargo clippy -p betaclaw-core --all-targets -- -D warnings`      | sauber                        |
+| `cargo fmt --all -- --check`                                      | sauber                        |
+| `cargo test -p betaclaw-gateway --features test-support`          | 100 grün, 0 rot               |
+| Testverteilung Core                                               | `model_hub` 498, `memory` 222 |
+| `pnpm run typecheck`                                              | exit 0                        |
+| `pnpm run lint` (oxlint, 2051 Dateien)                            | 0 Fehler, 1 Warnung           |
+| `pnpm run format:check`                                           | grün (Datei auf LF gestellt)  |
+
+Die Lint-Warnung liegt vorbestehend in `scripts/verify/parity/harness.mjs:62`
+(`unicorn/no-invalid-fetch-options`) und ist nicht Teil dieses Slices.
+`format:check` meldete `docs/RUST_MIGRATION.md` früher nur wegen CRLF in der
+Arbeitskopie; die Datei liegt jetzt LF im Worktree (`.gitattributes`:
+`* text=auto eol=lf`) und ist in dieser Form prettier-clean (geprüft, ebenso am
+HEAD). Das war ein Host-Artefakt, kein Stand dieses Slices. Die
+TypeScript-Testlane wurde nicht berührt: dieser Schnitt ändert keine Datei unter
+`src/` oder `scripts/`.
+
+**Noch nicht in S4/S5, bewusst**
+
+- `/api/model-hub/**` (10 Routen) ist nicht geroutet, und der Plan sieht dafür
+  keinen Slice vor. Offen sind dadurch die Account-Orchestrierung
+  (`modelFetcher.ts:43`, `connectivity.ts:12`), die Façade `service/index.ts:45`,
+  `service/provider/connect.ts:5`, `service/provider/disconnect.ts:3`,
+  `service/pipeline/update.ts:7,29`, `runtime.ts:110,139`, `urlOrigin.ts:3,16`
+  und der OAuth-Teil (`oauth.ts:29,36`, `codexAuth.ts:126-167`,
+  `codexLocalCallbackBridge.ts:37`). Siehe OP-9 bis OP-13.
+- `/api/memory` (GET/POST/PUT/DELETE/PATCH) und `memory/runtime.ts` sind nicht
+  geroutet (OP-10).
+- Weil keine Route migriert wurde, gibt es für S4/S5 keine neue
+  Paritätsfamilie; die Paritätsregel aus dem Harness-Kapitel greift erst, wenn
+  diese Routen geplant werden (OP-14).
+- Triage des Vollständigkeitsaudits: er zählt **21 TS-Dateien** im Slice-Umfang
+  ohne Rust-Gegenstück (10 im Model Hub, 8 in `memory/api/**`, 2 in
+  `src/core/memory`, dazu `Models/index.ts`) und **22 Doku-Drift-Funde**. Die
+  Drift-Funde sind in diesem Schnitt behoben; die 21 Dateien werden hier
+  **nicht** portiert, sondern in OP-9 bis OP-15 geführt. Die Slice-Zuordnung
+  fehlt im Plan selbst: die S4-Zeile nannte „16 Provider, Pipeline, Crypto,
+  Embeddings" (`docs/RUST_MIGRATION.md:83`, inzwischen auf „15 Provider"
+  korrigiert), die S5-Zeile nennt „postgres/sqlite/mem0
+  Provider" (`:84`) — `runtime.ts`, `api/**` und die Model-Hub-Routen kommen in
+  keiner Slice-Zeile vor. Offen ist damit die Zuordnung, nicht die Portierung.
+
 ### Offene Punkte (konsolidiert)
 
 Register der bewusst offenen Abweichungen und Nacharbeiten, damit sie
 slice-übergreifend nachverfolgbar bleiben.
 
-| ID   | Punkt                                                                                                                                              | Herkunft         | Status                   |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------------------ |
-| OP-1 | `DELETE /api/channels/conversations` bricht in TS die laufende Generierung ab und leert Summary-/Recall-Zustand; der Zustand liegt im Node-Prozess | S3               | offen bis S8             |
-| OP-2 | TS-Metriken und Trace-Logs (`recordInbox*`, `logChatDisplayTrace`) fehlen; `resync` hat keine Wirkung                                              | S3               | offen bis S8             |
-| OP-3 | Ungültiges JSON im Body: Rust-Text von `serde_json` weicht vom V8-Text ab (Personas S2, Messages S3); Status und Form stimmen                      | S2/S3            | bewusst, akzeptiert      |
-| OP-4 | `GET /api/channels/messages?limit=abc`: TS reicht `NaN` durch, Rust nimmt 100                                                                      | S3               | bewusst, akzeptiert      |
-| OP-5 | `PATCH` mit `modelOverride` als Zahl: Rust schreibt die Zahl als Text                                                                              | S3               | bewusst, akzeptiert      |
-| OP-6 | Config-DB-Standardpfad löste gegen `WORKSPACE_ROOT` statt cwd auf                                                                                  | S2-Nacharbeit    | geschlossen (siehe oben) |
-| OP-7 | Alte Datei `crates/betaclaw-gateway/.local/gateway-config.db` liegt noch auf der Platte                                                            | S2-Testisolation | manuell löschbar         |
-| OP-8 | Testname `agrees_with_the_gateway_crate_implementation` (`revision.rs`) passt nicht mehr zum Inhalt                                                | S2-Testisolation | Umbenennen offen         |
+| ID    | Punkt                                                                                                                                                                                                                                                                                                                                                                                                       | Herkunft         | Status                              |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ----------------------------------- |
+| OP-1  | `DELETE /api/channels/conversations` bricht in TS die laufende Generierung ab und leert Summary-/Recall-Zustand; der Zustand liegt im Node-Prozess                                                                                                                                                                                                                                                          | S3               | offen bis S8                        |
+| OP-2  | TS-Metriken und Trace-Logs (`recordInbox*`, `logChatDisplayTrace`) fehlen; `resync` hat keine Wirkung                                                                                                                                                                                                                                                                                                       | S3               | offen bis S8                        |
+| OP-3  | Ungültiges JSON im Body: Rust-Text von `serde_json` weicht vom V8-Text ab (Personas S2, Messages S3); Status und Form stimmen                                                                                                                                                                                                                                                                               | S2/S3            | bewusst, akzeptiert                 |
+| OP-4  | `GET /api/channels/messages?limit=abc`: TS reicht `NaN` durch, Rust nimmt 100                                                                                                                                                                                                                                                                                                                               | S3               | bewusst, akzeptiert                 |
+| OP-5  | `PATCH` mit `modelOverride` als Zahl: Rust schreibt die Zahl als Text                                                                                                                                                                                                                                                                                                                                       | S3               | bewusst, akzeptiert                 |
+| OP-6  | Config-DB-Standardpfad löste gegen `WORKSPACE_ROOT` statt cwd auf                                                                                                                                                                                                                                                                                                                                           | S2-Nacharbeit    | geschlossen (siehe oben)            |
+| OP-7  | Alte Datei `crates/betaclaw-gateway/.local/gateway-config.db` liegt noch auf der Platte                                                                                                                                                                                                                                                                                                                     | S2-Testisolation | manuell löschbar                    |
+| OP-8  | Testname `agrees_with_the_gateway_crate_implementation` (`revision.rs`) passt nicht mehr zum Inhalt                                                                                                                                                                                                                                                                                                         | S2-Testisolation | Umbenennen offen                    |
+| OP-9  | `/api/model-hub/**` (10 Routen) ist nicht geroutet, und der Plan sieht dafür keinen Slice vor. Ohne Gegenstück bleiben dadurch: Account-Orchestrierung (`modelFetcher.ts:43`, `connectivity.ts:12`), Façade (`service/index.ts:45`), `service/provider/connect.ts:5`, `service/provider/disconnect.ts:3`, `service/pipeline/update.ts:7,29`, `runtime.ts:110,139`, `urlOrigin.ts:3,16`, `Models/index.ts:1` | S4               | Entscheidung nötig                  |
+| OP-10 | `/api/memory` (5 Methoden) und `memory/runtime.ts` sind im Plan keinem Slice zugeordnet                                                                                                                                                                                                                                                                                                                     | S5               | Entscheidung nötig                  |
+| OP-11 | OAuth-State (`oauth.ts:29,36`) ist absichtlich nicht portiert (hmac/digest-Konflikt, `crypto.rs:34-45`); die Codex-Kontoverknüpfung bleibt in TypeScript                                                                                                                                                                                                                                                    | S4               | offen bis OAuth-Routen geplant sind |
+| OP-12 | `codexAuth.ts` ist nur teilweise portiert (`decodeJwtPayload`/`extractCodexAccountId` in `client/config.rs:183,204`); der Refresh-Default ist ein `Err`-No-op (`service/refresh.rs:50-60`)                                                                                                                                                                                                                  | S4               | offen bis S4-Nacharbeit             |
+| OP-13 | Memory-Randmodule ohne Gegenstück: `mem0EmbedderSync.ts:263,346`, `src/core/memory/index.ts:18,54`, `src/core/memory/gemini.ts:3,29`                                                                                                                                                                                                                                                                        | S5               | offen bis S6/S7                     |
+| OP-14 | S4/S5 migrieren keine Route, also gibt es keine neue Paritätsfamilie; `/api/model-hub/**` und `/api/memory` laufen weiter über den Proxy                                                                                                                                                                                                                                                                    | S4/S5            | bewusst, akzeptiert                 |
+| OP-15 | `Mem0Client`/`MemoryRepository` liegen in `memory/sqlite/` statt in provider-neutralen Modulen; Verschiebung ohne Formänderung offen                                                                                                                                                                                                                                                                        | S5               | offen, formstabil                   |
+| OP-16 | Produktive `HttpTransport`-Implementierung fehlt: nur Test-Doubles und `UnreachableTransport` (`http.rs:244`), kein `reqwest`-Impl in `betaclaw-gateway`. `dispatch_gateway` ist außerhalb der Tests nicht aufrufbar; `http.rs:234` verschiebt sie auf ein „S4b", das der Plan nicht kennt                                                                                                                  | S4               | offen bis S8                        |
 
 ## 8. Befehle
 
@@ -556,6 +711,14 @@ pnpm verify:logs-parity
 Messwerte vom 2026-10-10 auf dem Windows-Host (Rust 1.94.1), Befehl
 `cargo test --workspace --features betaclaw-gateway/test-support`. Alle Läufe
 grün, 545 Tests (449 core, 82 gateway lib, 7 gateway_http, 7 nextauth_parity).
+Nach S4/S5 sind es 998 Core-Tests und 100 Gateway-Tests (Container
+`rust:1.94-bookworm`, Volumes `betaclaw-cargo-registry`, `betaclaw-rustup`,
+`betaclaw-target-final`). Das Abschluss-Gate lief als vier Einzelschritte:
+`cargo fmt --all -- --check`,
+`cargo clippy --all-targets --features test-support -- -D warnings`,
+`cargo test -p betaclaw-core --all-targets` (998 grün, 0 ignored) und
+`cargo test -p betaclaw-gateway --features test-support` (100 grün). Die
+Messwerte unten sind der Vorzustand und bleiben als Referenz stehen.
 
 | Lauf                            | Gesamtdauer                  | core   | gateway lib | gateway_http | nextauth_parity |
 | ------------------------------- | ---------------------------- | ------ | ----------- | ------------ | --------------- |

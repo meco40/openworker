@@ -10,6 +10,7 @@
 //! | [`pipeline`]    | `service/pipeline/get.ts`                         |
 //! | [`refresh`]     | `service/provider/refresh.ts`                     |
 //! | [`chat`]        | `service/dispatch/chat.ts`                        |
+//! | [`embedding`]   | `service/dispatch/embedding.ts` + `service/embedding/*` |
 //! | [`gateway`]     | `gateway.ts` (`dispatchGatewayRequest`)           |
 //!
 //! [`gateway`] also carries [`DispatchObserver`], the seam that replaces the
@@ -124,6 +125,7 @@ impl From<crate::model_hub::repository::RepositoryError> for ServiceError {
 pub type SharedObserver = Arc<dyn DispatchObserver>;
 
 pub mod chat;
+pub mod embedding;
 pub mod gateway;
 pub mod pipeline;
 pub mod refresh;

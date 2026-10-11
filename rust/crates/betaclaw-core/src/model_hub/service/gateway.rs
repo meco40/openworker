@@ -165,6 +165,24 @@ impl DispatchObserver for NoopObserver {
     }
 }
 
+/// The `else` arm of `gateway.ts:80-88`: a provider without an adapter and
+/// without an OpenAI-compatible `apiBaseUrl` is reported by its display name.
+///
+/// S4 closed the last adapter gap, so no catalog entry reaches this arm any
+/// more; it stays as the guard for a future entry whose adapter is missing.
+/// That is exactly the case in which `getProviderAdapter` (`registry.ts:36-38`)
+/// returns `undefined` and the arm fires in TypeScript.
+fn adapter_missing_response(
+    provider: &ProviderCatalogEntry,
+    request: &GatewayRequest,
+) -> GatewayResponse {
+    GatewayResponse::failure(
+        request.model.clone(),
+        provider.id.clone(),
+        format!("No gateway adapter for provider: {}", provider.name),
+    )
+}
+
 /// `dispatchGatewayRequest(account, encryptionKey, request, options)` from
 /// `gateway.ts:35-191`.
 ///
@@ -225,11 +243,16 @@ pub async fn dispatch_gateway_request(
         // an own adapter (including `ollama` and the native ones) reachable.
         // The shared OpenAI-compatible layer is only a fallback for providers
         // whose wire format actually IS OpenAI's. A provider catalogued with a
-        // native endpoint type (Cohere, Anthropic, Gemini, xAI, Codex) needs its
-        // own adapter: sending its request down the OpenAI-compatible path
-        // produces a body the provider rejects, and the failure surfaces as a
-        // confusing transport error instead of "not implemented yet". Those are
-        // reported the same way as a missing `api_base_url`.
+        // native endpoint type needs its own adapter: sending its request down
+        // the OpenAI-compatible path produces a body the provider rejects, and
+        // the failure surfaces as a confusing transport error instead of "not
+        // implemented yet". Those are reported the same way as a missing
+        // `api_base_url`.
+        //
+        // S4 closed the last adapter gap, so no catalog entry reaches this arm
+        // any more (`providers::registry_and_catalog_agree` proves that all
+        // fifteen ids resolve); it stays as the guard for a future entry whose
+        // adapter is missing.
         None => {
             let is_openai_compatible = matches!(
                 provider.endpoint_type,
@@ -251,11 +274,7 @@ pub async fn dispatch_gateway_request(
                     )
                     .await?
                 }
-                _ => GatewayResponse::failure(
-                    request.model.clone(),
-                    provider.id.clone(),
-                    format!("No gateway adapter for provider: {}", provider.name),
-                ),
+                _ => adapter_missing_response(provider, request),
             }
         }
     };
@@ -479,23 +498,37 @@ mod tests {
         assert!(response.ok, "{response:?}");
     }
 
-    /// Without an adapter and without `apiBaseUrl` the response names the
-    /// provider's display name, exactly like `provider.name`.
-    #[tokio::test]
-    async fn a_provider_without_adapter_and_base_url_is_reported() {
-        let transport = StubTransport::default();
-        let deps = dependencies(&transport);
-        let account = account("cohere");
+    /// The `else` arm of `gateway.ts:80-88` names the provider's display name.
+    ///
+    /// S4 closed the last adapter gap, so `dispatch_gateway_request` cannot reach
+    /// the arm any more — every catalog id resolves, which
+    /// `providers::registry_and_catalog_agree` proves. The arm stays as the guard
+    /// for a future catalog entry whose adapter is missing, so its response shape
+    /// is pinned with the literal shape of such an entry.
+    #[test]
+    fn a_provider_without_adapter_and_base_url_is_reported() {
+        let provider = ProviderCatalogEntry {
+            id: "unported".to_string(),
+            name: "Unported".to_string(),
+            icon: "unported".to_string(),
+            auth_methods: vec![ProviderAuthMethod::ApiKey],
+            endpoint_type: ProviderEndpointType::CohereNative,
+            capabilities: vec![],
+            default_models: vec![],
+            oauth_configured: None,
+            api_base_url: None,
+            docs_url: None,
+        };
 
-        let response = dispatch_gateway_request(&account, KEY, &request(), None, &deps)
-            .await
-            .expect("no transport failure");
+        let response = adapter_missing_response(&provider, &request());
 
         assert!(!response.ok);
         assert_eq!(
             response.error.as_deref(),
-            Some("No gateway adapter for provider: Cohere")
+            Some("No gateway adapter for provider: Unported")
         );
+        assert_eq!(response.provider, "unported");
+        assert_eq!(response.model, "gpt-4.1");
     }
 
     /// The adapter path is taken for a ported provider, and the shared

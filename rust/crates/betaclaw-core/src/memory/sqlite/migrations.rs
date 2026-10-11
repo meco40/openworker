@@ -31,7 +31,7 @@
 
 use rusqlite::Connection;
 
-use super::types::LEGACY_LOCAL_USER_ID;
+use crate::memory::types::LEGACY_LOCAL_USER_ID;
 
 /// `hasColumn` from `sqliteMemoryRepository.ts:125-130`.
 ///
@@ -169,7 +169,14 @@ mod tests {
                 "memory_nodes.{column} must exist on a fresh database"
             );
         }
-        for column in ["id", "node_id", "action", "timestamp", "content", "metadata_json"] {
+        for column in [
+            "id",
+            "node_id",
+            "action",
+            "timestamp",
+            "content",
+            "metadata_json",
+        ] {
             assert!(
                 has_column(&connection, "memory_node_history", column).expect("probe"),
                 "memory_node_history.{column} must exist on a fresh database"
@@ -282,7 +289,10 @@ mod tests {
             .expect("blank row");
         assert_eq!(
             blank,
-            (LEGACY_LOCAL_USER_ID.to_string(), "persona-default".to_string())
+            (
+                LEGACY_LOCAL_USER_ID.to_string(),
+                "persona-default".to_string()
+            )
         );
     }
 

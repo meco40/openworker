@@ -10,6 +10,7 @@ pub mod db;
 pub mod gateway;
 pub mod gateway_config;
 pub mod logging;
+pub mod memory;
 pub mod messages_store;
 pub mod model_hub;
 pub mod personas;

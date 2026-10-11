@@ -11,7 +11,7 @@
 //! a key that already exists keeps its original position while taking the new
 //! value — exactly what `{ ...metadata, key: value }` does in JavaScript.
 
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 use super::errors::pick_string;
 use super::types::{
@@ -66,10 +66,7 @@ pub fn to_memory_node(record: &super::types::Mem0MemoryRecord) -> MemoryNode {
         .or_else(|| record.updated_at.clone())
         .or_else(|| record.created_at.clone())
         .unwrap_or_else(now_iso);
-    stamped.insert(
-        "lastVerified".to_string(),
-        Value::String(last_verified),
-    );
+    stamped.insert("lastVerified".to_string(), Value::String(last_verified));
 
     MemoryNode {
         id: record.id.clone(),
@@ -78,7 +75,12 @@ pub fn to_memory_node(record: &super::types::Mem0MemoryRecord) -> MemoryNode {
         embedding: Vec::new(),
         importance: as_importance(metadata.get("importance"), 3.0),
         confidence: as_confidence(metadata.get("confidence"), 0.5),
-        timestamp: format_timestamp(record.updated_at.as_deref().or(record.created_at.as_deref())),
+        timestamp: format_timestamp(
+            record
+                .updated_at
+                .as_deref()
+                .or(record.created_at.as_deref()),
+        ),
         metadata: Some(stamped),
     }
 }
@@ -110,7 +112,10 @@ fn as_optional_memory_type(value: Option<&Value>) -> Option<MemoryType> {
 /// numbered `index + 1`. Only an absent key counts as "undefined": an explicit
 /// `null` goes through `Number(null) === 0` and lands on the clamp, exactly
 /// like the source.
-pub fn to_history_record(entry: &super::types::Mem0HistoryEntry, index: i64) -> MemoryHistoryRecord {
+pub fn to_history_record(
+    entry: &super::types::Mem0HistoryEntry,
+    index: i64,
+) -> MemoryHistoryRecord {
     let metadata = &entry.metadata;
     MemoryHistoryRecord {
         index,
@@ -130,12 +135,18 @@ pub fn to_history_record(entry: &super::types::Mem0HistoryEntry, index: i64) -> 
             .unwrap_or_else(now_iso),
         content: entry.content.clone(),
         node_type: as_optional_memory_type(metadata.get("type")),
-        importance: match metadata.get("importance") {
-            None => None,
-            Some(_) => Some(as_importance(metadata.get("importance"), 3.0)),
-        },
+        // `nodeMappers.ts:70-71`: `metadata.importance === undefined ? undefined
+        // : asImportance(metadata.importance, 3)`. Only an *absent* key stays
+        // `undefined`; an explicit `null` goes through `Number(null) === 0` and
+        // lands on the lower clamp.
+        importance: metadata
+            .get("importance")
+            .map(|_| as_importance(metadata.get("importance"), 3.0)),
+        // `nodeMappers.ts:72`: `metadata.version === undefined ? index + 1 :
+        // asVersion(metadata.version, index + 1)` — the fallback is returned
+        // *directly* for an absent key, so the field is never `undefined`.
         version: match metadata.get("version") {
-            None => None,
+            None => Some(index + 1),
             Some(_) => Some(as_version(metadata.get("version"), index + 1)),
         },
         metadata: metadata.clone(),
@@ -146,7 +157,7 @@ pub fn to_history_record(entry: &super::types::Mem0HistoryEntry, index: i64) -> 
 mod tests {
     use super::*;
     use crate::memory::types::{Mem0HistoryEntry, Mem0MemoryRecord};
-    use serde_json::json;
+    use serde_json::{json, Map};
 
     fn record() -> Mem0MemoryRecord {
         Mem0MemoryRecord {
@@ -181,25 +192,33 @@ mod tests {
     #[test]
     fn a_padded_memory_id_is_trimmed_before_it_is_kept() {
         let mut record = record();
-        record.metadata = Map::from_iter([(
-            "mem0Id".to_string(),
-            json!("  rec-9  "),
-        )]);
-        let node = to_memory_node(&record());
-        assert_eq!(
-            node.metadata.as_ref().expect("metadata")["mem0Id"],
-            "rec-9"
-        );
+        record.metadata = Map::from_iter([("mem0Id".to_string(), json!("  rec-9  "))]);
+        let node = to_memory_node(&record);
+        assert_eq!(node.metadata.as_ref().expect("metadata")["mem0Id"], "rec-9");
         assert_eq!(node.id, "rec-1", "the node id is untouched");
     }
 
-    /// A whitespace-only `lastVerified` is falsy in JavaScript and falls
-    /// through to `updatedAt`, which is not trimmed.
+    /// `nodeMappers.ts:31-35` is
+    /// `(typeof metadata.lastVerified === 'string' && metadata.lastVerified) ||
+    /// record.updatedAt || …`. Only the *empty* string is falsy in JavaScript,
+    /// so a whitespace-only value survives verbatim; trimming is not part of
+    /// the mapper (the read sites do it, `service.ts:54` and
+    /// `sqliteMemoryClient.ts:23`) and doing it here would change the stored
+    /// JSON, so the port keeps the value as-is.
     #[test]
-    fn a_whitespace_only_last_verified_falls_through_to_updated_at() {
-        let mut record = record();
-        record.metadata = Map::from_iter([("lastVerified".to_string(), json!("   "))]);
-        let node = to_memory_node(&record);
+    fn a_whitespace_only_last_verified_is_kept_because_the_string_is_truthy() {
+        let mut padded = record();
+        padded.metadata = Map::from_iter([("lastVerified".to_string(), json!("   "))]);
+        let node = to_memory_node(&padded);
+        assert_eq!(
+            node.metadata.as_ref().expect("metadata")["lastVerified"],
+            "   "
+        );
+
+        // The genuinely falsy value does fall through to `updatedAt`.
+        let mut empty = record();
+        empty.metadata = Map::from_iter([("lastVerified".to_string(), json!(""))]);
+        let node = to_memory_node(&empty);
         assert_eq!(
             node.metadata.as_ref().expect("metadata")["lastVerified"],
             "2026-01-02T00:00:00Z"
@@ -215,7 +234,7 @@ mod tests {
             ("memoryProvider".to_string(), json!("sqlite")),
             ("source".to_string(), json!("somewhere-else")),
         ]);
-        let node = to_memory_node(&record());
+        let node = to_memory_node(&record);
         let metadata = node.metadata.expect("metadata");
         assert_eq!(metadata["memoryProvider"], "sqlite");
         assert_eq!(metadata["source"], "sqlite");

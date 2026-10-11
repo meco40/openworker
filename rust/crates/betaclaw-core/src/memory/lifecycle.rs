@@ -17,7 +17,7 @@
 //! behaviour — a `tracing` line — while the gateway injects the real bus when
 //! the event runtime of slice S13 lands.
 
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 use super::types::MemoryMetadata;
 
@@ -191,10 +191,7 @@ pub fn now_epoch_millis() -> f64 {
 }
 
 /// `isActiveMemoryMetadata` from `lifecycle.ts:61-63`.
-pub fn is_active_memory_metadata(
-    metadata: Option<&MemoryMetadata>,
-    now_ms: f64,
-) -> bool {
+pub fn is_active_memory_metadata(metadata: Option<&MemoryMetadata>, now_ms: f64) -> bool {
     is_active_status(resolve_lifecycle_status(metadata, now_ms).status)
 }
 
@@ -214,10 +211,7 @@ pub fn with_lifecycle_signal(
         "lifecycleSignal".to_string(),
         Value::String(signal.as_str().to_string()),
     );
-    next.insert(
-        "lifecycleUpdatedAt".to_string(),
-        Value::String(now_iso()),
-    );
+    next.insert("lifecycleUpdatedAt".to_string(), Value::String(now_iso()));
     next
 }
 
@@ -314,10 +308,7 @@ mod tests {
             LifecycleStatus::Superseded
         );
         assert_eq!(
-            transition_lifecycle(
-                LifecycleStatus::Confirmed,
-                LifecycleSignal::CorrectedByUser
-            ),
+            transition_lifecycle(LifecycleStatus::Confirmed, LifecycleSignal::CorrectedByUser),
             LifecycleStatus::Superseded
         );
         assert_eq!(
@@ -329,7 +320,10 @@ mod tests {
             LifecycleStatus::Confirmed
         );
         assert_eq!(
-            transition_lifecycle(LifecycleStatus::Confirmed, LifecycleSignal::GarbageCollected),
+            transition_lifecycle(
+                LifecycleStatus::Confirmed,
+                LifecycleSignal::GarbageCollected
+            ),
             LifecycleStatus::Rejected
         );
     }
@@ -351,10 +345,7 @@ mod tests {
 
     #[test]
     fn an_unknown_status_is_normalised_to_new() {
-        let metadata = MemoryMetadata::from_iter([(
-            "lifecycleStatus".to_string(),
-            json!("bogus"),
-        )]);
+        let metadata = MemoryMetadata::from_iter([("lifecycleStatus".to_string(), json!("bogus"))]);
         let resolved = resolve_lifecycle_status(Some(&metadata), now_ms());
         assert_eq!(resolved.status, LifecycleStatus::New);
         assert_eq!(resolved.derived_signal, None);
@@ -388,10 +379,8 @@ mod tests {
 
     #[test]
     fn a_memory_without_expiry_stays_active() {
-        let metadata = MemoryMetadata::from_iter([(
-            "lifecycleStatus".to_string(),
-            json!("confirmed"),
-        )]);
+        let metadata =
+            MemoryMetadata::from_iter([("lifecycleStatus".to_string(), json!("confirmed"))]);
         assert!(is_active_memory_metadata(Some(&metadata), now_ms()));
         let resolved = resolve_lifecycle_status(None, now_ms());
         assert_eq!(resolved.status, LifecycleStatus::New);
@@ -405,13 +394,11 @@ mod tests {
 
     #[test]
     fn with_lifecycle_signal_stamps_status_signal_and_timestamp() {
-        let metadata = MemoryMetadata::from_iter([(
-            "lifecycleStatus".to_string(),
-            json!("new"),
-        )]);
-        let stamped = with_lifecycle_signal(Some(&metadata), LifecycleSignal::UserConfirmed, || {
-            "2026-01-11T00:00:00Z".to_string()
-        });
+        let metadata = MemoryMetadata::from_iter([("lifecycleStatus".to_string(), json!("new"))]);
+        let stamped =
+            with_lifecycle_signal(Some(&metadata), LifecycleSignal::UserConfirmed, || {
+                "2026-01-11T00:00:00Z".to_string()
+            });
         assert_eq!(stamped["lifecycleStatus"], "confirmed");
         assert_eq!(stamped["lifecycleSignal"], "user_confirmed");
         assert_eq!(stamped["lifecycleUpdatedAt"], "2026-01-11T00:00:00Z");
@@ -435,7 +422,10 @@ mod tests {
         let events = publisher.0.lock().expect("lock");
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].memory_id, "n1");
-        assert_eq!(events[0].provider, super::super::types::MemoryProviderKind::Mem0);
+        assert_eq!(
+            events[0].provider,
+            super::super::types::MemoryProviderKind::Mem0
+        );
         assert!(!events[0].at.is_empty());
     }
 }

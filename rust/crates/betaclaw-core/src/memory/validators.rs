@@ -9,9 +9,7 @@
 
 use serde_json::Value;
 
-use super::constants::{
-    MAX_CONFIDENCE, MAX_IMPORTANCE, MIN_CONFIDENCE, MIN_IMPORTANCE,
-};
+use super::constants::{MAX_CONFIDENCE, MAX_IMPORTANCE, MIN_CONFIDENCE, MIN_IMPORTANCE};
 use super::errors::pick_string;
 use super::types::{js_number, MemoryType, LEGACY_LOCAL_USER_ID};
 
@@ -110,7 +108,11 @@ mod tests {
     #[test]
     fn importance_is_rounded_and_clamped() {
         assert_eq!(as_importance(Some(&json!(3.4)), 3.0), 3.0);
-        assert_eq!(as_importance(Some(&json!(3.5)), 3.0), 4.0, "JS rounds half up");
+        assert_eq!(
+            as_importance(Some(&json!(3.5)), 3.0),
+            4.0,
+            "JS rounds half up"
+        );
         assert_eq!(as_importance(Some(&json!(99)), 3.0), 5.0);
         assert_eq!(as_importance(Some(&json!(-4)), 3.0), 1.0);
         assert_eq!(as_importance(Some(&json!("abc")), 3.0), 3.0);

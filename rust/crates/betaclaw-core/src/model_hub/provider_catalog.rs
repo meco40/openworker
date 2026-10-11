@@ -3,14 +3,15 @@
 //! The catalog has exactly 15 entries and the adapter registry
 //! (`src/server/model-hub/Models/registry.ts`) has exactly 15 adapters, one per
 //! entry — `tests/unit/model-hub/provider-registry.test.ts` asserts that
-//! bijection. Only the seven simple providers are ported in this slice; the other
-//! eight stay in TypeScript until S4b/S4c.
+//! bijection. All fifteen providers are ported as of this slice: the registry
+//! resolves every catalog id and no id is deferred any more
+//! (`providers/mod.rs:141-157`, `:163`).
 //!
 //! The list is built once through [`LazyLock`] because `ProviderCatalogEntry`
 //! owns `Vec` fields and `const` cannot construct them.
 //!
 //! `openai-codex` spreads `CODEX_MODEL_SEED` from
-//! `src/server/model-hub/Models/openai-codex/constants.ts:8-30`. The seed is
+//! `src/server/model-hub/Models/openai-codex/constants.ts:12-34`. The seed is
 //! duplicated here rather than imported so this module has no dependency on the
 //! Codex adapter; S4c must keep both lists in sync.
 
@@ -20,7 +21,7 @@ use super::types::{
     ProviderAuthMethod, ProviderCapability, ProviderCatalogEntry, ProviderEndpointType,
 };
 
-/// `CODEX_MODEL_SEED` from `src/server/model-hub/Models/openai-codex/constants.ts:8`.
+/// `CODEX_MODEL_SEED` from `src/server/model-hub/Models/openai-codex/constants.ts:12`.
 pub const CODEX_MODEL_SEED: &[&str] = &[
     "gpt-5.6",
     "gpt-5.6-sol",
@@ -276,8 +277,8 @@ pub fn catalog() -> &'static [ProviderCatalogEntry] {
 
 /// `PROVIDER_CATALOG.find((provider) => provider.id === providerId) ?? null`.
 ///
-/// Repeated verbatim by `gateway.ts:27`, `modelFetcher.ts:11` and
-/// `connectivity.ts:11`.
+/// Repeated verbatim by `gateway.ts:27`, `modelFetcher.ts:8-10` and
+/// `connectivity.ts:8-10`.
 pub fn find_provider(provider_id: &str) -> Option<&'static ProviderCatalogEntry> {
     PROVIDER_CATALOG
         .iter()

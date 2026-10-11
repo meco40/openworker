@@ -52,15 +52,34 @@ mod tests {
         );
     }
 
+    /// One fixture per marker branch of `contextFormatter.ts:6-19`.
+    ///
+    /// The fixtures follow the *TypeScript* classification, which is not always
+    /// the intuitive one: `"you asked"` matches no user pattern, because
+    /// `detector.ts:32` requires `you` plus a listed verb, so the line keeps no
+    /// marker; `"your coffee"` is the user reference (`detector.ts:33`).
+    /// `"I answered"` reaches the assistant branch through the legacy leading
+    /// pattern `^(ich|i)\b` (`detector.ts:85`) and is *not* a persona
+    /// self-reference, so `contextFormatter.ts:15` appends the plain
+    /// `[Subject: assistant]`; `"I am ready"` matches `detector.ts:15` and gets
+    /// the `Self-Reference` suffix of `contextFormatter.ts:13`.
     #[test]
     fn each_subject_has_its_own_marker() {
         assert_eq!(
             format_recall_context_line(&node("you asked", MemoryType::Fact)),
-            "[Type: fact] you asked [Subject: user]"
+            "[Type: fact] you asked"
+        );
+        assert_eq!(
+            format_recall_context_line(&node("your coffee", MemoryType::Fact)),
+            "[Type: fact] your coffee [Subject: user]"
         );
         assert_eq!(
             format_recall_context_line(&node("I answered", MemoryType::Fact)),
-            "[Type: fact] I answered [Subject: assistant, Self-Reference]"
+            "[Type: fact] I answered [Subject: assistant]"
+        );
+        assert_eq!(
+            format_recall_context_line(&node("I am ready", MemoryType::Fact)),
+            "[Type: fact] I am ready [Subject: assistant, Self-Reference]"
         );
         let mut node = node("it was discussed", MemoryType::Fact);
         node.metadata = Some(MemoryMetadata::from_iter([(
@@ -78,9 +97,10 @@ mod tests {
     #[test]
     fn the_self_reference_suffix_needs_a_content_match() {
         let mut node = node("answered the question", MemoryType::Fact);
-        node.metadata = Some(MemoryMetadata::from_iter([
-            ("selfReference".to_string(), json!(true)),
-        ]));
+        node.metadata = Some(MemoryMetadata::from_iter([(
+            "selfReference".to_string(),
+            json!(true),
+        )]));
         assert_eq!(
             format_recall_context_line(&node),
             "[Type: fact] answered the question [Subject: assistant]"

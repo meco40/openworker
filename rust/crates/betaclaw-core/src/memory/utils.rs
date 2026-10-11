@@ -122,10 +122,7 @@ pub fn format_timestamp(input: Option<&str>) -> String {
     match input {
         None => Local::now().format("%I:%M %p").to_string(),
         Some(text) => match chrono::DateTime::parse_from_rfc3339(text) {
-            Ok(parsed) => parsed
-                .with_timezone(&Local)
-                .format("%I:%M %p")
-                .to_string(),
+            Ok(parsed) => parsed.with_timezone(&Local).format("%I:%M %p").to_string(),
             Err(_) => text.to_string(),
         },
     }
@@ -228,7 +225,12 @@ mod tests {
         assert_eq!(normalize_mem0_score(Some(0.4)), 0.4);
         assert_eq!(normalize_mem0_score(Some(0.0)), 0.0);
         assert_eq!(normalize_mem0_score(Some(50.0)), 0.5);
-        assert_eq!(normalize_mem0_score(Some(150.0)), 1.0);
+        // `scoring.ts:4` only scales the *closed* percentage range
+        // `1 < score <= 100`; `scoring.ts:5` does not apply to a positive value
+        // and the final `return 0.75` (`scoring.ts:6`) is the result. A value
+        // above 100 is therefore "unknown", not "clamped to 1", which is why
+        // 150 and 101 agree.
+        assert_eq!(normalize_mem0_score(Some(150.0)), 0.75);
         assert_eq!(normalize_mem0_score(Some(-3.0)), 0.0);
         assert_eq!(normalize_mem0_score(Some(101.0)), 0.75);
         assert_eq!(normalize_mem0_score(None), 0.75);
@@ -244,7 +246,10 @@ mod tests {
         assert!(matches_query(&node, Some("   ")));
         assert!(matches_query(&node, Some("HELLO")));
         assert!(!matches_query(&node, Some("goodbye")));
-        assert!(matches_query(&node, Some("fact")), "the type is searched too");
+        assert!(
+            matches_query(&node, Some("fact")),
+            "the type is searched too"
+        );
         assert!(matches_type(&node, Some(&MemoryType::Fact)));
         assert!(!matches_type(&node, Some(&MemoryType::Lesson)));
         assert!(matches_type(&node, None));

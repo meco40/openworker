@@ -44,7 +44,13 @@ pub type MemoryMetadata = Map<String, Value>;
 /// Hand-written `as_str`/`parse` rather than a derived `Deserialize`, because
 /// the tolerant coercions live on top of it: [`as_memory_type`] falls back to
 /// `fact`, and the API layer needs the closed catalogue ([`MemoryType::ALL`]).
+///
+/// `types.ts:1-7` spells the values in `snake_case` (`personality_trait`,
+/// `workflow_pattern`), so the derived `Serialize`/`Deserialize` needs the
+/// same `rename_all`; without it the wire value would be the Rust variant name
+/// (`"Fact"`) and a node written by one backend could not be read by the other.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum MemoryType {
     Fact,
     Preference,
@@ -78,18 +84,24 @@ impl MemoryType {
 
     /// `MemoryType[] includes(text)` — the membership test the API validators use.
     pub fn parse(value: &str) -> Option<Self> {
-        MemoryType::ALL.into_iter().find(|kind| kind.as_str() == value)
+        MemoryType::ALL
+            .into_iter()
+            .find(|kind| kind.as_str() == value)
     }
 }
 
 /// `MemoryNode` from `src/core/memory/types.ts:9-28`.
 ///
 /// The field is `node_type`, not `type`, because `type` is a Rust keyword; the
-/// JSON name stays `type` through `rename_all`.
+/// JSON name stays `type` through the field-level `rename`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MemoryNode {
     pub id: String,
+    /// `MemoryNode.type` — `types.ts:11`. The Rust field cannot be called
+    /// `type`, so the wire name is restored explicitly; `rename_all` alone
+    /// would emit `nodeType`, which no TypeScript reader expects.
+    #[serde(rename = "type")]
     pub node_type: MemoryType,
     pub content: String,
     #[serde(default)]
@@ -104,7 +116,9 @@ pub struct MemoryNode {
 impl MemoryNode {
     /// `node.metadata?.[key]`.
     pub fn metadata_value(&self, key: &str) -> Option<&Value> {
-        self.metadata.as_ref().and_then(|metadata| metadata.get(key))
+        self.metadata
+            .as_ref()
+            .and_then(|metadata| metadata.get(key))
     }
 
     /// `String(node.metadata?.[key] || '')` — the coercion used for every
@@ -461,7 +475,7 @@ pub struct MemoryStorageSummary {
 }
 
 /// `MemoryStorageByType` from `sqliteMemoryRepository.ts:514-521`.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MemoryStorageByType {
     pub node_type: String,
     pub count: i64,
@@ -472,7 +486,7 @@ pub struct MemoryStorageByType {
 }
 
 /// `MemoryStorageNodeSize` from `sqliteMemoryRepository.ts:523-530`.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MemoryStorageNodeSize {
     pub id: String,
     pub node_type: String,
@@ -552,7 +566,10 @@ mod tests {
     /// coercions in `typeValidators.ts` and `api/shared.ts` are different tests.
     #[test]
     fn memory_type_has_two_distinct_coercions() {
-        assert_eq!(MemoryType::parse("workflow_pattern"), Some(MemoryType::WorkflowPattern));
+        assert_eq!(
+            MemoryType::parse("workflow_pattern"),
+            Some(MemoryType::WorkflowPattern)
+        );
         assert_eq!(MemoryType::parse("nonsense"), None);
         assert_eq!(MemoryType::ALL.len(), 6);
         assert_eq!(MemoryType::PersonalityTrait.as_str(), "personality_trait");
