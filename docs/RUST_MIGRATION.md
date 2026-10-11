@@ -758,6 +758,36 @@ slice-übergreifend nachverfolgbar bleiben.
 | OP-15 | `Mem0Client`/`MemoryRepository` liegen in `memory/sqlite/` statt in provider-neutralen Modulen; Verschiebung ohne Formänderung offen                                                                                                                                                                                                                                                                        | S5               | offen, formstabil                   |
 | OP-16 | Produktive `HttpTransport`-Implementierung fehlt: nur Test-Doubles und `UnreachableTransport` (`http.rs:244`), kein `reqwest`-Impl in `betaclaw-gateway`. `dispatch_gateway` ist außerhalb der Tests nicht aufrufbar; die Kommentare nennen dafür jetzt OP-16 statt eines „S4b", das der Plan nicht kennt                                                                                                   | S4               | offen bis S8                        |
 
+### OP-Register S9 (aus dem Bahn-Code erhoben)
+
+`grep 'OP-S9' docs/RUST_MIGRATION.md` lieferte vorher 0 Treffer, während
+`lane/s9` diese IDs im Code zitiert. Die Kurzfassung stammt jeweils aus dem
+zitierenden Modulkopf; die Belegstelle steht in der Spalte Herkunft.
+
+| ID       | Punkt (Kurzfassung aus dem Code)                                                                                                                                    | Herkunft (= Belegstelle)                                                                         | Status                |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------- |
+| OP-S9-2  | Sandbox-Ausführungspfad gehört zu S11; P5 öffnet nur die Naht, der Body wird nicht portiert                                                                         | `master/toolforge.rs:9`, `toolforge/sandbox_runner.rs:3,30`                                      | offen bis S11         |
+| OP-S9-3  | `master/cronBridge.ts` liest `automation/runtime` (S10) und bleibt bis S10 in TypeScript                                                                            | `master/mod.rs:97`                                                                               | offen bis S10         |
+| OP-S9-4  | `masterActionBridge` (S6) wird von `connectors/gmail/actions.ts`, `execution/runtime/toolRunner.ts` und `app/api/master/gmail` konsumiert; alle drei zurückgehalten | `master/connectors.rs:10`, `execution.rs:12`, `connectors/gmail.rs:9`, `execution/runtime.rs:20` | offen bis S6/S10      |
+| OP-S9-5  | Erledigt: Clippy 1.94 verwarf das manuelle `impl Default` für `ProspectiveRuntimeDeps` (`derivable_impls`); Fix als `#[derive(Default)]`                            | `866ad265` (`lane/s7`), `c9e48438` (`lane/s9`)                                                   | erledigt              |
+| OP-S9-6  | `CapabilityUnderstandingCycle`-Naht statt direkter Verdrahtung des Lernzyklus                                                                                       | `master/capabilities.rs:12`, `learning.rs:20`, `mod.rs:69`                                       | bewusst, Naht         |
+| OP-S9-7  | `DelegationDispatcherPort` und `ActionLedgerPort` sind Nähte; das Gateway komponiert sie, `getMasterExecutionRuntime` ist zurückgestellt                            | `master/mod.rs:45`, `orchestrator.rs:12`, `runtime.rs:18,206`                                    | bewusst, Naht         |
+| OP-S9-8  | Model-Dispatch des Understanding-Loops läuft über den `MasterModelDispatch`-Einstieg                                                                                | `master/understanding_loop.rs:16`, `mod.rs:54`                                                   | bewusst, Naht         |
+| OP-S9-11 | Prozessweite Timer des Subagent-Pools: nur wiederkehrende Ticks werden delegiert; Fehlerpfad liefert `{ accepted: false, reason }` statt Unwind                     | `master/delegation/dispatcher.rs:34`, `subagent_pool.rs:15,24`, `mod.rs:61`                      | bewusst, dokumentiert |
+| OP-S9-12 | `action_ledger`: TS unterscheidet Ablehnung und Fehler; Rust hält die Semantik über einen anderen Rückgabepfad                                                      | `master/execution/action_ledger.rs:15`                                                           | bewusst, dokumentiert |
+| OP-S9-13 | `resolveToolPolicy`-Naht wird von `ToolPolicyServiceResolver` geschlossen; `approval_policy` nutzt einen treuen Default                                             | `master/tool_policy.rs:7`, `tool_policy/service.rs:8,333`, `execution/approval_policy.rs:15`     | geschlossen in P5     |
+| OP-S9-14 | Folgewirkung des ausgeschlossenen `toolRunner.ts`                                                                                                                   | `master/mod.rs:56`                                                                               | offen bis S8/S11      |
+| OP-S9-15 | Prozessweite Timer (zweite Stelle), siehe OP-S9-11                                                                                                                  | `master/mod.rs:61`                                                                               | bewusst, dokumentiert |
+| OP-S9-16 | `CapabilityRuntimePersona`-Naht für die Runtime-Persona-Auflösung                                                                                                   | `master/understanding_loop.rs:19,44,321`, `mod.rs:71`                                            | bewusst, Naht         |
+| OP-S9-17 | Von P5 geöffnete Sandbox-Naht, Body bleibt S11 (siehe OP-S9-2)                                                                                                      | `master/toolforge/sandbox_runner.rs:12`                                                          | offen bis S11         |
+| OP-S9-18 | Schlüsselauflösung in `secret_store` nutzt die S4-Crypto-Grundelemente                                                                                              | `master/connectors/secret_store.rs:7`                                                            | bewusst, Grenze       |
+| OP-S9-19 | Fail-closed-Gate-Adapter                                                                                                                                            | `master/mod.rs:79`                                                                               | bewusst, Grenze       |
+| OP-S9-20 | Repository-Fehler, die in TypeScript geworfen hätten, laufen über den fail-closed-Gate-Adapter                                                                      | `master/mod.rs:79`, `tool_policy/service.rs:15,333`                                              | bewusst, Grenze       |
+
+Nicht beobachtet und daher hier nicht geführt: OP-S9-1, OP-S9-9, OP-S9-10. Die IDs
+1–20 sind nicht lückenlos vergeben; das ist kein Fehler, sondern nur ein Hinweis,
+dass die Nummerierung im Bahn-Code entstanden ist.
+
 ## 8. Befehle
 
 ```powershell
