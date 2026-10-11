@@ -788,6 +788,15 @@ Nicht beobachtet und daher hier nicht geführt: OP-S9-1, OP-S9-9, OP-S9-10. Die 
 1–20 sind nicht lückenlos vergeben; das ist kein Fehler, sondern nur ein Hinweis,
 dass die Nummerierung im Bahn-Code entstanden ist.
 
+### Offene Doku-Lücken aus der Bahn-Verifikation
+
+Klein, nicht blockierend, bewusst nicht mehr in dieser Runde gefixt:
+
+- `master/connectors/gmail/types.rs` nennt im Kopf den Bereich `1-16`, `types.ts`
+  hat aber 17 Zeilen (die 17. ist leer).
+- Die LOC-Angaben in einigen Modulköpfen sind locker: `tool_policy.rs` sagt
+  "~197" bei 222 Zeilen, `connectors.rs` sagt "~530" bei 472 Zeilen.
+
 ## 8. Befehle
 
 ```powershell
