@@ -143,4 +143,21 @@ describe('Mission Control agent-completion webhook auto-testing trigger', () => 
     const agent = queryOne<{ status: string }>('SELECT status FROM agents WHERE id = ?', [agentId]);
     expect(agent?.status).toBe('standby');
   });
+
+  it('rejects an oversized body before processing the webhook', async () => {
+    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    global.fetch = fetchSpy as typeof fetch;
+
+    const { POST } = await import('../../../app/api/webhooks/agent-completion/route');
+    const response = await POST(
+      new NextRequest('http://localhost/api/webhooks/agent-completion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: 'x'.repeat(1024 * 1024 + 1),
+      }),
+    );
+
+    expect(response.status).toBe(413);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });

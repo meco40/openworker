@@ -78,7 +78,7 @@ describe('proxy middleware branches', () => {
     expect(getTokenMock).toHaveBeenCalledTimes(1);
   });
 
-  it('handles missing tokens, events stream query tokens, and bearer validation', async () => {
+  it('handles missing tokens, events stream bearer auth, and bearer validation', async () => {
     const { proxy } = await import('../../../proxy');
 
     const unauthorized = await proxy(
@@ -91,15 +91,22 @@ describe('proxy middleware branches', () => {
     );
     expect(unauthorized.status).toBe(401);
 
-    const sseAllowed = await proxy(
+    const sseQueryDenied = await proxy(
       new NextRequest('http://localhost/api/events/stream?token=proxy-token'),
     );
-    expect(sseAllowed.status).toBe(200);
+    expect(sseQueryDenied.status).toBe(401);
 
     const sseDenied = await proxy(
       new NextRequest('http://localhost/api/events/stream?token=wrong-token'),
     );
     expect(sseDenied.status).toBe(401);
+
+    const sseBearerAllowed = await proxy(
+      new NextRequest('http://localhost/api/events/stream', {
+        headers: { authorization: 'Bearer proxy-token' },
+      }),
+    );
+    expect(sseBearerAllowed.status).toBe(200);
 
     const badBearer = await proxy(
       new NextRequest('http://localhost/api/private', {

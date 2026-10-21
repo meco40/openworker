@@ -8,6 +8,44 @@ import {
 } from '@/server/tasks/autoTesting';
 import type { Task, BetaClawSession } from '@/lib/types';
 
+const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
+
+async function readBodyWithinLimit(request: Request): Promise<string | null> {
+  const contentLength = Number(request.headers.get('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > MAX_WEBHOOK_BODY_BYTES) {
+    return null;
+  }
+
+  if (!request.body) return '';
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_WEBHOOK_BODY_BYTES) {
+        void reader.cancel().catch(() => {});
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 /**
  * Verify HMAC-SHA256 signature of webhook request
  */
@@ -46,8 +84,10 @@ function verifyWebhookSignature(signature: string, rawBody: string): boolean {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Read raw body for signature verification
-    const rawBody = await request.text();
+    const rawBody = await readBodyWithinLimit(request);
+    if (rawBody === null) {
+      return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
+    }
 
     const signature = request.headers.get('x-webhook-signature') || '';
     if (!verifyWebhookSignature(signature, rawBody)) {

@@ -124,7 +124,7 @@
     "@types/react": "^19.2.13",
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.12",
     "cross-env": "^10.1.0",
     "eslint-plugin-security": "^4.0.0",
     "eslint-plugin-sonarjs": "^4.2.0",
@@ -139,8 +139,8 @@
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.8.2",
-    "vite": "^7.3.6",
-    "vitest": "^4.1.11"
+    "vite": "^7.3.7",
+    "vitest": "^4.1.12"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": [

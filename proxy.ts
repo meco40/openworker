@@ -210,15 +210,6 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  // Special case: /api/events/stream (SSE) - allow token as query param
-  if (pathname === '/api/events/stream') {
-    const queryToken = request.nextUrl.searchParams.get('token');
-    if (queryToken && constantTimeEqual(queryToken, MC_API_TOKEN)) {
-      return finish('events.query-token', NextResponse.next(), { decision: 'events-query-token' });
-    }
-    // Fall through to header check below
-  }
-
   // Check Authorization header for bearer token
   const authHeader = request.headers.get('authorization');
 
