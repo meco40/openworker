@@ -34,7 +34,7 @@
 //!    as `:110`, which already returned, so it cannot change the outcome.
 //! 6. **Migrations take the caller's settings.** `:111` runs
 //!    `runWorldModelMigrations()` outside production. [`OutboxDispatcher::start`]
-//!    runs [`run_world_model_migrations`] with the same condition.
+//!    runs [`run_world_model_migrations_with_admin_pool`] with the same condition.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -47,7 +47,9 @@ use tokio::task::JoinHandle;
 use crate::world_model::config::{RuntimeRole, WorldModelConfig};
 use crate::world_model::db::{BoxFuture, PgError, PgExecutor};
 use crate::world_model::graphiti::shadow::create_graphiti_shadow_handler;
-use crate::world_model::migrations::{run_world_model_migrations, MigrationSettings};
+use crate::world_model::migrations::{
+    run_world_model_migrations_with_admin_pool, MigrationSettings,
+};
 use crate::world_model::repositories::outbox_repository::{
     claim_pending_outbox_events, mark_outbox_dispatched, mark_outbox_failed,
 };
@@ -374,7 +376,7 @@ impl OutboxDispatcher {
             return Ok(false);
         }
         if !production {
-            run_world_model_migrations(self.executor.as_ref(), migrations).await?;
+            run_world_model_migrations_with_admin_pool(self.executor.as_ref(), migrations).await?;
         }
         self.register_default_handlers(config, ports);
         if let Err(error) = self.dispatch_known_scopes(None).await {

@@ -10,6 +10,7 @@ pub mod background;
 pub mod families;
 pub mod gateway_methods;
 pub mod knowledge_runtime;
+pub mod model_hub_embedding;
 pub mod model_hub_transport;
 pub mod persona_poller;
 pub mod proxy;

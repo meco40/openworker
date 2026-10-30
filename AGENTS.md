@@ -83,13 +83,23 @@ docker compose -f docker-compose.postgres.yml up -d
 pnpm run world-model:migrate
 ```
 
-2. Build the Rust image once, then start the development stack (Windows uses
-   the Docker fallback; the image contains a Linux binary):
+2. Start the development stack; import the Node-era data once after the first start:
 
 ```powershell
-pnpm run rust:build
-pnpm run dev
+pnpm run dev                 # builds the Rust binaries (dev profile) and watches rust/crates
+pnpm run dev:import-legacy   # once, with the stack stopped: personas, conversations, master runs, model hub
 ```
+
+With `cargo` on the host (toolchain pinned in `rust/rust-toolchain.toml`), `pnpm run dev`
+builds gateway and scheduler with the incremental dev profile, runs copies from
+`.local/rust-dev/bin` and rebuilds and restarts both when a file below `rust/crates`
+changes (about 10 to 20 seconds; the first build takes a few minutes). A failed build
+keeps the running processes. Without `cargo` the stack uses the release binary or the
+container image (`pnpm run rust:build`). The host gateway keeps its own stores in
+`.local/rust-dev` (`scripts/dev-host-data.mjs`); the Node-era files directly in `.local`
+stay untouched. Loopback requests need no login: the anonymous principal is the admin
+of that store, so the imported data is visible. Stop the stack with Ctrl+C, so it ends
+its child processes.
 
 `pnpm run dev` starts the Rust gateway on `127.0.0.1:3000`, the Next.js UI on
 port 3001 in proxy mode (`BETACLAW_UI_MODE=proxy`) and the scheduler. The gateway
@@ -162,8 +172,9 @@ is in progress:
 - Never weaken a security boundary: loopback marker, origin policy, RLS scope,
   exec approvals, webhook signatures and secret handling stay as they are in the
   TypeScript implementation.
-- Never install a Rust toolchain on the host. Run `cargo` through the pinned
-  container image.
+- The dev gateway is built natively with the toolchain pinned in
+  `rust/rust-toolchain.toml`. Gates (`rust:test`, `rust:clippy`, `rust:fmt:check`)
+  run through the pinned container image.
 
 ### Validation workflow (after code changes)
 

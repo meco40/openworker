@@ -50,7 +50,7 @@
 //!    `1.0` while JavaScript renders `1`, so [`embedding_json`] builds the array
 //!    one [`f64::to_string`] at a time.
 //! 8. **A rejected `generateEmbedding` skips the target.** `:296-301` catches the
-//!    rejection and logs; the port answers `None` from
+//!    rejection and logs; the port logs the same line and answers `None` from
 //!    [`process_embedding_target`], which the batch then drops.
 
 use std::collections::HashMap;
@@ -213,6 +213,19 @@ fn truncate(mut targets: Vec<EmbeddingTarget>, limit: f64) -> Vec<EmbeddingTarge
     targets
 }
 
+/// The `catch` of `:259-261`: log, then return the partial list.
+fn collect_failed(
+    targets: Vec<EmbeddingTarget>,
+    limit: f64,
+    error: &PgError,
+) -> Vec<EmbeddingTarget> {
+    tracing::error!(
+        "[world-model:embeddings] failed to collect targets: {}",
+        crate::safe_error_message(error)
+    );
+    truncate(targets, limit)
+}
+
 /// The row shape pushed by `:108-114` and its siblings.
 fn target_from_row(
     target_type: &str,
@@ -284,7 +297,7 @@ pub async fn collect_embedding_targets_in_scope(
     .await
     {
         Ok(rows) => rows,
-        Err(_) => return truncate(targets, limit),
+        Err(error) => return collect_failed(targets, limit, &error),
     };
     for row in &obs_rows {
         let text = payload_text(row.get("payload"));
@@ -314,7 +327,7 @@ pub async fn collect_embedding_targets_in_scope(
     .await
     {
         Ok(rows) => rows,
-        Err(_) => return truncate(targets, limit),
+        Err(error) => return collect_failed(targets, limit, &error),
     };
     for row in &memory_rows {
         let built = build_embedding_text(
@@ -342,7 +355,7 @@ pub async fn collect_embedding_targets_in_scope(
     .await
     {
         Ok(rows) => rows,
-        Err(_) => return truncate(targets, limit),
+        Err(error) => return collect_failed(targets, limit, &error),
     };
     for row in &assertion_rows {
         let text = format!(
@@ -373,7 +386,7 @@ pub async fn collect_embedding_targets_in_scope(
     .await
     {
         Ok(rows) => rows,
-        Err(_) => return truncate(targets, limit),
+        Err(error) => return collect_failed(targets, limit, &error),
     };
     for row in &entity_rows {
         let text = format!(
@@ -400,7 +413,7 @@ pub async fn collect_embedding_targets_in_scope(
     .await
     {
         Ok(rows) => rows,
-        Err(_) => return truncate(targets, limit),
+        Err(error) => return collect_failed(targets, limit, &error),
     };
     for row in &event_rows {
         let text = format!(
@@ -428,7 +441,7 @@ pub async fn collect_embedding_targets_in_scope(
     .await
     {
         Ok(rows) => rows,
-        Err(_) => return truncate(targets, limit),
+        Err(error) => return collect_failed(targets, limit, &error),
     };
     for row in &task_rows {
         let text = format!(
@@ -527,6 +540,30 @@ pub async fn process_embedding_target(
     provider: Option<&dyn EmbeddingProvider>,
     deps: &EmbeddingWorkerDeps,
 ) -> Option<EmbeddingResult> {
+    match try_process_embedding_target(executor, target, model, model_version, provider, deps).await
+    {
+        Ok(result) => result,
+        Err(message) => {
+            // `console.error(`[world-model:embeddings] failed for ${type}:${id}:`, error)` — `:297-300`.
+            tracing::error!(
+                "[world-model:embeddings] failed for {}:{}: {}",
+                target.target_type,
+                target.target_id,
+                message
+            );
+            None
+        }
+    }
+}
+
+async fn try_process_embedding_target(
+    executor: &dyn PgExecutor,
+    target: &EmbeddingTarget,
+    model: &str,
+    model_version: &str,
+    provider: Option<&dyn EmbeddingProvider>,
+    deps: &EmbeddingWorkerDeps,
+) -> Result<Option<EmbeddingResult>, String> {
     let scope = Some(&target.scope);
     let existing = ambient_query::<PgError>(
         executor,
@@ -543,36 +580,42 @@ pub async fn process_embedding_target(
         ),
     )
     .await
-    .ok()?;
+    .map_err(|error| crate::safe_error_message(&error))?;
     if !existing.rows.is_empty() {
-        return Some(EmbeddingResult {
+        return Ok(Some(EmbeddingResult {
             target_type: target.target_type.clone(),
             target_id: target.target_id.clone(),
             embedding: Vec::new(),
             model: model.to_string(),
             model_version: model_version.to_string(),
             created: false,
-        });
+        }));
     }
 
     let embedding = if let Some(generate) = &deps.generate_embedding {
-        generate(target.text.clone()).await.ok()?
+        generate(target.text.clone()).await?
     } else if let Some(provider) = provider {
-        provider.generate_embedding(&target.text).await.ok()?
+        provider
+            .generate_embedding(&target.text)
+            .await
+            .map_err(|error| crate::safe_error_message(&error))?
     } else {
         // Never persist random vectors (`:341-348`).
-        return None;
+        tracing::error!(
+            "[world-model:embeddings] no generateEmbedding provider configured; target skipped"
+        );
+        return Ok(None);
     };
 
     if embedding.is_empty() || embedding.iter().any(|value| !value.is_finite()) {
-        return None;
+        return Err(INVALID_VECTOR_MESSAGE.to_string());
     }
 
     ambient_query::<PgError>(
         executor,
         scope,
         PgStatement::with_params(
-            "INSERT INTO world_model_embeddings\n     (user_id, persona_id, workspace_id, target_type, target_id,\n      embedding, model, model_version, text_hash, target_content)\n     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)\n     ON CONFLICT (user_id, persona_id, workspace_id, target_type, target_id, model, model_version)\n     DO UPDATE SET\n       embedding = EXCLUDED.embedding,\n       text_hash = EXCLUDED.text_hash,\n       target_content = EXCLUDED.target_content",
+            "INSERT INTO world_model_embeddings\n     (user_id, persona_id, workspace_id, target_type, target_id,\n      embedding, model, model_version, text_hash, target_content)\n     VALUES ($1,$2,$3,$4,$5,$6::vector,$7,$8,$9,$10)\n     ON CONFLICT (user_id, persona_id, workspace_id, target_type, target_id, model, model_version)\n     DO UPDATE SET\n       embedding = EXCLUDED.embedding,\n       text_hash = EXCLUDED.text_hash,\n       target_content = EXCLUDED.target_content",
             vec![
                 PgValue::text(target.scope.user_id.as_str()),
                 PgValue::text(target.scope.persona_id.as_str()),
@@ -588,16 +631,16 @@ pub async fn process_embedding_target(
         ),
     )
     .await
-    .ok()?;
+    .map_err(|error| crate::safe_error_message(&error))?;
 
-    Some(EmbeddingResult {
+    Ok(Some(EmbeddingResult {
         target_type: target.target_type.clone(),
         target_id: target.target_id.clone(),
         embedding,
         model: model.to_string(),
         model_version: model_version.to_string(),
         created: true,
-    })
+    }))
 }
 
 // ─── Worker loop ────────────────────────────────────────────────────────────
@@ -684,8 +727,9 @@ impl EmbeddingWorker {
             None => Vec::new(),
         };
         if self.scope_provider.is_some() && scopes.is_empty() {
-            // `[world-model:embeddings] no runtime scopes discovered; skipping
-            // unscoped tick` (`:431`).
+            tracing::warn!(
+                "[world-model:embeddings] no runtime scopes discovered; skipping unscoped tick"
+            );
             return;
         }
         if self.scope_provider.is_some() {
@@ -978,6 +1022,8 @@ mod tests {
             .sql
             .contains("text_hash = $5"));
         let insert = find(&statements, "INSERT INTO world_model_embeddings");
+        // sqlx binds text as `text`, so the vector column needs the cast `pg` infers.
+        assert!(insert.sql.contains("$6::vector"));
         assert_eq!(insert.params[5], PgValue::text("[0.5,1]"));
         assert_eq!(insert.params[9], PgValue::text("hello"));
     }

@@ -228,6 +228,34 @@ fassen Memory, Knowledge und Stats an und gehören in S5 bis S7.
 
 ## 7. Fortschrittsnotizen
 
+### 2026-10-30 — Host-Dev-Stack, Embeddings und semantischer Memory-Recall
+
+- **Dev-Stack mit Watcher**: Mit `cargo` auf dem Host baut `pnpm run dev` Gateway und Scheduler
+  im dev-Profil, startet Kopien aus `.local/rust-dev/bin` und baut und startet beide bei jeder
+  Änderung unter `rust/crates` neu. Gemessen: Neustart nach 13,9 s und 21,2 s statt rund 6 min
+  für den Release-Build (`lto = "thin"`, `codegen-units = 1`). Der erste Build dauert 3:46 min.
+  Ein fehlgeschlagener Build lässt die laufenden Prozesse stehen. Der feste
+  `SCHEDULER_INSTANCE_ID=dev-scheduler` lässt den neuen Scheduler seine Lease sofort übernehmen.
+  `dev:import-legacy` nutzt das dev-Binary, sonst das Release-Binary.
+- **Embedding-Worker schrieb nie**: Der Insert band den Vektor als `text`. `pg` lässt den Typ
+  offen, sqlx typisiert ihn, also schlug jeder Insert fehl. Jetzt `$6::vector`. Der Worker
+  verschluckte alle Fehler. Er loggt jetzt dieselben Zeilen wie `embeddingWorker.ts`
+  (Sammeln, Ziel, fehlender Provider, keine Scopes).
+- **Model-Hub-Embedding-Fallback** (`model_hub_embedding.rs`, Port von `provider.ts:36-81`):
+  Ohne `EMBEDDING_*` bettet das World Model über den aktiven Kopf von `p1-embeddings` ein. Gilt
+  für den Worker im Scheduler und den Health-Check.
+- **Semantischer Memory-Recall**: Alle Produktionsstellen bauten `PostgresMemoryClient::new`
+  ohne Embedder, Recall war damit nur lexikalisch. `canonical_memory_client` löst den Provider
+  pro Abfrage auf (Memory-Route, Diagnose, Chat-Runtime, Knowledge-Runtime). Live belegt: eine
+  englische und eine deutsche Frage finden einen englischen Eintrag.
+- **Diagnose-Memory** nutzt den kanonischen PostgreSQL-Executor. **Migrationen im
+  Outbox-Dispatcher** laufen mit `WORLD_MODEL_ADMIN_DATABASE_URL` auf eigenem Pool, so dass
+  „permission denied for schema public“ beim Start entfällt.
+- **Offen**: Eine Observation mit 7214 Zeichen überschreitet das Eingabelimit des
+  Embedding-Modells (HTTP 422) und erscheint alle 30 s im Log. TypeScript verhält sich gleich.
+- **Gates**: `cargo fmt --check`, `cargo clippy -D warnings` exit 0, gezielte Tests 15
+  (Gateway) und 49 (Core) grün, oxlint und Prettier für die Skripte sauber.
+
 ### 2026-10-30 — Restpunkte auf main nachgezogen
 
 Stand auf `main` nach dem Merge von `rust`. Die Punkte „nicht gelaufen“ des Eintrags darunter

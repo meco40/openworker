@@ -33,7 +33,6 @@ use betaclaw_core::knowledge::retrieval::types::{
 use betaclaw_core::memory::errors::MemoryError;
 use betaclaw_core::memory::lifecycle::NoopLifecyclePublisher;
 use betaclaw_core::memory::mem0::create_mem0_client_from_env;
-use betaclaw_core::memory::postgres::PostgresMemoryClient;
 use betaclaw_core::memory::runtime::{
     ConfiguredProvider, MemoryClientFactory, MemoryRuntime, MemoryRuntimeError,
 };
@@ -89,7 +88,11 @@ impl MemoryClientFactory for ChatMemoryClientFactory<'_> {
                     .pg
                     .executor()
                     .map_err(|error| MemoryRuntimeError::Configuration(error.to_string()))?;
-                Ok(Box::new(PostgresMemoryClient::new(executor)) as Box<dyn Mem0Client>)
+                Ok(
+                    Box::new(crate::model_hub_embedding::canonical_memory_client(
+                        executor,
+                    )) as Box<dyn Mem0Client>,
+                )
             }
         }
     }

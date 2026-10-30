@@ -18,6 +18,7 @@ use std::path::{Path, PathBuf};
 use crate::world_model::db::{
     PgError, PgExecutor, PgSession, PgStatement, PgValue, SQL_BEGIN, SQL_COMMIT, SQL_ROLLBACK,
 };
+use crate::world_model::driver::{PgPoolSettings, SqlxPgExecutor};
 
 /// `CREATE TABLE IF NOT EXISTS _world_model_migrations …` (`db.ts:131-136`).
 pub const MIGRATIONS_TABLE_SQL: &str = "
@@ -191,6 +192,39 @@ pub async fn run_world_model_migrations(
         ))
         .await;
     session.release();
+    outcome
+}
+
+/// `runWorldModelMigrations` (`db.ts:168-201`) as the dispatcher calls it. With an admin
+/// URL the run gets its own small pool (`max: 2`, idle 5 s), closed afterwards, because the
+/// app and worker roles may not create tables. Without one the app pool runs it.
+pub async fn run_world_model_migrations_with_admin_pool(
+    app: &dyn PgExecutor,
+    settings: &MigrationSettings,
+) -> Result<Vec<String>, PgError> {
+    let Some(admin_url) = settings
+        .admin_database_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|url| !url.is_empty())
+    else {
+        return run_world_model_migrations(app, settings).await;
+    };
+    let pool = PgPoolSettings {
+        database_url: admin_url.to_string(),
+        pool_max: 2,
+        pool_idle_timeout_ms: 5_000,
+    };
+    let admin = SqlxPgExecutor::connect(&pool).await.map_err(|_| {
+        PgError::new(
+            UnreachableCanonicalDatabase {
+                database_url: admin_url.to_string(),
+            }
+            .to_string(),
+        )
+    })?;
+    let outcome = run_world_model_migrations(&admin, settings).await;
+    admin.close().await;
     outcome
 }
 
@@ -405,6 +439,26 @@ mod tests {
             error.message
         );
         assert!(error.message.contains("is not reachable"));
+    }
+
+    #[test]
+    fn an_admin_url_runs_on_its_own_pool_and_leaves_the_app_pool_alone() {
+        let executor = RecordingExecutor::new(vec![]);
+        let settings = MigrationSettings {
+            admin_database_url: Some("not a postgres url".to_string()),
+            migrations_dir: "unused".to_string(),
+        };
+        let error = drive_sync(run_world_model_migrations_with_admin_pool(
+            &executor, &settings,
+        ))
+        .expect("bridge")
+        .expect_err("the admin pool cannot open");
+        assert!(
+            error.message.contains("is not reachable"),
+            "{}",
+            error.message
+        );
+        assert!(executor.calls().is_empty(), "the app pool is not used");
     }
 
     #[test]

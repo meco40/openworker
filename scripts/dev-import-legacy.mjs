@@ -25,13 +25,18 @@ const { loadEnvConfig } = require('@next/env');
 loadEnvConfig(repoRoot);
 const Database = require('better-sqlite3');
 
-const GATEWAY_BINARY = path.join(
-  repoRoot,
-  'rust',
-  'target',
-  'release',
-  process.platform === 'win32' ? 'betaclaw-gateway.exe' : 'betaclaw-gateway',
-);
+// The dev-profile build `pnpm run dev` keeps current, else the release binary.
+const GATEWAY_BINARY = ['debug', 'release']
+  .map((profile) =>
+    path.join(
+      repoRoot,
+      'rust',
+      'target',
+      profile,
+      process.platform === 'win32' ? 'betaclaw-gateway.exe' : 'betaclaw-gateway',
+    ),
+  )
+  .find((candidate) => fs.existsSync(candidate));
 const GATEWAY_PORT = 3000;
 const LEGACY_USER_ID = 'legacy-local-user';
 const LEGACY_DIR = path.join(repoRoot, '.local');
@@ -62,6 +67,9 @@ async function isGatewayHealthy() {
  * admin account, then stops it again.
  */
 async function seedHostStores() {
+  if (!GATEWAY_BINARY) {
+    throw new Error('no gateway binary in rust/target. Build it with: cd rust; cargo build');
+  }
   if (await isGatewayHealthy()) {
     throw new Error(
       `a gateway already answers on 127.0.0.1:${GATEWAY_PORT}. Stop the dev stack first.`,

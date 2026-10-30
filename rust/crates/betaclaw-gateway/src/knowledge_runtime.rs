@@ -37,7 +37,6 @@ use betaclaw_core::knowledge::sqlite_knowledge_repository::{
 };
 use betaclaw_core::memory::lifecycle::MemoryLifecycleBus;
 use betaclaw_core::memory::mem0::{create_mem0_client_from_env, Mem0HttpClient};
-use betaclaw_core::memory::postgres::PostgresMemoryClient;
 use betaclaw_core::memory::runtime::{configured_provider, ConfiguredProvider};
 use betaclaw_core::memory::service::{
     Mem0PolicyConfig, MemoryPageRequest, MemoryService, MemoryServiceDependencies,
@@ -239,7 +238,9 @@ async fn build_memory_adapter(
                     Err(error) => return unavailable_memory(error.to_string()),
                 },
             };
-            Ok(Box::new(PostgresMemoryClient::new(executor)))
+            Ok(Box::new(
+                crate::model_hub_embedding::canonical_memory_client(executor),
+            ))
         }
         ConfiguredProvider::Mem0 => create_mem0_client_from_env(env, transport)
             .map(|client| {

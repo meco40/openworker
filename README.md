@@ -140,11 +140,22 @@ Copy-Item .env.local.example .env.local
 docker compose -f docker-compose.postgres.yml up -d
 pnpm run world-model:migrate
 
-# Rust-Image bauen; unter Windows nutzt der Dev-Stack dieses Image.
-pnpm run rust:build
-
+# Baut Gateway und Scheduler (dev-Profil) und beobachtet rust/crates.
 pnpm run dev
+
+# Einmalig, bei gestopptem Stack: Personas, Konversationen, Master-Runs und Model-Hub aus .local übernehmen.
+pnpm run dev:import-legacy
 ```
+
+Mit `cargo` auf dem Host baut `pnpm run dev` beide Rust-Binaries inkrementell, startet
+Kopien aus `.local/rust-dev/bin` und baut und startet sie bei jeder Änderung unter
+`rust/crates` automatisch neu (etwa 10 bis 20 Sekunden, der erste Build dauert einige
+Minuten). Ein fehlgeschlagener Build lässt die laufenden Prozesse stehen. Das Host-Gateway
+nutzt eigene Datenbanken unter `.local/rust-dev`. Die Node-Dateien direkt in `.local`
+bleiben unverändert. Anfragen von Loopback brauchen kein Login, der anonyme Principal ist
+der Admin dieses Datenbestands. Ohne `cargo` fällt der Stack auf das Release-Binary oder
+das Container-Image zurück (`pnpm run rust:build`). Den Stack mit Strg+C beenden, damit er seine
+Kindprozesse mitnimmt.
 
 Für Fehlersuche am alten Stack steht `pnpm run dev:node` weiterhin zur
 Verfügung. Er startet den Node-Server wie bisher auf Port 3000.

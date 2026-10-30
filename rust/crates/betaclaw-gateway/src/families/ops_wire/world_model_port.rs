@@ -159,8 +159,14 @@ impl WorldModelHealth {
         let env: HashMap<String, String> = std::env::vars().collect();
         let config = resolve_world_model_config(&env);
         let transport: Arc<dyn HttpTransport> = Arc::new(ReqwestTransport::new());
-        let embedding_provider_configured =
-            configured_embedding_provider(&env, Arc::clone(&transport), None).is_some();
+        let embedding_provider_configured = configured_embedding_provider(
+            &env,
+            Arc::clone(&transport),
+            Some(&|| {
+                crate::model_hub_embedding::model_hub_embedding_provider(reqwest::Client::new())
+            }),
+        )
+        .is_some();
         let graphiti = Arc::new(GraphitiRestClient::from_env(transport));
         let executor: Arc<dyn PgExecutor> =
             if (config.enabled || config.e2e_enabled) && !config.database_url.is_empty() {

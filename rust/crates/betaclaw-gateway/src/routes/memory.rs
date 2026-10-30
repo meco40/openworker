@@ -43,7 +43,6 @@ use serde_json::{json, Map, Value};
 
 use betaclaw_core::memory::lifecycle::MemoryLifecycleBus;
 use betaclaw_core::memory::mem0::create_mem0_client_from_env;
-use betaclaw_core::memory::postgres::PostgresMemoryClient;
 use betaclaw_core::memory::runtime::{
     assert_memory_runtime_configuration, configured_provider, ConfiguredProvider,
     MemoryClientFactory, MemoryRuntime, MemoryRuntimeError,
@@ -169,7 +168,7 @@ impl MemoryClientFactory for GatewayMemoryClientFactory {
                 .postgres_executor
                 .as_ref()
                 .map(|executor| {
-                    Box::new(PostgresMemoryClient::new(Arc::clone(executor)))
+                    Box::new(crate::model_hub_embedding::canonical_memory_client(Arc::clone(executor)))
                         as Box<dyn Mem0Client>
                 })
                 .ok_or_else(|| {

@@ -490,7 +490,16 @@ pub async fn start_scheduler_runtime(
                 });
 
                 // 3. EmbeddingWorker (`scheduler.ts:91-93`).
-                let provider = configured_embedding_provider(&env, transport.clone(), None);
+                // Without EMBEDDING_* settings the Model Hub embeds (`provider.ts:95`).
+                let model_hub_http = state.upstream.clone();
+                let model_hub_fallback = move || {
+                    crate::model_hub_embedding::model_hub_embedding_provider(model_hub_http.clone())
+                };
+                let provider = configured_embedding_provider(
+                    &env,
+                    transport.clone(),
+                    Some(&model_hub_fallback),
+                );
                 let scope_exec = executor.clone();
                 let scope_env = env.clone();
                 let scope_role = world_model_config.runtime_role;

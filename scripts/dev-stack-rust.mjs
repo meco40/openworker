@@ -3,13 +3,16 @@
  * Developer stack for the Rust migration.
  *
  * Starts three processes:
- *   - `gateway`  the Rust axum gateway, owns http://127.0.0.1:3000 and /ws
- *   - `web-ui`   Next.js on 127.0.0.1:3001, serving the UI and the API routes
- *                that have not been migrated yet
- *   - `scheduler` the TypeScript scheduler, unchanged until slice S13
+ *   - `gateway`   the Rust axum gateway, owns http://127.0.0.1:3000 and /ws
+ *   - `web-ui`    Next.js on 127.0.0.1:3001, serving the UI pages and HMR
+ *   - `scheduler` the Rust scheduler
  *
- * The Rust gateway is compiled inside a container so no host toolchain is
- * required. See docs/RUST_MIGRATION.md.
+ * With `cargo` on the host, the stack builds both Rust binaries with the dev profile
+ * (incremental), runs copies from .local/rust-dev/bin and watches rust/crates: a saved
+ * change rebuilds and restarts gateway and scheduler. The copies keep the target files
+ * unlocked on Windows, so cargo links while the old processes still serve. A failed
+ * build leaves them running. Without `cargo`, the release binary or the container
+ * image is used as before.
  *
  * Environment:
  *   BETACLAW_DEV_GATEWAY=off   start the legacy Node gateway only (pnpm dev:node)
@@ -122,6 +125,116 @@ const DATABASE_URL_VARS = [
 // the same name.
 const DEV_DATA_VOLUME = 'betaclaw-dev-data';
 
+const RUST_DIR = resolve(repoRoot, 'rust');
+const RUST_BINS = ['betaclaw-gateway', 'betaclaw-scheduler'];
+const RUST_RUN_DIR = resolve(repoRoot, '.local', 'rust-dev', 'bin');
+const exeName = (name) => (process.platform === 'win32' ? `${name}.exe` : name);
+const CARGO_BUILD_ARGS = ['build', '--locked', ...RUST_BINS.flatMap((name) => ['--bin', name])];
+// Host Rust processes by name, with the environment they are restarted with.
+const hostRust = new Map();
+
+function hasCargo() {
+  return !spawnSync('cargo', ['--version'], { cwd: RUST_DIR, stdio: 'ignore' }).error;
+}
+
+function debugBinary(name) {
+  return resolve(RUST_DIR, 'target', 'debug', exeName(name));
+}
+
+function stagedBinary(name) {
+  return resolve(RUST_RUN_DIR, exeName(name));
+}
+
+function stageRustBinaries() {
+  fs.mkdirSync(RUST_RUN_DIR, { recursive: true });
+  for (const name of RUST_BINS) fs.copyFileSync(debugBinary(name), stagedBinary(name));
+}
+
+/** Spawns a host Rust binary. Its exit ends the stack unless a rebuild replaced it. */
+function spawnHostRust(name, binaryPath, env) {
+  const proc = spawn(binaryPath, [], { stdio: 'inherit', cwd: repoRoot, env });
+  hostRust.set(name, { proc, binaryPath, env });
+  const index = children.findIndex((child) => child.name === name);
+  if (index >= 0) children.splice(index, 1);
+  children.push({ name, proc });
+  proc.on('error', (error) => {
+    console.error(`[dev-stack] failed to start ${name}:`, error);
+    shutdown(1);
+  });
+  proc.on('exit', (code, signal) => {
+    if (shuttingDown || proc.replaced) return;
+    console.error(`[dev-stack] ${name} exited with code=${code} signal=${signal ?? 'none'}`);
+    if (name === 'gateway' && code === 1) {
+      console.error(
+        '[dev-stack] The gateway most likely could not bind its port. See the log above.',
+      );
+    }
+    shutdown(code ?? 1);
+  });
+  return proc;
+}
+
+/** Stops the host Rust processes, swaps in the new binaries and starts them again. */
+async function restartHostRust() {
+  const running = [...hostRust.entries()];
+  await Promise.all(
+    running.map(
+      ([, { proc }]) =>
+        new Promise((resolveExit) => {
+          proc.replaced = true;
+          if (proc.exitCode !== null) return resolveExit();
+          proc.once('exit', resolveExit);
+          proc.kill();
+        }),
+    ),
+  );
+  stageRustBinaries();
+  for (const [name, { binaryPath, env }] of running) spawnHostRust(name, binaryPath, env);
+}
+
+/** Rebuilds on a saved .rs/.toml change below rust/crates and restarts when a binary changed. */
+function watchRustSources() {
+  let timer = null;
+  let building = false;
+  let pending = false;
+  const mtimes = () => RUST_BINS.map((name) => fs.statSync(debugBinary(name)).mtimeMs).join();
+  const rebuild = async () => {
+    if (building) {
+      pending = true;
+      return;
+    }
+    building = true;
+    const started = Date.now();
+    const before = mtimes();
+    console.log('[dev-stack] Rust change detected, rebuilding...');
+    const code = await new Promise((resolveBuild) =>
+      spawn('cargo', CARGO_BUILD_ARGS, { cwd: RUST_DIR, stdio: 'inherit' }).on(
+        'exit',
+        resolveBuild,
+      ),
+    );
+    if (code !== 0) {
+      console.error('[dev-stack] Rust build failed; the running gateway and scheduler stay up');
+    } else if (!shuttingDown && mtimes() !== before) {
+      await restartHostRust();
+      console.log(
+        `[dev-stack] gateway and scheduler restarted (${((Date.now() - started) / 1000).toFixed(1)}s)`,
+      );
+    }
+    building = false;
+    if (pending) {
+      pending = false;
+      void rebuild();
+    }
+  };
+  fs.watch(resolve(RUST_DIR, 'crates'), { recursive: true }, (_event, file) => {
+    if (!file || !/\.(rs|toml)$/.test(String(file))) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => void rebuild(), 300);
+  });
+  console.log('[dev-stack] watching rust/crates for changes');
+}
+
 // Returns the docker arguments and the environment of the docker process. Values never
 // go into argv: a process listing would show the database password in the URLs.
 function worldModelDockerEnv(isWindows) {
@@ -144,18 +257,17 @@ function worldModelDockerEnv(isWindows) {
 }
 
 /**
- * Starts the Rust gateway from its release binary.
- *
- * `cargo` is intentionally not invoked from the host: the toolchain lives in a
- * container image. The binary is expected at rust/target/release/betaclaw-gateway.
+ * Starts the Rust gateway: the staged dev build when `cargo` is on the host, else the
+ * release binary at rust/target/release/betaclaw-gateway, else the container image.
  *
  * Returns false when the stack must abort, so callers stop before spawning the
  * UI and scheduler. Otherwise returns 'host' or 'docker', the way the gateway runs.
  */
-function startRustGateway(port, isStaticMode, staticDir) {
-  const binary = resolve(repoRoot, 'rust', 'target', 'release', 'betaclaw-gateway');
+function startRustGateway(port, isStaticMode, staticDir, cargoMode) {
   const isWindows = process.platform === 'win32';
-  const binaryPath = isWindows ? `${binary}.exe` : binary;
+  const binaryPath = cargoMode
+    ? stagedBinary('betaclaw-gateway')
+    : resolve(RUST_DIR, 'target', 'release', exeName('betaclaw-gateway'));
 
   let proc;
   let viaDocker = false;
@@ -163,20 +275,17 @@ function startRustGateway(port, isStaticMode, staticDir) {
   const check = spawnSync(binaryPath, ['--version'], { stdio: 'ignore' });
   if (!check.error) {
     console.log(`[dev-stack] starting gateway: ${binaryPath}`);
-    proc = spawn(binaryPath, [], {
-      stdio: 'inherit',
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        ...hostDataEnv(repoRoot),
-        PORT: String(port),
-        HOSTNAME: '127.0.0.1',
-        GATEWAY_UPSTREAM_ORIGIN: `http://127.0.0.1:${UI_PORT}`,
-        RUST_LOG: process.env.RUST_LOG || 'info',
-        BETACLAW_UI_MODE: process.env.BETACLAW_UI_MODE,
-        UI_STATIC_DIR: staticDir,
-      },
+    spawnHostRust('gateway', binaryPath, {
+      ...process.env,
+      ...hostDataEnv(repoRoot),
+      PORT: String(port),
+      HOSTNAME: '127.0.0.1',
+      GATEWAY_UPSTREAM_ORIGIN: `http://127.0.0.1:${UI_PORT}`,
+      RUST_LOG: process.env.RUST_LOG || 'info',
+      BETACLAW_UI_MODE: process.env.BETACLAW_UI_MODE,
+      UI_STATIC_DIR: staticDir,
     });
+    return 'host';
   } else {
     const dockerCheck = spawnSync('docker', ['image', 'inspect', 'betaclaw-gateway-local'], {
       stdio: 'ignore',
@@ -280,23 +389,19 @@ function startRustGateway(port, isStaticMode, staticDir) {
   proc.on('exit', (code, signal) => {
     if (shuttingDown) return;
     console.error(`[dev-stack] gateway exited with code=${code} signal=${signal ?? 'none'}`);
-    if (code === 1) {
-      console.error(
-        '[dev-stack] The gateway most likely could not bind its port. See the log above.',
-      );
-    }
     shutdown(code ?? 1);
   });
   return viaDocker ? 'docker' : 'host';
 }
 
 /**
- * Starts the Rust scheduler from its release binary when present, falling back
- * to the TypeScript scheduler (`dev:scheduler`) when not yet extracted.
+ * The Rust scheduler binary (staged dev build or release binary), or null, which
+ * falls back to the TypeScript scheduler (`dev:scheduler`).
  */
-function rustSchedulerBinary() {
-  const binary = resolve(repoRoot, 'rust', 'target', 'release', 'betaclaw-scheduler');
-  const binaryPath = process.platform === 'win32' ? `${binary}.exe` : binary;
+function rustSchedulerBinary(cargoMode) {
+  const binaryPath = cargoMode
+    ? stagedBinary('betaclaw-scheduler')
+    : resolve(RUST_DIR, 'target', 'release', exeName('betaclaw-scheduler'));
   return spawnSync(binaryPath, ['--version'], { stdio: 'ignore' }).error ? null : binaryPath;
 }
 
@@ -307,26 +412,13 @@ function startRustScheduler(binaryPath) {
   }
 
   console.log(`[dev-stack] starting Rust scheduler: ${binaryPath}`);
-  const proc = spawn(binaryPath, [], {
-    stdio: 'inherit',
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      ...hostDataEnv(repoRoot),
-      BETACLAW_DEV_CHILD: 'scheduler',
-      RUST_LOG: process.env.RUST_LOG || 'info',
-    },
-  });
-  children.push({ name: 'scheduler', proc });
-
-  proc.on('error', (error) => {
-    console.error('[dev-stack] failed to start scheduler:', error);
-    shutdown(1);
-  });
-  proc.on('exit', (code, signal) => {
-    if (shuttingDown) return;
-    console.error(`[dev-stack] scheduler exited with code=${code} signal=${signal ?? 'none'}`);
-    shutdown(code ?? 1);
+  spawnHostRust('scheduler', binaryPath, {
+    ...process.env,
+    ...hostDataEnv(repoRoot),
+    BETACLAW_DEV_CHILD: 'scheduler',
+    // A fixed id lets the restarted scheduler take over its own lease at once.
+    SCHEDULER_INSTANCE_ID: process.env.SCHEDULER_INSTANCE_ID || 'dev-scheduler',
+    RUST_LOG: process.env.RUST_LOG || 'info',
   });
 }
 
@@ -432,9 +524,21 @@ async function main() {
   if (!isFree) return;
   console.log(`[dev-stack] gateway will listen on http://127.0.0.1:${gatewayPort}`);
 
-  const gateway = startRustGateway(gatewayPort, isStaticMode, staticDir);
+  const cargoMode = hasCargo();
+  if (cargoMode) {
+    console.log('[dev-stack] building the Rust binaries (dev profile, incremental)...');
+    const build = spawnSync('cargo', CARGO_BUILD_ARGS, { cwd: RUST_DIR, stdio: 'inherit' });
+    if (build.status !== 0) {
+      console.error('[dev-stack] Rust build failed. Fix the error above and start again.');
+      shutdown(1);
+      return;
+    }
+    stageRustBinaries();
+  }
+
+  const gateway = startRustGateway(gatewayPort, isStaticMode, staticDir, cargoMode);
   if (!gateway) return;
-  const schedulerBinary = rustSchedulerBinary();
+  const schedulerBinary = rustSchedulerBinary(cargoMode);
   // Only a containerised gateway needs a non-loopback UI listener (host.docker.internal).
   const uiEnv = { HOSTNAME: gateway === 'docker' ? '0.0.0.0' : '127.0.0.1' };
   // Rust runs the workspace cleanup in its scheduler only. Without that binary the
@@ -458,6 +562,7 @@ async function main() {
     console.log('[dev-stack] static UI mode active — web-ui (Node) process omitted');
   }
   startRustScheduler(schedulerBinary);
+  if (cargoMode) watchRustSources();
 }
 
 main();

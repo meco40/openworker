@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::path::Path;
 use std::process::Stdio;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 use std::time::{Duration, Instant};
 
 use betaclaw_core::diagnostics::doctor::run_doctor_command;
@@ -48,7 +48,7 @@ use betaclaw_core::memory::errors::MemoryError;
 use betaclaw_core::memory::lifecycle::NoopLifecyclePublisher;
 use betaclaw_core::memory::mem0::create_mem0_client_from_env;
 use betaclaw_core::memory::runtime::{
-    ConfiguredProvider, MemoryClientFactory, MemoryRuntime, MemoryRuntimeError,
+    configured_provider, ConfiguredProvider, MemoryClientFactory, MemoryRuntime, MemoryRuntimeError,
 };
 use betaclaw_core::memory::service::{Mem0PolicyConfig, MemoryService, MemoryServiceDependencies};
 use betaclaw_core::memory::sqlite::client::SqliteMemoryClient;
@@ -60,9 +60,11 @@ use betaclaw_core::security::status::{
 };
 use betaclaw_core::stats::token_usage::TokenUsageRepository;
 use betaclaw_core::world_model::config::resolve_world_model_config;
+use betaclaw_core::world_model::db::PgExecutor;
 use serde_json::{json, Value};
 
 use super::ports::{DiagnosticsPort, PortError, PortFuture};
+use super::world_model_port::LazyPgExecutor;
 use super::BuildError;
 use crate::model_hub_transport::ReqwestTransport;
 
@@ -102,6 +104,8 @@ pub struct RustDiagnostics {
     http: reqwest::Client,
     started_at: Instant,
     memory_cache: Mutex<Option<(Instant, ProcessMemory)>>,
+    /// Pool for the canonical memory provider, opened on the first postgres read.
+    memory_pg: OnceLock<Arc<dyn PgExecutor>>,
 }
 
 fn store_error(error: impl std::fmt::Display) -> BuildError {
@@ -129,6 +133,7 @@ fn memory_policy(env: &HashMap<String, String>) -> Mem0PolicyConfig {
 /// factory of `routes/memory.rs`, which is private there.
 struct DiagnosticsMemoryFactory {
     transport: Arc<dyn HttpTransport>,
+    postgres: Option<Arc<dyn PgExecutor>>,
 }
 
 impl MemoryClientFactory for DiagnosticsMemoryFactory {
@@ -150,10 +155,18 @@ impl MemoryClientFactory for DiagnosticsMemoryFactory {
                     Err(error) => Err(MemoryRuntimeError::Configuration(error.to_string())),
                 }
             }
-            ConfiguredProvider::Postgres => Err(MemoryRuntimeError::Configuration(
-                "Invalid memory configuration: the postgres memory provider needs the World-Model driver (S6)."
-                    .to_string(),
-            )),
+            ConfiguredProvider::Postgres => self
+                .postgres
+                .as_ref()
+                .map(|executor| {
+                    Box::new(crate::model_hub_embedding::canonical_memory_client(Arc::clone(executor))) as Box<dyn Mem0Client>
+                })
+                .ok_or_else(|| {
+                    MemoryRuntimeError::Configuration(
+                        "Invalid memory configuration: the canonical PostgreSQL executor is unavailable."
+                            .to_string(),
+                    )
+                }),
         }
     }
 }
@@ -189,6 +202,7 @@ impl RustDiagnostics {
             http: deps.http,
             started_at: Instant::now(),
             memory_cache: Mutex::new(None),
+            memory_pg: OnceLock::new(),
         })
     }
 
@@ -201,8 +215,20 @@ impl RustDiagnostics {
     fn memory_runtime(&self, env: &HashMap<String, String>) -> PortResult<MemoryRuntime> {
         let transport: Arc<dyn HttpTransport> =
             Arc::new(ReqwestTransport::with_client(self.http.clone()));
-        MemoryRuntime::from_env(env, &DiagnosticsMemoryFactory { transport })
-            .map_err(|error| PortFailure::Failed(error.message()))
+        let postgres = (configured_provider(env) == ConfiguredProvider::Postgres).then(|| {
+            Arc::clone(self.memory_pg.get_or_init(|| {
+                Arc::new(LazyPgExecutor::new(&resolve_world_model_config(env)))
+                    as Arc<dyn PgExecutor>
+            }))
+        });
+        MemoryRuntime::from_env(
+            env,
+            &DiagnosticsMemoryFactory {
+                transport,
+                postgres,
+            },
+        )
+        .map_err(|error| PortFailure::Failed(error.message()))
     }
 
     /// Runs one read on the memory service built from the current environment.
@@ -623,6 +649,30 @@ mod tests {
     use crate::families::ops_wire::test_support::{scratch, ScratchDir};
     use betaclaw_core::config::LEGACY_LOCAL_USER_ID;
     use betaclaw_core::gateway::registry::ClientRegistry;
+
+    #[test]
+    fn the_diagnostics_factory_builds_the_canonical_memory_client() {
+        use betaclaw_core::memory::types::MemoryProviderKind;
+        use betaclaw_core::world_model::db::UnconfiguredPgExecutor;
+
+        let transport: Arc<dyn HttpTransport> = Arc::new(ReqwestTransport::new());
+        let with_pool = DiagnosticsMemoryFactory {
+            transport: Arc::clone(&transport),
+            postgres: Some(Arc::new(UnconfiguredPgExecutor)),
+        };
+        let client = with_pool
+            .create(ConfiguredProvider::Postgres, &HashMap::new())
+            .expect("a pool yields the canonical memory client");
+        assert_eq!(client.provider(), Some(MemoryProviderKind::Postgres));
+
+        let without_pool = DiagnosticsMemoryFactory {
+            transport,
+            postgres: None,
+        };
+        assert!(without_pool
+            .create(ConfiguredProvider::Postgres, &HashMap::new())
+            .is_err());
+    }
 
     fn diagnostics_in(scratch: &ScratchDir) -> RustDiagnostics {
         let env = EnvOverrides::new();
