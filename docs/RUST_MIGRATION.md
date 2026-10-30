@@ -254,7 +254,8 @@ sind damit zum Teil erledigt. Die Abschnitte bleiben als Verlauf stehen.
   `.github/workflows/openai-worker-ci.yml`. Nicht gemerged.
 - **Telegram im Compose-Smoke**: nicht umgesetzt. Der Poller spricht `api.telegram.org`. Ein Test
   im Compose-Stack braucht entweder eine konfigurierbare Basis-URL (der Plan verbietet eine neue
-  Variable dafür) oder echten Netzzugriff. Offene Entscheidung.
+  Variable dafür) oder echten Netzzugriff. Entschieden: nicht umsetzen. Der Unit-Test mit
+  Telegram-Attrappe deckt den Pfad ab.
 - **Gates auf `main`**: `typecheck`, `lint`, `format:check` exit 0, Guard-Test allein grün. Die
   volle Vitest-Suite lief vor dem Guard-Fix auf dem gemergten Stand, mit dem einen Fehler, der
   jetzt behoben ist.
