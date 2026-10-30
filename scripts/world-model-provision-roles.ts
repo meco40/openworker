@@ -125,6 +125,12 @@ async function provisionRole(
   await client.query(`GRANT USAGE ON SCHEMA public TO ${quoteIdentifier(role)}`);
 
   const available = new Set(await existingTables(client));
+  // Read-only: the health check and the outbox dispatcher read the applied migrations.
+  if (available.has('_world_model_migrations')) {
+    await client.query(
+      `GRANT SELECT ON TABLE public._world_model_migrations TO ${quoteIdentifier(role)}`,
+    );
+  }
   for (const table of tables) {
     if (!available.has(table)) continue;
     // Transactional outbox: both roles need idempotent upsert privileges. The
