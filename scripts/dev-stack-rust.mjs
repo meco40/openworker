@@ -219,6 +219,14 @@ function startRustGateway(port, isStaticMode, staticDir) {
         // gateway and the UI decode the same session cookies and share background job ownership.
         '-e',
         'NEXTAUTH_SECRET',
+        // The gateway answers /api/auth itself and seeds the first admin from these, so the
+        // container needs them to accept the login of the default user.
+        '-e',
+        'AUTH_DEFAULT_EMAIL',
+        '-e',
+        'AUTH_DEFAULT_PASSWORD',
+        '-e',
+        'AUTH_DEFAULT_NAME',
         '-e',
         'BETACLAW_TELEGRAM_POLLER',
         '-e',
