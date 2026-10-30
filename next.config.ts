@@ -5,7 +5,11 @@ const withBundleAnalyzer = createBundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
 });
 
+const isExport = process.env.NEXT_EXPORT === 'true';
+
 const nextConfig: NextConfig = {
+  ...(isExport ? { output: 'export', pageExtensions: ['tsx'] } : {}),
+  images: { unoptimized: true },
   reactStrictMode: true,
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
   async headers() {
@@ -67,4 +71,6 @@ const nextConfig: NextConfig = {
   },
 };
 
+// Exported files receive their security headers from the Rust gateway.
+if (isExport) delete nextConfig.headers;
 export default withBundleAnalyzer(nextConfig);

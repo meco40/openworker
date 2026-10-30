@@ -40,6 +40,7 @@ import {
   stopSwarmOrchestratorRuntime,
 } from './src/server/agent-room/swarmRuntime.js';
 import { startTaskWorkspaceCleanupRuntime } from './src/server/tasks/workspaceCleanupRuntime.js';
+import { resolveJobOwner } from './src/server/runtime/jobOwner.js';
 
 const require = createRequire(import.meta.url);
 const { loadEnvConfig } = require('@next/env') as {
@@ -242,13 +243,23 @@ Promise.resolve()
         req.socket.remoteAddress,
         TRUST_PROXY_LOOPBACK_MARKER,
       );
+      if (req.url === '/__node/health' || req.url?.startsWith('/__node/health?')) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, status: 'ok' }));
+        return;
+      }
       handle(req, res);
     });
 
     if (WS_DISABLED) {
-      // The Rust gateway terminates /ws. Reject any stray upgrade here so a
-      // misrouted client fails loudly instead of hanging.
-      server.on('upgrade', (_req, socket) => {
+      // The Rust gateway terminates /ws. Dev HMR also upgrades, so hand those to
+      // Next. Reject any other stray upgrade so a misrouted client fails loudly.
+      const handleNextUpgrade = app.getUpgradeHandler();
+      server.on('upgrade', (req, socket, head) => {
+        if (dev && !req.url?.startsWith('/ws')) {
+          handleNextUpgrade(req, socket, head);
+          return;
+        }
         socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
         socket.destroy();
       });
@@ -268,7 +279,12 @@ Promise.resolve()
         }, TICK_INTERVAL_MS);
 
     // ─── Persona Telegram Bot Polling ─────────────────────────
+    const pollerOwner = resolveJobOwner('BETACLAW_TELEGRAM_POLLER');
+    console.log(`[telegram-poller] owner=${pollerOwner}`);
     async function startPersonaBotPollers(): Promise<void> {
+      if (pollerOwner !== 'node') {
+        return;
+      }
       try {
         const registry = getPersonaTelegramBotRegistry();
         const bots = registry.listActiveBots().filter((b) => b.transport === 'polling');
@@ -283,11 +299,20 @@ Promise.resolve()
     void startPersonaBotPollers();
 
     // ─── Swarm Orchestrator ────────────────────────────────────
-    const swarmRunner = process.env.SWARM_RUNNER || 'server';
-    if (swarmRunner !== 'scheduler') {
+    const swarmOwner = resolveJobOwner('BETACLAW_SWARM_RUNNER');
+    console.log(`[swarm-runtime] owner=${swarmOwner}`);
+    const swarmRunner = (process.env.SWARM_RUNNER || 'server').trim().toLowerCase();
+    if (swarmOwner === 'node' && swarmRunner !== 'scheduler') {
       startSwarmOrchestratorRuntime('server-main');
     }
-    const taskWorkspaceCleanupRuntime = startTaskWorkspaceCleanupRuntime();
+
+    // ─── Workspace Cleanup ────────────────────────────────────
+    const cleanupOwner = resolveJobOwner('BETACLAW_WORKSPACE_CLEANUP');
+    console.log(`[task-workspaces] owner=${cleanupOwner}`);
+    let taskWorkspaceCleanupRuntime: { stop(): void } | null = null;
+    if (cleanupOwner === 'node') {
+      taskWorkspaceCleanupRuntime = startTaskWorkspaceCleanupRuntime();
+    }
 
     // ─── Graceful Shutdown ─────────────────────────────────────
     function shutdown() {
@@ -295,7 +320,7 @@ Promise.resolve()
       if (tickInterval) clearInterval(tickInterval);
       stopAllPersonaBotPolling();
       stopSwarmOrchestratorRuntime();
-      taskWorkspaceCleanupRuntime.stop();
+      taskWorkspaceCleanupRuntime?.stop();
 
       // Abort all in-flight AI generation requests so they don't hang.
       try {

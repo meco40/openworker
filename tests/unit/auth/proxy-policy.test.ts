@@ -263,4 +263,14 @@ describe('applyLoopbackMarkerForTopology', () => {
     // Must stay absent so the policy check fails closed.
     expect(nothingForwarded[CLIENT_LOOPBACK_HEADER]).toBeUndefined();
   });
+
+  it('drops a marker sent by a non-loopback peer even behind the gateway', () => {
+    const spoofed: Record<string, string | string[] | undefined> = {
+      [CLIENT_LOOPBACK_HEADER]: '1',
+    };
+
+    applyLoopbackMarkerForTopology(spoofed, LAN_PEER, true);
+
+    expect(spoofed[CLIENT_LOOPBACK_HEADER]).toBeUndefined();
+  });
 });

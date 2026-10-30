@@ -1,94 +1,114 @@
 #!/usr/bin/env node
-/**
- * Generates the cross-language session-token fixture used by the Rust gateway.
- *
- * The Rust decoder in `crates/betaclaw-core/src/auth/jwe.rs` reimplements the
- * key derivation and A256GCM decryption from next-auth@4.24.15. That port is only
- * trustworthy if it is verified against the real implementation, so this script
- * encrypts with the installed `next-auth` package and writes the result to
- * `rust/crates/betaclaw-gateway/tests/fixtures/nextauth-session-token.json`.
- *
- *   node scripts/fixtures/generate-nextauth-token.mjs
- *
- * The output is committed. A test in the Rust crate decrypts the fixture, so a
- * regression in either implementation fails the build.
- */
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
+/** Generate explicitly, or semantically validate committed random auth fixtures with --check. */
+import assert from 'node:assert/strict';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-const scriptDir = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(scriptDir, '..', '..');
+import { createRequire } from 'node:module';
+import { AuthHandler, createCSRFToken, serialize, version } from './nextauth.mjs';
 const require = createRequire(import.meta.url);
-const targetPath = resolve(
-  repoRoot,
-  'rust',
-  'crates',
-  'betaclaw-gateway',
-  'tests',
-  'fixtures',
-  'nextauth-session-token.json',
-);
-
-const SECRET = 'betaclaw-nextauth-fixture-secret';
-const COOKIE_NAME = 'next-auth.session-token';
-// Long enough that the token never expires during a test run. `encode()` derives
-// `iat` and `exp` from `maxAge` and overwrites any values in the payload, so the
-// expiry is controlled through maxAge rather than through the claims.
-const MAX_AGE_SECONDS = 10 * 365 * 24 * 60 * 60;
-
-async function main() {
-  let encode;
-  try {
-    ({ encode } = require('next-auth/jwt'));
-  } catch (error) {
-    throw new Error(
-      'next-auth is not installed. Run `pnpm install` before generating the session-token fixture. ' +
-        `Underlying error: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  const payload = {
-    id: 'usr-fixture-0001',
-    sub: 'usr-fixture-0001',
-    name: 'Fixture Admin',
-    email: 'fixture@example.com',
-  };
-
-  const token = await encode({
-    token: payload,
-    secret: SECRET,
-    maxAge: MAX_AGE_SECONDS,
-    // No salt. `core/routes/session.js` issues session cookies through
-    // `jwt.encode({ ...jwt, token, maxAge })`, and `options.jwt` carries no salt,
-    // so the default `salt = ""` applies. Passing the cookie name here produces a
-    // token the runtime cannot decrypt.
+const { encode, decode } = require('next-auth/jwt');
+const Credentials = require('next-auth/providers/credentials').default;
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const dir = resolve(root, 'rust/crates/betaclaw-gateway/tests/fixtures');
+const secret = 'betaclaw-nextauth-fixture-secret';
+process.env.NEXTAUTH_URL ||= 'http://localhost:3000';
+const cookieName = 'next-auth.session-token';
+const payload = {
+  id: 'usr-fixture-0001',
+  sub: 'usr-fixture-0001',
+  name: 'Fixture Admin',
+  email: 'fixture@example.com',
+};
+const options = {
+  secret,
+  providers: [Credentials({ authorize: async () => null })],
+  session: { strategy: 'jwt' },
+};
+async function validate(fixture) {
+  const claims = await decode({ token: fixture.token, secret: fixture.secret });
+  assert.equal(claims?.sub, fixture.expectedUserId);
+  assert.equal(claims?.name, fixture.expectedName);
+  assert.equal(claims?.email, fixture.expectedEmail);
+  assert(
+    claims.exp > Date.now() / 1000 + 14 * 86400,
+    'Regenerate the expiring fixture explicitly.',
+  );
+  const csrf = createCSRFToken({
+    options: { secret: fixture.secret },
+    cookieValue: decodeURIComponent(fixture.csrfCookie),
+    bodyValue: fixture.csrfToken,
+    isPost: true,
   });
-
-  // Read the effective claims back so the fixture records what next-auth
-  // actually issued rather than what was requested.
-  const { decode } = require('next-auth/jwt');
-  const claims = await decode({ token, secret: SECRET });
-
+  assert.equal(csrf.csrfTokenVerified, true);
+}
+if (process.argv.includes('--check')) {
+  const fixture = JSON.parse(readFileSync(resolve(dir, 'nextauth-session-token.json'), 'utf8'));
+  await validate(fixture);
+  const csrf = JSON.parse(readFileSync(resolve(dir, 'nextauth-csrf.json'), 'utf8'));
+  assert.equal(
+    createCSRFToken({
+      options: { secret: csrf.secret },
+      cookieValue: decodeURIComponent(csrf.csrfCookie),
+      bodyValue: csrf.csrfToken,
+      isPost: true,
+    }).csrfTokenVerified,
+    true,
+  );
+  assert(csrf.csrfCookie.includes('%7C'), 'Fixture must contain the serialized cookie delimiter.');
+  assert.equal(csrf.generator, 'next-auth/core.AuthHandler');
+  console.log(
+    'Committed session/CSRF fixtures accepted by next-auth@' + version + '; no files rewritten.',
+  );
+} else {
+  const token = await encode({ token: payload, secret, maxAge: 10 * 365 * 86400 });
+  const claims = await decode({ token, secret });
+  const response = await AuthHandler({
+    req: new Request('http://localhost:3000/api/auth/csrf'),
+    options,
+  });
+  assert.equal(response.status ?? 200, 200);
+  const cookie = response.cookies.find((c) => c.name === 'next-auth.csrf-token');
+  assert(cookie, 'Real CSRF handler did not issue a cookie.');
+  const setCookie = serialize(cookie.name, cookie.value, cookie.options);
+  const csrfCookie = setCookie.split(';')[0].slice(cookie.name.length + 1);
+  const csrfToken = response.body.csrfToken;
   const fixture = {
     _comment:
-      'Generated by scripts/fixtures/generate-nextauth-token.mjs using next-auth@4.24.15. ' +
-      'Do not edit by hand. The Rust test decrypts this token to prove JWE parity.',
+      'Generated explicitly by generate-nextauth-token.mjs; CI validates compatibility without rewriting randomness.',
     generator: 'next-auth/jwt.encode',
-    cookieName: COOKIE_NAME,
-    secret: SECRET,
+    nextAuthVersion: version,
+    cookieName,
+    secret,
     issuedAt: claims.iat,
     expiresAt: claims.exp,
     expectedUserId: payload.id,
     expectedEmail: payload.email,
     expectedName: payload.name,
     token,
+    csrfToken,
+    csrfCookie,
   };
-
-  mkdirSync(dirname(targetPath), { recursive: true });
-  writeFileSync(targetPath, `${JSON.stringify(fixture, null, 2)}\n`, 'utf8');
-  process.stdout.write(`[nextauth-token-fixture] written to ${targetPath} (exp=${claims.exp})\n`);
+  await validate(fixture);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    resolve(dir, 'nextauth-session-token.json'),
+    JSON.stringify(fixture, null, 2) + '\n',
+  );
+  writeFileSync(
+    resolve(dir, 'nextauth-csrf.json'),
+    JSON.stringify(
+      {
+        generator: 'next-auth/core.AuthHandler',
+        nextAuthVersion: version,
+        secret,
+        csrfToken,
+        csrfCookie,
+        setCookie,
+      },
+      null,
+      2,
+    ) + '\n',
+  );
+  console.log('Session and serialized CSRF fixtures generated using next-auth@' + version);
 }
-
-await main();

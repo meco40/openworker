@@ -120,16 +120,22 @@ async function typescriptPut(config, revision, { raw } = {}) {
   }
 }
 
+/** `rustRequest` returns `{ status, json, text }`; the comparisons read `body`. */
+async function withBody(promise) {
+  const response = await promise;
+  return { status: response.status, body: response.json };
+}
+
 function rustGet() {
-  return rustRequest('GET', '/api/config');
+  return withBody(rustRequest('GET', '/api/config'));
 }
 
 async function rustPut(config, revision, { raw } = {}) {
   if (raw !== undefined) {
-    return rustRequest('PUT', '/api/config', { raw });
+    return withBody(rustRequest('PUT', '/api/config', { raw }));
   }
   const body = revision === undefined ? { config } : { config, revision };
-  return rustRequest('PUT', '/api/config', { body });
+  return withBody(rustRequest('PUT', '/api/config', { body }));
 }
 
 function mutate(config) {

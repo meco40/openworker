@@ -15,9 +15,10 @@
  *   BETACLAW_DEV_GATEWAY=off   start the legacy Node gateway only (pnpm dev:node)
  */
 import { spawn, spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import net from 'node:net';
-import { dirname, resolve } from 'node:path';
+import path, { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
@@ -34,27 +35,61 @@ let exitCode = 0;
 
 function resolvePackageManagerInvocation() {
   const npmExecPath = String(process.env.npm_execpath || '').trim();
-  if (npmExecPath) {
+  if (npmExecPath && fs.existsSync(npmExecPath)) {
+    // Standalone pnpm on Windows is a native .exe, not a JS entry point.
+    if (npmExecPath.toLowerCase().endsWith('.exe')) {
+      return { command: npmExecPath, baseArgs: [], display: npmExecPath };
+    }
     return {
       command: process.execPath,
       baseArgs: [npmExecPath],
       display: `${process.execPath} ${npmExecPath}`,
     };
   }
+
+  const appData = process.env.APPDATA || '';
+  const pnpmCandidates = [path.join(appData, 'npm', 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')];
+  for (const candidate of pnpmCandidates) {
+    if (fs.existsSync(candidate)) {
+      return {
+        command: process.execPath,
+        baseArgs: [candidate],
+        display: `${process.execPath} ${candidate}`,
+      };
+    }
+  }
+
+  const nodeDir = path.dirname(process.execPath);
+  const npmCandidates = [
+    path.join(nodeDir, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    path.join(nodeDir, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+  ];
+  for (const candidate of npmCandidates) {
+    if (fs.existsSync(candidate)) {
+      return {
+        command: process.execPath,
+        baseArgs: [candidate],
+        display: `${process.execPath} ${candidate}`,
+      };
+    }
+  }
+
   const isWindows = process.platform === 'win32';
-  const command = isWindows ? 'npm.cmd' : 'npm';
+  const command = isWindows ? 'pnpm.cmd' : 'pnpm';
   return { command, baseArgs: [], display: command };
 }
 
 const packageManager = resolvePackageManagerInvocation();
 
-function startChild(name, args) {
+function startChild(name, args, extraEnv = {}) {
   const commandArgs = [...packageManager.baseArgs, ...args];
   console.log(`[dev-stack] starting ${name}: ${packageManager.display} ${args.join(' ')}`);
+  const isCmd = packageManager.command.endsWith('.cmd') || packageManager.command.endsWith('.bat');
   const proc = spawn(packageManager.command, commandArgs, {
     stdio: 'inherit',
     cwd: repoRoot,
-    env: { ...process.env, BETACLAW_DEV_CHILD: name },
+    ...(isCmd ? { shell: true } : {}),
+    env: { ...process.env, ...extraEnv, BETACLAW_DEV_CHILD: name },
   });
   children.push({ name, proc });
 
@@ -73,6 +108,33 @@ function startChild(name, args) {
   });
 }
 
+// The world-model settings the gateway resolves itself (`world_model/config.rs`), so
+// every set variable is passed under its own name and the precedence stays there.
+const WORLD_MODEL_FLAGS = ['WORLD_MODEL_ENABLED', 'WORLD_MODEL_MODE', 'WORLD_MODEL_RUNTIME_ROLE'];
+const DATABASE_URL_VARS = [
+  'WORLD_MODEL_APP_DATABASE_URL',
+  'CANONICAL_DATABASE_URL',
+  'DATABASE_URL',
+];
+
+function worldModelDockerEnv(isWindows) {
+  const args = [];
+  for (const name of WORLD_MODEL_FLAGS) {
+    // Name only: docker copies the value, and skips the variable when it is unset.
+    args.push('-e', name);
+  }
+  for (const name of DATABASE_URL_VARS) {
+    const raw = (process.env[name] || '').trim();
+    if (!raw) continue;
+    // Inside the container, loopback is the container itself, not the host database.
+    const url = isWindows
+      ? raw.replace(/@(127\.0\.0\.1|localhost)(:\d+)?\//, '@host.docker.internal$2/')
+      : raw;
+    args.push('-e', `${name}=${url}`);
+  }
+  return args;
+}
+
 /**
  * Starts the Rust gateway from its release binary.
  *
@@ -80,41 +142,107 @@ function startChild(name, args) {
  * container image. The binary is expected at rust/target/release/betaclaw-gateway.
  *
  * Returns false when the stack must abort, so callers stop before spawning the
- * UI and scheduler.
+ * UI and scheduler. Otherwise returns 'host' or 'docker', the way the gateway runs.
  */
-function startRustGateway(port) {
+function startRustGateway(port, isStaticMode, staticDir) {
   const binary = resolve(repoRoot, 'rust', 'target', 'release', 'betaclaw-gateway');
   const isWindows = process.platform === 'win32';
   const binaryPath = isWindows ? `${binary}.exe` : binary;
 
+  let proc;
+  let viaDocker = false;
   console.log(`[dev-stack] checking Rust gateway binary at ${binaryPath}`);
   const check = spawnSync(binaryPath, ['--version'], { stdio: 'ignore' });
-  if (check.error) {
-    console.error(
-      '[dev-stack] Rust gateway binary not found.\n' +
-        '          Build it in a container first:\n' +
-        '            pnpm run rust:build\n' +
-        '            docker create --name betaclaw-gateway-extract betaclaw-gateway-local\n' +
-        '            docker cp betaclaw-gateway-extract:/workspace/rust/target/release/betaclaw-gateway rust/target/release/\n' +
-        '            docker rm betaclaw-gateway-extract\n' +
-        '          Or run the whole stack in containers: docker compose up -d\n',
-    );
-    shutdown(1);
-    return false;
+  if (!check.error) {
+    console.log(`[dev-stack] starting gateway: ${binaryPath}`);
+    proc = spawn(binaryPath, [], {
+      stdio: 'inherit',
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PORT: String(port),
+        HOSTNAME: '127.0.0.1',
+        GATEWAY_UPSTREAM_ORIGIN: `http://127.0.0.1:${UI_PORT}`,
+        RUST_LOG: process.env.RUST_LOG || 'info',
+        BETACLAW_UI_MODE: process.env.BETACLAW_UI_MODE,
+        UI_STATIC_DIR: staticDir,
+      },
+    });
+  } else {
+    const dockerCheck = spawnSync('docker', ['image', 'inspect', 'betaclaw-gateway-local'], {
+      stdio: 'ignore',
+    });
+    if (dockerCheck.status === 0) {
+      console.log(
+        `[dev-stack] host binary not directly executable on ${process.platform}, using container 'betaclaw-gateway-local'`,
+      );
+      spawnSync('docker', ['rm', '-f', 'betaclaw-dev-gateway'], { stdio: 'ignore' });
+      const upstream = isWindows
+        ? `http://host.docker.internal:${UI_PORT}`
+        : `http://127.0.0.1:${UI_PORT}`;
+      const staticMount =
+        isStaticMode && fs.existsSync(staticDir)
+          ? ['-v', `${staticDir.replace(/\\/g, '/')}:/app/out:ro`]
+          : [];
+      const dockerArgs = [
+        'run',
+        '--rm',
+        '--name',
+        'betaclaw-dev-gateway',
+        '-p',
+        `127.0.0.1:${port}:3000`,
+        ...(isWindows ? ['--add-host', 'host.docker.internal:host-gateway'] : []),
+        ...staticMount,
+        '-e',
+        'PORT=3000',
+        '-e',
+        'HOSTNAME=0.0.0.0',
+        '-e',
+        `GATEWAY_UPSTREAM_ORIGIN=${upstream}`,
+        '-e',
+        `RUST_LOG=${process.env.RUST_LOG || 'info'}`,
+        '-e',
+        'NODE_ENV=development',
+        '-e',
+        'REQUIRE_AUTH=false',
+        '-e',
+        'WORKSPACE_ROOT=/app',
+        '-e',
+        'CLAWHUB_WORKDIR=/app/clawhub',
+        '-e',
+        'EXTERNAL_SKILLS_ENABLED=false',
+        // Name only: docker copies the value from the stack env (.env.local), so the
+        // gateway and the UI decode the same session cookies and share background job ownership.
+        '-e',
+        'NEXTAUTH_SECRET',
+        '-e',
+        'BETACLAW_TELEGRAM_POLLER',
+        '-e',
+        'BETACLAW_SWARM_RUNNER',
+        '-e',
+        'BETACLAW_WORKSPACE_CLEANUP',
+        '-e',
+        'BETACLAW_UI_MODE',
+        ...worldModelDockerEnv(isWindows),
+        'betaclaw-gateway-local',
+      ];
+      proc = spawn('docker', dockerArgs, { stdio: 'inherit' });
+      viaDocker = true;
+    } else {
+      console.error(
+        '[dev-stack] Rust gateway binary not found.\n' +
+          '          Build it in a container first:\n' +
+          '            pnpm run rust:build\n' +
+          '            docker create --name betaclaw-gateway-extract betaclaw-gateway-local\n' +
+          '            docker cp betaclaw-gateway-extract:/workspace/rust/target/release/betaclaw-gateway rust/target/release/\n' +
+          '            docker rm betaclaw-gateway-extract\n' +
+          '          Or run the whole stack in containers: docker compose up -d\n',
+      );
+      shutdown(1);
+      return false;
+    }
   }
 
-  console.log(`[dev-stack] starting gateway: ${binaryPath}`);
-  const proc = spawn(binaryPath, [], {
-    stdio: 'inherit',
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      PORT: String(port),
-      HOSTNAME: '127.0.0.1',
-      GATEWAY_UPSTREAM_ORIGIN: `http://127.0.0.1:${UI_PORT}`,
-      RUST_LOG: process.env.RUST_LOG || 'info',
-    },
-  });
   children.push({ name: 'gateway', proc });
 
   proc.on('error', (error) => {
@@ -131,7 +259,46 @@ function startRustGateway(port) {
     }
     shutdown(code ?? 1);
   });
-  return true;
+  return viaDocker ? 'docker' : 'host';
+}
+
+/**
+ * Starts the Rust scheduler from its release binary when present, falling back
+ * to the TypeScript scheduler (`dev:scheduler`) when not yet extracted.
+ */
+function rustSchedulerBinary() {
+  const binary = resolve(repoRoot, 'rust', 'target', 'release', 'betaclaw-scheduler');
+  const binaryPath = process.platform === 'win32' ? `${binary}.exe` : binary;
+  return spawnSync(binaryPath, ['--version'], { stdio: 'ignore' }).error ? null : binaryPath;
+}
+
+function startRustScheduler(binaryPath) {
+  if (!binaryPath) {
+    startChild('scheduler', ['run', 'dev:scheduler']);
+    return;
+  }
+
+  console.log(`[dev-stack] starting Rust scheduler: ${binaryPath}`);
+  const proc = spawn(binaryPath, [], {
+    stdio: 'inherit',
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      BETACLAW_DEV_CHILD: 'scheduler',
+      RUST_LOG: process.env.RUST_LOG || 'info',
+    },
+  });
+  children.push({ name: 'scheduler', proc });
+
+  proc.on('error', (error) => {
+    console.error('[dev-stack] failed to start scheduler:', error);
+    shutdown(1);
+  });
+  proc.on('exit', (code, signal) => {
+    if (shuttingDown) return;
+    console.error(`[dev-stack] scheduler exited with code=${code} signal=${signal ?? 'none'}`);
+    shutdown(code ?? 1);
+  });
 }
 
 /**
@@ -173,6 +340,11 @@ function shutdown(code = 0) {
   if (shuttingDown) return;
   shuttingDown = true;
   exitCode = code;
+  try {
+    spawnSync('docker', ['rm', '-f', 'betaclaw-dev-gateway'], { stdio: 'ignore' });
+  } catch {
+    // ignore
+  }
   for (const child of children) {
     terminateChild(child.proc);
   }
@@ -197,6 +369,33 @@ async function main() {
     return;
   }
 
+  const isStaticMode =
+    process.argv.includes('--static') ||
+    String(process.env.BETACLAW_UI_MODE || '').toLowerCase() === 'static';
+  const uiMode = isStaticMode ? 'static' : process.env.BETACLAW_UI_MODE || 'proxy';
+  process.env.BETACLAW_UI_MODE = uiMode;
+
+  const staticDir = resolve(repoRoot, process.env.UI_STATIC_DIR || 'out');
+  console.log(`[ui] mode=${uiMode} dir=${staticDir}`);
+
+  if (isStaticMode) {
+    console.log('[dev-stack] building the current static UI export...');
+    const buildRes = spawnSync(
+      packageManager.command,
+      [...packageManager.baseArgs, 'run', 'build:export'],
+      {
+        cwd: repoRoot,
+        stdio: 'inherit',
+        shell: process.platform === 'win32',
+      },
+    );
+    if (buildRes.status !== 0) {
+      console.error('[dev-stack] static UI build:export failed');
+      shutdown(1);
+      return;
+    }
+  }
+
   // Fail fast on a busy port instead of letting the child die with a bare
   // "address in use". Port 3000 is a common conflict with other applications.
   const gatewayPort = resolveGatewayPort();
@@ -204,9 +403,32 @@ async function main() {
   if (!isFree) return;
   console.log(`[dev-stack] gateway will listen on http://127.0.0.1:${gatewayPort}`);
 
-  if (!startRustGateway(gatewayPort)) return;
-  startChild('web-ui', ['run', 'dev:web-ui']);
-  startChild('scheduler', ['run', 'dev:scheduler']);
+  const gateway = startRustGateway(gatewayPort, isStaticMode, staticDir);
+  if (!gateway) return;
+  const schedulerBinary = rustSchedulerBinary();
+  // Only a containerised gateway needs a non-loopback UI listener (host.docker.internal).
+  const uiEnv = { HOSTNAME: gateway === 'docker' ? '0.0.0.0' : '127.0.0.1' };
+  // Rust runs the workspace cleanup in its scheduler only. Without that binary the
+  // TS scheduler takes over, which has no cleanup, so the Node UI server owns it.
+  const cleanupOwner = String(process.env.BETACLAW_WORKSPACE_CLEANUP || '')
+    .trim()
+    .toLowerCase();
+  if (!schedulerBinary && cleanupOwner === 'rust') {
+    if (isStaticMode) {
+      console.warn(
+        '[dev-stack] no Rust scheduler binary: workspace cleanup does not run in static mode',
+      );
+    } else {
+      console.log('[dev-stack] no Rust scheduler binary: workspace cleanup owner=node (web-ui)');
+      uiEnv.BETACLAW_WORKSPACE_CLEANUP = 'node';
+    }
+  }
+  if (!isStaticMode) {
+    startChild('web-ui', ['run', 'dev:web-ui'], uiEnv);
+  } else {
+    console.log('[dev-stack] static UI mode active — web-ui (Node) process omitted');
+  }
+  startRustScheduler(schedulerBinary);
 }
 
 main();

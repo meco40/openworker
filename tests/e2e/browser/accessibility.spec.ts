@@ -9,6 +9,7 @@ test.describe('Accessibility', () => {
 
   test('interactive elements are focusable', async ({ page }) => {
     await page.goto('/');
+    await expect(page.getByTestId('app-navigation')).toBeVisible();
     await page.keyboard.press('Tab');
     const focusedElement = page.locator(':focus');
     await expect(focusedElement).toBeVisible({ timeout: 10000 });

@@ -51,21 +51,28 @@ export function checkTrue(label, condition, detail = '') {
  * `json` is null for non-JSON bodies. `raw` sends the body string as-is
  * (invalid-JSON probes) instead of JSON-encoding `body`.
  */
-export async function rustRequest(method, path, { body, raw } = {}) {
+export async function rustRequest(method, path, { body, raw, headers = {} } = {}) {
   const hasBody = body !== undefined || raw !== undefined;
   let status;
   let text;
+  let setCookies = [];
   if (process.env.GATEWAY_BASE_URL) {
-    const response = await fetch(`${RUST_ORIGIN}${path}`, {
+    const options = {
       method,
-      headers: hasBody ? { 'Content-Type': 'application/json' } : undefined,
-      body: hasBody ? (raw ?? JSON.stringify(body)) : undefined,
+      headers,
       signal: AbortSignal.timeout(20000),
-    });
+    };
+    if (method !== 'GET' && hasBody) {
+      options.headers = { 'Content-Type': 'application/json', ...headers };
+      options.body = raw ?? JSON.stringify(body);
+    }
+    const response = await fetch(`${RUST_ORIGIN}${path}`, options);
     status = response.status;
+    setCookies = response.headers.getSetCookie();
     text = await response.text();
   } else {
-    const args = ['-s', '-w', '\n%{http_code}'];
+    const args = ['-s', '-i', '-w', '\n%{http_code}'];
+    for (const [name, value] of Object.entries(headers)) args.push('-H', name + ': ' + value);
     if (method !== 'GET') args.push('-X', method);
     if (hasBody) {
       args.push('-H', 'Content-Type: application/json', '-d', raw ?? JSON.stringify(body));
@@ -77,7 +84,14 @@ export async function rustRequest(method, path, { body, raw } = {}) {
     );
     const separator = output.lastIndexOf('\n');
     status = Number(output.slice(separator + 1).trim());
-    text = output.slice(0, separator);
+    const rawResponse = output.slice(0, separator);
+    const boundary = rawResponse.indexOf('\r\n\r\n');
+    const responseHeaders = rawResponse.slice(0, boundary);
+    setCookies = responseHeaders
+      .split('\r\n')
+      .filter((line) => /^set-cookie:/i.test(line))
+      .map((line) => line.slice(line.indexOf(':') + 1).trim());
+    text = rawResponse.slice(boundary + 4);
   }
 
   let json = null;
@@ -86,7 +100,7 @@ export async function rustRequest(method, path, { body, raw } = {}) {
   } catch {
     // Non-JSON bodies stay raw; families decide whether that is valid.
   }
-  return { status, json, text };
+  return { status, json, text, setCookies };
 }
 
 /** Best-effort temp-directory removal; Windows may keep file handles open. */

@@ -10,21 +10,28 @@
  * `betaclaw-gateway-ws`). Every migrated route family must have a family here;
  * CI runs all of them, so a slice is only done when its family is green.
  */
+import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { failureCount } from './harness.mjs';
 
 const familiesDir = fileURLToPath(new URL('./families', import.meta.url));
 const filter = (process.argv.find((argument) => argument.startsWith('--family=')) ?? '').slice(
   '--family='.length,
 );
+const explicitlyRequestedPrivateFamily = filter.startsWith('_') ? `${filter}.mjs` : null;
 
 const families = [];
 for (const file of readdirSync(familiesDir)
-  .filter((name) => name.endsWith('.mjs') && !name.startsWith('_'))
+  .filter(
+    (name) =>
+      name.endsWith('.mjs') && (!name.startsWith('_') || name === explicitlyRequestedPrivateFamily),
+  )
   .sort()) {
-  const family = await import(join(familiesDir, file));
+  // Import through a `file://` URL: a bare Windows path (`E:\...`) is rejected
+  // by the ESM loader, so discovery must not depend on the host OS.
+  const family = await import(pathToFileURL(join(familiesDir, file)).href);
   if (filter && family.name !== filter) continue;
   families.push(family);
 }
@@ -37,6 +44,26 @@ if (families.length === 0) {
 const target = process.env.GATEWAY_BASE_URL
   ? `Gateway unter ${process.env.GATEWAY_BASE_URL}`
   : `Container ${process.env.GATEWAY_CONTAINER || 'betaclaw-gateway-ws'}`;
+
+if (!filter) {
+  console.log(`=== Routen-Parität Rust <-> TypeScript (${target}) ===`);
+  let totalFailures = 0;
+  for (const family of families) {
+    const result = spawnSync(
+      process.execPath,
+      [...process.execArgv, fileURLToPath(import.meta.url), `--family=${family.name}`],
+      { stdio: 'inherit', env: process.env },
+    );
+    if (result.status !== 0) totalFailures += 1;
+  }
+  if (totalFailures > 0) {
+    console.error(`\n${totalFailures} FAMILIE(N) MIT ABWEICHUNG(EN)`);
+    process.exit(1);
+  }
+  console.log('\nPARITÄT VOLLSTÄNDIG');
+  process.exit(0);
+}
+
 console.log(`=== Routen-Parität Rust <-> TypeScript (${target}) ===`);
 
 for (const family of families) {
