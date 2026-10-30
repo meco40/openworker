@@ -12,6 +12,8 @@ const EXCLUDED_DIRS = new Set([
   'backups',
   'workspaces',
   '.worktrees',
+  // Claude Code worktrees: other sessions' checkouts, not project source.
+  '.claude',
   'coverage',
   '.tmp',
 ]);
