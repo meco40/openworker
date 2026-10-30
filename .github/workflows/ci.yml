@@ -184,10 +184,29 @@ jobs:
       - name: Run format check
         run: pnpm run format:check
 
+      - name: Verify API route coverage in Rust gateway
+        run: |
+          node scripts/verify/route-coverage.mjs --self-test
+          pnpm run verify:route-coverage
+
   rust-gateway:
     name: Rust Gateway
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: driver_test
+          POSTGRES_USER: driver_test
+          POSTGRES_PASSWORD: isolated-driver-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U driver_test -d driver_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -214,10 +233,16 @@ jobs:
         with:
           workspaces: rust
 
+      - name: Verify live PostgreSQL driver types
+        working-directory: rust
+        env:
+          BETACLAW_TEST_DATABASE_URL: postgresql://driver_test:isolated-driver-test@127.0.0.1:5432/driver_test
+        run: cargo run --locked -p betaclaw-core --example verify_postgres_driver
+
       - name: Check committed fixtures are current
         run: |
           pnpm run fixtures:security-rules
-          pnpm run fixtures:nextauth-token
+          pnpm run fixtures:nextauth-token --check
           pnpm run fixtures:gemini-traffic
           git diff --exit-code -- rust/crates/betaclaw-gateway/src/fixtures rust/crates/betaclaw-gateway/tests/fixtures
 
@@ -242,6 +267,10 @@ jobs:
           GATEWAY_BASE_URL: http://127.0.0.1:3999
         run: |
           SCRATCH="$(mktemp -d)"
+          export AUTH_DEFAULT_EMAIL=parity@example.invalid
+          export AUTH_DEFAULT_PASSWORD="$(openssl rand -hex 24)"
+          export NEXTAUTH_SECRET="$(openssl rand -hex 32)"
+          export NEXTAUTH_URL=http://127.0.0.1:3999
           PORT=3999 \
           NODE_ENV=development \
           REQUIRE_AUTH=false \

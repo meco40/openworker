@@ -13,6 +13,7 @@
     "build/**",
     "next-env.d.ts",
     ".worktrees/**",
+    ".worktrees-backup/**",
     ".tmp/**",
     ".tmp_merge/**",
     "backups/**",

@@ -40,6 +40,9 @@ x-betaclaw-runtime-env: &runtime-env
   SCHEDULER_HEALTH_TOKEN: ${SCHEDULER_HEALTH_TOKEN:-}
   OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
   LMSTUDIO_BASE_URL: ${LMSTUDIO_BASE_URL:-http://host.docker.internal:1234/v1}
+  BETACLAW_TELEGRAM_POLLER: ${BETACLAW_TELEGRAM_POLLER:-rust}
+  BETACLAW_SWARM_RUNNER: ${BETACLAW_SWARM_RUNNER:-rust}
+  BETACLAW_WORKSPACE_CLEANUP: ${BETACLAW_WORKSPACE_CLEANUP:-rust}
 
 services:
   postgres:
@@ -95,8 +98,10 @@ services:
     environment:
       <<: *runtime-env
       PORT: '3000'
-      # Inside the container the upstream UI process is reachable by service name.
-      GATEWAY_UPSTREAM_ORIGIN: http://web-ui:3001
+      # When UI_STATIC_DIR is present, the gateway serves the UI directly without Node.
+      # Set GATEWAY_UPSTREAM_ORIGIN only if proxying to an external web-ui.
+      GATEWAY_UPSTREAM_ORIGIN: ${GATEWAY_UPSTREAM_ORIGIN:-}
+      UI_STATIC_DIR: /app/out
       RUST_LOG: ${RUST_LOG:-info}
     volumes:
       - app-data:/app/.local
@@ -104,8 +109,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      web-ui:
-        condition: service_started
     healthcheck:
       test:
         ['CMD', 'curl', '--fail', '--silent', '--show-error', 'http://127.0.0.1:3000/__rust/health']
@@ -114,9 +117,12 @@ services:
       retries: 10
       start_period: 20s
 
-  # Next.js UI plus the API routes that have not been migrated yet. Internal
-  # only: it no longer publishes a port and must not be reached directly.
+  # Optional fallback: Next.js Node UI process. Retained under profile
+  # 'legacy-node-ui' for regression checks. In normal production operation,
+  # the Rust gateway answers 100% of requests natively.
   web-ui:
+    profiles:
+      - legacy-node-ui
     build: .
     image: betaclaw-local
     restart: unless-stopped
@@ -150,17 +156,20 @@ services:
       start_period: 30s
 
   scheduler:
-    build: .
-    image: betaclaw-local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    image: betaclaw-gateway-local
     restart: unless-stopped
     init: true
-    command: ['node', '--import', 'tsx', 'scheduler.ts']
+    command: ['betaclaw-scheduler']
     environment:
       <<: *runtime-env
       WORLD_MODEL_RUNTIME_ROLE: worker
       SCHEDULER_INSTANCE_ID: scheduler-1
       # The scheduler health probe moved behind the gateway's public port.
       APP_URL: http://gateway:3000
+      RUST_LOG: ${RUST_LOG:-info}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     volumes:
@@ -173,7 +182,7 @@ services:
       test:
         [
           'CMD-SHELL',
-          'if [ -n "$$SCHEDULER_HEALTH_TOKEN" ]; then wget --no-verbose --tries=1 --header="x-scheduler-health-token: $$SCHEDULER_HEALTH_TOKEN" --spider http://gateway:3000/api/health/scheduler; else wget --no-verbose --tries=1 --spider http://gateway:3000/api/health/scheduler; fi',
+          'if [ -n "$$SCHEDULER_HEALTH_TOKEN" ]; then curl --fail --silent --show-error --header "x-scheduler-health-token: $$SCHEDULER_HEALTH_TOKEN" http://gateway:3000/api/health/scheduler > /dev/null; else curl --fail --silent --show-error http://gateway:3000/api/health/scheduler > /dev/null; fi',
         ]
       interval: 15s
       timeout: 5s

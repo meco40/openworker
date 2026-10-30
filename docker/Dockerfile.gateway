@@ -1,9 +1,23 @@
 # ─── BetaClaw Rust Gateway Docker Build ─────────────────────────
 # Multi-stage build for the axum-based gateway that owns the public listener.
 #
-# The runtime base is debian:bookworm-slim, the same Debian release as the
-# node:22-bookworm-slim UI image, so the shared `app-data` and `workspaces`
-# volumes and the on-disk SQLite files stay compatible across both processes.
+# Gateway and scheduler run in Rust. Node is used for the UI build and on demand
+# by the existing Playwright skill, never as an application server.
+
+# ── Stage 0: UI Static Export ──────────────────────────────────
+FROM node:22-bookworm-slim AS ui-builder
+WORKDIR /app
+ENV NEXT_EXPORT=true
+RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --ignore-scripts
+ENV NODE_ENV=production
+COPY . .
+RUN pnpm run avatar:sync-headaudio
+RUN pnpm run build:export
+
+FROM ui-builder AS tool-builder
+RUN node -e 'const fs=require("node:fs"),p=require("node:path"); const playwright=p.dirname(require.resolve("playwright/package.json")); const core=p.dirname(require.resolve("playwright-core/package.json",{paths:[playwright]})); for(const [name,dir] of [["playwright",playwright],["playwright-core",core]]) fs.cpSync(dir,"/opt/betaclaw-tools/node_modules/"+name,{recursive:true,dereference:true});'
 
 # ── Stage 1: Dependencies ─────────────────────────────────────
 # Compiles the third-party dependency graph against placeholder crates so the
@@ -13,11 +27,15 @@
 FROM rust:1.94-bookworm AS deps
 WORKDIR /cache
 ENV CARGO_HOME=/cache/.cargo
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 COPY rust/Cargo.toml rust/Cargo.lock rust/rust-toolchain.toml /workspace/rust/
-RUN mkdir -p /workspace/rust/crates/betaclaw-core/src /workspace/rust/crates/betaclaw-gateway/src \
+COPY rust/crates/betaclaw-core/Cargo.toml /workspace/rust/crates/betaclaw-core/
+COPY rust/crates/betaclaw-gateway/Cargo.toml /workspace/rust/crates/betaclaw-gateway/
+RUN mkdir -p /workspace/rust/crates/betaclaw-core/src /workspace/rust/crates/betaclaw-gateway/src/bin \
     && : > /workspace/rust/crates/betaclaw-core/src/lib.rs \
     && printf 'fn main() {}\n' > /workspace/rust/crates/betaclaw-gateway/src/main.rs \
+    && printf 'fn main() {}\n' > /workspace/rust/crates/betaclaw-gateway/src/bin/betaclaw-scheduler.rs \
     && : > /workspace/rust/crates/betaclaw-gateway/src/lib.rs \
     && cd /workspace/rust \
     && cargo build --release --locked 2>&1 | tail -5
@@ -25,13 +43,14 @@ RUN mkdir -p /workspace/rust/crates/betaclaw-core/src /workspace/rust/crates/bet
 # ── Stage 2: Build ─────────────────────────────────────────────
 FROM deps AS builder
 
-# Real sources replace the placeholders entirely, so cargo sees fresh mtimes and
-# rebuilds only the two workspace crates.
+# Docker COPY preserves source timestamps. Refresh Rust sources so Cargo cannot
+# reuse the placeholder crate fingerprints from the dependency stage.
 COPY rust /workspace/rust
 
-RUN cd /workspace/rust \
-    && cargo build --release --locked --bin betaclaw-gateway 2>&1 | tail -10 \
-    && strip /workspace/rust/target/release/betaclaw-gateway
+RUN find /workspace/rust/crates -type f -name '*.rs' -exec touch {} + \
+    && cd /workspace/rust \
+    && cargo build --release --locked --bin betaclaw-gateway --bin betaclaw-scheduler 2>&1 | tail -10 \
+    && strip /workspace/rust/target/release/betaclaw-gateway /workspace/rust/target/release/betaclaw-scheduler
 
 # ── Stage 3: Runtime ───────────────────────────────────────────
 FROM debian:bookworm-slim AS runner
@@ -45,18 +64,30 @@ ENV DATABASE_PATH=/app/.local/mission-control.db
 ENV LOGS_DB_PATH=/app/.local/logs.db
 ENV MESSAGES_DB_PATH=/app/.local/messages.db
 ENV AUTH_DB_PATH=/app/.local/auth.db
+ENV MODEL_HUB_DB_PATH=/app/.local/model-hub.db
 ENV GATEWAY_CONFIG_DB_PATH=/app/.local/gateway-config.db
-ENV GATEWAY_UPSTREAM_ORIGIN=http://127.0.0.1:3001
+ENV UI_STATIC_DIR=/app/out
+ENV GATEWAY_UPSTREAM_ORIGIN=
+ENV PLAYWRIGHT_CLI_PATH=/opt/betaclaw-tools/node_modules/playwright/cli.js
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+COPY --from=ui-builder /usr/local/bin/node /usr/local/bin/node
+COPY --from=tool-builder /opt/betaclaw-tools /opt/betaclaw-tools
 
 RUN groupadd --gid 1001 gateway \
     && useradd --uid 1001 --gid gateway --create-home --shell /usr/sbin/nologin gateway \
     && apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && apt-get install -y --no-install-recommends ca-certificates curl python3 \
+    && node "$PLAYWRIGHT_CLI_PATH" install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY --from=builder /workspace/rust/target/release/betaclaw-gateway /usr/local/bin/betaclaw-gateway
+COPY --from=builder /workspace/rust/target/release/betaclaw-scheduler /usr/local/bin/betaclaw-scheduler
+COPY --from=ui-builder /app/out /app/out
+COPY config/harness-rollout-gates.json /app/config/harness-rollout-gates.json
+COPY docs/contracts/DOMAIN_REGISTRY.json /app/docs/contracts/DOMAIN_REGISTRY.json
 
 # The log repository writes here; the UI process and the scheduler mount the same
 # volume, so the ownership must match the node image's uid 1001.

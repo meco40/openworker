@@ -2,6 +2,7 @@
 node_modules
 .next
 .worktrees
+.worktrees-backup
 .tmp
 .superpowers
 .pnpm-store
@@ -26,7 +27,10 @@ workspaces
 *.db-*
 backups
 demo/
-docs
+docs/*
+!docs/contracts
+docs/contracts/*
+!docs/contracts/DOMAIN_REGISTRY.json
 tests
 vitest.config.ts
 eslint.config.js

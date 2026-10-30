@@ -47,6 +47,9 @@ coverage/
 *.sw?
 
 .worktrees/
+.worktrees-backup/
+# Static UI export (`pnpm run build:export`)
+/out/
 .tmp/
 .cargo-logs/
 .playwright-mcp/

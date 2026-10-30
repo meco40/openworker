@@ -1,21 +1,28 @@
 services:
   migrate:
+    image: ${RELEASE_SMOKE_PROBE_IMAGE:?Set RELEASE_SMOKE_PROBE_IMAGE}
+  gateway:
     image: ${RELEASE_SMOKE_IMAGE:?Set RELEASE_SMOKE_IMAGE}
-  web:
-    image: ${RELEASE_SMOKE_IMAGE}
     ports: !override []
     environment:
       OLLAMA_BASE_URL: http://probe:11434
+      AGENT_ROOM_ENABLED: 'true'
   scheduler:
     image: ${RELEASE_SMOKE_IMAGE}
     environment:
       OLLAMA_BASE_URL: http://probe:11434
+      AGENT_ROOM_ENABLED: 'true'
+      SWARM_ORCHESTRATOR_TICK_MS: '200'
+  web-ui:
+    image: ${RELEASE_SMOKE_PROBE_IMAGE}
   probe:
-    image: ${RELEASE_SMOKE_IMAGE}
+    image: ${RELEASE_SMOKE_PROBE_IMAGE}
     init: true
     command: ['node', 'scripts/e2e/production-smoke.mjs']
+    volumes:
+      - ./scripts:/app/scripts:ro
     environment:
-      RELEASE_SMOKE_BASE_URL: http://web:3000
+      RELEASE_SMOKE_BASE_URL: http://gateway:3000
       AUTH_DEFAULT_EMAIL: ${AUTH_DEFAULT_EMAIL}
       AUTH_DEFAULT_PASSWORD: ${AUTH_DEFAULT_PASSWORD}
     depends_on:

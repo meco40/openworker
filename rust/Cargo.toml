@@ -16,7 +16,12 @@ axum = { version = "0.8", features = ["http1", "json", "query", "tokio", "ws"] }
 base64 = "0.23"
 bytes = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+# IANA time zones for the automation cron engine (`Intl`-compatible rule evaluation).
+chrono-tz = "0.10"
 getrandom = "0.3"
+# Signature verification for agent-v2 extension manifests (RSA and ECDSA PEM keys,
+# as `createVerify` in `extensions/security.ts`). Already in the lock file through rustls.
+ring = "0.17"
 # `Executor::fetch_many` returns a `Stream`, and sqlx 0.9 ships no `TryStreamExt`
 # of its own (`sqlx-core` 0.9 has no `ext::try_stream` module any more), so the
 # driver reads the stream with the same helper the sqlx documentation uses.
@@ -28,6 +33,7 @@ http = "1"
 http-body-util = "0.1"
 hyper = { version = "1", features = ["client", "http1", "server"] }
 hyper-util = { version = "0.1", features = ["client", "client-legacy", "http1", "server", "tokio"] }
+mime_guess = "2"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "stream", "charset", "http2"] }
 # Needed by the Memory modules (word boundaries, alternation and status-code
 # patterns in `memory/poisoning.rs`, `memory/subject.rs`, `memory/mem0.rs`,
@@ -59,14 +65,16 @@ sqlx-postgres = { version = "0.9", default-features = false, features = [
 ] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
+serde_urlencoded = "0.7"
 sha2 = "0.11"
 subtle = "2"
 thiserror = "2"
 tokio = { version = "1", features = ["full"] }
 tower = { version = "0.5", features = ["util"] }
-tower-http = { version = "0.7", features = ["limit", "trace", "util"] }
+tower-http = { version = "0.7", features = ["fs", "limit", "trace", "util", "compression-gzip", "compression-br"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2.5"
 uuid = { version = "1", features = ["v4"] }
 
 [profile.release]
