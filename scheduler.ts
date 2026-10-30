@@ -24,6 +24,7 @@ import { startEmbeddingWorker } from './src/server/world-model/embeddings/embedd
 import { listRuntimeWorldModelScopes } from './src/server/world-model/runtime/scopeDiscovery';
 import { getWorldModelConfig } from './src/server/world-model/config';
 import { startProjectionRetryWorker } from './src/server/world-model/services/projectionRetryWorker';
+import { resolveJobOwner } from './src/server/runtime/jobOwner';
 
 const require = createRequire(import.meta.url);
 const { loadEnvConfig } = require('@next/env') as {
@@ -32,7 +33,8 @@ const { loadEnvConfig } = require('@next/env') as {
 loadEnvConfig(process.cwd());
 
 const instanceId = process.env.SCHEDULER_INSTANCE_ID || `scheduler-${process.pid}`;
-const swarmRunner = process.env.SWARM_RUNNER || 'server';
+const swarmRunner = (process.env.SWARM_RUNNER || 'server').trim().toLowerCase();
+const swarmOwner = resolveJobOwner('BETACLAW_SWARM_RUNNER');
 let prospectiveTimer: ReturnType<typeof setInterval> | null = null;
 let embeddingWorker: { stop: () => void } | null = null;
 let projectionRetryWorker: { stop: () => void } | null = null;
@@ -54,7 +56,7 @@ function shutdown(): void {
   stopKnowledgeRuntimeLoop();
   stopAutomationRuntime();
   void stopOutboxDispatcher();
-  if (swarmRunner === 'scheduler') {
+  if (swarmRunner === 'scheduler' && swarmOwner === 'node') {
     stopSwarmOrchestratorRuntime();
   }
   process.exit(0);
@@ -68,7 +70,8 @@ async function bootstrap(): Promise<void> {
   assertMemoryRuntimeConfiguration();
   await ensureMemoryRuntimeReadyForStartup({ component: 'scheduler' });
 
-  if (swarmRunner === 'scheduler') {
+  console.log(`[swarm-runtime] owner=${swarmOwner}`);
+  if (swarmRunner === 'scheduler' && swarmOwner === 'node') {
     const { bootstrapMessageRuntime } = await import('./src/server/channels/messages/runtime');
     await bootstrapMessageRuntime();
     startSwarmOrchestratorRuntime(`${instanceId}-swarm`);

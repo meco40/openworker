@@ -121,17 +121,16 @@ describe('react/next best-practices refactor', () => {
     expect(gatewayState).not.toContain('trafficData:');
   });
 
-  it('uses server-derived initial view and avoids startup config fetch in client app shell', () => {
+  it('uses static-export client view and avoids startup config fetch in client app shell', () => {
     const app = read('src/modules/app-shell/App.tsx');
     const page = read('app/page.tsx');
     const appShell = read('src/modules/app-shell/AppShell.tsx');
 
     expect(app).not.toContain("fetch('/api/config'");
+    expect(page).toContain("'use client'");
+    expect(page).toContain("fetch('/api/config')");
     expect(page).toContain(
-      "import { loadGatewayConfig } from '@/server/config/gateway/gatewayConfig';",
-    );
-    expect(page).toContain(
-      "import { resolveDefaultViewFromConfig } from '@/server/config/uiRuntimeConfig';",
+      "import { resolveDefaultViewFromConfig } from '@/shared/config/uiRuntimeConfig';",
     );
     expect(appShell).toContain('initialView');
     expect(app).toContain('initialView: View');

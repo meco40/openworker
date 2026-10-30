@@ -43,6 +43,39 @@ export function applyClientLoopbackMarker(
   }
 }
 
+/**
+ * Applies the loopback marker according to the process topology.
+ *
+ * Two distinct topologies must be handled, and conflating them is a security bug:
+ *
+ * - This process owns the public listener (`trustProxyMarker` is false). The
+ *   marker has to be derived here from the real TCP peer, discarding whatever
+ *   the client sent.
+ * - The Rust gateway fronts this process (`trustProxyMarker` is true). The
+ *   gateway already derived the marker from the real peer and forwarded it, and
+ *   it deletes any client-supplied value first, so the incoming header is
+ *   authoritative. Re-deriving it here would be wrong: our own peer is always the
+ *   gateway, which is loopback, so every request would be marked as loopback and
+ *   the documented "a missing marker fails closed" invariant would invert into
+ *   "fail open". A missing forwarded marker therefore has to stay missing.
+ *   The forwarded marker is only trusted from a loopback peer: when this process
+ *   listens on a wider interface (the Docker dev gateway reaches it over
+ *   `host.docker.internal`), a LAN client could otherwise send the marker itself.
+ *   A gateway that reaches us from a non-loopback address never sees a loopback
+ *   client either, so dropping its marker loses nothing.
+ */
+export function applyLoopbackMarkerForTopology(
+  headers: Record<string, string | string[] | undefined>,
+  remoteAddress: string | null | undefined,
+  trustProxyMarker: boolean,
+): void {
+  if (trustProxyMarker) {
+    if (!isLoopbackAddress(remoteAddress)) delete headers[CLIENT_LOOPBACK_HEADER];
+    return;
+  }
+  applyClientLoopbackMarker(headers, remoteAddress);
+}
+
 function normalizedHost(hostHeader: string | null | undefined): string | null {
   const host = hostHeader?.trim().toLowerCase();
   return host ? host : null;

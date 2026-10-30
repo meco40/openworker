@@ -2,6 +2,7 @@
 node_modules
 .next
 .worktrees
+.worktrees-backup
 .tmp
 .superpowers
 .pnpm-store
@@ -26,7 +27,10 @@ workspaces
 *.db-*
 backups
 demo/
-docs
+docs/*
+!docs/contracts
+docs/contracts/*
+!docs/contracts/DOMAIN_REGISTRY.json
 tests
 vitest.config.ts
 eslint.config.js
@@ -43,3 +47,9 @@ eslint.config.js
 *.sqlite-*
 *.sqlite3
 *.sqlite3-*
+
+# Rust build artifacts. The gateway image builds from source, so a local target
+# directory would only invalidate the dependency cache layer.
+rust/target
+rust/**/target
+

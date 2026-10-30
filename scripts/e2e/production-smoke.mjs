@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { WebSocket } from 'ws';
+import { chromium } from 'playwright';
 
 // This probe uses real production auth, persistence and provider dispatch.
 // Only the remote model response is a controlled local HTTP fixture.
@@ -75,8 +76,28 @@ async function json(path, body, method = 'POST') {
   return data;
 }
 let socket;
+let browser;
 try {
   assert.equal((await fetch(base + '/api/personas')).status, 401);
+  browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.goto(base + '/');
+  await page.waitForURL('**/login?callbackUrl=*');
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Password', { exact: true }).fill('wrong-release-password');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page
+    .getByText('Login fehlgeschlagen. Bitte Zugangsdaten prüfen.', { exact: true })
+    .waitFor();
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.getByTestId('app-navigation').waitFor({ timeout: 30000 });
+  await page.reload();
+  await page.getByTestId('app-navigation').waitFor({ timeout: 30000 });
+  await page.goto(base + '/login');
+  await page.waitForURL(base + '/');
+  await browser.close();
+  browser = undefined;
   const csrf = await (await request('/api/auth/csrf')).json();
   const login = await request('/api/auth/callback/credentials', {
     method: 'POST',
@@ -116,7 +137,7 @@ try {
     priority: 1,
   });
   await json('/api/model-hub/pipeline', {
-    action: 'status',
+    action: 'update-status',
     modelId: pipeline.model.id,
     status: 'active',
   });
@@ -129,7 +150,7 @@ try {
     priority: 1,
   });
   await json('/api/model-hub/pipeline', {
-    action: 'status',
+    action: 'update-status',
     modelId: embeddingPipeline.model.id,
     status: 'active',
   });
@@ -236,6 +257,36 @@ try {
     'Assistant answer was not persisted.',
   );
   assert.equal((await request('/api/health/scheduler')).status, 200);
+  const secondPersona = (
+    await json('/api/personas', {
+      name: 'Swarm peer ' + Date.now(),
+      emoji: '🤖',
+      vibe: 'Release swarm peer',
+    })
+  ).persona;
+  const createdSwarm = await rpc('agent.v2.swarm.create', {
+    title: 'Production swarm smoke',
+    task: 'Reply briefly with release-production-ok.',
+    leadPersonaId: persona.id,
+    units: [
+      { personaId: persona.id, role: 'Lead' },
+      { personaId: secondPersona.id, role: 'Analyst' },
+    ],
+  });
+  await rpc('agent.v2.swarm.deploy', { id: createdSwarm.swarm.id });
+  const swarmDeadline = Date.now() + 30_000;
+  let swarm;
+  while (Date.now() < swarmDeadline) {
+    swarm = (await rpc('agent.v2.swarm.get', { id: createdSwarm.swarm.id })).swarm;
+    assert.notEqual(swarm.status, 'error', 'Rust swarm entered error: ' + JSON.stringify(swarm));
+    if (swarm.artifact?.includes(answer)) break;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  assert(
+    swarm?.artifact?.includes(answer),
+    'Rust scheduler never completed a swarm turn: ' + JSON.stringify(swarm),
+  );
+  await rpc('agent.v2.swarm.update', { id: createdSwarm.swarm.id, status: 'hold', holdFlag: true });
   console.log(
     JSON.stringify({
       ok: true,
@@ -250,9 +301,12 @@ try {
       chat: answer,
       persisted: true,
       scheduler: 200,
+      swarmTurn: true,
+      browserLogin: true,
     }),
   );
 } finally {
+  await browser?.close();
   socket?.terminate();
   await new Promise((resolve) => fixture.close(resolve));
 }

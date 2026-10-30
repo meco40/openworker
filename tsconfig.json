@@ -35,5 +35,13 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["dist", "node_modules", "coverage", "demo", "backups"]
+  "exclude": [
+    "dist",
+    "node_modules",
+    "coverage",
+    "demo",
+    "backups",
+    ".worktrees",
+    ".worktrees-backup"
+  ]
 }

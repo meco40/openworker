@@ -1,0 +1,23 @@
+//! Port of \src/server/channels/messages/service/\ (S8). Top-level service files and the subdirectories below.
+pub mod approval;
+pub mod commands;
+pub mod conversation;
+pub mod core;
+pub mod dispatchers;
+pub mod execution;
+pub mod handlers;
+pub mod inbound;
+pub mod maintenance;
+pub mod message_service;
+pub mod orchestration;
+pub mod ports;
+pub mod project_guard;
+pub mod recall;
+pub mod routing;
+pub mod subagent;
+pub mod summary_service;
+pub mod tool_loop_detector;
+pub mod tool_manager;
+pub mod transcript_repair;
+pub mod types;
+pub mod utils;

@@ -6,11 +6,13 @@ import path from 'node:path';
 
 const project = 'betaclaw-release-smoke-' + randomBytes(4).toString('hex');
 const image = process.env.RELEASE_SMOKE_IMAGE || project + ':candidate';
+const probeImage = process.env.RELEASE_SMOKE_PROBE_IMAGE || project + ':probe';
 const logDir = process.env.RELEASE_SMOKE_LOG_DIR || path.join(os.tmpdir(), project);
 fs.mkdirSync(logDir, { recursive: true });
 const env = {
   ...process.env,
   RELEASE_SMOKE_IMAGE: image,
+  RELEASE_SMOKE_PROBE_IMAGE: probeImage,
   POSTGRES_PASSWORD: randomBytes(32).toString('hex'),
   WORLD_MODEL_APP_ROLE_PASSWORD: randomBytes(32).toString('hex'),
   WORLD_MODEL_WORKER_ROLE_PASSWORD: randomBytes(32).toString('hex'),
@@ -18,9 +20,10 @@ const env = {
   MODEL_HUB_ENCRYPTION_KEY: randomBytes(32).toString('hex'),
   AUTH_DEFAULT_EMAIL: 'release@example.invalid',
   AUTH_DEFAULT_PASSWORD: randomBytes(32).toString('hex'),
-  NEXTAUTH_URL: 'http://web:3000',
+  NEXTAUTH_URL: 'http://gateway:3000',
   SCHEDULER_HEALTH_TOKEN: '',
   WORLD_MODEL_DISPATCH_SCOPES: '',
+  RUST_LOG: 'info',
 };
 const compose = [
   'compose',
@@ -37,66 +40,36 @@ function run(args, options = {}) {
     encoding: 'utf8',
     stdio: options.capture ? 'pipe' : 'inherit',
   });
-  if (options.capture) return result.stdout + result.stderr;
+  if (options.capture) {
+    if (result.status !== 0 && !options.allowFailure)
+      throw new Error(result.stdout + result.stderr);
+    return options.stdoutOnly ? result.stdout : result.stdout + result.stderr;
+  }
   if (result.error) throw result.error;
   if (result.status !== 0)
     throw new Error('Docker command failed: ' + args[0] + ' (exit ' + result.status + ')');
 }
 try {
-  if (!process.env.RELEASE_SMOKE_IMAGE) run(['build', '-t', image, '.']);
+  if (!process.env.RELEASE_SMOKE_IMAGE)
+    run(['build', '-f', 'docker/Dockerfile.gateway', '-t', image, '.']);
+  if (!process.env.RELEASE_SMOKE_PROBE_IMAGE) run(['build', '-t', probeImage, '.']);
   run([...compose, 'up', '-d', '--no-build', '--wait', '--wait-timeout', '180', 'scheduler']);
   run([...compose, 'run', '--rm', '--no-deps', '--use-aliases', 'probe']);
+  run([...compose, 'exec', '-T', 'gateway', 'python3', '-c', 'print("python-runtime-ok")']);
   run([
     ...compose,
     'exec',
     '-T',
-    'scheduler',
-    'node',
-    '--import',
-    'tsx',
-    '--input-type=module',
-    '-e',
-    `import assert from 'node:assert/strict';
-     const {runWithWorldModelScope, getWorldModelDb, closeWorldModelDb} = await import('./src/server/world-model/db.ts');
-     const {insertOpenLoop, insertStandingIntent, registerStandingIntentFire} = await import('./src/server/world-model/repositories/prospectiveRepository.ts');
-     const {runProspectiveRuntimeOnce} = await import('./src/server/world-model/runtime/prospectiveRuntime.ts');
-     const scope = {userId: 'release-worker-' + Date.now(), personaId: 'release', workspaceId: ''};
-     process.env.WORLD_MODEL_DISPATCH_SCOPES = scope.userId + ':release:';
-     assert.equal(process.env.WORLD_MODEL_RUNTIME_ROLE, 'worker');
-     try {
-       assert.equal((await getWorldModelDb().query('SELECT current_user AS role')).rows[0].role, 'world_model_worker');
-       await runWithWorldModelScope(scope, async () => {
-         await insertOpenLoop({...scope, type: 'clarification', question: 'Synthetic release question', importance: 1, deduplicationKey: scope.userId, maxAttempts: 2});
-         const intent = await insertStandingIntent({...scope, description: 'Synthetic release intent', triggerTerms: ['release'], cooldownMs: 0, maxFires: 1, deduplicationKey: scope.userId});
-         await registerStandingIntentFire(intent.id, new Date().toISOString());
-       });
-       const result = await runProspectiveRuntimeOnce();
-       assert(result.openLoopsDelivered >= 1, JSON.stringify(result));
-       console.log(JSON.stringify({ok: true, workerRole: true, proactive: result}));
-     } finally { await closeWorldModelDb(); }`,
-  ]);
-  run([
-    ...compose,
-    'exec',
-    '-T',
-    'web',
-    'node',
-    '--import',
-    'tsx',
-    '--input-type=module',
-    '-e',
-    `import assert from 'node:assert/strict';
-     const {pythonExecuteHandler, buildPythonCommand} = await import('./src/server/skills/handlers/pythonExecute.ts');
-     const {multiToolUseParallelHandler} = await import('./src/server/skills/handlers/multiToolUseParallel.ts');
-     const {approveCommand} = await import('./src/server/gateway/exec-approval-manager.ts');
-     const code = 'print("python-runtime-ok")';
-     await assert.rejects(pythonExecuteHandler({code}), /requires approval/);
-     approveCommand(buildPythonCommand(code));
-     const result = await pythonExecuteHandler({code});
-     assert.equal(result.exitCode, 0); assert.equal(result.stdout.trim(), 'python-runtime-ok');
-     const nested = await multiToolUseParallelHandler({tool_uses: [{name: 'python_execute', args: {code}}]});
-     assert.equal(nested.results[0].result.exitCode, 0);
-     console.log(JSON.stringify({ok: true, python: true, rejectedBeforeApproval: true, approvedDirectAndNested: true}));`,
+    'postgres',
+    'psql',
+    '-U',
+    'betaclaw_admin',
+    '-d',
+    'betaclaw',
+    '-v',
+    'ON_ERROR_STOP=1',
+    '-c',
+    "SELECT 1 / CASE WHEN EXISTS (SELECT 1 FROM pg_stat_activity WHERE usename='world_model_worker') THEN 1 ELSE 0 END AS rust_worker_connected",
   ]);
   run([
     ...compose,
@@ -111,13 +84,47 @@ try {
     ...compose,
     'exec',
     '-T',
-    'web',
+    'gateway',
     'node',
-    'node_modules/playwright/cli.js',
+    '/opt/betaclaw-tools/node_modules/playwright/cli.js',
     'screenshot',
     'data:text/html,release-browser-ok',
     '/tmp/release-browser.png',
   ]);
+  if (process.argv.includes('--benchmark')) {
+    run([...compose, '--profile', 'legacy-node-ui', 'up', '-d', '--no-build', '--wait', 'web-ui']);
+    fs.writeFileSync(
+      path.join(logDir, 'benchmark.json'),
+      run(
+        [
+          ...compose,
+          'run',
+          '--rm',
+          '--no-deps',
+          'probe',
+          'node',
+          'scripts/verify/node-elimination-benchmark.mjs',
+        ],
+        { capture: true, stdoutOnly: true },
+      ),
+    );
+    fs.writeFileSync(
+      path.join(logDir, 'benchmark-memory.jsonl'),
+      run(
+        [
+          'stats',
+          '--no-stream',
+          '--format',
+          '{{json .}}',
+          project + '-gateway-1',
+          project + '-scheduler-1',
+          project + '-web-ui-1',
+          project + '-postgres-1',
+        ],
+        { capture: true },
+      ),
+    );
+  }
   console.log(
     JSON.stringify({
       ok: true,
@@ -133,7 +140,7 @@ try {
 } finally {
   fs.writeFileSync(
     path.join(logDir, 'compose.log'),
-    run([...compose, 'logs', '--no-color'], { capture: true }),
+    run([...compose, 'logs', '--no-color'], { capture: true, allowFailure: true }),
   );
-  run([...compose, 'down', '--volumes']);
+  run([...compose, '--profile', 'legacy-node-ui', 'down', '--volumes']);
 }

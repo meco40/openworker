@@ -1,25 +1,38 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import AppShell from '@/modules/app-shell/AppShell';
-import { redirect } from 'next/navigation';
-import { isAuthRequired } from '@/server/auth/userContext';
 import { View } from '@/shared/domain/types';
-import { loadGatewayConfig } from '@/server/config/gateway/gatewayConfig';
-import { resolveDefaultViewFromConfig } from '@/server/config/uiRuntimeConfig';
+import { resolveDefaultViewFromConfig } from '@/shared/config/uiRuntimeConfig';
 
-export default async function HomePage() {
-  if (isAuthRequired()) {
-    const { auth } = await import('@/auth');
-    const session = await auth();
-    if (!session?.user?.id) {
-      redirect('/login');
-    }
-  }
+export default function HomePage() {
+  const [initialView, setInitialView] = useState<View | null>(null);
 
-  let initialView = View.DASHBOARD;
-  try {
-    const loadedConfig = await loadGatewayConfig();
-    initialView = resolveDefaultViewFromConfig(loadedConfig.config);
-  } catch {
-    initialView = View.DASHBOARD;
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/config')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled) {
+          setInitialView(resolveDefaultViewFromConfig(data?.config));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setInitialView(View.DASHBOARD);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (initialView === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] text-zinc-400">
+        <div className="text-sm">Lade Konfiguration...</div>
+      </div>
+    );
   }
 
   return <AppShell initialView={initialView} />;

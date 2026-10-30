@@ -184,6 +184,114 @@ jobs:
       - name: Run format check
         run: pnpm run format:check
 
+      - name: Verify API route coverage in Rust gateway
+        run: |
+          node scripts/verify/route-coverage.mjs --self-test
+          pnpm run verify:route-coverage
+
+  rust-gateway:
+    name: Rust Gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: driver_test
+          POSTGRES_USER: driver_test
+          POSTGRES_PASSWORD: isolated-driver-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U driver_test -d driver_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.94'
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Verify live PostgreSQL driver types
+        working-directory: rust
+        env:
+          BETACLAW_TEST_DATABASE_URL: postgresql://driver_test:isolated-driver-test@127.0.0.1:5432/driver_test
+        run: cargo run --locked -p betaclaw-core --example verify_postgres_driver
+
+      - name: Check committed fixtures are current
+        run: |
+          pnpm run fixtures:security-rules
+          pnpm run fixtures:nextauth-token --check
+          pnpm run fixtures:gemini-traffic
+          git diff --exit-code -- rust/crates/betaclaw-gateway/src/fixtures rust/crates/betaclaw-gateway/tests/fixtures
+
+      - name: Check formatting
+        working-directory: rust
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        working-directory: rust
+        run: cargo clippy --all-targets --features test-support -- -D warnings
+
+      - name: Test
+        working-directory: rust
+        run: cargo test --locked --features test-support
+
+      - name: Build release binary
+        working-directory: rust
+        run: cargo build --release --locked
+
+      - name: Route parity against the release binary
+        env:
+          GATEWAY_BASE_URL: http://127.0.0.1:3999
+        run: |
+          SCRATCH="$(mktemp -d)"
+          export AUTH_DEFAULT_EMAIL=parity@example.invalid
+          export AUTH_DEFAULT_PASSWORD="$(openssl rand -hex 24)"
+          export NEXTAUTH_SECRET="$(openssl rand -hex 32)"
+          export NEXTAUTH_URL=http://127.0.0.1:3999
+          PORT=3999 \
+          NODE_ENV=development \
+          REQUIRE_AUTH=false \
+          WORKSPACE_ROOT="$SCRATCH" \
+          GATEWAY_CONFIG_DB_PATH="$SCRATCH/.local/gateway-config.db" \
+          LOGS_DB_PATH="$SCRATCH/.local/logs.db" \
+          ./rust/target/release/betaclaw-gateway &
+          GATEWAY_PID=$!
+          cleanup() { kill "$GATEWAY_PID" 2>/dev/null || true; rm -rf "$SCRATCH"; }
+          trap cleanup EXIT
+
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3999/__rust/health >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3999/__rust/health >/dev/null
+
+          pnpm run verify:route-parity
+
   test-unit:
     name: Unit + Integration Tests
     runs-on: ubuntu-latest
@@ -321,7 +429,7 @@ jobs:
     name: E2E Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [pr-policy, main-policy, lint, test-unit, architecture-guards]
+    needs: [pr-policy, main-policy, lint, test-unit, architecture-guards, rust-gateway]
     if: |
       always() &&
       (needs.pr-policy.result == 'success' || needs.pr-policy.result == 'skipped') &&

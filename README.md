@@ -84,7 +84,7 @@ Befehlsregeln und Freigaben sind keine Sandbox für fremden Code.
 Logs und Stoppen:
 
 ```bash
-docker compose --env-file .env.local logs --tail 100 web scheduler migrate
+docker compose --env-file .env.local logs --tail 100 gateway scheduler migrate
 docker compose --env-file .env.local down
 ```
 
@@ -95,12 +95,43 @@ Migrationsdienst vor der Anwendung.
 
 ### Native Entwicklung
 
-Die reproduzierbare Prüfung des Docker-Erststarts läuft mit
-`pnpm run test:e2e:production` (Node.js und Docker erforderlich). Sie baut das
-Image, erstellt eine eigene leere Datenbank, prüft echte Anmeldung, WebSocket,
-Chat-Persistenz, Embeddings, Scheduler und Python/Chromium und räumt anschließend
-nur ihre eigenen Testvolumes auf. Der Modellserver ist dabei ein lokales
-HTTP-Testfixture; die Antwortqualität eines externen KI-Modells wird damit nicht bewertet.
+Das Backend läuft in Rust. `pnpm run dev` startet drei Prozesse: den
+Rust-Gateway auf `127.0.0.1:3000`, die Next.js-Oberfläche intern auf Port 3001
+und den Scheduler. Der Gateway besitzt den öffentlichen Port, beantwortet alle
+113 API-Routen sowie NextAuth nativ, terminiert `/ws` und reicht im Entwicklungsmodus
+die UI an den Next.js-Server (Port 3001) weiter.
+
+Mit `pnpm run dev:static` lässt sich das Gateway auch lokal wie im Produktions-Docker
+vollständig ohne Node-Server ausführen: es exportiert die Oberfläche nach `out/` und
+liefert diese direkt nativ über Axum aus (`BETACLAW_UI_MODE=static`).
+
+Hintergrundjobs (Telegram-Polling, Swarm-Orchestrator, Workspace-Aufräumen)
+unterstützen Tri-State-Besitz (`BETACLAW_TELEGRAM_POLLER`, `BETACLAW_SWARM_RUNNER`,
+`BETACLAW_WORKSPACE_CLEANUP` jeweils `rust | node | off`). In Docker Compose laufen
+sie standardmäßig in Rust; in der lokalen Entwicklung kann das Verhalten über `.env.local`
+gesteuert werden.
+
+Ohne gesetzten Besitzer verwenden beide Implementierungen `node`; Compose setzt
+alle drei Werte auf `rust`. `off` deaktiviert den jeweiligen Job. Die Werte müssen
+für Gateway, Scheduler und einen optionalen Node-Prozess gleich sein.
+`SWARM_RUNNER=server|scheduler` bestimmt zusätzlich den Prozess für Swarms
+(Compose: `scheduler`). Workspace-Cleanup gehört dem Scheduler. Fehlt im Dev-Stack
+das Rust-Scheduler-Binary (unter Windows immer, das Image enthält ein Linux-Binary),
+übernimmt bei `rust` der Node-UI-Server das Aufräumen; im Modus `dev:static` läuft es
+dann nicht, der Dev-Stack meldet das.
+
+Der Node-UI-Server lauscht im Dev-Stack nur dann auf `0.0.0.0`, wenn der Gateway im
+Container läuft (`host.docker.internal`); sonst auf `127.0.0.1`. Einen
+weitergereichten Loopback-Marker übernimmt er nur von einem Loopback-Peer.
+
+`BETACLAW_UI_MODE=static|proxy` wird beim Start aufgelöst. Ohne Wert verwendet
+Rust einen vorhandenen Export, sonst den Proxy. `UI_STATIC_DIR` wählt das
+Exportverzeichnis. `dev:static` baut es bei jedem Start neu.
+Das Rust-Image enthält Python und Node samt Playwright/Chromium für aufgerufene
+Werkzeuge. Es startet keinen Node-Anwendungsserver; Playwright startet Node bei Bedarf.
+
+Eine Rust-Toolchain wird auf dem Host nicht benötigt; alle Rust-Befehle laufen
+im Container.
 
 ```powershell
 pnpm install --frozen-lockfile
@@ -108,9 +139,31 @@ Copy-Item .env.local.example .env.local
 # Secrets und den ersten Admin wie oben setzen.
 docker compose -f docker-compose.postgres.yml up -d
 pnpm run world-model:migrate
+
+# Rust-Image bauen; unter Windows nutzt der Dev-Stack dieses Image.
+pnpm run rust:build
+
 pnpm run dev
-# In einem zweiten Terminal:
-pnpm run dev:scheduler
+```
+
+Für Fehlersuche am alten Stack steht `pnpm run dev:node` weiterhin zur
+Verfügung. Er startet den Node-Server wie bisher auf Port 3000.
+
+Rust-Prüfungen:
+
+```powershell
+pnpm run rust:test          # 147 Tests
+pnpm run rust:clippy        # clippy mit -D warnings
+pnpm run rust:fmt:check     # cargo fmt --check
+pnpm run verify:logs-parity # Rust gegen TypeScript auf /api/logs
+```
+
+Fixtures, die zwischen beiden Sprachen geteilt werden, sind generiert und
+werden in CI auf Frische geprüft:
+
+```powershell
+pnpm run fixtures:security-rules
+pnpm run fixtures:nextauth-token
 ```
 
 Dieser Entwicklungsweg nutzt `CANONICAL_DATABASE_URL` aus der Vorlage und
@@ -169,7 +222,11 @@ pnpm run start
 ## Projektstruktur
 
 ```
-├── app/                    # Next.js App Router & API-Routen
+├── app/                    # Next.js App Router (UI + noch nicht migrierte API)
+├── rust/                   # Rust-Backend (axum)
+│   └── crates/
+│       ├── betaclaw-core/  # Domänenlogik: Auth, Gateway-Protokoll, SQLite, Security
+│       └── betaclaw-gateway/# axum-Server, Reverse-Proxy, WebSocket-Upgrade, Routen
 ├── src/
 │   ├── cli/               # CLI-Programme & Befehle
 │   ├── commands/          # Health-Checks & Diagnose-Befehle
@@ -179,7 +236,7 @@ pnpm run start
 │   ├── logging/           # Logging-Infrastruktur
 │   ├── messenger/         # Messenger-Integrationen
 │   ├── modules/           # Frontend Feature-Module (Hooks, Services)
-│   ├── server/            # Serverseitige Domänen (DDD)
+│   ├── server/            # Noch nicht migrierte serverseitige Domänen (DDD)
 │   │   ├── channels/      # Omnichannel-Messaging
 │   │   ├── skills/        # Skill-Execution Engine
 │   │   ├── memory/        # Konzeptuelles Memory
@@ -188,19 +245,33 @@ pnpm run start
 │   │   ├── clawhub/       # ClawHub-Integration
 │   │   ├── knowledge/     # Knowledge Base System
 │   │   ├── automation/    # Cron-basierte Automationen
-│   │   └── gateway/       # WebSocket Gateway
+│   │   └── gateway/       # WebSocket Gateway (Rest der Methoden)
 │   ├── services/          # Externe Service-Integrationen
 │   ├── shared/            # Geteilte Typen, Config & Utilities
 │   └── skills/            # Skill-Definitionen & Handler
-├── tests/                 # Test-Suite
-│   ├── contract/          # API-Vertrags-Tests
-│   ├── e2e/               # End-to-End Tests
-│   ├── integration/       # Integrationstests
-│   └── unit/              # Unit-Tests
+├── tests/                 # TypeScript-Test-Suite (Oracle während der Migration)
 ├── docs/                  # Technische Dokumentation
-├── scripts/               # Hilfsskripte
+│   └── RUST_MIGRATION.md  # Migrationsplan, Reihenfolge, Fortschritt
+├── scripts/
+│   ├── fixtures/          # Generiert sprachübergreifende Fixtures
+│   └── verify/            # Paritätsprüfungen Rust gegen TypeScript
+├── docker/
+│   └── Dockerfile.gateway # Mehrstufiger Build des Rust-Gateways
 └── ops/                   # Operations-Konfiguration (systemd)
 ```
+
+### Betriebs-topologie
+
+```
+Browser / CLI ──► gateway (Rust, axum)  :3000   öffentlicher Listener
+                    ├── /ws    nativer WebSocket-Gateway
+                    ├── /api/* bereits migrierte Routen
+                    └── Rest ──► web-ui (Next.js) :3001
+```
+
+Der Migrationfortschritt, die Schnittstellen zwischen beiden Implementierungen
+und die Entfernungskriterien für die Proxy-Schicht stehen in
+[`docs/RUST_MIGRATION.md`](docs/RUST_MIGRATION.md).
 
 ---
 
@@ -226,6 +297,11 @@ pnpm run typecheck
 # Tests (Unit + Integration, ohne externe World-Model-Dienste)
 pnpm run test
 
+# Rust-Backend: Tests, Clippy, Format
+pnpm run rust:test
+pnpm run rust:clippy
+pnpm run rust:fmt:check
+
 # World-Model-Integration mit lokalem PostgreSQL
 $env:WORLD_MODEL_E2E='true'
 corepack pnpm exec vitest run tests/integration/world-model
@@ -248,6 +324,28 @@ pnpm run check
 # Build (Produktion)
 pnpm run build
 ```
+
+### Rust-Teststrategie
+
+Die Migration folgt zwei Regeln, damit Rust und TypeScript auseinanderlaufen
+können:
+
+1. **Fremddetails werden verifiziert, nicht angenommen.** Session-Cookies werden
+   gegen ein Fixture geprüft, das mit dem echten `next-auth@4.24.15` erzeugt
+   wurde (`scripts/fixtures/generate-nextauth-token.mjs`). Die
+   `SECURITY_RULES` für `/api/security/status` werden aus
+   `src/shared/domain/constants.ts` generiert
+   (`scripts/ci/export-security-rules.mjs`). Beide Prüfungen laufen in CI gegen
+   den committeten Stand.
+2. **Verhalten wird gegen die TypeScript-Referenz verglichen.**
+   `scripts/verify/logs-parity.mjs` füttert dieselben Log-Ereignisse in beide
+   Implementierungen und vergleicht Level, Quelle, Kategorie, Reihenfolge,
+   Filterergebnisse und `clear()`-Semantik Feld für Feld.
+
+Integrationstests in `rust/crates/betaclaw-gateway/tests/` starten den echten
+axum-Router auf einem ephemeren Port und sprechen HTTP sowie WebSocket über TCP
+darauf, sodass Upgrade-Regeln, Auth-Gate und migrierte Routen auf demselben
+Pfad geprüft werden wie im Browser.
 
 ### E2E im Container
 
@@ -399,7 +497,15 @@ Single endpoint path: `/ws` (clients must use `?protocol=v2`)
 
 - **Verwendet**: `ws://localhost:3000/ws?protocol=v2`
 - `protocol=v2` muss explizit gesetzt sein, sonst antwortet der Server mit `400 Bad Request`.
-- Browser-Handshakes aus einem fremden Origin werden mit `403 Forbidden` abgelehnt. Ohne Login akzeptiert `/ws` nur Loopback-Clients; siehe [Netzwerkzugriff und Authentifizierung](#netzwerkzugriff-und-authentifizierung).
+- Browser-Handshakes aus einem fremden Origin werden mit `403 Forbidden` abgelehnt. Ohne Login
+  akzeptiert `/ws` nur Loopback-Clients; siehe [Netzwerkzugriff und
+  Authentifizierung](#netzwerkzugriff-und-authentifizierung).
+- Der Endpunkt wird vom Rust-Gateway terminiert. Der Endpunkt bleibt während der
+  gesamten Migration unverändert, damit Browser, CLI und `src/lib/betaclaw/client.ts`
+  nichts anpassen müssen.
+- Aktuell in Rust: `presence.*` und `logs.*`. Die übrigen Methoden liefert
+  während der Übergangszeit die TypeScript-Implementierung; siehe
+  [`docs/RUST_MIGRATION.md`](docs/RUST_MIGRATION.md).
 
 ### Rate Limits
 
