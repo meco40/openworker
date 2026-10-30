@@ -228,6 +228,37 @@ fassen Memory, Knowledge und Stats an und gehören in S5 bis S7.
 
 ## 7. Fortschrittsnotizen
 
+### 2026-10-30 — Restpunkte auf main nachgezogen
+
+Stand auf `main` nach dem Merge von `rust`. Die Punkte „nicht gelaufen“ des Eintrags darunter
+sind damit zum Teil erledigt. Die Abschnitte bleiben als Verlauf stehen.
+
+- **Guard-Test** `no-explicit-any-guard`: schließt `.claude/` aus (`61b3e13a`). Der Test fand
+  `any` in Repo-Kopien fremder Sessions unter `.claude/worktrees`.
+- **Sicherheit**: `scripts/dev-stack-rust.mjs` übergab die Datenbank-URLs mit Passwort als
+  Argument an `docker`. Sie sind jetzt in der Umgebung des `docker`-Prozesses, im Argument steht
+  nur der Name (`f2048f92`). Befund einer automatischen Sicherheitsprüfung.
+- **CI-Parität Memory**: Ohne `MEMORY_PROVIDER` fiel der Rust-Gateway auf Mem0 zurück. Mem0 ist in
+  CI nicht konfiguriert, alle Memory-Fälle antworten mit 500. `ci.yml` setzt jetzt
+  `MEMORY_PROVIDER=sqlite` und `MEMORY_DB_PATH` im Scratch-Verzeichnis (`ec491013`). Verifiziert:
+  vollständiger Parity-Lauf mit exakt der CI-Umgebung (Gateway nur mit den CI-Variablen, Harness
+  ohne `.env.local`): `PARITÄT VOLLSTÄNDIG`, 18 Familien, exit 0.
+- **`REQUIRE_AUTH=true`-Lauf**: Kein Gate. Nur die Familien mit `AUTH_LANE` (`channels-wire`,
+  `master`, `ops`-Probes) prüfen dort die Auth-Probes. Die übrigen Familien schicken Standardfälle
+  ohne Session. Rust antwortet mit 401, die TS-Seite läuft im Prozess und liefert Daten. Der
+  einzige Fall mit anderem Status (`/api/internal/stats/engineering/snapshots` ohne Token: Rust
+  401, TS 503) ist ein Harness-Artefakt. Der TS-Proxy lässt diesen Pfad ohne Auth ebenfalls nicht
+  durch, nur der Graphiti-Pfad ist öffentlich.
+- **Branch `wip/main-local-changes`** (`ab7774a9`): 36 Dateien, überwiegend neue Unit-Tests für
+  agent-v2, channels, knowledge und master, Änderungen an `vitest.config.ts` und die Löschung von
+  `.github/workflows/openai-worker-ci.yml`. Nicht gemerged.
+- **Telegram im Compose-Smoke**: nicht umgesetzt. Der Poller spricht `api.telegram.org`. Ein Test
+  im Compose-Stack braucht entweder eine konfigurierbare Basis-URL (der Plan verbietet eine neue
+  Variable dafür) oder echten Netzzugriff. Offene Entscheidung.
+- **Gates auf `main`**: `typecheck`, `lint`, `format:check` exit 0, Guard-Test allein grün. Die
+  volle Vitest-Suite lief vor dem Guard-Fix auf dem gemergten Stand, mit dem einen Fehler, der
+  jetzt behoben ist.
+
 ### 2026-10-30 — Offene Punkte geschlossen, Testlauf
 
 Die offenen Punkte aus RUST_NODE_ELIMINATION_FIXES.md wurden am Code geprüft (Details dort,
