@@ -116,6 +116,9 @@ const DATABASE_URL_VARS = [
   'CANONICAL_DATABASE_URL',
   'DATABASE_URL',
 ];
+// Docker volume behind /app/.local in the dev gateway. scripts/dev-import-legacy.mjs uses
+// the same name.
+const DEV_DATA_VOLUME = 'betaclaw-dev-data';
 
 // Returns the docker arguments and the environment of the docker process. Values never
 // go into argv: a process listing would show the database password in the URLs.
@@ -197,6 +200,10 @@ function startRustGateway(port, isStaticMode, staticDir) {
         `127.0.0.1:${port}:3000`,
         ...(isWindows ? ['--add-host', 'host.docker.internal:host-gateway'] : []),
         ...staticMount,
+        // Persistent data of the Rust gateway (auth, personas, model hub). The host .local
+        // stays with the Node UI; `pnpm run dev:import-legacy` fills this volume.
+        '-v',
+        `${DEV_DATA_VOLUME}:/app/.local`,
         '-e',
         'PORT=3000',
         '-e',
@@ -227,6 +234,9 @@ function startRustGateway(port, isStaticMode, staticDir) {
         'AUTH_DEFAULT_PASSWORD',
         '-e',
         'AUTH_DEFAULT_NAME',
+        // Name only: the model hub decrypts its stored secrets with this key.
+        '-e',
+        'MODEL_HUB_ENCRYPTION_KEY',
         '-e',
         'BETACLAW_TELEGRAM_POLLER',
         '-e',

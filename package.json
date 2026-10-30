@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node scripts/dev-stack-rust.mjs",
     "dev:static": "node scripts/dev-stack-rust.mjs --static",
+    "dev:import-legacy": "node scripts/dev-import-legacy.mjs",
     "dev:node": "node scripts/dev-stack.mjs",
     "dev:gateway": "cross-env NODE_ENV=production betaclaw-gateway",
     "dev:web": "cross-env NODE_ENV=development tsx watch server.ts",
