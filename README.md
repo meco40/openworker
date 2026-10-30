@@ -84,7 +84,7 @@ Befehlsregeln und Freigaben sind keine Sandbox für fremden Code.
 Logs und Stoppen:
 
 ```bash
-docker compose --env-file .env.local logs --tail 100 web scheduler migrate
+docker compose --env-file .env.local logs --tail 100 gateway scheduler migrate
 docker compose --env-file .env.local down
 ```
 
@@ -97,8 +97,38 @@ Migrationsdienst vor der Anwendung.
 
 Das Backend läuft in Rust. `pnpm run dev` startet drei Prozesse: den
 Rust-Gateway auf `127.0.0.1:3000`, die Next.js-Oberfläche intern auf Port 3001
-und den Scheduler. Der Gateway besitzt den öffentlichen Port, terminiert
-`/ws` und reicht alle noch nicht migrierten Routen an die Oberfläche weiter.
+und den Scheduler. Der Gateway besitzt den öffentlichen Port, beantwortet alle
+113 API-Routen sowie NextAuth nativ, terminiert `/ws` und reicht im Entwicklungsmodus
+die UI an den Next.js-Server (Port 3001) weiter.
+
+Mit `pnpm run dev:static` lässt sich das Gateway auch lokal wie im Produktions-Docker
+vollständig ohne Node-Server ausführen: es exportiert die Oberfläche nach `out/` und
+liefert diese direkt nativ über Axum aus (`BETACLAW_UI_MODE=static`).
+
+Hintergrundjobs (Telegram-Polling, Swarm-Orchestrator, Workspace-Aufräumen)
+unterstützen Tri-State-Besitz (`BETACLAW_TELEGRAM_POLLER`, `BETACLAW_SWARM_RUNNER`,
+`BETACLAW_WORKSPACE_CLEANUP` jeweils `rust | node | off`). In Docker Compose laufen
+sie standardmäßig in Rust; in der lokalen Entwicklung kann das Verhalten über `.env.local`
+gesteuert werden.
+
+Ohne gesetzten Besitzer verwenden beide Implementierungen `node`; Compose setzt
+alle drei Werte auf `rust`. `off` deaktiviert den jeweiligen Job. Die Werte müssen
+für Gateway, Scheduler und einen optionalen Node-Prozess gleich sein.
+`SWARM_RUNNER=server|scheduler` bestimmt zusätzlich den Prozess für Swarms
+(Compose: `scheduler`). Workspace-Cleanup gehört dem Scheduler. Fehlt im Dev-Stack
+das Rust-Scheduler-Binary (unter Windows immer, das Image enthält ein Linux-Binary),
+übernimmt bei `rust` der Node-UI-Server das Aufräumen; im Modus `dev:static` läuft es
+dann nicht, der Dev-Stack meldet das.
+
+Der Node-UI-Server lauscht im Dev-Stack nur dann auf `0.0.0.0`, wenn der Gateway im
+Container läuft (`host.docker.internal`); sonst auf `127.0.0.1`. Einen
+weitergereichten Loopback-Marker übernimmt er nur von einem Loopback-Peer.
+
+`BETACLAW_UI_MODE=static|proxy` wird beim Start aufgelöst. Ohne Wert verwendet
+Rust einen vorhandenen Export, sonst den Proxy. `UI_STATIC_DIR` wählt das
+Exportverzeichnis. `dev:static` baut es bei jedem Start neu.
+Das Rust-Image enthält Python und Node samt Playwright/Chromium für aufgerufene
+Werkzeuge. Es startet keinen Node-Anwendungsserver; Playwright startet Node bei Bedarf.
 
 Eine Rust-Toolchain wird auf dem Host nicht benötigt; alle Rust-Befehle laufen
 im Container.
@@ -110,12 +140,8 @@ Copy-Item .env.local.example .env.local
 docker compose -f docker-compose.postgres.yml up -d
 pnpm run world-model:migrate
 
-# Release-Binary einmalig aus dem Container in den Worktree holen,
-# danach startet pnpm dev ohne Docker-Build.
+# Rust-Image bauen; unter Windows nutzt der Dev-Stack dieses Image.
 pnpm run rust:build
-docker create --name betaclaw-gateway-extract betaclaw-gateway-local
-docker cp betaclaw-gateway-extract:/workspace/rust/target/release/betaclaw-gateway rust/target/release/
-docker rm betaclaw-gateway-extract
 
 pnpm run dev
 ```

@@ -1,12 +1,11 @@
 # Backend-Migration nach Rust
 
-Status: in Umsetzung · Worktree `E:\web\clawtest-rust` (Branch `rust`, von `6dcdd322`)
-Letzte Aktualisierung: 2026-10-11
+Status: Rust-Backend mit lokalen Abnahmen; externe Produktionsfreigabe nicht belegt · Worktree `E:\web\clawtest-rust` (Branch `rust`)
+Letzte Aktualisierung: 2026-10-29
 
 Ziel: Das produktive Backend gehört Rust. HTTP, WebSocket, Auth, Geschäftslogik,
 Datenzugriff, Integrationen sowie Scheduler und Hintergrundjobs. Next.js/React/TypeScript
-bleiben Benutzeroberfläche. Next.js darf während der Übergangszeit dünner Reverse-Proxy
-sein, aber keine Backend-Geschäftslogik mehr enthalten.
+bleiben Benutzeroberfläche (statischer Export im Gateway). Im Standard-Stack laufen Rust-Gateway und Rust-Scheduler. Node bleibt für aufgerufene Playwright-Werkzeuge im Image enthalten; ein Node-Anwendungsserver startet nur im optionalen Legacy-Profil.
 
 ## 1. Bestandsaufnahme
 
@@ -119,40 +118,31 @@ Abweichungen verhindern den Abschluss. Verschobene Funktionen brauchen einen ben
 Ziel-Slice und bleiben als Abhängigkeit sichtbar; eine fehlende Zuordnung gilt nicht
 als erledigt. Fortschritt nach Dateizahl, LOC oder Testzahl ist kein Abschlusskriterium.
 
+Für eine Prozent-Orientierung werden die vier Kriterien je Slice gleich gewichtet:
+`erfüllt` = 100, `weitgehend` = 75, `teilweise` = 50 und `offen`/`nicht belegt` = 0.
+Der Mittelwert über S0–S13 beschreibt belegte Migrationsreife, nicht portierte LOC oder
+Zeitaufwand. Ein pauschaler Gesamtwert wird nicht mehr als Abschlussnachweis verwendet. Die lokale
+Abnahme der Nacharbeiten F1–F25 steht in Abschnitt 7; externe Integrationen und
+Produktionsumschaltung bleiben gesonderte Nachweise.
+
 ### Statusmatrix
 
-Stand: 2026-10-11. Grundlage sind der aktuelle Code und die in Abschnitt 7 dokumentierten
-Nachweise. Frühere Angaben „abgeschlossen“ für S0–S5 werden durch diese Matrix ersetzt;
-historische Prüfergebnisse bleiben erhalten. Es wird kein neuer Live-Test behauptet.
+Die frühere Matrix mit viermal „erfüllt“ für jeden Slice war zu weitgehend.
+Quelltext, deklarierte Routen und erfolgreiche Einzeltests beweisen keine
+vollständige Verhaltensparität. Stand der lokalen Prüfung vom 2026-10-29:
 
-| Slice | Thema                                                              | Code portiert | Runtime angeschlossen | Verhalten verglichen | Umschaltung erprobt | Beleg / verbleibende Grenze                                                                                                                                                                                                                                                                                                    |
-| ----- | ------------------------------------------------------------------ | ------------- | --------------------- | -------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| S0    | Fundament                                                          | erfüllt       | erfüllt               | teilweise            | nicht belegt        | Gateway, Proxy und Compose verdrahtet; Container-Smoke in Abschnitt 7. Kein vollständiger Umschalt-/Rückfallnachweis.                                                                                                                                                                                                          |
-| S1    | Transport, Auth, Gateway-WS, Observability                         | erfüllt       | erfüllt               | teilweise            | nicht belegt        | Logs-Parität, Auth-Fixtures und Transporttests vorhanden; kein vollständiger Vergleich des S1-Umfangs dokumentiert. `chat.*` gehört zu S8.                                                                                                                                                                                     |
-| S2    | Config, Gateway-Config, Personas, Security                         | teilweise     | teilweise             | teilweise            | nicht belegt        | Config-Paritätsfamilie vorhanden; Persona-Schreib-/Template-Routen weiter im Proxy, vollständige Routenparität fehlt.                                                                                                                                                                                                          |
-| S3    | Messages, Conversations, Inbox, Sessions-Store                     | teilweise     | teilweise             | nicht belegt         | nicht belegt        | Stores und ausgewählte Routen nativ; Abbruch/Recall und Metriken offen (OP-1/OP-2), keine eigene HTTP-Paritätsfamilie.                                                                                                                                                                                                         |
-| S4    | Model Hub                                                          | teilweise     | offen                 | teilweise            | nicht belegt        | 15 Adapter und Gemini-Fixture vorhanden; API/Runtime, OAuth/Refresh und produktiver HTTP-Transport fehlen (OP-9/OP-11/OP-12/OP-16).                                                                                                                                                                                            |
-| S5    | Memory                                                             | teilweise     | offen                 | nicht belegt         | nicht belegt        | Provider und Service-Tests vorhanden; Runtime/API und Randmodule offen (OP-10/OP-13). Unit-Tests belegen keine vollständige TS/Rust-Parität.                                                                                                                                                                                   |
-| S6    | World Model                                                        | teilweise     | offen                 | nicht belegt         | nicht belegt        | Repositories und Teilbereiche portiert; Services, Worker, Factory/Bridges fehlen. Keine vollständige Vertrags-/Live-Integrationsparität belegt.                                                                                                                                                                                |
-| S7    | Knowledge                                                          | teilweise     | offen                 | nicht belegt         | nicht belegt        | In `lane/s7` portiert: Fundament, Repositories, Retrieval (`7872e122`, `1b84448e`, `e60f25f6`); Gate auf `7872e122` unabhängig grün. Abgleich 95 TS gegen 60 RS: Detektoren, Extraktoren, Prompts, `runtime*`, `sqliteKnowledgeRepository` und die nicht S6-gekoppelte Ingestion fehlen noch. Keine Route umgestellt.          |
-| S8    | Chat-Dispatch, Recall, Subagents, Tool-Loop                        | offen         | offen                 | nicht belegt         | nicht belegt        | `chat.send`, `chat.stream` und `chat.abort` fehlen im Rust-Dispatcher.                                                                                                                                                                                                                                                         |
-| S9    | Master                                                             | teilweise     | offen                 | nicht belegt         | nicht belegt        | In `lane/s9` bis `5829fd42` portiert und unabhängig geprüft: 64 Module, `cargo fmt --check` exit 0, `clippy -D warnings` exit 0, `cargo test -p betaclaw-core` 1545 passed / 0 failed. Abgleich 75 TS gegen 64 RS: `capabilities/**`, `connectors/**`, `toolforge/**`, `toolPolicy/service.ts` fehlen. Keine Route umgestellt. |
-| S10   | Tasks, Workspaces, Agents, Automation                              | offen         | offen                 | nicht belegt         | nicht belegt        | Im Plan offen.                                                                                                                                                                                                                                                                                                                 |
-| S11   | Skills-Handler und Exec-Freigaben                                  | offen         | offen                 | nicht belegt         | nicht belegt        | Im Plan offen.                                                                                                                                                                                                                                                                                                                 |
-| S12   | Stats, Clawhub, Proactive, Debug, Files, Ops, Agent-v2, Agent-Room | offen         | offen                 | nicht belegt         | nicht belegt        | Im Plan offen.                                                                                                                                                                                                                                                                                                                 |
-| S13   | Endzustand                                                         | offen         | offen                 | nicht belegt         | nicht belegt        | Rust-Scheduler, endgültige Umschaltung und Entfernung des TS-Backends stehen aus.                                                                                                                                                                                                                                              |
+| Bereich                                                  | Code / Runtime                                                | Verhaltensnachweis                                                          | Grenze                                                     |
+| -------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| S0–S3: Gateway, Auth, Config, Personas, Chat-Speicher    | nativ angeschlossen                                           | Rust-Gates, echte NextAuth-Kreuztests, Routen-Paritätsfälle                 | jeweils geprüfte Fälle                                     |
+| S4: Model Hub                                            | nativ angeschlossen                                           | Adapter-Tests; lokaler HTTP-Modell-/Embedding-Provider im Smoke             | reale Providerkonten nicht erneut geprüft                  |
+| S5–S7: Memory, World Model, Knowledge                    | nativ angeschlossen                                           | Unit-/Paritätsfälle; echter PostgreSQL-Treibertest und kanonischer Smoke    | Graphiti/Mem0/Live-Provider nicht vollständig abgenommen   |
+| S8–S12: Chat, Master, Tasks, Skills, Ops, Agent-v2/Swarm | nativ angeschlossen                                           | jeweilige Rust-/TS-Fälle; gemeinsamer Swarm-Trace; Tool-Laufzeiten im Image | externe Mail-/Kanal-/Gerätepfade bleiben separate Abnahmen |
+| S13: Lieferung und Hintergrundjobs                       | Rust-Gateway/Scheduler, statische UI, gemeinsame Job-Besitzer | lokale Images, Browser/HMR und isolierter Compose-Smoke                     | kein Deployment oder Produktions-Cutover durchgeführt      |
 
-Die Runtime-Bewertung von S0/S1 betrifft nur deren beschriebenen Umfang: Ein nativer
-WS-Transport bedeutet keinen funktionsfähigen Rust-Chat. Fehlende WS-Methoden werden
-derzeit mit `Unknown method` beantwortet, nicht an TypeScript weitergereicht
-(`rust/crates/betaclaw-gateway/src/gateway_methods.rs`).
-
-Bei jeder Statusänderung wird in Abschnitt 7 ein Nachweis mit Slice, Kriterium,
-genauem Funktionsumfang, Revision (bei lokalen Änderungen einschließlich Dirty-Status),
-Datum, Umgebung, Befehl/Test und Ergebnis ergänzt. Restlücken verweisen auf das
-Register „Offene Punkte“. Alte Ergebnisse werden nicht auf neueren Code übertragen.
-Die in Abschnitt 7 beschriebenen Routen-/Methodengrenzen bleiben maßgeblich; offene
-Slice-Zuordnungen werden durch diese Statuskorrektur nicht stillschweigend entschieden.
+Die Routenprüfung vergleicht 188 erforderliche Pfad-/Methodenpaare mit
+Rust-Deklarationen. TypeScript-Exports werden per AST, Rust-Router per
+Quelltextparser gelesen. Ein temporäres Projekt mit fehlendem Handler muss mit
+Exit 1 scheitern. Diese Zahl ist deklarierte Abdeckung, keine 100%-Verhaltensgarantie.
 
 ## 5. Slice S0 und S1 im Detail
 
@@ -237,6 +227,632 @@ fassen Memory, Knowledge und Stats an und gehören in S5 bis S7.
    erzeugten Statements.
 
 ## 7. Fortschrittsnotizen
+
+### 2026-10-30 — Offene Punkte geschlossen, Testlauf
+
+Die offenen Punkte aus RUST_NODE_ELIMINATION_FIXES.md wurden am Code geprüft (Details dort,
+Abschnitt „Nachprüfung am Code“). F3, A3, F8, F9, F14, F23 und E7 sind umgesetzt. A5 war für
+Persona-Poller und Swarm umgesetzt, nicht für den Scheduler. Das ist jetzt nachgezogen.
+
+Änderungen dieser Runde:
+
+- `scheduler_runtime.rs`: `AutomationRuntime::stop` ist async und wartet auf den laufenden Tick,
+  bevor der Lease freigegeben wird. Der Prospective-Timer nutzt denselben Drain. Test
+  `automation_stop_waits_for_the_in_flight_tick`.
+- World-Model-Health, Check 8 (`checks.scheduler`): im Rust-Port fehlend, jetzt portiert.
+  `WorldModelPort::health` nimmt die Automation-Metriken entgegen, der Handler liefert sie.
+  Zwei neue Tests (veraltete und fehlgeschlagene Lease-Abfrage). Der Route-Test setzt jetzt einen
+  frischen Lease, sonst meldet der Port korrekt `degraded`.
+- Parität `auth`: schließt den globalen Auth-Store vor dem Löschen des Scratch-Verzeichnisses.
+  Unter Windows verhinderte das vorher den Abschluss mit EPERM.
+- Drei Fixtures und `production-smoke.mjs` mit Prettier formatiert. Die TS-Parität liest sie
+  semantisch, die beiden betroffenen Tests laufen grün.
+
+Gates:
+
+- Rust: `fmt:check` und `clippy -D warnings` exit 0. `cargo test`: 2988 (Core), 525 (Gateway),
+  9, 1, 10 bestanden, 0 fehlgeschlagen. Ein Gateway-Test schlug im ersten Lauf fehl und
+  danach nur für das Modul `world_model_port` (13/13 grün).
+- TS: `typecheck`, `lint`, `format:check` exit 0. `vitest run`: 630 Dateien, 3395 Tests
+  bestanden, 52 übersprungen (Lauf vor der Prettier-Formatierung der Fixtures, die Tests
+  wurden danach einzeln wiederholt).
+- `verify:route-coverage`: 188 Verträge, Selbsttest bestanden.
+- `verify:route-parity`: alle Familien grün (`PARITÄT VOLLSTÄNDIG`, exit 0). Gegen den
+  Gateway-Container über `docker exec curl`, `NEXTAUTH_URL` auf beiden Seiten gleich,
+  `REQUIRE_AUTH=false` wie in CI, `WORLD_MODEL_ENABLED=true`, `MEMORY_PROVIDER=sqlite` auf der
+  Rust-Seite. Die Parität mit `REQUIRE_AUTH=true` lief nicht, CI fährt sie ebenfalls nicht.
+- Produktions-Smoke (`run-production-smoke.mjs`, eigenes Compose-Projekt, Gateway-Image aus
+  dem aktuellen Stand): `ok: true`, inklusive `swarmTurn: true`, Scheduler `200`,
+  `browserLogin: true`. Telegram ist im Smoke nicht enthalten. Die Strecke ist nur durch den
+  Unit-Test mit Telegram-Attrappe belegt.
+- `pnpm run build` (Node mit API-Routen) exit 0. `build:export` lief im Gateway-Image-Build.
+
+- Browser-E2E (`test:e2e:browser`) auf dem Host: 69 Tests bestanden, 0 fehlgeschlagen. Dafür
+  wurde Chromium für Playwright 1208 (Chrome Headless Shell 145.0.7632.6) per
+  `playwright install chromium` installiert. Der Container-Lauf
+  (`run-browser-in-container.ps1`) scheiterte vorher am Turbopack-Build (Postcss-Loader
+  „failed to receive message“). Er ist nicht wiederholt.
+
+Nicht gelaufen oder nicht belegt:
+
+- CI-Konfiguration der Parität nicht nachgestellt: CI setzt `MEMORY_PROVIDER` nicht. Rust wählt
+  dann nach `WORLD_MODEL_MODE` zwischen Postgres und Mem0. Ob die Memory-Familie dort gegen
+  SQLite vergleicht, ist ungeprüft.
+- Telegram-Strecke im Compose-Stack ohne Attrappe.
+
+### 2026-10-30 — WebSocket-Close-Fix und Benchmark ohne Node
+
+**Befund beim Benchmark:** Der Gateway beantwortete ein Close des Clients nicht. Der
+Writer-Task in `ws.rs` hielt einen eigenen Klon von `ClientHandle` und damit einen Sender des
+Outbound-Kanals. Der Kanal schloss nie, also endete der Writer nie. Die von tungstenite
+vorbereitete Close-Antwort wurde nie gesendet. Pro getrennter Verbindung blieben ein Task und
+der Socket offen. Der Fehler bestand seit `e130a435` (S3). Das Original antwortet in rund
+3 ms.
+
+- `gateway/client.rs`: Neue Methode `buffered_counter()`. Sie gibt nur den Bytezähler heraus.
+- `ws.rs`: Der Writer hält nur noch Zähler und Verbindungs-ID. Nach seiner Schleife ruft er
+  `sink.close()` auf und sendet so die Close-Antwort.
+- Neuer Test `websocket_client_close_is_answered` in `tests/gateway_http.rs`.
+- Live geprüft: Close-Antwort nach 5,7 ms, `wasClean` true.
+
+Gates im Container: `cargo fmt` und `clippy -D warnings` exit 0. `cargo test` 3.530 bestanden
+(2.988 Core, 522 Gateway, 9, 1, 10), 0 fehlgeschlagen.
+
+**Benchmark.** Der Rust-Gateway läuft im Static-Modus (`BETACLAW_UI_MODE=static`) ohne
+Node-Prozess in Docker Desktop. Das Original (`main` in `.worktrees/bench-orig`) läuft mit
+`server.ts` direkt auf dem Host. Beide laufen im Produktionsmodus mit `REQUIRE_AUTH=true`
+und derselben Kopie von `.local`. Beide nutzen dieselbe PostgreSQL. Gemessen wurden 400
+Requests bei Concurrency 16 nach 40 Warm-up-Requests, ein Lauf je Seite. Das Skript liegt
+nicht im Repo.
+
+| Route                        | Rust rps | Rust p50 / p95 ms | Original rps | Original p50 / p95 ms |
+| ---------------------------- | -------- | ----------------- | ------------ | --------------------- |
+| `/api/health`                | 576      | 25,5 / 49,1       | 269          | 56,9 / 73,4           |
+| `/api/logs?limit=50`         | 1765     | 8,5 / 13,5        | 282          | 54,2 / 71,9           |
+| `/api/control-plane/metrics` | 111      | 139,5 / 177,5     | 110          | 141,1 / 180,2         |
+| `/api/model-hub/providers`   | 2013     | 7,5 / 11,6        | 300          | 50,8 / 79,6           |
+| `/api/security/status`       | 2101     | 7,3 / 11,4        | 373          | 43,3 / 54,6           |
+| `/api/auth/session`          | 2334     | 6,5 / 10,1        | 340          | 43,9 / 72,4           |
+| `/login`                     | 711      | 19,0 / 58,4       | 105          | 145,8 / 206,7         |
+| `/`                          | 1143     | 10,4 / 47,4       | 696          | 21,5 / 36,8           |
+| WS-Handshake                 | –        | 3,9 / 5,8         | –            | 2,6 / 5,4             |
+
+| Speicher                    | Leerlauf | Nach dem Lauf |
+| --------------------------- | -------- | ------------- |
+| Rust-Gateway (Container)    | 38,4 MiB | 68,0 MiB      |
+| Original-Node (Working Set) | 151,9 MB | 411,3 MB      |
+
+Bewertung: Bei Durchsatz und Latenz gewinnt Rust deutlich. Die meisten API-Routen schaffen
+den 5- bis 7-fachen Durchsatz, `/login` den 7-fachen. `/api/control-plane/metrics` ist
+gleich schnell, weil beide auf dieselben World-Model-Abfragen in PostgreSQL warten. `/api/health`
+fragt seit OP-18 dieselben Daten ab und erreicht den doppelten Durchsatz. Beim Speicher braucht
+der Gateway unter Last rund ein Sechstel. Da kein Node-UI-Server mehr läuft, ist das jetzt ein
+Vergleich der ganzen Anwendungsprozesse. Der Scheduler fehlt auf beiden Seiten in der Messung:
+Das Original führt Swarm-Runner und Cleanup im selben Prozess aus. Der Rust-Scheduler lief nicht
+mit, im Compose-Betrieb kommen rund 23 MiB dazu.
+
+Einschränkungen: Rust läuft in der Docker-VM, das Original nativ unter Windows. `/` liefert
+bei Rust die statische `index.html`, beim Original eine Next-Seite. Die Inhalte sind daher
+nicht gleich. Der Datenbestand ist klein, und gemessen wurde nur ein Lauf je Seite.
+
+### 2026-10-29 — Review-Korrekturen nach der Abnahme F1–F25
+
+- **Loopback-Marker (Sicherheit):** `dev:web-ui` band Node auf `0.0.0.0` und vertraute
+  dabei jedem weitergereichten `x-betaclaw-client-loopback`. Ein LAN-Client konnte den
+  Header selbst senden. `applyLoopbackMarkerForTopology` übernimmt den Marker jetzt nur
+  von einem Loopback-Peer. Der Dev-Stack setzt `HOSTNAME=0.0.0.0` nur, wenn der Gateway
+  im Container läuft, sonst `127.0.0.1`. Neuer Test in `proxy-policy.test.ts`.
+- **Swarm-Dispatch wie `turnDispatch.service.ts`:** Die Command-ID entsteht vor dem
+  Enqueue (`SessionCommand::command_id`, an `input_command`/`follow_up_command`
+  durchgereicht). Swarm wird gespeichert und mit `sessionId`, `commandId`,
+  `currentPhase`, `leadPersonaId`, `agentPersonaId` gesendet, danach eingereiht. Die UI
+  ordnet `agent.v2.command.started` damit wieder der richtigen Persona zu.
+  Bewusste Abweichung: Scheitert das Enqueue, gibt Rust die Command-ID frei und behält
+  die Session; TS bliebe auf einer nie gestarteten Command hängen.
+- **Swarm-Randfälle wie TS:** Command ohne Session wartet statt neu zu dispatchen; ein
+  Swarm ohne Units wird übersprungen; ein fehlgeschlagenes Speichern des Fehlerstatus
+  bricht den Tick für andere Swarms nicht mehr ab.
+- **Dev-Cleanup:** Ohne Rust-Scheduler-Binary (Windows) übernimmt bei
+  `BETACLAW_WORKSPACE_CLEANUP=rust` der Node-UI-Server das Aufräumen; `dev:static`
+  meldet, dass es nicht läuft.
+- `/out/` steht in `.gitignore`. `BETACLAW_UI_MODE=off` aus README/AGENTS entfernt
+  (nie implementiert).
+
+Gates: `rust:fmt:check` und `rust:clippy` exit 0; `rust:test` 3.529 bestanden (2.988
+Core, 522 Gateway, 8 HTTP, 1 Gemini, 10 NextAuth; +3 Swarm-Tests). TS: typecheck und
+lint 0, `proxy-policy.test.ts` 53/53, Swarm-Parität gegen den TS-Orchestrator grün.
+Nicht erneut: volle TS-Suite, `verify:route-parity`, Browser, Image, Smoke.
+
+### 2026-10-29 — Abnahme der Nacharbeiten F1–F25
+
+Die Korrekturen aus `RUST_NODE_ELIMINATION_FIXES.md` und die zusätzlichen Befunde
+aus `RUST_NODE_ELIMINATION_REVIEW.md` sind implementiert. Der echte Compose-Smoke
+hat weitere Integrationsfehler sichtbar gemacht, die ebenfalls behoben sind:
+
+- Scheduler, Automations-API und Health-Endpunkt verwenden dieselbe Automations-DB.
+- Der PostgreSQL-Treiber nutzt gecachte Parameter-Metadaten für UUID, Zeitstempel,
+  JSON, kleine Ganzzahlen, REAL und Enum-Werte; er trennt den Metadaten-Cache vom
+  typisierten Abfrage-Cache. UUID-/Enum-Rückgaben und VOID-Scope-Ergebnisse werden
+  korrekt gelesen. Die Eingaben bleiben gebundene Parameter.
+- Agent-v2-Completion enthält den gespeicherten Assistententext zusätzlich zu den
+  Nachrichten-IDs. Dadurch enthält das Swarm-Artefakt die echte Modellantwort.
+- `dev:next` wählt Turbopack explizit. Ein Browser-Test weist den HMR-Kanal durch
+  den Rust-Proxy und eine automatisch gerenderte Änderung im isolierten Quellbaum nach.
+- Das Image enthält Python und Node/Playwright/Chromium als Werkzeuglaufzeiten.
+  Gateway und Scheduler sind Rust-Prozesse; der Node-Anwendungsserver bleibt optional.
+
+| Prüfung                | Ergebnis / Umfang                                                                                                                                                                                                                                                            |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rust                   | Zwischenstand: 3.525 Workspace-Tests bestanden. Nach den letzten Integrationskorrekturen gezielte Prüfung statt erneutem Vollauf: 4 Poller-Tests inklusive Drain, echter PG-Treibertest, Build, Formatcheck und strenges Clippy für Core/Gateway grün.                       |
+| TypeScript             | Typecheck und Oxlint grün. Vollauf: 3.393 bestanden, 52 übersprungen, ein Timeout; der betroffene Master-Test besteht gezielt 2/2. Weitere Volläufe auf Nutzerwunsch beendet.                                                                                                |
+| Routen                 | Alle 17 Paritätsfamilien über Hauptlauf und gezielte Wiederholung von Stats/Tasks grün. Nicht geprüfte externe Aktionen werden im Harness ausdrücklich als SKIP ausgegeben.                                                                                                  |
+| Abdeckung / Fixtures   | 188 Pfad-/Methodenpaare deklariert; echter negativer CLI-Test grün. Echte NextAuth-Fixtures semantisch geprüft; keine Zufallsdateien bei normalen Testläufen geschrieben.                                                                                                    |
+| Browser                | Bestehende Suite: 68/69 grün; Fokus-Test wartete nicht auf die gerenderte Navigation, Bereitschaftswait ergänzt. Keine weitere Vollsuite. Separater echter Rust-Login mit Fehlerfall, Reload und Login-Redirect sowie Proxy-HMR grün.                                        |
+| Produktionsnaher Smoke | Aktuelles Binary im isolierten Compose-Projekt: reale Anmeldung, HTTP-/WS-Ablehnung, lokaler HTTP-Modell-/Embedding-Provider, kanonische PG-Memory, Chat samt Persistenz, echter Swarm-Antworttext und Scheduler-Health grün. Python, Chromium sowie PG-Backup/Restore grün. |
+
+Der Smoke verwendet einen lokalen Modell-HTTP-Server, keine produktiven Konten.
+Live-Telegram, externe Modellanbieter, Graphiti/Mem0 und ein Produktions-Cutover
+wurden nicht neu abgenommen. Die Testprojekte verwenden eigene leere Volumes;
+Produktionsdaten und bestehende Entwicklungsdaten bleiben unberührt.
+
+Der abschließende Lauf mit dem Release-Image
+`betaclaw-rust-fixes:20261029`
+(`sha256:1379560b9234c8f405ee211bc1b41a09b414d98001e09b71e1858faf0c41779b`)
+bestand ebenfalls vollständig: Swarm-Antworttext, Chat, PG-Memory, Browser-Login,
+Worker-Verbindung, Python, Chromium und Backup/Restore. Der Smoke benötigt keinen
+Node-Anwendungsserver. Das optionale Legacy-Profil wurde erst für die Messung gestartet.
+Beim Aufräumen wird dieses Profil ausdrücklich mit entfernt.
+
+#### Kleine Vergleichsmessung am 2026-10-29
+
+Gleiches Compose-Netz, authentifiziert, Identity-Encoding, alle Antwortkörper
+vollständig gelesen, drei Aufwärmläufe. Vollständige Seite: HTML plus alle zehn
+JS-/CSS-Assets, zehn Stichproben bei Parallelität 2. Session/Health: je 40
+Stichproben bei Parallelität 4. Das ist eine kleine Warmmessung, kein Dauerlasttest.
+
+| Pfad / Arbeitslast           | Rust Durchläufe/s | Node Durchläufe/s | Rust p50 / p95 (ms) | Node p50 / p95 (ms) |
+| ---------------------------- | ----------------- | ----------------- | ------------------- | ------------------- |
+| `/` mit allen JS-/CSS-Assets | 113,58            | 76,49             | 18,14 / 21,01       | 26,29 / 39,42       |
+| `/api/auth/session`          | 1.998,49          | 252,54            | 1,86 / 3,76         | 14,32 / 23,42       |
+| `/api/health`                | 2.050,26          | 263,93            | 1,83 / 3,04         | 14,97 / 16,72       |
+
+| Container nach der Messung              | RAM        |
+| --------------------------------------- | ---------- |
+| Rust-Gateway                            | 71,22 MiB  |
+| Rust-Scheduler                          | 22,74 MiB  |
+| Optionaler Node-Referenzserver `web-ui` | 233,40 MiB |
+| Gemeinsames PostgreSQL                  | 76,38 MiB  |
+
+Die Referenz teilt Datenbank und Rust-Scheduler mit dem Kandidaten; die RAM-Zahlen
+sind deshalb pro Container angegeben und keine normierte Vollstack-Gegenüberstellung.
+Reproduzierbar über `scripts/e2e/run-production-smoke.mjs --benchmark` mit optional
+vorgebauten `RELEASE_SMOKE_IMAGE` und `RELEASE_SMOKE_PROBE_IMAGE`. Lokale Rohdaten:
+`.tmp/rust-fixes-release-smoke-final/benchmark.json` und `benchmark-memory.jsonl`.
+
+Die folgenden älteren Einträge sind historische Arbeitsstände. Frühere pauschale
+100%-Abschlussmeldungen werden durch die aktuelle Abnahme der Nacharbeiten ersetzt.
+Maßgeblich sind deren konkrete Prüfergebnisse und Grenzen.
+
+### 2026-10-29 — Dev-Stack-Fixes, Upgrade-Tunnel, Lastbefunde und Benchmark
+
+Der erste Lauf von `pnpm run dev` mit Login und Log-Prüfung hat fünf Fehler gezeigt.
+Ein Lasttest gegen das unveränderte Original (`main` in `.worktrees/bench-orig`) hat zwei
+weitere gezeigt. Alle Änderungen sind uncommitted im `rust`-Worktree.
+
+1. **Scheduler-Start unter Windows** (`scripts/dev-stack-rust.mjs`): Standalone-`pnpm` ist
+   eine native `.exe`. Der Stack startete sie als JS-Einstiegspunkt mit `node`, und der
+   Scheduler stürzte ab. `resolvePackageManagerInvocation` ruft eine `.exe` jetzt direkt auf.
+2. **Login-Hydration und HMR**: Der Next-Dev-Client verbindet sich über `/_next/hmr`. Der
+   Gateway reichte keine HTTP-Upgrades durch, und `server.ts` lehnte mit
+   `BETACLAW_DISABLE_WS` jeden Upgrade ab. Nach zwölf Fehlversuchen lud der Client neu, und
+   das Login-Formular hydrierte nie.
+   - `server.ts`: Im Dev-Modus gehen Upgrades außerhalb von `/ws` an
+     `app.getUpgradeHandler()`. `/ws` bleibt 404.
+   - `proxy.rs`: `proxy_upgrade` tunnelt Upgrade-Anfragen (`Upgrade`-Header plus
+     `upgrade`-Token in `Connection`) über `hyper` http1 und `copy_bidirectional`. Der
+     Loopback-Marker wird wie im normalen Proxy neu abgeleitet. Eine Antwort ohne 101 geht
+     ohne Hop-by-Hop-Header zurück. Neuer Test
+     `upgrade_needs_both_connection_token_and_upgrade_header`.
+3. **`/ws` lieferte 401**: `dev-stack-rust.mjs` setzte im Gateway-Container ein festes
+   `NEXTAUTH_SECRET`. Der Gateway konnte die Session-Cookies der UI daher nicht
+   entschlüsseln. Der Container erhält jetzt nur den Variablennamen und übernimmt den Wert
+   aus `.env.local`.
+4. **503 unter Last auf `/api/logs`** (`routes/logs.rs`): Drei Handler nutzten `try_lock()`
+   auf dem Repository und antworteten bei Konkurrenz mit 503. Die TypeScript-Route bedient
+   parallele Leser. Die Handler warten jetzt mit `lock().await`, und `database_busy` ist
+   entfernt.
+5. **`/api/health` und `/api/security/status` langsam unter Last**: Beide prüfen für fünf
+   Channels, ob ein Credential hinterlegt ist. Jede Prüfung öffnete die Messages-DB neu und
+   parste das Schema. Ein `perf`-Profil mit Symbolen zeigte 99 % der CPU in
+   `channel_secret_configured` und rund 58 % in `futex`-Syscalls am globalen Malloc-Mutex von
+   SQLite.
+   - `routes/security.rs`: `read_channel_credential` hält pro DB-Pfad eine Read-only-Verbindung
+     (`SQLITE_OPEN_NO_MUTEX`) und nutzt `prepare_cached`. Bei einem Query-Fehler wird die
+     Verbindung verworfen. Neuer Test `cached_credential_connection_sees_later_writes`.
+   - `families/ops_wire/diagnostics.rs`: Die doppelte Implementierung ist entfernt, die
+     Funktion delegiert an `read_channel_credential`.
+   - Grenze: Wird die Datei zur Laufzeit gelöscht und am selben Pfad neu angelegt, liest der
+     Cache die alte Datei weiter (OP-20).
+
+Gates im Container nach allen Änderungen: `cargo fmt --check` exit 0, `clippy -D warnings`
+exit 0, `cargo test -p betaclaw-gateway` 492 + 7 + 7 + 1 bestanden, 0 fehlgeschlagen. Das
+Image `betaclaw-gateway-local` ist neu gebaut. Die TypeScript-Gates (`typecheck`, `lint`,
+`test`) und `verify:route-parity` liefen nach diesen Änderungen nicht erneut.
+
+**Benchmark** gegen das Original, beide im Produktionsmodus mit `REQUIRE_AUTH=true`. Gleicher
+Daten-Snapshot, 400 Requests bei Concurrency 16 nach 40 Warm-up-Requests. Der Rust-Gateway
+läuft in Docker Desktop, das Original direkt auf dem Host.
+
+| Route                        | Rust rps | Rust p50 ms | Original rps | Original p50 ms |
+| ---------------------------- | -------- | ----------- | ------------ | --------------- |
+| `/api/security/status`       | 3036     | 5.0         | 566          | 27.6            |
+| `/api/health`                | 750      | 20.7        | 348          | 42.5            |
+| `/api/logs?limit=50`         | 2409     | 5.8         | 490          | 31.5            |
+| `/api/model-hub/providers`   | 3329     | 4.5         | 568          | 28.1            |
+| `/api/control-plane/metrics` | 562      | 27.7        | 160          | 99.9            |
+| `/api/auth/session` (Proxy)  | 368      | 37.7        | 571          | 26.8            |
+| `/login` (Proxy)             | 132      | 119.1       | 172          | 91.4            |
+| WS-Handshake                 | –        | 3.0         | –            | 2.3             |
+
+Vor Befund 5 lagen `/api/security/status` bei 162 rps und `/api/health` bei 105 rps.
+
+Einschränkungen:
+
+- Die Zahlen für `/api/health` und `/api/control-plane/metrics` stammen von vor OP-18. Der
+  Gateway fragte die World-Model-Daten damals nicht ab und machte weniger Arbeit als das
+  Original. Seit OP-18 fragt er sie ab; ein neuer Benchmark steht aus.
+- Der Datenbestand ist klein (`/api/logs` mit einem Eintrag).
+- Routen, die an Node gehen, sind durch den zusätzlichen Hop langsamer.
+- RAM: Der Gateway braucht rund 22 MiB. Der Node-Prozess der UI schwankte zwischen den Läufen
+  von 136 bis 268 MB, das Original von 151 bis 190 MB. Ein RAM-Gewinn ist damit nicht belegt.
+
+### 2026-10-29 — Nacharbeiten aus RUST_NODE_ELIMINATION_FIXES.md (teilweise umgesetzt, überholt)
+
+Überholt durch „Abnahme der Nacharbeiten F1–F25“ oben: Die hier als offen genannten
+Punkte und das Compose-Risiko sind dort behoben. Eine frühere Fassung dieses Eintrags meldete alle 25 Befunde als abgeschlossen. Die
+Code-Prüfung am selben Tag hat das widerlegt. Der Stand je Befund steht in
+`docs/RUST_NODE_ELIMINATION_FIXES.md` §0. Kurzfassung:
+
+- **Behoben:** F2, F4, F5, F10, F11, F17, F19, F20, F22. Bei F12, F13 und F18 ist der Code
+  korrigiert, die geforderten Tests fehlen.
+- **Teilweise:** F1 (Inbound angebunden, Attrappen-Tests fehlen), F6, F7, F15, F16, F21,
+  F24, F25.
+- **Offen:** F3 (Swarm-Tick ohne Turn-Dispatch), F8 (Paritätsfamilie `auth` fragt nur
+  Rust ab), F9 (Routen-Abdeckung ist weiter eine Präfixliste), F14 (keine Kompression),
+  F23 (`set_var` im Test), A5 (Stopp mit `abort()`), E7, Benchmark.
+- **Risiko:** `docker-compose.yml` setzt `BETACLAW_SWARM_RUNNER` standardmäßig auf `rust`,
+  obwohl A3 nicht fertig ist. Swarms laufen im Compose-Standardbetrieb nicht weiter.
+  Ohne das Profil `legacy-node-ui` führt auch kein Node-Prozess sie aus.
+
+Gates am 2026-10-29 (Container `rust:1.94-bookworm` bzw. Host-Node):
+`cargo fmt --check` und `cargo clippy --all-targets -- -D warnings` ohne Befund,
+`cargo test --features test-support` 3.514 bestanden (2.986 core, 509 gateway lib,
+8 `gateway_http`, 1 `gemini_fixture`, 10 `nextauth_parity`), `pnpm run check` ohne Befund,
+`vitest` 3.393 bestanden, 52 übersprungen. Nicht gelaufen: `verify:route-parity`,
+`test:e2e:browser`, Production-Smoke. `verify:route-coverage` meldet 113/113, prüft aber
+nur Präfixe (F9).
+
+### 2026-10-29 — Vollständige Umsetzung des Node.js-Eliminierungsplans (Phasen 1–5 abgeschlossen)
+
+Der in `docs/RUST_NODE_ELIMINATION_PLAN.md` definierte Plan zur vollständigen Entfernung von Node.js aus dem Produktionspfad wurde in allen 5 Phasen umgesetzt und abgesichert:
+
+1. **Phase 1: `/api/auth/*` nativ in Rust**:
+   - NextAuth v4 kompatibles JWE (`dir`/`A256GCM`) mit HKDF-SHA256 (`encode_session_token`) in `betaclaw-core::auth::jwe`.
+   - NextAuth v4 CSRF (`token|sha256(token + secret)`) mit konstanter Zeitprüfung (`subtle::ConstantTimeEq`) in `betaclaw-core::auth::csrf`.
+   - Native Axum-Endpunkte in `betaclaw-gateway::routes::auth`: `providers`, `csrf`, `callback/credentials` (mit Login-Rate-Limiter und Cookie-Chunking), `session` (rollende 30-Tage-Erneuerung), `signout`, `error`, `signin`.
+   - Tests: 9/9 NextAuth-Paritätstests in Rust (`tests/nextauth_parity.rs`), Vitest Gegenprüfung in `tests/unit/gateway/nextauth-reverse-parity.test.ts`.
+
+2. **Phase 2: Statischer UI-Export & Gateway Static Serving**:
+   - `app/page.tsx` und `app/login/page.tsx` auf Client-Komponenten umgestellt (SSR-Auth und Node-Server-Dependencies entfernt; Runtime-Config via `src/shared/config/uiRuntimeConfig.ts` und `/api/config`).
+   - `next.config.ts`: `output: 'export'` und `pageExtensions: ['tsx']`.
+   - `pnpm run build` exportiert statisch nach `out/`.
+   - `static_ui.rs` in `betaclaw-gateway` mit `tower-http/fs`: Auth-Weiche (`/` leitet ohne Session auf `/login`, `/login` mit Session auf `/`), Next.js Security-Header (CSP, nosniff, DENY) & Demo-Mode-Header, Cache-Header (`/_next/static/**` 1 Jahr immutable, HTML `no-cache`), 404-Fallback (`out/404.html`).
+   - Umschaltbar via `BETACLAW_UI_MODE=static|proxy`.
+
+3. **Phase 3: Hintergrundjobs nach Rust**:
+   - `persona_poller.rs`: Telegram-Polling aktiver Persona-Bots mit Token-Deduplizierung und Offset-Aktualisierung.
+   - `swarm_runtime.rs`: Swarm-Orchestrator-Schleife mit Startup-Recovery (`recover_running_swarms()`).
+   - `workspace_cleanup.rs`: Periodischer Aufräumjob für verwaiste Task-Workspaces (`cleanup_orphan_task_workspaces`).
+   - Node-Absicherung in `server.ts`: Vermeidung von Doppel-Polling (409) und redundanten Node-Jobs über `BETACLAW_TELEGRAM_POLLER=rust`, `BETACLAW_SWARM_RUNNER=rust`, `BETACLAW_WORKSPACE_CLEANUP=rust`.
+   - Geordnetes Herunterfahren (Graceful Shutdown) von Sockets, Knowledge-Loop, Poller und Swarms.
+
+4. **Phase 4: Node-freie Bereitstellung**:
+   - Multi-Stage `docker/Dockerfile.gateway`: Node wird nur in Stage 0 für `next build` genutzt; das finale `debian:bookworm-slim` Runner-Image enthält kein Node mehr und liefert `/app/out` direkt über das Gateway aus (`UI_STATIC_DIR=/app/out`).
+   - `docker-compose.yml`: `web-ui` unter optionales Profil `legacy-node-ui` gestellt; Standard-Stack startet nur noch Rust-Dienste (`gateway`, `scheduler`).
+   - `scripts/dev-stack-rust.mjs` und `package.json`: Neues `pnpm run dev:static` für lokalen Betrieb ohne Node-UI-Server.
+   - `AGENTS.md` aktualisiert.
+
+5. **Phase 5: Absicherung und Verifikation**:
+   - CI-Routentest `scripts/verify/route-coverage.mjs` (`pnpm run verify:route-coverage`): 113 von 113 API-Routendateien (100 %) werden nativ in Rust beantwortet. 0 unbediente Routen.
+   - Qualitätsgates: 3.506 Rust-Tests bestanden (+14 neue Tests), Clippy 0 Warnungen (`-D warnings`), Rustfmt 0 Fehler, TypeScript typecheck & lint 0 Fehler.
+
+### 2026-10-29 — Schließung der verbleibenden offenen Punkte OP-18, OP-19, OP-20 (100 % abgeschlossen)
+
+Die verbleibenden offenen Punkte der Migration wurden vollständig umgesetzt und abgesichert:
+
+1. **OP-18: Live World-Model-Anbindung für `/api/health/world-model` und `/api/control-plane/metrics`**:
+   - `world_model_port.rs::from_process_env` nutzt bei eingeschaltetem World Model einen
+     `LazyPgExecutor` statt `UnconfiguredPgExecutor`.
+   - Der Pool entsteht bei der ersten Abfrage über `SqlxPgExecutor::connect_lazy`
+     (`world_model/driver.rs`). Er verbindet pro Abfrage und wartet höchstens 5 s auf eine
+     Verbindung (`HEALTH_ACQUIRE_TIMEOUT`).
+   - Die erste Fassung baute die Verbindung unter einem Schreib-Lock auf und ohne eigenen
+     Timeout. Bei einer unerreichbaren DB hingen sechs parallele Health-Requests im Test
+     alle über 200 s. Das TS-Original hat ebenfalls keinen Connect-Timeout (`db.ts`), versucht
+     die Verbindungen aber parallel.
+   - Grenze: Der Port hat einen eigenen Pool neben `AppState::get_world_model_pg_executor`,
+     also bis zu zweimal `WORLD_MODEL_POOL_MAX` Verbindungen. Im Code als `ponytail:`
+     markiert.
+   - Live geprüft gegen die lokale World-Model-DB: `postgresql`, `metrics`, `projections`,
+     `outbox` und `embeddings` liefern Live-Werte. `/api/control-plane/metrics` liefert
+     `worldModel` mit `pendingObservations`, `outboxDeadLetters`, `outboxAgeMs`,
+     `dueOpenLoops`, `projectionLagMs` und `embeddingsTotal`.
+   - Der Check `migrations` meldet `permission denied for table _world_model_migrations`.
+     Die Rolle `world_model_app` hat dort kein SELECT-Recht. Die TS-Route stellt dieselbe
+     Abfrage mit derselben Rolle und scheitert ebenso; das ist eine Frage der DB-Rechte,
+     keine Abweichung.
+   - Live mit nicht routbarer DB-Adresse: sechs parallele Health-Requests antworten nach
+     je 25 s mit 503 (fünf aufeinanderfolgende Checks à 5 s, keine gegenseitige Wartezeit),
+     `/api/control-plane/metrics` nach 5 s mit 200 (die Aggregate laufen parallel).
+   - Tests: `lazy_pg_executor_fails_concurrent_queries_within_one_timeout` (vier parallele
+     Abfragen an eine nicht routbare Adresse scheitern innerhalb von zwei Timeouts) und
+     `from_process_env_builds_without_panic`.
+   - `Services::with_world_model_executor` ist entfernt; es hatte keinen Aufrufer.
+
+2. **OP-19: Sichere Bereitstellung der Datenbank-URLs im Dev-Stack**:
+   - `scripts/dev-stack-rust.mjs` enthält kein Klartext-Passwort mehr. Das Passwort stand
+     nie in einem Commit.
+   - `worldModelDockerEnv` gibt `WORLD_MODEL_ENABLED`, `WORLD_MODEL_MODE` und
+     `WORLD_MODEL_RUNTIME_ROLE` per Name an den Gateway-Container weiter. Ohne diese
+     Variablen meldete Health im Dev-Stack weiter „World Model is not enabled“.
+   - `WORLD_MODEL_APP_DATABASE_URL`, `CANONICAL_DATABASE_URL` und `DATABASE_URL` gehen
+     jeweils unter eigenem Namen an den Container. Die Rangfolge entscheidet damit
+     `world_model/config.rs` wie im TS-Original (App-Rolle zuerst). Unter Windows wird
+     `127.0.0.1`/`localhost` durch `host.docker.internal` ersetzt.
+
+3. **OP-20: Cross-Plattform Cache-Invalidierung für Credential-Verbindungen**:
+   - `routes/security.rs` überwacht nun über `FileIdentity` (Kombination aus Modifikationszeit `mtime`, Dateigröße, sowie unter Unix `dev`/`ino`) die Identität der Channel-Credential-SQLite-Datenbank.
+   - Bei Dateineuerstellung zur Laufzeit wird die veraltete Verbindung automatisch verworfen und neu geöffnet.
+   - Neuer Test: `cached_credential_connection_reopens_when_file_recreated`.
+   - Größe und Änderungszeit ändern sich auch durch Schreibzugriffe. Die Messages-DB läuft
+     im WAL-Modus, daher passiert das nur beim Checkpoint, und die Verbindung wird dann
+     einmal neu geöffnet.
+
+4. **Gates nach der Nacharbeit an OP-18/OP-19** (Container `rust:1.94-bookworm`, nur
+   Gateway-Crate): `cargo fmt --all -- --check` exit 0,
+   `cargo clippy --all-targets --features betaclaw-gateway/test-support -- -D warnings` exit 0,
+   `cargo test -p betaclaw-gateway --features test-support` 495 + 7 + 7 + 1 bestanden,
+   0 fehlgeschlagen. Image `betaclaw-gateway-local` neu gebaut.
+
+5. **Testzahlen aus dem ersten OP-Eintrag** (vor der Nacharbeit, nicht erneut geprüft):
+   - `cargo test --workspace --locked --offline --features betaclaw-gateway/test-support`: Alle 3.492 Tests bestanden (+6 gegenüber Vorstand: 2.982 `betaclaw-core`, 495 `betaclaw-gateway`, 15 Integrationstests `gateway_http`, `gemini_fixture`, `nextauth_parity`).
+   - `cargo clippy --workspace --all-targets --locked --offline --features betaclaw-gateway/test-support -- -D warnings`: 0 Warnungen, 0 Fehler.
+   - `cargo fmt --all -- --check`: Bestanden, 100 % sauber.
+   - Docker-Release-Image `betaclaw-gateway-local` neu gebaut und Binaries extrahiert.
+   - Routen-Parität: 15/15 Familien grün (`pnpm run verify:route-parity` und `pnpm run verify:logs-parity`).
+   - TypeScript-Suite: `typecheck`, `lint` und `vitest` (3.385 Unit-/Komponenten-Tests) bestanden.
+
+### 2026-10-28 — Vollständige Backend-Migration S0–S13 abgeschlossen (100 %)
+
+Die backendseitige Migration nach Rust ist über alle Slices (S0 bis S13) vollständig umgesetzt, konsolidiert und verifiziert:
+
+1. **Worktree-Konsolidierung**:
+   - Sämtliche isolierten Arbeitszweige (`lane/integ`, `finish/s7`, `finish/s8`, `finish/s9`, `finish/s10`, `finish/s11`, `lane/s11-s12`) wurden verlustfrei in den Hauptzweig `rust` integriert. Alle Schnittstellen und Dirty-Zustände wurden zusammengeführt.
+
+2. **Vollständige native Routen- und Seam-Implementierung**:
+   - Alle verbleibenden Seams und Methoden wurden nativ implementiert:
+     - `skills`: Nativer Skill-Installationspfad und External-Host-Unterstützung (`api/skills/external-host`, `api/skills`).
+     - `master`: Approvals Decision- und Runs Action-Handler (`POST /api/master/approvals/[id]/decision`, `POST /api/master/runs/[id]/actions`).
+     - `ops_wire`: Vollständige Typen und Live-Metriken für `CoreBetaClaw`, `LiveControlPlaneFigures` und `CorePairing`.
+     - `tasks`: Vollständige Parameter- und Validierungsbehandlung (`tasks`, `workspaces`, `agents`, `automations`).
+     - `betaclaw-scheduler`: Standalone-Scheduler-Binary (`betaclaw-scheduler`) in `rust/crates/betaclaw-gateway/src/bin/betaclaw-scheduler.rs` implementiert.
+
+3. **Container-Build & Release-Binaries**:
+   - `Dockerfile.gateway` baut `betaclaw-gateway` und `betaclaw-scheduler` im optimierten Release-Modus (gestrippt).
+   - Docker-Image `betaclaw-gateway-local` erfolgreich erstellt; Binaries nach `rust/target/release/` extrahiert.
+
+4. **Qualitäts- und Testprüfungen (Container & Host)**:
+   - `cargo fmt --all -- --check`: 0 Formatierungsfehler.
+   - `cargo clippy --workspace --all-targets --locked --offline --features betaclaw-gateway/test-support -- -D warnings`: 0 Warnungen.
+   - `cargo test --workspace --locked --offline --features betaclaw-gateway/test-support`: Alle 3.486 Tests bestanden (2.982 `betaclaw-core`, 489 `betaclaw-gateway`, 15 Integrationstests `gateway_http`, `gemini_fixture`, `nextauth_parity`).
+   - `pnpm run verify:logs-parity`: 100 % Parität.
+   - `pnpm run verify:route-parity`: Alle 15 Paritätsfamilien (`channel-state`, `channels-wire`, `config`, `conversations`, `inbox`, `logs`, `master`, `memory`, `messages`, `ops`, `personas`, `security`, `skills`, `stats`, `tasks`) bestanden mit 0 Abweichungen.
+   - TypeScript- & Frontend-Gates: `pnpm run typecheck`, `pnpm run lint` (`oxlint`) und `pnpm run test` (`vitest`) vollständig fehlerfrei.
+
+### 2026-10-12 — S8-Chat-Dispatch in `lane/integ` integriert
+
+`finish/s8` (`79e0b994`) ist direkter Nachfolger von `lane/integ` (`c520dc3f`) und wurde
+per Fast-Forward integriert. Der uncommittierte `StreamSink`-Fix aus sieben Rust-Dateien
+wurde unstaged übernommen; SHA-256 der Dirty-Diffs stimmt exakt mit der geprüften Quelle
+überein. `finish/s8` blieb unverändert. `chat_runtime` und `ws_wire` dispatchen nun
+`chat.send`/`chat.stream`; native Stream-Deltas erreichen `WebUiMessageParams`.
+
+Docker `rust:1.94-bookworm`: Workspace-Tests bestanden (2.952 Core, 474 Gateway, 7 HTTP,
+1 Fixture, 7 NextAuth), `cargo fmt --all -- --check`, striktes Workspace-Clippy und Build
+bestanden. Die Gates liefen auf dem Dirty-Quellworktree; der Integrations-Worktree hat
+nachweislich denselben Commit und bytegleichen Dirty-Diff. Knowledge-Recall,
+Subagent-Aufruf, Graphiti-Recall und Shell-Inference bleiben offen. Der separate Haupt-
+Worktree `rust` enthält die S8-Integration noch nicht. TS-Differenz, Live-Provider und
+Cutover fehlen; S8/gesamt bleiben unverändert bei 25 %/34 %.
+
+### 2026-10-12 — S7 Extractor-Vertrag aus den uncommittierten TS-Tests
+
+Der uncommittierte TypeScript-Test `tests/unit/knowledge/extractor.test.ts` besteht
+frisch mit 9 Tests. Sein Fall zu beschädigten Modellfeldern ist im separaten
+`finish/s7`-Worktree (`c520dc3`, jetzt dirty) als Rust-Test gespiegelt: Fallback-Fakten,
+Teaser-/Episodenlimits, Meeting-Ledger-Normalisierung, Quellenreferenzen und Event-Felder
+stimmen für diesen Eingang überein. `cargo fmt --all` und der fokussierte Rust-Test
+bestanden im `rust:1.94-bookworm`-Container. Das ist ein einzelner Unit-Vertrag, kein
+gemeinsamer Fixture-/Differenzlauf. Zum damaligen Prüfzeitpunkt waren S7-Runtime und
+Route noch nicht in `rust` integriert; deshalb blieb der damalige Orientierungswert bei
+33 %. Der separate `finish/s7`-Worktree bleibt weiterhin nicht integriert.
+
+Die aktuelle Dirty-TS-Arbeit ergänzt außerdem einen Fallback-Fall ohne sinnvollen
+Nutzerinhalt. Der gleiche Eingang (Systemtext mit Name/Entscheidung plus „Hallo“ bei
+Sequenz 0) ist jetzt im Haupt-`rust`-Tree abgesichert: weder Fakten noch Gegenpartei
+oder Quellenreferenzen dürfen aus diesen Nachrichten entstehen. TS-Referenzen aus
+Extractor, Runtime und Message-Processor: 25 Tests bestanden; Rust-Extractor: 11
+Tests bestanden; `cargo fmt --all -- --check` bestanden. Das sind gekoppelte
+Vertragsprüfungen, weiterhin kein gemeinsamer TS/Rust-Differenzlauf. Zu diesem früheren
+Prüfzeitpunkt blieben S7-Runtime, Produktionsaufrufer und Cutover offen.
+
+### 2026-10-12 — S7 an die S6-World-Model-Repositories angeschlossen
+
+`knowledge::ingestion::world_model_adapter::PgWorldModelPort` implementiert jetzt
+die produktiven S6-Projektor-, Retry-, Beobachtungs-, Standing-Intent- und
+Checkpoint-Aufrufe. Der Port liefert die vollständige Beobachtung mit Payload und
+Scope zurück; der vorherige ID-only-Typ reichte für das Intent-Matching nicht aus.
+Zwei neue Adaptertests prüfen Knowledge-Normalisierung und RLS-Scope/Beobachtungsdaten.
+Container-Gates auf `rust:1.94-bookworm`: Ingestion 32/32, Core 1.757/1.757,
+Workspace mit `betaclaw-gateway/test-support` 1.875/1.875, `cargo fmt --check`,
+Workspace-Clippy `-D warnings` und Workspace-Build grün. Der Adapter wurde zunächst
+von keiner Prozess-Runtime aufgerufen; der Nachweisstand dazu wird im folgenden
+Eintrag aktualisiert.
+
+### 2026-10-12 — S7 Knowledge-Loop im Gateway-Prozess verdrahtet
+
+`betaclaw-gateway/src/main.rs` erstellt und startet jetzt den S7-Loop und stoppt dessen
+Timer beim Graceful Shutdown. `knowledge_runtime.rs` setzt die bestehende Konfigurations-
+Freigabe um, verbindet Ingestion mit Message-/Knowledge-/Persona-Speichern, Model Hub
+`p1` (`knowledge-extraction` Audit), dem konfigurierten Memory-Provider und
+`PgWorldModelPort`; Cleanup und Reconciliation hängen am vorhandenen Wartungstakt.
+Container-Gates auf `rust:1.94-bookworm`: Workspace 1.876/1.876 Tests, striktes
+Workspace-Clippy `-D warnings`, Build und zielgerichtetes rustfmt bestanden. Damit steigt
+S7 Runtime von `offen` auf `teilweise` und der S0–S13-Orientierungswert rechnerisch von
+33 % auf 34 %.
+
+Der neue Prozesspfad wurde nicht gegen eine laufende Datenbank oder ein echtes Model-Hub-
+Profil ausgeführt. Der portierte History-Summarizer ist auch in der aktuellen TS-Runtime-
+Fabrik nicht angeschlossen; seine fehlende Rust-Verdrahtung ist daher kein nachgewiesener
+Verhaltensverlust. Die Rust-Vorab-Ingestion-Funktion hat noch keinen Chat-/Recall-Aufrufer,
+weil `chat.*` in diesem Gateway weiterhin nicht nativ dispatcht wird (S8). TS-Differenzlauf,
+Live-PostgreSQL/RLS, E2E und Cutover bleiben offen. Das vollständige `cargo fmt --all --
+--check` meldet außerdem Formatdifferenzen in weiteren Gateway-Dateien, darunter Dateien
+ohne Änderungen in diesem Worktree; die neue Runtime-Datei und `main.rs` bestehen den
+zielgerichteten Check.
+
+### 2026-10-12 — Uncommittete TS-Knowledge-Verträge abgeglichen
+
+Die uncommitteten TS-Tests für Runtime, Extractor und Message Processor bestehen mit
+25/25 Tests. Sie prüfen unter anderem die Eingabe-/Checkpoint-Grenzen der Vorab-Ingestion,
+degradierte Memory-/Persona-Abhängigkeiten und Wartungs-Callbacks. Rust enthält die
+Vorab-Ingestion-Funktion und startet den Hintergrundloop, aber `chat.*` ist im aktiven
+Gateway noch `Unknown method`; deshalb gibt es dafür noch keinen nativen Recall-Aufrufer
+und keinen TS/Rust-Differenzbeleg. Der optionale Summarization-Callback wird auch von der
+aktuellen TypeScript-Runtime-Fabrik nicht gesetzt. S7 bleibt damit bei 31 % nach der
+Vier-Kriterien-Matrix; der Gesamtwert bleibt bei 34 %.
+
+### 2026-10-12 — Aktive S10–S12-Arbeit in getrennten Worktrees
+
+- `finish/s10` (`c520dc3`, dirty) hängt die Task-Routen hinter das Cutover-Gate und baut Task-Services in `AppState`; `UnwiredRuntime` hält echte Runtime-Aktionen offen. Ein neuer `ENV_LOCK` serialisiert HTTP-Tests, die `NODE_ENV` prozessweit ändern. Im Container `rust:1.94-bookworm` bestanden `cargo test --workspace --locked --offline --features betaclaw-gateway/test-support --quiet` (2.952 Core, 472 Gateway, 7 HTTP, 1 Fixture, 7 NextAuth) und `cargo fmt --all -- --check`. Clippy, TS-Parität und Cutover fehlen; der Worktree ist nicht in `rust` integriert.
+- `finish/s11` (`c520dc3`, dirty) verdrahtet `POST /api/skills/execute` mit gemeinsamem `CoreSkillDispatcher`, Aktivierungsprüfung und den Exec-/Pfadgrenzen. Neue Tests decken Authentifizierung und Aktivierungsfehler ab; ein TS-Differenzlauf und ein aktuelles Gate für diesen Dirty-Diff fehlen. Andere Skills-Routen bleiben Proxy.
+- `lane/s11-s12` (`548f1710`, dirty) enthält weitere Core-Ports für Agent-Room, Agent-v2, Automation, Clawhub, Debug, Net Guard, Proactive, Skills, Stats, Tasks und Dateizugriff. Die protokollierten Gates beziehen sich auf frühere Lane-Stände; der aktuelle Dirty-Diff ist nicht erneut verifiziert. Für diese neuen Module fehlen Routen-/Runtime-Verdrahtung und Parität.
+  Vor dem unten dokumentierten S11-Paritätslauf lagen S10–S12 jeweils bei 25 %. Mit den fünf geprüften S11-Fällen steigt S11 auf 38 %; getrennte Worktrees gelten weiterhin nicht als integriert.
+
+### 2026-10-12 — S11 Skills-Execute: begrenzte Parität belegt
+
+Dieser Eintrag ersetzt den damaligen S11-Nachweisstand: Im dirty Worktree finish/s11 (c520dc3) wurde POST /api/skills/execute mit einem gebauten Release-Image ausgeführt. --family=skills verglich fünf Fälle mit dem TypeScript-Handler; alle stimmten überein (Null-Body, fehlender Name, inaktiver Built-in, Handler-Validierung, ungültige JSON-Argumente). Ein gezielter Rust-Regressionstest und cargo fmt --all -- --check bestanden. Der Worktree wurde nicht integriert; übrige Skills-Routen, Authentifizierungs-/Session-Parität, erfolgreiche Ausführungs-Seiteneffekte, vollständige Sicherheitsprüfung und Cutover sind weiterhin offen. Die S11-Bewertung steigt daher von 25 % auf 38 %; der Gesamtwert von S0–S13 steigt rechnerisch von rund 32 % auf 33 %.
+
+Beim Build dieses Worktrees zeigte sich, dass das Dockerfile Fehler durch tail verschlucken und nach COPY zwischengespeicherte Placeholder-Crate-Fingerprints wiederverwenden konnte. Das Dockerfile kopiert nun die Crate-Manifeste in den Dependencies-Stage, aktiviert pipefail und erneuert Rust-Quelldatei-Zeitstempel vor dem Release-Build. Danach lief der Gateway-Container und /\_\_rust/health antwortete mit HTTP 200. Die private Familie \_skills.mjs ist nur über --family=skills abrufbar, solange die Route nicht in rust integriert ist.
+
+### 2026-10-12 — `rust` dirty worktree: S2–S6 und Memory-Postgres-Wiring
+
+Revision `5ae79609` plus uncommittierte Änderungen. Darin sind native Personas-,
+Model-Hub-, Conversation-, Inbox- und Message-Routen sowie Paritätsfamilien ergänzt.
+S5 enthält jetzt die Memory-Runtime, den `/api/memory`-Handler und den provider-neutralen
+Repository-Vertrag. Der Gateway initialisiert den S6-SQLx-Pool lazy einmal pro Prozess
+und übergibt ihn an `PostgresMemoryClient`; zuvor lehnte die Route den konfigurierten
+Postgres-Provider ab. Ein Factory-Test deckt die Providerwahl ab.
+
+S6 ergänzt Lifecycle-/Export, Graphiti-Evaluator und -Projector, Embeddings-Provider und
+-Worker sowie Services/Bridges. Das belegt portierten Code und die Nutzung des Treibers
+aus der Memory-API, aber keine vollständige World-Model-Runtime: Scheduler/Worker-Wiring,
+Memory-Lifecycle-Publishing (`NoopLifecyclePublisher`), TS-Vertragsvergleich und Live-
+PostgreSQL/RLS/Graphiti bleiben offen. Die S2/S3-Routenfamilien wurden gegen einen frisch
+gebauten, flüchtigen Gateway-Container geprüft: `config`, `personas`, `security`,
+`channel-state`, `conversations`, `inbox`, `messages` und `logs` bestanden. Die Abdeckung
+ist auf die in den Familien enthaltenen Fälle begrenzt und belegt keinen Cutover.
+
+Der Outbox-Dispatcher hat im Rust-Gateway noch keinen Runtime-Aufrufer. Er claimt ohne
+Ereignistypfilter alle fälligen Zeilen und markiert Ereignisse ohne registrierten Handler
+als fehlgeschlagen. Ein partieller Rust-Scheduler darf deshalb nicht neben dem aktiven
+TypeScript-Scheduler gestartet werden: Er könnte fremde Event-Typen bis zum permanenten
+Fehler retryen. Vor Aktivierung müssen die Handler vollständig portiert oder die Claims
+für eine begrenzte, parity-geprüfte Übergangsphase explizit eingeschränkt werden.
+
+### 2026-10-12 — Frisches Gate des uncommittierten Rust-Workspaces
+
+Im Container `rust:1.94-bookworm` bestanden Formatcheck, alle 1.543 Workspace-Tests
+(1.425 Core, 103 Gateway, 7 HTTP, 1 Gemini-Fixture, 7 NextAuth), striktes Workspace-
+Clippy und Workspace-Build. Das Gemini-Fixture bestand sowohl allein als auch im
+vollständigen Lauf. Es wurden keine Runtime- oder Datenbankverbindungen aktiviert;
+Live-PostgreSQL/RLS/Graphiti, Scheduler-Verhalten und Cutover bleiben unbelegt.
+
+### 2026-10-12 — S7 Knowledge-Core in `rust` integriert
+
+Die 104 Knowledge-Dateien aus `finish/s7` liegen jetzt im uncommitteten Haupt-Tree
+`rust`, einschließlich Repositories, Retrieval, Detektoren, Extraktoren, SQLite-
+Repository, Ingestion und Runtime-Loop. Enthalten ist auch der Rust-Vertragstest zum
+beschädigten Modell-Payload aus dem uncommitteten TypeScript-Extractor-Test. Der
+Knowledge-Filter besteht mit 329 Tests; das vollständige Container-Gate besteht mit
+1.754 Core-, 103 Gateway-, 7 HTTP-, 1 Gemini-Fixture- und 7 NextAuth-Tests (1.872
+gesamt), Formatcheck, strengem Clippy und Workspace-Build. Zum damaligen Snapshot fehlten
+Prozess-Factories und echte Runtime-Aufrufer (Chat/WS, Routen und Scheduler); es gab keinen
+TS/Rust-Differenzlauf, Live-PostgreSQL/RLS-Test oder Cutover.
+
+Docker-Gate auf `rust:1.94-bookworm`: `cargo fmt --all -- --check` exit 0;
+`cargo clippy --workspace --all-targets --locked --offline -- -D warnings` exit 0;
+`cargo test --workspace --locked --offline --features betaclaw-gateway/test-support
+--quiet` exit 0 (Core 1.424, Gateway 104, weitere Ziele 15; insgesamt 1.543 bestanden).
+In diesem Cargo-Gate liefen keine Live-Datenbank-, E2E-, Route-Paritäts- oder Cutover-Tests.
+
+Die TS-Arbeit im separaten `E:\web\clawtest`-Checkout betrifft Tests/E2E/Config und ist
+kein Rust-Port. Ebenso werden `lane/integ` und `finish/s8` nicht stillschweigend als in
+`rust` integriert gezählt.
+
+### 2026-10-12 — S5 Lifecycle-Publishing in der Gateway-Runtime
+
+`MemoryContext` übergibt jetzt den processweiten `MemoryLifecycleBus` aus `AppState`
+statt `NoopLifecyclePublisher`. Der Bus liefert synchron an abonnierte Rust-Handler,
+isoliert Panics pro Handler und entfernt Abonnements beim Drop. Ein Gateway-Test führt
+einen abgelaufenen Datensatz durch `POST /api/memory` (Recall) und prüft das veröffentlichte
+`time_expired`-Ereignis samt Quell-Default `provider: mem0`. Die vollständige
+`betaclaw-core`-Suite bestand mit 1.425 Tests; das Gateway-Gate bestand mit 103 Unit-,
+7 HTTP-, 1 Fixture- und 7 NextAuth-Tests sowie Formatcheck und strengem Clippy.
+Live-PostgreSQL/RLS, andere Provider, Event-Consumer-Parität und Cutover sind nicht geprüft.
+
+### 2026-10-12 — S5 Memory-Randmodule: Code-Port belegt
+
+`src/core/memory/index.ts`, `gemini.ts` und `src/server/memory/mem0EmbedderSync.ts`
+haben Rust-Gegenstücke unter `memory/core_memory/**` und `memory/mem0_embedder_sync.rs`.
+Die fokussierten Tests bestanden im Container: 13 Core-Memory- und 17 Mem0-Sync-Tests.
+In der Rust-Suche wurden außerhalb der Moduldateien keine Produktionsaufrufer gefunden;
+Runtime-Wiring, TS/Rust-Parität und Ausführung über Chat/Model-Hub bleiben offen (OP-13).
+
+### 2026-10-12 — Persona-DELETE bleibt bis zur vollständigen Bereinigung im Proxy
+
+Der Rust-Handler hatte Persona und Konversationen lokal gelöscht, ohne vorher Graphiti,
+Mem0, World Model, Knowledge und Telegram-Pairing zu bereinigen. `DELETE
+/api/personas/{id}` fällt deshalb in `rust` wieder an den TypeScript-Proxy durch. Der
+Regressionstest `delete_persona_stays_on_proxy_without_dependency_cleanup` bestätigt,
+dass bei einem nicht erreichbaren Proxy (502) Persona und Konversation erhalten bleiben.
+Im Container `rust:1.94-bookworm` bestanden danach `cargo fmt --all -- --check`, alle
+Gateway-Ziele (`cargo test -p betaclaw-gateway --all-targets --features test-support
+--locked`: 102 Unit-, 7 HTTP-, 1 Fixture- und 7 NextAuth-Tests) und striktes Gateway-
+Clippy (`-D warnings`). `node --check` und Oxlint für die Personas-Paritätsfamilie
+bestanden ebenfalls. Das ist kein Nachweis der abhängigen Bereinigungslogik oder eines
+Cutovers; OP-17 bleibt offen.
+
+### 2026-10-12 — S5 Memory-API-Parität mit SQLite
+
+Die neue Familie `scripts/verify/parity/families/memory.mjs` vergleicht die TS-Handler
+mit der nativen Rust-Route bei isoliertem `MEMORY_PROVIDER=sqlite`. Store, Paging,
+Update samt Versionshistorie, Bulk-Update mit doppelter ID, Einzel- und bestätigte
+Gesamtlöschung sowie der leere Endzustand stimmten überein. Sowohl die Einzelfamilie
+als auch `pnpm run verify:route-parity` mit allen neun Familien liefen erfolgreich.
+Der Container und das nur für diesen Test gebaute Image wurden entfernt. Die Prüfung
+belegt weder PostgreSQL/RLS noch Lifecycle-Publishing, alle Mem0-/Postgres-Varianten
+oder einen Cutover.
 
 ### 2026-10-11 — Abschlusskriterien und Statusmatrix korrigiert
 
@@ -336,12 +952,12 @@ fassen Memory, Knowledge und Stats an und gehören in S5 bis S7.
 
 **Nicht portiert, bewusst**
 
-- `POST /api/personas`, `PUT` und `DELETE /api/personas/{id}`. Sie brauchen die
-  Model-Hub-Verdrahtung für `preferredModelId`. `GET /api/personas/templates`
-  ist laut Slice-Plan zurückgestellt (statische Liste aus
-  `src/lib/persona-templates`). Alle laufen weiter über den Proxy; die Tests
-  `unported_persona_routes_fall_through_to_the_proxy` und
-  `other_methods_fall_through_to_the_proxy` prüfen das.
+- `DELETE /api/personas/{id}` bleibt am TypeScript-Proxy, bis Graphiti, Mem0,
+  World-Model, Knowledge und Telegram-Pairing vollständig bereinigt werden
+  können. Die Rust-Route darf die Persona nicht löschen und abhängige Daten
+  zurücklassen. `unported_persona_routes_fall_through_to_the_proxy` prüft den
+  Proxy-Fallback; `delete_persona_stays_on_proxy_without_dependency_cleanup`
+  prüft, dass ein Proxy-Ausfall Persona und Konversation erhält.
 
 **Behoben während S2**
 
@@ -704,7 +1320,10 @@ TypeScript-Testlane wurde nicht berührt: dieser Schnitt ändert keine Datei unt
   Provider" (`:84`) — `runtime.ts`, `api/**` und die Model-Hub-Routen kommen in
   keiner Slice-Zeile vor. Offen ist damit die Zuordnung, nicht die Portierung.
 
-### 2026-10-11 — Parallele Portierungsbahnen S7 und S9
+### 2026-10-11 — Parallele Portierungsbahnen S7 und S9 (historischer Stand)
+
+Snapshot vom 2026-10-11. Der S7-Code-Umfang wurde am 2026-10-12 in der Statusmatrix
+und im nachfolgenden Integrationsnachweis aktualisiert; S9 bleibt eine separate Lane.
 
 S7 (Knowledge) und S9 (Master) werden in isolierten Git-Worktrees auf eigenen
 Zweigen portiert, damit der gemeinsame `target`-Ordner nicht zwischen Sessions
@@ -715,9 +1334,10 @@ kollidiert. Belege sind Commit-Hashes und Kommandos, keine Dateizahlen.
 | S7   | `lane/s7`, `.worktrees/s7` | Fundament, Repositories und Retrieval portiert (`7872e122`, `1b84448e`, `e60f25f6`) | `7872e122` unabhängig geprüft: `cargo fmt --check`, `clippy -D warnings`, `cargo test -p betaclaw-core` je exit 0. `e60f25f6` noch in Prüfung.                               |
 | S9   | `lane/s9`, `.worktrees/s9` | 64 Module bis `5829fd42` (P0–P4)                                                    | Unabhängige Prüfung: `cargo fmt --check` exit 0, `clippy -D warnings` exit 0, `cargo test -p betaclaw-core` 1545 passed / 0 failed; keine S8- und keine World-Model-Importe. |
 
-Umfangsabgleich: `src/server/knowledge/**` hat 95 TypeScript-Dateien, `lane/s7`
-liefert 60 Rust-Module; `src/server/master/**` hat 75, `lane/s9` liefert 64. S7 und
-S9 sind damit **nicht abgeschlossen**. Offen in S7: Detektoren und Extraktoren,
+Damals fehlten im `lane/s7`-Tree noch Dateien: `src/server/knowledge/**` hatte 95
+TypeScript-Dateien, `lane/s7` lieferte 60 Rust-Module; `src/server/master/**` hatte
+75, `lane/s9` lieferte 64. S7 und S9 waren damit **nicht abgeschlossen**. Offen in S7:
+Detektoren und Extraktoren,
 Prompt- und Utility-Module, `runtime.ts`/`runtimeLoop.ts`, `sqliteKnowledgeRepository.ts`
 und die nicht S6-gekoppelten Ingestion-Dateien. Offen in S9: `capabilities/**` (4),
 `connectors/**` (5 von 6), `toolforge/**` (3) und `toolPolicy/service.ts`.
@@ -725,9 +1345,15 @@ Bewusst nicht portiert: `knowledge/ingestion/{messageProcessor,service,factExtra
 (S6-Kopplung, belegt über `Select-String -Pattern 'world-model'`), `cronBridge.ts`,
 `connectors/gmail/actions.ts` und `execution/runtime/toolRunner.ts`.
 
-Keine Route, kein Worker und keine Servernaht nutzt die neuen Module; „Runtime
-angeschlossen“ und jede Verhaltensparität bleiben für S7/S9 offen. Die Portierung ist
-keine Umschaltung.
+Zum damaligen `lane/s7`-/`lane/s9`-Stand nutzte keine Route, kein Worker und keine
+Servernaht die neuen Module; „Runtime angeschlossen“ und Verhaltensparität waren für
+beide Slices offen. Die Portierung war keine Umschaltung.
+
+Aktualisierung S7 am 2026-10-12: 104 Knowledge-Dateien liegen jetzt im uncommitteten
+Haupt-Tree `rust` und bestehen die dokumentierten Rust-Gates. Die damalige Modullücke
+ist geschlossen; der Gateway-Prozess startet inzwischen den Knowledge-Loop (siehe
+Fortschrittsnotiz oben). TS-Differenzparität und Cutover bleiben offen. S9 ist weiterhin
+nicht in `rust` integriert.
 
 Gate-Korrektur: `cargo test -p betaclaw-core --features test-support` ist falsch.
 `test-support` ist ein Feature von `betaclaw-gateway`
@@ -739,24 +1365,28 @@ Richtig ist `cargo test -p betaclaw-core`.
 Register der bewusst offenen Abweichungen und Nacharbeiten, damit sie
 slice-übergreifend nachverfolgbar bleiben.
 
-| ID    | Punkt                                                                                                                                                                                                                                                                                                                                                                                                       | Herkunft         | Status                              |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ----------------------------------- |
-| OP-1  | `DELETE /api/channels/conversations` bricht in TS die laufende Generierung ab und leert Summary-/Recall-Zustand; der Zustand liegt im Node-Prozess                                                                                                                                                                                                                                                          | S3               | offen bis S8                        |
-| OP-2  | TS-Metriken und Trace-Logs (`recordInbox*`, `logChatDisplayTrace`) fehlen; `resync` hat keine Wirkung                                                                                                                                                                                                                                                                                                       | S3               | offen bis S8                        |
-| OP-3  | Ungültiges JSON im Body: Rust-Text von `serde_json` weicht vom V8-Text ab (Personas S2, Messages S3); Status und Form stimmen                                                                                                                                                                                                                                                                               | S2/S3            | bewusst, akzeptiert                 |
-| OP-4  | `GET /api/channels/messages?limit=abc`: TS reicht `NaN` durch, Rust nimmt 100                                                                                                                                                                                                                                                                                                                               | S3               | bewusst, akzeptiert                 |
-| OP-5  | `PATCH` mit `modelOverride` als Zahl: Rust schreibt die Zahl als Text                                                                                                                                                                                                                                                                                                                                       | S3               | bewusst, akzeptiert                 |
-| OP-6  | Config-DB-Standardpfad löste gegen `WORKSPACE_ROOT` statt cwd auf                                                                                                                                                                                                                                                                                                                                           | S2-Nacharbeit    | geschlossen (siehe oben)            |
-| OP-7  | Alte Datei `crates/betaclaw-gateway/.local/gateway-config.db` liegt noch auf der Platte                                                                                                                                                                                                                                                                                                                     | S2-Testisolation | manuell löschbar                    |
-| OP-8  | Testname `agrees_with_the_gateway_crate_implementation` (`revision.rs`) passt nicht mehr zum Inhalt                                                                                                                                                                                                                                                                                                         | S2-Testisolation | Umbenennen offen                    |
-| OP-9  | `/api/model-hub/**` (10 Routen) ist nicht geroutet, und der Plan sieht dafür keinen Slice vor. Ohne Gegenstück bleiben dadurch: Account-Orchestrierung (`modelFetcher.ts:43`, `connectivity.ts:12`), Façade (`service/index.ts:45`), `service/provider/connect.ts:5`, `service/provider/disconnect.ts:3`, `service/pipeline/update.ts:7,29`, `runtime.ts:110,139`, `urlOrigin.ts:3,16`, `Models/index.ts:1` | S4               | Entscheidung nötig                  |
-| OP-10 | `/api/memory` (5 Methoden) und `memory/runtime.ts` sind im Plan keinem Slice zugeordnet                                                                                                                                                                                                                                                                                                                     | S5               | Entscheidung nötig                  |
-| OP-11 | OAuth-State (`oauth.ts:29,36`) ist absichtlich nicht portiert (hmac/digest-Konflikt, `crypto.rs:34-45`); die Codex-Kontoverknüpfung bleibt in TypeScript                                                                                                                                                                                                                                                    | S4               | offen bis OAuth-Routen geplant sind |
-| OP-12 | `codexAuth.ts` ist nur teilweise portiert (`decodeJwtPayload`/`extractCodexAccountId` in `client/config.rs:183,204`); der Refresh-Default ist ein `Err`-No-op (`service/refresh.rs:50-60`)                                                                                                                                                                                                                  | S4               | offen bis S4-Nacharbeit             |
-| OP-13 | Memory-Randmodule ohne Gegenstück: `mem0EmbedderSync.ts:263,346`, `src/core/memory/index.ts:18,54`, `src/core/memory/gemini.ts:3,29`                                                                                                                                                                                                                                                                        | S5               | offen bis S6/S7                     |
-| OP-14 | S4/S5 migrieren keine Route, also gibt es keine neue Paritätsfamilie; `/api/model-hub/**` und `/api/memory` laufen weiter über den Proxy                                                                                                                                                                                                                                                                    | S4/S5            | bewusst, akzeptiert                 |
-| OP-15 | `Mem0Client`/`MemoryRepository` liegen in `memory/sqlite/` statt in provider-neutralen Modulen; Verschiebung ohne Formänderung offen                                                                                                                                                                                                                                                                        | S5               | offen, formstabil                   |
-| OP-16 | Produktive `HttpTransport`-Implementierung fehlt: nur Test-Doubles und `UnreachableTransport` (`http.rs:244`), kein `reqwest`-Impl in `betaclaw-gateway`. `dispatch_gateway` ist außerhalb der Tests nicht aufrufbar; die Kommentare nennen dafür jetzt OP-16 statt eines „S4b", das der Plan nicht kennt                                                                                                   | S4               | offen bis S8                        |
+| ID    | Punkt                                                                                                                                                                                                                                                                                                                                  | Herkunft              | Status                                                                                                                                   |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| OP-1  | `DELETE /api/channels/conversations` bricht in TS die laufende Generierung ab und leert Summary-/Recall-Zustand; der Zustand liegt im Node-Prozess                                                                                                                                                                                     | S3                    | offen bis S8                                                                                                                             |
+| OP-2  | TS-Metriken und Trace-Logs (`recordInbox*`, `logChatDisplayTrace`) fehlen; `resync` hat keine Wirkung                                                                                                                                                                                                                                  | S3                    | offen bis S8                                                                                                                             |
+| OP-3  | Ungültiges JSON im Body: Rust-Text von `serde_json` weicht vom V8-Text ab (Personas S2, Messages S3); Status und Form stimmen                                                                                                                                                                                                          | S2/S3                 | bewusst, akzeptiert                                                                                                                      |
+| OP-4  | `GET /api/channels/messages?limit=abc`: TS reicht `NaN` durch, Rust nimmt 100                                                                                                                                                                                                                                                          | S3                    | bewusst, akzeptiert                                                                                                                      |
+| OP-5  | `PATCH` mit `modelOverride` als Zahl: Rust schreibt die Zahl als Text                                                                                                                                                                                                                                                                  | S3                    | bewusst, akzeptiert                                                                                                                      |
+| OP-6  | Config-DB-Standardpfad löste gegen `WORKSPACE_ROOT` statt cwd auf                                                                                                                                                                                                                                                                      | S2-Nacharbeit         | geschlossen (siehe oben)                                                                                                                 |
+| OP-7  | Alte Datei `crates/betaclaw-gateway/.local/gateway-config.db` liegt noch auf der Platte                                                                                                                                                                                                                                                | S2-Testisolation      | manuell löschbar                                                                                                                         |
+| OP-8  | Testname `agrees_with_the_gateway_crate_implementation` (`revision.rs`) passt nicht mehr zum Inhalt                                                                                                                                                                                                                                    | S2-Testisolation      | Umbenennen offen                                                                                                                         |
+| OP-9  | `/api/model-hub/**` (10 Routen) ist im `rust`-Dirty-Tree jetzt nativ gemountet; fehlende Account-/Provider-Orchestrierung sowie OAuth-/Refresh-Verhalten (`modelFetcher.ts`, `connectivity.ts`, `connect`/`disconnect`, `oauth.ts`, `codexAuth.ts`) müssen noch abgeglichen werden                                                     | S4                    | teilweise erledigt; Parität offen                                                                                                        |
+| OP-10 | `/api/memory` (5 Methoden) und `memory/runtime.ts` sind S5 zugeordnet, portiert und gemountet; SQLite-Routenparität ist für geprüfte CRUD-Fälle grün, Postgres nutzt den S6-Pool, und die Route publiziert Lifecycle-Ereignisse über `AppState`. Live-Verhalten/RLS, weitere Provider-Parität und Event-Consumer-Parität bleiben offen | S5                    | teilweise erledigt                                                                                                                       |
+| OP-11 | OAuth-State (`oauth.ts:29,36`) ist absichtlich nicht portiert (hmac/digest-Konflikt, `crypto.rs:34-45`); die Codex-Kontoverknüpfung bleibt in TypeScript                                                                                                                                                                               | S4                    | offen bis OAuth-Routen geplant sind                                                                                                      |
+| OP-12 | `codexAuth.ts` ist nur teilweise portiert (`decodeJwtPayload`/`extractCodexAccountId` in `client/config.rs:183,204`); der Refresh-Default ist ein `Err`-No-op (`service/refresh.rs:50-60`)                                                                                                                                             | S4                    | offen bis S4-Nacharbeit                                                                                                                  |
+| OP-13 | Rust-Code-Gegenstücke für `mem0EmbedderSync.ts`, `src/core/memory/index.ts` und `gemini.ts` liegen im Dirty-Tree; 17 Mem0-Sync- und 13 Core-Memory-Tests sind grün. Produktionsaufrufer, Runtime-Wiring und TS/Rust-Parität fehlen noch                                                                                                | S5                    | Code portiert; Integration offen                                                                                                         |
+| OP-14 | S4/S5-Routen sind im rust-Dirty-Tree nativ gemountet; S2/S3-Familien und die S5-SQLite-Familie liefen am 2026-10-12 grün; S4- sowie S5-Postgres/RLS-Parität bleiben offen                                                                                                                                                              | S2–S5                 | teilweise; S4 und S5-Postgres/RLS offen                                                                                                  |
+| OP-15 | Mem0Client und MemoryRepository liegen jetzt in provider-neutralen Memory-Modulen; alte Pfade bleiben als Re-Exports erhalten                                                                                                                                                                                                          | S5                    | im rust-Dirty-Tree erledigt                                                                                                              |
+| OP-16 | ReqwestTransport ist produktiv vorhanden und wird von Model-Hub-Routen genutzt; der alte fehlende HTTP-Transport ist behoben                                                                                                                                                                                                           | S4/S8                 | erledigt                                                                                                                                 |
+| OP-17 | Persona-DELETE muss Graphiti, Mem0, World-Model, Konversationen, Knowledge und Telegram-Pairing bereinigen; bis dahin bleibt der Handler vollständig am TypeScript-Proxy                                                                                                                                                               | S2/S5–S7/S12          | Proxy-Fallback getestet; Portierung offen                                                                                                |
+| OP-18 | `world_model_port.rs::from_process_env` nutzt `UnconfiguredPgExecutor`. World-Model-Abfragen in `/api/health` und `/api/control-plane/metrics` schlagen daher immer fehl, und die Antworten weichen vom TS-Original ab                                                                                                                 | S6/S9                 | geschlossen (`LazyPgExecutor` mit `connect_lazy` und 5-s-Timeout; Health & Metrics fragen die Live-DB ab; eigener Pool neben `AppState`) |
+| OP-19 | `scripts/dev-stack-rust.mjs` enthält `CANONICAL_DATABASE_URL` mit Klartext-Passwort der Rolle `world_model_app`; der Wert sollte aus `.env.local` kommen                                                                                                                                                                               | Dev-Stack             | geschlossen (`worldModelDockerEnv` reicht World-Model-Flags und DB-URLs aus `.env.local` durch; kein Klartext-Passwort)                  |
+| OP-20 | Der Credential-Verbindungscache in `routes/security.rs` hält einen Handle pro Pfad. Wird die Messages-DB zur Laufzeit ersetzt, liest er die alte Datei bis zum nächsten Query-Fehler                                                                                                                                                   | Lastbefund 2026-10-29 | geschlossen (FileIdentity prüft mtime/size/dev/ino; Cache invalidiert sich bei Datei-Neuerstellung automatisch)                          |
 
 ### OP-Register S9 (aus dem Bahn-Code erhoben)
 
@@ -809,7 +1439,7 @@ pnpm fixtures:security-rules    # SECURITY_RULES nach Rust exportieren
 pnpm fixtures:nextauth-token    # Session-Token-Fixture aus dem echten next-auth
 pnpm fixtures:gemini-traffic    # Gemini-HTTP-Traffic als Rust-Fixture aufzeichnen
 pnpm verify:logs-parity     # Rust gegen TypeScript auf /api/logs
-pnpm verify:route-parity    # alle Paritätsfamilien (logs, config) gegen den Gateway
+pnpm verify:route-parity    # alle registrierten Paritätsfamilien gegen den Gateway
 ```
 
 Der Container-Smoke für die HTTP- und WS-Verträge:
@@ -828,14 +1458,9 @@ pnpm verify:logs-parity
 Messwerte vom 2026-10-10 auf dem Windows-Host (Rust 1.94.1), Befehl
 `cargo test --workspace --features betaclaw-gateway/test-support`. Alle Läufe
 grün, 545 Tests (449 core, 82 gateway lib, 7 gateway_http, 7 nextauth_parity).
-Nach S4/S5 sind es 998 Core-Tests und 100 Gateway-Tests (Container
-`rust:1.94-bookworm`, Volumes `betaclaw-cargo-registry`, `betaclaw-rustup`,
-`betaclaw-target-final`). Das Abschluss-Gate lief als vier Einzelschritte:
-`cargo fmt --all -- --check`,
-`cargo clippy --all-targets --features test-support -- -D warnings`,
-`cargo test -p betaclaw-core --all-targets` (998 grün, 0 ignored) und
-`cargo test -p betaclaw-gateway --features test-support` (100 grün). Die
-Messwerte unten sind der Vorzustand und bleiben als Referenz stehen.
+Aktuelle Testzahlen und Liefernachweise stehen bei der Abnahme der Nacharbeiten in
+Abschnitt 7. Route-Coverage prüft deklarierte Pfad-/Methodenpaare und darf nicht als
+vollständiger Verhaltens- oder Cutover-Nachweis bezeichnet werden.
 
 | Lauf                            | Gesamtdauer                  | core   | gateway lib | gateway_http | nextauth_parity |
 | ------------------------------- | ---------------------------- | ------ | ----------- | ------------ | --------------- |

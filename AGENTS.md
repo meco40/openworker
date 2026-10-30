@@ -83,20 +83,38 @@ docker compose -f docker-compose.postgres.yml up -d
 pnpm run world-model:migrate
 ```
 
-2. Build the Rust gateway binary once, then start the development stack:
+2. Build the Rust image once, then start the development stack (Windows uses
+   the Docker fallback; the image contains a Linux binary):
 
 ```powershell
 pnpm run rust:build
-docker create --name betaclaw-gateway-extract betaclaw-gateway-local
-docker cp betaclaw-gateway-extract:/workspace/rust/target/release/betaclaw-gateway rust/target/release/
-docker rm betaclaw-gateway-extract
 pnpm run dev
 ```
 
 `pnpm run dev` starts the Rust gateway on `127.0.0.1:3000`, the Next.js UI on
-port 3001 and the scheduler. The gateway owns the public listener and reverse
-proxies every route that has not been migrated yet. `pnpm run dev:node` keeps
-the previous Node-only stack available for debugging.
+port 3001 in proxy mode (`BETACLAW_UI_MODE=proxy`) and the scheduler. The gateway
+owns the public listener, answers all 113 API routes natively in Rust, terminates
+`/ws`, and reverse proxies frontend pages and HMR to the Next.js dev server.
+`pnpm run dev:static` builds the static export (`pnpm run build:export`) and starts
+the Rust gateway in static mode (`BETACLAW_UI_MODE=static`), serving the UI natively
+from `out/` without a Node application server. `pnpm run dev:node` keeps the previous Node-only stack
+available for debugging.
+
+#### Background Job Runtime Ownership
+
+Background jobs support tri-state ownership via `BETACLAW_TELEGRAM_POLLER`,
+`BETACLAW_SWARM_RUNNER`, and `BETACLAW_WORKSPACE_CLEANUP` (`rust` | `node` | `off`):
+
+- In `docker-compose.yml`, they default to `rust`.
+- In native development (`pnpm run dev`), they can be configured in `.env.local`.
+- If set to `node`, Node.js handles them (legacy mode).
+- If set to `rust`, Rust handles them exclusively without conflict (no Telegram 409).
+- If unset, both implementations resolve to `node`; `off` disables the job.
+- Keep the values identical in all processes. `SWARM_RUNNER=server|scheduler`
+  selects the swarm process; Compose selects `scheduler`. Cleanup runs in the scheduler.
+- UI mode and `UI_STATIC_DIR` are resolved at startup. `static` serves the export,
+  `proxy` forwards to Next. Without a mode, an existing
+  export selects static serving. `dev:static` always rebuilds it.
 
 #### Port conflicts
 
@@ -189,14 +207,17 @@ in README in `.env.local`. Compose requires them and keeps admin DB credentials
 in the separate migration service:
 
 ```powershell
-docker compose --env-file .env.local up -d --build gateway web-ui scheduler
-docker compose --env-file .env.local logs -f gateway web-ui scheduler
+docker compose --env-file .env.local up -d --build gateway scheduler
+docker compose --env-file .env.local logs -f gateway scheduler
 docker compose --env-file .env.local down
 ```
 
 Compose starts PostgreSQL, migrations and role provisioning, then the Rust
-gateway, the Next.js UI and the scheduler. The gateway is the only service that
-publishes a port; `web-ui` stays internal on 3001. Use
+gateway and scheduler. Rust serves the static UI, declared API handlers and
+WebSocket. Route coverage checks declarations; behavior requires parity and smoke tests.
+The image includes Python and Node/Playwright/Chromium for on-demand tool subprocesses.
+No Node application server starts in the standard stack. The optional legacy Next.js server can be started for regression
+checks via `--profile legacy-node-ui`. Use
 `GATEWAY_PUBLISHED_PORT` when port 3000 is occupied (see the port conflicts
 section above). Runtime roles are
 `world_model_app` and `world_model_worker`; their RLS grants are tested
