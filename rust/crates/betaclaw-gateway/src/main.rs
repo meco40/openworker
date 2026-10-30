@@ -8,11 +8,17 @@
 use betaclaw_core::config::GatewayConfig;
 use betaclaw_core::gateway::broadcast::run_keepalive_sweep;
 use betaclaw_core::gateway::events::TICK;
+use betaclaw_gateway::knowledge_runtime::build_knowledge_runtime_loop;
 use betaclaw_gateway::proxy::build_router;
 use betaclaw_gateway::state::GatewayRuntime;
 
 #[tokio::main]
 async fn main() {
+    if std::env::args().any(|arg| arg == "--version" || arg == "-V") {
+        println!("betaclaw-gateway {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+
     init_tracing();
 
     if let Err(error) = run().await {
@@ -43,6 +49,13 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let runtime = GatewayRuntime::bind(config).await?;
     let state = runtime.state.clone();
+    let ui_mode_str = match state.ui.mode {
+        betaclaw_gateway::static_ui::UiMode::Static => "static",
+        betaclaw_gateway::static_ui::UiMode::Proxy => "proxy",
+    };
+    tracing::info!(mode = ui_mode_str, dir = %state.ui.directory.display(), "[ui] status");
+    let knowledge_loop = build_knowledge_runtime_loop(state.clone());
+    knowledge_loop.start();
 
     if state.config.demo_mode {
         tracing::info!("[DEMO] Running in demo mode — all write operations are blocked");
@@ -69,27 +82,82 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let shutdown_state = state.clone();
-    axum::serve(
+    let poller_enabled = betaclaw_gateway::persona_poller::PersonaPoller::is_enabled_from_env();
+    tracing::info!(
+        owner = betaclaw_gateway::background::job_owner("BETACLAW_TELEGRAM_POLLER"),
+        "[telegram-poller] status"
+    );
+    let persona_poller = if poller_enabled {
+        let inbound = state
+            .channels
+            .get()
+            .ok_or("Telegram channels are not initialized")?
+            .pairing
+            .inbound();
+        Some(
+            betaclaw_gateway::persona_poller::PersonaPoller::new(
+                state.upstream.clone(),
+                state.config.personas_db_path.clone(),
+                inbound,
+                None,
+            )
+            .start(),
+        )
+    } else {
+        None
+    };
+
+    let swarm_enabled =
+        betaclaw_gateway::swarm_runtime::SwarmRuntime::should_run_for_role("server");
+    tracing::info!(
+        owner = betaclaw_gateway::background::job_owner("BETACLAW_SWARM_RUNNER"),
+        "[swarm-runtime] status"
+    );
+    let swarm_runtime = if swarm_enabled {
+        Some(
+            betaclaw_gateway::swarm_runtime::SwarmRuntime::start(
+                state.clone(),
+                "server-main".to_string(),
+            )
+            .await,
+        )
+    } else {
+        None
+    };
+
+    tracing::info!(
+        owner = betaclaw_gateway::background::job_owner("BETACLAW_WORKSPACE_CLEANUP"),
+        "[task-workspaces] status"
+    );
+
+    let (signal, stopping) = tokio::sync::oneshot::channel::<()>();
+    let serving = axum::serve(
         runtime.listener,
         app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
     )
-    .with_graceful_shutdown(async move {
-        shutdown_signal().await;
-        tracing::info!("[gateway] Shutting down...");
-
-        // Stop the heartbeat before closing sockets so no frame is emitted
-        // after a close frame.
-        ticker.abort();
-
-        // Notify peers, then give them a moment to process the close frame.
-        for client in shutdown_state.registry.get_all() {
-            client.enqueue_close(1001, "server shutting down");
+    .with_graceful_shutdown(async {
+        let _ = stopping.await;
+    });
+    let mut serving = Box::pin(std::future::IntoFuture::into_future(serving));
+    tokio::select! {
+        result = &mut serving => { result?; }
+        _ = shutdown_signal() => {
+            tracing::info!("[gateway] Draining jobs and requests with 6s timeout");
+            let _ = signal.send(());
+            ticker.abort();
+            knowledge_loop.stop();
+            if let Some(chat) = state.chat.get() { chat.shutdown(); }
+            let drain = async {
+                tokio::join!(async { if let Some(poller) = persona_poller { poller.stop().await; } }, async { if let Some(swarm) = swarm_runtime { swarm.stop().await; } });
+                for client in state.registry.get_all() { client.enqueue_close(1001, "server shutting down"); }
+                serving.await
+            };
+            match tokio::time::timeout(std::time::Duration::from_secs(6), drain).await {
+                Ok(result) => { result?; }
+                Err(_) => tracing::warn!("[gateway] Graceful shutdown timed out"),
+            }
         }
-        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
-    })
-    .await?;
-
+    }
     tracing::info!("[gateway] Server closed.");
     Ok(())
 }

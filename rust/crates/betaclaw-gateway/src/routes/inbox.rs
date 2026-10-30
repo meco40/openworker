@@ -6,8 +6,10 @@
 //! keeps the deprecated shape and adds `Deprecation` and `Sunset` headers. Other
 //! methods are proxied.
 //!
-//! Not ported: the TypeScript metrics and trace logs. `resync` only feeds those,
-//! so the parameter is accepted and has no effect here.
+//! The `recordInbox*` counters and the `logChatDisplayTrace` /
+//! `logInboxObservability` records are ported in `channel_support` (OP-2): the
+//! `resync` flag still only feeds observability, as in TypeScript, but it now
+//! increments the resync counter instead of being dropped.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -25,7 +27,10 @@ use serde_json::{json, Value};
 
 use crate::auth_gate::{unauthorized_response, user_id_from_headers};
 use crate::proxy::proxy_to_upstream;
-use crate::routes::channel_support::parse_int_prefix;
+use crate::routes::channel_support::{
+    get_chat_display_slow_threshold_ms, log_chat_display_trace, log_inbox_observability,
+    parse_int_prefix, record_inbox_query_duration_http, record_inbox_reconnect_resync,
+};
 use crate::state::SharedState;
 
 const DEFAULT_LIMIT: i64 = 50;
@@ -53,6 +58,9 @@ struct InboxRequest {
     query: Option<String>,
     limit: i64,
     cursor: Option<InboxCursor>,
+    /// `resolveBoolean(raw.resync)` (`contract.ts:49,156-163`). Feeds only the
+    /// observability counter, as in TypeScript.
+    resync: bool,
 }
 
 /// `GET /api/channels/inbox`
@@ -64,10 +72,27 @@ async fn list_inbox(
     let Some(user_id) = user_id_from_headers(&headers) else {
         return unauthorized_response();
     };
+    let started = Instant::now();
     let request = match parse_request(&params) {
         Ok(request) => request,
         Err(message) => return inbox_error(StatusCode::BAD_REQUEST, "INVALID_REQUEST", message),
     };
+    let has_cursor = request.cursor.is_some();
+    log_chat_display_trace(
+        "http.inbox.input",
+        &json!({
+            "path": "/api/channels/inbox",
+            "userId": user_id,
+            "version": version_str(request.version),
+            "resync": request.resync,
+            "limit": request.limit,
+            "hasCursor": has_cursor,
+            "hasChannel": request.channel.is_some(),
+            "hasQuery": request.query.is_some(),
+            "durationMs": started.elapsed().as_millis() as u64,
+        }),
+        false,
+    );
     if request.version == Version::V2 && !state.config.inbox_v2_enabled {
         return inbox_error(
             StatusCode::SERVICE_UNAVAILABLE,
@@ -104,6 +129,39 @@ async fn list_inbox(
         }
     };
 
+    let duration_ms = started.elapsed().as_millis() as u64;
+    record_inbox_query_duration_http();
+    if request.resync {
+        record_inbox_reconnect_resync();
+    }
+    log_inbox_observability(
+        "query.http",
+        &json!({
+            "userId": user_id,
+            "version": version_str(request.version),
+            "resync": request.resync,
+            "limit": request.limit,
+            "hasCursor": has_cursor,
+            "returned": result.items.len(),
+            "totalMatched": result.total_matched,
+            "durationMs": duration_ms,
+        }),
+    );
+    log_chat_display_trace(
+        "http.inbox.complete",
+        &json!({
+            "path": "/api/channels/inbox",
+            "userId": user_id,
+            "version": version_str(request.version),
+            "resync": request.resync,
+            "returned": result.items.len(),
+            "totalMatched": result.total_matched,
+            "hasMore": result.has_more,
+            "durationMs": duration_ms,
+        }),
+        duration_ms >= get_chat_display_slow_threshold_ms(),
+    );
+
     match request.version {
         Version::V1 => v1_response(&result),
         Version::V2 => Json(json!({
@@ -129,7 +187,23 @@ fn parse_request(params: &HashMap<String, String>) -> Result<InboxRequest, &'sta
         query: trimmed(query_value(params, "q")),
         limit: parse_limit(query_value(params, "limit"))?,
         cursor: parse_cursor(query_value(params, "cursor"))?,
+        resync: resolve_boolean(query_value(params, "resync")),
     })
+}
+
+/// `resolveBoolean` (`contract.ts:156-163`).
+fn resolve_boolean(value: Option<&str>) -> bool {
+    match value {
+        Some(text) => matches!(text.trim().to_lowercase().as_str(), "1" | "true" | "yes"),
+        None => false,
+    }
+}
+
+fn version_str(version: Version) -> &'static str {
+    match version {
+        Version::V1 => "v1",
+        Version::V2 => "v2",
+    }
 }
 
 /// A query value, where an empty string counts as absent (`searchParams.get(k) || undefined`).
@@ -282,7 +356,7 @@ impl InboxRateLimiter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::routes::test_support::{assert_keys, send, state_with, ScratchDir};
+    use crate::routes::test_support::{assert_keys, send, state_in, state_with, ScratchDir};
     use crate::state::SharedState;
     use axum::body::Body;
     use axum::http::{HeaderMap, Method, Request};
@@ -506,5 +580,47 @@ mod tests {
             limiter.consume("u", 1, later),
             RateDecision::Allowed
         ));
+    }
+
+    #[tokio::test]
+    async fn a_resync_request_increments_the_resync_counter() {
+        let scratch = ScratchDir::new();
+        let state = state_in(&scratch);
+        let before = crate::routes::channel_support::inbox_observability_counters();
+
+        let (status, _) = send(
+            &state,
+            Method::GET,
+            "/api/channels/inbox?resync=1",
+            Some(USER),
+            None,
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::OK);
+        let after = crate::routes::channel_support::inbox_observability_counters();
+        assert_eq!(
+            after.reconnect_resync_count,
+            before.reconnect_resync_count + 1
+        );
+        assert!(after.queries_http > before.queries_http);
+        // The remaining counters are part of the ported snapshot; touching them
+        // keeps the whole struct live and asserted as readable.
+        let _ = (
+            after.events_emitted,
+            after.events_dropped,
+            after.event_upserts,
+            after.event_deletes,
+        );
+    }
+
+    #[test]
+    fn resolve_boolean_follows_the_contract() {
+        assert!(resolve_boolean(Some("1")));
+        assert!(resolve_boolean(Some(" TRUE ")));
+        assert!(resolve_boolean(Some("yes")));
+        assert!(!resolve_boolean(Some("0")));
+        assert!(!resolve_boolean(Some("no")));
+        assert!(!resolve_boolean(None));
     }
 }

@@ -6,6 +6,7 @@
 //! identically.
 
 use std::net::SocketAddr;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use axum::extract::ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade};
@@ -163,7 +164,7 @@ async fn run_connection(socket: WebSocket, state: SharedState, user_id: String) 
 
     let (sender, receiver) = mpsc::channel::<Outbound>(OUTBOUND_QUEUE_DEPTH);
     let client = ClientHandle::new(&conn_id, &user_id, "v2", connected_at, sender);
-    let methods: Arc<MethodRegistry> = Arc::new(build_registry());
+    let methods: Arc<MethodRegistry> = Arc::new(build_registry(&state));
 
     state.registry.register(client.clone());
     tracing::info!(conn_id = %conn_id, user_id = %user_id, "Client connected");
@@ -181,7 +182,9 @@ async fn run_connection(socket: WebSocket, state: SharedState, user_id: String) 
 
     let (mut sink, mut stream) = socket.split();
 
-    let writer_client = client.clone();
+    // Only the counter and the id: a cloned handle would keep the channel open.
+    let buffered = client.buffered_counter();
+    let writer_conn_id = conn_id.clone();
     let writer = tokio::spawn(async move {
         let mut receiver = receiver;
         while let Some(message) = receiver.recv().await {
@@ -190,7 +193,9 @@ async fn run_connection(socket: WebSocket, state: SharedState, user_id: String) 
                     let len = text.len();
                     let sent = sink.send(Message::Text(text.into())).await;
                     if sent.is_ok() {
-                        writer_client.note_flushed(len);
+                        let _ = buffered.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |v| {
+                            Some(v.saturating_sub(len))
+                        });
                     }
                     sent
                 }
@@ -206,10 +211,12 @@ async fn run_connection(socket: WebSocket, state: SharedState, user_id: String) 
                 }
             };
             if let Err(error) = result {
-                tracing::debug!(conn_id = %writer_client.conn_id, error = %error, "Write failed");
+                tracing::debug!(conn_id = %writer_conn_id, error = %error, "Write failed");
                 break;
             }
         }
+        // Flushes the close reply that tungstenite queued for a client close.
+        let _ = sink.close().await;
     });
 
     let mut request_window = new_request_window(now_ms());
@@ -254,13 +261,19 @@ async fn run_connection(socket: WebSocket, state: SharedState, user_id: String) 
             continue;
         }
 
-        let response = methods.dispatch(
-            &request.id,
-            &request.method,
-            &request.params,
-            &client,
-            &state,
-        );
+        // A streamed family reply writes its own frames and yields no response.
+        let Some(response) = methods
+            .dispatch(
+                &request.id,
+                &request.method,
+                &request.params,
+                &client,
+                &state,
+            )
+            .await
+        else {
+            continue;
+        };
         if !client.enqueue_text(response.to_string()) {
             break;
         }

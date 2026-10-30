@@ -15,7 +15,9 @@ use serde_json::json;
 
 use crate::auth_gate::{unauthorized_response, user_id_from_headers};
 use crate::proxy::proxy_to_upstream;
-use crate::routes::channel_support::{failure, parse_int_prefix};
+use crate::routes::channel_support::{
+    failure, get_chat_display_slow_threshold_ms, log_chat_display_trace, parse_int_prefix,
+};
 use crate::state::SharedState;
 
 /// The TypeScript route reads 100 messages when no `limit` is given.
@@ -49,6 +51,7 @@ async fn list_messages(
         .get("conversationId")
         .filter(|value| !value.is_empty());
 
+    let started = std::time::Instant::now();
     let store = state.messages.lock().await;
     let conversation_id = match requested {
         Some(id) => id.clone(),
@@ -63,12 +66,29 @@ async fn list_messages(
         before.map(String::as_str),
         Some(user_id.as_str()),
     ) {
-        Ok(messages) => Json(json!({
-            "ok": true,
-            "conversationId": conversation_id,
-            "messages": messages,
-        }))
-        .into_response(),
+        Ok(messages) => {
+            let duration_ms = started.elapsed().as_millis() as u64;
+            log_chat_display_trace(
+                "http.messages.complete",
+                &json!({
+                    "path": "/api/channels/messages",
+                    "userId": user_id,
+                    "conversationId": conversation_id,
+                    "requestedDefaultConversation": requested.is_none(),
+                    "limit": limit,
+                    "hasBefore": before.is_some(),
+                    "returned": messages.len(),
+                    "durationMs": duration_ms,
+                }),
+                duration_ms >= get_chat_display_slow_threshold_ms(),
+            );
+            Json(json!({
+                "ok": true,
+                "conversationId": conversation_id,
+                "messages": messages,
+            }))
+            .into_response()
+        }
         Err(error) => failure(&error),
     }
 }
@@ -182,22 +202,5 @@ mod tests {
 
         assert_eq!(status, StatusCode::UNAUTHORIZED);
         assert_keys(&body, &["error", "ok"]);
-    }
-
-    #[tokio::test]
-    async fn post_stays_on_the_typescript_side() {
-        let scratch = ScratchDir::new();
-        let state = state_in(&scratch);
-
-        let (status, _) = send(
-            &state,
-            Method::POST,
-            "/api/channels/messages",
-            Some(USER),
-            Some("{}"),
-        )
-        .await;
-
-        assert_eq!(status, StatusCode::BAD_GATEWAY);
     }
 }

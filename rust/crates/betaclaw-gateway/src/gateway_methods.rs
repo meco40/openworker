@@ -1,9 +1,9 @@
 //! Gateway RPC method registry.
 //!
-//! Ports the method-router contract from `src/server/gateway/method-router.ts`
-//! and registers the methods migrated in slice S1: `presence.*` and `logs.*`.
-//! The remaining 31 methods are registered by the TypeScript process during the
-//! transition and move here one slice at a time.
+//! Ports the method-router contract from `src/server/gateway/method-router.ts`.
+//! Two kinds of method are registered: the native S1 methods (`presence.*` and
+//! `logs.*`), which read the gateway state directly, and the family methods of
+//! `families::ws_wire`, which carry their own services and reply asynchronously.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -20,6 +20,8 @@ use serde_json::Value;
 #[cfg(test)]
 use betaclaw_core::logging::repository::LogCategory;
 
+use crate::families::ws_wire::{WsCall, WsHandler};
+use crate::families::{wiring, ws_wire};
 use crate::state::SharedState;
 
 /// Result of a method invocation.
@@ -32,13 +34,20 @@ pub enum MethodOutcome {
     Failed(ErrorCode, String),
 }
 
-/// Handler signature. `respond` mirrors the TypeScript `RespondFn`.
+/// Handler signature of the native methods. `respond` mirrors the TypeScript `RespondFn`.
 pub type MethodHandler =
     Arc<dyn Fn(&Value, &ClientHandle, &SharedState) -> MethodOutcome + Send + Sync>;
 
+/// A registered method. Native handlers read the gateway state, family handlers carry
+/// their own services.
+enum Handler {
+    Native(MethodHandler),
+    Family(WsHandler),
+}
+
 #[derive(Default)]
 pub struct MethodRegistry {
-    handlers: HashMap<String, MethodHandler>,
+    handlers: HashMap<String, Handler>,
 }
 
 impl MethodRegistry {
@@ -49,7 +58,14 @@ impl MethodRegistry {
     }
 
     pub fn register(&mut self, method: &str, handler: MethodHandler) {
-        self.handlers.insert(method.to_string(), handler);
+        self.handlers
+            .insert(method.to_string(), Handler::Native(handler));
+    }
+
+    /// Registers a method that a family serves with its own services.
+    pub fn register_family(&mut self, method: &str, handler: WsHandler) {
+        self.handlers
+            .insert(method.to_string(), Handler::Family(handler));
     }
 
     /// Registered method names, sorted. The order feeds the `hello-ok` payload,
@@ -60,41 +76,54 @@ impl MethodRegistry {
         names
     }
 
-    pub fn dispatch(
+    /// Answers one request. `None` means the handler already wrote its own frames
+    /// (a streamed reply), so nothing is sent.
+    pub async fn dispatch(
         &self,
         frame_id: &FrameId,
         method: &str,
         params: &Value,
         client: &ClientHandle,
         state: &SharedState,
-    ) -> Value {
+    ) -> Option<Value> {
         let Some(handler) = self.handlers.get(method) else {
-            // Not migrated yet (see `pending_methods`). The reply itself stays
-            // byte-identical to `method-router.ts`, but without a log line the
-            // resulting client failure is invisible in production.
+            // Not registered in this process. The reply itself stays byte-identical to
+            // `method-router.ts`, but without a log line the resulting client failure is
+            // invisible in production.
             tracing::warn!(
                 method,
                 user_id = %client.user_id,
-                "Gateway method is not implemented in Rust yet; the pending list tracks it for S3/S8"
+                "Gateway method is not registered in the Rust gateway"
             );
-            return make_error(
+            return Some(make_error(
                 frame_id,
                 ErrorCode::InvalidRequest,
                 &format!("Unknown method: {method}"),
-            );
+            ));
         };
-        match handler(params, client, state) {
-            MethodOutcome::Payload(payload) => make_response(frame_id, payload),
-            MethodOutcome::Silent => {
-                make_error(frame_id, ErrorCode::Unavailable, "Internal server error")
+        match handler {
+            Handler::Native(handler) => Some(match handler(params, client, state) {
+                MethodOutcome::Payload(payload) => make_response(frame_id, payload),
+                MethodOutcome::Silent => {
+                    make_error(frame_id, ErrorCode::Unavailable, "Internal server error")
+                }
+                MethodOutcome::Failed(code, message) => make_error(frame_id, code, &message),
+            }),
+            Handler::Family(handler) => {
+                let call = WsCall {
+                    id: frame_id.clone(),
+                    params: params.clone(),
+                    client: client.clone(),
+                };
+                handler(call).await.into_frame(frame_id)
             }
-            MethodOutcome::Failed(code, message) => make_error(frame_id, code, &message),
         }
     }
 }
 
-/// Builds the registry with the S1 method set.
-pub fn build_registry() -> MethodRegistry {
+/// Builds the registry for one connection: the native S1 methods and the WS family's
+/// method table, wired to the gateway state.
+pub fn build_registry(state: &SharedState) -> MethodRegistry {
     let mut registry = MethodRegistry::new();
 
     registry.register("presence.list", Arc::new(presence_list));
@@ -106,6 +135,11 @@ pub fn build_registry() -> MethodRegistry {
     registry.register("logs.sources", Arc::new(logs_sources));
     registry.register("logs.categories", Arc::new(logs_categories));
     registry.register("logs.clear", Arc::new(logs_clear));
+
+    let services = Arc::new(wiring::ws_services(state));
+    for (method, handler) in ws_wire::method_table(services) {
+        registry.register_family(method, handler);
+    }
 
     registry
 }
@@ -272,11 +306,9 @@ pub fn emit_log(state: &SharedState, level: LogLevel, source: &str, message: &st
 /// Broadcast event name used when a log entry is fanned out.
 pub const LOG_EVENT: &str = LOG_ENTRY;
 
-/// Placeholder for the not-yet-migrated method surface.
-///
-/// `hello-ok` advertises only the methods this process can serve. The browser
-/// client tolerates a smaller list, and the TypeScript gateway keeps serving its
-/// own set until each slice lands.
+/// The methods that the WS family serves through `ws_wire::method_table`. The family
+/// pins this list in its own test, so the name stays. Together with the native
+/// `presence.*` and `logs.*` methods they make up the full surface of 38.
 pub fn pending_methods() -> &'static [&'static str] {
     &[
         "agent.v2.session.start",
@@ -398,48 +430,73 @@ mod tests {
         ClientHandle::new(name, "u1", "v2", 1_700_000_000, tx)
     }
 
+    /// Dispatches one request and returns its reply. Every method these tests call is
+    /// registered, so the reply is always present.
+    async fn call(
+        registry: &MethodRegistry,
+        state: &SharedState,
+        client: &ClientHandle,
+        frame: FrameId,
+        method: &str,
+        params: Value,
+    ) -> Value {
+        registry
+            .dispatch(&frame, method, &params, client, state)
+            .await
+            .expect("a registered method answers")
+    }
+
     #[tokio::test]
     async fn unknown_method_returns_invalid_request() {
         let state = fixture().await;
-        let registry = build_registry();
-        let response = registry.dispatch(
-            &FrameId::number(1),
-            "chat.send",
-            &Value::Null,
-            &handle("c0"),
+        let registry = build_registry(&state);
+        let response = call(
+            &registry,
             &state,
-        );
+            &handle("c0"),
+            FrameId::number(1),
+            "no.such.method",
+            Value::Null,
+        )
+        .await;
         assert_eq!(response["ok"], false);
         assert_eq!(response["error"]["code"], "INVALID_REQUEST");
-        assert_eq!(response["error"]["message"], "Unknown method: chat.send");
+        assert_eq!(
+            response["error"]["message"],
+            "Unknown method: no.such.method"
+        );
     }
 
     #[tokio::test]
     async fn presence_methods_report_registry_state() {
         let state = fixture().await;
-        let registry = build_registry();
+        let registry = build_registry(&state);
         let client = handle("c0");
         client.add_subscription("logs");
         state.registry.register(client.clone());
 
-        let response = registry.dispatch(
-            &FrameId::Str("a".into()),
-            "presence.list",
-            &Value::Null,
-            &client,
+        let response = call(
+            &registry,
             &state,
-        );
+            &client,
+            FrameId::Str("a".into()),
+            "presence.list",
+            Value::Null,
+        )
+        .await;
         assert_eq!(response["ok"], true);
         assert_eq!(response["payload"][0]["userId"], "u1");
         assert_eq!(response["payload"][0]["connections"], 1);
 
-        let response = registry.dispatch(
-            &FrameId::Str("b".into()),
-            "presence.whoami",
-            &Value::Null,
-            &client,
+        let response = call(
+            &registry,
             &state,
-        );
+            &client,
+            FrameId::Str("b".into()),
+            "presence.whoami",
+            Value::Null,
+        )
+        .await;
         assert_eq!(response["payload"]["connId"], "c0");
         assert_eq!(response["payload"]["userId"], "u1");
         assert_eq!(response["payload"]["connectedAt"], 1_700_000_000);
@@ -449,7 +506,7 @@ mod tests {
     #[tokio::test]
     async fn logs_lifecycle() {
         let state = fixture().await;
-        let registry = build_registry();
+        let registry = build_registry(&state);
         let client = handle("c0");
 
         {
@@ -459,71 +516,83 @@ mod tests {
                 .unwrap();
         }
 
-        let response = registry.dispatch(
-            &FrameId::number(1),
-            "logs.list",
-            &Value::Null,
-            &client,
+        let response = call(
+            &registry,
             &state,
-        );
+            &client,
+            FrameId::number(1),
+            "logs.list",
+            Value::Null,
+        )
+        .await;
         assert_eq!(response["payload"].as_array().unwrap().len(), 1);
 
-        let response = registry.dispatch(
-            &FrameId::number(2),
-            "logs.sources",
-            &Value::Null,
-            &client,
+        let response = call(
+            &registry,
             &state,
-        );
+            &client,
+            FrameId::number(2),
+            "logs.sources",
+            Value::Null,
+        )
+        .await;
         assert_eq!(response["payload"][0], "SYS");
 
-        let response = registry.dispatch(
-            &FrameId::number(3),
-            "logs.categories",
-            &Value::Null,
-            &client,
+        let response = call(
+            &registry,
             &state,
-        );
+            &client,
+            FrameId::number(3),
+            "logs.categories",
+            Value::Null,
+        )
+        .await;
         assert_eq!(response["payload"][0], "system");
 
-        let subscribe = registry.dispatch(
-            &FrameId::number(4),
-            "logs.subscribe",
-            &serde_json::json!({"level": "error"}),
-            &client,
+        let subscribe = call(
+            &registry,
             &state,
-        );
+            &client,
+            FrameId::number(4),
+            "logs.subscribe",
+            serde_json::json!({"level": "error"}),
+        )
+        .await;
         assert_eq!(subscribe["payload"]["subscribed"], true);
         assert!(client.has_subscription("logs:error:*"));
 
-        let response = registry.dispatch(
-            &FrameId::number(5),
-            "logs.unsubscribe",
-            &Value::Null,
-            &client,
+        let response = call(
+            &registry,
             &state,
-        );
+            &client,
+            FrameId::number(5),
+            "logs.unsubscribe",
+            Value::Null,
+        )
+        .await;
         assert_eq!(response["payload"]["unsubscribed"], true);
         assert!(!client.has_subscription("logs:error:*"));
 
-        let response = registry.dispatch(
-            &FrameId::number(6),
-            "logs.clear",
-            &Value::Null,
-            &client,
+        let response = call(
+            &registry,
             &state,
-        );
+            &client,
+            FrameId::number(6),
+            "logs.clear",
+            Value::Null,
+        )
+        .await;
         assert_eq!(response["payload"]["cleared"], 1);
     }
 
     #[tokio::test]
     async fn hello_ok_lists_methods_sorted() {
         let state = fixture().await;
-        let registry = build_registry();
+        let registry = build_registry(&state);
         let payload = hello_ok_payload(&registry, &state.registry);
         let methods = payload["methods"].as_array().unwrap();
-        assert_eq!(methods.len(), 8);
-        assert_eq!(methods[0], "logs.categories");
+        assert_eq!(methods.len(), 38);
+        assert_eq!(methods[0], "agent.v2.session.abort");
         assert_eq!(payload["server"]["version"], "1.0.0");
         assert_eq!(payload["events"].as_array().unwrap().len(), 29);
 
@@ -533,21 +602,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn pending_methods_do_not_collide_with_registered_ones() {
-        let registry = build_registry();
-        let registered = registry.method_names();
+    async fn family_methods_join_the_native_ones() {
+        let state = fixture().await;
+        let registered = build_registry(&state).method_names();
+        // 8 native methods (presence.*, logs.*) plus the 30 that the WS family serves.
+        assert_eq!(registered.len(), 38);
+        assert_eq!(pending_methods().len(), 30);
         for pending in pending_methods() {
             assert!(
-                !registered.iter().any(|name| name == pending),
-                "{pending} must not be registered twice"
+                registered.iter().any(|name| name == pending),
+                "{pending} must be registered"
             );
         }
-        // The TypeScript gateway registers 38 methods in total. S1 serves 8 of
-        // them from Rust; the remaining 30 stay on the TypeScript side until
-        // their slice lands. See src/server/gateway/methods/**.
-        assert_eq!(registered.len(), 8);
-        assert_eq!(pending_methods().len(), 30);
-        assert_eq!(registered.len() + pending_methods().len(), 38);
     }
 
     /// The complete method surface, sorted. Regenerate this list with the same
@@ -596,9 +662,8 @@ mod tests {
 
     #[tokio::test]
     async fn method_surface_matches_the_typescript_registry() {
-        let mut all = build_registry().method_names();
-        all.extend(pending_methods().iter().map(|name| name.to_string()));
-        all.sort();
+        let state = fixture().await;
+        let all = build_registry(&state).method_names();
 
         let mut expected: Vec<String> = FULL_METHOD_SURFACE
             .iter()

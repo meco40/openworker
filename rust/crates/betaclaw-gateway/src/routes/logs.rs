@@ -58,10 +58,9 @@ async fn list_logs(
     if user_id_from_headers(&headers).is_none() {
         return unauthorized_response();
     }
-    let guard = match state.logs.try_lock() {
-        Ok(guard) => guard,
-        Err(_) => return database_busy(),
-    };
+    // Wait for the repository instead of shedding the request: the TypeScript
+    // route serves concurrent readers, so a 503 here was a behaviour change.
+    let guard = state.logs.lock().await;
 
     if query.sources.is_some() {
         return match guard.get_sources() {
@@ -147,10 +146,9 @@ async fn clear_logs(State(state): State<SharedState>, headers: HeaderMap) -> Res
     if user_id_from_headers(&headers).is_none() {
         return unauthorized_response();
     }
-    let guard = match state.logs.try_lock() {
-        Ok(guard) => guard,
-        Err(_) => return database_busy(),
-    };
+    // Wait for the repository instead of shedding the request: the TypeScript
+    // route serves concurrent readers, so a 503 here was a behaviour change.
+    let guard = state.logs.lock().await;
     match guard.clear_logs() {
         Ok(deleted) => (
             StatusCode::OK,
@@ -188,10 +186,9 @@ async fn ingest(
             .into_response();
     };
 
-    let guard = match state.logs.try_lock() {
-        Ok(guard) => guard,
-        Err(_) => return database_busy(),
-    };
+    // Wait for the repository instead of shedding the request: the TypeScript
+    // route serves concurrent readers, so a 503 here was a behaviour change.
+    let guard = state.logs.lock().await;
 
     match betaclaw_core::logging::log_from_system_event(
         &guard,
@@ -206,14 +203,6 @@ async fn ingest(
             .into_response(),
         Err(error) => server_error(&error),
     }
-}
-
-fn database_busy() -> Response {
-    (
-        StatusCode::SERVICE_UNAVAILABLE,
-        Json(serde_json::json!({ "ok": false, "error": "Log repository is busy" })),
-    )
-        .into_response()
 }
 
 fn server_error(error: &betaclaw_core::logging::repository::LogRepositoryError) -> Response {

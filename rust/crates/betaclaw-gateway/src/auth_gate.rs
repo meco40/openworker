@@ -96,6 +96,18 @@ fn percent_decode(input: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+/// Replaces any inbound loopback marker with one derived from the socket peer. A
+/// client-supplied value never survives, so only a loopback peer carries the marker.
+fn set_client_loopback_marker(headers: &mut HeaderMap, socket_loopback: bool) {
+    headers.remove(CLIENT_LOOPBACK_HEADER);
+    if socket_loopback {
+        headers.insert(
+            CLIENT_LOOPBACK_HEADER,
+            axum::http::HeaderValue::from_static("1"),
+        );
+    }
+}
+
 pub async fn auth_gate_middleware(
     State(state): State<SharedState>,
     request: Request,
@@ -120,6 +132,7 @@ pub async fn auth_gate_middleware(
     // The marker is derived from the socket peer only. Any inbound value is
     // discarded, matching `applyClientLoopbackMarker` in `server.ts:110`.
     let socket_loopback = betaclaw_core::auth::policy::is_loopback_address(peer_ip.as_deref());
+    set_client_loopback_marker(&mut parts.headers, socket_loopback);
 
     let cookies = parse_cookies(&headers);
     let cookie_names = state.config.session_cookie_names();
@@ -256,6 +269,102 @@ pub type GateState = Arc<crate::state::AppState>;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::net::SocketAddr;
+    use std::path::PathBuf;
+
+    use axum::body::Body;
+    use axum::routing::get;
+    use axum::Router;
+    use betaclaw_core::config::GatewayConfig;
+    use betaclaw_core::gateway_config::ConfigBackend;
+    use tower::ServiceExt;
+
+    use crate::state::AppState;
+
+    /// Removes a gate test's scratch directory when the test ends.
+    struct GateScratch(PathBuf);
+
+    impl Drop for GateScratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    /// Every state migrates the same mission-control database, and overlapping
+    /// migrations fail with "database is locked". Gate tests build one at a time.
+    static GATE_STATE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Gateway state whose stores live in a fresh scratch directory. The routes
+    /// harness is private to `routes`, so the gate tests build their own.
+    fn gate_state() -> (SharedState, GateScratch) {
+        let _serial = GATE_STATE_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let dir = std::env::temp_dir().join(format!("betaclaw-auth-gate-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("create scratch dir");
+        let scratch = GateScratch(dir);
+        let path = |name: &str| scratch.0.join(name).to_string_lossy().into_owned();
+        let mut config = GatewayConfig::from_env().expect("test configuration resolves");
+        config.logs_db_path = ":memory:".to_string();
+        config.gateway_config_db_path = path("gateway-config.db");
+        config.gateway_config_backend = ConfigBackend::Db;
+        config.gateway_config_path = path("betaclaw.json");
+        config.personas_db_path = path("personas.db");
+        config.personas_root_path = path("personas");
+        config.messages_db_path = path("messages.db");
+        let state = Arc::new(AppState::new(config).expect("state initialises"));
+        (state, scratch)
+    }
+
+    /// Sends `GET /probe` from `peer` through the gate and reports how the handler
+    /// saw the loopback marker. `/probe` is outside `/api/`, so the gate admits it.
+    async fn probe_from(peer: &str, marker: Option<&str>) -> String {
+        let (state, _scratch) = gate_state();
+        let app = Router::new()
+            .route(
+                "/probe",
+                get(|headers: HeaderMap| async move {
+                    if request_is_loopback(&headers) {
+                        "loopback"
+                    } else {
+                        "remote"
+                    }
+                }),
+            )
+            .layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                auth_gate_middleware,
+            ))
+            .with_state(state);
+        let mut builder = axum::http::Request::builder().uri("/probe");
+        if let Some(value) = marker {
+            builder = builder.header(CLIENT_LOOPBACK_HEADER, value);
+        }
+        let mut request = builder.body(Body::empty()).expect("valid request");
+        let addr: SocketAddr = format!("{peer}:4000").parse().expect("socket address");
+        request.extensions_mut().insert(ConnectInfo(addr));
+        let response = app.oneshot(request).await.expect("infallible service");
+        let bytes = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .expect("read body");
+        String::from_utf8(bytes.to_vec()).expect("utf-8 body")
+    }
+
+    #[tokio::test]
+    async fn spoofed_marker_from_remote_peer_is_dropped() {
+        assert_eq!(probe_from("192.168.1.10", Some("1")).await, "remote");
+    }
+
+    #[tokio::test]
+    async fn loopback_peer_gets_marker_without_client_header() {
+        assert_eq!(probe_from("127.0.0.1", None).await, "loopback");
+    }
+
+    #[tokio::test]
+    async fn loopback_peer_marker_is_set_from_socket_over_client_value() {
+        assert_eq!(probe_from("127.0.0.1", Some("0")).await, "loopback");
+    }
 
     #[test]
     fn parses_cookie_header() {

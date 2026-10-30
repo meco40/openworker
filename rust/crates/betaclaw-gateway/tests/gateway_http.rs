@@ -14,6 +14,13 @@ use betaclaw_gateway::state::{AppState, GatewayRuntime};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
+/// Serialises the tests that read or write the process environment. `NODE_ENV` is
+/// process-wide, and `bind_rejects_production_without_auth` flips it to `production`
+/// for the duration of one bind. Without this lock a parallel test resolving its
+/// configuration at the same moment would observe `production` and fail. The guard is
+/// held across `await` points on purpose; a tokio mutex makes that safe.
+static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 /// Removes the scratch directory holding the gateway config database on drop.
 struct Scratch(std::path::PathBuf);
 
@@ -28,6 +35,9 @@ impl Drop for Scratch {
 /// `.local/` of the crate is never written. Keep the returned guard alive for
 /// the whole test.
 async fn spawn_gateway(require_auth: bool) -> (SocketAddr, Scratch) {
+    // Held until the state is built: `GatewayConfig::from_env` and `AppState::new` both
+    // read the process environment, which the production-guard test temporarily flips.
+    let _env = ENV_LOCK.lock().await;
     let scratch = Scratch(
         std::env::temp_dir().join(format!("betaclaw-gateway-http-{}", uuid::Uuid::new_v4())),
     );
@@ -332,6 +342,54 @@ async fn public_prefixes_skip_authentication() {
 }
 
 #[tokio::test]
+async fn auth_gate_protects_root_and_handles_rsc() {
+    let (address, _scratch) = spawn_gateway(true).await;
+
+    // Normal GET / without auth yields 302 redirect to /login?callbackUrl=%2F
+    let mut stream = TcpStream::connect(address).await.expect("connect");
+    stream
+        .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+        .await
+        .expect("write request");
+    stream.flush().await.expect("flush");
+
+    let mut response = Vec::new();
+    stream
+        .read_to_end(&mut response)
+        .await
+        .expect("read response");
+    let text = String::from_utf8_lossy(&response).into_owned();
+    let status = text
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .and_then(|code| code.parse::<u16>().ok())
+        .map(|code| StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR))
+        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    let (head, _) = text
+        .split_once("\r\n\r\n")
+        .map(|(h, b)| (h.to_string(), b.to_string()))
+        .unwrap_or_default();
+
+    assert_eq!(status, StatusCode::FOUND);
+    assert!(
+        head.to_lowercase()
+            .contains("location: /login?callbackurl=%2f"),
+        "expected redirect to /login, got headers: {head}"
+    );
+
+    // RSC request with query _rsc yields 401 Unauthorized
+    let (status_rsc, body_rsc) = http_get(address, "/?_rsc=123", &[]).await;
+    assert_eq!(status_rsc, StatusCode::UNAUTHORIZED);
+    assert_eq!(body_rsc, "Unauthorized");
+
+    // RSC request with header RSC: 1 yields 401 Unauthorized
+    let (status_rsc_h, body_rsc_h) = http_get(address, "/", &[("RSC", "1")]).await;
+    assert_eq!(status_rsc_h, StatusCode::UNAUTHORIZED);
+    assert_eq!(body_rsc_h, "Unauthorized");
+}
+
+#[tokio::test]
 async fn websocket_upgrade_rules_match_the_typescript_server() {
     let (address, _scratch) = spawn_gateway(false).await;
 
@@ -353,6 +411,69 @@ async fn websocket_upgrade_rules_match_the_typescript_server() {
     assert_eq!(status, 403, "cross-site upgrade must be rejected with 403");
 }
 
+/// A client close must be answered with a close frame, as the `ws` package does
+/// for the TypeScript server. Before this test, the socket writer held its own
+/// client handle, kept the outbound channel open and never flushed the reply.
+#[tokio::test]
+async fn websocket_client_close_is_answered() {
+    let (address, _scratch) = spawn_gateway(false).await;
+    let mut stream = TcpStream::connect(address).await.expect("connect");
+    let key = betaclaw_gateway::test_support::ws_accept_key();
+    let request = format!(
+        "GET /ws?protocol=v2 HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n"
+    );
+    stream.write_all(request.as_bytes()).await.expect("write");
+
+    let mut raw = Vec::new();
+    let mut chunk = vec![0u8; 8192];
+    while !String::from_utf8_lossy(&raw).contains("\r\n\r\n") {
+        let read = stream.read(&mut chunk).await.expect("read handshake");
+        assert!(read > 0, "connection closed during handshake");
+        raw.extend_from_slice(&chunk[..read]);
+    }
+    assert!(String::from_utf8_lossy(&raw).starts_with("HTTP/1.1 101"));
+
+    // Masked close frame, code 1000, zero mask key.
+    stream
+        .write_all(&[0x88, 0x82, 0, 0, 0, 0, 0x03, 0xE8])
+        .await
+        .expect("write close");
+
+    // Skip the server's text frames until the close frame arrives.
+    let header_end = String::from_utf8_lossy(&raw).find("\r\n\r\n").unwrap() + 4;
+    let mut frames = raw.split_off(header_end);
+    let answered = tokio::time::timeout(std::time::Duration::from_secs(3), async {
+        loop {
+            let mut offset = 0;
+            while frames.len() >= offset + 2 {
+                let opcode = frames[offset] & 0x0F;
+                let (len, head) = match frames[offset + 1] & 0x7F {
+                    126 if frames.len() >= offset + 4 => (
+                        u16::from_be_bytes([frames[offset + 2], frames[offset + 3]]) as usize,
+                        4,
+                    ),
+                    126 | 127 => break,
+                    len => (len as usize, 2),
+                };
+                if opcode == 0x8 {
+                    return true;
+                }
+                if frames.len() < offset + head + len {
+                    break;
+                }
+                offset += head + len;
+            }
+            frames.drain(..offset);
+            match stream.read(&mut chunk).await {
+                Ok(0) | Err(_) => return false,
+                Ok(read) => frames.extend_from_slice(&chunk[..read]),
+            }
+        }
+    })
+    .await;
+    assert_eq!(answered, Ok(true), "server must answer the client close");
+}
+
 #[tokio::test]
 async fn websocket_handshake_yields_hello_ok() {
     let (address, _scratch) = spawn_gateway(false).await;
@@ -365,7 +486,8 @@ async fn websocket_handshake_yields_hello_ok() {
     assert_eq!(value["event"], "hello-ok");
     assert_eq!(value["payload"]["server"]["version"], "1.0.0");
     assert_eq!(value["payload"]["events"].as_array().unwrap().len(), 29);
-    assert_eq!(value["payload"]["methods"].as_array().unwrap().len(), 8);
+    // 8 native methods (presence, logs) plus the 30 that the WS family serves.
+    assert_eq!(value["payload"]["methods"].as_array().unwrap().len(), 38);
     // The method list must be sorted so the payload is byte-stable.
     let methods: Vec<String> = value["payload"]["methods"]
         .as_array()
@@ -380,7 +502,9 @@ async fn websocket_handshake_yields_hello_ok() {
 
 #[tokio::test]
 async fn bind_rejects_production_without_auth() {
-    // A production configuration without REQUIRE_AUTH must refuse to bind.
+    // A production configuration without REQUIRE_AUTH must refuse to bind. `NODE_ENV` is
+    // process-wide, so the flip is serialised against the other tests through `ENV_LOCK`.
+    let _env = ENV_LOCK.lock().await;
     let mut config = GatewayConfig::from_env().expect("config resolves");
     config.logs_db_path = ":memory:".to_string();
     config.hostname = "127.0.0.1".to_string();

@@ -6,11 +6,19 @@
 //! there is exactly one front door and exactly one auth path.
 
 pub mod auth_gate;
+pub mod background;
+pub mod families;
 pub mod gateway_methods;
+pub mod knowledge_runtime;
 pub mod model_hub_transport;
+pub mod persona_poller;
 pub mod proxy;
 pub mod routes;
+pub mod scheduler_runtime;
 pub mod state;
+pub mod static_ui;
+pub mod swarm_runtime;
+pub mod workspace_cleanup;
 pub mod ws;
 
 pub use state::{AppState, GatewayRuntime};

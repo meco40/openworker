@@ -1,0 +1,115 @@
+{
+  "input": {
+    "id": "swarm-fixture",
+    "conversationId": "conversation-fixture",
+    "userId": "swarm-user",
+    "sessionId": null,
+    "title": "Parity room",
+    "task": "Agree on a plan",
+    "leadPersonaId": "lead",
+    "units": [
+      {
+        "personaId": "lead",
+        "role": "Lead"
+      }
+    ],
+    "status": "running",
+    "currentPhase": "analysis",
+    "consensusScore": 0,
+    "holdFlag": false,
+    "artifact": "",
+    "artifactHistory": [],
+    "friction": {
+      "level": "low",
+      "confidence": 0.0,
+      "hold": false,
+      "reasons": [],
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "lastSeq": 0,
+    "currentDeployCommandId": null,
+    "searchEnabled": false,
+    "swarmTemplate": null,
+    "pauseBetweenPhases": false,
+    "phaseBuffer": [],
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  },
+  "dispatch": {
+    "sessionId": "session-fixture",
+    "status": "running",
+    "currentPhase": "analysis",
+    "consensusScore": 0,
+    "holdFlag": false,
+    "artifact": "",
+    "artifactHistory": [],
+    "friction": {
+      "level": "low",
+      "confidence": 0.0,
+      "hold": false,
+      "reasons": [],
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "lastSeq": 0,
+    "currentDeployCommandId": "agent-command-fixture",
+    "phaseBuffer": [
+      {
+        "type": "agentsession",
+        "personaId": "lead",
+        "sessionId": "session-fixture",
+        "lastSeq": 0
+      },
+      {
+        "type": "speaker",
+        "personaId": "lead"
+      }
+    ]
+  },
+  "completion": {
+    "sessionId": "session-fixture",
+    "status": "running",
+    "currentPhase": "research",
+    "consensusScore": 50,
+    "holdFlag": false,
+    "artifact": "--- Analysis ---\n\n**[lead]:** Agreed\n\n--- Research ---",
+    "artifactHistory": ["--- Analysis ---\n\n**[lead]:** Agreed\n\n--- Research ---"],
+    "friction": {
+      "level": "low",
+      "confidence": 0.0,
+      "hold": false,
+      "reasons": [],
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "lastSeq": 5,
+    "currentDeployCommandId": null,
+    "phaseBuffer": [
+      {
+        "type": "agentsession",
+        "personaId": "lead",
+        "sessionId": "session-fixture",
+        "lastSeq": 5
+      },
+      {
+        "type": "phaseSummaryPending",
+        "fromPhase": "analysis"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "kind": "input",
+      "content": "You are lead (Lead) in a multi-persona swarm.\n\nROOM: Parity room\n\nGOAL: Agree on a plan\n\nPHASE: Analysis\n\nPARTICIPANTS:\n- lead (Lead)\n\nPHASE GUIDANCE: Identify key assumptions, risks, constraints, and open questions about the task.\n\nRULES:\n\n1) Start exactly with **[lead]:**\n\n2) Speak only as lead.\n\n3) Respond directly to what the other participants said — this is a live discussion.\n\n4) Keep it concise and concrete.\n\n5) Do not output another participant label (for example **[Other Agent]:**).\n\n6) Do not change phase — phases are managed automatically.\n\n8) If useful, include a mermaid code block for flow/architecture.",
+      "idempotencyKey": "swarm-swarm-fixture:turn-0"
+    }
+  ],
+  "terminal": {
+    "commandId": "agent-command-fixture",
+    "type": "agent.v2.command.completed",
+    "seq": 5,
+    "payload": {
+      "result": {
+        "message": "**[lead]:** Agreed [VOTE:UP]"
+      }
+    }
+  }
+}

@@ -6,9 +6,17 @@
 //! the persona. Errors keep the `{ ok: false, error }` shape. Other methods are
 //! proxied to Next.js.
 //!
-//! `DELETE` removes the rows only. The TypeScript side also aborts an in-flight
-//! generation and clears its summary and recall state. Those live in the Node
-//! process, so this port cannot reach them yet (see docs/RUST_MIGRATION.md, S3).
+//! `DELETE` removes the conversation and every derived row the shared messages
+//! database owns. The TypeScript side additionally aborts an in-flight
+//! generation (`abortGeneration`) and clears the per-conversation summary and
+//! recall state (`summaryService.clearInFlight`,
+//! `recallService.clearConversationState`, `maintenance/operations.ts:41-51`).
+//! That state belongs to the Node process that runs the generation loop; the
+//! gateway has no dispatch loop yet, so nothing in Rust holds it. This is the
+//! honest remainder of OP-1 until S8.
+//!
+//! `logChatDisplayTrace` for the `GET` path is ported in `channel_support`
+//! (`http.conversations.complete`), so OP-2 is closed for this route.
 
 use std::collections::HashMap;
 
@@ -26,7 +34,10 @@ use serde_json::{json, Value};
 
 use crate::auth_gate::{unauthorized_response, user_id_from_headers};
 use crate::proxy::proxy_to_upstream;
-use crate::routes::channel_support::{emit_inbox_updated, error_response, failure};
+use crate::routes::channel_support::{
+    emit_inbox_updated, error_response, failure, get_chat_display_slow_threshold_ms,
+    log_chat_display_trace,
+};
 use crate::state::SharedState;
 
 /// `listConversations(limit = 50)` default in `repository/queries/conversations.ts`.
@@ -48,6 +59,7 @@ async fn list_conversations(State(state): State<SharedState>, headers: HeaderMap
     let Some(user_id) = user_id_from_headers(&headers) else {
         return unauthorized_response();
     };
+    let started = std::time::Instant::now();
     let store = state.messages.lock().await;
     // Ensures the default WebChat conversation exists, so the input is never disabled.
     if let Err(error) = store.get_default_webchat_conversation(Some(user_id.as_str())) {
@@ -55,6 +67,17 @@ async fn list_conversations(State(state): State<SharedState>, headers: HeaderMap
     }
     match store.list_conversations(LIST_LIMIT, Some(user_id.as_str())) {
         Ok(conversations) => {
+            let duration_ms = started.elapsed().as_millis() as u64;
+            log_chat_display_trace(
+                "http.conversations.complete",
+                &json!({
+                    "path": "/api/channels/conversations",
+                    "userId": user_id,
+                    "returned": conversations.len(),
+                    "durationMs": duration_ms,
+                }),
+                duration_ms >= get_chat_display_slow_threshold_ms(),
+            );
             Json(json!({ "ok": true, "conversations": conversations })).into_response()
         }
         Err(error) => failure(&error),

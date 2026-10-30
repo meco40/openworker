@@ -1,0 +1,8 @@
+{
+  "generator": "next-auth/core.AuthHandler",
+  "nextAuthVersion": "4.24.15",
+  "secret": "betaclaw-nextauth-fixture-secret",
+  "csrfToken": "4f14a286acfcd362e9600c1413ae80e7ae24620fabbd5618924f58f34f352dc2",
+  "csrfCookie": "4f14a286acfcd362e9600c1413ae80e7ae24620fabbd5618924f58f34f352dc2%7Ced7d2c86a83f7caec72f7afc47019bf7ae648c50615fa9ec8598bf852c60fa5c",
+  "setCookie": "next-auth.csrf-token=4f14a286acfcd362e9600c1413ae80e7ae24620fabbd5618924f58f34f352dc2%7Ced7d2c86a83f7caec72f7afc47019bf7ae648c50615fa9ec8598bf852c60fa5c; Path=/; HttpOnly; SameSite=Lax"
+}

@@ -5,7 +5,9 @@
 //! the top level of the response, i.e. `{ ok: true, ...snapshot }`, and report
 //! failures as `{ ok: false, error }` with status 500.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{LazyLock, Mutex, PoisonError};
 
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -145,34 +147,109 @@ fn channel_secret_configured(state: &SharedState, channel: &str, key: &str) -> b
 }
 
 fn lookup_channel_credential(db_path: &str, channel: &str, key: &str) -> Option<String> {
-    if !Path::new(db_path).exists() {
-        return None;
+    read_channel_credential(db_path, channel, key).filter(|value| !value.trim().is_empty())
+}
+
+/// Read-only connections to the messages database, one per path.
+///
+/// Opening a connection per lookup re-parses the whole schema every time, and
+/// under load SQLite's global allocator mutex then serialises all workers: a
+/// perf profile put 99% of `/api/security/status` there. The TypeScript side
+/// reads through one long-lived repository connection, so reusing one here
+/// restores that behaviour.
+///
+/// OP-20: File identity check detects if the file was deleted and recreated or
+/// swapped at the same path at runtime, automatically invalidating stale handles.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FileIdentity {
+    len: u64,
+    modified: Option<std::time::SystemTime>,
+    #[cfg(unix)]
+    dev: u64,
+    #[cfg(unix)]
+    ino: u64,
+}
+
+impl FileIdentity {
+    fn from_path(path: &Path) -> Option<Self> {
+        let meta = std::fs::metadata(path).ok()?;
+        Some(Self {
+            len: meta.len(),
+            modified: meta.modified().ok(),
+            #[cfg(unix)]
+            dev: std::os::unix::fs::MetadataExt::dev(&meta),
+            #[cfg(unix)]
+            ino: std::os::unix::fs::MetadataExt::ino(&meta),
+        })
     }
-    let connection = Connection::open_with_flags(
-        db_path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
-    .ok()?;
+}
+
+struct CachedCredentialConnection {
+    connection: Connection,
+    identity: FileIdentity,
+}
+
+static CREDENTIAL_CONNECTIONS: LazyLock<Mutex<HashMap<String, CachedCredentialConnection>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// `SELECT value FROM channel_credentials`, read-only, raw value. Shared with the
+/// diagnostics family, which needs the unfiltered value (e.g. `pairing_status`).
+pub(crate) fn read_channel_credential(db_path: &str, channel: &str, key: &str) -> Option<String> {
+    let path = Path::new(db_path);
+    let identity = FileIdentity::from_path(path)?;
+
+    let mut connections = CREDENTIAL_CONNECTIONS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+
+    if let Some(cached) = connections.get(db_path) {
+        if cached.identity != identity {
+            connections.remove(db_path);
+        }
+    }
+
+    if !connections.contains_key(db_path) {
+        let connection = Connection::open_with_flags(
+            db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .ok()?;
+        connections.insert(
+            db_path.to_string(),
+            CachedCredentialConnection {
+                connection,
+                identity,
+            },
+        );
+    }
+
+    let cached = connections.get(db_path)?;
+    let result = query_channel_credential(&cached.connection, channel, key);
+    if result.is_err() {
+        // Reopen on the next lookup instead of keeping a broken handle.
+        connections.remove(db_path);
+    }
+    result.ok().flatten()
+}
+
+fn query_channel_credential(
+    connection: &Connection,
+    channel: &str,
+    key: &str,
+) -> rusqlite::Result<Option<String>> {
     let exists: Option<i64> = connection
-        .query_row(
+        .prepare_cached(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='channel_credentials'",
-            [],
-            |row| row.get(0),
-        )
-        .optional()
-        .ok()
-        .flatten();
-    exists?;
+        )?
+        .query_row([], |row| row.get(0))
+        .optional()?;
+    if exists.is_none() {
+        return Ok(None);
+    }
     connection
-        .query_row(
-            "SELECT value FROM channel_credentials WHERE channel = ?1 AND key = ?2",
-            params![channel, key],
-            |row| row.get::<_, String>(0),
-        )
+        .prepare_cached("SELECT value FROM channel_credentials WHERE channel = ?1 AND key = ?2")?
+        .query_row(params![channel, key], |row| row.get::<_, String>(0))
         .optional()
-        .ok()
-        .flatten()
-        .filter(|value| !value.trim().is_empty())
 }
 
 #[cfg(test)]
@@ -287,5 +364,69 @@ mod tests {
             "webhook_secret"
         )
         .is_none());
+    }
+
+    #[test]
+    fn cached_credential_connection_sees_later_writes() {
+        let scratch = ScratchDir::new();
+        let db = scratch.path_string("messages.db");
+        let writer = Connection::open(&db).unwrap();
+        writer
+            .execute_batch(
+                "CREATE TABLE channel_credentials (channel TEXT, key TEXT, value TEXT);
+                 INSERT INTO channel_credentials VALUES ('slack', 'webhook_secret', 'first');",
+            )
+            .unwrap();
+        assert_eq!(
+            read_channel_credential(&db, "slack", "webhook_secret").as_deref(),
+            Some("first")
+        );
+
+        writer
+            .execute(
+                "UPDATE channel_credentials SET value = 'second' WHERE channel = 'slack'",
+                [],
+            )
+            .unwrap();
+        assert_eq!(
+            read_channel_credential(&db, "slack", "webhook_secret").as_deref(),
+            Some("second")
+        );
+        assert!(read_channel_credential(&db, "discord", "webhook_secret").is_none());
+    }
+
+    #[test]
+    fn cached_credential_connection_reopens_when_file_recreated() {
+        let scratch = ScratchDir::new();
+        let db = scratch.path_string("messages_recreate.db");
+        {
+            let writer = Connection::open(&db).unwrap();
+            writer
+                .execute_batch(
+                    "CREATE TABLE channel_credentials (channel TEXT, key TEXT, value TEXT);
+                     INSERT INTO channel_credentials VALUES ('slack', 'webhook_secret', 'initial');",
+                )
+                .unwrap();
+        }
+        assert_eq!(
+            read_channel_credential(&db, "slack", "webhook_secret").as_deref(),
+            Some("initial")
+        );
+
+        // Delete the file and recreate it with new data
+        std::fs::remove_file(&db).unwrap();
+        {
+            let writer = Connection::open(&db).unwrap();
+            writer
+                .execute_batch(
+                    "CREATE TABLE channel_credentials (channel TEXT, key TEXT, value TEXT);
+                     INSERT INTO channel_credentials VALUES ('slack', 'webhook_secret', 'recreated');",
+                )
+                .unwrap();
+        }
+        assert_eq!(
+            read_channel_credential(&db, "slack", "webhook_secret").as_deref(),
+            Some("recreated")
+        );
     }
 }

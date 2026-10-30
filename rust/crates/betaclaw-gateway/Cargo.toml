@@ -18,6 +18,10 @@ test-support = []
 name = "betaclaw-gateway"
 path = "src/main.rs"
 
+[[bin]]
+name = "betaclaw-scheduler"
+path = "src/bin/betaclaw-scheduler.rs"
+
 [dependencies]
 betaclaw-core = { path = "../betaclaw-core" }
 
@@ -31,10 +35,12 @@ http = { workspace = true }
 http-body-util = { workspace = true }
 hyper = { workspace = true }
 hyper-util = { workspace = true }
+mime_guess = { workspace = true }
 reqwest = { workspace = true }
 rusqlite = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_urlencoded = { workspace = true }
 sha2 = { workspace = true }
 subtle = { workspace = true }
 thiserror = { workspace = true }
@@ -42,6 +48,7 @@ tokio = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true }
 tracing = { workspace = true }
+url = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
 

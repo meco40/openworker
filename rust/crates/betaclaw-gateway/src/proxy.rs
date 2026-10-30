@@ -7,7 +7,8 @@
 //! 2. `/ws` — the WebSocket upgrade, handled natively.
 //! 3. Migrated API routes — served in Rust.
 //! 4. Everything else, including non-migrated `/api/*` — reverse-proxied to the
-//!    Next.js UI process.
+//!    Next.js UI process. HTTP upgrades (Next.js dev HMR) are tunnelled byte for
+//!    byte instead.
 //!
 //! Step 4 is the temporary proxy. It disappears in slice S13, when the last
 //! route has moved to Rust and Next.js only serves static UI assets.
@@ -16,14 +17,19 @@ use std::sync::Arc;
 
 use axum::body::Body;
 use axum::extract::{Request, State};
-use axum::http::{HeaderName, HeaderValue, StatusCode, Uri};
+use axum::http::header::{CONNECTION, UPGRADE};
+use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use axum::Router;
+use axum::{Extension, Router};
+use bytes::Bytes;
+use http_body_util::Empty;
+use hyper_util::rt::TokioIo;
 
 use betaclaw_core::auth::policy::CLIENT_LOOPBACK_HEADER;
 
 use crate::auth_gate::auth_gate_middleware;
+use crate::families::cutover::ProxyFallback;
 use crate::routes;
 use crate::state::SharedState;
 
@@ -47,7 +53,13 @@ const HOP_BY_HOP: &[&str] = &[
 const PROXY_MAX_BODY_BYTES: usize = 16 * 1024 * 1024;
 
 pub fn build_router(state: SharedState) -> Router {
-    Router::new()
+    // Fallback for families that are switched to the proxy. The cutover gate reads it
+    // from the request.
+    let proxy = ProxyFallback::new({
+        let state = state.clone();
+        move |request: Request| proxy_to_upstream(State(state.clone()), request)
+    });
+    let router = Router::new()
         // Infrastructure endpoint. Deliberately outside `/api` so it cannot be
         // confused with the public API contract.
         .route("/__rust/health", get(rust_health))
@@ -55,7 +67,21 @@ pub fn build_router(state: SharedState) -> Router {
         // Migrated routes. The list is explicit so the migration surface is
         // reviewable at a glance; see docs/RUST_MIGRATION.md.
         .merge(routes::router())
-        .fallback(proxy_to_upstream)
+        .fallback(crate::static_ui::static_fallback)
+        // Family services and the cutover switch. The layers wrap every route merged
+        // above, so they are attached after the merge.
+        .layer(Extension(state.cutover.clone()))
+        .layer(Extension(proxy))
+        .layer(Extension(state.master.clone()))
+        .layer(Extension(state.skills.clone()))
+        .layer(Extension(state.stats.clone()))
+        .layer(Extension(state.ops.clone()))
+        .layer(Extension(state.tasks.clone()));
+    let router = match state.channels.get() {
+        Some(channels) => router.layer(Extension(channels.clone())),
+        None => router,
+    };
+    router
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth_gate_middleware,
@@ -85,6 +111,10 @@ pub(crate) async fn proxy_to_upstream(
     State(state): State<SharedState>,
     request: Request,
 ) -> Response {
+    if is_upgrade_request(request.headers()) {
+        return proxy_upgrade(&state, request).await;
+    }
+
     let peer = request
         .extensions()
         .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
@@ -176,6 +206,118 @@ pub(crate) async fn proxy_to_upstream(
     }
 }
 
+/// Tunnels an HTTP upgrade (WebSocket, used by Next.js dev HMR) to the UI.
+///
+/// reqwest does not expose the upgraded socket, so this hop speaks hyper
+/// directly. When both sides answer 101 the two sockets are piped byte for byte.
+async fn proxy_upgrade(state: &SharedState, mut request: Request) -> Response {
+    let peer = request
+        .extensions()
+        .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+        .map(|info| info.0.ip());
+
+    let upstream = build_upstream_uri(&state.config.upstream_origin, request.uri());
+    let Some(authority) = upstream.authority() else {
+        return proxy_unavailable();
+    };
+    let port = authority.port_u16().unwrap_or(80);
+    let Ok(stream) = tokio::net::TcpStream::connect((authority.host(), port)).await else {
+        tracing::error!(upstream = %upstream, "Upgrade target is unreachable");
+        return proxy_unavailable();
+    };
+    let Ok((mut sender, connection)) =
+        hyper::client::conn::http1::handshake(TokioIo::new(stream)).await
+    else {
+        return proxy_unavailable();
+    };
+    tokio::spawn(async move {
+        if let Err(error) = connection.with_upgrades().await {
+            tracing::debug!(error = %error, "Upgrade connection to the UI closed");
+        }
+    });
+
+    // Same marker rule as the plain proxy path: client value dropped, re-derived
+    // from the socket peer. Connection and Upgrade must stay, the handshake needs them.
+    let mut headers = request.headers().clone();
+    headers.remove(CLIENT_LOOPBACK_HEADER);
+    if let Some(ip) = peer {
+        if betaclaw_core::auth::policy::is_loopback_address(Some(&ip.to_string())) {
+            headers.insert(
+                HeaderName::from_static(CLIENT_LOOPBACK_HEADER),
+                HeaderValue::from_static("1"),
+            );
+        }
+    }
+    let path = request
+        .uri()
+        .path_and_query()
+        .cloned()
+        .map(Uri::from)
+        .unwrap_or_else(|| Uri::from_static("/"));
+    let mut upstream_request = hyper::Request::new(Empty::<Bytes>::new());
+    *upstream_request.method_mut() = request.method().clone();
+    *upstream_request.uri_mut() = path;
+    *upstream_request.headers_mut() = headers;
+
+    let mut upstream_response = match sender.send_request(upstream_request).await {
+        Ok(response) => response,
+        Err(error) => {
+            tracing::error!(error = %error, upstream = %upstream, "Upgrade request to the UI failed");
+            return proxy_unavailable();
+        }
+    };
+
+    if upstream_response.status() != StatusCode::SWITCHING_PROTOCOLS {
+        return relay_plain_response(upstream_response);
+    }
+
+    let upstream_upgrade = hyper::upgrade::on(&mut upstream_response);
+    let client_upgrade = hyper::upgrade::on(&mut request);
+    tokio::spawn(async move {
+        match tokio::try_join!(client_upgrade, upstream_upgrade) {
+            Ok((client, upstream)) => {
+                let mut client = TokioIo::new(client);
+                let mut upstream = TokioIo::new(upstream);
+                if let Err(error) = tokio::io::copy_bidirectional(&mut client, &mut upstream).await
+                {
+                    tracing::debug!(error = %error, "Tunnelled upgrade closed");
+                }
+            }
+            Err(error) => tracing::warn!(error = %error, "Upgrade handshake failed"),
+        }
+    });
+
+    let (parts, _) = upstream_response.into_parts();
+    let mut response = Response::new(Body::empty());
+    *response.status_mut() = parts.status;
+    *response.headers_mut() = parts.headers;
+    response
+}
+
+/// Passes a non-101 answer from the UI to the client, minus hop-by-hop headers.
+fn relay_plain_response(response: hyper::Response<hyper::body::Incoming>) -> Response {
+    let (mut parts, body) = response.into_parts();
+    let mut headers = HeaderMap::new();
+    for (name, value) in parts.headers.iter() {
+        if !is_hop_by_hop(name.as_str()) {
+            headers.append(name.clone(), value.clone());
+        }
+    }
+    parts.headers = headers;
+    Response::from_parts(parts, Body::new(body))
+}
+
+/// An upgrade needs both `Connection: upgrade` and an `Upgrade` header (RFC 9110 7.8).
+fn is_upgrade_request(headers: &HeaderMap) -> bool {
+    headers.contains_key(UPGRADE)
+        && headers.get_all(CONNECTION).iter().any(|value| {
+            value.to_str().is_ok_and(|text| {
+                text.split(',')
+                    .any(|token| token.trim().eq_ignore_ascii_case("upgrade"))
+            })
+        })
+}
+
 fn is_hop_by_hop(name: &str) -> bool {
     HOP_BY_HOP.contains(&name)
 }
@@ -254,6 +396,20 @@ mod tests {
         let uri: Uri = "/".parse().unwrap();
         let upstream = build_upstream_uri("http://127.0.0.1:3001", &uri);
         assert!(upstream.path().starts_with('/'));
+    }
+
+    #[test]
+    fn upgrade_needs_both_connection_token_and_upgrade_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert(UPGRADE, HeaderValue::from_static("websocket"));
+        headers.insert(CONNECTION, HeaderValue::from_static("keep-alive, Upgrade"));
+        assert!(is_upgrade_request(&headers));
+
+        headers.remove(CONNECTION);
+        assert!(!is_upgrade_request(&headers));
+
+        let plain = HeaderMap::new();
+        assert!(!is_upgrade_request(&plain));
     }
 
     #[test]
