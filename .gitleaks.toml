@@ -10,4 +10,7 @@ regexes = [
   '''^env\.MEM0_API_KEY$''',
   '''^sk_test_ABC1234567$''',
   '''^eyJhbGciOiJIUzI1NiIs(\.\.\.)?$''',
+  '''^sk-1234567890$''',
+  '''^ghp_abcdef1234567890$''',
+  '''^00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff$''',
 ]
