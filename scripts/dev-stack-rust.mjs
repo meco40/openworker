@@ -21,6 +21,8 @@ import net from 'node:net';
 import path, { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { hostDataEnv } from './dev-host-data.mjs';
+
 const require = createRequire(import.meta.url);
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..');
@@ -166,6 +168,7 @@ function startRustGateway(port, isStaticMode, staticDir) {
       cwd: repoRoot,
       env: {
         ...process.env,
+        ...hostDataEnv(repoRoot),
         PORT: String(port),
         HOSTNAME: '127.0.0.1',
         GATEWAY_UPSTREAM_ORIGIN: `http://127.0.0.1:${UI_PORT}`,
@@ -309,6 +312,7 @@ function startRustScheduler(binaryPath) {
     cwd: repoRoot,
     env: {
       ...process.env,
+      ...hostDataEnv(repoRoot),
       BETACLAW_DEV_CHILD: 'scheduler',
       RUST_LOG: process.env.RUST_LOG || 'info',
     },
