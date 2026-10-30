@@ -111,6 +111,13 @@ impl ClientHandle {
         self.adjust_buffered(-(bytes as isize));
     }
 
+    /// The byte counter alone, for the socket writer. The writer must not hold
+    /// a full handle: its sender would keep the outbound channel, and with it
+    /// the writer and the socket, open after the reader has ended.
+    pub fn buffered_counter(&self) -> Arc<AtomicUsize> {
+        self.buffered_bytes.clone()
+    }
+
     pub fn add_subscription(&self, key: impl Into<String>) {
         if let Ok(mut set) = self.subscriptions.lock() {
             set.insert(key.into());

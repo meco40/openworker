@@ -217,6 +217,29 @@ pub fn decode_session_token(
     })
 }
 
+/// Returns true if nextauth_url requires secure cookies.
+pub fn use_secure_cookies(nextauth_url: &str) -> bool {
+    nextauth_url.trim().starts_with("https://")
+}
+
+/// The session cookie name depending on whether secure cookies are enabled.
+pub fn session_cookie_name(use_secure: bool) -> &'static str {
+    if use_secure {
+        "__Secure-next-auth.session-token"
+    } else {
+        "next-auth.session-token"
+    }
+}
+
+/// The CSRF cookie name depending on whether secure cookies are enabled.
+pub fn csrf_cookie_name(use_secure: bool) -> &'static str {
+    if use_secure {
+        "__Host-next-auth.csrf-token"
+    } else {
+        "next-auth.csrf-token"
+    }
+}
+
 /// Decodes a session cookie for each candidate cookie name and returns the first
 /// token that validates.
 ///
@@ -264,6 +287,43 @@ pub fn chunk_cookie_value(value: &str) -> Vec<String> {
         .chunks(CHUNK_SIZE)
         .map(|chunk| chunk.iter().collect())
         .collect()
+}
+
+/// Encrypts a JSON payload into a compact JWE session token matching next-auth@4.24.15.
+pub fn encode_session_token(secret: &str, payload_json: &str) -> Result<String, JweError> {
+    let key_bytes = derive_key(secret);
+    let cipher = Aes256Gcm::new_from_slice(&key_bytes).map_err(|_| JweError::DecryptFailed)?;
+
+    let mut iv = [0u8; 12];
+    getrandom::fill(&mut iv).map_err(|_| JweError::DecryptFailed)?;
+
+    let header = br#"{"alg":"dir","enc":"A256GCM"}"#;
+    let header_b64 = URL_SAFE_NO_PAD.encode(header);
+
+    let nonce = Nonce::try_from(iv.as_slice()).map_err(|_| JweError::Malformed)?;
+    let cipher_result = cipher
+        .encrypt(
+            &nonce,
+            Payload {
+                msg: payload_json.as_bytes(),
+                aad: header_b64.as_bytes(),
+            },
+        )
+        .map_err(|_| JweError::DecryptFailed)?;
+
+    if cipher_result.len() < 16 {
+        return Err(JweError::Malformed);
+    }
+    let (ciphertext, tag) = cipher_result.split_at(cipher_result.len() - 16);
+
+    Ok(format!(
+        "{}.{}.{}.{}.{}",
+        header_b64,
+        "",
+        URL_SAFE_NO_PAD.encode(iv),
+        URL_SAFE_NO_PAD.encode(ciphertext),
+        URL_SAFE_NO_PAD.encode(tag),
+    ))
 }
 
 #[cfg(test)]
@@ -427,6 +487,21 @@ mod tests {
         )
         .unwrap();
         assert_eq!(decoded.user_id, "usr-chunk");
+    }
+
+    #[test]
+    fn encode_session_token_round_trips() {
+        let payload = r#"{"id":"usr-encoded","name":"Encoded User","email":"enc@example.com","exp":4102444800}"#;
+        let token = encode_session_token(SECRET, payload).expect("encode should succeed");
+        let parts: Vec<&str> = token.split('.').collect();
+        assert_eq!(parts.len(), 5);
+        assert_eq!(parts[1], "");
+
+        let decoded = decode_session_token(&token, SECRET, COOKIE, 1_000_000).unwrap();
+        assert_eq!(decoded.user_id, "usr-encoded");
+        assert_eq!(decoded.name.as_deref(), Some("Encoded User"));
+        assert_eq!(decoded.email.as_deref(), Some("enc@example.com"));
+        assert_eq!(decoded.expires_at, Some(4102444800));
     }
 }
 

@@ -50,6 +50,17 @@ pub fn normalize_user_id(user_id: Option<&str>) -> String {
         .unwrap_or_else(|| LEGACY_LOCAL_USER_ID.to_string())
 }
 
+/// `userId ? this.normalizeUserId(userId) : null` as used by the read queries.
+///
+/// The truthy test runs on the raw value, so `""` means "no user scope" while
+/// `"   "` is scoped to the legacy user. `normalize_user_id` alone would scope
+/// `""` to the legacy user, which the source never does.
+pub fn scoped_user_id(user_id: Option<&str>) -> Option<String> {
+    user_id
+        .filter(|value| !value.is_empty())
+        .map(|value| normalize_user_id(Some(value)))
+}
+
 /// `new Date().toISOString()` — millisecond precision, always UTC, `Z` suffix.
 pub fn now_iso() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
@@ -650,6 +661,17 @@ pub struct InboxListResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_empty_user_id_is_no_scope_but_a_blank_one_is_the_legacy_user() {
+        assert_eq!(scoped_user_id(None), None);
+        assert_eq!(scoped_user_id(Some("")), None);
+        assert_eq!(
+            scoped_user_id(Some("   ")),
+            Some(LEGACY_LOCAL_USER_ID.to_string())
+        );
+        assert_eq!(scoped_user_id(Some(" u-1 ")), Some("u-1".to_string()));
+    }
 
     #[test]
     fn normalize_user_id_falls_back_for_blank_input() {

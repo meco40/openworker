@@ -26,7 +26,8 @@ use rusqlite::{params, Connection, OptionalExtension};
 use super::row_mappers::to_conversation;
 use super::trace::{log_inbox_db_query, QueryTimer};
 use super::types::{
-    normalize_user_id, now_iso, Conversation, CreateConversationInput, MessageRepositoryError,
+    normalize_user_id, now_iso, scoped_user_id, Conversation, CreateConversationInput,
+    MessageRepositoryError,
 };
 
 /// `ConversationQueries` from `conversations.ts:9`.
@@ -82,7 +83,7 @@ impl<'a> ConversationQueries<'a> {
         user_id: Option<&str>,
     ) -> Result<Option<Conversation>, MessageRepositoryError> {
         let timer = QueryTimer::start();
-        let normalized_user_id = user_id.map(|value| normalize_user_id(Some(value)));
+        let normalized_user_id = scoped_user_id(user_id);
 
         let conversation = match normalized_user_id.as_deref() {
             Some(user_id) => self
@@ -169,7 +170,7 @@ impl<'a> ConversationQueries<'a> {
         user_id: Option<&str>,
     ) -> Result<Vec<Conversation>, MessageRepositoryError> {
         let timer = QueryTimer::start();
-        let normalized_user_id = user_id.map(|value| normalize_user_id(Some(value)));
+        let normalized_user_id = scoped_user_id(user_id);
 
         let rows: Vec<Conversation> = match normalized_user_id.as_deref() {
             Some(user_id) => {

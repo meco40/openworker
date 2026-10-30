@@ -6,18 +6,18 @@
 //! table is a port of the `switch` in `transitionLifecycle.ts:19-37`, including
 //! its default branch, which leaves the status untouched for an unknown signal.
 //!
-//! # The event bus is a seam, not a dependency
+//! # Lifecycle events
 //!
 //! `publishMemoryLifecycleChange` calls `getServerEventBus().publish(...)`,
-//! and `src/server/events/runtime` is a process-wide singleton of the Next.js
-//! runtime. `betaclaw-core` has no such singleton, and the publish is
-//! fire-and-forget in the source (the caller never reads the result), so the
-//! port models the bus as a [`LifecyclePublisher`] trait. The default
-//! implementation is [`NoopLifecyclePublisher`], which reproduces the observable
-//! behaviour — a `tracing` line — while the gateway injects the real bus when
-//! the event runtime of slice S13 lands.
+//! and `src/server/events/runtime` is a process-wide singleton. The Rust port
+//! keeps the event fire-and-forget through [`LifecyclePublisher`]; the gateway
+//! injects [`MemoryLifecycleBus`] so in-process Rust consumers can subscribe.
+//! With no subscribers, publication is discarded as in the TypeScript bus.
 
 use serde_json::Value;
+use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex as StdMutex, Weak};
 
 use super::types::MemoryMetadata;
 
@@ -233,6 +233,71 @@ pub trait LifecyclePublisher: Send + Sync {
     fn publish_memory_lifecycle_change(&self, change: &MemoryLifecycleChange);
 }
 
+/// Process-local delivery for memory lifecycle events.
+type LifecycleHandler = Arc<dyn Fn(&MemoryLifecycleChange) + Send + Sync>;
+
+#[derive(Default)]
+struct MemoryLifecycleBusInner {
+    next_subscriber_id: AtomicU64,
+    subscribers: StdMutex<Vec<(u64, LifecycleHandler)>>,
+}
+
+#[derive(Clone, Default)]
+pub struct MemoryLifecycleBus(Arc<MemoryLifecycleBusInner>);
+
+pub struct MemoryLifecycleSubscription {
+    bus: Weak<MemoryLifecycleBusInner>,
+    subscriber_id: u64,
+}
+
+impl MemoryLifecycleBus {
+    pub fn subscribe(
+        &self,
+        handler: impl Fn(&MemoryLifecycleChange) + Send + Sync + 'static,
+    ) -> MemoryLifecycleSubscription {
+        let subscriber_id = self.0.next_subscriber_id.fetch_add(1, Ordering::Relaxed);
+        self.0
+            .subscribers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push((subscriber_id, Arc::new(handler)));
+        MemoryLifecycleSubscription {
+            bus: Arc::downgrade(&self.0),
+            subscriber_id,
+        }
+    }
+}
+
+impl LifecyclePublisher for MemoryLifecycleBus {
+    fn publish_memory_lifecycle_change(&self, change: &MemoryLifecycleChange) {
+        let subscribers = self
+            .0
+            .subscribers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .map(|(_, handler)| Arc::clone(handler))
+            .collect::<Vec<_>>();
+        for handler in subscribers {
+            if catch_unwind(AssertUnwindSafe(|| handler(change))).is_err() {
+                tracing::error!("memory lifecycle subscriber failed");
+            }
+        }
+    }
+}
+
+impl Drop for MemoryLifecycleSubscription {
+    fn drop(&mut self) {
+        let Some(bus) = self.bus.upgrade() else {
+            return;
+        };
+        bus.subscribers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .retain(|(id, _)| *id != self.subscriber_id);
+    }
+}
+
 /// The default: log and continue. A statistics or transport failure must never
 /// break a memory operation, and the TypeScript publish is fire-and-forget.
 #[derive(Debug, Clone, Copy, Default)]
@@ -427,5 +492,38 @@ mod tests {
             super::super::types::MemoryProviderKind::Mem0
         );
         assert!(!events[0].at.is_empty());
+    }
+
+    #[test]
+    fn lifecycle_bus_delivers_to_subscribers_and_isolates_failures() {
+        let bus = MemoryLifecycleBus::default();
+        let received = Arc::new(Mutex::new(Vec::new()));
+        let received_by_handler = Arc::clone(&received);
+        let subscription = bus.subscribe(move |change| {
+            received_by_handler
+                .lock()
+                .expect("lock")
+                .push(change.clone());
+        });
+        let _failing_subscription = bus.subscribe(|_| panic!("listener failure"));
+        let change = MemoryLifecycleChange {
+            memory_id: "n1".to_string(),
+            user_id: "u1".to_string(),
+            persona_id: "p1".to_string(),
+            status: LifecycleStatus::Confirmed,
+            signal: LifecycleSignal::UserConfirmed,
+            provider: super::super::types::MemoryProviderKind::Postgres,
+            at: "2026-10-12T00:00:00.000Z".to_string(),
+        };
+
+        bus.publish_memory_lifecycle_change(&change);
+
+        assert_eq!(
+            received.lock().expect("lock").as_slice(),
+            std::slice::from_ref(&change)
+        );
+        drop(subscription);
+        bus.publish_memory_lifecycle_change(&change);
+        assert_eq!(received.lock().expect("lock").as_slice(), &[change]);
     }
 }

@@ -15,7 +15,7 @@ use rusqlite::{params_from_iter, Connection};
 
 use super::fts::build_fts_query;
 use super::row_mappers::to_message;
-use super::trace::log_chat_recall_trace;
+use super::trace::{log_chat_recall_completed, log_chat_recall_trace};
 use super::types::{MessageRepositoryError, SearchMessagesOptions, StoredMessage};
 
 /// `SearchQueries` from `search.ts:15`.
@@ -51,15 +51,16 @@ impl<'a> SearchQueries<'a> {
         let mut conditions: Vec<&str> = Vec::new();
         let mut binds: Vec<SqlValue> = vec![fts_query.into()];
 
-        if let Some(user_id) = options.user_id {
+        // `if (opts.userId)` and friends: an empty string adds no filter.
+        if let Some(user_id) = options.user_id.filter(|value| !value.is_empty()) {
             conditions.push("c.user_id = ?");
             binds.push(user_id.to_owned().into());
         }
-        if let Some(conversation_id) = options.conversation_id {
+        if let Some(conversation_id) = options.conversation_id.filter(|value| !value.is_empty()) {
             conditions.push("m.conversation_id = ?");
             binds.push(conversation_id.to_owned().into());
         }
-        if let Some(persona_id) = options.persona_id {
+        if let Some(persona_id) = options.persona_id.filter(|value| !value.is_empty()) {
             conditions.push("c.persona_id = ?");
             binds.push(persona_id.to_owned().into());
         }
@@ -96,14 +97,11 @@ impl<'a> SearchQueries<'a> {
 
         match outcome {
             Ok(rows) => {
-                log_chat_recall_trace("fts.query_completed");
-                tracing::debug!(
-                    scope = "chat.recall",
-                    query_length = trimmed.chars().count(),
-                    result_count = rows.len(),
+                log_chat_recall_completed(
+                    timer.elapsed_ms(),
+                    trimmed.chars().count(),
+                    rows.len(),
                     limit,
-                    duration_ms = timer.elapsed_ms(),
-                    "chat recall query completed"
                 );
                 Ok(rows)
             }

@@ -14,6 +14,7 @@
 //! so [`HttpResponse::new`] produces byte-identical fallbacks.
 
 use std::future::Future;
+use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -74,6 +75,12 @@ pub struct HttpRequest {
     pub timeout_ms: u64,
     /// The caller's `AbortSignal`, if any.
     pub abort: Option<AbortSignal>,
+    /// Upper bound for the response body. The transport stops reading and fails once a body
+    /// grows past it. `None` reads the whole body.
+    pub max_body_bytes: Option<usize>,
+    /// The address the SSRF guard checked. The transport connects there instead of resolving
+    /// the host again, which closes the DNS-rebinding gap. `None` resolves the host as usual.
+    pub resolve_to: Option<SocketAddr>,
 }
 
 impl HttpRequest {
@@ -85,6 +92,8 @@ impl HttpRequest {
             body: None,
             timeout_ms: DEFAULT_REQUEST_TIMEOUT_MS,
             abort: None,
+            max_body_bytes: None,
+            resolve_to: None,
         }
     }
 
@@ -128,6 +137,16 @@ impl HttpRequest {
         self.abort = Some(abort);
         self
     }
+
+    pub fn max_body_bytes(mut self, max_bytes: usize) -> Self {
+        self.max_body_bytes = Some(max_bytes);
+        self
+    }
+
+    pub fn resolve_to(mut self, address: SocketAddr) -> Self {
+        self.resolve_to = Some(address);
+        self
+    }
 }
 
 /// The subset of the WHATWG `Response` the provider code touches.
@@ -141,18 +160,28 @@ pub struct HttpResponse {
     pub status: StatusCode,
     pub status_text: String,
     pub headers: HeaderMap,
+    /// UTF-8 text of `body_bytes`, invalid sequences replaced.
     pub body: String,
+    /// The payload exactly as received. Binary responses (images) are read from here.
+    pub body_bytes: Vec<u8>,
 }
 
 impl HttpResponse {
     /// Fills `status_text` from the IANA reason phrase, which is what Node's
     /// `fetch` reports.
     pub fn new(status: StatusCode, headers: HeaderMap, body: impl Into<String>) -> Self {
+        Self::from_bytes(status, headers, body.into().into_bytes())
+    }
+
+    /// A response from the raw payload. `body` is its lossy UTF-8 text, which is what
+    /// Node's `Response.text()` decodes.
+    pub fn from_bytes(status: StatusCode, headers: HeaderMap, body_bytes: Vec<u8>) -> Self {
         Self {
             status,
             status_text: status.canonical_reason().unwrap_or("").to_string(),
             headers,
-            body: body.into(),
+            body: String::from_utf8_lossy(&body_bytes).into_owned(),
+            body_bytes,
         }
     }
 

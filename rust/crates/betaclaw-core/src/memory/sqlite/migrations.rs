@@ -13,7 +13,7 @@
 //! 4. `ALTER TABLE memory_nodes ADD COLUMN user_id` — only when absent
 //! 5. Two backfill `UPDATE`s
 //! 6. `CREATE INDEX idx_memory_importance`
-//! 7. `CREATE INDEX idx_memory_persona`
+//! 7. `CREATE INDEX idx_memory_persona (user_id, persona_id, updated_at DESC)`
 //!
 //! Statements 3 and 4 are the migration freshness path: a database written by a
 //! release before the persona column existed still upgrades, and the backfill
@@ -126,7 +126,7 @@ pub fn run_migrations(connection: &Connection) -> rusqlite::Result<()> {
     connection.execute_batch(
         r#"
         CREATE INDEX IF NOT EXISTS idx_memory_persona
-          ON memory_nodes (user_id, updated_at DESC);
+          ON memory_nodes (user_id, persona_id, updated_at DESC);
     "#,
     )?;
 
@@ -191,6 +191,28 @@ mod tests {
             )
             .expect("count indexes");
         assert_eq!(index_count, 3, "history, importance and persona indexes");
+    }
+
+    /// The index name alone does not pin the columns: `CREATE INDEX IF NOT
+    /// EXISTS` keeps whichever definition was created first. So the stored
+    /// definition is read back and compared to `sqliteMemoryRepository.ts:115-116`.
+    #[test]
+    fn the_persona_index_has_the_ts_column_order() {
+        let connection = connection();
+        run_migrations(&connection).expect("migrate");
+
+        let sql: String = connection
+            .query_row(
+                "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_memory_persona'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read index definition");
+        let normalized = sql.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            normalized.contains("ON memory_nodes (user_id, persona_id, updated_at DESC)"),
+            "idx_memory_persona has the wrong definition: {normalized}"
+        );
     }
 
     /// Migration freshness from an *old* schema: the pre-persona release created

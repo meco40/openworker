@@ -7,11 +7,13 @@
 //! | `src/shared/personaTypes.ts`        | [`types`]                |
 //! | `personaWorkspace.ts`               | [`workspace`]            |
 //! | `personaRepository.ts`              | [`repository`]           |
+//! | `src/server/telegram/personaTelegramBotRegistry.ts` | [`telegram_bots`] |
 //!
 //! `personaProjectWorkspace.ts` and `personaWorkspaceMigration.ts` are not part
 //! of this slice; see the migration notes for the reasons.
 
 pub mod repository;
+pub mod telegram_bots;
 pub mod types;
 pub mod workspace;
 

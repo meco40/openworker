@@ -28,6 +28,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use crate::memory::errors::MemoryError;
+
 /// `LEGACY_LOCAL_USER_ID` from `src/server/auth/constants.ts:1`.
 ///
 /// Same rule as `crate::messages_store::types::LEGACY_LOCAL_USER_ID`: the value
@@ -242,14 +244,22 @@ pub struct MemoryRecallResult {
 }
 
 /// `MemoryHistoryRecord` from `src/server/memory/types.ts:16-25`.
-#[derive(Debug, Clone, PartialEq)]
+///
+/// Serialised as the TypeScript object: absent optional keys are omitted, not
+/// written as `null`, and the wire name of `node_type` is `type`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MemoryHistoryRecord {
     pub index: i64,
     pub action: String,
     pub timestamp: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub node_type: Option<MemoryType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub importance: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<i64>,
     pub metadata: MemoryMetadata,
 }
@@ -419,6 +429,70 @@ pub struct Mem0DeleteByFilterInput {
     pub user_id: String,
     pub persona_id: String,
     pub workspace_id: Option<String>,
+}
+
+/// `Mem0Client` from `src/server/memory/mem0/types.ts:90-108`.
+///
+/// The eight operations are the provider contract every backend implements; the
+/// `scope` parameters of [`Self::get_memory_history`], [`Self::update_memory`]
+/// and [`Self::delete_memory`] are optional because the interface declares them
+/// optional, and [`Self::provider`] has a default because `HttpMem0Client` does
+/// not declare itself (see [`MemoryProviderKind`]).
+///
+/// The trait used to live next to its first implementation in
+/// [`crate::memory::sqlite::client`]; it is the contract every provider
+/// implements, so it lives beside the mem0 types it references (open point
+/// OP-15). It is re-exported from `sqlite/client.rs` under its original path.
+///
+/// Methods are synchronous in this port; the caller decides whether to run them
+/// on a blocking thread.
+pub trait Mem0Client {
+    /// `readonly provider?: MemoryProviderKind` — `mem0/types.ts:92`.
+    ///
+    /// `None` means "does not declare itself", which the runtime maps to `mem0`.
+    fn provider(&self) -> Option<MemoryProviderKind> {
+        None
+    }
+
+    /// `addMemory(input, signal?)` — `mem0/types.ts:93-96`.
+    fn add_memory(&self, input: &Mem0MemoryInput) -> Result<Mem0AddResult, MemoryError>;
+
+    /// `searchMemories(input)` — `mem0/types.ts:97`.
+    fn search_memories(&self, input: &Mem0SearchInput) -> Result<Vec<Mem0SearchHit>, MemoryError>;
+
+    /// `listMemories(input)` — `mem0/types.ts:98`.
+    fn list_memories(&self, input: &Mem0ListInput) -> Result<Mem0ListMemoryResult, MemoryError>;
+
+    /// `getMemory(id, scope?)` — `mem0/types.ts:99`.
+    fn get_memory(
+        &self,
+        id: &str,
+        scope: Option<&Mem0Scope>,
+    ) -> Result<Option<Mem0MemoryRecord>, MemoryError>;
+
+    /// `getMemoryHistory(id, scope?)` — `mem0/types.ts:100`.
+    fn get_memory_history(
+        &self,
+        id: &str,
+        scope: Option<&Mem0Scope>,
+    ) -> Result<Vec<Mem0HistoryEntry>, MemoryError>;
+
+    /// `updateMemory(id, input, scope?)` — `mem0/types.ts:101`.
+    fn update_memory(
+        &self,
+        id: &str,
+        input: &Mem0MemoryInput,
+        scope: Option<&Mem0Scope>,
+    ) -> Result<(), MemoryError>;
+
+    /// `deleteMemory(id, scope?)` — `mem0/types.ts:102`.
+    fn delete_memory(&self, id: &str, scope: Option<&Mem0Scope>) -> Result<(), MemoryError>;
+
+    /// `deleteMemoriesByFilter(input)` — `mem0/types.ts:103-107`.
+    fn delete_memories_by_filter(
+        &self,
+        input: &Mem0DeleteByFilterInput,
+    ) -> Result<i64, MemoryError>;
 }
 
 /// `countMemories`'s argument, `postgresMemoryClient.ts:632-637`.

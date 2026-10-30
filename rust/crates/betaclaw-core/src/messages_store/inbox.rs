@@ -213,6 +213,9 @@ impl<'a> InboxQueries<'a> {
             .and_then(|row| row.total_matched)
             .unwrap_or(0)
             .max(0);
+        // The source logs the count as its own statement (`inbox.ts:117-124`),
+        // with the same duration as the main query.
+        log_inbox_db_query("inbox.list.countMatched", query_duration_ms);
 
         Ok(InboxListResult {
             items,
@@ -270,7 +273,7 @@ impl<'a> InboxQueries<'a> {
             )
             .optional()?;
 
-        log_inbox_db_query("getItem.main", timer.elapsed_ms());
+        log_inbox_db_query("inbox.getItem.main", timer.elapsed_ms());
 
         Ok(row.as_ref().map(InboxRow::to_inbox_item))
     }

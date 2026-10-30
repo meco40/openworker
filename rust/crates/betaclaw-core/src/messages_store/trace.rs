@@ -97,9 +97,63 @@ pub fn log_chat_recall_trace(stage: &str) {
     }
 }
 
+/// `DEFAULT_CHAT_RECALL_SLOW_MS` from `chatRecallTrace.ts:8`.
+const DEFAULT_CHAT_RECALL_SLOW_MS: i64 = 1500;
+
+/// `getChatRecallSlowThresholdMs` from `chatRecallTrace.ts:39-41`.
+pub fn chat_recall_slow_threshold_ms() -> i64 {
+    std::env::var("CHAT_RECALL_SLOW_MS")
+        .ok()
+        .and_then(|value| value.trim().parse::<i64>().ok())
+        .filter(|value| *value >= 0)
+        .unwrap_or(DEFAULT_CHAT_RECALL_SLOW_MS)
+}
+
+/// `fts.query_completed` from `search.ts:76-100`. Escalates to `warn` once the
+/// statement crosses `CHAT_RECALL_SLOW_MS`, the same convention as
+/// [`log_inbox_db_query`]. The source logs a slow completion at `info` with
+/// `force`; the port keeps the escalation and leaves the level choice to `tracing`.
+pub fn log_chat_recall_completed(
+    duration_ms: i64,
+    query_length: usize,
+    result_count: usize,
+    limit: i64,
+) {
+    let slow_threshold_ms = chat_recall_slow_threshold_ms();
+    if duration_ms >= slow_threshold_ms {
+        tracing::warn!(
+            scope = "chat.recall",
+            stage = "fts.query_completed",
+            duration_ms,
+            slow_threshold_ms,
+            query_length,
+            result_count,
+            limit,
+            "slow chat recall query"
+        );
+    } else {
+        tracing::debug!(
+            scope = "chat.recall",
+            stage = "fts.query_completed",
+            duration_ms,
+            query_length,
+            result_count,
+            limit,
+            "chat recall query completed"
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn chat_recall_threshold_defaults_to_1500_ms() {
+        if std::env::var("CHAT_RECALL_SLOW_MS").is_err() {
+            assert_eq!(chat_recall_slow_threshold_ms(), 1500);
+        }
+    }
 
     #[test]
     fn threshold_defaults_to_500_ms_and_follows_the_env_var() {

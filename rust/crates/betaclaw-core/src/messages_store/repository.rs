@@ -326,19 +326,23 @@ impl MessagesStore {
         id: &str,
         user_id: &str,
     ) -> Result<bool, MessageRepositoryError> {
-        if self.get_conversation(id, Some(user_id))?.is_none() {
+        // `delete.ts:84-85` normalises the id before the ownership lookup.
+        let user_id = super::types::normalize_user_id(Some(user_id));
+        if self.get_conversation(id, Some(user_id.as_str()))?.is_none() {
             return Ok(false);
         }
-        self.deletes().delete_conversation(id, user_id)
+        self.deletes().delete_conversation(id, &user_id)
     }
 
     /// `deleteMessage` — `sqliteMessageRepository.ts:200-206`.
     pub fn delete_message(&self, id: &str, user_id: &str) -> Result<bool, MessageRepositoryError> {
-        let Some(message) = self.get_message(id, Some(user_id))? else {
+        // `delete.ts:113-114` normalises the id before the ownership lookup.
+        let user_id = super::types::normalize_user_id(Some(user_id));
+        let Some(message) = self.get_message(id, Some(user_id.as_str()))? else {
             return Ok(false);
         };
         self.deletes()
-            .delete_message(id, user_id, &message.conversation_id)
+            .delete_message(id, &user_id, &message.conversation_id)
     }
 
     // ─── Model override / persona ──────────────────────────────────────────
@@ -587,7 +591,7 @@ impl MessagesStore {
         conversation_id: &str,
         user_id: Option<&str>,
     ) -> Result<bool, MessageRepositoryError> {
-        let normalized_user_id = user_id.map(|value| super::types::normalize_user_id(Some(value)));
+        let normalized_user_id = super::types::scoped_user_id(user_id);
         self.agent_rooms()
             .is_agent_room_conversation(conversation_id, normalized_user_id.as_deref())
     }
@@ -728,6 +732,7 @@ mod tests {
             vec![
                 "agent_room_swarms",
                 "channel_bindings",
+                "channel_credentials",
                 "conversation_context",
                 "conversation_project_state",
                 "conversations",
@@ -1237,6 +1242,177 @@ mod tests {
             .list_messages(&conv.id, 10, None, Some("u-2"))
             .expect("other user")
             .is_empty());
+    }
+
+    #[test]
+    fn an_empty_user_id_is_no_scope_on_reads_but_a_blank_one_is_the_legacy_user() {
+        // `userId ? normalizeUserId(userId) : null`: only the empty string drops the
+        // scope. A blank id is still scoped, to the legacy user.
+        let dir = TempDir::new("empty-user-scope");
+        let store = open(&dir);
+        let conv = conversation(&store, Some("u-1"));
+        let saved = store
+            .save_message(&message(&conv.id, "hello"))
+            .expect("save");
+
+        assert!(store
+            .get_conversation(&conv.id, Some(""))
+            .expect("read")
+            .is_some());
+        assert!(store
+            .get_message(&saved.id, Some(""))
+            .expect("read")
+            .is_some());
+        assert_eq!(
+            store
+                .list_messages(&conv.id, 10, None, Some(""))
+                .expect("list")
+                .len(),
+            1
+        );
+        assert!(store
+            .get_message(&saved.id, Some("   "))
+            .expect("read")
+            .is_none());
+        assert!(store
+            .get_message(&saved.id, Some("u-1"))
+            .expect("read")
+            .is_some());
+
+        // The ownership guards normalise the id first (`delete.ts:84`, `:113`), so
+        // an empty id is the legacy user and cannot delete another user's rows.
+        assert!(!store.delete_conversation(&conv.id, "").expect("delete"));
+        assert!(!store.delete_message(&saved.id, "").expect("delete"));
+        assert!(store
+            .get_conversation(&conv.id, Some("u-1"))
+            .expect("read")
+            .is_some());
+    }
+
+    #[test]
+    fn an_empty_cursor_or_search_filter_is_absent() {
+        // `before && …` and `if (opts.conversationId)`: "" is falsy in the source.
+        let dir = TempDir::new("empty-cursor");
+        let store = open(&dir);
+        let conv = conversation(&store, Some("u-1"));
+        store
+            .save_message(&message(&conv.id, "hello world"))
+            .expect("save");
+
+        assert_eq!(
+            store
+                .list_messages(&conv.id, 10, Some(""), Some("u-1"))
+                .expect("list")
+                .len(),
+            1,
+            "an empty cursor is the latest page"
+        );
+        let hits = store
+            .search_messages(
+                "hello",
+                &SearchMessagesOptions {
+                    conversation_id: Some(""),
+                    persona_id: Some(""),
+                    ..Default::default()
+                },
+            )
+            .expect("search");
+        assert_eq!(hits.len(), 1);
+    }
+
+    #[test]
+    fn a_zero_limit_after_seq_reads_the_default_page() {
+        // `Number(limit || 500)`: zero is the default, not a one-row page.
+        let dir = TempDir::new("after-seq-zero");
+        let store = open(&dir);
+        let conv = conversation(&store, Some("u-1"));
+        for text in ["a", "b", "c"] {
+            store.save_message(&message(&conv.id, text)).expect("save");
+        }
+
+        let rows = store
+            .list_messages_after_seq(&conv.id, 0, 0, Some("u-1"))
+            .expect("list");
+        assert_eq!(
+            rows.iter().map(|row| row.seq).collect::<Vec<_>>(),
+            vec![Some(1), Some(2), Some(3)]
+        );
+    }
+
+    #[test]
+    fn a_pending_mark_without_an_error_drops_the_recorded_one() {
+        // `pending ? errorMessage?.slice(0, 1000) : undefined`: JSON.stringify drops
+        // the `undefined`, so the earlier projection error is gone.
+        let dir = TempDir::new("pending-without-error");
+        let store = open(&dir);
+        let conv = conversation(&store, Some("u-1"));
+        let saved = store
+            .save_message(&message(&conv.id, "project me"))
+            .expect("save");
+
+        store
+            .mark_messages_memory_pending(&[saved.id.as_str()], true, Some("down"))
+            .expect("mark");
+        store
+            .mark_messages_memory_pending(&[saved.id.as_str()], true, None)
+            .expect("re-mark");
+
+        let metadata: serde_json::Value = serde_json::from_str(
+            store
+                .get_message(&saved.id, None)
+                .expect("read")
+                .expect("present")
+                .metadata
+                .as_deref()
+                .expect("metadata"),
+        )
+        .expect("json");
+        assert_eq!(metadata["memoryStatus"], "memory_pending");
+        assert!(metadata.get("worldModelProjectionError").is_none());
+    }
+
+    #[test]
+    fn an_empty_swarm_string_patch_is_stored_as_null() {
+        // `patch.sessionId || null`, `patch.currentDeployCommandId || null` and
+        // `patch.swarmTemplate || null`.
+        let dir = TempDir::new("swarm-empty-patch");
+        let store = open(&dir);
+        let conv = store
+            .create_conversation(&CreateConversationInput {
+                channel_type: "AgentRoom",
+                user_id: Some("u-1"),
+                ..Default::default()
+            })
+            .expect("conversation");
+        let created = store
+            .create_agent_room_swarm(&CreateAgentRoomSwarmInput {
+                conversation_id: &conv.id,
+                user_id: "u-1",
+                title: "Swarm",
+                task: "Ship it",
+                lead_persona_id: "p-lead",
+                session_id: Some("s-1"),
+                swarm_template: Some("template"),
+                ..Default::default()
+            })
+            .expect("create");
+
+        let patched = store
+            .update_agent_room_swarm(
+                &created.id,
+                "u-1",
+                &AgentRoomSwarmPatch {
+                    session_id: Some(Some(String::new())),
+                    current_deploy_command_id: Some(Some(String::new())),
+                    swarm_template: Some(Some(String::new())),
+                    ..Default::default()
+                },
+            )
+            .expect("update")
+            .expect("present");
+        assert_eq!(patched.session_id, None);
+        assert_eq!(patched.current_deploy_command_id, None);
+        assert_eq!(patched.swarm_template, None);
     }
 
     #[test]

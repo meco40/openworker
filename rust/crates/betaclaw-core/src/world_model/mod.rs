@@ -26,6 +26,7 @@
 //! | [`bridge`] | `bridge.ts` |
 //! | [`live_chat_bridge`] | `liveChatBridge.ts` |
 //! | [`outbox_dispatcher`] | `outboxDispatcher.ts` |
+//! | [`metrics`] | `metrics.ts` |
 //!
 //! # What S6 owns
 //!
@@ -47,20 +48,25 @@
 //!   the statement order and the `BEGIN` → `world_model_set_scope` → `COMMIT`
 //!   contract (`docs/RUST_MIGRATION.md:199-201`) are unchanged.
 //!
-//! Still missing in S6 and deliberately out of this slice: `worldModel.ts`'s
-//! `createWorldModel` factory and the `api/**` handlers of `/api/world-model`.
-//! Neither carries a slice assignment beyond "the World Model slice"; the
-//! routes belong to the `/api/**` migration and stay behind the reverse proxy.
+//! Still missing in S6: the `api/**` handlers of `/api/world-model`. They carry
+//! no slice assignment beyond "the World Model slice"; the routes belong to the
+//! `/api/**` migration and stay behind the reverse proxy. `worldModel.ts` is a
+//! pure re-export barrel with no `createWorldModel` factory in the source (the
+//! earlier note claiming one was wrong); it is ported as [`world_model`], which
+//! re-exports the `export *` sources and the ported vocabulary and lists the
+//! still-deferred barrel groups.
 
 pub mod bridge;
 pub mod config;
 pub mod consolidation;
+pub mod data_lifecycle;
 pub mod db;
 pub mod driver;
 pub mod embeddings;
 pub mod graphiti;
 pub mod live_chat_bridge;
 pub mod mem0_policy;
+pub mod metrics;
 pub mod migrations;
 pub mod mode;
 pub mod outbox_dispatcher;
@@ -72,3 +78,8 @@ pub mod runtime;
 pub mod scope;
 pub mod services;
 pub mod types;
+// The TypeScript barrel is `worldModel.ts`, so the port file is
+// `world_model/world_model.rs`; the deliberate name clash with its parent
+// module is the port contract, not an accident.
+#[allow(clippy::module_inception)]
+pub mod world_model;

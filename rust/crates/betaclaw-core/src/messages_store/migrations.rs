@@ -205,6 +205,19 @@ pub fn run_migrations(connection: &Connection) -> rusqlite::Result<()> {
     "#,
     )?;
 
+    // Bot tokens and lease keys of the channel adapters. TS: `channels/credentials/credentialStore.ts`.
+    connection.execute_batch(
+        r#"
+    CREATE TABLE IF NOT EXISTS channel_credentials (
+      channel TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (channel, key)
+    );
+    "#,
+    )?;
+
     connection.execute_batch(
         r#"
     CREATE TABLE IF NOT EXISTS agent_room_swarms (
@@ -460,7 +473,7 @@ mod tests {
         rows.collect::<Result<Vec<_>, _>>().expect("rows")
     }
 
-    /// The seven tables this store owns, plus `messages_fts`.
+    /// The eight tables this store owns, plus `messages_fts`.
     ///
     /// The FTS5 virtual table also creates four shadow tables
     /// (`messages_fts_config`, `_data`, `_docsize`, `_idx`). Those are an
@@ -468,9 +481,10 @@ mod tests {
     /// migration declares, and `better-sqlite3` on the TypeScript side produces
     /// the same four. [`table_names`] filters them out so this constant stays a
     /// statement about what `runMigrations` itself creates.
-    const OWNED_TABLES: [&str; 8] = [
+    const OWNED_TABLES: [&str; 9] = [
         "agent_room_swarms",
         "channel_bindings",
+        "channel_credentials",
         "conversation_context",
         "conversation_project_state",
         "conversations",

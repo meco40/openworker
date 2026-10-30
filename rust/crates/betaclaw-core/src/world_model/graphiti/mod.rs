@@ -4,5 +4,7 @@
 //! package that ports them, so this file lists exactly what exists.
 
 pub mod client;
+pub mod evaluator;
+pub mod projector;
 pub mod retrieval;
 pub mod shadow;

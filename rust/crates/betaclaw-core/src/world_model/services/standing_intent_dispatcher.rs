@@ -6,7 +6,7 @@
 //! | `standingIntentDispatcher.ts:19-23` (`StandingIntentDispatchResult`) | [`StandingIntentDispatchResult`] |
 //! | `standingIntentDispatcher.ts:30-70` (`executeStandingIntentFollowUp`) | [`execute_standing_intent_follow_up`] |
 //! | `standingIntentDispatcher.ts:72-105` (`dispatchStandingIntentAction`) | [`dispatch_standing_intent_action`] |
-//! | `standingIntentDispatcher.ts:112-148` (`buildIntentFiredHandler`) | [`build_intent_fired_handler`] |
+//! | `standingIntentDispatcher.ts:112-141` (`buildIntentFiredHandler`) | [`build_intent_fired_handler`] |
 //!
 //! # Deviations
 //!

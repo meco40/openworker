@@ -1,9 +1,9 @@
-//! Port of `src/server/world-model/liveChatBridge.ts:1-37`.
+//! Port of `src/server/world-model/liveChatBridge.ts:1-36`.
 //!
 //! | TypeScript | Rust |
 //! | --- | --- |
 //! | `liveChatBridge.ts:9-12` (argument) | [`BridgeStoredChatMessageInput`] |
-//! | `liveChatBridge.ts:9-37` (`bridgeStoredChatMessage`) | [`bridge_stored_chat_message`] |
+//! | `liveChatBridge.ts:9-36` (`bridgeStoredChatMessage`) | [`bridge_stored_chat_message`] |
 //!
 //! # Deviations
 //!

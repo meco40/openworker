@@ -48,21 +48,13 @@ use crate::world_model::services::open_loop_service::{
 ///
 /// Rust has no optional-property object, so the two optional callbacks are
 /// `Option<Arc<…>>`: `None` is the absent property, `Some` the provided one.
+#[derive(Default)]
 pub struct ProspectiveRuntimeDeps {
     /// `isActive?: () => boolean` — `:8`.
     pub is_active: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
     /// `listUserPersonaScopes?: () => Promise<…>` — `:9-11`.
     pub list_user_persona_scopes:
         Option<Arc<dyn Fn() -> BoxFuture<'static, Vec<WorldModelScope>> + Send + Sync>>,
-}
-
-impl Default for ProspectiveRuntimeDeps {
-    fn default() -> Self {
-        Self {
-            is_active: None,
-            list_user_persona_scopes: None,
-        }
-    }
 }
 
 /// The `{ openLoopsDelivered, heartbeatReconcile, scopes }` answer of `:19-21`.

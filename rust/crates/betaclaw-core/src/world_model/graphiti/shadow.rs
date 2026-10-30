@@ -1,8 +1,11 @@
 //! Port of `src/server/world-model/graphiti/shadow.ts:1-106`.
 
+use std::sync::Arc;
+
 use serde_json::{Map, Value};
 
 use crate::world_model::db::{PgError, PgExecutor, PgStatement, PgValue};
+use crate::world_model::outbox_dispatcher::OutboxHandler;
 use crate::world_model::repositories::{ambient_query, row_integer};
 use crate::world_model::scope::WorldModelScope;
 use crate::world_model::types::OutboxEvent;
@@ -135,6 +138,20 @@ pub fn shadow_input_from_event(event: &OutboxEvent) -> ShadowEdgeInput {
     }
 }
 
+/// `createGraphitiShadowHandler()` — `shadow.ts:57-82`: the outbox handler of
+/// `world.observation.created`. The insert runs under the scope of the batch.
+pub fn create_graphiti_shadow_handler(executor: Arc<dyn PgExecutor>) -> OutboxHandler {
+    Arc::new(move |event: OutboxEvent, scope: Option<WorldModelScope>| {
+        let executor = Arc::clone(&executor);
+        Box::pin(async move {
+            let input = shadow_input_from_event(&event);
+            insert_shadow_edge::<PgError>(executor.as_ref(), scope.as_ref(), &input)
+                .await
+                .map_err(|error| error.message)
+        })
+    })
+}
+
 pub async fn count_shadow_edges<E: From<PgError> + Send + 'static>(
     executor: &dyn PgExecutor,
     scope: Option<&WorldModelScope>,
@@ -208,9 +225,8 @@ mod tests {
     use super::*;
     use crate::world_model::types::{OutboxEventInput, OutboxStatus};
 
-    #[test]
-    fn observation_event_maps_to_shadow_edge_defaults() {
-        let event = OutboxEvent {
+    fn observation_event() -> OutboxEvent {
+        OutboxEvent {
             input: OutboxEventInput {
                 event_type: "world.observation.created".into(),
                 aggregate_type: "observation".into(),
@@ -236,7 +252,12 @@ mod tests {
             created_at: "2026-10-11T12:00:00.000Z".into(),
             dispatched_at: None,
             created: None,
-        };
+        }
+    }
+
+    #[test]
+    fn observation_event_maps_to_shadow_edge_defaults() {
+        let event = observation_event();
         let edge = shadow_input_from_event(&event);
         assert_eq!(edge.source_entity, "u-1");
         assert_eq!(
@@ -245,5 +266,24 @@ mod tests {
         );
         assert_eq!(edge.relation_type, "mentions");
         assert_eq!(edge.evidence_observation_id.as_deref(), Some("obs-1"));
+    }
+
+    #[test]
+    fn the_shadow_handler_inserts_the_mapped_edge_once() {
+        use crate::world_model::db::drive_sync;
+        use crate::world_model::db::testing::{Recorded, RecordingExecutor};
+        use crate::world_model::db::PgQueryResult;
+
+        let recorder = Arc::new(RecordingExecutor::new(vec![Ok(PgQueryResult::affected(1))]));
+        let handler = create_graphiti_shadow_handler(Arc::clone(&recorder) as Arc<dyn PgExecutor>);
+        drive_sync(handler(observation_event(), None))
+            .expect("bridge")
+            .expect("insert");
+        let calls = recorder.calls();
+        assert_eq!(calls.len(), 1);
+        match &calls[0] {
+            Recorded::Statement(statement) => assert_eq!(statement.sql, SQL_INSERT_SHADOW_EDGE),
+            Recorded::Release => panic!("the shadow insert issues no release"),
+        }
     }
 }

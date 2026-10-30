@@ -4,3 +4,5 @@
 //! package that ports them, so this file lists exactly what exists.
 
 pub mod embedding_text;
+pub mod embedding_worker;
+pub mod provider;

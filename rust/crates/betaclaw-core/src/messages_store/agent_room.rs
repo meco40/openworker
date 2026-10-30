@@ -336,9 +336,10 @@ impl<'a> AgentRoomQueries<'a> {
         let mut updates: Vec<&'static str> = Vec::new();
         let mut values: Vec<SqlValue> = Vec::new();
 
+        // `patch.sessionId || null`: an empty string is stored as NULL.
         if let Some(session_id) = &patch.session_id {
             updates.push("session_id");
-            values.push(session_id.clone().into());
+            values.push(session_id.clone().filter(|value| !value.is_empty()).into());
         }
         if let Some(title) = &patch.title {
             updates.push("title");
@@ -390,7 +391,12 @@ impl<'a> AgentRoomQueries<'a> {
         }
         if let Some(current_deploy_command_id) = &patch.current_deploy_command_id {
             updates.push("current_deploy_command_id");
-            values.push(current_deploy_command_id.clone().into());
+            values.push(
+                current_deploy_command_id
+                    .clone()
+                    .filter(|value| !value.is_empty())
+                    .into(),
+            );
         }
         if let Some(search_enabled) = patch.search_enabled {
             updates.push("search_enabled");
@@ -398,7 +404,12 @@ impl<'a> AgentRoomQueries<'a> {
         }
         if let Some(swarm_template) = &patch.swarm_template {
             updates.push("swarm_template");
-            values.push(swarm_template.clone().into());
+            values.push(
+                swarm_template
+                    .clone()
+                    .filter(|value| !value.is_empty())
+                    .into(),
+            );
         }
         if let Some(pause_between_phases) = patch.pause_between_phases {
             updates.push("pause_between_phases");

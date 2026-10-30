@@ -55,7 +55,10 @@
 use crate::js::{js_number_str, js_round};
 use crate::world_model::config::WorldModelConfig;
 use crate::world_model::db::{
-    scoped_query, BoxFuture, NormalizedScope, PgError, PgExecutor, PgRow, PgStatement,
+    scoped_query, BoxFuture, NormalizedScope, PgError, PgExecutor, PgQueryResult, PgRow,
+    PgStatement,
+};
+use crate::world_model::graphiti::client::{GraphitiHealthStatus, GraphitiRestClient};
 
 /// `WorldModelMetricsInput` from `metrics.ts:5-11`.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -149,24 +152,16 @@ pub struct WorldModelAlert {
 }
 
 /// The Graphiti health probe — `checkGraphitiHealth()` of
-/// `graphiti/client.ts:273-289`.
-///
-/// Only `reachable` is read here (`metrics.ts:245-246`), so the seam carries the
-/// boolean and leaves the rest of `GraphitiHealthStatus` to the graphiti
-/// package.
+/// `graphiti/client.ts:273-289`, which never throws: a failed probe is a
+/// `reachable: false` result, so the `catch` of `metrics.ts:247-249` has no Rust
+/// counterpart.
 pub trait GraphitiHealthCheck: Send + Sync {
-    fn reachable<'a>(&'a self) -> BoxFuture<'a, Result<bool, PgError>>;
+    fn probe<'a>(&'a self) -> BoxFuture<'a, GraphitiHealthStatus>;
 }
 
-/// A health probe that always fails — the `catch` of `metrics.ts:247-249` then
-/// reports `graphitiReachable: false`. Rust-only (compare
-/// `db::UnconfiguredPgExecutor`).
-#[derive(Debug, Clone, Copy, Default)]
-pub struct UnreachableGraphitiHealth;
-
-impl GraphitiHealthCheck for UnreachableGraphitiHealth {
-    fn reachable<'a>(&'a self) -> BoxFuture<'a, Result<bool, PgError>> {
-        Box::pin(async { Err(PgError::new("no Graphiti health probe is wired")) })
+impl GraphitiHealthCheck for GraphitiRestClient {
+    fn probe<'a>(&'a self) -> BoxFuture<'a, GraphitiHealthStatus> {
+        Box::pin(self.health())
     }
 }
 
@@ -180,8 +175,8 @@ fn non_negative(value: f64) -> f64 {
 }
 
 /// `Number(row?.<column>) ?? 0` — `metrics.ts:122`, `:134-135`, `:167-168`,
-/// `:182`, `:210-211`.
-fn counted(row: Option<&PgRow>, column: &str) -> f64 {
+/// `:182`, `:210-211`. Shared with the health route, which reads the same columns.
+pub fn counted(row: Option<&PgRow>, column: &str) -> f64 {
     let Some(row) = row else {
         return 0.0;
     };
@@ -199,7 +194,6 @@ fn counted(row: Option<&PgRow>, column: &str) -> f64 {
         Some(_) => f64::NAN,
     }
 }
-
 
 /// `summarizeWorldModelMetrics(input, mode)` — `metrics.ts:50-68`.
 ///
@@ -262,7 +256,11 @@ pub fn evaluate_world_model_alerts(
             });
         }
     };
-    push("outbox_age", metrics.outbox_age_ms, thresholds.outbox_age_ms);
+    push(
+        "outbox_age",
+        metrics.outbox_age_ms,
+        thresholds.outbox_age_ms,
+    );
     push(
         "outbox_dead_letters",
         metrics.outbox_dead_letters,
@@ -291,7 +289,6 @@ pub fn evaluate_world_model_alerts(
     alerts
 }
 
-
 // ─── The seven aggregates ───────────────────────────────────────────────────
 //
 // Each statement is the template literal of the named source lines, token for
@@ -304,7 +301,8 @@ FROM world_model_observations
 WHERE received_at < now() - interval '5 minutes'";
 
 /// `metrics.ts:130-132`.
-const SQL_PENDING_PROJECTIONS: &str = "SELECT COUNT(*) FILTER (WHERE status = 'pending') AS pending,
+const SQL_PENDING_PROJECTIONS: &str =
+    "SELECT COUNT(*) FILTER (WHERE status = 'pending') AS pending,
 COUNT(*) FILTER (WHERE status = 'failed') AS failed
 FROM world_model_projection_pending";
 
@@ -349,7 +347,7 @@ async fn aggregate(
     scope: Option<&NormalizedScope>,
     sql: &'static str,
     label: &str,
-) -> Option<crate::world_model::db::PgQueryResult> {
+) -> Option<PgQueryResult> {
     let statement = PgStatement::new(sql);
     let outcome = match scope {
         Some(scope) => scoped_query::<PgError>(executor, scope, statement).await,
@@ -373,7 +371,6 @@ fn rounded(row: Option<&PgRow>, column: &str) -> f64 {
     js_round(counted(row, column))
 }
 
-
 /// `collectWorldModelMetrics(db)` — `metrics.ts:97-219`.
 ///
 /// The seven aggregates start concurrently and each keeps its own failure
@@ -387,8 +384,18 @@ pub async fn collect_world_model_metrics(
     let mut result = RawWorldModelMetrics::default();
 
     let (observations, projections, receipts, outbox, loops, lag, embeddings) = tokio::join!(
-        aggregate(executor, scope, SQL_PENDING_OBSERVATIONS, "pending observations"),
-        aggregate(executor, scope, SQL_PENDING_PROJECTIONS, "pending projection"),
+        aggregate(
+            executor,
+            scope,
+            SQL_PENDING_OBSERVATIONS,
+            "pending observations"
+        ),
+        aggregate(
+            executor,
+            scope,
+            SQL_PENDING_PROJECTIONS,
+            "pending projection"
+        ),
         aggregate(executor, scope, SQL_DELIVERY_RECEIPTS, "delivery receipt"),
         aggregate(executor, scope, SQL_OUTBOX, "outbox"),
         aggregate(executor, scope, SQL_DUE_OPEN_LOOPS, "open loops"),
@@ -438,30 +445,313 @@ pub async fn get_world_model_metrics(
 ) -> WorldModelMetrics {
     let raw = collect_world_model_metrics(executor, scope).await;
 
-    let mut metrics = WorldModelMetrics {
+    let mut metrics = metrics_from_raw(&raw, config.mode.as_str());
+    if config.graphiti_shadow_enabled {
+        metrics.graphiti_reachable = Some(graphiti.probe().await.reachable);
+    }
+
+    metrics
+}
+
+/// The field mapping of `getWorldModelMetrics()` (`metrics.ts:231-244`) and of the
+/// health route (`route.ts`, the `metrics` object). `graphitiReachable` stays
+/// absent: only the shadow probe sets it.
+pub fn metrics_from_raw(raw: &RawWorldModelMetrics, mode: &str) -> WorldModelMetrics {
+    WorldModelMetrics {
         ingestion_lag_ms: raw.projection_lag_ms,
         pending_observations: raw.pending_observations,
         projection_lag_ms: raw.projection_lag_ms,
         outbox_age_ms: raw.outbox_age_ms,
         outbox_dead_letters: raw.outbox_failed,
         due_open_loops: raw.due_open_loops,
-        mode: config.mode.as_str().to_string(),
+        mode: mode.to_string(),
         graphiti_reachable: None,
         embeddings_total: raw.embeddings_total,
         embeddings_without_text: raw.embeddings_without_text,
         pending_projections: raw.pending_projections,
         failed_projections: raw.failed_projections,
         delivery_receipts: raw.delivery_receipts,
-    };
-
-    if config.graphiti_shadow_enabled {
-        metrics.graphiti_reachable = Some(match graphiti.reachable().await {
-            Ok(reachable) => reachable,
-            Err(_) => false,
-        });
     }
-
-    metrics
 }
 
-};
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    use serde_json::{json, Value};
+
+    use super::*;
+    use crate::world_model::db::{PgSession, UnconfiguredPgExecutor};
+    use crate::world_model::mode::WorldModelMode;
+
+    /// Answers each statement with the first fixture whose needle it contains.
+    struct Fixtures(Vec<(&'static str, Result<PgQueryResult, PgError>)>);
+
+    impl PgExecutor for Fixtures {
+        fn connect<'a>(&'a self) -> BoxFuture<'a, Result<Arc<dyn PgSession>, PgError>> {
+            Box::pin(async { Err(PgError::new("the metrics never open a session")) })
+        }
+
+        fn query<'a>(
+            &'a self,
+            statement: PgStatement,
+        ) -> BoxFuture<'a, Result<PgQueryResult, PgError>> {
+            let answer = self
+                .0
+                .iter()
+                .find(|(needle, _)| statement.sql.contains(needle))
+                .map(|(_, answer)| answer.clone())
+                .unwrap_or_else(|| Err(PgError::new(format!("no fixture for {}", statement.sql))));
+            Box::pin(async move { answer })
+        }
+    }
+
+    fn row(value: Value) -> PgRow {
+        value.as_object().cloned().expect("a JSON object")
+    }
+
+    fn rows(value: Value) -> Result<PgQueryResult, PgError> {
+        Ok(PgQueryResult::from_rows(vec![row(value)]))
+    }
+
+    fn aggregates() -> Vec<(&'static str, Result<PgQueryResult, PgError>)> {
+        vec![
+            ("received_at < now()", rows(json!({ "count": "3" }))),
+            (
+                "world_model_projection_pending",
+                rows(json!({ "pending": "4", "failed": "2" })),
+            ),
+            ("world_model_delivery_receipts", rows(json!({ "count": 7 }))),
+            (
+                "world_model_outbox_events",
+                rows(json!({
+                    "pending": 5,
+                    "failed": 6,
+                    "oldest_age_ms": "1234.6",
+                    "oldest_age_seconds": "1.2346",
+                })),
+            ),
+            ("world_model_open_loops", rows(json!({ "count": "8" }))),
+            ("MAX(received_at)", rows(json!({ "max_lag_ms": "250.4" }))),
+            (
+                "without_text",
+                rows(json!({ "total": "9", "without_text": "1" })),
+            ),
+        ]
+    }
+
+    /// A probe double that counts its calls.
+    struct Probe {
+        status: GraphitiHealthStatus,
+        calls: AtomicUsize,
+    }
+
+    impl Probe {
+        fn new(reachable: bool, error: Option<&str>) -> Self {
+            Self {
+                status: GraphitiHealthStatus {
+                    reachable,
+                    latency_ms: 4,
+                    error: error.map(str::to_string),
+                },
+                calls: AtomicUsize::new(0),
+            }
+        }
+
+        fn calls(&self) -> usize {
+            self.calls.load(Ordering::SeqCst)
+        }
+    }
+
+    impl GraphitiHealthCheck for Probe {
+        fn probe<'a>(&'a self) -> BoxFuture<'a, GraphitiHealthStatus> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            let status = self.status.clone();
+            Box::pin(async move { status })
+        }
+    }
+
+    fn config(shadow: bool) -> WorldModelConfig {
+        WorldModelConfig {
+            mode: WorldModelMode::Shadow,
+            graphiti_shadow_enabled: shadow,
+            ..WorldModelConfig::default()
+        }
+    }
+
+    fn metrics_with(edit: impl FnOnce(&mut WorldModelMetrics)) -> WorldModelMetrics {
+        let mut metrics = metrics_from_raw(&RawWorldModelMetrics::default(), "canonical");
+        edit(&mut metrics);
+        metrics
+    }
+
+    #[test]
+    fn summary_clamps_negatives_to_zero_and_keeps_nan() {
+        let input = WorldModelMetricsInput {
+            pending_observations: -4.0,
+            outbox_age_ms: f64::NAN,
+            outbox_dead_letters: 2.0,
+            due_open_loops: -1.0,
+            projection_lag_ms: 30.0,
+        };
+        let metrics = summarize_world_model_metrics(&input, "canonical");
+        assert_eq!(metrics.pending_observations, 0.0);
+        assert!(metrics.outbox_age_ms.is_nan());
+        assert_eq!(metrics.outbox_dead_letters, 2.0);
+        assert_eq!(metrics.due_open_loops, 0.0);
+        assert_eq!(metrics.ingestion_lag_ms, 30.0);
+        assert_eq!(metrics.mode, "canonical");
+        assert_eq!(metrics.graphiti_reachable, None);
+    }
+
+    #[test]
+    fn counted_reads_numbers_strings_booleans_and_nulls_like_js_number() {
+        let fields =
+            row(json!({ "n": 4, "s": "12.5", "t": true, "f": false, "z": null, "x": "x" }));
+        assert_eq!(counted(Some(&fields), "n"), 4.0);
+        assert_eq!(counted(Some(&fields), "s"), 12.5);
+        assert_eq!(counted(Some(&fields), "t"), 1.0);
+        assert_eq!(counted(Some(&fields), "f"), 0.0);
+        assert_eq!(counted(Some(&fields), "z"), 0.0);
+        assert_eq!(counted(Some(&fields), "missing"), 0.0);
+        assert!(counted(Some(&fields), "x").is_nan());
+        assert_eq!(counted(None, "n"), 0.0);
+    }
+
+    #[test]
+    fn health_is_degraded_only_strictly_past_a_default_threshold() {
+        use super::WorldModelHealthStatus::{Degraded, Healthy};
+        assert_eq!(world_model_health_status(&metrics_with(|_| {})), Healthy);
+        assert_eq!(
+            world_model_health_status(&metrics_with(|m| m.outbox_dead_letters = 1.0)),
+            Degraded
+        );
+        assert_eq!(
+            world_model_health_status(&metrics_with(|m| m.failed_projections = 1.0)),
+            Degraded
+        );
+        assert_eq!(
+            world_model_health_status(&metrics_with(|m| m.outbox_age_ms = 300_001.0)),
+            Degraded
+        );
+        assert_eq!(
+            world_model_health_status(&metrics_with(|m| m.pending_observations = 51.0)),
+            Degraded
+        );
+        // A value at its threshold is still healthy.
+        assert_eq!(
+            world_model_health_status(&metrics_with(|m| m.outbox_age_ms = 300_000.0)),
+            Healthy
+        );
+        assert_eq!(
+            world_model_health_status(&metrics_with(|m| m.pending_observations = 50.0)),
+            Healthy
+        );
+        // The projection lag is not one of the four rules that decide the status.
+        assert_eq!(
+            world_model_health_status(&metrics_with(|m| m.projection_lag_ms = 1e9)),
+            Healthy
+        );
+    }
+
+    #[test]
+    fn alerts_fire_strictly_above_each_threshold_in_the_fixed_order() {
+        let thresholds = DEFAULT_WM_ALERT_THRESHOLDS;
+        assert!(evaluate_world_model_alerts(&metrics_with(|_| {}), &thresholds).is_empty());
+
+        let at_limit = metrics_with(|m| {
+            m.outbox_age_ms = 300_000.0;
+            m.outbox_dead_letters = 10.0;
+            m.pending_observations = 50.0;
+            m.pending_projections = 50.0;
+            m.projection_lag_ms = 300_000.0;
+        });
+        assert!(evaluate_world_model_alerts(&at_limit, &thresholds).is_empty());
+
+        let loud = metrics_with(|m| {
+            m.projection_lag_ms = 300_001.0;
+            m.failed_projections = 1.0;
+            m.pending_projections = 51.0;
+            m.pending_observations = 51.0;
+            m.outbox_dead_letters = 11.0;
+            m.outbox_age_ms = 300_001.0;
+        });
+        let alerts = evaluate_world_model_alerts(&loud, &thresholds);
+        let rules: Vec<&str> = alerts.iter().map(|alert| alert.rule.as_str()).collect();
+        assert_eq!(
+            rules,
+            [
+                "outbox_age",
+                "outbox_dead_letters",
+                "pending_observations",
+                "pending_projections",
+                "failed_projections",
+                "projection_lag",
+            ]
+        );
+        assert_eq!(alerts[0].value, 300_001.0);
+        assert_eq!(alerts[0].threshold, 300_000.0);
+    }
+
+    #[tokio::test]
+    async fn collect_fills_each_field_from_its_aggregate() {
+        let raw = collect_world_model_metrics(&Fixtures(aggregates()), None).await;
+        assert_eq!(raw.pending_observations, 3.0);
+        assert_eq!(raw.pending_projections, 4.0);
+        assert_eq!(raw.failed_projections, 2.0);
+        assert_eq!(raw.delivery_receipts, 7.0);
+        assert_eq!(raw.outbox_pending, 5.0);
+        assert_eq!(raw.outbox_failed, 6.0);
+        // `Math.round` of the reported milliseconds.
+        assert_eq!(raw.outbox_age_ms, 1235.0);
+        assert_eq!(raw.due_open_loops, 8.0);
+        assert_eq!(raw.projection_lag_ms, 250.0);
+        assert_eq!(raw.embeddings_total, 9.0);
+        assert_eq!(raw.embeddings_without_text, 1.0);
+    }
+
+    #[tokio::test]
+    async fn a_failing_aggregate_stays_at_zero_and_the_others_still_report() {
+        let mut answers = aggregates();
+        answers.retain(|(needle, _)| *needle != "world_model_outbox_events");
+        answers.push((
+            "world_model_outbox_events",
+            Err(PgError::new("relation does not exist")),
+        ));
+        let raw = collect_world_model_metrics(&Fixtures(answers), None).await;
+        assert_eq!(raw.outbox_pending, 0.0);
+        assert_eq!(raw.outbox_failed, 0.0);
+        assert_eq!(raw.outbox_age_ms, 0.0);
+        assert_eq!(raw.pending_observations, 3.0);
+        assert_eq!(raw.projection_lag_ms, 250.0);
+    }
+
+    #[tokio::test]
+    async fn without_a_pool_every_figure_is_zero() {
+        let raw = collect_world_model_metrics(&UnconfiguredPgExecutor, None).await;
+        assert_eq!(raw, RawWorldModelMetrics::default());
+    }
+
+    #[tokio::test]
+    async fn the_shadow_probe_runs_only_when_graphiti_shadow_is_on() {
+        let off = Probe::new(true, None);
+        let metrics =
+            get_world_model_metrics(&UnconfiguredPgExecutor, &config(false), None, &off).await;
+        assert_eq!(metrics.graphiti_reachable, None);
+        assert_eq!(metrics.mode, "shadow");
+        assert_eq!(metrics.outbox_dead_letters, 0.0);
+        assert_eq!(off.calls(), 0);
+
+        let up = Probe::new(true, None);
+        let metrics =
+            get_world_model_metrics(&UnconfiguredPgExecutor, &config(true), None, &up).await;
+        assert_eq!(metrics.graphiti_reachable, Some(true));
+
+        let down = Probe::new(false, Some("connection refused"));
+        let metrics =
+            get_world_model_metrics(&UnconfiguredPgExecutor, &config(true), None, &down).await;
+        assert_eq!(metrics.graphiti_reachable, Some(false));
+        assert_eq!(down.calls(), 1);
+    }
+}

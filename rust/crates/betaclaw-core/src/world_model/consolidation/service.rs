@@ -1,4 +1,4 @@
-//! Port of `src/server/world-model/consolidation/service.ts:1-113` — Phase 12,
+//! Port of `src/server/world-model/consolidation/service.ts:1-124` — Phase 12,
 //! the derived long-term summaries.
 //!
 //! | TypeScript | Rust |
@@ -25,7 +25,7 @@
 //!    assertion share the instant and a test is deterministic.
 //! 3. **The transaction body runs on the transaction's session.** The TypeScript
 //!    hands `client` to `insertObservationWithResult` and `insertAssertion`
-//!    (`service.ts:71`, `:115`); the port wraps the [`PgSession`] in
+//!    (`service.ts:71`, `:103-116`); the port wraps the [`PgSession`] in
 //!    [`SessionExecutor`] and passes `None` as the ambient scope, so those calls
 //!    issue no second `BEGIN` and no second scope call.
 //! 4. **The config is a parameter.** `service.ts:39` reads

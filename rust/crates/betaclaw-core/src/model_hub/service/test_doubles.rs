@@ -233,6 +233,7 @@ impl StubTransport {
                 status_text: status.canonical_reason().unwrap_or_default().to_string(),
                 headers: HeaderMap::new(),
                 body: body.to_string(),
+                body_bytes: body.to_string().into_bytes(),
             })]),
             recorded: std::sync::Mutex::new(Vec::new()),
         }
@@ -273,6 +274,7 @@ impl StubTransport {
                 status_text: "OK".to_string(),
                 headers,
                 body: body.to_string(),
+                body_bytes: body.as_bytes().to_vec(),
             })]),
             recorded: std::sync::Mutex::new(Vec::new()),
         }
@@ -316,6 +318,7 @@ impl HttpTransport for StubTransport {
                     status_text: status.canonical_reason().unwrap_or_default().to_string(),
                     headers: HeaderMap::new(),
                     body: String::new(),
+                    body_bytes: Vec::new(),
                 }),
                 Scripted::Failure(message) => Err(HttpError::Transport(message)),
             }

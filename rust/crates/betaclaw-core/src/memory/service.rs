@@ -303,6 +303,7 @@ pub trait MemoryCountProvider: Send + Sync {
 /// `process.env` reads of the TypeScript sources. The fields borrow from the
 /// caller, which keeps the call sites free of `Box::new` noise and lets a test
 /// hand in a stub by reference.
+#[derive(Clone, Copy)]
 pub struct MemoryServiceDependencies<'a> {
     /// `getServerEventBus().publish('memory.lifecycle.changed', …)` —
     /// `lifecycle.ts:87`. Every lifecycle publish of this slice goes through it.

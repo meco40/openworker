@@ -23,7 +23,7 @@ use serde_json::Value;
 use super::row_mappers::to_message;
 use super::trace::{log_inbox_db_query, QueryTimer};
 use super::types::{
-    normalize_user_id, now_iso, MessageRepositoryError, SaveMessageInput, StoredMessage,
+    now_iso, scoped_user_id, MessageRepositoryError, SaveMessageInput, StoredMessage,
 };
 
 /// `MessageQueries` from `messages.ts:7`.
@@ -106,7 +106,7 @@ impl<'a> MessageQueries<'a> {
         id: &str,
         user_id: Option<&str>,
     ) -> Result<Option<StoredMessage>, MessageRepositoryError> {
-        let normalized_user_id = user_id.map(|value| normalize_user_id(Some(value)));
+        let normalized_user_id = scoped_user_id(user_id);
         let message = match normalized_user_id.as_deref() {
             Some(user_id) => self
                 .db
@@ -148,13 +148,15 @@ impl<'a> MessageQueries<'a> {
         user_id: Option<&str>,
     ) -> Result<Vec<StoredMessage>, MessageRepositoryError> {
         let timer = QueryTimer::start();
-        let normalized_user_id = user_id.map(|value| normalize_user_id(Some(value)));
+        let normalized_user_id = scoped_user_id(user_id);
+        // `before && …` in the source: an empty cursor is the same as no cursor.
+        let before = before.filter(|value| !value.is_empty());
         let before_seq = before
             .filter(|value| is_ascii_digits(value))
             .and_then(|value| value.parse::<i64>().ok());
 
         let (sql, mut binds): (&str, Vec<SqlValue>) = match normalized_user_id.as_deref() {
-            Some(scoped_user_id) => match (before_seq, before) {
+            Some(scoped) => match (before_seq, before) {
                 (Some(seq), _) => (
                     "
                     SELECT m.*
@@ -164,7 +166,7 @@ impl<'a> MessageQueries<'a> {
                     ORDER BY m.seq DESC
                     LIMIT ?4
                     ",
-                    vec![conversation_id.to_owned().into(), seq.into(), scoped_user_id.to_owned().into()],
+                    vec![conversation_id.to_owned().into(), seq.into(), scoped.to_owned().into()],
                 ),
                 (None, Some(before)) => (
                     "
@@ -175,7 +177,7 @@ impl<'a> MessageQueries<'a> {
                     ORDER BY m.seq DESC
                     LIMIT ?4
                     ",
-                    vec![conversation_id.to_owned().into(), before.to_owned().into(), scoped_user_id.to_owned().into()],
+                    vec![conversation_id.to_owned().into(), before.to_owned().into(), scoped.to_owned().into()],
                 ),
                 (None, None) => (
                     "
@@ -186,7 +188,7 @@ impl<'a> MessageQueries<'a> {
                     ORDER BY m.seq DESC
                     LIMIT ?3
                     ",
-                    vec![conversation_id.to_owned().into(), scoped_user_id.to_owned().into()],
+                    vec![conversation_id.to_owned().into(), scoped.to_owned().into()],
                 ),
             },
             None => match (before_seq, before) {
@@ -240,8 +242,10 @@ impl<'a> MessageQueries<'a> {
         limit: i64,
         user_id: Option<&str>,
     ) -> Result<Vec<StoredMessage>, MessageRepositoryError> {
-        let normalized_user_id = user_id.map(|value| normalize_user_id(Some(value)));
+        let normalized_user_id = scoped_user_id(user_id);
         let safe_after_seq = after_seq.max(0);
+        // `Number(limit || 500)`: a zero limit means the default page, not one row.
+        let limit = if limit == 0 { 500 } else { limit };
         let safe_limit = limit.clamp(1, 5000);
 
         let mut statement = self.db.prepare(match normalized_user_id.as_deref() {
@@ -337,24 +341,32 @@ impl<'a> MessageQueries<'a> {
                 let Some(existing) = existing else { continue };
 
                 let mut metadata = parse_metadata(existing.as_deref());
-                if pending {
-                    metadata.insert(
-                        "memoryStatus".to_string(),
-                        Value::String("memory_pending".to_string()),
-                    );
-                    if let Some(error_message) = error_message {
-                        let truncated: String = error_message.chars().take(1000).collect();
+                let status = if pending {
+                    "memory_pending"
+                } else {
+                    "projected"
+                };
+                metadata.insert(
+                    "memoryStatus".to_string(),
+                    Value::String(status.to_string()),
+                );
+                // `worldModelProjectionError = pending ? errorMessage?.slice(0, 1000) : undefined`.
+                // `JSON.stringify` drops an `undefined`, so the key is removed in every
+                // case where no error text is recorded.
+                let projection_error = match (pending, error_message) {
+                    (true, Some(message)) => Some(message.chars().take(1000).collect::<String>()),
+                    _ => None,
+                };
+                match projection_error {
+                    Some(error) => {
                         metadata.insert(
                             "worldModelProjectionError".to_string(),
-                            Value::String(truncated),
+                            Value::String(error),
                         );
                     }
-                } else {
-                    metadata.insert(
-                        "memoryStatus".to_string(),
-                        Value::String("projected".to_string()),
-                    );
-                    metadata.remove("worldModelProjectionError");
+                    None => {
+                        metadata.remove("worldModelProjectionError");
+                    }
                 }
 
                 self.db.execute(

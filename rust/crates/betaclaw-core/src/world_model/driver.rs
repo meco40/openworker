@@ -102,6 +102,28 @@ impl SqlxPgExecutor {
         Ok(Self { pool })
     }
 
+    /// The same pool without a connection up front, as `pg` connects on the first
+    /// query. Building it does not wait on the network, and each query waits at
+    /// most `acquire_timeout` for a connection. Needs a Tokio runtime, because the
+    /// pool spawns its idle reaper.
+    pub fn connect_lazy(
+        settings: &PgPoolSettings,
+        acquire_timeout: std::time::Duration,
+    ) -> Result<Self, PgError> {
+        let options: PgConnectOptions = settings
+            .database_url
+            .parse()
+            .map_err(|error| PgError::new(format!("invalid PostgreSQL URL: {error}")))?;
+        let pool = PgPoolOptions::new()
+            .max_connections(settings.pool_max.max(1) as u32)
+            .idle_timeout(Some(std::time::Duration::from_millis(
+                settings.pool_idle_timeout_ms.max(1) as u64,
+            )))
+            .acquire_timeout(acquire_timeout)
+            .connect_lazy_with(options);
+        Ok(Self { pool })
+    }
+
     /// Wraps a pool the caller owns — the seam is satisfied for any pool.
     pub fn from_pool(pool: PgPool) -> Self {
         Self { pool }
@@ -190,6 +212,36 @@ impl PgSession for SqlxPgSession {
     }
 }
 
+struct PgEnumParam<'a> {
+    value: Option<&'a str>,
+    type_info: sqlx_postgres::PgTypeInfo,
+}
+
+impl sqlx_core::types::Type<sqlx_postgres::Postgres> for PgEnumParam<'_> {
+    fn type_info() -> sqlx_postgres::PgTypeInfo {
+        sqlx_postgres::PgTypeInfo::with_name("TEXT")
+    }
+}
+
+impl<'q> sqlx_core::encode::Encode<'q, sqlx_postgres::Postgres> for PgEnumParam<'q> {
+    fn encode_by_ref(
+        &self,
+        buffer: &mut sqlx_postgres::PgArgumentBuffer,
+    ) -> Result<sqlx_core::encode::IsNull, sqlx_core::error::BoxDynError> {
+        match self.value {
+            Some(value) => {
+                <&str as sqlx_core::encode::Encode<'q, sqlx_postgres::Postgres>>::encode(
+                    value, buffer,
+                )
+            }
+            None => Ok(sqlx_core::encode::IsNull::Yes),
+        }
+    }
+    fn produces(&self) -> Option<sqlx_postgres::PgTypeInfo> {
+        Some(self.type_info.clone())
+    }
+}
+
 /// Run one statement and fold the stream into a [`PgQueryResult`].
 ///
 /// `fetch_many` yields rows *and* the command tag, which is why it is used
@@ -208,15 +260,102 @@ async fn run_statement(
     connection: &mut sqlx_postgres::PgConnection,
     statement: PgStatement,
 ) -> Result<PgQueryResult, PgError> {
+    use sqlx_core::sql_str::SqlSafeStr as _;
+    use sqlx_core::statement::Statement as _;
+    use sqlx_core::type_info::TypeInfo as _;
+    // node-postgres lets PostgreSQL infer parameter types. Preserve that contract
+    // before sqlx supplies concrete Rust types (TEXT cannot be assigned to UUID).
+    let parameter_types = if statement.params.is_empty() {
+        Vec::new()
+    } else {
+        let description = connection
+            // Separate inferred metadata from sqlx's concretely typed query cache.
+            .prepare(
+                AssertSqlSafe(format!("/* pg parameter inference */ {}", statement.sql))
+                    .into_sql_str(),
+            )
+            .await
+            .map_err(|error| PgError::new(error.to_string()))?;
+        match description.parameters() {
+            Some(Either::Left(types)) => types.to_vec(),
+            _ => return Err(PgError::new("PostgreSQL did not describe parameter types")),
+        }
+    };
     let mut query = query::<sqlx_postgres::Postgres>(AssertSqlSafe(statement.sql.clone()));
-    for param in &statement.params {
-        query = match param {
-            PgValue::Null => query.bind(Option::<String>::None),
-            PgValue::Text(value) => query.bind(value.clone()),
-            PgValue::Int64(value) => query.bind(*value),
-            PgValue::Float64(value) => query.bind(*value),
-            PgValue::Bool(value) => query.bind(*value),
-            PgValue::TextArray(values) => query.bind(values.clone()),
+    for (index, param) in statement.params.iter().enumerate() {
+        if let Some(info) = parameter_types
+            .get(index)
+            .filter(|info| matches!(info.kind(), sqlx_postgres::PgTypeKind::Enum(_)))
+        {
+            let value = match param {
+                PgValue::Text(value) => Some(value.as_str()),
+                PgValue::Null => None,
+                _ => return Err(PgError::new("Enum parameters must be text or null")),
+            };
+            query = query.bind(PgEnumParam {
+                value,
+                type_info: info.clone(),
+            });
+            continue;
+        }
+        let type_name = parameter_types
+            .get(index)
+            .map(|info| info.name())
+            .unwrap_or("");
+        query = match (param, type_name) {
+            (PgValue::Text(value), "UUID") => query.bind(
+                uuid::Uuid::parse_str(value).map_err(|error| PgError::new(error.to_string()))?,
+            ),
+            (PgValue::Text(value), "TIMESTAMPTZ") => query.bind(
+                chrono::DateTime::parse_from_rfc3339(value)
+                    .map_err(|error| PgError::new(error.to_string()))?
+                    .with_timezone(&chrono::Utc),
+            ),
+            (PgValue::Text(value), "TIMESTAMP") => query.bind(
+                chrono::NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M:%S%.f")
+                    .map_err(|error| PgError::new(error.to_string()))?,
+            ),
+            (PgValue::Text(value), "DATE") => query.bind(
+                chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d")
+                    .map_err(|error| PgError::new(error.to_string()))?,
+            ),
+            (PgValue::Text(value), "JSON" | "JSONB") => query.bind(
+                serde_json::from_str::<Value>(value)
+                    .map_err(|error| PgError::new(error.to_string()))?,
+            ),
+            (PgValue::TextArray(values), "UUID[]") => query.bind(
+                values
+                    .iter()
+                    .map(|value| uuid::Uuid::parse_str(value))
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|error| PgError::new(error.to_string()))?,
+            ),
+            (PgValue::Int64(value), "INT2") => {
+                query.bind(i16::try_from(*value).map_err(|error| PgError::new(error.to_string()))?)
+            }
+            (PgValue::Int64(value), "INT4") => {
+                query.bind(i32::try_from(*value).map_err(|error| PgError::new(error.to_string()))?)
+            }
+            (PgValue::Float64(value), "FLOAT4") => query.bind(*value as f32),
+            (PgValue::Null, "INT2") => query.bind(Option::<i16>::None),
+            (PgValue::Null, "INT4") => query.bind(Option::<i32>::None),
+            (PgValue::Null, "INT8") => query.bind(Option::<i64>::None),
+            (PgValue::Null, "FLOAT4") => query.bind(Option::<f32>::None),
+            (PgValue::Null, "FLOAT8") => query.bind(Option::<f64>::None),
+            (PgValue::Null, "BOOL") => query.bind(Option::<bool>::None),
+            (PgValue::Null, "UUID") => query.bind(Option::<uuid::Uuid>::None),
+            (PgValue::Null, "TIMESTAMPTZ") => {
+                query.bind(Option::<chrono::DateTime<chrono::Utc>>::None)
+            }
+            (PgValue::Null, "TIMESTAMP") => query.bind(Option::<chrono::NaiveDateTime>::None),
+            (PgValue::Null, "DATE") => query.bind(Option::<chrono::NaiveDate>::None),
+            (PgValue::Null, "JSON" | "JSONB") => query.bind(Option::<Value>::None),
+            (PgValue::Null, _) => query.bind(Option::<String>::None),
+            (PgValue::Text(value), _) => query.bind(value.clone()),
+            (PgValue::Int64(value), _) => query.bind(*value),
+            (PgValue::Float64(value), _) => query.bind(*value),
+            (PgValue::Bool(value), _) => query.bind(*value),
+            (PgValue::TextArray(values), _) => query.bind(values.clone()),
         };
     }
 
@@ -357,9 +496,28 @@ fn decode_column(
     index: usize,
     type_name: &str,
 ) -> Result<ColumnValue, PgError> {
+    use sqlx_core::column::Column as _;
     use sqlx_core::row::Row as _;
 
+    if matches!(
+        row.columns()[index].type_info().kind(),
+        sqlx_postgres::PgTypeKind::Enum(_)
+    ) {
+        return row
+            .try_get_unchecked::<String, _>(index)
+            .map(ColumnValue::Text)
+            .map_err(|error| PgError::new(error.to_string()));
+    }
+
     let decoded = match type_name {
+        // Scope-setting functions return VOID, which sqlx cannot decode as text.
+        "VOID" => return Ok(ColumnValue::Null),
+        "UUID" => row
+            .try_get::<uuid::Uuid, _>(index)
+            .map(|value| ColumnValue::Text(value.to_string())),
+        "UUID[]" => row.try_get::<Vec<uuid::Uuid>, _>(index).map(|values| {
+            ColumnValue::TextArray(values.into_iter().map(|value| value.to_string()).collect())
+        }),
         "BOOL" => row.try_get::<bool, _>(index).map(ColumnValue::Bool),
         "INT2" => row
             .try_get::<i16, _>(index)
@@ -389,7 +547,7 @@ fn decode_column(
         "DATE" => row
             .try_get::<chrono::NaiveDate, _>(index)
             .map(|value| ColumnValue::Text(value.format("%Y-%m-%d").to_string())),
-        "TEXT[]" | "VARCHAR[]" | "BPCHAR[]" | "NAME[]" | "UUID[]" => row
+        "TEXT[]" | "VARCHAR[]" | "BPCHAR[]" | "NAME[]" => row
             .try_get::<Vec<String>, _>(index)
             .map(ColumnValue::TextArray),
         "INT2[]" | "INT4[]" | "INT8[]" => {

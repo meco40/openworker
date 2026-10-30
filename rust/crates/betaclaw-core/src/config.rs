@@ -208,13 +208,10 @@ impl GatewayConfig {
     /// Secure cookie naming follows `next-auth/jwt`: the `__Secure-` prefix is
     /// used when the configured `NEXTAUTH_URL` is served over HTTPS.
     pub fn session_cookie_names(&self) -> Vec<String> {
-        let secure = self.nextauth_url.starts_with("https://");
-        let primary = if secure {
-            "__Secure-next-auth.session-token"
-        } else {
-            "next-auth.session-token"
-        };
-        vec![primary.to_string()]
+        vec![
+            crate::auth::session_cookie_name(crate::auth::use_secure_cookies(&self.nextauth_url))
+                .to_string(),
+        ]
     }
 }
 

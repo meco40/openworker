@@ -108,64 +108,10 @@ use super::repository::SqliteMemoryRepository;
 /// (`sqliteMemoryRepository.ts:54-55`).
 pub use super::repository::default_memory_db_path;
 
-/// `Mem0Client` from `src/server/memory/mem0/types.ts:90-108`.
-///
-/// The eight operations are the provider contract every backend implements; the
-/// `scope` parameters of [`Self::get_memory_history`], [`Self::update_memory`]
-/// and [`Self::delete_memory`] are optional because the interface declares them
-/// optional, and [`Self::provider`] has a default because
-/// `HttpMem0Client` does not declare itself (see
-/// [`MemoryProviderKind`](crate::memory::types::MemoryProviderKind)).
-///
-/// Methods are synchronous here; see the module header.
-pub trait Mem0Client {
-    /// `readonly provider?: MemoryProviderKind` — `mem0/types.ts:92`.
-    ///
-    /// `None` means "does not declare itself", which the runtime maps to `mem0`.
-    fn provider(&self) -> Option<MemoryProviderKind> {
-        None
-    }
-
-    /// `addMemory(input, signal?)` — `mem0/types.ts:93-96`.
-    fn add_memory(&self, input: &Mem0MemoryInput) -> Result<Mem0AddResult, MemoryError>;
-
-    /// `searchMemories(input)` — `mem0/types.ts:97`.
-    fn search_memories(&self, input: &Mem0SearchInput) -> Result<Vec<Mem0SearchHit>, MemoryError>;
-
-    /// `listMemories(input)` — `mem0/types.ts:98`.
-    fn list_memories(&self, input: &Mem0ListInput) -> Result<Mem0ListMemoryResult, MemoryError>;
-
-    /// `getMemory(id, scope?)` — `mem0/types.ts:99`.
-    fn get_memory(
-        &self,
-        id: &str,
-        scope: Option<&Mem0Scope>,
-    ) -> Result<Option<Mem0MemoryRecord>, MemoryError>;
-
-    /// `getMemoryHistory(id, scope?)` — `mem0/types.ts:100`.
-    fn get_memory_history(
-        &self,
-        id: &str,
-        scope: Option<&Mem0Scope>,
-    ) -> Result<Vec<Mem0HistoryEntry>, MemoryError>;
-
-    /// `updateMemory(id, input, scope?)` — `mem0/types.ts:101`.
-    fn update_memory(
-        &self,
-        id: &str,
-        input: &Mem0MemoryInput,
-        scope: Option<&Mem0Scope>,
-    ) -> Result<(), MemoryError>;
-
-    /// `deleteMemory(id, scope?)` — `mem0/types.ts:102`.
-    fn delete_memory(&self, id: &str, scope: Option<&Mem0Scope>) -> Result<(), MemoryError>;
-
-    /// `deleteMemoriesByFilter(input)` — `mem0/types.ts:103-107`.
-    fn delete_memories_by_filter(
-        &self,
-        input: &Mem0DeleteByFilterInput,
-    ) -> Result<i64, MemoryError>;
-}
+// The `Mem0Client` contract lives in `crate::memory::types` (open point OP-15).
+// It is re-exported here under its original path so existing callers and
+// `crate::memory::sqlite::client` imports keep working unchanged.
+pub use crate::memory::types::Mem0Client;
 
 /// `SqliteMemoryClient` from `sqliteMemoryClient.ts:88-91`.
 pub struct SqliteMemoryClient {

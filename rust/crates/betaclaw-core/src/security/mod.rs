@@ -4,6 +4,8 @@
 //! expose the effective security posture to the UI, so their field names and
 //! thresholds are part of the API contract.
 
+pub mod file_access;
+pub mod path_boundary;
 pub mod policy;
 pub mod status;
 
