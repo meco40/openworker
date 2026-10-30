@@ -277,6 +277,8 @@ jobs:
           WORKSPACE_ROOT="$SCRATCH" \
           GATEWAY_CONFIG_DB_PATH="$SCRATCH/.local/gateway-config.db" \
           LOGS_DB_PATH="$SCRATCH/.local/logs.db" \
+          MEMORY_PROVIDER=sqlite \
+          MEMORY_DB_PATH="$SCRATCH/.local/memory.db" \
           ./rust/target/release/betaclaw-gateway &
           GATEWAY_PID=$!
           cleanup() { kill "$GATEWAY_PID" 2>/dev/null || true; rm -rf "$SCRATCH"; }
