@@ -117,8 +117,11 @@ const DATABASE_URL_VARS = [
   'DATABASE_URL',
 ];
 
+// Returns the docker arguments and the environment of the docker process. Values never
+// go into argv: a process listing would show the database password in the URLs.
 function worldModelDockerEnv(isWindows) {
   const args = [];
+  const env = {};
   for (const name of WORLD_MODEL_FLAGS) {
     // Name only: docker copies the value, and skips the variable when it is unset.
     args.push('-e', name);
@@ -127,12 +130,12 @@ function worldModelDockerEnv(isWindows) {
     const raw = (process.env[name] || '').trim();
     if (!raw) continue;
     // Inside the container, loopback is the container itself, not the host database.
-    const url = isWindows
+    env[name] = isWindows
       ? raw.replace(/@(127\.0\.0\.1|localhost)(:\d+)?\//, '@host.docker.internal$2/')
       : raw;
-    args.push('-e', `${name}=${url}`);
+    args.push('-e', name);
   }
-  return args;
+  return { args, env };
 }
 
 /**
@@ -184,6 +187,7 @@ function startRustGateway(port, isStaticMode, staticDir) {
         isStaticMode && fs.existsSync(staticDir)
           ? ['-v', `${staticDir.replace(/\\/g, '/')}:/app/out:ro`]
           : [];
+      const worldModel = worldModelDockerEnv(isWindows);
       const dockerArgs = [
         'run',
         '--rm',
@@ -223,10 +227,13 @@ function startRustGateway(port, isStaticMode, staticDir) {
         'BETACLAW_WORKSPACE_CLEANUP',
         '-e',
         'BETACLAW_UI_MODE',
-        ...worldModelDockerEnv(isWindows),
+        ...worldModel.args,
         'betaclaw-gateway-local',
       ];
-      proc = spawn('docker', dockerArgs, { stdio: 'inherit' });
+      proc = spawn('docker', dockerArgs, {
+        stdio: 'inherit',
+        env: { ...process.env, ...worldModel.env },
+      });
       viaDocker = true;
     } else {
       console.error(
