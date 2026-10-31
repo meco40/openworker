@@ -77,7 +77,7 @@ pub fn percentile(input: &[f64], p: f64) -> f64 {
         return 0.0;
     }
     let mut sorted = input.to_vec();
-    sorted.sort_by(|a, b| a.partial_cmp(b).expect("finite inputs"));
+    sorted.sort_by(f64::total_cmp);
     let raw = (p / 100.0 * sorted.len() as f64).ceil() - 1.0;
     let index = raw.max(0.0).min(sorted.len() as f64 - 1.0) as usize;
     to_fixed(sorted[index], 2)

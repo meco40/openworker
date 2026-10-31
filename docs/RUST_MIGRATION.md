@@ -228,6 +228,45 @@ fassen Memory, Knowledge und Stats an und gehören in S5 bis S7.
 
 ## 7. Fortschrittsnotizen
 
+### 2026-10-31 — Fehlerprüfung nach rust-review, CI-Reparaturen
+
+Gezieltes Review des Rust-Workspace nach dem BeautifulRust-Skill `rust-review`
+(Panics auf erreichbaren Pfaden, `unsafe`, Locks über `.await`, Abbruchsicherheit).
+Kein `unsafe` im Workspace. Die übrigen `unwrap`/`expect` außerhalb von Tests sind
+statische Regex, Mutex-Poisoning oder vorher geprüfte Invarianten.
+
+- `routes/auth.rs`: Ein relativer `callbackUrl` mit Nicht-ASCII-, Leer- oder
+  Steuerzeichen (etwa `/ä`) ging roh in den `Location`-Header, und
+  `parse().unwrap()` panickte. `post_signout` braucht dafür nur ein CSRF-Token.
+  `sanitize_callback_url` kodiert diese Bytes jetzt prozentual, wie es next-auth über
+  `new URL(callbackUrl, baseUrl)` tut. Test in `test_sanitize_callback_url`.
+- `world_model/outbox_dispatcher.rs`: `dispatch_in_flight` wurde nur nach einem
+  regulär beendeten Dispatch zurückgesetzt. `stop()` bricht den Timer-Task per `abort()`
+  ab. Traf das einen laufenden Dispatch, lieferte nach einem neuen `start()` jeder
+  Dispatch `0`. Ein Drop-Guard bildet jetzt das `finally` aus `outboxDispatcher.ts:83-85`
+  nach. Test `an_unwinding_dispatch_clears_the_in_flight_flag`.
+- `knowledge/runtime_loop.rs`: Derselbe Guard für `in_flight` (`finally` in
+  `runtimeLoop.ts`). Vorher übersprang ein panickender Tick alle weiteren.
+- `master/metrics.rs`: `percentile` sortiert mit `f64::total_cmp` statt
+  `partial_cmp(..).expect(..)`.
+- CI: Die Playwright-Jobs (`e2e-browser.yml`, `async-quality.yml`) laufen auf
+  `ubuntu-24.04`. `ubuntu-latest` zeigt seit 2026-10-19 auf Ubuntu 26.04, das
+  Playwrights Chromium nicht unterstützt. Die generierten Fixture-Verzeichnisse stehen
+  in `.prettierignore`, weil lint-staged die Gemini-Fixture umformatierte und der
+  CI-Frischecheck daran scheiterte. Die synthetischen Testwerte der Rust-Tests stehen
+  exakt in der gitleaks-Allowlist.
+
+Gates:
+
+- Rust: `fmt:check` und `clippy -D warnings` exit 0. `cargo test`: 2990 (Core), 528
+  (Gateway), 9, 1, 10 bestanden, 0 fehlgeschlagen.
+- TS: `typecheck`, `lint`, `format:check` exit 0. `vitest run`: 630 Dateien, 3396 Tests
+  bestanden, 52 übersprungen.
+
+Nicht gelaufen: E2E-Lanes und Route-Parität lokal (keine betroffene Route außer dem
+Header-Wert von `auth`). Der Runner-Pin für Playwright ist erst durch den nächsten
+CI-Lauf belegt.
+
 ### 2026-10-30 — Host-Dev-Stack, Embeddings und semantischer Memory-Recall
 
 - **Dev-Stack mit Watcher**: Mit `cargo` auf dem Host baut `pnpm run dev` Gateway und Scheduler

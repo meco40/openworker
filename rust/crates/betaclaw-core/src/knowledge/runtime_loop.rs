@@ -46,6 +46,15 @@ struct Shared {
     tick_count: AtomicU64,
 }
 
+/// Clears an in-flight flag when dropped, including on cancellation and unwinding.
+struct InFlightReset<'a>(&'a AtomicBool);
+
+impl Drop for InFlightReset<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
+
 impl Shared {
     /// `tick()` (`runtimeLoop.ts:43-62`). A tick that finds a previous one still
     /// running returns at once.
@@ -53,6 +62,9 @@ impl Shared {
         if self.in_flight.swap(true, Ordering::SeqCst) {
             return;
         }
+        // The `finally { this.inFlight = false; }` of the source. A guard, so a
+        // panicking task does not leave every later tick skipped.
+        let _in_flight = InFlightReset(&self.in_flight);
         let count = self.tick_count.fetch_add(1, Ordering::SeqCst) + 1;
 
         match (self.options.run_ingestion)().await {
@@ -65,7 +77,6 @@ impl Shared {
             }
             Err(error) => warn!(error = %error, "[knowledge] ingestion tick failed"),
         }
-        self.in_flight.store(false, Ordering::SeqCst);
     }
 
     /// `runMaintenance()` (`runtimeLoop.ts:64-86`). Each task is independent: a

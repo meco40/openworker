@@ -118,7 +118,7 @@ pub fn sanitize_callback_url(raw: Option<&str>, base_url: &str) -> String {
         return format!("{base_url}/");
     }
     if trimmed.starts_with('/') && !trimmed.starts_with("//") && !trimmed.starts_with("/\\") {
-        return format!("{base_url}{trimmed}");
+        return format!("{base_url}{}", encode_unsafe_url_bytes(trimmed));
     }
     if let Ok(parsed) = url::Url::parse(trimmed) {
         if let Ok(base_parsed) = url::Url::parse(base_url) {
@@ -128,6 +128,21 @@ pub fn sanitize_callback_url(raw: Option<&str>, base_url: &str) -> String {
         }
     }
     format!("{base_url}/")
+}
+
+/// Percent-encodes controls, space, DEL and non-ASCII bytes, as the WHATWG URL
+/// serialiser behind next-auth's `new URL(callbackUrl, baseUrl)` does. Without
+/// it a relative callback such as `/ä` cannot become a `Location` header value.
+fn encode_unsafe_url_bytes(path: &str) -> String {
+    let mut out = String::with_capacity(path.len());
+    for byte in path.bytes() {
+        if (0x21..0x7f).contains(&byte) {
+            out.push(char::from(byte));
+        } else {
+            out.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    out
 }
 
 #[derive(Default)]
@@ -717,6 +732,12 @@ mod tests {
             sanitize_callback_url(Some("/chat?id=123"), base),
             "http://127.0.0.1:3000/chat?id=123"
         );
+
+        // Bytes a header value cannot carry are percent-encoded, so the
+        // result always parses as a `Location` value instead of panicking.
+        let encoded = sanitize_callback_url(Some("/chat/ä b\u{7f}"), base);
+        assert_eq!(encoded, "http://127.0.0.1:3000/chat/%C3%A4%20b%7F");
+        assert!(encoded.parse::<axum::http::HeaderValue>().is_ok());
 
         // Valid absolute URL with identical origin
         assert_eq!(

@@ -212,11 +212,12 @@ impl OutboxDispatcher {
         if self.dispatch_in_flight.swap(true, Ordering::AcqRel) {
             return Ok(0);
         }
-        let result = self
-            .dispatch_claimed(scope, batch_size.unwrap_or(self.batch_size))
-            .await;
-        self.dispatch_in_flight.store(false, Ordering::Release);
-        result
+        // The `finally { dispatchInFlight = false; }` of `:83-85`. A guard instead of a
+        // plain store, so the flag is also cleared when `stop` aborts the timer task
+        // mid-dispatch or a handler panics; otherwise every later dispatch returns 0.
+        let _in_flight = InFlightReset(&self.dispatch_in_flight);
+        self.dispatch_claimed(scope, batch_size.unwrap_or(self.batch_size))
+            .await
     }
 
     async fn dispatch_claimed(
@@ -422,6 +423,15 @@ impl OutboxDispatcher {
     }
 }
 
+/// Clears an in-flight flag when dropped, including on cancellation and unwinding.
+struct InFlightReset<'a>(&'a AtomicBool);
+
+impl Drop for InFlightReset<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -501,6 +511,26 @@ mod tests {
                 crate::world_model::repositories::outbox_repository::SQL_MARK_DISPATCHED,
             ]
         );
+    }
+
+    #[test]
+    fn an_unwinding_dispatch_clears_the_in_flight_flag() {
+        let recorder = Arc::new(RecordingExecutor::new(vec![Ok(PgQueryResult::from_rows(
+            vec![event_row()],
+        ))]));
+        let dispatcher = dispatcher(&recorder);
+        dispatcher.register_handler(
+            "world.test",
+            Arc::new(|_event, _scope| Box::pin(async { panic!("handler bug") })),
+            None,
+        );
+
+        let unwound = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            drive_sync(dispatcher.dispatch_once(None, None))
+        }));
+
+        assert!(unwound.is_err());
+        assert!(!dispatcher.dispatch_in_flight.load(Ordering::SeqCst));
     }
 
     #[test]
