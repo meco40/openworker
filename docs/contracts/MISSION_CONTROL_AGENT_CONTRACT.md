@@ -3,7 +3,7 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Änderungen im Mission-Control-Bereich.
-- Scope: "src/modules/mission-control/**", "app/mission-control/**", "src/components/Sidebar.tsx", "src/lib/config.ts", "src/modules/app-shell/**", "app/layout.tsx", "app/globals.css", "app/icon.svg", "src/components/Dashboard.tsx", "src/components/DeliverablesList.tsx", "src/components/config/**", "src/components/planning/**", "src/lib/planning-utils.ts", "src/shared/domain/types.ts", "app/api/master/**", "src/server/master/\*\*".
+- Scope: "src/modules/mission-control/**", "app/mission-control/**", "src/components/Sidebar.tsx", "src/lib/config.ts", "src/modules/app-shell/**", "app/layout.tsx", "app/globals.css", "app/icon.svg", "src/components/Dashboard.tsx", "src/components/DeliverablesList.tsx", "src/components/config/**", "src/components/planning/**", "src/lib/planning-utils.ts", "src/shared/domain/types.ts", "app/api/master/**", "src/server/master/**", "src/components/shared/**", "src/modules/agent-room/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
 - Last Reviewed: 2026-10-09
 

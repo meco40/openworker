@@ -3,7 +3,7 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Core API.
-- Scope: "app/api/**", "src/server/**", "src/lib/db/\*\*".
+- Scope: "app/api/**", "src/server/**", "src/lib/db/**", "src/lib/events.ts", "src/lib/betaclaw/**", "src/lib/types.ts", "src/shared/eventsTypes.ts".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
 - Last Reviewed: 2026-10-08
 

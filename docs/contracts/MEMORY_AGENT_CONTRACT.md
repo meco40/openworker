@@ -3,7 +3,7 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Memory.
-- Scope: "app/api/memory/**", "src/server/memory/**", "src/core/memory/\*\*".
+- Scope: "app/api/memory/**", "src/server/memory/**", "src/core/memory/**", "src/components/MemoryView.tsx", "src/components/memory/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
 - Last Reviewed: 2026-10-08
 

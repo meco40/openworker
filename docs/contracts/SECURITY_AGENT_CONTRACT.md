@@ -3,7 +3,7 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Security.
-- Scope: "src/server/auth/**", "src/server/master/safety.ts", "src/server/skills/handlers/**".
+- Scope: "src/server/auth/**", "src/server/security/**", "src/modules/security/**", "src/server/master/safety.ts", "src/server/skills/handlers/**", "src/components/SecurityView.tsx".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
 - Last Reviewed: 2026-10-09
 

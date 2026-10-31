@@ -3,7 +3,7 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Persona Rooms.
-- Scope: "app/api/personas/**", "src/server/personas/**", "src/modules/personas/**", "src/modules/profile/**", "src/shared/personaTypes.ts", "src/lib/personalityMatrix.ts", "src/components/dashboard/PersonalityRadar.tsx".
+- Scope: "app/api/personas/**", "src/server/personas/**", "src/modules/personas/**", "src/modules/profile/**", "src/shared/personaTypes.ts", "src/lib/personalityMatrix.ts", "src/components/dashboard/PersonalityRadar.tsx", "src/components/PersonasView.tsx", "src/components/personas/**", "src/components/profile/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
 - Last Reviewed: 2026-10-09
 

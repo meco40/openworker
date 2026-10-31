@@ -103,7 +103,9 @@ export default defineConfig({
         // Coverage is a gate for the tested application core. Browser entrypoints,
         // external adapters, and operational surfaces below are validated by their
         // dedicated build/E2E or integration checks and are not part of this unit gate.
-        'components/**',
+        // Every components tree (src/components, src/skills/components); vitest 5
+        // matches 'components/**' only at the project root.
+        '**/components/**',
         'src/modules/**',
         'app/api/model-hub/**',
         'src/server/model-hub/**',
