@@ -30,13 +30,24 @@ ENV CARGO_HOME=/cache/.cargo
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 COPY rust/Cargo.toml rust/Cargo.lock rust/rust-toolchain.toml /workspace/rust/
+# One manifest per workspace crate (`members = ["crates/*"]`); each library
+# crate gets an empty placeholder `lib.rs`.
+COPY rust/crates/betaclaw-base/Cargo.toml /workspace/rust/crates/betaclaw-base/
+COPY rust/crates/betaclaw-model-hub/Cargo.toml /workspace/rust/crates/betaclaw-model-hub/
+COPY rust/crates/betaclaw-store/Cargo.toml /workspace/rust/crates/betaclaw-store/
+COPY rust/crates/betaclaw-world-model/Cargo.toml /workspace/rust/crates/betaclaw-world-model/
+COPY rust/crates/betaclaw-memory/Cargo.toml /workspace/rust/crates/betaclaw-memory/
+COPY rust/crates/betaclaw-knowledge/Cargo.toml /workspace/rust/crates/betaclaw-knowledge/
+COPY rust/crates/betaclaw-skills/Cargo.toml /workspace/rust/crates/betaclaw-skills/
+COPY rust/crates/betaclaw-channels/Cargo.toml /workspace/rust/crates/betaclaw-channels/
+COPY rust/crates/betaclaw-master/Cargo.toml /workspace/rust/crates/betaclaw-master/
+COPY rust/crates/betaclaw-features/Cargo.toml /workspace/rust/crates/betaclaw-features/
 COPY rust/crates/betaclaw-core/Cargo.toml /workspace/rust/crates/betaclaw-core/
 COPY rust/crates/betaclaw-gateway/Cargo.toml /workspace/rust/crates/betaclaw-gateway/
-RUN mkdir -p /workspace/rust/crates/betaclaw-core/src /workspace/rust/crates/betaclaw-gateway/src/bin \
-    && : > /workspace/rust/crates/betaclaw-core/src/lib.rs \
+RUN for crate in /workspace/rust/crates/*/; do mkdir -p "$crate/src" && : > "$crate/src/lib.rs"; done \
+    && mkdir -p /workspace/rust/crates/betaclaw-gateway/src/bin \
     && printf 'fn main() {}\n' > /workspace/rust/crates/betaclaw-gateway/src/main.rs \
     && printf 'fn main() {}\n' > /workspace/rust/crates/betaclaw-gateway/src/bin/betaclaw-scheduler.rs \
-    && : > /workspace/rust/crates/betaclaw-gateway/src/lib.rs \
     && cd /workspace/rust \
     && cargo build --release --locked 2>&1 | tail -5
 

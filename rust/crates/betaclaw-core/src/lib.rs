@@ -3,49 +3,26 @@
 //! Everything in this crate is a port of an existing TypeScript module and must
 //! stay behaviour-compatible. Each module names the TypeScript source it mirrors
 //! so contract drift is traceable in review.
+//!
+//! The domains live in their own crates so a change rebuilds only the crate it
+//! touches and its dependents. This crate re-exports them under their old
+//! `betaclaw_core::<module>` paths and keeps the two modules that depend on
+//! nearly every domain.
 
-pub mod agent_room;
-pub mod agent_v2;
-pub mod agents;
-pub mod auth;
-pub mod automation;
-pub mod channels;
-pub mod clawhub;
-pub mod config;
-pub mod db;
-pub mod debug;
+pub use betaclaw_base::{
+    auth, config, db, gateway, gateway_config, js, logging, safe_error_message,
+};
+pub use betaclaw_channels::channels;
+pub use betaclaw_features::{
+    agent_room, agent_v2, agents, automation, clawhub, debug, proactive, tasks,
+};
+pub use betaclaw_knowledge::knowledge;
+pub use betaclaw_master::master;
+pub use betaclaw_memory::memory;
+pub use betaclaw_model_hub::model_hub;
+pub use betaclaw_skills::{net_guard, security, skills};
+pub use betaclaw_store::{messages_store, personas, stats};
+pub use betaclaw_world_model::world_model;
+
 pub mod diagnostics;
-pub mod gateway;
-pub mod gateway_config;
-pub mod js;
-pub mod knowledge;
-pub mod logging;
-pub mod master;
-pub mod memory;
-pub mod messages_store;
 pub mod migration_runner;
-pub mod model_hub;
-pub mod net_guard;
-pub mod personas;
-pub mod proactive;
-pub mod security;
-pub mod skills;
-pub mod stats;
-pub mod tasks;
-pub mod world_model;
-
-/// Formats an error without ever including secret values from the environment.
-///
-/// The TypeScript backend logs error objects directly; several of them can carry
-/// request headers. This helper is used wherever an error crosses a log boundary.
-pub fn safe_error_message(error: &dyn std::fmt::Display) -> String {
-    let text = error.to_string();
-    let mut out = String::with_capacity(text.len());
-    for line in text.lines() {
-        if !out.is_empty() {
-            out.push(' ');
-        }
-        out.push_str(line.trim_end());
-    }
-    out
-}

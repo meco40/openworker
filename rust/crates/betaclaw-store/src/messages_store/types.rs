@@ -687,7 +687,7 @@ mod tests {
         assert_eq!(LEGACY_LOCAL_USER_ID, "legacy-local-user");
         assert_ne!(
             LEGACY_LOCAL_USER_ID,
-            crate::auth::LEGACY_LOCAL_USER_ID,
+            betaclaw_base::auth::LEGACY_LOCAL_USER_ID,
             "the Rust auth constant still carries the older `local-user` value"
         );
     }

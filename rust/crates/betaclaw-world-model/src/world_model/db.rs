@@ -440,7 +440,8 @@ pub async fn scoped_query<E: From<PgError> + Send + 'static>(
     .await
 }
 
-#[cfg(test)]
+// `test-support` exposes the double to the knowledge crate's tests.
+#[cfg(any(test, feature = "test-support"))]
 pub mod testing {
     //! The recording double every ported repository test uses.
     //!

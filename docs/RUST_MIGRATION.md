@@ -1,7 +1,7 @@
 # Backend-Migration nach Rust
 
 Status: Rust-Backend mit lokalen Abnahmen; externe Produktionsfreigabe nicht belegt · Worktree `E:\web\clawtest-rust` (Branch `rust`)
-Letzte Aktualisierung: 2026-10-29
+Letzte Aktualisierung: 2026-10-31
 
 Ziel: Das produktive Backend gehört Rust. HTTP, WebSocket, Auth, Geschäftslogik,
 Datenzugriff, Integrationen sowie Scheduler und Hintergrundjobs. Next.js/React/TypeScript
@@ -227,6 +227,58 @@ fassen Memory, Knowledge und Stats an und gehören in S5 bis S7.
    erzeugten Statements.
 
 ## 7. Fortschrittsnotizen
+
+### 2026-10-31 — Workspace aufgeteilt, rust-lld, `rust:check`
+
+Ziel: kürzere Dev-Builds. `betaclaw-core` war ein Crate mit 207.354 Zeilen; jede Änderung
+darin hat das ganze Crate und danach das Gateway neu gebaut.
+
+- **Crate-Split:** Die Module liegen per `git mv` unverändert in zehn neuen Crates
+  (`members = ["crates/*"]`): `betaclaw-base` (auth, config, db, gateway, gateway_config, js,
+  logging, `safe_error_message`), `-model-hub`, `-store` (stats, personas, messages_store),
+  `-world-model`, `-memory`, `-knowledge`, `-skills` (skills, security, net_guard),
+  `-channels`, `-master`, `-features` (agent_room, agent_v2, agents, automation, clawhub,
+  debug, proactive, tasks). Die Modulzyklen auth↔config und skills↔security bleiben jeweils
+  in einem Crate. `betaclaw-core` ist Fassade: es re-exportiert alle Module unter
+  `betaclaw_core::<modul>` und behält `diagnostics` und `migration_runner`. Das Gateway ist
+  unverändert. Jedes `lib.rs` importiert die Nachbarmodule, deshalb gelten die
+  `crate::<modul>`-Pfade weiter.
+- **Nötige Code-Änderungen:** `string_enum!` ist `#[macro_export]` (clawhub nutzt es aus
+  `betaclaw-store`). `PgQueryResult::first_id` ist eine freie Funktion in
+  `memory/postgres.rs`, weil der Typ im World-Model-Crate liegt. `world_model::db::testing`
+  ist zusätzlich über das Feature `test-support` sichtbar; `betaclaw-knowledge` aktiviert es
+  nur als Dev-Abhängigkeit. Test-Abhängigkeiten stehen unter `[dev-dependencies]`.
+- **Linker:** `rust/.cargo/config.toml` setzt für `x86_64-pc-windows-msvc` `rust-lld.exe`.
+  Linux und Container sind nicht betroffen.
+- **`pnpm run rust:check`:** Host-`cargo check` über alle Crates und Tests, ohne Codegen und
+  Linken.
+- **Dockerfile:** Die Dependency-Stage kopiert alle zwölf Manifeste und legt die Platzhalter
+  in einer Schleife an.
+
+Messung (Dev-Profil, Windows-Host, 12 Threads, beide Binaries, je eine neue Funktion in
+der genannten Datei):
+
+| Änderung in                  | Build vorher | Build nachher | `cargo check` vorher | nachher |
+| ---------------------------- | ------------ | ------------- | -------------------- | ------- |
+| `betaclaw-gateway` `main.rs` | 15,6 s       | 2,8 s         | 0,9 s                | 0,8 s   |
+| `channels/mod.rs`            | 14,6 s       | 7,9 s         | 10,6 s               | 4,2 s   |
+| `master/mod.rs`              | ca. 14,6 s¹  | 8,8 s         | ca. 10 s¹            | 4,5 s   |
+| `model_hub/mod.rs`           | 14,9 s       | 13,1 s        | 9,6 s                | 8,2 s   |
+| Clean-Build                  | 285,6 s      | 253,3 s       | —                    | —       |
+
+¹ Vorher lag `master` im selben Crate wie `channels`; nicht einzeln gemessen.
+
+rust-lld allein (vor dem Split) brachte die Gateway-Änderung von 15,6 s auf 2,9 s, bei
+Core-Änderungen fast nichts. Der Split halbiert Änderungen in oberen Crates. `model_hub`
+liegt weit unten und zieht fast alle Crates nach; dort bleibt der Gewinn klein.
+
+Gates: Rust fmt, clippy (`--all-targets --features test-support -D warnings`) und
+`cargo test --locked --features test-support` im Container `rust:1.94-bookworm` grün,
+3540 Tests bestanden, 0 fehlgeschlagen. Die Zahl der Test-Attribute ist gleich wie vorher
+(3539). Auf dem Windows-Host melden `skills/process_manager.rs` und
+`skills/shell_execute.rs` ungenutzte Imports in `#[cfg(unix)]`-Tests; das bestand schon
+vorher und betrifft den Linux-Gate nicht. `pnpm run rust:build` (Release-Image mit neuer
+Dependency-Stage) erfolgreich.
 
 ### 2026-10-31 — Branches und Worktrees konsolidiert
 

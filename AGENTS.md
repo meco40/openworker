@@ -93,8 +93,12 @@ pnpm run dev:import-legacy   # once, with the stack stopped: personas, conversat
 With `cargo` on the host (toolchain pinned in `rust/rust-toolchain.toml`), `pnpm run dev`
 builds gateway and scheduler with the incremental dev profile, runs copies from
 `.local/rust-dev/bin` and rebuilds and restarts both when a file below `rust/crates`
-changes (about 10 to 20 seconds; the first build takes a few minutes). A failed build
-keeps the running processes. Without `cargo` the stack uses the release binary or the
+changes (a few seconds for an edit in the gateway, longer when a lower crate changes;
+the first build takes a few minutes). A failed build keeps the running processes.
+On Windows, `rust/.cargo/config.toml` links with `rust-lld.exe` from the pinned
+toolchain instead of MSVC `link.exe`. For the inner edit loop, use
+`pnpm run rust:check` (host `cargo check` over all crates and tests, no codegen, no
+linking) and build only when the binaries are needed. Without `cargo` the stack uses the release binary or the
 container image (`pnpm run rust:build`). The host gateway keeps its own stores in
 `.local/rust-dev` (`scripts/dev-host-data.mjs`); the Node-era files directly in `.local`
 stay untouched. Loopback requests need no login: the anonymous principal is the admin
@@ -163,6 +167,14 @@ is in progress:
 
 - Do not add a Rust dependency when an existing crate in the workspace already
   covers the need. Check `rust/Cargo.toml` first.
+- The domains live in separate workspace crates (`rust/crates/betaclaw-*`, layered
+  base → model-hub → store → world-model → memory → knowledge/skills → channels,
+  with master and features beside them). `betaclaw-core` is a facade that
+  re-exports them as `betaclaw_core::<module>`; the gateway imports through it.
+  Each crate's `lib.rs` re-exports its sibling modules, so `crate::<module>` paths
+  keep working. Put new code in the lowest crate that owns the domain and never
+  add a dependency from a lower crate to a higher one. A new crate also needs a
+  `COPY` line in `docker/Dockerfile.gateway`.
 - Port behaviour, not just signatures. Every Rust module names the TypeScript
   file it mirrors so drift is reviewable.
 - Verify foreign details instead of assuming them. Session cookies are checked

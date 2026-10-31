@@ -11,6 +11,9 @@
 use serde::Serialize;
 
 /// A closed set of strings that the TypeScript side stores verbatim.
+///
+/// Exported at the crate root, so `betaclaw-features` (`clawhub`) can use it too.
+#[macro_export]
 macro_rules! string_enum {
     ($name:ident { $($variant:ident = $text:literal),+ $(,)? }) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, ::serde::Serialize)]
@@ -37,9 +40,6 @@ macro_rules! string_enum {
         }
     };
 }
-
-// Path-based re-export, so `clawhub` can use the same macro.
-pub(crate) use string_enum;
 
 pub mod engineering_metrics;
 pub mod engineering_metrics_service;

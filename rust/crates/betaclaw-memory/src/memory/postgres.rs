@@ -229,17 +229,17 @@ type ScopedBody<T> =
     Box<dyn FnOnce(Arc<dyn PgSession>) -> BoxFuture<'static, Result<T, MemoryError>> + Send>;
 
 /// `result.rows[0]?.id` — `postgresMemoryClient.ts:182`, `:192`, `:221`, `:240`.
-impl PgQueryResult {
-    /// The first row's `id` as text, or `None` when there is no row or no id.
-    ///
-    /// The memory-only extension of [`crate::world_model::db::PgQueryResult`]
-    /// (see the note above); `first()` itself comes from the World-Model module.
-    pub fn first_id(&self) -> Option<String> {
-        self.first()
-            .and_then(|row| row.get("id"))
-            .map(|value| js_string(Some(value)))
-            .filter(|id| !id.is_empty())
-    }
+///
+/// The first row's `id` as text, or `None` when there is no row or no id. The
+/// memory-only extension of [`crate::world_model::db::PgQueryResult`] (see the
+/// note above); `first()` itself comes from the World-Model module. A free
+/// function, because the type lives in the `betaclaw-world-model` crate.
+fn first_id(result: &PgQueryResult) -> Option<String> {
+    result
+        .first()
+        .and_then(|row| row.get("id"))
+        .map(|value| js_string(Some(value)))
+        .filter(|id| !id.is_empty())
 }
 
 // The seam traits (`PgSession`, `PgExecutor`) and `UnconfiguredPgExecutor` now
@@ -1445,7 +1445,7 @@ async fn insert_new_memory(
         let existing = session
             .query(PgStatement::with_params(SQL_ADD_MEMORY_IDEMPOTENCY, params))
             .await?;
-        if let Some(id) = existing.first_id() {
+        if let Some(id) = first_id(&existing) {
             return Ok(Mem0AddResult::existing(id));
         }
     }
@@ -1460,7 +1460,7 @@ async fn insert_new_memory(
         let existing = session
             .query(PgStatement::with_params(SQL_ADD_MEMORY_LEGACY, params))
             .await?;
-        if let Some(id) = existing.first_id() {
+        if let Some(id) = first_id(&existing) {
             return Ok(Mem0AddResult::existing(id));
         }
     }
@@ -1483,7 +1483,7 @@ async fn insert_new_memory(
         .await?;
 
     // `if (!inserted.rows[0]?.id)` — `:221`.
-    let Some(inserted_id) = inserted.first_id() else {
+    let Some(inserted_id) = first_id(&inserted) else {
         let mut params = scope_params(&scope);
         params.push(PgValue::nullable_text(item.idempotency_key.clone()));
         params.push(PgValue::nullable_text(item.legacy_provider.clone()));
@@ -1491,7 +1491,7 @@ async fn insert_new_memory(
         let conflict = session
             .query(PgStatement::with_params(SQL_ADD_MEMORY_CONFLICT, params))
             .await?;
-        return match conflict.first_id() {
+        return match first_id(&conflict) {
             Some(id) => Ok(Mem0AddResult::existing(id)),
             None => Err(MemoryError::message(UNKNOWN_INSERT_CONFLICT)),
         };

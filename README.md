@@ -236,8 +236,19 @@ pnpm run start
 ├── app/                    # Next.js App Router (UI + noch nicht migrierte API)
 ├── rust/                   # Rust-Backend (axum)
 │   └── crates/
-│       ├── betaclaw-core/  # Domänenlogik: Auth, Gateway-Protokoll, SQLite, Security
-│       └── betaclaw-gateway/# axum-Server, Reverse-Proxy, WebSocket-Upgrade, Routen
+│       ├── betaclaw-base/       # Auth, Config, SQLite, Gateway-Protokoll, Logging, JS-Helfer
+│       ├── betaclaw-model-hub/  # Provider, Pipeline, Account-Krypto, Embeddings
+│       ├── betaclaw-store/      # Stats, Personas, Messages-Store
+│       ├── betaclaw-world-model/# PostgreSQL-Repos, Retrieval, Projector, Outbox
+│       ├── betaclaw-memory/     # Memory-Provider (postgres, sqlite, mem0)
+│       ├── betaclaw-knowledge/  # Ingestion, Retrieval, Repos
+│       ├── betaclaw-skills/     # Skill-Handler, Exec-Freigaben, Security, Net-Guard
+│       ├── betaclaw-channels/   # Chat-Dispatch, Recall, Pairing, Bridges, WS-Protokoll
+│       ├── betaclaw-master/     # Runs, Approvals, Notes, Reminders, Connectors
+│       ├── betaclaw-features/   # Agents, Agent-Room, Agent-v2, Automation, Clawhub, Tasks, …
+│       ├── betaclaw-core/       # Fassade: re-exportiert alle Domänen als betaclaw_core::*,
+│       │                        # dazu diagnostics und migration_runner
+│       └── betaclaw-gateway/    # axum-Server, Reverse-Proxy, WebSocket-Upgrade, Routen
 ├── src/
 │   ├── cli/               # CLI-Programme & Befehle
 │   ├── commands/          # Health-Checks & Diagnose-Befehle

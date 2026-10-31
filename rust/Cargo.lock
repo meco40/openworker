@@ -206,27 +206,89 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 
 [[package]]
-name = "betaclaw-core"
+name = "betaclaw-base"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "base64 0.23.1",
  "chrono",
- "chrono-tz",
- "futures-util",
  "getrandom 0.4.3",
  "hkdf",
- "http",
- "regex",
- "ring",
  "rusqlite",
  "scrypt",
  "serde",
  "serde_json",
  "sha2",
- "sqlx-core",
- "sqlx-postgres",
  "subtle",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "betaclaw-channels"
+version = "0.1.0"
+dependencies = [
+ "base64 0.23.1",
+ "betaclaw-base",
+ "betaclaw-memory",
+ "betaclaw-model-hub",
+ "betaclaw-skills",
+ "betaclaw-store",
+ "betaclaw-world-model",
+ "chrono",
+ "futures-util",
+ "getrandom 0.4.3",
+ "http",
+ "regex",
+ "serde",
+ "serde_json",
+ "subtle",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "betaclaw-core"
+version = "0.1.0"
+dependencies = [
+ "betaclaw-base",
+ "betaclaw-channels",
+ "betaclaw-features",
+ "betaclaw-knowledge",
+ "betaclaw-master",
+ "betaclaw-memory",
+ "betaclaw-model-hub",
+ "betaclaw-skills",
+ "betaclaw-store",
+ "betaclaw-world-model",
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "betaclaw-features"
+version = "0.1.0"
+dependencies = [
+ "base64 0.23.1",
+ "betaclaw-base",
+ "betaclaw-store",
+ "chrono",
+ "chrono-tz",
+ "regex",
+ "ring",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
  "thiserror",
  "tokio",
  "tracing",
@@ -263,6 +325,156 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "uuid",
+]
+
+[[package]]
+name = "betaclaw-knowledge"
+version = "0.1.0"
+dependencies = [
+ "betaclaw-base",
+ "betaclaw-memory",
+ "betaclaw-store",
+ "betaclaw-world-model",
+ "chrono",
+ "chrono-tz",
+ "getrandom 0.4.3",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "betaclaw-master"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "base64 0.23.1",
+ "betaclaw-base",
+ "betaclaw-model-hub",
+ "betaclaw-store",
+ "chrono",
+ "futures-util",
+ "http",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "betaclaw-memory"
+version = "0.1.0"
+dependencies = [
+ "base64 0.23.1",
+ "betaclaw-base",
+ "betaclaw-model-hub",
+ "betaclaw-store",
+ "betaclaw-world-model",
+ "chrono",
+ "http",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "betaclaw-model-hub"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "base64 0.23.1",
+ "betaclaw-base",
+ "chrono",
+ "getrandom 0.4.3",
+ "hkdf",
+ "http",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "betaclaw-skills"
+version = "0.1.0"
+dependencies = [
+ "base64 0.23.1",
+ "betaclaw-base",
+ "betaclaw-model-hub",
+ "betaclaw-store",
+ "chrono",
+ "http",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "betaclaw-store"
+version = "0.1.0"
+dependencies = [
+ "base64 0.23.1",
+ "betaclaw-base",
+ "betaclaw-model-hub",
+ "chrono",
+ "futures-util",
+ "http",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "betaclaw-world-model"
+version = "0.1.0"
+dependencies = [
+ "betaclaw-base",
+ "betaclaw-model-hub",
+ "betaclaw-store",
+ "chrono",
+ "futures-util",
+ "http",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx-core",
+ "sqlx-postgres",
+ "thiserror",
+ "tokio",
+ "tracing",
  "uuid",
 ]
 

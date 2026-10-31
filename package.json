@@ -15,6 +15,7 @@
     "dev:scheduler": "tsx watch scheduler.ts",
     "dev:next": "next dev --turbopack -H 127.0.0.1",
     "rust:build": "docker build -f docker/Dockerfile.gateway -t betaclaw-gateway-local .",
+    "rust:check": "cargo check --manifest-path rust/Cargo.toml --workspace --all-targets --features test-support",
     "rust:test": "docker run --rm -v ./rust:/app -v betaclaw-cargo-registry:/usr/local/cargo/registry -v betaclaw-rust-target:/app/target -v betaclaw-rustup:/usr/local/rustup -w /app rust:1.94-bookworm cargo test --features test-support",
     "rust:clippy": "docker run --rm -v ./rust:/app -v betaclaw-cargo-registry:/usr/local/cargo/registry -v betaclaw-rust-target:/app/target -v betaclaw-rustup:/usr/local/rustup -w /app rust:1.94-bookworm cargo clippy --all-targets -- -D warnings",
     "rust:fmt": "docker run --rm -v ./rust:/app -v betaclaw-cargo-registry:/usr/local/cargo/registry -v betaclaw-rust-target:/app/target -v betaclaw-rustup:/usr/local/rustup -w /app rust:1.94-bookworm cargo fmt --all",

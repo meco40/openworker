@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 
-use crate::stats::string_enum;
+use betaclaw_store::string_enum;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
