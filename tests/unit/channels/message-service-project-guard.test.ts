@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '@/shared/domain/types';
 import { MessageService } from '@/server/channels/messages/service';
 import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
@@ -124,10 +124,16 @@ describe('MessageService project clarification flow', () => {
   let service: MessageService;
 
   beforeEach(() => {
+    // The clarification flow runs the original task without an approval prompt.
+    vi.stubEnv('BETACLAW_EXEC_APPROVALS_REQUIRED', 'false');
     repo = new SqliteMessageRepository(':memory:');
     service = new MessageService(repo);
     dispatchWithFallbackMock.mockClear();
     dispatchSkillMock.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   function enablePersonaConversation() {

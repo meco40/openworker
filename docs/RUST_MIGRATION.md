@@ -228,6 +228,28 @@ fassen Memory, Knowledge und Stats an und gehören in S5 bis S7.
 
 ## 7. Fortschrittsnotizen
 
+### 2026-10-31 — Branches und Worktrees konsolidiert
+
+Das Repository hat nur noch `main`. Ergebnis der Prüfung aller Zweige:
+
+- **Integriert:** die ungesicherte Arbeit im Haupt-Checkout (Refuseless und Exec-Freigaben, je
+  ein Commit) und die Tests aus `wip/main-local-changes`. Deren `vi.fn`-Mocks haben jetzt
+  Typparameter. Im Konflikt behält der Full-Flow-Test das `waitFor`-Budget von `main`.
+- **Exec-Freigaben, Nacharbeit:** Der neue Default (Freigabe aktiv) ließ drei Testdateien
+  scheitern, die ohne Freigabe ausführen: `skills-route-requests`, der Klärungsfluss in
+  `message-service-project-guard` und der Stream-Pfad in `webui-nexus-chat-stream-tools`. Sie
+  setzen `BETACLAW_EXEC_APPROVALS_REQUIRED=false` jetzt per `vi.stubEnv`.
+- **Gelöscht, weil schon in `main`:** die Lane- und Finish-Zweige von S6 bis S12
+  (`lane/*`, `finish/*`, `rust`). Sie wurden über `rust` gemergt, keine ihrer Dateien fehlt in
+  `main`. Gelöscht wurden auch `codex/publication-security` und `codex/public-release-go`
+  (lokal und auf `origin`): Lizenzdateien, Secret-Scan und die Prüfung des Beispiel-Keys sind in
+  `main`. Dazu kommen `fix/audit-2026-10-31` und die beiden `claude/backend-rust-migration-*`
+  sowie alle zugehörigen Worktrees.
+
+Gates auf dem integrierten Stand: typecheck, lint, format, check, build grün; Vitest mit
+Coverage 3547 bestanden (Branches 77,49 %); Smoke 11/11, Browser-E2E 69/69, Production-Smoke
+grün; Rust fmt, clippy und test grün.
+
 ### 2026-10-31 — Refuseless im Model Hub
 
 Refuseless ist in beiden Provider-Katalogen und Adapter-Registries ergänzt
@@ -375,7 +397,7 @@ sind damit zum Teil erledigt. Die Abschnitte bleiben als Verlauf stehen.
   durch, nur der Graphiti-Pfad ist öffentlich.
 - **Branch `wip/main-local-changes`** (`ab7774a9`): 36 Dateien, überwiegend neue Unit-Tests für
   agent-v2, channels, knowledge und master, Änderungen an `vitest.config.ts` und die Löschung von
-  `.github/workflows/openai-worker-ci.yml`. Nicht gemerged.
+  `.github/workflows/openai-worker-ci.yml`. Am 2026-10-31 nach `main` integriert (siehe dort).
 - **Telegram im Compose-Smoke**: nicht umgesetzt. Der Poller spricht `api.telegram.org`. Ein Test
   im Compose-Stack braucht entweder eine konfigurierbare Basis-URL (der Plan verbietet eine neue
   Variable dafür) oder echten Netzzugriff. Entschieden: nicht umsetzen. Der Unit-Test mit

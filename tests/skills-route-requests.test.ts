@@ -18,6 +18,8 @@ describe('skills execute route requests', () => {
   const previousPlaywrightCliPath = process.env.PLAYWRIGHT_CLI_PATH;
 
   beforeAll(async () => {
+    // These cases run the tools directly; approval gating has its own tests.
+    vi.stubEnv('BETACLAW_EXEC_APPROVALS_REQUIRED', 'false');
     const localDir = getTestArtifactsRoot();
     fs.mkdirSync(localDir, { recursive: true });
     const dbPath = path.join(localDir, 'skills.db');
@@ -114,6 +116,7 @@ describe('skills execute route requests', () => {
   });
 
   afterAll(() => {
+    vi.unstubAllEnvs();
     if (previousPlaywrightCliPath === undefined) {
       delete process.env.PLAYWRIGHT_CLI_PATH;
     } else {

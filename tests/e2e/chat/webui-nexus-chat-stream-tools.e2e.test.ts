@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType, type Conversation } from '@/shared/domain/types';
 import type { GatewayClient } from '@/server/gateway/client-registry';
 import type { MessageRepository, StoredMessage } from '@/server/channels/messages/repository';
@@ -102,6 +102,15 @@ function buildRepository(personaId: string | null): MessageRepository {
 }
 
 describe('webui chat.stream persona nexus tool e2e', () => {
+  // The stream path runs tools directly; approval gating has its own tests.
+  beforeEach(() => {
+    vi.stubEnv('BETACLAW_EXEC_APPROVALS_REQUIRED', 'false');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('runs shell_execute end-to-end through gateway stream path', async () => {
     vi.resetModules();
 
